@@ -1,0 +1,13 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  language:
+    strict-casts: true
+    strict-inference: true
+    strict-raw-types: true
+  errors:
+    dead_code: error
+    unused_import: error
+    unused_local_variable: error
+    non_exhaustive_switch_expression: error
+    non_exhaustive_switch_statement: error

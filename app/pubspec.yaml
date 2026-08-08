@@ -9,6 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  domain:
+    path: ../packages/domain
 
 dev_dependencies:
   flutter_test:
