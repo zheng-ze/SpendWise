@@ -2,6 +2,7 @@ import 'package:decimal/decimal.dart';
 import 'package:domain/src/account.dart';
 import 'package:domain/src/account_type.dart';
 import 'package:domain/src/entry.dart';
+import 'package:domain/src/ids.dart';
 import 'package:domain/src/ledger_change.dart';
 import 'package:domain/src/ledger_error.dart';
 import 'package:domain/src/lifecycle_state.dart';
@@ -63,7 +64,8 @@ class LedgerState {
     return [UpsertAccount(stored)];
   }
 
-  List<LedgerChange> addPocket(SubPocket pocket, String accountID) {
+  List<LedgerChange> addPocket(SubPocket pocket, String rawAccountID) {
+    final accountID = canonicalID(rawAccountID);
     final parent = moneySources[accountID]?.asAccount;
     if (parent == null) throw UnknownAccount(accountID);
     if (moneySources.containsKey(pocket.id)) throw IdCollision(pocket.id);
@@ -109,9 +111,10 @@ class LedgerState {
 
   List<LedgerChange> setOpeningBalance(
     Decimal amount,
-    String holderID, {
+    String rawHolderID, {
     DateTime? date,
   }) {
+    final holderID = canonicalID(rawHolderID);
     if (!moneySources.containsKey(holderID)) throw UnknownHolder(holderID);
     if (amount == Decimal.zero) return [];
 
@@ -126,7 +129,8 @@ class LedgerState {
     );
   }
 
-  List<LedgerChange> deleteEntry(String id) {
+  List<LedgerChange> deleteEntry(String rawID) {
+    final id = canonicalID(rawID);
     final removed = entries.remove(id);
     if (removed == null) return [];
 
@@ -154,7 +158,8 @@ class LedgerState {
     return [UpsertCategory(category)];
   }
 
-  List<LedgerChange> deleteAccount(String id) {
+  List<LedgerChange> deleteAccount(String rawID) {
+    final id = canonicalID(rawID);
     final account = moneySources[id]?.asAccount;
     if (account == null || !account.lifecycle.isActive) return [];
 
@@ -174,7 +179,8 @@ class LedgerState {
     return changes;
   }
 
-  List<LedgerChange> deletePocket(String id) {
+  List<LedgerChange> deletePocket(String rawID) {
+    final id = canonicalID(rawID);
     final pocket = moneySources[id]?.asPocket;
     if (pocket == null || !pocket.lifecycle.isActive) return [];
 
@@ -183,7 +189,8 @@ class LedgerState {
     return [UpsertPocket(archived)];
   }
 
-  List<LedgerChange> deleteCategory(String id) {
+  List<LedgerChange> deleteCategory(String rawID) {
+    final id = canonicalID(rawID);
     final category = categories[id];
     if (category == null || !category.lifecycle.isActive) return [];
 
@@ -201,7 +208,8 @@ class LedgerState {
     return changes;
   }
 
-  List<LedgerChange> restoreAccount(String id) {
+  List<LedgerChange> restoreAccount(String rawID) {
+    final id = canonicalID(rawID);
     final account = moneySources[id]?.asAccount;
     if (account == null || account.lifecycle != LifecycleState.archived) {
       return [];
@@ -225,7 +233,8 @@ class LedgerState {
     return changes;
   }
 
-  List<LedgerChange> restorePocket(String id) {
+  List<LedgerChange> restorePocket(String rawID) {
+    final id = canonicalID(rawID);
     final pocket = moneySources[id]?.asPocket;
     if (pocket == null || pocket.lifecycle != LifecycleState.archived) {
       return [];
@@ -238,7 +247,8 @@ class LedgerState {
     return [UpsertPocket(restored)];
   }
 
-  List<LedgerChange> restoreCategory(String id) {
+  List<LedgerChange> restoreCategory(String rawID) {
+    final id = canonicalID(rawID);
     final category = categories[id];
     if (category == null || category.lifecycle != LifecycleState.archived) {
       return [];

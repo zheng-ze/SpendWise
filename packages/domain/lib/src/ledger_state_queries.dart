@@ -29,7 +29,8 @@ extension LedgerStateQueries on LedgerState {
     return pockets;
   }
 
-  String? sourceName(String? id) {
+  String? sourceName(String? rawID) {
+    final id = canonicalOptionalID(rawID);
     if (id == null) return null;
     switch (moneySources[id]) {
       case null:
@@ -42,14 +43,22 @@ extension LedgerStateQueries on LedgerState {
     }
   }
 
-  int entriesReferencing(String holderID) =>
-      entries.values.where((entry) => entry.references(holderID)).length;
+  int entriesReferencing(String rawHolderID) {
+    final holderID = canonicalID(rawHolderID);
+    return entries.values.where((entry) => entry.references(holderID)).length;
+  }
 
-  int entryCount(Set<String> ids) =>
-      entries.values.where((entry) => entry.touches(ids)).length;
+  int entryCount(Set<String> rawIDs) {
+    final ids = rawIDs.map(canonicalID).toSet();
+    return entries.values.where((entry) => entry.touches(ids)).length;
+  }
 
-  int entryCountReferencing(String categoryID) =>
-      entries.values.where((entry) => entry.categoryID == categoryID).length;
+  int entryCountReferencing(String rawCategoryID) {
+    final categoryID = canonicalID(rawCategoryID);
+    return entries.values
+        .where((entry) => entry.categoryID == categoryID)
+        .length;
+  }
 
   Set<String> _sourceIDsWith(LifecycleState lifecycle) => moneySources.values
       .where((source) => source.lifecycle == lifecycle)
