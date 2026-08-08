@@ -1,1 +1,3 @@
-# SpendWise
+# spendwise
+
+A new Flutter project.
