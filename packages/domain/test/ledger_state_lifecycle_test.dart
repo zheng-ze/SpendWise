@@ -322,4 +322,182 @@ void main() {
       expect(ledger.entries[uuid(4)]?.categoryID, uuid(10));
     });
   });
+
+  group('a pocket may never outlive its parent', () {
+    test('an archived pocket with no owning account cannot restore', () {
+      ledger.moneySources[uuid(7)] = PocketSource(
+        pocket(uuid(7), lifecycle: LifecycleState.archived),
+      );
+
+      expect(ledger.restorePocket(uuid(7)), isEmpty);
+      expect(ledger.moneySources[uuid(7)]?.lifecycle, LifecycleState.archived);
+    });
+
+    test('updatePocket cannot reactivate under an archived parent', () {
+      ledger.deleteAccount(uuid(1));
+
+      final changes = ledger.updatePocket(pocket(uuid(2), name: 'renamed'));
+
+      final stored = ledger.moneySources[uuid(2)]!.asPocket!;
+      expect(stored.name, 'renamed');
+      expect(stored.lifecycle, LifecycleState.archived);
+      expect(changes, [UpsertPocket(stored)]);
+    });
+
+    test('updatePocket cannot reactivate under a referenceOnly parent', () {
+      ledger.moneySources[uuid(1)] = AccountSource(
+        account(
+          uuid(1),
+          subPocketIDs: {uuid(2)},
+          lifecycle: LifecycleState.referenceOnly,
+        ),
+      );
+      ledger.moneySources[uuid(2)] = PocketSource(
+        pocket(uuid(2), lifecycle: LifecycleState.referenceOnly),
+      );
+
+      ledger.updatePocket(pocket(uuid(2)));
+
+      expect(
+        ledger.moneySources[uuid(2)]?.lifecycle,
+        LifecycleState.referenceOnly,
+      );
+    });
+
+    test('updatePocket may archive a pocket under an active parent', () {
+      ledger.updatePocket(pocket(uuid(2), lifecycle: LifecycleState.archived));
+
+      expect(ledger.moneySources[uuid(2)]?.lifecycle, LifecycleState.archived);
+    });
+
+    test('updatePocket on an orphan pocket keeps the stored lifecycle', () {
+      ledger.moneySources[uuid(7)] = PocketSource(
+        pocket(uuid(7), lifecycle: LifecycleState.archived),
+      );
+
+      ledger.updatePocket(pocket(uuid(7), name: 'renamed'));
+
+      final stored = ledger.moneySources[uuid(7)]!.asPocket!;
+      expect(stored.name, 'renamed');
+      expect(stored.lifecycle, LifecycleState.archived);
+    });
+  });
+
+  group('a category may never outlive its parent', () {
+    setUp(() {
+      ledger.addCategory(category(uuid(10)));
+      ledger.addCategory(category(uuid(11), parent: uuid(10)));
+    });
+
+    test('a child cannot reactivate under an archived parent', () {
+      ledger.deleteCategory(uuid(10));
+
+      final changes = ledger.updateCategory(
+        category(uuid(11), name: 'renamed', parent: uuid(10)),
+      );
+
+      final stored = ledger.categories[uuid(11)]!;
+      expect(stored.name, 'renamed');
+      expect(stored.lifecycle, LifecycleState.archived);
+      expect(changes, [UpsertCategory(stored)]);
+    });
+
+    test('the emitted payload is the stored category, not the argument', () {
+      ledger.deleteCategory(uuid(10));
+      final argument = category(uuid(11), parent: uuid(10));
+
+      final changes = ledger.updateCategory(argument);
+
+      expect(changes, [UpsertCategory(ledger.categories[uuid(11)]!)]);
+      expect(changes, isNot([UpsertCategory(argument)]));
+    });
+
+    test('a child may be archived under an active parent', () {
+      ledger.updateCategory(
+        category(
+          uuid(11),
+          parent: uuid(10),
+          lifecycle: LifecycleState.archived,
+        ),
+      );
+
+      expect(ledger.categories[uuid(11)]?.lifecycle, LifecycleState.archived);
+    });
+
+    test('a root category changes lifecycle freely', () {
+      final changes = ledger.updateCategory(
+        category(uuid(10), lifecycle: LifecycleState.archived),
+      );
+
+      expect(ledger.categories[uuid(10)]?.lifecycle, LifecycleState.archived);
+      expect(changes, [UpsertCategory(ledger.categories[uuid(10)]!)]);
+    });
+
+    test('reparenting under an archived parent cannot go active', () {
+      ledger.addCategory(category(uuid(12)));
+      ledger.deleteCategory(uuid(12));
+      ledger.deleteCategory(uuid(11));
+
+      ledger.updateCategory(category(uuid(11), parent: uuid(12)));
+
+      final stored = ledger.categories[uuid(11)]!;
+      expect(stored.parentID, uuid(12));
+      expect(stored.lifecycle, LifecycleState.archived);
+    });
+  });
+
+  group('no mutator leaves an active pocket without an active parent', () {
+    bool hasOrphanActivePocket(LedgerState state) {
+      return state.moneySources.values.any((source) {
+        final pocket = source.asPocket;
+        if (pocket == null || !pocket.lifecycle.isActive) return false;
+
+        return state.activeAccounts.every(
+          (account) => !account.subPocketIDs.contains(pocket.id),
+        );
+      });
+    }
+
+    test('addPocket onto an archived parent', () {
+      ledger.deleteAccount(uuid(1));
+      ledger.addPocket(pocket(uuid(8)), uuid(1));
+
+      expect(hasOrphanActivePocket(ledger), isFalse);
+    });
+
+    test('deleteAccount archives every pocket it holds', () {
+      ledger.addPocket(pocket(uuid(8)), uuid(1));
+      ledger.deleteAccount(uuid(1));
+
+      expect(hasOrphanActivePocket(ledger), isFalse);
+    });
+
+    test('updatePocket cannot revive one under an archived parent', () {
+      ledger.deleteAccount(uuid(1));
+      ledger.updatePocket(pocket(uuid(2)));
+
+      expect(hasOrphanActivePocket(ledger), isFalse);
+    });
+
+    test('restorePocket cannot revive one under an archived parent', () {
+      ledger.deleteAccount(uuid(1));
+      ledger.restorePocket(uuid(2));
+
+      expect(hasOrphanActivePocket(ledger), isFalse);
+    });
+
+    test('updateAccount cannot rewrite links to strand a pocket', () {
+      ledger.updateAccount(account(uuid(1), name: 'renamed'));
+
+      expect(ledger.moneySources[uuid(1)]?.asAccount?.subPocketIDs, {uuid(2)});
+      expect(hasOrphanActivePocket(ledger), isFalse);
+    });
+
+    test('an archive and restore round trip ends clean', () {
+      ledger.deleteAccount(uuid(1));
+      ledger.restoreAccount(uuid(1));
+
+      expect(hasOrphanActivePocket(ledger), isFalse);
+    });
+  });
 }

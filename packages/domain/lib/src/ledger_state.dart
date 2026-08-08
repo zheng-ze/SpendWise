@@ -71,17 +71,33 @@ class LedgerState {
     if (moneySources.containsKey(pocket.id)) throw IdCollision(pocket.id);
 
     final linked = parent.addSubPocket(pocket.id);
-    moneySources[pocket.id] = PocketSource(pocket);
+    // A new pocket may not start out more alive than the account taking it.
+    final stored = parent.lifecycle.isAtLeastAsAliveAs(pocket.lifecycle)
+        ? pocket
+        : pocket.settingLifecycle(parent.lifecycle);
+    moneySources[stored.id] = PocketSource(stored);
     moneySources[linked.id] = AccountSource(linked);
-    return [UpsertPocket(pocket), UpsertAccount(linked)];
+    return [UpsertPocket(stored), UpsertAccount(linked)];
   }
 
   List<LedgerChange> updatePocket(SubPocket pocket) {
-    if (moneySources[pocket.id]?.asPocket == null) {
-      throw UnknownHolder(pocket.id);
-    }
-    moneySources[pocket.id] = PocketSource(pocket);
-    return [UpsertPocket(pocket)];
+    final existing = moneySources[pocket.id]?.asPocket;
+    if (existing == null) throw UnknownHolder(pocket.id);
+
+    // The edit surface may not outrank the parent, so a lifecycle it is not
+    // entitled to falls back to the stored one.
+    final stored = _willOutliveParentAccount(pocket)
+        ? pocket.settingLifecycle(existing.lifecycle)
+        : pocket;
+    moneySources[stored.id] = PocketSource(stored);
+    return [UpsertPocket(stored)];
+  }
+
+  bool _willOutliveParentAccount(SubPocket pocket) {
+    final parent = _owningAccount(pocket.id);
+    if (parent == null) return true;
+
+    return !parent.lifecycle.isAtLeastAsAliveAs(pocket.lifecycle);
   }
 
   List<LedgerChange> addEntry(Entry entry) {
@@ -149,13 +165,30 @@ class LedgerState {
   }
 
   List<LedgerChange> updateCategory(TransactionCategory category) {
-    if (!categories.containsKey(category.id)) {
-      throw UnknownCategory(category.id);
-    }
+    final existing = categories[category.id];
+    if (existing == null) throw UnknownCategory(category.id);
 
     _validateParent(category);
-    categories[category.id] = category;
-    return [UpsertCategory(category)];
+
+    // The edit surface may not outrank the parent, so a lifecycle it is not
+    // entitled to falls back to the stored one.
+    final stored = _willOutliveParentCategory(category)
+        ? category.settingLifecycle(existing.lifecycle)
+        : category;
+    categories[stored.id] = stored;
+    return [UpsertCategory(stored)];
+  }
+
+  /// The incoming parent is judged, so reparenting cannot smuggle a lifecycle
+  /// past the new parent.
+  bool _willOutliveParentCategory(TransactionCategory category) {
+    final parentID = category.parentID;
+    if (parentID == null) return false;
+
+    final parent = categories[parentID];
+    if (parent == null) return false;
+
+    return !parent.lifecycle.isAtLeastAsAliveAs(category.lifecycle);
   }
 
   List<LedgerChange> deleteAccount(String rawID) {
@@ -239,10 +272,9 @@ class LedgerState {
     if (pocket == null || pocket.lifecycle != LifecycleState.archived) {
       return [];
     }
-    // A pocket may never outlive its parent, so any inactive parent blocks it.
-    if (_owningAccount(id)?.lifecycle.isActive == false) return [];
-
     final restored = pocket.settingLifecycle(LifecycleState.active);
+    if (_willOutliveParentAccount(restored)) return [];
+
     moneySources[id] = PocketSource(restored);
     return [UpsertPocket(restored)];
   }

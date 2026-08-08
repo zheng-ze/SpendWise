@@ -64,6 +64,41 @@ void main() {
         throwsA(IdCollision(uuid(2))),
       );
     });
+
+    test('a pocket added to an archived account starts archived', () {
+      ledger.addAccount(account(uuid(1)));
+      ledger.deleteAccount(uuid(1));
+
+      final changes = ledger.addPocket(pocket(uuid(2)), uuid(1));
+
+      final stored = ledger.moneySources[uuid(2)]!.asPocket!;
+      expect(stored.lifecycle, LifecycleState.archived);
+      expect(changes.first, UpsertPocket(stored));
+    });
+
+    test('a pocket added to a referenceOnly account starts referenceOnly', () {
+      ledger.addAccount(
+        account(uuid(1), lifecycle: LifecycleState.referenceOnly),
+      );
+
+      ledger.addPocket(pocket(uuid(2)), uuid(1));
+
+      expect(
+        ledger.moneySources[uuid(2)]?.lifecycle,
+        LifecycleState.referenceOnly,
+      );
+    });
+
+    test('a pocket may start less alive than an active account', () {
+      ledger.addAccount(account(uuid(1)));
+
+      ledger.addPocket(
+        pocket(uuid(2), lifecycle: LifecycleState.archived),
+        uuid(1),
+      );
+
+      expect(ledger.moneySources[uuid(2)]?.lifecycle, LifecycleState.archived);
+    });
   });
 
   group('addAccount', () {

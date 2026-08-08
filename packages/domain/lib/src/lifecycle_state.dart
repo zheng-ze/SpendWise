@@ -21,4 +21,8 @@ enum LifecycleState {
   }
 
   bool get isActive => this == active;
+
+  /// Codes ascend as a row gets less alive, so a child may never hold a lower
+  /// one than its parent.
+  bool isAtLeastAsAliveAs(LifecycleState other) => code <= other.code;
 }
