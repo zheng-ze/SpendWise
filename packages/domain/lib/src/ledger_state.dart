@@ -136,6 +136,37 @@ class LedgerState {
     ];
   }
 
+  List<LedgerChange> addCategory(TransactionCategory category) {
+    if (categories.containsKey(category.id)) throw IdCollision(category.id);
+
+    _validateParent(category);
+    categories[category.id] = category;
+    return [UpsertCategory(category)];
+  }
+
+  List<LedgerChange> updateCategory(TransactionCategory category) {
+    if (!categories.containsKey(category.id)) {
+      throw UnknownCategory(category.id);
+    }
+
+    _validateParent(category);
+    categories[category.id] = category;
+    return [UpsertCategory(category)];
+  }
+
+  /// Parent lifecycle is unchecked. Orphaned children are handled by the
+  /// lifecycle cascades instead, so an active child under an archived parent is
+  /// reachable and purgeCategory sweeps children regardless of lifecycle.
+  void _validateParent(TransactionCategory category) {
+    final parentID = category.parentID;
+    if (parentID == null) return;
+
+    final parent = categories[parentID];
+    if (parent == null) throw UnknownCategory(parentID);
+    if (parent.parentID != null) throw const CategoryTooDeep();
+    if (parent.kind != category.kind) throw const CategoryKindMismatch();
+  }
+
   /// A literal top-to-bottom sequence, since the check order is observable.
   Entry _validated(Entry entry, {Entry? previous}) {
     if (entry.amount == Decimal.zero) throw const ZeroAmount();
