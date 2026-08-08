@@ -154,6 +154,119 @@ class LedgerState {
     return [UpsertCategory(category)];
   }
 
+  List<LedgerChange> deleteAccount(String id) {
+    final account = moneySources[id]?.asAccount;
+    if (account == null || !account.lifecycle.isActive) return [];
+
+    final archived = account.settingLifecycle(LifecycleState.archived);
+    moneySources[id] = AccountSource(archived);
+    final changes = <LedgerChange>[UpsertAccount(archived)];
+
+    // Links are kept so restore can find the pockets again.
+    for (final pocketID in archived.subPocketIDs) {
+      final pocket = moneySources[pocketID]?.asPocket;
+      if (pocket == null || !pocket.lifecycle.isActive) continue;
+
+      final archivedPocket = pocket.settingLifecycle(LifecycleState.archived);
+      moneySources[pocketID] = PocketSource(archivedPocket);
+      changes.add(UpsertPocket(archivedPocket));
+    }
+    return changes;
+  }
+
+  List<LedgerChange> deletePocket(String id) {
+    final pocket = moneySources[id]?.asPocket;
+    if (pocket == null || !pocket.lifecycle.isActive) return [];
+
+    final archived = pocket.settingLifecycle(LifecycleState.archived);
+    moneySources[id] = PocketSource(archived);
+    return [UpsertPocket(archived)];
+  }
+
+  List<LedgerChange> deleteCategory(String id) {
+    final category = categories[id];
+    if (category == null || !category.lifecycle.isActive) return [];
+
+    final archived = category.settingLifecycle(LifecycleState.archived);
+    categories[id] = archived;
+    final changes = <LedgerChange>[UpsertCategory(archived)];
+
+    for (final child in _children(id)) {
+      if (!child.lifecycle.isActive) continue;
+
+      final archivedChild = child.settingLifecycle(LifecycleState.archived);
+      categories[child.id] = archivedChild;
+      changes.add(UpsertCategory(archivedChild));
+    }
+    return changes;
+  }
+
+  List<LedgerChange> restoreAccount(String id) {
+    final account = moneySources[id]?.asAccount;
+    if (account == null || account.lifecycle != LifecycleState.archived) {
+      return [];
+    }
+
+    final restored = account.settingLifecycle(LifecycleState.active);
+    moneySources[id] = AccountSource(restored);
+    final changes = <LedgerChange>[UpsertAccount(restored)];
+
+    // referenceOnly pockets stay put, having left the bin permanently.
+    for (final pocketID in restored.subPocketIDs) {
+      final pocket = moneySources[pocketID]?.asPocket;
+      if (pocket == null || pocket.lifecycle != LifecycleState.archived) {
+        continue;
+      }
+
+      final restoredPocket = pocket.settingLifecycle(LifecycleState.active);
+      moneySources[pocketID] = PocketSource(restoredPocket);
+      changes.add(UpsertPocket(restoredPocket));
+    }
+    return changes;
+  }
+
+  List<LedgerChange> restorePocket(String id) {
+    final pocket = moneySources[id]?.asPocket;
+    if (pocket == null || pocket.lifecycle != LifecycleState.archived) {
+      return [];
+    }
+    // A pocket may never outlive its parent, so any inactive parent blocks it.
+    if (_owningAccount(id)?.lifecycle.isActive == false) return [];
+
+    final restored = pocket.settingLifecycle(LifecycleState.active);
+    moneySources[id] = PocketSource(restored);
+    return [UpsertPocket(restored)];
+  }
+
+  List<LedgerChange> restoreCategory(String id) {
+    final category = categories[id];
+    if (category == null || category.lifecycle != LifecycleState.archived) {
+      return [];
+    }
+    final parentID = category.parentID;
+    if (parentID != null &&
+        categories[parentID]?.lifecycle == LifecycleState.archived) {
+      return [];
+    }
+
+    final restored = category.settingLifecycle(LifecycleState.active);
+    categories[id] = restored;
+    final changes = <LedgerChange>[UpsertCategory(restored)];
+
+    for (final child in _children(id)) {
+      if (child.lifecycle != LifecycleState.archived) continue;
+
+      final restoredChild = child.settingLifecycle(LifecycleState.active);
+      categories[child.id] = restoredChild;
+      changes.add(UpsertCategory(restoredChild));
+    }
+    return changes;
+  }
+
+  List<TransactionCategory> _children(String parentID) => categories.values
+      .where((category) => category.parentID == parentID)
+      .toList();
+
   /// Parent lifecycle is unchecked. Orphaned children are handled by the
   /// lifecycle cascades instead, so an active child under an archived parent is
   /// reachable and purgeCategory sweeps children regardless of lifecycle.
