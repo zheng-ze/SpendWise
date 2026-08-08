@@ -1,3 +1,4 @@
+import 'package:decimal/decimal.dart';
 import 'package:domain/src/account.dart';
 import 'package:domain/src/account_type.dart';
 import 'package:domain/src/entry.dart';
@@ -19,7 +20,7 @@ class LedgerState {
        entries = entries ?? {},
        categories = categories ?? {};
 
-  /// Accounts and pockets share this table and its id space.
+  /// Accounts and pockets share this table and one id space.
   final Map<String, MoneySource> moneySources;
 
   final Map<String, Entry> entries;
@@ -79,5 +80,115 @@ class LedgerState {
     }
     moneySources[pocket.id] = PocketSource(pocket);
     return [UpsertPocket(pocket)];
+  }
+
+  List<LedgerChange> addEntry(Entry entry) {
+    if (entries.containsKey(entry.id)) throw IdCollision(entry.id);
+
+    final stored = _validated(entry);
+    entries[stored.id] = stored;
+    return [UpsertEntry(stored)];
+  }
+
+  List<LedgerChange> updateEntry(Entry entry) {
+    final previous = entries[entry.id];
+    if (previous == null) throw UnknownEntry(entry.id);
+
+    final stored = _validated(entry, previous: previous);
+    entries[stored.id] = stored;
+
+    final droppedHolders = previous.holderIDs.difference(stored.holderIDs);
+    final droppedCategory = previous.categoryID == stored.categoryID
+        ? null
+        : previous.categoryID;
+    return [
+      UpsertEntry(stored),
+      ..._tombstoneDereferenced(droppedHolders, droppedCategory),
+    ];
+  }
+
+  List<LedgerChange> setOpeningBalance(
+    Decimal amount,
+    String holderID, {
+    DateTime? date,
+  }) {
+    if (!moneySources.containsKey(holderID)) throw UnknownHolder(holderID);
+    if (amount == Decimal.zero) return [];
+
+    return addEntry(
+      Entry(
+        date: date,
+        amount: amount,
+        name: 'Opening balance',
+        sourceID: holderID,
+        includeInAnalysis: false,
+      ),
+    );
+  }
+
+  List<LedgerChange> deleteEntry(String id) {
+    final removed = entries.remove(id);
+    if (removed == null) return [];
+
+    return [
+      DeleteEntry(id),
+      ..._tombstoneDereferenced(removed.holderIDs, removed.categoryID),
+    ];
+  }
+
+  /// A literal top-to-bottom sequence, since the check order is observable.
+  Entry _validated(Entry entry, {Entry? previous}) {
+    if (entry.amount == Decimal.zero) throw const ZeroAmount();
+
+    final source = moneySources[entry.sourceID];
+    if (source == null) throw UnknownHolder(entry.sourceID);
+
+    final priorRefs = previous?.holderIDs ?? const <String>{};
+    if (!priorRefs.contains(entry.sourceID) && !source.lifecycle.isActive) {
+      throw InactiveReference(entry.sourceID);
+    }
+
+    final categoryID = entry.categoryID;
+    if (categoryID != null) {
+      final category = categories[categoryID];
+      if (category == null) throw UnknownCategory(categoryID);
+      final expected = entry.expectedCategoryKind;
+      if (expected == null) throw const CategoryKindMismatch();
+      if (category.kind != expected) throw const CategoryKindMismatch();
+      if (previous?.categoryID != categoryID && !category.lifecycle.isActive) {
+        throw InactiveReference(categoryID);
+      }
+    }
+
+    final destinationID = entry.destinationID;
+    if (destinationID == null) return entry;
+
+    final destination = moneySources[destinationID];
+    if (destination == null) throw UnknownHolder(destinationID);
+    if (destinationID == entry.sourceID) throw const SelfTransfer();
+    if (!priorRefs.contains(destinationID) && !destination.lifecycle.isActive) {
+      throw InactiveReference(destinationID);
+    }
+
+    if (entry.amount >= Decimal.zero) return entry;
+
+    return Entry(
+      id: entry.id,
+      date: entry.date,
+      amount: -entry.amount,
+      name: entry.name,
+      categoryID: entry.categoryID,
+      sourceID: destinationID,
+      destinationID: entry.sourceID,
+      includeInAnalysis: entry.includeInAnalysis,
+      lifecycle: entry.lifecycle,
+    );
+  }
+
+  List<LedgerChange> _tombstoneDereferenced(
+    Set<String> holders,
+    String? category,
+  ) {
+    return [];
   }
 }
