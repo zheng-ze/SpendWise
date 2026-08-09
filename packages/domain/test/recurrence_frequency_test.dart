@@ -1,4 +1,4 @@
-import 'package:domain/src/recurrence_frequency.dart';
+import 'package:domain/domain.dart';
 import 'package:test/test.dart';
 
 void main() {

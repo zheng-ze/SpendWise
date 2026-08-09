@@ -1,7 +1,5 @@
 import 'package:decimal/decimal.dart';
-import 'package:domain/src/entry_template.dart';
-import 'package:domain/src/recurrence_frequency.dart';
-import 'package:domain/src/recurring_plan.dart';
+import 'package:domain/domain.dart';
 import 'package:test/test.dart';
 
 void main() {

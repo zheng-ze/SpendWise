@@ -1,17 +1,5 @@
 import 'package:decimal/decimal.dart';
-import 'package:domain/src/account.dart';
-import 'package:domain/src/account_type.dart';
-import 'package:domain/src/category_kind.dart';
-import 'package:domain/src/entry_template.dart';
-import 'package:domain/src/ledger_change.dart';
-import 'package:domain/src/ledger_error.dart';
-import 'package:domain/src/ledger_state.dart';
-import 'package:domain/src/lifecycle_state.dart';
-import 'package:domain/src/occurrence_id.dart';
-import 'package:domain/src/recurrence_frequency.dart';
-import 'package:domain/src/recurring_plan.dart';
-import 'package:domain/src/sub_pocket.dart';
-import 'package:domain/src/transaction_category.dart';
+import 'package:domain/domain.dart';
 import 'package:test/test.dart';
 
 void main() {

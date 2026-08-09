@@ -1,4 +1,4 @@
-import 'package:domain/src/occurrence_id.dart';
+import 'package:domain/domain.dart';
 import 'package:test/test.dart';
 
 void main() {

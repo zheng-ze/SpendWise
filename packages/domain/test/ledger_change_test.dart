@@ -1,13 +1,5 @@
 import 'package:decimal/decimal.dart';
-import 'package:domain/src/account.dart';
-import 'package:domain/src/account_type.dart';
-import 'package:domain/src/category_kind.dart';
-import 'package:domain/src/entry.dart';
-import 'package:domain/src/ledger_change.dart';
-import 'package:domain/src/ledger_error.dart';
-import 'package:domain/src/money_source.dart';
-import 'package:domain/src/sub_pocket.dart';
-import 'package:domain/src/transaction_category.dart';
+import 'package:domain/domain.dart';
 import 'package:test/test.dart';
 
 const accountID = '11111111-1111-4111-8111-111111111111';

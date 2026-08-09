@@ -1,7 +1,5 @@
 import 'package:decimal/decimal.dart';
-import 'package:domain/src/entry_template.dart';
-import 'package:domain/src/lifecycle_state.dart';
-import 'package:domain/src/occurrence_id.dart';
+import 'package:domain/domain.dart';
 import 'package:test/test.dart';
 
 void main() {
