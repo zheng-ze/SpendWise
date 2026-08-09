@@ -84,10 +84,13 @@ void main() {
 
   group('codes', () {
     test('are pinned', () {
-      expect(
-        RecurrenceFrequency.values.map((frequency) => frequency.code),
-        [0, 1, 2, 3, 4],
-      );
+      expect(RecurrenceFrequency.values.map((frequency) => frequency.code), [
+        0,
+        1,
+        2,
+        3,
+        4,
+      ]);
     });
 
     test('round-trip through fromCode', () {

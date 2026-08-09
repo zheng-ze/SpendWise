@@ -247,9 +247,8 @@ void main() {
       state.addPlan(stored);
 
       expect(
-        () => state.updatePlan(
-          plan(entryTemplate: template(sourceID: uuid(9))),
-        ),
+        () =>
+            state.updatePlan(plan(entryTemplate: template(sourceID: uuid(9)))),
         throwsA(UnknownHolder(uuid(9))),
       );
       expect(state.plans[planID], stored);
@@ -330,7 +329,9 @@ void main() {
     test('the failure carries the plan id, occurrence and error', () {
       final state = withFrozenPocket();
 
-      final failure = state.resolvePlans(DateTime.utc(2026, 2, 20)).failures
+      final failure = state
+          .resolvePlans(DateTime.utc(2026, 2, 20))
+          .failures
           .single;
 
       expect(failure.planID, planID);
@@ -343,14 +344,11 @@ void main() {
 
       final result = state.resolvePlans(DateTime.utc(2026, 4, 20));
 
-      expect(
-        result.failures.map((failure) => failure.occurrence),
-        [
-          DateTime.utc(2026, 2, 15),
-          DateTime.utc(2026, 3, 15),
-          DateTime.utc(2026, 4, 15),
-        ],
-      );
+      expect(result.failures.map((failure) => failure.occurrence), [
+        DateTime.utc(2026, 2, 15),
+        DateTime.utc(2026, 3, 15),
+        DateTime.utc(2026, 4, 15),
+      ]);
       expect(state.plans[planID], isNotNull);
     });
 
@@ -361,10 +359,9 @@ void main() {
       final result = state.resolvePlans(DateTime.utc(2026, 2, 20));
 
       expect(result.failures.single.planID, planID);
-      expect(
-        state.entries.keys,
-        [OccurrenceID.make(uuid(7), DateTime.utc(2026, 2, 15))],
-      );
+      expect(state.entries.keys, [
+        OccurrenceID.make(uuid(7), DateTime.utc(2026, 2, 15)),
+      ]);
     });
   });
 
@@ -391,9 +388,7 @@ void main() {
 
     test('leaves a plan naming an unrelated account alone', () {
       final state = seeded();
-      final survivor = plan(
-        entryTemplate: template(sourceID: otherAccountID),
-      );
+      final survivor = plan(entryTemplate: template(sourceID: otherAccountID));
       state.addPlan(survivor);
 
       final changes = state.deleteAccount(accountID);

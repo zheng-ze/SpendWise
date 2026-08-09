@@ -165,7 +165,10 @@ extension LedgerStateInvariants on LedgerState {
 
       if (_isCategoryReferenced(category.id)) continue;
 
-      throw _violation(11, 'referenceOnly category ${category.id} unreferenced');
+      throw _violation(
+        11,
+        'referenceOnly category ${category.id} unreferenced',
+      );
     }
 
     for (final source in _moneySources.values) {
