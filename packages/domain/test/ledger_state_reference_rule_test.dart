@@ -36,36 +36,23 @@ void main() {
   test('deletingLastDirectEntryKeepsAccountWhilePocketStillReferenced', () {
     // The deleted entry also references an unrelated reference-only account, so
     // a sweep that does nothing fails here rather than passing by inaction.
-    final ledger = LedgerState(
-      moneySources: {
-        uuid(1): AccountSource(
-          account(
-            uuid(1),
-            subPocketIDs: {uuid(2)},
-            lifecycle: LifecycleState.referenceOnly,
-          ),
-        ),
-        uuid(2): PocketSource(
-          pocket(uuid(2), lifecycle: LifecycleState.referenceOnly),
-        ),
-        uuid(5): AccountSource(
-          account(
-            uuid(5),
-            name: 'other',
-            lifecycle: LifecycleState.referenceOnly,
-          ),
-        ),
-      },
-      entries: {
-        uuid(3): entry(
-          id: uuid(3),
-          amount: Decimal.fromInt(-10),
-          sourceID: uuid(1),
-          destinationID: uuid(5),
-        ),
-        uuid(4): entry(id: uuid(4), sourceID: uuid(2)),
-      },
+    final ledger = LedgerState();
+    ledger.addAccount(account(uuid(1)));
+    ledger.addPocket(pocket(uuid(2)), uuid(1));
+    ledger.addAccount(account(uuid(5), name: 'other'));
+    ledger.addEntry(
+      entry(
+        id: uuid(3),
+        amount: Decimal.fromInt(-10),
+        sourceID: uuid(1),
+        destinationID: uuid(5),
+      ),
     );
+    ledger.addEntry(entry(id: uuid(4), sourceID: uuid(2)));
+    ledger.deleteAccount(uuid(1));
+    ledger.purgeAccount(uuid(1));
+    ledger.deleteAccount(uuid(5));
+    ledger.purgeAccount(uuid(5));
 
     final changes = ledger.deleteEntry(uuid(3));
 
@@ -82,27 +69,20 @@ void main() {
   });
 
   test('retargetingATransferOffItsDestinationRemovesTheDereferencedRow', () {
-    final ledger = LedgerState(
-      moneySources: {
-        uuid(1): AccountSource(account(uuid(1))),
-        uuid(2): AccountSource(account(uuid(2), name: 'other')),
-        uuid(5): AccountSource(
-          account(
-            uuid(5),
-            name: 'dropped',
-            lifecycle: LifecycleState.referenceOnly,
-          ),
-        ),
-      },
-      entries: {
-        uuid(3): entry(
-          id: uuid(3),
-          amount: Decimal.fromInt(10),
-          sourceID: uuid(1),
-          destinationID: uuid(5),
-        ),
-      },
+    final ledger = LedgerState();
+    ledger.addAccount(account(uuid(1)));
+    ledger.addAccount(account(uuid(2), name: 'other'));
+    ledger.addAccount(account(uuid(5), name: 'dropped'));
+    ledger.addEntry(
+      entry(
+        id: uuid(3),
+        amount: Decimal.fromInt(10),
+        sourceID: uuid(1),
+        destinationID: uuid(5),
+      ),
     );
+    ledger.deleteAccount(uuid(5));
+    ledger.purgeAccount(uuid(5));
 
     final changes = ledger.updateEntry(
       entry(
@@ -118,21 +98,12 @@ void main() {
   });
 
   test('lastPocketTombstoneCascadesToDereferencedParent', () {
-    final ledger = LedgerState(
-      moneySources: {
-        uuid(1): AccountSource(
-          account(
-            uuid(1),
-            subPocketIDs: {uuid(2)},
-            lifecycle: LifecycleState.referenceOnly,
-          ),
-        ),
-        uuid(2): PocketSource(
-          pocket(uuid(2), lifecycle: LifecycleState.referenceOnly),
-        ),
-      },
-      entries: {uuid(3): entry(id: uuid(3), sourceID: uuid(2))},
-    );
+    final ledger = LedgerState();
+    ledger.addAccount(account(uuid(1)));
+    ledger.addPocket(pocket(uuid(2)), uuid(1));
+    ledger.addEntry(entry(id: uuid(3), sourceID: uuid(2)));
+    ledger.deleteAccount(uuid(1));
+    ledger.purgeAccount(uuid(1));
 
     final changes = ledger.deleteEntry(uuid(3));
 

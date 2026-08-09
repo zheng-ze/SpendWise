@@ -56,16 +56,6 @@ Entry entry({
   categoryID: categoryID,
 );
 
-LedgerState stateWith({
-  List<MoneySource> sources = const [],
-  List<Entry> entries = const [],
-  List<TransactionCategory> categories = const [],
-}) => LedgerState(
-  moneySources: {for (final source in sources) source.id: source},
-  entries: {for (final e in entries) e.id: e},
-  categories: {for (final c in categories) c.id: c},
-);
-
 void main() {
   test('a ledger built with no arguments is empty', () {
     final ledger = LedgerState();
@@ -75,17 +65,21 @@ void main() {
   });
 
   group('active and binned sets', () {
-    final ledger = stateWith(
-      sources: [
-        AccountSource(account(accountA)),
-        AccountSource(account(accountB, lifecycle: LifecycleState.archived)),
-        PocketSource(pocket(pocketP, lifecycle: LifecycleState.referenceOnly)),
-      ],
-      categories: [
-        category(categoryC),
-        category(categoryD, lifecycle: LifecycleState.archived),
-      ],
-    );
+    // The pocket reaches referenceOnly by surviving a purge of its own parent
+    // while an entry still names it; accountB stays merely archived, so the
+    // binned sets have something to hold.
+    final ledger = LedgerState();
+    ledger.addAccount(account(accountA));
+    ledger.addAccount(account(accountB));
+    ledger.addAccount(account(ghostID, name: 'pocket parent'));
+    ledger.addPocket(pocket(pocketP), ghostID);
+    ledger.addEntry(entry(sourceID: pocketP));
+    ledger.addCategory(category(categoryC));
+    ledger.addCategory(category(categoryD));
+    ledger.deleteAccount(ghostID);
+    ledger.purgeAccount(ghostID);
+    ledger.deleteAccount(accountB);
+    ledger.deleteCategory(categoryD);
 
     test('active sets hold only active ids', () {
       expect(ledger.activeSources, {accountA});
@@ -100,44 +94,27 @@ void main() {
 
   group('activeAccounts', () {
     test('name-sorted ascending, archived absent, pockets absent', () {
-      final ledger = stateWith(
-        sources: [
-          AccountSource(account(accountA, name: 'zulu')),
-          AccountSource(account(accountB, name: 'alpha')),
-          AccountSource(
-            account(
-              ghostID,
-              name: 'archived',
-              lifecycle: LifecycleState.archived,
-            ),
-          ),
-          PocketSource(pocket(pocketP, name: 'aaa')),
-        ],
-      );
+      final ledger = LedgerState();
+      ledger.addAccount(account(accountA, name: 'zulu'));
+      ledger.addAccount(account(accountB, name: 'alpha'));
+      ledger.addAccount(account(ghostID, name: 'archived'));
+      ledger.addPocket(pocket(pocketP, name: 'aaa'), accountA);
+      ledger.deleteAccount(ghostID);
+
       expect(ledger.activeAccounts.map((a) => a.name), ['alpha', 'zulu']);
     });
   });
 
   group('activePockets', () {
     test('resolves through the parent links, active only, name-sorted', () {
-      final parent = account(
-        accountA,
-        subPocketIDs: {pocketP, pocketQ, ghostID},
-      );
-      final ledger = stateWith(
-        sources: [
-          AccountSource(parent),
-          PocketSource(pocket(pocketP, name: 'zulu')),
-          PocketSource(pocket(pocketQ, name: 'alpha')),
-          PocketSource(
-            pocket(
-              ghostID,
-              name: 'archived',
-              lifecycle: LifecycleState.archived,
-            ),
-          ),
-        ],
-      );
+      final ledger = LedgerState();
+      ledger.addAccount(account(accountA));
+      ledger.addPocket(pocket(pocketP, name: 'zulu'), accountA);
+      ledger.addPocket(pocket(pocketQ, name: 'alpha'), accountA);
+      ledger.addPocket(pocket(ghostID, name: 'archived'), accountA);
+      ledger.deletePocket(ghostID);
+
+      final parent = ledger.moneySources[accountA]!.asAccount!;
       expect(ledger.activePockets(parent).map((p) => p.name), [
         'alpha',
         'zulu',
@@ -145,79 +122,60 @@ void main() {
     });
 
     test("another account's pockets are excluded", () {
-      final owner = account(accountA, subPocketIDs: {pocketP});
-      final other = account(accountB, subPocketIDs: {pocketQ});
-      final ledger = stateWith(
-        sources: [
-          AccountSource(owner),
-          AccountSource(other),
-          PocketSource(pocket(pocketP, name: 'mine')),
-          PocketSource(pocket(pocketQ, name: 'theirs')),
-        ],
-      );
+      final ledger = LedgerState();
+      ledger.addAccount(account(accountA));
+      ledger.addAccount(account(accountB));
+      ledger.addPocket(pocket(pocketP, name: 'mine'), accountA);
+      ledger.addPocket(pocket(pocketQ, name: 'theirs'), accountB);
+
+      final owner = ledger.moneySources[accountA]!.asAccount!;
       expect(ledger.activePockets(owner).map((p) => p.name), ['mine']);
     });
   });
 
   group('sourceName', () {
     test('an account yields its own name', () {
-      final ledger = stateWith(
-        sources: [AccountSource(account(accountA, name: 'Bank'))],
-      );
+      final ledger = LedgerState();
+      ledger.addAccount(account(accountA, name: 'Bank'));
+
       expect(ledger.sourceName(accountA), 'Bank');
     });
 
     test('an owned pocket is parent-qualified', () {
-      final ledger = stateWith(
-        sources: [
-          AccountSource(
-            account(accountA, name: 'Bank', subPocketIDs: {pocketP}),
-          ),
-          PocketSource(pocket(pocketP, name: 'Rent')),
-        ],
-      );
+      final ledger = LedgerState();
+      ledger.addAccount(account(accountA, name: 'Bank'));
+      ledger.addPocket(pocket(pocketP, name: 'Rent'), accountA);
+
       expect(ledger.sourceName(pocketP), 'Bank/Rent');
     });
 
-    test('an unowned pocket yields its bare name', () {
-      final ledger = stateWith(
-        sources: [PocketSource(pocket(pocketP, name: 'Rent'))],
-      );
-      expect(ledger.sourceName(pocketP), 'Rent');
-    });
-
     test('a null or unknown id yields null', () {
-      final ledger = stateWith(sources: [AccountSource(account(accountA))]);
+      final ledger = LedgerState();
+      ledger.addAccount(account(accountA));
+
       expect(ledger.sourceName(null), isNull);
       expect(ledger.sourceName(ghostID), isNull);
     });
 
     test('an archived holder still resolves its name', () {
-      final ledger = stateWith(
-        sources: [
-          AccountSource(
-            account(accountA, name: 'Bank', lifecycle: LifecycleState.archived),
-          ),
-        ],
-      );
+      final ledger = LedgerState();
+      ledger.addAccount(account(accountA, name: 'Bank'));
+      ledger.deleteAccount(accountA);
+
       expect(ledger.sourceName(accountA), 'Bank');
     });
   });
 
   group('reference counts', () {
-    final ledger = stateWith(
-      sources: [
-        AccountSource(account(accountA)),
-        AccountSource(account(accountB)),
-        PocketSource(pocket(pocketP)),
-      ],
-      entries: [
-        entry(sourceID: accountA, categoryID: categoryC),
-        entry(sourceID: accountB, destinationID: accountA),
-        entry(sourceID: pocketP, categoryID: categoryD),
-      ],
-      categories: [category(categoryC), category(categoryD)],
-    );
+    final ledger = LedgerState();
+    ledger.addAccount(account(accountA));
+    ledger.addAccount(account(accountB));
+    ledger.addPocket(pocket(pocketP), accountB);
+    ledger.addCategory(category(categoryC));
+    ledger.addCategory(category(categoryD));
+    ledger.addEntry(entry(sourceID: accountA, categoryID: categoryC));
+    ledger.addEntry(entry(sourceID: accountB, destinationID: accountA));
+    ledger.addEntry(entry(sourceID: pocketP, categoryID: categoryD));
 
     test('entriesReferencing spans source and destination', () {
       expect(ledger.entriesReferencing(accountA), 2);

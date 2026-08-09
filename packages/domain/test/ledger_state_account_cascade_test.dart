@@ -112,21 +112,12 @@ void main() {
 
   group('dereference sweep', () {
     test('tombstones the pocket then the parent in one mutation', () {
-      final ledger = LedgerState(
-        moneySources: {
-          uuid(1): AccountSource(
-            account(
-              uuid(1),
-              subPocketIDs: {uuid(2)},
-              lifecycle: LifecycleState.referenceOnly,
-            ),
-          ),
-          uuid(2): PocketSource(
-            pocket(uuid(2), lifecycle: LifecycleState.referenceOnly),
-          ),
-        },
-        entries: {uuid(3): entry(id: uuid(3), sourceID: uuid(2))},
-      );
+      final ledger = LedgerState();
+      ledger.addAccount(account(uuid(1)));
+      ledger.addPocket(pocket(uuid(2)), uuid(1));
+      ledger.addEntry(entry(id: uuid(3), sourceID: uuid(2)));
+      ledger.deleteAccount(uuid(1));
+      ledger.purgeAccount(uuid(1));
 
       final changes = ledger.deleteEntry(uuid(3));
 
@@ -143,31 +134,14 @@ void main() {
     });
 
     test('the last unreferenced sibling leaves no orphan behind', () {
-      final ledger = LedgerState(
-        moneySources: {
-          uuid(1): AccountSource(
-            account(
-              uuid(1),
-              subPocketIDs: {uuid(2), uuid(3)},
-              lifecycle: LifecycleState.referenceOnly,
-            ),
-          ),
-          uuid(2): PocketSource(
-            pocket(uuid(2), lifecycle: LifecycleState.referenceOnly),
-          ),
-          uuid(3): PocketSource(
-            pocket(
-              uuid(3),
-              name: 'second',
-              lifecycle: LifecycleState.referenceOnly,
-            ),
-          ),
-        },
-        entries: {
-          uuid(4): entry(id: uuid(4), sourceID: uuid(2)),
-          uuid(5): entry(id: uuid(5), sourceID: uuid(3)),
-        },
-      );
+      final ledger = LedgerState();
+      ledger.addAccount(account(uuid(1)));
+      ledger.addPocket(pocket(uuid(2)), uuid(1));
+      ledger.addPocket(pocket(uuid(3), name: 'second'), uuid(1));
+      ledger.addEntry(entry(id: uuid(4), sourceID: uuid(2)));
+      ledger.addEntry(entry(id: uuid(5), sourceID: uuid(3)));
+      ledger.deleteAccount(uuid(1));
+      ledger.purgeAccount(uuid(1));
 
       ledger.deleteEntry(uuid(4));
 
@@ -182,24 +156,13 @@ void main() {
     });
 
     test('a directly referenced parent outlives its swept pocket', () {
-      final ledger = LedgerState(
-        moneySources: {
-          uuid(1): AccountSource(
-            account(
-              uuid(1),
-              subPocketIDs: {uuid(2)},
-              lifecycle: LifecycleState.referenceOnly,
-            ),
-          ),
-          uuid(2): PocketSource(
-            pocket(uuid(2), lifecycle: LifecycleState.referenceOnly),
-          ),
-        },
-        entries: {
-          uuid(3): entry(id: uuid(3), sourceID: uuid(2)),
-          uuid(4): entry(id: uuid(4), sourceID: uuid(1)),
-        },
-      );
+      final ledger = LedgerState();
+      ledger.addAccount(account(uuid(1)));
+      ledger.addPocket(pocket(uuid(2)), uuid(1));
+      ledger.addEntry(entry(id: uuid(3), sourceID: uuid(2)));
+      ledger.addEntry(entry(id: uuid(4), sourceID: uuid(1)));
+      ledger.deleteAccount(uuid(1));
+      ledger.purgeAccount(uuid(1));
 
       ledger.deleteEntry(uuid(3));
 
@@ -213,22 +176,13 @@ void main() {
     });
 
     test('retargeting the last reference away sweeps both rows', () {
-      final ledger = LedgerState(
-        moneySources: {
-          uuid(1): AccountSource(
-            account(
-              uuid(1),
-              subPocketIDs: {uuid(2)},
-              lifecycle: LifecycleState.referenceOnly,
-            ),
-          ),
-          uuid(2): PocketSource(
-            pocket(uuid(2), lifecycle: LifecycleState.referenceOnly),
-          ),
-          uuid(5): AccountSource(account(uuid(5), name: 'other')),
-        },
-        entries: {uuid(3): entry(id: uuid(3), sourceID: uuid(2))},
-      );
+      final ledger = LedgerState();
+      ledger.addAccount(account(uuid(1)));
+      ledger.addPocket(pocket(uuid(2)), uuid(1));
+      ledger.addAccount(account(uuid(5), name: 'other'));
+      ledger.addEntry(entry(id: uuid(3), sourceID: uuid(2)));
+      ledger.deleteAccount(uuid(1));
+      ledger.purgeAccount(uuid(1));
 
       ledger.updateEntry(entry(id: uuid(3), sourceID: uuid(5)));
 

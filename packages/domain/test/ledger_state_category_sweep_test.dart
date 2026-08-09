@@ -7,22 +7,22 @@ import 'support/builders.dart';
 /// The category branch of the dereference sweep, reached only by dropping the
 /// last entry that carries a referenceOnly category.
 void main() {
-  LedgerState referenceOnlyCategoryLedger({
-    required Map<String, Entry> entries,
-  }) => LedgerState(
-    moneySources: {uuid(1): AccountSource(account(uuid(1)))},
-    categories: {
-      uuid(2): category(uuid(2), lifecycle: LifecycleState.referenceOnly),
-    },
-    entries: entries,
-  );
+  // Entries must be filed while the category is still active; purging it while
+  // they survive is what drives it to referenceOnly.
+  LedgerState referenceOnlyCategoryLedger({required Set<String> entryIDs}) {
+    final ledger = LedgerState();
+    ledger.addAccount(account(uuid(1)));
+    ledger.addCategory(category(uuid(2)));
+    for (final id in entryIDs) {
+      ledger.addEntry(entry(id: id, sourceID: uuid(1), categoryID: uuid(2)));
+    }
+    ledger.deleteCategory(uuid(2));
+    ledger.purgeCategory(uuid(2));
+    return ledger;
+  }
 
   test('deleting the last entry carrying it removes the category row', () {
-    final ledger = referenceOnlyCategoryLedger(
-      entries: {
-        uuid(3): entry(id: uuid(3), sourceID: uuid(1), categoryID: uuid(2)),
-      },
-    );
+    final ledger = referenceOnlyCategoryLedger(entryIDs: {uuid(3)});
 
     final changes = ledger.deleteEntry(uuid(3));
 
@@ -31,12 +31,7 @@ void main() {
   });
 
   test('a surviving entry keeps the category row', () {
-    final ledger = referenceOnlyCategoryLedger(
-      entries: {
-        uuid(3): entry(id: uuid(3), sourceID: uuid(1), categoryID: uuid(2)),
-        uuid(4): entry(id: uuid(4), sourceID: uuid(1), categoryID: uuid(2)),
-      },
-    );
+    final ledger = referenceOnlyCategoryLedger(entryIDs: {uuid(3), uuid(4)});
 
     final changes = ledger.deleteEntry(uuid(3));
 
@@ -45,13 +40,10 @@ void main() {
   });
 
   test('an active category is left alone when its last entry goes', () {
-    final ledger = LedgerState(
-      moneySources: {uuid(1): AccountSource(account(uuid(1)))},
-      categories: {uuid(2): category(uuid(2))},
-      entries: {
-        uuid(3): entry(id: uuid(3), sourceID: uuid(1), categoryID: uuid(2)),
-      },
-    );
+    final ledger = LedgerState();
+    ledger.addAccount(account(uuid(1)));
+    ledger.addCategory(category(uuid(2)));
+    ledger.addEntry(entry(id: uuid(3), sourceID: uuid(1), categoryID: uuid(2)));
 
     final changes = ledger.deleteEntry(uuid(3));
 
@@ -60,16 +52,8 @@ void main() {
   });
 
   test('retargeting the last entry off it removes the category row', () {
-    final ledger = LedgerState(
-      moneySources: {uuid(1): AccountSource(account(uuid(1)))},
-      categories: {
-        uuid(2): category(uuid(2), lifecycle: LifecycleState.referenceOnly),
-        uuid(5): category(uuid(5), name: 'other'),
-      },
-      entries: {
-        uuid(3): entry(id: uuid(3), sourceID: uuid(1), categoryID: uuid(2)),
-      },
-    );
+    final ledger = referenceOnlyCategoryLedger(entryIDs: {uuid(3)});
+    ledger.addCategory(category(uuid(5), name: 'other'));
 
     final changes = ledger.updateEntry(
       entry(id: uuid(3), sourceID: uuid(1), categoryID: uuid(5)),
@@ -81,24 +65,21 @@ void main() {
   });
 
   test('holders sweep before the category', () {
-    final ledger = LedgerState(
-      moneySources: {
-        uuid(1): AccountSource(
-          account(uuid(1), lifecycle: LifecycleState.referenceOnly),
-        ),
-      },
-      categories: {
-        uuid(2): category(uuid(2), lifecycle: LifecycleState.referenceOnly),
-      },
-      entries: {
-        uuid(3): entry(
-          id: uuid(3),
-          amount: Decimal.fromInt(-10),
-          sourceID: uuid(1),
-          categoryID: uuid(2),
-        ),
-      },
+    final ledger = LedgerState();
+    ledger.addAccount(account(uuid(1)));
+    ledger.addCategory(category(uuid(2)));
+    ledger.addEntry(
+      entry(
+        id: uuid(3),
+        amount: Decimal.fromInt(-10),
+        sourceID: uuid(1),
+        categoryID: uuid(2),
+      ),
     );
+    ledger.deleteCategory(uuid(2));
+    ledger.purgeCategory(uuid(2));
+    ledger.deleteAccount(uuid(1));
+    ledger.purgeAccount(uuid(1));
 
     final changes = ledger.deleteEntry(uuid(3));
 
