@@ -10,7 +10,7 @@ extension LedgerStateQueries on LedgerState {
   Set<String> get binnedCategories => _categoryIDsWith(LifecycleState.archived);
 
   List<Account> get activeAccounts {
-    final accounts = moneySources.values
+    final accounts = _moneySources.values
         .map((source) => source.asAccount)
         .nonNulls
         .where((account) => account.lifecycle.isActive)
@@ -21,7 +21,7 @@ extension LedgerStateQueries on LedgerState {
 
   List<SubPocket> activePockets(Account account) {
     final pockets = account.subPocketIDs
-        .map((id) => moneySources[id]?.asPocket)
+        .map((id) => _moneySources[id]?.asPocket)
         .nonNulls
         .where((pocket) => pocket.lifecycle.isActive)
         .toList();
@@ -32,7 +32,7 @@ extension LedgerStateQueries on LedgerState {
   String? sourceName(String? rawID) {
     final id = canonicalOptionalID(rawID);
     if (id == null) return null;
-    switch (moneySources[id]) {
+    switch (_moneySources[id]) {
       case null:
         return null;
       case AccountSource(:final account):
@@ -45,32 +45,32 @@ extension LedgerStateQueries on LedgerState {
 
   int entriesReferencing(String rawHolderID) {
     final holderID = canonicalID(rawHolderID);
-    return entries.values.where((entry) => entry.references(holderID)).length;
+    return _entries.values.where((entry) => entry.references(holderID)).length;
   }
 
   int entryCount(Set<String> rawIDs) {
     final ids = rawIDs.map(canonicalID).toSet();
-    return entries.values.where((entry) => entry.touches(ids)).length;
+    return _entries.values.where((entry) => entry.touches(ids)).length;
   }
 
   int entryCountReferencing(String rawCategoryID) {
     final categoryID = canonicalID(rawCategoryID);
-    return entries.values
+    return _entries.values
         .where((entry) => entry.categoryID == categoryID)
         .length;
   }
 
-  Set<String> _sourceIDsWith(LifecycleState lifecycle) => moneySources.values
+  Set<String> _sourceIDsWith(LifecycleState lifecycle) => _moneySources.values
       .where((source) => source.lifecycle == lifecycle)
       .map((source) => source.id)
       .toSet();
 
-  Set<String> _categoryIDsWith(LifecycleState lifecycle) => categories.values
+  Set<String> _categoryIDsWith(LifecycleState lifecycle) => _categories.values
       .where((category) => category.lifecycle == lifecycle)
       .map((category) => category.id)
       .toSet();
 
-  Account? _owningAccount(String pocketID) => moneySources.values
+  Account? _owningAccount(String pocketID) => _moneySources.values
       .map((source) => source.asAccount)
       .nonNulls
       .where((account) => account.subPocketIDs.contains(pocketID))

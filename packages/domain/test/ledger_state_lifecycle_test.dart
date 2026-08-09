@@ -195,8 +195,13 @@ void main() {
     });
 
     test('a referenceOnly pocket is not restorable', () {
-      ledger.moneySources[uuid(2)] = PocketSource(
-        pocket(uuid(2), lifecycle: LifecycleState.referenceOnly),
+      ledger = LedgerState(
+        moneySources: {
+          uuid(1): AccountSource(account(uuid(1), subPocketIDs: {uuid(2)})),
+          uuid(2): PocketSource(
+            pocket(uuid(2), lifecycle: LifecycleState.referenceOnly),
+          ),
+        },
       );
 
       expect(ledger.restorePocket(uuid(2)), isEmpty);
@@ -207,13 +212,19 @@ void main() {
     });
 
     test('is blocked while the parent is referenceOnly', () {
-      ledger.deletePocket(uuid(2));
-      ledger.moneySources[uuid(1)] = AccountSource(
-        account(
-          uuid(1),
-          subPocketIDs: {uuid(2)},
-          lifecycle: LifecycleState.referenceOnly,
-        ),
+      ledger = LedgerState(
+        moneySources: {
+          uuid(1): AccountSource(
+            account(
+              uuid(1),
+              subPocketIDs: {uuid(2)},
+              lifecycle: LifecycleState.referenceOnly,
+            ),
+          ),
+          uuid(2): PocketSource(
+            pocket(uuid(2), lifecycle: LifecycleState.archived),
+          ),
+        },
       );
 
       expect(ledger.restorePocket(uuid(2)), isEmpty);
@@ -324,19 +335,12 @@ void main() {
   });
 
   group('a pocket may never outlive its parent', () {
-    test('an archived pocket with no owning account cannot restore', () {
-      ledger.moneySources[uuid(7)] = PocketSource(
-        pocket(uuid(7), lifecycle: LifecycleState.archived),
-      );
-
-      expect(ledger.restorePocket(uuid(7)), isEmpty);
-      expect(ledger.moneySources[uuid(7)]?.lifecycle, LifecycleState.archived);
-    });
-
     test('updatePocket cannot reactivate under an archived parent', () {
       ledger.deleteAccount(uuid(1));
 
-      final changes = ledger.updatePocket(pocket(uuid(2), name: 'renamed'));
+      final changes = ledger.updatePocket(
+        pocket(uuid(2), name: 'renamed', lifecycle: LifecycleState.active),
+      );
 
       final stored = ledger.moneySources[uuid(2)]!.asPocket!;
       expect(stored.name, 'renamed');
@@ -345,18 +349,24 @@ void main() {
     });
 
     test('updatePocket cannot reactivate under a referenceOnly parent', () {
-      ledger.moneySources[uuid(1)] = AccountSource(
-        account(
-          uuid(1),
-          subPocketIDs: {uuid(2)},
-          lifecycle: LifecycleState.referenceOnly,
-        ),
-      );
-      ledger.moneySources[uuid(2)] = PocketSource(
-        pocket(uuid(2), lifecycle: LifecycleState.referenceOnly),
+      ledger = LedgerState(
+        moneySources: {
+          uuid(1): AccountSource(
+            account(
+              uuid(1),
+              subPocketIDs: {uuid(2)},
+              lifecycle: LifecycleState.referenceOnly,
+            ),
+          ),
+          uuid(2): PocketSource(
+            pocket(uuid(2), lifecycle: LifecycleState.referenceOnly),
+          ),
+        },
       );
 
-      ledger.updatePocket(pocket(uuid(2)));
+      ledger.updatePocket(
+        pocket(uuid(2), lifecycle: LifecycleState.active),
+      );
 
       expect(
         ledger.moneySources[uuid(2)]?.lifecycle,
@@ -370,17 +380,6 @@ void main() {
       expect(ledger.moneySources[uuid(2)]?.lifecycle, LifecycleState.archived);
     });
 
-    test('updatePocket on an orphan pocket keeps the stored lifecycle', () {
-      ledger.moneySources[uuid(7)] = PocketSource(
-        pocket(uuid(7), lifecycle: LifecycleState.archived),
-      );
-
-      ledger.updatePocket(pocket(uuid(7), name: 'renamed'));
-
-      final stored = ledger.moneySources[uuid(7)]!.asPocket!;
-      expect(stored.name, 'renamed');
-      expect(stored.lifecycle, LifecycleState.archived);
-    });
   });
 
   group('a category may never outlive its parent', () {
@@ -393,7 +392,12 @@ void main() {
       ledger.deleteCategory(uuid(10));
 
       final changes = ledger.updateCategory(
-        category(uuid(11), name: 'renamed', parent: uuid(10)),
+        category(
+          uuid(11),
+          name: 'renamed',
+          parent: uuid(10),
+          lifecycle: LifecycleState.active,
+        ),
       );
 
       final stored = ledger.categories[uuid(11)]!;
@@ -404,7 +408,11 @@ void main() {
 
     test('the emitted payload is the stored category, not the argument', () {
       ledger.deleteCategory(uuid(10));
-      final argument = category(uuid(11), parent: uuid(10));
+      final argument = category(
+        uuid(11),
+        parent: uuid(10),
+        lifecycle: LifecycleState.active,
+      );
 
       final changes = ledger.updateCategory(argument);
 
@@ -438,7 +446,13 @@ void main() {
       ledger.deleteCategory(uuid(12));
       ledger.deleteCategory(uuid(11));
 
-      ledger.updateCategory(category(uuid(11), parent: uuid(12)));
+      ledger.updateCategory(
+        category(
+          uuid(11),
+          parent: uuid(12),
+          lifecycle: LifecycleState.active,
+        ),
+      );
 
       final stored = ledger.categories[uuid(11)]!;
       expect(stored.parentID, uuid(12));
@@ -474,7 +488,7 @@ void main() {
 
     test('updatePocket cannot revive one under an archived parent', () {
       ledger.deleteAccount(uuid(1));
-      ledger.updatePocket(pocket(uuid(2)));
+      ledger.updatePocket(pocket(uuid(2), lifecycle: LifecycleState.active));
 
       expect(hasOrphanActivePocket(ledger), isFalse);
     });

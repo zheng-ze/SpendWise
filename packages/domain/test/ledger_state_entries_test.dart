@@ -11,7 +11,7 @@ void main() {
     ledger = LedgerState();
     ledger.addAccount(account(uuid(1), name: 'a'));
     ledger.addAccount(account(uuid(2), name: 'b'));
-    ledger.categories[uuid(3)] = category(uuid(3));
+    ledger.addCategory(category(uuid(3)));
   });
 
   group('entry validation', () {
@@ -199,7 +199,7 @@ void main() {
     });
 
     test('can change the category', () {
-      ledger.categories[uuid(5)] = category(uuid(5), name: 'other');
+      ledger.addCategory(category(uuid(5), name: 'other'));
       ledger.addEntry(
         entry(id: uuid(4), sourceID: uuid(1), categoryID: uuid(3)),
       );

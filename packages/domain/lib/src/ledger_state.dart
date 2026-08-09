@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:decimal/decimal.dart';
 import 'package:domain/src/account.dart';
 import 'package:domain/src/account_type.dart';
@@ -17,18 +19,28 @@ class LedgerState {
     Map<String, MoneySource>? moneySources,
     Map<String, Entry>? entries,
     Map<String, TransactionCategory>? categories,
-  }) : moneySources = moneySources ?? {},
-       entries = entries ?? {},
-       categories = categories ?? {};
+  }) : _moneySources = {...?moneySources},
+       _entries = {...?entries},
+       _categories = {...?categories};
 
   /// Accounts and pockets share this table and one id space.
-  final Map<String, MoneySource> moneySources;
+  final Map<String, MoneySource> _moneySources;
 
-  final Map<String, Entry> entries;
-  final Map<String, TransactionCategory> categories;
+  final Map<String, Entry> _entries;
+  final Map<String, TransactionCategory> _categories;
+
+  /// Views, not the tables. Every write goes through a mutator, so the guards
+  /// cannot be walked around and the invariants have a single choke point.
+  Map<String, MoneySource> get moneySources =>
+      UnmodifiableMapView(_moneySources);
+
+  Map<String, Entry> get entries => UnmodifiableMapView(_entries);
+
+  Map<String, TransactionCategory> get categories =>
+      UnmodifiableMapView(_categories);
 
   List<LedgerChange> addAccount(Account account) {
-    if (moneySources.containsKey(account.id)) {
+    if (_moneySources.containsKey(account.id)) {
       throw IdCollision(account.id);
     }
     final stored = Account(
@@ -40,12 +52,12 @@ class LedgerState {
       statementDay: account.statementDay,
       lifecycle: account.lifecycle,
     );
-    moneySources[stored.id] = AccountSource(stored);
+    _moneySources[stored.id] = AccountSource(stored);
     return [UpsertAccount(stored)];
   }
 
   List<LedgerChange> updateAccount(Account account) {
-    final existing = moneySources[account.id]?.asAccount;
+    final existing = _moneySources[account.id]?.asAccount;
     if (existing == null) throw UnknownAccount(account.id);
 
     final stored = Account(
@@ -60,28 +72,28 @@ class LedgerState {
           : null,
       lifecycle: account.lifecycle,
     );
-    moneySources[stored.id] = AccountSource(stored);
+    _moneySources[stored.id] = AccountSource(stored);
     return [UpsertAccount(stored)];
   }
 
   List<LedgerChange> addPocket(SubPocket pocket, String rawAccountID) {
     final accountID = canonicalID(rawAccountID);
-    final parent = moneySources[accountID]?.asAccount;
+    final parent = _moneySources[accountID]?.asAccount;
     if (parent == null) throw UnknownAccount(accountID);
-    if (moneySources.containsKey(pocket.id)) throw IdCollision(pocket.id);
+    if (_moneySources.containsKey(pocket.id)) throw IdCollision(pocket.id);
 
     final linked = parent.addSubPocket(pocket.id);
     // A new pocket may not start out more alive than the account taking it.
     final stored = parent.lifecycle.isAtLeastAsAliveAs(pocket.lifecycle)
         ? pocket
         : pocket.settingLifecycle(parent.lifecycle);
-    moneySources[stored.id] = PocketSource(stored);
-    moneySources[linked.id] = AccountSource(linked);
+    _moneySources[stored.id] = PocketSource(stored);
+    _moneySources[linked.id] = AccountSource(linked);
     return [UpsertPocket(stored), UpsertAccount(linked)];
   }
 
   List<LedgerChange> updatePocket(SubPocket pocket) {
-    final existing = moneySources[pocket.id]?.asPocket;
+    final existing = _moneySources[pocket.id]?.asPocket;
     if (existing == null) throw UnknownHolder(pocket.id);
 
     // The edit surface may not outrank the parent, so a lifecycle it is not
@@ -89,7 +101,7 @@ class LedgerState {
     final stored = _willOutliveParentAccount(pocket)
         ? pocket.settingLifecycle(existing.lifecycle)
         : pocket;
-    moneySources[stored.id] = PocketSource(stored);
+    _moneySources[stored.id] = PocketSource(stored);
     return [UpsertPocket(stored)];
   }
 
@@ -101,19 +113,19 @@ class LedgerState {
   }
 
   List<LedgerChange> addEntry(Entry entry) {
-    if (entries.containsKey(entry.id)) throw IdCollision(entry.id);
+    if (_entries.containsKey(entry.id)) throw IdCollision(entry.id);
 
     final stored = _validated(entry);
-    entries[stored.id] = stored;
+    _entries[stored.id] = stored;
     return [UpsertEntry(stored)];
   }
 
   List<LedgerChange> updateEntry(Entry entry) {
-    final previous = entries[entry.id];
+    final previous = _entries[entry.id];
     if (previous == null) throw UnknownEntry(entry.id);
 
     final stored = _validated(entry, previous: previous);
-    entries[stored.id] = stored;
+    _entries[stored.id] = stored;
 
     final droppedHolders = previous.holderIDs.difference(stored.holderIDs);
     final droppedCategory = previous.categoryID == stored.categoryID
@@ -131,7 +143,7 @@ class LedgerState {
     DateTime? date,
   }) {
     final holderID = canonicalID(rawHolderID);
-    if (!moneySources.containsKey(holderID)) throw UnknownHolder(holderID);
+    if (!_moneySources.containsKey(holderID)) throw UnknownHolder(holderID);
     if (amount == Decimal.zero) return [];
 
     return addEntry(
@@ -147,7 +159,7 @@ class LedgerState {
 
   List<LedgerChange> deleteEntry(String rawID) {
     final id = canonicalID(rawID);
-    final removed = entries.remove(id);
+    final removed = _entries.remove(id);
     if (removed == null) return [];
 
     return [
@@ -157,15 +169,15 @@ class LedgerState {
   }
 
   List<LedgerChange> addCategory(TransactionCategory category) {
-    if (categories.containsKey(category.id)) throw IdCollision(category.id);
+    if (_categories.containsKey(category.id)) throw IdCollision(category.id);
 
     _validateParent(category);
-    categories[category.id] = category;
+    _categories[category.id] = category;
     return [UpsertCategory(category)];
   }
 
   List<LedgerChange> updateCategory(TransactionCategory category) {
-    final existing = categories[category.id];
+    final existing = _categories[category.id];
     if (existing == null) throw UnknownCategory(category.id);
 
     _validateParent(category);
@@ -175,7 +187,7 @@ class LedgerState {
     final stored = _willOutliveParentCategory(category)
         ? category.settingLifecycle(existing.lifecycle)
         : category;
-    categories[stored.id] = stored;
+    _categories[stored.id] = stored;
     return [UpsertCategory(stored)];
   }
 
@@ -185,7 +197,7 @@ class LedgerState {
     final parentID = category.parentID;
     if (parentID == null) return false;
 
-    final parent = categories[parentID];
+    final parent = _categories[parentID];
     if (parent == null) return false;
 
     return !parent.lifecycle.isAtLeastAsAliveAs(category.lifecycle);
@@ -193,20 +205,20 @@ class LedgerState {
 
   List<LedgerChange> deleteAccount(String rawID) {
     final id = canonicalID(rawID);
-    final account = moneySources[id]?.asAccount;
+    final account = _moneySources[id]?.asAccount;
     if (account == null || !account.lifecycle.isActive) return [];
 
     final archived = account.settingLifecycle(LifecycleState.archived);
-    moneySources[id] = AccountSource(archived);
+    _moneySources[id] = AccountSource(archived);
     final changes = <LedgerChange>[UpsertAccount(archived)];
 
     // Links are kept so restore can find the pockets again.
     for (final pocketID in archived.subPocketIDs) {
-      final pocket = moneySources[pocketID]?.asPocket;
+      final pocket = _moneySources[pocketID]?.asPocket;
       if (pocket == null || !pocket.lifecycle.isActive) continue;
 
       final archivedPocket = pocket.settingLifecycle(LifecycleState.archived);
-      moneySources[pocketID] = PocketSource(archivedPocket);
+      _moneySources[pocketID] = PocketSource(archivedPocket);
       changes.add(UpsertPocket(archivedPocket));
     }
     return changes;
@@ -214,28 +226,28 @@ class LedgerState {
 
   List<LedgerChange> deletePocket(String rawID) {
     final id = canonicalID(rawID);
-    final pocket = moneySources[id]?.asPocket;
+    final pocket = _moneySources[id]?.asPocket;
     if (pocket == null || !pocket.lifecycle.isActive) return [];
 
     final archived = pocket.settingLifecycle(LifecycleState.archived);
-    moneySources[id] = PocketSource(archived);
+    _moneySources[id] = PocketSource(archived);
     return [UpsertPocket(archived)];
   }
 
   List<LedgerChange> deleteCategory(String rawID) {
     final id = canonicalID(rawID);
-    final category = categories[id];
+    final category = _categories[id];
     if (category == null || !category.lifecycle.isActive) return [];
 
     final archived = category.settingLifecycle(LifecycleState.archived);
-    categories[id] = archived;
+    _categories[id] = archived;
     final changes = <LedgerChange>[UpsertCategory(archived)];
 
     for (final child in _children(id)) {
       if (!child.lifecycle.isActive) continue;
 
       final archivedChild = child.settingLifecycle(LifecycleState.archived);
-      categories[child.id] = archivedChild;
+      _categories[child.id] = archivedChild;
       changes.add(UpsertCategory(archivedChild));
     }
     return changes;
@@ -243,24 +255,24 @@ class LedgerState {
 
   List<LedgerChange> restoreAccount(String rawID) {
     final id = canonicalID(rawID);
-    final account = moneySources[id]?.asAccount;
+    final account = _moneySources[id]?.asAccount;
     if (account == null || account.lifecycle != LifecycleState.archived) {
       return [];
     }
 
     final restored = account.settingLifecycle(LifecycleState.active);
-    moneySources[id] = AccountSource(restored);
+    _moneySources[id] = AccountSource(restored);
     final changes = <LedgerChange>[UpsertAccount(restored)];
 
     // referenceOnly pockets stay put, having left the bin permanently.
     for (final pocketID in restored.subPocketIDs) {
-      final pocket = moneySources[pocketID]?.asPocket;
+      final pocket = _moneySources[pocketID]?.asPocket;
       if (pocket == null || pocket.lifecycle != LifecycleState.archived) {
         continue;
       }
 
       final restoredPocket = pocket.settingLifecycle(LifecycleState.active);
-      moneySources[pocketID] = PocketSource(restoredPocket);
+      _moneySources[pocketID] = PocketSource(restoredPocket);
       changes.add(UpsertPocket(restoredPocket));
     }
     return changes;
@@ -268,44 +280,44 @@ class LedgerState {
 
   List<LedgerChange> restorePocket(String rawID) {
     final id = canonicalID(rawID);
-    final pocket = moneySources[id]?.asPocket;
+    final pocket = _moneySources[id]?.asPocket;
     if (pocket == null || pocket.lifecycle != LifecycleState.archived) {
       return [];
     }
     final restored = pocket.settingLifecycle(LifecycleState.active);
     if (_willOutliveParentAccount(restored)) return [];
 
-    moneySources[id] = PocketSource(restored);
+    _moneySources[id] = PocketSource(restored);
     return [UpsertPocket(restored)];
   }
 
   List<LedgerChange> restoreCategory(String rawID) {
     final id = canonicalID(rawID);
-    final category = categories[id];
+    final category = _categories[id];
     if (category == null || category.lifecycle != LifecycleState.archived) {
       return [];
     }
     final parentID = category.parentID;
     if (parentID != null &&
-        categories[parentID]?.lifecycle == LifecycleState.archived) {
+        _categories[parentID]?.lifecycle == LifecycleState.archived) {
       return [];
     }
 
     final restored = category.settingLifecycle(LifecycleState.active);
-    categories[id] = restored;
+    _categories[id] = restored;
     final changes = <LedgerChange>[UpsertCategory(restored)];
 
     for (final child in _children(id)) {
       if (child.lifecycle != LifecycleState.archived) continue;
 
       final restoredChild = child.settingLifecycle(LifecycleState.active);
-      categories[child.id] = restoredChild;
+      _categories[child.id] = restoredChild;
       changes.add(UpsertCategory(restoredChild));
     }
     return changes;
   }
 
-  List<TransactionCategory> _children(String parentID) => categories.values
+  List<TransactionCategory> _children(String parentID) => _categories.values
       .where((category) => category.parentID == parentID)
       .toList();
 
@@ -316,7 +328,7 @@ class LedgerState {
     final parentID = category.parentID;
     if (parentID == null) return;
 
-    final parent = categories[parentID];
+    final parent = _categories[parentID];
     if (parent == null) throw UnknownCategory(parentID);
     if (parent.parentID != null) throw const CategoryTooDeep();
     if (parent.kind != category.kind) throw const CategoryKindMismatch();
@@ -326,7 +338,7 @@ class LedgerState {
   Entry _validated(Entry entry, {Entry? previous}) {
     if (entry.amount == Decimal.zero) throw const ZeroAmount();
 
-    final source = moneySources[entry.sourceID];
+    final source = _moneySources[entry.sourceID];
     if (source == null) throw UnknownHolder(entry.sourceID);
 
     final priorRefs = previous?.holderIDs ?? const <String>{};
@@ -336,7 +348,7 @@ class LedgerState {
 
     final categoryID = entry.categoryID;
     if (categoryID != null) {
-      final category = categories[categoryID];
+      final category = _categories[categoryID];
       if (category == null) throw UnknownCategory(categoryID);
       final expected = entry.expectedCategoryKind;
       if (expected == null) throw const CategoryKindMismatch();
@@ -349,7 +361,7 @@ class LedgerState {
     final destinationID = entry.destinationID;
     if (destinationID == null) return entry;
 
-    final destination = moneySources[destinationID];
+    final destination = _moneySources[destinationID];
     if (destination == null) throw UnknownHolder(destinationID);
     if (destinationID == entry.sourceID) throw const SelfTransfer();
     if (!priorRefs.contains(destinationID) && !destination.lifecycle.isActive) {
