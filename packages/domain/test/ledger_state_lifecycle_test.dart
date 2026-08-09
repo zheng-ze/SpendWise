@@ -735,4 +735,79 @@ void main() {
       expectPocketInvariants(ledger);
     });
   });
+
+  group('repeating a lifecycle mutator changes nothing', () {
+    test('deleteAccount twice', () {
+      ledger.deleteAccount(uuid(1));
+      final snapshot = Map.of(ledger.moneySources);
+
+      expect(ledger.deleteAccount(uuid(1)), isEmpty);
+      expect(ledger.moneySources, snapshot);
+    });
+
+    test('restoreAccount twice', () {
+      ledger.deleteAccount(uuid(1));
+      ledger.restoreAccount(uuid(1));
+      final snapshot = Map.of(ledger.moneySources);
+
+      expect(ledger.restoreAccount(uuid(1)), isEmpty);
+      expect(ledger.moneySources, snapshot);
+    });
+
+    test('purgeAccount twice', () {
+      ledger.deleteAccount(uuid(1));
+      ledger.purgeAccount(uuid(1));
+      final snapshot = Map.of(ledger.moneySources);
+
+      expect(ledger.purgeAccount(uuid(1)), isEmpty);
+      expect(ledger.moneySources, snapshot);
+      expectPocketInvariants(ledger);
+    });
+
+    test('deletePocket twice', () {
+      ledger.deletePocket(uuid(2));
+      final snapshot = Map.of(ledger.moneySources);
+
+      expect(ledger.deletePocket(uuid(2)), isEmpty);
+      expect(ledger.moneySources, snapshot);
+    });
+
+    test('deleteCategory twice', () {
+      ledger.addCategory(category(uuid(7)));
+      ledger.deleteCategory(uuid(7));
+      final snapshot = Map.of(ledger.categories);
+
+      expect(ledger.deleteCategory(uuid(7)), isEmpty);
+      expect(ledger.categories, snapshot);
+    });
+
+    test('restoreCategory twice', () {
+      ledger.addCategory(category(uuid(7)));
+      ledger.deleteCategory(uuid(7));
+      ledger.restoreCategory(uuid(7));
+      final snapshot = Map.of(ledger.categories);
+
+      expect(ledger.restoreCategory(uuid(7)), isEmpty);
+      expect(ledger.categories, snapshot);
+    });
+
+    test('purgeCategory twice', () {
+      ledger.addCategory(category(uuid(7)));
+      ledger.deleteCategory(uuid(7));
+      ledger.purgeCategory(uuid(7));
+      final snapshot = Map.of(ledger.categories);
+
+      expect(ledger.purgeCategory(uuid(7)), isEmpty);
+      expect(ledger.categories, snapshot);
+    });
+
+    test('deleteEntry twice', () {
+      ledger.addEntry(entry(id: uuid(4), sourceID: uuid(1)));
+      ledger.deleteEntry(uuid(4));
+      final snapshot = Map.of(ledger.entries);
+
+      expect(ledger.deleteEntry(uuid(4)), isEmpty);
+      expect(ledger.entries, snapshot);
+    });
+  });
 }
