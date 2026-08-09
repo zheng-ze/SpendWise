@@ -164,6 +164,14 @@ void main() {
   });
 
   group('addEntry', () {
+    test('emits an upsert of the stored entry', () {
+      final given = entry(id: uuid(4), sourceID: uuid(1));
+      final changes = ledger.addEntry(given);
+
+      expect(changes, [UpsertEntry(given)]);
+      expect(ledger.entries[uuid(4)], given);
+    });
+
     test('rejects a duplicate id', () {
       ledger.addEntry(entry(id: uuid(4), sourceID: uuid(1)));
 

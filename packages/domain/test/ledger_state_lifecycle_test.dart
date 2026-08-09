@@ -176,7 +176,16 @@ void main() {
       expect(ledger.categories[uuid(12)]?.lifecycle, LifecycleState.archived);
       expect(ledger.categories[uuid(13)]?.lifecycle, LifecycleState.active);
       expect(ledger.entries[uuid(4)]?.categoryID, uuid(11));
-      expect(changes.first, UpsertCategory(ledger.categories[uuid(10)]!));
+      // The parent emits before its children; the children come from an
+      // unordered scan, so their mutual order is not pinned.
+      expect(
+        changes,
+        containsAllInOrder([
+          UpsertCategory(ledger.categories[uuid(10)]!),
+          UpsertCategory(ledger.categories[uuid(11)]!),
+        ]),
+      );
+      expect(changes, contains(UpsertCategory(ledger.categories[uuid(12)]!)));
       expect(changes, hasLength(3));
     });
 

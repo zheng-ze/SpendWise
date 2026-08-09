@@ -384,5 +384,30 @@ void main() {
       expect(state.plans[planID], survivor);
       expect(changes.whereType<DeletePlan>(), isEmpty);
     });
+
+    // The holder upserts precede the plan deletes, but the account and its
+    // pockets archive from an unordered set, so only the relative order is
+    // pinned. Archiving must never emit a deleteMoneySource: the rows survive
+    // for restore.
+    test('archives the holders and drops the plan without deleting rows', () {
+      final state = seeded();
+      state.addPlan(plan());
+
+      final changes = state.deleteAccount(accountID);
+
+      final archivedAccount = state.moneySources[accountID]!.asAccount!;
+      final archivedPocket = state.moneySources[pocketID]!.asPocket!;
+      expect(
+        changes,
+        containsAllInOrder([
+          UpsertAccount(archivedAccount),
+          DeletePlan(planID),
+        ]),
+      );
+      expect(changes, contains(UpsertPocket(archivedPocket)));
+      expect(changes.whereType<DeleteMoneySource>(), isEmpty);
+      expect(archivedAccount.lifecycle, LifecycleState.archived);
+      expect(archivedPocket.lifecycle, LifecycleState.archived);
+    });
   });
 }

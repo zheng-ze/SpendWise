@@ -184,11 +184,14 @@ void main() {
       ledger.addAccount(
         account(uuid(1), type: AccountType.card, statementDay: 15),
       );
-      ledger.updateAccount(
+      final changes = ledger.updateAccount(
         account(uuid(1), type: AccountType.savings, statementDay: 15),
       );
 
       expect(ledger.moneySources[uuid(1)]?.asAccount?.statementDay, isNull);
+      expect(changes, [
+        UpsertAccount(account(uuid(1), type: AccountType.savings)),
+      ]);
     });
 
     test('keeps the statement day for a card', () {
