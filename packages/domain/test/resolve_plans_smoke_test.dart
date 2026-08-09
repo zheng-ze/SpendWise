@@ -40,10 +40,10 @@ void main() {
 
     expect(result.failures, isEmpty);
     expect(state.entries, hasLength(2));
-    expect(
-      result.changes.whereType<UpsertEntry>().map((c) => c.entry.date),
-      [DateTime.utc(2026, 2, 15), DateTime.utc(2026, 3, 15)],
-    );
+    expect(result.changes.whereType<UpsertEntry>().map((c) => c.entry.date), [
+      DateTime.utc(2026, 2, 15),
+      DateTime.utc(2026, 3, 15),
+    ]);
     expect(result.changes.last, isA<UpsertPlan>());
   });
 
@@ -80,4 +80,19 @@ void main() {
     expect(result.changes.last, DeletePlan(plan.id));
     expect(state.entries, hasLength(1));
   });
+
+  test(
+    'retires a plan whose final occurrence lands on the resolve instant',
+    () {
+      final state = seeded();
+      final plan = monthly(endDate: DateTime.utc(2026, 2, 15));
+      state.addPlan(plan);
+
+      final result = state.resolvePlans(DateTime.utc(2026, 2, 15));
+
+      expect(state.plans, isEmpty);
+      expect(result.changes.last, DeletePlan(plan.id));
+      expect(state.entries, hasLength(1));
+    },
+  );
 }

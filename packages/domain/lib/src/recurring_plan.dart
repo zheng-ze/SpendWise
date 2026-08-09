@@ -45,7 +45,7 @@ class RecurringPlan {
     final end = endDate;
     if (end == null) return false;
 
-    return end.isBefore(asOf) && !lastResolvedDate.isBefore(end);
+    return !end.isAfter(asOf) && !lastResolvedDate.isBefore(end);
   }
 
   /// Exclusive of [after] and inclusive of the ceiling, so an occurrence is

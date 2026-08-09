@@ -159,6 +159,15 @@ void main() {
 
       expect(ending.isExhausted(asOf: DateTime.utc(2026, 6, 1)), isTrue);
     });
+
+    test('is true once the cursor lands exactly on the end date', () {
+      final ending = plan(
+        endDate: DateTime.utc(2026, 3, 1),
+        lastResolvedDate: DateTime.utc(2026, 3, 1),
+      );
+
+      expect(ending.isExhausted(asOf: DateTime.utc(2026, 3, 1)), isTrue);
+    });
   });
 
   test('resolvedAt advances only the cursor', () {
