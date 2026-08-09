@@ -29,6 +29,7 @@ void main() {
         () => ledger.addCategory(category(uuid(2), parent: uuid(9))),
         throwsA(UnknownCategory(uuid(9))),
       );
+      expect(ledger.categories, isEmpty);
     });
 
     test('a child kind must match its parent', () {

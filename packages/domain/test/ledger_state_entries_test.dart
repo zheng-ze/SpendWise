@@ -28,6 +28,7 @@ void main() {
         () => ledger.addEntry(entry(sourceID: uuid(9))),
         throwsA(UnknownHolder(uuid(9))),
       );
+      expect(ledger.entries, isEmpty);
     });
 
     test('a self transfer throws', () {
@@ -41,6 +42,7 @@ void main() {
         ),
         throwsA(const SelfTransfer()),
       );
+      expect(ledger.entries, isEmpty);
     });
 
     test('an unknown category throws unknownCategory', () {
@@ -48,6 +50,7 @@ void main() {
         () => ledger.addEntry(entry(sourceID: uuid(1), categoryID: uuid(9))),
         throwsA(UnknownCategory(uuid(9))),
       );
+      expect(ledger.entries, isEmpty);
     });
 
     test('zero amount beats an unknown source', () {
@@ -55,6 +58,7 @@ void main() {
         () => ledger.addEntry(entry(amount: Decimal.zero, sourceID: uuid(9))),
         throwsA(const ZeroAmount()),
       );
+      expect(ledger.entries, isEmpty);
     });
 
     test(
@@ -71,6 +75,7 @@ void main() {
           ),
           throwsA(const CategoryKindMismatch()),
         );
+        expect(ledger.entries, isEmpty);
       },
     );
 
@@ -85,6 +90,7 @@ void main() {
         ),
         throwsA(UnknownHolder(uuid(9))),
       );
+      expect(ledger.entries, isEmpty);
     });
   });
 
@@ -215,6 +221,7 @@ void main() {
         () => ledger.updateEntry(entry(id: uuid(4), sourceID: uuid(1))),
         throwsA(UnknownEntry(uuid(4))),
       );
+      expect(ledger.entries, isEmpty);
     });
   });
 

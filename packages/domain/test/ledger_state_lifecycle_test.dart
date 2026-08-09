@@ -344,6 +344,7 @@ void main() {
         () => ledger.addEntry(entry(id: uuid(4), sourceID: uuid(1))),
         throwsA(InactiveReference(uuid(1))),
       );
+      expect(ledger.entries[uuid(4)], isNull);
     });
 
     test('a new entry cannot reference an archived category', () {
@@ -356,6 +357,7 @@ void main() {
         ),
         throwsA(InactiveReference(uuid(10))),
       );
+      expect(ledger.entries[uuid(4)], isNull);
     });
 
     test('editing an entry on an already archived category stays allowed', () {
