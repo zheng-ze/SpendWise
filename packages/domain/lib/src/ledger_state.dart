@@ -15,6 +15,7 @@ import 'package:domain/src/recurring_plan.dart';
 import 'package:domain/src/sub_pocket.dart';
 import 'package:domain/src/transaction_category.dart';
 
+part 'ledger_state_invariants.dart';
 part 'ledger_state_queries.dart';
 
 class LedgerState {
@@ -47,6 +48,23 @@ class LedgerState {
 
   Map<String, RecurringPlan> get plans => UnmodifiableMapView(_plans);
 
+  /// The closure form keeps the check out of release builds entirely.
+  List<LedgerChange> _checked(List<LedgerChange> changes) {
+    assert(() {
+      assertInvariants();
+      return true;
+    }());
+    return changes;
+  }
+
+  PlanResolution _checkedResolution(PlanResolution resolution) {
+    assert(() {
+      assertInvariants();
+      return true;
+    }());
+    return resolution;
+  }
+
   List<LedgerChange> addAccount(Account account) {
     if (_moneySources.containsKey(account.id)) {
       throw IdCollision(account.id);
@@ -61,7 +79,7 @@ class LedgerState {
       lifecycle: account.lifecycle,
     );
     _moneySources[stored.id] = AccountSource(stored);
-    return [UpsertAccount(stored)];
+    return _checked([UpsertAccount(stored)]);
   }
 
   List<LedgerChange> updateAccount(Account account) {
@@ -81,7 +99,7 @@ class LedgerState {
       lifecycle: account.lifecycle,
     );
     _moneySources[stored.id] = AccountSource(stored);
-    return [UpsertAccount(stored)];
+    return _checked([UpsertAccount(stored)]);
   }
 
   List<LedgerChange> addPocket(SubPocket pocket, String rawAccountID) {
@@ -89,15 +107,12 @@ class LedgerState {
     final parent = _moneySources[accountID]?.asAccount;
     if (parent == null) throw UnknownAccount(accountID);
     if (_moneySources.containsKey(pocket.id)) throw IdCollision(pocket.id);
+    if (!parent.lifecycle.isActive) throw InactiveReference(accountID);
 
     final linked = parent.addSubPocket(pocket.id);
-    // A new pocket may not start out more alive than the account taking it.
-    final stored = parent.lifecycle.isAtLeastAsAliveAs(pocket.lifecycle)
-        ? pocket
-        : pocket.settingLifecycle(parent.lifecycle);
-    _moneySources[stored.id] = PocketSource(stored);
+    _moneySources[pocket.id] = PocketSource(pocket);
     _moneySources[linked.id] = AccountSource(linked);
-    return [UpsertPocket(stored), UpsertAccount(linked)];
+    return _checked([UpsertPocket(pocket), UpsertAccount(linked)]);
   }
 
   List<LedgerChange> updatePocket(SubPocket pocket) {
@@ -110,7 +125,7 @@ class LedgerState {
         ? pocket.settingLifecycle(existing.lifecycle)
         : pocket;
     _moneySources[stored.id] = PocketSource(stored);
-    return [UpsertPocket(stored)];
+    return _checked([UpsertPocket(stored)]);
   }
 
   /// True when the pocket outranks its parent, and when no account claims it.
@@ -126,7 +141,7 @@ class LedgerState {
 
     final stored = _validated(entry);
     _entries[stored.id] = stored;
-    return [UpsertEntry(stored)];
+    return _checked([UpsertEntry(stored)]);
   }
 
   List<LedgerChange> updateEntry(Entry entry) {
@@ -140,10 +155,10 @@ class LedgerState {
     final droppedCategory = previous.categoryID == stored.categoryID
         ? null
         : previous.categoryID;
-    return [
+    return _checked([
       UpsertEntry(stored),
       ..._tombstoneDereferenced(droppedHolders, droppedCategory),
-    ];
+    ]);
   }
 
   List<LedgerChange> setOpeningBalance(
@@ -153,15 +168,17 @@ class LedgerState {
   }) {
     final holderID = canonicalID(rawHolderID);
     if (!_moneySources.containsKey(holderID)) throw UnknownHolder(holderID);
-    if (amount == Decimal.zero) return [];
+    if (amount == Decimal.zero) return _checked([]);
 
-    return addEntry(
-      Entry(
-        date: date,
-        amount: amount,
-        name: 'Opening balance',
-        sourceID: holderID,
-        includeInAnalysis: false,
+    return _checked(
+      addEntry(
+        Entry(
+          date: date,
+          amount: amount,
+          name: 'Opening balance',
+          sourceID: holderID,
+          includeInAnalysis: false,
+        ),
       ),
     );
   }
@@ -169,12 +186,12 @@ class LedgerState {
   List<LedgerChange> deleteEntry(String rawID) {
     final id = canonicalID(rawID);
     final removed = _entries.remove(id);
-    if (removed == null) return [];
+    if (removed == null) return _checked([]);
 
-    return [
+    return _checked([
       DeleteEntry(id),
       ..._tombstoneDereferenced(removed.holderIDs, removed.categoryID),
-    ];
+    ]);
   }
 
   List<LedgerChange> addCategory(TransactionCategory category) {
@@ -182,7 +199,7 @@ class LedgerState {
 
     _validateParent(category);
     _categories[category.id] = category;
-    return [UpsertCategory(category)];
+    return _checked([UpsertCategory(category)]);
   }
 
   List<LedgerChange> updateCategory(TransactionCategory category) {
@@ -197,7 +214,7 @@ class LedgerState {
         ? category.settingLifecycle(existing.lifecycle)
         : category;
     _categories[stored.id] = stored;
-    return [UpsertCategory(stored)];
+    return _checked([UpsertCategory(stored)]);
   }
 
   /// The incoming parent is judged, so reparenting cannot smuggle a lifecycle
@@ -217,7 +234,7 @@ class LedgerState {
 
     _validatePlan(plan);
     _plans[plan.id] = plan;
-    return [UpsertPlan(plan)];
+    return _checked([UpsertPlan(plan)]);
   }
 
   List<LedgerChange> updatePlan(RecurringPlan plan) {
@@ -225,14 +242,14 @@ class LedgerState {
 
     _validatePlan(plan);
     _plans[plan.id] = plan;
-    return [UpsertPlan(plan)];
+    return _checked([UpsertPlan(plan)]);
   }
 
   List<LedgerChange> deletePlan(String rawID) {
     final id = canonicalID(rawID);
-    if (_plans.remove(id) == null) return [];
+    if (_plans.remove(id) == null) return _checked([]);
 
-    return [DeletePlan(id)];
+    return _checked([DeletePlan(id)]);
   }
 
   void _validatePlan(RecurringPlan plan) {
@@ -303,13 +320,15 @@ class LedgerState {
       // occurrences, so replaying yields the same empty result.
     }
 
-    return PlanResolution(changes: changes, failures: failures);
+    return _checkedResolution(
+      PlanResolution(changes: changes, failures: failures),
+    );
   }
 
   List<LedgerChange> deleteAccount(String rawID) {
     final id = canonicalID(rawID);
     final account = _moneySources[id]?.asAccount;
-    if (account == null || !account.lifecycle.isActive) return [];
+    if (account == null || !account.lifecycle.isActive) return _checked([]);
 
     final archived = account.settingLifecycle(LifecycleState.archived);
     _moneySources[id] = AccountSource(archived);
@@ -326,7 +345,7 @@ class LedgerState {
     }
 
     changes.addAll(_removePlansReferencing({id, ...archived.subPocketIDs}));
-    return changes;
+    return _checked(changes);
   }
 
   List<LedgerChange> _removePlansReferencing(Set<String> ids) {
@@ -344,17 +363,17 @@ class LedgerState {
   List<LedgerChange> deletePocket(String rawID) {
     final id = canonicalID(rawID);
     final pocket = _moneySources[id]?.asPocket;
-    if (pocket == null || !pocket.lifecycle.isActive) return [];
+    if (pocket == null || !pocket.lifecycle.isActive) return _checked([]);
 
     final archived = pocket.settingLifecycle(LifecycleState.archived);
     _moneySources[id] = PocketSource(archived);
-    return [UpsertPocket(archived)];
+    return _checked([UpsertPocket(archived)]);
   }
 
   List<LedgerChange> deleteCategory(String rawID) {
     final id = canonicalID(rawID);
     final category = _categories[id];
-    if (category == null || !category.lifecycle.isActive) return [];
+    if (category == null || !category.lifecycle.isActive) return _checked([]);
 
     final archived = category.settingLifecycle(LifecycleState.archived);
     _categories[id] = archived;
@@ -367,14 +386,14 @@ class LedgerState {
       _categories[child.id] = archivedChild;
       changes.add(UpsertCategory(archivedChild));
     }
-    return changes;
+    return _checked(changes);
   }
 
   List<LedgerChange> restoreAccount(String rawID) {
     final id = canonicalID(rawID);
     final account = _moneySources[id]?.asAccount;
     if (account == null || account.lifecycle != LifecycleState.archived) {
-      return [];
+      return _checked([]);
     }
 
     final restored = account.settingLifecycle(LifecycleState.active);
@@ -392,32 +411,32 @@ class LedgerState {
       _moneySources[pocketID] = PocketSource(restoredPocket);
       changes.add(UpsertPocket(restoredPocket));
     }
-    return changes;
+    return _checked(changes);
   }
 
   List<LedgerChange> restorePocket(String rawID) {
     final id = canonicalID(rawID);
     final pocket = _moneySources[id]?.asPocket;
     if (pocket == null || pocket.lifecycle != LifecycleState.archived) {
-      return [];
+      return _checked([]);
     }
     final restored = pocket.settingLifecycle(LifecycleState.active);
-    if (_willOutliveParentAccount(restored)) return [];
+    if (_willOutliveParentAccount(restored)) return _checked([]);
 
     _moneySources[id] = PocketSource(restored);
-    return [UpsertPocket(restored)];
+    return _checked([UpsertPocket(restored)]);
   }
 
   List<LedgerChange> restoreCategory(String rawID) {
     final id = canonicalID(rawID);
     final category = _categories[id];
     if (category == null || category.lifecycle != LifecycleState.archived) {
-      return [];
+      return _checked([]);
     }
     final parentID = category.parentID;
     if (parentID != null &&
         _categories[parentID]?.lifecycle == LifecycleState.archived) {
-      return [];
+      return _checked([]);
     }
 
     final restored = category.settingLifecycle(LifecycleState.active);
@@ -431,7 +450,7 @@ class LedgerState {
       _categories[child.id] = restoredChild;
       changes.add(UpsertCategory(restoredChild));
     }
-    return changes;
+    return _checked(changes);
   }
 
   List<TransactionCategory> _children(String parentID) => _categories.values
@@ -506,7 +525,7 @@ class LedgerState {
     final id = canonicalID(rawID);
     final account = _moneySources[id]?.asAccount;
     if (account == null || account.lifecycle != LifecycleState.archived) {
-      return [];
+      return _checked([]);
     }
 
     final changes = <LedgerChange>[];
@@ -517,21 +536,21 @@ class LedgerState {
       changes.addAll(_purgeHolder(pocketID));
     }
 
-    return [...changes, ..._purgeHolder(id)];
+    return _checked([...changes, ..._purgeHolder(id)]);
   }
 
   List<LedgerChange> purgePocket(String rawID) {
     final id = canonicalID(rawID);
     final pocket = _moneySources[id]?.asPocket;
     if (pocket == null || pocket.lifecycle != LifecycleState.archived) {
-      return [];
+      return _checked([]);
     }
-    return _purgeHolder(id);
+    return _checked(_purgeHolder(id));
   }
 
   /// Expects an already-canonical id naming a stored holder.
   List<LedgerChange> _purgeHolder(String holderID) {
-    if (!_isReferenced(holderID)) {
+    if (!_isHolderReferenced(holderID)) {
       final pocket = _moneySources[holderID]?.asPocket;
       if (pocket != null) return _detachAndTombstonePocket(holderID);
 
@@ -572,17 +591,21 @@ class LedgerState {
     final id = canonicalID(rawID);
     final category = _categories[id];
     if (category == null || category.lifecycle != LifecycleState.archived) {
-      return [];
+      return _checked([]);
     }
 
     // Children go regardless of lifecycle, unlike the archive and restore
-    // cascades, so an active child cannot outlive the row it hangs from.
-    final doomed = [category, ..._children(id)];
-    return [for (final row in doomed) ..._purgeCategoryRow(row)];
+    // cascades, so an active child cannot outlive the row it hangs from. They
+    // sweep first so a survivor is visible when the parent is judged, but emit
+    // after it.
+    final childChanges = [
+      for (final child in _children(id)) ..._purgeCategoryRow(child),
+    ];
+    return _checked([..._purgeCategoryRow(category), ...childChanges]);
   }
 
   List<LedgerChange> _purgeCategoryRow(TransactionCategory category) {
-    if (entryCountReferencing(category.id) > 0) {
+    if (_isCategoryReferenced(category.id)) {
       final kept = category.settingLifecycle(LifecycleState.referenceOnly);
       _categories[kept.id] = kept;
       return [UpsertCategory(kept)];
@@ -590,6 +613,17 @@ class LedgerState {
 
     _categories.remove(category.id);
     return [DeleteCategory(category.id)];
+  }
+
+  bool _isCategoryReferenced(String id, [Set<String>? seen]) {
+    final visited = seen ?? <String>{};
+    if (!visited.add(id)) return false;
+    if (!_categories.containsKey(id)) return false;
+    if (entryCountReferencing(id) > 0) return true;
+
+    return _children(
+      id,
+    ).any((child) => _isCategoryReferenced(child.id, visited));
   }
 
   /// The only referenceOnly to tombstoned path. Holders sweep before the
@@ -605,22 +639,32 @@ class LedgerState {
 
     if (category == null) return changes;
 
-    final stored = _categories[category];
+    return [...changes, ..._sweepCategory(category)];
+  }
+
+  List<LedgerChange> _sweepCategory(String categoryID) {
+    final stored = _categories[categoryID];
     if (stored == null ||
         stored.lifecycle != LifecycleState.referenceOnly ||
-        entryCountReferencing(category) > 0) {
-      return changes;
+        _isCategoryReferenced(categoryID)) {
+      return [];
     }
 
-    _categories.remove(category);
-    return [...changes, DeleteCategory(category)];
+    // The parent may have been held up solely by this child, so it is
+    // re-judged once the child is gone.
+    final parentID = stored.parentID;
+    _categories.remove(categoryID);
+    final changes = <LedgerChange>[DeleteCategory(categoryID)];
+    if (parentID == null) return changes;
+
+    return [...changes, ..._sweepCategory(parentID)];
   }
 
   List<LedgerChange> _sweepHolder(String holderID) {
     final source = _moneySources[holderID];
     if (source == null ||
         source.lifecycle != LifecycleState.referenceOnly ||
-        _isReferenced(holderID)) {
+        _isHolderReferenced(holderID)) {
       return [];
     }
 

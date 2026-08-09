@@ -195,13 +195,9 @@ void main() {
     });
 
     test('a referenceOnly account is a no-op', () {
-      ledger = LedgerState(
-        moneySources: {
-          uuid(1): AccountSource(
-            account(uuid(1), lifecycle: LifecycleState.referenceOnly),
-          ),
-        },
-      );
+      ledger.addEntry(entry(id: uuid(4), sourceID: uuid(1)));
+      ledger.deleteAccount(uuid(1));
+      ledger.purgeAccount(uuid(1));
 
       expect(ledger.purgeAccount(uuid(1)), isEmpty);
       expect(

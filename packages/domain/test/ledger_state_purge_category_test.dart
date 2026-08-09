@@ -73,7 +73,47 @@ void main() {
         LifecycleState.referenceOnly,
       );
       expect(ledger.categories[uuid(4)], isNull);
-      expect(ledger.categories[uuid(2)], isNull);
+      expect(
+        ledger.categories[uuid(2)]?.lifecycle,
+        LifecycleState.referenceOnly,
+      );
+    });
+
+    test('clearing the last child entry tombstones the whole chain', () {
+      ledger.addCategory(category(uuid(2)));
+      ledger.addCategory(category(uuid(3), parent: uuid(2)));
+      ledger.addEntry(
+        entry(id: uuid(5), categoryID: uuid(3), sourceID: uuid(1)),
+      );
+      ledger.deleteCategory(uuid(2));
+      ledger.purgeCategory(uuid(2));
+
+      final changes = ledger.deleteEntry(uuid(5));
+
+      expect(ledger.categories, isEmpty);
+      expect(changes, contains(DeleteCategory(uuid(3))));
+      expect(changes, contains(DeleteCategory(uuid(2))));
+    });
+
+    test('a parent with its own entry outlives the swept child', () {
+      ledger.addCategory(category(uuid(2)));
+      ledger.addCategory(category(uuid(3), parent: uuid(2)));
+      ledger.addEntry(
+        entry(id: uuid(4), categoryID: uuid(2), sourceID: uuid(1)),
+      );
+      ledger.addEntry(
+        entry(id: uuid(5), categoryID: uuid(3), sourceID: uuid(1)),
+      );
+      ledger.deleteCategory(uuid(2));
+      ledger.purgeCategory(uuid(2));
+
+      ledger.deleteEntry(uuid(5));
+
+      expect(ledger.categories[uuid(3)], isNull);
+      expect(
+        ledger.categories[uuid(2)]?.lifecycle,
+        LifecycleState.referenceOnly,
+      );
     });
 
     test('a referenced parent survives while its children are removed', () {

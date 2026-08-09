@@ -65,28 +65,30 @@ void main() {
       );
     });
 
-    test('a pocket added to an archived account starts archived', () {
+    test('an archived account rejects a new pocket', () {
       ledger.addAccount(account(uuid(1)));
       ledger.deleteAccount(uuid(1));
 
-      final changes = ledger.addPocket(pocket(uuid(2)), uuid(1));
-
-      final stored = ledger.moneySources[uuid(2)]!.asPocket!;
-      expect(stored.lifecycle, LifecycleState.archived);
-      expect(changes.first, UpsertPocket(stored));
+      expect(
+        () => ledger.addPocket(pocket(uuid(2)), uuid(1)),
+        throwsA(InactiveReference(uuid(1))),
+      );
+      expect(ledger.moneySources[uuid(2)], isNull);
+      expect(ledger.moneySources[uuid(1)]?.asAccount?.subPocketIDs, isEmpty);
     });
 
-    test('a pocket added to a referenceOnly account starts referenceOnly', () {
-      ledger.addAccount(
-        account(uuid(1), lifecycle: LifecycleState.referenceOnly),
-      );
-
-      ledger.addPocket(pocket(uuid(2)), uuid(1));
+    test('a referenceOnly account rejects a new pocket', () {
+      ledger.addAccount(account(uuid(1)));
+      ledger.addEntry(entry(id: uuid(3), sourceID: uuid(1)));
+      ledger.deleteAccount(uuid(1));
+      ledger.purgeAccount(uuid(1));
 
       expect(
-        ledger.moneySources[uuid(2)]?.lifecycle,
-        LifecycleState.referenceOnly,
+        () => ledger.addPocket(pocket(uuid(2)), uuid(1)),
+        throwsA(InactiveReference(uuid(1))),
       );
+      expect(ledger.moneySources[uuid(2)], isNull);
+      expect(ledger.moneySources[uuid(1)]?.asAccount?.subPocketIDs, isEmpty);
     });
 
     test('a pocket may start less alive than an active account', () {

@@ -68,7 +68,7 @@ extension LedgerStateQueries on LedgerState {
   /// weaker test would pin a parent at referenceOnly forever if a tombstoned
   /// pocket ever failed to clear, since nothing would re-examine the link.
   /// Rows already gone are skipped so a stale id can never revive a parent.
-  bool _isReferenced(String holderID) {
+  bool _isHolderReferenced(String holderID) {
     final source = _moneySources[holderID];
     if (source == null) return false;
     if (entriesReferencing(holderID) > 0) return true;
@@ -78,7 +78,7 @@ extension LedgerStateQueries on LedgerState {
 
     return account.subPocketIDs
         .where(_moneySources.containsKey)
-        .any(_isReferenced);
+        .any(_isHolderReferenced);
   }
 
   Set<String> _sourceIDsWith(LifecycleState lifecycle) => _moneySources.values

@@ -88,6 +88,7 @@ void main() {
     test('keeps the pocket links for restore', () {
       ledger.deleteAccount(uuid(1));
 
+      expect(ledger.moneySources[uuid(1)]?.lifecycle, LifecycleState.archived);
       expect(ledger.moneySources[uuid(1)]?.asAccount?.subPocketIDs, {uuid(2)});
     });
 
@@ -248,14 +249,9 @@ void main() {
     });
 
     test('a referenceOnly pocket is not restorable', () {
-      ledger = LedgerState(
-        moneySources: {
-          uuid(1): AccountSource(account(uuid(1), subPocketIDs: {uuid(2)})),
-          uuid(2): PocketSource(
-            pocket(uuid(2), lifecycle: LifecycleState.referenceOnly),
-          ),
-        },
-      );
+      ledger.addEntry(entry(id: uuid(4), sourceID: uuid(2)));
+      ledger.deletePocket(uuid(2));
+      ledger.purgePocket(uuid(2));
 
       expect(ledger.restorePocket(uuid(2)), isEmpty);
       expect(
@@ -265,23 +261,19 @@ void main() {
     });
 
     test('is blocked while the parent is referenceOnly', () {
-      ledger = LedgerState(
-        moneySources: {
-          uuid(1): AccountSource(
-            account(
-              uuid(1),
-              subPocketIDs: {uuid(2)},
-              lifecycle: LifecycleState.referenceOnly,
-            ),
-          ),
-          uuid(2): PocketSource(
-            pocket(uuid(2), lifecycle: LifecycleState.archived),
-          ),
-        },
+      ledger.addEntry(entry(id: uuid(4), sourceID: uuid(2)));
+      ledger.deleteAccount(uuid(1));
+      ledger.purgeAccount(uuid(1));
+      expect(
+        ledger.moneySources[uuid(1)]?.lifecycle,
+        LifecycleState.referenceOnly,
       );
 
       expect(ledger.restorePocket(uuid(2)), isEmpty);
-      expect(ledger.moneySources[uuid(2)]?.lifecycle, LifecycleState.archived);
+      expect(
+        ledger.moneySources[uuid(2)]?.lifecycle,
+        LifecycleState.referenceOnly,
+      );
     });
   });
 
@@ -402,20 +394,9 @@ void main() {
     });
 
     test('updatePocket cannot reactivate under a referenceOnly parent', () {
-      ledger = LedgerState(
-        moneySources: {
-          uuid(1): AccountSource(
-            account(
-              uuid(1),
-              subPocketIDs: {uuid(2)},
-              lifecycle: LifecycleState.referenceOnly,
-            ),
-          ),
-          uuid(2): PocketSource(
-            pocket(uuid(2), lifecycle: LifecycleState.referenceOnly),
-          ),
-        },
-      );
+      ledger.addEntry(entry(id: uuid(4), sourceID: uuid(2)));
+      ledger.deleteAccount(uuid(1));
+      ledger.purgeAccount(uuid(1));
 
       ledger.updatePocket(pocket(uuid(2), lifecycle: LifecycleState.active));
 
@@ -507,10 +488,13 @@ void main() {
   });
 
   group('no mutator leaves an active pocket without an active parent', () {
-    test('addPocket onto an archived parent', () {
+    test('addPocket onto an archived parent is rejected', () {
       ledger.deleteAccount(uuid(1));
-      ledger.addPocket(pocket(uuid(8)), uuid(1));
 
+      expect(
+        () => ledger.addPocket(pocket(uuid(8)), uuid(1)),
+        throwsA(InactiveReference(uuid(1))),
+      );
       expectPocketInvariants(ledger);
     });
 
@@ -725,17 +709,16 @@ void main() {
       expectPocketInvariants(ledger);
     });
 
-    test('addPocket onto a referenceOnly parent stays in lockstep', () {
+    test('addPocket onto a referenceOnly parent is rejected', () {
       ledger.addEntry(entry(id: uuid(4), sourceID: uuid(1)));
       ledger.deleteAccount(uuid(1));
       ledger.purgeAccount(uuid(1));
 
-      ledger.addPocket(pocket(uuid(8), name: 'second'), uuid(1));
-
       expect(
-        ledger.moneySources[uuid(8)]?.lifecycle,
-        LifecycleState.referenceOnly,
+        () => ledger.addPocket(pocket(uuid(8), name: 'second'), uuid(1)),
+        throwsA(InactiveReference(uuid(1))),
       );
+      expect(ledger.moneySources[uuid(8)], isNull);
       expectPocketInvariants(ledger);
     });
 
