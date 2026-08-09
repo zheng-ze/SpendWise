@@ -105,6 +105,7 @@ class LedgerState {
     return [UpsertPocket(stored)];
   }
 
+  /// True when the pocket outranks its parent, and when no account claims it.
   bool _willOutliveParentAccount(SubPocket pocket) {
     final parent = _owningAccount(pocket.id);
     if (parent == null) return true;
@@ -383,10 +384,141 @@ class LedgerState {
     );
   }
 
+  /// Pockets settle first so the account sees their survival when it judges its
+  /// own referencedness.
+  List<LedgerChange> purgeAccount(String rawID) {
+    final id = canonicalID(rawID);
+    final account = _moneySources[id]?.asAccount;
+    if (account == null || account.lifecycle != LifecycleState.archived) {
+      return [];
+    }
+
+    final changes = <LedgerChange>[];
+    for (final pocketID in account.subPocketIDs.toList()) {
+      final pocket = _moneySources[pocketID]?.asPocket;
+      if (pocket == null) continue;
+
+      changes.addAll(_purgeHolder(pocketID));
+    }
+
+    return [...changes, ..._purgeHolder(id)];
+  }
+
+  List<LedgerChange> purgePocket(String rawID) {
+    final id = canonicalID(rawID);
+    final pocket = _moneySources[id]?.asPocket;
+    if (pocket == null || pocket.lifecycle != LifecycleState.archived) {
+      return [];
+    }
+    return _purgeHolder(id);
+  }
+
+  /// Expects an already-canonical id naming a stored holder.
+  List<LedgerChange> _purgeHolder(String holderID) {
+    if (!_isReferenced(holderID)) {
+      final pocket = _moneySources[holderID]?.asPocket;
+      if (pocket != null) return _detachAndTombstonePocket(holderID);
+
+      _moneySources.remove(holderID);
+      return [DeleteMoneySource(holderID)];
+    }
+
+    switch (_moneySources[holderID]!) {
+      case AccountSource(:final account):
+        final kept = account.settingLifecycle(LifecycleState.referenceOnly);
+        _moneySources[holderID] = AccountSource(kept);
+        return [UpsertAccount(kept)];
+      case PocketSource(:final pocket):
+        final kept = pocket.settingLifecycle(LifecycleState.referenceOnly);
+        _moneySources[holderID] = PocketSource(kept);
+        return [UpsertPocket(kept)];
+    }
+  }
+
+  /// Expects an already-canonical id. The parent upsert precedes the deletion,
+  /// so a consumer replaying the changes never sees the link outlive the row.
+  List<LedgerChange> _detachAndTombstonePocket(String pocketID) {
+    final parent = _owningAccount(pocketID);
+    final changes = <LedgerChange>[];
+
+    if (parent != null) {
+      final detached = parent.removeSubPocket(pocketID);
+      _moneySources[detached.id] = AccountSource(detached);
+      changes.add(UpsertAccount(detached));
+    }
+
+    _moneySources.remove(pocketID);
+    changes.add(DeleteMoneySource(pocketID));
+    return changes;
+  }
+
+  List<LedgerChange> purgeCategory(String rawID) {
+    final id = canonicalID(rawID);
+    final category = _categories[id];
+    if (category == null || category.lifecycle != LifecycleState.archived) {
+      return [];
+    }
+
+    // Children go regardless of lifecycle, unlike the archive and restore
+    // cascades, so an active child cannot outlive the row it hangs from.
+    final doomed = [category, ..._children(id)];
+    return [for (final row in doomed) ..._purgeCategoryRow(row)];
+  }
+
+  List<LedgerChange> _purgeCategoryRow(TransactionCategory category) {
+    if (entryCountReferencing(category.id) > 0) {
+      final kept = category.settingLifecycle(LifecycleState.referenceOnly);
+      _categories[kept.id] = kept;
+      return [UpsertCategory(kept)];
+    }
+
+    _categories.remove(category.id);
+    return [DeleteCategory(category.id)];
+  }
+
+  /// The only referenceOnly to tombstoned path. Holders sweep before the
+  /// category so a holder losing its last reference cannot be missed.
   List<LedgerChange> _tombstoneDereferenced(
     Set<String> holders,
     String? category,
   ) {
-    return [];
+    final changes = <LedgerChange>[];
+    for (final holderID in holders) {
+      changes.addAll(_sweepHolder(holderID));
+    }
+
+    if (category == null) return changes;
+
+    final stored = _categories[category];
+    if (stored == null ||
+        stored.lifecycle != LifecycleState.referenceOnly ||
+        entryCountReferencing(category) > 0) {
+      return changes;
+    }
+
+    _categories.remove(category);
+    return [...changes, DeleteCategory(category)];
+  }
+
+  List<LedgerChange> _sweepHolder(String holderID) {
+    final source = _moneySources[holderID];
+    if (source == null ||
+        source.lifecycle != LifecycleState.referenceOnly ||
+        _isReferenced(holderID)) {
+      return [];
+    }
+
+    if (source.asPocket == null) {
+      _moneySources.remove(holderID);
+      return [DeleteMoneySource(holderID)];
+    }
+
+    // The parent may have been held up solely by this pocket, so it is
+    // re-judged once the pocket is gone.
+    final parent = _owningAccount(holderID);
+    final changes = _detachAndTombstonePocket(holderID);
+    if (parent == null) return changes;
+
+    return [...changes, ..._sweepHolder(parent.id)];
   }
 }

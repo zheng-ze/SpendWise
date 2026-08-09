@@ -4,6 +4,59 @@ import 'package:test/test.dart';
 
 import 'support/builders.dart';
 
+/// Reads outward from the pocket rows, so a pocket nobody claims is caught.
+/// Walking subPocketIDs instead would only visit pockets already claimed.
+void expectNoOrphanPocket(LedgerState ledger) {
+  final claimed = <String>{};
+  for (final source in ledger.moneySources.values) {
+    final account = source.asAccount;
+    if (account == null) continue;
+    claimed.addAll(account.subPocketIDs);
+  }
+
+  final pocketIDs = ledger.moneySources.values
+      .map((source) => source.asPocket)
+      .nonNulls
+      .map((pocket) => pocket.id)
+      .toSet();
+
+  expect(
+    pocketIDs.difference(claimed),
+    isEmpty,
+    reason: 'pocket rows with no owning account',
+  );
+  expect(
+    claimed.difference(ledger.moneySources.keys.toSet()),
+    isEmpty,
+    reason: 'subPocketIDs links with no pocket row',
+  );
+}
+
+/// The lifecycle half of the invariant, judged over every lifecycle rather than
+/// only the active rows.
+void expectNoPocketOutlivingItsParent(LedgerState ledger) {
+  for (final source in ledger.moneySources.values) {
+    final account = source.asAccount;
+    if (account == null) continue;
+
+    for (final pocketID in account.subPocketIDs) {
+      final pocket = ledger.moneySources[pocketID]?.asPocket;
+      if (pocket == null) continue;
+
+      expect(
+        account.lifecycle.isAtLeastAsAliveAs(pocket.lifecycle),
+        isTrue,
+        reason: '$pocketID is more alive than ${account.id}',
+      );
+    }
+  }
+}
+
+void expectPocketInvariants(LedgerState ledger) {
+  expectNoOrphanPocket(ledger);
+  expectNoPocketOutlivingItsParent(ledger);
+}
+
 void main() {
   late LedgerState ledger;
 
@@ -364,9 +417,7 @@ void main() {
         },
       );
 
-      ledger.updatePocket(
-        pocket(uuid(2), lifecycle: LifecycleState.active),
-      );
+      ledger.updatePocket(pocket(uuid(2), lifecycle: LifecycleState.active));
 
       expect(
         ledger.moneySources[uuid(2)]?.lifecycle,
@@ -379,7 +430,6 @@ void main() {
 
       expect(ledger.moneySources[uuid(2)]?.lifecycle, LifecycleState.archived);
     });
-
   });
 
   group('a category may never outlive its parent', () {
@@ -447,11 +497,7 @@ void main() {
       ledger.deleteCategory(uuid(11));
 
       ledger.updateCategory(
-        category(
-          uuid(11),
-          parent: uuid(12),
-          lifecycle: LifecycleState.active,
-        ),
+        category(uuid(11), parent: uuid(12), lifecycle: LifecycleState.active),
       );
 
       final stored = ledger.categories[uuid(11)]!;
@@ -461,57 +507,247 @@ void main() {
   });
 
   group('no mutator leaves an active pocket without an active parent', () {
-    bool hasOrphanActivePocket(LedgerState state) {
-      return state.moneySources.values.any((source) {
-        final pocket = source.asPocket;
-        if (pocket == null || !pocket.lifecycle.isActive) return false;
-
-        return state.activeAccounts.every(
-          (account) => !account.subPocketIDs.contains(pocket.id),
-        );
-      });
-    }
-
     test('addPocket onto an archived parent', () {
       ledger.deleteAccount(uuid(1));
       ledger.addPocket(pocket(uuid(8)), uuid(1));
 
-      expect(hasOrphanActivePocket(ledger), isFalse);
+      expectPocketInvariants(ledger);
     });
 
     test('deleteAccount archives every pocket it holds', () {
       ledger.addPocket(pocket(uuid(8)), uuid(1));
       ledger.deleteAccount(uuid(1));
 
-      expect(hasOrphanActivePocket(ledger), isFalse);
+      expectPocketInvariants(ledger);
     });
 
     test('updatePocket cannot revive one under an archived parent', () {
       ledger.deleteAccount(uuid(1));
       ledger.updatePocket(pocket(uuid(2), lifecycle: LifecycleState.active));
 
-      expect(hasOrphanActivePocket(ledger), isFalse);
+      expectPocketInvariants(ledger);
     });
 
     test('restorePocket cannot revive one under an archived parent', () {
       ledger.deleteAccount(uuid(1));
       ledger.restorePocket(uuid(2));
 
-      expect(hasOrphanActivePocket(ledger), isFalse);
+      expectPocketInvariants(ledger);
     });
 
     test('updateAccount cannot rewrite links to strand a pocket', () {
       ledger.updateAccount(account(uuid(1), name: 'renamed'));
 
       expect(ledger.moneySources[uuid(1)]?.asAccount?.subPocketIDs, {uuid(2)});
-      expect(hasOrphanActivePocket(ledger), isFalse);
+      expectPocketInvariants(ledger);
     });
 
     test('an archive and restore round trip ends clean', () {
       ledger.deleteAccount(uuid(1));
       ledger.restoreAccount(uuid(1));
 
-      expect(hasOrphanActivePocket(ledger), isFalse);
+      expectPocketInvariants(ledger);
+    });
+  });
+
+  group('no pocket can end up claimed by two accounts', () {
+    void expectSingleClaimant(LedgerState state, String pocketID) {
+      final claimants = state.moneySources.values
+          .map((source) => source.asAccount)
+          .nonNulls
+          .where((account) => account.subPocketIDs.contains(pocketID))
+          .toList();
+
+      expect(claimants, hasLength(1));
+    }
+
+    test('addPocket rejects a second parent for a live pocket id', () {
+      expect(
+        () => ledger.addPocket(pocket(uuid(2)), uuid(3)),
+        throwsA(IdCollision(uuid(2))),
+      );
+
+      expectSingleClaimant(ledger, uuid(2));
+      expectPocketInvariants(ledger);
+    });
+
+    test('addAccount cannot arrive already holding a live pocket', () {
+      ledger.addAccount(
+        account(uuid(7), name: 'greedy', subPocketIDs: {uuid(2)}),
+      );
+
+      expect(ledger.moneySources[uuid(7)]?.asAccount?.subPocketIDs, isEmpty);
+      expectSingleClaimant(ledger, uuid(2));
+      expectPocketInvariants(ledger);
+    });
+
+    test('updateAccount cannot annex a pocket owned elsewhere', () {
+      ledger.updateAccount(
+        account(uuid(3), name: 'other', subPocketIDs: {uuid(2)}),
+      );
+
+      expect(ledger.moneySources[uuid(3)]?.asAccount?.subPocketIDs, isEmpty);
+      expectSingleClaimant(ledger, uuid(2));
+      expectPocketInvariants(ledger);
+    });
+
+    test('updateAccount cannot re-add a pocket its own purge detached', () {
+      ledger.deletePocket(uuid(2));
+      ledger.purgePocket(uuid(2));
+
+      ledger.updateAccount(
+        account(uuid(1), name: 'main', subPocketIDs: {uuid(2)}),
+      );
+
+      expect(ledger.moneySources[uuid(1)]?.asAccount?.subPocketIDs, isEmpty);
+      expectPocketInvariants(ledger);
+    });
+
+    test('a detached and re-added pocket id lands under one parent only', () {
+      ledger.deletePocket(uuid(2));
+      ledger.purgePocket(uuid(2));
+      ledger.addPocket(pocket(uuid(2)), uuid(3));
+
+      expectSingleClaimant(ledger, uuid(2));
+      expectPocketInvariants(ledger);
+    });
+  });
+
+  group('sourceName does not depend on map insertion order', () {
+    LedgerState buildInOrder(List<String> accountIDs) {
+      final state = LedgerState();
+      for (final id in accountIDs) {
+        state.addAccount(account(id, name: id == uuid(1) ? 'main' : 'other'));
+      }
+      state.addPocket(pocket(uuid(2), name: 'pkt'), uuid(1));
+      return state;
+    }
+
+    test('the owning account resolves the same in either insertion order', () {
+      final first = buildInOrder([uuid(1), uuid(3)]);
+      final second = buildInOrder([uuid(3), uuid(1)]);
+
+      expect(first.sourceName(uuid(2)), 'main/pkt');
+      expect(second.sourceName(uuid(2)), first.sourceName(uuid(2)));
+      expectPocketInvariants(first);
+      expectPocketInvariants(second);
+    });
+
+    test('a rename resolves through the one claimant either way', () {
+      final first = buildInOrder([uuid(1), uuid(3)]);
+      final second = buildInOrder([uuid(3), uuid(1)]);
+      for (final state in [first, second]) {
+        state.updateAccount(account(uuid(1), name: 'renamed'));
+      }
+
+      expect(first.sourceName(uuid(2)), 'renamed/pkt');
+      expect(second.sourceName(uuid(2)), first.sourceName(uuid(2)));
+    });
+
+    test('archiving the parent leaves the name resolvable and stable', () {
+      final first = buildInOrder([uuid(1), uuid(3)]);
+      final second = buildInOrder([uuid(3), uuid(1)]);
+      for (final state in [first, second]) {
+        state.deleteAccount(uuid(1));
+      }
+
+      expect(first.sourceName(uuid(2)), 'main/pkt');
+      expect(second.sourceName(uuid(2)), first.sourceName(uuid(2)));
+      expectPocketInvariants(first);
+      expectPocketInvariants(second);
+    });
+  });
+
+  group('no mutator sequence leaves a detached pocket row alive', () {
+    test('purgeAccount over a mix of referenced and free pockets', () {
+      ledger.addPocket(pocket(uuid(8), name: 'second'), uuid(1));
+      ledger.addEntry(
+        entry(id: uuid(4), amount: Decimal.fromInt(100), sourceID: uuid(8)),
+      );
+      ledger.deleteAccount(uuid(1));
+
+      ledger.purgeAccount(uuid(1));
+
+      expect(ledger.moneySources[uuid(2)], isNull);
+      expectPocketInvariants(ledger);
+    });
+
+    test('purgePocket detaches the link with the row', () {
+      ledger.deletePocket(uuid(2));
+      ledger.purgePocket(uuid(2));
+
+      expect(ledger.moneySources[uuid(2)], isNull);
+      expect(ledger.moneySources[uuid(1)]?.asAccount?.subPocketIDs, isEmpty);
+      expectPocketInvariants(ledger);
+    });
+
+    test('deleteEntry sweeping the last reference clears both rows', () {
+      ledger.addEntry(
+        entry(id: uuid(4), amount: Decimal.fromInt(100), sourceID: uuid(2)),
+      );
+      ledger.deleteAccount(uuid(1));
+      ledger.purgeAccount(uuid(1));
+      expectPocketInvariants(ledger);
+
+      ledger.deleteEntry(uuid(4));
+
+      expect(ledger.moneySources[uuid(2)], isNull);
+      expect(ledger.moneySources[uuid(1)], isNull);
+      expectPocketInvariants(ledger);
+    });
+
+    test('a delete, restore, delete, purge run stays consistent', () {
+      ledger.addPocket(pocket(uuid(8), name: 'second'), uuid(1));
+
+      ledger.deleteAccount(uuid(1));
+      expectPocketInvariants(ledger);
+      ledger.restoreAccount(uuid(1));
+      expectPocketInvariants(ledger);
+      ledger.deletePocket(uuid(8));
+      expectPocketInvariants(ledger);
+      ledger.deleteAccount(uuid(1));
+      expectPocketInvariants(ledger);
+      ledger.purgeAccount(uuid(1));
+
+      expect(ledger.moneySources.keys, [uuid(3)]);
+      expectPocketInvariants(ledger);
+    });
+
+    test('restorePocket after its parent purged away is a no-op', () {
+      ledger.deletePocket(uuid(2));
+      ledger.deleteAccount(uuid(1));
+      ledger.purgeAccount(uuid(1));
+
+      ledger.restorePocket(uuid(2));
+      ledger.restoreAccount(uuid(1));
+
+      expect(ledger.moneySources.keys, [uuid(3)]);
+      expectPocketInvariants(ledger);
+    });
+
+    test('addPocket onto a referenceOnly parent stays in lockstep', () {
+      ledger.addEntry(entry(id: uuid(4), sourceID: uuid(1)));
+      ledger.deleteAccount(uuid(1));
+      ledger.purgeAccount(uuid(1));
+
+      ledger.addPocket(pocket(uuid(8), name: 'second'), uuid(1));
+
+      expect(
+        ledger.moneySources[uuid(8)]?.lifecycle,
+        LifecycleState.referenceOnly,
+      );
+      expectPocketInvariants(ledger);
+    });
+
+    test('purging a pocket then updating the account keeps links honest', () {
+      ledger.addPocket(pocket(uuid(8), name: 'second'), uuid(1));
+      ledger.deletePocket(uuid(8));
+      ledger.purgePocket(uuid(8));
+
+      ledger.updateAccount(account(uuid(1), name: 'renamed'));
+
+      expect(ledger.moneySources[uuid(1)]?.asAccount?.subPocketIDs, {uuid(2)});
+      expectPocketInvariants(ledger);
     });
   });
 }

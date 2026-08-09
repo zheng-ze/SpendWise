@@ -60,6 +60,27 @@ extension LedgerStateQueries on LedgerState {
         .length;
   }
 
+  /// Expects an already-canonical id. Decides referenceOnly versus tombstone
+  /// for both the purge rule and the dereference sweep.
+  ///
+  /// A parent counts as referenced through a pocket only when that pocket is
+  /// itself referenced, not merely because its row is still in the table. The
+  /// weaker test would pin a parent at referenceOnly forever if a tombstoned
+  /// pocket ever failed to clear, since nothing would re-examine the link.
+  /// Rows already gone are skipped so a stale id can never revive a parent.
+  bool _isReferenced(String holderID) {
+    final source = _moneySources[holderID];
+    if (source == null) return false;
+    if (entriesReferencing(holderID) > 0) return true;
+
+    final account = source.asAccount;
+    if (account == null) return false;
+
+    return account.subPocketIDs
+        .where(_moneySources.containsKey)
+        .any(_isReferenced);
+  }
+
   Set<String> _sourceIDsWith(LifecycleState lifecycle) => _moneySources.values
       .where((source) => source.lifecycle == lifecycle)
       .map((source) => source.id)
