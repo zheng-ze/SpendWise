@@ -182,6 +182,40 @@ void main() {
       );
       expect(ledger.categories[uuid(2)]?.parentID, isNull);
     });
+
+    test('rejects a kind change', () {
+      ledger.addCategory(category(uuid(2)));
+
+      expect(
+        () =>
+            ledger.updateCategory(category(uuid(2), kind: CategoryKind.income)),
+        throwsA(const CategoryKindMismatch()),
+      );
+      expect(ledger.categories[uuid(2)]?.kind, CategoryKind.expense);
+    });
+
+    test('rejects a parent kind change with no entries', () {
+      ledger.addCategory(category(uuid(2)));
+      ledger.addCategory(category(uuid(3), parent: uuid(2)));
+
+      expect(
+        () =>
+            ledger.updateCategory(category(uuid(2), kind: CategoryKind.income)),
+        throwsA(const CategoryKindMismatch()),
+      );
+      expect(ledger.categories[uuid(2)]?.kind, CategoryKind.expense);
+      expect(ledger.categories[uuid(3)]?.kind, CategoryKind.expense);
+    });
+
+    test('allows an edit that keeps the kind', () {
+      ledger.addCategory(category(uuid(2)));
+      final changes = ledger.updateCategory(
+        category(uuid(2), name: 'renamed', kind: CategoryKind.expense),
+      );
+
+      expect(ledger.categories[uuid(2)]?.name, 'renamed');
+      expect(changes, [UpsertCategory(ledger.categories[uuid(2)]!)]);
+    });
   });
 
   group('addCategory', () {

@@ -206,6 +206,10 @@ class LedgerState {
     final existing = _categories[category.id];
     if (existing == null) throw UnknownCategory(category.id);
 
+    // Kind is fixed at creation: a swap would strand both the entries whose
+    // sign it contradicts and the children that inherit it.
+    if (existing.kind != category.kind) throw const CategoryKindMismatch();
+
     _validateParent(category);
 
     // The edit surface may not outrank the parent, so a lifecycle it is not
