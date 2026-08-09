@@ -80,6 +80,36 @@ final class UnknownEntry extends LedgerError {
   String toString() => 'LedgerError.unknownEntry($id)';
 }
 
+final class UnknownPlan extends LedgerError {
+  const UnknownPlan(this.id);
+
+  final String id;
+
+  @override
+  bool operator ==(Object other) => other is UnknownPlan && other.id == id;
+
+  @override
+  int get hashCode => Object.hash(UnknownPlan, id);
+
+  @override
+  String toString() => 'LedgerError.unknownPlan($id)';
+}
+
+final class ExhaustedPlan extends LedgerError {
+  const ExhaustedPlan(this.id);
+
+  final String id;
+
+  @override
+  bool operator ==(Object other) => other is ExhaustedPlan && other.id == id;
+
+  @override
+  int get hashCode => Object.hash(ExhaustedPlan, id);
+
+  @override
+  String toString() => 'LedgerError.exhaustedPlan($id)';
+}
+
 final class ZeroAmount extends LedgerError {
   const ZeroAmount();
 

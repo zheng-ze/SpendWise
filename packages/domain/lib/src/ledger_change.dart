@@ -1,6 +1,7 @@
 import 'package:domain/src/account.dart';
 import 'package:domain/src/entry.dart';
 import 'package:domain/src/money_source.dart';
+import 'package:domain/src/recurring_plan.dart';
 import 'package:domain/src/sub_pocket.dart';
 import 'package:domain/src/transaction_category.dart';
 import 'package:meta/meta.dart';
@@ -94,6 +95,24 @@ final class UpsertEntry extends LedgerChange {
   String toString() => 'LedgerChange.upsertEntry(${entry.id})';
 }
 
+final class UpsertPlan extends LedgerChange {
+  const UpsertPlan(this.plan);
+
+  final RecurringPlan plan;
+
+  @override
+  String get targetID => plan.id;
+
+  @override
+  bool operator ==(Object other) => other is UpsertPlan && other.plan == plan;
+
+  @override
+  int get hashCode => Object.hash(UpsertPlan, plan);
+
+  @override
+  String toString() => 'LedgerChange.upsertPlan(${plan.id})';
+}
+
 /// Covers accounts and pockets, which share one id space.
 final class DeleteMoneySource extends LedgerChange {
   const DeleteMoneySource(this.id);
@@ -148,4 +167,22 @@ final class DeleteEntry extends LedgerChange {
 
   @override
   String toString() => 'LedgerChange.deleteEntry($id)';
+}
+
+final class DeletePlan extends LedgerChange {
+  const DeletePlan(this.id);
+
+  final String id;
+
+  @override
+  String get targetID => id;
+
+  @override
+  bool operator ==(Object other) => other is DeletePlan && other.id == id;
+
+  @override
+  int get hashCode => Object.hash(DeletePlan, id);
+
+  @override
+  String toString() => 'LedgerChange.deletePlan($id)';
 }

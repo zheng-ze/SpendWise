@@ -1,34 +1,25 @@
 import 'package:decimal/decimal.dart';
+import 'package:domain/src/entry.dart';
 import 'package:domain/src/holder_referencing.dart';
 import 'package:domain/src/ids.dart';
-import 'package:domain/src/lifecycle_state.dart';
+import 'package:domain/src/occurrence_id.dart';
 import 'package:meta/meta.dart';
 
 @immutable
-class Entry with HolderReferencing {
-  Entry({
-    String? id,
-    DateTime? date,
+class EntryTemplate with HolderReferencing {
+  EntryTemplate({
     required this.amount,
     required this.name,
     String? categoryID,
     required String sourceID,
     String? destinationID,
     this.includeInAnalysis = true,
-    this.lifecycle = LifecycleState.active,
-  }) : id = canonicalOrNewID(id),
-       date = date ?? DateTime.now(),
-       categoryID = canonicalOptionalID(categoryID),
+  }) : categoryID = canonicalOptionalID(categoryID),
        sourceID = canonicalID(sourceID),
        destinationID = canonicalOptionalID(destinationID);
 
-  final String id;
-  final DateTime date;
-
-  /// Signed. Income positive, expense negative. Stored transfers are positive.
   @override
   final Decimal amount;
-
   final String name;
   final String? categoryID;
 
@@ -39,32 +30,38 @@ class Entry with HolderReferencing {
   final String? destinationID;
 
   final bool includeInAnalysis;
-  final LifecycleState lifecycle;
+
+  Entry makeEntry(String planID, DateTime date) {
+    return Entry(
+      id: OccurrenceID.make(planID, date),
+      date: date,
+      amount: amount,
+      name: name,
+      categoryID: categoryID,
+      sourceID: sourceID,
+      destinationID: destinationID,
+      includeInAnalysis: includeInAnalysis,
+    );
+  }
 
   @override
   bool operator ==(Object other) {
-    return other is Entry &&
-        other.id == id &&
-        other.date == date &&
+    return other is EntryTemplate &&
         other.amount == amount &&
         other.name == name &&
         other.categoryID == categoryID &&
         other.sourceID == sourceID &&
         other.destinationID == destinationID &&
-        other.includeInAnalysis == includeInAnalysis &&
-        other.lifecycle == lifecycle;
+        other.includeInAnalysis == includeInAnalysis;
   }
 
   @override
   int get hashCode => Object.hash(
-    id,
-    date,
     amount,
     name,
     categoryID,
     sourceID,
     destinationID,
     includeInAnalysis,
-    lifecycle,
   );
 }
