@@ -81,6 +81,42 @@ void main() {
     expect(changes, contains(DeleteMoneySource(uuid(5))));
   });
 
+  test('retargetingATransferOffItsDestinationRemovesTheDereferencedRow', () {
+    final ledger = LedgerState(
+      moneySources: {
+        uuid(1): AccountSource(account(uuid(1))),
+        uuid(2): AccountSource(account(uuid(2), name: 'other')),
+        uuid(5): AccountSource(
+          account(
+            uuid(5),
+            name: 'dropped',
+            lifecycle: LifecycleState.referenceOnly,
+          ),
+        ),
+      },
+      entries: {
+        uuid(3): entry(
+          id: uuid(3),
+          amount: Decimal.fromInt(10),
+          sourceID: uuid(1),
+          destinationID: uuid(5),
+        ),
+      },
+    );
+
+    final changes = ledger.updateEntry(
+      entry(
+        id: uuid(3),
+        amount: Decimal.fromInt(10),
+        sourceID: uuid(1),
+        destinationID: uuid(2),
+      ),
+    );
+
+    expect(ledger.moneySources[uuid(5)], isNull);
+    expect(changes, contains(DeleteMoneySource(uuid(5))));
+  });
+
   test('lastPocketTombstoneCascadesToDereferencedParent', () {
     final ledger = LedgerState(
       moneySources: {
