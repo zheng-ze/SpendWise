@@ -114,14 +114,19 @@ context: |
   main transcript and still be right, since the user intervenes in running subagents directly; judge
   the instruction against the spec and the code.
 
-  tasks.md in the open change is both queue and record. Tick items as they land, renumber or append
-  when inserting new work rather than leaving duplicate numbers, and confirm a group's dependencies
-  are really complete before starting it. At a phase boundary, run adversarial reviews from several
-  angles, consolidate the findings into tasks.md as numbered tasks, and fix from there.
+  tasks.md in the open change is both queue and record, and only the main thread edits it. A
+  subagent reports what it landed; the main thread verifies at the cited file:line and ticks. Tick
+  items as they land, renumber or append when inserting new work rather than leaving duplicate
+  numbers, and confirm a group's dependencies are really complete before starting it. At a phase
+  boundary, run adversarial reviews from several angles, consolidate the findings into tasks.md as
+  numbered tasks, and fix from there.
 
-  Write the implementation first, then the tests. Prove a new test bites by mutating the code it
-  covers and confirming it goes red. A scenario an audit probe ran belongs in the committed suite.
-  Assert the whole change list, and assert that a throwing path left state untouched.
+  Write the tests first, then the implementation. Run each new test against the unfixed code and
+  watch it go red before writing the fix, since that red is the proof it bites and removes any need
+  to mutate and revert afterward. Then land the fix and watch it go green. A test already green
+  before the fix is pinning something other than the defect. A scenario an audit probe ran belongs
+  in the committed suite. Assert the whole change list, and assert that a throwing path left state
+  untouched.
 
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.

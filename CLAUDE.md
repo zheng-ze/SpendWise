@@ -84,11 +84,15 @@ Treat audit findings as unverified until read at the cited `file:line`. A subage
 instruction that is absent from your transcript and still be right — the user intervenes in running
 subagents directly.
 
-Implementation first, then tests. Prove a new test bites by mutating the code it covers. Any
-scenario an audit probe ran belongs in the committed suite.
+Tests first, then implementation. Write the test against the unfixed code and watch it go red — that
+red is the proof it bites, so no mutate-and-revert step is needed. Then fix, then watch it go green.
+A test that passes before the fix lands is testing nothing. Any scenario an audit probe ran belongs
+in the committed suite.
 
-`tasks.md` in the open change is the queue and the record: tick as you land, renumber or append when
-inserting, and check a group's dependencies are really done before starting it. At a phase boundary
+`tasks.md` in the open change is the queue and the record, and **only the main thread edits it** — a
+subagent reports what it landed and the main thread ticks after verifying at the cited `file:line`.
+Tick as you land, renumber or append when inserting, and check a group's dependencies are really
+done before starting it. At a phase boundary
 run adversarial reviews from several angles and file the confirmed gaps as numbered tasks — the
 `adversarial-review` skill has the procedure.
 

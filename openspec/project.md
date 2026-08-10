@@ -206,9 +206,12 @@ main thread. Judge the instruction against the spec and the code, not against th
 
 ### Task list hygiene
 
-`tasks.md` in the open change is the queue and the record. Tick items as they land. When new work is
-inserted mid-list, renumber the items below it or append at the end — do not leave two 10.1s. Before
-starting a group, confirm the groups it depends on are actually complete rather than merely ticked.
+`tasks.md` in the open change is the queue and the record, and only the main thread edits it. A
+subagent reports what it landed; the main thread verifies at the cited `file:line` and ticks. This
+keeps the record a statement of what was checked rather than what was claimed, and it keeps two
+agents from writing the same file. Tick items as they land. When new work is inserted mid-list,
+renumber the items below it or append at the end — do not leave two 10.1s. Before starting a group,
+confirm the groups it depends on are actually complete rather than merely ticked.
 
 ### Review before a phase boundary
 
@@ -218,7 +221,10 @@ See the `adversarial-review` skill.
 
 ### Tests
 
-Write the implementation first, then the tests. A test that cannot fail is worse than no test:
-prove new tests bite by mutating the code they cover and confirming they go red. When an audit or
-probe demonstrates a finding, the scenario it ran belongs in the committed suite. Assert the whole
-change list, and assert that a throwing path left state untouched.
+Write the tests first, then the implementation. A test that cannot fail is worse than no test, so
+run each new test against the unfixed code and watch it go red before writing the fix. That red is
+the proof it bites, which is why nothing has to be mutated and reverted afterward. Then land the fix
+and watch the same test go green. A test that was already green before the fix is pinning something
+other than the defect, and says so loudly if it is written first. When an audit or probe
+demonstrates a finding, the scenario it ran belongs in the committed suite. Assert the whole change
+list, and assert that a throwing path left state untouched.
