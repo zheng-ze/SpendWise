@@ -4,7 +4,8 @@ import 'package:meta/meta.dart';
 sealed class LedgerError implements Exception {
   const LedgerError();
 
-  /// The lowerCamelCase case name, as the Swift enum spelled it.
+  /// The stable lowerCamelCase name of the case. The exact spelling is
+  /// persisted, so changing it breaks stored rows.
   String get _case;
 }
 

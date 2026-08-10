@@ -17,9 +17,10 @@ extension LedgerStateInvariants on LedgerState {
   };
 
   /// Lifecycle only moves toward less alive, the one sanctioned back-edge being
-  /// `archived` to `active` — all a restore mutator can produce, since each
-  /// gates on `== archived`. Judging one state cannot catch a violation here:
-  /// the result is legal on its own, only the move that reached it is not.
+  /// `archived` to `active`. That is all a restore mutator can produce, since
+  /// each gates on `== archived`. Judging one state cannot catch a violation
+  /// here, because the result is legal on its own and only the move that
+  /// reached it is not.
   void _assertLifecycleMonotonic() {
     final before = _lifecycleAtLastCheck;
     if (before == null) return;
@@ -228,7 +229,7 @@ extension LedgerStateInvariants on LedgerState {
     }
   }
 
-  /// The mutators clamp on the write path; this catches a row that arrived
+  /// The mutators clamp on the write path. This catches a row that arrived
   /// through the seeding constructor or a future import instead.
   void _assertStatementDayInRange() {
     for (final account in _accounts) {
@@ -252,7 +253,7 @@ extension LedgerStateInvariants on LedgerState {
     }
   }
 
-  /// Lifecycle only; another check covers existence. An archived row is legal
+  /// Lifecycle only. Another check covers existence. An archived row is legal
   /// because archiving freezes a plan rather than dropping it. A `referenceOnly`
   /// or `tombstoned` row cannot be restored, so a plan naming one got there
   /// through a cascade that failed to remove it.

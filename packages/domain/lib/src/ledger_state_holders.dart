@@ -14,7 +14,7 @@ extension LedgerStateHolders on LedgerState {
   }
 
   /// Links come from the stored row, so an edit can neither add nor drop a
-  /// pocket; only `addPocket` and the purge detach may move them.
+  /// pocket. Only `addPocket` and the purge detach may move them.
   List<LedgerChange> updateAccount(Account account) {
     final existing = _moneySources[account.id]?.asAccount;
     if (existing == null) throw UnknownAccount(account.id);
