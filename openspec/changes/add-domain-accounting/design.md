@@ -122,6 +122,31 @@ every model canonicalizes its own ids. Re-canonicalizing them would mean a `toLo
 per call on the net-worth path, which walks every account and every pocket. The `of` parameter of
 `balance` is still canonicalized, since `balance` is public and callers reach it directly.
 
+### Every `Accounting` collection return is an unmodifiable view
+
+`analysisItems`, `filtered` and `rollUp` each built a fresh collection and handed it back mutable,
+while the `analysisItems` docstring invites callers to compute once and filter cheaply. None of the
+three aliases `LedgerState`, so the ledger was never reachable through them, but a cached result is
+shared by construction: one consumer sorting or clearing it corrupts what another is holding.
+
+The rule is that any collection `Accounting` returns is unmodifiable. This matches the idiom
+`LedgerState` already sets with `UnmodifiableMapView` on its four tables, so callers meet one
+convention across the domain rather than having to remember which returns are safe to keep.
+
+`UnmodifiableListView`/`UnmodifiableMapView` wrap; `List.unmodifiable`/`Map.unmodifiable` copy. The
+wrapping forms are used because the copying forms would add an O(n) pass to exactly the
+compute-once-then-filter path the docstring advertises, and the copy would buy nothing: the backing
+collection is built inside the member and never escapes, so no other reference to it exists.
+
+The views close the hole completely rather than half of it, because `AnalysisItem` is `@immutable`
+with all-final fields over `String?`, `Decimal`, `DateTime` and an enum. An unmodifiable list of
+mutable elements would still leak, but there is no such element here.
+
+Chaining survives. `filtered` returns `List<AnalysisItem>`, which is what `UnmodifiableListView`
+implements and what the `AnalysisItemList` extension is declared `on`, so `filtered(...).filtered(...)`
+and `filtered(...).total(...)` still resolve. `total` folds without mutating, and `rollUp` iterates its
+argument read-only, so both accept a view unchanged.
+
 ## Test approach
 
 Test-first against the 33 Swift scenarios, which are the parity target. The coverage audit in
