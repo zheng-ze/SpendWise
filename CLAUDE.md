@@ -41,7 +41,9 @@ The OpenSpec CLI needs node 20 (`nvm use 20`); it crashes on node 18.
 ## Conventions
 
 **Comments:** minimal. Comment only tricky nuance, deliberate spec deviations, or ordering
-constraints a reader would otherwise break. Never restate what the code says.
+constraints a reader would otherwise break. Never restate what the code says. No Swift references
+and no spec citations in source; no em dashes, semicolons or colon splices in comment prose. Tests
+are held to the same budget — the test name carries the intent.
 
 **The port is a translation, not a redesign.** Type names match Swift (`LedgerState`, `Entry`,
 `MoneySource`, `TransactionCategory`, `LedgerChange`, `LedgerError`). Mutators keep the
@@ -57,10 +59,38 @@ a spec's "KNOWN DEFECT" or "PORT FIX" section sanctions one.
 
 **Window filters are half-open `[start, end)`** everywhere.
 
+**Illegal states are unreachable; invariants only catch what slips.** `_checked` runs
+`assertInvariants` inside `assert(() {...}())`, so every clause is debug-only. The state maps are
+private behind `UnmodifiableMapView`, and `_detachAndTombstonePocket` is the sole remover of a
+pocket row — those two are what make the bad states impossible rather than merely unlikely. Reject
+rather than silently coerce: `addPocket` throws on a non-active parent, and a category's `kind` is
+fixed at creation. A check that must hold in release needs a real throw, not an `assert`.
+
+**Keep file scope small and single-purpose.** `LedgerState` is split by concern into `part` files.
+Split by concern, not by symbol count.
+
 ## Checks
 
-`cd packages/domain && dart analyze && dart test`, and `cd app && flutter analyze`. Analyzer must
-be at zero issues, not just zero errors.
+`cd packages/domain && dart format . && dart analyze && dart test`, and `cd app && flutter analyze`.
+Analyzer must be at zero issues, not just zero errors.
+
+## Working with this repo
+
+The user commits themselves — never run `git commit`. Report green and hand it over.
+
+Most implementation runs through subagents, one task group at a time. **Grant `Bash` to any agent
+that writes code**, or run the gate yourself; an agent without it can only claim its work passes.
+Treat audit findings as unverified until read at the cited `file:line`. A subagent may cite a user
+instruction that is absent from your transcript and still be right — the user intervenes in running
+subagents directly.
+
+Implementation first, then tests. Prove a new test bites by mutating the code it covers. Any
+scenario an audit probe ran belongs in the committed suite.
+
+`tasks.md` in the open change is the queue and the record: tick as you land, renumber or append when
+inserting, and check a group's dependencies are really done before starting it. At a phase boundary
+run adversarial reviews from several angles and file the confirmed gaps as numbered tasks — the
+`adversarial-review` skill has the procedure.
 
 ## Scope
 
