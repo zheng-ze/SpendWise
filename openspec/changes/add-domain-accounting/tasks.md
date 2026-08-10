@@ -203,18 +203,24 @@ Groups 1 to 6 are unaffected. Every finding below was verified by reading the ci
       EDIT 10 Aug: inverted along with 7.6. The committed tests pin that a self-transfer is accepted
       and stored, contributes zero to `balance`, and nets to zero in analysis through the symmetric
       legs rather than through a special case
-- [ ] 7.8 `accounting.dart:181` — `mainBucketID` does not canonicalize `leafID` before the lookup, so
+- [x] 7.8 `accounting.dart:181` — `mainBucketID` does not canonicalize `leafID` before the lookup, so
       a non-canonical id returns null, the Uncategorized bucket, instead of the real main bucket. The
       wrong answer is silent and it misattributes money: through `rollUp`, an item carrying a
       non-canonical `bucketID` lands under `null` rather than its parent. `AnalysisItem` does not
       canonicalize `bucketID` either, so nothing upstream repairs it. Canonicalize the lookup and
       return `category.parentID ?? category.id` so the result is canonical too
-- [ ] 7.9 Apply the same rule to the other raw-id entry points, so the module is consistent:
+- [x] 7.9 Apply the same rule to the other raw-id entry points, so the module is consistent:
       `balance`'s `of`, and the `buckets` sets on `filtered` and `total`, which currently match
       nothing rather than returning zero. Every public query in `ledger_state_queries.dart`
       canonicalizes its `raw…ID` parameter; `Accounting` is the outlier. Record the rule in
       `design.md` once it holds
-- [ ] 7.10 Test: `mainBucketID` with a mixed-case leaf id against a mutator-built ledger returns the
+
+      EDIT 10 Aug: `total` delegates to `filtered`, so the one canonicalization in `filtered` covers
+      both. `sourceIDs`, `activePockets` and the `of` that `accountTotal` passes down are left alone
+      deliberately, since they are built from already-canonical `moneySources.keys` and
+      `activeSources` and re-canonicalizing them costs a pass per member on the net-worth path.
+      Reasoning recorded in `design.md`
+- [x] 7.10 Test: `mainBucketID` with a mixed-case leaf id against a mutator-built ledger returns the
       parent, and the matching `rollUp` case puts the money under the parent rather than `null`
 - [ ] 7.11 `accounting.dart:175` — `fraction` returns `Infinity` when the ratio exceeds `double`'s
       range, because `Rational.toDouble()` overflows rather than clamping. Entry amounts carry no
