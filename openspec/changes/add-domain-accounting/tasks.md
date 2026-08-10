@@ -231,7 +231,7 @@ Groups 1 to 6 are unaffected. Every finding below was verified by reading the ci
       truthful answer where zero would collapse the largest slice to invisible. The negative side is
       reachable and clamps to `-1.0`. NaN is not reachable, `over <= 0` already blocking `0/0`
 - [x] 7.12 Test: a `fraction` whose ratio overflows `double` returns a finite value
-- [ ] 7.13 `accounting.dart:99` — `analysisItems`, `filtered` and `rollUp` each return a mutable
+- [x] 7.13 `accounting.dart:99` — `analysisItems`, `filtered` and `rollUp` each return a mutable
       collection, and the docstring invites callers to cache the result across a frame. None aliases
       `LedgerState`, so the ledger cannot be corrupted through them, but one consumer can mutate a
       result another is holding. Return unmodifiable views, or state the ownership transfer
