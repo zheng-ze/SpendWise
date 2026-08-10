@@ -30,18 +30,39 @@ void main() {
       expect(ledger.entries, isEmpty);
     });
 
-    test('a self transfer throws', () {
-      expect(
-        () => ledger.addEntry(
-          entry(
-            amount: Decimal.fromInt(10),
-            sourceID: uuid(1),
-            destinationID: uuid(1),
-          ),
+    test('a self transfer is accepted and stored', () {
+      ledger.addEntry(
+        entry(
+          amount: Decimal.fromInt(10),
+          sourceID: uuid(1),
+          destinationID: uuid(1),
         ),
-        throwsA(const SelfTransfer()),
       );
-      expect(ledger.entries, isEmpty);
+
+      final stored = ledger.entries.values.single;
+
+      expect(stored.sourceID, uuid(1));
+      expect(stored.destinationID, uuid(1));
+      expect(stored.amount, Decimal.fromInt(10));
+    });
+
+    test('a self transfer contributes zero to the balance', () {
+      ledger.addEntry(
+        entry(
+          amount: Decimal.fromInt(10),
+          sourceID: uuid(1),
+          destinationID: uuid(1),
+        ),
+      );
+
+      expect(
+        Accounting.balance(
+          of: uuid(1),
+          entries: ledger.entries.values.toList(),
+          sourceIDs: ledger.moneySources.keys.toSet(),
+        ),
+        Decimal.zero,
+      );
     });
 
     test('an unknown category throws unknownCategory', () {

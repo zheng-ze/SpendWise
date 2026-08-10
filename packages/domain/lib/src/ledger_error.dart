@@ -106,13 +106,6 @@ final class ZeroAmount extends _PlainError {
   String get _case => 'zeroAmount';
 }
 
-final class SelfTransfer extends _PlainError {
-  const SelfTransfer();
-
-  @override
-  String get _case => 'selfTransfer';
-}
-
 final class CategoryTooDeep extends _PlainError {
   const CategoryTooDeep();
 

@@ -144,7 +144,6 @@ void main() {
         const InactiveReference(accountID),
       );
       expect(const ZeroAmount(), const ZeroAmount());
-      expect(const SelfTransfer(), const SelfTransfer());
       expect(const CategoryTooDeep(), const CategoryTooDeep());
       expect(const CategoryKindMismatch(), const CategoryKindMismatch());
     });
@@ -185,9 +184,9 @@ void main() {
     });
 
     test('payload-free cases never compare equal across cases', () {
-      expect(const ZeroAmount(), isNot(const SelfTransfer()));
+      expect(const ZeroAmount(), isNot(const CategoryTooDeep()));
       expect(const CategoryTooDeep(), isNot(const CategoryKindMismatch()));
-      expect(const SelfTransfer(), isNot(const CategoryTooDeep()));
+      expect(const CategoryKindMismatch(), isNot(const ZeroAmount()));
     });
 
     test('errors are throwable', () {

@@ -50,7 +50,7 @@ void main() {
       expect(expenseItems(ledger), isEmpty);
     });
 
-    test('a transfer into a treat-as-expense holder produces an item', () {
+    test('a transfer into a treat-as-expense holder produces expense', () {
       final ledger = LedgerState();
       ledger.addAccount(account(a));
       ledger.addAccount(account(b, incomingTransfersAsExpenses: true));
@@ -61,6 +61,62 @@ void main() {
       expect(items, hasLength(1));
       expect(items.first.amount, money(300));
       expect(items.first.bucketID, isNull);
+    });
+
+    test('a transfer out of a treat-as-expense holder produces income', () {
+      final ledger = LedgerState();
+      ledger.addAccount(account(a, incomingTransfersAsExpenses: true));
+      ledger.addAccount(account(b));
+      ledger.addEntry(entry(amount: money(300), sourceID: a, destinationID: b));
+
+      final items = Accounting.analysisItems(ledger);
+
+      expect(items, hasLength(1));
+      expect(items.single.kind, CategoryKind.income);
+      expect(items.single.amount, money(300));
+      expect(items.single.bucketID, isNull);
+    });
+
+    test('a transfer between two treat-as-expense holders produces both', () {
+      final ledger = LedgerState();
+      ledger.addAccount(account(a, incomingTransfersAsExpenses: true));
+      ledger.addAccount(account(b, incomingTransfersAsExpenses: true));
+      ledger.addEntry(entry(amount: money(300), sourceID: a, destinationID: b));
+
+      final items = Accounting.analysisItems(ledger);
+
+      expect(items, hasLength(2));
+      expect(expenseItems(ledger).single.amount, money(300));
+      expect(
+        itemsOfKind(ledger, CategoryKind.income).single.amount,
+        money(300),
+      );
+    });
+
+    test('a transfer between two unflagged holders produces nothing', () {
+      final ledger = LedgerState();
+      ledger.addAccount(account(a));
+      ledger.addAccount(account(b));
+      ledger.addEntry(entry(amount: money(300), sourceID: a, destinationID: b));
+
+      expect(Accounting.analysisItems(ledger), isEmpty);
+    });
+
+    test('a self transfer on a flagged holder nets to zero', () {
+      final ledger = LedgerState();
+      ledger.addAccount(account(a, incomingTransfersAsExpenses: true));
+      ledger.addEntry(entry(amount: money(300), sourceID: a, destinationID: a));
+
+      final items = Accounting.analysisItems(ledger);
+
+      expect(items, hasLength(2));
+      expect(items.total(kind: CategoryKind.expense), money(300));
+      expect(items.total(kind: CategoryKind.income), money(300));
+      expect(
+        items.total(kind: CategoryKind.expense) -
+            items.total(kind: CategoryKind.income),
+        Decimal.zero,
+      );
     });
 
     test('an entry excluded from analysis produces no item', () {

@@ -100,38 +100,50 @@ abstract final class Accounting {
     final sourceIDs = ledger.moneySources.keys.toSet();
     return [
       for (final entry in ledger.entries.values)
-        ?classify(entry, sourceIDs, ledger),
+        ...classify(entry, sourceIDs, ledger),
     ];
   }
 
-  static AnalysisItem? classify(
+  /// The treat-as-expense flag is symmetric, each leg reading it off its own
+  /// end, so a transfer to the holder itself emits both and nets to zero.
+  static List<AnalysisItem> classify(
     Entry entry,
     Set<String> sourceIDs,
     LedgerState ledger,
   ) {
-    if (!applies(entry, sourceIDs) || !entry.includeInAnalysis) return null;
+    if (!applies(entry, sourceIDs) || !entry.includeInAnalysis) {
+      return const [];
+    }
 
     switch (entry.kind) {
       case EntryKind.transfer:
         final destination = entry.destinationID;
-        if (destination == null ||
-            ledger.moneySources[destination]?.incomingTransfersAsExpenses !=
-                true) {
-          return null;
-        }
-        return AnalysisItem(
-          bucketID: null,
-          amount: entry.amount,
-          date: entry.date,
-          kind: CategoryKind.expense,
-        );
+        if (destination == null) return const [];
+
+        final sources = ledger.moneySources;
+        return [
+          if (sources[destination]?.incomingTransfersAsExpenses == true)
+            AnalysisItem(
+              bucketID: null,
+              amount: entry.amount,
+              date: entry.date,
+              kind: CategoryKind.expense,
+            ),
+          if (sources[entry.sourceID]?.incomingTransfersAsExpenses == true)
+            AnalysisItem(
+              bucketID: null,
+              amount: entry.amount,
+              date: entry.date,
+              kind: CategoryKind.income,
+            ),
+        ];
 
       case EntryKind.income:
       case EntryKind.expense:
         final String? bucketID;
         switch (resolveCategory(entry, ledger)) {
           case Excluded():
-            return null;
+            return const [];
           case Uncategorized():
             bucketID = null;
           case InCategory(:final id):
@@ -141,14 +153,16 @@ abstract final class Accounting {
         // Kind comes off the signed amount. Taking the absolute value first
         // would make every item income.
         final kind = entry.expectedCategoryKind;
-        if (kind == null) return null;
+        if (kind == null) return const [];
 
-        return AnalysisItem(
-          bucketID: bucketID,
-          amount: entry.amount.abs(),
-          date: entry.date,
-          kind: kind,
-        );
+        return [
+          AnalysisItem(
+            bucketID: bucketID,
+            amount: entry.amount.abs(),
+            date: entry.date,
+            kind: kind,
+          ),
+        ];
     }
   }
 

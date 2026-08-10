@@ -88,7 +88,6 @@ extension LedgerStateEntries on LedgerState {
 
     final destination = _moneySources[destinationID];
     if (destination == null) throw UnknownHolder(destinationID);
-    if (destinationID == entry.sourceID) throw const SelfTransfer();
     if (!priorRefs.contains(destinationID) && !destination.lifecycle.isActive) {
       throw InactiveReference(destinationID);
     }
