@@ -1,4 +1,5 @@
 import 'package:decimal/decimal.dart';
+import 'package:domain/src/calendar_day.dart';
 import 'package:domain/src/holder_referencing.dart';
 import 'package:domain/src/ids.dart';
 import 'package:domain/src/lifecycle_state.dart';
@@ -17,7 +18,7 @@ class Entry with HolderReferencing {
     this.includeInAnalysis = true,
     this.lifecycle = LifecycleState.active,
   }) : id = canonicalOrNewID(id),
-       date = date ?? DateTime.now(),
+       date = startOfDayUtc(date ?? DateTime.now()),
        categoryID = canonicalOptionalID(categoryID),
        sourceID = canonicalID(sourceID),
        destinationID = canonicalOptionalID(destinationID);

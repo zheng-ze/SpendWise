@@ -6,6 +6,7 @@ export 'src/account.dart';
 export 'src/account_type.dart';
 export 'src/accounting.dart';
 export 'src/analysis_item.dart';
+export 'src/calendar_day.dart';
 export 'src/category_kind.dart';
 export 'src/category_resolution.dart';
 export 'src/date_range.dart';

@@ -71,13 +71,3 @@ DateTime _addMonths(DateTime anchor, int months) {
           anchor.microsecond,
         );
 }
-
-/// The UTC midnight of the calendar day [date] names.
-///
-/// Components are read as given rather than converted, so a local midnight
-/// keeps its own calendar day instead of sliding onto the previous one east of
-/// Greenwich. Occurrence ids hash the day and window filters compare against
-/// UTC bounds, so a local-midnight date would otherwise land in the wrong month
-/// at a boundary and regenerate under a new id after a timezone move.
-DateTime startOfDayUtc(DateTime date) =>
-    DateTime.utc(date.year, date.month, date.day);

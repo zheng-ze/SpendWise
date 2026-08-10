@@ -1,15 +1,16 @@
 import 'package:decimal/decimal.dart';
+import 'package:domain/src/calendar_day.dart';
 import 'package:domain/src/category_kind.dart';
 import 'package:meta/meta.dart';
 
 @immutable
 class AnalysisItem {
-  const AnalysisItem({
+  AnalysisItem({
     required this.bucketID,
     required this.amount,
-    required this.date,
+    required DateTime date,
     required this.kind,
-  });
+  }) : date = startOfDayUtc(date);
 
   /// Null is the Uncategorized bucket, not an absent value.
   final String? bucketID;

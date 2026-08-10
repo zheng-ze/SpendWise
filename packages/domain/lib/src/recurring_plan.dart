@@ -1,3 +1,4 @@
+import 'package:domain/src/calendar_day.dart';
 import 'package:domain/src/entry_template.dart';
 import 'package:domain/src/ids.dart';
 import 'package:domain/src/plan_scheduling.dart';
