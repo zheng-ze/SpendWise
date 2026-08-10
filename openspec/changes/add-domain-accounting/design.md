@@ -147,6 +147,45 @@ implements and what the `AnalysisItemList` extension is declared `on`, so `filte
 and `filtered(...).total(...)` still resolve. `total` folds without mutating, and `rollUp` iterates its
 argument read-only, so both accept a view unchanged.
 
+### A domain date is UTC midnight of the calendar day it names
+
+Every `DateTime` in the domain is UTC midnight of the calendar day it names. A date here is a day,
+not an instant, and it carries no time of day.
+
+Normalization is **day-preserving**, not instant-preserving. `startOfDayUtc`
+(`packages/domain/lib/src/calendar_day.dart`) is the single implementation and reads the
+components as given:
+
+```dart
+DateTime startOfDayUtc(DateTime date) => DateTime.utc(date.year, date.month, date.day);
+```
+
+`.toUtc()` is the wrong tool and must not be substituted. It preserves the moment and moves the
+calendar day: a Singapore local `2026-05-01` becomes `2026-04-30T16:00Z`, which shifts the entry
+into the previous month for every user east of Greenwich. `DateTime.utc(y, m, d)` keeps 1 May as
+1 May everywhere. Window filters compare against UTC bounds and `OccurrenceID` hashes the
+normalized day, so an un-normalized local midnight would both land in the wrong month at a boundary
+and re-mint occurrence ids after a timezone move.
+
+Normalization happens at construction, mirroring how `canonicalID` normalizes ids at every
+construction boundary. This is the house rule from `CLAUDE.md`: make the illegal state unreachable
+rather than correcting it at each comparison. Normalizing at call sites instead would leave the
+types able to hold a non-normalized date.
+
+`RecurringPlan` already normalized `anchor`, `endDate` and `lastResolvedDate` this way before this
+change, and `OccurrenceID.make` already hashed the normalized day. **`Entry.date` and
+`AnalysisItem.date` normalization is new in this change** — those two were the gap. `AnalysisItem`
+gave up its `const` constructor to get it, which costs nothing real: the date always comes from
+`entry.date` at runtime and was never a compile-time constant.
+
+`DateRange.contains` needs no normalization of its own. It becomes correct for free once its inputs
+are days.
+
+Phase 4 storage inherits this: a stored date round-trips as UTC midnight, so no timezone
+information needs persisting alongside it. Phase 5 window construction inherits it too — a window
+built from local month bounds and one built from UTC bounds select the same days. Locale-adaptive
+rendering is Phase 5's job and formats the stored day for display without ever moving it.
+
 ## Test approach
 
 Test-first against the 33 Swift scenarios, which are the parity target. The coverage audit in

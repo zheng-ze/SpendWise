@@ -235,11 +235,16 @@ Groups 1 to 6 are unaffected. Every finding below was verified by reading the ci
       collection, and the docstring invites callers to cache the result across a frame. None aliases
       `LedgerState`, so the ledger cannot be corrupted through them, but one consumer can mutate a
       result another is holding. Return unmodifiable views, or state the ownership transfer
-- [ ] 7.14 `date_range.dart:12` — `contains` compares instants without normalizing, so a range built
+- [x] 7.14 `date_range.dart:12` — `contains` compares instants without normalizing, so a range built
       from local bounds and a date stored as UTC fall in different windows. Half-open tiling itself is
       correct in either convention. This becomes live when Phase 4 stores dates as UTC and Phase 5
-      builds month windows from local dates, so fix it with that ruling rather than guessing now
-- [ ] 7.15 Test: a UTC instant against local-built bounds, pinning whichever convention 7.14 settles
+      builds month windows from local dates, so fix it with that ruling rather than guessing now.
+      EDIT 11 Aug: ruling is UTC, so `date_range.dart` is unchanged and the fix normalizes at the
+      `Entry` and `AnalysisItem` constructors instead, `contains` being correct once its inputs are
+      days. Normalization is day-preserving `DateTime.utc(y, m, d)`, never instant-preserving
+      `.toUtc()`, which would move an entry a month east of Greenwich. `startOfDayUtc` moved to
+      `calendar_day.dart`. Convention recorded in `design.md`
+- [x] 7.15 Test: a UTC instant against local-built bounds, pinning whichever convention 7.14 settles
 - [ ] 7.16 Consider `toString` on `NetWorth`, `AnalysisItem`, `DateRange` and `CategoryResolution`.
       They are the assertion targets of the 33 parity tests, and a failure currently prints
       `Instance of 'NetWorth'`
