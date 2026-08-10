@@ -89,6 +89,12 @@ Treat audit findings as unverified until read at the cited `file:line`. A subage
 instruction that is absent from your transcript and still be right — the user intervenes in running
 subagents directly.
 
+### Context Discovery & Search
+Before spawning implementation agents or reading dozens of files natively, isolate context using Gemini subagents:
+* **`gemini-indexer`**: Use when looking for *where* logic lives. Returns relative `file:line` paths and target symbols.
+* **`gemini-executor`**: Use when requiring architectural summaries or flow traces across large directories. Returns a dense, high-level briefing.
+* **Execution Rule**: Main thread reads raw source files *only* at the specific `file:line` locations returned by `gemini-indexer`. Never dump raw directory scans into the main transcript context.
+
 Tests first, then implementation. Write the test against the unfixed code and watch it go red — that
 red is the proof it bites, so no mutate-and-revert step is needed. Then fix, then watch it go green.
 A test that passes before the fix lands is testing nothing. Any scenario an audit probe ran belongs
