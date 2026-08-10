@@ -32,4 +32,9 @@ class AnalysisItem {
 
   @override
   int get hashCode => Object.hash(bucketID, amount, date, kind);
+
+  @override
+  String toString() =>
+      'AnalysisItem(bucketID: $bucketID, amount: $amount, date: $date, '
+      'kind: $kind)';
 }

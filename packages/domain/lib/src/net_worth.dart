@@ -19,4 +19,7 @@ class NetWorth {
 
   @override
   int get hashCode => Object.hash(asset, liability);
+
+  @override
+  String toString() => 'NetWorth(asset: $asset, liability: $liability)';
 }

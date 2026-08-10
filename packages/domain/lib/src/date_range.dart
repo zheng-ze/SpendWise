@@ -18,4 +18,7 @@ class DateRange {
 
   @override
   int get hashCode => Object.hash(start, end);
+
+  @override
+  String toString() => 'DateRange($start, $end)';
 }

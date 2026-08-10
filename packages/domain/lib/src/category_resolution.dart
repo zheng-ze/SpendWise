@@ -16,6 +16,9 @@ final class Excluded extends CategoryResolution {
 
   @override
   int get hashCode => (Excluded).hashCode;
+
+  @override
+  String toString() => 'Excluded()';
 }
 
 final class Uncategorized extends CategoryResolution {
@@ -26,6 +29,9 @@ final class Uncategorized extends CategoryResolution {
 
   @override
   int get hashCode => (Uncategorized).hashCode;
+
+  @override
+  String toString() => 'Uncategorized()';
 }
 
 final class InCategory extends CategoryResolution {
@@ -38,4 +44,7 @@ final class InCategory extends CategoryResolution {
 
   @override
   int get hashCode => id.hashCode;
+
+  @override
+  String toString() => 'InCategory($id)';
 }
