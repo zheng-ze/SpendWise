@@ -210,6 +210,98 @@ void main() {
       expect(expenseItems(ledger).single.amount, money(80));
     });
   });
+
+  group('an item carries its own entry date', () {
+    final may = DateTime.utc(2026, 5);
+    final june = DateTime.utc(2026, 6);
+    final april = DateTime.utc(2026, 4);
+
+    test('an expense item dates to its entry', () {
+      final ledger = LedgerState();
+      ledger.addAccount(account(a));
+      ledger.addEntry(
+        entry(amount: money(-50), sourceID: a, date: DateTime(2026, 5, 15)),
+      );
+
+      final items = expenseItems(ledger);
+
+      expect(items.single.date, DateTime.utc(2026, 5, 15));
+      expect(items.total(interval: DateRange(may, june)), money(50));
+      expect(items.total(interval: DateRange(april, may)), Decimal.zero);
+    });
+
+    test('an income item dates to its entry', () {
+      final ledger = LedgerState();
+      ledger.addAccount(account(a));
+      ledger.addEntry(
+        entry(amount: money(700), sourceID: a, date: DateTime(2026, 5, 15)),
+      );
+
+      final items = itemsOfKind(ledger, CategoryKind.income);
+
+      expect(items.single.date, DateTime.utc(2026, 5, 15));
+      expect(items.total(interval: DateRange(may, june)), money(700));
+      expect(items.total(interval: DateRange(april, may)), Decimal.zero);
+    });
+
+    test('a treat-as-expense transfer item dates to its entry', () {
+      final ledger = LedgerState();
+      ledger.addAccount(account(a));
+      ledger.addAccount(account(b, incomingTransfersAsExpenses: true));
+      ledger.addEntry(
+        entry(
+          amount: money(300),
+          sourceID: a,
+          destinationID: b,
+          date: DateTime(2026, 5, 15),
+        ),
+      );
+
+      final items = expenseItems(ledger);
+
+      expect(items.single.date, DateTime.utc(2026, 5, 15));
+      expect(items.total(interval: DateRange(may, june)), money(300));
+      expect(items.total(interval: DateRange(april, may)), Decimal.zero);
+    });
+
+    test('the income leg of a transfer dates to its entry', () {
+      final ledger = LedgerState();
+      ledger.addAccount(account(a, incomingTransfersAsExpenses: true));
+      ledger.addAccount(account(b));
+      ledger.addEntry(
+        entry(
+          amount: money(300),
+          sourceID: a,
+          destinationID: b,
+          date: DateTime(2026, 5, 15),
+        ),
+      );
+
+      final items = itemsOfKind(ledger, CategoryKind.income);
+
+      expect(items.single.date, DateTime.utc(2026, 5, 15));
+      expect(items.total(interval: DateRange(may, june)), money(300));
+      expect(items.total(interval: DateRange(april, may)), Decimal.zero);
+    });
+
+    test('two entries in adjacent months land in their own windows', () {
+      final ledger = LedgerState();
+      ledger.addAccount(account(a));
+      ledger.addEntry(
+        entry(amount: money(-50), sourceID: a, date: DateTime(2026, 5, 15)),
+      );
+      ledger.addEntry(
+        entry(amount: money(-20), sourceID: a, date: DateTime(2026, 4, 15)),
+      );
+
+      final items = expenseItems(ledger);
+
+      expect(items.total(interval: DateRange(may, june)), money(50));
+      expect(items.total(interval: DateRange(april, may)), money(20));
+      expect(items.map((i) => i.date).toSet(), hasLength(2));
+    });
+  });
+
   group('category resolution', () {
     test('a category excluded from analysis hides its expenses', () {
       final ledger = LedgerState();
