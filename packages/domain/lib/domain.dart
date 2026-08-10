@@ -1,5 +1,7 @@
 library;
 
+export 'package:decimal/decimal.dart' show Decimal;
+
 export 'src/account.dart';
 export 'src/account_type.dart';
 export 'src/category_kind.dart';

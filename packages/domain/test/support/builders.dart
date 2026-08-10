@@ -1,4 +1,3 @@
-import 'package:decimal/decimal.dart';
 import 'package:domain/domain.dart';
 
 Account account(
