@@ -158,7 +158,6 @@ Sealed class, 12 cases. Cases with a payload carry the offending id.
 | `unknownEntry` | id | `updateEntry` on a missing id |
 | `unknownPlan` | id | `updatePlan` on a missing id |
 | `zeroAmount` | – | entry amount is exactly zero |
-| `selfTransfer` | – | transfer with `destinationID == sourceID` |
 | `categoryTooDeep` | – | category's parent itself has a parent |
 | `categoryKindMismatch` | – | three distinct situations: transfer carrying a category, income/expense entry whose category kind disagrees with the entry sign, child category whose kind disagrees with its parent |
 | `inactiveReference` | id | a **newly introduced** reference targets a non-active holder/category (§3.3) |
@@ -276,7 +275,7 @@ Ordering note: where Swift iterated a `Set` or `Dictionary` (pockets of an accou
    - If `previous?.categoryID != categoryID` (a **newly introduced** category reference, including on add) and `category.lifecycle != active` → `inactiveReference(categoryID)`. Keeping the same category on edit is exempt, mirroring rule 3.
 5. If `destinationID` is null: done, entry stored as-is.
 6. `destinationID` not in `moneySources` → `unknownHolder(destinationID)`.
-7. `destinationID == sourceID` → `selfTransfer`.
+7. **Self-transfers are accepted.** `destinationID == sourceID` is a legal entry and is stored like any other transfer. A PayNow to your own account debits and credits the same holder, so it appears on the bank statement and must be recordable. It contributes zero to `balance` (both legs cancel) and analysis emits both legs symmetrically (`plans_and_accounting.md` §5.3), so it nets to zero there too. **PORT FIX** — the Swift rejects this with `selfTransfer`; that error case is deleted from `LedgerError` rather than kept unthrown.
 8. If `destinationID` not in `priorRefs` and the destination's lifecycle is not `active` → `inactiveReference(destinationID)`.
 9. **Transfer normalization:** if `amount < 0`, the stored entry is rebuilt with `amount` negated (now positive) and `sourceID`/`destinationID` **swapped** (same id, date, name, categoryID, includeInAnalysis). A stored transfer therefore always has a positive amount; "transfer of -100 from A to B" and "transfer of 100 from B to A" are the same fact stored one way. A positive transfer is stored unchanged.
 
@@ -497,10 +496,10 @@ Source suite: `LedgerStateTests.swift`, 68 tests, plus `TestSupport.swift` (a on
 - `addPocketToMissingAccountThrows` — `unknownAccount`.
 - `addAccountRejectsIdCollisionWithPocket` — one id space: an account with a pocket's id throws `idCollision`.
 
-**B. Entry validation (5)**
+**B. Entry validation (6)**
 - `zeroAmountEntryThrows`.
 - `entryWithUnknownSourceThrows` — `unknownHolder`.
-- `selfTransferThrows`.
+- `selfTransferIsAcceptedAndStored` — and `selfTransferContributesZeroToBalance`.
 - `entryWithUnknownCategoryThrows` — `unknownCategory`.
 - `negativeTransferNormalizesToPositiveWithSwappedEndpoints` — stored amount 100, endpoints swapped.
 

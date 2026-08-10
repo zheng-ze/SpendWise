@@ -451,24 +451,32 @@ class AnalysisItem {
 
 ### 5.2 `analysisItems(ledger) -> List<AnalysisItem>` — the single gated pass
 
-One pass over all entries, `sourceIDs` = all `moneySources` keys, mapping each entry through
-`classify` and dropping nulls. This is the expensive, window-independent computation — it is
+One pass over all entries, `sourceIDs` = all `moneySources` keys, flat-mapping each entry through
+`classify`. This is the expensive, window-independent computation — it is
 what `AnalysisCache` caches; consumers filter the result cheaply (5.4). Output order is
 unspecified (map-values iteration); tests must sort or use set semantics.
 
-### 5.3 `classify(entry, sourceIDs, ledger) -> AnalysisItem?`
+### 5.3 `classify(entry, sourceIDs, ledger) -> List<AnalysisItem>`
+
+Returns a list because a transfer may emit **two** items: the treat-as-expense flag is symmetric,
+and both endpoints can carry it. Every case that yields nothing returns an empty list.
 
 ```
-1. gate: applies(entry, sourceIDs) AND entry.includeInAnalysis, else null
+1. gate: applies(entry, sourceIDs) AND entry.includeInAnalysis, else []
 2. switch entry.kind:
    transfer:
-     destination holder exists AND holder.incomingTransfersAsExpenses == true
-       → AnalysisItem(bucketID: null, amount: entry.amount (as stored, positive),
-                      date: entry.date, kind: expense)
-     else → null            // plain transfers never reach analysis
-   income | expense:
+     destinationID == null → []
+     emit, independently, reading each flag off its own end:
+       destination holder exists AND holder.incomingTransfersAsExpenses == true
+         → AnalysisItem(bucketID: null, amount: entry.amount (as stored, positive),
+                        date: entry.date, kind: expense)
+       source holder exists AND holder.incomingTransfersAsExpenses == true
+         → AnalysisItem(bucketID: null, amount: entry.amount (as stored, positive),
+                        date: entry.date, kind: income)
+     both, one or neither may fire; neither → []   // plain transfers never reach analysis
+   income | expense:                                // still at most one item, wrapped in a list
      resolution = resolveCategory(entry, ledger)      // sealed, below
-     Excluded        → null                            // dropped entirely
+     Excluded        → []                              // dropped entirely
      Uncategorized   → item with bucketID: null
      Category(id)    → item with bucketID: id
      kind = entry.kind mapped to CategoryKind   // decided by the sign of the STORED, SIGNED
@@ -480,9 +488,16 @@ Entry kind recap (defined on `Entry`): `destinationID != null` → transfer; oth
 amount decides (`< 0` expense, else income; zero amounts cannot exist — validation rejects
 them).
 
-`incomingTransfersAsExpenses` is a per-holder flag readable on both accounts and pockets.
-The treat-as-expense item keeps the transfer's stored (positive) amount and carries **no
-category** — see §7 for the recorded future change.
+`incomingTransfersAsExpenses` is a per-holder flag readable on both accounts and pockets, so
+each leg must read it off its own end via `ledger.moneySources[...]`. The rule is symmetric: a
+transfer **into** a flagged holder is an expense, a transfer **out of** one is income. Treat-as-
+expense items keep the transfer's stored (positive) amount and carry **no category** — see §7 for
+the recorded future change.
+
+A **self-transfer** (`sourceID == destinationID`) on a flagged holder therefore emits an expense
+and an income of equal amount, netting to zero, matching the zero it already nets in `balance`.
+This falls out of the symmetry; there is deliberately no `sourceID == destinationID` branch.
+Direction lives in the id fields, never in the sign (`domain_models.md` rule 9).
 
 ### 5.4 Category resolution — sealed result (replaces Swift's `UUID??`)
 

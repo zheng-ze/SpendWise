@@ -68,6 +68,35 @@ Anything else would divide by zero or return a negative slice.
 `abs(amount)` on the item. Taking the absolute value first would make every item income. The two
 steps are ordered and the ordering is the whole content of the rule.
 
+### Self-transfers are legal and the treat-as-expense flag is symmetric
+
+**Deliberate behavior change, made during Phase 2 at the user's ruling.** Not a port bug, and not
+Phase 6 parity work.
+
+The motivating transaction is a Singapore PayNow to yourself: it deducts from an account and credits
+the same account, appears on the bank statement, and so has to be recordable. Two defects blocked it.
+
+1. `_validated` threw `selfTransfer` when `destinationID == sourceID`. That throw is removed and the
+   `SelfTransfer` error case is deleted outright. Its `_case` string only ever fed `toString()`, so
+   nothing persists it and Phase 4 is unaffected.
+2. `classify` read `incomingTransfersAsExpenses` off the **destination only** and emitted at most one
+   expense item. The outgoing leg did not exist. The user's ruling states the flag symmetrically: a
+   transfer **in** to a flagged holder is an expense, a transfer **out of** one is income. Each leg
+   reads the flag off its own end, so both, one or neither may fire.
+
+The symmetry is what makes a self-transfer net to zero in analysis, matching the zero it already nets
+in `balance`. There is deliberately **no** `sourceID == destinationID` branch; adding one would be
+redundant and would break the flagged-to-flagged case below.
+
+`classify` returns `List<AnalysisItem>` rather than `AnalysisItem?` because of that flagged-to-flagged
+case: a transfer between two flagged holders emits an expense on the destination and an income on the
+source, two genuine items on two different holders. A nullable single item cannot express it, and
+collapsing them would silently drop both. Every case that previously returned `null` now returns an
+empty list; the sole caller `analysisItems` changed from a null-aware spread to a plain spread.
+
+Account-type bucketing for treat-as-expense transfers stays deferred to Phase 6. `bucketID` remains
+`null` on both legs.
+
 ## Test approach
 
 Test-first against the 33 Swift scenarios, which are the parity target. The coverage audit in
