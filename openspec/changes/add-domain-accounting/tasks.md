@@ -6,35 +6,35 @@ detailed than the specs in this change. Sections 1–3 of that file are the plan
 
 ## 1. Balance primitives
 
-- [ ] 1.1 Add `lib/src/net_worth.dart`: `NetWorth` with `Decimal asset` and `Decimal liability`,
+- [x] 1.1 Add `lib/src/net_worth.dart`: `NetWorth` with `Decimal asset` and `Decimal liability`,
       hand-written value `==`/`hashCode` per the domain convention
-- [ ] 1.2 Add `lib/src/accounting.dart` with the `Accounting` namespace class and
+- [x] 1.2 Add `lib/src/accounting.dart` with the `Accounting` namespace class and
       `applies(Entry, Set<String> sourceIDs)`: source must be in the set, a null destination passes on
       the source alone, a non-null destination must also be in the set
-- [ ] 1.3 Add `balance(of:entries:sourceIDs:)`: sum over applying entries — transfer contributes
+- [x] 1.3 Add `balance(of:entries:sourceIDs:)`: sum over applying entries — transfer contributes
       `+amount` to its destination and `-amount` to its source, non-transfer contributes its stored
       signed amount to its source. Starts at `Decimal.zero`
-- [ ] 1.4 Add `accountTotal(account, entries, sourceIDs, activePockets)`: own balance plus the balance
+- [x] 1.4 Add `accountTotal(account, entries, sourceIDs, activePockets)`: own balance plus the balance
       of each sub-pocket in `activePockets`
-- [ ] 1.5 Test the gate and balances (see coverage map 6.1): `balanceNetsSignedTransactions`,
+- [x] 1.5 Test the gate and balances (see coverage map 6.1): `balanceNetsSignedTransactions`,
       `transactionOnlyAffectsItsOwnHolder`, `transferMovesBetweenHolders`,
       `deletedHolderUnappliesTransferToSurvivor`, `deletedSourceUnappliesTransferToSurvivor`
-- [ ] 1.6 Test account totals: `fundingPocketMovesOwnCashButNotAccountTotal`,
+- [x] 1.6 Test account totals: `fundingPocketMovesOwnCashButNotAccountTotal`,
       `spendingFromPocketReducesPocketAndTotal`, `pocketToPocketAcrossAccountsMovesBothTotals`,
       `multiplePocketsSumIntoAccountTotal`, `archivedPocketDropsOutOfAccountTotal`
-- [ ] 1.7 Mutation-test the two `applies` guards: invert the source check, then the destination check.
+- [x] 1.7 Mutation-test the two `applies` guards: invert the source check, then the destination check.
       Each must kill at least one test. Restore from a file copy, never `git checkout`
 
 ## 2. Net worth
 
-- [ ] 2.1 Add `netWorth(ledger)`: existence set from `moneySources.keys`, active pockets from
+- [x] 2.1 Add `netWorth(ledger)`: existence set from `moneySources.keys`, active pockets from
       `ledger.activeSources`, iterate accounts only
-- [ ] 2.2 Gate each account on active lifecycle AND `includeInNetWorth`; split its total by sign,
+- [x] 2.2 Gate each account on active lifecycle AND `includeInNetWorth`; split its total by sign,
       accumulating liability as a positive magnitude
-- [ ] 2.3 Test: `netWorthSplitsBySignNotType`, `netWorthExcludesFlaggedAccount`,
+- [x] 2.3 Test: `netWorthSplitsBySignNotType`, `netWorthExcludesFlaggedAccount`,
       `netWorthCountsPocketBalances`, `netWorthExcludesArchivedAccount`,
       `accountToAccountTransferIsZeroSumForNetWorth`, `emptyLedgerNetWorthIsZero`
-- [ ] 2.4 Test the archived-account nuance explicitly: an archived account is skipped as a *subject*
+- [x] 2.4 Test the archived-account nuance explicitly: an archived account is skipped as a *subject*
       but still counts as a transfer *endpoint*, so the counterparty's balance is unaffected by the
       archive. This is the failure mode the existence-set rule exists to prevent
 
