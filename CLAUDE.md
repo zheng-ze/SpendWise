@@ -20,12 +20,16 @@ Planning moved to OpenSpec. Start here, in this order:
 
 1. `openspec/project.md` — the authoritative technical rules, mirrored into `openspec/config.yaml`
    `context:` so the OpenSpec CLI injects them. Keep the two in sync when either changes.
-2. `openspec/changes/complete-domain-ledger-core/` — the current change: Phase 1 remainder,
-   `LedgerError` and `LedgerChange` through the export barrel. `tasks.md` is the work queue,
-   `specs/` are the behavior contracts, `design.md` the implementation decisions.
-3. `docs/modules/domain_models.md` — the underlying behavior spec those specs were derived from.
-   It is more detailed than the change's specs and stays the reference for anything ambiguous.
-4. `docs/HANDOVER.md` — historical only. It records the decisions behind commits 1.1 and 1.2 and
+2. `openspec/changes/add-domain-accounting/` — the current change: Phase 2's remaining half, the
+   pure `Accounting` functions (balances, net worth, analysis classification, roll-up). `tasks.md`
+   is the work queue, `specs/` are the behavior contracts, `design.md` the implementation decisions.
+3. `openspec/specs/` — the promoted contracts Phase 1 already delivered: `ledger-state`,
+   `ledger-mutations`, `ledger-lifecycle`, `ledger-plans`, `ledger-invariants`. The archived change
+   itself is at `openspec/changes/archive/2026-08-10-complete-domain-ledger-core/`.
+4. `docs/modules/plans_and_accounting.md` §4–§5 for accounting, `docs/modules/domain_models.md` for
+   Phase 1 — the underlying behavior specs the contracts were derived from. They are more detailed
+   than any change spec and stay the reference for anything ambiguous.
+5. `docs/HANDOVER.md` — historical only. It records the decisions behind commits 1.1 and 1.2 and
    points at the files above. It is no longer the plan.
 
 The OpenSpec CLI needs node 20 (`nvm use 20`); it crashes on node 18.
@@ -56,8 +60,12 @@ be at zero issues, not just zero errors.
 
 ## Scope
 
-Recurring Plans are group 8 of `complete-domain-ledger-core`, ahead of the invariants so that
-clauses 7 and 8 are written once against real plan data. They were deferred until accounts and
-entries existed, not dropped, since purge and the dereference sweep are what the plan cascade hooks
-into. `openspec/project.md` holds the details, including the two spots where a straight translation
-of the Swift would be wrong (month-end clamping, and the UUIDv5 occurrence ids).
+Phase 1 is done and archived: the ledger container, every mutator, the lifecycle rules, Recurring
+Plans and the invariants. `openspec/project.md` holds the details, including the two spots where a
+straight translation of the Swift would have been wrong (month-end clamping, and the UUIDv5
+occurrence ids).
+
+Accounting is the remaining half of Phase 2 and the open change. It is pure derived math — balances
+recomputed from the entry log, never stored. Two spots where a straight translation would be wrong
+are recorded in the change's `design.md`: Swift's `UUID??` category resolution, which Dart cannot
+express, and Swift's closed date interval, against the port's half-open `[start, end)` rule.
