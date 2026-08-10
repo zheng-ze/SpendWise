@@ -1,0 +1,86 @@
+schema: spec-driven
+
+# Mirrors openspec/project.md, which is the readable long form. Keep the two in sync.
+context: |
+  SpendWise is a Flutter rewrite of a finished SwiftUI app frozen at ../SpendWise-SwiftUI. The Swift
+  code is the source of truth for behavior; its own CLAUDE.md is stale. The port is a translation,
+  not a redesign: type names match Swift (LedgerState, Entry, MoneySource, TransactionCategory,
+  LedgerChange, LedgerError), and deviations happen only where a spec's "KNOWN DEFECT" or "PORT FIX"
+  section sanctions one. Inventing behavior the spec does not describe is a defect.
+
+  Layout: packages/domain/ is pure Dart (models, LedgerState, accounting) and must never gain a
+  Flutter dependency; its pubspec.yaml deliberately has no `flutter:` key, which is the whole purity
+  mechanism. app/ is the Flutter app and depends on domain by path. docs/ holds the behavior specs:
+  Flutter_Port_Tech_Doc.md is the master plan, docs/modules/*.md are the per-phase specs, and
+  docs/reviews/ are completed adversarial passes whose corrections are already applied - do not
+  re-litigate their findings.
+
+  Where the specs live: a change's specs/ state the behavior contract in prose, derived from the
+  longer and more precise module specs in docs/modules/. For Phase 1 that source is
+  docs/modules/domain_models.md, whose section numbers the design and task files cite directly. When
+  a change's spec and the module spec appear to disagree, the module spec wins and the change's spec
+  is what to correct. docs/HANDOVER.md is historical only: it records why commits 1.1 and 1.2 were
+  built as they were, and nothing about outstanding work - the plan for that is the open change's
+  tasks.md. openspec/project.md is the readable long form of this context block; keep the two in sync.
+
+  Domain rules:
+  - Money is Decimal, never double. A double in packages/domain/lib/ is a defect.
+  - IDs are lowercase uuid strings, canonicalized at every construction boundary via
+    canonicalOrNewID / canonicalOptionalID in lib/src/ids.dart. The legacy SQLite database holds
+    uppercase ids, so this is load-bearing, and it is safe only because uuids are hex.
+  - Int-coded enums carry an explicit `code` field pinned to the Swift raw value, never enum.index.
+    Persistence writes these codes. fromCode throws ArgumentError on an unknown code so corrupt rows
+    surface as load errors.
+  - Window filters are half-open [start, end) everywhere.
+  - Models are immutable with hand-written value ==/hashCode. Change payloads carry stored objects
+    and the change-emission tests compare change lists by value, so a mutable model would let a
+    mutator edit an already-emitted object and the test would pass regardless. equatable is
+    deliberately not used.
+  - Mutators keep the validate -> mutate -> return List<LedgerChange> contract.
+
+  Scope: Recurring Plans land inside the ledger core. They were deferred until accounts and entries
+  existed, not dropped, since purge and the dereference sweep are what the plan cascade hooks into.
+  Those are now in place, so plans are group 8 of complete-domain-ledger-core, ahead of the
+  invariants: clauses 7 and 8 (dangling plan reference, exhausted plan) are then written once against
+  real plan data rather than added later as an amendment. Group 8 covers RecurringPlan /
+  EntryTemplate / RecurrenceFrequency, OccurrenceID, the LedgerState.plans map, the plan mutators,
+  resolvePlans, and the plan cascade in deleteAccount. With it LedgerChange reaches its full 9 cases
+  (adding upsertPlan, deletePlan) and LedgerError its full 12 (adding unknownPlan, exhaustedPlan).
+  Two places a straight translation would be wrong: month-end strides must clamp, since Dart's
+  DateTime constructor overflows a short month, and every stride is measured from the anchor so the
+  clamping never accumulates; and occurrence ids are UUIDv5, taken from the already-present uuid
+  package, with the name string measured in seconds from 2001-01-01 UTC rather than the Unix epoch.
+
+  Comment style is minimal: comment only tricky nuance, deliberate spec deviations, or ordering
+  constraints a reader would otherwise break, and never restate what the code says. No reference to
+  the Swift project in code comments, and no em dashes or semicolons in comment prose.
+
+  Checks: `cd packages/domain && dart format . && dart analyze && dart test` and
+  `cd app && flutter analyze`. The analyzer must be at zero issues, not just zero errors.
+  Toolchain: Flutter 3.44.9 / Dart 3.12.2.
+
+  Working style: the user commits themselves, so never run git commit - report when something is
+  green and let them take it. They push back on unnecessary abstraction, so build the smaller thing
+  and let them ask for more, and verify claims against the code before asserting them.
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always include a "Non-goals" section
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing
