@@ -188,7 +188,10 @@ abstract final class Accounting {
   static double fraction(Decimal amount, Decimal over) {
     if (over <= Decimal.zero) return 0.0;
 
-    return (amount / over).toDouble();
+    final ratio = (amount / over).toDouble();
+    if (!ratio.isFinite) return ratio.isNegative ? -1.0 : 1.0;
+
+    return ratio;
   }
 
   static String? mainBucketID(String? rawLeafID, LedgerState state) {

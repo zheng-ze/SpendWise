@@ -545,6 +545,19 @@ void main() {
       expect(Accounting.fraction(money(25), Decimal.zero), 0.0);
       expect(Accounting.fraction(money(25), money(-100)), 0.0);
     });
+
+    test('a ratio that overflows double stays finite', () {
+      final huge = Decimal.parse('1${'0' * 400}');
+
+      expect(Accounting.fraction(huge, Decimal.one), 1.0);
+      expect(Accounting.fraction(-huge, Decimal.one), -1.0);
+    });
+
+    test('a ratio that underflows double stays finite', () {
+      final huge = Decimal.parse('1${'0' * 400}');
+
+      expect(Accounting.fraction(Decimal.one, huge), 0.0);
+    });
   });
 
   group('half-open window filtering', () {
