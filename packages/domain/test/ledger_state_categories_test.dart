@@ -183,6 +183,19 @@ void main() {
       expect(ledger.categories[uuid(2)]?.parentID, isNull);
     });
 
+    test('rejects giving a parent to a category that has children', () {
+      ledger.addCategory(category(uuid(2)));
+      ledger.addCategory(category(uuid(3), parent: uuid(2)));
+      ledger.addCategory(category(uuid(4)));
+
+      expect(
+        () => ledger.updateCategory(category(uuid(2), parent: uuid(4))),
+        throwsA(const CategoryTooDeep()),
+      );
+      expect(ledger.categories[uuid(2)]?.parentID, isNull);
+      expect(ledger.categories[uuid(3)]?.parentID, uuid(2));
+    });
+
     test('rejects a kind change', () {
       ledger.addCategory(category(uuid(2)));
 

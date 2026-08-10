@@ -17,6 +17,11 @@ extension LedgerStateCategories on LedgerState {
     // sign it contradicts and the children that inherit it.
     if (existing.kind != category.kind) throw const CategoryKindMismatch();
 
+    // Max depth is two, so a subcategory cannot have children of its own.
+    if (category.parentID != null && _children(category.id).isNotEmpty) {
+      throw const CategoryTooDeep();
+    }
+
     _validateParent(category);
 
     final requested = category.settingLifecycle(
