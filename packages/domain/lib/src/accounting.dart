@@ -6,6 +6,7 @@ import 'package:domain/src/category_resolution.dart';
 import 'package:domain/src/date_range.dart';
 import 'package:domain/src/entry.dart';
 import 'package:domain/src/holder_referencing.dart';
+import 'package:domain/src/ids.dart';
 import 'package:domain/src/ledger_state.dart';
 import 'package:domain/src/net_worth.dart';
 
@@ -28,14 +29,15 @@ abstract final class Accounting {
     required List<Entry> entries,
     required Set<String> sourceIDs,
   }) {
+    final holderID = canonicalID(of);
     var total = Decimal.zero;
     for (final entry in entries) {
       if (!applies(entry, sourceIDs)) continue;
 
       if (entry.isTransfer) {
-        if (entry.destinationID == of) total += entry.amount;
-        if (entry.sourceID == of) total -= entry.amount;
-      } else if (entry.sourceID == of) {
+        if (entry.destinationID == holderID) total += entry.amount;
+        if (entry.sourceID == holderID) total -= entry.amount;
+      } else if (entry.sourceID == holderID) {
         total += entry.amount;
       }
     }
@@ -189,13 +191,14 @@ abstract final class Accounting {
     return (amount / over).toDouble();
   }
 
-  static String? mainBucketID(String? leafID, LedgerState state) {
+  static String? mainBucketID(String? rawLeafID, LedgerState state) {
+    final leafID = canonicalOptionalID(rawLeafID);
     if (leafID == null) return null;
 
     final category = state.categories[leafID];
     if (category == null) return null;
 
-    return category.parentID ?? leafID;
+    return category.parentID ?? category.id;
   }
 
   static Map<String?, Decimal> rollUp(
@@ -218,9 +221,11 @@ extension AnalysisItemList on List<AnalysisItem> {
     Set<String?>? buckets,
     DateRange? interval,
   }) {
+    // Null is a real member, the Uncategorized bucket, so it survives the map.
+    final wanted = buckets?.map(canonicalOptionalID).toSet();
     return where((item) {
       if (kind != null && item.kind != kind) return false;
-      if (buckets != null && !buckets.contains(item.bucketID)) return false;
+      if (wanted != null && !wanted.contains(item.bucketID)) return false;
       if (interval != null && !interval.contains(item.date)) return false;
 
       return true;

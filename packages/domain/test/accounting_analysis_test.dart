@@ -406,6 +406,136 @@ void main() {
     });
   });
 
+  group('canonical ids at the Accounting boundary', () {
+    // uuid() emits digits only, so uppercasing it is identity and would prove
+    // nothing. These carry hex letters.
+    const hexParent = 'a1b2c3d4-0000-4000-8000-00000000000a';
+    const hexChild = 'b2c3d4e5-0000-4000-8000-00000000000b';
+    const hexSource = 'c3d4e5f6-0000-4000-8000-00000000000c';
+
+    test('the mixed-case fixtures really differ from their canonical form', () {
+      expect(hexParent.toUpperCase(), isNot(hexParent));
+      expect(hexChild.toUpperCase(), isNot(hexChild));
+      expect(hexSource.toUpperCase(), isNot(hexSource));
+    });
+
+    test('mainBucketID resolves a mixed-case leaf to its parent', () {
+      final ledger = LedgerState();
+      ledger.addAccount(account(hexSource));
+      ledger.addCategory(category(hexParent));
+      ledger.addCategory(category(hexChild, parent: hexParent));
+
+      expect(
+        Accounting.mainBucketID(hexChild.toUpperCase(), ledger),
+        hexParent,
+      );
+    });
+
+    test('mainBucketID returns a canonical id for a mixed-case main', () {
+      final ledger = LedgerState();
+      ledger.addCategory(category(hexParent));
+
+      expect(
+        Accounting.mainBucketID(hexParent.toUpperCase(), ledger),
+        hexParent,
+      );
+    });
+
+    test('rollUp files a mixed-case bucket under its parent', () {
+      final ledger = LedgerState();
+      ledger.addAccount(account(hexSource));
+      ledger.addCategory(category(hexParent));
+      ledger.addCategory(category(hexChild, parent: hexParent));
+
+      final items = [
+        AnalysisItem(
+          bucketID: hexChild.toUpperCase(),
+          amount: money(80),
+          date: DateTime.utc(2026),
+          kind: CategoryKind.expense,
+        ),
+      ];
+
+      expect(Accounting.rollUp(items, ledger), {hexParent: money(80)});
+    });
+
+    test('balance accepts a mixed-case holder id', () {
+      final entries = [
+        entry(amount: money(1000), sourceID: hexSource),
+        entry(amount: money(-250), sourceID: hexSource),
+      ];
+
+      expect(
+        Accounting.balance(
+          of: hexSource.toUpperCase(),
+          entries: entries,
+          sourceIDs: {hexSource},
+        ),
+        money(750),
+      );
+    });
+
+    test('balance accepts a mixed-case holder id on a transfer leg', () {
+      final entries = [
+        entry(
+          amount: money(300),
+          sourceID: hexSource,
+          destinationID: hexParent,
+        ),
+      ];
+
+      expect(
+        Accounting.balance(
+          of: hexParent.toUpperCase(),
+          entries: entries,
+          sourceIDs: {hexSource, hexParent},
+        ),
+        money(300),
+      );
+      expect(
+        Accounting.balance(
+          of: hexSource.toUpperCase(),
+          entries: entries,
+          sourceIDs: {hexSource, hexParent},
+        ),
+        money(-300),
+      );
+    });
+
+    test('filtered and total accept a mixed-case bucket', () {
+      final ledger = LedgerState();
+      ledger.addAccount(account(hexSource));
+      ledger.addCategory(category(hexChild));
+      ledger.addEntry(
+        entry(amount: money(-60), categoryID: hexChild, sourceID: hexSource),
+      );
+      ledger.addEntry(entry(amount: money(-15), sourceID: hexSource));
+
+      final items = Accounting.analysisItems(
+        ledger,
+      ).filtered(kind: CategoryKind.expense);
+
+      expect(items.filtered(buckets: {hexChild.toUpperCase()}), hasLength(1));
+      expect(items.total(buckets: {hexChild.toUpperCase()}), money(60));
+    });
+
+    test('a mixed-case bucket set keeps matching the null bucket', () {
+      final ledger = LedgerState();
+      ledger.addAccount(account(hexSource));
+      ledger.addCategory(category(hexChild));
+      ledger.addEntry(
+        entry(amount: money(-60), categoryID: hexChild, sourceID: hexSource),
+      );
+      ledger.addEntry(entry(amount: money(-15), sourceID: hexSource));
+
+      final items = Accounting.analysisItems(
+        ledger,
+      ).filtered(kind: CategoryKind.expense);
+
+      expect(items.total(buckets: {hexChild.toUpperCase(), null}), money(75));
+    });
+  });
+
   group('fraction', () {
     test('divides the amount by the total', () {
       expect(Accounting.fraction(money(25), money(100)), 0.25);
