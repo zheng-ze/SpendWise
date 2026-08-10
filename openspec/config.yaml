@@ -28,8 +28,8 @@ context: |
 
   Domain rules:
   - Money is Decimal, never double. A double in packages/domain/lib/ is a defect.
-  - IDs are lowercase uuid strings, canonicalized at every construction boundary via
-    canonicalOrNewID / canonicalOptionalID in lib/src/ids.dart. The legacy SQLite database holds
+  - IDs are lowercase uuid strings, normalized at every construction boundary via
+    normalizedOrNewID / normalizedOptionalID in lib/src/ids.dart. The legacy SQLite database holds
     uppercase ids, so this is load-bearing, and it is safe only because uuids are hex.
   - Int-coded enums carry an explicit `code` field pinned to the Swift raw value, never enum.index.
     Persistence writes these codes. fromCode throws ArgumentError on an unknown code so corrupt rows
@@ -53,9 +53,9 @@ context: |
   DateTime constructor overflows a short month, and every stride is measured from the anchor so the
   clamping never accumulates; and occurrence ids are UUIDv5, taken from the already-present uuid
   package, with the name string measured in seconds from 2001-01-01 UTC rather than the Unix epoch.
-  The plan id enters that name in lowercase canonical form, whereas Swift's uuidString is uppercase,
+  The plan id enters that name in lowercase normalized form, whereas Swift's uuidString is uppercase,
   so the same plan and day yield a different occurrence id in each app. That is intentional: the
-  frozen SwiftUI app is a behavioral reference, not a conformance target, and lowercase canonical ids
+  frozen SwiftUI app is a behavioral reference, not a conformance target, and lowercase normalized ids
   are a project-wide rule, so matching Swift byte-for-byte would mean reintroducing an uppercase id at
   the very boundary that rule normalizes. Nothing cross-reads occurrence ids between the two apps.
 

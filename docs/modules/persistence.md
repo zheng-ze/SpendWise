@@ -83,8 +83,8 @@ Global column conventions (all decided here, recorded per parent doc §8):
 
 | Concern | Decision |
 |---|---|
-| IDs | `TEXT` primary key, **lowercase** canonical uuid string (e.g. `"6f1a…-…"`). Normalize to lowercase at the store boundary — Swift's `UUID.uuidString` is uppercase; case mismatch is hazard §5.5. |
-| Money (`Decimal`) | `TEXT`, canonical `Decimal.toString()` — sign, digits, `.` separator, no grouping, no currency. Never REAL. |
+| IDs | `TEXT` primary key, **lowercase** normalized uuid string (e.g. `"6f1a…-…"`). Normalize to lowercase at the store boundary — Swift's `UUID.uuidString` is uppercase; case mismatch is hazard §5.5. |
+| Money (`Decimal`) | `TEXT`, normalized `Decimal.toString()` — sign, digits, `.` separator, no grouping, no currency. Never REAL. |
 | Dates | `INTEGER`, **epoch milliseconds UTC** (`DateTime.toUtc().millisecondsSinceEpoch`). Recorded decision: Swift stored `Date` (an absolute instant); epoch millis preserves the instant exactly, sorts numerically, and avoids ISO8601 parse ambiguity. The parent doc's UTC-normalization rule (§5.3) applies to **occurrence identity in the domain** (date-only normalization before hashing), not to storage — the store persists the exact instant it is given. |
 | Booleans | `INTEGER` 0/1 (Drift `boolean()`). |
 | `version_data` | `BLOB`, UTF-8 JSON encoded version vector (§6). Every table except `store_meta` carries it. |
@@ -413,11 +413,11 @@ Codable, Swift encodes the map as a **flat alternating array**:
 `{"counters":["<UUID-UPPERCASE>",3,"<UUID2-UPPERCASE>",1]}`; empty vector = `{"counters":[]}`.
 Encode failure produced empty `Data`; decode failure produced an empty vector.
 
-Dart canonical format:
+Dart normalized format:
 
 - **Encode:** UTF-8 JSON object mapping lowercase uuid → count: `{"6f1a…":3,"9c2e…":1}`. Empty
   vector encodes as `{}` (as bytes). Stored in `version_data BLOB`.
-- **Decode:** recognizes exactly the two known wire formats: (a) the canonical object form; (b) the
+- **Decode:** recognizes exactly the two known wire formats: (a) the normalized object form; (b) the
   Swift alternating-array form above (uppercasing tolerated, keys lowercased on ingest). Anything
   else — empty blob, invalid UTF-8, invalid JSON, an unrecognized shape, a non-integer or negative
   count — is a **decode error, not an empty vector**. **PORT FIX** (sanctioned deviation, parent doc

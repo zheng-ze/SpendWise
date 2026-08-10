@@ -186,7 +186,7 @@ being added now and amended later. `docs/modules/domain_models.md` §3.5 is the 
       day is the UTC start of day and the offset is measured from 2001-01-01 UTC, not the Unix epoch.
       The `uuid` package already exposes `v5`, so no new dependency is needed and the `crypto` note
       in the proposal does not apply. Emit the id lowercase so it satisfies the id rule.
-      The plan id is canonicalized before hashing, so a caller passing an uppercase id cannot mint a
+      The plan id is normalized before hashing, so a caller passing an uppercase id cannot mint a
       second id for the same occurrence. Covered by `test/occurrence_id_test.dart` (7 tests)
 - [x] 8.3 Add `entry_template.dart`: `EntryTemplate` with `amount`, `name`, `categoryID`, `sourceID`,
       `destinationID`, `includeInAnalysis`, implementing `HolderReferencing`, plus
@@ -630,7 +630,7 @@ The code is right in each of these; the prose describes something else.
       only. Update all three to state the recursive rule
 - [x] 13.27 Record that occurrence ids intentionally do not reproduce the Swift app's. Swift builds the
       UUIDv5 name from `planID.uuidString`, which is UPPERCASE; `occurrence_id.dart:16` uses
-      `canonicalID`, which is lowercase. Verified to yield different uuids for the same plan and day
+      `normalizedID`, which is lowercase. Verified to yield different uuids for the same plan and day
       (`ad07cedc-...` versus `b75d3ff8-...`). Harmless under the reference-not-conformance ruling since
       the Flutter app is the sole writer, but `project.md:78-80` specifies the namespace and the 2001
       seconds epoch without mentioning case, so a later audit will re-raise it

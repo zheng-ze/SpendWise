@@ -38,11 +38,11 @@ An entry materialized from a plan SHALL take a deterministic id derived from the
 of the occurrence, so that two devices resolving the same occurrence converge on a single entry
 instead of minting duplicates.
 
-The plan id SHALL enter that derivation in lowercase canonical form, per the project-wide id rule.
+The plan id SHALL enter that derivation in lowercase normalized form, per the project-wide id rule.
 Swift renders the same id uppercase, and the derivation hashes its input, so the same plan and day
 produce a different occurrence id in each app. That divergence is intentional and SHALL NOT be
 "corrected" toward the Swift output: the frozen app is a behavioral reference rather than a
-conformance target, nothing cross-reads occurrence ids between the two, and canonicalizing here is what
+conformance target, nothing cross-reads occurrence ids between the two, and normalizing here is what
 keeps an id's identity independent of the case it was written in.
 
 #### Scenario: Same occurrence yields the same id

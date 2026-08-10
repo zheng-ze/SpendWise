@@ -9,7 +9,7 @@ This doc is a behavior spec: a Dart implementation written and tested against it
 
 | Swift | Dart |
 |---|---|
-| `UUID` | `String`, lowercase canonical uuid form. Normalize to lowercase at every construction boundary |
+| `UUID` | `String`, lowercase normalized uuid form. Normalize to lowercase at every construction boundary |
 | `Decimal` | `Decimal` from the `decimal` package. `double` never touches money |
 | `Date` | `DateTime` (UTC discipline per master doc hazard 3; this module only stores dates, it does no date math) |
 | enum with payload (`MoneySource`, `LedgerChange`, `LedgerError`) | sealed class hierarchy |

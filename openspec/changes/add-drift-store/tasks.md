@@ -58,7 +58,7 @@ the suite never actually sleeps.
 - [ ] 4.1 Add `VersionVector` with `counters`, `bump(device)`, `dominates(other)`, `isConcurrent(other)`.
       Do NOT add merge — it belongs to the future sync engine
 - [ ] 4.2 Add the codec: encode as a UTF-8 JSON object of lowercase uuid → count, empty vector as `{}`.
-      Decode both the canonical object form and Swift's flat alternating-array form
+      Decode both the normalized object form and Swift's flat alternating-array form
 - [ ] 4.3 Add device identity in `store_meta`: a uuid v4 created once on first access, persisted, cached
       in memory thereafter
 - [ ] 4.4 Test (port): `bumpIncrementsPerDevice`, `dominatesWhenEveryComponentIsGreaterOrEqual`,

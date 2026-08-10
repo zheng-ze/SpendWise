@@ -302,7 +302,7 @@ make(planID, occurrenceDay, calendar):
   day     = calendar.startOfDay(occurrenceDay)             // §3.3: UTC
   seconds = round(day - 2001-01-01T00:00:00Z) as integer   // Apple "reference date" epoch,
                                                            // NOT the Unix epoch
-  name    = "<planID uppercase canonical uuid string>|<seconds>"
+  name    = "<planID uppercase normalized uuid string>|<seconds>"
             // e.g. "11111111-2222-3333-4444-555555555555|794016000"
   digest  = SHA1( namespace_bytes(16) ++ utf8(name) )
   bytes   = digest[0..15]                                  // first 16 of the 20 SHA-1 bytes

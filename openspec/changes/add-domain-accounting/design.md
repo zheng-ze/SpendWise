@@ -97,30 +97,30 @@ empty list; the sole caller `analysisItems` changed from a null-aware spread to 
 Account-type bucketing for treat-as-expense transfers stays deferred to Phase 6. `bucketID` remains
 `null` on both legs.
 
-### Public `Accounting` entry points canonicalize caller-supplied ids
+### Public `Accounting` entry points normalized caller-supplied ids
 
-Every public query in `ledger_state_queries.dart` already canonicalizes its `raw…ID` parameter, and
-`Accounting` was the outlier. The failure mode is silent rather than loud: a non-canonical id misses
+Every public query in `ledger_state_queries.dart` already normalizes its `raw…ID` parameter, and
+`Accounting` was the outlier. The failure mode is silent rather than loud: a non-normalized id misses
 the map or the set, and the miss reads as a legitimate answer. `mainBucketID` returned `null`, which
 is the Uncategorized bucket, so `rollUp` filed real money under Uncategorized instead of its parent.
 `balance` returned zero for a holder that has entries. `filtered` and `total` matched nothing where
 they should have matched the bucket. Nothing upstream repairs it, because `AnalysisItem` does not
-canonicalize its `bucketID`.
+normalize its `bucketID`.
 
-The rule is therefore: a raw id crossing into `Accounting` from a caller is canonicalized at the
-boundary, and any id `Accounting` returns is canonical. `mainBucketID` returns `category.parentID ??
+The rule is therefore: a raw id crossing into `Accounting` from a caller is normalized at the
+boundary, and any id `Accounting` returns is normalized. `mainBucketID` returns `category.parentID ??
 category.id` rather than the parameter so the result comes off a stored row either way.
 
 `buckets` on `filtered` is `Set<String?>?` where `null` is a real member, the Uncategorized bucket,
-so the mapping uses `canonicalOptionalID` and `null` survives it. `total` delegates to `filtered` and
+so the mapping uses `normalizedOptionalID` and `null` survives it. `total` delegates to `filtered` and
 needs nothing of its own.
 
-Three raw-id parameters are deliberately **not** canonicalized: `sourceIDs` and `activePockets` on
+Three raw-id parameters are deliberately **not** normalized: `sourceIDs` and `activePockets` on
 `accountTotal` and `netWorth`, and the `of` that `accountTotal` passes down. Each is built from
-`ledger.moneySources.keys` or `ledger.activeSources`, which are canonical by construction because
-every model canonicalizes its own ids. Re-canonicalizing them would mean a `toLowerCase` per member
+`ledger.moneySources.keys` or `ledger.activeSources`, which are normalized by construction because
+every model normalizes its own ids. Re-normalizing them would mean a `toLowerCase` per member
 per call on the net-worth path, which walks every account and every pocket. The `of` parameter of
-`balance` is still canonicalized, since `balance` is public and callers reach it directly.
+`balance` is still normalized, since `balance` is public and callers reach it directly.
 
 ### Every `Accounting` collection return is an unmodifiable view
 
@@ -167,7 +167,7 @@ into the previous month for every user east of Greenwich. `DateTime.utc(y, m, d)
 normalized day, so an un-normalized local midnight would both land in the wrong month at a boundary
 and re-mint occurrence ids after a timezone move.
 
-Normalization happens at construction, mirroring how `canonicalID` normalizes ids at every
+Normalization happens at construction, mirroring how `normalizedID` normalizes ids at every
 construction boundary. This is the house rule from `CLAUDE.md`: make the illegal state unreachable
 rather than correcting it at each comparison. Normalizing at call sites instead would leave the
 types able to hold a non-normalized date.

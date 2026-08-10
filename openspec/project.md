@@ -49,8 +49,8 @@ improvement.
 ## Domain rules
 
 - **Money is `Decimal`, never `double`.** A `double` anywhere in `packages/domain/lib/` is a defect.
-- **IDs are lowercase uuid strings**, canonicalized at every construction boundary via
-  `canonicalOrNewID` / `canonicalOptionalID` in `lib/src/ids.dart`. The legacy SQLite database holds
+- **IDs are lowercase uuid strings**, normalized at every construction boundary via
+  `normalizedOrNewID` / `normalizedOptionalID` in `lib/src/ids.dart`. The legacy SQLite database holds
   uppercase ids, so this is load-bearing. Case-insensitivity is safe only because uuids are hex —
   never route a case-sensitive id through these helpers.
 - **Int-coded enums carry an explicit `code` field** pinned to the Swift raw value, never
@@ -116,16 +116,16 @@ Two places where a straight translation of the Swift would be wrong:
 - **Occurrence ids are UUIDv5 over SHA-1.** The already-present `uuid` package exposes `v5`, so no new
   dependency is needed. The name string is measured in seconds from 2001-01-01 UTC, not the Unix
   epoch.
-- **The plan id goes into the UUIDv5 name in lowercase canonical form.** Swift builds the name from
+- **The plan id goes into the UUIDv5 name in lowercase normalized form.** Swift builds the name from
   `planID.uuidString`, which Foundation renders **uppercase**; the port routes the plan id through
-  `canonicalID` first, so the name carries the lowercase form. A UUIDv5 name is hashed bytewise, so
+  `normalizedID` first, so the name carries the lowercase form. A UUIDv5 name is hashed bytewise, so
   the two cases are different names and the same plan and day therefore yield a **different occurrence
   id here than in the Swift app**. This is intentional and is not a defect to repair. The frozen
-  SwiftUI app is a behavioral reference, not a conformance target, and lowercase canonical ids are a
+  SwiftUI app is a behavioral reference, not a conformance target, and lowercase normalized ids are a
   project-wide rule (see Domain rules above) precisely so that no id's identity depends on the case it
   happened to be written in. Matching Swift byte-for-byte would mean reintroducing an uppercase id at
   exactly the boundary the rule exists to normalize. Nothing cross-reads occurrence ids between the two
-  apps, so the divergence has no consumer. Keep the plan id canonicalized on the way into the name
+  apps, so the divergence has no consumer. Keep the plan id normalized on the way into the name
   regardless of how the rest of the derivation evolves.
 
 **Archival freezes a plan; deletion removes it.** These are two different rules and the distinction is
