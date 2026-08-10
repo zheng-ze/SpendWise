@@ -39,6 +39,13 @@ An entry materialized from a plan SHALL take a deterministic id derived from the
 of the occurrence, so that two devices resolving the same occurrence converge on a single entry
 instead of minting duplicates.
 
+The plan id SHALL enter that derivation in lowercase canonical form, per the project-wide id rule.
+Swift renders the same id uppercase, and the derivation hashes its input, so the same plan and day
+produce a different occurrence id in each app. That divergence is intentional and SHALL NOT be
+"corrected" toward the Swift output: the frozen app is a behavioral reference rather than a
+conformance target, nothing cross-reads occurrence ids between the two, and canonicalizing here is what
+keeps an id's identity independent of the case it was written in.
+
 #### Scenario: Same occurrence yields the same id
 
 - **WHEN** the same plan and occurrence day are resolved twice
@@ -137,3 +144,36 @@ Plans are configuration rather than history, so they do not archive alongside th
 
 - **WHEN** an account is archived and a plan's template names one of its pockets
 - **THEN** that plan is removed and reported deleted
+
+### Requirement: Archiving a pocket or category freezes its plans
+
+Archiving a pocket or a category SHALL NOT remove plans that reference it. The plan stays, its
+occurrences fail validation while the row is inactive, and resolving reports those failures rather than
+throwing. Restoring the row returns a holder that still has its plans.
+
+This is deliberately narrower than the account rule above. Archiving an account is a whole-holder
+retirement that takes its pockets with it, whereas archiving a single pocket or category is routine
+tidying a user is expected to undo. Removing plans on the archive step would make restore silently
+lossy, since nothing holds an archived plan to bring back.
+
+#### Scenario: A plan naming an archived pocket survives and reports failures
+
+- **WHEN** a pocket named by a plan's template is archived and plans are resolved
+- **THEN** the plan is still stored, no entry is materialized, and a plan failure is reported for each
+  due occurrence
+
+### Requirement: Deleting a row out from under a plan removes the plan
+
+Whenever a holder or category row is DELETED outright rather than archived, every plan whose template
+names it SHALL be removed and a plan delete reported. This covers the dereference sweep, which deletes a
+reference-only row once its last entry goes, and the purge paths that delete an unreferenced row.
+
+Without this a plan is left naming a row that no longer exists, violating invariant clause 7. The
+distinction from the freeze rule above is deletion versus archival: an archived row can come back, a
+deleted one cannot.
+
+#### Scenario: The dereference sweep takes the plan with the row
+
+- **WHEN** deleting an entry leaves a reference-only holder or category unreferenced, so the sweep
+  deletes it, and a stored plan's template names that row
+- **THEN** the plan is removed and a plan delete is reported alongside the row's deletion

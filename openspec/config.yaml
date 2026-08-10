@@ -50,6 +50,21 @@ context: |
   DateTime constructor overflows a short month, and every stride is measured from the anchor so the
   clamping never accumulates; and occurrence ids are UUIDv5, taken from the already-present uuid
   package, with the name string measured in seconds from 2001-01-01 UTC rather than the Unix epoch.
+  The plan id enters that name in lowercase canonical form, whereas Swift's uuidString is uppercase,
+  so the same plan and day yield a different occurrence id in each app. That is intentional: the
+  frozen SwiftUI app is a behavioral reference, not a conformance target, and lowercase canonical ids
+  are a project-wide rule, so matching Swift byte-for-byte would mean reintroducing an uppercase id at
+  the very boundary that rule normalizes. Nothing cross-reads occurrence ids between the two apps.
+
+  Archival freezes a plan; deletion removes it, and the two are deliberately different. deleteAccount
+  hard-removes every plan naming the account or any of its pockets, since archiving an account is a
+  whole-holder retirement. deletePocket and deleteCategory remove nothing: the plan stays, its
+  occurrences fail validation while the row is inactive, and resolvePlans reports those failures
+  instead of throwing, because archiving one pocket or category is routine tidying a user is expected
+  to undo and dropping plans there would make restore silently lossy. Every path that DELETES a row
+  outright rather than archiving it must take the plans naming that row with it: the dereference sweep
+  and the purge row helpers. Invariant clause 14 encodes this, permitting a plan to name an archived
+  row but never a referenceOnly or tombstoned one.
 
   Comment style is minimal: comment only tricky nuance, deliberate spec deviations, or ordering
   constraints a reader would otherwise break, and never restate what the code says. No reference to

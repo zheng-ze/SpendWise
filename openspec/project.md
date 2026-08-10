@@ -74,10 +74,40 @@ Two places where a straight translation of the Swift would be wrong:
 
 - **Month-end strides clamp.** `Calendar.date(byAdding:)` clamps a monthly stride off 31 January to
   the end of February. Dart's `DateTime` constructor overflows into March instead, so the port needs
-  an explicit clamp.
+  an explicit clamp. Every stride is measured from the anchor rather than from the previous
+  occurrence, so the clamping never accumulates.
 - **Occurrence ids are UUIDv5 over SHA-1.** The already-present `uuid` package exposes `v5`, so no new
   dependency is needed. The name string is measured in seconds from 2001-01-01 UTC, not the Unix
   epoch.
+- **The plan id goes into the UUIDv5 name in lowercase canonical form.** Swift builds the name from
+  `planID.uuidString`, which Foundation renders **uppercase**; the port routes the plan id through
+  `canonicalID` first, so the name carries the lowercase form. A UUIDv5 name is hashed bytewise, so
+  the two cases are different names and the same plan and day therefore yield a **different occurrence
+  id here than in the Swift app**. This is intentional and is not a defect to repair. The frozen
+  SwiftUI app is a behavioral reference, not a conformance target, and lowercase canonical ids are a
+  project-wide rule (see Domain rules above) precisely so that no id's identity depends on the case it
+  happened to be written in. Matching Swift byte-for-byte would mean reintroducing an uppercase id at
+  exactly the boundary the rule exists to normalize. Nothing cross-reads occurrence ids between the two
+  apps, so the divergence has no consumer. Keep the plan id canonicalized on the way into the name
+  regardless of how the rest of the derivation evolves.
+
+**Archival freezes a plan; deletion removes it.** These are two different rules and the distinction is
+deliberate.
+
+- `deleteAccount` hard-removes every plan naming the account or any of its pockets. Archiving an
+  account is a whole-holder retirement that takes its pockets with it.
+- `deletePocket` and `deleteCategory` remove nothing. The plan stays, its occurrences fail validation
+  while the row is inactive, and `resolvePlans` reports those failures instead of throwing. Archiving
+  a single pocket or category is routine tidying a user is expected to undo, and dropping plans on the
+  archive step would make restore silently lossy, since nothing holds an archived plan to bring back.
+  This is also the only way to reach the `PlanFailure` path through the public API, which is what the
+  `resolvePlans failures` test group exercises.
+- Every path that DELETES a row outright rather than archiving it must take the plans naming that row
+  with it: the dereference sweep (`_sweepHolder`, `_sweepCategory`) and the purge row helpers.
+  Otherwise a plan is left naming a row that no longer exists, violating invariant clause 7.
+
+Invariant clause 14 encodes exactly this: a plan may name an **archived** row, but never a
+`referenceOnly` or `tombstoned` one.
 
 ## Comment style
 

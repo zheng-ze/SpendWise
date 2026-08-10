@@ -59,7 +59,7 @@ None. `openspec/specs/` is empty; this is the first change in the project.
 - New tests in `packages/domain/test/`, including `test/support/`.
 - New export barrel at `packages/domain/lib/domain.dart`.
 - New plan sources in `packages/domain/lib/src/`: `recurring_plan.dart`, `entry_template.dart`,
-  `recurrence_frequency.dart`, `occurrence_id.dart`.
+  `plan_scheduling.dart`, `occurrence_id.dart`.
 - No change to `app/` or to any existing model or enum file.
 - No new dependencies. The UUIDv5 occurrence ids come from `uuid`, which is already present, as are
   `decimal` and `meta`; `equatable` stays out deliberately.

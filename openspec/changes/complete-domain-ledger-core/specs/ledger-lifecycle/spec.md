@@ -141,13 +141,27 @@ Purging a category SHALL be a no-op unless the target is an archived category. I
 category row and then every child row, regardless of each child's lifecycle, so that an active child of
 an archived parent is purged too.
 
-Each category row SHALL follow this rule: if any entry carries its id it becomes reference-only and its
+Each category row SHALL follow this rule: if the category is referenced it becomes reference-only and its
 upsert is emitted; otherwise its row is removed and its deletion emitted.
+
+A category SHALL count as referenced when any entry carries its id, **or** when any of its descendant
+categories is itself referenced under this same rule. The walk SHALL be guarded against revisiting an id
+so that a malformed cycle terminates. The recursion is load-bearing: under a direct-entries-only rule a
+parent row would be deleted while a still-referenced child survived pointing at it, leaving a category
+with an unknown parent and violating the nesting invariant. Children SHALL therefore sweep before the
+parent is judged, so a child kept as reference-only is visible when its parent is weighed, while the
+parent's changes are still emitted first.
 
 #### Scenario: Children are purged regardless of lifecycle
 
 - **WHEN** an archived category with an active child is purged
 - **THEN** the child is purged under the same rule as the parent
+
+#### Scenario: A referenced child keeps its parent alive
+
+- **WHEN** an archived category is purged whose only entry references a child category rather than the
+  parent itself
+- **THEN** both the parent and the child end reference-only and all invariants hold
 
 ### Requirement: Dereference sweep
 
@@ -163,8 +177,12 @@ reference-only, has no direct references and now has no pockets left SHALL be to
 mutation, emitting the parent's detaching upsert, then the pocket's deletion, then the parent's deletion,
 in that order.
 
-Then, when the swept category is stored, reference-only, and carried by no entry, its row SHALL be
-removed and its deletion emitted.
+Then, when the swept category is stored, reference-only, and unreferenced under the recursive rule of the
+purge requirement above — carried by no entry and having no referenced descendant — its row SHALL be
+removed and its deletion emitted. That removal SHALL then cascade upward: the category's parent may have
+been held up solely by the row just removed, so it SHALL be re-judged under the same rule and removed too
+if it now qualifies, continuing up the chain. This mirrors the pocket-to-parent re-check on the holder
+side.
 
 #### Scenario: Last referencing entry tombstones the holder
 
@@ -188,3 +206,9 @@ removed and its deletion emitted.
   that entry is deleted
 - **THEN** the changes carry the detaching account upsert, then the pocket deletion, then the account
   deletion, and the money-source table ends empty
+
+#### Scenario: Last child deletion cascades to its parent category
+
+- **WHEN** the only remaining entry carries a reference-only child of a reference-only parent category
+  and that entry is deleted
+- **THEN** both the child and the parent are removed and their deletions are emitted, child first

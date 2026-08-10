@@ -66,12 +66,53 @@ Both SHALL return a single upsert of the stored account.
 - **WHEN** a card account is updated with a statement day
 - **THEN** the stored account keeps that statement day
 
+A statement day SHALL be clamped to 1 through 28 on both add and update, and SHALL be null for every
+non-card type on both. Clamping rather than rejecting is deliberate: the form already enforces the
+range, so a value reaching the domain came from a drift row or an import, and dropping one row of a bulk
+import over a recoverable field is worse than correcting it. 28 is the ceiling so every month has the
+day. Invariant clause 13 catches a row that arrived through the seeding constructor instead.
+
+Neither mutator SHALL accept a caller-supplied lifecycle that revives a row. An incoming lifecycle more
+alive than the stored one falls back to the stored value, which keeps reference-only terminal, and
+`tombstoned` is persistence-only so it is never writable through a mutator. The delete, purge and
+restore mutators own every lifecycle transition, each enforcing its own precondition.
+
+When an update moves an account to a less-alive lifecycle, its pockets SHALL follow, and the pocket
+upserts SHALL be appended after the account upsert. A pocket may never be more alive than the account
+holding it (invariant clause 15); the pocket write path enforces this by judging the child, so the edit
+surface reaching the same state through the PARENT has to cascade instead.
+
+#### Scenario: An out-of-range statement day is clamped
+
+- **WHEN** a card account is added or updated with a statement day of 999 or -5
+- **THEN** the stored account has a statement day of 28 or 1 respectively
+
+#### Scenario: Archiving an account through an edit takes its pockets down
+
+- **WHEN** an active account holding an active pocket is updated to archived
+- **THEN** the stored pocket is archived too and its upsert follows the account's
+
 ### Requirement: Add and update a pocket
 
-Adding a pocket SHALL first reject a parent id that is missing or is not an account, with an
-unknown-account error, and then reject a pocket id already present anywhere in the money-source table
-with an id-collision error. The pocket SHALL be stored and its id added to the parent's pocket links.
-The returned changes SHALL be the pocket upsert followed by the parent account upsert, in that order.
+Adding a pocket SHALL apply three checks in this exact order, throwing on the first failure. A parent id
+that is missing or is not an account throws an unknown-account error; a pocket id already present
+anywhere in the money-source table throws an id-collision error; and a parent whose lifecycle is not
+active throws an inactive-reference error carrying the parent id. The pocket SHALL be stored and its id
+added to the parent's pocket links. The returned changes SHALL be the pocket upsert followed by the
+parent account upsert, in that order.
+
+The lifecycle check exists because no mutator may leave an active pocket owned by a non-active account.
+That is the orphan-active-pocket family the restore path also closes: an archived or reference-only
+account is unselectable, so a live pocket hanging from one is unreachable through the account it belongs
+to, and a reference-only account is a row already on its way out once its last pocket goes. Adding under
+a non-active parent is the fourth and last public route into that state, and it is closed here rather
+than repaired afterwards.
+
+#### Scenario: Adding under a non-active parent is rejected
+
+- **WHEN** a pocket is added to an archived or reference-only account
+- **THEN** an inactive-reference error carrying the parent id is thrown and neither the pocket nor the
+  parent's links change
 
 Updating a pocket SHALL reject an id that is missing or resolves to an account, with an unknown-holder
 error, and SHALL replace the stored pocket wholesale. The parent link SHALL be untouched, since it
@@ -211,12 +252,39 @@ missing id with an unknown-category error.
 When a parent is given, both SHALL apply the same checks in this order: a parent absent from the
 category table throws an unknown-category error; a parent that itself has a parent throws a
 category-too-deep error, capping nesting at two levels; and a parent whose kind differs from the
-category's kind throws a category-kind mismatch. The parent's lifecycle SHALL NOT be checked, so an
-active child may be added under an archived parent.
+category's kind throws a category-kind mismatch; and a parent that is reference-only or tombstoned
+throws an inactive-reference error carrying the parent id. An ARCHIVED parent SHALL be permitted, so an
+active child may be added under one.
+
+The archived case is deliberately the opposite of the pocket rule above, and the difference is in what a
+non-active parent does to its children. A pocket is a holder: it carries entries and is reached through
+the account that owns it, so an active pocket under a non-active account is unreachable and its parent
+may already be a row awaiting removal. A category is a classification label whose parent is only a
+naming ancestor, holding no balance and owning nothing. An archived parent therefore costs an active
+child nothing, and the purge cascade already sweeps children regardless of their lifecycle, so no active
+child can outlive the parent row it hangs from.
+
+A reference-only parent is different again, and is rejected for a reason the archived case does not
+share. The dereference sweep deletes a reference-only category outright as soon as its last entry goes,
+and unlike the purge cascade it does not look for children, so a child added under one would be left
+naming a row that no longer exists. Invariant clause 5 forbids the resulting state, so the write path
+refuses to create it.
+
+#### Scenario: Adding under a reference-only parent is rejected
+
+- **WHEN** a category is added or reparented under a reference-only parent
+- **THEN** an inactive-reference error carrying the parent id is thrown and the category table is
+  unchanged
 
 Updating SHALL reject any change to the category's kind with a category-kind mismatch; a kind left
-unchanged is always permitted. Otherwise the category SHALL be stored verbatim and a single category
-upsert returned.
+unchanged is always permitted. Otherwise the category SHALL be stored verbatim and a category upsert
+returned.
+
+When an update moves the category to a different parent, the ABANDONED parent SHALL be re-judged by the
+dereference sweep and any resulting changes appended after the upsert. A reference-only parent whose
+only claim to being referenced was the departing child's link is otherwise left behind unreferenced,
+violating invariant clause 11. This mirrors the sweep an entry update already performs for a holder or
+category it drops.
 
 PORT FIX: the Swift `updateCategory` stores the category verbatim, so a kind may be swapped after
 creation. Nothing propagates the new kind to the category's children, and nothing revisits the entries

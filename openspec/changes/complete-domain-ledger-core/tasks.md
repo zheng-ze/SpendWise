@@ -32,8 +32,8 @@ domain test suite green before the next begins. The user commits; do not run `gi
       empty, returns one upsert
 - [x] 3.2 Implement `updateAccount`: `unknownAccount` when missing or a pocket, pocket links restored
       from the stored account, `statementDay` kept only for cards
-- [x] 3.3 Implement `addPocket`: parent check first then collision, insert plus parent link, returns
-      `[upsertPocket, upsertAccount]` in that order
+- [x] 3.3 Implement `addPocket`: parent check first, then collision, then `inactiveReference` on a
+      non-active parent, insert plus parent link, returns `[upsertPocket, upsertAccount]` in that order
 - [x] 3.4 Implement `updatePocket`: `unknownHolder` when missing or an account, wholesale replace,
       parent link untouched
 - [x] 3.5 Add `test/support/builders.dart` (savings `account()` named "acc", expense `category()` with
@@ -383,7 +383,7 @@ work so group 11 ports against fixed behavior.
       rather than a loose end of the final gate. The barrel already carried 13 exports but none of
       the 6 plan files, so `resolvePlans` (returns `PlanResolution`) and `addPlan` (takes
       `RecurringPlan`) were public methods whose types no consumer could name. Added
-      `entry_template`, `occurrence_id`, `plan_failure`, `plan_resolution`, `recurrence_frequency`
+      `entry_template`, `occurrence_id`, `plan_failure`, `plan_resolution`, `plan_scheduling`
       and `recurring_plan`. `plan_resolution` and `plan_failure` are part of the public RETURN
       surface, so both belong here, not only the types named in parameters
 - [x] 12.2 Verify the full gate: `cd packages/domain && dart format . && dart analyze && dart test` at
@@ -427,7 +427,7 @@ over a single state. Some of the worst bugs found in review are TRANSITION viola
 relative to the previous state, and no snapshot predicate can see them. Clause 12 below is the first
 of that kind and needs a before/after hook rather than a pass over the maps.
 
-- [ ] 13.1 Add clause 12, the lifecycle-monotonicity transition check, so 13.3 stops being silent.
+- [x] 13.1 Add clause 12, the lifecycle-monotonicity transition check, so 13.3 stops being silent.
       Lifecycle may only move toward less alive, with `restoreAccount`/`restoreCategory`
       (`ledger_state.dart:399`, `:437`) the sole sanctioned back-edge and only from `archived`. Since
       this cannot be expressed as a snapshot, add a debug-only before/after comparison: capture the
@@ -435,16 +435,18 @@ of that kind and needs a before/after hook rather than a pass over the maps.
       row moved to a more-alive state without going through a restore mutator. Keep it inside the same
       `assert(...)` discipline as `_checked` so release builds pay nothing. `LifecycleState`
       (`lifecycle_state.dart:27`) already exposes `isAtLeastAsAliveAs`, which is the comparison to use
-- [ ] 13.2 Correct the earlier clause-2 note. Clause 2 DOES have throw sites,
+- [x] 13.2 Correct the earlier clause-2 note. Clause 2 DOES have throw sites,
       `ledger_state_invariants.dart:41` and `:49`. The review flagged a possible numbering gap and that
-      flag was wrong; no numbering gap exists. This item is bookkeeping only, no code change
+      flag was wrong; no numbering gap exists. This item is bookkeeping only, no code change.
+      RESOLVED: confirmed both throw sites present, and the stale re-check instruction removed from
+      13.13 so a later audit cannot revive the claim
 
 ### 13.B Reachable state corruption
 
 Each reproduced by probe. In debug these now surface via the clauses added in 13.A and 13.C; in
 release they still land silently, which is the accepted cost of a debug-only checker.
 
-- [ ] 13.3 `referenceOnly` to `active` resurrection, currently SILENT (no clause fires, because the
+- [x] 13.3 `referenceOnly` to `active` resurrection, currently SILENT (no clause fires, because the
       resulting state is a perfectly legal snapshot: an active account holding entries).
       `addAccount(A); addEntry(E on A); deleteAccount(A); purgeAccount(A); updateAccount(Account(id: A))`
       returns A to `active`. `restoreAccount` (`ledger_state.dart:399`) and `restoreCategory` (`:437`)
@@ -452,14 +454,14 @@ release they still land silently, which is the accepted cost of a debug-only che
       `referenceOnly` is terminal except for tombstoning (comment at `:407`). Same via `updateCategory`
       (`:205-221`). Fix the update mutators to preserve a `referenceOnly` lifecycle. Clause 12 from
       13.1 is what makes this visible in debug rather than silent
-- [ ] 13.4 Mutators store an arbitrary caller-supplied lifecycle unchecked, including `tombstoned`,
+- [x] 13.4 Mutators store an arbitrary caller-supplied lifecycle unchecked, including `tombstoned`,
       which is documented persistence-only. `addAccount:72-82`, `updateAccount:89-102`,
       `updatePocket:124-128`, `updateCategory:217-221`. Two guard gaps explain it:
       `_willOutliveParentAccount:132-137` compares with `isAtLeastAsAliveAs` and `active <= tombstoned`
       is true, so tombstoning a pocket under an active parent is not "outranking"; and
       `_willOutliveParentCategory:226-234` returns false early when `parentID == null`, so root
       categories have no lifecycle guard at all
-- [ ] 13.5 Plans are invisible to every reference and purge path, so clause 7 breaks three ways.
+- [x] 13.5 Plans are invisible to every reference and purge path, so clause 7 breaks three ways.
       `_isHolderReferenced` (`ledger_state_queries.dart:71-82`) and `_isCategoryReferenced`
       (`ledger_state.dart:622-631`) count entries only; `deleteAccount:351` compensates with
       `_removePlansReferencing` and nothing else does. Holes: `purgeCategory` (no plan cascade on
@@ -468,18 +470,18 @@ release they still land silently, which is the accepted cost of a debug-only che
       sweep (`:649-665`, `:667-687`, where deleting the last entry sweeps a row out from under a live
       plan). Note `deletePlan` NOT sweeping is correct and is not part of this: the bug is rows
       vanishing under a plan, not the reverse
-- [ ] 13.6 A live child is accepted under a `referenceOnly` parent and then orphaned.
+- [x] 13.6 A live child is accepted under a `referenceOnly` parent and then orphaned.
       `_validateParent:467-475` checks existence, depth and kind but never the parent's lifecycle; the
       doc comment at `:464` sanctions ARCHIVED parents, and `referenceOnly` was not considered. Adding
       a child under a `referenceOnly` parent then deleting the parent's last entry makes
       `_sweepCategory` delete the parent, leaving a live category pointing at a dead id (clause 5).
       Asymmetry to mirror: `purgeCategory:601-607` sweeps children "regardless of lifecycle" so the
       row cannot be outlived; `_sweepCategory` does the same deletion with no child sweep
-- [ ] 13.7 `updateCategory` reparenting never re-judges the old parent (clause 11). When a child moves
+- [x] 13.7 `updateCategory` reparenting never re-judges the old parent (clause 11). When a child moves
       off a `referenceOnly` parent whose only claim to referencedness was that child link, nothing
       calls `_sweepCategory(oldParent)`. `updateEntry:154-161` has exactly this sweep for dropped
       holders and category; `updateCategory:205-221` has no dropped-parent analogue
-- [ ] 13.8 An active account may hold a `referenceOnly` pocket and no clause forbids it. Clause 2
+- [x] 13.8 An active account may hold a `referenceOnly` pocket and no clause forbids it. Clause 2
       checks link resolution and exclusivity, clause 3 checks orphanhood; neither compares parent and
       child lifecycle. The `isAtLeastAsAliveAs` rule is enforced on the write path only, so any path
       that changes the PARENT rather than the child escapes it. Add the invariant counterpart
@@ -489,38 +491,50 @@ release they still land silently, which is the accepted cost of a debug-only che
 27 mutations run against the suite; 6 survived undetected. Each line below is a mutation that broke
 NO test. I independently re-confirmed 13.9 and 13.11.
 
-- [ ] 13.9 "A transfer may not carry a category" is untested on all three of its implementations.
+- [x] 13.9 "A transfer may not carry a category" is untested on all three of its implementations.
       Deleting the guard at `ledger_state.dart:494` (`_validated`), at `:279` (`_validatePlan`), or
       neutering clause 6 at `ledger_state_invariants.dart:106` each breaks zero tests. Reachable:
       `addEntry(amount: 50, categoryID: c, sourceID: a, destinationID: b)` throws
-      `CategoryKindMismatch`. Add entry-path, plan-path and invariant tests
-- [ ] 13.10 The `priorRefs` exemption is untested on the holder side. Deleting
+      `CategoryKindMismatch`. Add entry-path, plan-path and invariant tests.
+      RESOLVED, with the original finding PARTLY CORRECTED. The two mutator guards are EQUIVALENT
+      MUTANTS, not coverage gaps: with `expected == null`, the very next line `category.kind != expected`
+      is always true and throws the identical `CategoryKindMismatch`, so deleting the guard changes
+      nothing observable and no test can distinguish it. The behavior IS now tested on both paths; the
+      line is merely redundant, and is kept as defensive documentation. Only the INVARIANT was a real
+      gap: clause 6's two branches throw different messages, so its null branch is observable, and the
+      new seeded test kills that mutation. The "breaks zero tests" signal was right; the inference
+      "therefore untested" was wrong
+- [x] 13.10 The `priorRefs` exemption is untested on the holder side. Deleting
       `!priorRefs.contains(entry.sourceID) &&` at `:485` or the `destinationID` twin at `:507` breaks
       zero tests. The CATEGORY twin at `:496` IS tested, so this is an oversight rather than a design
       choice. Assert that editing an entry whose holder is archived stays allowed and emits
       `UpsertEntry`, while adding a NEW entry on that holder still throws
-- [ ] 13.11 `resolvePlans` idempotency is untested and the test that names it is vacuous. Deleting
+- [x] 13.11 `resolvePlans` idempotency is untested and the test that names it is vacuous. Deleting
       `if (_entries.containsKey(entry.id)) continue;` at `:302` breaks zero tests.
       `test/resolve_plans_smoke_test.dart:47` "is idempotent, so a second sweep materializes nothing"
       passes for an unrelated reason: the first sweep advanced `lastResolvedDate`, so `occurrences()`
       returns empty and the guard is never reached. Rewind the cursor with
       `updatePlan(plan.resolvedAt(older))`, re-resolve, and assert no `UpsertEntry` is emitted.
       Mutant emits 2 duplicate upserts
-- [ ] 13.12 `_isHolderReferenced` recursion can be weakened to the exact form its own doc comment
+- [x] 13.12 `_isHolderReferenced` recursion can be weakened to the exact form its own doc comment
       rejects. `ledger_state_queries.dart:79-81` `.any(_isHolderReferenced)` to `.isNotEmpty` breaks
       zero tests, though `:66-70` documents why row-existence is wrong ("would pin a parent at
       referenceOnly forever"). `purgeAccount` masks it since pockets sweep first; the `_sweepHolder`
-      path does not
-- [ ] 13.13 Invariant clauses 1, 4 and 6 are dead code: neutering each individually breaks zero tests
+      path does not.
+      RESOLVED, with a correction: the SWEEP path cannot discriminate the mutation either, because
+      `_detachAndTombstonePocket` removes the pocket from both the table and `subPocketIDs` BEFORE the
+      parent is re-judged, so `.isNotEmpty` is false either way. Four sweep-based scenarios were probed
+      and none discriminated. The working discriminator is the THIRD call site, clause 11 in the
+      invariant checker, which judges a seeded state with no sweep in the way
+- [x] 13.13 Invariant clauses 1, 4 and 6 are dead code: neutering each individually breaks zero tests
       (clause 5 breaks 21, clauses 3/7/8 one each). These are precisely the replay safety net for the
-      seeding constructor, which validates nothing. Also confirm whether clause 2 having zero
-      `throw _violation(2, ...)` sites is a numbering gap or an omission. Seed via
+      seeding constructor, which validates nothing. Seed via
       `LedgerState(moneySources: {'wrong-key': AccountSource(acc)})`, an entry naming an absent holder,
       and a transfer carrying a category, asserting each trips `assertInvariants`
 
 ### 13.D Correctness defects found by direct reading
 
-- [ ] 13.14 `_addMonths` negative-month arithmetic is wrong. `recurrence_frequency.dart:41-43` mixes
+- [x] 13.14 `_addMonths` negative-month arithmetic is wrong. `recurrence_frequency.dart:41-43` mixes
       `~/` (truncates toward zero) with `%` (returns non-negative), so the year never decrements.
       Verified from anchor 2026-03-15: `monthly.stepFrom(a, -3)` gives 2026-12-15 instead of
       2025-12-15; `yearly.stepFrom(a, -1)` returns the anchor UNCHANGED. Unreachable internally (both
@@ -529,13 +543,13 @@ NO test. I independently re-confirmed 13.9 and 13.11.
       `final year = anchor.year + (rawMonth >= 0 ? rawMonth ~/ 12 : (rawMonth - 11) ~/ 12);`
       Secondary: a non-advancing `stepFrom` would hang the unbounded `for (var k = 0; ; k++)` loops at
       `recurring_plan.dart:35` and `:62`
-- [ ] 13.15 `statementDay` is never validated or clamped, though the tech doc mandates it.
+- [x] 13.15 `statementDay` is never validated or clamped, though the tech doc mandates it.
       `Flutter_Port_Tech_Doc.md:41-43`: "only the FORM enforces the range; the domain passes it
       through, so the Dart domain must validate/clamp it itself, since drift rows and the future
       Realbyte import bypass the picker". Verified: 999 and -5 both store unmodified. `Tech_Doc:263`
       has the Accounts screen shipping "with the statement-day clamp fix", and card payable math builds
       a cut date from 999. This is a sanctioned PORT FIX that was not applied
-- [ ] 13.16 Entry dates are local-time and occurrence ids are timezone-sensitive.
+- [x] 13.16 Entry dates are local-time and occurrence ids are timezone-sensitive.
       `recurrence_frequency.dart:61` preserves the anchor's zone, so a local-midnight anchor yields
       local-midnight entry dates, while `occurrence_id.dart:11-17` calls `.toUtc()` first, so
       `DateTime(2026,3,15)` at UTC+8 hashes as 2026-03-14. This is hazard 3 at `Tech_Doc:277-279`, "a
@@ -543,23 +557,23 @@ NO test. I independently re-confirmed 13.9 and 13.11.
       materialized occurrences under new ids, which the `containsKey` guard cannot catch. Also lands
       entries in the wrong month against the half-open UTC `[start, end)` windows (`project.md:53`).
       Distinct from 13.14 despite sharing a file
-- [ ] 13.17 `addAccount` does not clear `statementDay` for a non-card type though `updateAccount:96-98`
+- [x] 13.17 `addAccount` does not clear `statementDay` for a non-card type though `updateAccount:96-98`
       does. Verified: a cash account keeps `statementDay: 15` on add, then silently drops it on the
       first edit. Make the two consistent
 
 ### 13.E Public surface, before UI
 
-- [ ] 13.18 Export `Decimal` from the barrel: `export 'package:decimal/decimal.dart' show Decimal;`.
+- [x] 13.18 Export `Decimal` from the barrel: `export 'package:decimal/decimal.dart' show Decimal;`.
       Every money value in the public API is a `Decimal` (`Entry.amount`, `EntryTemplate.amount`,
       `setOpeningBalance`), so a consumer importing only `package:domain/domain.dart` cannot name the
       type it must handle. Same class as the plan-exports defect fixed in 12.1. Without it every UI
       file needs a second import and `app/pubspec.yaml` needs a direct `decimal` dependency pinned
       compatibly with the domain's `^3.2.6`, where a skew becomes a type-identity error
-- [ ] 13.19 Give `PlanResolution` value `==`/`hashCode` (`plan_resolution.dart:5-11`), using
+- [x] 13.19 Give `PlanResolution` value `==`/`hashCode` (`plan_resolution.dart:5-11`), using
       `ListEquality` for its list fields. It is the only exported model without them, so a Riverpod
       provider returning it never compares equal to its predecessor and every `resolvePlans` rebuild
       re-fires listeners and re-shows the plan-error banner (`Tech_Doc:267`)
-- [ ] 13.20 Expose a public parent-lookup for a pocket. `_owningAccount`
+- [x] 13.20 Expose a public parent-lookup for a pocket. `_owningAccount`
       (`ledger_state_queries.dart:94`) is private and `SubPocket` deliberately knows nothing about its
       parent (`domain_models.md:93`), so a UI rendering pocket sub-rows or a move-pocket form re-scans
       all money sources, duplicating one line the domain already has
@@ -572,7 +586,7 @@ is a plain pass over the maps in the existing style. Add a test per clause seedi
 through the `LedgerState` constructor, which validates nothing and is the intended way to exercise the
 checker (see 13.13).
 
-- [ ] 13.21 Clause 13, parent and child lifecycle coherence. A parent must be at least as alive as its
+- [x] 13.21 Clause 13, parent and child lifecycle coherence. A parent must be at least as alive as its
       children, for both accounts to pockets and categories to child categories. Reachable today:
       `addAccount(A); addPocket(P, A); addEntry(E on P); deleteAccount(A); purgeAccount(A);
       updateAccount(...)` leaves an active account holding a `referenceOnly` pocket and
@@ -580,17 +594,17 @@ checker (see 13.13).
       orphanhood, and neither compares lifecycles. The `isAtLeastAsAliveAs` rule
       (`lifecycle_state.dart:27`) is enforced only on the write path in `updatePocket`/`updateCategory`,
       so every path that changes the PARENT escapes it. This is the invariant counterpart to 13.8
-- [ ] 13.22 Clause 14, no plan may reference a non-active row. Clause 7 checks only that a plan's
+- [x] 13.22 Clause 14, no plan may reference a non-active row. Clause 7 checks only that a plan's
       holders and category EXIST, so a plan naming an archived or `referenceOnly` holder passes.
       `_validatePlan` (`ledger_state.dart:263`) requires an active source at write time, so any stored
       plan pointing at a non-active row got there through a cascade gap. This clause is what turns the
       three 13.5 holes into loud failures instead of silent drift
-- [ ] 13.23 Extend clause 5 to reject a live child under a non-active parent. The write path
+- [x] 13.23 Extend clause 5 to reject a live child under a non-active parent. The write path
       (`_validateParent:467-475`) deliberately permits an ARCHIVED parent
       (`ledger-mutations/spec.md:214-215`), so the clause must forbid only the `referenceOnly` and
       `tombstoned` cases to stay consistent with 13.6. Without it, the orphaning sequence in 13.6 is
       caught only after the parent is deleted, by which point the child's `parentID` already dangles
-- [ ] 13.24 Consider a clause asserting `statementDay` is null for non-card accounts and within 1 to 28
+- [x] 13.24 Consider a clause asserting `statementDay` is null for non-card accounts and within 1 to 28
       for cards, once 13.15 lands. It pairs with the clamp: the mutator enforces the range on the write
       path, the clause catches a row that arrived through the seeding constructor or a future import.
       Sequence this AFTER 13.15 so the clause and the clamp agree on the boundary
@@ -599,14 +613,14 @@ checker (see 13.13).
 
 The code is right in each of these; the prose describes something else.
 
-- [ ] 13.25 `addPocket`'s lifecycle guard (`ledger_state.dart:110`) is real and load-bearing. Removing
+- [x] 13.25 `addPocket`'s lifecycle guard (`ledger_state.dart:110`) is real and load-bearing. Removing
       it fails exactly 2 tests, both named for the behavior. But three normative sources describe only
       two guards: `specs/ledger-mutations/spec.md:71-74`, `docs/modules/domain_models.md:222-227`, and
       `tasks.md:33`. Amend all three. Then reconcile the deliberate opposite rule for categories at
       `ledger-mutations/spec.md:214-215` ("The parent's lifecycle SHALL NOT be checked, so an active
       child may be added under an archived parent") with an explicit sentence on why pockets differ,
       or the asymmetry reads as an accident
-- [ ] 13.26 Record that category purge and sweep recurse into children. `_isCategoryReferenced`
+- [x] 13.26 Record that category purge and sweep recurse into children. `_isCategoryReferenced`
       (`:622-631`) and `_sweepCategory` (`:649-665`) walk the child tree; the flat rule would delete a
       parent row while a child survives pointing at it, tripping clause 5, so the recursion is correct.
       But `domain_models.md:453` states clause 11 flatly as "Every referenceOnly category has at least
@@ -614,9 +628,40 @@ The code is right in each of these; the prose describes something else.
       literally satisfy. Also `domain_models.md:391-393` describes the sweep's category branch as a
       single-row check, and `ledger-lifecycle/spec.md:161-164` writes the re-check cascade for holders
       only. Update all three to state the recursive rule
-- [ ] 13.27 Record that occurrence ids intentionally do not reproduce the Swift app's. Swift builds the
+- [x] 13.27 Record that occurrence ids intentionally do not reproduce the Swift app's. Swift builds the
       UUIDv5 name from `planID.uuidString`, which is UPPERCASE; `occurrence_id.dart:16` uses
       `canonicalID`, which is lowercase. Verified to yield different uuids for the same plan and day
       (`ad07cedc-...` versus `b75d3ff8-...`). Harmless under the reference-not-conformance ruling since
       the Flutter app is the sole writer, but `project.md:78-80` specifies the namespace and the 2001
       seconds epoch without mentioning case, so a later audit will re-raise it
+
+### 13.H Follow-ups raised while remediating
+
+Found while doing the work above, not in the original review.
+
+- [x] 13.28 Reconcile the invariant clause numbering with the task text. The clauses were implemented
+      in dependency order rather than task order, so the numbers landed as: 12 lifecycle monotonicity
+      (13.1), 13 statement day (13.24), 14 plans may not reference a leaving row (13.22), 15 a pocket
+      may not outlive its account (13.21). Task 13.21 calls its clause "13" and 13.24 calls its clause
+      "the statementDay clause"; the code is self-consistent and tested, so this is task-text drift, not
+      a code defect. Correct the task text and `docs/modules/domain_models.md`'s clause list so the two
+      agree, and note that 13.23 extended the EXISTING clause 5 rather than adding a new one
+- [x] 13.29 Entry dates are still local-time even though occurrence ids are now timezone-stable.
+      13.16 fixed `OccurrenceID.make` to read calendar components directly, so ids no longer move with
+      the device timezone. But `recurrence_frequency.dart` `stepFrom` still preserves the anchor's zone,
+      so a local-midnight anchor yields local-midnight entry `date` values, which can fall in the wrong
+      month against the half-open UTC `[start, end)` window filters (`project.md:53`). The fix is to
+      normalize anchors to UTC where plans are constructed or occurrences generated, which is outside
+      the two files 13.16 was scoped to. `docs/modules/plans_and_accounting.md:353` already mandates
+      `startOfDay` = `DateTime.utc(d.year, d.month, d.day)` for all plan date math.
+      FIXED: `startOfDayUtc` now lives in `lib/src/plan_scheduling.dart` beside the rest of the
+      plan date math, and the
+      `RecurringPlan` constructor normalizes `anchor`, `endDate` and `lastResolvedDate` through it.
+      Because every occurrence is `stepFrom(anchor, k)`, normalizing the anchor makes the whole series
+      UTC without touching `stepFrom`. `OccurrenceID.make` calls the same helper. Covered by a
+      `date normalization` group in `recurring_plan_test.dart`; the full suite passes under TZ=UTC,
+      Asia/Singapore, Pacific/Kiritimati and Pacific/Midway
+- [x] 13.30 Sync `openspec/project.md` with `openspec/config.yaml`. The month-end bullet in
+      `project.md` lacks the "every stride is measured from the anchor so clamping never accumulates"
+      detail that `config.yaml:49-51` carries. Pre-existing drift, outside 13.27's scope, but CLAUDE.md
+      requires the pair be kept in sync
