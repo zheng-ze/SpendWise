@@ -688,4 +688,83 @@ void main() {
       expect(InCategory(cat.toUpperCase()).id, cat);
     });
   });
+
+  group('returned collections are unmodifiable', () {
+    LedgerState seeded() {
+      final ledger = LedgerState();
+      ledger.addAccount(account(a));
+      ledger.addCategory(category(parent));
+      ledger.addCategory(category(child, parent: parent));
+      ledger.addEntry(
+        entry(amount: money(-30), categoryID: parent, sourceID: a),
+      );
+      ledger.addEntry(
+        entry(amount: money(-70), categoryID: child, sourceID: a),
+      );
+      return ledger;
+    }
+
+    final spare = AnalysisItem(
+      bucketID: null,
+      amount: money(1),
+      date: DateTime.utc(2026, 4),
+      kind: CategoryKind.expense,
+    );
+
+    test('analysisItems rejects add, remove, sort and clear', () {
+      final items = Accounting.analysisItems(seeded());
+
+      expect(() => items.add(spare), throwsUnsupportedError);
+      expect(() => items.removeAt(0), throwsUnsupportedError);
+      expect(() => items[0] = spare, throwsUnsupportedError);
+      expect(() => items.sort((x, y) => 0), throwsUnsupportedError);
+      expect(items.clear, throwsUnsupportedError);
+    });
+
+    test('filtered rejects mutation', () {
+      final items = Accounting.analysisItems(
+        seeded(),
+      ).filtered(kind: CategoryKind.expense);
+
+      expect(() => items.add(spare), throwsUnsupportedError);
+      expect(() => items[0] = spare, throwsUnsupportedError);
+      expect(items.clear, throwsUnsupportedError);
+    });
+
+    test('rollUp rejects mutation', () {
+      final ledger = seeded();
+      final sums = Accounting.rollUp(
+        Accounting.analysisItems(ledger).filtered(kind: CategoryKind.expense),
+        ledger,
+      );
+
+      expect(() => sums[parent] = money(1), throwsUnsupportedError);
+      expect(() => sums.remove(parent), throwsUnsupportedError);
+      expect(sums.clear, throwsUnsupportedError);
+    });
+
+    test('a filtered result still filters and totals', () {
+      final ledger = seeded();
+      final items = Accounting.analysisItems(
+        ledger,
+      ).filtered(kind: CategoryKind.expense);
+
+      expect(items.filtered(buckets: {child}), hasLength(1));
+      expect(items.filtered(buckets: {child}).total(), money(70));
+      expect(items.total(buckets: {parent, child}), money(100));
+      expect(Accounting.rollUp(items.filtered(buckets: {child}), ledger), {
+        parent: money(70),
+      });
+    });
+
+    test('a rollUp result is independent of the list it was built from', () {
+      final ledger = seeded();
+      final items = Accounting.analysisItems(ledger).toList();
+      final sums = Accounting.rollUp(items, ledger);
+
+      items.clear();
+
+      expect(sums, {parent: money(100)});
+    });
+  });
 }

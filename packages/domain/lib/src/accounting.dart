@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:decimal/decimal.dart';
 import 'package:domain/src/account.dart';
 import 'package:domain/src/analysis_item.dart';
@@ -100,10 +102,10 @@ abstract final class Accounting {
   /// cheaply. Output order is unspecified.
   static List<AnalysisItem> analysisItems(LedgerState ledger) {
     final sourceIDs = ledger.moneySources.keys.toSet();
-    return [
+    return UnmodifiableListView([
       for (final entry in ledger.entries.values)
         ...classify(entry, sourceIDs, ledger),
-    ];
+    ]);
   }
 
   /// The treat-as-expense flag is symmetric, each leg reading it off its own
@@ -213,7 +215,7 @@ abstract final class Accounting {
       final bucketID = mainBucketID(item.bucketID, state);
       sums[bucketID] = (sums[bucketID] ?? Decimal.zero) + item.amount;
     }
-    return sums;
+    return UnmodifiableMapView(sums);
   }
 }
 
@@ -226,13 +228,15 @@ extension AnalysisItemList on List<AnalysisItem> {
   }) {
     // Null is a real member, the Uncategorized bucket, so it survives the map.
     final wanted = buckets?.map(canonicalOptionalID).toSet();
-    return where((item) {
-      if (kind != null && item.kind != kind) return false;
-      if (wanted != null && !wanted.contains(item.bucketID)) return false;
-      if (interval != null && !interval.contains(item.date)) return false;
+    return UnmodifiableListView(
+      where((item) {
+        if (kind != null && item.kind != kind) return false;
+        if (wanted != null && !wanted.contains(item.bucketID)) return false;
+        if (interval != null && !interval.contains(item.date)) return false;
 
-      return true;
-    }).toList();
+        return true;
+      }).toList(),
+    );
   }
 
   Decimal total({
