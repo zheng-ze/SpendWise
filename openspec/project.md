@@ -23,10 +23,16 @@ mechanism — `import 'package:flutter/...'` there fails to resolve. Do not add 
 
 ## Where the specs live
 
-A change's `specs/` state the behavior contract in prose. They were derived from `docs/modules/*.md`,
-which are longer and more precise — for Phase 1 that is `docs/modules/domain_models.md`, whose section
-numbers the design and task files cite directly. When a change's spec and the module spec appear to
-disagree, the module spec wins and the change's spec is the thing to correct.
+`openspec/specs/` holds the promoted contracts — the behavior an archived change has already
+delivered. Phase 1 promoted five: `ledger-state`, `ledger-mutations`, `ledger-lifecycle`,
+`ledger-plans`, `ledger-invariants`. An open change's `specs/` state its own contract as a delta and
+are merged here when the change is archived (`openspec/changes/archive/<date>-<name>/` keeps the
+change itself).
+
+Both kinds were derived from `docs/modules/*.md`, which are longer and more precise — for Phase 1
+that is `docs/modules/domain_models.md`, whose section numbers the design and task files cite
+directly. When a spec and the module spec appear to disagree, the module spec wins and the spec is
+the thing to correct.
 
 `docs/HANDOVER.md` is historical: it records why commits 1.1 and 1.2 were built the way they were, and
 nothing about work still to come. The plan for outstanding work is the tasks file of the open change.

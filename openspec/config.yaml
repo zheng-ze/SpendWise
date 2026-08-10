@@ -15,11 +15,14 @@ context: |
   docs/reviews/ are completed adversarial passes whose corrections are already applied - do not
   re-litigate their findings.
 
-  Where the specs live: a change's specs/ state the behavior contract in prose, derived from the
-  longer and more precise module specs in docs/modules/. For Phase 1 that source is
-  docs/modules/domain_models.md, whose section numbers the design and task files cite directly. When
-  a change's spec and the module spec appear to disagree, the module spec wins and the change's spec
-  is what to correct. docs/HANDOVER.md is historical only: it records why commits 1.1 and 1.2 were
+  Where the specs live: openspec/specs/ holds the promoted contracts an archived change has already
+  delivered - Phase 1 promoted ledger-state, ledger-mutations, ledger-lifecycle, ledger-plans and
+  ledger-invariants. An open change's specs/ state its own contract as a delta and merge into
+  openspec/specs/ on archive, with the change kept at openspec/changes/archive/<date>-<name>/. Both
+  were derived from the longer and more precise module specs in docs/modules/. For Phase 1 that
+  source is docs/modules/domain_models.md, whose section numbers the design and task files cite
+  directly. When a spec and the module spec appear to disagree, the module spec wins and the spec is
+  what to correct. docs/HANDOVER.md is historical only: it records why commits 1.1 and 1.2 were
   built as they were, and nothing about outstanding work - the plan for that is the open change's
   tasks.md. openspec/project.md is the readable long form of this context block; keep the two in sync.
 
