@@ -69,6 +69,83 @@ void main() {
       );
     });
 
+    test('negative month strides roll back across a year boundary', () {
+      final anchor = DateTime.utc(2026, 3, 15);
+
+      expect(
+        RecurrenceFrequency.monthly.stepFrom(anchor, -3),
+        DateTime.utc(2025, 12, 15),
+      );
+      expect(
+        RecurrenceFrequency.monthly.stepFrom(anchor, -1),
+        DateTime.utc(2026, 2, 15),
+      );
+      expect(
+        RecurrenceFrequency.quarterly.stepFrom(anchor, -1),
+        DateTime.utc(2025, 12, 15),
+      );
+    });
+
+    test('negative yearly strides move a whole year back', () {
+      final anchor = DateTime.utc(2026, 3, 15);
+
+      expect(
+        RecurrenceFrequency.yearly.stepFrom(anchor, -1),
+        DateTime.utc(2025, 3, 15),
+      );
+      expect(
+        RecurrenceFrequency.yearly.stepFrom(anchor, -2),
+        DateTime.utc(2024, 3, 15),
+      );
+    });
+
+    test('exact multiples of twelve months land on the same month', () {
+      final anchor = DateTime.utc(2026, 3, 15);
+
+      expect(
+        RecurrenceFrequency.monthly.stepFrom(anchor, 12),
+        DateTime.utc(2027, 3, 15),
+      );
+      expect(
+        RecurrenceFrequency.monthly.stepFrom(anchor, -12),
+        DateTime.utc(2025, 3, 15),
+      );
+      expect(
+        RecurrenceFrequency.monthly.stepFrom(anchor, -24),
+        DateTime.utc(2024, 3, 15),
+      );
+    });
+
+    test('a negative stride crossing January clamps the day', () {
+      final anchor = DateTime.utc(2026, 3, 31);
+
+      expect(
+        RecurrenceFrequency.monthly.stepFrom(anchor, -1),
+        DateTime.utc(2026, 2, 28),
+      );
+      expect(
+        RecurrenceFrequency.monthly.stepFrom(DateTime.utc(2026, 1, 31), -2),
+        DateTime.utc(2025, 11, 30),
+      );
+      expect(
+        RecurrenceFrequency.yearly.stepFrom(DateTime.utc(2028, 2, 29), -1),
+        DateTime.utc(2027, 2, 28),
+      );
+    });
+
+    test('negative strides always move backwards', () {
+      final anchor = DateTime.utc(2026, 3, 15);
+      for (final frequency in RecurrenceFrequency.values) {
+        for (var k = -1; k >= -25; k--) {
+          expect(
+            frequency.stepFrom(anchor, k).isBefore(anchor),
+            isTrue,
+            reason: '$frequency at k=$k did not move back',
+          );
+        }
+      }
+    });
+
     test('time of day and the utc flag survive a stride', () {
       final anchor = DateTime.utc(2026, 1, 31, 14, 30, 5, 250, 125);
       final stepped = RecurrenceFrequency.monthly.stepFrom(anchor, 1);

@@ -17,7 +17,7 @@ export 'src/money_source.dart';
 export 'src/occurrence_id.dart';
 export 'src/plan_failure.dart';
 export 'src/plan_resolution.dart';
-export 'src/recurrence_frequency.dart';
+export 'src/plan_scheduling.dart';
 export 'src/recurring_plan.dart';
 export 'src/sub_pocket.dart';
 export 'src/transaction_category.dart';

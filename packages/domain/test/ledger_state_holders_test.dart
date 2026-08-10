@@ -133,12 +133,37 @@ void main() {
       expect(changes, [UpsertAccount(account(uuid(1)))]);
     });
 
-    test('stores the statement day it is given', () {
+    test('stores the statement day a card is given', () {
+      ledger.addAccount(
+        account(uuid(1), type: AccountType.card, statementDay: 15),
+      );
+
+      expect(ledger.moneySources[uuid(1)]?.asAccount?.statementDay, 15);
+    });
+
+    // Matches updateAccount, which has always cleared it for a non-card.
+    test('clears the statement day for a non-card type', () {
       ledger.addAccount(
         account(uuid(1), type: AccountType.savings, statementDay: 15),
       );
 
-      expect(ledger.moneySources[uuid(1)]?.asAccount?.statementDay, 15);
+      expect(ledger.moneySources[uuid(1)]?.asAccount?.statementDay, isNull);
+    });
+
+    test('clamps a statement day above the 28th', () {
+      ledger.addAccount(
+        account(uuid(1), type: AccountType.card, statementDay: 999),
+      );
+
+      expect(ledger.moneySources[uuid(1)]?.asAccount?.statementDay, 28);
+    });
+
+    test('clamps a statement day below the first', () {
+      ledger.addAccount(
+        account(uuid(1), type: AccountType.card, statementDay: -5),
+      );
+
+      expect(ledger.moneySources[uuid(1)]?.asAccount?.statementDay, 1);
     });
   });
 
@@ -192,6 +217,15 @@ void main() {
       expect(changes, [
         UpsertAccount(account(uuid(1), type: AccountType.savings)),
       ]);
+    });
+
+    test('clamps an out-of-range statement day for a card', () {
+      ledger.addAccount(account(uuid(1), type: AccountType.card));
+      ledger.updateAccount(
+        account(uuid(1), type: AccountType.card, statementDay: 31),
+      );
+
+      expect(ledger.moneySources[uuid(1)]?.asAccount?.statementDay, 28);
     });
 
     test('keeps the statement day for a card', () {

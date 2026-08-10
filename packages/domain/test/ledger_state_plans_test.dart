@@ -409,4 +409,93 @@ void main() {
       expect(archivedPocket.lifecycle, LifecycleState.archived);
     });
   });
+
+  // Archiving only freezes a plan, so these cover the other direction: a row
+  // the dereference sweep DELETES must not leave a plan naming a missing id.
+  group('the dereference sweep drops plans naming the row it removes', () {
+    final entryID = uuid(7);
+
+    /// Both mutators demand an active source, so the only way to reach a plan
+    /// naming a referenceOnly row is to seed one: the constructor validates
+    /// nothing, which is how persistence replay arrives at the same state.
+    LedgerState seededWith({
+      required MoneySource pocket,
+      required Entry entry,
+      required RecurringPlan storedPlan,
+      TransactionCategory? category,
+    }) => LedgerState(
+      moneySources: {
+        accountID: AccountSource(
+          Account(
+            id: accountID,
+            name: 'Checking',
+            type: AccountType.cash,
+            subPocketIDs: {pocketID},
+          ),
+        ),
+        pocketID: pocket,
+      },
+      entries: {entry.id: entry},
+      categories: {?category?.id: ?category},
+      plans: {storedPlan.id: storedPlan},
+    );
+
+    test('deleting the last entry removes a plan naming the pocket', () {
+      final state = seededWith(
+        pocket: PocketSource(
+          SubPocket(
+            id: pocketID,
+            name: 'Bills',
+            lifecycle: LifecycleState.referenceOnly,
+          ),
+        ),
+        entry: Entry(
+          id: entryID,
+          amount: Decimal.fromInt(-10),
+          name: 'e',
+          sourceID: pocketID,
+        ),
+        storedPlan: plan(entryTemplate: template(sourceID: pocketID)),
+      );
+
+      final changes = state.deleteEntry(entryID);
+
+      expect(state.moneySources.containsKey(pocketID), isFalse);
+      expect(state.plans, isEmpty);
+      expect(changes, contains(DeletePlan(planID)));
+    });
+
+    test('deleting the last entry removes a plan naming the category', () {
+      final category = TransactionCategory(
+        id: expenseCategoryID,
+        name: 'Rent',
+        kind: CategoryKind.expense,
+        colorHex: '#888888',
+        includeInAnalysis: true,
+        parentID: null,
+        symbol: 'tag',
+        lifecycle: LifecycleState.referenceOnly,
+      );
+      final state = seededWith(
+        pocket: PocketSource(SubPocket(id: pocketID, name: 'Bills')),
+        entry: Entry(
+          id: entryID,
+          amount: Decimal.fromInt(-10),
+          name: 'e',
+          sourceID: accountID,
+          categoryID: expenseCategoryID,
+        ),
+        storedPlan: plan(
+          entryTemplate: template(categoryID: expenseCategoryID),
+        ),
+        category: category,
+      );
+
+      final changes = state.deleteEntry(entryID);
+
+      expect(state.categories.containsKey(expenseCategoryID), isFalse);
+      expect(state.plans, isEmpty);
+      expect(changes, contains(DeletePlan(planID)));
+    });
+  });
 }

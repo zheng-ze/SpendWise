@@ -85,6 +85,12 @@ void main() {
       expect(ledger.sourceName(null), isNull);
     });
 
+    test('owningAccount resolves an uppercase pocket id', () {
+      ledger.addPocket(pocket(uuid(2)), uuid(1));
+
+      expect(ledger.owningAccount(upper(2))?.id, uuid(1));
+    });
+
     test('entriesReferencing resolves an uppercase id', () {
       ledger.addEntry(entry(id: uuid(4), sourceID: uuid(1)));
 

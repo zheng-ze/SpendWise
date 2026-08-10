@@ -78,6 +78,41 @@ void main() {
       },
     );
 
+    test('a transfer may not carry a category', () {
+      expect(
+        () => ledger.addEntry(
+          entry(
+            amount: Decimal.fromInt(50),
+            sourceID: uuid(1),
+            destinationID: uuid(2),
+            categoryID: uuid(3),
+          ),
+        ),
+        throwsA(const CategoryKindMismatch()),
+      );
+      expect(ledger.entries, isEmpty);
+    });
+
+    test('an update may not turn a categorised entry into a transfer', () {
+      ledger.addEntry(
+        entry(id: uuid(4), sourceID: uuid(1), categoryID: uuid(3)),
+      );
+
+      expect(
+        () => ledger.updateEntry(
+          entry(
+            id: uuid(4),
+            amount: Decimal.fromInt(50),
+            sourceID: uuid(1),
+            destinationID: uuid(2),
+            categoryID: uuid(3),
+          ),
+        ),
+        throwsA(const CategoryKindMismatch()),
+      );
+      expect(ledger.entries[uuid(4)]?.destinationID, isNull);
+    });
+
     test('an unknown destination throws unknownHolder', () {
       expect(
         () => ledger.addEntry(
@@ -221,6 +256,83 @@ void main() {
       );
 
       expect(ledger.entries[uuid(4)]?.categoryID, uuid(5));
+    });
+
+    /// Editing an entry whose holder was archived after the fact stays legal,
+    /// so a row already naming that holder is exempt from the active-holder
+    /// rule. A brand new entry on the same holder is not.
+    group('the prior-reference exemption', () {
+      test('an edit keeps a source archived since the entry was made', () {
+        ledger.addEntry(entry(id: uuid(4), sourceID: uuid(1)));
+        ledger.deleteAccount(uuid(1));
+
+        final changes = ledger.updateEntry(
+          entry(id: uuid(4), amount: Decimal.fromInt(-99), sourceID: uuid(1)),
+        );
+
+        expect(ledger.entries[uuid(4)]?.amount, Decimal.fromInt(-99));
+        expect(changes, [UpsertEntry(ledger.entries[uuid(4)]!)]);
+      });
+
+      test('a new entry on that same archived source is refused', () {
+        ledger.addEntry(entry(id: uuid(4), sourceID: uuid(1)));
+        ledger.deleteAccount(uuid(1));
+
+        expect(
+          () => ledger.addEntry(entry(id: uuid(5), sourceID: uuid(1))),
+          throwsA(InactiveReference(uuid(1))),
+        );
+        expect(ledger.entries[uuid(5)], isNull);
+      });
+
+      test('an edit keeps a destination archived since the entry was made', () {
+        ledger.addEntry(
+          entry(
+            id: uuid(4),
+            amount: Decimal.fromInt(50),
+            sourceID: uuid(1),
+            destinationID: uuid(2),
+          ),
+        );
+        ledger.deleteAccount(uuid(2));
+
+        final changes = ledger.updateEntry(
+          entry(
+            id: uuid(4),
+            amount: Decimal.fromInt(75),
+            sourceID: uuid(1),
+            destinationID: uuid(2),
+          ),
+        );
+
+        expect(ledger.entries[uuid(4)]?.amount, Decimal.fromInt(75));
+        expect(changes, [UpsertEntry(ledger.entries[uuid(4)]!)]);
+      });
+
+      test('a new entry on that same archived destination is refused', () {
+        ledger.addEntry(
+          entry(
+            id: uuid(4),
+            amount: Decimal.fromInt(50),
+            sourceID: uuid(1),
+            destinationID: uuid(2),
+          ),
+        );
+        ledger.deleteAccount(uuid(2));
+
+        expect(
+          () => ledger.addEntry(
+            entry(
+              id: uuid(5),
+              amount: Decimal.fromInt(50),
+              sourceID: uuid(1),
+              destinationID: uuid(2),
+            ),
+          ),
+          throwsA(InactiveReference(uuid(2))),
+        );
+        expect(ledger.entries[uuid(5)], isNull);
+      });
     });
 
     test('throws unknownEntry for a missing id', () {

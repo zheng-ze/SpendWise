@@ -1,4 +1,5 @@
 import 'package:domain/src/ids.dart';
+import 'package:domain/src/plan_scheduling.dart';
 import 'package:uuid/uuid.dart';
 
 const _uuid = Uuid();
@@ -9,8 +10,7 @@ abstract final class OccurrenceID {
   /// Deterministic so that two devices resolving the same occurrence converge
   /// on one entry instead of each minting a random id and duplicating it.
   static String make(String planID, DateTime occurrenceDay) {
-    final utc = occurrenceDay.toUtc();
-    final day = DateTime.utc(utc.year, utc.month, utc.day);
+    final day = startOfDayUtc(occurrenceDay);
     // Reference date is 2001-01-01, not the Unix epoch.
     final seconds = day.difference(DateTime.utc(2001)).inSeconds;
     final name = '${canonicalID(planID)}|$seconds';

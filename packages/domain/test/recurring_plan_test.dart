@@ -23,6 +23,46 @@ void main() {
     lastResolvedDate: lastResolvedDate ?? DateTime.utc(2026, 1, 15),
   );
 
+  group('date normalization', () {
+    test('a local anchor is stored as the utc midnight of its own day', () {
+      final stored = plan(anchor: DateTime(2026, 3, 15, 23, 30));
+
+      expect(stored.anchor, DateTime.utc(2026, 3, 15));
+      expect(stored.anchor.isUtc, isTrue);
+    });
+
+    test('the cursor and end date normalize too', () {
+      final stored = plan(
+        endDate: DateTime(2026, 12, 31, 18),
+        lastResolvedDate: DateTime(2026, 3, 15, 9),
+      );
+
+      expect(stored.endDate, DateTime.utc(2026, 12, 31));
+      expect(stored.lastResolvedDate, DateTime.utc(2026, 3, 15));
+    });
+
+    test('occurrences off a local anchor are utc midnights', () {
+      final due =
+          plan(
+            anchor: DateTime(2026, 3, 15),
+            lastResolvedDate: DateTime(2026, 3, 14),
+          ).occurrences(
+            after: DateTime.utc(2026, 3, 14),
+            upTo: DateTime.utc(2026, 4, 20),
+          );
+
+      expect(due, [DateTime.utc(2026, 3, 15), DateTime.utc(2026, 4, 15)]);
+      expect(due.every((date) => date.isUtc), isTrue);
+    });
+
+    test('the same calendar day anchors identically local or utc', () {
+      expect(
+        plan(anchor: DateTime(2026, 3, 15)).anchor,
+        plan(anchor: DateTime.utc(2026, 3, 15)).anchor,
+      );
+    });
+  });
+
   group('nextOccurrence', () {
     test('returns the anchor when the reference precedes it', () {
       expect(

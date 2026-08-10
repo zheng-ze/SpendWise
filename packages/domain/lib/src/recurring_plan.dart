@@ -1,6 +1,6 @@
 import 'package:domain/src/entry_template.dart';
 import 'package:domain/src/ids.dart';
-import 'package:domain/src/recurrence_frequency.dart';
+import 'package:domain/src/plan_scheduling.dart';
 import 'package:meta/meta.dart';
 
 @immutable
@@ -9,10 +9,13 @@ class RecurringPlan {
     String? id,
     required this.template,
     required this.frequency,
-    required this.anchor,
-    this.endDate,
-    required this.lastResolvedDate,
-  }) : id = canonicalOrNewID(id);
+    required DateTime anchor,
+    DateTime? endDate,
+    required DateTime lastResolvedDate,
+  }) : id = canonicalOrNewID(id),
+       anchor = startOfDayUtc(anchor),
+       endDate = endDate == null ? null : startOfDayUtc(endDate),
+       lastResolvedDate = startOfDayUtc(lastResolvedDate);
 
   final String id;
   final EntryTemplate template;

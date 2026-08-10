@@ -40,7 +40,7 @@ void main() {
     expect(result.changes.last, isA<UpsertPlan>());
   });
 
-  test('is idempotent, so a second sweep materializes nothing', () {
+  test('a second sweep at the same instant materializes nothing', () {
     final state = seeded();
     state.addPlan(monthly());
     state.resolvePlans(DateTime.utc(2026, 3, 20));
@@ -49,6 +49,24 @@ void main() {
 
     expect(second.changes, isEmpty);
     expect(state.entries, hasLength(2));
+  });
+
+  /// The advanced cursor alone makes a replay empty, which hides whether an
+  /// occurrence that IS offered again is recognised. Rewinding the cursor puts
+  /// both dates back in range so the sweep must dedupe on the occurrence id.
+  test('rewinding the cursor re-offers occurrences without duplicating', () {
+    final state = seeded();
+    final plan = monthly();
+    state.addPlan(plan);
+    state.resolvePlans(DateTime.utc(2026, 3, 20));
+    final materialized = {...state.entries};
+
+    state.updatePlan(plan.resolvedAt(DateTime.utc(2026, 1, 15)));
+    final replay = state.resolvePlans(DateTime.utc(2026, 3, 20));
+
+    expect(replay.changes.whereType<UpsertEntry>(), isEmpty);
+    expect(replay.failures, isEmpty);
+    expect(state.entries, materialized);
   });
 
   test('emits nothing when no occurrence is due', () {

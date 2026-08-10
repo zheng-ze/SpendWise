@@ -24,8 +24,7 @@ enum RecurrenceFrequency {
     };
   }
 
-  /// The k-th occurrence counting from [anchor], where k == 0 is the anchor
-  /// itself.
+  /// The k-th occurrence counting from [anchor], k == 0 being the anchor.
   DateTime stepFrom(DateTime anchor, int k) {
     return switch (this) {
       weekly => anchor.add(Duration(days: 7 * k)),
@@ -39,7 +38,10 @@ enum RecurrenceFrequency {
 
 DateTime _addMonths(DateTime anchor, int months) {
   final rawMonth = anchor.month - 1 + months;
-  final year = anchor.year + (rawMonth ~/ 12);
+  // Euclidean, not truncating: `~/` rounds toward zero, which would hold the
+  // year fixed for every negative rawMonth while `%` still wrapped the month.
+  final year =
+      anchor.year + (rawMonth >= 0 ? rawMonth ~/ 12 : (rawMonth - 11) ~/ 12);
   final month = rawMonth % 12 + 1;
 
   // DateTime overflows a too-large day into the next month, so the day is
@@ -69,3 +71,13 @@ DateTime _addMonths(DateTime anchor, int months) {
           anchor.microsecond,
         );
 }
+
+/// The UTC midnight of the calendar day [date] names.
+///
+/// Components are read as given rather than converted, so a local midnight
+/// keeps its own calendar day instead of sliding onto the previous one east of
+/// Greenwich. Occurrence ids hash the day and window filters compare against
+/// UTC bounds, so a local-midnight date would otherwise land in the wrong month
+/// at a boundary and regenerate under a new id after a timezone move.
+DateTime startOfDayUtc(DateTime date) =>
+    DateTime.utc(date.year, date.month, date.day);

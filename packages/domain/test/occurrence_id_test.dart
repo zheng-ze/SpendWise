@@ -49,6 +49,35 @@ void main() {
     );
   });
 
+  test('the same calendar day is one id whether it is local or utc', () {
+    expect(
+      OccurrenceID.make(planID, DateTime(2026, 3, 15)),
+      OccurrenceID.make(planID, DateTime.utc(2026, 3, 15)),
+    );
+  });
+
+  test('a local time of day does not spill into the neighbouring day', () {
+    final utc = OccurrenceID.make(planID, DateTime.utc(2026, 3, 15));
+
+    expect(OccurrenceID.make(planID, DateTime(2026, 3, 15, 0, 0, 1)), utc);
+    expect(OccurrenceID.make(planID, DateTime(2026, 3, 15, 23, 59, 59)), utc);
+    expect(
+      OccurrenceID.make(planID, DateTime(2026, 3, 14, 23, 59, 59)),
+      isNot(utc),
+    );
+  });
+
+  test('a generated occurrence keeps its id across a stride', () {
+    final anchor = DateTime(2026, 1, 31);
+    final local = RecurrenceFrequency.monthly.stepFrom(anchor, 1);
+    final utc = RecurrenceFrequency.monthly.stepFrom(
+      DateTime.utc(2026, 1, 31),
+      1,
+    );
+
+    expect(OccurrenceID.make(planID, local), OccurrenceID.make(planID, utc));
+  });
+
   test('the id is a lowercase version 5 uuid', () {
     final id = OccurrenceID.make(planID, DateTime.utc(2026, 3, 15));
 

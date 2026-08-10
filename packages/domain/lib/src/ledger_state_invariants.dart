@@ -1,6 +1,43 @@
 part of 'ledger_state.dart';
 
 extension LedgerStateInvariants on LedgerState {
+  /// Only `_checked` calls this. [assertInvariants] stays snapshot-only so a
+  /// caller can validate a state it did not build, as persistence replay does.
+  void _assertChecked() {
+    assertInvariants();
+    _assertLifecycleMonotonic();
+    _lifecycleAtLastCheck = _lifecycleSnapshot();
+  }
+
+  Map<String, LifecycleState> _lifecycleSnapshot() => {
+    for (final MapEntry(:key, :value) in _moneySources.entries)
+      key: value.lifecycle,
+    for (final MapEntry(:key, :value) in _categories.entries)
+      key: value.lifecycle,
+  };
+
+  /// Lifecycle only moves toward less alive, the one sanctioned back-edge being
+  /// `archived` to `active` — all a restore mutator can produce, since each
+  /// gates on `== archived`. Judging one state cannot catch a violation here:
+  /// the result is legal on its own, only the move that reached it is not.
+  void _assertLifecycleMonotonic() {
+    final before = _lifecycleAtLastCheck;
+    if (before == null) return;
+
+    for (final MapEntry(:key, value: now) in _lifecycleSnapshot().entries) {
+      final then = before[key];
+      if (then == null || now == then) continue;
+
+      if (now.isAtLeastAsAliveAs(then) &&
+          !(then == LifecycleState.archived && now == LifecycleState.active)) {
+        throw _violation(
+          12,
+          'row $key moved from ${then.name} back to ${now.name}',
+        );
+      }
+    }
+  }
+
   /// Throws [StateError] naming the first clause violated.
   void assertInvariants() {
     _assertKeysMatchIDs();
@@ -14,6 +51,9 @@ extension LedgerStateInvariants on LedgerState {
     _assertEntriesActive();
     _assertNoStoredTombstone();
     _assertReferenceOnlyImpliesReferenced();
+    _assertStatementDayInRange();
+    _assertPlansReferenceActiveRows();
+    _assertPocketNotMoreAliveThanAccount();
   }
 
   void _assertKeysMatchIDs() {
@@ -90,6 +130,15 @@ extension LedgerStateInvariants on LedgerState {
       }
       if (parent.kind != category.kind) {
         throw _violation(5, 'category ${category.id} kind differs from parent');
+      }
+
+      // Mirrors the write path: archived is legal, a leaving parent is not.
+      if (!parent.lifecycle.isAtLeastAsAliveAs(category.lifecycle) &&
+          !parent.lifecycle.isAtLeastAsAliveAs(LifecycleState.archived)) {
+        throw _violation(
+          5,
+          'category ${category.id} sits under ${parent.lifecycle.name} parent',
+        );
       }
     }
   }
@@ -176,6 +225,83 @@ extension LedgerStateInvariants on LedgerState {
       if (_isHolderReferenced(source.id)) continue;
 
       throw _violation(11, 'referenceOnly ${source.id} has no reference');
+    }
+  }
+
+  /// The mutators clamp on the write path; this catches a row that arrived
+  /// through the seeding constructor or a future import instead.
+  void _assertStatementDayInRange() {
+    for (final account in _accounts) {
+      final statementDay = account.statementDay;
+      if (account.type != AccountType.card) {
+        if (statementDay != null) {
+          throw _violation(
+            13,
+            '${account.type.name} account ${account.id} carries a statement day',
+          );
+        }
+        continue;
+      }
+
+      if (statementDay != null && (statementDay < 1 || statementDay > 28)) {
+        throw _violation(
+          13,
+          'card ${account.id} has statement day $statementDay',
+        );
+      }
+    }
+  }
+
+  /// Lifecycle only; another check covers existence. An archived row is legal
+  /// because archiving freezes a plan rather than dropping it. A `referenceOnly`
+  /// or `tombstoned` row cannot be restored, so a plan naming one got there
+  /// through a cascade that failed to remove it.
+  void _assertPlansReferenceActiveRows() {
+    bool isLeaving(LifecycleState lifecycle) =>
+        lifecycle == LifecycleState.referenceOnly ||
+        lifecycle == LifecycleState.tombstoned;
+
+    for (final plan in _plans.values) {
+      for (final holderID in plan.template.holderIDs) {
+        final holder = _moneySources[holderID];
+        if (holder == null || !isLeaving(holder.lifecycle)) continue;
+
+        throw _violation(
+          14,
+          'plan ${plan.id} references ${holder.lifecycle.name} $holderID',
+        );
+      }
+
+      final categoryID = plan.template.categoryID;
+      if (categoryID == null) continue;
+
+      final category = _categories[categoryID];
+      if (category == null || !isLeaving(category.lifecycle)) continue;
+
+      throw _violation(
+        14,
+        'plan ${plan.id} references ${category.lifecycle.name} $categoryID',
+      );
+    }
+  }
+
+  /// `updatePocket` enforces this on the write path but only judges the child,
+  /// so any path that moves the parent instead escapes it. The link and orphan
+  /// checks above never compare the two lifecycles.
+  void _assertPocketNotMoreAliveThanAccount() {
+    for (final account in _accounts) {
+      for (final pocketID in account.subPocketIDs) {
+        final pocket = _moneySources[pocketID]?.asPocket;
+        if (pocket == null) continue;
+
+        if (!account.lifecycle.isAtLeastAsAliveAs(pocket.lifecycle)) {
+          throw _violation(
+            15,
+            '${account.lifecycle.name} account ${account.id} holds '
+            '${pocket.lifecycle.name} pocket $pocketID',
+          );
+        }
+      }
     }
   }
 

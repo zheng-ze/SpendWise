@@ -132,6 +132,69 @@ void main() {
     });
   });
 
+  group('owningAccount', () {
+    test('a pocket yields the account holding its id', () {
+      final ledger = LedgerState();
+      ledger.addAccount(account(accountA, name: 'Bank'));
+      ledger.addAccount(account(accountB, name: 'Other'));
+      ledger.addPocket(pocket(pocketP), accountA);
+      ledger.addPocket(pocket(pocketQ), accountB);
+
+      expect(ledger.owningAccount(pocketP)?.name, 'Bank');
+      expect(ledger.owningAccount(pocketQ)?.name, 'Other');
+    });
+
+    test('an account has no parent', () {
+      final ledger = LedgerState();
+      ledger.addAccount(account(accountA));
+      ledger.addPocket(pocket(pocketP), accountA);
+
+      expect(ledger.owningAccount(accountA), isNull);
+    });
+
+    test('an unknown id yields null', () {
+      final ledger = LedgerState();
+      ledger.addAccount(account(accountA));
+
+      expect(ledger.owningAccount(ghostID), isNull);
+    });
+
+    test('an archived pocket still resolves its parent', () {
+      final ledger = LedgerState();
+      ledger.addAccount(account(accountA, name: 'Bank'));
+      ledger.addPocket(pocket(pocketP), accountA);
+      ledger.deletePocket(pocketP);
+
+      expect(ledger.owningAccount(pocketP)?.id, accountA);
+    });
+
+    // An entry naming the pocket pins both rows at referenceOnly, parent
+    // included, so the purge leaves the link intact rather than orphaning it.
+    test('a referenced pocket keeps its parent across a purge', () {
+      final ledger = LedgerState();
+      ledger.addAccount(account(ghostID, name: 'pocket parent'));
+      ledger.addPocket(pocket(pocketP), ghostID);
+      ledger.addEntry(entry(sourceID: pocketP));
+      ledger.deleteAccount(ghostID);
+      ledger.purgeAccount(ghostID);
+
+      expect(ledger.owningAccount(pocketP)?.id, ghostID);
+    });
+
+    // The unreferenced branch of the purge detaches the pocket and drops its
+    // row, so the lookup falls through to the unknown-id case.
+    test('a pocket purged away with its parent yields null', () {
+      final ledger = LedgerState();
+      ledger.addAccount(account(ghostID, name: 'pocket parent'));
+      ledger.addPocket(pocket(pocketP), ghostID);
+      ledger.deleteAccount(ghostID);
+      ledger.purgeAccount(ghostID);
+
+      expect(ledger.moneySources[pocketP], isNull);
+      expect(ledger.owningAccount(pocketP), isNull);
+    });
+  });
+
   group('sourceName', () {
     test('an account yields its own name', () {
       final ledger = LedgerState();

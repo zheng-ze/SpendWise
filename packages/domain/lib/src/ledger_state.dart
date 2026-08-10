@@ -29,7 +29,6 @@ class LedgerState {
        _categories = {...?categories},
        _plans = {...?plans};
 
-  /// Accounts and pockets share this table and one id space.
   final Map<String, MoneySource> _moneySources;
 
   final Map<String, Entry> _entries;
@@ -48,10 +47,14 @@ class LedgerState {
 
   Map<String, RecurringPlan> get plans => UnmodifiableMapView(_plans);
 
+  /// Previous settled lifecycles, for the one check that judges a transition
+  /// rather than a state. Written only from inside an `assert`.
+  Map<String, LifecycleState>? _lifecycleAtLastCheck;
+
   /// The closure form keeps the check out of release builds entirely.
   List<LedgerChange> _checked(List<LedgerChange> changes) {
     assert(() {
-      assertInvariants();
+      _assertChecked();
       return true;
     }());
     return changes;
@@ -59,7 +62,7 @@ class LedgerState {
 
   PlanResolution _checkedResolution(PlanResolution resolution) {
     assert(() {
-      assertInvariants();
+      _assertChecked();
       return true;
     }());
     return resolution;
@@ -75,11 +78,20 @@ class LedgerState {
       type: account.type,
       incomingTransfersAsExpenses: account.incomingTransfersAsExpenses,
       includeInNetWorth: account.includeInNetWorth,
-      statementDay: account.statementDay,
+      statementDay: _statementDayFor(account.type, account.statementDay),
       lifecycle: account.lifecycle,
     );
     _moneySources[stored.id] = AccountSource(stored);
     return _checked([UpsertAccount(stored)]);
+  }
+
+  /// Clamped rather than rejected, since a value reaching here came from a
+  /// drift row or an import, and dropping the row would lose more. 28 is the
+  /// ceiling so every month has the day.
+  int? _statementDayFor(AccountType type, int? statementDay) {
+    if (type != AccountType.card || statementDay == null) return null;
+
+    return statementDay.clamp(1, 28);
   }
 
   List<LedgerChange> updateAccount(Account account) {
@@ -93,13 +105,30 @@ class LedgerState {
       subPocketIDs: existing.subPocketIDs,
       incomingTransfersAsExpenses: account.incomingTransfersAsExpenses,
       includeInNetWorth: account.includeInNetWorth,
-      statementDay: account.type == AccountType.card
-          ? account.statementDay
-          : null,
-      lifecycle: account.lifecycle,
+      statementDay: _statementDayFor(account.type, account.statementDay),
+      lifecycle: _editableLifecycle(account.lifecycle, existing.lifecycle),
     );
     _moneySources[stored.id] = AccountSource(stored);
-    return _checked([UpsertAccount(stored)]);
+    return _checked([UpsertAccount(stored), ..._demotePocketsBelow(stored)]);
+  }
+
+  /// A pocket may never be more alive than its account. The pocket write path
+  /// enforces that by judging the child, so an edit that moves the parent
+  /// instead has to carry its pockets down itself.
+  List<LedgerChange> _demotePocketsBelow(Account account) {
+    final changes = <LedgerChange>[];
+    for (final pocketID in account.subPocketIDs) {
+      final pocket = _moneySources[pocketID]?.asPocket;
+      if (pocket == null ||
+          account.lifecycle.isAtLeastAsAliveAs(pocket.lifecycle)) {
+        continue;
+      }
+
+      final demoted = pocket.settingLifecycle(account.lifecycle);
+      _moneySources[pocketID] = PocketSource(demoted);
+      changes.add(UpsertPocket(demoted));
+    }
+    return changes;
   }
 
   List<LedgerChange> addPocket(SubPocket pocket, String rawAccountID) {
@@ -119,16 +148,31 @@ class LedgerState {
     final existing = _moneySources[pocket.id]?.asPocket;
     if (existing == null) throw UnknownHolder(pocket.id);
 
-    // The edit surface may not outrank the parent, so a lifecycle it is not
-    // entitled to falls back to the stored one.
-    final stored = _willOutliveParentAccount(pocket)
-        ? pocket.settingLifecycle(existing.lifecycle)
-        : pocket;
+    final requested = pocket.settingLifecycle(
+      _editableLifecycle(pocket.lifecycle, existing.lifecycle),
+    );
+    final stored = _willOutliveParentAccount(requested)
+        ? requested.settingLifecycle(existing.lifecycle)
+        : requested;
     _moneySources[stored.id] = PocketSource(stored);
     return _checked([UpsertPocket(stored)]);
   }
 
-  /// True when the pocket outranks its parent, and when no account claims it.
+  /// An edit carries whatever lifecycle it was handed, so it never moves a row:
+  /// the delete, purge and restore mutators own those transitions and each has
+  /// its own precondition. Keeps `referenceOnly` terminal and `tombstoned`
+  /// unwritable through the public API.
+  LifecycleState _editableLifecycle(
+    LifecycleState incoming,
+    LifecycleState stored,
+  ) {
+    if (incoming == LifecycleState.tombstoned) return stored;
+
+    return incoming.isAtLeastAsAliveAs(stored) && incoming != stored
+        ? stored
+        : incoming;
+  }
+
   bool _willOutliveParentAccount(SubPocket pocket) {
     final parent = _owningAccount(pocket.id);
     if (parent == null) return true;
@@ -212,17 +256,24 @@ class LedgerState {
 
     _validateParent(category);
 
-    // The edit surface may not outrank the parent, so a lifecycle it is not
-    // entitled to falls back to the stored one.
-    final stored = _willOutliveParentCategory(category)
-        ? category.settingLifecycle(existing.lifecycle)
-        : category;
+    final requested = category.settingLifecycle(
+      _editableLifecycle(category.lifecycle, existing.lifecycle),
+    );
+    final stored = _willOutliveParentCategory(requested)
+        ? requested.settingLifecycle(existing.lifecycle)
+        : requested;
     _categories[stored.id] = stored;
-    return _checked([UpsertCategory(stored)]);
+
+    // A parent held up solely by this child's link is re-judged once it moves.
+    final droppedParent = existing.parentID == stored.parentID
+        ? null
+        : existing.parentID;
+    return _checked([
+      UpsertCategory(stored),
+      if (droppedParent != null) ..._sweepCategory(droppedParent),
+    ]);
   }
 
-  /// The incoming parent is judged, so reparenting cannot smuggle a lifecycle
-  /// past the new parent.
   bool _willOutliveParentCategory(TransactionCategory category) {
     final parentID = category.parentID;
     if (parentID == null) return false;
@@ -364,11 +415,24 @@ class LedgerState {
     return removed.map(DeletePlan.new).toList();
   }
 
+  List<LedgerChange> _removePlansCategorized(String categoryID) {
+    final removed = _plans.values
+        .where((plan) => plan.template.categoryID == categoryID)
+        .map((plan) => plan.id)
+        .toList();
+    for (final planID in removed) {
+      _plans.remove(planID);
+    }
+    return removed.map(DeletePlan.new).toList();
+  }
+
   List<LedgerChange> deletePocket(String rawID) {
     final id = canonicalID(rawID);
     final pocket = _moneySources[id]?.asPocket;
     if (pocket == null || !pocket.lifecycle.isActive) return _checked([]);
 
+    // No plan cascade: archiving freezes plans so a restore is not lossy. Their
+    // occurrences fail validation meanwhile, and resolving reports that.
     final archived = pocket.settingLifecycle(LifecycleState.archived);
     _moneySources[id] = PocketSource(archived);
     return _checked([UpsertPocket(archived)]);
@@ -383,6 +447,7 @@ class LedgerState {
     _categories[id] = archived;
     final changes = <LedgerChange>[UpsertCategory(archived)];
 
+    // Archiving freezes plans rather than dropping them, as for a pocket.
     for (final child in _children(id)) {
       if (!child.lifecycle.isActive) continue;
 
@@ -461,9 +526,9 @@ class LedgerState {
       .where((category) => category.parentID == parentID)
       .toList();
 
-  /// Parent lifecycle is unchecked. Orphaned children are handled by the
-  /// lifecycle cascades instead, so an active child under an archived parent is
-  /// reachable and purgeCategory sweeps children regardless of lifecycle.
+  /// An archived parent is allowed, since purgeCategory sweeps children
+  /// regardless of lifecycle. A `referenceOnly` one is not: the dereference
+  /// sweep deletes it without looking for children, orphaning the child.
   void _validateParent(TransactionCategory category) {
     final parentID = category.parentID;
     if (parentID == null) return;
@@ -472,6 +537,9 @@ class LedgerState {
     if (parent == null) throw UnknownCategory(parentID);
     if (parent.parentID != null) throw const CategoryTooDeep();
     if (parent.kind != category.kind) throw const CategoryKindMismatch();
+    if (!parent.lifecycle.isAtLeastAsAliveAs(LifecycleState.archived)) {
+      throw InactiveReference(parentID);
+    }
   }
 
   /// A literal top-to-bottom sequence, since the check order is observable.
@@ -552,7 +620,6 @@ class LedgerState {
     return _checked(_purgeHolder(id));
   }
 
-  /// Expects an already-canonical id naming a stored holder.
   List<LedgerChange> _purgeHolder(String holderID) {
     if (!_isHolderReferenced(holderID)) {
       final pocket = _moneySources[holderID]?.asPocket;
@@ -574,8 +641,8 @@ class LedgerState {
     }
   }
 
-  /// Expects an already-canonical id. The parent upsert precedes the deletion,
-  /// so a consumer replaying the changes never sees the link outlive the row.
+  /// The parent upsert precedes the deletion, so a consumer replaying the
+  /// changes never sees the link outlive the row.
   List<LedgerChange> _detachAndTombstonePocket(String pocketID) {
     final parent = _owningAccount(pocketID);
     final changes = <LedgerChange>[];
@@ -616,7 +683,10 @@ class LedgerState {
     }
 
     _categories.remove(category.id);
-    return [DeleteCategory(category.id)];
+    return [
+      DeleteCategory(category.id),
+      ..._removePlansCategorized(category.id),
+    ];
   }
 
   bool _isCategoryReferenced(String id, [Set<String>? seen]) {
@@ -654,11 +724,12 @@ class LedgerState {
       return [];
     }
 
-    // The parent may have been held up solely by this child, so it is
-    // re-judged once the child is gone.
     final parentID = stored.parentID;
     _categories.remove(categoryID);
-    final changes = <LedgerChange>[DeleteCategory(categoryID)];
+    final changes = <LedgerChange>[
+      DeleteCategory(categoryID),
+      ..._removePlansCategorized(categoryID),
+    ];
     if (parentID == null) return changes;
 
     return [...changes, ..._sweepCategory(parentID)];
@@ -674,13 +745,18 @@ class LedgerState {
 
     if (source.asPocket == null) {
       _moneySources.remove(holderID);
-      return [DeleteMoneySource(holderID)];
+      return [
+        DeleteMoneySource(holderID),
+        ..._removePlansReferencing({holderID}),
+      ];
     }
 
-    // The parent may have been held up solely by this pocket, so it is
-    // re-judged once the pocket is gone.
+    // Read before the detach below, which clears the link.
     final parent = _owningAccount(holderID);
-    final changes = _detachAndTombstonePocket(holderID);
+    final changes = [
+      ..._detachAndTombstonePocket(holderID),
+      ..._removePlansReferencing({holderID}),
+    ];
     if (parent == null) return changes;
 
     return [...changes, ..._sweepHolder(parent.id)];
