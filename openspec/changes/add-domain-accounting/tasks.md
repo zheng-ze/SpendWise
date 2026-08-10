@@ -169,26 +169,40 @@ Groups 1 to 6 are unaffected. Every finding below was verified by reading the ci
       Backups from the aborted run are in the scratchpad. Report surviving mutants and add a test for
       each rule left unpinned. 79 mutants attempted, 62 died, 13 survived, 4 discarded as equivalent
       or non-compiling. The survivors are filed as 7.17 through 7.24
-- [ ] 7.2 `ledger_state_categories.dart:114` — `_validateParent` inspects only the incoming row's
+- [x] 7.2 `ledger_state_categories.dart:114` — `_validateParent` inspects only the incoming row's
       parent, never its descendants, so `updateCategory` may give a parent to a category that already
       has children and push those children to depth 3. `rollUp` then buckets their money under a
       category that is not top-level, and the one-level parent-exclusion gate in `resolveCategory`
       never sees the grandparent. Reject a non-null `parentID` when `_children(category.id)` is
       non-empty. `_children` already exists at line 108
-- [ ] 7.3 Test: a category with children cannot be given a parent, through `updateCategory`
-- [ ] 7.4 `ledger_state_categories.dart:114` — `_validateParent` does not reject
+- [x] 7.3 Test: a category with children cannot be given a parent, through `updateCategory`
+- [x] 7.4 `ledger_state_categories.dart:114` — `_validateParent` does not reject
       `parentID == category.id`, so a category may be its own parent. No loop results and no money is
       lost, but the row becomes unusable as a parent and trips invariant clause 5 on every later
       mutation in debug. Throw on self-parenting
-- [ ] 7.5 Test: a category cannot be made its own parent
-- [ ] 7.6 `ledger_state_invariants.dart:110` — no clause compares an entry's `sourceID` to its
+- [x] 7.5 Test: a category cannot be made its own parent
+- [x] 7.6 `ledger_state_invariants.dart:110` — no clause compares an entry's `sourceID` to its
       `destinationID`, so a self-transfer built through the `LedgerState` constructor passes
       `assertInvariants`. It nets to zero in `balance`, but `classify` emits a full-amount phantom
       expense when the holder has `incomingTransfersAsExpenses`. The mutator path is already closed
       by `SelfTransfer` in `ledger_state_entries.dart`; only replay and seeding reach it. Add the
       clause
-- [ ] 7.7 Test: a self-transfer through the `LedgerState` constructor is rejected, and does not
+
+      EDIT 10 Aug: fixed a different way, and the clause was not added. The finding assumed a
+      self-transfer is invalid. It is not. A PayNow to yourself deducts and credits the same account,
+      so it is a real transaction a user needs to record, and the fix was to accept it rather than
+      reject it harder. The `SelfTransfer` throw and error case were removed instead. Probing this
+      also surfaced the larger defect behind the phantom expense, that `classify` never emitted the
+      outgoing leg for any transfer, so a transfer out of a flagged source produced nothing. Each leg
+      now reads the flag off its own end, which is why `classify` returns a list and why a
+      self-transfer nets to zero without a `sourceID == destinationID` branch. Recorded in
+      `design.md`
+- [x] 7.7 Test: a self-transfer through the `LedgerState` constructor is rejected, and does not
       produce an analysis item
+
+      EDIT 10 Aug: inverted along with 7.6. The committed tests pin that a self-transfer is accepted
+      and stored, contributes zero to `balance`, and nets to zero in analysis through the symmetric
+      legs rather than through a special case
 - [ ] 7.8 `accounting.dart:181` — `mainBucketID` does not canonicalize `leafID` before the lookup, so
       a non-canonical id returns null, the Uncategorized bucket, instead of the real main bucket. The
       wrong answer is silent and it misattributes money: through `rollUp`, an item carrying a
