@@ -20,16 +20,20 @@ Planning moved to OpenSpec. Start here, in this order:
 
 1. `openspec/project.md` — the authoritative technical rules, mirrored into `openspec/config.yaml`
    `context:` so the OpenSpec CLI injects them. Keep the two in sync when either changes.
-2. `openspec/changes/add-domain-accounting/` — the current change: Phase 2's remaining half, the
-   pure `Accounting` functions (balances, net worth, analysis classification, roll-up). `tasks.md`
-   is the work queue, `specs/` are the behavior contracts, `design.md` the implementation decisions.
+2. `openspec/changes/add-domain-accounting/` — the change to work next. Every remaining phase is
+   also written up as a change; they are listed in dependency order under Scope below. In each,
+   `tasks.md` is the work queue, `specs/` the behavior contracts, `design.md` the decisions —
+   including every spot where a straight translation of the Swift would be wrong.
 3. `openspec/specs/` — the promoted contracts Phase 1 already delivered: `ledger-state`,
    `ledger-mutations`, `ledger-lifecycle`, `ledger-plans`, `ledger-invariants`. The archived change
    itself is at `openspec/changes/archive/2026-08-10-complete-domain-ledger-core/`.
-4. `docs/modules/plans_and_accounting.md` §4–§5 for accounting, `docs/modules/domain_models.md` for
-   Phase 1 — the underlying behavior specs the contracts were derived from. They are more detailed
-   than any change spec and stay the reference for anything ambiguous.
-5. `docs/HANDOVER.md` — historical only. It records the decisions behind commits 1.1 and 1.2 and
+4. `docs/modules/*.md` — the underlying behavior specs the contracts were derived from, and more
+   detailed than any change spec: `domain_models.md` for Phase 1, `plans_and_accounting.md` for
+   plans and accounting, `ledger_runtime.md`, `persistence.md`, `ui_screens.md`. They stay the
+   reference for anything ambiguous, and each change names the sections it was drawn from.
+5. `docs/Flutter_Port_Tech_Doc.md` — the master plan. §6 defines the phases, §1 lists the V1 defects
+   the port fixes, §8 is the definition of done.
+6. `docs/HANDOVER.md` — historical only. It records the decisions behind commits 1.1 and 1.2 and
    points at the files above. It is no longer the plan.
 
 The OpenSpec CLI needs node 20 (`nvm use 20`); it crashes on node 18.
@@ -65,7 +69,25 @@ Plans and the invariants. `openspec/project.md` holds the details, including the
 straight translation of the Swift would have been wrong (month-end clamping, and the UUIDv5
 occurrence ids).
 
-Accounting is the remaining half of Phase 2 and the open change. It is pure derived math — balances
-recomputed from the entry log, never stored. Two spots where a straight translation would be wrong
-are recorded in the change's `design.md`: Swift's `UUID??` category resolution, which Dart cannot
-express, and Swift's closed date interval, against the port's half-open `[start, end)` rule.
+Every remaining phase is written up as a change. Work them in this order — each depends on the ones
+above it:
+
+| Change | Phase | What it adds |
+|---|---|---|
+| `add-domain-accounting` | 2 | Balances, net worth, analysis classification, roll-up |
+| `add-ledger-runtime` | 3 | `Ledger`, `EventBus`, `AnalysisCache`, store contract, boot, seeding |
+| `add-drift-store` | 4 | Schema, mappers, write pipeline, replay, version vectors |
+| `add-app-shell-and-boot` | 5 | Adaptive shell, boot chrome, banners, formatting, shared widgets |
+| `add-transactions-ui` | 5 | Day sections, month breakdown, entry form |
+| `add-accounts-ui` | 5 | Grouped accounts, card statement math, holder forms |
+| `add-stats-ui` | 5 | Donut, slices, category drill-down, trend |
+| `add-settings-ui` | 5 | Categories, plans, recycle bin |
+| `add-parity-gaps-and-platform-pass` | 6 | Treat-as-expense buckets, scope-aware transfers, a11y, l10n |
+| `add-release-targets` | 7 | Per-platform bring-up, smoke tests, README |
+
+Phases 1–5 are a translation. **Phase 6 is the first change that alters behavior on purpose** — that
+separation is what keeps a port bug distinguishable from a deliberate difference, so do not pull its
+work earlier. Two things it owns are deferred by name in earlier changes: the transactions-versus-
+stats totals ruling, and bucketing treat-as-expense transfers by account type.
+
+The sequencing rule from the master doc: **no UI work before Phase 3 is green.**
