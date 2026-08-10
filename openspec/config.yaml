@@ -69,17 +69,59 @@ context: |
   and the purge row helpers. Invariant clause 14 encodes this, permitting a plan to name an archived
   row but never a referenceOnly or tombstoned one.
 
+  Illegal states are unreachable, and invariants only catch what slips. _checked runs
+  assertInvariants inside an assert(() {...}()), so every clause is debug-only: a release build pays
+  nothing and catches nothing, and the invariants are a backstop against a future mutator's mistake
+  rather than the primary defense. Two mechanisms carry that weight. The maps are closed:
+  _moneySources, _entries, _categories and _plans are private and the getters return
+  UnmodifiableMapView, because every illegal state the audits demonstrated - a pocket claimed by two
+  accounts, an orphan active pocket, order-dependent _owningAccount - required a direct map write.
+  And there is one row remover per row kind: _detachAndTombstonePocket is the sole remover of a
+  pocket row and kills the row and the parent link together, so a dangling link has no window to
+  exist in. Inverting the pocket-parent link was considered and rejected; it contradicts the
+  translation rule on the structure the domain is keyed to and would drop the UpsertAccount that
+  addPocket emits. Reject rather than silently coerce: addPocket throws InactiveReference on a
+  non-active parent instead of demoting the pocket, and a category's kind is fixed at creation, with
+  updateCategory throwing CategoryKindMismatch. A check that must survive into release, such as a
+  corrupt store on load, needs a real conditional throw and a user-visible error, not an assert.
+
   Comment style is minimal: comment only tricky nuance, deliberate spec deviations, or ordering
   constraints a reader would otherwise break, and never restate what the code says. No reference to
-  the Swift project in code comments, and no em dashes or semicolons in comment prose.
+  the Swift project in code comments, no spec or doc citations in source (section numbers belong in
+  the change's design and tasks files), and no em dashes, semicolons or colon splices in comment
+  prose. The same budget applies to tests, where the test name carries the intent.
+
+  Keep each file's scope small and single-purpose: LedgerState is split by concern into
+  ledger_state_holders, _categories, _entries, _plans, _purge, _queries and _invariants as part files
+  of one class. Pull repeated bodies into a named helper. Split by concern, not by symbol count - a
+  file holding only a couple of date helpers was judged too small and folded into plan_scheduling.
 
   Checks: `cd packages/domain && dart format . && dart analyze && dart test` and
   `cd app && flutter analyze`. The analyzer must be at zero issues, not just zero errors.
   Toolchain: Flutter 3.44.9 / Dart 3.12.2.
 
   Working style: the user commits themselves, so never run git commit - report when something is
-  green and let them take it. They push back on unnecessary abstraction, so build the smaller thing
-  and let them ask for more, and verify claims against the code before asserting them.
+  green and let them take it. Commit messages are Conventional Commits, succinct, and never mention
+  adversarial reviews or subagents. They push back on unnecessary abstraction, so build the smaller
+  thing and let them ask for more, and verify claims against the code before asserting them.
+
+  Most implementation runs through subagents, one task group at a time, parallel only across disjoint
+  files. A subagent without Bash cannot run dart analyze or dart test, so its report is a claim and
+  not a result: grant Bash to any agent that writes code, or run the gate in the main thread. Audit
+  findings are unverified until checked at the cited file:line - one reported as CRITICAL behavior
+  the spec explicitly requires, and three dependent findings fell with it. Running two agents from
+  different angles surfaces the disagreement. A subagent may cite a user instruction absent from the
+  main transcript and still be right, since the user intervenes in running subagents directly; judge
+  the instruction against the spec and the code.
+
+  tasks.md in the open change is both queue and record. Tick items as they land, renumber or append
+  when inserting new work rather than leaving duplicate numbers, and confirm a group's dependencies
+  are really complete before starting it. At a phase boundary, run adversarial reviews from several
+  angles, consolidate the findings into tasks.md as numbered tasks, and fix from there.
+
+  Write the implementation first, then the tests. Prove a new test bites by mutating the code it
+  covers and confirming it goes red. A scenario an audit probe ran belongs in the committed suite.
+  Assert the whole change list, and assert that a throwing path left state untouched.
 
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.

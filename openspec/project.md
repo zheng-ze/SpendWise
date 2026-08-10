@@ -64,6 +64,37 @@ improvement.
   list is a silent-failure surface for exactly those tests.
 - **Mutators keep the `validate → mutate → return List<LedgerChange>` contract.**
 
+## Illegal states are unreachable, and invariants only catch what slips
+
+`_checked` runs `assertInvariants` inside an `assert(() {...}())`, so **every invariant clause is
+debug-only** and a release build pays nothing and catches nothing. The invariants are a backstop
+against a future mutator's mistake, never the primary defense. Anything a release build must not do
+has to be impossible by construction, or a real throw.
+
+Two mechanisms carry that weight:
+
+- **The maps are closed.** `_moneySources`, `_entries`, `_categories` and `_plans` are private, and
+  the public getters return `UnmodifiableMapView`. Every illegal state the audits demonstrated —
+  a pocket claimed by two accounts, an orphan active pocket, order-dependent `_owningAccount` —
+  required writing to a map directly. Closing them is what made the class of bug unreachable rather
+  than merely unlikely.
+- **One row remover per row kind.** `_detachAndTombstonePocket` is the sole remover of a pocket row,
+  killing the row and the parent's link in one operation, so a dangling link has no window to exist
+  in. Route new removal paths through it rather than repeating the pair.
+
+Inverting the pocket-parent link (`pocket.parentID` instead of `Account.subPocketIDs`) was
+considered and **rejected**: it contradicts the translation rule on the structure the whole domain
+is keyed to, and it would silently drop the `UpsertAccount` that `addPocket` emits, which the
+change-emission tests pin. The root cause was the open maps, not the link direction.
+
+Reject rather than silently coerce when the caller would otherwise not learn they were wrong.
+`addPocket` throws `InactiveReference` on a non-active parent instead of demoting the incoming
+pocket. A category's `kind` is fixed at creation: `updateCategory` throws `CategoryKindMismatch`
+rather than moving a category between kinds, so a user creates a new category instead.
+
+Where a check has to survive into release — a corrupt store on load being the live example — it
+needs a real conditional throw and a user-visible error, not an `assert` and not a silent load.
+
 ## Scope: Recurring Plans land inside the ledger core
 
 Plans were deferred until accounts and entries existed, not dropped, since purge and the dereference
@@ -121,7 +152,20 @@ Minimal. Comment only tricky nuance, deliberate spec deviations, or ordering con
 would otherwise break. Never restate what the code says. Also:
 
 - No reference to the Swift project in code comments. Treat this as a fresh codebase.
-- No em dashes and no semicolons in comment prose.
+- No em dashes and no semicolons in comment prose, and no colon splicing two thoughts together.
+- No spec or doc citations in source. Section numbers belong in the change's design and tasks files.
+- Comment budget applies to tests too. The test name carries the intent; a comment earns its place
+  only where an assertion looks wrong without it.
+
+## File and helper shape
+
+Keep each file's scope small and single-purpose. `LedgerState` is split by concern into
+`ledger_state_holders`, `_categories`, `_entries`, `_plans`, `_purge`, `_queries` and `_invariants`
+as `part` files of one class rather than one long file. Pull repeated bodies into a named helper.
+
+The counter-pressure is real and has been applied: a file whose whole content was a couple of date
+helpers was judged too small a scope and folded into `plan_scheduling.dart`. Split by concern, not
+by symbol count.
 
 ## Checks
 
@@ -135,9 +179,46 @@ The analyzer must be at zero issues, not just zero errors. Toolchain: Flutter 3.
 ## Working style
 
 The user commits themselves — do not run `git commit`. Report when something is green and let them
-take it.
+take it. When asked for a commit message: Conventional Commits, succinct, describing what changed.
+Do not mention adversarial reviews, subagents, or how the work was produced.
 
 They review closely and push back on unnecessary abstraction. Several things in the codebase exist in
 reduced form because a first attempt was rejected as over-built. When in doubt, build the smaller
 thing and let them ask for more. Verify claims against the code before asserting them — a "this is
 load-bearing" that turns out to have zero callers costs more than the check would have.
+
+### Delegating to subagents
+
+Most implementation here runs through subagents, one task group at a time, parallel only where the
+groups touch disjoint files. Two failure modes have cost real time:
+
+- **A subagent without `Bash` cannot verify anything.** Several returned "cannot run `dart analyze`
+  / `dart test`, please run them yourself" after writing code, which makes the report worthless as
+  evidence. Grant `Bash` to any agent that writes code, or run the gate in the main thread and treat
+  the report as a claim rather than a result.
+- **Report findings are unverified until checked at the cited file:line.** An audit has reported as
+  CRITICAL behavior that the spec explicitly requires, taking three dependent findings down with it.
+  Running two agents from different angles surfaces the disagreement.
+
+A subagent may cite a user instruction that is nowhere in the main transcript and still be telling
+the truth: the user intervenes in a running subagent directly, and those messages never reach the
+main thread. Judge the instruction against the spec and the code, not against the transcript.
+
+### Task list hygiene
+
+`tasks.md` in the open change is the queue and the record. Tick items as they land. When new work is
+inserted mid-list, renumber the items below it or append at the end — do not leave two 10.1s. Before
+starting a group, confirm the groups it depends on are actually complete rather than merely ticked.
+
+### Review before a phase boundary
+
+At the end of a phase, run adversarial reviews from several angles before moving on, consolidate the
+findings into `tasks.md`, and fix from there. Confirmed gaps become numbered tasks, not ad-hoc edits.
+See the `adversarial-review` skill.
+
+### Tests
+
+Write the implementation first, then the tests. A test that cannot fail is worse than no test:
+prove new tests bite by mutating the code they cover and confirming they go red. When an audit or
+probe demonstrates a finding, the scenario it ran belongs in the committed suite. Assert the whole
+change list, and assert that a throwing path left state untouched.
