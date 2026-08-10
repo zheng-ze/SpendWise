@@ -3,177 +3,125 @@ import 'package:meta/meta.dart';
 @immutable
 sealed class LedgerError implements Exception {
   const LedgerError();
+
+  /// The lowerCamelCase case name, as the Swift enum spelled it.
+  String get _case;
 }
 
-final class IdCollision extends LedgerError {
-  const IdCollision(this.id);
-
-  final String id;
-
-  @override
-  bool operator ==(Object other) => other is IdCollision && other.id == id;
-
-  @override
-  int get hashCode => Object.hash(IdCollision, id);
-
-  @override
-  String toString() => 'LedgerError.idCollision($id)';
-}
-
-final class UnknownAccount extends LedgerError {
-  const UnknownAccount(this.id);
-
-  final String id;
-
-  @override
-  bool operator ==(Object other) => other is UnknownAccount && other.id == id;
-
-  @override
-  int get hashCode => Object.hash(UnknownAccount, id);
-
-  @override
-  String toString() => 'LedgerError.unknownAccount($id)';
-}
-
-final class UnknownHolder extends LedgerError {
-  const UnknownHolder(this.id);
-
-  final String id;
-
-  @override
-  bool operator ==(Object other) => other is UnknownHolder && other.id == id;
-
-  @override
-  int get hashCode => Object.hash(UnknownHolder, id);
-
-  @override
-  String toString() => 'LedgerError.unknownHolder($id)';
-}
-
-final class UnknownCategory extends LedgerError {
-  const UnknownCategory(this.id);
-
-  final String id;
-
-  @override
-  bool operator ==(Object other) => other is UnknownCategory && other.id == id;
-
-  @override
-  int get hashCode => Object.hash(UnknownCategory, id);
-
-  @override
-  String toString() => 'LedgerError.unknownCategory($id)';
-}
-
-final class UnknownEntry extends LedgerError {
-  const UnknownEntry(this.id);
-
-  final String id;
-
-  @override
-  bool operator ==(Object other) => other is UnknownEntry && other.id == id;
-
-  @override
-  int get hashCode => Object.hash(UnknownEntry, id);
-
-  @override
-  String toString() => 'LedgerError.unknownEntry($id)';
-}
-
-final class UnknownPlan extends LedgerError {
-  const UnknownPlan(this.id);
-
-  final String id;
-
-  @override
-  bool operator ==(Object other) => other is UnknownPlan && other.id == id;
-
-  @override
-  int get hashCode => Object.hash(UnknownPlan, id);
-
-  @override
-  String toString() => 'LedgerError.unknownPlan($id)';
-}
-
-final class ExhaustedPlan extends LedgerError {
-  const ExhaustedPlan(this.id);
-
-  final String id;
-
-  @override
-  bool operator ==(Object other) => other is ExhaustedPlan && other.id == id;
-
-  @override
-  int get hashCode => Object.hash(ExhaustedPlan, id);
-
-  @override
-  String toString() => 'LedgerError.exhaustedPlan($id)';
-}
-
-final class ZeroAmount extends LedgerError {
-  const ZeroAmount();
-
-  @override
-  bool operator ==(Object other) => other is ZeroAmount;
-
-  @override
-  int get hashCode => Object.hash(ZeroAmount, 0);
-
-  @override
-  String toString() => 'LedgerError.zeroAmount';
-}
-
-final class SelfTransfer extends LedgerError {
-  const SelfTransfer();
-
-  @override
-  bool operator ==(Object other) => other is SelfTransfer;
-
-  @override
-  int get hashCode => Object.hash(SelfTransfer, 0);
-
-  @override
-  String toString() => 'LedgerError.selfTransfer';
-}
-
-final class CategoryTooDeep extends LedgerError {
-  const CategoryTooDeep();
-
-  @override
-  bool operator ==(Object other) => other is CategoryTooDeep;
-
-  @override
-  int get hashCode => Object.hash(CategoryTooDeep, 0);
-
-  @override
-  String toString() => 'LedgerError.categoryTooDeep';
-}
-
-final class CategoryKindMismatch extends LedgerError {
-  const CategoryKindMismatch();
-
-  @override
-  bool operator ==(Object other) => other is CategoryKindMismatch;
-
-  @override
-  int get hashCode => Object.hash(CategoryKindMismatch, 0);
-
-  @override
-  String toString() => 'LedgerError.categoryKindMismatch';
-}
-
-final class InactiveReference extends LedgerError {
-  const InactiveReference(this.id);
+/// Equality is by case and id together, so two cases naming the same row stay
+/// distinct. `runtimeType` carries the case, which is why no subclass needs to
+/// restate either operator.
+sealed class _IdentifiedError extends LedgerError {
+  const _IdentifiedError(this.id);
 
   final String id;
 
   @override
   bool operator ==(Object other) =>
-      other is InactiveReference && other.id == id;
+      other.runtimeType == runtimeType &&
+      other is _IdentifiedError &&
+      other.id == id;
 
   @override
-  int get hashCode => Object.hash(InactiveReference, id);
+  int get hashCode => Object.hash(runtimeType, id);
 
   @override
-  String toString() => 'LedgerError.inactiveReference($id)';
+  String toString() => 'LedgerError.$_case($id)';
+}
+
+sealed class _PlainError extends LedgerError {
+  const _PlainError();
+
+  @override
+  bool operator ==(Object other) => other.runtimeType == runtimeType;
+
+  @override
+  int get hashCode => runtimeType.hashCode;
+
+  @override
+  String toString() => 'LedgerError.$_case';
+}
+
+final class IdCollision extends _IdentifiedError {
+  const IdCollision(super.id);
+
+  @override
+  String get _case => 'idCollision';
+}
+
+final class UnknownAccount extends _IdentifiedError {
+  const UnknownAccount(super.id);
+
+  @override
+  String get _case => 'unknownAccount';
+}
+
+final class UnknownHolder extends _IdentifiedError {
+  const UnknownHolder(super.id);
+
+  @override
+  String get _case => 'unknownHolder';
+}
+
+final class UnknownCategory extends _IdentifiedError {
+  const UnknownCategory(super.id);
+
+  @override
+  String get _case => 'unknownCategory';
+}
+
+final class UnknownEntry extends _IdentifiedError {
+  const UnknownEntry(super.id);
+
+  @override
+  String get _case => 'unknownEntry';
+}
+
+final class UnknownPlan extends _IdentifiedError {
+  const UnknownPlan(super.id);
+
+  @override
+  String get _case => 'unknownPlan';
+}
+
+final class ExhaustedPlan extends _IdentifiedError {
+  const ExhaustedPlan(super.id);
+
+  @override
+  String get _case => 'exhaustedPlan';
+}
+
+final class InactiveReference extends _IdentifiedError {
+  const InactiveReference(super.id);
+
+  @override
+  String get _case => 'inactiveReference';
+}
+
+final class ZeroAmount extends _PlainError {
+  const ZeroAmount();
+
+  @override
+  String get _case => 'zeroAmount';
+}
+
+final class SelfTransfer extends _PlainError {
+  const SelfTransfer();
+
+  @override
+  String get _case => 'selfTransfer';
+}
+
+final class CategoryTooDeep extends _PlainError {
+  const CategoryTooDeep();
+
+  @override
+  String get _case => 'categoryTooDeep';
+}
+
+final class CategoryKindMismatch extends _PlainError {
+  const CategoryKindMismatch();
+
+  @override
+  String get _case => 'categoryKindMismatch';
 }

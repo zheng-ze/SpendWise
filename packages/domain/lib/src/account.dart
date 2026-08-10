@@ -42,11 +42,31 @@ class Account {
     );
   }
 
+  Account withSubPockets(Set<String> pocketIDs) {
+    return _copy(subPocketIDs: pocketIDs);
+  }
+
   Account settingLifecycle(LifecycleState lifecycle) {
     return _copy(lifecycle: lifecycle);
   }
 
-  Account _copy({Set<String>? subPocketIDs, LifecycleState? lifecycle}) {
+  /// Only cards carry a statement day, clamped to a day every month has.
+  /// Clamped rather than rejected, since a value reaching here came from a
+  /// drift row or an import, and dropping the row would lose more.
+  Account withNormalizedStatementDay() {
+    final normalized = type == AccountType.card && statementDay != null
+        ? statementDay!.clamp(1, 28)
+        : null;
+    return normalized == statementDay
+        ? this
+        : _copy(statementDay: () => normalized);
+  }
+
+  Account _copy({
+    Set<String>? subPocketIDs,
+    LifecycleState? lifecycle,
+    int? Function()? statementDay,
+  }) {
     return Account(
       id: id,
       name: name,
@@ -54,7 +74,7 @@ class Account {
       subPocketIDs: subPocketIDs ?? this.subPocketIDs,
       incomingTransfersAsExpenses: incomingTransfersAsExpenses,
       includeInNetWorth: includeInNetWorth,
-      statementDay: statementDay,
+      statementDay: statementDay == null ? this.statementDay : statementDay(),
       lifecycle: lifecycle ?? this.lifecycle,
     );
   }
