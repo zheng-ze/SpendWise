@@ -114,17 +114,22 @@ extension LedgerStateCategories on LedgerState {
       .where((category) => category.parentID == parentID)
       .toList();
 
-  /// An archived parent is allowed, since purgeCategory sweeps children
-  /// regardless of lifecycle. A `referenceOnly` one is not: the dereference
-  /// sweep deletes it without looking for children, orphaning the child.
   void _validateParent(TransactionCategory category) {
     final parentID = category.parentID;
     if (parentID == null) return;
+
+    // A category cannot be its own parent.
+    if (parentID == category.id) throw const CategoryTooDeep();
 
     final parent = _categories[parentID];
     if (parent == null) throw UnknownCategory(parentID);
     if (parent.parentID != null) throw const CategoryTooDeep();
     if (parent.kind != category.kind) throw const CategoryKindMismatch();
+
+    // An archived parent is allowed, since purgeCategory sweeps children
+    // regardless of lifecycle. A `referenceOnly` one is rejected because the
+    // dereference sweep deletes it without looking for children, orphaning
+    // the child.
     if (!parent.lifecycle.isAtLeastAsAliveAs(LifecycleState.archived)) {
       throw InactiveReference(parentID);
     }

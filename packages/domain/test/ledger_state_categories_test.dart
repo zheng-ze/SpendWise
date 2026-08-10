@@ -220,6 +220,28 @@ void main() {
       expect(ledger.categories[uuid(3)]?.kind, CategoryKind.expense);
     });
 
+    test('rejects making a category its own parent', () {
+      ledger.addCategory(category(uuid(2)));
+
+      expect(
+        () => ledger.updateCategory(category(uuid(2), parent: uuid(2))),
+        throwsA(const CategoryTooDeep()),
+      );
+      expect(ledger.categories[uuid(2)]?.parentID, isNull);
+    });
+
+    test('rejects a self parent given in mixed case', () {
+      ledger.addCategory(category(uuid(2)));
+
+      expect(
+        () => ledger.updateCategory(
+          category(uuid(2), parent: uuid(2).toUpperCase()),
+        ),
+        throwsA(const CategoryTooDeep()),
+      );
+      expect(ledger.categories[uuid(2)]?.parentID, isNull);
+    });
+
     test('allows an edit that keeps the kind', () {
       ledger.addCategory(category(uuid(2)));
       final changes = ledger.updateCategory(
@@ -240,6 +262,14 @@ void main() {
         throwsA(IdCollision(uuid(2))),
       );
       expect(ledger.categories[uuid(2)]?.name, 'cat');
+    });
+
+    test('rejects a category that names itself as parent', () {
+      expect(
+        () => ledger.addCategory(category(uuid(2), parent: uuid(2))),
+        throwsA(const CategoryTooDeep()),
+      );
+      expect(ledger.categories, isEmpty);
     });
 
     test('stores the category verbatim', () {
