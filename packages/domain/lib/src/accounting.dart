@@ -1,6 +1,11 @@
 import 'package:decimal/decimal.dart';
 import 'package:domain/src/account.dart';
+import 'package:domain/src/analysis_item.dart';
+import 'package:domain/src/category_kind.dart';
+import 'package:domain/src/category_resolution.dart';
+import 'package:domain/src/date_range.dart';
 import 'package:domain/src/entry.dart';
+import 'package:domain/src/holder_referencing.dart';
 import 'package:domain/src/ledger_state.dart';
 import 'package:domain/src/net_worth.dart';
 
@@ -87,5 +92,136 @@ abstract final class Accounting {
     }
 
     return NetWorth(asset, liability);
+  }
+
+  /// The window-independent pass, meant to be computed once and filtered
+  /// cheaply. Output order is unspecified.
+  static List<AnalysisItem> analysisItems(LedgerState ledger) {
+    final sourceIDs = ledger.moneySources.keys.toSet();
+    return [
+      for (final entry in ledger.entries.values)
+        ?classify(entry, sourceIDs, ledger),
+    ];
+  }
+
+  static AnalysisItem? classify(
+    Entry entry,
+    Set<String> sourceIDs,
+    LedgerState ledger,
+  ) {
+    if (!applies(entry, sourceIDs) || !entry.includeInAnalysis) return null;
+
+    switch (entry.kind) {
+      case EntryKind.transfer:
+        final destination = entry.destinationID;
+        if (destination == null ||
+            ledger.moneySources[destination]?.incomingTransfersAsExpenses !=
+                true) {
+          return null;
+        }
+        return AnalysisItem(
+          bucketID: null,
+          amount: entry.amount,
+          date: entry.date,
+          kind: CategoryKind.expense,
+        );
+
+      case EntryKind.income:
+      case EntryKind.expense:
+        final String? bucketID;
+        switch (resolveCategory(entry, ledger)) {
+          case Excluded():
+            return null;
+          case Uncategorized():
+            bucketID = null;
+          case InCategory(:final id):
+            bucketID = id;
+        }
+
+        // Kind comes off the signed amount. Taking the absolute value first
+        // would make every item income.
+        final kind = entry.expectedCategoryKind;
+        if (kind == null) return null;
+
+        return AnalysisItem(
+          bucketID: bucketID,
+          amount: entry.amount.abs(),
+          date: entry.date,
+          kind: kind,
+        );
+    }
+  }
+
+  static CategoryResolution resolveCategory(Entry entry, LedgerState ledger) {
+    final categoryID = entry.categoryID;
+    if (categoryID == null) return const Uncategorized();
+
+    final category = ledger.categories[categoryID];
+    if (category == null) return const Uncategorized();
+    if (!category.includeInAnalysis) return const Excluded();
+
+    final parentID = category.parentID;
+    if (parentID != null &&
+        ledger.categories[parentID]?.includeInAnalysis == false) {
+      return const Excluded();
+    }
+
+    return InCategory(categoryID);
+  }
+
+  static double fraction(Decimal amount, Decimal over) {
+    if (over <= Decimal.zero) return 0.0;
+
+    return (amount / over).toDouble();
+  }
+
+  static String? mainBucketID(String? leafID, LedgerState state) {
+    if (leafID == null) return null;
+
+    final category = state.categories[leafID];
+    if (category == null) return null;
+
+    return category.parentID ?? leafID;
+  }
+
+  static Map<String?, Decimal> rollUp(
+    List<AnalysisItem> items,
+    LedgerState state,
+  ) {
+    final sums = <String?, Decimal>{};
+    for (final item in items) {
+      final bucketID = mainBucketID(item.bucketID, state);
+      sums[bucketID] = (sums[bucketID] ?? Decimal.zero) + item.amount;
+    }
+    return sums;
+  }
+}
+
+extension AnalysisItemList on List<AnalysisItem> {
+  /// Each null argument drops its constraint rather than matching nothing.
+  List<AnalysisItem> filtered({
+    CategoryKind? kind,
+    Set<String?>? buckets,
+    DateRange? interval,
+  }) {
+    return where((item) {
+      if (kind != null && item.kind != kind) return false;
+      if (buckets != null && !buckets.contains(item.bucketID)) return false;
+      if (interval != null && !interval.contains(item.date)) return false;
+
+      return true;
+    }).toList();
+  }
+
+  Decimal total({
+    CategoryKind? kind,
+    Set<String?>? buckets,
+    DateRange? interval,
+  }) {
+    return filtered(
+      kind: kind,
+      buckets: buckets,
+      interval: interval,
+    ).fold(Decimal.zero, (sum, item) => sum + item.amount);
   }
 }
