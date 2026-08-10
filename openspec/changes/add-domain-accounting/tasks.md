@@ -151,3 +151,129 @@ are therefore new, and none is redundant.
 |---|---|---|
 | Half-open window boundary | 4.9 | The port's `[start, end)` rule deviates from Swift's closed interval |
 | Archived account is skipped but still an endpoint | 2.4 | Pins the existence-set rule from the direction most likely to be broken |
+
+## 7. Adversarial review findings
+
+Filed at the Phase 2 boundary against a baseline of 432 passing tests and a clean analyzer. Three
+angles reported: spec conformance, correctness and robustness, invariants and illegal states. The
+mutation angle could not run alongside the others and is task 7.1.
+
+Two angles disagreed on the id-canonicalization severity. The one that produced a triggering call
+against a mutator-built ledger prevailed, since a silent misattribution of money outranks an
+inconsistency; 7.8 carries the result.
+
+Groups 1 to 6 are unaffected. Every finding below was verified by reading the cited line.
+
+- [x] 7.1 Run the deferred mutation-testing angle, alone. It writes a defect into `accounting.dart`
+      and runs the suite, so it cannot share the working tree with another agent reading those files.
+      Backups from the aborted run are in the scratchpad. Report surviving mutants and add a test for
+      each rule left unpinned. 79 mutants attempted, 62 died, 13 survived, 4 discarded as equivalent
+      or non-compiling. The survivors are filed as 7.17 through 7.24
+- [ ] 7.2 `ledger_state_categories.dart:114` — `_validateParent` inspects only the incoming row's
+      parent, never its descendants, so `updateCategory` may give a parent to a category that already
+      has children and push those children to depth 3. `rollUp` then buckets their money under a
+      category that is not top-level, and the one-level parent-exclusion gate in `resolveCategory`
+      never sees the grandparent. Reject a non-null `parentID` when `_children(category.id)` is
+      non-empty. `_children` already exists at line 108
+- [ ] 7.3 Test: a category with children cannot be given a parent, through `updateCategory`
+- [ ] 7.4 `ledger_state_categories.dart:114` — `_validateParent` does not reject
+      `parentID == category.id`, so a category may be its own parent. No loop results and no money is
+      lost, but the row becomes unusable as a parent and trips invariant clause 5 on every later
+      mutation in debug. Throw on self-parenting
+- [ ] 7.5 Test: a category cannot be made its own parent
+- [ ] 7.6 `ledger_state_invariants.dart:110` — no clause compares an entry's `sourceID` to its
+      `destinationID`, so a self-transfer built through the `LedgerState` constructor passes
+      `assertInvariants`. It nets to zero in `balance`, but `classify` emits a full-amount phantom
+      expense when the holder has `incomingTransfersAsExpenses`. The mutator path is already closed
+      by `SelfTransfer` in `ledger_state_entries.dart`; only replay and seeding reach it. Add the
+      clause
+- [ ] 7.7 Test: a self-transfer through the `LedgerState` constructor is rejected, and does not
+      produce an analysis item
+- [ ] 7.8 `accounting.dart:181` — `mainBucketID` does not canonicalize `leafID` before the lookup, so
+      a non-canonical id returns null, the Uncategorized bucket, instead of the real main bucket. The
+      wrong answer is silent and it misattributes money: through `rollUp`, an item carrying a
+      non-canonical `bucketID` lands under `null` rather than its parent. `AnalysisItem` does not
+      canonicalize `bucketID` either, so nothing upstream repairs it. Canonicalize the lookup and
+      return `category.parentID ?? category.id` so the result is canonical too
+- [ ] 7.9 Apply the same rule to the other raw-id entry points, so the module is consistent:
+      `balance`'s `of`, and the `buckets` sets on `filtered` and `total`, which currently match
+      nothing rather than returning zero. Every public query in `ledger_state_queries.dart`
+      canonicalizes its `raw…ID` parameter; `Accounting` is the outlier. Record the rule in
+      `design.md` once it holds
+- [ ] 7.10 Test: `mainBucketID` with a mixed-case leaf id against a mutator-built ledger returns the
+      parent, and the matching `rollUp` case puts the money under the parent rather than `null`
+- [ ] 7.11 `accounting.dart:175` — `fraction` returns `Infinity` when the ratio exceeds `double`'s
+      range, because `Rational.toDouble()` overflows rather than clamping. Entry amounts carry no
+      magnitude bound, so an infinite slice can reach presentation code and produce a NaN layout. The
+      `over <= 0` guard covers division by zero but not overflow. Guard the result as well
+- [ ] 7.12 Test: a `fraction` whose ratio overflows `double` returns a finite value
+- [ ] 7.13 `accounting.dart:99` — `analysisItems`, `filtered` and `rollUp` each return a mutable
+      collection, and the docstring invites callers to cache the result across a frame. None aliases
+      `LedgerState`, so the ledger cannot be corrupted through them, but one consumer can mutate a
+      result another is holding. Return unmodifiable views, or state the ownership transfer
+- [ ] 7.14 `date_range.dart:12` — `contains` compares instants without normalizing, so a range built
+      from local bounds and a date stored as UTC fall in different windows. Half-open tiling itself is
+      correct in either convention. This becomes live when Phase 4 stores dates as UTC and Phase 5
+      builds month windows from local dates, so fix it with that ruling rather than guessing now
+- [ ] 7.15 Test: a UTC instant against local-built bounds, pinning whichever convention 7.14 settles
+- [ ] 7.16 Consider `toString` on `NetWorth`, `AnalysisItem`, `DateRange` and `CategoryResolution`.
+      They are the assertion targets of the 33 parity tests, and a failure currently prints
+      `Instance of 'NetWorth'`
+
+Tasks 7.17 through 7.24 come from the mutation angle. Each names a rule the suite does not pin, found
+by writing that exact defect into the source and watching all 432 tests still pass. They are test
+tasks, not source fixes, except where noted.
+
+- [ ] 7.17 Test: `accounting.dart:100` — swapping `analysisItems`'s `ledger.moneySources.keys.toSet()`
+      for `ledger.activeSources` survives the suite, so nothing pins the existence-set rule here.
+      `netWorth` is pinned against the same swap. Archiving a source would silently erase its past
+      expenses from Stats, shrinking historical months. Add an archived source keeping its analysis
+      items, and an archived transfer destination keeping its treat-as-expense item, mirroring
+      `accounting_net_worth_test.dart:68`
+- [ ] 7.18 Test: `accounting.dart:125` and `:149` — replacing either `date: entry.date` with a
+      constant survives, so the wire from `Entry.date` to `AnalysisItem.date` is untested. The window
+      group at `accounting_analysis_test.dart:378` only exercises hand-built items. Assert a produced
+      item's date, and that it totals inside its own month and to zero in the month before, on both
+      the transfer arm and the income/expense arm
+- [ ] 7.19 Test: `date_range.dart:12` — dropping the start bound survives, because every window test
+      probes only the `end` boundary and interior points. Half of `[start, end)` is unpinned, and a
+      dropped start turns every window into cumulative-to-date. Add a date strictly before `start`
+- [ ] 7.20 Test: `net_worth.dart:14` — dropping either field from `==`, or reducing `hashCode` to
+      `asset.hashCode`, survives. The existing pair at `accounting_net_worth_test.dart:134` differs in
+      both fields at once, so it cannot catch a single dropped field. Add pairs differing in exactly
+      one field, and a `hashCode` inequality
+- [ ] 7.21 Test: `analysis_item.dart:25` — dropping `amount` or `date` from `==`, or dropping either
+      from `hashCode`, survives. The `isNot` pairs at `accounting_analysis_test.dart:413` vary only
+      `kind` and `bucketID`. Add pairs differing in exactly `amount`, and in exactly `date`
+- [ ] 7.22 Test: `date_range.dart:15` — dropping `end` from `==` or reducing `hashCode` to
+      `start.hashCode` survives. `DateRange` has hand-written equality with no assertion anywhere in
+      the suite. The Phase 3 `AnalysisCache` is specified to key on the window, so two windows
+      comparing equal would serve one month's numbers for another. Add a value-equality group
+- [ ] 7.23 Test: `category_resolution.dart:15` and `:40` — widening `Excluded.operator ==` to
+      `other is CategoryResolution` survives, because `accounting_analysis_test.dart:482` asserts only
+      `Excluded() != Uncategorized()`, which evaluates `Uncategorized.==`. Add the reverse direction
+      and an `InCategory` case. Separately, `InCategory.hashCode` reduced to `0` survives, so add a
+      hash inequality across differing ids
+- [ ] 7.24 Fix the test: `accounting_analysis_test.dart:489` asserts
+      `InCategory(cat.toUpperCase()).id == cat`, but `uuid(n)` at `test/support/builders.dart:75`
+      emits only digits and hyphens, so `toUpperCase()` is identity and the assertion is `x == x`.
+      Deleting canonicalization from `InCategory`'s constructor entirely leaves the suite green. Use a
+      literal containing hex letters, then sweep `id_normalization_test.dart` and
+      `ledger_state_id_normalization_test.dart` for the same vacuity, which was not audited
+
+### Rejected, and why
+
+`rollUp` merging a genuinely uncategorized item with one whose category row is gone is the spec's
+stated fallback, not a defect. Totals are preserved and only provenance is lost. Revisit only if a
+screen must tell the two apart.
+
+The pocket and holder states probed against `netWorth` and `accountTotal` are all blocked, either by
+`IdCollision` and the link-ownership rules on the write path or by invariant clauses 2, 3 and 15.
+`referenceOnly` holders continuing to count through `applies` is the recorded existence-set rule.
+
+Three mutants survived because they are equivalent to the original, not because a rule is untested.
+Do not file them as gaps. Dropping the `kind == null` early return at `accounting.dart:143`: the arm
+is the non-transfer branch of a switch, and `expectedCategoryKind` is null only for transfers.
+Returning `entry.categoryID` instead of `null` from the transfer arm at `:123`: a transfer carrying a
+category is rejected at `ledger_state_entries.dart:79` and again by invariant clause 6. Folding the
+null guard at `:179` into the map lookup: both paths return null.
