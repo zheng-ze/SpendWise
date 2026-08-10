@@ -253,13 +253,13 @@ Tasks 7.17 through 7.24 come from the mutation angle. Each names a rule the suit
 by writing that exact defect into the source and watching all 432 tests still pass. They are test
 tasks, not source fixes, except where noted.
 
-- [ ] 7.17 Test: `accounting.dart:100` — swapping `analysisItems`'s `ledger.moneySources.keys.toSet()`
+- [x] 7.17 Test: `accounting.dart:100` — swapping `analysisItems`'s `ledger.moneySources.keys.toSet()`
       for `ledger.activeSources` survives the suite, so nothing pins the existence-set rule here.
       `netWorth` is pinned against the same swap. Archiving a source would silently erase its past
       expenses from Stats, shrinking historical months. Add an archived source keeping its analysis
       items, and an archived transfer destination keeping its treat-as-expense item, mirroring
       `accounting_net_worth_test.dart:68`
-- [ ] 7.18 Test: `accounting.dart:125` and `:149` — replacing either `date: entry.date` with a
+- [x] 7.18 Test: `accounting.dart:125` and `:149` — replacing either `date: entry.date` with a
       constant survives, so the wire from `Entry.date` to `AnalysisItem.date` is untested. The window
       group at `accounting_analysis_test.dart:378` only exercises hand-built items. Assert a produced
       item's date, and that it totals inside its own month and to zero in the month before, on both
