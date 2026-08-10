@@ -222,11 +222,15 @@ Groups 1 to 6 are unaffected. Every finding below was verified by reading the ci
       Reasoning recorded in `design.md`
 - [x] 7.10 Test: `mainBucketID` with a mixed-case leaf id against a mutator-built ledger returns the
       parent, and the matching `rollUp` case puts the money under the parent rather than `null`
-- [ ] 7.11 `accounting.dart:175` — `fraction` returns `Infinity` when the ratio exceeds `double`'s
+- [x] 7.11 `accounting.dart:175` — `fraction` returns `Infinity` when the ratio exceeds `double`'s
       range, because `Rational.toDouble()` overflows rather than clamping. Entry amounts carry no
       magnitude bound, so an infinite slice can reach presentation code and produce a NaN layout. The
-      `over <= 0` guard covers division by zero but not overflow. Guard the result as well
-- [ ] 7.12 Test: a `fraction` whose ratio overflows `double` returns a finite value
+      `over <= 0` guard covers division by zero but not overflow. Guard the result as well.
+      EDIT 10 Aug: the guard saturates to `±1.0` rather than `0.0`, since the value feeds a slice
+      sweep and an overflowed ratio means the amount dwarfs the total, so a full slice is the
+      truthful answer where zero would collapse the largest slice to invisible. The negative side is
+      reachable and clamps to `-1.0`. NaN is not reachable, `over <= 0` already blocking `0/0`
+- [x] 7.12 Test: a `fraction` whose ratio overflows `double` returns a finite value
 - [ ] 7.13 `accounting.dart:99` — `analysisItems`, `filtered` and `rollUp` each return a mutable
       collection, and the docstring invites callers to cache the result across a frame. None aliases
       `LedgerState`, so the ledger cannot be corrupted through them, but one consumer can mutate a
