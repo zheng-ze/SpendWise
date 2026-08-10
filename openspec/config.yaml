@@ -35,6 +35,11 @@ context: |
     Persistence writes these codes. fromCode throws ArgumentError on an unknown code so corrupt rows
     surface as load errors.
   - Window filters are half-open [start, end) everywhere.
+  - A domain date is UTC midnight of the calendar day it names, normalized at every construction
+    boundary by startOfDayUtc in calendar_day.dart, which is day-preserving. Never .toUtc(): it
+    preserves the instant, so a local midnight moves back a day for every user east of Greenwich and
+    an entry silently lands in the previous month. add-domain-accounting's design.md carries the
+    full ruling and what Phases 4 and 5 inherit from it.
   - Models are immutable with hand-written value ==/hashCode. Change payloads carry stored objects
     and the change-emission tests compare change lists by value, so a mutable model would let a
     mutator edit an already-emitted object and the test would pass regardless. equatable is
@@ -112,12 +117,21 @@ context: |
   the spec explicitly requires, and three dependent findings fell with it. Running two agents from
   different angles surfaces the disagreement. A subagent may cite a user instruction absent from the
   main transcript and still be right, since the user intervenes in running subagents directly; judge
-  the instruction against the spec and the code.
+  the instruction against the spec and the code. When a subagent stalls, is killed or lands the
+  wrong thing, retry with a brand-new agent briefed from the task and the code rather than from the
+  failed attempt, since the prior framing is what produced the wrong result. Verify the tree is
+  clean first, and state which behavior is new in the change and which predates it, or the agent
+  will re-derive existing behavior as a defect.
 
   tasks.md in the open change is both queue and record, and only the main thread edits it. A
   subagent reports what it landed; the main thread verifies at the cited file:line and ticks. Tick
   items as they land, renumber or append when inserting new work rather than leaving duplicate
-  numbers, and confirm a group's dependencies are really complete before starting it. At a phase
+  numbers, and confirm a group's dependencies are really complete before starting it. Task text is
+  plain language, never the jargon of whatever review technique found the item: a task says the
+  tests did not catch the bug, never that a mutant survived or a rule is unpinned. Give each task
+  what to test, where the bug goes, what breaks for the user, why the current tests miss it, and
+  what to add - that fourth clause is what stops a reader assuming the case is already covered.
+  Tallies read caught, missed and no real change in behavior. At a phase
   boundary, run adversarial reviews from several angles, consolidate the findings into tasks.md as
   numbered tasks, and fix from there.
 

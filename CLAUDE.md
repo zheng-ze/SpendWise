@@ -59,6 +59,11 @@ a spec's "KNOWN DEFECT" or "PORT FIX" section sanctions one.
 
 **Window filters are half-open `[start, end)`** everywhere.
 
+**A domain date is UTC midnight of the calendar day it names.** Normalize with `startOfDayUtc` in
+`calendar_day.dart`, which is day-preserving. Never `.toUtc()`, which preserves the instant and so
+moves a local midnight back a day for every user east of Greenwich. `design.md` in
+`add-domain-accounting` has the full ruling.
+
 **Illegal states are unreachable; invariants only catch what slips.** `_checked` runs
 `assertInvariants` inside `assert(() {...}())`, so every clause is debug-only. The state maps are
 private behind `UnmodifiableMapView`, and `_detachAndTombstonePocket` is the sole remover of a
@@ -95,6 +100,14 @@ Tick as you land, renumber or append when inserting, and check a group's depende
 done before starting it. At a phase boundary
 run adversarial reviews from several angles and file the confirmed gaps as numbered tasks — the
 `adversarial-review` skill has the procedure.
+
+**Give each task** what to test, where the bug goes, what breaks for the user, why the current tests
+miss it, and what to add — that fourth clause is the one that stops a reader assuming the case is
+already covered.
+
+**Retry failed subagent work with a brand-new agent** briefed from the task and the code, not from
+the failed attempt. Verify the tree is clean first, and state which behavior is new in the change
+versus what predates it, or the agent will re-derive existing behavior as a defect.
 
 ## Scope
 

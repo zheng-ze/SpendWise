@@ -57,6 +57,11 @@ improvement.
   `enum.index`. Persistence writes these codes. `fromCode` throws `ArgumentError` on an unknown code
   so a corrupt or newer-version row surfaces as a load error rather than being silently absorbed.
 - **Window filters are half-open `[start, end)`** everywhere.
+- **A domain date is UTC midnight of the calendar day it names.** Normalize at every construction
+  boundary with `startOfDayUtc` in `calendar_day.dart`, which is day-preserving. Never `.toUtc()`:
+  it preserves the instant, so a local midnight moves back a day for every user east of Greenwich
+  and an entry silently lands in the previous month. `add-domain-accounting`'s `design.md` carries
+  the full ruling and what Phases 4 and 5 inherit from it.
 - **Models are immutable with hand-written value `==`/`hashCode`.** This is load-bearing: change
   payloads carry stored objects and the change-emission tests compare change lists by value. A
   mutable model would let a mutator edit an object already emitted in a change, and the test would
@@ -204,6 +209,13 @@ A subagent may cite a user instruction that is nowhere in the main transcript an
 the truth: the user intervenes in a running subagent directly, and those messages never reach the
 main thread. Judge the instruction against the spec and the code, not against the transcript.
 
+When a subagent stalls, is killed, or lands the wrong thing, retry with a brand-new agent briefed
+from the task and the code rather than from the failed attempt. The prior framing is what produced
+the wrong result, so replaying it invites the same wrong turn and spends the agent's budget
+reconciling a history the tree no longer matches. Verify the tree is clean first so the new agent
+starts from a state it can trust, and say plainly which behavior is new in this change and which
+predates it — an agent that cannot tell them apart will re-derive existing behavior as a defect.
+
 ### Task list hygiene
 
 `tasks.md` in the open change is the queue and the record, and only the main thread edits it. A
@@ -212,6 +224,15 @@ keeps the record a statement of what was checked rather than what was claimed, a
 agents from writing the same file. Tick items as they land. When new work is inserted mid-list,
 renumber the items below it or append at the end — do not leave two 10.1s. Before starting a group,
 confirm the groups it depends on are actually complete rather than merely ticked.
+
+Task text is plain language, never the jargon of whatever review technique produced the finding. A
+task never says a mutant "survived" or a rule is "unpinned"; it says the tests did not catch the
+bug, and that no test guards that rule. The user reads these to decide what to work on next, and a
+term of art forces them to decode it first. Give each task what to test, where the bug goes, what
+breaks for the user, why the current tests miss it, and what to add. That fourth clause is the one
+most often omitted and the one that stops a reader assuming the case is already covered. Tallies
+follow the same register: caught, missed, and no real change in behavior, rather than died,
+survived, and equivalent.
 
 ### Review before a phase boundary
 
