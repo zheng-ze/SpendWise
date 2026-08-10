@@ -222,7 +222,8 @@ Ordering note: where Swift iterated a `Set` or `Dictionary` (pockets of an accou
 **`addPocket(SubPocket pocket, String accountID)`**
 
 - Throws `unknownAccount(accountID)` if the parent is missing or not an account (checked **first**).
-- Throws `idCollision(pocket.id)` if the pocket id exists anywhere in `moneySources`.
+- Throws `idCollision(pocket.id)` if the pocket id exists anywhere in `moneySources` (**second**).
+- Throws `inactiveReference(accountID)` if the parent's lifecycle is not `active` (**third**). **PORT FIX.** Swift checks only the two above, so a pocket could be added under an archived or `referenceOnly` account, leaving an active pocket owned by an unselectable parent. This is the same orphan family §3.7's `restorePocket` fix and §7 address from their own sides; `addPocket` is the fourth and last public route into it. Note this is the reverse of the category rule in §3.4, where a non-active parent is explicitly permitted — see the note there for why the two differ.
 - Inserts the pocket, then adds its id to the parent's `subPocketIDs`.
 - Returns `[upsertPocket(pocket), upsertAccount(parent)]` — pocket first, updated parent second.
 
@@ -290,7 +291,7 @@ Note the check order is observable: a transfer with a category throws `categoryK
   1. parent not in `categories` → `unknownCategory(parentID)`.
   2. parent itself has a `parentID` → `categoryTooDeep` (max two levels).
   3. `parent.kind != category.kind` → `categoryKindMismatch`.
-  - Parent **lifecycle** is not checked. (Adding an active child under an archived parent is currently allowed; see §5 purge note.)
+  - Parent **lifecycle** is not checked. (Adding an active child under an archived parent is allowed; see §5 purge note.) This is deliberately the reverse of `addPocket` (§3.1), which rejects a non-active parent. A pocket is a holder reached through the account that owns it, so an active pocket under a non-active account is unreachable and may be hanging from a row already on its way out. A category's parent is only a naming ancestor — it holds no balance and owns nothing — and the purge cascade (§3.8) sweeps children regardless of their lifecycle, so an active child can never outlive the parent row. The state pockets must prevent is one categories cannot reach.
 - Stores the category verbatim, returns `[upsertCategory(category)]`.
 
 ### 3.5 Plans (types owned by the plans module; the mutators live on LedgerState)
@@ -387,12 +388,14 @@ Purge never touches entries. Outcome per row: **referenced → `referenceOnly` (
 
 - No-op unless an **archived** category.
 - Purge the category row, then every child row with `parentID == id` — children are swept **regardless of their lifecycle** (an active child of an archived parent, possible per §3.4, gets purged too).
-- Category-row rule: if any entry has `categoryID == id` → lifecycle `referenceOnly`, append `upsertCategory`; else remove the row and append `deleteCategory(id)`.
+- Category-row rule: if the row is **referenced** → lifecycle `referenceOnly`, append `upsertCategory`; else remove the row and append `deleteCategory(id)`.
+- **Category referencedness is recursive**, not a single-row check: a category counts as referenced when any entry carries its `categoryID`, **or** when any of its descendant categories is itself referenced. The walk is depth-guarded by a visited set, so a malformed cycle terminates instead of recursing forever. **PORT FIX.** Swift tests direct entry references only, which would delete a parent row while a still-referenced child survives pointing at it — an unknown parent, tripping invariant clause 5. Because children sweep first and the parent is judged after, a child kept alive as `referenceOnly` is visible when its parent is weighed, and the parent is kept for it.
 
 **Dereference sweep `tombstoneDereferenced(Set<String> holders, String? category)`** (private; called by `deleteEntry` and `updateEntry`) — the **only** referenceOnly → tombstoned path:
 
 - For each holder id in the set whose stored lifecycle is `referenceOnly` and whose reference count has hit zero (§7 rule for accounts): tombstone it via the holder tombstone above (pocket detaches from parent, and per §7 the parent is then re-checked).
-- Then, if `category` is non-null, stored, `referenceOnly`, and no entry references it: remove the row, append `deleteCategory`.
+- Then, if `category` is non-null, stored, `referenceOnly`, and unreferenced under the recursive rule above (no entry carries it and no descendant of it is referenced): remove the row, append `deleteCategory`.
+- That removal cascades **upward**: a category's parent may have been held up solely by the child just removed, so once the child's row is gone the parent is re-judged under the same rule and removed too if it now qualifies, and so on up the chain. This mirrors the pocket-to-parent re-check on the holder side.
 - Holders sweep first, category last.
 
 ---
@@ -444,13 +447,17 @@ Port as a method on `LedgerState`, executed inside `assert(...)` so release buil
 2. **Pocket links resolve and are exclusive.** Every id in any account's `subPocketIDs` resolves to a pocket in `moneySources` (archived/referenceOnly pockets stay linked; only tombstoned ones leave), and no pocket id appears in two accounts' sets.
 3. **No orphan pocket.** Every pocket in `moneySources` appears in exactly one account's `subPocketIDs`.
 4. **No dangling entry reference.** Every entry's `sourceID`, and `destinationID` when present, resolves in `moneySources` (any lifecycle — tombstoned rows only leave once unreferenced).
-5. **Category nesting.** A category with a stored parent: the parent has no parent (depth ≤ 2), and child kind equals parent kind.
+5. **Category nesting.** A category with a stored parent: the parent has no parent (depth ≤ 2), child kind equals parent kind, and the parent is not `referenceOnly` or `tombstoned`. An **archived** parent is legal, matching the write path (`_validateParent` permits it deliberately); a parent already on its way out is not, because the dereference sweep deletes a `referenceOnly` category as soon as its last entry goes and does **not** look for children, so the child would be left naming a row that no longer exists.
 6. **Entry-category coherence.** For every entry whose `categoryID` resolves: the entry is not a transfer, and the category's kind equals the entry's `expectedCategoryKind`. (Archived/referenceOnly categories are fine.)
 7. **No dangling plan reference.** Every plan's template source, destination (when present), and category (when present) resolve in their tables.
 8. **No exhausted plan stored.** Every stored plan with an `endDate` has `lastResolvedDate < endDate` (stated against the cursor, not a clock — the domain has none).
 9. **Entries are active.** Every stored entry's lifecycle is `active`.
 10. **No stored tombstone.** No holder or category in the tables has lifecycle `tombstoned`.
-11. **referenceOnly implies referenced.** Every `referenceOnly` category has at least one entry with its `categoryID`. Every `referenceOnly` **pocket** has at least one referencing entry. Every `referenceOnly` **account** has at least one referencing entry **or at least one pocket still present in its `subPocketIDs`** (the account-side amendment required by the §7 fix — without it the fixed purge would trip the original clause).
+11. **referenceOnly implies referenced.** Every `referenceOnly` category is referenced under the recursive rule of §3.8 — it has at least one entry carrying its `categoryID`, **or** at least one descendant category that is itself referenced. The clause is stated against that rule rather than against direct entries alone, and is checked by calling the same helper the purge and sweep paths use, so the three can never drift: a parent kept alive solely by a child's entry satisfies the clause exactly because it is what keeps clause 5 (no category with an unknown parent) true. Every `referenceOnly` **pocket** has at least one referencing entry. Every `referenceOnly` **account** has at least one referencing entry **or at least one pocket still present in its `subPocketIDs`** (the account-side amendment required by the §7 fix — without it the fixed purge would trip the original clause).
+12. **Lifecycle monotonicity.** No row's lifecycle moves to a more-alive state, except `archived` → `active`. This is the only **transition** clause: it is illegal relative to the *previous* state and cannot be decided from the resulting one, since an active row holding entries is a perfectly legal snapshot. It is therefore checked by comparing consecutive settled states rather than by a pass over the tables. `restoreAccount`/`restorePocket`/`restoreCategory` are the only sanctioned back-edge and can produce only that one transition, each gating on `== archived` before writing. This is what makes `referenceOnly` genuinely terminal.
+13. **Statement day range.** Every card account's `statementDay` is null or within 1–28; every non-card account's is null. The mutators clamp on the write path, so this catches a row that arrived through the seeding constructor or a future import.
+14. **Plans reference no leaving row.** No stored plan references a `referenceOnly` or `tombstoned` row. An **archived** row is legal: archiving *freezes* a plan rather than dropping it, so a later restore returns a holder that still has its plans, and the plan's occurrences fail validation meanwhile. Clause 7 covers existence; this clause covers lifecycle only.
+15. **A pocket may not outlive its account.** No pocket is more alive than the account holding it. The write path enforces this by judging the **child** (`updatePocket`), so every path that moves the **parent** instead escapes it — clause 2 checks that links resolve and clause 3 that no pocket is orphaned, and neither compares the two lifecycles.
 
 The Dart test suite should expose a way to run the sweep on demand (mirroring `ledger.assertInvariants()` calls inside tests) in addition to the after-every-mutation hook in `Ledger.mutate`.
 
