@@ -166,9 +166,10 @@ Groups 1 to 6 are unaffected. Every finding below was verified by reading the ci
 
 - [x] 7.1 Run the deferred mutation-testing angle, alone. It writes a defect into `accounting.dart`
       and runs the suite, so it cannot share the working tree with another agent reading those files.
-      Backups from the aborted run are in the scratchpad. Report surviving mutants and add a test for
-      each rule left unpinned. 79 mutants attempted, 62 died, 13 survived, 4 discarded as equivalent
-      or non-compiling. The survivors are filed as 7.17 through 7.24
+      Backups from the aborted run are in the scratchpad. Report every defect the tests failed to
+      catch and add a test for each. 79 defects written in, 62 caught by the tests, 13 missed, 4
+      discarded as either no real change in behavior or not compiling. The 13 misses are filed as
+      7.17 through 7.24
 - [x] 7.2 `ledger_state_categories.dart:114` — `_validateParent` inspects only the incoming row's
       parent, never its descendants, so `updateCategory` may give a parent to a category that already
       has children and push those children to depth 3. `rollUp` then buckets their money under a
@@ -249,46 +250,72 @@ Groups 1 to 6 are unaffected. Every finding below was verified by reading the ci
       They are the assertion targets of the 33 parity tests, and a failure currently prints
       `Instance of 'NetWorth'`
 
-Tasks 7.17 through 7.24 come from the mutation angle. Each names a rule the suite does not pin, found
-by writing that exact defect into the source and watching all 432 tests still pass. They are test
-tasks, not source fixes, except where noted.
+Tasks 7.17 through 7.24 come from the review angle that hunts for missing tests. The method: break
+the source on purpose in one specific way, then run all 432 tests. If they all still pass, the tests
+did not catch the bug, which proves no test is guarding that rule. A future edit could then break it
+and nobody would find out.
 
-- [x] 7.17 Test: `accounting.dart:100` — swapping `analysisItems`'s `ledger.moneySources.keys.toSet()`
-      for `ledger.activeSources` survives the suite, so nothing pins the existence-set rule here.
-      `netWorth` is pinned against the same swap. Archiving a source would silently erase its past
-      expenses from Stats, shrinking historical months. Add an archived source keeping its analysis
-      items, and an archived transfer destination keeping its treat-as-expense item, mirroring
+Each task below names one bug the tests failed to catch. The source is already correct, so these add
+tests, except 7.24, which fixes a test that asserts nothing. Follow the standing workflow on each:
+write the test, break the source the way the task names, watch the new test fail, restore the source
+by file copy, watch it pass.
+
+- [x] 7.17 Test that archiving a source keeps its history. `accounting.dart:100` builds
+      `analysisItems` from `ledger.moneySources.keys.toSet()`, every source that exists, archived
+      ones included. Swap it for `ledger.activeSources`, which holds only the live ones, and every
+      test still passes. That bug would erase an archived source's past expenses from Stats,
+      shrinking months the user already closed. `netWorth` is guarded against the same swap but
+      `analysisItems` is not. Add an archived source keeping its analysis items, and an archived
+      transfer destination keeping its treat-as-expense item, mirroring
       `accounting_net_worth_test.dart:68`
-- [x] 7.18 Test: `accounting.dart:125` and `:149` — replacing either `date: entry.date` with a
-      constant survives, so the wire from `Entry.date` to `AnalysisItem.date` is untested. The window
-      group at `accounting_analysis_test.dart:378` only exercises hand-built items. Assert a produced
-      item's date, and that it totals inside its own month and to zero in the month before, on both
-      the transfer arm and the income/expense arm
-- [ ] 7.19 Test: `date_range.dart:12` — dropping the start bound survives, because every window test
-      probes only the `end` boundary and interior points. Half of `[start, end)` is unpinned, and a
-      dropped start turns every window into cumulative-to-date. Add a date strictly before `start`
-- [ ] 7.20 Test: `net_worth.dart:14` — dropping either field from `==`, or reducing `hashCode` to
-      `asset.hashCode`, survives. The existing pair at `accounting_net_worth_test.dart:134` differs in
-      both fields at once, so it cannot catch a single dropped field. Add pairs differing in exactly
-      one field, and a `hashCode` inequality
-- [ ] 7.21 Test: `analysis_item.dart:25` — dropping `amount` or `date` from `==`, or dropping either
-      from `hashCode`, survives. The `isNot` pairs at `accounting_analysis_test.dart:413` vary only
-      `kind` and `bucketID`. Add pairs differing in exactly `amount`, and in exactly `date`
-- [ ] 7.22 Test: `date_range.dart:15` — dropping `end` from `==` or reducing `hashCode` to
-      `start.hashCode` survives. `DateRange` has hand-written equality with no assertion anywhere in
-      the suite. The Phase 3 `AnalysisCache` is specified to key on the window, so two windows
-      comparing equal would serve one month's numbers for another. Add a value-equality group
-- [ ] 7.23 Test: `category_resolution.dart:15` and `:40` — widening `Excluded.operator ==` to
-      `other is CategoryResolution` survives, because `accounting_analysis_test.dart:482` asserts only
-      `Excluded() != Uncategorized()`, which evaluates `Uncategorized.==`. Add the reverse direction
-      and an `InCategory` case. Separately, `InCategory.hashCode` reduced to `0` survives, so add a
-      hash inequality across differing ids
-- [ ] 7.24 Fix the test: `accounting_analysis_test.dart:489` asserts
-      `InCategory(cat.toUpperCase()).id == cat`, but `uuid(n)` at `test/support/builders.dart:75`
-      emits only digits and hyphens, so `toUpperCase()` is identity and the assertion is `x == x`.
-      Deleting canonicalization from `InCategory`'s constructor entirely leaves the suite green. Use a
-      literal containing hex letters, then sweep `id_normalization_test.dart` and
-      `ledger_state_id_normalization_test.dart` for the same vacuity, which was not audited
+- [x] 7.18 Test that an item carries its own entry's date. `accounting.dart:125` and `:149` each
+      pass `date: entry.date` into a new `AnalysisItem`. Replace either with a fixed constant date
+      and every test still passes, so nothing checks that an item ends up dated to the entry it came
+      from. The window group at `accounting_analysis_test.dart:378` only ever uses hand-built items,
+      never ones produced from entries. Assert a produced item's date directly, and that it totals
+      inside its own month and to zero in the month before, on both the transfer arm and the
+      income/expense arm
+- [ ] 7.19 Test the start of a window. `date_range.dart:12` reads
+      `!date.isBefore(start) && date.isBefore(end)`. Delete the first half so it reads only
+      `date.isBefore(end)` and every test still passes. That bug would turn every window from one
+      month into everything-up-to-`end`, so a March window would also count January and February.
+      The tests miss it because every window test only ever asks about dates on or after `start`, so
+      nothing checks that an earlier date is excluded. Add a test asking `contains` about a date
+      strictly before `start` and expecting `false`
+- [ ] 7.20 Test `NetWorth` equality one field at a time. `net_worth.dart:14` compares `asset` and
+      `liability`. Drop either one from `==`, or cut `hashCode` down to `asset.hashCode`, and every
+      test still passes. The one existing pair at `accounting_net_worth_test.dart:134` differs in
+      both fields at once, so it still comes out unequal even when only one field is being compared.
+      Add two pairs that differ in exactly one field each, and assert two different values have
+      different `hashCode`
+- [ ] 7.21 Test `AnalysisItem` equality one field at a time. `analysis_item.dart:25` compares four
+      fields. Drop `amount` or `date` from `==`, or drop either from `hashCode`, and every test still
+      passes. The `isNot` pairs at `accounting_analysis_test.dart:413` only ever vary `kind` and
+      `bucketID`, so `amount` and `date` are never the sole difference. Add a pair differing in
+      exactly `amount` and a pair differing in exactly `date`
+- [ ] 7.22 Test `DateRange` equality at all. `date_range.dart:15` has hand-written `==` and
+      `hashCode` that no test anywhere asserts on, so dropping `end` from `==`, or cutting `hashCode`
+      to `start.hashCode`, changes nothing that the suite can see. This matters beyond tidiness: the
+      Phase 3 `AnalysisCache` is specified to use the window as its cache key, so two different
+      windows comparing equal would hand one month's numbers back for a different month. Add a
+      value-equality group covering equal ranges, ranges differing in `start`, and ranges differing
+      in `end`
+- [ ] 7.23 Test `CategoryResolution` equality in both directions. Two bugs here, both uncaught.
+      First, `category_resolution.dart:15`: widen `Excluded.operator ==` to accept any
+      `other is CategoryResolution` and every test still passes, because the only assertion at
+      `accounting_analysis_test.dart:482` is `Excluded() != Uncategorized()`, and Dart evaluates the
+      left operand's `==`, which is `Uncategorized`'s, never `Excluded`'s. Add the reverse direction
+      and an `InCategory` case. Second, `category_resolution.dart:40`: replace `InCategory.hashCode`
+      with the constant `0` and every test still passes, so add an assertion that two `InCategory`
+      values with different ids have different `hashCode`
+- [ ] 7.24 Fix a test that asserts nothing. `accounting_analysis_test.dart:489` asserts
+      `InCategory(cat.toUpperCase()).id == cat`, meaning to prove the constructor lowercases its
+      input. It proves nothing: `cat` comes from `uuid(n)` at `test/support/builders.dart:75`, which
+      emits only digits and hyphens, so `toUpperCase()` returns the string unchanged and the
+      assertion reduces to `x == x`. Deleting the canonicalization from `InCategory`'s constructor
+      outright leaves the whole suite green. Rewrite it using an id literal containing hex letters,
+      then check `id_normalization_test.dart` and `ledger_state_id_normalization_test.dart` for the
+      same mistake, since neither was covered by the review
 
 ### Rejected, and why
 
