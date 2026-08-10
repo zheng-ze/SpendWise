@@ -141,6 +141,75 @@ void main() {
     });
   });
 
+  group('archived holders keep their analysis history', () {
+    test('an archived source keeps its expense item', () {
+      final ledger = LedgerState();
+      ledger.addAccount(account(a));
+      ledger.addCategory(category(cat));
+      ledger.addEntry(entry(amount: money(-80), categoryID: cat, sourceID: a));
+      ledger.deleteAccount(a);
+
+      final items = expenseItems(ledger);
+
+      expect(items, hasLength(1));
+      expect(items.single.amount, money(80));
+      expect(items.single.bucketID, cat);
+    });
+
+    test('an archived source keeps its income item', () {
+      final ledger = LedgerState();
+      ledger.addAccount(account(a));
+      ledger.addEntry(entry(amount: money(900), sourceID: a));
+      ledger.deleteAccount(a);
+
+      final items = itemsOfKind(ledger, CategoryKind.income);
+
+      expect(items, hasLength(1));
+      expect(items.single.amount, money(900));
+    });
+
+    test('an archived transfer destination keeps its expense item', () {
+      final ledger = LedgerState();
+      ledger.addAccount(account(a));
+      ledger.addAccount(account(b, incomingTransfersAsExpenses: true));
+      ledger.addEntry(entry(amount: money(300), sourceID: a, destinationID: b));
+
+      expect(expenseItems(ledger).single.amount, money(300));
+
+      ledger.deleteAccount(b);
+
+      final items = expenseItems(ledger);
+
+      expect(items, hasLength(1));
+      expect(items.single.amount, money(300));
+      expect(items.single.bucketID, isNull);
+    });
+
+    test('an archived transfer source keeps the survivor income item', () {
+      final ledger = LedgerState();
+      ledger.addAccount(account(a, incomingTransfersAsExpenses: true));
+      ledger.addAccount(account(b));
+      ledger.addEntry(entry(amount: money(300), sourceID: a, destinationID: b));
+      ledger.deleteAccount(a);
+
+      final items = Accounting.analysisItems(ledger);
+
+      expect(items, hasLength(1));
+      expect(items.single.kind, CategoryKind.income);
+      expect(items.single.amount, money(300));
+    });
+
+    test('a reference-only holder keeps its items', () {
+      final ledger = LedgerState();
+      ledger.addAccount(account(a));
+      ledger.addEntry(entry(amount: money(-80), sourceID: a));
+      ledger.deleteAccount(a);
+      ledger.purgeAccount(a);
+
+      expect(ledger.moneySources[a]?.lifecycle, LifecycleState.referenceOnly);
+      expect(expenseItems(ledger).single.amount, money(80));
+    });
+  });
   group('category resolution', () {
     test('a category excluded from analysis hides its expenses', () {
       final ledger = LedgerState();
