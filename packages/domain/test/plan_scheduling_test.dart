@@ -3,7 +3,7 @@ import 'package:test/test.dart';
 
 void main() {
   group('stepFrom', () {
-    test('k of zero returns the anchor', () {
+    test('a step count of zero returns the anchor', () {
       final anchor = DateTime.utc(2026, 1, 31);
       for (final frequency in RecurrenceFrequency.values) {
         expect(frequency.stepFrom(anchor, 0), anchor);
@@ -136,11 +136,11 @@ void main() {
     test('negative strides always move backwards', () {
       final anchor = DateTime.utc(2026, 3, 15);
       for (final frequency in RecurrenceFrequency.values) {
-        for (var k = -1; k >= -25; k--) {
+        for (var stepCount = -1; stepCount >= -25; stepCount--) {
           expect(
-            frequency.stepFrom(anchor, k).isBefore(anchor),
+            frequency.stepFrom(anchor, stepCount).isBefore(anchor),
             isTrue,
-            reason: '$frequency at k=$k did not move back',
+            reason: '$frequency at step $stepCount did not move back',
           );
         }
       }
@@ -160,7 +160,7 @@ void main() {
   });
 
   group('codes', () {
-    test('are pinned', () {
+    test('never change, persistence writes them', () {
       expect(RecurrenceFrequency.values.map((frequency) => frequency.code), [
         0,
         1,

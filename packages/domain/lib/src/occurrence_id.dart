@@ -13,7 +13,7 @@ abstract final class OccurrenceID {
     final day = startOfDayUtc(occurrenceDay);
     // Reference date is 2001-01-01, not the Unix epoch.
     final seconds = day.difference(DateTime.utc(2001)).inSeconds;
-    final name = '${canonicalID(planID)}|$seconds';
-    return canonicalID(_uuid.v5(_namespace, name));
+    final name = '${normalizedID(planID)}|$seconds';
+    return normalizedID(_uuid.v5(_namespace, name));
   }
 }

@@ -3,7 +3,7 @@ import 'package:test/test.dart';
 
 void main() {
   group('LifecycleState', () {
-    test('codes are pinned', () {
+    test('codes never change, persistence writes them', () {
       const table = {
         0: LifecycleState.active,
         1: LifecycleState.archived,
@@ -28,7 +28,7 @@ void main() {
   });
 
   group('AccountType', () {
-    test('codes are pinned', () {
+    test('codes never change, persistence writes them', () {
       const table = {
         0: AccountType.cash,
         1: AccountType.checking,
@@ -51,7 +51,7 @@ void main() {
   });
 
   group('CategoryKind', () {
-    test('codes are pinned', () {
+    test('codes never change, persistence writes them', () {
       const table = {0: CategoryKind.income, 1: CategoryKind.expense};
       table.forEach((code, kind) {
         expect(kind.code, code);

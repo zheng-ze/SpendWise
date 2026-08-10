@@ -4,7 +4,7 @@ extension LedgerStatePurge on LedgerState {
   /// Pockets settle first so the account sees their survival when it judges its
   /// own referencedness.
   List<LedgerChange> purgeAccount(String rawID) {
-    final id = canonicalID(rawID);
+    final id = normalizedID(rawID);
     final account = _moneySources[id]?.asAccount;
     if (account == null || account.lifecycle != LifecycleState.archived) {
       return _checked([]);
@@ -22,7 +22,7 @@ extension LedgerStatePurge on LedgerState {
   }
 
   List<LedgerChange> purgePocket(String rawID) {
-    final id = canonicalID(rawID);
+    final id = normalizedID(rawID);
     final pocket = _moneySources[id]?.asPocket;
     if (pocket == null || pocket.lifecycle != LifecycleState.archived) {
       return _checked([]);
@@ -64,7 +64,7 @@ extension LedgerStatePurge on LedgerState {
   }
 
   List<LedgerChange> purgeCategory(String rawID) {
-    final id = canonicalID(rawID);
+    final id = normalizedID(rawID);
     final category = _categories[id];
     if (category == null || category.lifecycle != LifecycleState.archived) {
       return _checked([]);

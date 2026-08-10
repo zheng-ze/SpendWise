@@ -567,18 +567,21 @@ void main() {
     });
   });
 
-  group('canonical ids at the Accounting boundary', () {
+  group('normalized ids at the Accounting boundary', () {
     // uuid() emits digits only, so uppercasing it is identity and would prove
     // nothing. These carry hex letters.
     const hexParent = 'a1b2c3d4-0000-4000-8000-00000000000a';
     const hexChild = 'b2c3d4e5-0000-4000-8000-00000000000b';
     const hexSource = 'c3d4e5f6-0000-4000-8000-00000000000c';
 
-    test('the mixed-case fixtures really differ from their canonical form', () {
-      expect(hexParent.toUpperCase(), isNot(hexParent));
-      expect(hexChild.toUpperCase(), isNot(hexChild));
-      expect(hexSource.toUpperCase(), isNot(hexSource));
-    });
+    test(
+      'the mixed-case fixtures really differ from their normalized form',
+      () {
+        expect(hexParent.toUpperCase(), isNot(hexParent));
+        expect(hexChild.toUpperCase(), isNot(hexChild));
+        expect(hexSource.toUpperCase(), isNot(hexSource));
+      },
+    );
 
     test('mainBucketID resolves a mixed-case leaf to its parent', () {
       final ledger = LedgerState();
@@ -592,7 +595,7 @@ void main() {
       );
     });
 
-    test('mainBucketID returns a canonical id for a mixed-case main', () {
+    test('mainBucketID returns a normalized id for a mixed-case main', () {
       final ledger = LedgerState();
       ledger.addCategory(category(hexParent));
 
@@ -845,7 +848,7 @@ void main() {
       expect(InCategory(cat).hashCode, InCategory(cat).hashCode);
     });
 
-    test('InCategory canonicalizes its id', () {
+    test('InCategory normalizes its id', () {
       expect(InCategory(cat.toUpperCase()).id, cat);
     });
   });

@@ -9,7 +9,7 @@ class SubPocket {
     required this.name,
     this.incomingTransfersAsExpenses = false,
     this.lifecycle = LifecycleState.active,
-  }) : id = canonicalOrNewID(id);
+  }) : id = normalizedOrNewID(id);
 
   final String id;
   final String name;

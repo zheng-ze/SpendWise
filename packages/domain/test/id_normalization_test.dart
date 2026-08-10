@@ -5,7 +5,7 @@ const _upper = '6F1A2B3C-4D5E-6F70-8192-A3B4C5D6E7F8';
 const _lower = '6f1a2b3c-4d5e-6f70-8192-a3b4c5d6e7f8';
 
 void main() {
-  test('Entry canonicalizes every id it holds', () {
+  test('Entry normalizes every id it holds', () {
     final entry = Entry(
       id: _upper,
       amount: Decimal.one,
@@ -21,7 +21,7 @@ void main() {
     expect(entry.destinationID, _lower);
   });
 
-  test('Account canonicalizes its id and pocket links', () {
+  test('Account normalizes its id and pocket links', () {
     final account = Account(
       id: _upper,
       name: 'a',
@@ -33,11 +33,11 @@ void main() {
     expect(account.subPocketIDs, {_lower});
   });
 
-  test('SubPocket canonicalizes its id', () {
+  test('SubPocket normalizes its id', () {
     expect(SubPocket(id: _upper, name: 'p').id, _lower);
   });
 
-  test('TransactionCategory canonicalizes its id and parent', () {
+  test('TransactionCategory normalizes its id and parent', () {
     final category = TransactionCategory(
       id: _upper,
       name: 'c',
@@ -59,13 +59,13 @@ void main() {
     expect(entry.destinationID, isNull);
   });
 
-  test('generated ids are canonical', () {
+  test('generated ids are normalized', () {
     final id = Entry(amount: Decimal.one, name: 'e', sourceID: _lower).id;
 
-    expect(id, canonicalID(id));
+    expect(id, normalizedID(id));
   });
 
-  test('pocket links added after construction are canonicalized', () {
+  test('pocket links added after construction are normalized', () {
     final account = Account(
       name: 'a',
       type: AccountType.savings,
@@ -75,7 +75,7 @@ void main() {
     expect(account.removeSubPocket(_upper).subPocketIDs, isEmpty);
   });
 
-  test('an uppercase id resolves against a canonical one', () {
+  test('an uppercase id resolves against a normalized one', () {
     final entry = Entry(
       amount: Decimal.one,
       name: 'e',

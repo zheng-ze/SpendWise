@@ -31,7 +31,7 @@ abstract final class Accounting {
     required List<Entry> entries,
     required Set<String> sourceIDs,
   }) {
-    final holderID = canonicalID(of);
+    final holderID = normalizedID(of);
     var total = Decimal.zero;
     for (final entry in entries) {
       if (!applies(entry, sourceIDs)) continue;
@@ -197,7 +197,7 @@ abstract final class Accounting {
   }
 
   static String? mainBucketID(String? rawLeafID, LedgerState state) {
-    final leafID = canonicalOptionalID(rawLeafID);
+    final leafID = normalizedOptionalID(rawLeafID);
     if (leafID == null) return null;
 
     final category = state.categories[leafID];
@@ -226,8 +226,9 @@ extension AnalysisItemList on List<AnalysisItem> {
     Set<String?>? buckets,
     DateRange? interval,
   }) {
-    // Null is a real member, the Uncategorized bucket, so it survives the map.
-    final wanted = buckets?.map(canonicalOptionalID).toSet();
+    // Null is a real bucket, Uncategorized, and normalizedOptionalID returns it
+    // unchanged, so asking for null still matches uncategorized items.
+    final wanted = buckets?.map(normalizedOptionalID).toSet();
     return UnmodifiableListView(
       where((item) {
         if (kind != null && item.kind != kind) return false;

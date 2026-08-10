@@ -15,7 +15,7 @@ void main() {
         destinationID: destinationID,
       );
 
-  test('ids are canonicalized at construction', () {
+  test('ids are normalized at construction', () {
     final stored = EntryTemplate(
       amount: Decimal.fromInt(-25),
       name: 'rent',

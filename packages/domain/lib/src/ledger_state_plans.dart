@@ -18,7 +18,7 @@ extension LedgerStatePlans on LedgerState {
   }
 
   List<LedgerChange> deletePlan(String rawID) {
-    final id = canonicalID(rawID);
+    final id = normalizedID(rawID);
     if (_plans.remove(id) == null) return _checked([]);
 
     return _checked([DeletePlan(id)]);

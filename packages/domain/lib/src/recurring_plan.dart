@@ -13,7 +13,7 @@ class RecurringPlan {
     required DateTime anchor,
     DateTime? endDate,
     required DateTime lastResolvedDate,
-  }) : id = canonicalOrNewID(id),
+  }) : id = normalizedOrNewID(id),
        anchor = startOfDayUtc(anchor),
        endDate = endDate == null ? null : startOfDayUtc(endDate),
        lastResolvedDate = startOfDayUtc(lastResolvedDate);
@@ -36,8 +36,8 @@ class RecurringPlan {
 
   DateTime? nextOccurrence({required DateTime onOrAfter}) {
     final end = endDate;
-    for (var k = 0; ; k++) {
-      final date = frequency.stepFrom(anchor, k);
+    for (var stepCount = 0; ; stepCount++) {
+      final date = frequency.stepFrom(anchor, stepCount);
       if (end != null && date.isAfter(end)) return null;
       if (!date.isBefore(onOrAfter)) return date;
     }
@@ -63,8 +63,8 @@ class RecurringPlan {
     if (ceiling.isBefore(anchor)) return [];
 
     final dates = <DateTime>[];
-    for (var k = 0; ; k++) {
-      final date = frequency.stepFrom(anchor, k);
+    for (var stepCount = 0; ; stepCount++) {
+      final date = frequency.stepFrom(anchor, stepCount);
       if (date.isAfter(ceiling)) return dates;
       if (date.isAfter(after)) dates.add(date);
     }

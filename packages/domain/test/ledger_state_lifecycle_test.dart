@@ -175,8 +175,8 @@ void main() {
       expect(ledger.categories[uuid(12)]?.lifecycle, LifecycleState.archived);
       expect(ledger.categories[uuid(13)]?.lifecycle, LifecycleState.active);
       expect(ledger.entries[uuid(4)]?.categoryID, uuid(11));
-      // The parent emits before its children; the children come from an
-      // unordered scan, so their mutual order is not pinned.
+      // The parent emits before its children. The children come from an
+      // unordered scan, so this does not assert an order between them.
       expect(
         changes,
         containsAllInOrder([

@@ -31,7 +31,7 @@ extension LedgerStateEntries on LedgerState {
     String rawHolderID, {
     DateTime? date,
   }) {
-    final holderID = canonicalID(rawHolderID);
+    final holderID = normalizedID(rawHolderID);
     if (!_moneySources.containsKey(holderID)) throw UnknownHolder(holderID);
     if (amount == Decimal.zero) return _checked([]);
 
@@ -49,7 +49,7 @@ extension LedgerStateEntries on LedgerState {
   }
 
   List<LedgerChange> deleteEntry(String rawID) {
-    final id = canonicalID(rawID);
+    final id = normalizedID(rawID);
     final removed = _entries.remove(id);
     if (removed == null) return _checked([]);
 

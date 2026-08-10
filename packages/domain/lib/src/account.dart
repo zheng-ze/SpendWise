@@ -17,8 +17,8 @@ class Account {
     this.includeInNetWorth = true,
     this.statementDay,
     this.lifecycle = LifecycleState.active,
-  }) : id = canonicalOrNewID(id),
-       subPocketIDs = Set.unmodifiable(subPocketIDs.map(canonicalID));
+  }) : id = normalizedOrNewID(id),
+       subPocketIDs = Set.unmodifiable(subPocketIDs.map(normalizedID));
 
   final String id;
   final String name;
@@ -33,12 +33,12 @@ class Account {
   final LifecycleState lifecycle;
 
   Account addSubPocket(String pocketID) {
-    return _copy(subPocketIDs: {...subPocketIDs, canonicalID(pocketID)});
+    return _copy(subPocketIDs: {...subPocketIDs, normalizedID(pocketID)});
   }
 
   Account removeSubPocket(String pocketID) {
     return _copy(
-      subPocketIDs: {...subPocketIDs}..remove(canonicalID(pocketID)),
+      subPocketIDs: {...subPocketIDs}..remove(normalizedID(pocketID)),
     );
   }
 

@@ -49,7 +49,7 @@ extension LedgerStateHolders on LedgerState {
   }
 
   List<LedgerChange> addPocket(SubPocket pocket, String rawAccountID) {
-    final accountID = canonicalID(rawAccountID);
+    final accountID = normalizedID(rawAccountID);
     final parent = _moneySources[accountID]?.asAccount;
     if (parent == null) throw UnknownAccount(accountID);
     if (_moneySources.containsKey(pocket.id)) throw IdCollision(pocket.id);
@@ -83,7 +83,7 @@ extension LedgerStateHolders on LedgerState {
   }
 
   List<LedgerChange> deleteAccount(String rawID) {
-    final id = canonicalID(rawID);
+    final id = normalizedID(rawID);
     final account = _moneySources[id]?.asAccount;
     if (account == null || !account.lifecycle.isActive) return _checked([]);
 
@@ -121,7 +121,7 @@ extension LedgerStateHolders on LedgerState {
   }
 
   List<LedgerChange> deletePocket(String rawID) {
-    final id = canonicalID(rawID);
+    final id = normalizedID(rawID);
     final pocket = _moneySources[id]?.asPocket;
     if (pocket == null || !pocket.lifecycle.isActive) return _checked([]);
 
@@ -133,7 +133,7 @@ extension LedgerStateHolders on LedgerState {
   }
 
   List<LedgerChange> restoreAccount(String rawID) {
-    final id = canonicalID(rawID);
+    final id = normalizedID(rawID);
     final account = _moneySources[id]?.asAccount;
     if (account == null || account.lifecycle != LifecycleState.archived) {
       return _checked([]);
@@ -150,7 +150,7 @@ extension LedgerStateHolders on LedgerState {
   }
 
   List<LedgerChange> restorePocket(String rawID) {
-    final id = canonicalID(rawID);
+    final id = normalizedID(rawID);
     final pocket = _moneySources[id]?.asPocket;
     if (pocket == null || pocket.lifecycle != LifecycleState.archived) {
       return _checked([]);

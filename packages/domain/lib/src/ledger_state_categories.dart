@@ -53,7 +53,7 @@ extension LedgerStateCategories on LedgerState {
   }
 
   List<LedgerChange> deleteCategory(String rawID) {
-    final id = canonicalID(rawID);
+    final id = normalizedID(rawID);
     final category = _categories[id];
     if (category == null || !category.lifecycle.isActive) return _checked([]);
 
@@ -68,7 +68,7 @@ extension LedgerStateCategories on LedgerState {
   }
 
   List<LedgerChange> restoreCategory(String rawID) {
-    final id = canonicalID(rawID);
+    final id = normalizedID(rawID);
     final category = _categories[id];
     if (category == null || category.lifecycle != LifecycleState.archived) {
       return _checked([]);

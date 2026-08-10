@@ -13,7 +13,7 @@ void main() {
     ledger.addAccount(account(uuid(1)));
   });
 
-  group('mutators canonicalize a bare id', () {
+  group('mutators normalize a bare id', () {
     test('deleteAccount archives rather than silently no-opping', () {
       final changes = ledger.deleteAccount(upper(1));
 
@@ -76,7 +76,7 @@ void main() {
     });
   });
 
-  group('queries canonicalize a bare id', () {
+  group('queries normalize a bare id', () {
     test('sourceName resolves an uppercase id', () {
       expect(ledger.sourceName(upper(1)), 'acc');
     });

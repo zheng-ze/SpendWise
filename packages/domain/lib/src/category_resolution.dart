@@ -35,7 +35,7 @@ final class Uncategorized extends CategoryResolution {
 }
 
 final class InCategory extends CategoryResolution {
-  InCategory(String id) : id = canonicalID(id);
+  InCategory(String id) : id = normalizedID(id);
 
   final String id;
 

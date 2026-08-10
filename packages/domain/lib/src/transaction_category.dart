@@ -14,8 +14,8 @@ class TransactionCategory {
     required String? parentID,
     required this.symbol,
     this.lifecycle = LifecycleState.active,
-  }) : id = canonicalOrNewID(id),
-       parentID = canonicalOptionalID(parentID);
+  }) : id = normalizedOrNewID(id),
+       parentID = normalizedOptionalID(parentID);
 
   final String id;
   final String name;

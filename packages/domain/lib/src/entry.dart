@@ -17,11 +17,11 @@ class Entry with HolderReferencing {
     String? destinationID,
     this.includeInAnalysis = true,
     this.lifecycle = LifecycleState.active,
-  }) : id = canonicalOrNewID(id),
+  }) : id = normalizedOrNewID(id),
        date = startOfDayUtc(date ?? DateTime.now()),
-       categoryID = canonicalOptionalID(categoryID),
-       sourceID = canonicalID(sourceID),
-       destinationID = canonicalOptionalID(destinationID);
+       categoryID = normalizedOptionalID(categoryID),
+       sourceID = normalizedID(sourceID),
+       destinationID = normalizedOptionalID(destinationID);
 
   final String id;
   final DateTime date;

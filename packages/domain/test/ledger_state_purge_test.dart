@@ -112,7 +112,7 @@ void main() {
       expect(ledger.moneySources[uuid(2)], isNull);
       expect(ledger.moneySources[uuid(8)], isNull);
       // The two pockets purge in subPocketIDs order, which is unspecified, so
-      // only the account trailing both of them is pinned here.
+      // this only asserts that the account trails both of them.
       expect(changes.last, DeleteMoneySource(uuid(1)));
       expect(changes, hasLength(5));
       expect(changes.whereType<DeleteMoneySource>().map((c) => c.targetID), [
@@ -122,22 +122,24 @@ void main() {
       ]);
     });
 
-    test('a single tombstoning pocket pins the whole change list', () {
-      ledger.deleteAccount(uuid(1));
+    test(
+      'a single tombstoning pocket emits the whole change list in order',
+      () {
+        ledger.deleteAccount(uuid(1));
 
-      final changes = ledger.purgeAccount(uuid(1));
+        final changes = ledger.purgeAccount(uuid(1));
 
-      expect(changes, [
-        UpsertAccount(
-          account(
-            uuid(1),
-            name: 'main',
-          ).removeSubPocket(uuid(2)).settingLifecycle(LifecycleState.archived),
-        ),
-        DeleteMoneySource(uuid(2)),
-        DeleteMoneySource(uuid(1)),
-      ]);
-    });
+        expect(changes, [
+          UpsertAccount(
+            account(uuid(1), name: 'main')
+                .removeSubPocket(uuid(2))
+                .settingLifecycle(LifecycleState.archived),
+          ),
+          DeleteMoneySource(uuid(2)),
+          DeleteMoneySource(uuid(1)),
+        ]);
+      },
+    );
 
     test(
       'a surviving referenceOnly pocket keeps the account referenceOnly',

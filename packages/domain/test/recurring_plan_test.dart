@@ -219,7 +219,7 @@ void main() {
     expect(advanced.frequency, original.frequency);
   });
 
-  test('the id is canonicalized and equality covers every field', () {
+  test('the id is normalized and equality covers every field', () {
     final base = RecurringPlan(
       id: '00000000-0000-4000-8000-00000000000A',
       template: template,

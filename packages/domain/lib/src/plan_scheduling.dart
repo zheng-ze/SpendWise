@@ -24,14 +24,14 @@ enum RecurrenceFrequency {
     };
   }
 
-  /// The k-th occurrence counting from [anchor], k == 0 being the anchor.
-  DateTime stepFrom(DateTime anchor, int k) {
+  /// The occurrence [stepCount] steps after [anchor], 0 being the anchor itself.
+  DateTime stepFrom(DateTime anchor, int stepCount) {
     return switch (this) {
-      weekly => anchor.add(Duration(days: 7 * k)),
-      biweekly => anchor.add(Duration(days: 14 * k)),
-      monthly => _addMonths(anchor, k),
-      quarterly => _addMonths(anchor, 3 * k),
-      yearly => _addMonths(anchor, 12 * k),
+      weekly => anchor.add(Duration(days: 7 * stepCount)),
+      biweekly => anchor.add(Duration(days: 14 * stepCount)),
+      monthly => _addMonths(anchor, stepCount),
+      quarterly => _addMonths(anchor, 3 * stepCount),
+      yearly => _addMonths(anchor, 12 * stepCount),
     };
   }
 }

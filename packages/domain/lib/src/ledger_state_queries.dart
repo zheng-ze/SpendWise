@@ -33,10 +33,10 @@ extension LedgerStateQueries on LedgerState {
   /// A `referenceOnly` pocket keeps its parent: purge pins the parent too
   /// rather than detaching it.
   Account? owningAccount(String rawPocketID) =>
-      _owningAccount(canonicalID(rawPocketID));
+      _owningAccount(normalizedID(rawPocketID));
 
   String? sourceName(String? rawID) {
-    final id = canonicalOptionalID(rawID);
+    final id = normalizedOptionalID(rawID);
     if (id == null) return null;
     switch (_moneySources[id]) {
       case null:
@@ -50,23 +50,23 @@ extension LedgerStateQueries on LedgerState {
   }
 
   int entriesReferencing(String rawHolderID) {
-    final holderID = canonicalID(rawHolderID);
+    final holderID = normalizedID(rawHolderID);
     return _entries.values.where((entry) => entry.references(holderID)).length;
   }
 
   int entryCount(Set<String> rawIDs) {
-    final ids = rawIDs.map(canonicalID).toSet();
+    final ids = rawIDs.map(normalizedID).toSet();
     return _entries.values.where((entry) => entry.touches(ids)).length;
   }
 
   int entryCountReferencing(String rawCategoryID) {
-    final categoryID = canonicalID(rawCategoryID);
+    final categoryID = normalizedID(rawCategoryID);
     return _entries.values
         .where((entry) => entry.categoryID == categoryID)
         .length;
   }
 
-  /// Expects an already-canonical id. Decides referenceOnly versus tombstone
+  /// Expects an already-normalized id. Decides referenceOnly versus tombstone
   /// for both the purge rule and the dereference sweep.
   ///
   /// A parent counts as referenced through a pocket only when that pocket is

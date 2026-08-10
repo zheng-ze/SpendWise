@@ -14,9 +14,9 @@ class EntryTemplate with HolderReferencing {
     required String sourceID,
     String? destinationID,
     this.includeInAnalysis = true,
-  }) : categoryID = canonicalOptionalID(categoryID),
-       sourceID = canonicalID(sourceID),
-       destinationID = canonicalOptionalID(destinationID);
+  }) : categoryID = normalizedOptionalID(categoryID),
+       sourceID = normalizedID(sourceID),
+       destinationID = normalizedOptionalID(destinationID);
 
   @override
   final Decimal amount;
