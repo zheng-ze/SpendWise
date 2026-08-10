@@ -245,7 +245,7 @@ Groups 1 to 6 are unaffected. Every finding below was verified by reading the ci
       `.toUtc()`, which would move an entry a month east of Greenwich. `startOfDayUtc` moved to
       `calendar_day.dart`. Convention recorded in `design.md`
 - [x] 7.15 Test: a UTC instant against local-built bounds, pinning whichever convention 7.14 settles
-- [ ] 7.16 Consider `toString` on `NetWorth`, `AnalysisItem`, `DateRange` and `CategoryResolution`.
+- [x] 7.16 Consider `toString` on `NetWorth`, `AnalysisItem`, `DateRange` and `CategoryResolution`.
       They are the assertion targets of the 33 parity tests, and a failure currently prints
       `Instance of 'NetWorth'`
 
