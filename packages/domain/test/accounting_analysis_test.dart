@@ -835,6 +835,73 @@ void main() {
           ),
         ),
       );
+      expect(
+        AnalysisItem(
+          bucketID: cat,
+          amount: money(10),
+          date: when,
+          kind: CategoryKind.expense,
+        ),
+        isNot(
+          AnalysisItem(
+            bucketID: cat,
+            amount: money(11),
+            date: when,
+            kind: CategoryKind.expense,
+          ),
+        ),
+      );
+      expect(
+        AnalysisItem(
+          bucketID: cat,
+          amount: money(10),
+          date: when,
+          kind: CategoryKind.expense,
+        ),
+        isNot(
+          AnalysisItem(
+            bucketID: cat,
+            amount: money(10),
+            date: DateTime.utc(2026, 3, 5),
+            kind: CategoryKind.expense,
+          ),
+        ),
+      );
+    });
+
+    test('hashCode separates items differing in only amount or only date', () {
+      expect(
+        AnalysisItem(
+          bucketID: cat,
+          amount: money(10),
+          date: when,
+          kind: CategoryKind.expense,
+        ).hashCode,
+        isNot(
+          AnalysisItem(
+            bucketID: cat,
+            amount: money(11),
+            date: when,
+            kind: CategoryKind.expense,
+          ).hashCode,
+        ),
+      );
+      expect(
+        AnalysisItem(
+          bucketID: cat,
+          amount: money(10),
+          date: when,
+          kind: CategoryKind.expense,
+        ).hashCode,
+        isNot(
+          AnalysisItem(
+            bucketID: cat,
+            amount: money(10),
+            date: DateTime.utc(2026, 3, 5),
+            kind: CategoryKind.expense,
+          ).hashCode,
+        ),
+      );
     });
   });
 
@@ -848,8 +915,27 @@ void main() {
       expect(InCategory(cat).hashCode, InCategory(cat).hashCode);
     });
 
+    // Dart dispatches == on the left operand, so each case needs its own
+    // inequality asserted from the left to exercise its own operator.
+    test('each case rejects the others from the left', () {
+      expect(const Excluded(), isNot(const Uncategorized()));
+      expect(const Excluded(), isNot(InCategory(cat)));
+      expect(const Uncategorized(), isNot(const Excluded()));
+      expect(const Uncategorized(), isNot(InCategory(cat)));
+      expect(InCategory(cat), isNot(const Excluded()));
+      expect(InCategory(cat), isNot(const Uncategorized()));
+    });
+
+    test('InCategory hashCode separates different ids', () {
+      expect(InCategory(cat).hashCode, isNot(InCategory(parent).hashCode));
+    });
+
     test('InCategory normalizes its id', () {
-      expect(InCategory(cat.toUpperCase()).id, cat);
+      const upper = '6F1A2B3C-4D5E-6F70-8192-A3B4C5D6E7F8';
+      const lower = '6f1a2b3c-4d5e-6f70-8192-a3b4c5d6e7f8';
+
+      expect(InCategory(upper).id, lower);
+      expect(InCategory(upper), InCategory(lower));
     });
   });
 

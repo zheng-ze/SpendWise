@@ -141,5 +141,26 @@ void main() {
         isNot(NetWorth(money(2), money(10))),
       );
     });
+
+    test('a differing asset alone breaks equality', () {
+      expect(
+        NetWorth(money(10), money(2)),
+        isNot(NetWorth(money(11), money(2))),
+      );
+    });
+
+    test('a differing liability alone breaks equality', () {
+      expect(
+        NetWorth(money(10), money(2)),
+        isNot(NetWorth(money(10), money(3))),
+      );
+    });
+
+    test('a differing liability alone changes the hash', () {
+      expect(
+        NetWorth(money(10), money(2)).hashCode,
+        isNot(NetWorth(money(10), money(3)).hashCode),
+      );
+    });
   });
 }
