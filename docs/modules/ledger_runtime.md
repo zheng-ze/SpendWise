@@ -76,7 +76,7 @@ mutator through `mutate`. Throwing vs non-throwing mirrors Swift (`try mutate` v
 | `addPlan(RecurringPlan)` | `state.addPlan` | yes | |
 | `updatePlan(RecurringPlan)` | `state.updatePlan` | yes | |
 | `deletePlan(id)` | `state.deletePlan` | no | Hard delete — plans have no recycle bin |
-| `resolvePlans(now = now, calendar)` | `state.resolvePlans` | no | See §1.4 |
+| `resolvePlans(now)` | `state.resolvePlans` | no | See §1.4 |
 | `categories(of: CategoryKind)` | read-only query | no | See §1.3 |
 
 There is **no** `restoreEntry`, `purgeEntry`, `restorePlan`, or `purgePlan` on the hub. Do not
@@ -102,10 +102,9 @@ locale-aware collation, so ordering is identical across platforms.
 
 Called on app-active (§5.3). Behavior:
 
-1. Runs `state.resolvePlans(now, calendar)` inside `mutate`. The domain returns
-   `(List<LedgerChange> changes, List<PlanFailure> failures)`; the changes go through the normal
-   publish pipeline (materialized entries + updated plan cursors + retired-plan changes land as
-   **one batch**).
+1. Runs `state.resolvePlans(now)` inside `mutate`. The domain returns a `PlanResolution` carrying
+   `changes` and `failures`; the changes go through the normal publish pipeline (materialized
+   entries + updated plan cursors + retired-plan changes land as **one batch**).
 2. Failures do **not** abort the mutation — successful occurrences still commit and publish.
 3. **After** `mutate` completes (state committed, invariants checked, batch published), if
    `failures` is non-empty, invoke `onPlanError?.call(failures)`.
@@ -114,9 +113,10 @@ Called on app-active (§5.3). Behavior:
 validation (e.g. template pointing at a purged account) — distinct from a plan silently reaching
 its `endDate`, which is expected and reported nowhere.
 
-The injected `calendar` is the **fixed UTC calendar** (per `plans_and_accounting.md` §3.3 /
-master plan §4.1 occurrence-identity decision) — everywhere: boot-time, lifecycle-resumed (§5.3),
-and post-plan-creation calls. Never a device-local calendar, which would re-create the
+There is no calendar parameter. `ledger_state_plans.dart` works in fixed UTC internally, so the
+occurrence-identity rule (per `plans_and_accounting.md` §3.3 / master plan §4.1) survives as a
+caller-side obligation on `now`: pass a UTC instant everywhere — boot-time, lifecycle-resumed
+(§5.3), and post-plan-creation calls. A device-local `DateTime.now()` would re-create the
 timezone-dependent occurrence ids that decision kills.
 
 `onPlanError` is a nullable callback field set once at boot (§5.2). No error if unset.
@@ -341,7 +341,7 @@ Swift switched on `scenePhase`, guarded on `ready`. Dart: `AppLifecycleListener`
 
 | Event | Swift | Flutter | Action |
 |---|---|---|---|
-| App becomes active | `.active` | `onResume` (and initial ready — see note) | `ledger.resolvePlans()` |
+| App becomes active | `.active` | `onResume` (and initial ready — see note) | `ledger.resolvePlans(now)`, `now` in UTC |
 | App leaves foreground | `.background`, `.inactive` | `onInactive` / `onPause` (and `onHide` on desktop) | `persistence.flush()` (fire-and-forget async) |
 
 Note: iOS fires an initial `scenePhase → .active` after launch, but that transition races the
@@ -350,8 +350,8 @@ plans on a cold start (they materialize on the next foregrounding). Flutter does
 `onResume` for the initial launch either — call `ledger.resolvePlans()` once explicitly when
 entering `ready`, then rely on `onResume` for subsequent foregrounds. The explicit resolve on
 entering `ready` fixes that latent V1 race — a flagged deviation, strictly more reliable. Every
-`resolvePlans()` call here (initial-ready and `onResume` alike) passes the fixed UTC calendar
-(§1.4) — never the device-local calendar.
+`resolvePlans(now)` call here (initial-ready and `onResume` alike) passes a UTC `now` (§1.4) —
+never a device-local `DateTime.now()`.
 
 `flush()` on backgrounding is the load-bearing durability moment (master doc §5 hazard 7): the
 debounced store may hold a pending batch; backgrounding must push it to disk before the OS can
