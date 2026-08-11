@@ -275,32 +275,32 @@ by file copy, watch it pass.
       never ones produced from entries. Assert a produced item's date directly, and that it totals
       inside its own month and to zero in the month before, on both the transfer arm and the
       income/expense arm
-- [ ] 7.19 Test the start of a window. `date_range.dart:12` reads
+- [x] 7.19 Test the start of a window. `date_range.dart:12` reads
       `!date.isBefore(start) && date.isBefore(end)`. Delete the first half so it reads only
       `date.isBefore(end)` and every test still passes. That bug would turn every window from one
       month into everything-up-to-`end`, so a March window would also count January and February.
       The tests miss it because every window test only ever asks about dates on or after `start`, so
       nothing checks that an earlier date is excluded. Add a test asking `contains` about a date
       strictly before `start` and expecting `false`
-- [ ] 7.20 Test `NetWorth` equality one field at a time. `net_worth.dart:14` compares `asset` and
+- [x] 7.20 Test `NetWorth` equality one field at a time. `net_worth.dart:14` compares `asset` and
       `liability`. Drop either one from `==`, or cut `hashCode` down to `asset.hashCode`, and every
       test still passes. The one existing pair at `accounting_net_worth_test.dart:134` differs in
       both fields at once, so it still comes out unequal even when only one field is being compared.
       Add two pairs that differ in exactly one field each, and assert two different values have
       different `hashCode`
-- [ ] 7.21 Test `AnalysisItem` equality one field at a time. `analysis_item.dart:25` compares four
+- [x] 7.21 Test `AnalysisItem` equality one field at a time. `analysis_item.dart:25` compares four
       fields. Drop `amount` or `date` from `==`, or drop either from `hashCode`, and every test still
       passes. The `isNot` pairs at `accounting_analysis_test.dart:413` only ever vary `kind` and
       `bucketID`, so `amount` and `date` are never the sole difference. Add a pair differing in
       exactly `amount` and a pair differing in exactly `date`
-- [ ] 7.22 Test `DateRange` equality at all. `date_range.dart:15` has hand-written `==` and
+- [x] 7.22 Test `DateRange` equality at all. `date_range.dart:15` has hand-written `==` and
       `hashCode` that no test anywhere asserts on, so dropping `end` from `==`, or cutting `hashCode`
       to `start.hashCode`, changes nothing that the suite can see. This matters beyond tidiness: the
       Phase 3 `AnalysisCache` is specified to use the window as its cache key, so two different
       windows comparing equal would hand one month's numbers back for a different month. Add a
       value-equality group covering equal ranges, ranges differing in `start`, and ranges differing
       in `end`
-- [ ] 7.23 Test `CategoryResolution` equality in both directions. Two bugs here, both uncaught.
+- [x] 7.23 Test `CategoryResolution` equality in both directions. Two bugs here, both uncaught.
       First, `category_resolution.dart:15`: widen `Excluded.operator ==` to accept any
       `other is CategoryResolution` and every test still passes, because the only assertion at
       `accounting_analysis_test.dart:482` is `Excluded() != Uncategorized()`, and Dart evaluates the
@@ -308,7 +308,7 @@ by file copy, watch it pass.
       and an `InCategory` case. Second, `category_resolution.dart:40`: replace `InCategory.hashCode`
       with the constant `0` and every test still passes, so add an assertion that two `InCategory`
       values with different ids have different `hashCode`
-- [ ] 7.24 Fix a test that asserts nothing. `accounting_analysis_test.dart:489` asserts
+- [x] 7.24 Fix a test that asserts nothing. `accounting_analysis_test.dart:489` asserts
       `InCategory(cat.toUpperCase()).id == cat`, meaning to prove the constructor lowercases its
       input. It proves nothing: `cat` comes from `uuid(n)` at `test/support/builders.dart:75`, which
       emits only digits and hyphens, so `toUpperCase()` returns the string unchanged and the
@@ -316,6 +316,16 @@ by file copy, watch it pass.
       outright leaves the whole suite green. Rewrite it using an id literal containing hex letters,
       then check `id_normalization_test.dart` and `ledger_state_id_normalization_test.dart` for the
       same mistake, since neither was covered by the review
+
+      EDIT 11 Aug: the sweep found a larger instance than the one filed.
+      `ledger_state_id_normalization_test.dart` was vacuous in its entirety. Its helper read
+      `String upper(int n) => uuid(n).toUpperCase()`, which returns `uuid(n)` unchanged, so all 13
+      tests named for resolving an uppercase id passed no uppercase id to anything. Stripping
+      `normalizedID` and `normalizedOptionalID` from the five `ledger_state_*.dart` call sites left
+      the file green before the fix and killed 12 of 13 after it. The survivor passes a literal null
+      and correctly guards no normalization. Fixed by adding a local `hex(n)` carrying hex letters
+      rather than changing the shared `uuid` builder, which 16 other test files depend on.
+      `id_normalization_test.dart` was already sound and was left alone
 
 ### Rejected, and why
 
