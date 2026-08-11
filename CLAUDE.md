@@ -103,6 +103,19 @@ Two rules from it that are never worth rediscovering:
 
 ## Search tools
 
+**Narrow before you read.** Context is the scarce resource, and a `Read` on a file you have not
+located spends it faster than anything else. Find the lines first — `rg` for text, the graph for what
+calls what, `ast-grep` through a rule file for structure — then read the region those return. Reading
+a whole file to find out whether it is relevant is the thing to avoid; reading it once you know it is
+relevant is the job. This binds subagents too, so briefs must not hand over a file path and leave the
+narrowing implied.
+
+**Send the volume reading to another model.** `gemini-executor` for anything where the large window
+is the point (the frozen Swift app, a whole module doc, cross-repo sweeps), `qwen-local` for
+pre-narrowed reads inside 20k tokens and whenever Gemini is throttled. Both return claims to verify,
+never conclusions to act on — but verifying a named anchor costs a fraction of finding it yourself.
+`docs/SUBAGENTS.md` has the split and the quota arithmetic.
+
 **`docs/TOOLING.md` has the measured behavior** of `rg`, `ast-grep`, the code-review-graph MCP server
 and the local model, and which to reach for. Two rules from it that are never worth rediscovering:
 

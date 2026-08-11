@@ -7,6 +7,17 @@ The rule none of these change: **a hit is a claim until it is read at its cited 
 tools shorten the search. They do not shorten the reading, and reading is what verification is made
 of.
 
+**Locate before you open.** `Read` on a file you have not located is the most expensive move
+available, and the cost lands on the context the rest of the task has to fit inside. Every one of
+these tools exists to turn "which file is this in" into a line number, so the read that follows is a
+region rather than a file. Opening a file to discover whether it matters is the waste; opening it
+once you know it does is the work.
+
+Two cases justify reading a file whole: it is short enough that locating costs more than reading, or
+it is a checked-in contract whose every line has to hold — a spec, a task file. Everything else gets
+narrowed first, and volume reading goes to `qwen-local` or `gemini-executor` rather than being paid
+for in Claude tokens.
+
 ## Which tool for which question
 
 1. **`rg`** for anything textual, and as the ground truth for every other tool's zero.

@@ -14,6 +14,34 @@ the agent must prove.
 **Verification cannot be delegated.** A finding is a claim until the main thread reads it at the
 cited `file:line`. A subagent confirming another subagent's report is one more claim, not a check.
 
+## Briefs decide how an agent spends context
+
+An agent reads the way its brief points it. Hand over a bare file path and it opens the file; say
+"search this file rather than trusting the offsets" and it reads the whole thing. Both were written
+here, and both produced exactly that. The obligation is on the brief, not on the agent's judgement.
+
+Every brief that sends an agent into unfamiliar code states how to narrow before reading: which `rg`
+pattern, which graph query, which symbol to anchor on.
+
+**An implementation agent should sub-delegate its reading, and its brief should say so.** A nested
+`qwen-local` or `gemini-executor` call spends another model's tokens instead of Claude's, and the
+saving compounds at depth — an agent that reads a 573-line module doc itself has burned context its
+own work then has to fit around. Project agent types resolve from a nested agent, `qwen-local`
+included, so name the type explicitly: a brief saying "delegate the Swift reading" without naming the
+agent gets a direct read, or a dispatch to whatever type the agent guesses at.
+
+**The readers are leaves.** `qwen-local`, `gemini-executor` and `gemini-indexer` call their model and
+return. They never dispatch anything themselves, and they never substitute their own reading when the
+call fails — a reader that answers from `Read` has spent the exact tokens it was dispatched to save
+and misreported which model did the work. Deciding where a request should go instead is the
+dispatcher's job, so a reader that cannot serve one reports why and stops. `qwen-local` proves its
+call by quoting the wrapper's `prompt_tokens` line; a report without it means the local model was
+never asked.
+
+Delegate at the start, while the reading is still ahead of the agent. An instruction arriving forty
+tool calls in saves nothing, because the tree is already read. Where the main thread has already
+located something, put the anchors in the brief rather than making the agent find them again.
+
 ## Choosing an agent
 
 | Agent | Tools | Use for | Do not use for |
@@ -51,7 +79,16 @@ task text is not fresh.
 
 Gemini exists to read volume that would otherwise cost Claude tokens. Its free tier is now easy to
 exhaust, so spend it where the large window is the point and send the rest to `qwen-local`; the split
-is in "Reading without Gemini" below. Gemini's wins, in order:
+is in "Reading without Gemini" below.
+
+The quota is counted in calls, not tokens: 20 a day on `gemini-3.6-flash` at 5 a minute, with
+`gemini-3.5-flash-lite` behind it at 500 a day and 15 a minute. Both share a 250k
+input-tokens-per-minute ceiling and both hold a 1M context window. A narrow question therefore costs
+exactly what a broad one costs, so **batch every question about an area into one dispatch** and let
+the agent answer them in numbered sections. Splitting a brief into two calls because the topics feel
+unrelated halves the day's budget for nothing. Split only to stay under the token ceiling.
+
+Gemini's wins, in order:
 
 1. **Gathering the context a change is drafted from.** The strongest case, provided the split is
    right: send `gemini-executor` across the Swift source, the module spec in `docs/modules/` and the
