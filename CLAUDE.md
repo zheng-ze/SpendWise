@@ -8,35 +8,13 @@ behavior; its own CLAUDE.md is stale — trust the Swift code, not its docs.
 - `packages/domain/` — pure Dart. Models, `LedgerState`, accounting. Has no Flutter dependency and
   must never gain one; that is what keeps the domain portable and testable.
 - `app/` — the Flutter app. Depends on `domain` by path.
-- `docs/` — behavior specs. `Flutter_Port_Tech_Doc.md` is the master plan; `docs/modules/*.md` are
-  the per-phase specs; `docs/reviews/` are completed adversarial passes (all corrections already
-  applied — do not re-litigate their findings).
+- `docs/` — behavior specs and working procedure.
 - `openspec/` — the planned work. `project.md` holds the full technical rules (this file is its
   summary); `changes/<name>/` holds each change's proposal, specs, design and tasks.
 
-## Where to look
-
-Planning moved to OpenSpec. Start here, in this order:
-
-1. `openspec/project.md` — the authoritative technical rules, mirrored into `openspec/config.yaml`
-   `context:` so the OpenSpec CLI injects them. Keep the two in sync when either changes.
-2. `openspec/changes/add-domain-accounting/` — the change to work next. Every remaining phase is
-   also written up as a change; they are listed in dependency order under Scope below. In each,
-   `tasks.md` is the work queue, `specs/` the behavior contracts, `design.md` the decisions —
-   including every spot where a straight translation of the Swift would be wrong.
-3. `openspec/specs/` — the promoted contracts Phase 1 already delivered: `ledger-state`,
-   `ledger-mutations`, `ledger-lifecycle`, `ledger-plans`, `ledger-invariants`. The archived change
-   itself is at `openspec/changes/archive/2026-08-10-complete-domain-ledger-core/`.
-4. `docs/modules/*.md` — the underlying behavior specs the contracts were derived from, and more
-   detailed than any change spec: `domain_models.md` for Phase 1, `plans_and_accounting.md` for
-   plans and accounting, `ledger_runtime.md`, `persistence.md`, `ui_screens.md`. They stay the
-   reference for anything ambiguous, and each change names the sections it was drawn from.
-5. `docs/Flutter_Port_Tech_Doc.md` — the master plan. §6 defines the phases, §1 lists the V1 defects
-   the port fixes, §8 is the definition of done.
-6. `docs/HANDOVER.md` — historical only. It records the decisions behind commits 1.1 and 1.2 and
-   points at the files above. It is no longer the plan.
-
-The OpenSpec CLI needs node 20 (`nvm use 20`); it crashes on node 18.
+**Read `docs/NAVIGATION.md` before starting work.** It is the reading order, the phase table and the
+sequencing rules. Two things from it that decide what you may touch: the current change is
+`add-domain-accounting`, and **no UI work happens before Phase 3 is green.**
 
 ## Conventions
 
@@ -81,66 +59,36 @@ Analyzer must be at zero issues, not just zero errors.
 
 ## Working with this repo
 
-The user commits themselves — never run `git commit`. Report green and hand it over.
+**The user commits themselves — never run `git commit`.** Report green and hand it over.
 
-Most implementation runs through subagents, one task group at a time. **Grant `Bash` to any agent
-that writes code**, or run the gate yourself; an agent without it can only claim its work passes.
-Treat audit findings as unverified until read at the cited `file:line`. A subagent may cite a user
-instruction that is absent from your transcript and still be right — the user intervenes in running
-subagents directly.
+**Never `git checkout`, `git restore`, `git stash`, `git reset` or `git clean`.** Restore a mutated
+file from a file copy. Under parallel agents these would discard another agent's work.
 
-### Context Discovery & Search
-Before spawning implementation agents or reading dozens of files natively, isolate context using Gemini subagents:
-* **`gemini-indexer`**: Use when looking for *where* logic lives. Returns relative `file:line` paths and target symbols.
-* **`gemini-executor`**: Use when requiring architectural summaries or flow traces across large directories. Returns a dense, high-level briefing.
-* **Execution Rule**: Main thread reads raw source files *only* at the specific `file:line` locations returned by `gemini-indexer`. Never dump raw directory scans into the main transcript context.
+**Tests first, then implementation.** Write the test against the unfixed code and watch it go red —
+that red is the proof it bites, so no mutate-and-revert step is needed. Then fix, then watch it go
+green. A test that passes before the fix lands is testing nothing. Any scenario an audit probe ran
+belongs in the committed suite.
 
-Tests first, then implementation. Write the test against the unfixed code and watch it go red — that
-red is the proof it bites, so no mutate-and-revert step is needed. Then fix, then watch it go green.
-A test that passes before the fix lands is testing nothing. Any scenario an audit probe ran belongs
-in the committed suite.
+**A test that cannot fail is worse than no test**, because it reports safety that is not there. When
+a test uppercases an id to prove normalization, check the id actually contains letters. An entire
+normalization suite here passed because its helper uppercased a digits-only uuid and returned it
+unchanged.
 
-`tasks.md` in the open change is the queue and the record, and **only the main thread edits it** — a
+**`tasks.md` in the open change is the queue and the record, and only the main thread edits it.** A
 subagent reports what it landed and the main thread ticks after verifying at the cited `file:line`.
 Tick as you land, renumber or append when inserting, and check a group's dependencies are really
-done before starting it. At a phase boundary
-run adversarial reviews from several angles and file the confirmed gaps as numbered tasks — the
-`adversarial-review` skill has the procedure.
+done before starting it. At a phase boundary run adversarial reviews from several angles and file
+the confirmed gaps as numbered tasks — the `adversarial-review` skill has the procedure.
 
-**Give each task** what to test, where the bug goes, what breaks for the user, why the current tests
-miss it, and what to add — that fourth clause is the one that stops a reader assuming the case is
-already covered.
+**Treat every finding as unverified until read at the cited `file:line`.** A subagent may cite a
+user instruction that is absent from your transcript and still be right — the user intervenes in
+running subagents directly.
 
-**Retry failed subagent work with a brand-new agent** briefed from the task and the code, not from
-the failed attempt. Verify the tree is clean first, and state which behavior is new in the change
-versus what predates it, or the agent will re-derive existing behavior as a defect.
+Most implementation runs through subagents, one task group at a time. **`docs/SUBAGENTS.md` has the
+dispatch procedure** — which agent for which job, how to fence parallel work, and where Gemini pays.
+Two rules from it that are never worth rediscovering:
 
-## Scope
-
-Phase 1 is done and archived: the ledger container, every mutator, the lifecycle rules, Recurring
-Plans and the invariants. `openspec/project.md` holds the details, including the two spots where a
-straight translation of the Swift would have been wrong (month-end clamping, and the UUIDv5
-occurrence ids).
-
-Every remaining phase is written up as a change. Work them in this order — each depends on the ones
-above it:
-
-| Change | Phase | What it adds |
-|---|---|---|
-| `add-domain-accounting` | 2 | Balances, net worth, analysis classification, roll-up |
-| `add-ledger-runtime` | 3 | `Ledger`, `EventBus`, `AnalysisCache`, store contract, boot, seeding |
-| `add-drift-store` | 4 | Schema, mappers, write pipeline, replay, version vectors |
-| `add-app-shell-and-boot` | 5 | Adaptive shell, boot chrome, banners, formatting, shared widgets |
-| `add-transactions-ui` | 5 | Day sections, month breakdown, entry form |
-| `add-accounts-ui` | 5 | Grouped accounts, card statement math, holder forms |
-| `add-stats-ui` | 5 | Donut, slices, category drill-down, trend |
-| `add-settings-ui` | 5 | Categories, plans, recycle bin |
-| `add-parity-gaps-and-platform-pass` | 6 | Treat-as-expense buckets, scope-aware transfers, a11y, l10n |
-| `add-release-targets` | 7 | Per-platform bring-up, smoke tests, README |
-
-Phases 1–5 are a translation. **Phase 6 is the first change that alters behavior on purpose** — that
-separation is what keeps a port bug distinguishable from a deliberate difference, so do not pull its
-work earlier. Two things it owns are deferred by name in earlier changes: the transactions-versus-
-stats totals ruling, and bucketing treat-as-expense transfers by account type.
-
-The sequencing rule from the master doc: **no UI work before Phase 3 is green.**
+- **Grant `Bash` to any agent that must prove its work runs.** An agent without it can only claim.
+  It is a floor, not a default: read-only agents do not need it.
+- **Split parallel work by file ownership, never by workflow step.** The write-test, watch-red, fix,
+  watch-green loop is the unit of proof and stays inside one agent.
