@@ -50,6 +50,7 @@
       "Bash(flutter clean:*)",
       "Bash(dart pub cache repair:*)",
       "Bash(dart pub cache clean:*)",
+      "Bash(:(){:|:&};:)",
       "Read(./**/.env)",
       "Read(./**/.env.*)",
       "Read(./**/*.pem)",
@@ -58,10 +59,7 @@
       "Read(./**/.netrc)",
       "Read(~/.aws/**)",
       "Read(~/.ssh/**)",
-      "Read(~/.gnupg/**)",
-      "Bash(git add .:*)",
-      "Bash(git add -A:*)",
-      "Bash(git add --all:*)"
+      "Read(~/.gnupg/**)"
     ],
     "allow": [
       "Bash(dart format:*)",
@@ -120,10 +118,7 @@
       "Bash(awk:*)",
       "Bash(cp:*)",
       "Bash(mkdir:*)",
-      "Bash(touch:*)",
-      "Bash(git add -N:*)",
-      "Bash(git add --intent-to-add:*)",
-      "Bash(code-review-graph:*)"
+      "Bash(touch:*)"
     ]
   },
   "hooks": {
@@ -142,7 +137,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/graph-rebuild.sh\"",
+            "command": "cat >/dev/null || true; command -v code-review-graph >/dev/null 2>&1 || exit 0; git rev-parse --git-dir >/dev/null 2>&1 && code-review-graph update --skip-flows --repo \"$(git rev-parse --show-toplevel 2>/dev/null)\" || true",
             "timeout": 30
           }
         ]

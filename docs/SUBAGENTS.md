@@ -22,6 +22,7 @@ cited `file:line`. A subagent confirming another subagent's report is one more c
 | `general-purpose` | all | Test writing, mutation proofs, any task whose workflow includes running the suite | Broad searches where only the conclusion matters |
 | `gemini-indexer` | Bash | Locating `file:line` anchors and target symbols across the tree | Settling a question that will be acted on without a read |
 | `gemini-executor` | Bash | Orienting summaries and flow traces over large directories | Anything needing exact line numbers |
+| `qwen-local` | Bash | Pre-narrowed reads over a named file list on the local unmetered model | Anything over ~20k tokens of source, or trusting its line numbers |
 | `cavecrew-investigator` | Read, Grep, Glob, Bash | Read-only locating with compressed output | Suggesting fixes. It refuses by design |
 | `mutation-prober` | Read, Edit, Bash, Grep, Glob | Proving a rule is unguarded, or that a new test really bites | Sharing a working tree with another agent |
 | `gate-runner` | Bash, Read | Independent green verification | Writing code |
@@ -48,7 +49,9 @@ task text is not fresh.
 
 ## Where Gemini pays
 
-Gemini exists to read volume that would otherwise cost Claude tokens. Its wins, in order:
+Gemini exists to read volume that would otherwise cost Claude tokens. Its free tier is now easy to
+exhaust, so spend it where the large window is the point and send the rest to `qwen-local`; the split
+is in "Reading without Gemini" below. Gemini's wins, in order:
 
 1. **Gathering the context a change is drafted from.** The strongest case, provided the split is
    right: send `gemini-executor` across the Swift source, the module spec in `docs/modules/` and the
@@ -100,6 +103,37 @@ a write from one is unreviewed.
 The pattern across all of it: Gemini narrows a large tree to a short list of places worth reading.
 It never settles what is true there.
 
+## Reading without Gemini
+
+Gemini's quota runs out mid-dispatch, and the fallback has been paying Claude tokens to read the same
+tree. `qwen-local` is the second reader: Qwen2.5-Coder 14B on the user's PC over the LAN, unmetered,
+nothing leaving the network. `docs/TOOLING.md` has the measurements behind everything here.
+
+The split is quota against window, not quality:
+
+- **Gemini** keeps the jobs where the large window is the point. Items 1, 2, 6, 7, 8 and 11 above all
+  need to read more than 20k tokens at once, and none of them survive being cut down.
+- **`qwen-local`** takes items 3 and 4 — locating anchors when task line numbers are stale, and
+  cross-file sweeps over a named short list. Both are narrow by nature and were exhausting the quota
+  on work that never needed the window.
+- **When Gemini is throttled**, `qwen-local` is the fallback for anything inside 20k tokens, and the
+  main thread reads directly for anything larger. Record which one produced a briefing, because the
+  smaller model's output is the weaker lead.
+
+Three things about it that change how a task is written:
+
+- **Its window is 24576 tokens and the ceiling is hard.** An over-budget request comes back as HTTP
+  400, never as a silent truncation, so the confident-answer-over-truncated-input failure is not
+  available to it. Tasks arrive pre-narrowed: this file, these functions, this diff.
+- **Names are reliable, line numbers drift.** It found 22 of 22 target symbols across seven files and
+  invented none, but only 17 of 23 anchors were exact. Treat an anchor as somewhere to open.
+- **It declines to fabricate.** Asked where a symbol that does not exist is defined, it answered
+  `NOT PRESENT` every time. That makes a negative result from it worth something, which is not true
+  of every small model.
+
+It cannot verify, same as Gemini and held tighter. Quantization makes plausible fabrication more
+likely, so the main thread reads the cited line before anything is acted on.
+
 ## Briefing an agent
 
 State what to test, where the bug goes, what breaks for the user, why the current tests miss it, and
@@ -120,3 +154,35 @@ another agent's committed-in-progress work. Back up to the scratchpad first, and
 restoring to prove the restore was exact.
 
 An agent running mutations cannot share a working tree with an agent reading the same files.
+
+## Keeping the graph current
+
+**Nobody commits but the user.** Agents get exactly one git write, `git add -N <path>`, and it exists
+for the knowledge graph: discovery is git-tracked files only, so an untracked file is invisible no
+matter how often the graph is rebuilt. Registering the path is what makes it visible. The commit adds
+nothing on top, which is why this needs no commit at all.
+
+**Every agent that creates a file runs `git add -N` on it.** Measured, in a scratch repo, on a file
+whose contents were never staged:
+
+| | `update` | `build` |
+|---|---|---|
+| New file, `git add -N` | 0 nodes | 3 nodes, visible |
+| Later edit to that path | 0 nodes | 1 node, visible |
+
+So `-N` is sufficient and content staging is never needed. `update` is useless here regardless — it
+diffs commits and reports `0 files updated` for a file that visibly changed on disk.
+
+The rebuild is not the agent's job. `.claude/hooks/graph-rebuild.sh` runs `build --skip-flows` after
+every `Edit`/`Write`, 1.2 s, no extension filter — the parser covers 60+ languages and that list
+moves between releases, so `build` decides what it can parse rather than the hook.
+
+Two limits worth knowing. The graph stores Files, Classes and Functions, so an agent that only
+changed method bodies produces no new node and the rebuild is a no-op; the wins concentrate on work
+adding files, classes or methods. And a registered file that is later deleted shows as `D` in
+`git status` until the user clears it, so scratch files stay unregistered — use the job's tmp
+directory for those.
+
+**Never register a file while a mutation proof is in flight.** `-N` stages no content, so a broken
+file cannot reach the index, but the rebuild will index the broken parse and the graph will carry it
+until the restore triggers another rebuild.

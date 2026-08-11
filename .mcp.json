@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "code-review-graph": {
+      "command": "uvx",
+      "args": [
+        "code-review-graph",
+        "serve"
+      ],
+      "cwd": "/Users/macbook/Desktop/SpendWise",
+      "type": "stdio",
+      "env": {
+        "CRG_OPENAI_BASE_URL": "http://192.168.1.150:1234/v1",
+        "CRG_OPENAI_API_KEY": "lm-studio",
+        "CRG_OPENAI_MODEL": "text-embedding-nomic-embed-text-v1.5",
+        "CRG_ACCEPT_CLOUD_EMBEDDINGS": "1"
+      }
+    }
+  }
+}

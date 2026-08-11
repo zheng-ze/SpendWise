@@ -14,7 +14,7 @@ behavior; its own CLAUDE.md is stale — trust the Swift code, not its docs.
 
 **Read `docs/NAVIGATION.md` before starting work.** It is the reading order, the phase table and the
 sequencing rules. Two things from it that decide what you may touch: the current change is
-`add-domain-accounting`, and **no UI work happens before Phase 3 is green.**
+`add-ledger-runtime`, and **no UI work happens before Phase 3 is green.**
 
 ## Conventions
 
@@ -61,6 +61,14 @@ Analyzer must be at zero issues, not just zero errors.
 
 **The user commits themselves — never run `git commit`.** Report green and hand it over.
 
+**Run `git add -N <path>` on every file you create, agents included.** It is the one git write
+allowed here. The knowledge graph indexes git-tracked files only, so an untracked file is invisible
+to it, and `-N` registers the path without staging any content — `git diff --staged` stays empty and
+nothing reaches a commit. A `PostToolUse` hook rebuilds the graph after every edit, so registering
+the path is all an agent has to do. Bare `git add`, `git add -A` and `git add .` stay denied: those
+stage content and that is the user's call. Delete a registered file and git will show it as `D` until
+the user clears it, so do not register scratch files.
+
 **Never `git checkout`, `git restore`, `git stash`, `git reset` or `git clean`.** Restore a mutated
 file from a file copy. Under parallel agents these would discard another agent's work.
 
@@ -92,3 +100,14 @@ Two rules from it that are never worth rediscovering:
   It is a floor, not a default: read-only agents do not need it.
 - **Split parallel work by file ownership, never by workflow step.** The write-test, watch-red, fix,
   watch-green loop is the unit of proof and stays inside one agent.
+
+## Search tools
+
+**`docs/TOOLING.md` has the measured behavior** of `rg`, `ast-grep`, the code-review-graph MCP server
+and the local model, and which to reach for. Two rules from it that are never worth rediscovering:
+
+- **`rg` never reports a false zero, and everything else can.** A bare `ast-grep -p` pattern matches
+  nothing on Dart whatever the code contains, because the pattern parses without surrounding context.
+  Ground-truth every empty result with `rg`.
+- **The knowledge graph sees git-tracked files only.** `git add -N` on a file you create is what
+  makes it visible; the rebuild is a hook's job, not yours.
