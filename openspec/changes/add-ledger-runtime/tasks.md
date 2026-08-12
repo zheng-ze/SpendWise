@@ -170,14 +170,24 @@ Depends on `add-domain-accounting` — `AnalysisCache` computes `Accounting.anal
       `_teardown()` at `:45` so it covers a retry over a live runtime as well as an overlapping
       second `start()`. Teardown flushes before disposing, since the spec never says a retry may
       discard pending writes
-- [ ] 6.3a `_teardown` at `app/lib/boot/app_boot.dart:90` disposes the processor and the ledger but
+- [x] 6.3a `_teardown` at `app/lib/boot/app_boot.dart:90` disposes the processor and the ledger but
       never the `EventBus` created at `:54`, so each retry leaks an unclosed `StreamController`.
       Bounded, not urgent: `PersistenceProcessor.dispose()` cancels the subscription first, so a
       stale ledger publishes into a bus nobody is listening to rather than into a live pipeline.
       `Ledger` holds the bus at `ledger.dart:20` and has no `dispose` override, so decide whether
       `Ledger.dispose()` should close the bus it was handed or `AppBoot` should hold its own
       reference and close it. A test that retries twice and asserts the first bus is closed is what
-      would have caught this
+      would have caught this.
+      EDIT 12 Aug: `AppBoot` owns it, since `Ledger` mints its own bus when none is passed
+      (`ledger.dart:16`) and so cannot close one it may not own. Reference held at
+      `app_boot.dart:43`, closed at `:102` outside the `Ready` guard because a boot that failed
+      after minting the bus leaves one behind with no phase to reach it through.
+      Closing the bus made a stale mutation die at `bus.publish` with a `StateError` before
+      reaching the `ChangeNotifier` guard, which broke the existing
+      `retryDisposesTheRuntimeFromASuccessfulBoot`. Fixed at the source rather than by relaxing
+      that assertion: `_mutate` now checks `debugAssertNotDisposed` up front
+      (`ledger.dart:31`), so use-after-dispose is reported as itself whatever the teardown order.
+      Tests at `app_boot_retry_test.dart:70` and `:89`
 - [x] 6.4 Add the seed builder: build the sample dataset through the real mutation API into a throwaway
       state, then serialize as upsert changes. Assert/throw in debug — never swallow a rejected row.
       Serialization reads the FINAL state, it does not collect the mutator returns: every money
