@@ -12,6 +12,8 @@ typedef SaveErrorHandler = void Function(SaveBannerState state);
 abstract class LedgerStore {
   Future<LedgerState> load();
 
+  Future<void> seedIfFirstLaunch(List<LedgerChange> changes);
+
   Future<void> start();
 
   void enqueue(List<LedgerChange> changes);

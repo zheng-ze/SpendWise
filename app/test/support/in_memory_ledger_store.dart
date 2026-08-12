@@ -7,9 +7,17 @@ import 'package:spendwise/persistence/ledger_store.dart';
 /// in for the real store's debounce window. That makes a missing flush visible
 /// to a test rather than hidden by an eager apply.
 class InMemoryLedgerStore implements LedgerStore {
-  InMemoryLedgerStore({LedgerState? state}) : _state = state ?? LedgerState();
+  InMemoryLedgerStore({LedgerState? state, bool hasSeeded = false})
+    : _state = state ?? LedgerState(),
+      _seeded = hasSeeded;
 
   LedgerState _state;
+
+  bool _seeded;
+
+  LedgerState get state => _state;
+
+  bool get hasSeeded => _seeded;
 
   final List<List<LedgerChange>> _pending = [];
 
@@ -28,6 +36,17 @@ class InMemoryLedgerStore implements LedgerStore {
 
   @override
   Future<LedgerState> load() async => _state;
+
+  @override
+  Future<void> seedIfFirstLaunch(List<LedgerChange> changes) async {
+    if (_seeded) return;
+
+    // Set before enqueueing, so a crash mid-seed leaves a partial seed rather
+    // than seeding twice on the next launch.
+    _seeded = true;
+    enqueue(changes);
+    await flushNow();
+  }
 
   @override
   Future<void> start() async {
