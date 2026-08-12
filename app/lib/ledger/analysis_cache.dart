@@ -30,6 +30,8 @@ class AnalysisCache extends ChangeNotifier {
 
   StreamSubscription<List<LedgerChange>>? _subscription;
 
+  EventBus? _bus;
+
   List<AnalysisItem> _items = const [];
 
   int _revision = 0;
@@ -48,9 +50,13 @@ class AnalysisCache extends ChangeNotifier {
   /// rather than [revision], which bumps on every batch.
   int get itemsRevision => _itemsRevision;
 
+  /// A retry hands over a fresh bus, so this follows the new one rather than
+  /// staying on a bus nobody publishes to.
   void start(EventBus bus) {
-    if (_subscription != null) return;
+    if (identical(_bus, bus)) return;
 
+    unawaited(_subscription?.cancel());
+    _bus = bus;
     _subscription = bus.subscribe().listen((_) {
       _revision += 1;
       notifyListeners();
@@ -81,6 +87,7 @@ class AnalysisCache extends ChangeNotifier {
   Future<void> dispose() async {
     await _subscription?.cancel();
     _subscription = null;
+    _bus = null;
     super.dispose();
   }
 }

@@ -72,6 +72,20 @@ void main() {
     expect(cache.revision, 1);
   });
 
+  test('startOnANewBusMovesTheSubscription', () {
+    final first = EventBus();
+    final second = EventBus();
+    final cache = AnalysisCache()
+      ..start(first)
+      ..start(second);
+
+    second.publish([UpsertAccount(_account(name: 'b'))]);
+    expect(cache.revision, 1);
+
+    first.publish([UpsertAccount(_account(name: 'a'))]);
+    expect(cache.revision, 1, reason: 'the discarded bus is no longer counted');
+  });
+
   test('disposeStopsCountingBusEvents', () async {
     final bus = EventBus();
     final cache = AnalysisCache()..start(bus);
