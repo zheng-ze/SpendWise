@@ -205,16 +205,17 @@ Depends on `add-domain-accounting` — `AnalysisCache` computes `Accounting.anal
       overflows into the next month. This is the deviation `ledger_runtime.md` §6.2 flags: Swift
       searched forward and could leave the target month, so seed dates may differ from V1 late in
       the month.
-      EDIT 12 Aug: landed in the domain as `monthWithDayUtc` at
-      `packages/domain/lib/src/calendar_day.dart:6`, beside the `startOfDayUtc` rule it depends on.
-      It shifts the month before applying the day, so the source day of month never decides which
+      EDIT 12 Aug: landed in the domain as `shiftMonthThenClampDayUtc` at
+      `packages/domain/lib/src/calendar_day.dart:4`, beside the `startOfDayUtc` rule it depends on.
+      The name carries the ordering, so it needs no comment: the month shifts first, and the day is
+      then clamped into whatever month that lands in, so the source day of month never decides which
       month comes back. Not merged with `_addMonths`, which preserves the anchor's time-of-day and
       non-UTC-ness for the local scheduling path; only the `_clampDay` arithmetic is duplicated, and
       unifying it is a separate task rather than a change smuggled through here.
       The clamp is unobservable through the seed: probing every day the dataset uses (1, 3, 5, 8,
       12, 18, 20, 25) against every month, no seed date differs between naive and clamped. The
       biting test therefore lives in the domain, `calendar_day_test.dart:16`, where
-      `monthWithDayUtc(Mar 31, -1, day: 31)` gives Feb 28 against the naive Mar 3
+      `shiftMonthThenClampDayUtc(Mar 31, -1, day: 31)` gives Feb 28 against the naive Mar 3
 - [x] 6.5 Implement `seedIfFirstLaunch` gated on the persisted `hasSeeded` flag, NOT on emptiness. Set
       the flag first, then enqueue, then `flushNow` before `load`.
       Landed with 6.0a rather than on its own, since the contract member and its only Phase 3
