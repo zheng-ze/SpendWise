@@ -67,6 +67,49 @@ void main() {
     );
   });
 
+  test('retryClosesTheBusFromTheDiscardedRuntime', () async {
+    final store = RecordingLedgerStore(hasSeeded: true);
+    final app = boot(store);
+    await app.start();
+    final stale = app.phase as Ready;
+
+    await app.retry();
+
+    expect(
+      () => stale.ledger.bus.publish([
+        UpsertAccount(
+          Account(name: 'after dispose', type: AccountType.savings),
+        ),
+      ]),
+      throwsStateError,
+    );
+  });
+
+  test(
+    'aBootThatFailedAfterMintingTheBusLeavesNothingWiredToTheStore',
+    () async {
+      final store = RecordingLedgerStore(hasSeeded: true);
+      final app = boot(store);
+      // Fires inside PersistenceProcessor.start, after the bus exists but
+      // before any Ready phase can carry it.
+      store.failOn = StoreCall.start;
+      await app.start();
+      expect(app.phase, isA<Failed>());
+
+      store.failOn = null;
+      await app.retry();
+      expect(app.phase, isA<Ready>());
+
+      (app.phase as Ready).ledger.addAccount(
+        Account(name: 'after retry', type: AccountType.savings),
+      );
+      await store.flushNow();
+
+      // Two would mean the orphaned processor still holds a live subscription.
+      expect(store.state.moneySources, hasLength(1));
+    },
+  );
+
   test('lifecycleActsThroughTheRuntimeFromTheLatestBoot', () async {
     final store = RecordingLedgerStore(hasSeeded: true);
     final app = boot(store);

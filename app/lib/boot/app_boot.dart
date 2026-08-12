@@ -40,6 +40,8 @@ class AppBoot extends ChangeNotifier with WidgetsBindingObserver {
 
   AppPhase get phase => _phase;
 
+  EventBus? _bus;
+
   Future<void> start() async {
     await _teardown();
     _setPhase(const Loading());
@@ -51,7 +53,7 @@ class AppBoot extends ChangeNotifier with WidgetsBindingObserver {
 
       final state = await store.load();
 
-      final bus = EventBus();
+      final bus = _bus = EventBus();
       final persistence = PersistenceProcessor(store: store, bus: bus);
       await persistence.start();
 
@@ -86,14 +88,19 @@ class AppBoot extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  /// Flush must precede disposal or a retry drops the pending writes.
+  /// Flush must precede disposal or a retry drops the pending writes. The bus
+  /// close stays outside the phase guard, since a boot that failed after minting
+  /// one leaves it behind with no `Ready` to reach it through.
   Future<void> _teardown() async {
     final phase = _phase;
-    if (phase is! Ready) return;
+    if (phase is Ready) {
+      await phase.persistence.flush();
+      await phase.persistence.dispose();
+      phase.ledger.dispose();
+    }
 
-    await phase.persistence.flush();
-    await phase.persistence.dispose();
-    phase.ledger.dispose();
+    await _bus?.dispose();
+    _bus = null;
   }
 
   @override
