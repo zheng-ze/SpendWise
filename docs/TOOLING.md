@@ -106,6 +106,11 @@ scripts/qwen.sh "<question>" <file> [<file> ...]
 
 The wrapper prepends 1-based line numbers so the model can cite anchors.
 
+**An exhaustive sweep is the wrong job for it.** Asked to list every comment across five files, it
+returned `NOT PRESENT` for one holding four and found five of eight in another. It answers "where is
+X" well and "list all X" badly, so an inventory that must be complete is `rg`'s job. This is the
+false-zero rule with a second source: ground-truth every empty answer it gives.
+
 **Its window is 24576 tokens and the ceiling is hard.** Over-budget requests return HTTP 400
 `exceed_context_size_error`, never a silent truncation, so the confident-answer-over-truncated-input
 failure is not available to it. Tasks arrive pre-narrowed: this file, these functions, this diff.

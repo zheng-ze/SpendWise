@@ -23,6 +23,16 @@ constraints a reader would otherwise break. Never restate what the code says. No
 and no spec citations in source; no em dashes, semicolons or colon splices in comment prose. Tests
 are held to the same budget — the test name carries the intent.
 
+Write the comment last, and only after asking what a reader would get wrong without it. This is the
+most-repeated correction on the project by a wide margin: comments get written by default and
+trimmed on request, when the default should be silence. A name that carries the behaviour retires
+the comment that explained it — prefer renaming to annotating.
+
+**Plain language everywhere**, not only in task files: comments, identifiers and reports alike. Say
+what a thing does in ordinary words rather than in jargon or borrowed vocabulary. A function called
+`monthWithDayUtc` needed a comment to explain that it shifts the month before clamping the day;
+`shiftMonthThenClampDayUtc` needed none.
+
 **The port is a translation, not a redesign.** Type names match Swift (`LedgerState`, `Entry`,
 `MoneySource`, `TransactionCategory`, `LedgerChange`, `LedgerError`). Mutators keep the
 validate → mutate → return `List<LedgerChange>` contract. Deviations from Swift happen only where
@@ -88,6 +98,11 @@ Tick as you land, renumber or append when inserting, and check a group's depende
 done before starting it. At a phase boundary run adversarial reviews from several angles and file
 the confirmed gaps as numbered tasks — the `adversarial-review` skill has the procedure.
 
+**Verifying is not the deliverable; the next task is.** A request to check something finished is a
+request to check it *and then keep going*, so a turn that audits, reports and stops has done a
+fraction of the job. Verification earns its place by unblocking the next piece of work, not by
+existing.
+
 **Treat every finding as unverified until read at the cited `file:line`.** A subagent may cite a
 user instruction that is absent from your transcript and still be right — the user intervenes in
 running subagents directly.
@@ -115,6 +130,17 @@ is the point (the frozen Swift app, a whole module doc, cross-repo sweeps), `qwe
 pre-narrowed reads inside 20k tokens and whenever Gemini is throttled. Both return claims to verify,
 never conclusions to act on — but verifying a named anchor costs a fraction of finding it yourself.
 `docs/SUBAGENTS.md` has the split and the quota arithmetic.
+
+**Delegating is the default, and it fails by being forgotten rather than by being rejected.** Knowing
+the rule does not fire it: it has been broken twice in one session by an agent that had just written
+it down, once reading a 573-line doc directly and once hand-filtering a file already earmarked for
+Gemini. Three moments are the trigger, and each is a hard stop, not a preference:
+
+- About to `Read` a file over ~300 lines, or the third file in a row on one question. Dispatch instead.
+- About to write a second shell command that filters, greps or reshapes the same data. The first is
+  narrowing; the second means the analysis itself is the job, and the job belongs to a reader model.
+- Already decided a file goes to Gemini. Then it goes now, unfiltered. Preparing it by hand spends
+  the tokens the dispatch existed to save.
 
 **`docs/TOOLING.md` has the measured behavior** of `rg`, `ast-grep`, the code-review-graph MCP server
 and the local model, and which to reach for. Two rules from it that are never worth rediscovering:

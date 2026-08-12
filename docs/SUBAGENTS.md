@@ -30,13 +30,18 @@ own work then has to fit around. Project agent types resolve from a nested agent
 included, so name the type explicitly: a brief saying "delegate the Swift reading" without naming the
 agent gets a direct read, or a dispatch to whatever type the agent guesses at.
 
-**The readers are leaves.** `qwen-local`, `gemini-executor` and `gemini-indexer` call their model and
-return. They never dispatch anything themselves, and they never substitute their own reading when the
-call fails — a reader that answers from `Read` has spent the exact tokens it was dispatched to save
-and misreported which model did the work. Deciding where a request should go instead is the
-dispatcher's job, so a reader that cannot serve one reports why and stops. `qwen-local` proves its
-call by quoting the wrapper's `prompt_tokens` line; a report without it means the local model was
-never asked.
+**The readers are leaves.** `qwen-local`, `gemini-executor`, `gemini-indexer` and `file-reader` all
+return their answer and stop. None of them dispatches anything, and none of them decides where a
+request should go instead — that is the dispatcher's call, so a reader that cannot serve one reports
+why. `qwen-local` proves its call by quoting the wrapper's `prompt_tokens` line, and a report
+without it means the local model was never asked.
+
+**A dead reader routes to `file-reader`, never to a self-read.** The CLI readers hold `tools: Bash`
+for their own model call, which is also enough to `cat` the file, and measured here that is what
+they do: three consecutive dispatches read the file directly after quota trouble and presented the
+result as though the model had answered. The prohibition alone did not stop it. So when Gemini's 20
+daily calls are spent and the qwen host is off, the reading goes to `file-reader` on Sonnet — a
+sanctioned path that costs less than the main thread and reports honestly that it read directly.
 
 Delegate at the start, while the reading is still ahead of the agent. An instruction arriving forty
 tool calls in saves nothing, because the tree is already read. Where the main thread has already
@@ -51,6 +56,7 @@ located something, put the anchors in the brief rather than making the agent fin
 | `gemini-indexer` | Bash | Locating `file:line` anchors and target symbols across the tree | Settling a question that will be acted on without a read |
 | `gemini-executor` | Bash | Orienting summaries and flow traces over large directories | Anything needing exact line numbers |
 | `qwen-local` | Bash | Pre-narrowed reads over a named file list on the local unmetered model | Anything over ~20k tokens of source, or trusting its line numbers |
+| `file-reader` | Read, Grep, Glob, Bash | Volume reading when Gemini is spent and the qwen host is off; runs on Sonnet | Deciding what the extract means. It returns lines, not verdicts |
 | `cavecrew-investigator` | Read, Grep, Glob, Bash | Read-only locating with compressed output | Suggesting fixes. It refuses by design |
 | `mutation-prober` | Read, Edit, Bash, Grep, Glob | Proving a rule is unguarded, or that a new test really bites | Sharing a working tree with another agent |
 | `gate-runner` | Bash, Read | Independent green verification | Writing code |
@@ -65,6 +71,12 @@ failure to brief it. Reach for it when the edit is genuinely bounded.
 is the unit of proof and must stay inside one agent. Split across a boundary, the handoff carries a
 claim where an observation should be: the agent that writes a test must be the one that watches it
 fail.
+
+Finer granularity is bought along the file axis, never the step axis: more agents each owning fewer
+files, each still running the whole loop. Handing one agent the test, another the red run and a
+third the fix looks like tighter scoping but destroys the proof, because an agent that inherits
+"the test failed" was told a result rather than seeing one, and a test that never ran red reads
+exactly like one that did.
 
 Give every parallel agent an explicit scope fence naming the files it owns and the files other
 agents hold. When two agents must touch the same file, name the regions, and tell both to re-read
