@@ -250,31 +250,85 @@ Depends on `add-domain-accounting` — `AnalysisCache` computes `Accounting.anal
       `resolvePlans()` bare, taking a device-local `now` and `Calendar.current`, so this is the
       sanctioned PORT FIX rather than a translation. `theDefaultClockIsUtc` asserts `isUtc`, so it
       holds in any timezone and still fails if the `.toUtc()` is dropped
-- [ ] 6.8 Add banner state: displayed message is plan-error before save-state. Save messages track the
+- [x] 6.8 Add banner state: displayed message is plan-error before save-state. Save messages track the
       store's `SaveBannerState`. Displayed message is `planError ?? saveStateMessage`. The strings are
       `clear` no banner, `retrying` "Couldn't save changes, retrying", `failedWillRetry` "Couldn't save
       changes, will retry shortly". A store reports `clear` only after a non-clear state, so an opening
-      `clear` is not a dismissal and must not clear a plan-error already showing
-- [ ] 6.9 Add the plan-error banner: message counts **distinct plan ids**, not failures; auto-dismiss
+      `clear` is not a dismissal and must not clear a plan-error already showing.
+      EDIT 12 Aug: `BannerState` at `app/lib/boot/banner_state.dart:12`, precedence at `:19`,
+      `receiveSaveState` at `:30`. The two channels are fully independent rather than relying on the
+      store's clear-only-after-non-clear discipline, so a plan error survives any save state
+- [x] 6.9 Add the plan-error banner: message counts **distinct plan ids**, not failures; auto-dismiss
       after 4 s; a re-fire cancels the pending timer and arms a fresh window, and the cancelled timer
-      must not clear the newer message
-- [ ] 6.10 Test: boot order against a fake store — `setErrorHandler` before `seedIfFirstLaunch` before
-      `load`; seed once, delete everything, reboot, confirm no re-seed
-- [ ] 6.11 Test: banner distinct-plan-count phrasing, the 4 s dismissal, and the re-fire cancellation
+      must not clear the newer message.
+      EDIT 12 Aug: `receivePlanErrors` at `app/lib/boot/banner_state.dart:35`. Not wired into
+      `AppBoot`, which stays task 7.1. Tests at `app/test/boot/banner_state_test.dart`, 11 of them.
+      The agent's red was a whole-file compile error, which proves nothing about whether the tests
+      bite, so each rule was checked by breaking it in turn: dropping the `cancel()` fails only
+      `refireCancels...`, flipping the precedence fails only `planErrorTakesPrecedence...`, clearing
+      the plan error on a save `clear` fails only `incomingClearDoesNotDismiss...`, and swapping the
+      distinct count for `failures.length` fails only `oneDistinctPlanIdSaysSingular...`
+- [x] 6.10 Test: boot order against a fake store — `setErrorHandler` before `seedIfFirstLaunch` before
+      `load`; seed once, delete everything, reboot, confirm no re-seed.
+      EDIT 12 Aug: already covered by work landed under 6.1 and 6.5, so nothing new was written.
+      Order at `app/test/boot/app_boot_test.dart:20`, re-seed at
+      `app/test/boot/seed_gating_test.dart:46`, which deletes and purges the seeded account, flushes,
+      asserts the store is empty, then boots a second `AppBoot` against the same store. Both halves
+      were checked by breaking them: swapping `setErrorHandler` and `seedIfFirstLaunch` in
+      `app_boot.dart` fails three tests including `storeIsWiredForErrorsBeforeSeedingAndSeededBeforeLoad`,
+      and gating the seed on emptiness rather than the flag fails `anEmptiedLedgerIsNotReseeded`
+- [x] 6.11 Test: banner distinct-plan-count phrasing, the 4 s dismissal, and the re-fire cancellation.
+      EDIT 12 Aug: written under 6.9 rather than separately, at `app/test/boot/banner_state_test.dart`.
+      Phrasing at `:53` and `:61`, dismissal at `:73`, re-fire at `:82`. Each was checked by breaking
+      the rule it guards, listed on 6.9
 
 ## 7. Riverpod wiring and close-out
 
-- [ ] 7.1 Add providers for phase, ledger, persistence, analysis cache and banner state. `AnalysisCache.start`
-      must join the bus at provider initialization, before the first mutate is possible
-- [ ] 7.2 Add the first controller tests over the providers
-- [ ] 7.3 Run `cd packages/domain && dart analyze && dart test` and `cd app && flutter analyze && flutter test`.
-      Analyzer at zero issues, not just zero errors
-- [ ] 7.4 Confirm no `double` money reached `app/lib/`
-- [ ] 7.5 Confirm the coverage map below is complete
+- [x] 7.1 Add providers for phase, ledger, persistence, analysis cache and banner state. `AnalysisCache.start`
+      must join the bus at provider initialization, before the first mutate is possible.
+      EDIT 12 Aug: `app/lib/boot/providers.dart`, seven providers from `:15` to `:71`. No concrete
+      store exists yet, so `storeProvider` at `:15` throws unless overridden and `main.dart` stays
+      untouched, both of which wait on `add-drift-store`. The bus join uses the synchronous
+      `notifyListeners` inside `_setPhase`: `app_boot.dart:63` announces `Ready` before
+      `resolvePlans` on the next line with no await between, so the listener at `providers.dart:47`
+      joins the cache inside that gap. Ledger and persistence are nullable outside `Ready` rather
+      than throwing, since loading and failed are states a screen renders around. Riverpod 3 still
+      has `ChangeNotifierProvider` but moved it to `package:flutter_riverpod/legacy.dart`
+- [x] 7.2 Add the first controller tests over the providers.
+      EDIT 12 Aug: `app/test/boot/providers_test.dart`, 6 tests. Two were checked by breaking what
+      they guard: dropping the `cache.start` call fails only
+      `analysisCacheHasJoinedTheBusByTheTimeLedgerIsFirstReachable`, and dropping the `onSaveState`
+      wiring fails only `bannerStateReceivesASaveStateFromTheStore`
+- [x] 7.2a `AnalysisCache.start` returns early once subscribed (`analysis_cache.dart:52`), so a
+      retry leaves the cache on the bus from the discarded runtime and its revision never moves
+      again. Confirmed with a probe: boot, retry, mutate through the new ledger, and revision stays
+      at 0, so analysis freezes silently for the rest of the session. The provider cannot fix this
+      alone because the cache has no way to swap buses. Either `start` accepts a new bus and
+      re-subscribes, or the cache gains an explicit `stop`. A test that boots, retries, mutates and
+      asserts the revision moved is what would have caught it.
+      EDIT 12 Aug: `start` now keys its early return on bus identity rather than on having any
+      subscription (`analysis_cache.dart:56`), so a repeat call with the same bus still does nothing
+      while a fresh one moves the subscription. `dispose` clears the remembered bus too, or a later
+      `start` on that same instance would no-op. Tests at `analysis_cache_test.dart:75` and
+      `providers_test.dart:67`, both confirmed red against the old early return
+- [x] 7.3 Run `cd packages/domain && dart analyze && dart test` and `cd app && flutter analyze && flutter test`.
+      Analyzer at zero issues, not just zero errors.
+      EDIT 12 Aug: domain 497 pass and app 118 pass, both analyzers at zero issues
+- [x] 7.4 Confirm no `double` money reached `app/lib/`.
+      EDIT 12 Aug: zero occurrences of `double` in `app/lib/`. The domain has one, `Accounting.fraction`
+      at `packages/domain/lib/src/accounting.dart:190`, which takes `Decimal` money and returns the
+      ratio for a progress bar, so the `double` is the proportion rather than an amount
+- [x] 7.5 Confirm the coverage map below is complete.
+      EDIT 12 Aug: `EventDrivenTests.swift` holds 16 tests and all 16 names in the map match it, each
+      with a Dart counterpart in the file its task number implies. Two corrections to the map rather
+      than to the code: the Dart-only row named `reentrantMutateFromSubscriberThrows`, which is really
+      `reentrantPublishFromSubscriberThrows` at `app/test/ledger/event_bus_test.dart:144`, and the
+      refresh guard suite reaches its claimed 5 only by counting `staleComputeResultIsDiscarded` at
+      `app/test/ledger/analysis_cache_test.dart:125`, which guards refresh without saying so in its name
 
 ## 8. Coverage map — `EventDrivenTests.swift`
 
-16 Swift tests, all new; `app/test/` is currently empty.
+16 Swift tests, all new. Every row below is ported and its task is closed.
 
 | Swift test | Ported by |
 |---|---|
@@ -301,6 +355,6 @@ Depends on `add-domain-accounting` — `AnalysisCache` computes `Accounting.anal
 |---|---|---|
 | refresh guard suite (5 tests) | 5.7, 5.8, 5.9 | Swift never unit-tested `refresh`; the single-threaded runtime makes the interleavings deterministic and therefore testable |
 | processorSubscribesBeforeStoreStartCompletes | 4.6 | Dart's subscribe-then-await sequencing has no Swift equivalent |
-| reentrantMutateFromSubscriberThrows | 2.6 | Hazard created by synchronous delivery |
+| reentrantPublishFromSubscriberThrows | 2.6 | Hazard created by synchronous delivery |
 | Boot-order integration test | 6.10 | Wiring order is what makes the no-buffering difference harmless |
 | Banner tests | 6.11 | Swift covered these only by inspection |

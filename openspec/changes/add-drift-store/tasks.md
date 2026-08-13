@@ -11,31 +11,50 @@ the suite never actually sleeps.
 
 ## 1. Replay in the domain
 
-- [ ] 1.1 Add `LedgerState.replaying(changes)` and `apply(changes)` in `packages/domain/`: a plain
+- [x] 1.1 Add `LedgerState.replaying(changes)` and `apply(changes)` in `packages/domain/`: a plain
       switch writing directly into the three maps plus plans. Upserts store by id, deletions remove
-- [ ] 1.2 No validation, no cascade, no invariant sweep — replay reconstructs already-validated data.
+      EDIT: `apply` is an extension in the part file, `replaying` on the class, because Dart forbids
+      named constructors in extensions
+- [x] 1.2 No validation, no cascade, no invariant sweep — replay reconstructs already-validated data.
       Record the pocket-unlink consequence in a comment: the parent upsert rides the same stream
-- [ ] 1.3 Export from the barrel; extend `test/barrel_exports_test.dart`
-- [ ] 1.4 Test: `replayInitRebuildsEquivalentState` — account, category and entry replay equal to a
+- [x] 1.3 Export from the barrel; extend `test/barrel_exports_test.dart`
+      EDIT: no export line needed, `domain.dart:19` already exports `ledger_state.dart`
+- [x] 1.4 Test: `replayInitRebuildsEquivalentState` — account, category and entry replay equal to a
       hand-built state
-- [ ] 1.5 Test: serialize a mutated state to upserts, replay, compare — round trip is identity
-- [ ] 1.6 Test: replaying a pocket deletion with no parent upsert leaves the parent's links untouched
+- [x] 1.5 Test: serialize a mutated state to upserts, replay, compare — round trip is identity
+- [x] 1.6 Test: replaying a pocket deletion with no parent upsert leaves the parent's links untouched
       (pins the deliberate non-cascade)
-- [ ] 1.7 Confirm `dart analyze` and `dart test` are green; `packages/domain/pubspec.yaml` still has
+      EDIT: written as a contrasting pair at `ledger_state_replay_test.dart:38` and `:50`, both
+      building the parent link through `addAccount`/`addPocket`. The unlink lives in
+      `_detachAndTombstonePocket`, reached through `purgePocket`, so the mutator half is
+      `deletePocket` then `purgePocket`
+- [x] 1.7 Confirm `dart analyze` and `dart test` are green; `packages/domain/pubspec.yaml` still has
       no `flutter:` key
+- [ ] 1.8 Rewire `app/test/support/in_memory_ledger_store.dart:99` `_apply` to call the domain's
+      `apply`, and drop its now-false doc comment. Two copies of the switch will otherwise drift and
+      the fake stops proving anything about the real store
 
 ## 2. Dependencies and schema
 
-- [ ] 2.1 Add `drift`, `sqlite3_flutter_libs`, `path_provider`; add `drift_dev` and `build_runner` as
+- [x] 2.1 Add `drift`, `sqlite3_flutter_libs`, `path_provider`; add `drift_dev` and `build_runner` as
       dev dependencies
-- [ ] 2.2 Define tables `accounts`, `sub_pockets`, `categories`, `entries`, `plans`, `store_meta`,
+- [x] 2.2 Define tables `accounts`, `sub_pockets`, `categories`, `entries`, `plans`, `store_meta`,
       mirroring the SwiftData rows one-for-one
-- [ ] 2.3 Flatten the entry template into `template_*` columns on the plan row
-- [ ] 2.4 Give every row `version_data BLOB` and `lifecycle INT`; store money as TEXT, never a float
+- [x] 2.3 Flatten the entry template into `template_*` columns on the plan row
+- [x] 2.4 Give every row `version_data BLOB` and `lifecycle INT`; store money as TEXT, never a float
       column
-- [ ] 2.5 Reserve `entries.note TEXT` and the system-entry marker column now — unwritten by this
+      EDIT: carried by a `SyncedRow` mixin. `store_meta` deliberately stays out, being device-local
+- [x] 2.5 Reserve `entries.note TEXT` and the system-entry marker column now — unwritten by this
       change, but free today and a migration later
-- [ ] 2.6 Generate the Drift code; confirm `flutter analyze` is at zero issues
+      EDIT: marker is `system_kind INTEGER` (0 opening, 1 adjustment, null user entry). The frozen
+      Swift `SDEntry` has neither column, so both are port-only reservations rather than parity and
+      they sit outside the domain `Entry` mapping. Group 3 must not round-trip them
+- [x] 2.6 Generate the Drift code; confirm `flutter analyze` is at zero issues
+      EDIT: `store_meta`'s single-row check is a table-level `customConstraints`, since the natural
+      `integer().check(id.equals(0))` self-references the getter and trips `recursive_getters`
+- [x] 2.7 Test (new): `schema_test.dart` reads the real DDL through `PRAGMA table_info` — money TEXT,
+      version and lifecycle on the five synced tables, reserved columns nullable, flat template,
+      `store_meta` rejecting a second row
 
 ## 3. Mappers
 
