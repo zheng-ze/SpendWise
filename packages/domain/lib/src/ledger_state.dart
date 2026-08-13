@@ -22,6 +22,7 @@ part 'ledger_state_invariants.dart';
 part 'ledger_state_plans.dart';
 part 'ledger_state_purge.dart';
 part 'ledger_state_queries.dart';
+part 'ledger_state_replay.dart';
 
 class LedgerState {
   LedgerState({
@@ -34,6 +35,14 @@ class LedgerState {
        _categories = {...?categories},
        _plans = {...?plans};
 
+  LedgerState.replaying(List<LedgerChange> changes)
+    : _moneySources = {},
+      _entries = {},
+      _categories = {},
+      _plans = {} {
+    apply(changes);
+  }
+
   final Map<String, MoneySource> _moneySources;
 
   final Map<String, Entry> _entries;
@@ -42,8 +51,9 @@ class LedgerState {
 
   final Map<String, RecurringPlan> _plans;
 
-  /// Views, not the tables. Every write goes through a mutator, so the guards
-  /// cannot be walked around and the invariants have a single choke point.
+  /// Views, not the tables. Mutators are one of only two write paths, so the
+  /// guards cannot be walked around and the invariants have a single choke
+  /// point. Replay is the other, and it deliberately skips both.
   Map<String, MoneySource> get moneySources =>
       UnmodifiableMapView(_moneySources);
 

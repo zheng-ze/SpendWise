@@ -31,6 +31,28 @@ void main() {
     expect(resolution, isA<CategoryResolution>());
     expect(Accounting.netWorth(LedgerState()), worth);
   });
+
+  test('replay is nameable through the barrel alone', () {
+    final LedgerState state = LedgerState.replaying([
+      UpsertEntry(
+        Entry(amount: Decimal.one, name: 'rent', sourceID: _accountID),
+      ),
+    ]);
+    state.apply([UpsertCategory(_category)]);
+
+    expect(state.entries.values.single.name, 'rent');
+    expect(state.categories[_category.id], _category);
+  });
 }
+
+final _category = TransactionCategory(
+  id: '00000000-0000-4000-8000-000000000002',
+  name: 'food',
+  kind: CategoryKind.expense,
+  colorHex: '#888888',
+  includeInAnalysis: true,
+  parentID: null,
+  symbol: 'tag',
+);
 
 const _accountID = '00000000-0000-4000-8000-000000000001';
