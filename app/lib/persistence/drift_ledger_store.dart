@@ -70,9 +70,45 @@ class DriftLedgerStore implements LedgerStore {
 
   bool _lastCycleGaveUp = false;
 
+  /// Cleared only once the transaction carrying it has committed, so a rolled
+  /// back seed stays unseeded.
+  bool _seedFlagPending = false;
+
   int get debugPendingLength => _pending.length;
 
   Future<void> debugSaveCycle() => _saveCycle();
+
+  Future<List<LedgerChange>> debugLoadChanges() => _loadChanges();
+
+  /// Replay order is fixed: accounts, pockets, categories, entries, plans.
+  Future<List<LedgerChange>> _loadChanges() async {
+    Future<List<D>> live<T extends Table, D extends DataClass>(
+      TableInfo<T, D> table,
+    ) async {
+      final rows = await db
+          .customSelect(
+            'SELECT * FROM ${table.actualTableName} WHERE lifecycle != ?',
+            variables: [Variable<int>(LifecycleState.tombstoned.code)],
+            readsFrom: {table},
+          )
+          .get();
+      return [for (final row in rows) await table.map(row.data)];
+    }
+
+    final accounts = await live(db.accounts);
+    final pockets = await live(db.subPockets);
+    final categories = await live(db.categories);
+    final entries = await live(db.entries);
+    final plans = await live(db.plans);
+
+    return [
+      for (final row in accounts) UpsertAccount(accountFromRow(row)),
+      for (final row in pockets) UpsertPocket(pocketFromRow(row)),
+      for (final row in categories) UpsertCategory(categoryFromRow(row)),
+      for (final row in entries) UpsertEntry(entryFromRow(row)),
+      for (final row in plans) UpsertPlan(planFromRow(row)),
+    ];
+  }
 
   @override
   Future<void> start() async {
@@ -94,13 +130,20 @@ class DriftLedgerStore implements LedgerStore {
   }
 
   @override
-  Future<LedgerState> load() async {
-    throw UnimplementedError('load lands with task group 7');
-  }
+  Future<LedgerState> load() async =>
+      LedgerState.replaying(await _loadChanges());
 
+  /// The flag rides the save transaction rather than a transaction of its own,
+  /// so a crash before that commit leaves it unset with no seed rows and the
+  /// next launch seeds cleanly.
   @override
   Future<void> seedIfFirstLaunch(List<LedgerChange> changes) async {
-    throw UnimplementedError('seedIfFirstLaunch lands with task group 7');
+    final meta = await db.select(db.storeMeta).getSingleOrNull();
+    if (meta?.hasSeeded ?? false) return;
+
+    _seedFlagPending = true;
+    enqueue(changes);
+    await flushNow();
   }
 
   /// Everything enqueued before this call is on disk when it returns.
@@ -177,7 +220,7 @@ class DriftLedgerStore implements LedgerStore {
   Future<void> _runCycle() async {
     _lastCycleGaveUp = false;
     for (var attempt = 0; attempt <= _maxRetries; attempt++) {
-      if (_pending.isEmpty) return;
+      if (_pending.isEmpty && !_seedFlagPending) return;
 
       // The applied list is coalesced, the cleared count is raw. Clearing the
       // coalesced count would leave written changes pending, and clearing more
@@ -185,11 +228,14 @@ class DriftLedgerStore implements LedgerStore {
       final taken = _pending.length;
       final coalesced = _coalesce(_pending.sublist(0, taken));
 
+      final seedingThisCycle = _seedFlagPending;
+
       try {
         await db.transaction(() async {
           for (final change in coalesced) {
             await _apply(change);
           }
+          if (seedingThisCycle) await _writeSeedFlag();
         });
       } on Object {
         if (attempt < _maxRetries) {
@@ -204,9 +250,22 @@ class DriftLedgerStore implements LedgerStore {
       }
 
       _pending.removeRange(0, taken);
+      if (seedingThisCycle) _seedFlagPending = false;
       _report(SaveBannerState.clear);
       return;
     }
+  }
+
+  /// An upsert rather than an update: the device id is cached the first time it
+  /// is claimed, so an attempt whose insert of the meta row was rolled back
+  /// leaves the cache holding an id that no row carries, and a bare update
+  /// would match nothing.
+  Future<void> _writeSeedFlag() async {
+    await db
+        .into(db.storeMeta)
+        .insertOnConflictUpdate(
+          rows.StoreMetaRow(id: 0, deviceId: await _device, hasSeeded: true),
+        );
   }
 
   void _armTimedRetry() {

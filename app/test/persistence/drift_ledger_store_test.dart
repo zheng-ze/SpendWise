@@ -729,4 +729,184 @@ void main() {
       },
     );
   });
+
+  group('load', () {
+    domain.SubPocket pocket(String id, String name) =>
+        domain.SubPocket(id: id, name: name);
+
+    RecurringPlan plan(String id) => RecurringPlan(
+      id: id,
+      template: EntryTemplate(
+        amount: Decimal.parse('25'),
+        name: 'rent',
+        sourceID: 'a1',
+      ),
+      frequency: RecurrenceFrequency.monthly,
+      anchor: DateTime.utc(2026, 1, 1),
+      lastResolvedDate: DateTime.utc(2026, 1, 1),
+    );
+
+    test('loadReturnsWhatWasEnqueued', () async {
+      store.enqueue([
+        UpsertAccount(account('a1', 'wallet')),
+        UpsertPocket(pocket('p1', 'rainy day')),
+        UpsertCategory(category('c1', 'food', parentID: null)),
+        UpsertEntry(entry('e1', '12.34')),
+        UpsertPlan(plan('pl1')),
+      ]);
+      await store.flushNow();
+
+      final state = await store.load();
+
+      expect(state.moneySources.keys.toSet(), {'a1', 'p1'});
+      expect(state.categories.keys.toSet(), {'c1'});
+      expect(state.entries.keys.toSet(), {'e1'});
+      expect(state.plans.keys.toSet(), {'pl1'});
+      expect(state.entries['e1']!.amount, Decimal.parse('12.34'));
+      expect(state.entries['e1']!.date, DateTime.utc(2026, 3, 14));
+      expect(state.moneySources['a1']!.name, 'wallet');
+    });
+
+    test('deleteChangeRemovesFromLoadedState', () async {
+      store.enqueue([
+        UpsertAccount(account('a1', 'wallet')),
+        UpsertEntry(entry('e1', '12.34')),
+      ]);
+      await store.flushNow();
+
+      store.enqueue([const DeleteEntry('e1')]);
+      await store.flushNow();
+
+      final state = await store.load();
+
+      expect(state.entries, isEmpty);
+      expect(state.moneySources.keys.toSet(), {'a1'});
+
+      // The row survives the delete, so load is filtering rather than the
+      // delete having removed it.
+      final row = await db.select(db.entries).getSingle();
+      expect(row.lifecycle, LifecycleState.tombstoned.code);
+    });
+
+    test(
+      'load orders changes accounts pockets categories entries plans',
+      () async {
+        store.enqueue([
+          UpsertPlan(plan('pl1')),
+          UpsertEntry(entry('e1', '12.34')),
+          UpsertCategory(category('c1', 'food', parentID: null)),
+          UpsertPocket(pocket('p1', 'rainy day')),
+          UpsertAccount(account('a1', 'wallet')),
+        ]);
+        await store.flushNow();
+
+        final changes = await store.debugLoadChanges();
+
+        expect(changes.map((c) => c.runtimeType).toList(), [
+          UpsertAccount,
+          UpsertPocket,
+          UpsertCategory,
+          UpsertEntry,
+          UpsertPlan,
+        ]);
+      },
+    );
+
+    test('a corrupt version vector does not fail the load', () async {
+      store.enqueue([UpsertAccount(account('a1', 'wallet'))]);
+      await store.flushNow();
+
+      await db.customUpdate(
+        'UPDATE accounts SET version_data = ? WHERE id = ?',
+        variables: [
+          Variable<Uint8List>(Uint8List.fromList([0xff, 0xfe])),
+          const Variable<String>('a1'),
+        ],
+        updates: {db.accounts},
+      );
+
+      // Recorded deviation from persistence.md:426-428, which expects a decode
+      // error to surface as a load error. The row mappers never touch
+      // version_data, so load cannot see the damage.
+      final state = await store.load();
+      expect(state.moneySources.keys.toSet(), {'a1'});
+    });
+
+    test('a storage error propagates out of load', () async {
+      await db.customStatement('DROP TABLE entries');
+
+      // Not `isA<Object>()`, which an UnimplementedError from an unbuilt load
+      // would satisfy just as well as the storage failure under test.
+      await expectLater(
+        store.load(),
+        throwsA(
+          isA<Exception>().having(
+            (e) => e.toString(),
+            'message',
+            contains('entries'),
+          ),
+        ),
+      );
+    });
+  });
+
+  group('seeding', () {
+    List<LedgerChange> seedChanges() => [
+      UpsertAccount(account('a1', 'wallet')),
+      UpsertEntry(entry('e1', '12.34')),
+    ];
+
+    // An absent meta row reads as unseeded, which is what a seed that never
+    // reached its commit leaves behind.
+    Future<bool> hasSeeded() async =>
+        (await db.select(db.storeMeta).getSingleOrNull())?.hasSeeded ?? false;
+
+    test('seedRunsOnceAndIsGatedByFlagNotEmptiness', () async {
+      await store.seedIfFirstLaunch(seedChanges());
+
+      expect(await hasSeeded(), isTrue);
+      expect((await store.load()).entries.keys.toSet(), {'e1'});
+
+      // Wiping every row leaves the flag as the only thing that can gate the
+      // second call, so a store gating on emptiness would seed again here.
+      await db.customStatement('DELETE FROM accounts');
+      await db.customStatement('DELETE FROM entries');
+
+      await store.seedIfFirstLaunch(seedChanges());
+
+      expect(await db.select(db.accounts).get(), isEmpty);
+      expect(await db.select(db.entries).get(), isEmpty);
+      expect((await store.load()).entries, isEmpty);
+    });
+
+    test('a failed seed save leaves has_seeded unset', () async {
+      // Outlasts every in-cycle retry, so the seed genuinely gives up rather
+      // than merely stumbling on the way to a commit.
+      flaky.failures = 100;
+
+      final seed = store.seedIfFirstLaunch(seedChanges());
+      for (var i = 0; i < 5; i++) {
+        await settle();
+        clock.fire();
+      }
+      await seed;
+
+      expect(await hasSeeded(), isFalse);
+      expect(await db.select(db.accounts).get(), isEmpty);
+      expect(await db.select(db.entries).get(), isEmpty);
+    });
+
+    test('a seed that recovers commits the flag with its rows', () async {
+      flaky.failures = 1;
+
+      // The first attempt fails, the in-cycle backoff timer needs firing.
+      final seed = store.seedIfFirstLaunch(seedChanges());
+      await settle();
+      clock.fire();
+      await seed;
+
+      expect(await hasSeeded(), isTrue);
+      expect((await store.load()).entries.keys.toSet(), {'e1'});
+    });
+  });
 }
