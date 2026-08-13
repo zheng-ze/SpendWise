@@ -151,15 +151,25 @@ the suite never actually sleeps.
 
 ## 6. flushNow barrier
 
-- [ ] 6.1 Call `start()` defensively; it must be idempotent
-- [ ] 6.2 Push a barrier through the same ingest queue the batches ride and await it, so that on
+- [x] 6.1 Call `start()` defensively; it must be idempotent
+- [x] 6.2 Push a barrier through the same ingest queue the batches ride and await it, so that on
       resumption every earlier batch is provably in `pending`
-- [ ] 6.3 Cancel the armed debounce timer, then await any in-flight save
-- [ ] 6.4 Loop save cycles while `pending` is non-empty — this loop is the fix for Swift's single
+      EDIT: removing the barrier leaves the whole suite green and no test can distinguish it.
+      `enqueue` drains synchronously here, so batches are already in `pending` by the time the flush
+      awaits, where Swift's drain was an async stream that genuinely needed the barrier. Kept as
+      defensive structure, since it holds the guarantee if the drain ever becomes async
+- [x] 6.3 Cancel the armed debounce timer, then await any in-flight save
+- [x] 6.4 Loop save cycles while `pending` is non-empty — this loop is the fix for Swift's single
       trailing flush, which could early-return with work still buffered
-- [ ] 6.5 Terminate the loop on a cycle that ends in `failedWillRetry`, so a flush cannot spin against a
+      EDIT: the first two versions of the loop test passed against a single trailing save. One extra
+      batch never needs a second cycle, because it lands in pending before the flush awaits. The
+      test now chains two batches through `onTransactionBegin` so each arrives mid-transaction of a
+      different save, and fires no clock afterwards so no debounce can carry them
+- [x] 6.5 Terminate the loop on a cycle that ends in `failedWillRetry`, so a flush cannot spin against a
       broken disk; the timed retry owns recovery
-- [ ] 6.6 Return without touching the database or reporting state when the store is already idle
+      EDIT: `_lastCycleGaveUp` resets at cycle start, not only on failure, or one earlier failure
+      would disable the loop for every later flush
+- [x] 6.6 Return without touching the database or reporting state when the store is already idle
 
 ## 7. Load, tombstones, seeding
 
