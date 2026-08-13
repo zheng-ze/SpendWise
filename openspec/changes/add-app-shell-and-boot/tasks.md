@@ -81,6 +81,12 @@ boot against). The master doc's sequencing rule: no UI work before Phase 3 is gr
       store reports clear
 - [ ] 6.3 Test: the banner persists while the state is non-clear; plan errors take precedence; nothing
       renders on a healthy run
+- [ ] 6.4 Warn when web storage is not durable. `storageIsDurable` in
+      `app/lib/persistence/database_connection.dart` is already computed and has no consumer, so a
+      browser that offers no durable storage loses the whole ledger when the tab closes and the app
+      says nothing. Always true on native. Unlike the save state this is a permanent condition rather
+      than a passing one, so decide whether it belongs in this overlay or somewhere it cannot be
+      dismissed. Filed by `add-drift-store` group 9
 
 ## 7. Close-out
 

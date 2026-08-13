@@ -46,7 +46,13 @@ folding it in here (`design.md`).
 - [ ] 5.3 Checklist: data persists across a page reload, which exercises the web database backend
       rather than the UI; the analysis pass computes on its synchronous path without blocking
       visibly
-- [ ] 5.4 Record results and capture screenshots
+- [ ] 5.4 Set the suite up for `flutter test --platform chrome` and cover the web database opener.
+      Nothing tests it today: `flutter test` runs on the Dart VM, where `dart:js_interop` does not
+      exist, so a test importing `package:sqlite3/wasm.dart` fails to compile rather than failing an
+      assertion. `isDurableStorage` in `app/lib/persistence/database_connection_web.dart` is the
+      piece with real logic and it is covered only by the web compile. Filed by `add-drift-store`
+      group 9
+- [ ] 5.5 Record results and capture screenshots
 
 ## 6. Windows
 

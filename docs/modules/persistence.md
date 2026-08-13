@@ -368,8 +368,9 @@ Storage errors propagate (throw) — boot handles them with the retry screen.
   `subPocketIDs` — replay trusts that the original mutation emitted the parent-account upsert in
   the same change stream (the store persisted both, so load never sees the inconsistent half).
 - Upserts overwrite unconditionally; no nesting/kind/reference checks.
-- `assertInvariants()` is not run by replay itself. (Debug builds may sweep once after boot load;
-  that is the runtime module's call, not the store's.)
+- `assertInvariants()` is not run by replay itself, and no post-boot sweep runs either. User ruling:
+  a sweep converts a recoverable damaged-data boot into a hard crash, and it would validate a state
+  the store has no business judging. Damage surfaces where it is acted on rather than at boot.
 
 Replay is shared by three consumers: `load()` rebuild, `InMemoryLedgerStore.apply`, and the seeding
 path — implement it once on `LedgerState` in `domain`.
@@ -423,9 +424,14 @@ Dart normalized format:
   count — is a **decode error, not an empty vector**. **PORT FIX** (sanctioned deviation, parent doc
   §4.3 / gap-review A13): Swift's `?? VersionVector()` fallback silently reset a row's causal
   history, which becomes data loss once the sync engine exists.
-- **Failure surface:** a decode error is a **load error** — `load()` throws and boot shows the retry
-  screen. Fail-the-load, not quarantine-the-row: chosen for now as the simplest and loudest option
-  (a corrupt vector means the database is damaged; a quiet partial load would hide it).
+- **Failure surface:** a decode error surfaces on the **write** path. `load()` reads only the domain
+  columns and never decodes a vector, so a corrupt blob loads clean and throws when that row is next
+  written, where `_bumpedVersion` and `_tombstone` read the stored value.
+
+  A decode error is **permanent, not transient**, and the save pipeline must treat it as such. Retry
+  and backoff exist for a busy or absent disk; a corrupt blob fails identically on every attempt, so
+  routing it through the retry path gives an unbounded loop behind a banner promising a recovery
+  that cannot happen, and the user's edit is never saved. See §8.3.
 - Round-trip test: encode → decode == identity for empty, single-device, and multi-device vectors.
 
 ---
@@ -520,6 +526,22 @@ save succeeds. Rules:
 **Pinning test** (`failedWillRetryEventuallyPersistsWhenStoreRecovers`): inject a DB that fails the
 first N saves then succeeds; enqueue, let the cycle exhaust to `failedWillRetry`, advance time, and
 assert the data lands and the last reported state is `clear` — with **no** further `enqueue` calls.
+
+### 8.3 Permanent failures routed through the transient retry path — KNOWN, deferred past MVP
+
+The save cycle catches every error alike and treats it as transient: two retries at 200 ms, then
+`failedWillRetry` and a timer that retries forever. That is right for a busy or absent disk and
+wrong for anything that fails identically on every attempt, which retries forever behind a banner
+promising a recovery that cannot come while the change sits unsaved.
+
+Deferred by user ruling, not overlooked. The only permanent error reachable today is a corrupt
+`version_data` blob (§6), which needs a bug in this codebase's own encode path to occur: SQLite's
+journal rules out torn writes, bit rot damages a page rather than one blob, and the database file is
+sandboxed. Redundancy was weighed and rejected on the same reasoning, since a duplicate of a blob
+encoded wrong is wrong identically.
+
+Revisit when the save banner reaches the UI, or the first time any other permanent error surfaces
+here. The catch-all is the real gap and it is not specific to vectors.
 
 ---
 

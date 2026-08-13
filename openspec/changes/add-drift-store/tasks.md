@@ -173,39 +173,110 @@ the suite never actually sleeps.
 
 ## 7. Load, tombstones, seeding
 
-- [ ] 7.1 A delete change sets `lifecycle = tombstoned` and bumps the vector — never SQL `DELETE`
-- [ ] 7.2 `load()` fetches rows where lifecycle is not tombstoned, maps to domain, builds upserts in the
+- [x] 7.1 A delete change sets `lifecycle = tombstoned` and bumps the vector — never SQL `DELETE`
+      EDIT: landed with group 5. `_tombstone` at `drift_ledger_store.dart:369`, delete cases at
+      `:332-340`
+- [x] 7.2 `load()` fetches rows where lifecycle is not tombstoned, maps to domain, builds upserts in the
       order accounts, pockets, categories, entries, plans, then returns `LedgerState.replaying(changes)`
-- [ ] 7.3 Storage errors during load propagate, so boot can show its retry screen
-- [ ] 7.4 Implement `seedIfFirstLaunch` against the persisted flag, per the `app-boot` contract
-- [ ] 7.5 Test (port): `loadReturnsWhatWasEnqueued`, `deleteChangeRemovesFromLoadedState`
-- [ ] 7.6 Test (new): `seedRunsOnceAndIsGatedByFlagNotEmptiness` — seed, wipe every row by raw SQL, boot
+      EDIT: `load()` at `:133` over `_loadChanges()` at `:84`. A `debugLoadChanges()` seam at `:81`
+      exposes the ordered list, because asserting on `LedgerState` maps is order-independent and so
+      cannot pin the ordering at all
+- [x] 7.3 Storage errors during load propagate, so boot can show its retry screen
+      EDIT: true for storage errors, NOT for a corrupt version vector. The row mappers never read
+      `version_data` and `_loadChanges` never calls `versionFromRow`, so a corrupt vector loads
+      silently and throws only on the next write to that row. `persistence.md:426-428` says it must
+      surface as a load error. Deviation pinned by a test, unresolved — see 7.7
+- [x] 7.4 Implement `seedIfFirstLaunch` against the persisted flag, per the `app-boot` contract
+      EDIT: `:140`. The flag rides the save transaction rather than one of its own, per
+      `persistence.md:454-462`, which the task line omitted. `_seedFlagPending` at `:75` is written
+      inside `_runCycle`'s transaction at `:238` and cleared only after commit at `:253`. `:223` had
+      to stop returning early on empty pending, or a zero-change seed would never write the flag
+- [x] 7.5 Test (port): `loadReturnsWhatWasEnqueued`, `deleteChangeRemovesFromLoadedState`
+- [x] 7.6 Test (new): `seedRunsOnceAndIsGatedByFlagNotEmptiness` — seed, wipe every row by raw SQL, boot
       again, confirm nothing is re-seeded
+      EDIT: both high-risk tests were proved to bite by mutating the source. Swapping the accounts
+      and pockets builders fails the ordering test at index 0; replacing the flag check with an
+      emptiness check re-seeds the wiped database and fails the gating test
+- [x] 7.7 Decide whether a corrupt version vector must fail `load()`. Ruled: it must not, and the
+      spec claim is removed. Decoding every vector on every boot polices a field nothing reads until
+      sync exists, and the retry screen cannot repair a corrupt blob, so the loud version gives an
+      unfixable loop rather than a working app. Damage now surfaces on the write path. User ruling
+- [ ] 7.9 DEFERRED past MVP, user ruling. `_runCycle` at `drift_ledger_store.dart:239` catches
+      `on Object`, so an error that fails identically on every attempt retries twice, reports
+      `failedWillRetry`, then retries on a timer forever behind a banner promising a recovery that
+      cannot come, and the edit is never saved. Fixing it needs a terminal state on `SaveBannerState`
+      at `ledger_store.dart:5`, whose three cases all imply recovery, plus a permanent-error class in
+      the cycle and a test that corrupts a blob by raw SQL to trigger one.
+      Deferred because the only permanent error reachable today is a corrupt version vector, which
+      needs a bug in our own encode path to occur at all: SQLite's journal rules out torn writes,
+      bit rot lands in a page rather than one blob, and the file is sandboxed. Redundancy was
+      considered and rejected for the same reason, since a second copy of a blob our own code
+      encoded wrong is wrong identically.
+      Revisit when the save banner gets a UI, or the first time any other permanent error appears
+      here. The `on Object` catch is the real gap and it is not vector-specific
+- [x] 7.8 Closed, not a defect. `deviceID` resolves its `Future` once into an `Expando`, so a rolled
+      back insert does not produce a second id: the same claimed id is returned and written by
+      whichever attempt commits, and a discarded id was never written to any vector because the
+      bumps rode the same rolled back transaction. What remains is that the cache can report an id
+      whose meta row is not yet committed, so a write to `store_meta` must upsert rather than update.
+      `_writeSeedFlag` at `:263` already does. The other two callers use the id only as a map key
 
 ## 8. Store suite against real SQLite
 
-- [ ] 8.1 Test (port): `enqueuedChangesPersistAcrossLoad`, `deleteTombstonesRowButHidesItFromLoad`,
+- [x] 8.1 Test (port): `enqueuedChangesPersistAcrossLoad`, `deleteTombstonesRowButHidesItFromLoad`,
       `coalescedUpsertsWriteLatestValue`, `planPersistsAndTombstonesAcrossLoad`,
       `rapidConflictingUpsertsPersistTheLastOne`, `flushNowPersistsAnEnqueueMadeMomentsBefore`,
       `debouncedFlushPersistsWithoutAnExplicitFlush`
-- [ ] 8.2 Test (new): `flushNowCoversBatchBufferedDuringInFlightSave` — pins the loop fix
-- [ ] 8.3 Test (new): `failedWillRetryEventuallyPersistsWhenStoreRecovers` — pins the timed retry, ending
+      EDIT: four written at `drift_ledger_store_test.dart:791`, `:803`, `:828`, `:838`. The other
+      three already existed from the groups that built the behaviour, one under a prose name:
+      `rapidConflictingUpsertsPersistTheLastOne` is `rapid conflicting upserts store the last one`
+      at `:182`, already looping to 50. Kept distinct from group 7's load tests, which assert replay
+      correctness where these assert persistence across a load and the raw tombstone shape
+- [x] 8.2 Test (new): `flushNowCoversBatchBufferedDuringInFlightSave` — pins the loop fix
+- [x] 8.3 Test (new): `failedWillRetryEventuallyPersistsWhenStoreRecovers` — pins the timed retry, ending
       in a reported `clear`
-- [ ] 8.4 Test (new): `saveFailureRollsBackThenRetrySucceeds` — the rollback leaves no partial rows
-- [ ] 8.5 Test (new): `clearReportedOnlyAfterNonClearState` — a happy path reports nothing at all
-- [ ] 8.6 Test (new): `upsertThenDeleteInOneWindowAppliesOnlyDelete`
-- [ ] 8.7 Each of 8.2–8.5 must fail against the Swift semantics. Verify that before moving on — a test
+- [x] 8.4 Test (new): `saveFailureRollsBackThenRetrySucceeds` — the rollback leaves no partial rows
+      EDIT: `:279`, renamed from `a failed save rolls back leaving nothing partial` and extended.
+      The old one enqueued a single row, so "no partial rows" and "no rows" were the same
+      assertion and a save that never ran passed it. Now two tables, both empty after the failure
+      and both filled after the retry
+- [x] 8.5 Test (new): `clearReportedOnlyAfterNonClearState` — a happy path reports nothing at all
+- [x] 8.6 Test (new): `upsertThenDeleteInOneWindowAppliesOnlyDelete`
+- [x] 8.7 Each of 8.2–8.5 must fail against the Swift semantics. Verify that before moving on — a test
       that passes either way is not pinning the fix
+      EDIT: all four mutations killed their test. Loop to `if` left a batch buffered; dropping
+      `_armTimedRetry` armed no timer; moving the applies outside the transaction left the account
+      behind without the entry; dropping the clear guard reported `[clear, clear]`. The tombstone
+      counter-sum assertion was checked the same way, writing the vector unbumped, and it bites
 
 ## 9. Web target and close-out
 
-- [ ] 9.1 Wire the sqlite3 wasm path: `sqlite3.wasm` and `drift_worker.js` served from `web/`, opened
+- [x] 9.1 Wire the sqlite3 wasm path: `sqlite3.wasm` and `drift_worker.js` served from `web/`, opened
       with fallback handling
-- [ ] 9.2 Confirm `flutter build web` compiles the store
-- [ ] 9.3 Run `cd packages/domain && dart analyze && dart test` and `cd app && flutter analyze &&
+      EDIT: `openLedgerConnection` at `database_connection.dart:14` over a conditional import, with
+      `database_connection_native.dart` and `database_connection_web.dart` behind it. A runtime
+      `kIsWeb` branch cannot work here, unlike `analysis_cache.dart:27`, because `drift/native.dart`
+      pulls `dart:io` and `dart:ffi` and so fails the web compile however it is guarded.
+      `sqlite3.wasm` is the `sqlite3-3.5.1` release asset, not the devtools build inside the drift
+      package, which embeds a different C library version
+- [x] 9.2 Confirm `flutter build web` compiles the store
+      EDIT: a plain build proves nothing yet. `main.dart` is still the stub and nothing imports the
+      opener, so the first build never compiled it. Confirmed with a temporary entrypoint that
+      imports it: 101.9s against 19.7s, web storage symbols present in the bundle and
+      `NativeDatabase` absent
+- [x] 9.3 Run `cd packages/domain && dart analyze && dart test` and `cd app && flutter analyze &&
       flutter test`. Analyzer at zero issues, not just zero errors
-- [ ] 9.4 Confirm no `double` money reached `app/lib/` or `packages/domain/lib/`
-- [ ] 9.5 Confirm the coverage map below is complete
+- [x] 9.4 Confirm no `double` money reached `app/lib/` or `packages/domain/lib/`
+      EDIT: two hits, neither money. `accounting.dart:190` `fraction` takes two `Decimal` and returns
+      a presentation ratio, matching Swift and adding a non-finite guard Swift lacks;
+      `date_range.dart:4` is the words "double-count" in a comment
+- [x] 9.5 Confirm the coverage map below is complete
+      EDIT: all 22 Swift scenarios and every Dart-only addition map to a real test. Six looked
+      missing to a verbatim name search and were false alarms, ported under the plain-language
+      naming rule
+Two findings from this group are UI and platform work, so they were filed where they will be done
+rather than left open here: `storageIsDurable` has no consumer, now `add-app-shell-and-boot` 6.4;
+the web opener has no test, now `add-release-targets` 5.4.
 
 ## 10. Coverage map — `PersistenceTests.swift`
 
