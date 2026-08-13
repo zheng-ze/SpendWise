@@ -30,9 +30,15 @@ the suite never actually sleeps.
       `deletePocket` then `purgePocket`
 - [x] 1.7 Confirm `dart analyze` and `dart test` are green; `packages/domain/pubspec.yaml` still has
       no `flutter:` key
-- [ ] 1.8 Rewire `app/test/support/in_memory_ledger_store.dart:99` `_apply` to call the domain's
+- [x] 1.8 Rewire `app/test/support/in_memory_ledger_store.dart:99` `_apply` to call the domain's
       `apply`, and drop its now-false doc comment. Two copies of the switch will otherwise drift and
       the fake stops proving anything about the real store
+      EDIT: `_drain` at :74 now mutates `_state` in place, since `apply` writes to the state's own
+      maps, so `_state` became `final`. No test relied on the drain returning a fresh instance.
+      Only two tests guard the delegation, both in `persistence_processor_test.dart`, so the fake's
+      applied state has no direct test of its own
+- [ ] 1.9 Test: give the fake's applied state a direct test. The delegation to the domain's `apply`
+      is currently guarded only as a side effect of the persistence processor suite
 
 ## 2. Dependencies and schema
 
@@ -58,55 +64,90 @@ the suite never actually sleeps.
 
 ## 3. Mappers
 
-- [ ] 3.1 Add row → domain and domain → row mappers for all five row types
-- [ ] 3.2 Unknown enum codes fall back to their documented defaults (account type other, category kind
+- [x] 3.1 Add row → domain and domain → row mappers for all five row types
+      EDIT: drift's generated row classes collide with the domain names, so the generated file is
+      imported as `rows`
+- [x] 3.2 Unknown enum codes fall back to their documented defaults (account type other, category kind
       expense, lifecycle active, frequency monthly)
-- [ ] 3.3 A version vector that fails to decode raises — NOT an empty vector. An empty vector erases the
+- [x] 3.3 A version vector that fails to decode raises — NOT an empty vector. An empty vector erases the
       row's causal history and becomes data loss once sync exists (`design.md`)
-- [ ] 3.4 Normalize ids to lowercase on the way in, per the project-wide id rule
-- [ ] 3.5 Test (port): `accountRoundTrips`, `pocketRoundTrips`, `categoryRoundTrips`, `entryRoundTrips`,
+- [x] 3.4 Normalize ids to lowercase on the way in, per the project-wide id rule
+- [x] 3.5 Test (port): `accountRoundTrips`, `pocketRoundTrips`, `categoryRoundTrips`, `entryRoundTrips`,
       `transferEntryRoundTrips`, `planRoundTrips`, `transferPlanRoundTrips`, `lifecycleRoundTrips`
-- [ ] 3.6 Test (new): Decimal-string precision round trip including negative and large values
-- [ ] 3.7 Test (new): epoch-ms date round trip across a DST boundary instant
-- [ ] 3.8 Test (new): lowercase-uuid normalization, and the out-of-range enum fallbacks
-- [ ] 3.9 Test (new): `categoryParentIDImmutableOnUpsert` — an upsert with a changed parent does not
+- [x] 3.6 Test (new): Decimal-string precision round trip including negative and large values
+      EDIT: `Decimal` normalizes `-15.50` to `-15.5`, so trailing zeros do not survive as text
+- [x] 3.7 Test (new): epoch-ms date round trip across a DST boundary instant
+      EDIT: round trips could not guard this at all. `Entry` and `RecurringPlan` re-normalize dates
+      in their constructors, so swapping `startOfDayUtc` for `.toUtc()` passed every round trip on a
+      UTC+08 machine. The read is now a public seam, `dayFromMillis` at `mappers.dart:51`, tested
+      directly
+- [x] 3.8 Test (new): lowercase-uuid normalization, and the out-of-range enum fallbacks
+      EDIT: uppercasing sub-pocket ids on read is unobservable, not untested, since `Account`
+      lowercases them in its constructor. The write side carries the assertion instead
+- [x] 3.9 Test (new): `categoryParentIDImmutableOnUpsert` — an upsert with a changed parent does not
       move the stored parent id
+      EDIT: the upsert path is `categoryUpsertRow`, not `categoryToRow`, which writes the incoming
+      parent. Group 5 must call the former
+- [x] 3.10 Ruled: `planToRow` keeps lifecycle as a parameter, where Swift pins the plan row to active
+      in both init and update and so cannot tombstone a plan. Task 7.1 requires a delete to tombstone
+      rather than issue a SQL `DELETE`, which Swift's shape makes unimplementable. Default is active,
+      so Swift's behaviour is the default. Sanctioned deviation, user ruling
 
 ## 4. VersionVector
 
-- [ ] 4.1 Add `VersionVector` with `counters`, `bump(device)`, `dominates(other)`, `isConcurrent(other)`.
+- [x] 4.1 Add `VersionVector` with `counters`, `bump(device)`, `dominates(other)`, `isConcurrent(other)`.
       Do NOT add merge — it belongs to the future sync engine
-- [ ] 4.2 Add the codec: encode as a UTF-8 JSON object of lowercase uuid → count, empty vector as `{}`.
+      EDIT: immutable and value-equal, so `bump` returns a new vector where Swift's was `mutating`
+- [x] 4.2 Add the codec: encode as a UTF-8 JSON object of lowercase uuid → count, empty vector as `{}`.
       Decode both the normalized object form and Swift's flat alternating-array form
-- [ ] 4.3 Add device identity in `store_meta`: a uuid v4 created once on first access, persisted, cached
+      EDIT: Swift's real wire form is a third shape neither this task nor the Swift read predicted.
+      `JSONEncoder` degrades a `[UUID: UInt64]` dictionary to a flat array and encodes the struct,
+      so stored data is `{"counters":[...]}` with uppercase uuids. Found by compiling and running
+      the Swift struct. All three shapes decode, lowercasing on every path
+- [x] 4.3 Add device identity in `store_meta`: a uuid v4 created once on first access, persisted, cached
       in memory thereafter
-- [ ] 4.4 Test (port): `bumpIncrementsPerDevice`, `dominatesWhenEveryComponentIsGreaterOrEqual`,
+      EDIT: cached in an `Expando` keyed on the database, on the `Future` so concurrent first calls
+      share one insert
+- [x] 4.4 Test (port): `bumpIncrementsPerDevice`, `dominatesWhenEveryComponentIsGreaterOrEqual`,
       `concurrentWhenNeitherDominates`, `causalChainIsNotConcurrent`
-- [ ] 4.5 Test (new): the codec tolerance matrix, including a corrupt blob raising rather than emptying
-- [ ] 4.6 Test (new): `deviceIDStableAcrossStoreInstances` — reopening the same database keeps the id and
+- [x] 4.5 Test (new): the codec tolerance matrix, including a corrupt blob raising rather than emptying
+      EDIT: an empty blob decodes to the empty vector rather than raising. Every unwritten row starts
+      empty, so zero bytes mean no history yet and are not the corrupt case
+- [x] 4.6 Test (new): `deviceIDStableAcrossStoreInstances` — reopening the same database keeps the id and
       continues the same counter
 
 ## 5. Write pipeline
 
-- [ ] 5.1 Add `DriftLedgerStore` implementing `LedgerStore`. Constants: 250 ms debounce, 2 retries,
+- [x] 5.1 Add `DriftLedgerStore` implementing `LedgerStore`. Constants: 250 ms debounce, 2 retries,
       200 ms backoff
-- [ ] 5.2 `enqueue` appends synchronously to an unbounded FIFO queue; the drain loop started by `start()`
+      EDIT: timers are injected through an `armTimer` seam. `FakeAsync` intercepts every timer and
+      deadlocks on real drift I/O, so tests fire timers by hand. The suite never sleeps
+- [x] 5.2 `enqueue` appends synchronously to an unbounded FIFO queue; the drain loop started by `start()`
       concatenates into `pending` in arrival order
-- [ ] 5.3 Each newly buffered batch cancels the armed debounce timer and starts a fresh 250 ms one
-- [ ] 5.4 Coalesce at save time: keep the last change per target id, preserving survivor order, across
+- [x] 5.3 Each newly buffered batch cancels the armed debounce timer and starts a fresh 250 ms one
+- [x] 5.4 Coalesce at save time: keep the last change per target id, preserving survivor order, across
       everything pending. Upserts and deletions share one keyspace
-- [ ] 5.5 Save inside one transaction: record the raw pre-coalesce `taken` count, apply the coalesced
+      EDIT: a survivor sits at the index of its last occurrence, not its first, so a1 a2 a3 a1
+      applies as a2 a3 a1
+- [x] 5.5 Save inside one transaction: record the raw pre-coalesce `taken` count, apply the coalesced
       list, bump each touched row's vector exactly once, commit. On success remove only the first
       `taken` elements — anything buffered during the save stays
-- [ ] 5.6 On failure roll back fully, report `retrying`, back off 200 ms, retry up to twice
-- [ ] 5.7 After the final failure report `failedWillRetry` AND schedule a timed re-flush. Never drop the
+- [x] 5.6 On failure roll back fully, report `retrying`, back off 200 ms, retry up to twice
+- [x] 5.7 After the final failure report `failedWillRetry` AND schedule a timed re-flush. Never drop the
       pending batch (`design.md` — Swift waited passively for the next mutation)
-- [ ] 5.8 Serialize saves behind a single in-flight future; a requested save awaits the running one
-- [ ] 5.9 Report `clear` only after a non-clear state has been reported
-- [ ] 5.10 Add the apply rules: upsert inserts when absent then updates; `deleteMoneySource` tries
+- [x] 5.8 Serialize saves behind a single in-flight future; a requested save awaits the running one
+- [x] 5.9 Report `clear` only after a non-clear state has been reported
+      EDIT: a transition, not a latch. Reporting `clear` returns the store to the clear state, so a
+      second healthy save stays silent
+- [x] 5.10 Add the apply rules: upsert inserts when absent then updates; `deleteMoneySource` tries
       accounts then pockets; a delete for an absent id is a silent no-op
-- [ ] 5.11 Mutation-test the coalescing keyspace: give deletions their own keyspace and confirm
+- [x] 5.11 Mutation-test the coalescing keyspace: give deletions their own keyspace and confirm
       `upsertThenDeleteInOneWindowAppliesOnlyDelete` dies. Restore from a file copy, never `git checkout`
+      EDIT: a second mutation reversing survivor order survived the whole suite. The order test
+      asserted final map contents, which are order-independent, so ordering had no guard at all.
+      `drift_ledger_store_test.dart:235` now reads rowids back from SQLite and the mutation dies
+- [ ] 5.12 Decide whether `debugPendingLength` and `debugSaveCycle()` stay public once groups 6 and 7
+      land. They exist so tests can assert pending bookkeeping and race two saves directly
 
 ## 6. flushNow barrier
 
