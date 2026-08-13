@@ -1,6 +1,6 @@
 ---
 name: gemini-executor
-description: Reads far more of the tree than is worth loading into the main context and returns a short orienting summary. Use to find out what a large file or a whole area covers, and where responsibilities sit, before reading the parts that matter. Not for settling questions that will be acted on.
+description: Reads far more of the tree than is worth loading into the main context and returns a short orienting summary. Use to find out what a large file or a whole area covers, and where responsibilities sit, before reading the parts that matter. Its symbol lookups are exact but its behavioural citations land in the right function a few lines off, so treat a line number as a place to open rather than to quote. Not for settling questions that will be acted on.
 tools: Bash
 disallowedTools: Write, Edit
 model: haiku
@@ -33,8 +33,15 @@ Run from the repository root. `-p` is required for non-interactive use and `--sk
 required because this repo is not a Gemini trusted folder, so the command hangs or exits without it.
 
 ```bash
-gemini --skip-trust --model gemini-3.6-flash -p "<QUERY>. Summarize your findings succinctly. Highlight core architectural relationships, key logic flows, and edge cases. Keep code snippets under 5 lines. Cite a file path and line number for every claim."
+gemini --skip-trust --model gemini-3.6-flash -p "<QUERY>. Use run_shell_command with rg -n, or ast-grep through a rule file, to locate anchors, and open each line you are about to cite to confirm it before citing it. Summarize your findings succinctly. Highlight core architectural relationships, key logic flows, and edge cases. Keep code snippets under 5 lines. Cite a file path and line number for every claim."
 ```
+
+Gemini holds `read_file`, `grep_search`, `glob` and `run_shell_command`, so `rg` and `ast-grep`
+are already reachable. The instruction above is not what grants them, it is what makes Gemini
+confirm an anchor rather than recall one. Measured on one paired run, it moved both citations from
+the enclosing function to the deciding line, quoted verbatim: `ledger_state_purge.dart:45` became
+`:61`, the actual `_moneySources.remove` call, and `drift_ledger_store.dart:230` became `:233`, the
+`lastIndex[changes[i].targetID] = i` assignment.
 
 Ignore the `Ripgrep is not available` and `DeprecationWarning` lines on stderr. They are noise, not
 failures.
@@ -92,15 +99,32 @@ whole point of this agent. Use it to find out what a large file or a whole area 
 responsibilities divide between modules, and which parts are worth reading properly. It is a map,
 not a source.
 
-### The line numbers are unreliable
+**A named symbol is not a question for this agent.** `rg -n 'symbolName'` answers that from the main
+thread instantly, exactly, and without spending one of twenty daily calls. What is worth a call is
+the question `rg` cannot phrase: where a behaviour lives when nobody knows its name yet, how a flow
+crosses modules, what an unfamiliar area is for. If the caller already knows the string to search
+for, say so and let them search.
 
-Measured on this repo: the substance of a summary holds up, but roughly half the citations point at
-the wrong lines. One run cited `persistence.md:128-129` for a claim about SF Symbol storage, and
-those lines hold two unrelated schema rows. The claim was true and the location was invented.
+### How far to trust the line numbers
 
-Say this in every report. Treat citations as a hint about which file to open, never as a place to
-quote from. Only `gemini-3.6-flash` and `gemini-3.5-flash-lite` are available on this account, so
-this is a fixed constraint rather than something a better model setting fixes.
+Two question shapes, two different answers, both measured on this repo with `gemini-3.5-flash-lite`.
+
+**Locating a symbol is reliable.** Asked where four symbols were defined, it returned four exact
+anchors: `calendar_day.dart:1`, `ledger_state_purge.dart:51`, `version_vector.dart:9`,
+`drift_ledger_store.dart:230`. All four verified with `rg`.
+
+**Describing behaviour is reliable in substance, approximate in citation.** Asked what
+`_detachAndTombstonePocket` emits before removing the row, the answer was correct and cited `:45`
+against a true `:51` — the right function, a few lines off. Adding the anchor-confirmation
+instruction above closed that gap.
+
+An earlier run cited `persistence.md:128-129` for a claim about SF Symbol storage where those lines
+hold unrelated schema rows, so a fabricated anchor is possible and the confirmation step is what
+guards against it.
+
+Say which shape the question was in every report. A behavioural citation is a hint about which
+function to open; a symbol lookup can be opened directly. Neither is a place to quote from without
+reading. Only `gemini-3.6-flash` and `gemini-3.5-flash-lite` are available on this account.
 
 ### This output is a claim, not a result
 

@@ -6,8 +6,8 @@ How implementation is dispatched in this repo, and what each agent type is actua
 ## The two rules that do not bend
 
 **Grant `Bash` to any agent that must prove its work runs.** An agent without it can only claim its
-work passes. This is a floor, not a blanket default: read-only agents (`gemini-indexer`,
-`gemini-executor`, `cavecrew-investigator`, `spec-conformance`) prove nothing by running the suite,
+work passes. This is a floor, not a blanket default: read-only agents (`gemini-executor`,
+`qwen-local`, `cavecrew-investigator`, `spec-conformance`) prove nothing by running the suite,
 and handing them `Bash` widens their blast radius for no verification gain. Match the grant to what
 the agent must prove.
 
@@ -30,7 +30,7 @@ own work then has to fit around. Project agent types resolve from a nested agent
 included, so name the type explicitly: a brief saying "delegate the Swift reading" without naming the
 agent gets a direct read, or a dispatch to whatever type the agent guesses at.
 
-**The readers are leaves.** `qwen-local`, `gemini-executor`, `gemini-indexer` and `file-reader` all
+**The readers are leaves.** `qwen-local`, `gemini-executor` and `file-reader` all
 return their answer and stop. None of them dispatches anything, and none of them decides where a
 request should go instead — that is the dispatcher's call, so a reader that cannot serve one reports
 why. `qwen-local` proves its call by quoting the wrapper's `prompt_tokens` line, and a report
@@ -53,9 +53,8 @@ located something, put the anchors in the brief rather than making the agent fin
 |---|---|---|---|
 | `cavecrew-builder` | Read, Edit, Write, Grep, Glob | Bounded 1-2 file edits needing no proof run: renames, typos, single-function rewrites | Anything requiring red-then-green. It has no `Bash` and will refuse, correctly |
 | `general-purpose` | all | Test writing, mutation proofs, any task whose workflow includes running the suite | Broad searches where only the conclusion matters |
-| `gemini-indexer` | Bash | Locating `file:line` anchors and target symbols across the tree | Settling a question that will be acted on without a read |
-| `gemini-executor` | Bash | Orienting summaries and flow traces over large directories | Anything needing exact line numbers |
-| `qwen-local` | Bash | Pre-narrowed reads over a named file list on the local unmetered model | Anything over ~20k tokens of source, or trusting its line numbers |
+| `gemini-executor` | Bash | Orienting summaries and flow traces over large directories | Locating a `file:line`, which `rg -n` does exactly and for free |
+| `qwen-local` | Bash | The same orienting questions on the local unmetered model, when Gemini is spent | Line numbers of any kind |
 | `file-reader` | Read, Grep, Glob, Bash | Volume reading when Gemini is spent and the qwen host is off; runs on Sonnet | Deciding what the extract means. It returns lines, not verdicts |
 | `cavecrew-investigator` | Read, Grep, Glob, Bash | Read-only locating with compressed output | Suggesting fixes. It refuses by design |
 | `mutation-prober` | Read, Edit, Bash, Grep, Glob | Proving a rule is unguarded, or that a new test really bites | Sharing a working tree with another agent |
@@ -84,8 +83,8 @@ immediately before editing.
 
 **Line numbers in `tasks.md` go stale the moment a neighbouring edit lands.** A task written against
 `:489` pointed at `:934` by the time a parallel agent reached it. Tell agents to anchor on the
-assertion or symbol text rather than the number, and run `gemini-indexer` before dispatch when the
-task text is not fresh.
+assertion or symbol text rather than the number, and re-run `rg -n` on that text before dispatch when
+the task text is not fresh.
 
 ## Where Gemini pays
 
@@ -155,8 +154,14 @@ It never settles what is true there.
 ## Reading without Gemini
 
 Gemini's quota runs out mid-dispatch, and the fallback has been paying Claude tokens to read the same
-tree. `qwen-local` is the second reader: Qwen2.5-Coder 14B on the user's PC over the LAN, unmetered,
-nothing leaving the network. `docs/TOOLING.md` has the measurements behind everything here.
+tree. `qwen-local` is the second reader: Qwen2.5-Coder on the user's PC over the LAN, unmetered,
+nothing leaving the network. The host keeps several builds and loads one on demand, so which model
+answers is a per-call choice made through `SUBAGENT_MODEL`. `docs/TOOLING.md` has the measurements
+behind everything here.
+
+Use `qwen2.5.1-coder-7b-instruct` unless a single file will not fit its 32768 window, which is what
+`qwen2.5-coder-7b-instruct-128k` is kept for. A build loading for the first time adds its own delay
+before the first answer.
 
 The split is quota against window, not quality:
 
@@ -169,19 +174,21 @@ The split is quota against window, not quality:
   main thread reads directly for anything larger. Record which one produced a briefing, because the
   smaller model's output is the weaker lead.
 
-Three things about it that change how a task is written:
+Four things about it that change how a task is written:
 
-- **Its window is 24576 tokens and the ceiling is hard.** An over-budget request comes back as HTTP
-  400, never as a silent truncation, so the confident-answer-over-truncated-input failure is not
-  available to it. Tasks arrive pre-narrowed: this file, these functions, this diff.
-- **Names are reliable, line numbers drift.** It found 22 of 22 target symbols across seven files and
-  invented none, but only 17 of 23 anchors were exact. Treat an anchor as somewhere to open.
-- **It declines to fabricate.** Asked where a symbol that does not exist is defined, it answered
-  `NOT PRESENT` every time. That makes a negative result from it worth something, which is not true
-  of every small model.
+- **It is not an anchor finder.** Never send it a task that needs a line number; `rg -n` answers
+  those exactly and for free. Its job is orientation: which files cover a concern, how
+  responsibilities divide, what an unfamiliar area contains.
+- **Ask one thing per call.** Several questions in one prompt degrade all of them.
+- **The window is per-load.** The host serves several builds and loads one on demand, so the ceiling
+  is whatever the loaded build was configured for. Over-budget comes back as HTTP 400 naming both
+  figures, never as silent truncation.
+- **A slow answer is a memory problem.** The KV cache has spilled to system RAM. Report the wall
+  time; do not rewrite the prompt.
+- **It declines to fabricate a symbol** that does not exist, answering `NOT PRESENT`, so a negative
+  result from it is worth something. It will still misplace one that does exist.
 
-It cannot verify, same as Gemini and held tighter. Quantization makes plausible fabrication more
-likely, so the main thread reads the cited line before anything is acted on.
+It cannot verify, same as Gemini and held tighter. `docs/LOCAL-MODEL-BENCHMARKS.md` has the numbers.
 
 ## Briefing an agent
 

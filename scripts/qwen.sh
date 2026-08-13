@@ -3,9 +3,11 @@
 #
 #   scripts/qwen.sh "<question>" <file> [<file> ...]
 #
-# Files are sent with 1-based line numbers prepended so the model can cite anchors. The context
-# ceiling is 24576 tokens and the server rejects an oversized request with HTTP 400 rather than
-# truncating, so an over-budget call fails loudly; split the file list and ask again.
+# Files are sent with 1-based line numbers prepended so the model can cite anchors. Ask about one
+# symbol per call: four in a single query placed none of them correctly, where one at a time placed
+# half exactly. Payload size is not the problem, the number of questions is.
+# The ceiling is whatever window the loaded build was given, and the server rejects an oversized
+# request with HTTP 400 rather than truncating, so an over-budget call fails loudly.
 set -euo pipefail
 
 if [ "$#" -lt 2 ]; then

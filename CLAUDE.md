@@ -126,10 +126,11 @@ relevant is the job. This binds subagents too, so briefs must not hand over a fi
 narrowing implied.
 
 **Send the volume reading to another model.** `gemini-executor` for anything where the large window
-is the point (the frozen Swift app, a whole module doc, cross-repo sweeps), `qwen-local` for
-pre-narrowed reads inside 20k tokens and whenever Gemini is throttled. Both return claims to verify,
-never conclusions to act on — but verifying a named anchor costs a fraction of finding it yourself.
-`docs/SUBAGENTS.md` has the split and the quota arithmetic.
+is the point (the frozen Swift app, a whole module doc, cross-repo sweeps), `qwen-local` for the same
+question when Gemini is throttled. Ask either which files cover a concern and where to look next,
+never for a line number — `rg -n` answers that exactly and for free. Both return claims to verify,
+never conclusions to act on. `docs/SUBAGENTS.md` has the split and the quota arithmetic, and
+`docs/LOCAL-MODEL-BENCHMARKS.md` the measurements behind it.
 
 **Delegating is the default, and it fails by being forgotten rather than by being rejected.** Knowing
 the rule does not fire it: it has been broken twice in one session by an agent that had just written
