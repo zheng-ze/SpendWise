@@ -55,9 +55,16 @@ class FlakyInterceptor extends QueryInterceptor {
 
   int transactionAttempts = 0;
 
+  /// Runs once, as a save opens its transaction. Lets a test enqueue while a
+  /// save is genuinely mid-flight rather than merely started.
+  void Function()? onTransactionBegin;
+
   @override
   TransactionExecutor beginTransaction(QueryExecutor parent) {
     transactionAttempts++;
+    final hook = onTransactionBegin;
+    onTransactionBegin = null;
+    hook?.call();
     return super.beginTransaction(parent);
   }
 
@@ -452,6 +459,171 @@ void main() {
       await debouncedSave();
 
       expect(reported, [SaveBannerState.retrying, SaveBannerState.clear]);
+    });
+  });
+
+  group('flush barrier', () {
+    test('flushNowPersistsAnEnqueueMadeMomentsBefore', () async {
+      store.enqueue([UpsertAccount(account('a1', 'v1'))]);
+
+      // No clock.fire, so the armed debounce never runs. Only the flush can
+      // put this on disk.
+      await store.flushNow();
+
+      expect((await db.select(db.accounts).getSingle()).name, 'v1');
+      expect(store.debugPendingLength, 0);
+    });
+
+    test('debouncedFlushPersistsWithoutAnExplicitFlush', () async {
+      store.enqueue([UpsertAccount(account('a1', 'v1'))]);
+
+      await debouncedSave();
+
+      expect((await db.select(db.accounts).getSingle()).name, 'v1');
+    });
+
+    test('flushNow starts the store when it was never started', () async {
+      final unstarted = DriftLedgerStore(db, armTimer: clock.arm);
+      unstarted.enqueue([UpsertAccount(account('a1', 'v1'))]);
+
+      await unstarted.flushNow();
+
+      expect((await db.select(db.accounts).getSingle()).name, 'v1');
+
+      // A store left unstarted buffers nothing on enqueue, so the debounce that
+      // writes this batch is only armed if the flush really did start it.
+      unstarted.enqueue([UpsertAccount(account('a2', 'v2'))]);
+      await debouncedSave();
+
+      expect((await db.select(db.accounts).get()).length, 2);
+    });
+
+    test('flushNow on an already started store does not restart it', () async {
+      store.enqueue([UpsertAccount(account('a1', 'v1'))]);
+      await store.flushNow();
+
+      store.enqueue([UpsertAccount(account('a2', 'v2'))]);
+      await store.flushNow();
+
+      expect((await db.select(db.accounts).get()).length, 2);
+    });
+
+    test('the barrier rides the ingest queue behind earlier batches', () async {
+      // Enqueued and flushed with no settle in between, so the batch is still
+      // sitting in the ingest queue when the flush is called.
+      store.enqueue([UpsertAccount(account('a1', 'v1'))]);
+      final flush = store.flushNow();
+      store.enqueue([UpsertAccount(account('a2', 'after the barrier'))]);
+
+      await flush;
+
+      // 'a1' was enqueued before the barrier, so the flush must have written
+      // it. 'a2' came after and is not covered by this flush's guarantee.
+      final names = (await db.select(db.accounts).get())
+          .map((row) => row.name)
+          .toSet();
+      expect(names, contains('v1'));
+    });
+
+    test('flushNow cancels the armed debounce timer', () async {
+      store.enqueue([UpsertAccount(account('a1', 'v1'))]);
+      await settle();
+      expect(clock.armedCount, 1);
+
+      await store.flushNow();
+
+      // The debounce is gone, not left to fire a redundant save later.
+      expect(clock.armedCount, 0);
+      clock.fire();
+      await settle();
+      expect(flaky.transactionAttempts, 1);
+    });
+
+    test('flushNowCoversBatchBufferedDuringInFlightSave', () async {
+      store.enqueue([UpsertAccount(account('a1', 'v1'))]);
+      await settle();
+
+      // Fires the debounce without awaiting, so this save is in flight and has
+      // already snapshotted 'a1' when the flush below awaits it.
+      clock.fire();
+
+      // Each batch lands mid-transaction, so the save that is running clears
+      // only its own snapshot and leaves the new one pending. Two of them means
+      // the flush must run more than one cycle after the save it awaited.
+      flaky.onTransactionBegin = () {
+        store.enqueue([UpsertAccount(account('a2', 'v2'))]);
+        flaky.onTransactionBegin = () {
+          store.enqueue([UpsertAccount(account('a3', 'v3'))]);
+        };
+      };
+
+      await store.flushNow();
+
+      // No clock.fire after those enqueues, so no debounce timer can write
+      // them. A single trailing save returns with 'a3' still buffered.
+      expect(store.debugPendingLength, 0);
+      expect((await db.select(db.accounts).get()).length, 3);
+    });
+
+    test(
+      'flushNow stops looping when a cycle ends in failedWillRetry',
+      () async {
+        // More failures than any number of cycles can consume, so a loop
+        // without the give-up exit never sees pending drain.
+        flaky.failures = 99;
+        store.enqueue([UpsertAccount(account('a1', 'v1'))]);
+
+        var returned = false;
+        final flush = store.flushNow().then((_) => returned = true);
+
+        // Fires the in-cycle backoff timers so a cycle can exhaust its retries
+        // and report. Ten passes outlast the three attempts one cycle needs, so
+        // a flush that kept looping would still be unfinished here.
+        for (var i = 0; i < 10; i++) {
+          await settle();
+          clock.fire();
+        }
+        await settle();
+
+        expect(returned, isTrue, reason: 'the flush never gave up looping');
+        await flush;
+
+        expect(reported.last, SaveBannerState.failedWillRetry);
+        expect(store.debugPendingLength, 1);
+        expect(await db.select(db.accounts).get(), isEmpty);
+      },
+    );
+
+    test('flushOnAnIdleStoreIsANoOp', () async {
+      await store.flushNow();
+
+      expect(reported, isEmpty);
+      expect(flaky.transactionAttempts, 0);
+      expect(clock.armedCount, 0);
+    });
+
+    test('flushNow after a completed save is a no-op', () async {
+      store.enqueue([UpsertAccount(account('a1', 'v1'))]);
+      await debouncedSave();
+      final attemptsAfterSave = flaky.transactionAttempts;
+
+      await store.flushNow();
+
+      expect(flaky.transactionAttempts, attemptsAfterSave);
+      expect(reported, isEmpty);
+    });
+
+    test('a flush recovers from a failure inside its own loop', () async {
+      flaky.failures = 1;
+      store.enqueue([UpsertAccount(account('a1', 'v1'))]);
+
+      // The first attempt fails, the in-cycle backoff timer needs firing.
+      final flush = store.flushNow();
+      await settle();
+      clock.fire();
+      await flush;
+
+      expect((await db.select(db.accounts).getSingle()).name, 'v1');
     });
   });
 

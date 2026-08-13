@@ -8,8 +8,8 @@ import 'package:spendwise/persistence/ledger_store.dart';
 import 'package:spendwise/persistence/mappers.dart';
 import 'package:spendwise/persistence/version_vector.dart';
 
-/// A cancellable pending callback. Tests supply their own so the suite never
-/// waits out a real debounce or backoff.
+/// Tests supply their own so the suite never waits out a real debounce or
+/// backoff.
 abstract class StoreTimer {
   void cancel();
 }
@@ -29,6 +29,12 @@ class _RealTimer implements StoreTimer {
 StoreTimer _armRealTimer(Duration delay, void Function() onFire) =>
     _RealTimer(delay, onFire);
 
+/// Rides the ingest queue alongside the batches. Completing it on the drain
+/// loop is what proves every batch queued ahead of it is already in `pending`.
+class _Barrier {
+  final Completer<void> reached = Completer<void>();
+}
+
 const _debounce = Duration(milliseconds: 250);
 const _maxRetries = 2;
 const _retryBackoff = Duration(milliseconds: 200);
@@ -40,7 +46,7 @@ class DriftLedgerStore implements LedgerStore {
 
   final ArmTimer _armTimer;
 
-  final Queue<List<LedgerChange>> _ingest = Queue();
+  final Queue<Object> _ingest = Queue();
 
   final List<LedgerChange> _pending = [];
 
@@ -54,13 +60,15 @@ class DriftLedgerStore implements LedgerStore {
 
   Future<void>? _inFlightSave;
 
-  /// Swift reported `clear` on every success, so a healthy app emitted banner
-  /// transitions for a problem it never had.
+  /// Reporting `clear` on every success would emit banner transitions for a
+  /// problem the app never had.
   bool _reportedNonClear = false;
 
   /// Set while a timed retry cycle runs, so those attempts do not flip the
   /// banner back to `retrying` and make it flicker.
   bool _inTimedRetry = false;
+
+  bool _lastCycleGaveUp = false;
 
   int get debugPendingLength => _pending.length;
 
@@ -95,17 +103,45 @@ class DriftLedgerStore implements LedgerStore {
     throw UnimplementedError('seedIfFirstLaunch lands with task group 7');
   }
 
+  /// Everything enqueued before this call is on disk when it returns.
   @override
   Future<void> flushNow() async {
-    throw UnimplementedError('flushNow lands with task group 6');
+    await start();
+
+    final barrier = _Barrier();
+    _ingest.add(barrier);
+    _drain();
+    await barrier.reached.future;
+
+    _debounceTimer?.cancel();
+    _debounceTimer = null;
+    await _inFlightSave;
+
+    // One trailing save would return with anything buffered during that save
+    // still unwritten.
+    while (_pending.isNotEmpty) {
+      await _saveCycle();
+      // The timed retry owns recovery from a failing disk. Without this exit
+      // the loop would spin against it and never return.
+      if (_lastCycleGaveUp) return;
+    }
   }
 
   void _drain() {
     if (_ingest.isEmpty) return;
+    var buffered = false;
     while (_ingest.isNotEmpty) {
-      _pending.addAll(_ingest.removeFirst());
+      final item = _ingest.removeFirst();
+      if (item is _Barrier) {
+        item.reached.complete();
+        continue;
+      }
+      _pending.addAll(item as List<LedgerChange>);
+      buffered = true;
     }
-    _armDebounce();
+    // A queue holding only barriers has nothing new to save, so arming the
+    // debounce would wake an idle store.
+    if (buffered) _armDebounce();
   }
 
   void _armDebounce() {
@@ -118,8 +154,8 @@ class DriftLedgerStore implements LedgerStore {
     });
   }
 
-  /// Only a transition is reported. Reporting `clear` puts the store back in
-  /// the clear state, so the next healthy save is silent again.
+  /// Reporting `clear` puts the store back in the clear state, so the next
+  /// healthy save is silent again.
   void _report(SaveBannerState state) {
     final isClear = state == SaveBannerState.clear;
     if (isClear && !_reportedNonClear) return;
@@ -127,8 +163,8 @@ class DriftLedgerStore implements LedgerStore {
     _handler?.call(state);
   }
 
-  /// Serialized behind one future. The save and the backoff are both awaits, so
-  /// two overlapping cycles would otherwise apply the same pending prefix twice.
+  /// The save and the backoff are both awaits, so two overlapping cycles would
+  /// otherwise apply the same pending prefix twice.
   Future<void> _saveCycle() {
     final running = _inFlightSave;
     if (running != null) return running;
@@ -139,6 +175,7 @@ class DriftLedgerStore implements LedgerStore {
   }
 
   Future<void> _runCycle() async {
+    _lastCycleGaveUp = false;
     for (var attempt = 0; attempt <= _maxRetries; attempt++) {
       if (_pending.isEmpty) return;
 
@@ -160,6 +197,7 @@ class DriftLedgerStore implements LedgerStore {
           await _wait(_retryBackoff);
           continue;
         }
+        _lastCycleGaveUp = true;
         _report(SaveBannerState.failedWillRetry);
         _armTimedRetry();
         return;
@@ -186,10 +224,9 @@ class DriftLedgerStore implements LedgerStore {
     return completer.future;
   }
 
-  /// Keeps the last change per target, each survivor sitting at the index of
-  /// its final occurrence rather than its first. Upserts and deletions share the
-  /// keyspace, so an upsert followed by a deletion of the same id applies only
-  /// the deletion.
+  /// Each survivor sits at the index of its final occurrence rather than its
+  /// first. Upserts and deletions share the keyspace, so an upsert followed by
+  /// a deletion of the same id applies only the deletion.
   static List<LedgerChange> _coalesce(List<LedgerChange> changes) {
     final lastIndex = <String, int>{};
     for (var i = 0; i < changes.length; i++) {
@@ -259,8 +296,6 @@ class DriftLedgerStore implements LedgerStore {
     return row?.read<Uint8List>('version_data');
   }
 
-  /// An absent row starts from the empty vector, so an insert-then-bump lands
-  /// with a single counter at one.
   Future<VersionVector> _bumpedVersion(
     TableInfo<Table, dynamic> table,
     String id,
