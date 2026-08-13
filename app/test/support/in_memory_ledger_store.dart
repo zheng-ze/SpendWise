@@ -11,7 +11,7 @@ class InMemoryLedgerStore implements LedgerStore {
     : _state = state ?? LedgerState(),
       _seeded = hasSeeded;
 
-  LedgerState _state;
+  final LedgerState _state;
 
   bool _seeded;
 
@@ -72,56 +72,9 @@ class InMemoryLedgerStore implements LedgerStore {
   }
 
   void _drain() {
-    if (_pending.isEmpty) return;
-
-    final sources = Map<String, MoneySource>.of(_state.moneySources);
-    final entries = Map<String, Entry>.of(_state.entries);
-    final categories = Map<String, TransactionCategory>.of(_state.categories);
-    final plans = Map<String, RecurringPlan>.of(_state.plans);
-
     for (final batch in _pending) {
-      for (final change in batch) {
-        _apply(change, sources, entries, categories, plans);
-      }
+      _state.apply(batch);
     }
     _pending.clear();
-
-    _state = LedgerState(
-      moneySources: sources,
-      entries: entries,
-      categories: categories,
-      plans: plans,
-    );
-  }
-
-  /// Mirrors the replay a real store performs when rebuilding state from the
-  /// change log. The domain has no replay of its own to call.
-  void _apply(
-    LedgerChange change,
-    Map<String, MoneySource> sources,
-    Map<String, Entry> entries,
-    Map<String, TransactionCategory> categories,
-    Map<String, RecurringPlan> plans,
-  ) {
-    switch (change) {
-      case UpsertAccount(:final account):
-        sources[account.id] = MoneySource.account(account);
-      case UpsertPocket(:final pocket):
-        sources[pocket.id] = MoneySource.pocket(pocket);
-      case UpsertCategory(:final category):
-        categories[category.id] = category;
-      case UpsertEntry(:final entry):
-        entries[entry.id] = entry;
-      case UpsertPlan(:final plan):
-        plans[plan.id] = plan;
-      case DeleteMoneySource(:final id):
-        sources.remove(id);
-      case DeleteCategory(:final id):
-        categories.remove(id);
-      case DeleteEntry(:final id):
-        entries.remove(id);
-      case DeletePlan(:final id):
-        plans.remove(id);
-    }
   }
 }
