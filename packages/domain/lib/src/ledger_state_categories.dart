@@ -88,9 +88,9 @@ extension LedgerStateCategories on LedgerState {
     );
   }
 
-  /// The parent moves first, then every child sitting in [from]. A child in any
-  /// other state is left where it is: `referenceOnly` has left the bin for good,
-  /// and an already-archived child must not be dragged along by an archive.
+  /// A child in any state other than [from] is left where it is.
+  /// `referenceOnly` has left the bin for good, and an already-archived child
+  /// must not be dragged along by an archive.
   List<LedgerChange> _moveCategoryTree(
     TransactionCategory category, {
     required LifecycleState from,
@@ -118,7 +118,6 @@ extension LedgerStateCategories on LedgerState {
     final parentID = category.parentID;
     if (parentID == null) return;
 
-    // A category cannot be its own parent.
     if (parentID == category.id) throw const CategoryTooDeep();
 
     final parent = _categories[parentID];

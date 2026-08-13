@@ -6,7 +6,6 @@ import 'package:spendwise/persistence/ledger_database.dart';
 
 /// Raised instead of returning an empty vector, because an empty vector claims
 /// the row has no write history and so drops every causal relationship it had.
-/// Swift's `?? VersionVector()` fallback is the defect this corrects.
 class VersionVectorDecodeError implements Exception {
   const VersionVectorDecodeError(this.reason);
 
@@ -16,8 +15,8 @@ class VersionVectorDecodeError implements Exception {
   String toString() => 'VersionVectorDecodeError($reason)';
 }
 
-/// Counts writes per device. Merging is deliberately absent, belonging to the
-/// sync engine that does not exist yet.
+/// Merging is deliberately absent, belonging to the sync engine that does not
+/// exist yet.
 class VersionVector {
   factory VersionVector(Map<String, int> counters) {
     final normalized = <String, int>{};
@@ -54,8 +53,7 @@ class VersionVector {
 
   List<int> encode() => utf8.encode(json.encode(_counters));
 
-  /// Reads the object form this version writes and both flat alternating-array
-  /// forms Swift wrote, the bare array and the one wrapped under `counters`.
+  /// An empty blob is a row with no history yet, distinct from a corrupt one.
   static VersionVector decode(List<int> blob) {
     if (blob.isEmpty) return empty;
 
@@ -113,7 +111,8 @@ class VersionVector {
       other._counters.length == _counters.length &&
       _counters.entries.every((e) => other._counters[e.key] == e.value);
 
-  /// Summed so that equal vectors hash alike whatever order they were built in.
+  /// Order-independent, so equal vectors hash alike whatever order they were
+  /// built in.
   @override
   int get hashCode => _counters.entries.fold(
     _counters.length,
@@ -124,8 +123,6 @@ class VersionVector {
   String toString() => 'VersionVector($_counters)';
 }
 
-/// The device's own identity, created on first use and stable from then on.
-/// Cached per database instance, so repeated reads cost nothing.
 final _cachedDeviceIDs = Expando<Future<String>>();
 
 Future<String> deviceID(LedgerDatabase db) =>

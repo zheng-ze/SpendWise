@@ -3,7 +3,8 @@ enum LifecycleState {
   archived(1),
   referenceOnly(2),
 
-  /// Used for persistence only.
+  /// Travels in the change stream and never rests in the state, where an
+  /// invariant rejects it.
   tombstoned(3);
 
   const LifecycleState(this.code);

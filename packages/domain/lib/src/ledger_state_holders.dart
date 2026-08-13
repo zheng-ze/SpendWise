@@ -99,7 +99,6 @@ extension LedgerStateHolders on LedgerState {
     ]);
   }
 
-  /// The account moves first, then every pocket it links that sits in [from].
   List<LedgerChange> _moveAccountTree(
     Account account, {
     required LifecycleState from,

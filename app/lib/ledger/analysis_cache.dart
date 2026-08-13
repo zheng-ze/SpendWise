@@ -63,7 +63,6 @@ class AnalysisCache extends ChangeNotifier {
     });
   }
 
-  /// Fire-and-forget. Callers never await the items.
   void refresh(LedgerState state) {
     if (_lastComputed == _revision) return;
 

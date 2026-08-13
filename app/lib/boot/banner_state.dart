@@ -7,8 +7,8 @@ import 'package:spendwise/persistence/ledger_store.dart';
 
 const _dismissAfter = Duration(seconds: 4);
 
-/// Holds the two banner channels independently, so neither dismisses the
-/// other. A plan error outranks a save message and clears only on its timer.
+/// The two banner channels are independent, so neither dismisses the other. A
+/// plan error outranks a save message and clears only on its timer.
 class BannerState extends ChangeNotifier {
   SaveBannerState _saveState = SaveBannerState.clear;
 

@@ -1,7 +1,6 @@
 import 'package:drift/drift.dart';
 
-/// Columns every synced row carries. `store_meta` is device-local and so is the
-/// one table that stays out.
+/// `store_meta` is device-local and so is the one table that stays out.
 mixin SyncedRow on Table {
   BlobColumn get versionData => blob().named('version_data')();
 
@@ -15,8 +14,8 @@ class Accounts extends Table with SyncedRow {
 
   IntColumn get type => integer()();
 
-  /// JSON array of lowercase uuids. Parentage lives here alone, so a pocket row
-  /// has no back pointer to read it from.
+  /// Parentage lives here alone, so a pocket row has no back pointer to read it
+  /// from.
   TextColumn get subPocketIds => text().named('sub_pocket_ids')();
 
   BoolColumn get incomingTransfersAsExpenses =>
@@ -67,7 +66,7 @@ class Entries extends Table with SyncedRow {
 
   IntColumn get date => integer()();
 
-  /// Decimal string. A float column would not round-trip the stored amount.
+  /// A float column would not round-trip the stored amount.
   TextColumn get amount => text()();
 
   TextColumn get name => text()();
@@ -76,7 +75,6 @@ class Entries extends Table with SyncedRow {
 
   TextColumn get sourceId => text().named('source_id')();
 
-  /// Non-null marks the entry a transfer.
   TextColumn get destinationId => text().named('destination_id').nullable()();
 
   BoolColumn get includeInAnalysis => boolean().named('include_in_analysis')();
@@ -124,8 +122,7 @@ class Plans extends Table with SyncedRow {
 }
 
 /// Device-local, so it carries neither a version vector nor a lifecycle. The
-/// fixed key holds it to one row, which Swift only managed by always fetching
-/// the first.
+/// fixed key holds it to one row.
 @DataClassName('StoreMetaRow')
 class StoreMeta extends Table {
   IntColumn get id => integer()();

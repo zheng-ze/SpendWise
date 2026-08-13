@@ -174,9 +174,6 @@ RecurringPlan planFromRow(rows.Plan row) => RecurringPlan(
   lastResolvedDate: dayFromMillis(row.lastResolvedDate),
 );
 
-/// A plan carries no lifecycle of its own, so the caller supplies the one the
-/// row stores. Swift pinned this column to active and so could not tombstone a
-/// plan row at all.
 rows.Plan planToRow(
   RecurringPlan plan,
   VersionVector version, {

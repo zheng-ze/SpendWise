@@ -16,9 +16,6 @@ final storeProvider = Provider<LedgerStore>((ref) {
   throw UnimplementedError('storeProvider has no default, override it');
 });
 
-// ChangeNotifierProvider disposes the notifier it creates on its own, so no
-// ref.onDispose is added here for the notifier itself.
-
 final bannerStateProvider = ChangeNotifierProvider<BannerState>((ref) {
   return BannerState();
 });

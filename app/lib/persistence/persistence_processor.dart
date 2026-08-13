@@ -4,8 +4,6 @@ import 'package:domain/domain.dart';
 import 'package:spendwise/ledger/event_bus.dart';
 import 'package:spendwise/persistence/ledger_store.dart';
 
-/// The single pipe from the bus to the store.
-///
 /// Batches are forwarded exactly as published. Coalescing repeated upserts of
 /// one target belongs to the store's debounce window, not here.
 class PersistenceProcessor {

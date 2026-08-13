@@ -50,7 +50,6 @@ class Account {
     return _copy(lifecycle: lifecycle);
   }
 
-  /// Only cards carry a statement day, clamped to a day every month has.
   /// Clamped rather than rejected, since a value reaching here came from a
   /// drift row or an import, and dropping the row would lose more.
   Account withNormalizedStatementDay() {
