@@ -3,6 +3,7 @@ import 'dart:collection';
 
 import 'package:domain/domain.dart';
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:spendwise/persistence/ledger_database.dart' as rows;
 import 'package:spendwise/persistence/ledger_store.dart';
 import 'package:spendwise/persistence/mappers.dart';
@@ -33,6 +34,36 @@ StoreTimer _armRealTimer(Duration delay, void Function() onFire) =>
 /// loop is what proves every batch queued ahead of it is already in `pending`.
 class _Barrier {
   final Completer<void> reached = Completer<void>();
+}
+
+/// Replay order is fixed: accounts, pockets, categories, entries, plans.
+Future<List<LedgerChange>> loadChanges(rows.LedgerDatabase db) async {
+  Future<List<D>> live<T extends Table, D extends DataClass>(
+    TableInfo<T, D> table,
+  ) async {
+    final found = await db
+        .customSelect(
+          'SELECT * FROM ${table.actualTableName} WHERE lifecycle != ?',
+          variables: [Variable<int>(LifecycleState.tombstoned.code)],
+          readsFrom: {table},
+        )
+        .get();
+    return [for (final row in found) await table.map(row.data)];
+  }
+
+  final accounts = await live(db.accounts);
+  final pockets = await live(db.subPockets);
+  final categories = await live(db.categories);
+  final entries = await live(db.entries);
+  final plans = await live(db.plans);
+
+  return [
+    for (final row in accounts) UpsertAccount(accountFromRow(row)),
+    for (final row in pockets) UpsertPocket(pocketFromRow(row)),
+    for (final row in categories) UpsertCategory(categoryFromRow(row)),
+    for (final row in entries) UpsertEntry(entryFromRow(row)),
+    for (final row in plans) UpsertPlan(planFromRow(row)),
+  ];
 }
 
 const _debounce = Duration(milliseconds: 250);
@@ -74,41 +105,11 @@ class DriftLedgerStore implements LedgerStore {
   /// back seed stays unseeded.
   bool _seedFlagPending = false;
 
-  int get debugPendingLength => _pending.length;
-
-  Future<void> debugSaveCycle() => _saveCycle();
-
-  Future<List<LedgerChange>> debugLoadChanges() => _loadChanges();
-
-  /// Replay order is fixed: accounts, pockets, categories, entries, plans.
-  Future<List<LedgerChange>> _loadChanges() async {
-    Future<List<D>> live<T extends Table, D extends DataClass>(
-      TableInfo<T, D> table,
-    ) async {
-      final rows = await db
-          .customSelect(
-            'SELECT * FROM ${table.actualTableName} WHERE lifecycle != ?',
-            variables: [Variable<int>(LifecycleState.tombstoned.code)],
-            readsFrom: {table},
-          )
-          .get();
-      return [for (final row in rows) await table.map(row.data)];
-    }
-
-    final accounts = await live(db.accounts);
-    final pockets = await live(db.subPockets);
-    final categories = await live(db.categories);
-    final entries = await live(db.entries);
-    final plans = await live(db.plans);
-
-    return [
-      for (final row in accounts) UpsertAccount(accountFromRow(row)),
-      for (final row in pockets) UpsertPocket(pocketFromRow(row)),
-      for (final row in categories) UpsertCategory(categoryFromRow(row)),
-      for (final row in entries) UpsertEntry(entryFromRow(row)),
-      for (final row in plans) UpsertPlan(planFromRow(row)),
-    ];
-  }
+  /// Changes buffered but not yet committed. Nothing outside can see these:
+  /// a test that they were kept rather than dropped cannot read the database,
+  /// because not being on disk is the thing under test.
+  @visibleForTesting
+  int get pendingCount => _pending.length;
 
   @override
   Future<void> start() async {
@@ -131,7 +132,7 @@ class DriftLedgerStore implements LedgerStore {
 
   @override
   Future<LedgerState> load() async =>
-      LedgerState.replaying(await _loadChanges());
+      LedgerState.replaying(await loadChanges(db));
 
   /// The flag rides the save transaction rather than a transaction of its own,
   /// so a crash before that commit leaves it unset with no seed rows and the

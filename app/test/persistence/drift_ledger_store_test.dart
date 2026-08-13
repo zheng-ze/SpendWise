@@ -148,6 +148,15 @@ void main() {
     await settle();
   }
 
+  /// Counts once per write the row has taken, so a change applied twice reads
+  /// as two even though the row itself looks the same.
+  Future<int> versionBumpsOnAccount(String id) async {
+    final row = await (db.select(
+      db.accounts,
+    )..where((row) => row.id.equals(id))).getSingle();
+    return versionFromRow(row.versionData).counters.values.single;
+  }
+
   group('ordered ingest and debounce', () {
     test('enqueue buffers synchronously in arrival order', () async {
       store
@@ -276,22 +285,41 @@ void main() {
   });
 
   group('transactional save and retry', () {
-    test('a failed save rolls back leaving nothing partial', () async {
+    test('saveFailureRollsBackThenRetrySucceeds', () async {
       flaky.failures = 1;
-      store.enqueue([UpsertAccount(account('a1', 'v1'))]);
+      store.enqueue([
+        UpsertAccount(account('a1', 'v1')),
+        UpsertEntry(entry('e1', '10')),
+      ]);
 
       await debouncedSave();
 
-      // The first attempt failed, the retry is armed at the backoff.
       expect(reported, [SaveBannerState.retrying]);
+      expect(flaky.transactionAttempts, 1);
+
+      // Both rows or neither. A partial commit would leave the account behind,
+      // since it is applied before the entry inside the one transaction.
       expect(await db.select(db.accounts).get(), isEmpty);
+      expect(await db.select(db.entries).get(), isEmpty);
       expect(clock.armedDelays.single, const Duration(milliseconds: 200));
 
       clock.fire();
       await settle();
 
       expect((await db.select(db.accounts).getSingle()).name, 'v1');
+      expect((await db.select(db.entries).getSingle()).amount, '10');
       expect(reported.last, SaveBannerState.clear);
+
+      // A flush over a store still holding the written batch would re-apply it
+      // and bump the row a second time.
+      final attemptsAfterRetry = flaky.transactionAttempts;
+      await store.flushNow();
+      expect(flaky.transactionAttempts, attemptsAfterRetry);
+
+      // The rolled back attempt wrote no version, so the row that landed sits
+      // at one bump rather than two.
+      final row = await db.select(db.accounts).getSingle();
+      expect(versionFromRow(row.versionData).counters.values.single, 1);
     });
 
     test('a cycle retries twice before giving up', () async {
@@ -373,7 +401,14 @@ void main() {
       await settle();
 
       expect(reported.last, SaveBannerState.failedWillRetry);
-      expect(store.debugPendingLength, 1);
+      expect(await db.select(db.accounts).get(), isEmpty);
+
+      // The disk is healthy again and nothing new is enqueued, so the row can
+      // only land if every failed attempt left the batch pending.
+      clock.fire();
+      await settle();
+
+      expect((await db.select(db.accounts).getSingle()).name, 'v1');
     });
   });
 
@@ -387,12 +422,10 @@ void main() {
       store.enqueue([UpsertAccount(account('a2', 'v2'))]);
 
       await settle();
-
-      // Clearing the coalesced count instead of the raw one would drop this.
-      expect(store.debugPendingLength, lessThanOrEqualTo(1));
-
       await debouncedSave();
 
+      // Clearing more than the save snapshotted would drop 'a2' before it was
+      // ever written.
       expect((await db.select(db.accounts).get()).length, 2);
     });
 
@@ -405,18 +438,23 @@ void main() {
       await debouncedSave();
 
       // Three raw changes coalesce to one. Clearing only the coalesced count
-      // would leave two stale changes behind.
-      expect(store.debugPendingLength, 0);
+      // would leave two stale changes behind for this flush to write again.
+      await store.flushNow();
+
+      expect(flaky.transactionAttempts, 1);
+      expect(await versionBumpsOnAccount('a1'), 1);
     });
 
     test('saves are serialized behind one in-flight future', () async {
       store.enqueue([UpsertAccount(account('a1', 'v1'))]);
       await settle();
 
-      // Two save requests racing the same pending prefix. Without the
-      // in-flight guard both apply it and the row is bumped twice.
-      final first = store.debugSaveCycle();
-      final second = store.debugSaveCycle();
+      // Both flushes clear the armed debounce, see 'a1' still pending and enter
+      // their save loops in the same turn, so both call a cycle over the same
+      // prefix. Without the in-flight guard the second runs its own
+      // transaction over that prefix and bumps the row again.
+      final first = store.flushNow();
+      final second = store.flushNow();
       await Future.wait([first, second]);
       await settle();
 
@@ -471,7 +509,11 @@ void main() {
       await store.flushNow();
 
       expect((await db.select(db.accounts).getSingle()).name, 'v1');
-      expect(store.debugPendingLength, 0);
+
+      // A flush that wrote the batch without clearing it would apply it again
+      // here and bump the row twice.
+      await store.flushNow();
+      expect(await versionBumpsOnAccount('a1'), 1);
     });
 
     test('debouncedFlushPersistsWithoutAnExplicitFlush', () async {
@@ -561,7 +603,6 @@ void main() {
 
       // No clock.fire after those enqueues, so no debounce timer can write
       // them. A single trailing save returns with 'a3' still buffered.
-      expect(store.debugPendingLength, 0);
       expect((await db.select(db.accounts).get()).length, 3);
     });
 
@@ -589,7 +630,7 @@ void main() {
         await flush;
 
         expect(reported.last, SaveBannerState.failedWillRetry);
-        expect(store.debugPendingLength, 1);
+        expect(store.pendingCount, 1);
         expect(await db.select(db.accounts).get(), isEmpty);
       },
     );
@@ -788,6 +829,67 @@ void main() {
       expect(row.lifecycle, LifecycleState.tombstoned.code);
     });
 
+    test('enqueuedChangesPersistAcrossLoad', () async {
+      store.enqueue([
+        UpsertAccount(account('a1', 'wallet')),
+        UpsertEntry(entry('e1', '12.34')),
+      ]);
+      await store.flushNow();
+
+      final state = await store.load();
+
+      expect(state.moneySources['a1']!.name, 'wallet');
+      expect(state.entries['e1']!.amount, Decimal.parse('12.34'));
+    });
+
+    test('deleteTombstonesRowButHidesItFromLoad', () async {
+      store.enqueue([UpsertEntry(entry('e1', '12.34'))]);
+      await store.flushNow();
+
+      store.enqueue([const DeleteEntry('e1')]);
+      await store.flushNow();
+
+      expect((await store.load()).entries, isEmpty);
+
+      final row = await db
+          .customSelect('SELECT lifecycle, version_data FROM entries')
+          .getSingle();
+      expect(row.read<int>('lifecycle'), LifecycleState.tombstoned.code);
+
+      // The delete bumps rather than clears, so a tombstone carries the causal
+      // history a future sync needs to see it as newer than the upsert.
+      final counters = versionFromRow(
+        row.read<Uint8List>('version_data'),
+      ).counters;
+      expect(counters.values.fold(0, (sum, count) => sum + count), 2);
+    });
+
+    test('coalescedUpsertsWriteLatestValue', () async {
+      store
+        ..enqueue([UpsertCategory(category('c1', 'v1', parentID: null))])
+        ..enqueue([UpsertCategory(category('c1', 'v2', parentID: null))]);
+      await store.flushNow();
+
+      expect((await store.load()).categories['c1']!.name, 'v2');
+      expect(flaky.transactionAttempts, 1);
+    });
+
+    test('planPersistsAndTombstonesAcrossLoad', () async {
+      store.enqueue([UpsertPlan(plan('pl1'))]);
+      await store.flushNow();
+
+      expect((await store.load()).plans.keys.toSet(), {'pl1'});
+
+      store.enqueue([const DeletePlan('pl1')]);
+      await store.flushNow();
+
+      expect((await store.load()).plans, isEmpty);
+      expect(
+        (await db.select(db.plans).getSingle()).lifecycle,
+        LifecycleState.tombstoned.code,
+      );
+    });
+
     test(
       'load orders changes accounts pockets categories entries plans',
       () async {
@@ -800,7 +902,7 @@ void main() {
         ]);
         await store.flushNow();
 
-        final changes = await store.debugLoadChanges();
+        final changes = await loadChanges(db);
 
         expect(changes.map((c) => c.runtimeType).toList(), [
           UpsertAccount,
@@ -825,9 +927,8 @@ void main() {
         updates: {db.accounts},
       );
 
-      // Recorded deviation from persistence.md:426-428, which expects a decode
-      // error to surface as a load error. The row mappers never touch
-      // version_data, so load cannot see the damage.
+      // Load reads only the domain columns, so damage to a vector surfaces on
+      // the next write to the row rather than here.
       final state = await store.load();
       expect(state.moneySources.keys.toSet(), {'a1'});
     });
