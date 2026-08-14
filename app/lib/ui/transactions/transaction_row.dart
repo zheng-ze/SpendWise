@@ -34,7 +34,6 @@ class TransactionRow {
   final String symbolName;
   final Color color;
 
-  /// Unsigned magnitude for a transfer, signed otherwise.
   final Decimal amount;
 
   final AmountKind amountKind;
