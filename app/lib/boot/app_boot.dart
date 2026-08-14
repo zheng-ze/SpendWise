@@ -42,6 +42,13 @@ class AppBoot extends ChangeNotifier with WidgetsBindingObserver {
 
   EventBus? _bus;
 
+  /// Tracks whatever the current attempt has wired so far, independent of
+  /// phase. A throw after wiring but before (or after) reaching `Ready` still
+  /// leaves something here for `_teardown` to find and dispose.
+  PersistenceProcessor? _persistence;
+
+  Ledger? _ledger;
+
   Future<void> start() async {
     await _teardown();
     _setPhase(const Loading());
@@ -54,10 +61,13 @@ class AppBoot extends ChangeNotifier with WidgetsBindingObserver {
       final state = await store.load();
 
       final bus = _bus = EventBus();
-      final persistence = PersistenceProcessor(store: store, bus: bus);
+      final persistence = _persistence = PersistenceProcessor(
+        store: store,
+        bus: bus,
+      );
       await persistence.start();
 
-      final ledger = Ledger(state: state, bus: bus);
+      final ledger = _ledger = Ledger(state: state, bus: bus);
       ledger.onPlanError = _handlePlanError;
 
       _setPhase(Ready(ledger: ledger, persistence: persistence));
@@ -88,23 +98,46 @@ class AppBoot extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  /// Flush must precede disposal or a retry drops the pending writes. The bus
-  /// close stays outside the phase guard, since a boot that failed after minting
-  /// one leaves it behind with no `Ready` to reach it through.
+  /// Flush must precede disposal or a retry drops the pending writes. This
+  /// runs off the tracked wiring fields rather than `phase is Ready`, since a
+  /// throw partway through `start()` can leave persistence and the ledger
+  /// wired with no `Ready` phase ever reaching them, or a `Ready` reached and
+  /// then overwritten by a later throw in the same attempt.
   Future<void> _teardown() async {
-    final phase = _phase;
-    if (phase is Ready) {
-      await phase.persistence.flush();
-      await phase.persistence.dispose();
-      phase.ledger.dispose();
+    final persistence = _persistence;
+    if (persistence != null) {
+      await persistence.flush();
+      await persistence.dispose();
     }
+    _ledger?.dispose();
+    _persistence = null;
+    _ledger = null;
 
     await _bus?.dispose();
     _bus = null;
   }
 
+  bool _disposed = false;
+
+  /// `ChangeNotifier.dispose()` is synchronous, so the `dispose()` override
+  /// below cannot await the flush and is best-effort: a container torn down
+  /// right as the app exits can still drop a pending write. A caller that
+  /// controls its own shutdown sequence and can await should call this
+  /// instead, ahead of whatever disposes the provider, to get a guaranteed
+  /// flush. Either path marks the notifier disposed, so the provider's own
+  /// later `dispose()` call (Riverpod always makes one) becomes a no-op
+  /// instead of disposing a `ChangeNotifier` twice.
+  Future<void> disposeAndFlush() async {
+    if (_disposed) return;
+    _disposed = true;
+    await _teardown();
+    super.dispose();
+  }
+
   @override
   void dispose() {
+    if (_disposed) return;
+    _disposed = true;
     unawaited(_teardown());
     super.dispose();
   }

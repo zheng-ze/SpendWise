@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
@@ -62,6 +63,9 @@ final appBootProvider = ChangeNotifierProvider<AppBoot>((ref) {
 
   boot.addListener(joinCacheOnceReady);
   ref.onDispose(() => boot.removeListener(joinCacheOnceReady));
+
+  WidgetsBinding.instance.addObserver(boot);
+  ref.onDispose(() => WidgetsBinding.instance.removeObserver(boot));
 
   boot.start();
   return boot;

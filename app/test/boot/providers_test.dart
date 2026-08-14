@@ -11,6 +11,7 @@ Account _account({String name = 'acc'}) =>
     Account(name: name, type: AccountType.savings);
 
 ProviderContainer _containerFor(InMemoryLedgerStore store) {
+  TestWidgetsFlutterBinding.ensureInitialized();
   final container = ProviderContainer(
     overrides: [storeProvider.overrideWithValue(store)],
   );

@@ -110,6 +110,42 @@ void main() {
     },
   );
 
+  test(
+    'aBootThatFailsResolvingPlansDisposesTheReadyRuntimeItMomentarilyHeld',
+    () async {
+      final store = RecordingLedgerStore(hasSeeded: true);
+      Ready? momentarilyReady;
+      var throwOnResolve = true;
+
+      final app = AppBoot(
+        createStore: () async => store,
+        seedChanges: () => const [],
+        now: () {
+          if (throwOnResolve) throw StateError('resolve failed');
+          return DateTime.utc(2026, 8, 12, 9);
+        },
+      );
+      app.addListener(() {
+        if (app.phase case final Ready ready) momentarilyReady = ready;
+      });
+
+      await app.start();
+      expect(app.phase, isA<Failed>());
+      final orphaned = momentarilyReady!;
+
+      throwOnResolve = false;
+      await app.retry();
+      expect(app.phase, isA<Ready>());
+
+      expect(
+        () => orphaned.ledger.addAccount(
+          Account(name: 'through the orphan', type: AccountType.savings),
+        ),
+        throwsFlutterError,
+      );
+    },
+  );
+
   test('lifecycleActsThroughTheRuntimeFromTheLatestBoot', () async {
     final store = RecordingLedgerStore(hasSeeded: true);
     final app = boot(store);
