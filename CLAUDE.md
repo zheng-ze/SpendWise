@@ -14,7 +14,8 @@ behavior; its own CLAUDE.md is stale — trust the Swift code, not its docs.
 
 **Read `docs/NAVIGATION.md` before starting work.** It is the reading order, the phase table and the
 sequencing rules. Two things from it that decide what you may touch: the current change is
-`add-ledger-runtime`, and **no UI work happens before Phase 3 is green.**
+`add-transactions-ui`, and **the four screen changes all build on `add-app-shell-and-boot`**, so a
+screen never introduces its own formatter, symbol map or month state.
 
 ## Conventions
 

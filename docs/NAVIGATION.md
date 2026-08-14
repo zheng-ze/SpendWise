@@ -36,6 +36,7 @@ Each change depends on the ones above it.
 | `add-ledger-runtime` | 3 | `Ledger`, `EventBus`, `AnalysisCache`, store contract, boot, seeding |
 | `add-drift-store` | 4 | Schema, mappers, write pipeline, replay, version vectors |
 | `add-app-shell-and-boot` | 5 | Adaptive shell, boot chrome, banners, formatting, shared widgets |
+| `fix-boot-and-plan-defects` | 5 | Fixes from the phase 2-5 adversarial review: plan-edit duplicate entries, unregistered lifecycle observer, boot teardown leaks |
 | `add-transactions-ui` | 5 | Day sections, month breakdown, entry form |
 | `add-accounts-ui` | 5 | Grouped accounts, card statement math, holder forms |
 | `add-stats-ui` | 5 | Donut, slices, category drill-down, trend |
