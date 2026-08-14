@@ -29,16 +29,11 @@ Future<Ready> _readyPhase(ProviderContainer container) async {
 }
 
 void main() {
-  test('storeProviderThrowsWhenNotOverridden', () {
-    final container = ProviderContainer();
-    addTearDown(container.dispose);
+  test('anOverrideStillWinsOverTheRealStore', () {
+    final store = InMemoryLedgerStore(hasSeeded: true);
+    final container = _containerFor(store);
 
-    expect(
-      () => container.read(storeProvider),
-      throwsA(
-        predicate((e) => e.toString().contains('storeProvider has no default')),
-      ),
-    );
+    expect(container.read(storeProvider), same(store));
   });
 
   test('overridingTheStoreLetsBootReachReady', () async {
