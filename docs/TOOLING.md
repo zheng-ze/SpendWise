@@ -97,8 +97,8 @@ query. Re-run `code-review-graph embed` after work that adds nodes.
 
 ## qwen-local
 
-Qwen2.5-Coder-Instruct 14B, served on the user's PC over the LAN. Unmetered, so it takes the
-high-frequency lookups that were exhausting Gemini's quota.
+Qwen2.5-Coder-Instruct 7B, served by LM Studio on the user's PC over the LAN. Unmetered, so it takes
+the high-frequency lookups that were exhausting Gemini's quota.
 
 ```sh
 scripts/qwen.sh "<question>" <file> [<file> ...]
@@ -106,16 +106,25 @@ scripts/qwen.sh "<question>" <file> [<file> ...]
 
 The wrapper prepends 1-based line numbers so the model can cite anchors.
 
+**LM Studio on the host server loads the build on demand**, so the model named in `SUBAGENT_MODEL`
+does not have to be resident first. Only HTTP reaches that host from here, which is why the wrapper
+checks `/api/v0/models` rather than shelling out to `lms`: that endpoint is LM Studio's own and the
+only one carrying `state` and `max_context_length`. A wrong model id fails there immediately with the
+installed ids listed. A cold load costs seconds — a 7B answered a trivial prompt in 10 seconds with
+the load included — so a call running for minutes is the memory-spill case, not a load.
+
 **An exhaustive sweep is the wrong job for it.** Asked to list every comment across five files, it
 returned `NOT PRESENT` for one holding four and found five of eight in another. It answers "where is
 X" well and "list all X" badly, so an inventory that must be complete is `rg`'s job. This is the
 false-zero rule with a second source: ground-truth every empty answer it gives.
 
-**Its window is 24576 tokens and the ceiling is hard.** Over-budget requests return HTTP 400
+**The window belongs to the build and the ceiling is hard.** `qwen2.5.1-coder-7b-instruct` holds
+32768 and `qwen2.5-coder-7b-instruct-128k` holds 131072. Over-budget requests return HTTP 400
 `exceed_context_size_error`, never a silent truncation, so the confident-answer-over-truncated-input
 failure is not available to it. Tasks arrive pre-narrowed: this file, these functions, this diff.
-`packages/domain/lib` plus `app/lib` is 23.5k tokens and fits with nothing to spare. A working budget
-is about 20k.
+`packages/domain/lib` plus `app/lib` is 23.5k tokens. A working budget is about 20k, and it is the
+model's accuracy that sets it rather than the window: quality collapses well before 32768, which is
+why the 128k build's larger window is not a reason to reach for it.
 
 Speed is not the constraint — the seven `ledger_state` part files answer in 4 seconds.
 

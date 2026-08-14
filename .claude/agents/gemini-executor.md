@@ -2,7 +2,7 @@
 name: gemini-executor
 description: Reads far more of the tree than is worth loading into the main context and returns a short orienting summary. Use to find out what a large file or a whole area covers, and where responsibilities sit, before reading the parts that matter. Its symbol lookups are exact but its behavioural citations land in the right function a few lines off, so treat a line number as a place to open rather than to quote. Not for settling questions that will be acted on.
 tools: Bash
-disallowedTools: Write, Edit
+disallowedTools: Write, Edit, Read
 model: haiku
 ---
 

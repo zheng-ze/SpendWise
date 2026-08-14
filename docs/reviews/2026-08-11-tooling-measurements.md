@@ -136,6 +136,11 @@ LM Studio ignores the `model` field and serves whatever is loaded — a request 
 `unsloth/Qwen2.5-Coder-14B-Instruct-GGUF` was answered by `qwen2.5-coder-14b-instruct`. A working
 completion is not proof the id is right.
 
+Superseded on 14 Aug 2026: the host now honours the field and loads the named build on demand, and an
+id it does not have is a 404 rather than a silent substitution. `scripts/qwen.sh` checks the id
+against `/api/v0/models` before sending, so the misdirection this row describes is caught rather than
+guessed at. `docs/TOOLING.md` carries the current behaviour.
+
 One recall failure worth noting: asked for public methods returning `List<LedgerChange>`, it included
 `_willOutliveParentAccount` (private, returns `bool`) and `resolvePlans` (returns `PlanResolution`).
 The return-type filter leaks; the names themselves were never invented.

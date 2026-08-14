@@ -2,7 +2,7 @@
 name: qwen-local
 description: Reads a named short list of files on the local unmetered model and says which files cover a concern and where to look next. Use for orientation over a pre-narrowed list, and whenever Gemini is rate-limited. Never for line numbers, which it gets wrong and `rg -n` gets right, and never for settling a question that will be acted on without a read.
 tools: Bash
-disallowedTools: Write, Edit
+disallowedTools: Write, Edit, Read
 model: haiku
 ---
 
@@ -29,10 +29,31 @@ Run from the repository root:
 scripts/qwen.sh "<QUERY>" <file> [<file> ...]
 ```
 
-`SUBAGENT_MODEL` in the environment picks the build.
+`SUBAGENT_MODEL` in the environment picks the build, and the wrapper defaults to
+`qwen2.5.1-coder-7b-instruct` when it is unset.
 
 The caller names the files. If the caller did not name them, ask for the list rather than guessing a
 glob.
+
+### LM Studio on the host server loads the model on demand
+
+The server is LM Studio, running on the user's PC and reached from this machine over the LAN by HTTP
+alone. Nothing about it is local to you: there is no `lms` CLI here and no shell on that host, so
+loading, unloading and listing all happen through the API. You name a build in the request and the
+host server does the loading.
+
+Naming a model that is not resident is the normal case rather than an error: LM Studio on the host
+server loads it to serve the request. A cold `qwen2.5.1-coder-7b-instruct` answered a trivial prompt
+in 10 seconds end to end, load included, so **a cold start costs seconds and never minutes.**
+
+The wrapper checks `/api/v0/models` before sending, which is LM Studio's own endpoint and the only
+one reporting `state` and `max_context_length`; plain `/v1/models` reports neither. Two things follow
+for you:
+
+- A misspelled build fails immediately with the installed ids listed, before any wait. Take the
+  correction from that list rather than retrying the same id.
+- `qwen.sh: <model> is not resident` on stderr means a load is happening. It is a notice, not a
+  failure. Do not re-run the call because the first one looked slow.
 
 ### Line numbers are not your job
 
@@ -75,7 +96,8 @@ The main thread decides what is true. You relay.
 
 ### Which model to name
 
-`SUBAGENT_MODEL` picks the build and the host loads it on demand. Two are installed:
+`SUBAGENT_MODEL` picks the build and LM Studio on the host server loads it on demand. Two are
+installed, and the wrapper prints the real list if you name anything else:
 
 | Build | Use for |
 |---|---|
@@ -87,7 +109,8 @@ avoid it rather than to choose it. When you do name it, say in the report that t
 answered.
 
 A call that takes minutes rather than seconds has spilled its cache to system memory. Report the wall
-time and let the caller change the loaded configuration.
+time and let the caller change the loaded configuration. A cold load is not that: it costs seconds,
+announces itself on stderr, and needs no report beyond the answer it produced.
 
 `docs/LOCAL-MODEL-BENCHMARKS.md` has the measurements behind all of this.
 

@@ -155,9 +155,9 @@ It never settles what is true there.
 
 Gemini's quota runs out mid-dispatch, and the fallback has been paying Claude tokens to read the same
 tree. `qwen-local` is the second reader: Qwen2.5-Coder on the user's PC over the LAN, unmetered,
-nothing leaving the network. The host keeps several builds and loads one on demand, so which model
-answers is a per-call choice made through `SUBAGENT_MODEL`. `docs/TOOLING.md` has the measurements
-behind everything here.
+nothing leaving the network. LM Studio on that host keeps several builds and loads one on demand, so
+which model answers is a per-call choice made through `SUBAGENT_MODEL`, and the build need not
+already be resident. `docs/TOOLING.md` has the measurements behind everything here.
 
 Use `qwen2.5.1-coder-7b-instruct` unless a single file will not fit its 32768 window, which is what
 `qwen2.5-coder-7b-instruct-128k` is kept for. A build loading for the first time adds its own delay
@@ -180,11 +180,13 @@ Four things about it that change how a task is written:
   those exactly and for free. Its job is orientation: which files cover a concern, how
   responsibilities divide, what an unfamiliar area contains.
 - **Ask one thing per call.** Several questions in one prompt degrade all of them.
-- **The window is per-load.** The host serves several builds and loads one on demand, so the ceiling
-  is whatever the loaded build was configured for. Over-budget comes back as HTTP 400 naming both
-  figures, never as silent truncation.
+- **The window is per-load.** LM Studio on the host server serves several builds and loads one on
+  demand, so the ceiling is whatever the named build was configured for: 32768 for
+  `qwen2.5.1-coder-7b-instruct`, 131072 for `qwen2.5-coder-7b-instruct-128k`. Over-budget comes back
+  as HTTP 400 naming both figures, never as silent truncation.
 - **A slow answer is a memory problem.** The KV cache has spilled to system RAM. Report the wall
-  time; do not rewrite the prompt.
+  time; do not rewrite the prompt. A cold load is the exception and costs seconds rather than
+  minutes, and `scripts/qwen.sh` says on stderr when one is happening.
 - **It declines to fabricate a symbol** that does not exist, answering `NOT PRESENT`, so a negative
   result from it is worth something. It will still misplace one that does exist.
 

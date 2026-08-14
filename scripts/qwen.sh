@@ -6,7 +6,13 @@
 # Files are sent with 1-based line numbers prepended so the model can cite anchors. Ask about one
 # symbol per call: four in a single query placed none of them correctly, where one at a time placed
 # half exactly. Payload size is not the problem, the number of questions is.
-# The ceiling is whatever window the loaded build was given, and the server rejects an oversized
+#
+# LM Studio on the host server loads a model on demand when a request names one that is not
+# resident, so the first call after an idle host pays the load before any tokens are produced. The
+# preflight below reports that wait rather than letting it look like a hang, and it catches a
+# misspelled model id up front, where the server would otherwise load nothing and return a 404.
+#
+# The ceiling is whatever window the named build was given, and the server rejects an oversized
 # request with HTTP 400 rather than truncating, so an over-budget call fails loudly.
 set -euo pipefail
 
@@ -16,7 +22,7 @@ if [ "$#" -lt 2 ]; then
 fi
 
 : "${SUBAGENT_API_BASE:?SUBAGENT_API_BASE is not set}"
-MODEL="${SUBAGENT_MODEL:-qwen2.5-coder-14b-instruct}"
+MODEL="${SUBAGENT_MODEL:-qwen2.5.1-coder-7b-instruct}"
 
 QUESTION="$1"
 shift
@@ -28,6 +34,40 @@ import urllib.error
 import urllib.request
 
 base, model, question, *paths = sys.argv[1:]
+root = base.rstrip("/").removesuffix("/v1")
+
+
+def preflight(model):
+    """Report the model's residency and window, or None when the catalog is unreachable.
+
+    A wrong id is worth catching here: LM Studio answers it with a 404 after the caller has already
+    waited, and the message does not say which ids exist.
+    """
+    try:
+        with urllib.request.urlopen(root + "/api/v0/models", timeout=15) as response:
+            catalog = json.loads(response.read().decode(), strict=False)
+    except (urllib.error.URLError, TimeoutError, ValueError):
+        return None
+
+    entries = {m["id"]: m for m in catalog.get("data", []) if m.get("type") == "llm"}
+    entry = entries.get(model)
+    if entry is None:
+        print(
+            f"qwen.sh: no model {model!r} on {root}. Installed: {', '.join(sorted(entries)) or 'none'}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    if entry.get("state") != "loaded":
+        print(
+            f"qwen.sh: {model} is not resident, LM Studio will load it first. Expect a slow first call.",
+            file=sys.stderr,
+        )
+    return entry
+
+
+entry = preflight(model)
+ceiling = (entry or {}).get("max_context_length")
 
 blocks = []
 for path in paths:
@@ -63,7 +103,11 @@ except urllib.error.HTTPError as error:
     detail = error.read().decode()
     print(f"qwen.sh: HTTP {error.code}: {detail}", file=sys.stderr)
     if "exceed_context_size_error" in detail:
-        print("qwen.sh: payload over the 24576-token ceiling, send fewer files", file=sys.stderr)
+        limit = f"{ceiling}-token" if ceiling else "context"
+        print(f"qwen.sh: payload over the {limit} ceiling, send fewer files", file=sys.stderr)
+    sys.exit(1)
+except (urllib.error.URLError, TimeoutError) as error:
+    print(f"qwen.sh: cannot reach {root}: {error}", file=sys.stderr)
     sys.exit(1)
 
 # LM Studio emits literal newlines inside JSON strings, which strict parsing rejects.
