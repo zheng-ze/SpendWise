@@ -9,6 +9,7 @@ import 'package:spendwise/boot/seed_data.dart';
 import 'package:spendwise/persistence/ledger_store.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/boot_chrome.dart';
+import 'package:spendwise/ui/transactions/daily_transactions_screen.dart';
 
 import '../../support/in_memory_ledger_store.dart';
 
@@ -99,5 +100,16 @@ void main() {
 
     expect(find.byType(AppShell), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsNothing);
+  });
+
+  testWidgets('ready shows real content in the transactions tab, not an '
+      'empty placeholder', (tester) async {
+    final factory = _GatedStoreFactory();
+    await tester.pumpWidget(hostedIn(containerWith(factory)));
+
+    factory.succeed();
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TransactionsScreen), findsOneWidget);
   });
 }

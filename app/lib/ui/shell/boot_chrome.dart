@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/boot/app_phase.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
+import 'package:spendwise/ui/shell/shell_providers.dart';
+import 'package:spendwise/ui/transactions/daily_transactions_screen.dart';
 
 class BootChrome extends ConsumerWidget {
   const BootChrome({super.key});
@@ -15,10 +17,15 @@ class BootChrome extends ConsumerWidget {
         body: Center(child: CircularProgressIndicator()),
       ),
       Failed(:final error) => _LoadFailure(error: error),
-      Ready() => const AppShell(),
+      Ready() => const AppShell(
+        bodies: {ShellDestination.transactions: _buildTransactionsTab},
+      ),
     };
   }
 }
+
+Widget _buildTransactionsTab(BuildContext context) =>
+    const TransactionsScreen();
 
 class _LoadFailure extends ConsumerWidget {
   const _LoadFailure({required this.error});
