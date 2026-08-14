@@ -56,25 +56,25 @@ class _SeedBuilder {
     _opening(8000, emergency, openingDate);
     _opening(650, holiday, openingDate);
 
-    final groceries = _category('Groceries', '#34C759', 'cart');
-    final dining = _category('Dining', '#FF9500', 'fork.knife');
-    final transport = _category('Transport', '#5856D6', 'tram.fill');
+    final groceries = _category('Groceries', '#34C759', 'shopping_cart');
+    final dining = _category('Dining', '#FF9500', 'restaurant');
+    final transport = _category('Transport', '#5856D6', 'tram');
     final salary = _category(
       'Salary',
       '#007AFF',
-      'dollarsign.circle',
+      'attach_money',
       kind: CategoryKind.income,
     );
     final supermarket = _category(
       'Supermarket',
       '#30D158',
-      'cart.fill',
+      'shopping_bag',
       parentID: groceries,
     );
     final freshMarket = _category(
       'Fresh Market',
       '#63E6BE',
-      'carrot.fill',
+      'eco',
       parentID: groceries,
     );
 

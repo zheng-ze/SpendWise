@@ -116,7 +116,7 @@ void main() {
       colorHex: '#FF8800',
       includeInAnalysis: true,
       parentID: parentID,
-      symbol: 'cup.and.saucer',
+      symbol: 'local_cafe',
       lifecycle: lifecycle,
     );
 

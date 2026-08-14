@@ -90,21 +90,21 @@ void main() {
 
     expect(byName['Groceries']!.kind, CategoryKind.expense);
     expect(byName['Groceries']!.colorHex, '#34C759');
-    expect(byName['Groceries']!.symbol, 'cart');
+    expect(byName['Groceries']!.symbol, 'shopping_cart');
     expect(byName['Groceries']!.parentID, isNull);
     expect(byName['Dining']!.colorHex, '#FF9500');
-    expect(byName['Dining']!.symbol, 'fork.knife');
+    expect(byName['Dining']!.symbol, 'restaurant');
     expect(byName['Transport']!.colorHex, '#5856D6');
-    expect(byName['Transport']!.symbol, 'tram.fill');
+    expect(byName['Transport']!.symbol, 'tram');
     expect(byName['Salary']!.kind, CategoryKind.income);
     expect(byName['Salary']!.colorHex, '#007AFF');
-    expect(byName['Salary']!.symbol, 'dollarsign.circle');
+    expect(byName['Salary']!.symbol, 'attach_money');
     expect(byName['Supermarket']!.parentID, byName['Groceries']!.id);
     expect(byName['Supermarket']!.colorHex, '#30D158');
-    expect(byName['Supermarket']!.symbol, 'cart.fill');
+    expect(byName['Supermarket']!.symbol, 'shopping_bag');
     expect(byName['Fresh Market']!.parentID, byName['Groceries']!.id);
     expect(byName['Fresh Market']!.colorHex, '#63E6BE');
-    expect(byName['Fresh Market']!.symbol, 'carrot.fill');
+    expect(byName['Fresh Market']!.symbol, 'eco');
   });
 
   test('seedChangesCoversTheDeliberateEdgeCases', () {
