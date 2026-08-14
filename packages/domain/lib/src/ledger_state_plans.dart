@@ -10,7 +10,19 @@ extension LedgerStatePlans on LedgerState {
   }
 
   List<LedgerChange> updatePlan(RecurringPlan plan) {
-    if (!_plans.containsKey(plan.id)) throw UnknownPlan(plan.id);
+    final stored = _plans[plan.id];
+    if (stored == null) throw UnknownPlan(plan.id);
+
+    // Shifting the anchor or frequency moves the schedule onto different
+    // calendar days. Entries already minted for the old days stay in the
+    // ledger under their old occurrence ids, so once anything has resolved,
+    // no rewound cursor value can make the new schedule land on those same
+    // days again to avoid piling new entries on top of them.
+    final schedulesChanged =
+        stored.anchor != plan.anchor || stored.frequency != plan.frequency;
+    if (schedulesChanged && stored.lastResolvedDate.isAfter(stored.anchor)) {
+      throw StaleResolutionCursor(plan.id);
+    }
 
     _validatePlan(plan);
     _plans[plan.id] = plan;
@@ -50,6 +62,9 @@ extension LedgerStatePlans on LedgerState {
     }
 
     final endDate = plan.endDate;
+    if (endDate != null && endDate.isBefore(plan.anchor)) {
+      throw ExhaustedPlan(plan.id);
+    }
     if (endDate != null && !plan.lastResolvedDate.isBefore(endDate)) {
       throw ExhaustedPlan(plan.id);
     }

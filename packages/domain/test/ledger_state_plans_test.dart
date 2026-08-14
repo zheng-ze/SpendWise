@@ -205,6 +205,25 @@ void main() {
       );
       expect(state.plans, isEmpty);
     });
+
+    test('an end date before the anchor throws exhaustedPlan', () {
+      final state = seeded();
+
+      expect(
+        () => state.addPlan(
+          RecurringPlan(
+            id: planID,
+            template: template(),
+            frequency: RecurrenceFrequency.monthly,
+            anchor: DateTime.utc(2026, 1, 15),
+            endDate: DateTime.utc(2026, 1, 10),
+            lastResolvedDate: DateTime.utc(2026, 1, 1),
+          ),
+        ),
+        throwsA(ExhaustedPlan(planID)),
+      );
+      expect(state.plans, isEmpty);
+    });
   });
 
   group('updatePlan', () {
@@ -261,6 +280,76 @@ void main() {
         throwsA(InactiveReference(accountID)),
       );
       expect(state.plans[planID], stored);
+    });
+
+    test('a plan with anchor shifted after resolution is rejected '
+        'rather than re-minting occurrences under the new schedule', () {
+      // Rewinding lastResolvedDate on the incoming plan cannot make this
+      // safe: a monthly anchor move lands on different calendar days than
+      // the old schedule, so the already-resolved entries and the newly
+      // resolved ones never collide and both stay in the ledger. The only
+      // sound response once anything has resolved is to refuse the edit.
+      final state = seeded();
+      final original = plan(lastResolvedDate: DateTime.utc(2026, 1, 15));
+      state.addPlan(original);
+      state.resolvePlans(DateTime.utc(2026, 3, 20));
+      expect(state.entries, hasLength(2));
+
+      final shifted = RecurringPlan(
+        id: planID,
+        template: template(),
+        frequency: RecurrenceFrequency.monthly,
+        anchor: DateTime.utc(2026, 1, 20),
+        lastResolvedDate: DateTime.utc(2026, 1, 15),
+      );
+
+      expect(
+        () => state.updatePlan(shifted),
+        throwsA(StaleResolutionCursor(planID)),
+      );
+      state.resolvePlans(DateTime.utc(2026, 3, 20));
+
+      expect(state.entries, hasLength(2));
+    });
+
+    test('an anchor shift before any resolution has happened is accepted', () {
+      final state = seeded();
+      final original = plan(lastResolvedDate: DateTime.utc(2026, 1, 15));
+      state.addPlan(original);
+
+      final shifted = RecurringPlan(
+        id: planID,
+        template: template(),
+        frequency: RecurrenceFrequency.monthly,
+        anchor: DateTime.utc(2026, 1, 20),
+        lastResolvedDate: DateTime.utc(2026, 1, 20),
+      );
+
+      state.updatePlan(shifted);
+
+      expect(state.plans[planID], shifted);
+    });
+
+    test('an anchor shift after resolution throws even when the incoming '
+        'cursor is rewound to the new anchor', () {
+      final state = seeded();
+      final original = plan(lastResolvedDate: DateTime.utc(2026, 1, 15));
+      state.addPlan(original);
+      state.resolvePlans(DateTime.utc(2026, 3, 20));
+
+      final shifted = RecurringPlan(
+        id: planID,
+        template: template(),
+        frequency: RecurrenceFrequency.monthly,
+        anchor: DateTime.utc(2026, 1, 20),
+        lastResolvedDate: DateTime.utc(2026, 3, 20),
+      );
+
+      expect(
+        () => state.updatePlan(shifted),
+        throwsA(StaleResolutionCursor(planID)),
+      );
+      expect(state.plans[planID], isNot(shifted));
     });
   });
 

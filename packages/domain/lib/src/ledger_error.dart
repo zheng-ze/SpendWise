@@ -99,6 +99,13 @@ final class InactiveReference extends _IdentifiedError {
   String get _case => 'inactiveReference';
 }
 
+final class StaleResolutionCursor extends _IdentifiedError {
+  const StaleResolutionCursor(super.id);
+
+  @override
+  String get _case => 'staleResolutionCursor';
+}
+
 final class ZeroAmount extends _PlainError {
   const ZeroAmount();
 
