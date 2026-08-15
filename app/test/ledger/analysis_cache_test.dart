@@ -24,7 +24,7 @@ LedgerState _stateWithExpense(String amount) {
 class _ManualRunner {
   final List<Completer<List<AnalysisItem>>> pending = [];
 
-  Future<List<AnalysisItem>> call(List<AnalysisItem> Function() compute) {
+  Future<List<AnalysisItem>> call(LedgerState state) {
     final completer = Completer<List<AnalysisItem>>();
     pending.add(completer);
     return completer.future;

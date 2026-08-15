@@ -5,21 +5,22 @@ import 'package:domain/domain.dart';
 import 'package:flutter/foundation.dart';
 import 'package:spendwise/ledger/event_bus.dart';
 
-typedef ComputeRunner =
-    Future<List<AnalysisItem>> Function(List<AnalysisItem> Function() compute);
+typedef ComputeRunner = Future<List<AnalysisItem>> Function(LedgerState state);
 
-Future<List<AnalysisItem>> syncComputeRunner(
-  List<AnalysisItem> Function() compute,
-) async {
-  return compute();
+Future<List<AnalysisItem>> syncComputeRunner(LedgerState state) async {
+  return Accounting.analysisItems(state);
 }
 
 /// The isolate send deep-copies the captured state, and that copy is the
 /// snapshot a mutation landing mid-compute cannot corrupt.
-Future<List<AnalysisItem>> isolateComputeRunner(
-  List<AnalysisItem> Function() compute,
-) {
-  return Isolate.run(compute);
+///
+/// [Isolate.run] must be handed a closure with no link back to the calling
+/// instance, or the send fails with an unsendable-object error on the whole
+/// captured context, [state] included. Passing the top-level function as a
+/// tear-off alongside [state] as a plain argument, rather than wrapping both
+/// in a closure built inside an instance method, is what keeps that link out.
+Future<List<AnalysisItem>> isolateComputeRunner(LedgerState state) {
+  return Isolate.run(() => Accounting.analysisItems(state));
 }
 
 class AnalysisCache extends ChangeNotifier {
@@ -72,13 +73,20 @@ class AnalysisCache extends ChangeNotifier {
     _lastComputed = target;
 
     unawaited(
-      _runner(() => Accounting.analysisItems(state)).then((computed) {
-        if (target != _lastComputed) return;
+      _runner(state)
+          .then((computed) {
+            if (target != _lastComputed) return;
 
-        _items = computed;
-        _itemsRevision += 1;
-        notifyListeners();
-      }),
+            _items = computed;
+            _itemsRevision += 1;
+            notifyListeners();
+          })
+          .onError((error, stackTrace) {
+            // A failed compute must not get stuck reporting stale data
+            // forever, so the next refresh() call is allowed to retry.
+            if (target == _lastComputed) _lastComputed = -1;
+            debugPrint('AnalysisCache refresh failed: $error\n$stackTrace');
+          }),
     );
   }
 
