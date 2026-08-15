@@ -15,16 +15,16 @@ once you know it does is the work.
 
 Two cases justify reading a file whole: it is short enough that locating costs more than reading, or
 it is a checked-in contract whose every line has to hold — a spec, a task file. Everything else gets
-narrowed first, and volume reading goes to `qwen-local` or `gemini-executor` rather than being paid
-for in Claude tokens.
+narrowed first, and volume reading goes to `scripts/qwen.sh` or `scripts/gemini.sh` rather than being
+paid for in Claude tokens.
 
 ## Which tool for which question
 
 1. **`rg`** for anything textual, and as the ground truth for every other tool's zero.
 2. **`ast-grep` through a rule file** for structural sweeps a regex cannot express.
 3. **The graph** for what calls what, blast radius, dead code, orientation over code you inherited.
-4. **`qwen-local`** for pre-narrowed reading inside 20k tokens, and whenever Gemini is throttled.
-5. **`gemini-executor`** when the window is the point — the frozen Swift app, cross-repo sweeps.
+4. **`scripts/qwen.sh`** for pre-narrowed reading inside 20k tokens, and whenever Gemini is throttled.
+5. **`scripts/gemini.sh`** when the window is the point — the frozen Swift app, cross-repo sweeps.
 
 ## ripgrep
 
@@ -95,7 +95,33 @@ falls back to keyword matching. It retrieves what keyword search cannot — "hal
 filter" finds `accounting.dart::filtered` and `DateRange.contains`, which share no token with the
 query. Re-run `code-review-graph embed` after work that adds nodes.
 
-## qwen-local
+## gemini
+
+`gemini` CLI, `gemini-3.6-flash` by default. Agentic — it reaches its own files through
+`run_shell_command`, `read_file` and `grep_search`, so the caller sends one broad question rather
+than a pre-narrowed file list. Reserved for jobs where the large window is the point: the frozen
+Swift app, a whole module doc, cross-repo sweeps.
+
+```sh
+scripts/gemini.sh "<question>"
+```
+
+No file arguments — that is the point of difference from `scripts/qwen.sh` below. The wrapper's
+prompt already tells Gemini to use `rg -n` or `ast-grep` to locate anchors and to open each line
+before citing it, and to keep code snippets under 5 lines.
+
+**Quota is counted in calls, not tokens.** 20 a day on `gemini-3.6-flash` at 5 a minute, with
+`gemini-3.5-flash-lite` behind it at 500 a day and 15 a minute. A narrow question costs the same as a
+broad one, so batch every question about an area into one call rather than splitting by topic.
+`docs/SUBAGENTS.md` has the full list of what earns a Gemini call versus a `qwen.sh` one.
+
+**`--skip-trust` is required.** This repo is not a Gemini trusted folder, and the script passes the
+flag itself; without it the command hangs or exits with no output.
+
+**It cannot verify.** It returns a claim with citations, and the main thread (or the agent that ran
+the script) still has to open the cited lines before acting on any of it.
+
+## qwen
 
 Qwen2.5-Coder-Instruct 7B, served by LM Studio on the user's PC over the LAN. Unmetered, so it takes
 the high-frequency lookups that were exhausting Gemini's quota.

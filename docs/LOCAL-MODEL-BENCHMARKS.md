@@ -3,8 +3,8 @@
 Measured on the LAN host at `192.168.1.150:1234`, on this repo, against anchors verified with `rg`
 before use. Everything at `temperature 0`, so a repeated run returns the same answer.
 
-The conclusions these support live in `docs/SUBAGENTS.md` and `.claude/agents/qwen-local.md`. This
-file is the evidence, kept out of the files loaded every session.
+The conclusions these support live in `docs/SUBAGENTS.md` and `scripts/qwen.sh`. This file is the
+evidence, kept out of the files loaded every session.
 
 Only two builds survived the comparison and are installed: `qwen2.5.1-coder-7b-instruct` at 32768,
 and `qwen2.5-coder-7b-instruct-128k` at 131072 with a `Q8_0` cache. Every other id below was measured
