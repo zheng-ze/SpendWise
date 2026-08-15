@@ -543,6 +543,7 @@ class _TrendCardState extends State<_TrendCard> {
                       bottomTitles: AxisTitles(
                         sideTitles: SideTitles(
                           showTitles: true,
+                          interval: 1,
                           getTitlesWidget: (value, meta) {
                             final index = value.round();
                             if (index < 0 || index >= months.length) {
@@ -595,6 +596,7 @@ class _TrendCardState extends State<_TrendCard> {
                             FlSpot(i.toDouble(), amounts[i].toDouble()),
                         ],
                         isCurved: true,
+                        preventCurveOverShooting: true,
                         color: widget.color,
                         barWidth: 2,
                         dotData: const FlDotData(show: true),
