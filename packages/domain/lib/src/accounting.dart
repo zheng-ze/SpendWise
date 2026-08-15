@@ -2,6 +2,7 @@ import 'dart:collection';
 
 import 'package:decimal/decimal.dart';
 import 'package:domain/src/account.dart';
+import 'package:domain/src/account_type.dart';
 import 'package:domain/src/analysis_item.dart';
 import 'package:domain/src/category_kind.dart';
 import 'package:domain/src/category_resolution.dart';
@@ -10,7 +11,9 @@ import 'package:domain/src/entry.dart';
 import 'package:domain/src/holder_referencing.dart';
 import 'package:domain/src/ids.dart';
 import 'package:domain/src/ledger_state.dart';
+import 'package:domain/src/money_source.dart';
 import 'package:domain/src/net_worth.dart';
+import 'package:domain/src/synthetic_buckets.dart';
 
 /// Balances are always recomputed from the entry log, never stored.
 abstract final class Accounting {
@@ -128,7 +131,9 @@ abstract final class Accounting {
         return [
           if (sources[destination]?.incomingTransfersAsExpenses == true)
             AnalysisItem(
-              bucketID: null,
+              bucketID: syntheticTransferExpenseBucketID(
+                _destinationAccountType(sources[destination]!, ledger),
+              ),
               amount: entry.amount,
               date: entry.date,
               kind: CategoryKind.expense,
@@ -170,6 +175,18 @@ abstract final class Accounting {
     }
   }
 
+  /// A pocket has no type of its own, so a transfer into one buckets by
+  /// whichever account holds it, keeping it in the same bucket as a transfer
+  /// to the account directly.
+  static AccountType _destinationAccountType(
+    MoneySource destination,
+    LedgerState ledger,
+  ) {
+    final account =
+        destination.asAccount ?? ledger.owningAccount(destination.id);
+    return account!.type;
+  }
+
   static CategoryResolution resolveCategory(Entry entry, LedgerState ledger) {
     final categoryID = entry.categoryID;
     if (categoryID == null) return const Uncategorized();
@@ -200,8 +217,11 @@ abstract final class Accounting {
     final leafID = normalizedOptionalID(rawLeafID);
     if (leafID == null) return null;
 
+    // An id with no category row is not "no bucket" — it may be a synthetic
+    // bucket id, which by design has no row behind it. Only a real category
+    // rolls up to its parent; anything else passes through unchanged.
     final category = state.categories[leafID];
-    if (category == null) return null;
+    if (category == null) return leafID;
 
     return category.parentID ?? category.id;
   }

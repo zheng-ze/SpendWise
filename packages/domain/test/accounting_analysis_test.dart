@@ -60,7 +60,10 @@ void main() {
 
       expect(items, hasLength(1));
       expect(items.first.amount, money(300));
-      expect(items.first.bucketID, isNull);
+      expect(
+        items.first.bucketID,
+        syntheticTransferExpenseBucketID(AccountType.savings),
+      );
     });
 
     test('a transfer out of a treat-as-expense holder produces income', () {
@@ -91,6 +94,75 @@ void main() {
         itemsOfKind(ledger, CategoryKind.income).single.amount,
         money(300),
       );
+    });
+
+    test('two accounts of the same eligible type share a synthetic bucket', () {
+      final ledger = LedgerState();
+      ledger.addAccount(account(a));
+      ledger.addAccount(
+        account(
+          b,
+          type: AccountType.savings,
+          incomingTransfersAsExpenses: true,
+        ),
+      );
+      ledger.addAccount(
+        account(
+          parent,
+          type: AccountType.savings,
+          incomingTransfersAsExpenses: true,
+        ),
+      );
+      ledger.addEntry(entry(amount: money(300), sourceID: a, destinationID: b));
+      ledger.addEntry(
+        entry(amount: money(150), sourceID: a, destinationID: parent),
+      );
+
+      final items = expenseItems(ledger);
+
+      expect(items, hasLength(2));
+      expect(items[0].bucketID, isNotNull);
+      expect(items[0].bucketID, items[1].bucketID);
+      expect(
+        items[0].bucketID,
+        syntheticTransferExpenseBucketID(AccountType.savings),
+      );
+    });
+
+    test('a transfer into a pocket buckets by the pocket\'s parent type', () {
+      final ledger = LedgerState();
+      ledger.addAccount(account(a));
+      ledger.addAccount(account(b, type: AccountType.investment));
+      ledger.addPocket(pocket(child, incomingTransfersAsExpenses: true), b);
+      ledger.addEntry(
+        entry(amount: money(400), sourceID: a, destinationID: child),
+      );
+
+      final items = expenseItems(ledger);
+
+      expect(items, hasLength(1));
+      expect(
+        items.single.bucketID,
+        syntheticTransferExpenseBucketID(AccountType.investment),
+      );
+    });
+
+    test('the income leg of a transfer never carries a synthetic bucket', () {
+      final ledger = LedgerState();
+      ledger.addAccount(
+        account(
+          a,
+          type: AccountType.savings,
+          incomingTransfersAsExpenses: true,
+        ),
+      );
+      ledger.addAccount(account(b));
+      ledger.addEntry(entry(amount: money(300), sourceID: a, destinationID: b));
+
+      final items = itemsOfKind(ledger, CategoryKind.income);
+
+      expect(items, hasLength(1));
+      expect(items.single.bucketID, isNull);
     });
 
     test('a transfer between two unflagged holders produces nothing', () {
@@ -182,7 +254,10 @@ void main() {
 
       expect(items, hasLength(1));
       expect(items.single.amount, money(300));
-      expect(items.single.bucketID, isNull);
+      expect(
+        items.single.bucketID,
+        syntheticTransferExpenseBucketID(AccountType.savings),
+      );
     });
 
     test('an archived transfer source keeps the survivor income item', () {
@@ -558,12 +633,51 @@ void main() {
       expect(sums, {null: money(45)});
     });
 
-    test('a bucket naming a category absent from the ledger stays null', () {
+    test('a null bucket stays null, a missing input id passes through', () {
       final ledger = LedgerState();
       ledger.addAccount(account(a));
 
-      expect(Accounting.mainBucketID(cat, ledger), isNull);
+      expect(Accounting.mainBucketID(cat, ledger), cat);
       expect(Accounting.mainBucketID(null, ledger), isNull);
+    });
+
+    test(
+      'a synthetic bucket id has no category row and rolls up under itself',
+      () {
+        final ledger = LedgerState();
+        ledger.addAccount(account(a));
+        final syntheticID = syntheticTransferExpenseBucketID(
+          AccountType.savings,
+        );
+
+        expect(Accounting.mainBucketID(syntheticID, ledger), syntheticID);
+      },
+    );
+
+    test('rollUp keeps a synthetic bucket distinct from Uncategorized', () {
+      final ledger = LedgerState();
+      ledger.addAccount(account(a));
+      final syntheticID = syntheticTransferExpenseBucketID(AccountType.savings);
+
+      final items = [
+        AnalysisItem(
+          bucketID: syntheticID,
+          amount: money(30),
+          date: DateTime.utc(2026),
+          kind: CategoryKind.expense,
+        ),
+        AnalysisItem(
+          bucketID: null,
+          amount: money(10),
+          date: DateTime.utc(2026),
+          kind: CategoryKind.expense,
+        ),
+      ];
+
+      expect(Accounting.rollUp(items, ledger), {
+        syntheticID: money(30),
+        null: money(10),
+      });
     });
   });
 

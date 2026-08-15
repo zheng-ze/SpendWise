@@ -26,4 +26,5 @@ export 'src/plan_resolution.dart';
 export 'src/plan_scheduling.dart';
 export 'src/recurring_plan.dart';
 export 'src/sub_pocket.dart';
+export 'src/synthetic_buckets.dart';
 export 'src/transaction_category.dart';
