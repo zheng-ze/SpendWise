@@ -22,11 +22,11 @@ List<DaySection> daySections(
   Iterable<Entry> entries,
   LedgerState state, {
   DateRange? interval,
-  String? sourceScope,
+  Set<String>? sourceScope,
 }) {
   final scoped = sourceScope == null
       ? entries
-      : entries.where((entry) => entry.references(sourceScope));
+      : entries.where((entry) => entry.touches(sourceScope));
 
   final byDay = <DateTime, List<Entry>>{};
   for (final entry in scoped) {

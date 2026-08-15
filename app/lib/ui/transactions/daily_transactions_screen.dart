@@ -10,6 +10,7 @@ import 'package:spendwise/ui/common/month_year_selector.dart';
 import 'package:spendwise/ui/common/top_tab_bar.dart';
 import 'package:spendwise/ui/format/amount_color.dart';
 import 'package:spendwise/ui/format/money_format.dart';
+import 'package:spendwise/ui/accounts/source_edit_form.dart';
 import 'package:spendwise/ui/transactions/day_header.dart';
 import 'package:spendwise/ui/transactions/day_sections.dart';
 import 'package:spendwise/ui/transactions/delete_confirmation.dart';
@@ -25,12 +26,21 @@ class TransactionsScreen extends ConsumerWidget {
   const TransactionsScreen({
     super.key,
     this.sourceScope,
+    this.scopeIDs,
     this.title = 'Transactions',
     this.onRowTap,
     this.monthlyBuilder,
   });
 
   final String? sourceScope;
+
+  /// Filters entries against every id in the set rather than just
+  /// [sourceScope]. Falls back to `{sourceScope}` when omitted, so an
+  /// account-scoped push can widen the filter to the account plus its
+  /// pockets while [sourceScope] keeps identifying the screen for the date
+  /// state and prefilling the add-entry form with the account itself.
+  final Set<String>? scopeIDs;
+
   final String title;
 
   final void Function(Entry entry)? onRowTap;
@@ -42,11 +52,15 @@ class TransactionsScreen extends ConsumerWidget {
     final ledger = ref.watch(ledgerProvider);
     if (ledger == null) return const SizedBox.shrink();
 
+    final resolvedScope =
+        scopeIDs ?? (sourceScope == null ? null : {sourceScope!});
+
     return ListenableBuilder(
       listenable: ledger,
       builder: (context, _) {
         return _TransactionsScreenBody(
           sourceScope: sourceScope,
+          scopeIDs: resolvedScope,
           title: title,
           ledger: ledger,
           onRowTap:
@@ -67,6 +81,7 @@ class TransactionsScreen extends ConsumerWidget {
 class _TransactionsScreenBody extends ConsumerWidget {
   const _TransactionsScreenBody({
     required this.sourceScope,
+    required this.scopeIDs,
     required this.title,
     required this.ledger,
     required this.onRowTap,
@@ -74,6 +89,7 @@ class _TransactionsScreenBody extends ConsumerWidget {
   });
 
   final String? sourceScope;
+  final Set<String>? scopeIDs;
   final String title;
   final Ledger ledger;
   final void Function(Entry entry)? onRowTap;
@@ -113,7 +129,7 @@ class _TransactionsScreenBody extends ConsumerWidget {
               const Divider(height: 1),
               _TotalsBar(
                 state: ledger.state,
-                sourceScope: sourceScope,
+                sourceScope: scopeIDs,
                 selectedDate: screenState.selectedDate,
                 mode: screenState.mode,
               ),
@@ -122,7 +138,7 @@ class _TransactionsScreenBody extends ConsumerWidget {
                 child: screenState.mode == TransactionsScreenMode.daily
                     ? _DailyContent(
                         state: ledger.state,
-                        sourceScope: sourceScope,
+                        sourceScope: scopeIDs,
                         selectedDate: screenState.selectedDate,
                         ledger: ledger,
                         onRowTap: onRowTap,
@@ -146,6 +162,17 @@ class _TransactionsScreenBody extends ConsumerWidget {
                 sourceScope: sourceScope,
               ),
             ),
+            secondary: sourceScope == null
+                ? null
+                : FabAction(
+                    label: 'Edit ${ledger.state.sourceName(sourceScope) ?? ''}',
+                    icon: Icons.edit_outlined,
+                    onTap: () => showSourceEditFormSheet(
+                      context: context,
+                      ledger: ledger,
+                      holderID: sourceScope!,
+                    ),
+                  ),
           ),
         ],
       ),
@@ -174,7 +201,7 @@ class _TotalsBar extends StatelessWidget {
   });
 
   final LedgerState state;
-  final String? sourceScope;
+  final Set<String>? sourceScope;
   final DateTime selectedDate;
   final TransactionsScreenMode mode;
 
@@ -235,7 +262,7 @@ class _DailyContent extends StatelessWidget {
   });
 
   final LedgerState state;
-  final String? sourceScope;
+  final Set<String>? sourceScope;
   final DateTime selectedDate;
   final Ledger ledger;
   final void Function(Entry entry)? onRowTap;

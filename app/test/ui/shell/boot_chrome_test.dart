@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/app_boot.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/boot/seed_data.dart';
+import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/persistence/ledger_store.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/boot_chrome.dart';
@@ -47,6 +48,13 @@ void main() {
           (ref) =>
               AppBoot(createStore: factory.call, seedChanges: seedChanges)
                 ..start(),
+        ),
+        // The Stats tab is mounted eagerly by the shell's IndexedStack, so it
+        // refreshes the cache on the very first frame. The isolate runner
+        // can't cross flutter_test's zone-captured state, which the sync
+        // runner sidesteps the same way the direct AnalysisCache tests do.
+        analysisCacheProvider.overrideWith(
+          (ref) => AnalysisCache(runner: syncComputeRunner),
         ),
       ],
     );

@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/app_phase.dart';
 import 'package:spendwise/boot/providers.dart';
+import 'package:spendwise/ui/accounts/accounts_screen.dart';
+import 'package:spendwise/ui/settings/settings_root_screen.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
+import 'package:spendwise/ui/stats/stats_screen.dart';
 import 'package:spendwise/ui/transactions/daily_transactions_screen.dart';
 
 class BootChrome extends ConsumerWidget {
@@ -18,7 +21,12 @@ class BootChrome extends ConsumerWidget {
       ),
       Failed(:final error) => _LoadFailure(error: error),
       Ready() => const AppShell(
-        bodies: {ShellDestination.transactions: _buildTransactionsTab},
+        bodies: {
+          ShellDestination.transactions: _buildTransactionsTab,
+          ShellDestination.stats: _buildStatsTab,
+          ShellDestination.accounts: _buildAccountsTab,
+          ShellDestination.settings: _buildSettingsTab,
+        },
       ),
     };
   }
@@ -26,6 +34,12 @@ class BootChrome extends ConsumerWidget {
 
 Widget _buildTransactionsTab(BuildContext context) =>
     const TransactionsScreen();
+
+Widget _buildStatsTab(BuildContext context) => const StatsScreen();
+
+Widget _buildAccountsTab(BuildContext context) => const AccountsScreen();
+
+Widget _buildSettingsTab(BuildContext context) => const SettingsScreen();
 
 class _LoadFailure extends ConsumerWidget {
   const _LoadFailure({required this.error});

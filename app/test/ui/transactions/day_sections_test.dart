@@ -108,7 +108,7 @@ void main() {
       ),
     ];
 
-    final sections = daySections(entries, state, sourceScope: account.id);
+    final sections = daySections(entries, state, sourceScope: {account.id});
 
     expect(sections.single.rows.map((r) => r.note), ['scoped']);
   });
@@ -131,9 +131,44 @@ void main() {
       ),
     ];
 
-    final sections = daySections(entries, state, sourceScope: account.id);
+    final sections = daySections(entries, state, sourceScope: {account.id});
 
     expect(sections.single.rows.map((r) => r.note), ['incoming transfer']);
+  });
+
+  test('scope filter with multiple ids matches any of them', () {
+    final state = baseState();
+    final entries = [
+      Entry(
+        amount: dec('-1'),
+        name: 'from account',
+        sourceID: account.id,
+        date: day(1),
+      ),
+      Entry(
+        amount: dec('-2'),
+        name: 'from other',
+        sourceID: other.id,
+        date: day(1),
+      ),
+      Entry(
+        amount: dec('-3'),
+        name: 'from third party',
+        sourceID: thirdParty.id,
+        date: day(1),
+      ),
+    ];
+
+    final sections = daySections(
+      entries,
+      state,
+      sourceScope: {account.id, other.id},
+    );
+
+    expect(sections.single.rows.map((r) => r.note), [
+      'from other',
+      'from account',
+    ]);
   });
 
   test('income row included in analysis contributes to the income total', () {
