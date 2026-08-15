@@ -141,6 +141,21 @@ class _EntryFormState extends State<EntryForm> {
     });
   }
 
+  void _applyPickerOutcome(
+    PickerOutcome? outcome,
+    ValueSetter<String?> assign,
+  ) {
+    if (outcome == null) return;
+    setState(() {
+      switch (outcome) {
+        case PickerChose(:final id):
+          assign(id);
+        case PickerCleared():
+          assign(null);
+      }
+    });
+  }
+
   Future<void> _pickSource() async {
     final outcome = await showSourcePickerSheet(
       context: context,
@@ -148,15 +163,7 @@ class _EntryFormState extends State<EntryForm> {
       state: widget.ledger.state,
       selectedId: _sourceId,
     );
-    if (outcome == null) return;
-    setState(() {
-      switch (outcome) {
-        case PickerChose(:final id):
-          _sourceId = id;
-        case PickerCleared():
-          _sourceId = null;
-      }
-    });
+    _applyPickerOutcome(outcome, (id) => _sourceId = id);
   }
 
   Future<void> _pickDestination() async {
@@ -166,15 +173,7 @@ class _EntryFormState extends State<EntryForm> {
       state: widget.ledger.state,
       selectedId: _destinationId,
     );
-    if (outcome == null) return;
-    setState(() {
-      switch (outcome) {
-        case PickerChose(:final id):
-          _destinationId = id;
-        case PickerCleared():
-          _destinationId = null;
-      }
-    });
+    _applyPickerOutcome(outcome, (id) => _destinationId = id);
   }
 
   Future<void> _pickCategory() async {
@@ -187,15 +186,7 @@ class _EntryFormState extends State<EntryForm> {
       kind: categoryKind,
       selectedId: _categoryId,
     );
-    if (outcome == null) return;
-    setState(() {
-      switch (outcome) {
-        case PickerChose(:final id):
-          _categoryId = id;
-        case PickerCleared():
-          _categoryId = null;
-      }
-    });
+    _applyPickerOutcome(outcome, (id) => _categoryId = id);
   }
 
   Future<void> _pickRecurrence() async {
@@ -212,16 +203,29 @@ class _EntryFormState extends State<EntryForm> {
     });
   }
 
-  Future<void> _pickDate() async {
+  Future<DateTime?> _pickNormalizedDate({
+    required DateTime initial,
+    required DateTime first,
+    DateTime? last,
+  }) async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: _date,
-      firstDate: DateTime.utc(2000),
-      lastDate: DateTime.utc(2100),
+      initialDate: initial,
+      firstDate: first,
+      lastDate: last ?? DateTime.utc(2100),
+    );
+    if (picked == null) return null;
+    return DateTime.utc(picked.year, picked.month, picked.day);
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await _pickNormalizedDate(
+      initial: _date,
+      first: DateTime.utc(2000),
     );
     if (picked == null) return;
     setState(() {
-      _date = DateTime.utc(picked.year, picked.month, picked.day);
+      _date = picked;
       if (_endDate != null && _endDate!.isBefore(_date)) {
         _endDate = _date;
       }
@@ -229,16 +233,12 @@ class _EntryFormState extends State<EntryForm> {
   }
 
   Future<void> _pickEndDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _endDate ?? _date,
-      firstDate: _date,
-      lastDate: DateTime.utc(2100),
+    final picked = await _pickNormalizedDate(
+      initial: _endDate ?? _date,
+      first: _date,
     );
     if (picked == null) return;
-    setState(() {
-      _endDate = DateTime.utc(picked.year, picked.month, picked.day);
-    });
+    setState(() => _endDate = picked);
   }
 
   Future<void> _save() async {
@@ -355,26 +355,7 @@ class _EntryFormState extends State<EntryForm> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        IgnorePointer(
-          ignoring: readOnly,
-          child: SegmentedButton<EntryFormKind>(
-            segments: const [
-              ButtonSegment(
-                value: EntryFormKind.expense,
-                label: Text('Expense'),
-              ),
-              ButtonSegment(value: EntryFormKind.income, label: Text('Income')),
-              ButtonSegment(
-                value: EntryFormKind.transfer,
-                label: Text('Transfer'),
-              ),
-            ],
-            selected: {_kind},
-            onSelectionChanged: readOnly
-                ? null
-                : (selection) => _setKind(selection.first),
-          ),
-        ),
+        _kindSelector(readOnly),
         const SizedBox(height: 16),
         IgnorePointer(
           ignoring: readOnly,
@@ -394,70 +375,9 @@ class _EntryFormState extends State<EntryForm> {
           ),
         ),
         const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Date'),
-                trailing: Text(formatEntryDate(_date)),
-                onTap: readOnly ? null : _pickDate,
-              ),
-            ),
-            if (isNew)
-              IconButton(
-                onPressed: _pickRecurrence,
-                icon: Icon(
-                  Icons.repeat,
-                  color: _recurrence == null
-                      ? null
-                      : Theme.of(context).colorScheme.primary,
-                ),
-                tooltip: _recurrence == null
-                    ? 'Repeat'
-                    : _frequencyLabels[_recurrence!],
-              ),
-          ],
-        ),
-        if (isNew && _recurrence != null) ...[
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Ends'),
-            value: _hasEndDate,
-            onChanged: (value) => setState(() {
-              _hasEndDate = value;
-              if (value) _endDate ??= _date;
-            }),
-          ),
-          if (_hasEndDate)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('End date'),
-              trailing: Text(formatEntryDate(_endDate ?? _date)),
-              onTap: _pickEndDate,
-            ),
-        ],
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          title: Text(_kind == EntryFormKind.transfer ? 'From' : 'Account'),
-          trailing: Text(_sourceLabel(_sourceId) ?? 'Select'),
-          onTap: readOnly ? null : _pickSource,
-        ),
-        if (_kind == EntryFormKind.transfer)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('To'),
-            trailing: Text(_sourceLabel(_destinationId) ?? 'Select'),
-            onTap: readOnly ? null : _pickDestination,
-          )
-        else
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: _categoryLeading(),
-            title: const Text('Category'),
-            trailing: Text(_categoryLabel(_categoryId) ?? 'None'),
-            onTap: readOnly ? null : _pickCategory,
-          ),
+        _dateRow(readOnly: readOnly, isNew: isNew),
+        if (isNew && _recurrence != null) ..._recurrenceSection(),
+        ..._sourceDestinationRows(readOnly),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: const Text('Include in Analysis'),
@@ -467,20 +387,116 @@ class _EntryFormState extends State<EntryForm> {
               : (value) => setState(() => _includeInAnalysis = value),
         ),
         ErrorSection(subject: 'entry', error: _error),
-        if (isEditingExisting) ...[
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            child: TextButton(
-              onPressed: _delete,
-              style: TextButton.styleFrom(
-                foregroundColor: Theme.of(context).colorScheme.error,
-              ),
-              child: const Text('Delete Entry'),
-            ),
-          ),
-        ],
+        if (isEditingExisting) _deleteButton(context),
       ],
+    );
+  }
+
+  Widget _kindSelector(bool readOnly) {
+    return IgnorePointer(
+      ignoring: readOnly,
+      child: SegmentedButton<EntryFormKind>(
+        segments: const [
+          ButtonSegment(value: EntryFormKind.expense, label: Text('Expense')),
+          ButtonSegment(value: EntryFormKind.income, label: Text('Income')),
+          ButtonSegment(value: EntryFormKind.transfer, label: Text('Transfer')),
+        ],
+        selected: {_kind},
+        onSelectionChanged: readOnly
+            ? null
+            : (selection) => _setKind(selection.first),
+      ),
+    );
+  }
+
+  Widget _dateRow({required bool readOnly, required bool isNew}) {
+    return Row(
+      children: [
+        Expanded(
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Date'),
+            trailing: Text(formatEntryDate(_date)),
+            onTap: readOnly ? null : _pickDate,
+          ),
+        ),
+        if (isNew)
+          IconButton(
+            onPressed: _pickRecurrence,
+            icon: Icon(
+              Icons.repeat,
+              color: _recurrence == null
+                  ? null
+                  : Theme.of(context).colorScheme.primary,
+            ),
+            tooltip: _recurrence == null
+                ? 'Repeat'
+                : _frequencyLabels[_recurrence!],
+          ),
+      ],
+    );
+  }
+
+  List<Widget> _recurrenceSection() {
+    return [
+      SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Ends'),
+        value: _hasEndDate,
+        onChanged: (value) => setState(() {
+          _hasEndDate = value;
+          if (value) _endDate ??= _date;
+        }),
+      ),
+      if (_hasEndDate)
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('End date'),
+          trailing: Text(formatEntryDate(_endDate ?? _date)),
+          onTap: _pickEndDate,
+        ),
+    ];
+  }
+
+  List<Widget> _sourceDestinationRows(bool readOnly) {
+    return [
+      ListTile(
+        contentPadding: EdgeInsets.zero,
+        title: Text(_kind == EntryFormKind.transfer ? 'From' : 'Account'),
+        trailing: Text(_sourceLabel(_sourceId) ?? 'Select'),
+        onTap: readOnly ? null : _pickSource,
+      ),
+      if (_kind == EntryFormKind.transfer)
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('To'),
+          trailing: Text(_sourceLabel(_destinationId) ?? 'Select'),
+          onTap: readOnly ? null : _pickDestination,
+        )
+      else
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: _categoryLeading(),
+          title: const Text('Category'),
+          trailing: Text(_categoryLabel(_categoryId) ?? 'None'),
+          onTap: readOnly ? null : _pickCategory,
+        ),
+    ];
+  }
+
+  Widget _deleteButton(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 24),
+      child: SizedBox(
+        width: double.infinity,
+        child: TextButton(
+          onPressed: _delete,
+          style: TextButton.styleFrom(
+            foregroundColor: Theme.of(context).colorScheme.error,
+          ),
+          child: const Text('Delete Entry'),
+        ),
+      ),
     );
   }
 

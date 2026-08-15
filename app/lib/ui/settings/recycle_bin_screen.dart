@@ -43,60 +43,50 @@ class _BinRow {
   final Color? color;
 }
 
-List<_BinRow> _accountRows(LedgerState state) {
-  final rows = state.moneySources.values
-      .map((source) => source.asAccount)
-      .nonNulls
-      .where((account) => account.lifecycle == LifecycleState.archived)
-      .map(
-        (account) => _BinRow(
-          kind: _BinRowKind.account,
-          id: account.id,
-          name: account.name,
-          referenceCount: state.entriesReferencing(account.id),
-        ),
-      )
-      .toList();
-  rows.sort((a, b) => a.name.compareTo(b.name));
+List<_BinRow> _sortedArchivedRows<T>(
+  Iterable<T> source,
+  bool Function(T item) isArchived,
+  _BinRow Function(T item) toRow,
+) {
+  final rows = source.where(isArchived).map(toRow).toList()
+    ..sort((a, b) => a.name.compareTo(b.name));
   return rows;
 }
 
-List<_BinRow> _pocketRows(LedgerState state) {
-  final rows = state.moneySources.values
-      .map((source) => source.asPocket)
-      .nonNulls
-      .where((pocket) => pocket.lifecycle == LifecycleState.archived)
-      .map((pocket) {
-        final parentName = state.sourceName(pocket.id);
-        return _BinRow(
-          kind: _BinRowKind.pocket,
-          id: pocket.id,
-          name: parentName ?? pocket.name,
-          referenceCount: state.entriesReferencing(pocket.id),
-        );
-      })
-      .toList();
-  rows.sort((a, b) => a.name.compareTo(b.name));
-  return rows;
-}
+List<_BinRow> _accountRows(LedgerState state) => _sortedArchivedRows(
+  state.moneySources.values.map((source) => source.asAccount).nonNulls,
+  (account) => account.lifecycle == LifecycleState.archived,
+  (account) => _BinRow(
+    kind: _BinRowKind.account,
+    id: account.id,
+    name: account.name,
+    referenceCount: state.entriesReferencing(account.id),
+  ),
+);
 
-List<_BinRow> _categoryRows(LedgerState state) {
-  final rows = state.categories.values
-      .where((category) => category.lifecycle == LifecycleState.archived)
-      .map(
-        (category) => _BinRow(
-          kind: _BinRowKind.category,
-          id: category.id,
-          name: category.name,
-          referenceCount: state.entryCountReferencing(category.id),
-          symbolName: category.symbol,
-          color: parseColorHex(category.colorHex),
-        ),
-      )
-      .toList();
-  rows.sort((a, b) => a.name.compareTo(b.name));
-  return rows;
-}
+List<_BinRow> _pocketRows(LedgerState state) => _sortedArchivedRows(
+  state.moneySources.values.map((source) => source.asPocket).nonNulls,
+  (pocket) => pocket.lifecycle == LifecycleState.archived,
+  (pocket) => _BinRow(
+    kind: _BinRowKind.pocket,
+    id: pocket.id,
+    name: state.sourceName(pocket.id) ?? pocket.name,
+    referenceCount: state.entriesReferencing(pocket.id),
+  ),
+);
+
+List<_BinRow> _categoryRows(LedgerState state) => _sortedArchivedRows(
+  state.categories.values,
+  (category) => category.lifecycle == LifecycleState.archived,
+  (category) => _BinRow(
+    kind: _BinRowKind.category,
+    id: category.id,
+    name: category.name,
+    referenceCount: state.entryCountReferencing(category.id),
+    symbolName: category.symbol,
+    color: parseColorHex(category.colorHex),
+  ),
+);
 
 class _RecycleBinScreenBody extends StatelessWidget {
   const _RecycleBinScreenBody({required this.ledger});

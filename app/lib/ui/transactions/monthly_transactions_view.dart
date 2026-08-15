@@ -80,7 +80,6 @@ class _MonthRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colors = AmountColors.of(theme);
     final net = summary.income - summary.expenses;
 
     final titleStyle = theme.textTheme.titleMedium?.copyWith(
@@ -88,31 +87,17 @@ class _MonthRow extends StatelessWidget {
       color: summary.isCurrentMonth ? theme.colorScheme.primary : null,
     );
 
-    return Material(
-      color: summary.isCurrentMonth
+    return _TransactionSummaryRow(
+      background: summary.isCurrentMonth
           ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
           : null,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
-            children: [
-              Icon(expanded ? Icons.expand_more : Icons.chevron_right),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(formatMonthLabel(summary.month), style: titleStyle),
-              ),
-              Text(
-                formatCurrency(net),
-                style: theme.textTheme.titleSmall?.copyWith(
-                  color: colors.netAmountColor(net),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      onTap: onTap,
+      leading: Icon(expanded ? Icons.expand_more : Icons.chevron_right),
+      label: formatMonthLabel(summary.month),
+      labelStyle: titleStyle,
+      net: net,
+      netStyle: theme.textTheme.titleSmall,
     );
   }
 }
@@ -126,33 +111,70 @@ class _WeekRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colors = AmountColors.of(theme);
     final net = summary.income - summary.expenses;
 
+    return _TransactionSummaryRow(
+      background: theme.colorScheme.surfaceContainerHighest,
+      border: Border(
+        left: BorderSide(
+          width: 3,
+          color: summary.isCurrentWeek
+              ? theme.colorScheme.primary
+              : Colors.transparent,
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      onTap: onTap,
+      label: formatWeekRange(summary.range),
+      net: net,
+      netStyle: theme.textTheme.bodyMedium,
+    );
+  }
+}
+
+/// Shared row shell for the month and week list rows, which differ only in
+/// background, border, leading icon, and text style.
+class _TransactionSummaryRow extends StatelessWidget {
+  const _TransactionSummaryRow({
+    this.background,
+    this.border,
+    this.leading,
+    required this.label,
+    this.labelStyle,
+    required this.net,
+    this.netStyle,
+    required this.padding,
+    required this.onTap,
+  });
+
+  final Color? background;
+  final BoxBorder? border;
+  final Widget? leading;
+  final String label;
+  final TextStyle? labelStyle;
+  final Decimal net;
+  final TextStyle? netStyle;
+  final EdgeInsetsGeometry padding;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AmountColors.of(Theme.of(context));
+
     return Material(
-      color: theme.colorScheme.surfaceContainerHighest,
+      color: background,
       child: InkWell(
         onTap: onTap,
         child: Container(
-          decoration: BoxDecoration(
-            border: Border(
-              left: BorderSide(
-                width: 3,
-                color: summary.isCurrentWeek
-                    ? theme.colorScheme.primary
-                    : Colors.transparent,
-              ),
-            ),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: border == null ? null : BoxDecoration(border: border),
+          padding: padding,
           child: Row(
             children: [
-              Expanded(child: Text(formatWeekRange(summary.range))),
+              if (leading != null) ...[leading!, const SizedBox(width: 8)],
+              Expanded(child: Text(label, style: labelStyle)),
               Text(
                 formatCurrency(net),
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: colors.netAmountColor(net),
-                ),
+                style: netStyle?.copyWith(color: colors.netAmountColor(net)),
               ),
             ],
           ),

@@ -67,11 +67,7 @@ class _CategoryFormState extends State<CategoryForm> {
   late CategoryKind _kind =
       widget.category?.kind ?? _presetParent?.kind ?? CategoryKind.expense;
   late String _symbol = widget.category?.symbol ?? 'tag';
-  late Color _color = widget.category?.colorHex != null
-      ? parseColorHex(widget.category!.colorHex)
-      : (_presetParent?.colorHex != null
-            ? parseColorHex(_presetParent!.colorHex)
-            : _defaultColor);
+  late Color _color = _initialColor();
   late bool _includeInAnalysis = widget.category?.includeInAnalysis ?? true;
   late String? _parentID = widget.category?.parentID ?? widget.presetParentID;
 
@@ -81,6 +77,13 @@ class _CategoryFormState extends State<CategoryForm> {
     final id = widget.presetParentID;
     if (id == null) return null;
     return widget.ledger.state.categories[id];
+  }
+
+  Color _initialColor() {
+    final ownHex = widget.category?.colorHex;
+    if (ownHex != null) return parseColorHex(ownHex);
+    final parentHex = _presetParent?.colorHex;
+    return parentHex != null ? parseColorHex(parentHex) : _defaultColor;
   }
 
   bool get _isEditing => widget.category != null;

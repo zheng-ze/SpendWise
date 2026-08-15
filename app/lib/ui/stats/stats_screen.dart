@@ -8,27 +8,15 @@ import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/month_year_selector.dart';
 import 'package:spendwise/ui/common/top_tab_bar.dart';
 import 'package:spendwise/ui/format/amount_color.dart';
-import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/stats/category_detail_screen.dart';
 import 'package:spendwise/ui/stats/slices.dart';
 import 'package:spendwise/ui/stats/stats_donut.dart';
 import 'package:spendwise/ui/stats/stats_legend.dart';
+import 'package:spendwise/ui/stats/stats_window.dart';
 
 const _tabTitles = ['Income', 'Expense'];
 
 enum StatsRangeMode { month, year }
-
-DateRange _monthWindow(DateTime month) {
-  final start = DateTime.utc(month.year, month.month);
-  final end = shiftMonthThenClampDayUtc(start, 1, day: 1);
-  return DateRange(start, end);
-}
-
-DateRange _yearWindow(DateTime year) {
-  final start = DateTime.utc(year.year);
-  final end = DateTime.utc(year.year + 1);
-  return DateRange(start, end);
-}
 
 class StatsScreen extends ConsumerWidget {
   const StatsScreen({super.key});
@@ -100,8 +88,8 @@ class _StatsScreenBodyState extends State<_StatsScreenBody> {
         ? MonthYearStep.month
         : MonthYearStep.year;
     final window = _range == StatsRangeMode.month
-        ? _monthWindow(_selectedDate)
-        : _yearWindow(_selectedDate);
+        ? monthWindow(_selectedDate)
+        : yearWindow(_selectedDate);
 
     final categorySlices = slices(
       widget.cache.items,
@@ -157,24 +145,10 @@ class _StatsScreenBodyState extends State<_StatsScreenBody> {
                 children: [
                   Padding(
                     padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          label,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        Text(
-                          formatCurrency(total),
-                          style: theme.textTheme.headlineMedium?.copyWith(
-                            fontSize: 30,
-                            fontWeight: FontWeight.bold,
-                            color: totalColor,
-                          ),
-                        ),
-                      ],
+                    child: AmountHeader(
+                      caption: label,
+                      amount: total,
+                      amountColor: totalColor,
                     ),
                   ),
                   if (categorySlices.isEmpty)

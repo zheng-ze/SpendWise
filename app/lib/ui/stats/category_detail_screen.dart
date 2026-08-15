@@ -15,6 +15,7 @@ import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/stats/analysis_scan.dart';
 import 'package:spendwise/ui/stats/category_scope.dart';
+import 'package:spendwise/ui/stats/stats_window.dart';
 import 'package:spendwise/ui/stats/trend.dart';
 import 'package:spendwise/ui/transactions/day_header.dart';
 import 'package:spendwise/ui/transactions/day_sections.dart';
@@ -64,18 +65,6 @@ class CategoryDetailScreen extends ConsumerWidget {
   }
 }
 
-DateRange _monthWindow(DateTime month) {
-  final start = DateTime.utc(month.year, month.month);
-  final end = shiftMonthThenClampDayUtc(start, 1, day: 1);
-  return DateRange(start, end);
-}
-
-DateRange _yearWindow(DateTime year) {
-  final start = DateTime.utc(year.year);
-  final end = DateTime.utc(year.year + 1);
-  return DateRange(start, end);
-}
-
 class _CategoryDetailBody extends StatefulWidget {
   const _CategoryDetailBody({
     required this.mainID,
@@ -120,8 +109,8 @@ class _CategoryDetailBodyState extends State<_CategoryDetailBody> {
     final title = mainCategory?.name ?? '';
 
     final window = widget.isYearRange
-        ? _yearWindow(_detailDate)
-        : _monthWindow(_detailDate);
+        ? yearWindow(_detailDate)
+        : monthWindow(_detailDate);
 
     final children = [
       for (final category in state.categories.values)
@@ -140,28 +129,14 @@ class _CategoryDetailBodyState extends State<_CategoryDetailBody> {
       buckets: wholeCategoryBuckets,
     );
 
-    final windowed = scanned.where((item) => window.contains(item.date));
-
-    // The category's own total combines everything logged on it and its
-    // children, so "direct" spend is what's left after the children's share.
-    final mainTotal = windowed.fold(
-      Decimal.zero,
-      (sum, item) => sum + item.amount,
-    );
-    final childTotals = {
-      for (final category in children)
-        category.id: _sumBucket(windowed, category.id),
-    };
-    final childSum = childTotals.values.fold(
-      Decimal.zero,
-      (sum, amount) => sum + amount,
-    );
-    final directTotal = mainTotal - childSum;
-
     final scopedBuckets = matchingCategoryIDs(widget.mainID, _scope, state);
-    final scopeTotal = windowed
-        .where((item) => scopedBuckets.contains(item.bucketID))
-        .fold(Decimal.zero, (sum, item) => sum + item.amount);
+
+    final totals = _CategoryTotals.compute(
+      scanned: scanned,
+      children: children,
+      window: window,
+      scopedBuckets: scopedBuckets,
+    );
 
     final step = widget.isYearRange ? MonthYearStep.year : MonthYearStep.month;
 
@@ -185,33 +160,19 @@ class _CategoryDetailBodyState extends State<_CategoryDetailBody> {
           children: [
             Padding(
               padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _scopeCaption(title, _scope, state),
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  Text(
-                    formatCurrency(scopeTotal),
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                      fontSize: 30,
-                      fontWeight: FontWeight.bold,
-                      color: scopeColor,
-                    ),
-                  ),
-                ],
+              child: AmountHeader(
+                caption: _scopeCaption(title, _scope, state),
+                amount: totals.scopeTotal,
+                amountColor: scopeColor,
               ),
             ),
             if (children.isNotEmpty)
               _SubcategoryTable(
                 mainCategory: mainCategory,
-                mainTotal: mainTotal,
+                mainTotal: totals.mainTotal,
                 children: children,
-                childTotals: childTotals,
-                directTotal: directTotal,
+                childTotals: totals.childTotals,
+                directTotal: totals.directTotal,
                 scope: _scope,
                 onSelectScope: _setScope,
               ),
@@ -252,10 +213,65 @@ class _CategoryDetailBodyState extends State<_CategoryDetailBody> {
   }
 }
 
+class _CategoryTotals {
+  const _CategoryTotals({
+    required this.mainTotal,
+    required this.childTotals,
+    required this.directTotal,
+    required this.scopeTotal,
+  });
+
+  final Decimal mainTotal;
+  final Map<String, Decimal> childTotals;
+  final Decimal directTotal;
+  final Decimal scopeTotal;
+
+  // The category's own total combines everything logged on it and its
+  // children, so "direct" spend is what's left after the children's share.
+  factory _CategoryTotals.compute({
+    required Iterable<AnalysisItem> scanned,
+    required List<TransactionCategory> children,
+    required DateRange window,
+    required Set<String?> scopedBuckets,
+  }) {
+    final windowed = scanned.where((item) => window.contains(item.date));
+
+    final mainTotal = windowed.fold(
+      Decimal.zero,
+      (sum, item) => sum + item.amount,
+    );
+    final childTotals = {
+      for (final category in children)
+        category.id: _sumBucket(windowed, category.id),
+    };
+    final childSum = childTotals.values.fold(
+      Decimal.zero,
+      (sum, amount) => sum + amount,
+    );
+    final directTotal = mainTotal - childSum;
+
+    final scopeTotal = windowed
+        .where((item) => scopedBuckets.contains(item.bucketID))
+        .fold(Decimal.zero, (sum, item) => sum + item.amount);
+
+    return _CategoryTotals(
+      mainTotal: mainTotal,
+      childTotals: childTotals,
+      directTotal: directTotal,
+      scopeTotal: scopeTotal,
+    );
+  }
+}
+
 Decimal _sumBucket(Iterable<AnalysisItem> items, String bucketID) {
   return items
       .where((item) => item.bucketID == bucketID)
       .fold(Decimal.zero, (sum, item) => sum + item.amount);
+}
+
+String? _resolvedSubName(String? subID, LedgerState state) {
+  if (subID == null) return null;
+  return state.categories[subID]?.name;
 }
 
 String _scopeCaption(String mainName, CategoryScope scope, LedgerState state) {
@@ -265,9 +281,7 @@ String _scopeCaption(String mainName, CategoryScope scope, LedgerState state) {
     case DirectScope():
       return '$mainName › Direct';
     case SubScope(:final subID):
-      final subName = subID == null
-          ? 'Uncategorized'
-          : (state.categories[subID]?.name ?? 'Uncategorized');
+      final subName = _resolvedSubName(subID, state) ?? 'Uncategorized';
       return '$mainName › $subName';
   }
 }
@@ -282,9 +296,7 @@ String _scopeShortName(
     case DirectScope():
       return mainName;
     case SubScope(:final subID):
-      return subID == null
-          ? 'Uncategorized'
-          : (state.categories[subID]?.name ?? 'Uncategorized');
+      return _resolvedSubName(subID, state) ?? 'Uncategorized';
   }
 }
 
@@ -532,83 +544,92 @@ class _TrendCardState extends State<_TrendCard> {
               SizedBox(
                 key: const ValueKey('categoryDetailTrendChart'),
                 height: 160,
-                child: LineChart(
-                  LineChartData(
-                    minY: 0,
-                    maxY: maxY,
-                    titlesData: FlTitlesData(
-                      topTitles: const AxisTitles(),
-                      rightTitles: const AxisTitles(),
-                      leftTitles: const AxisTitles(),
-                      bottomTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          interval: 1,
-                          getTitlesWidget: (value, meta) {
-                            final index = value.round();
-                            if (index < 0 || index >= months.length) {
-                              return const SizedBox.shrink();
-                            }
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 4),
-                              child: Text(
-                                formatMonthLabel(months[index]).substring(0, 3),
-                                style: theme.textTheme.labelSmall,
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                    gridData: const FlGridData(show: false),
-                    borderData: FlBorderData(show: false),
-                    lineTouchData: LineTouchData(
-                      // Selection is nearest-month by horizontal position, not
-                      // proximity to the line itself, so the threshold has to
-                      // clear the chart's full height.
-                      touchSpotThreshold: double.infinity,
-                      touchTooltipData: LineTouchTooltipData(
-                        getTooltipColor: (_) => Colors.transparent,
-                        getTooltipItems: (spots) => [
-                          for (final _ in spots) null,
-                        ],
-                      ),
-                      touchCallback: (event, response) {
-                        if (!event.isInterestedForInteractions ||
-                            response == null ||
-                            response.lineBarSpots == null ||
-                            response.lineBarSpots!.isEmpty) {
-                          if (event is FlPointerExitEvent) {
-                            setState(() => _selectedIndex = null);
-                          }
-                          return;
-                        }
-                        setState(() {
-                          _selectedIndex = response.lineBarSpots!.first.x
-                              .round();
-                        });
-                      },
-                    ),
-                    lineBarsData: [
-                      LineChartBarData(
-                        spots: [
-                          for (var i = 0; i < amounts.length; i++)
-                            FlSpot(i.toDouble(), amounts[i].toDouble()),
-                        ],
-                        isCurved: true,
-                        preventCurveOverShooting: true,
-                        color: widget.color,
-                        barWidth: 2,
-                        dotData: const FlDotData(show: true),
-                        belowBarData: BarAreaData(show: false),
-                      ),
-                    ],
-                  ),
-                ),
+                child: _buildTrendLineChart(theme, months, amounts, maxY),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _monthTick(ThemeData theme, List<DateTime> months, double value) {
+    final index = value.round();
+    if (index < 0 || index >= months.length) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Text(
+        formatMonthLabel(months[index]).substring(0, 3),
+        style: theme.textTheme.labelSmall,
+      ),
+    );
+  }
+
+  void _onTrendTouch(FlTouchEvent event, LineTouchResponse? response) {
+    final spots = response?.lineBarSpots;
+    if (!event.isInterestedForInteractions || spots == null || spots.isEmpty) {
+      if (event is FlPointerExitEvent) setState(() => _selectedIndex = null);
+      return;
+    }
+    setState(() => _selectedIndex = spots.first.x.round());
+  }
+
+  LineChart _buildTrendLineChart(
+    ThemeData theme,
+    List<DateTime> months,
+    List<Decimal> amounts,
+    double maxY,
+  ) {
+    final bottomTitles = AxisTitles(
+      sideTitles: SideTitles(
+        showTitles: true,
+        interval: 1,
+        getTitlesWidget: (value, meta) => _monthTick(theme, months, value),
+      ),
+    );
+
+    final lineTouchData = LineTouchData(
+      // Selection is nearest-month by horizontal position, not proximity
+      // to the line itself, so the threshold has to clear the chart's
+      // full height.
+      touchSpotThreshold: double.infinity,
+      touchTooltipData: LineTouchTooltipData(
+        getTooltipColor: (_) => Colors.transparent,
+        getTooltipItems: (spots) => [for (final _ in spots) null],
+      ),
+      touchCallback: _onTrendTouch,
+    );
+
+    final lineBarsData = [
+      LineChartBarData(
+        spots: [
+          for (var i = 0; i < amounts.length; i++)
+            FlSpot(i.toDouble(), amounts[i].toDouble()),
+        ],
+        isCurved: true,
+        preventCurveOverShooting: true,
+        color: widget.color,
+        barWidth: 2,
+        dotData: const FlDotData(show: true),
+        belowBarData: BarAreaData(show: false),
+      ),
+    ];
+
+    return LineChart(
+      LineChartData(
+        minY: 0,
+        maxY: maxY,
+        titlesData: FlTitlesData(
+          topTitles: const AxisTitles(),
+          rightTitles: const AxisTitles(),
+          leftTitles: const AxisTitles(),
+          bottomTitles: bottomTitles,
+        ),
+        gridData: const FlGridData(show: false),
+        borderData: FlBorderData(show: false),
+        lineTouchData: lineTouchData,
+        lineBarsData: lineBarsData,
       ),
     );
   }

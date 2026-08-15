@@ -57,33 +57,27 @@ class _AccountsScreenBodyState extends State<_AccountsScreenBody> {
     });
   }
 
-  void _openAccount(AccountRow row) {
+  void _openTransactions({
+    required String title,
+    required Set<String> scopeIDs,
+  }) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => TransactionsScreen(
-          title: row.name,
-          scopeIDs: {row.id, for (final pocket in row.pockets) pocket.id},
-        ),
+        builder: (_) => TransactionsScreen(title: title, scopeIDs: scopeIDs),
       ),
     );
   }
 
-  void _openAccountAlone(AccountRow row) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => TransactionsScreen(title: row.name, scopeIDs: {row.id}),
-      ),
-    );
-  }
+  void _openAccount(AccountRow row) => _openTransactions(
+    title: row.name,
+    scopeIDs: {row.id, for (final pocket in row.pockets) pocket.id},
+  );
 
-  void _openPocket(PocketRow pocket) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) =>
-            TransactionsScreen(title: pocket.name, scopeIDs: {pocket.id}),
-      ),
-    );
-  }
+  void _openAccountAlone(AccountRow row) =>
+      _openTransactions(title: row.name, scopeIDs: {row.id});
+
+  void _openPocket(PocketRow pocket) =>
+      _openTransactions(title: pocket.name, scopeIDs: {pocket.id});
 
   Future<bool> _confirmDeleteAccount(AccountRow row) {
     final referenceCount = widget.ledger.state.entriesReferencing(row.id);

@@ -11,6 +11,7 @@ import 'package:spendwise/ui/common/top_tab_bar.dart';
 import 'package:spendwise/ui/format/amount_color.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/accounts/source_edit_form.dart';
+import 'package:spendwise/ui/stats/stats_window.dart';
 import 'package:spendwise/ui/transactions/day_header.dart';
 import 'package:spendwise/ui/transactions/day_sections.dart';
 import 'package:spendwise/ui/transactions/delete_confirmation.dart';
@@ -180,18 +181,6 @@ class _TransactionsScreenBody extends ConsumerWidget {
   }
 }
 
-DateRange _monthInterval(DateTime month) {
-  final start = DateTime.utc(month.year, month.month);
-  final end = shiftMonthThenClampDayUtc(start, 1, day: 1);
-  return DateRange(start, end);
-}
-
-DateRange _yearInterval(DateTime year) {
-  final start = DateTime.utc(year.year);
-  final end = DateTime.utc(year.year + 1);
-  return DateRange(start, end);
-}
-
 class _TotalsBar extends StatelessWidget {
   const _TotalsBar({
     required this.state,
@@ -208,8 +197,8 @@ class _TotalsBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final interval = mode == TransactionsScreenMode.daily
-        ? _monthInterval(selectedDate)
-        : _yearInterval(selectedDate);
+        ? monthWindow(selectedDate)
+        : yearWindow(selectedDate);
 
     final sections = daySections(
       state.entries.values,
@@ -272,7 +261,7 @@ class _DailyContent extends StatelessWidget {
     final sections = daySections(
       state.entries.values,
       state,
-      interval: _monthInterval(selectedDate),
+      interval: monthWindow(selectedDate),
       sourceScope: sourceScope,
     );
 
