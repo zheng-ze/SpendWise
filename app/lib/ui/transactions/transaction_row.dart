@@ -1,5 +1,7 @@
+import 'dart:ui' show Color;
+
 import 'package:domain/domain.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show immutable;
 
 import 'package:spendwise/ui/format/color_hex.dart';
 import 'package:spendwise/ui/format/money_format.dart';

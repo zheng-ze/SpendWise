@@ -65,4 +65,61 @@ void main() {
       expect(ledger.state.entries.containsKey(keepEntry.id), isTrue);
     },
   );
+
+  testWidgets('tapping a row opens the entry form for it, read-only', (
+    tester,
+  ) async {
+    final entry = Entry(
+      amount: dec('-5'),
+      name: 'Coffee run',
+      sourceID: account.id,
+      date: day(1),
+    );
+
+    final ledger = Ledger(
+      state: LedgerState(
+        moneySources: {account.id: MoneySource.account(account)},
+        entries: {entry.id: entry},
+      ),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [ledgerProvider.overrideWithValue(ledger)],
+        child: const MaterialApp(home: TransactionsScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Coffee run'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Entry'), findsOneWidget);
+    expect(find.text('Save'), findsNothing);
+    expect(find.byIcon(Icons.edit_outlined), findsOneWidget);
+  });
+
+  testWidgets('the add action opens a new, editable entry form', (
+    tester,
+  ) async {
+    final ledger = Ledger(
+      state: LedgerState(
+        moneySources: {account.id: MoneySource.account(account)},
+      ),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [ledgerProvider.overrideWithValue(ledger)],
+        child: const MaterialApp(home: TransactionsScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.add));
+    await tester.pumpAndSettle();
+
+    expect(find.text('New Entry'), findsOneWidget);
+    expect(find.text('Save'), findsOneWidget);
+  });
 }

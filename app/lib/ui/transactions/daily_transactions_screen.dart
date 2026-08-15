@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/column_text.dart';
+import 'package:spendwise/ui/common/expanding_fab.dart';
 import 'package:spendwise/ui/common/month_year_selector.dart';
 import 'package:spendwise/ui/common/top_tab_bar.dart';
 import 'package:spendwise/ui/format/amount_color.dart';
@@ -13,6 +14,7 @@ import 'package:spendwise/ui/transactions/day_header.dart';
 import 'package:spendwise/ui/transactions/day_sections.dart';
 import 'package:spendwise/ui/transactions/delete_confirmation.dart';
 import 'package:spendwise/ui/transactions/empty_state.dart';
+import 'package:spendwise/ui/transactions/entry_form.dart';
 import 'package:spendwise/ui/transactions/monthly_transactions_view.dart';
 import 'package:spendwise/ui/transactions/transaction_cell.dart';
 import 'package:spendwise/ui/transactions/transactions_screen_state.dart';
@@ -31,7 +33,6 @@ class TransactionsScreen extends ConsumerWidget {
   final String? sourceScope;
   final String title;
 
-  /// Stubbed here: group 5 wires the real read-only entry form.
   final void Function(Entry entry)? onRowTap;
 
   final WidgetBuilder? monthlyBuilder;
@@ -48,7 +49,14 @@ class TransactionsScreen extends ConsumerWidget {
           sourceScope: sourceScope,
           title: title,
           ledger: ledger,
-          onRowTap: onRowTap,
+          onRowTap:
+              onRowTap ??
+              (entry) => showEntryFormSheet(
+                context: context,
+                ledger: ledger,
+                entry: entry,
+                sourceScope: sourceScope,
+              ),
           monthlyBuilder: monthlyBuilder,
         );
       },
@@ -92,37 +100,52 @@ class _TransactionsScreenBody extends ConsumerWidget {
           ),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          TopTabBar(
-            titles: _tabTitles,
-            selectedIndex: screenState.mode.index,
-            onSelected: (index) =>
-                controller.setMode(TransactionsScreenMode.values[index]),
-          ),
-          const Divider(height: 1),
-          _TotalsBar(
-            state: ledger.state,
-            sourceScope: sourceScope,
-            selectedDate: screenState.selectedDate,
-            mode: screenState.mode,
-          ),
-          const Divider(height: 1),
-          Expanded(
-            child: screenState.mode == TransactionsScreenMode.daily
-                ? _DailyContent(
-                    state: ledger.state,
-                    sourceScope: sourceScope,
-                    selectedDate: screenState.selectedDate,
-                    ledger: ledger,
-                    onRowTap: onRowTap,
-                  )
-                : (monthlyBuilder?.call(context) ??
-                      MonthlyTransactionsView(
+          Column(
+            children: [
+              TopTabBar(
+                titles: _tabTitles,
+                selectedIndex: screenState.mode.index,
+                onSelected: (index) =>
+                    controller.setMode(TransactionsScreenMode.values[index]),
+              ),
+              const Divider(height: 1),
+              _TotalsBar(
+                state: ledger.state,
+                sourceScope: sourceScope,
+                selectedDate: screenState.selectedDate,
+                mode: screenState.mode,
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: screenState.mode == TransactionsScreenMode.daily
+                    ? _DailyContent(
                         state: ledger.state,
-                        year: screenState.selectedDate,
-                        onWeekTap: controller.switchToDaily,
-                      )),
+                        sourceScope: sourceScope,
+                        selectedDate: screenState.selectedDate,
+                        ledger: ledger,
+                        onRowTap: onRowTap,
+                      )
+                    : (monthlyBuilder?.call(context) ??
+                          MonthlyTransactionsView(
+                            state: ledger.state,
+                            year: screenState.selectedDate,
+                            onWeekTap: controller.switchToDaily,
+                          )),
+              ),
+            ],
+          ),
+          ExpandingFab(
+            primary: FabAction(
+              label: 'Add Transaction',
+              icon: Icons.add,
+              onTap: () => showEntryFormSheet(
+                context: context,
+                ledger: ledger,
+                sourceScope: sourceScope,
+              ),
+            ),
           ),
         ],
       ),
