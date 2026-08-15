@@ -10,6 +10,8 @@ const _typeLabels = <AccountType, String>{
   AccountType.investment: 'Investment',
   AccountType.insurance: 'Insurance',
   AccountType.other: 'Other',
+  AccountType.loan: 'Loan',
+  AccountType.overdraft: 'Overdraft',
 };
 
 class AccountTypePicker extends StatelessWidget {

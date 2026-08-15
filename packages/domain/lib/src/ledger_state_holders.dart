@@ -6,9 +6,10 @@ extension LedgerStateHolders on LedgerState {
       throw IdCollision(account.id);
     }
     // Links are owned by pocket creation, so a caller-supplied set is dropped.
-    final stored = account.withNormalizedStatementDay().withSubPockets(
-      const {},
-    );
+    final stored = account
+        .withNormalizedStatementDay()
+        .withEligibleTransferFlag()
+        .withSubPockets(const {});
     _moneySources[stored.id] = AccountSource(stored);
     return _checked([UpsertAccount(stored)]);
   }
@@ -21,6 +22,7 @@ extension LedgerStateHolders on LedgerState {
 
     final stored = account
         .withNormalizedStatementDay()
+        .withEligibleTransferFlag()
         .withSubPockets(existing.subPocketIDs)
         .settingLifecycle(
           _editableLifecycle(account.lifecycle, existing.lifecycle),

@@ -61,17 +61,27 @@ class Account {
         : _copy(statementDay: () => normalized);
   }
 
+  Account withEligibleTransferFlag() {
+    final allowed =
+        type.allowsTransfersAsExpense && incomingTransfersAsExpenses;
+    return allowed == incomingTransfersAsExpenses
+        ? this
+        : _copy(incomingTransfersAsExpenses: allowed);
+  }
+
   Account _copy({
     Set<String>? subPocketIDs,
     LifecycleState? lifecycle,
     int? Function()? statementDay,
+    bool? incomingTransfersAsExpenses,
   }) {
     return Account(
       id: id,
       name: name,
       type: type,
       subPocketIDs: subPocketIDs ?? this.subPocketIDs,
-      incomingTransfersAsExpenses: incomingTransfersAsExpenses,
+      incomingTransfersAsExpenses:
+          incomingTransfersAsExpenses ?? this.incomingTransfersAsExpenses,
       includeInNetWorth: includeInNetWorth,
       statementDay: statementDay == null ? this.statementDay : statementDay(),
       lifecycle: lifecycle ?? this.lifecycle,

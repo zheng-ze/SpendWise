@@ -165,6 +165,21 @@ void main() {
 
       expect(ledger.moneySources[uuid(1)]?.asAccount?.statementDay, 1);
     });
+
+    test('forces the transfer flag off for an ineligible type', () {
+      ledger.addAccount(
+        account(
+          uuid(1),
+          type: AccountType.checking,
+          incomingTransfersAsExpenses: true,
+        ),
+      );
+
+      expect(
+        ledger.moneySources[uuid(1)]?.asAccount?.incomingTransfersAsExpenses,
+        isFalse,
+      );
+    });
   });
 
   group('updateAccount', () {
@@ -174,7 +189,7 @@ void main() {
         account(
           uuid(1),
           name: 'renamed',
-          type: AccountType.checking,
+          type: AccountType.investment,
           incomingTransfersAsExpenses: true,
           includeInNetWorth: false,
         ),
@@ -183,9 +198,30 @@ void main() {
       final stored = ledger.moneySources[uuid(1)]!.asAccount!;
       expect(ledger.moneySources, hasLength(1));
       expect(stored.name, 'renamed');
-      expect(stored.type, AccountType.checking);
+      expect(stored.type, AccountType.investment);
       expect(stored.incomingTransfersAsExpenses, isTrue);
       expect(stored.includeInNetWorth, isFalse);
+      expect(changes, [UpsertAccount(stored)]);
+    });
+
+    test('forces the transfer flag off when the type becomes ineligible', () {
+      ledger.addAccount(
+        account(
+          uuid(1),
+          type: AccountType.savings,
+          incomingTransfersAsExpenses: true,
+        ),
+      );
+      final changes = ledger.updateAccount(
+        account(
+          uuid(1),
+          type: AccountType.checking,
+          incomingTransfersAsExpenses: true,
+        ),
+      );
+
+      final stored = ledger.moneySources[uuid(1)]!.asAccount!;
+      expect(stored.incomingTransfersAsExpenses, isFalse);
       expect(changes, [UpsertAccount(stored)]);
     });
 

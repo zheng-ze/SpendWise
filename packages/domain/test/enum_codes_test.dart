@@ -48,6 +48,24 @@ void main() {
     test('fromCode rejects an unknown code', () {
       expect(() => AccountType.fromCode(-1), throwsArgumentError);
     });
+
+    test('a new type is appended, so old codes still load the same type', () {
+      const oldFixtureCodes = {
+        0: AccountType.cash,
+        1: AccountType.checking,
+        2: AccountType.savings,
+        3: AccountType.card,
+        4: AccountType.prepaid,
+        5: AccountType.investment,
+        6: AccountType.insurance,
+        7: AccountType.other,
+      };
+      oldFixtureCodes.forEach((code, type) {
+        expect(AccountType.fromCode(code), type);
+      });
+      expect(AccountType.loan.code, 8);
+      expect(AccountType.overdraft.code, 9);
+    });
   });
 
   group('CategoryKind', () {

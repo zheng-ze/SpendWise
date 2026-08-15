@@ -6,11 +6,22 @@ enum AccountType {
   prepaid(4),
   investment(5),
   insurance(6),
-  other(7);
+  other(7),
+  loan(8),
+  overdraft(9);
 
   const AccountType(this.code);
 
   final int code;
+
+  /// Only a type representing money outside the user's everyday spending
+  /// control may treat an incoming transfer as an expense. For the others a
+  /// transfer in is money moving, not money spent, and would double-count
+  /// the eventual purchase.
+  bool get allowsTransfersAsExpense => switch (this) {
+    cash || checking || card || prepaid => false,
+    savings || investment || insurance || other || loan || overdraft => true,
+  };
 
   static AccountType fromCode(int code) {
     return switch (code) {
@@ -22,6 +33,8 @@ enum AccountType {
       5 => investment,
       6 => insurance,
       7 => other,
+      8 => loan,
+      9 => overdraft,
       _ => throw ArgumentError.value(code, 'code', 'Unknown AccountType'),
     };
   }
