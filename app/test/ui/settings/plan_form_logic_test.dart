@@ -43,13 +43,13 @@ void main() {
       expect(result, RecurrenceFrequency.monthly);
     });
 
-    test('a dismissed sheet also keeps the current frequency', () {
-      // The picker itself collapses dismissal and an explicit one-time
-      // choice to the same null return, so this exercises the same branch
-      // as the case above.
-      final result = applyPickerResult(RecurrenceFrequency.weekly, null);
-      expect(result, RecurrenceFrequency.weekly);
-    });
+    test(
+      'a null result keeps the current frequency, same as a one-time choice',
+      () {
+        final result = applyPickerResult(RecurrenceFrequency.weekly, null);
+        expect(result, RecurrenceFrequency.weekly);
+      },
+    );
 
     test('a genuinely picked frequency replaces the current one', () {
       final result = applyPickerResult(

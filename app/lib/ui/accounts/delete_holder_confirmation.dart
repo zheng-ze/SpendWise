@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// States how many entries keep the holder's name, matching the recycle
-/// bin's own wording. V1 computed this count and never showed it.
 Future<bool> showDeleteHolderConfirmation(
   BuildContext context, {
   required String name,

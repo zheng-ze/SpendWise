@@ -125,9 +125,6 @@ void main() {
 
     await store.flushNow();
 
-    // A drain that kept its batches would apply the pair a second time. The
-    // state is the same either way, so this pins only that an empty flush is
-    // harmless.
     expect(store.state.moneySources, isEmpty);
   });
 

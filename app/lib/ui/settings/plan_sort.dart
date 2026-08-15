@@ -1,8 +1,8 @@
 import 'package:domain/domain.dart';
 
 /// Ascending by next occurrence, ended plans (no next occurrence) last.
-/// Ties break by name, including between two equal non-null dates — a
-/// deterministic strengthening over V1, which left that case unspecified.
+/// Ties break by name, so the order is deterministic even between two
+/// plans with the same next occurrence date.
 List<RecurringPlan> sortedPlans(
   List<RecurringPlan> plans,
   LedgerState state,

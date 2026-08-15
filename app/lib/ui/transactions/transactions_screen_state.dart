@@ -28,8 +28,7 @@ class TransactionsScreenState {
 
 /// One controller per optional source scope, so the unscoped Transactions
 /// tab and any account-scoped rendering of this screen each keep their own
-/// selected date and mode. Group 4 (monthly view) calls [switchToDaily] for
-/// the "tap a week jumps to Daily for that week's month" requirement.
+/// selected date and mode.
 class TransactionsScreenController extends Notifier<TransactionsScreenState> {
   TransactionsScreenController(this.sourceScope);
 

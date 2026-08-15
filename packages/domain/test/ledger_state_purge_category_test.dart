@@ -125,7 +125,6 @@ void main() {
 
       final changes = ledger.purgeCategory(uuid(2));
 
-      // Parent first, then children.
       expect(changes, [
         UpsertCategory(
           category(uuid(2), lifecycle: LifecycleState.referenceOnly),

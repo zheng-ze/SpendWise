@@ -44,7 +44,6 @@ void main() {
     store.armGate();
     final disposal = app.disposeAndFlush();
 
-    // The flush is blocked on the gate, so it has not landed yet.
     expect(store.flushCompletions, 0);
 
     store.openGate();
@@ -74,8 +73,7 @@ void main() {
 
       await app.disposeAndFlush();
 
-      // Mirrors ChangeNotifierProvider's own teardown call after a caller
-      // already disposed and flushed explicitly.
+      // Calling dispose again after an explicit dispose-and-flush must not throw.
       expect(app.dispose, returnsNormally);
     },
   );

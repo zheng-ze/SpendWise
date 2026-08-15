@@ -141,7 +141,6 @@ void main() {
     }
   }
 
-  /// Drives one full debounce-and-save cycle without waiting real time.
   Future<void> debouncedSave() async {
     await settle();
     clock.fire();
@@ -178,7 +177,6 @@ void main() {
       store.enqueue([UpsertAccount(account('a1', 'v2'))]);
       await settle();
 
-      // The first timer was cancelled rather than left to fire twice.
       expect(clock.armedCount, 1);
 
       clock.fire();
@@ -353,7 +351,7 @@ void main() {
       expect(reported.last, SaveBannerState.failedWillRetry);
       expect(await db.select(db.accounts).get(), isEmpty);
 
-      // No further enqueue. Swift stopped here and the data never landed.
+      // The batch is still pending after this cycle gives up.
       expect(clock.armedDelays.single, const Duration(milliseconds: 200));
 
       clock.fire();
@@ -376,7 +374,6 @@ void main() {
 
       final beforeTimedCycle = reported.length;
 
-      // A whole timer-driven cycle, exhausting its own two retries.
       clock.fire();
       await settle();
       clock.fire();
@@ -510,8 +507,6 @@ void main() {
 
       expect((await db.select(db.accounts).getSingle()).name, 'v1');
 
-      // A flush that wrote the batch without clearing it would apply it again
-      // here and bump the row twice.
       await store.flushNow();
       expect(await versionBumpsOnAccount('a1'), 1);
     });
@@ -532,8 +527,6 @@ void main() {
 
       expect((await db.select(db.accounts).getSingle()).name, 'v1');
 
-      // A store left unstarted buffers nothing on enqueue, so the debounce that
-      // writes this batch is only armed if the flush really did start it.
       unstarted.enqueue([UpsertAccount(account('a2', 'v2'))]);
       await debouncedSave();
 
@@ -574,7 +567,6 @@ void main() {
 
       await store.flushNow();
 
-      // The debounce is gone, not left to fire a redundant save later.
       expect(clock.armedCount, 0);
       clock.fire();
       await settle();
@@ -658,7 +650,6 @@ void main() {
       flaky.failures = 1;
       store.enqueue([UpsertAccount(account('a1', 'v1'))]);
 
-      // The first attempt fails, the in-cycle backoff timer needs firing.
       final flush = store.flushNow();
       await settle();
       clock.fire();
@@ -1000,7 +991,6 @@ void main() {
     test('a seed that recovers commits the flag with its rows', () async {
       flaky.failures = 1;
 
-      // The first attempt fails, the in-cycle backoff timer needs firing.
       final seed = store.seedIfFirstLaunch(seedChanges());
       await settle();
       clock.fire();

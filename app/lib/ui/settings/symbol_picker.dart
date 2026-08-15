@@ -24,8 +24,8 @@ Map<String, List<String>> filterSymbolSections(
   return result;
 }
 
-/// Pushed rather than a bottom sheet, per the module doc. Returns the chosen
-/// symbol name, or null if the user backed out without choosing.
+/// Returns the chosen symbol name, or null if the user backed out without
+/// choosing.
 Future<String?> showSymbolPickerSheet({
   required BuildContext context,
   required String selected,

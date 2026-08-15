@@ -79,7 +79,6 @@ void main() {
 
   test('two plans sharing the same non-null next occurrence tiebreak by '
       'name (the strengthening over V1)', () {
-    // Same frequency and anchor genuinely produce the same next occurrence.
     final anchor = DateTime.utc(2026, 2, 1);
     final b = plan(
       name: 'Bravo live',

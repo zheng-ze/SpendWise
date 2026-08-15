@@ -112,9 +112,8 @@ void main() {
     final cache = container.read(analysisCacheProvider);
 
     container.dispose();
-    // AnalysisCache.dispose and Ledger's teardown are both async under the
-    // hood, so their disposed flag lands on a later microtask, not
-    // synchronously with container.dispose().
+    // Disposal completes on a later microtask, not synchronously, so this
+    // yields once before checking.
     await Future<void>.delayed(Duration.zero);
 
     expect(() => banner.addListener(() {}), throwsFlutterError);

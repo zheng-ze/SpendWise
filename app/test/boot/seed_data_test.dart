@@ -172,8 +172,8 @@ void main() {
     }
   });
 
-  // The clamp itself is unobservable here: every day the dataset asks for fits
-  // in all twelve months. `shiftMonthThenClampDayUtc` carries that test in the domain.
+  // every day the dataset asks for fits in all twelve months, so the clamp
+  // path is never exercised here.
   test('seedDatesLandOnTheRequestedDayOfTheShiftedMonth', () {
     final entries = _rowsOf<UpsertEntry>(
       seedChanges(today: DateTime.utc(2026, 3, 31)),

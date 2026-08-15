@@ -133,8 +133,8 @@ void main() {
       expect(VersionVector.decode(blob).counters, {deviceA: 3, deviceB: 1});
     });
 
-    /// Swift encoded the struct rather than the map, so the flat alternating
-    /// array arrives wrapped under `counters` with uppercase uuids.
+    /// The flat alternating array arrives wrapped under `counters`, with
+    /// uppercase uuids that decoding must normalize back to lowercase.
     test("decodes swift's wrapped flat alternating array form", () {
       final blob = utf8.encode(
         '{"counters":["${deviceA.toUpperCase()}",3,'

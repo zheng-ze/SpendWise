@@ -60,9 +60,9 @@ void main() {
       ProviderScope(
         overrides: [
           ledgerProvider.overrideWithValue(ledger),
-          // The isolate runner sends the compute closure to a spawned
-          // isolate, which the test zone's captured state cannot cross. The
-          // sync runner is the seam AnalysisCache exposes for this.
+          // This screen refreshes the cache during pump, and a spawned
+          // isolate can't see the test zone's fake-async state, so the cache
+          // is given a synchronous runner instead of its default isolate one.
           analysisCacheProvider.overrideWith(
             (ref) => AnalysisCache(runner: syncComputeRunner),
           ),

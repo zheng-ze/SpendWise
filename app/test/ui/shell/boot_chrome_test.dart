@@ -50,9 +50,9 @@ void main() {
                 ..start(),
         ),
         // The Stats tab is mounted eagerly by the shell's IndexedStack, so it
-        // refreshes the cache on the very first frame. The isolate runner
-        // can't cross flutter_test's zone-captured state, which the sync
-        // runner sidesteps the same way the direct AnalysisCache tests do.
+        // refreshes the cache on the very first frame. A spawned isolate can't
+        // see the test zone's fake-async state, so the cache is given a
+        // synchronous runner instead of its default isolate one.
         analysisCacheProvider.overrideWith(
           (ref) => AnalysisCache(runner: syncComputeRunner),
         ),

@@ -12,7 +12,6 @@ const _elbowDistance = 14.0;
 const _labelLegLength = 12.0;
 const _labelFontSize = 10.0;
 
-/// Ring geometry and leader-line labels per the module doc's donut spec.
 /// `fl_chart`'s `PieChartSectionData` has no way to draw a leader line with an
 /// independently positioned elbow and two-tone label text, so this paints
 /// directly rather than compromising on label placement.

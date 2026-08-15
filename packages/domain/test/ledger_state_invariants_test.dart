@@ -162,10 +162,10 @@ void main() {
 
   /// A parent is referenced through a pocket only when that pocket is itself
   /// referenced, never because its row merely exists. Row-existence would pin
-  /// the account at referenceOnly forever, so clause 11 must name the ACCOUNT
-  /// here: a weaker recursion lets the account pass and clause 15 fires on the
-  /// pocket instead.
-  group('clause 11 judges a pocket by its references, not its row', () {
+  /// the account at referenceOnly forever, so the check below must report the
+  /// failure against the ACCOUNT: a weaker recursion would let the account
+  /// pass and report the pocket instead.
+  group('a pocket is judged by its references, not its row', () {
     test('an entry-free pocket does not hold up its referenceOnly account', () {
       final state = LedgerState(
         moneySources: {

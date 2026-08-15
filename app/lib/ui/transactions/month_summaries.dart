@@ -114,17 +114,14 @@ List<WeekSummary> _weeks({
   return weeks.reversed.toList();
 }
 
-/// Weeks run Monday to Sunday. Swift's original reads `Calendar.current`,
-/// whose first weekday follows device locale; the port fixes it to the ISO
-/// Monday start so a spillover week is deterministic across locales.
+/// Weeks run Monday to Sunday regardless of device locale, so a spillover
+/// week is deterministic for every user.
 DateTime _weekStart(DateTime day) {
   return day.subtract(Duration(days: day.weekday - DateTime.monday));
 }
 
-/// Shared with day_sections.dart's identical section-totals rule: entry-level
-/// `includeInAnalysis` only, never a category gate, transfers count toward
-/// neither. Kept here as the month view's single call site so it stays a
-/// one-line swap alongside that file's own copy if the domain ruling lands.
+/// Applies only the entry-level `includeInAnalysis` flag, never a category
+/// gate, and transfers count toward neither total.
 ({Decimal income, Decimal expenses}) sectionTotals(List<Entry> entries) {
   var income = Decimal.zero;
   var expenses = Decimal.zero;

@@ -141,7 +141,6 @@ void main() {
       expect(ledger.moneySources[uuid(1)]?.asAccount?.statementDay, 15);
     });
 
-    // Matches updateAccount, which has always cleared it for a non-card.
     test('clears the statement day for a non-card type', () {
       ledger.addAccount(
         account(uuid(1), type: AccountType.savings, statementDay: 15),

@@ -244,8 +244,8 @@ void main() {
     ledger.addPlan(healthy);
     ledger.addPlan(doomed);
 
-    // Archiving freezes the plan rather than dropping it, so its occurrences
-    // fail validation while the other plan's still land.
+    // Deleting the doomed plan's category leaves the plan active but makes
+    // its occurrences fail validation on resolve.
     ledger.deleteCategory(category.id);
 
     final batches = _batchesOf(ledger);

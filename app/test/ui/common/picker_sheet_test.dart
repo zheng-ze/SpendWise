@@ -18,8 +18,6 @@ const _groups = [
   ),
 ];
 
-/// Opens the sheet and hands back whatever it resolved to, so each test drives
-/// the same host rather than rebuilding one.
 Future<PickerOutcome?> _openAndAct(
   WidgetTester tester,
   Future<void> Function(WidgetTester tester) act, {

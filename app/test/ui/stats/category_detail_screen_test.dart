@@ -82,9 +82,9 @@ void main() {
     );
   }
 
-  // The isolate runner sends its closure to a spawned isolate, which the
-  // test zone's captured state cannot cross. The sync runner is the seam
-  // AnalysisCache exposes for this.
+  // This screen refreshes the cache during pump, and a spawned isolate can't
+  // see the test zone's fake-async state, so the cache is given a synchronous
+  // runner instead of its default isolate one.
   overridesFor(Ledger ledger) => [
     ledgerProvider.overrideWithValue(ledger),
     analysisCacheProvider.overrideWith(
@@ -311,8 +311,6 @@ void main() {
       await pumpDetail(tester, ledger);
       await tester.pumpAndSettle();
 
-      // Whole-category total is $15, shown once for the total and once for
-      // the "All Food" row.
       expect(find.text('\$15.00'), findsNWidgets(2));
 
       await tester.tap(find.text('Hawker'));

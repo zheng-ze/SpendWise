@@ -49,9 +49,7 @@ Entry signedEntryForSave({
 }
 
 /// One calendar day behind the anchor, so `occurrences(after: cursor, upTo:
-/// anchor)` includes the anchor day itself. Do not set the cursor to the
-/// anchor: that convention is for the sample seed, which deliberately skips
-/// the first occurrence.
+/// anchor)` includes the anchor day itself.
 RecurringPlan buildRecurringPlanForNewEntry({
   required EntryTemplate template,
   required RecurrenceFrequency frequency,

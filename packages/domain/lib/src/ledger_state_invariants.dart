@@ -133,7 +133,10 @@ extension LedgerStateInvariants on LedgerState {
         throw _violation(5, 'category ${category.id} kind differs from parent');
       }
 
-      // Mirrors the write path: archived is legal, a leaving parent is not.
+      // A category may sit under an archived parent, since archiving cascades
+      // to children, but not under a referenceOnly or tombstoned one: those
+      // states mean the parent is already leaving and should have taken the
+      // child down with it.
       if (!parent.lifecycle.isAtLeastAsAliveAs(category.lifecycle) &&
           !parent.lifecycle.isAtLeastAsAliveAs(LifecycleState.archived)) {
         throw _violation(

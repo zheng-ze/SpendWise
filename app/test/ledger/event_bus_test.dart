@@ -83,11 +83,7 @@ void main() {
     ]);
   });
 
-  // Swift pinned an unbounded per-subscriber buffer, so a batch published
-  // before the consumer began reading was replayed to it. A Dart broadcast
-  // stream has no such buffer and delivers only to attached listeners, so what
-  // is pinned here is the property boot actually relies on: a listener attached
-  // before the first publish loses nothing.
+  // A listener attached before the first publish must still receive it.
   test('bufferingIsLosslessBeforeConsumptionStarts', () {
     final bus = EventBus();
     final received = <List<LedgerChange>>[];

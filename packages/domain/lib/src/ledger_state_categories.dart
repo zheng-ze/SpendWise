@@ -57,7 +57,9 @@ extension LedgerStateCategories on LedgerState {
     final category = _categories[id];
     if (category == null || !category.lifecycle.isActive) return _checked([]);
 
-    // Archiving freezes plans rather than dropping them, as for a pocket.
+    // No plan cascade here: a plan naming this category is left alone rather
+    // than removed, so restoring the category later does not need to also
+    // resurrect any plan the delete would otherwise have deleted.
     return _checked(
       _moveCategoryTree(
         category,

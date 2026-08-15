@@ -60,12 +60,12 @@ void main() {
       final cache = AnalysisCache();
       cache.start(bus);
 
-      // Mirrors AppBoot.start: resolvePlans runs right after Ready, with no
-      // plans due it publishes nothing, so this should be a no-op on revision.
+      // No plans are due, so this publishes nothing and should be a no-op
+      // on revision.
       ledger.resolvePlans(DateTime.now().toUtc());
 
-      // Mirrors StatsScreen.build calling refresh() on the first frame, then
-      // again on a follow-up rebuild before the isolate compute has settled.
+      // Two refreshes back to back, the second before the first's isolate
+      // compute has settled.
       cache.refresh(ledger.state);
       cache.refresh(ledger.state);
 

@@ -30,8 +30,8 @@ extension LedgerStateQueries on LedgerState {
   }
 
   /// Null for an account, an unknown id, or a pocket no account still holds.
-  /// A `referenceOnly` pocket keeps its parent: purge pins the parent too
-  /// rather than detaching it.
+  /// A `referenceOnly` pocket is kept in the table rather than detached, so
+  /// its link to its account is still live and this still resolves it.
   Account? owningAccount(String rawPocketID) =>
       _owningAccount(normalizedID(rawPocketID));
 

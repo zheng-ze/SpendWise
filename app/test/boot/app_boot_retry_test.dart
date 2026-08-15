@@ -90,8 +90,7 @@ void main() {
     () async {
       final store = RecordingLedgerStore(hasSeeded: true);
       final app = boot(store);
-      // Fires inside PersistenceProcessor.start, after the bus exists but
-      // before any Ready phase can carry it.
+      // Fails after the event bus is created but before boot reaches Ready.
       store.failOn = StoreCall.start;
       await app.start();
       expect(app.phase, isA<Failed>());

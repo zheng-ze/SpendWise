@@ -61,8 +61,6 @@ DaySection _section(DateTime day, List<Entry> dayEntries, LedgerState state) {
 }
 
 /// Section totals apply only this entry-level flag, never a category gate.
-/// Keeping this the single call site is what makes a future domain ruling on
-/// the two surfaces' totals a one-line swap.
 ({Decimal income, Decimal expenses}) _totals(List<Entry> dayEntries) {
   var income = Decimal.zero;
   var expenses = Decimal.zero;
