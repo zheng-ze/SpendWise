@@ -8,8 +8,6 @@ import 'package:spendwise/ui/stats/stats_donut.dart';
 void main() {
   Decimal dec(String value) => Decimal.parse(value);
 
-  final state = LedgerState();
-
   testWidgets(
     'multi-slice donut renders the ring with gaps and leader-line labels',
     (tester) async {
@@ -22,6 +20,7 @@ void main() {
           bucketID: 'a0000000-0000-0000-0000-000000000001',
           amount: dec('60'),
           fraction: dec('0.6'),
+          name: 'Food',
           symbolName: 'restaurant',
           color: const Color(0xFFE53935),
         ),
@@ -29,6 +28,7 @@ void main() {
           bucketID: 'a0000000-0000-0000-0000-000000000002',
           amount: dec('30'),
           fraction: dec('0.3'),
+          name: 'Transport',
           symbolName: 'directions_bus',
           color: const Color(0xFF1E88E5),
         ),
@@ -36,6 +36,7 @@ void main() {
           bucketID: null,
           amount: dec('10'),
           fraction: dec('0.1'),
+          name: 'Uncategorized',
           symbolName: 'help_outline',
           color: const Color(0xFF8E8E93),
         ),
@@ -43,9 +44,7 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(
-            body: StatsDonut(slices: slices, state: state),
-          ),
+          home: Scaffold(body: StatsDonut(slices: slices)),
         ),
       );
 
@@ -68,6 +67,7 @@ void main() {
         bucketID: 'a0000000-0000-0000-0000-000000000001',
         amount: dec('100'),
         fraction: dec('1'),
+        name: 'Food',
         symbolName: 'restaurant',
         color: const Color(0xFFE53935),
       ),
@@ -75,9 +75,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: Scaffold(
-          body: StatsDonut(slices: slices, state: state),
-        ),
+        home: Scaffold(body: StatsDonut(slices: slices)),
       ),
     );
 

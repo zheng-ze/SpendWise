@@ -154,14 +154,10 @@ class _StatsScreenBodyState extends State<_StatsScreenBody> {
                   if (categorySlices.isEmpty)
                     _EmptyState(kind: _kind)
                   else ...[
-                    StatsDonut(
-                      slices: categorySlices,
-                      state: widget.ledger.state,
-                    ),
+                    StatsDonut(slices: categorySlices),
                     const Divider(height: 1),
                     StatsLegend(
                       slices: categorySlices,
-                      state: widget.ledger.state,
                       onTapCategory: _onTapCategory,
                     ),
                   ],

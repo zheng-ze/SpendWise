@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 
-import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/format/money_format.dart';
@@ -18,10 +17,9 @@ const _labelFontSize = 10.0;
 /// independently positioned elbow and two-tone label text, so this paints
 /// directly rather than compromising on label placement.
 class StatsDonut extends StatelessWidget {
-  const StatsDonut({super.key, required this.slices, required this.state});
+  const StatsDonut({super.key, required this.slices});
 
   final List<Slice> slices;
-  final LedgerState state;
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +31,6 @@ class StatsDonut extends StatelessWidget {
       child: CustomPaint(
         painter: _DonutPainter(
           slices: positive,
-          state: state,
           labelColor: theme.colorScheme.onSurface,
         ),
         size: Size.infinite,
@@ -43,14 +40,9 @@ class StatsDonut extends StatelessWidget {
 }
 
 class _DonutPainter extends CustomPainter {
-  _DonutPainter({
-    required this.slices,
-    required this.state,
-    required this.labelColor,
-  });
+  _DonutPainter({required this.slices, required this.labelColor});
 
   final List<Slice> slices;
-  final LedgerState state;
   final Color labelColor;
 
   @override
@@ -117,13 +109,10 @@ class _DonutPainter extends CustomPainter {
     canvas.drawLine(elbow, labelAnchor, linePaint);
 
     final percent = formatPercent(slice.fraction.toDouble());
-    final name = slice.bucketID == null
-        ? 'Uncategorized'
-        : (state.categories[slice.bucketID]?.name ?? 'Uncategorized');
     final span = TextSpan(
       children: [
         TextSpan(
-          text: '$name ',
+          text: '${slice.name} ',
           style: TextStyle(
             color: labelColor,
             fontSize: _labelFontSize,

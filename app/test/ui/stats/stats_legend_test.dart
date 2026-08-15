@@ -10,24 +10,11 @@ void main() {
 
   const foodID = 'a0000000-0000-0000-0000-000000000001';
 
-  final state = LedgerState(
-    categories: {
-      foodID: TransactionCategory(
-        id: foodID,
-        name: 'Food',
-        kind: CategoryKind.expense,
-        colorHex: '#FF0000',
-        includeInAnalysis: true,
-        parentID: null,
-        symbol: 'restaurant',
-      ),
-    },
-  );
-
   final foodSlice = Slice(
     bucketID: foodID,
     amount: dec('50'),
     fraction: dec('0.7'),
+    name: 'Food',
     symbolName: 'restaurant',
     color: const Color(0xFFFF0000),
   );
@@ -36,7 +23,17 @@ void main() {
     bucketID: null,
     amount: dec('20'),
     fraction: dec('0.3'),
+    name: 'Uncategorized',
     symbolName: 'help_outline',
+    color: const Color(0xFF8E8E93),
+  );
+
+  final syntheticSlice = Slice(
+    bucketID: syntheticTransferExpenseBucketID(AccountType.savings),
+    amount: dec('10'),
+    fraction: dec('0.1'),
+    name: 'Savings transfers',
+    symbolName: 'swap_horiz',
     color: const Color(0xFF8E8E93),
   );
 
@@ -48,7 +45,7 @@ void main() {
     return tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: StatsLegend(slices: slices, state: state, onTapCategory: onTap),
+          body: StatsLegend(slices: slices, onTapCategory: onTap),
         ),
       ),
     );
@@ -78,6 +75,22 @@ void main() {
 
   testWidgets('the uncategorized row renders no chevron', (tester) async {
     await pump(tester, [foodSlice, uncategorizedSlice], (_) {});
+
+    expect(find.byIcon(Icons.chevron_right), findsOneWidget);
+  });
+
+  testWidgets('tapping a synthetic slice invokes nothing', (tester) async {
+    var callCount = 0;
+    await pump(tester, [syntheticSlice], (_) => callCount++);
+
+    await tester.tap(find.text('Savings transfers'));
+    await tester.pump();
+
+    expect(callCount, 0);
+  });
+
+  testWidgets('the synthetic row renders no chevron', (tester) async {
+    await pump(tester, [foodSlice, syntheticSlice], (_) {});
 
     expect(find.byIcon(Icons.chevron_right), findsOneWidget);
   });

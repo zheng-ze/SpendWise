@@ -1,4 +1,3 @@
-import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/common/category_icon.dart';
@@ -13,12 +12,10 @@ class StatsLegend extends StatelessWidget {
   const StatsLegend({
     super.key,
     required this.slices,
-    required this.state,
     required this.onTapCategory,
   });
 
   final List<Slice> slices;
-  final LedgerState state;
   final void Function(String mainID) onTapCategory;
 
   @override
@@ -29,13 +26,9 @@ class StatsLegend extends StatelessWidget {
           if (index > 0) const Divider(height: 1, indent: _dividerIndent),
           _LegendRow(
             slice: slices[index],
-            name: slices[index].bucketID == null
-                ? 'Uncategorized'
-                : (state.categories[slices[index].bucketID]?.name ??
-                      'Uncategorized'),
-            onTap: slices[index].bucketID == null
-                ? null
-                : () => onTapCategory(slices[index].bucketID!),
+            onTap: slices[index].isNavigable
+                ? () => onTapCategory(slices[index].bucketID!)
+                : null,
           ),
         ],
       ],
@@ -44,10 +37,9 @@ class StatsLegend extends StatelessWidget {
 }
 
 class _LegendRow extends StatelessWidget {
-  const _LegendRow({required this.slice, required this.name, this.onTap});
+  const _LegendRow({required this.slice, this.onTap});
 
   final Slice slice;
-  final String name;
   final VoidCallback? onTap;
 
   @override
@@ -72,7 +64,7 @@ class _LegendRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(name, style: theme.textTheme.bodyLarge),
+                  Text(slice.name, style: theme.textTheme.bodyLarge),
                   Text(
                     percent,
                     style: theme.textTheme.bodySmall?.copyWith(

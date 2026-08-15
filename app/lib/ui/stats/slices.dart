@@ -7,6 +7,16 @@ import 'package:flutter/foundation.dart' show immutable;
 import 'package:spendwise/ui/format/color_hex.dart';
 
 const _uncategorizedSymbol = 'help_outline';
+const _syntheticTransferSymbol = 'swap_horiz';
+
+const _syntheticTransferNames = <AccountType, String>{
+  AccountType.savings: 'Savings transfers',
+  AccountType.investment: 'Investment transfers',
+  AccountType.insurance: 'Insurance transfers',
+  AccountType.other: 'Other transfers',
+  AccountType.loan: 'Loan transfers',
+  AccountType.overdraft: 'Overdraft transfers',
+};
 
 /// Fraction division is not always exact (a third of a total, say), so it
 /// needs a scale to round to rather than the bare `Decimal` division, which
@@ -19,6 +29,7 @@ class Slice {
     required this.bucketID,
     required this.amount,
     required this.fraction,
+    required this.name,
     required this.symbolName,
     required this.color,
   });
@@ -28,8 +39,17 @@ class Slice {
 
   final Decimal amount;
   final Decimal fraction;
+  final String name;
   final String symbolName;
   final Color color;
+
+  /// A synthetic bucket has no category row behind it, so there is nothing
+  /// to open a detail screen on.
+  bool get isNavigable => bucketID != null && !isSynthetic;
+
+  bool get isSynthetic =>
+      bucketID != null &&
+      syntheticTransferExpenseAccountType(bucketID!) != null;
 }
 
 List<Slice> slices(
@@ -64,15 +84,32 @@ Slice _slice(
       : (amount / total).toDecimal(scaleOnInfinitePrecision: _fractionScale);
 
   final category = bucketID == null ? null : state.categories[bucketID];
-  final symbolName = category?.symbol ?? _uncategorizedSymbol;
-  final color = category == null
-      ? colorHexFallback
-      : parseColorHex(category.colorHex);
+  final syntheticType = bucketID == null
+      ? null
+      : syntheticTransferExpenseAccountType(bucketID);
+
+  final String name;
+  final String symbolName;
+  final Color color;
+  if (category != null) {
+    name = category.name;
+    symbolName = category.symbol;
+    color = parseColorHex(category.colorHex);
+  } else if (syntheticType != null) {
+    name = _syntheticTransferNames[syntheticType]!;
+    symbolName = _syntheticTransferSymbol;
+    color = colorHexFallback;
+  } else {
+    name = 'Uncategorized';
+    symbolName = _uncategorizedSymbol;
+    color = colorHexFallback;
+  }
 
   return Slice(
     bucketID: bucketID,
     amount: amount,
     fraction: fraction,
+    name: name,
     symbolName: symbolName,
     color: color,
   );

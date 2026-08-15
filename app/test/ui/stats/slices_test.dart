@@ -147,4 +147,33 @@ void main() {
     expect(result.single.symbolName, 'restaurant');
     expect(result.single.color, parseColorHex('#FF0000'));
   });
+
+  test('uncategorized slice is named Uncategorized', () {
+    final items = [item(null, '15')];
+
+    final result = slices(items, CategoryKind.expense, window, state);
+
+    expect(result.single.name, 'Uncategorized');
+  });
+
+  test('category slice takes its name from state', () {
+    final items = [item(foodID, '15')];
+
+    final result = slices(items, CategoryKind.expense, window, state);
+
+    expect(result.single.name, 'Food');
+  });
+
+  test('a synthetic bucket carries its own name, symbol and neutral color '
+      'instead of Uncategorized', () {
+    final syntheticID = syntheticTransferExpenseBucketID(AccountType.savings);
+    final items = [item(syntheticID, '15')];
+
+    final result = slices(items, CategoryKind.expense, window, state);
+
+    expect(result.single.bucketID, syntheticID);
+    expect(result.single.name, isNot('Uncategorized'));
+    expect(result.single.symbolName, isNot('help_outline'));
+    expect(result.single.color, colorHexFallback);
+  });
 }
