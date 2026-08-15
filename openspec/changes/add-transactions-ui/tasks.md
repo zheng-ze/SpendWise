@@ -48,9 +48,10 @@ category chip, the picker sheet and the form scaffold all come from there.
       Keep headers pinned while the section scrolls
 - [x] 3.4 Add the transaction cell: category chip, title, optional note, account line, trailing amount
 - [x] 3.5 Add the empty state when the interval has no sections
-- [ ] 3.6 Tap a row opens the entry form read-only
-      EDIT: stubbed only. Screen accepts `onRowTap: void Function(Entry)?`; group 5 (entry form) wires
-      the real read-only form through it. Re-tick once group 5 lands and wires this.
+- [x] 3.6 Tap a row opens the entry form read-only
+      EDIT: `TransactionsScreen` now defaults `onRowTap` to `showEntryFormSheet` when the caller
+      doesn't override it, in `daily_transactions_screen.dart`. Pinned with
+      `daily_transactions_screen_test.dart`'s "tapping a row opens the entry form" test.
 - [x] 3.7 Swipe a row reveals delete, behind a confirmation identifying the entry by its note, falling
       back to its title when empty
       EDIT: initial landing zipped rows to entries by list index (re-deriving daySections' own
@@ -82,30 +83,33 @@ category chip, the picker sheet and the form scaffold all come from there.
 
 ## 5. Entry form
 
-- [ ] 5.1 Add the form sheet with three modes: new, viewing an existing entry, and editing one.
+- [x] 5.1 Add the form sheet with three modes: new, viewing an existing entry, and editing one.
       Existing entries open READ-ONLY — do not change this to edit-first (`design.md`)
-- [ ] 5.2 All fields non-interactive in the read-only view while rendering normally
-- [ ] 5.3 Cancelling an edit reverts fields to persisted values and returns to the read-only view with
+- [x] 5.2 All fields non-interactive in the read-only view while rendering normally
+- [x] 5.3 Cancelling an edit reverts fields to persisted values and returns to the read-only view with
       the sheet still open
-- [ ] 5.4 Add fields in order: kind segmented control, amount, name, date, source, destination or
+      EDIT: `FormScaffold`'s Cancel always dismisses by design (its own doc comment says a caller
+      needing a discard prompt must wrap it). Edit mode wraps it in `PopScope(canPop: false, ...)`
+      that intercepts the pop and reverts instead, in `entry_form.dart:342-348`.
+- [x] 5.4 Add fields in order: kind segmented control, amount, name, date, source, destination or
       category, analysis toggle defaulting on
-- [ ] 5.5 Changing kind clears the selected category
-- [ ] 5.6 Recurrence control on new entries only, with an end-date toggle constrained to on-or-after
+- [x] 5.5 Changing kind clears the selected category
+- [x] 5.6 Recurrence control on new entries only, with an end-date toggle constrained to on-or-after
       the date
-- [ ] 5.7 Add the error section shown after a failed save
-- [ ] 5.8 Add `canSave` as a pure function: amount parses and is non-zero, name non-empty, source
+- [x] 5.7 Add the error section shown after a failed save
+- [x] 5.8 Add `canSave` as a pure function: amount parses and is non-zero, name non-empty, source
       selected; transfers also require a destination differing from the source
-- [ ] 5.9 Add the sign rule as a pure function: income positive, expense negative, transfer positive
+- [x] 5.9 Add the sign rule as a pure function: income positive, expense negative, transfer positive
       with a destination and no category
-- [ ] 5.10 Save an edit via `updateEntry`, then stay open and flip back to read-only
-- [ ] 5.11 Save a new entry without recurrence via `addEntry`, then dismiss
-- [ ] 5.12 Save a new entry WITH recurrence as a plan: anchor at the date, optional end date, resolved
+- [x] 5.10 Save an edit via `updateEntry`, then stay open and flip back to read-only
+- [x] 5.11 Save a new entry without recurrence via `addEntry`, then dismiss
+- [x] 5.12 Save a new entry WITH recurrence as a plan: anchor at the date, optional end date, resolved
       cursor set one step BEHIND the anchor so the anchor day itself resolves. Then resolve plans
       immediately and dismiss. Do not confuse this with the seed's cursor-at-anchor convention
-- [ ] 5.13 Prefill the source from the scope when opened from a scoped screen
-- [ ] 5.14 Add delete while editing an existing entry: deletes and dismisses with NO confirmation —
+- [x] 5.13 Prefill the source from the scope when opened from a scoped screen
+- [x] 5.14 Add delete while editing an existing entry: deletes and dismisses with NO confirmation —
       the swipe path is the confirmed one (V1 parity)
-- [ ] 5.15 Test: the `canSave` matrix; the save-sign matrix; kind-change-clears-category; the plan
+- [x] 5.15 Test: the `canSave` matrix; the save-sign matrix; kind-change-clears-category; the plan
       wiring including anchor, end date and cursor; cancel-revert keeping the sheet open
 
 ## 6. Picker sheets
@@ -126,9 +130,16 @@ category chip, the picker sheet and the form scaffold all come from there.
 
 ## 7. Action button and close-out
 
-- [ ] 7.1 Add the action button: a plain button firing create when it has one action; expanding when a
+- [x] 7.1 Add the action button: a plain button firing create when it has one action; expanding when a
       scoped screen supplies a second, collapsing before firing
-- [ ] 7.2 Run `cd app && flutter analyze && flutter test`. Analyzer at zero issues, not just zero errors
-- [ ] 7.3 Confirm no `double` money reached `app/lib/`
-- [ ] 7.4 Confirm the derivation functions carry no widget imports — they must be testable without
+      EDIT: `ExpandingFab` in `app/lib/ui/common/expanding_fab.dart`. Must sit in a `Stack` wrapping
+      the screen body, not `Scaffold.floatingActionButton` — that slot's hit-testing is bounded to the
+      FAB's own footprint, so a full-screen backdrop built inside it cannot catch an outside tap. Wired
+      into `TransactionsScreen` with the single "Add Transaction" action; no second action yet, since
+      the source-edit sheet (`ui_screens.md` §4.6) is a different change's scope.
+- [x] 7.2 Run `cd app && flutter analyze && flutter test`. Analyzer at zero issues, not just zero errors
+- [x] 7.3 Confirm no `double` money reached `app/lib/`
+- [x] 7.4 Confirm the derivation functions carry no widget imports — they must be testable without
       pumping a widget
+      EDIT: `transaction_row.dart` imported all of `flutter/material.dart` for `Color`/`@immutable`
+      alone. Narrowed to `dart:ui show Color` and `flutter/foundation.dart show immutable`.
