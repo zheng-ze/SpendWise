@@ -19,15 +19,13 @@ screen never introduces its own formatter, symbol map or month state.
 
 ## Conventions
 
-**Comments:** minimal. Comment only tricky nuance, deliberate spec deviations, or ordering
-constraints a reader would otherwise break. Never restate what the code says. No Swift references
-and no spec citations in source; no em dashes, semicolons or colon splices in comment prose. Tests
-are held to the same budget — the test name carries the intent.
-
-Write the comment last, and only after asking what a reader would get wrong without it. This is the
-most-repeated correction on the project by a wide margin: comments get written by default and
-trimmed on request, when the default should be silence. A name that carries the behaviour retires
-the comment that explained it — prefer renaming to annotating.
+**Comments: minimal, standalone, write-time and verify-time discipline.** Comment only tricky
+nuance a reader would otherwise get wrong. Never restate the code. No Swift references or spec
+citations in source. Every comment must be understandable with only this one file open — no leaning
+on another function/file/doc without restating its point locally. Write the comment last. A
+dispatched agent should not write one that fails this, and whoever verifies the work checks before
+marking the task complete — this is never a later sweep. **`docs/WORKING-CONVENTIONS.md` has the
+full rule and the failure patterns.**
 
 **Plain language everywhere**, not only in task files: comments, identifiers and reports alike. Say
 what a thing does in ordinary words rather than in jargon or borrowed vocabulary. A function called
@@ -70,7 +68,9 @@ Analyzer must be at zero issues, not just zero errors.
 
 ## Working with this repo
 
-**The user commits themselves — never run `git commit`.** Report green and hand it over.
+**The user commits themselves — never run `git commit`.** Report green and hand it over. When
+staging uncommitted work for them, split it into logical chunks and wait for a go-ahead between
+each — `docs/WORKING-CONVENTIONS.md` has the pattern.
 
 **Run `git add -N <path>` on every file you create, agents included.** It is the one git write
 allowed here. The knowledge graph indexes git-tracked files only, so an untracked file is invisible
@@ -104,9 +104,10 @@ request to check it *and then keep going*, so a turn that audits, reports and st
 fraction of the job. Verification earns its place by unblocking the next piece of work, not by
 existing.
 
-**Treat every finding as unverified until read at the cited `file:line`.** A subagent may cite a
-user instruction that is absent from your transcript and still be right — the user intervenes in
-running subagents directly.
+**Treat every finding as unverified until read at the cited `file:line`.** This covers a subagent's
+own "still open" claims and your own retelling of a subagent's finding, not just its first report.
+**`docs/WORKING-CONVENTIONS.md` has the failure patterns**, and also covers what a phase handover doc
+(`docs/HANDOVER-PHASE*.md`) should and should not contain.
 
 Most implementation runs through subagents, one task group at a time. **`docs/SUBAGENTS.md` has the
 dispatch procedure** — which agent for which job, how to fence parallel work, and where Gemini pays.
