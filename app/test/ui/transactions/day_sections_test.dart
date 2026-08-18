@@ -224,7 +224,8 @@ void main() {
     expect(sections.single.income, Decimal.zero);
   });
 
-  test('a transfer contributes to neither income nor expenses', () {
+  test('a transfer contributes to neither total when neither end treats '
+      'incoming transfers as expense', () {
     final state = baseState();
     final entries = [
       Entry(
@@ -242,6 +243,106 @@ void main() {
     expect(sections.single.expenses, Decimal.zero);
     expect(sections.single.rows.single.amountKind, AmountKind.transfer);
   });
+
+  test('a transfer into a destination flagged treat-as-expense counts as an '
+      'expense', () {
+    final flaggedOther = Account(
+      id: other.id,
+      name: other.name,
+      type: AccountType.savings,
+      incomingTransfersAsExpenses: true,
+    );
+    final state = LedgerState(
+      moneySources: {
+        account.id: MoneySource.account(account),
+        other.id: MoneySource.account(flaggedOther),
+      },
+    );
+    final entries = [
+      Entry(
+        amount: dec('50'),
+        name: 'move to savings',
+        sourceID: account.id,
+        destinationID: other.id,
+        date: day(1),
+      ),
+    ];
+
+    final sections = daySections(entries, state);
+
+    expect(sections.single.expenses, dec('50'));
+    expect(sections.single.income, Decimal.zero);
+  });
+
+  test(
+    'a transfer whose source is flagged treat-as-expense counts as income',
+    () {
+      final flaggedAccount = Account(
+        id: account.id,
+        name: account.name,
+        type: AccountType.savings,
+        incomingTransfersAsExpenses: true,
+      );
+      final state = LedgerState(
+        moneySources: {
+          account.id: MoneySource.account(flaggedAccount),
+          other.id: MoneySource.account(other),
+        },
+      );
+      final entries = [
+        Entry(
+          amount: dec('50'),
+          name: 'move from savings',
+          sourceID: account.id,
+          destinationID: other.id,
+          date: day(1),
+        ),
+      ];
+
+      final sections = daySections(entries, state);
+
+      expect(sections.single.income, dec('50'));
+      expect(sections.single.expenses, Decimal.zero);
+    },
+  );
+
+  test(
+    'a transfer flagged treat-as-expense on both ends counts in both totals',
+    () {
+      final flaggedAccount = Account(
+        id: account.id,
+        name: account.name,
+        type: AccountType.savings,
+        incomingTransfersAsExpenses: true,
+      );
+      final flaggedOther = Account(
+        id: other.id,
+        name: other.name,
+        type: AccountType.savings,
+        incomingTransfersAsExpenses: true,
+      );
+      final state = LedgerState(
+        moneySources: {
+          account.id: MoneySource.account(flaggedAccount),
+          other.id: MoneySource.account(flaggedOther),
+        },
+      );
+      final entries = [
+        Entry(
+          amount: dec('50'),
+          name: 'move between flagged accounts',
+          sourceID: account.id,
+          destinationID: other.id,
+          date: day(1),
+        ),
+      ];
+
+      final sections = daySections(entries, state);
+
+      expect(sections.single.income, dec('50'));
+      expect(sections.single.expenses, dec('50'));
+    },
+  );
 
   test('interval end is exclusive, an entry exactly at end is dropped', () {
     final state = baseState();

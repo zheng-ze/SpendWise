@@ -175,6 +175,43 @@ abstract final class Accounting {
     }
   }
 
+  /// The existence check is skipped here, so [entry] must guarantee its
+  /// source and destination ids exist in [LedgerState.moneySources] (any
+  /// entry from `ledger.entries.values` does).
+  static ({Decimal income, Decimal expense}) totals(
+    Entry entry,
+    LedgerState ledger,
+  ) {
+    if (!entry.includeInAnalysis) {
+      return (income: Decimal.zero, expense: Decimal.zero);
+    }
+
+    switch (entry.kind) {
+      case EntryKind.transfer:
+        final destination = entry.destinationID;
+        if (destination == null) {
+          return (income: Decimal.zero, expense: Decimal.zero);
+        }
+
+        final sources = ledger.moneySources;
+        var income = Decimal.zero;
+        var expense = Decimal.zero;
+        if (sources[destination]?.incomingTransfersAsExpenses == true) {
+          expense = entry.amount;
+        }
+        if (sources[entry.sourceID]?.incomingTransfersAsExpenses == true) {
+          income = entry.amount;
+        }
+        return (income: income, expense: expense);
+
+      case EntryKind.income:
+        return (income: entry.amount, expense: Decimal.zero);
+
+      case EntryKind.expense:
+        return (income: Decimal.zero, expense: -entry.amount);
+    }
+  }
+
   /// A pocket has no type of its own, so a transfer into one buckets by
   /// whichever account holds it, keeping it in the same bucket as a transfer
   /// to the account directly.

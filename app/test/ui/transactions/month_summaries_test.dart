@@ -12,13 +12,31 @@ void main() {
     name: 'Checking',
     type: AccountType.checking,
   );
+  final savings = Account(
+    id: 'a0000000-0000-0000-0000-000000000002',
+    name: 'Savings',
+    type: AccountType.savings,
+  );
+  final flaggedSavings = Account(
+    id: savings.id,
+    name: savings.name,
+    type: AccountType.savings,
+    incomingTransfersAsExpenses: true,
+  );
 
-  LedgerState baseState({List<Entry> entries = const []}) => LedgerState(
-    moneySources: {account.id: MoneySource.account(account)},
+  LedgerState baseState({
+    List<Entry> entries = const [],
+    Account? secondAccount,
+  }) => LedgerState(
+    moneySources: {
+      account.id: MoneySource.account(account),
+      if (secondAccount != null)
+        secondAccount.id: MoneySource.account(secondAccount),
+    },
     entries: {for (final entry in entries) entry.id: entry},
   );
 
-  // now is pinned to a fixed date via the test-only seam so year-cutoff and
+  // now is pinned to a fixed date via the now parameter so year-cutoff and
   // current-month/current-week flags do not depend on the wall clock.
   final now = day(2026, 7, 15);
 
@@ -88,6 +106,91 @@ void main() {
     expect(july.income, dec('100'));
     expect(july.expenses, dec('40'));
   });
+
+  test('a transfer into a treat-as-expense destination counts as an expense, '
+      'in both its week and its month', () {
+    final state = baseState(
+      secondAccount: flaggedSavings,
+      entries: [
+        Entry(
+          amount: dec('75'),
+          name: 'move to savings',
+          sourceID: account.id,
+          destinationID: savings.id,
+          date: day(2026, 7, 8),
+        ),
+      ],
+    );
+
+    final months = monthSummaries(state, day(2026), now: now);
+    final july = months.firstWhere((m) => m.month == day(2026, 7, 1));
+    final week = july.weeks.firstWhere(
+      (w) => w.range.contains(day(2026, 7, 8)),
+    );
+
+    expect(july.expenses, dec('75'));
+    expect(july.income, Decimal.zero);
+    expect(week.expenses, dec('75'));
+    expect(week.income, Decimal.zero);
+  });
+
+  test('a transfer between two accounts with neither flagged counts toward '
+      'neither total', () {
+    final state = baseState(
+      secondAccount: savings,
+      entries: [
+        Entry(
+          amount: dec('75'),
+          name: 'move to savings',
+          sourceID: account.id,
+          destinationID: savings.id,
+          date: day(2026, 7, 8),
+        ),
+      ],
+    );
+
+    final months = monthSummaries(state, day(2026), now: now);
+    final july = months.firstWhere((m) => m.month == day(2026, 7, 1));
+
+    expect(july.income, Decimal.zero);
+    expect(july.expenses, Decimal.zero);
+  });
+
+  test(
+    'a transfer flagged treat-as-expense on both ends counts in both totals',
+    () {
+      final flaggedAccount = Account(
+        id: account.id,
+        name: account.name,
+        type: AccountType.savings,
+        incomingTransfersAsExpenses: true,
+      );
+      final state = LedgerState(
+        moneySources: {
+          account.id: MoneySource.account(flaggedAccount),
+          savings.id: MoneySource.account(flaggedSavings),
+        },
+        entries: {
+          for (final entry in [
+            Entry(
+              amount: dec('75'),
+              name: 'move between flagged accounts',
+              sourceID: account.id,
+              destinationID: savings.id,
+              date: day(2026, 7, 8),
+            ),
+          ])
+            entry.id: entry,
+        },
+      );
+
+      final months = monthSummaries(state, day(2026), now: now);
+      final july = months.firstWhere((m) => m.month == day(2026, 7, 1));
+
+      expect(july.income, dec('75'));
+      expect(july.expenses, dec('75'));
+    },
+  );
 
   test('a spillover week appears under both months with identical totals', () {
     // 2026-08-01 is a Saturday, so the week containing it (Mon 2026-07-27 to

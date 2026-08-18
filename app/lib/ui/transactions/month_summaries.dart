@@ -33,7 +33,8 @@ class MonthSummary {
   final List<WeekSummary> weeks;
 }
 
-/// [now] is a test seam; production call sites leave it as the wall clock.
+/// [now] lets a test pass a fixed date. Production call sites leave it as
+/// the wall clock.
 List<MonthSummary> monthSummaries(
   LedgerState state,
   DateTime year, {
@@ -60,7 +61,7 @@ List<MonthSummary> monthSummaries(
     final monthEntries = entries
         .where((entry) => monthRange.contains(entry.date))
         .toList();
-    final monthTotals = sectionTotals(monthEntries);
+    final monthTotals = sectionTotals(monthEntries, state);
 
     months.add(
       MonthSummary(
@@ -70,6 +71,7 @@ List<MonthSummary> monthSummaries(
         isCurrentMonth: cursor == currentMonthStart,
         weeks: _weeks(
           entries: entries,
+          state: state,
           monthRange: monthRange,
           currentWeekStart: currentWeekStart,
         ),
@@ -84,6 +86,7 @@ List<MonthSummary> monthSummaries(
 
 List<WeekSummary> _weeks({
   required List<Entry> entries,
+  required LedgerState state,
   required DateRange monthRange,
   required DateTime currentWeekStart,
 }) {
@@ -97,7 +100,7 @@ List<WeekSummary> _weeks({
     final weekEntries = entries
         .where((entry) => weekRange.contains(entry.date))
         .toList();
-    final weekTotals = sectionTotals(weekEntries);
+    final weekTotals = sectionTotals(weekEntries, state);
 
     weeks.add(
       WeekSummary(
@@ -120,20 +123,19 @@ DateTime _weekStart(DateTime day) {
   return day.subtract(Duration(days: day.weekday - DateTime.monday));
 }
 
-/// Applies only the entry-level `includeInAnalysis` flag, never a category
-/// gate, and transfers count toward neither total.
-({Decimal income, Decimal expenses}) sectionTotals(List<Entry> entries) {
+/// Delegates each entry to [Accounting.totals] for the treat-as-expense
+/// transfer rule.
+({Decimal income, Decimal expenses}) sectionTotals(
+  List<Entry> entries,
+  LedgerState state,
+) {
   var income = Decimal.zero;
   var expenses = Decimal.zero;
 
   for (final entry in entries) {
-    if (entry.isTransfer || !entry.includeInAnalysis) continue;
-
-    if (entry.amount < Decimal.zero) {
-      expenses -= entry.amount;
-    } else {
-      income += entry.amount;
-    }
+    final contribution = Accounting.totals(entry, state);
+    income += contribution.income;
+    expenses += contribution.expense;
   }
 
   return (income: income, expenses: expenses);

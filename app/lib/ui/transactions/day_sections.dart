@@ -50,7 +50,7 @@ List<DaySection> daySections(
 DaySection _section(DateTime day, List<Entry> dayEntries, LedgerState state) {
   final rows = [for (final entry in dayEntries) transactionRow(entry, state)];
 
-  final totals = _totals(dayEntries);
+  final totals = _totals(dayEntries, state);
 
   return DaySection(
     date: day,
@@ -60,19 +60,19 @@ DaySection _section(DateTime day, List<Entry> dayEntries, LedgerState state) {
   );
 }
 
-/// Section totals apply only this entry-level flag, never a category gate.
-({Decimal income, Decimal expenses}) _totals(List<Entry> dayEntries) {
+/// Delegates each entry to [Accounting.totals] for the treat-as-expense
+/// transfer rule.
+({Decimal income, Decimal expenses}) _totals(
+  List<Entry> dayEntries,
+  LedgerState state,
+) {
   var income = Decimal.zero;
   var expenses = Decimal.zero;
 
   for (final entry in dayEntries) {
-    if (entry.isTransfer || !entry.includeInAnalysis) continue;
-
-    if (entry.amount < Decimal.zero) {
-      expenses -= entry.amount;
-    } else {
-      income += entry.amount;
-    }
+    final contribution = Accounting.totals(entry, state);
+    income += contribution.income;
+    expenses += contribution.expense;
   }
 
   return (income: income, expenses: expenses);
