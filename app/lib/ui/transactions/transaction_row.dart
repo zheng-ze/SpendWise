@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart' show immutable;
 
 import 'package:spendwise/ui/format/color_hex.dart';
 import 'package:spendwise/ui/format/money_format.dart';
+import 'package:spendwise/ui/transactions/entry_transfer_scope.dart';
 
 const _unknownHolderLabel = 'Unknown';
 const _uncategorizedSymbol = 'help_outline';
@@ -41,8 +42,12 @@ class TransactionRow {
   final AmountKind amountKind;
 }
 
-TransactionRow transactionRow(Entry entry, LedgerState state) {
-  if (entry.isTransfer) return _transferRow(entry, state);
+TransactionRow transactionRow(
+  Entry entry,
+  LedgerState state, {
+  Set<String>? scopeIDs,
+}) {
+  if (entry.isTransfer) return _transferRow(entry, state, scopeIDs);
   return _nonTransferRow(entry, state);
 }
 
@@ -72,7 +77,11 @@ TransactionRow _nonTransferRow(Entry entry, LedgerState state) {
   );
 }
 
-TransactionRow _transferRow(Entry entry, LedgerState state) {
+TransactionRow _transferRow(
+  Entry entry,
+  LedgerState state,
+  Set<String>? scopeIDs,
+) {
   final source = state.sourceName(entry.sourceID) ?? _unknownHolderLabel;
   final destination =
       state.sourceName(entry.destinationID) ?? _unknownHolderLabel;
@@ -85,8 +94,18 @@ TransactionRow _transferRow(Entry entry, LedgerState state) {
     symbolName: _transferSymbol,
     color: _transferChipColor,
     amount: entry.amount.abs(),
-    amountKind: AmountKind.transfer,
+    amountKind: _transferAmountKind(entry, scopeIDs),
   );
+}
+
+AmountKind _transferAmountKind(Entry entry, Set<String>? scopeIDs) {
+  if (scopeIDs == null) return AmountKind.transfer;
+
+  return switch (entry.transferScopeSign(scopeIDs)) {
+    TransferScopeSign.gain => AmountKind.income,
+    TransferScopeSign.loss => AmountKind.expense,
+    TransferScopeSign.neutral => AmountKind.transfer,
+  };
 }
 
 String _categoryTitle(TransactionCategory category, LedgerState state) {

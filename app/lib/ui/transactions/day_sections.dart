@@ -43,12 +43,21 @@ List<DaySection> daySections(
   // creation order and reversed, since insertion order is what LedgerState
   // preserves as entries are added.
   return [
-    for (final day in days) _section(day, byDay[day]!.reversed.toList(), state),
+    for (final day in days)
+      _section(day, byDay[day]!.reversed.toList(), state, sourceScope),
   ];
 }
 
-DaySection _section(DateTime day, List<Entry> dayEntries, LedgerState state) {
-  final rows = [for (final entry in dayEntries) transactionRow(entry, state)];
+DaySection _section(
+  DateTime day,
+  List<Entry> dayEntries,
+  LedgerState state,
+  Set<String>? sourceScope,
+) {
+  final rows = [
+    for (final entry in dayEntries)
+      transactionRow(entry, state, scopeIDs: sourceScope),
+  ];
 
   final totals = _totals(dayEntries, state);
 

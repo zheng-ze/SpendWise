@@ -212,4 +212,126 @@ void main() {
       expect(row.title, 'Food');
     },
   );
+
+  group('transfer scope', () {
+    test('with no scope passed, a transfer stays plain and neutral', () {
+      final state = baseState();
+      final entry = Entry(
+        amount: dec('75'),
+        name: 'move funds',
+        sourceID: account.id,
+        destinationID: destinationAccount.id,
+      );
+
+      final row = transactionRow(entry, state);
+
+      expect(row.amountKind, AmountKind.transfer);
+    });
+
+    test('destination in scope, source out, reads as a gain', () {
+      final state = baseState();
+      final entry = Entry(
+        amount: dec('75'),
+        name: 'move funds',
+        sourceID: account.id,
+        destinationID: destinationAccount.id,
+      );
+
+      final row = transactionRow(
+        entry,
+        state,
+        scopeIDs: {destinationAccount.id},
+      );
+
+      expect(row.amountKind, AmountKind.income);
+    });
+
+    test('source in scope, destination out, reads as a loss', () {
+      final state = baseState();
+      final entry = Entry(
+        amount: dec('75'),
+        name: 'move funds',
+        sourceID: account.id,
+        destinationID: destinationAccount.id,
+      );
+
+      final row = transactionRow(entry, state, scopeIDs: {account.id});
+
+      expect(row.amountKind, AmountKind.expense);
+    });
+
+    test('both endpoints in scope stays neutral', () {
+      final state = baseState();
+      final entry = Entry(
+        amount: dec('75'),
+        name: 'move funds',
+        sourceID: account.id,
+        destinationID: destinationAccount.id,
+      );
+
+      final row = transactionRow(
+        entry,
+        state,
+        scopeIDs: {account.id, destinationAccount.id},
+      );
+
+      expect(row.amountKind, AmountKind.transfer);
+    });
+
+    test('neither endpoint in scope stays neutral', () {
+      final state = baseState();
+      final entry = Entry(
+        amount: dec('75'),
+        name: 'move funds',
+        sourceID: account.id,
+        destinationID: destinationAccount.id,
+      );
+
+      final row = transactionRow(
+        entry,
+        state,
+        scopeIDs: {'a0000000-0000-0000-0000-000000000099'},
+      );
+
+      expect(row.amountKind, AmountKind.transfer);
+    });
+
+    test('a transfer from an account to its own pocket is neutral at account '
+        'scope and a gain at pocket scope', () {
+      final pocketID = 'p0000000-0000-0000-0000-000000000001';
+      final accountWithPocket = Account(
+        id: account.id,
+        name: account.name,
+        type: account.type,
+        subPocketIDs: {pocketID},
+      );
+      final pocket = SubPocket(id: pocketID, name: 'Savings jar');
+      final state = LedgerState(
+        moneySources: {
+          accountWithPocket.id: MoneySource.account(accountWithPocket),
+          pocket.id: MoneySource.pocket(pocket),
+        },
+      );
+      final entry = Entry(
+        amount: dec('20'),
+        name: 'set aside',
+        sourceID: accountWithPocket.id,
+        destinationID: pocket.id,
+      );
+
+      final accountScopeRow = transactionRow(
+        entry,
+        state,
+        scopeIDs: {accountWithPocket.id, pocket.id},
+      );
+      final pocketScopeRow = transactionRow(
+        entry,
+        state,
+        scopeIDs: {pocket.id},
+      );
+
+      expect(accountScopeRow.amountKind, AmountKind.transfer);
+      expect(pocketScopeRow.amountKind, AmountKind.income);
+    });
+  });
 }
