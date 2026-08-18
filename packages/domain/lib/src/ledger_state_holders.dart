@@ -126,8 +126,8 @@ extension LedgerStateHolders on LedgerState {
     final pocket = _moneySources[id]?.asPocket;
     if (pocket == null || !pocket.lifecycle.isActive) return _checked([]);
 
-    // No plan cascade: archiving freezes plans so a restore is not lossy. Their
-    // occurrences fail validation meanwhile, and resolving reports that.
+    // No plan cascade here. Archiving freezes plans so a restore is not lossy,
+    // and their occurrences fail validation meanwhile, which resolving reports.
     final archived = pocket.settingLifecycle(LifecycleState.archived);
     _moneySources[id] = PocketSource(archived);
     return _checked([UpsertPocket(archived)]);

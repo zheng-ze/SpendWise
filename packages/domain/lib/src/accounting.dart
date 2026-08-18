@@ -254,9 +254,9 @@ abstract final class Accounting {
     final leafID = normalizedOptionalID(rawLeafID);
     if (leafID == null) return null;
 
-    // An id with no category row is not "no bucket" — it may be a synthetic
+    // An id with no category row is not "no bucket". It may be a synthetic
     // bucket id, which by design has no row behind it. Only a real category
-    // rolls up to its parent; anything else passes through unchanged.
+    // rolls up to its parent, and anything else passes through unchanged.
     final category = state.categories[leafID];
     if (category == null) return leafID;
 

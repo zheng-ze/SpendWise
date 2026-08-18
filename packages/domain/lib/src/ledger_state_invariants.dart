@@ -134,7 +134,7 @@ extension LedgerStateInvariants on LedgerState {
       }
 
       // A category may sit under an archived parent, since archiving cascades
-      // to children, but not under a referenceOnly or tombstoned one: those
+      // to children, but not under a referenceOnly or tombstoned one. Those
       // states mean the parent is already leaving and should have taken the
       // child down with it.
       if (!parent.lifecycle.isAtLeastAsAliveAs(category.lifecycle) &&

@@ -13,7 +13,7 @@ extension LedgerStateCategories on LedgerState {
     final existing = _categories[category.id];
     if (existing == null) throw UnknownCategory(category.id);
 
-    // Kind is fixed at creation: a swap would strand both the entries whose
+    // Kind is fixed at creation. A swap would strand both the entries whose
     // sign it contradicts and the children that inherit it.
     if (existing.kind != category.kind) throw const CategoryKindMismatch();
 
@@ -57,7 +57,7 @@ extension LedgerStateCategories on LedgerState {
     final category = _categories[id];
     if (category == null || !category.lifecycle.isActive) return _checked([]);
 
-    // No plan cascade here: a plan naming this category is left alone rather
+    // No plan cascade here. A plan naming this category is left alone rather
     // than removed, so restoring the category later does not need to also
     // resurrect any plan the delete would otherwise have deleted.
     return _checked(

@@ -103,7 +103,7 @@ extension LedgerStatePlans on LedgerState {
         _plans[plan.id] = advanced;
         changes.add(UpsertPlan(advanced));
       }
-      // An idle plan is left alone: a stale cursor only gates past
+      // An idle plan is left alone. A stale cursor only gates past
       // occurrences, so replaying yields the same empty result.
     }
 
@@ -119,7 +119,7 @@ extension LedgerStatePlans on LedgerState {
       _removePlansWhere((plan) => plan.template.categoryID == categoryID);
 
   List<LedgerChange> _removePlansWhere(bool Function(RecurringPlan) doomed) {
-    // Materialized before the removal loop: mutating _plans mid-iteration throws.
+    // Materialized before the removal loop. Mutating _plans mid-iteration throws.
     final removed = _plans.values.where(doomed).map((plan) => plan.id).toList();
     for (final planID in removed) {
       _plans.remove(planID);

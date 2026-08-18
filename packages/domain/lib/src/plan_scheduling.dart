@@ -38,7 +38,7 @@ enum RecurrenceFrequency {
 
 DateTime _addMonths(DateTime anchor, int months) {
   final rawMonth = anchor.month - 1 + months;
-  // Euclidean, not truncating: `~/` rounds toward zero, which would hold the
+  // Euclidean, not truncating. `~/` rounds toward zero, which would hold the
   // year fixed for every negative rawMonth while `%` still wrapped the month.
   final year =
       anchor.year + (rawMonth >= 0 ? rawMonth ~/ 12 : (rawMonth - 11) ~/ 12);

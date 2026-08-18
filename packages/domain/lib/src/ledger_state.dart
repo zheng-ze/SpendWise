@@ -85,8 +85,8 @@ class LedgerState {
     return resolution;
   }
 
-  /// An edit carries whatever lifecycle it was handed, so it never moves a row:
-  /// the delete, purge and restore mutators own those transitions and each has
+  /// An edit carries whatever lifecycle it was handed, so it never moves a row.
+  /// The delete, purge and restore mutators own those transitions and each has
   /// its own precondition. Keeps `referenceOnly` terminal and `tombstoned`
   /// unwritable through the public API.
   LifecycleState _editableLifecycle(

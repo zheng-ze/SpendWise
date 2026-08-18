@@ -16,7 +16,7 @@ String syntheticTransferExpenseBucketID(AccountType type) {
 
 const _prefix = 'transfer-expense:';
 
-/// Safe to call with a real category id too — it only ever returns non-null
+/// Safe to call with a real category id too. It only ever returns non-null
 /// for one of this scheme's own ids.
 AccountType? syntheticTransferExpenseAccountType(String bucketID) {
   if (!bucketID.startsWith(_prefix)) return null;
