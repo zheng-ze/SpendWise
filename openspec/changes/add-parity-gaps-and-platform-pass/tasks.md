@@ -97,14 +97,27 @@ changed expectation must be visible in review, never absorbed by loosening an as
 
 ## 4. Totals ruling
 
-- [ ] 4.1 Make the transactions-versus-stats totals ruling with both screens in front of you: either
+- [x] 4.1 Make the transactions-versus-stats totals ruling with both screens in front of you: either
       route both through the same analysis gates, or record the divergence as intentional. Earlier
-      phases kept the call site singular so this is a one-line change (`design.md`)
-- [ ] 4.2 Record the ruling inline in `docs/Flutter_Port_Tech_Doc.md` §5, which reserves a spot for it
-- [ ] 4.3 Apply it at the single call site
-- [ ] 4.4 If the divergence is kept, state it where a user can see it rather than leaving it to be
-      discovered
-- [ ] 4.5 Test: the same month reported by both screens matches the ruling
+      phases kept the call site singular so this is a one-line change (`design.md`). Ruled: unify —
+      Transactions was wrongly skipping every transfer, including a treat-as-expense one; fixed to
+      apply the same gate Stats already applied
+      (`packages/domain/lib/src/accounting.dart:184` `Accounting.totals`, shares its rule with
+      `Accounting.classify` at `:116`)
+- [x] 4.2 Record the ruling inline in `docs/Flutter_Port_Tech_Doc.md` §5, which reserves a spot for it
+      (`docs/Flutter_Port_Tech_Doc.md:299-306`, item 10, resolving the open defect noted at `:83-86`)
+- [x] 4.3 Apply it at the single call site (`app/lib/ui/transactions/day_sections.dart:67-82` `_totals`,
+      `app/lib/ui/transactions/month_summaries.dart:129-143` `sectionTotals` — both now delegate to
+      `Accounting.totals` instead of hand-rolling the transfer skip)
+- [x] 4.4 If the divergence is kept, state it where a user can see it rather than leaving it to be
+      discovered — not applicable, the ruling removes the divergence rather than keeping it, so there
+      is nothing to surface in the UI
+- [x] 4.5 Test: the same month reported by both screens matches the ruling
+      (`app/test/ui/transactions_stats_totals_parity_test.dart` — one `LedgerState`, one month, asserts
+      `monthSummaries`'s expense total equals `slices()`'s summed expense total; confirmed red against
+      the old skip-transfer logic before restoring the fix. Per-screen coverage also at
+      `app/test/ui/transactions/day_sections_test.dart:227-345` and
+      `app/test/ui/transactions/month_summaries_test.dart:110-193`)
 
 ## 5. Scope-aware transfer display
 

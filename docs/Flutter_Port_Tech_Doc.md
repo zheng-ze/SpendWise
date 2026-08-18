@@ -296,6 +296,11 @@ makes it cheap):
 9. **Week-start convention.** Swift's week summaries use `Calendar.current` `weekOfYear`, so the
    boundary follows device locale (Sun vs Mon). Dart has no equivalent — the hand-written helper
    must pick a convention (locale-driven via `intl`, or fixed Monday) and test both week-start cases.
+10. **Transactions vs Stats totals divergence (§1 defect 2), fixed.** The Transactions screen was
+    skipping every transfer when summing a day/week/month total, so a transfer with "treat incoming
+    transfers as expense" turned on was missing from its totals even though the Stats screen counted
+    it. Both screens now go through the same rule (`Accounting.classify` for Stats, `Accounting.totals`
+    for Transactions — the latter without a bucket to assign).
 
 ## 6. Port phases
 
@@ -375,4 +380,5 @@ also pre-EventBus stale — trust code, not either doc.
   statement-day overflow, flushNow hole, timed retry after failedWillRetry).
 - All V1 features in §1 working on Android + iOS + macOS + web.
 - No `double` money, no unclamped date math, analyzer-clean under strict mode.
-- This doc's §5 decisions (occurrence-id normalization, totals-divergence ruling) recorded inline once made.
+- This doc's §5 decisions (occurrence-id normalization, totals-divergence ruling) recorded inline —
+  see §5 items 3 and 10.
