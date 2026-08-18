@@ -13,36 +13,87 @@ changed expectation must be visible in review, never absorbed by loosening an as
 
 ## 1. Account types and eligibility
 
-- [ ] 1.1 Append `loan` and `overdraft` to `AccountType` with new explicit codes. APPEND ONLY —
+- [x] 1.1 Append `loan` and `overdraft` to `AccountType` with new explicit codes. APPEND ONLY —
       inserting a case silently changes what every stored code above it means (`design.md`)
-- [ ] 1.2 Add `allowsTransfersAsExpense` gating eligibility: blocked for cash, checking, card and
-      prepaid
-- [ ] 1.3 Force `incomingTransfersAsExpenses` false on save for an ineligible type — do not merely
+      (`packages/domain/lib/src/account_type.dart:9-11`, `fromCode` cases at `:36-37`)
+- [x] 1.2 Add `allowsTransfersAsExpense` gating eligibility: blocked for cash, checking, card and
+      prepaid (`packages/domain/lib/src/account_type.dart:21-24`)
+- [x] 1.3 Force `incomingTransfersAsExpenses` false on save for an ineligible type — do not merely
       hide the control, or a stale true flag survives a type change
-- [ ] 1.4 Test: data written with the old codes still loads with the same types — this is the test
-      that catches an inserted case
-- [ ] 1.5 Test: set the flag, change to an ineligible type, save, confirm the flag is false
-- [ ] 1.6 Update the holder form to show the toggle only for eligible types
+      (`packages/domain/lib/src/account.dart:66-72` `withEligibleTransferFlag`, chained in
+      `packages/domain/lib/src/ledger_state_holders.dart:11` `addAccount` and `:25` `updateAccount`)
+- [x] 1.4 Test: data written with the old codes still loads with the same types — this is the test
+      that catches an inserted case (`packages/domain/test/enum_codes_test.dart:52-68`)
+- [x] 1.5 Test: set the flag, change to an ineligible type, save, confirm the flag is false
+      (`packages/domain/test/ledger_state_holders_test.dart:169-182` `addAccount`,
+      `:207-226` `updateAccount`)
+- [x] 1.6 Update the holder form to show the toggle only for eligible types
+      (`app/lib/ui/accounts/source_edit_form.dart:78-86` `_eligibleType`/`_showsTransferToggle`, gate
+      applied at the switch's `if` at `:180`, reset on type change at `:99`. A pocket has no type of
+      its own so it follows its parent account's via `LedgerState.owningAccount`. EDIT: also found and
+      fixed a crash while verifying this group — `account_type_picker.dart`'s `_typeLabels` map listed
+      only the original 8 types and hard-crashed with a null-check the moment the picker was opened
+      after 1.1 appended `loan`/`overdraft` to `AccountType.values`, caught by `account_form_test.dart`
+      going red. Fixed at `app/lib/ui/accounts/account_type_picker.dart:12-14`)
+      (tests: `app/test/ui/accounts/source_edit_form_test.dart` "net worth toggle is hidden for a
+      pocket" updated — a cash-parented pocket is ineligible so the toggle now hides there too — plus
+      two new tests, "transfer toggle shows for a pocket whose parent is eligible" and "switching an
+      account to an ineligible type hides and resets the transfer toggle")
 
 ## 2. Synthetic buckets
 
-- [ ] 2.1 Add deterministic synthetic bucket ids derived per account type — derived, never stored, so
+- [x] 2.1 Add deterministic synthetic bucket ids derived per account type — derived, never stored, so
       there is no migration and every device agrees
-- [ ] 2.2 Change `classify` so a treat-as-expense transfer buckets by the destination account's type
+      (`packages/domain/lib/src/synthetic_buckets.dart:6-15` `syntheticTransferExpenseBucketID`,
+      throws for an ineligible type rather than deriving a meaningless id)
+- [x] 2.2 Change `classify` so a treat-as-expense transfer buckets by the destination account's type
       instead of carrying no category
-- [ ] 2.3 A pocket destination resolves to its parent account's type
-- [ ] 2.4 These buckets are expense-only — a transfer never produces an income item through this path
-- [ ] 2.5 Test: two accounts of one type share a bucket; a pocket destination buckets by its parent;
+      (`packages/domain/lib/src/accounting.dart:132-140`)
+- [x] 2.3 A pocket destination resolves to its parent account's type
+      (`packages/domain/lib/src/accounting.dart:181-189` `_destinationAccountType`, reuses
+      `LedgerState.owningAccount` from `packages/domain/lib/src/ledger_state_queries.dart:35-36`)
+- [x] 2.4 These buckets are expense-only — a transfer never produces an income item through this path
+      (`packages/domain/lib/src/accounting.dart:141-147`, income leg untouched, still `bucketID: null`)
+- [x] 2.5 Test: two accounts of one type share a bucket; a pocket destination buckets by its parent;
       no synthetic bucket appears in income analysis
-- [ ] 2.6 Update the existing accounting and analysis tests whose expectations change, one visible
+      (`packages/domain/test/accounting_analysis_test.dart:99` `two accounts of the same
+      eligible type share a synthetic bucket`, `:132` `a transfer into a pocket buckets by the
+      pocket's parent type`, `:150` `the income leg of a transfer never carries a synthetic
+      bucket`; `packages/domain/test/synthetic_buckets_test.dart` covers the pure function directly)
+- [x] 2.6 Update the existing accounting and analysis tests whose expectations change, one visible
       edit at a time
+      (`packages/domain/test/accounting_analysis_test.dart:53` `a transfer into a
+      treat-as-expense holder produces expense` now expects
+      `syntheticTransferExpenseBucketID(AccountType.savings)`;
+      `:243` `an archived transfer destination keeps its expense item` same change — the
+      destination account's type survives archiving, only its lifecycle changes)
 
 ## 3. Synthetic slice presentation
 
-- [ ] 3.1 Slices for synthetic buckets carry their own name and symbol rather than a category's, and
-      render in a neutral color
-- [ ] 3.2 They are NOT navigable — there is no category row behind them to open
-- [ ] 3.3 Test: tapping a synthetic slice pushes nothing
+- [x] 3.1 Slices for synthetic buckets carry their own name and symbol rather than a category's, and
+      render in a neutral color. Added `Slice.name` and a reverse lookup
+      `syntheticTransferExpenseAccountType` in the domain so the UI never string-parses a bucket id
+      (`app/lib/ui/stats/slices.dart:27-53` `Slice` with `name`/`isSynthetic`/`isNavigable`, `:76-115`
+      `_slice` branches on category vs. synthetic vs. uncategorized;
+      `packages/domain/lib/src/synthetic_buckets.dart:17-28` `syntheticTransferExpenseAccountType`).
+      EDIT: `Accounting.mainBucketID` was collapsing every synthetic bucket id straight to `null`
+      before this could work, because it treated "no category row" as "no bucket" — a synthetic id by
+      design has no row. Fixed the fallthrough to only collapse a null *input*, not an unresolved one
+      (`packages/domain/lib/src/accounting.dart:216-227`). Also removed the now-unused `state` param
+      from `StatsDonut`/`StatsLegend`, which only ever used it for this same name lookup
+      (`app/lib/ui/stats/stats_donut.dart:20-54`, `app/lib/ui/stats/stats_legend.dart:12-38`, callers
+      updated at `app/lib/ui/stats/stats_screen.dart:157-162`)
+- [x] 3.2 They are NOT navigable — there is no category row behind them to open
+      (`app/lib/ui/stats/slices.dart:48` `isNavigable`, consumed at
+      `app/lib/ui/stats/stats_legend.dart:29-32`; `StatsDonut` has no tap handler at all so there is
+      no second entry point to gate)
+- [x] 3.3 Test: tapping a synthetic slice pushes nothing
+      (`app/test/ui/stats/stats_legend_test.dart:82-90` `tapping a synthetic slice invokes nothing`,
+      `:92-96` `the synthetic row renders no chevron`;
+      `app/test/ui/stats/slices_test.dart:167-182` proves `_slice`/`slices()` give a synthetic bucket
+      its own name/symbol/neutral color instead of Uncategorized's;
+      `packages/domain/test/accounting_analysis_test.dart:636-642` and `:657-676` cover the
+      `mainBucketID`/`rollUp` fix directly)
 
 ## 4. Totals ruling
 
