@@ -1,7 +1,7 @@
 ---
 name: fact-checker
 description: Verifies any claim about this repository against the code, the specs and the tests, and returns a per-claim verdict with evidence. Use on audit findings, on a subagent's report of what it landed, on a summary from a relay agent, or on any assertion about how the code behaves before acting on it.
-tools: Read, Grep, Glob, Bash
+tools: Read, Grep, Glob, Bash, mcp__reader-models__ask_gemini, mcp__reader-models__ask_qwen
 disallowedTools: Write, Edit
 model: sonnet
 ---
@@ -35,6 +35,9 @@ For each claim, in order. Skip a step only when it cannot apply.
 4. **Prove behavior by running it.** A claim about what the code does at runtime is settled by
    executing it, not by reading it. Run the existing suite, or write a scratch script in the session
    scratchpad. Never add files under `test/` and never edit anything under `lib/`.
+   For a claim that spans many files or a large doc, `ask_gemini` (broad question) or `ask_qwen`
+   (named files) can locate the relevant lines faster than reading file by file — but the verdict
+   still rests on reading the cited `file:line` yourself, never on the model's answer alone.
 5. **Check the work actually landed.** For a claim that something was implemented, read the file at
    the cited line and run the gate. A report of green is not evidence of green.
 

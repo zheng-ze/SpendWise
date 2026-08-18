@@ -1,5 +1,16 @@
 {
   "mcpServers": {
+    "reader-models": {
+      "command": "python3",
+      "args": [
+        "scripts/reader_mcp.py"
+      ],
+      "cwd": "/Users/macbook/Desktop/SpendWise",
+      "type": "stdio",
+      "env": {
+        "SUBAGENT_API_BASE": "http://192.168.1.150:1234/v1"
+      }
+    },
     "code-review-graph": {
       "command": "uvx",
       "args": [

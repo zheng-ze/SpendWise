@@ -127,12 +127,12 @@ a whole file to find out whether it is relevant is the thing to avoid; reading i
 relevant is the job. This binds subagents too, so briefs must not hand over a file path and leave the
 narrowing implied.
 
-**Send the volume reading to another model.** Run `scripts/gemini.sh "<question>"` for anything where
-the large window is the point (the frozen Swift app, a whole module doc, cross-repo sweeps), and
-`scripts/qwen.sh "<question>" <file> [<file> ...]` for the same question when Gemini is throttled. Ask
-either which files cover a concern and where to look next, never for a line number — `rg -n` answers
-that exactly and for free. Both print an answer to act on only after you verify it, never a conclusion
-to act on directly. `docs/SUBAGENTS.md` has the split and the quota arithmetic, and
+**Send the volume reading to another model.** Call the `reader-models` MCP server's `ask_gemini`
+tool for anything where the large window is the point (the frozen Swift app, a whole module doc,
+cross-repo sweeps), and its `ask_qwen` tool (pass `files`) for the same question when Gemini is
+throttled. Ask either which files cover a concern and where to look next, never for a line number —
+`rg -n` answers that exactly and for free. Both return an answer to act on only after you verify it,
+never a conclusion to act on directly. `docs/SUBAGENTS.md` has the split and the quota arithmetic, and
 `docs/LOCAL-MODEL-BENCHMARKS.md` the measurements behind it.
 
 **Delegating is the default, and it fails by being forgotten rather than by being rejected.** Knowing

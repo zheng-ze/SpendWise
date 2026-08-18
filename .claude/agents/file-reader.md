@@ -1,7 +1,7 @@
 ---
 name: file-reader
 description: Reads a named file list and returns the extract the caller asked for, keeping a large read out of the caller's context. Use for volume reading that must land somewhere cheaper than the main thread.
-tools: Read, Grep, Glob, Bash
+tools: Read, Grep, Glob, Bash, mcp__reader-models__ask_gemini, mcp__reader-models__ask_qwen
 disallowedTools: Write, Edit
 model: sonnet
 ---
@@ -21,6 +21,13 @@ first, then read the region:
 
 A whole-file read is right when the caller asked for an inventory, when the file is small, or when
 the thing being looked for has no distinctive text to search on. Otherwise narrow.
+
+### Delegate the volume reading
+
+`ask_gemini` and `ask_qwen` (both MCP tools) hand a question to a model with a bigger window instead
+of reading the file yourself. Use `ask_gemini` for one broad question spanning many files or a large
+doc; use `ask_qwen` for a question about one or a few named files. Both return an answer to verify
+against the actual source before repeating it as fact, never one to relay unchecked.
 
 ### Protocol
 

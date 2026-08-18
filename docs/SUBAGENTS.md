@@ -9,8 +9,9 @@ How implementation is dispatched in this repo, and what each agent type is actua
 work passes. This is a floor, not a blanket default: read-only agents (`cavecrew-investigator`,
 `spec-conformance`) prove nothing by running the suite, and handing them `Bash` widens their blast
 radius for no verification gain. Match the grant to what the agent must prove. Volume reading no
-longer goes through an agent at all — `scripts/gemini.sh` and `scripts/qwen.sh` are plain scripts the
-main thread calls directly, so there is no grant to make for them.
+longer goes through an agent at all — the `reader-models` MCP server's `ask_gemini` and `ask_qwen`
+tools are called directly by the main thread or any agent granted them, so there is no `Bash` grant
+to make for volume reading itself.
 
 **Verification cannot be delegated.** A finding is a claim until the main thread reads it at the
 cited `file:line`. A subagent confirming another subagent's report is one more claim, not a check.
@@ -24,28 +25,28 @@ here, and both produced exactly that. The obligation is on the brief, not on the
 Every brief that sends an agent into unfamiliar code states how to narrow before reading: which `rg`
 pattern, which graph query, which symbol to anchor on.
 
-**An implementation agent should shell out to `scripts/gemini.sh` or `scripts/qwen.sh` for its
-reading, and its brief should say so.** Either call spends another model's tokens instead of
-Claude's, and the saving compounds at depth — an agent that reads a 573-line module doc itself has
-burned context its own work then has to fit around. Name the script and the exact invocation in the
-brief: an instruction saying "delegate the Swift reading" without naming the script gets a direct
-read instead, because there is no agent type left to resolve the intent from.
+**An implementation agent should call the `reader-models` MCP server's `ask_gemini` or `ask_qwen`
+tool for its reading, and its brief should say so.** Either call spends another model's tokens
+instead of Claude's, and the saving compounds at depth — an agent that reads a 573-line module doc
+itself has burned context its own work then has to fit around. Name the tool and the exact question
+(and, for `ask_qwen`, the file list) in the brief: an instruction saying "delegate the Swift reading"
+without naming the tool gets a direct read instead, because there is no agent type left to resolve
+the intent from.
 
-**The scripts are leaves.** Both `scripts/qwen.sh` and `scripts/gemini.sh` print an answer and exit.
-Neither one decides where a request should go instead — that is the caller's job, so a call that
-cannot be served fails loudly rather than guessing. `scripts/qwen.sh` proves its call by printing the
-wrapper's `prompt_tokens` line to stderr, and a report without it means the local model was never
-asked. `scripts/gemini.sh` proves its call the same way with its `[gemini.sh: model=... elapsed=...s]`
-line.
+**The tools are leaves.** Both `ask_qwen` and `ask_gemini` return an answer and stop. Neither one
+decides where a request should go instead — that is the caller's job, so a call that cannot be served
+fails loudly rather than guessing. `ask_qwen` proves its call through `scripts/qwen.sh`'s
+`prompt_tokens` line on stderr, folded into the tool's returned text, and a report without it means
+the local model was never asked. `ask_gemini` proves its call the same way with `scripts/gemini.sh`'s
+`[gemini.sh: model=... elapsed=...s]` line.
 
-**A failed script call gets read directly, and the report says so.** There used to be a rule against
+**A failed tool call gets read directly, and the report says so.** There used to be a rule against
 an agent silently reading the file itself when the CLI reader was unreachable — three consecutive
 dispatches did exactly that and presented the result as though the model had answered. That failure
-mode is gone along with the agent layer it lived in: `scripts/gemini.sh` and `scripts/qwen.sh` are
-plain Bash calls with no ambient permission to keep reading past a failure, so when Gemini's 20 daily
-calls are spent and the qwen host is off, the fallback is the main thread (or the dispatched agent)
-reading the file directly and saying so, never a silent substitution presented as the script's
-answer.
+mode is gone along with the agent layer it lived in: `ask_gemini` and `ask_qwen` wrap plain Bash calls
+with no ambient permission to keep reading past a failure, so when Gemini's 20 daily calls are spent
+and the qwen host is off, the fallback is the main thread (or the dispatched agent) reading the file
+directly and saying so, never a silent substitution presented as the tool's answer.
 
 Delegate at the start, while the reading is still ahead of the agent. An instruction arriving forty
 tool calls in saves nothing, because the tree is already read. Where the main thread has already
@@ -65,10 +66,10 @@ located something, put the anchors in the brief rather than making the agent fin
 `cavecrew-builder` refusing an oversized or unprovable task is the tool working as designed, not a
 failure to brief it. Reach for it when the edit is genuinely bounded.
 
-Volume reading is not in this table because it is not an agent anymore. Any agent with `Bash` (or the
-main thread) calls `scripts/gemini.sh "<question>"` or `scripts/qwen.sh "<question>" <file> ...`
-directly, the same way it would call `rg`. See "Where Gemini pays" and "Reading without Gemini" below
-for which script fits which question.
+Volume reading is not in this table because it is not an agent anymore. Any agent granted the
+`reader-models` MCP tools (or the main thread) calls `ask_gemini(question)` or
+`ask_qwen(question, files)` directly, the same way it would call `rg`. See "Where Gemini pays" and
+"Reading without Gemini" below for which tool fits which question.
 
 ## Splitting work across parallel agents
 
@@ -95,7 +96,7 @@ the task text is not fresh.
 ## Where Gemini pays
 
 Gemini exists to read volume that would otherwise cost Claude tokens. Its free tier is now easy to
-exhaust, so spend it where the large window is the point and send the rest to `scripts/qwen.sh`; the
+exhaust, so spend it where the large window is the point and send the rest to `ask_qwen`; the
 split is in "Reading without Gemini" below.
 
 The quota is counted in calls, not tokens: 20 a day on `gemini-3.6-flash` at 5 a minute, with
@@ -108,13 +109,13 @@ unrelated halves the day's budget for nothing. Split only to stay under the toke
 Gemini's wins, in order:
 
 1. **Gathering the context a change is drafted from.** The strongest case, provided the split is
-   right: run `scripts/gemini.sh` across the Swift source, the module spec in `docs/modules/` and the
+   right: call `ask_gemini` across the Swift source, the module spec in `docs/modules/` and the
    delivered Dart, then hand the briefing to an Opus agent to draft the proposal, specs and tasks.
    The drafting agent then spends its judgment on the writing rather than on the reading. Gemini
    must not write the spec itself — a spec is a checked-in contract that later work is verified
    against, so it is the artefact whose every line needs the judgment the briefing was gathered to
    inform.
-2. **Phase-boundary orientation.** Before a new phase, run `scripts/gemini.sh` against the delivered
+2. **Phase-boundary orientation.** Before a new phase, call `ask_gemini` against the delivered
    tree and read the briefing back, then read only what it flags.
 3. **Locating anchors when task line numbers are old.** Cheap, read-only, and it kills the drift
    problem before an agent is dispatched.
@@ -129,7 +130,7 @@ Gemini's wins, in order:
    spans two repos and hundreds of test names. The coverage map in a change's `tasks.md` is exactly
    this question answered by hand.
 8. **Locating where a behavior lives before a UI phase.** Phases 5 to 7 port screens whose logic is
-   spread across SwiftUI views, view models and helpers. Trace it once with `scripts/gemini.sh` rather
+   spread across SwiftUI views, view models and helpers. Trace it once with `ask_gemini` rather
    than opening the tree in the main thread.
 9. **Auditing a convention across the tree.** "Every `raw…ID` parameter that reaches a map lookup
    without `normalizedID`" or "every `DateTime` construction that is not `startOfDayUtc`" are sweeps
@@ -160,23 +161,23 @@ It never settles what is true there.
 ## Reading without Gemini
 
 Gemini's quota runs out mid-task, and the fallback has been paying Claude tokens to read the same
-tree. `scripts/qwen.sh` is the second reader: Qwen2.5-Coder on the user's PC over the LAN, unmetered,
+tree. `ask_qwen` is the second reader: Qwen2.5-Coder on the user's PC over the LAN, unmetered,
 nothing leaving the network. LM Studio on that host keeps several builds and loads one on demand, so
-which model answers is a per-call choice made through `SUBAGENT_MODEL`, and the build need not
-already be resident. `docs/TOOLING.md` has the measurements behind everything here.
+which model answers is a per-call choice made through `ask_qwen`'s `model` parameter, and the build
+need not already be resident. `docs/TOOLING.md` has the measurements behind everything here.
 
-Use `qwen2.5.1-coder-7b-instruct` unless a single file will not fit its 32768 window, which is what
-`qwen2.5-coder-7b-instruct-128k` is kept for. A build loading for the first time adds its own delay
-before the first answer.
+Use the default `qwen2.5.1-coder-7b-instruct` unless a single file will not fit its 32768 window,
+which is what `qwen2.5-coder-7b-instruct-128k` is kept for — pass that id as `model` when it is
+needed. A build loading for the first time adds its own delay before the first answer.
 
 The split is quota against window, not quality:
 
 - **Gemini** keeps the jobs where the large window is the point. Items 1, 2, 6, 7, 8 and 11 above all
   need to read more than 20k tokens at once, and none of them survive being cut down.
-- **`scripts/qwen.sh`** takes items 3 and 4 — locating anchors when task line numbers are stale, and
+- **`ask_qwen`** takes items 3 and 4 — locating anchors when task line numbers are stale, and
   cross-file sweeps over a named short list. Both are narrow by nature and were exhausting the quota
   on work that never needed the window.
-- **When Gemini is throttled**, `scripts/qwen.sh` is the fallback for anything inside 20k tokens, and
+- **When Gemini is throttled**, `ask_qwen` is the fallback for anything inside 20k tokens, and
   the main thread reads directly for anything larger. Record which one produced a briefing, because
   the smaller model's output is the weaker lead.
 
@@ -192,7 +193,7 @@ Four things about it that change how a task is written:
   as HTTP 400 naming both figures, never as silent truncation.
 - **A slow answer is a memory problem.** The KV cache has spilled to system RAM. Report the wall
   time; do not rewrite the prompt. A cold load is the exception and costs seconds rather than
-  minutes, and `scripts/qwen.sh` says on stderr when one is happening.
+  minutes, and `ask_qwen`'s returned text says when one is happening.
 - **It declines to fabricate a symbol** that does not exist, answering `NOT PRESENT`, so a negative
   result from it is worth something. It will still misplace one that does exist.
 

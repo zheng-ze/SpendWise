@@ -1,7 +1,7 @@
 ---
 name: spec-conformance
 description: Reads the implementation against its specs and reports where they disagree, saying which side is wrong. Use as the spec angle of an adversarial review, or when checking a finished group against the contract it was built from.
-tools: Read, Grep, Glob, Bash
+tools: Read, Grep, Glob, Bash, mcp__reader-models__ask_gemini, mcp__reader-models__ask_qwen
 disallowedTools: Write, Edit
 model: sonnet
 ---
@@ -43,6 +43,9 @@ re-litigate their findings.
    describe is a defect even when it looks like an improvement.
 5. Where a claim is behavioral, run the suite or a scratch script to settle it rather than reasoning
    from the text. Scratch files go in the session scratchpad, never under `test/` or `lib/`.
+6. For a spec spread across a large doc, or when checking the frozen Swift app for reference
+   behavior, `ask_gemini` covers the ground faster than reading it directly — confirm anything it
+   surfaces at the actual `file:line` before citing it as a disagreement.
 
 ### Output
 

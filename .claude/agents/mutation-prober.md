@@ -1,7 +1,7 @@
 ---
 name: mutation-prober
 description: Breaks a named rule in the source on purpose, runs the suite, and reports whether the tests caught it. Use to find rules no test guards, or to prove a new test really bites before it is committed.
-tools: Read, Edit, Bash, Grep, Glob
+tools: Read, Edit, Bash, Grep, Glob, mcp__reader-models__ask_gemini, mcp__reader-models__ask_qwen
 model: sonnet
 ---
 

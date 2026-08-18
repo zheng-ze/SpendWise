@@ -15,16 +15,16 @@ once you know it does is the work.
 
 Two cases justify reading a file whole: it is short enough that locating costs more than reading, or
 it is a checked-in contract whose every line has to hold — a spec, a task file. Everything else gets
-narrowed first, and volume reading goes to `scripts/qwen.sh` or `scripts/gemini.sh` rather than being
-paid for in Claude tokens.
+narrowed first, and volume reading goes to the `reader-models` MCP server's `ask_qwen` or `ask_gemini`
+tool rather than being paid for in Claude tokens.
 
 ## Which tool for which question
 
 1. **`rg`** for anything textual, and as the ground truth for every other tool's zero.
 2. **`ast-grep` through a rule file** for structural sweeps a regex cannot express.
 3. **The graph** for what calls what, blast radius, dead code, orientation over code you inherited.
-4. **`scripts/qwen.sh`** for pre-narrowed reading inside 20k tokens, and whenever Gemini is throttled.
-5. **`scripts/gemini.sh`** when the window is the point — the frozen Swift app, cross-repo sweeps.
+4. **`ask_qwen`** for pre-narrowed reading inside 20k tokens, and whenever Gemini is throttled.
+5. **`ask_gemini`** when the window is the point — the frozen Swift app, cross-repo sweeps.
 
 ## ripgrep
 
@@ -97,47 +97,52 @@ query. Re-run `code-review-graph embed` after work that adds nodes.
 
 ## gemini
 
-`gemini` CLI, `gemini-3.6-flash` by default. Agentic — it reaches its own files through
-`run_shell_command`, `read_file` and `grep_search`, so the caller sends one broad question rather
-than a pre-narrowed file list. Reserved for jobs where the large window is the point: the frozen
-Swift app, a whole module doc, cross-repo sweeps.
+`gemini` CLI, `gemini-3.6-flash` by default, reached through the `reader-models` MCP server's
+`ask_gemini` tool (`scripts/reader_mcp.py`, wrapping `scripts/gemini.sh` unchanged). Agentic — it
+reaches its own files through `run_shell_command`, `read_file` and `grep_search`, so the caller
+sends one broad question rather than a pre-narrowed file list. Reserved for jobs where the large
+window is the point: the frozen Swift app, a whole module doc, cross-repo sweeps.
 
-```sh
-scripts/gemini.sh "<question>"
+```
+ask_gemini(question="<question>")
 ```
 
-No file arguments — that is the point of difference from `scripts/qwen.sh` below. The wrapper's
+No file arguments — that is the point of difference from `ask_qwen` below. The underlying script's
 prompt already tells Gemini to use `rg -n` or `ast-grep` to locate anchors and to open each line
 before citing it, and to keep code snippets under 5 lines.
 
 **Quota is counted in calls, not tokens.** 20 a day on `gemini-3.6-flash` at 5 a minute, with
 `gemini-3.5-flash-lite` behind it at 500 a day and 15 a minute. A narrow question costs the same as a
 broad one, so batch every question about an area into one call rather than splitting by topic.
-`docs/SUBAGENTS.md` has the full list of what earns a Gemini call versus a `qwen.sh` one.
+`docs/SUBAGENTS.md` has the full list of what earns a Gemini call versus an `ask_qwen` one.
 
-**`--skip-trust` is required.** This repo is not a Gemini trusted folder, and the script passes the
-flag itself; without it the command hangs or exits with no output.
+**`--skip-trust` is required.** This repo is not a Gemini trusted folder, and `scripts/gemini.sh`
+passes the flag itself; without it the command hangs or exits with no output.
 
-**It cannot verify.** It returns a claim with citations, and the main thread (or the agent that ran
-the script) still has to open the cited lines before acting on any of it.
+**It cannot verify.** It returns a claim with citations, and the main thread (or the agent that
+called the tool) still has to open the cited lines before acting on any of it.
 
 ## qwen
 
-Qwen2.5-Coder-Instruct 7B, served by LM Studio on the user's PC over the LAN. Unmetered, so it takes
-the high-frequency lookups that were exhausting Gemini's quota.
+Qwen2.5-Coder-Instruct 7B, served by LM Studio on the user's PC over the LAN, reached through the
+`reader-models` MCP server's `ask_qwen` tool (wrapping `scripts/qwen.sh` unchanged). Unmetered, so
+it takes the high-frequency lookups that were exhausting Gemini's quota.
 
-```sh
-scripts/qwen.sh "<question>" <file> [<file> ...]
+```
+ask_qwen(question="<question>", files=["<file>", ...], model="<optional override>")
 ```
 
-The wrapper prepends 1-based line numbers so the model can cite anchors.
+The underlying script prepends 1-based line numbers so the model can cite anchors.
 
-**LM Studio on the host server loads the build on demand**, so the model named in `SUBAGENT_MODEL`
-does not have to be resident first. Only HTTP reaches that host from here, which is why the wrapper
-checks `/api/v0/models` rather than shelling out to `lms`: that endpoint is LM Studio's own and the
-only one carrying `state` and `max_context_length`. A wrong model id fails there immediately with the
-installed ids listed. A cold load costs seconds — a 7B answered a trivial prompt in 10 seconds with
-the load included — so a call running for minutes is the memory-spill case, not a load.
+**LM Studio on the host server loads the build on demand**, so the model named in `ask_qwen`'s
+`model` parameter (default `qwen2.5.1-coder-7b-instruct`) does not have to be resident first. The
+tool sets this per-call rather than relying on the ambient `SUBAGENT_MODEL` shell variable, which can
+go stale against whatever the host actually has loaded. Only HTTP reaches that host from here, which
+is why `scripts/qwen.sh` checks `/api/v0/models` rather than shelling out to `lms`: that endpoint is
+LM Studio's own and the only one carrying `state` and `max_context_length`. A wrong model id fails
+there immediately with the installed ids listed — pass one of those as `model` and retry. A cold load
+costs seconds — a 7B answered a trivial prompt in 10 seconds with the load included — so a call
+running for minutes is the memory-spill case, not a load.
 
 **An exhaustive sweep is the wrong job for it.** Asked to list every comment across five files, it
 returned `NOT PRESENT` for one holding four and found five of eight in another. It answers "where is
