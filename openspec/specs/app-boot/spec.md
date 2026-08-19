@@ -15,7 +15,13 @@ The app SHALL be in exactly one of three phases: loading, ready, or failed. Ther
 partially-ready phase — any failure during startup SHALL land in failed, carrying the error.
 
 The failed phase SHALL offer a retry that returns to loading and re-runs the whole startup sequence
-from the beginning.
+from the beginning. Retrying after a failure to open the store or its underlying database
+connection SHALL open a fresh connection rather than reusing one that already failed once — a
+retry that keeps replaying the same failed attempt is indistinguishable from no retry at all.
+
+An error shown on the failed phase SHALL be a message meant for the user, not the raw caught
+exception. The underlying exception MAY still be logged for diagnosis, but SHALL NOT be the text
+rendered in the UI.
 
 #### Scenario: Startup failure
 
@@ -26,6 +32,17 @@ from the beginning.
 
 - **WHEN** the user retries after a failure
 - **THEN** startup runs again from its first step
+
+#### Scenario: Retry recovers from a fixed problem
+
+- **WHEN** the store or its database connection fails to open once, the underlying problem is then
+  fixed, and the user taps retry
+- **THEN** the retry succeeds rather than failing identically to the first attempt
+
+#### Scenario: Failure text is user-facing
+
+- **WHEN** the failed phase renders its error
+- **THEN** the displayed text is a friendly message, not the raw exception's string form
 
 ### Requirement: Subscriber-before-mutator wiring
 
@@ -78,6 +95,11 @@ explicitly on entering the ready phase.
 Flushing on backgrounding is the durability moment: pending debounced writes SHALL reach disk before
 the process can be killed.
 
+An error raised while tearing down on dispose, or while flushing on backgrounding, SHALL be caught
+and logged rather than left as an unhandled asynchronous error — the app is already shutting down or
+backgrounding at that point, and an unhandled error there SHALL NOT crash the process or the current
+frame.
+
 #### Scenario: Cold start resolves plans
 
 - **WHEN** the app finishes starting up
@@ -87,6 +109,11 @@ the process can be killed.
 
 - **WHEN** the app leaves the foreground with writes pending
 - **THEN** those writes are flushed
+
+#### Scenario: A teardown failure does not go unhandled
+
+- **WHEN** flushing pending writes fails while the app is disposing or backgrounding
+- **THEN** the failure is caught and logged rather than surfacing as an unhandled asynchronous error
 
 ### Requirement: Error banners
 

@@ -199,6 +199,12 @@ holder or category, the update SHALL then run the dereference sweep over the hol
 references and over its former category when the category changed. The returned changes SHALL be the
 entry upsert followed by any sweep changes; when nothing was dropped the list is exactly the one upsert.
 
+An entry carrying a system kind — one the app itself created, such as an opening balance or a balance
+adjustment — SHALL reject an update that changes its name, category, or analysis-inclusion flag, with
+a system-entry-locked error. Its amount, date and holders remain editable through the same update path
+as a user-created entry. This protects the two invariants those synthetic entries exist to hold: a
+consistent replayed balance and a name that identifies what created the row.
+
 Deleting an entry SHALL be a hard delete — entries are never archived. A missing id is a no-op. The row
 SHALL be removed and the dereference sweep run over the deleted entry's holders and its category. The
 returned changes SHALL be the entry deletion followed by any sweep changes.
@@ -217,6 +223,16 @@ returned changes SHALL be the entry deletion followed by any sweep changes.
 
 - **WHEN** one of several entries is deleted
 - **THEN** only that row is removed and the returned changes begin with its deletion
+
+#### Scenario: A system entry's name is locked
+
+- **WHEN** an update to a system-kind entry changes its name, category, or analysis-inclusion flag
+- **THEN** a system-entry-locked error is thrown and the stored entry is unchanged
+
+#### Scenario: A system entry's amount stays editable
+
+- **WHEN** an update to a system-kind entry changes only its amount
+- **THEN** the update succeeds
 
 ### Requirement: Set an opening balance
 
