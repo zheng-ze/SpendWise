@@ -417,6 +417,44 @@ void main() {
         OccurrenceID.make(uuid(7), DateTime.utc(2026, 2, 15)),
       ]);
     });
+
+    test('a failed occurrence is regenerated once the holder is restored '
+        'instead of being permanently skipped', () {
+      final state = withFrozenPocket();
+
+      // Cursor must not advance past the earliest failure, so a later sweep
+      // still has it to regenerate.
+      final firstSweep = state.resolvePlans(DateTime.utc(2026, 3, 20));
+      expect(firstSweep.failures.map((failure) => failure.occurrence), [
+        DateTime.utc(2026, 2, 15),
+        DateTime.utc(2026, 3, 15),
+      ]);
+      expect(state.entries, isEmpty);
+
+      state.restorePocket(pocketID);
+      final secondSweep = state.resolvePlans(DateTime.utc(2026, 3, 20));
+
+      expect(secondSweep.failures, isEmpty);
+      expect(state.entries.keys, [
+        OccurrenceID.make(planID, DateTime.utc(2026, 2, 15)),
+        OccurrenceID.make(planID, DateTime.utc(2026, 3, 15)),
+      ]);
+    });
+
+    test('a plan with only successful occurrences advances its cursor all the '
+        'way to now, not just to the last occurrence date', () {
+      final state = seeded();
+      state.addPlan(plan());
+
+      state.resolvePlans(DateTime.utc(2026, 3, 20));
+
+      // An all-success sweep must land the cursor on `now`, not the last occurrence.
+      expect(state.plans[planID]!.lastResolvedDate, DateTime.utc(2026, 3, 20));
+
+      final secondSweep = state.resolvePlans(DateTime.utc(2026, 3, 20));
+      expect(secondSweep.changes, isEmpty);
+      expect(secondSweep.failures, isEmpty);
+    });
   });
 
   group('deleteAccount plan cascade', () {

@@ -80,22 +80,31 @@ extension LedgerStatePlans on LedgerState {
       final plan = _plans[planID]!;
       final due = plan.occurrences(after: plan.lastResolvedDate, upTo: now);
 
+      // Cursor stops at the first failure, though later dates still get attempted.
+      var cursor = plan.lastResolvedDate;
+      var sawFailure = false;
+
       for (final date in due) {
         final entry = plan.template.makeEntry(plan.id, date);
-        if (_entries.containsKey(entry.id)) continue;
+        if (_entries.containsKey(entry.id)) {
+          if (!sawFailure) cursor = date;
+          continue;
+        }
 
         try {
           final stored = _validated(entry);
           _entries[stored.id] = stored;
           changes.add(UpsertEntry(stored));
+          if (!sawFailure) cursor = date;
         } on LedgerError catch (error) {
           failures.add(
             PlanFailure(planID: plan.id, occurrence: date, error: error),
           );
+          sawFailure = true;
         }
       }
 
-      final advanced = plan.resolvedAt(now);
+      final advanced = plan.resolvedAt(sawFailure ? cursor : now);
       if (advanced.isExhausted(asOf: now)) {
         _plans.remove(plan.id);
         changes.add(DeletePlan(plan.id));
