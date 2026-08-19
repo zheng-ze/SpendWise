@@ -7,6 +7,7 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/format/date_format.dart';
+import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/stats/stats_screen.dart';
 
 void main() {
@@ -71,6 +72,41 @@ void main() {
       ),
     );
   }
+
+  testWidgets(
+    'reflects a month set on selectedMonthProvider from outside the screen',
+    (tester) async {
+      final ledger = buildLedger();
+      final container = ProviderContainer(
+        overrides: [
+          ledgerProvider.overrideWithValue(ledger),
+          analysisCacheProvider.overrideWith(
+            (ref) => AnalysisCache(runner: syncComputeRunner),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: StatsScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      container.read(selectedMonthProvider.notifier).state = DateTime.utc(
+        2019,
+        3,
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(formatMonthLabel(DateTime.utc(2019, 3))),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets('defaults to the expense tab', (tester) async {
     final ledger = buildLedger();

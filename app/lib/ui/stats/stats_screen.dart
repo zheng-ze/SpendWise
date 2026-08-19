@@ -8,6 +8,7 @@ import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/month_year_selector.dart';
 import 'package:spendwise/ui/common/top_tab_bar.dart';
 import 'package:spendwise/ui/format/amount_color.dart';
+import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/stats/category_detail_screen.dart';
 import 'package:spendwise/ui/stats/slices.dart';
 import 'package:spendwise/ui/stats/stats_donut.dart';
@@ -39,23 +40,19 @@ class StatsScreen extends ConsumerWidget {
   }
 }
 
-class _StatsScreenBody extends StatefulWidget {
+class _StatsScreenBody extends ConsumerStatefulWidget {
   const _StatsScreenBody({required this.ledger, required this.cache});
 
   final Ledger ledger;
   final AnalysisCache cache;
 
   @override
-  State<_StatsScreenBody> createState() => _StatsScreenBodyState();
+  ConsumerState<_StatsScreenBody> createState() => _StatsScreenBodyState();
 }
 
-class _StatsScreenBodyState extends State<_StatsScreenBody> {
+class _StatsScreenBodyState extends ConsumerState<_StatsScreenBody> {
   CategoryKind _kind = CategoryKind.expense;
   StatsRangeMode _range = StatsRangeMode.month;
-  DateTime _selectedDate = DateTime.utc(
-    DateTime.now().year,
-    DateTime.now().month,
-  );
 
   void _setKind(int tabIndex) {
     setState(() {
@@ -74,7 +71,7 @@ class _StatsScreenBodyState extends State<_StatsScreenBody> {
           mainID: mainID,
           kind: _kind,
           isYearRange: _range == StatsRangeMode.year,
-          initialDate: _selectedDate,
+          initialDate: ref.read(selectedMonthProvider),
         ),
       ),
     );
@@ -84,12 +81,13 @@ class _StatsScreenBodyState extends State<_StatsScreenBody> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = AmountColors.of(theme);
+    final selectedDate = ref.watch(selectedMonthProvider);
     final step = _range == StatsRangeMode.month
         ? MonthYearStep.month
         : MonthYearStep.year;
     final window = _range == StatsRangeMode.month
-        ? monthWindow(_selectedDate)
-        : yearWindow(_selectedDate);
+        ? monthWindow(selectedDate)
+        : yearWindow(selectedDate);
 
     final categorySlices = slices(
       widget.cache.items,
@@ -111,9 +109,10 @@ class _StatsScreenBodyState extends State<_StatsScreenBody> {
     return Scaffold(
       appBar: AppBar(
         title: MonthYearSelector(
-          value: _selectedDate,
+          value: selectedDate,
           step: step,
-          onChanged: (value) => setState(() => _selectedDate = value),
+          onChanged: (value) =>
+              ref.read(selectedMonthProvider.notifier).state = value,
         ),
         actions: [
           PopupMenuButton<StatsRangeMode>(
