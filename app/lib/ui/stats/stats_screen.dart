@@ -130,6 +130,7 @@ class _StatsScreenBodyState extends State<_StatsScreenBody> {
             ],
           ),
         ],
+        centerTitle: false,
       ),
       body: SafeArea(
         child: Column(

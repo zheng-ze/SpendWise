@@ -15,7 +15,7 @@ class SettingsScreen extends ConsumerWidget {
     if (ledger == null) return const SizedBox.shrink();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: AppBar(title: const Text('Settings'), centerTitle: false),
       body: ListView(
         children: [
           const _SectionHeader('Manage'),

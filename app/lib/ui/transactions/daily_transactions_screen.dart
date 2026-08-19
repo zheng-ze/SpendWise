@@ -117,6 +117,7 @@ class _TransactionsScreenBody extends ConsumerWidget {
             onChanged: controller.setDate,
           ),
         ],
+        centerTitle: false,
       ),
       body: Stack(
         children: [
