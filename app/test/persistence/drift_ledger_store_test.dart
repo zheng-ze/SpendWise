@@ -780,10 +780,10 @@ void main() {
 
     test('loadReturnsWhatWasEnqueued', () async {
       store.enqueue([
-        UpsertAccount(account('a1', 'wallet')),
+        UpsertAccount(account('a1', 'wallet').addSubPocket('p1')),
         UpsertPocket(pocket('p1', 'rainy day')),
         UpsertCategory(category('c1', 'food', parentID: null)),
-        UpsertEntry(entry('e1', '12.34')),
+        UpsertEntry(entry('e1', '12.34', source: 'a1')),
         UpsertPlan(plan('pl1')),
       ]);
       await store.flushNow();
@@ -823,7 +823,7 @@ void main() {
     test('enqueuedChangesPersistAcrossLoad', () async {
       store.enqueue([
         UpsertAccount(account('a1', 'wallet')),
-        UpsertEntry(entry('e1', '12.34')),
+        UpsertEntry(entry('e1', '12.34', source: 'a1')),
       ]);
       await store.flushNow();
 
@@ -866,7 +866,10 @@ void main() {
     });
 
     test('planPersistsAndTombstonesAcrossLoad', () async {
-      store.enqueue([UpsertPlan(plan('pl1'))]);
+      store.enqueue([
+        UpsertAccount(account('a1', 'wallet')),
+        UpsertPlan(plan('pl1')),
+      ]);
       await store.flushNow();
 
       expect((await store.load()).plans.keys.toSet(), {'pl1'});
@@ -945,7 +948,7 @@ void main() {
   group('seeding', () {
     List<LedgerChange> seedChanges() => [
       UpsertAccount(account('a1', 'wallet')),
-      UpsertEntry(entry('e1', '12.34')),
+      UpsertEntry(entry('e1', '12.34', source: 'a1')),
     ];
 
     // An absent meta row reads as unseeded, which is what a seed that never
