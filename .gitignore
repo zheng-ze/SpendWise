@@ -47,5 +47,13 @@ app.*.map.json
 app/android/app/debug
 app/android/app/profile
 app/android/app/release
+
+# Flutter platform scaffolding must live under app/, never repo root
+/android/
+/ios/
+/macos/
+/linux/
+/windows/
+/web/
 # Added by code-review-graph
 .code-review-graph/
