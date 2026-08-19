@@ -147,4 +147,22 @@ void main() {
 
     expect((await store.load()).moneySources.keys.toSet(), {'a1'});
   });
+
+  test(
+    'enqueuedBatches keeps batch boundaries the drained state merges away',
+    () async {
+      final store = InMemoryLedgerStore();
+      store.enqueue([UpsertAccount(_account('a1', 'first'))]);
+      store.enqueue([UpsertAccount(_account('a1', 'second'))]);
+
+      await store.flushNow();
+
+      expect(store.enqueuedBatches, [
+        [UpsertAccount(_account('a1', 'first'))],
+        [UpsertAccount(_account('a1', 'second'))],
+      ]);
+      expect(store.state.moneySources.keys.toSet(), {'a1'});
+      expect(store.state.moneySources['a1']?.asAccount?.name, 'second');
+    },
+  );
 }
