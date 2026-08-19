@@ -68,14 +68,38 @@ leave the default fallback in place for genuinely unrecognized codes (matches th
 already-established `_lifecycle` pattern, not a throw — see Risks for why this one stays a default
 rather than following `CategoryKind.fromCode`'s throw-on-unknown).
 
-### referenceOnly release guard (finding 4): a real throw, sharing the referencedness check the purge path already computes
+### referenceOnly release guard (finding 4): edit stops moving lifecycle at all
 
-`_isHolderReferenced`/`_isCategoryReferenced` already exist and are what the debug-only invariant
-calls. The fix moves the check (or a call to the same private helper) into `updateAccount`,
-`updatePocket`, and `updateCategory` themselves: when the incoming lifecycle is `referenceOnly` and
-the stored lifecycle isn't already `referenceOnly`, run the referencedness check and throw
-`InactiveReference` (or a new, more precisely named error — see Open Questions) if it fails. This
-reuses the existing helper rather than duplicating referencedness logic.
+The fix landed wider than the original plan (a guarded throw on `referenceOnly` specifically). The
+actual defect is that `updateAccount`/`updatePocket`/`updateCategory` accept a `lifecycle` field as
+free-form input at all — `_editableLifecycle`'s old logic tried to police individual transitions
+(block `tombstoned`, block resurrecting `referenceOnly`) but left the `active`/`archived` →
+`referenceOnly` direction open, which is finding 4's hole. `delete`/`purge`/`restore` already own
+every legal lifecycle transition and each carries its own precondition (referencedness for purge,
+`archived`-only for restore, active-only for delete); edit accepting lifecycle as input duplicates
+that authority in a second place and, this time, duplicated it incorrectly.
+
+The fix: `_editableLifecycle` now always returns the stored value, full stop —
+`LifecycleState _editableLifecycle(LifecycleState stored) => stored`. Edit can no longer move
+lifecycle in any direction, not just the `referenceOnly` direction the finding named. This closes
+finding 4 without adding a new error type, since edit silently keeps the existing lifecycle rather
+than throwing — matching how it already behaved for the resurrect/tombstone cases, just now
+applied uniformly instead of case-by-case.
+
+This also turned out to remove a second, real capability: `updateAccount`/`updatePocket`/
+`updateCategory` could previously toggle a row between `active` and `archived` directly, and 5
+existing tests exercised exactly that (e.g. "a root category changes lifecycle freely",
+"updatePocket may archive a pocket under an active parent"). No UI form used this path — the one
+real caller, `source_edit_form.dart`, always passes `lifecycle: existing.lifecycle` — and `delete`/
+`restore` are the correct, narrower mutators for that transition (SRP: edit changes values,
+lifecycle transitions are delete/restore/purge's job alone). Those tests were deleted rather than
+adapted, since the behavior they proved is intentionally gone; one test that used archive-via-edit
+only as setup for an unrelated `updatePlan` assertion was rewritten to use `deleteAccount` instead;
+one test ("does not exempt a holder the stored plan already references") was deleted outright — it
+depended on a state (an archived holder with a plan still intact) that `deleteAccount`'s own cascade
+never produces, so building it required the same edit-moves-lifecycle bypass this fix removes; the
+scenario is now unreachable through the public API, which is the fix working as intended, not a gap
+in coverage.
 
 ### Replay validation (finding 5): call the existing `_checked` path, not a new validator
 
@@ -132,12 +156,12 @@ spec flags them as needing to be shared.
 
 ## Open Questions
 
-None remaining. The one open question this file previously carried — reuse `InactiveReference` or
-add a new `LedgerError` case for finding 4's release-reachable throw — is resolved: add a new sealed
-subclass, `StillReferenced(id)`. `InactiveReference`'s 8 existing call sites all mean "you tried to
-point a new reference at an inactive row"; the finding 4 check is the inverse — "you tried to retire
-a row other things still point at" — and conflating the two under one persisted `_case` would leave
-`friendlyLedgerErrorMessage` unable to give the right recovery text for each. The persistence
-constraint on `_case` (`ledger_error.dart`'s doc comment: "the exact spelling is persisted, so
-changing it breaks stored rows") is about renaming or removing an existing case, not adding a new
-one — a new case is an additive, safe expansion, so it does not weigh against this.
+None remaining. This file previously carried an open question about which `LedgerError` finding 4's
+release-reachable throw should use (reuse `InactiveReference` vs. add a new `StillReferenced`
+subclass) — a multi-model consensus check favored a new subclass, reasoning that `InactiveReference`
+and the finding 4 check mean opposite things and conflating them would leave
+`friendlyLedgerErrorMessage` unable to give the right recovery text for each. That question turned
+out to be moot: the fix that actually landed removes edit's ability to move lifecycle at all (see
+Decisions above), so there is no throw to give an error type to — edit silently keeps the existing
+lifecycle instead, the same way it already handled the resurrect/tombstone cases. No new
+`LedgerError` case was added.

@@ -54,26 +54,30 @@
 
 ## 5. referenceOnly release-mode guard (finding 4)
 
-- [ ] 5.1 Write a test that calls `updateAccount` (and separately `updateCategory`) with
-  `lifecycle: LifecycleState.referenceOnly` on a row that has no referencing entries, and asserts it
-  throws rather than succeeding. Run it once with `assert` disabled (or directly call the mutator in
-  a context that bypasses the debug-only check) to confirm today's code only catches this under
-  `assert`, i.e. it would silently succeed in a release build. Note in the test or its surrounding
-  comment that no current UI code exercises this path — this closes an API hole, not an
-  actively-triggered bug, so the test's job is to pin the illegal-states-unreachable guarantee
-  before a future caller can exploit the gap.
-- [ ] 5.2 Add a real throw to `updateAccount`, `updatePocket`, and `updateCategory` (or centrally in
-  `_editableLifecycle`) when the incoming lifecycle is `referenceOnly` and the row is not already
-  `referenceOnly` and would fail the same referencedness check `_isHolderReferenced`/
-  `_isCategoryReferenced` already run for purge. Reuse those existing helpers rather than duplicating
-  the check. design.md's open question is resolved: add a new sealed `LedgerError` subclass,
-  `StillReferenced(id)`, rather than reusing `InactiveReference` — the two mean opposite things
-  (creating a reference to an inactive row vs. retiring a row still referenced elsewhere) and a new
-  `_case` string is a safe additive change, not the renaming the persistence comment warns against.
-  Watch 5.1 go green.
-- [ ] 5.3 Confirm the existing debug-only invariant test suite still passes unchanged — this task
-  adds a release-reachable throw ahead of where the invariant already caught the same problem in
-  debug, so no existing test should need to change, only the new one from 5.1 should newly pass.
+- [x] 5.1 Wrote 4 tests in `ledger_state_invariants_test.dart`'s "clause 12, lifecycle monotonicity"
+  group proving edit cannot move an active row's lifecycle in any direction, not just to
+  `referenceOnly`: "an edit cannot move an active, unreferenced account to referenceOnly", "...an
+  active pocket to referenceOnly", "...an active category to referenceOnly", "an edit cannot archive
+  an active account". Confirmed all 4 red against the pre-fix `_editableLifecycle` by temporarily
+  restoring its old two-argument logic and rerunning — the debug-only `assert` (invariant 11) is
+  what caught the first three, exactly matching the original finding's "only asserts, doesn't throw
+  in release" description; the fourth (archive-via-edit) had no invariant guarding it at all and
+  just silently succeeded, confirming it was a real, unguarded gap.
+- [x] 5.2 The fix landed wider than a guarded throw: `_editableLifecycle` in `ledger_state.dart` now
+  always returns the stored lifecycle (`LifecycleState _editableLifecycle(LifecycleState stored) =>
+  stored`), so edit can never move lifecycle in any direction. `delete`/`purge`/`restore` already own
+  every legal transition with their own preconditions; edit accepting lifecycle as input duplicated
+  that authority and, for the `referenceOnly` direction specifically, duplicated it without a guard.
+  No new `LedgerError` case was needed — design.md's Open Questions is updated to record why.
+  Updated the 3 call sites (`ledger_state_holders.dart` x2, `ledger_state_categories.dart` x1).
+- [x] 5.3 Full suite green (541 tests), `dart analyze` and `flutter analyze` both zero issues. 5
+  pre-existing tests that exercised archive-via-edit as a real feature (not just the referenceOnly
+  leak) failed once lifecycle was frozen — see design.md's Decisions section for the full breakdown
+  of which were deleted (4, testing a capability now intentionally removed) versus rewritten (1,
+  `does not exempt a holder...` swapped its `updateAccount(lifecycle: archived)` setup for
+  `deleteAccount`) versus deleted outright because the scenario became unreachable through the public
+  API (`does not exempt a holder the stored plan already references` — needed an archived holder with
+  an intact referencing plan, a state `deleteAccount`'s own cascade never produces).
 
 ## 6. Replay validation (finding 5)
 
