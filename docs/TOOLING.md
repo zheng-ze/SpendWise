@@ -15,16 +15,18 @@ once you know it does is the work.
 
 Two cases justify reading a file whole: it is short enough that locating costs more than reading, or
 it is a checked-in contract whose every line has to hold — a spec, a task file. Everything else gets
-narrowed first, and volume reading goes to the `reader-models` MCP server's `ask_qwen` or `ask_gemini`
-tool rather than being paid for in Claude tokens.
+narrowed first, and volume reading goes to the `pal` MCP server's `chat` tool rather than being paid
+for in Claude tokens.
 
 ## Which tool for which question
 
 1. **`rg`** for anything textual, and as the ground truth for every other tool's zero.
 2. **`ast-grep` through a rule file** for structural sweeps a regex cannot express.
 3. **The graph** for what calls what, blast radius, dead code, orientation over code you inherited.
-4. **`ask_qwen`** for pre-narrowed reading inside 20k tokens, and whenever Gemini is throttled.
-5. **`ask_gemini`** when the window is the point — the frozen Swift app, cross-repo sweeps.
+4. **`pal`'s `chat` with a Custom/local model** for pre-narrowed reading, and whenever the Gemini
+   provider is throttled or unavailable.
+5. **`pal`'s `chat` with a Gemini model** when the window is the point — the frozen Swift app,
+   cross-repo sweeps.
 
 ## ripgrep
 
@@ -95,74 +97,159 @@ falls back to keyword matching. It retrieves what keyword search cannot — "hal
 filter" finds `accounting.dart::filtered` and `DateRange.contains`, which share no token with the
 query. Re-run `code-review-graph embed` after work that adds nodes.
 
-## gemini
+## pal
 
-`gemini` CLI, `gemini-3.6-flash` by default, reached through the `reader-models` MCP server's
-`ask_gemini` tool (`scripts/reader_mcp.py`, wrapping `scripts/gemini.sh` unchanged). Agentic — it
-reaches its own files through `run_shell_command`, `read_file` and `grep_search`, so the caller
-sends one broad question rather than a pre-narrowed file list. Reserved for jobs where the large
-window is the point: the frozen Swift app, a whole module doc, cross-repo sweeps.
-
-```
-ask_gemini(question="<question>")
-```
-
-No file arguments — that is the point of difference from `ask_qwen` below. The underlying script's
-prompt already tells Gemini to use `rg -n` or `ast-grep` to locate anchors and to open each line
-before citing it, and to keep code snippets under 5 lines.
-
-**Quota is counted in calls, not tokens.** 20 a day on `gemini-3.6-flash` at 5 a minute, with
-`gemini-3.5-flash-lite` behind it at 500 a day and 15 a minute. A narrow question costs the same as a
-broad one, so batch every question about an area into one call rather than splitting by topic.
-`docs/SUBAGENTS.md` has the full list of what earns a Gemini call versus an `ask_qwen` one.
-
-**`--skip-trust` is required.** This repo is not a Gemini trusted folder, and `scripts/gemini.sh`
-passes the flag itself; without it the command hangs or exits with no output.
-
-**It cannot verify.** It returns a claim with citations, and the main thread (or the agent that
-called the tool) still has to open the cited lines before acting on any of it.
-
-## qwen
-
-Qwen2.5-Coder-Instruct 7B, served by LM Studio on the user's PC over the LAN, reached through the
-`reader-models` MCP server's `ask_qwen` tool (wrapping `scripts/qwen.sh` unchanged). Unmetered, so
-it takes the high-frequency lookups that were exhausting Gemini's quota.
+MCP server (`BeehiveInnovations/pal-mcp-server`), configured in `.mcp.json` as `pal`, run via
+`uvx --with 'mcp<2.0.0' --from /Users/macbook/pal-mcp-server pal-mcp-server` — a local clone, not
+the GitHub URL directly, because `clink`'s Gemini CLI config needed patching (see the `clink`
+subsection below). **Pulling upstream changes into that clone will overwrite the patch** —
+re-apply `conf/cli_clients/gemini.json`'s `additional_args` after any `git pull` in
+`~/pal-mcp-server`. Exposes collaboration tools (`chat`, `thinkdeep`, `planner`, `consensus`,
+`clink`), code-analysis tools (`debug`, `precommit`, `codereview`, `analyze`), development tools
+(`refactor`, `testgen`, `secaudit`, `docgen`) and utilities (`apilookup`, `challenge`, `tracer`).
+For the volume reading `gemini`/`qwen` used to serve, `chat` is the tool:
 
 ```
-ask_qwen(question="<question>", files=["<file>", ...], model="<optional override>")
+chat(prompt="<question>", model="<model id or alias>")
 ```
 
-The underlying script prepends 1-based line numbers so the model can cite anchors.
+Every tool call takes `model`. Call `listmodels` first to see the live catalogue when the brief does
+not already name one — do not guess an id.
 
-**LM Studio on the host server loads the build on demand**, so the model named in `ask_qwen`'s
-`model` parameter (default `qwen2.5.1-coder-7b-instruct`) does not have to be resident first. The
-tool sets this per-call rather than relying on the ambient `SUBAGENT_MODEL` shell variable, which can
-go stale against whatever the host actually has loaded. Only HTTP reaches that host from here, which
-is why `scripts/qwen.sh` checks `/api/v0/models` rather than shelling out to `lms`: that endpoint is
-LM Studio's own and the only one carrying `state` and `max_context_length`. A wrong model id fails
-there immediately with the installed ids listed — pass one of those as `model` and retry. A cold load
-costs seconds — a 7B answered a trivial prompt in 10 seconds with the load included — so a call
-running for minutes is the memory-spill case, not a load.
+Two providers are configured, each with its own model-catalogue file:
 
-**An exhaustive sweep is the wrong job for it.** Asked to list every comment across five files, it
-returned `NOT PRESENT` for one holding four and found five of eight in another. It answers "where is
-X" well and "list all X" badly, so an inventory that must be complete is `rg`'s job. This is the
-false-zero rule with a second source: ground-truth every empty answer it gives.
+- **Gemini**, via `GEMINI_API_KEY`. Model ids and aliases come from `.pal/gemini_models.json`.
+  Reserved for jobs where the large window is the point: the frozen Swift app, a whole module doc,
+  cross-repo sweeps. Each model draws from its own rate-limit pool on the account's quota dashboard
+  (RPM / TPM / RPD, as of 2026-08-19):
 
-**The window belongs to the build and the ceiling is hard.** `qwen2.5.1-coder-7b-instruct` holds
-32768 and `qwen2.5-coder-7b-instruct-128k` holds 131072. Over-budget requests return HTTP 400
-`exceed_context_size_error`, never a silent truncation, so the confident-answer-over-truncated-input
-failure is not available to it. Tasks arrive pre-narrowed: this file, these functions, this diff.
-`packages/domain/lib` plus `app/lib` is 23.5k tokens. A working budget is about 20k, and it is the
-model's accuracy that sets it rather than the window: quality collapses well before 32768, which is
-why the 128k build's larger window is not a reason to reach for it.
+  | Model | alias | RPM | TPM | RPD |
+  |---|---|---|---|---|
+  | `gemini-3.7-flash` | `flash3.7` | 5 | 250K | 20 |
+  | `gemini-3.6-flash` | `flash` | 5 | 250K | 20 |
+  | `gemini-3.5-flash`\* | `flash3.5` | 5-6 | 178-250K | 20 |
+  | `gemini-3.5-flash-lite` | `flashlite` | 15 | 250K | 500 |
+  | `gemini-3.1-flash-lite` | `flash-lite-3.1` | 15 | 250K | 500 |
+  | `gemma-4-26b-a4b-it` | `gemma` | 30 | 16K | 14.4K |
+  | `gemma-4-31b-it` | `gemma-31b` | 30 | 16K | 14.4K |
 
-Speed is not the constraint — the seven `ledger_state` part files answer in 4 seconds.
+  \* `gemini-3.5-flash`'s daily quota (20 RPD) was already spent for the day on the account's
+  dashboard, so the id in `.pal/gemini_models.json` is unverified against pal's own allow-list this
+  session — it follows the same naming pattern as the confirmed-live `3.6`/`3.7` siblings and the
+  dashboard shows prior real usage against it, but confirm with a live `chat` call once quota resets
+  before trusting it fully.
 
-**Names are reliable, line numbers drift.** It found 22 of 22 target symbols across seven files and
-invented none, but only 17 of 23 anchors were exact and the rest were off by 1 to 12 lines. It also
-answers `NOT PRESENT` rather than inventing an anchor for a symbol that does not exist, so a negative
-from it is worth something.
+  The lite variants trade nothing for their 500 RPD ceiling — same 250K TPM as the full flash
+  models, just a smaller model. Gemma trades the opposite way: far higher RPM/RPD than any flash
+  model, but its 16K TPM caps what a single call can carry, so it suits many small calls rather
+  than one large one.
+- **OpenRouter** (free tier), via `OPENROUTER_API_KEY`. Model ids and aliases come from
+  `.pal/openrouter_models.json`. pal's built-in OpenRouter catalogue is paid models only (Claude
+  Opus, GPT-5, Grok-4), so this override keeps just the `:free`-suffixed ones this account can
+  actually call. 4 models, confirmed live 2026-08-19:
 
-**It cannot verify.** Same rule as Gemini, held tighter. It narrows; the main thread reads and
-decides.
+  | Model | alias |
+  |---|---|
+  | `z-ai/glm-5.2:free` | `glm`, `glm5.2` |
+  | `poolside/laguna-xs-2.1:free` | `laguna`, `laguna-xs` |
+  | `nvidia/nemotron-3-nano-30b-a3b:free` | `nemotron`, `nemotron-nano` |
+  | `openai/gpt-oss-20b:free` | `gpt-oss`, `oss20b` |
+
+  `google/gemma-4-26b-a4b:free` and `google/gemma-4-31b:free` were tried and dropped — OpenRouter
+  rejected both as "not a valid model ID", so Gemma's real OpenRouter slug is not the naming pattern
+  the other providers use. The direct-Gemini-key `gemma-4-26b-a4b-it`/`gemma-4-31b-it` above are a
+  separate rate-limit pool and unaffected. `z-ai/glm-5.2:free` also hit a transient 429
+  (`temporarily rate-limited upstream`, shared free pool) on first test — a real, valid id, just
+  retry rather than treat as dead.
+
+  **`OPENROUTER_API_KEY` did not reach pal until Claude Code's own process was fully relaunched.**
+  It was added to `~/.zshrc` after Claude Code had already started, and `bash -c` (pal's launcher in
+  `.mcp.json`) is a plain non-login shell that never reads `.zshrc` anyway — `GEMINI_API_KEY` and
+  `CUSTOM_API_KEY` never depended on shell sourcing either, they reach pal because they were already
+  present in Claude Code's own environment at launch. A session restart reloads the conversation, not
+  that outer process; only a full quit-and-reopen of the app picks up a `.zshrc` change.
+- **OpenRouter** (free tier), via `OPENROUTER_API_KEY`. Model ids and aliases come from
+  `.pal/openrouter_models.json`. pal's built-in OpenRouter catalogue is paid models only (Claude
+  Opus, GPT-5, Grok-4), so this override keeps just the `:free`-suffixed ones this account can
+  actually call. 16 models, all confirmed live 2026-08-19:
+
+  | Model | alias | notes |
+  |---|---|---|
+  | `z-ai/glm-5.2:free` | `glm` | 1M ctx, strongest of the set for long-horizon coding |
+  | `poolside/laguna-s-2.1:free` | `laguna-s` | 118B/8B active, coding agent |
+  | `poolside/laguna-xs-2.1:free` | `laguna` | compact coding agent |
+  | `cohere/north-mini-code:free` | `north-mini` | agentic coding, low latency |
+  | `nvidia/nemotron-3.5-lightning:free` | `nemotron-lightning` | high-throughput agentic |
+  | `nvidia/nemotron-3.5-content-safety:free` | `nemotron-safety` | guardrail/moderation only, not general chat |
+  | `nvidia/nemotron-3-ultra-550b-a55b:free` | `nemotron-ultra` | 550B/55B active, frontier reasoning |
+  | `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free` | `nemotron-omni` | multimodal (text/image/video/audio) |
+  | `nvidia/nemotron-3-super-120b-a12b:free` | `nemotron-super` | 120B/12B active, multi-agent |
+  | `nvidia/nemotron-3-nano-30b-a3b:free` | `nemotron`, `nemotron-nano` | agentic focus |
+  | `nvidia/nemotron-nano-9b-v2:free` | `nemotron-9b` | toggleable reasoning trace |
+  | `google/gemma-4-26b-a4b-it:free` | `gemma-or`, `gemma-26b-or` | same model as `gemma-4-26b-a4b-it` below, separate quota pool |
+  | `google/gemma-4-31b-it:free` | `gemma-31b-or` | same model as `gemma-4-31b-it` below, separate quota pool |
+  | `openai/gpt-oss-20b:free` | `gpt-oss`, `oss20b` | function calling, agentic |
+  | `liquid/lfm-2.5-2.6b:free` | `lfm`, `lfm2.5` | compact, not recommended for agentic coding |
+  | `dots-studio/dots-3-note-preview:free` | `dots3`, `dots-note` | 280B/16B active, long-context, multimodal |
+
+  All 16 slugs needed live testing to get right — `google/gemma-4-26b-a4b:free` (missing `-it`),
+  `nvidia/nemotron-3-ultra:free` (missing `-550b-a55b`), `nvidia/nemotron-3-nano-omni:free` (missing
+  `-30b-a3b-reasoning`), `nvidia/nemotron-3-super:free` (missing `-120b-a12b`), `liquid/lfm2.5-2.6b:free`
+  (missing hyphen before `2.5`) and `dots-studio/dots3-note-preview:free` (missing hyphen in `dots-3`)
+  all failed with "not a valid model ID" on the pattern guessed from the display name — OpenRouter's
+  real slug is not reliably derivable from the model's marketing name, only from its actual URL/API
+  id. `nvidia/nemotron-nano-12b-2-vl:free` (image/video model, dashboard flagged "going away
+  2026-08-24") was deliberately left out of the catalogue.
+
+  `z-ai/glm-5.2:free` and `google/gemma-4-31b-it:free` each returned a transient 429
+  (`temporarily rate-limited upstream`, shared free pool) on first test — real, valid ids, just
+  retry rather than treat as dead.
+- **Custom** (local), via `CUSTOM_API_URL`/`CUSTOM_API_KEY` pointing at LM Studio on
+  `192.168.1.150:1234`. Model ids and aliases come from `.pal/custom_models.json` (
+  `qwen2.5.1-coder-7b-instruct`, aliases `qwen`/`local`, 32768-token window;
+  `qwen2.5-coder-7b-instruct-128k`, alias `qwen-128k`, 131072-token window). Unmetered, LAN-only,
+  nothing leaving the network — the fallback for narrower, higher-frequency lookups or when the
+  Gemini provider is throttled.
+
+**The Gemini model catalogue needed a client-side override.** `.pal/gemini_models.json` exists
+because pal's own built-in Gemini catalogue was stale — it still listed 2.5/2.0 model ids that Google
+had retired. `GEMINI_MODELS_CONFIG_PATH` in `.mcp.json` points pal at the override file instead, kept
+current against the account's actual quota dashboard.
+
+**`mcp` had to be pinned below 2.0.0.** Unpinned (`mcp>=2.0.0`), pal-mcp-server's own code breaks
+with `AttributeError: 'Server' object has no attribute 'list_tools'`. The `--with 'mcp<2.0.0'` flag
+on the `uvx` invocation in `.mcp.json` is what pins it; dropping that flag reintroduces the crash.
+
+**It cannot verify.** `chat` (and every other pal tool) returns a claim, and the main thread (or the
+agent that called the tool) still has to open the cited lines before acting on any of it.
+
+**`clink` is a different capability from `chat` and carries a different risk.** `chat` calls an API
+and returns text — it cannot act. `clink` shells out to a real CLI binary (`gemini`, installed
+separately via `npm install -g @google/gemini-cli`) and lets it run autonomously with its own tools:
+read files, run shell commands, and — with the CLI's shipped defaults — write files too, since
+pal's stock `conf/cli_clients/gemini.json` passes `--yolo` (auto-approve every action). That
+default is patched out in `~/pal-mcp-server`'s clone: `additional_args` is
+`["--approval-mode", "plan", "--skip-trust"]` instead. `plan` mode (an option on the underlying
+`gemini` CLI, not a pal invention) keeps every read/investigate tool live — grep, read, run
+non-mutating shell commands — while refusing anything that would write a file or run a mutating
+command, confirmed against a live call. `--skip-trust` is required alongside it: without that flag
+the CLI silently falls back to its interactive default mode instead of `plan` (SpendWise is not a
+trusted Gemini workspace), which would be less safe than doing nothing, not more.
+
+```
+clink(prompt="<question>", cli_name="gemini", role="planner")
+```
+
+`role` picks the system prompt (`default`, `planner`, `codereviewer`) but does not change the
+`--approval-mode`/`--skip-trust` flags — all three roles run in the same read-only mode under this
+patch. Use it for planning and code-review tasks that benefit from an independent model actually
+walking the codebase with its own tools, not just answering from what's pasted into the prompt —
+`chat` is still the right tool for a bounded question over specific files. `clink`'s Gemini calls go
+through the standalone `gemini` CLI's own model routing and auth, separate from the `GEMINI_API_KEY`
+path `chat` uses — the two do not share quota.
+
+**Performance characteristics for pal itself — call latency, per-provider quota, comparative
+accuracy between the Gemini and Custom providers — have not been measured since the migration.**
+`docs/LOCAL-MODEL-BENCHMARKS.md` holds real measurements, but they describe the retired qwen.sh
+setup talking to LM Studio directly, not pal's Custom provider, so treat them as historical
+background rather than as claims about pal.

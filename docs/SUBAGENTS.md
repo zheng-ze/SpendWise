@@ -9,9 +9,9 @@ How implementation is dispatched in this repo, and what each agent type is actua
 work passes. This is a floor, not a blanket default: read-only agents (`cavecrew-investigator`,
 `spec-conformance`) prove nothing by running the suite, and handing them `Bash` widens their blast
 radius for no verification gain. Match the grant to what the agent must prove. Volume reading no
-longer goes through an agent at all — the `reader-models` MCP server's `ask_gemini` and `ask_qwen`
-tools are called directly by the main thread or any agent granted them, so there is no `Bash` grant
-to make for volume reading itself.
+longer goes through an agent at all — the `pal` MCP server's `chat` tool (and its other tools:
+`thinkdeep`, `analyze`, `debug`, and the rest) is called directly by the main thread or any agent
+granted it, so there is no `Bash` grant to make for volume reading itself.
 
 **Verification cannot be delegated.** A finding is a claim until the main thread reads it at the
 cited `file:line`. A subagent confirming another subagent's report is one more claim, not a check.
@@ -25,28 +25,26 @@ here, and both produced exactly that. The obligation is on the brief, not on the
 Every brief that sends an agent into unfamiliar code states how to narrow before reading: which `rg`
 pattern, which graph query, which symbol to anchor on.
 
-**An implementation agent should call the `reader-models` MCP server's `ask_gemini` or `ask_qwen`
-tool for its reading, and its brief should say so.** Either call spends another model's tokens
-instead of Claude's, and the saving compounds at depth — an agent that reads a 573-line module doc
-itself has burned context its own work then has to fit around. Name the tool and the exact question
-(and, for `ask_qwen`, the file list) in the brief: an instruction saying "delegate the Swift reading"
-without naming the tool gets a direct read instead, because there is no agent type left to resolve
-the intent from.
+**An implementation agent should call the `pal` MCP server's `chat` tool for its reading, and its
+brief should say so.** The call spends another model's tokens instead of Claude's, and the saving
+compounds at depth — an agent that reads a 573-line module doc itself has burned context its own
+work then has to fit around. Name the tool, the exact question and the `model` to pass in the brief:
+an instruction saying "delegate the Swift reading" without naming the tool gets a direct read
+instead, because there is no agent type left to resolve the intent from. Pick a `model` from
+`.pal/gemini_models.json` or `.pal/custom_models.json`, or call `listmodels` first when the brief
+does not name one.
 
-**The tools are leaves.** Both `ask_qwen` and `ask_gemini` return an answer and stop. Neither one
-decides where a request should go instead — that is the caller's job, so a call that cannot be served
-fails loudly rather than guessing. `ask_qwen` proves its call through `scripts/qwen.sh`'s
-`prompt_tokens` line on stderr, folded into the tool's returned text, and a report without it means
-the local model was never asked. `ask_gemini` proves its call the same way with `scripts/gemini.sh`'s
-`[gemini.sh: model=... elapsed=...s]` line.
+**The tool is a leaf.** `chat` returns an answer and stops. It does not decide where a request should
+go instead — that is the caller's job, so a call that cannot be served fails loudly rather than
+guessing.
 
 **A failed tool call gets read directly, and the report says so.** There used to be a rule against
 an agent silently reading the file itself when the CLI reader was unreachable — three consecutive
 dispatches did exactly that and presented the result as though the model had answered. That failure
-mode is gone along with the agent layer it lived in: `ask_gemini` and `ask_qwen` wrap plain Bash calls
-with no ambient permission to keep reading past a failure, so when Gemini's 20 daily calls are spent
-and the qwen host is off, the fallback is the main thread (or the dispatched agent) reading the file
-directly and saying so, never a silent substitution presented as the tool's answer.
+mode still applies under `pal`: a call that errors or times out (a throttled Gemini key, the LM
+Studio host being off) has no ambient permission to keep reading past the failure, so the fallback is
+the main thread (or the dispatched agent) reading the file directly and saying so, never a silent
+substitution presented as the tool's answer.
 
 Delegate at the start, while the reading is still ahead of the agent. An instruction arriving forty
 tool calls in saves nothing, because the tree is already read. Where the main thread has already
@@ -66,10 +64,9 @@ located something, put the anchors in the brief rather than making the agent fin
 `cavecrew-builder` refusing an oversized or unprovable task is the tool working as designed, not a
 failure to brief it. Reach for it when the edit is genuinely bounded.
 
-Volume reading is not in this table because it is not an agent anymore. Any agent granted the
-`reader-models` MCP tools (or the main thread) calls `ask_gemini(question)` or
-`ask_qwen(question, files)` directly, the same way it would call `rg`. See "Where Gemini pays" and
-"Reading without Gemini" below for which tool fits which question.
+Volume reading is not in this table because it is not an agent anymore. Any agent granted the `pal`
+MCP tools (or the main thread) calls `chat(prompt, model)` directly, the same way it would call `rg`.
+See "Where `chat` pays" below for which questions earn the call and which `model` to pass.
 
 ## Splitting work across parallel agents
 
@@ -93,30 +90,31 @@ immediately before editing.
 assertion or symbol text rather than the number, and re-run `rg -n` on that text before dispatch when
 the task text is not fresh.
 
-## Where Gemini pays
+## Where `chat` pays
 
-Gemini exists to read volume that would otherwise cost Claude tokens. Its free tier is now easy to
-exhaust, so spend it where the large window is the point and send the rest to `ask_qwen`; the
-split is in "Reading without Gemini" below.
+`pal`'s `chat` tool exists to read volume that would otherwise cost Claude tokens. Every call takes
+a `model` parameter: pass a Gemini id from `.pal/gemini_models.json` (e.g. `gemini-3.6-flash`) when
+the large window is the point, or a Custom/local id from `.pal/custom_models.json` (e.g.
+`qwen2.5.1-coder-7b-instruct`, served by LM Studio on the user's PC over the LAN) for narrower,
+higher-frequency lookups. Call `listmodels` first when the brief does not already name one.
 
-The quota is counted in calls, not tokens: 20 a day on `gemini-3.6-flash` at 5 a minute, with
-`gemini-3.5-flash-lite` behind it at 500 a day and 15 a minute. Both share a 250k
-input-tokens-per-minute ceiling and both hold a 1M context window. A narrow question therefore costs
-exactly what a broad one costs, so **batch every question about an area into one dispatch** and let
-the agent answer them in numbered sections. Splitting a brief into two calls because the topics feel
-unrelated halves the day's budget for nothing. Split only to stay under the token ceiling.
+The old Gemini-CLI setup enforced a hard 20-calls-a-day quota that made batching and a two-tier
+model split load-bearing; whether pal's Gemini provider carries the same or a different quota has
+not been verified since the migration, so treat per-provider limits as unknown until measured rather
+than assuming the old numbers carry over. Until then, still **batch every question about an area
+into one call** and let the model answer in numbered sections — that discipline costs nothing and
+pays off regardless of the actual quota.
 
-Gemini's wins, in order:
+`chat`'s wins, in order:
 
 1. **Gathering the context a change is drafted from.** The strongest case, provided the split is
-   right: call `ask_gemini` across the Swift source, the module spec in `docs/modules/` and the
-   delivered Dart, then hand the briefing to an Opus agent to draft the proposal, specs and tasks.
-   The drafting agent then spends its judgment on the writing rather than on the reading. Gemini
-   must not write the spec itself — a spec is a checked-in contract that later work is verified
-   against, so it is the artefact whose every line needs the judgment the briefing was gathered to
-   inform.
-2. **Phase-boundary orientation.** Before a new phase, call `ask_gemini` against the delivered
-   tree and read the briefing back, then read only what it flags.
+   right: call `chat` across the Swift source, the module spec in `docs/modules/` and the delivered
+   Dart, then hand the briefing to an Opus agent to draft the proposal, specs and tasks. The drafting
+   agent then spends its judgment on the writing rather than on the reading. The model must not write
+   the spec itself — a spec is a checked-in contract that later work is verified against, so it is
+   the artefact whose every line needs the judgment the briefing was gathered to inform.
+2. **Phase-boundary orientation.** Before a new phase, call `chat` against the delivered tree and
+   read the briefing back, then read only what it flags.
 3. **Locating anchors when task line numbers are old.** Cheap, read-only, and it kills the drift
    problem before an agent is dispatched.
 4. **Cross-file sweeps.** "Which test files call `uuid()`?" is a question worth answering before
@@ -130,8 +128,8 @@ Gemini's wins, in order:
    spans two repos and hundreds of test names. The coverage map in a change's `tasks.md` is exactly
    this question answered by hand.
 8. **Locating where a behavior lives before a UI phase.** Phases 5 to 7 port screens whose logic is
-   spread across SwiftUI views, view models and helpers. Trace it once with `ask_gemini` rather
-   than opening the tree in the main thread.
+   spread across SwiftUI views, view models and helpers. Trace it once with `chat` rather than
+   opening the tree in the main thread.
 9. **Auditing a convention across the tree.** "Every `raw…ID` parameter that reaches a map lookup
    without `normalizedID`" or "every `DateTime` construction that is not `startOfDayUtc`" are sweeps
    whose answer is a candidate list, and the main thread then reads each hit to confirm. This is how
@@ -141,6 +139,13 @@ Gemini's wins, in order:
 11. **Reconstructing history.** Long `git log` output and old change directories under
     `openspec/changes/archive/` answer "why is it like this" at a volume not worth paying Claude
     tokens to read.
+
+For items 1, 2, 6, 7, 8 and 11 above — where the large window is the point — pass a Gemini model.
+For items 3 and 4 — locating anchors and narrow cross-file sweeps over a named short list — a Custom
+provider model such as `qwen2.5.1-coder-7b-instruct` is unmetered and does not touch the Gemini
+provider's limits at all, whatever those turn out to be. Use the default `qwen2.5.1-coder-7b-instruct`
+unless a single file will not fit its 32768-token window, which is what
+`qwen2.5-coder-7b-instruct-128k` (131072) is kept for.
 
 Note where the token asymmetry actually falls: the tree is read far more often than it is written,
 and reading is the part with no judgment in it. Anything that is pure lookup, spans many files, and
@@ -152,52 +157,89 @@ It is worth little on a task that already carries `file:line` for every target.
 claim, and confirming a finding at its cited line is the main thread's job and cannot be delegated.
 Anything requiring an exact quote, since a summary paraphrases and a spec argument turns on the
 words. Deciding whether a finding is a real defect, which needs the change's `design.md` and its
-sanctioned deviations. Writing to the tree is not a risk either script carries — both only print an
-answer to stdout, and any write still happens through the caller's own tools where it is reviewed.
+sanctioned deviations. Writing to the tree is not a risk `chat` carries — it only returns text, and
+any write still happens through the caller's own tools where it is reviewed.
 
-The pattern across all of it: Gemini narrows a large tree to a short list of places worth reading.
-It never settles what is true there.
+The pattern across all of it: `chat` narrows a large tree to a short list of places worth reading.
+It never settles what is true there. It cannot verify — the main thread reads and decides.
+`docs/TOOLING.md` has what is known so far about each provider's behavior, and
+`docs/LOCAL-MODEL-BENCHMARKS.md` carries the retired qwen.sh setup's measurements as historical
+record; they describe the old direct-to-LM-Studio path, not pal, so read them as background rather
+than as claims about pal's Custom provider.
 
-## Reading without Gemini
-
-Gemini's quota runs out mid-task, and the fallback has been paying Claude tokens to read the same
-tree. `ask_qwen` is the second reader: Qwen2.5-Coder on the user's PC over the LAN, unmetered,
-nothing leaving the network. LM Studio on that host keeps several builds and loads one on demand, so
-which model answers is a per-call choice made through `ask_qwen`'s `model` parameter, and the build
-need not already be resident. `docs/TOOLING.md` has the measurements behind everything here.
-
-Use the default `qwen2.5.1-coder-7b-instruct` unless a single file will not fit its 32768 window,
-which is what `qwen2.5-coder-7b-instruct-128k` is kept for — pass that id as `model` when it is
-needed. A build loading for the first time adds its own delay before the first answer.
-
-The split is quota against window, not quality:
-
-- **Gemini** keeps the jobs where the large window is the point. Items 1, 2, 6, 7, 8 and 11 above all
-  need to read more than 20k tokens at once, and none of them survive being cut down.
-- **`ask_qwen`** takes items 3 and 4 — locating anchors when task line numbers are stale, and
-  cross-file sweeps over a named short list. Both are narrow by nature and were exhausting the quota
-  on work that never needed the window.
-- **When Gemini is throttled**, `ask_qwen` is the fallback for anything inside 20k tokens, and
-  the main thread reads directly for anything larger. Record which one produced a briefing, because
-  the smaller model's output is the weaker lead.
-
-Four things about it that change how a task is written:
+Four things that still apply to the Custom/local provider specifically, carried over from the old
+qwen.sh measurements and not yet re-verified against pal's own call path:
 
 - **It is not an anchor finder.** Never send it a task that needs a line number; `rg -n` answers
   those exactly and for free. Its job is orientation: which files cover a concern, how
   responsibilities divide, what an unfamiliar area contains.
 - **Ask one thing per call.** Several questions in one prompt degrade all of them.
-- **The window is per-load.** LM Studio on the host server serves several builds and loads one on
-  demand, so the ceiling is whatever the named build was configured for: 32768 for
-  `qwen2.5.1-coder-7b-instruct`, 131072 for `qwen2.5-coder-7b-instruct-128k`. Over-budget comes back
-  as HTTP 400 naming both figures, never as silent truncation.
-- **A slow answer is a memory problem.** The KV cache has spilled to system RAM. Report the wall
-  time; do not rewrite the prompt. A cold load is the exception and costs seconds rather than
-  minutes, and `ask_qwen`'s returned text says when one is happening.
-- **It declines to fabricate a symbol** that does not exist, answering `NOT PRESENT`, so a negative
-  result from it is worth something. It will still misplace one that does exist.
+- **The window is per-model.** `qwen2.5.1-coder-7b-instruct` holds 32768, `qwen2.5-coder-7b-instruct-128k`
+  holds 131072, per `.pal/custom_models.json`.
+- **It declined to fabricate a symbol** that did not exist under the old setup, answering
+  `NOT PRESENT` rather than inventing an anchor. Worth re-checking under pal before relying on it.
 
-It cannot verify, same as Gemini and held tighter. `docs/LOCAL-MODEL-BENCHMARKS.md` has the numbers.
+## Beyond `chat`: consensus, thinkdeep, debug
+
+Three more `pal` tools earn their place in this repo's workflow, each for a narrower job than
+`chat`'s volume reading. All three are claims like `chat` is — the main thread still verifies
+anything actionable at its cited line before acting on it.
+
+**`consensus` for a real architectural fork, not a lookup.** It sends the same proposal to several
+models, each assigned a stance (`for`, `against`, `neutral`), and returns each answer plus a
+synthesis — built for "should X throw or coerce" questions with a real tradeoff, not for anything
+`chat` can already answer in one pass. `.pal/openrouter_models.json`'s 16 free-tier models
+(`docs/TOOLING.md` has the full table) make this free to run wide: 3-4 models with mixed stances
+costs nothing beyond latency. Reach for it at a change's `design.md` stage when a decision is
+genuinely contested, or during an adversarial review when a finding's severity itself is in dispute.
+Do not reach for it on anything with a single clearly-correct answer — that is `chat` wasting a
+multi-model call on a question one model already settles.
+
+**`thinkdeep` for a second opinion on one hard tradeoff.** Narrower than `consensus`: one model,
+extended reasoning, pressure-testing a specific design decision or edge-case analysis rather than
+staging a debate. Useful before committing to an approach in a change's `design.md` when the main
+thread's own reasoning wants a check, not a vote.
+
+**`debug` for a bug with concrete evidence.** Structured hypothesis formation over a stack trace,
+failing test output, or reproduction steps — not a substitute for `mutation-prober`'s proof-that-a-test-bites
+loop, and not useful on a vague "something's wrong" report; it wants symptoms already in hand.
+
+**`planner` and `apilookup`, situationally.** `planner`'s incremental step-by-step breakdown mostly
+duplicates what `opsx:propose`/`tasks.md` already give this repo — reach for it only when a plan is
+too exploratory or too large for the openspec template, not as a default planning step. `apilookup`
+forces a live documentation search instead of trained-in knowledge, useful for Flutter/Dart API
+currency checks, but depends on web search being enabled in the CLI config, which has not been
+confirmed here — treat as unverified until tried once.
+
+**`codereview` for an independent second reviewer.** The repo's own `/code-review` skill and the
+`code-review-graph` MCP already cover structural review; `codereview` is worth adding alongside them
+specifically because it carries none of this repo's house conventions and none of Claude's own
+blind spots — a genuinely independent model looking at the diff cold. Feed it the same convention
+list `ast-grep`'s rule files audit (Decimal-not-double, half-open windows, `normalizedID`, pinned
+`code` fields) in the prompt so it is reviewing against SpendWise's actual rules, not generic
+practice, or its findings will mostly be noise. Use at a phase boundary alongside the adversarial
+review, not as a replacement for either existing path.
+
+**`secaudit`.** Methodical OWASP-based security assessment across a 6-step workflow — authentication,
+data protection, dependency vulnerabilities, and (optionally) compliance framing (PCI DSS, HIPAA,
+GDPR). Today's audit surface is narrow — SpendWise is local storage with no network calls or auth —
+but still worth pointing at how the app persists financial data on disk and whatever export/import
+paths exist, since those are the parts of the current app closest to a real vulnerability. Its
+value grows sharply once the sync engine lands (auth, data in transit) and further if the app is
+ever monetised (payment handling, compliance surface) — run it again at each of those points, not
+just once now.
+
+**`challenge` to offload pushback to a model with no stake in the answer.** Distinct from Claude
+self-challenging: a free external model given the counter-position has no incentive to agree with
+work already in front of it, so it is worth a call when a proposal or a review finding needs a real
+adversarial pass rather than the same model marking its own work. Pair with `consensus` when the
+question has more than two sides — `challenge` is cheaper for a straight "is this actually right".
+
+**Deliberately not adopted:** `precommit` and `analyze` still overlap `/code-review` and the graph
+closely enough that adding them changes nothing `codereview` above does not already cover.
+`refactor`/`testgen`/`docgen` generate output blind to this repo's house conventions (tests-first,
+minimal comments, translation-not-redesign) and would cost more to correct than to write by hand.
+`tracer` duplicates what `ast-grep`/the graph already answer directly, with an extra step in between.
 
 ## Briefing an agent
 

@@ -1,5 +1,11 @@
 # Local model benchmarks
 
+**Superseded.** These measurements are for the retired `scripts/qwen.sh`, which called LM Studio on
+the LAN host directly. That path is gone — reading now goes through the `pal` MCP server's `chat`
+tool, using its Custom provider for the same host (see `docs/TOOLING.md`'s `## pal` section). The
+numbers below describe the old direct-call path, not pal's. Kept as historical record rather than
+deleted; do not read them as claims about pal's behavior.
+
 Measured on the LAN host at `192.168.1.150:1234`, on this repo, against anchors verified with `rg`
 before use. Everything at `temperature 0`, so a repeated run returns the same answer.
 
