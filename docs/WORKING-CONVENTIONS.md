@@ -22,6 +22,31 @@ written by default and trimmed on request, when the default should be silence. A
 the behaviour retires the comment that explained it — prefer renaming to annotating
 (`monthWithDayUtc` needed a comment; `shiftMonthThenClampDayUtc` needed none).
 
+**At most two wrapped lines, no examples.** A comment runs at most two lines at the file's normal
+wrap width (~100 chars/line) — not one line crammed past that width, and not a paragraph explaining
+the mechanism the code below already shows. No made-up dates or ids, no step-by-step trace, and no
+`(e.g. X)` naming a real symbol the surrounding code already names. A real name in an aside is still
+an example: it restates what the next line already says instead of explaining why. The test right
+below the comment is already the concrete case; a comment that re-walks it in prose is restating,
+not explaining. If the why does not fit two lines, the code needs a better name, not a longer
+comment.
+
+**`///` is for the API's caller, `//` is for its implementer.** A doc comment (`///`) belongs only on
+a public member whose behavior a caller genuinely needs and the signature does not already convey —
+a non-obvious precondition, a surprising return, a real contract detail. It is never the place for
+why the body is written the way it is; that is an implementation detail and takes a `//` comment
+inside the body instead, private members included. Most members need neither: a well-named public
+function with an unsurprising contract gets no doc comment at all, and most bodies get no inline
+comment at all.
+
+**A `///` states behavior, never rationale.** If a doc comment is genuinely needed, it says what the
+member does or guarantees, not why it is built that way. The why is an implementation concern; when
+worth keeping at all, it goes in a `//` inside the body, never in the doc comment above it.
+
+**Place the comment on the line it explains.** A `//` sits directly against the specific statement
+it justifies, not stacked once above a whole function to cover several lines below — pin it to the
+line, not the block, so a reader never carries it past code it does not apply to.
+
 **Comment discipline is a write-time and verify-time responsibility, not a later sweep.** A
 dispatched agent should not write a redundant or non-standalone comment in the first place, and
 whoever verifies that agent's work before marking a task complete must check for and remove any that

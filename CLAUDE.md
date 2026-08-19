@@ -21,11 +21,30 @@ screen never introduces its own formatter, symbol map or month state.
 
 **Comments: minimal, standalone, write-time and verify-time discipline.** Comment only tricky
 nuance a reader would otherwise get wrong. Never restate the code. No Swift references or spec
-citations in source. Every comment must be understandable with only this one file open — no leaning
-on another function/file/doc without restating its point locally. Write the comment last. A
-dispatched agent should not write one that fails this, and whoever verifies the work checks before
-marking the task complete — this is never a later sweep. **`docs/WORKING-CONVENTIONS.md` has the
-full rule and the failure patterns.**
+citations in source, no em dashes, semicolons or colon splices in comment prose. Every comment must
+be understandable with only this one file open — no leaning on another function/file/doc without
+restating its point locally. Write the comment last. A dispatched agent should not write one that
+fails this, and whoever verifies the work checks before marking the task complete — this is never a
+later sweep. **`docs/WORKING-CONVENTIONS.md` has the full rule and the failure patterns.**
+
+**At most two wrapped lines, no examples.** A comment runs at most two lines at the file's normal
+wrap width (~100 chars/line) — not one line crammed past that width, and not a paragraph. No
+made-up dates or ids, no step-by-step trace, no `(e.g. X)` naming a real symbol the surrounding code
+already names, and no restating the mechanism the code below already shows — say only the why a
+reader could not get from the code itself. If that why does not fit two lines, the code needs a
+better name, not a longer comment.
+
+**`///` doc comments are for API callers, not implementers.** Write one only when a public member has
+behavior a caller must know and the signature does not already say it — a non-obvious precondition,
+a surprising return value, a contract detail. A private member or an implementation detail (why the
+body is written the way it is) takes a `//` comment instead, never `///` — a caller of the API never
+reads it, so it does not belong in the doc comment. **A `///` states behavior only, never rationale**
+— why the member is built that way is an implementation concern and, if worth keeping at all, belongs
+in a `//` inside the body, not in the doc comment above it.
+
+**A comment sits on the line it explains, not above the block.** Put a `//` right against the
+specific statement it justifies, not once at the top of a function covering several lines below it —
+a reader should never have to carry a comment down past code it does not apply to.
 
 **Plain language everywhere**, not only in task files: comments, identifiers and reports alike. Say
 what a thing does in ordinary words rather than in jargon or borrowed vocabulary. A function called
