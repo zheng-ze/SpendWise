@@ -121,35 +121,116 @@ changed expectation must be visible in review, never absorbed by loosening an as
 
 ## 5. Scope-aware transfer display
 
-- [ ] 5.1 Add scope-aware transfer sign and color: leaving the scope reads as a loss, entering it as a
+- [x] 5.1 Add scope-aware transfer sign and color: leaving the scope reads as a loss, entering it as a
       gain, both endpoints inside or an unscoped list stays neutral
-- [ ] 5.2 Account scope is the account plus its active pockets; pocket scope is that pocket alone
-- [ ] 5.3 Test the three-way matrix — out, in, both — at account scope and at pocket scope
-- [ ] 5.4 Test: an account-to-own-pocket transfer is neutral at account scope and a gain at pocket
-      scope
+      (`app/lib/ui/transactions/entry_transfer_scope.dart` `TransferScopeSign`, `Entry.transferScopeSign`
+      extension — kept out of `packages/domain`, since scope is a screen's current view, not a
+      domain concept;
+      `app/lib/ui/transactions/transaction_row.dart:100-108` `_transferAmountKind` maps the sign onto
+      the existing `income`/`expense`/`transfer` `AmountKind` values, so `formatSignedAmount`/
+      `kindColor` need no new cases)
+- [x] 5.2 Account scope is the account plus its active pockets; pocket scope is that pocket alone
+      (already built by the account/pocket row taps in `app/lib/ui/accounts/accounts_screen.dart:73,80`,
+      unchanged this task; threaded into row rendering at
+      `app/lib/ui/transactions/day_sections.dart:47,59` via the existing `sourceScope` param)
+- [x] 5.3 Test the three-way matrix — out, in, both — at account scope and at pocket scope
+      (`app/test/ui/transactions/entry_transfer_scope_test.dart` for the sign rule,
+      `app/test/ui/transactions/transaction_row_test.dart:216-297` for row rendering)
+- [x] 5.4 Test: an account-to-own-pocket transfer is neutral at account scope and a gain at pocket
+      scope (`app/test/ui/transactions/transaction_row_test.dart:299-335`)
 
 ## 6. Accessibility
 
-- [ ] 6.1 Add semantics to every custom widget
-- [ ] 6.2 Give the donut a text alternative conveying each bucket, its amount and its share. V1 hid it
+- [x] 6.1 Add semantics to every custom widget, scoped to the widgets 6.2-6.3 name (donut, expanding
+      FAB, two-column picker, the 7 swipe-action sites) — not a repo-wide sweep
+- [x] 6.2 Give the donut a text alternative conveying each bucket, its amount and its share. V1 hid it
       from assistive technology with no fallback, so the screen conveyed nothing
-- [ ] 6.3 Add labels or custom actions for the expanding action button, the two-column picker and every
+      (`app/lib/ui/stats/stats_donut.dart:28-56` `_summaryLabel`, one line per slice with name,
+      `formatCurrency`, `formatPercent`, wrapped in `Semantics(label: ...)` with the `CustomPaint`
+      excluded so a screen reader reads only the composed label)
+- [x] 6.3 Add labels or custom actions for the expanding action button, the two-column picker and every
       swipe action — all are gesture-only affordances today
-- [ ] 6.4 Test: the donut exposes its text alternative; swipe actions appear as custom actions
+      (`app/lib/ui/common/expanding_fab.dart` — `tooltip` on both FABs, expand/collapse state reflected
+      in the toggle's tooltip, action capsules wrapped `Semantics(button: true, label: ...)`, backdrop
+      scrim excluded; `app/lib/ui/common/two_column_picker_sheet.dart:180` — `selected` threaded into
+      `ListTile`'s own `selected:` param, which already exposes selection semantics for free; all 7
+      `Dismissible` sites wrapped in `Semantics(customSemanticsActions: {...})` reusing the same
+      confirm-then-act callback the swipe already used —
+      `app/lib/ui/settings/category_list_screen.dart:165`, `plan_list_screen.dart:83`,
+      `recycle_bin_screen.dart:263` (restore + purge), `app/lib/ui/transactions/daily_transactions_screen.dart:318`,
+      `app/lib/ui/accounts/account_row.dart:39,66` (account + pocket), `app/lib/ui/stats/category_detail_screen.dart:694`)
+- [x] 6.4 Test: the donut exposes its text alternative; swipe actions appear as custom actions
+      (`app/test/ui/stats/stats_donut_test.dart` label test; `app/test/ui/common/expanding_fab_test.dart`,
+      `app/test/ui/common/picker_sheet_test.dart`; swipe-action tests across
+      `category_list_screen_test.dart`, `plan_list_screen_test.dart`, `recycle_bin_screen_test.dart`,
+      `daily_transactions_screen_test.dart`, `category_detail_screen_test.dart`,
+      `app/test/ui/accounts/account_row_test.dart` (new); shared dispatch helper at
+      `app/test/support/semantics_test_support.dart` (new). Full gate: domain unaffected;
+      `flutter analyze` zero issues; `flutter test` across stats/common/settings/transactions/accounts
+      302 tests, 2 failing — both the pre-existing unrelated `stats_donut_test.dart` golden pixel-diff)
 
 ## 7. Localization
+
+DEFERRED. This is a personal-use app right now, no need for localization yet. Revisit if that changes.
 
 - [ ] 7.1 Add `flutter_localizations` and the localization scaffolding
 - [ ] 7.2 Declare user-facing strings through it rather than inline
 - [ ] 7.3 Route every shared format from the UI foundation through the localization layer
+- [x] 7.3a Wire `systemKind`, pulled forward ahead of the rest of this group. While scoping 7.4, found
+      it was a live bug, not a theoretical gap: with the column unwritten, a user could open "Opening
+      balance"/"Balance adjustment" in the ordinary entry-edit form and freely rename, re-amount, or
+      swipe-delete them, silently breaking the string-match lookups in `seed_data_test.dart` and
+      `ledger_state_entries_test.dart` and desyncing the account balance the entry exists to seed or
+      correct. Fixed ahead of the rest of localization since it is a correctness gap independent of it
+      (`packages/domain/lib/src/entry.dart:11-24` `SystemEntryKind`, `:38,63` `Entry.systemKind`;
+      `packages/domain/lib/src/ledger_error.dart:109-114` `SystemEntryLocked`;
+      `app/lib/ui/accounts/source_edit_form_logic.dart:33` stamps balance-adjustment;
+      `app/lib/persistence/mappers.dart:146,160` round-trips the code column.
+
+      Rule corrected after review, since the first cut locked the wrong fields: name and delete were
+      blocked, amount was editable. The actual rule is name, category and `includeInAnalysis` locked
+      (fixed at the value each kind is created with), amount, date and delete free — a system entry
+      can be corrected or removed like any other entry, it just cannot be renamed, recategorized, or
+      pulled into analysis totals it was deliberately created to sit outside of. Guard now at
+      `packages/domain/lib/src/ledger_state_entries.dart:16-21` `updateEntry`; `deleteEntry` (`:59-65`)
+      has no guard at all, deletion is unconditional. `app/lib/ui/transactions/entry_form.dart:321-325`
+      always shows Edit; the name field (`:372`), category row (`:484`) and Include in Analysis switch
+      (`:387`) individually stay locked via `_isSystemEntry`, amount/date/delete stay responsive.
+      `app/lib/ui/transactions/daily_transactions_screen.dart` — the swipe-skip for system-entry rows
+      was removed, swipe-to-delete now behaves the same as any other entry.
+
+      Tests: `packages/domain/test/ledger_state_entries_test.dart:396-546` (both kinds, name/category/
+      includeInAnalysis throw, amount/date/delete succeed), `app/test/persistence/mappers_test.dart:250-298`,
+      `app/test/ui/transactions/entry_form_test.dart:342-441`,
+      `app/test/ui/transactions/daily_transactions_screen_test.dart:153-188`. Full gate: domain 542
+      tests green, `flutter analyze` zero issues, `flutter test` 658 tests, 2 failing — both the
+      pre-existing unrelated `stats_donut_test.dart` golden pixel-diff)
 - [ ] 7.4 Do NOT rewrite stored entry names — "Opening balance" and "Balance adjustment" are data. The
       structural marker reserved at schema day one is what lets display-time naming take over later
 - [ ] 7.5 Test: an entry stored with an English name keeps it
 
 ## 8. Layout polish and close-out
 
-- [ ] 8.1 Polish the adaptive rail layout on wide windows
-- [ ] 8.2 Run `cd packages/domain && dart analyze && dart test` and `cd app && flutter analyze &&
+- [x] 8.1 Polish the adaptive rail layout on wide windows
+      (`app/lib/ui/shell/layout_breakpoints.dart` (new) named the breakpoint instead of a raw constant;
+      `app/lib/ui/shell/app_shell.dart:34-56` hysteresis via two thresholds each for rail entry/exit
+      (720/680) and extended-rail entry/exit (1000/960), so a window sitting at a boundary does not
+      flicker; `:122` `AnimatedSwitcher` cross-fades the bottom-nav/rail swap instead of an abrupt cut;
+      `:101-107` a third tier, `extended: true` above 1000px instead of only compact-label rail. Tests:
+      `app/test/ui/shell/app_shell_test.dart`, 4 new cases added to the existing 5, 9 total, all green)
+- [x] 8.2 Run `cd packages/domain && dart analyze && dart test` and `cd app && flutter analyze &&
       flutter test`. Analyzer at zero issues, not just zero errors
-- [ ] 8.3 Review every test expectation this change altered and confirm each was edited deliberately
-- [ ] 8.4 Confirm no stored enum code changed meaning: load a fixture written before group 1
+      (domain: zero issues, 534 tests green. app: zero issues, 653 tests, 2 failing — both the
+      pre-existing unrelated `stats_donut_test.dart` golden pixel-diff)
+- [x] 8.3 Review every test expectation this change altered and confirm each was edited deliberately
+      (`git diff -- '*_test.dart'` against the last commit shows zero removed or changed `expect(...)`
+      lines across every touched test file, groups 6 and 7.3a only added new tests, nothing existing
+      was altered, so there is nothing here to review for deliberateness)
+- [x] 8.4 Confirm no stored enum code changed meaning: load a fixture written before group 1
+      (`packages/domain/test/enum_codes_test.dart:52-68` already covers this for `AccountType` with a
+      hardcoded pre-group-1 8-entry code map; `LifecycleState`/`CategoryKind` were untouched by group 1
+      so need no such test. `Entry.systemKind`, the one new field added since, is nullable and
+      `SystemEntryKind.fromCode` returns null on an absent code rather than throwing or defaulting
+      wrong — confirmed at `packages/domain/lib/src/entry.dart:19-23` and
+      `app/lib/persistence/mappers.dart:146` — so a fixture written before this field existed still
+      round-trips correctly)
