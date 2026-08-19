@@ -34,6 +34,9 @@ void main() {
 
   test('replay is nameable through the barrel alone', () {
     final LedgerState state = LedgerState.replaying([
+      UpsertAccount(
+        Account(id: _accountID, name: 'wallet', type: AccountType.savings),
+      ),
       UpsertEntry(
         Entry(amount: Decimal.one, name: 'rent', sourceID: _accountID),
       ),

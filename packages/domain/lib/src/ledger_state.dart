@@ -35,12 +35,17 @@ class LedgerState {
        _categories = {...?categories},
        _plans = {...?plans};
 
+  /// Throws on a corrupted change stream.
   LedgerState.replaying(List<LedgerChange> changes)
     : _moneySources = {},
       _entries = {},
       _categories = {},
       _plans = {} {
     apply(changes);
+
+    // Calls assertInvariants() directly instead of going through the
+    // debug-only _checked wrapper that every mutator uses.
+    assertInvariants();
   }
 
   final Map<String, MoneySource> _moneySources;

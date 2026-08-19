@@ -57,6 +57,27 @@ void main() {
     expect(state.moneySources[uuid(2)], isNull);
     expect(state.moneySources[uuid(1)]!.asAccount!.subPocketIDs, {uuid(2)});
   });
+
+  test('replaying a stream that never upserted a referenced holder throws', () {
+    expect(
+      () => LedgerState.replaying([
+        UpsertEntry(entry(id: uuid(3), sourceID: uuid(1))),
+      ]),
+      throwsStateError,
+    );
+  });
+
+  test('a well-formed stream still loads normally through replaying', () {
+    final replayed = LedgerState.replaying([
+      UpsertAccount(account(uuid(1), name: 'wallet')),
+      UpsertCategory(category(uuid(2), name: 'food')),
+      UpsertEntry(entry(id: uuid(3), sourceID: uuid(1), categoryID: uuid(2))),
+    ]);
+
+    expect(replayed.entries[uuid(3)]!.name, 'e');
+    expect(replayed.moneySources[uuid(1)]!.asAccount!.name, 'wallet');
+    expect(replayed.categories[uuid(2)]!.name, 'food');
+  });
 }
 
 RecurringPlan plan(
