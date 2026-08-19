@@ -87,6 +87,8 @@ class _EntryFormState extends State<EntryForm> {
 
   String? _error;
 
+  bool get _isSystemEntry => widget.entry?.systemKind != null;
+
   static DateTime _todayUtc() {
     final now = DateTime.now();
     return DateTime.utc(now.year, now.month, now.day);
@@ -367,7 +369,7 @@ class _EntryFormState extends State<EntryForm> {
         ),
         const SizedBox(height: 16),
         IgnorePointer(
-          ignoring: readOnly,
+          ignoring: readOnly || _isSystemEntry,
           child: TextField(
             controller: _nameController,
             decoration: const InputDecoration(hintText: 'Name'),
@@ -382,7 +384,7 @@ class _EntryFormState extends State<EntryForm> {
           contentPadding: EdgeInsets.zero,
           title: const Text('Include in Analysis'),
           value: _includeInAnalysis,
-          onChanged: readOnly
+          onChanged: readOnly || _isSystemEntry
               ? null
               : (value) => setState(() => _includeInAnalysis = value),
         ),
@@ -479,7 +481,7 @@ class _EntryFormState extends State<EntryForm> {
           leading: _categoryLeading(),
           title: const Text('Category'),
           trailing: Text(_categoryLabel(_categoryId) ?? 'None'),
-          onTap: readOnly ? null : _pickCategory,
+          onTap: readOnly || _isSystemEntry ? null : _pickCategory,
         ),
     ];
   }

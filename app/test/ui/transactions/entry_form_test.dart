@@ -339,6 +339,121 @@ void main() {
     });
   });
 
+  group('system entries', () {
+    testWidgets(
+      'an opening balance entry opens read-only with an Edit control',
+      (tester) async {
+        final entry = Entry(
+          amount: dec('250'),
+          name: 'Opening balance',
+          sourceID: checking.id,
+          includeInAnalysis: false,
+          systemKind: SystemEntryKind.openingBalance,
+        );
+        await pumpForm(
+          tester,
+          ledger: buildLedger(entries: {entry.id: entry}),
+          entry: entry,
+        );
+
+        expect(find.text('Entry'), findsOneWidget);
+        expect(find.byIcon(Icons.edit_outlined), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'editing an opening balance entry locks name, category and include '
+      'in analysis, but leaves amount and delete usable',
+      (tester) async {
+        final entry = Entry(
+          amount: dec('250'),
+          name: 'Opening balance',
+          sourceID: checking.id,
+          includeInAnalysis: false,
+          systemKind: SystemEntryKind.openingBalance,
+        );
+        final ledger = buildLedger(entries: {entry.id: entry});
+        await pumpForm(tester, ledger: ledger, entry: entry);
+
+        await tester.tap(find.byIcon(Icons.edit_outlined));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Edit Entry'), findsOneWidget);
+
+        final nameIgnore = tester.firstWidget<IgnorePointer>(
+          find.ancestor(
+            of: find.byType(TextField).at(1),
+            matching: find.byType(IgnorePointer),
+          ),
+        );
+        expect(nameIgnore.ignoring, isTrue);
+
+        final categoryTile = tester.widget<ListTile>(
+          find.widgetWithText(ListTile, 'Category'),
+        );
+        expect(categoryTile.onTap, isNull);
+
+        final analysisSwitch = tester.widget<SwitchListTile>(
+          find.widgetWithText(SwitchListTile, 'Include in Analysis'),
+        );
+        expect(analysisSwitch.onChanged, isNull);
+
+        final amountIgnore = tester.firstWidget<IgnorePointer>(
+          find.ancestor(
+            of: find.byType(TextField).first,
+            matching: find.byType(IgnorePointer),
+          ),
+        );
+        expect(amountIgnore.ignoring, isFalse);
+
+        expect(find.text('Delete Entry'), findsOneWidget);
+
+        await tester.tap(find.text('Delete Entry'));
+        await tester.pumpAndSettle();
+
+        expect(ledger.state.entries.containsKey(entry.id), isFalse);
+      },
+    );
+
+    testWidgets('a balance adjustment entry opens read-only the same way', (
+      tester,
+    ) async {
+      final entry = Entry(
+        amount: dec('-10'),
+        name: 'Balance adjustment',
+        sourceID: checking.id,
+        includeInAnalysis: false,
+        systemKind: SystemEntryKind.balanceAdjustment,
+      );
+      await pumpForm(
+        tester,
+        ledger: buildLedger(entries: {entry.id: entry}),
+        entry: entry,
+      );
+
+      expect(find.text('Entry'), findsOneWidget);
+      expect(find.byIcon(Icons.edit_outlined), findsOneWidget);
+    });
+
+    testWidgets('a normal entry is unaffected and still offers Edit', (
+      tester,
+    ) async {
+      final entry = Entry(
+        amount: dec('-5'),
+        name: 'Coffee run',
+        sourceID: checking.id,
+        categoryID: coffee.id,
+      );
+      await pumpForm(
+        tester,
+        ledger: buildLedger(entries: {entry.id: entry}),
+        entry: entry,
+      );
+
+      expect(find.byIcon(Icons.edit_outlined), findsOneWidget);
+    });
+  });
+
   group('prefill from scope', () {
     testWidgets('a new entry opened with a source scope prefills its account', (
       tester,

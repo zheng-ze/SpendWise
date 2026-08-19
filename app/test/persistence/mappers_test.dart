@@ -247,20 +247,71 @@ void main() {
       expect(row.amount, '-1234.5678');
     });
 
-    test('the reserved columns stay unwritten', () {
-      final row = entryToRow(
-        Entry(
-          id: entryID,
-          date: DateTime.utc(2026, 3, 14),
-          amount: Decimal.one,
-          name: 'Coffee',
-          sourceID: accountID,
-        ),
-        version,
+    test(
+      'the note column stays unwritten, it is reserved but not used yet',
+      () {
+        final row = entryToRow(
+          Entry(
+            id: entryID,
+            date: DateTime.utc(2026, 3, 14),
+            amount: Decimal.one,
+            name: 'Coffee',
+            sourceID: accountID,
+          ),
+          version,
+        );
+
+        expect(row.note, isNull);
+        expect(row.systemKind, isNull);
+      },
+    );
+
+    test('systemKind round-trips for an opening balance entry', () {
+      final entry = Entry(
+        id: entryID,
+        date: DateTime.utc(2026, 3, 14),
+        amount: Decimal.parse('250'),
+        name: 'Opening balance',
+        sourceID: accountID,
+        includeInAnalysis: false,
+        systemKind: SystemEntryKind.openingBalance,
       );
 
-      expect(row.note, isNull);
+      final row = entryToRow(entry, version);
+      expect(row.systemKind, 0);
+      expect(entryFromRow(row), entry);
+      expect(entryFromRow(row).systemKind, SystemEntryKind.openingBalance);
+    });
+
+    test('systemKind round-trips for a balance adjustment entry', () {
+      final entry = Entry(
+        id: entryID,
+        date: DateTime.utc(2026, 3, 14),
+        amount: Decimal.parse('-10'),
+        name: 'Balance adjustment',
+        sourceID: accountID,
+        includeInAnalysis: false,
+        systemKind: SystemEntryKind.balanceAdjustment,
+      );
+
+      final row = entryToRow(entry, version);
+      expect(row.systemKind, 1);
+      expect(entryFromRow(row), entry);
+      expect(entryFromRow(row).systemKind, SystemEntryKind.balanceAdjustment);
+    });
+
+    test('systemKind stays null for a plain user entry', () {
+      final entry = Entry(
+        id: entryID,
+        date: DateTime.utc(2026, 3, 14),
+        amount: Decimal.one,
+        name: 'Coffee',
+        sourceID: accountID,
+      );
+
+      final row = entryToRow(entry, version);
       expect(row.systemKind, isNull);
+      expect(entryFromRow(row).systemKind, isNull);
     });
   });
 

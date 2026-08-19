@@ -379,4 +379,189 @@ void main() {
       expect(ledger.deleteEntry(uuid(9)), isEmpty);
     });
   });
+
+  group('system entries', () {
+    test(
+      'setOpeningBalance stamps the entry with the opening balance kind',
+      () {
+        ledger.setOpeningBalance(Decimal.fromInt(250), uuid(1));
+
+        expect(
+          ledger.entries.values.single.systemKind,
+          SystemEntryKind.openingBalance,
+        );
+      },
+    );
+
+    for (final kind in SystemEntryKind.values) {
+      test('updateEntry on a $kind entry with a changed name throws', () {
+        ledger.addEntry(
+          Entry(
+            id: uuid(4),
+            amount: Decimal.fromInt(250),
+            name: 'Opening balance',
+            sourceID: uuid(1),
+            includeInAnalysis: false,
+            systemKind: kind,
+          ),
+        );
+
+        expect(
+          () => ledger.updateEntry(
+            entry(id: uuid(4), name: 'Renamed', sourceID: uuid(1)),
+          ),
+          throwsA(SystemEntryLocked(uuid(4))),
+        );
+        expect(ledger.entries[uuid(4)]?.name, 'Opening balance');
+      });
+
+      test('updateEntry on a $kind entry given a category throws', () {
+        ledger.addEntry(
+          Entry(
+            id: uuid(4),
+            amount: Decimal.fromInt(250),
+            name: 'Opening balance',
+            sourceID: uuid(1),
+            includeInAnalysis: false,
+            systemKind: kind,
+          ),
+        );
+
+        expect(
+          () => ledger.updateEntry(
+            entry(
+              id: uuid(4),
+              name: 'Opening balance',
+              amount: Decimal.fromInt(250),
+              sourceID: uuid(1),
+              categoryID: uuid(3),
+            ),
+          ),
+          throwsA(SystemEntryLocked(uuid(4))),
+        );
+        expect(ledger.entries[uuid(4)]?.categoryID, isNull);
+      });
+
+      test(
+        'updateEntry on a $kind entry with includeInAnalysis flipped throws',
+        () {
+          ledger.addEntry(
+            Entry(
+              id: uuid(4),
+              amount: Decimal.fromInt(250),
+              name: 'Opening balance',
+              sourceID: uuid(1),
+              includeInAnalysis: false,
+              systemKind: kind,
+            ),
+          );
+
+          expect(
+            () => ledger.updateEntry(
+              entry(
+                id: uuid(4),
+                name: 'Opening balance',
+                amount: Decimal.fromInt(250),
+                sourceID: uuid(1),
+                includeInAnalysis: true,
+              ),
+            ),
+            throwsA(SystemEntryLocked(uuid(4))),
+          );
+          expect(ledger.entries[uuid(4)]?.includeInAnalysis, isFalse);
+        },
+      );
+
+      test('updateEntry on a $kind entry with a changed amount succeeds', () {
+        ledger.addEntry(
+          Entry(
+            id: uuid(4),
+            amount: Decimal.fromInt(250),
+            name: 'Opening balance',
+            sourceID: uuid(1),
+            includeInAnalysis: false,
+            systemKind: kind,
+          ),
+        );
+
+        ledger.updateEntry(
+          Entry(
+            id: uuid(4),
+            amount: Decimal.fromInt(300),
+            name: 'Opening balance',
+            sourceID: uuid(1),
+            includeInAnalysis: false,
+            systemKind: kind,
+          ),
+        );
+        expect(ledger.entries[uuid(4)]?.amount, Decimal.fromInt(300));
+      });
+
+      test(
+        'updateEntry on a $kind entry with only the date changed succeeds',
+        () {
+          ledger.addEntry(
+            Entry(
+              id: uuid(4),
+              date: DateTime.utc(2026, 1, 1),
+              amount: Decimal.fromInt(250),
+              name: 'Opening balance',
+              sourceID: uuid(1),
+              includeInAnalysis: false,
+              systemKind: kind,
+            ),
+          );
+
+          ledger.updateEntry(
+            Entry(
+              id: uuid(4),
+              date: DateTime.utc(2026, 2, 1),
+              amount: Decimal.fromInt(250),
+              name: 'Opening balance',
+              sourceID: uuid(1),
+              includeInAnalysis: false,
+              systemKind: kind,
+            ),
+          );
+
+          expect(ledger.entries[uuid(4)]?.date, DateTime.utc(2026, 2, 1));
+        },
+      );
+
+      test('deleteEntry on a $kind entry succeeds and removes it', () {
+        ledger.addEntry(
+          Entry(
+            id: uuid(4),
+            amount: Decimal.fromInt(250),
+            name: 'Opening balance',
+            sourceID: uuid(1),
+            includeInAnalysis: false,
+            systemKind: kind,
+          ),
+        );
+
+        final changes = ledger.deleteEntry(uuid(4));
+        expect(changes, [DeleteEntry(uuid(4))]);
+        expect(ledger.entries.containsKey(uuid(4)), isFalse);
+      });
+    }
+
+    test('a normal user entry is unaffected by the system entry guards', () {
+      ledger.addEntry(entry(id: uuid(4), sourceID: uuid(1)));
+
+      ledger.updateEntry(
+        entry(
+          id: uuid(4),
+          name: 'Renamed',
+          amount: Decimal.fromInt(-99),
+          sourceID: uuid(1),
+        ),
+      );
+      expect(ledger.entries[uuid(4)]?.name, 'Renamed');
+
+      final changes = ledger.deleteEntry(uuid(4));
+      expect(changes, [DeleteEntry(uuid(4))]);
+      expect(ledger.entries.containsKey(uuid(4)), isFalse);
+    });
+  });
 }

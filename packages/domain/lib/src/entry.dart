@@ -5,6 +5,24 @@ import 'package:domain/src/ids.dart';
 import 'package:domain/src/lifecycle_state.dart';
 import 'package:meta/meta.dart';
 
+/// Marks an entry the app generates itself rather than one a user typed in,
+/// so the UI and the ledger can tell the two apart and protect the
+/// generated one from edits that would corrupt what it stands for.
+enum SystemEntryKind {
+  openingBalance(0),
+  balanceAdjustment(1);
+
+  const SystemEntryKind(this.code);
+
+  final int code;
+
+  static SystemEntryKind? fromCode(int? code) => switch (code) {
+    0 => openingBalance,
+    1 => balanceAdjustment,
+    _ => null,
+  };
+}
+
 @immutable
 class Entry with HolderReferencing {
   Entry({
@@ -17,6 +35,7 @@ class Entry with HolderReferencing {
     String? destinationID,
     this.includeInAnalysis = true,
     this.lifecycle = LifecycleState.active,
+    this.systemKind,
   }) : id = normalizedOrNewID(id),
        date = startOfDayUtc(date ?? DateTime.now()),
        categoryID = normalizedOptionalID(categoryID),
@@ -41,6 +60,7 @@ class Entry with HolderReferencing {
 
   final bool includeInAnalysis;
   final LifecycleState lifecycle;
+  final SystemEntryKind? systemKind;
 
   @override
   bool operator ==(Object other) {
@@ -53,7 +73,8 @@ class Entry with HolderReferencing {
         other.sourceID == sourceID &&
         other.destinationID == destinationID &&
         other.includeInAnalysis == includeInAnalysis &&
-        other.lifecycle == lifecycle;
+        other.lifecycle == lifecycle &&
+        other.systemKind == systemKind;
   }
 
   @override
@@ -67,5 +88,6 @@ class Entry with HolderReferencing {
     destinationID,
     includeInAnalysis,
     lifecycle,
+    systemKind,
   );
 }

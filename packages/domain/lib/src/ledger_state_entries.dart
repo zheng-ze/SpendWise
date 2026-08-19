@@ -13,6 +13,13 @@ extension LedgerStateEntries on LedgerState {
     final previous = _entries[entry.id];
     if (previous == null) throw UnknownEntry(entry.id);
 
+    if (previous.systemKind != null &&
+        (entry.name != previous.name ||
+            entry.categoryID != previous.categoryID ||
+            entry.includeInAnalysis != previous.includeInAnalysis)) {
+      throw SystemEntryLocked(entry.id);
+    }
+
     final stored = _validated(entry, previous: previous);
     _entries[stored.id] = stored;
 
@@ -43,6 +50,7 @@ extension LedgerStateEntries on LedgerState {
           name: 'Opening balance',
           sourceID: holderID,
           includeInAnalysis: false,
+          systemKind: SystemEntryKind.openingBalance,
         ),
       ),
     );
@@ -50,6 +58,9 @@ extension LedgerStateEntries on LedgerState {
 
   List<LedgerChange> deleteEntry(String rawID) {
     final id = normalizedID(rawID);
+    final existing = _entries[id];
+    if (existing == null) return _checked([]);
+
     final removed = _entries.remove(id);
     if (removed == null) return _checked([]);
 
@@ -104,6 +115,7 @@ extension LedgerStateEntries on LedgerState {
       destinationID: entry.sourceID,
       includeInAnalysis: entry.includeInAnalysis,
       lifecycle: entry.lifecycle,
+      systemKind: entry.systemKind,
     );
   }
 }

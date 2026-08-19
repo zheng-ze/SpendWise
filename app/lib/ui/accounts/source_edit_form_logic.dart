@@ -30,5 +30,6 @@ Entry? balanceAdjustmentEntry({
     name: 'Balance adjustment',
     sourceID: holderID,
     includeInAnalysis: false,
+    systemKind: SystemEntryKind.balanceAdjustment,
   );
 }

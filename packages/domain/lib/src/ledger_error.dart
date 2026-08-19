@@ -106,6 +106,13 @@ final class StaleResolutionCursor extends _IdentifiedError {
   String get _case => 'staleResolutionCursor';
 }
 
+final class SystemEntryLocked extends _IdentifiedError {
+  const SystemEntryLocked(super.id);
+
+  @override
+  String get _case => 'systemEntryLocked';
+}
+
 final class ZeroAmount extends _PlainError {
   const ZeroAmount();
 

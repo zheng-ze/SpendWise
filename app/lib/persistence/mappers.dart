@@ -143,6 +143,7 @@ Entry entryFromRow(rows.Entry row) => Entry(
   destinationID: row.destinationId,
   includeInAnalysis: row.includeInAnalysis,
   lifecycle: _lifecycle(row.lifecycle),
+  systemKind: SystemEntryKind.fromCode(row.systemKind),
 );
 
 rows.Entry entryToRow(Entry entry, VersionVector version) => rows.Entry(
@@ -156,6 +157,7 @@ rows.Entry entryToRow(Entry entry, VersionVector version) => rows.Entry(
   sourceId: entry.sourceID,
   destinationId: entry.destinationID,
   includeInAnalysis: entry.includeInAnalysis,
+  systemKind: entry.systemKind?.code,
 );
 
 RecurringPlan planFromRow(rows.Plan row) => RecurringPlan(
