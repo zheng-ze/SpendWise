@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:spendwise/ui/shell/layout_breakpoints.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/shell/status_banner.dart';
 import 'package:spendwise/ui/shell/storage_warning.dart';
 
-const _railFromWidth = 720.0;
+const _layoutTransitionDuration = Duration(milliseconds: 180);
 
 const _destinationLabels = {
   ShellDestination.transactions: 'Transactions',
@@ -21,15 +22,43 @@ const _destinationIcons = {
   ShellDestination.settings: Icons.settings_outlined,
 };
 
-class AppShell extends ConsumerWidget {
+class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key, this.bodies = const {}});
 
   final Map<ShellDestination, WidgetBuilder> bodies;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AppShell> createState() => _AppShellState();
+}
+
+class _AppShellState extends ConsumerState<AppShell> {
+  bool _useRail = false;
+  bool _extended = false;
+
+  // Two thresholds instead of one so a window sitting right at a boundary
+  // does not flip layouts back and forth as it resizes by a pixel. Once a
+  // mode is entered, width has to cross past the other threshold before it
+  // is left again.
+  void _updateLayoutMode(double width) {
+    final useRail = _useRail
+        ? width >= LayoutBreakpoints.railExit
+        : width >= LayoutBreakpoints.railEnter;
+    final extended = _extended
+        ? width >= LayoutBreakpoints.extendedRailExit
+        : width >= LayoutBreakpoints.extendedRailEnter;
+
+    if (useRail != _useRail || extended != _extended) {
+      setState(() {
+        _useRail = useRail;
+        _extended = extended;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final selected = ref.watch(selectedDestinationProvider);
-    final useRail = MediaQuery.sizeOf(context).width >= _railFromWidth;
+    _updateLayoutMode(MediaQuery.sizeOf(context).width);
 
     void select(int index) =>
         ref.read(selectedDestinationProvider.notifier).state =
@@ -41,7 +70,7 @@ class AppShell extends ConsumerWidget {
         Expanded(
           child: Stack(
             children: [
-              _DestinationStacks(selected: selected, bodies: bodies),
+              _DestinationStacks(selected: selected, bodies: widget.bodies),
               const StatusBanner(),
             ],
           ),
@@ -49,43 +78,48 @@ class AppShell extends ConsumerWidget {
       ],
     );
 
-    if (!useRail) {
-      return Scaffold(
-        body: content,
-        bottomNavigationBar: NavigationBar(
-          selectedIndex: selected.index,
-          onDestinationSelected: select,
-          destinations: [
-            for (final destination in ShellDestination.values)
-              NavigationDestination(
-                icon: Icon(_destinationIcons[destination]),
-                label: _destinationLabels[destination]!,
-              ),
-          ],
-        ),
-      );
-    }
-
-    return Scaffold(
-      body: Row(
-        children: [
-          NavigationRail(
-            selectedIndex: selected.index,
-            onDestinationSelected: select,
-            labelType: NavigationRailLabelType.all,
-            destinations: [
-              for (final destination in ShellDestination.values)
-                NavigationRailDestination(
-                  icon: Icon(_destinationIcons[destination]),
-                  label: Text(_destinationLabels[destination]!),
+    final body = !_useRail
+        ? Scaffold(
+            key: const ValueKey('bottom-nav'),
+            body: content,
+            bottomNavigationBar: NavigationBar(
+              selectedIndex: selected.index,
+              onDestinationSelected: select,
+              destinations: [
+                for (final destination in ShellDestination.values)
+                  NavigationDestination(
+                    icon: Icon(_destinationIcons[destination]),
+                    label: _destinationLabels[destination]!,
+                  ),
+              ],
+            ),
+          )
+        : Scaffold(
+            key: const ValueKey('rail'),
+            body: Row(
+              children: [
+                NavigationRail(
+                  selectedIndex: selected.index,
+                  onDestinationSelected: select,
+                  labelType: _extended
+                      ? NavigationRailLabelType.none
+                      : NavigationRailLabelType.all,
+                  extended: _extended,
+                  destinations: [
+                    for (final destination in ShellDestination.values)
+                      NavigationRailDestination(
+                        icon: Icon(_destinationIcons[destination]),
+                        label: Text(_destinationLabels[destination]!),
+                      ),
+                  ],
                 ),
-            ],
-          ),
-          const VerticalDivider(width: 1),
-          Expanded(child: content),
-        ],
-      ),
-    );
+                const VerticalDivider(width: 1),
+                Expanded(child: content),
+              ],
+            ),
+          );
+
+    return AnimatedSwitcher(duration: _layoutTransitionDuration, child: body);
   }
 }
 

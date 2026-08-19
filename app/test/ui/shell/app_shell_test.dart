@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
+import 'package:spendwise/ui/shell/layout_breakpoints.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
 const _compact = Size(400, 800);
@@ -21,6 +22,11 @@ Future<void> _pumpShell(
       child: MaterialApp(home: AppShell(bodies: bodies)),
     ),
   );
+}
+
+Future<void> _resize(WidgetTester tester, Size size) async {
+  tester.view.physicalSize = size;
+  await tester.pumpAndSettle();
 }
 
 void main() {
@@ -151,5 +157,80 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('month 2019-3'), findsOneWidget);
+  });
+
+  testWidgets(
+    'shrinking into the dead zone between thresholds stays in rail mode',
+    (tester) async {
+      await _pumpShell(tester, size: _wide);
+      expect(find.byType(NavigationRail), findsOneWidget);
+
+      // Between railExit and railEnter: still rail, because the shell was
+      // already in rail mode before crossing into the dead zone.
+      await _resize(
+        tester,
+        Size(
+          (LayoutBreakpoints.railEnter + LayoutBreakpoints.railExit) / 2,
+          900,
+        ),
+      );
+      expect(find.byType(NavigationRail), findsOneWidget);
+      expect(find.byType(NavigationBar), findsNothing);
+
+      await _resize(tester, Size(LayoutBreakpoints.railExit - 1, 900));
+      expect(find.byType(NavigationBar), findsOneWidget);
+      expect(find.byType(NavigationRail), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'growing into the dead zone between thresholds stays in bottom nav mode',
+    (tester) async {
+      await _pumpShell(tester, size: _compact);
+      expect(find.byType(NavigationBar), findsOneWidget);
+
+      // Between railExit and railEnter: still bottom nav, because the shell
+      // was already in bottom-nav mode before crossing into the dead zone.
+      await _resize(
+        tester,
+        Size(
+          (LayoutBreakpoints.railEnter + LayoutBreakpoints.railExit) / 2,
+          900,
+        ),
+      );
+      expect(find.byType(NavigationBar), findsOneWidget);
+      expect(find.byType(NavigationRail), findsNothing);
+
+      await _resize(tester, Size(LayoutBreakpoints.railEnter + 1, 900));
+      expect(find.byType(NavigationRail), findsOneWidget);
+      expect(find.byType(NavigationBar), findsNothing);
+    },
+  );
+
+  testWidgets('a rail above the extended breakpoint is extended', (
+    tester,
+  ) async {
+    await _pumpShell(
+      tester,
+      size: Size(LayoutBreakpoints.extendedRailEnter + 100, 900),
+    );
+
+    final rail = tester.widget<NavigationRail>(find.byType(NavigationRail));
+    expect(rail.extended, isTrue);
+  });
+
+  testWidgets('a rail between the rail and extended breakpoints is compact', (
+    tester,
+  ) async {
+    await _pumpShell(
+      tester,
+      size: Size(
+        (LayoutBreakpoints.railEnter + LayoutBreakpoints.extendedRailEnter) / 2,
+        900,
+      ),
+    );
+
+    final rail = tester.widget<NavigationRail>(find.byType(NavigationRail));
+    expect(rail.extended, isFalse);
   });
 }
