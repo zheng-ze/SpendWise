@@ -37,8 +37,14 @@ the suite never actually sleeps.
       maps, so `_state` became `final`. No test relied on the drain returning a fresh instance.
       Only two tests guard the delegation, both in `persistence_processor_test.dart`, so the fake's
       applied state has no direct test of its own
-- [ ] 1.9 Test: give the fake's applied state a direct test. The delegation to the domain's `apply`
+- [x] 1.9 Test: give the fake's applied state a direct test. The delegation to the domain's `apply`
       is currently guarded only as a side effect of the persistence processor suite
+      EDIT: `in_memory_ledger_store_test.dart` already covered upserts, deletes, replace-by-id, drain
+      ordering and the flush gate. Added the one gap: `enqueuedBatches keeps batch boundaries the
+      drained state merges away` at `in_memory_ledger_store_test.dart:151`, proving `enqueuedBatches`
+      stays split into separate batches even after `state` merges them. Confirmed red by clearing
+      `_pending` without applying it in `_drain()` (`in_memory_ledger_store.dart:74`), then restored
+      the original body and confirmed green again
 
 ## 2. Dependencies and schema
 
@@ -146,8 +152,19 @@ the suite never actually sleeps.
       EDIT: a second mutation reversing survivor order survived the whole suite. The order test
       asserted final map contents, which are order-independent, so ordering had no guard at all.
       `drift_ledger_store_test.dart:235` now reads rowids back from SQLite and the mutation dies
-- [ ] 5.12 Decide whether `debugPendingLength` and `debugSaveCycle()` stay public once groups 6 and 7
-      land. They exist so tests can assert pending bookkeeping and race two saves directly
+- [x] 5.12 Decide whether `debugPendingLength` and `debugSaveCycle()` stay public once groups 6 and 7
+      land. They exist so tests can assert pending bookkeeping and race two saves directly.
+      Ruled: keep as is. `debugPendingLength` shipped as `pendingCount`
+      (`app/lib/persistence/drift_ledger_store.dart:111-112`), a public getter tagged
+      `@visibleForTesting` — the annotation is a lint signal only, not a privacy boundary, so this
+      is a normal public member policed by the analyzer's
+      `invalid_use_of_visible_for_testing_member` rule rather than by the compiler. Matches the
+      pattern Flutter's own SDK uses for the same situation. A test-file extension was considered
+      and rejected: the getter reads `_pending`, a field genuinely private to this file, and Dart
+      privacy is per-file, so an extension in a different file cannot reach it without first
+      exposing `_pending` some other way, which trades one public member for two. `debugSaveCycle()`
+      was never added under that name; the real method is `_saveCycle()` (`:212`), fully private,
+      with no test-facing hook and no test relying on one. User ruling
 
 ## 6. flushNow barrier
 
@@ -201,19 +218,24 @@ the suite never actually sleeps.
       spec claim is removed. Decoding every vector on every boot polices a field nothing reads until
       sync exists, and the retry screen cannot repair a corrupt blob, so the loud version gives an
       unfixable loop rather than a working app. Damage now surfaces on the write path. User ruling
-- [ ] 7.9 DEFERRED past MVP, user ruling. `_runCycle` at `drift_ledger_store.dart:239` catches
-      `on Object`, so an error that fails identically on every attempt retries twice, reports
-      `failedWillRetry`, then retries on a timer forever behind a banner promising a recovery that
-      cannot come, and the edit is never saved. Fixing it needs a terminal state on `SaveBannerState`
-      at `ledger_store.dart:5`, whose three cases all imply recovery, plus a permanent-error class in
-      the cycle and a test that corrupts a blob by raw SQL to trigger one.
-      Deferred because the only permanent error reachable today is a corrupt version vector, which
-      needs a bug in our own encode path to occur at all: SQLite's journal rules out torn writes,
-      bit rot lands in a page rather than one blob, and the file is sandboxed. Redundancy was
-      considered and rejected for the same reason, since a second copy of a blob our own code
-      encoded wrong is wrong identically.
-      Revisit when the save banner gets a UI, or the first time any other permanent error appears
-      here. The `on Object` catch is the real gap and it is not vector-specific
+- [ ] 7.9 MOVED to the future sync-engine change, not fixed here. `_runCycle` at
+      `drift_ledger_store.dart:239` catches `on Object`, so an error that fails identically on every
+      attempt retries twice, reports `failedWillRetry`, then retries on a timer forever behind a
+      banner promising a recovery that cannot come, and the edit is never saved. Fixing it needs a
+      terminal state on `SaveBannerState` at `ledger_store.dart:5`, whose three cases all imply
+      recovery, plus a permanent-error class in the cycle and a test that corrupts a blob by raw SQL
+      to trigger one.
+      A build was attempted and reverted (user instruction) once it became clear the only reachable
+      permanent error today is a corrupt version vector, and version vectors are inert until the sync
+      engine reads them for real merge work — `docs/Flutter_Port_Tech_Doc.md` §7 roadmap item 3. This
+      store bumps and stores them but nothing decides or reconciles anything from their contents yet,
+      so a terminal-state UI built now would ship for an error class the sync engine's own change is
+      the natural place to design around, once that change also motivates the second permanent-error
+      case beyond the vector. Building it in isolation here risks a terminal state shaped for one
+      error becoming awkward once the sync engine's actual failure modes are known.
+      The `on Object` catch is the real underlying gap and it is not vector-specific. Track this as a
+      task in `add-sync-engine` (or whatever that change is named) rather than reopening it here.
+      User ruling
 - [x] 7.8 Closed, not a defect. `deviceID` resolves its `Future` once into an `Expando`, so a rolled
       back insert does not produce a second id: the same claimed id is returned and written by
       whichever attempt commits, and a discarded id was never written to any vector because the

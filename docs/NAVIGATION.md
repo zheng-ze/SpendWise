@@ -44,6 +44,13 @@ Each change depends on the ones above it.
 | `add-parity-gaps-and-platform-pass` | 6 | Treat-as-expense buckets, scope-aware transfers, a11y, l10n |
 | `add-release-targets` | 7 | Per-platform bring-up, smoke tests, README |
 
+Group 7 (localization) inside `add-parity-gaps-and-platform-pass` is skipped — personal-use app,
+no need for it yet. Revisit if that changes.
+
+`add-release-targets` (Phase 7) is also skipped for now. Its own design.md says it is verification
+and packaging, not development — "the app is finished when this starts". The port is not feature-
+complete yet, so there is nothing for it to verify. Revisit once feature work is done.
+
 Phase 1 is done and archived: the ledger container, every mutator, the lifecycle rules, Recurring
 Plans and the invariants. `openspec/project.md` holds the details, including the two spots where a
 straight translation of the Swift would have been wrong (month-end clamping, and the UUIDv5
