@@ -19,11 +19,12 @@ class AppBoot extends ChangeNotifier with WidgetsBindingObserver {
     required this.seedChanges,
     this.onSaveState,
     this.onPlanError,
+    this.onRetry,
     DateTime Function()? now,
   }) : now = now ?? _utcNow;
 
-  /// An instant, not a calendar day, so it is not normalized to UTC midnight.
-  /// A device-local one would make occurrence identity vary by timezone.
+  /// Always UTC, never device-local time.
+  // UTC keeps occurrence identity from varying by the device's timezone.
   final DateTime Function() now;
 
   static DateTime _utcNow() => DateTime.now().toUtc();
@@ -35,6 +36,9 @@ class AppBoot extends ChangeNotifier with WidgetsBindingObserver {
   final SaveErrorHandler? onSaveState;
 
   final PlanErrorHandler? onPlanError;
+
+  /// Clears the failed attempt's providers before [retry] calls [start] again.
+  final void Function()? onRetry;
 
   AppPhase _phase = const Loading();
 
@@ -79,7 +83,10 @@ class AppBoot extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  Future<void> retry() => start();
+  Future<void> retry() {
+    onRetry?.call();
+    return start();
+  }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -92,7 +99,16 @@ class AppBoot extends ChangeNotifier with WidgetsBindingObserver {
       case AppLifecycleState.inactive:
       case AppLifecycleState.paused:
       case AppLifecycleState.hidden:
-        unawaited(phase.persistence.flush());
+        unawaited(
+          phase.persistence.flush().catchError((
+            Object error,
+            StackTrace stackTrace,
+          ) {
+            debugPrint(
+              'AppBoot backgrounding flush failed: $error\n$stackTrace',
+            );
+          }),
+        );
       case AppLifecycleState.detached:
         break;
     }
@@ -138,7 +154,11 @@ class AppBoot extends ChangeNotifier with WidgetsBindingObserver {
   void dispose() {
     if (_disposed) return;
     _disposed = true;
-    unawaited(_teardown());
+    unawaited(
+      _teardown().catchError((Object error, StackTrace stackTrace) {
+        debugPrint('AppBoot dispose teardown failed: $error\n$stackTrace');
+      }),
+    );
     super.dispose();
   }
 

@@ -27,7 +27,8 @@ final storeProvider = Provider<LedgerStore>((ref) {
   final database = LedgerDatabase(
     LazyDatabase(() => ref.read(databaseConnectionProvider)),
   );
-  ref.onDispose(database.close);
+  // Swallowed here since a failed opener's error was already surfaced once.
+  ref.onDispose(() => database.close().catchError((_) {}));
   return DriftLedgerStore(database);
 });
 
@@ -54,6 +55,12 @@ final appBootProvider = ChangeNotifierProvider<AppBoot>((ref) {
     seedChanges: seedChanges,
     onSaveState: banner.receiveSaveState,
     onPlanError: banner.receivePlanErrors,
+    // LazyDatabase caches a failed open, so both providers need invalidating
+    // or a retry just replays the same failure.
+    onRetry: () {
+      ref.invalidate(storeProvider);
+      ref.invalidate(databaseConnectionProvider);
+    },
   );
 
   void joinCacheOnceReady() {

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:domain/domain.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -121,6 +123,22 @@ void main() {
 
     expect(clock.reads, 0);
     expect(store.calls, isNot(contains(StoreCall.flushNow)));
+  });
+
+  test('aFlushErrorDuringBackgroundingIsCaughtNotUnhandled', () async {
+    final store = storeWithPlan()..failOn = StoreCall.flushNow;
+    final app = boot(store);
+    await app.start();
+
+    final zoneErrors = <Object>[];
+    // An unhandled async error escapes the current zone, so wrapping in
+    // runZonedGuarded proves whether flush()'s failure was actually caught.
+    await runZonedGuarded(() async {
+      app.didChangeAppLifecycleState(AppLifecycleState.paused);
+      await Future<void>.delayed(Duration.zero);
+    }, (error, stackTrace) => zoneErrors.add(error));
+
+    expect(zoneErrors, isEmpty);
   });
 
   test('lifecycleCallbacksDoNothingWhileFailed', () async {
