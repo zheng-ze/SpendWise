@@ -87,6 +87,32 @@ void main() {
       expect(restored.statementDay, isNull);
       expect(restored, account);
     });
+
+    test('a loan account type survives the round trip', () {
+      final account = Account(
+        id: accountID,
+        name: 'Car loan',
+        type: AccountType.loan,
+      );
+
+      final row = accountToRow(account, version);
+
+      expect(row.type, 8);
+      expect(accountFromRow(row).type, AccountType.loan);
+    });
+
+    test('an overdraft account type survives the round trip', () {
+      final account = Account(
+        id: accountID,
+        name: 'Checking overdraft',
+        type: AccountType.overdraft,
+      );
+
+      final row = accountToRow(account, version);
+
+      expect(row.type, 9);
+      expect(accountFromRow(row).type, AccountType.overdraft);
+    });
   });
 
   group('pocket', () {

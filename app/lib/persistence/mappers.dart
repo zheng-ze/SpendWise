@@ -18,6 +18,8 @@ AccountType _accountType(int code) => switch (code) {
   4 => AccountType.prepaid,
   5 => AccountType.investment,
   6 => AccountType.insurance,
+  8 => AccountType.loan,
+  9 => AccountType.overdraft,
   _ => AccountType.other,
 };
 
