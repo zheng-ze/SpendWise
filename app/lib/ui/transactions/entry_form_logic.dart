@@ -48,8 +48,8 @@ Entry signedEntryForSave({
   );
 }
 
-/// One calendar day behind the anchor, so `occurrences(after: cursor, upTo:
-/// anchor)` includes the anchor day itself.
+/// One calendar day behind the anchor, so a half-open scan starting after
+/// this date still includes the anchor day itself.
 RecurringPlan buildRecurringPlanForNewEntry({
   required EntryTemplate template,
   required RecurrenceFrequency frequency,

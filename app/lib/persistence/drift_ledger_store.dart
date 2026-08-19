@@ -91,8 +91,8 @@ class DriftLedgerStore implements LedgerStore {
 
   Future<void>? _inFlightSave;
 
-  /// Reporting `clear` on every success would emit banner transitions for a
-  /// problem the app never had.
+  // Reporting `clear` on every success would emit banner transitions for a
+  // problem the app never had.
   bool _reportedNonClear = false;
 
   /// Set while a timed retry cycle runs, so those attempts do not flip the
