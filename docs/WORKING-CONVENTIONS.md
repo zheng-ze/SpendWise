@@ -36,15 +36,16 @@ do not commit it — the user commits. Wait for an explicit go-ahead before stag
 short reply like "next" or "yes" means continue the pattern, not a request to compress reporting
 further.
 
-## Phase handover docs
+## Handover docs
 
-A phase handover doc (`docs/HANDOVER-PHASE*.md`) records only the working end state. No debugging
-narrative for a tool that now works, no restating verification results that already stand unchanged,
-and no restating open tasks — those live in the next change's `tasks.md`, written so each item is
+A handover doc (`docs/HANDOVER.md`) records only the working end state. No debugging narrative for a
+tool that now works, no restating verification results that already stand unchanged, and no
+restating open tasks — those live in the next change's `tasks.md`, written so each item is
 self-contained without the handover's help. A task discovered while closing one change goes into the
 `tasks.md` of whichever change will actually pick it up next, not left behind in the closed change
-because that is where it surfaced. Handover docs stay untracked — skip `git add -N` for them, unlike
-every other file an agent creates.
+because that is where it surfaced. The doc is overwritten each session rather than accumulating —
+one file, current state only, no numbering. Handover docs stay untracked — skip `git add -N` for
+them, unlike every other file an agent creates.
 
 ## Verifying subagent work
 

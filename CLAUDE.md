@@ -106,8 +106,8 @@ existing.
 
 **Treat every finding as unverified until read at the cited `file:line`.** This covers a subagent's
 own "still open" claims and your own retelling of a subagent's finding, not just its first report.
-**`docs/WORKING-CONVENTIONS.md` has the failure patterns**, and also covers what a phase handover doc
-(`docs/HANDOVER-PHASE*.md`) should and should not contain.
+**`docs/WORKING-CONVENTIONS.md` has the failure patterns**, and also covers what a handover doc
+(`docs/HANDOVER.md`) should and should not contain.
 
 Most implementation runs through subagents, one task group at a time. **`docs/SUBAGENTS.md` has the
 dispatch procedure** — which agent for which job, how to fence parallel work, and where Gemini pays.
