@@ -45,7 +45,7 @@ class _AccountFormState extends State<AccountForm> {
   int? _statementDay;
   String? _parentId;
 
-  String? _error;
+  LedgerError? _error;
 
   @override
   void dispose() {
@@ -91,6 +91,7 @@ class _AccountFormState extends State<AccountForm> {
       selectedId: _parentId,
     );
     if (outcome == null) return;
+    if (!mounted) return;
     if (outcome is PickerChose) setState(() => _parentId = outcome.id);
   }
 
@@ -121,7 +122,7 @@ class _AccountFormState extends State<AccountForm> {
       if (!mounted) return;
       Navigator.of(context).pop();
     } on LedgerError catch (error) {
-      setState(() => _error = error.toString());
+      setState(() => _error = error);
     }
   }
 

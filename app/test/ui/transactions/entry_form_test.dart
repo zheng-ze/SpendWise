@@ -464,4 +464,50 @@ void main() {
       expect(find.text('Checking'), findsOneWidget);
     });
   });
+
+  group('picker mounted guard', () {
+    testWidgets(
+      'resolving the category picker after the form is popped does not throw',
+      (tester) async {
+        final ledger = buildLedger();
+        // Captured so it can be removed directly, since the sheet route
+        // sits above it and pop() would dismiss the sheet instead.
+        final formRoute = MaterialPageRoute<void>(
+          builder: (_) => EntryForm(ledger: ledger),
+        );
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Builder(
+              builder: (context) => Scaffold(
+                body: ElevatedButton(
+                  onPressed: () => Navigator.of(context).push(formRoute),
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('open'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Category'));
+        await tester.pumpAndSettle();
+
+        // Removes the form's own route out from under the still-open sheet,
+        // disposing EntryForm's State while the picker future is pending.
+        final rootNavigator = tester.state<NavigatorState>(
+          find.byType(Navigator).first,
+        );
+        rootNavigator.removeRoute(formRoute);
+        await tester.pump();
+
+        await tester.tap(find.text('Coffee'));
+
+        // A setState on the disposed EntryForm would throw here.
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull);
+      },
+    );
+  });
 }

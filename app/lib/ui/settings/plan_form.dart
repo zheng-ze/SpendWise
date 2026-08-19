@@ -57,7 +57,7 @@ class _PlanFormState extends State<PlanForm> {
   late bool _hasEndDate = widget.plan.endDate != null;
   late DateTime? _endDate = widget.plan.endDate;
 
-  String? _error;
+  LedgerError? _error;
 
   Decimal? get _parsedAmount => Decimal.tryParse(_amountController.text);
 
@@ -78,6 +78,7 @@ class _PlanFormState extends State<PlanForm> {
       context: context,
       selected: _frequency,
     );
+    if (!mounted) return;
     setState(() => _frequency = applyPickerResult(_frequency, picked));
   }
 
@@ -89,6 +90,7 @@ class _PlanFormState extends State<PlanForm> {
       lastDate: DateTime.utc(2100),
     );
     if (picked == null) return;
+    if (!mounted) return;
     setState(
       () => _anchor = DateTime.utc(picked.year, picked.month, picked.day),
     );
@@ -102,6 +104,7 @@ class _PlanFormState extends State<PlanForm> {
       lastDate: DateTime.utc(2100),
     );
     if (picked == null) return;
+    if (!mounted) return;
     setState(
       () => _endDate = DateTime.utc(picked.year, picked.month, picked.day),
     );
@@ -138,7 +141,7 @@ class _PlanFormState extends State<PlanForm> {
       if (!mounted) return;
       Navigator.of(context).maybePop();
     } on LedgerError catch (error) {
-      setState(() => _error = error.toString());
+      setState(() => _error = error);
     }
   }
 

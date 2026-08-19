@@ -1,3 +1,4 @@
+import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -158,17 +159,19 @@ void main() {
       expect(find.textContaining('Could not save'), findsNothing);
     });
 
-    testWidgets('names the subject and the error after a failure', (
+    testWidgets('names the subject and the friendly message after a failure', (
       tester,
     ) async {
       await tester.pumpWidget(
         _host(
-          const ErrorSection(subject: 'account', error: 'name already taken'),
+          const ErrorSection(subject: 'account', error: CategoryKindMismatch()),
         ),
       );
 
       expect(
-        find.text('Could not save account: name already taken'),
+        find.text(
+          'Could not save account: ${friendlyLedgerErrorMessage(const CategoryKindMismatch())}',
+        ),
         findsOneWidget,
       );
     });
@@ -183,7 +186,13 @@ void main() {
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Could not save account: disk is full'), findsOneWidget);
+      expect(
+        find.text(
+          'Could not save account: '
+          '${friendlyLedgerErrorMessage(const CategoryKindMismatch())}',
+        ),
+        findsOneWidget,
+      );
     });
   });
 }
@@ -194,7 +203,7 @@ class _FailingSaveForm extends StatefulWidget {
 }
 
 class _FailingSaveFormState extends State<_FailingSaveForm> {
-  String? _error;
+  LedgerError? _error;
 
   @override
   Widget build(BuildContext context) {
@@ -203,9 +212,9 @@ class _FailingSaveFormState extends State<_FailingSaveForm> {
       canSave: true,
       onSave: () async {
         try {
-          throw Exception('disk is full');
-        } on Exception {
-          setState(() => _error = 'disk is full');
+          throw const CategoryKindMismatch();
+        } on LedgerError catch (error) {
+          setState(() => _error = error);
         }
       },
       child: ErrorSection(subject: 'account', error: _error),

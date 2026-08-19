@@ -64,7 +64,7 @@ class _SourceEditFormState extends State<SourceEditForm> {
       false;
   late bool _includeInNetWorth = _account?.includeInNetWorth ?? true;
 
-  String? _error;
+  LedgerError? _error;
 
   bool get _isAccount => _account != null;
 
@@ -151,7 +151,7 @@ class _SourceEditFormState extends State<SourceEditForm> {
       if (!mounted) return;
       Navigator.of(context).pop();
     } on LedgerError catch (error) {
-      setState(() => _error = error.toString());
+      setState(() => _error = error);
     }
   }
 

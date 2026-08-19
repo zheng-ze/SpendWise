@@ -85,7 +85,7 @@ class _EntryFormState extends State<EntryForm> {
   bool _hasEndDate = false;
   DateTime? _endDate;
 
-  String? _error;
+  LedgerError? _error;
 
   bool get _isSystemEntry => widget.entry?.systemKind != null;
 
@@ -148,6 +148,7 @@ class _EntryFormState extends State<EntryForm> {
     ValueSetter<String?> assign,
   ) {
     if (outcome == null) return;
+    if (!mounted) return;
     setState(() {
       switch (outcome) {
         case PickerChose(:final id):
@@ -196,6 +197,7 @@ class _EntryFormState extends State<EntryForm> {
       context: context,
       selected: _recurrence,
     );
+    if (!mounted) return;
     setState(() {
       _recurrence = chosen;
       if (chosen == null) {
@@ -226,6 +228,7 @@ class _EntryFormState extends State<EntryForm> {
       first: DateTime.utc(2000),
     );
     if (picked == null) return;
+    if (!mounted) return;
     setState(() {
       _date = picked;
       if (_endDate != null && _endDate!.isBefore(_date)) {
@@ -240,6 +243,7 @@ class _EntryFormState extends State<EntryForm> {
       first: _date,
     );
     if (picked == null) return;
+    if (!mounted) return;
     setState(() => _endDate = picked);
   }
 
@@ -292,7 +296,7 @@ class _EntryFormState extends State<EntryForm> {
       if (!mounted) return;
       Navigator.of(context).pop();
     } on LedgerError catch (error) {
-      setState(() => _error = error.toString());
+      setState(() => _error = error);
     }
   }
 

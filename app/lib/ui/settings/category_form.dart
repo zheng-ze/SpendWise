@@ -71,7 +71,7 @@ class _CategoryFormState extends State<CategoryForm> {
   late bool _includeInAnalysis = widget.category?.includeInAnalysis ?? true;
   late String? _parentID = widget.category?.parentID ?? widget.presetParentID;
 
-  String? _error;
+  LedgerError? _error;
 
   TransactionCategory? get _presetParent {
     final id = widget.presetParentID;
@@ -133,7 +133,7 @@ class _CategoryFormState extends State<CategoryForm> {
       selected: _symbol,
       color: _color,
     );
-    if (chosen != null) setState(() => _symbol = chosen);
+    if (chosen != null && mounted) setState(() => _symbol = chosen);
   }
 
   Future<void> _pickParent() async {
@@ -157,6 +157,7 @@ class _CategoryFormState extends State<CategoryForm> {
         ),
       ),
     );
+    if (!mounted) return;
     setState(() => _parentID = chosen);
   }
 
@@ -184,7 +185,7 @@ class _CategoryFormState extends State<CategoryForm> {
       if (!mounted) return;
       Navigator.of(context).pop();
     } on LedgerError catch (error) {
-      setState(() => _error = error.toString());
+      setState(() => _error = error);
     }
   }
 
