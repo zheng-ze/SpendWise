@@ -84,4 +84,45 @@ void main() {
       matchesGoldenFile('goldens/stats_donut_single.png'),
     );
   });
+
+  testWidgets('exposes each slice name, amount and percent as semantics', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+
+    final slices = [
+      Slice(
+        bucketID: 'a0000000-0000-0000-0000-000000000001',
+        amount: dec('60'),
+        fraction: dec('0.6'),
+        name: 'Food',
+        symbolName: 'restaurant',
+        color: const Color(0xFFE53935),
+      ),
+      Slice(
+        bucketID: 'a0000000-0000-0000-0000-000000000002',
+        amount: dec('40'),
+        fraction: dec('0.4'),
+        name: 'Transport',
+        symbolName: 'directions_bus',
+        color: const Color(0xFF1E88E5),
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: StatsDonut(slices: slices)),
+      ),
+    );
+
+    final semantics = tester.getSemantics(find.byType(StatsDonut));
+    expect(semantics.label, contains('Food'));
+    expect(semantics.label, contains(r'$60.00'));
+    expect(semantics.label, contains('60%'));
+    expect(semantics.label, contains('Transport'));
+    expect(semantics.label, contains(r'$40.00'));
+    expect(semantics.label, contains('40%'));
+
+    handle.dispose();
+  });
 }

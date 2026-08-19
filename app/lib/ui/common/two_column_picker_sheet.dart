@@ -178,6 +178,7 @@ class _PickerRow extends StatelessWidget {
     // ink splash ListTile draws on the Material above it.
     return ListTile(
       tileColor: background,
+      selected: selected,
       onTap: onTap,
       leading: option.leading,
       title: Text(

@@ -1,5 +1,6 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
@@ -162,22 +163,28 @@ class _CategorySection extends StatelessWidget {
           )
         else
           for (final category in categories)
-            Dismissible(
-              key: ValueKey('category-${category.id}'),
-              direction: DismissDirection.endToStart,
-              background: const _DeleteBackground(),
-              confirmDismiss: (_) async {
-                await onDelete(category);
-                return false;
+            Semantics(
+              customSemanticsActions: {
+                CustomSemanticsAction(label: 'Delete ${category.name}'): () =>
+                    onDelete(category),
               },
-              child: _CategoryRow(
-                category: category,
-                editing: editing,
-                onTap: () => onTap(category),
-                onDelete: () => onDelete(category),
-                onAddSubcategory: category.parentID == null
-                    ? () => onAddSubcategory(category)
-                    : null,
+              child: Dismissible(
+                key: ValueKey('category-${category.id}'),
+                direction: DismissDirection.endToStart,
+                background: const _DeleteBackground(),
+                confirmDismiss: (_) async {
+                  await onDelete(category);
+                  return false;
+                },
+                child: _CategoryRow(
+                  category: category,
+                  editing: editing,
+                  onTap: () => onTap(category),
+                  onDelete: () => onDelete(category),
+                  onAddSubcategory: category.parentID == null
+                      ? () => onAddSubcategory(category)
+                      : null,
+                ),
               ),
             ),
       ],

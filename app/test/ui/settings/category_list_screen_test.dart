@@ -7,6 +7,8 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/settings/category_list_screen.dart';
 
+import '../../support/semantics_test_support.dart';
+
 void main() {
   final food = TransactionCategory(
     id: 'a0000000-0000-0000-0000-000000000001',
@@ -212,5 +214,31 @@ void main() {
       ledger.state.categories[gifts.id]!.lifecycle,
       LifecycleState.archived,
     );
+  });
+
+  testWidgets('the delete custom semantic action opens the same confirm '
+      'dialog as the swipe', (tester) async {
+    final handle = tester.ensureSemantics();
+    final ledger = buildLedger(categories: [gifts]);
+    await pumpScreen(tester, ledger);
+    await tester.pumpAndSettle();
+
+    await performCustomSemanticsAction(
+      tester,
+      of: find.text('Gifts'),
+      label: 'Delete Gifts',
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Delete Gifts?'), findsOneWidget);
+
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+
+    expect(
+      ledger.state.categories[gifts.id]!.lifecycle,
+      LifecycleState.archived,
+    );
+    handle.dispose();
   });
 }

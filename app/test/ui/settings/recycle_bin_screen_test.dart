@@ -7,6 +7,8 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/settings/recycle_bin_screen.dart';
 
+import '../../support/semantics_test_support.dart';
+
 void main() {
   Decimal dec(String value) => Decimal.parse(value);
 
@@ -306,4 +308,61 @@ void main() {
     expect(ledger.state.moneySources.containsKey(acc.id), isTrue);
     expect(find.text('Old Bank'), findsOneWidget);
   });
+
+  testWidgets(
+    'the restore custom semantic action restores it, same as the leading '
+    'swipe',
+    (tester) async {
+      final handle = tester.ensureSemantics();
+      final acc = account('a0000000-0000-0000-0000-000000000001', 'Old Bank');
+      final ledger = buildLedger(
+        moneySources: {acc.id: MoneySource.account(acc)},
+      );
+      await pumpScreen(tester, ledger);
+      await tester.pumpAndSettle();
+
+      await performCustomSemanticsAction(
+        tester,
+        of: find.text('Old Bank'),
+        label: 'Restore Old Bank',
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        ledger.state.moneySources[acc.id]!.lifecycle,
+        LifecycleState.active,
+      );
+      expect(find.text('Old Bank'), findsNothing);
+      handle.dispose();
+    },
+  );
+
+  testWidgets(
+    'the purge custom semantic action shows the same purge confirmation as '
+    'the trailing swipe and removes the row once confirmed',
+    (tester) async {
+      final handle = tester.ensureSemantics();
+      final acc = account('a0000000-0000-0000-0000-000000000001', 'Old Bank');
+      final ledger = buildLedger(
+        moneySources: {acc.id: MoneySource.account(acc)},
+      );
+      await pumpScreen(tester, ledger);
+      await tester.pumpAndSettle();
+
+      await performCustomSemanticsAction(
+        tester,
+        of: find.text('Old Bank'),
+        label: 'Purge Old Bank',
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Delete permanently?'), findsOneWidget);
+
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+
+      expect(ledger.state.moneySources.containsKey(acc.id), isFalse);
+      handle.dispose();
+    },
+  );
 }

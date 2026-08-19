@@ -9,6 +9,8 @@ import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/stats/category_detail_screen.dart';
 import 'package:spendwise/ui/stats/stats_screen.dart';
 
+import '../../support/semantics_test_support.dart';
+
 void main() {
   Decimal dec(String value) => Decimal.parse(value);
 
@@ -386,6 +388,47 @@ void main() {
       expect(find.text('Misc food buy', skipOffstage: false), findsOneWidget);
       expect(find.text('Lunch at hawker', skipOffstage: false), findsNothing);
     });
+
+    testWidgets(
+      'the delete custom semantic action opens the same confirm dialog as '
+      'the swipe and removes only that entry',
+      (tester) async {
+        final handle = tester.ensureSemantics();
+        final keepEntry = Entry(
+          amount: dec('-10'),
+          name: 'Lunch at hawker',
+          sourceID: account.id,
+          categoryID: hawkerID,
+          date: day(1),
+        );
+        final deleteEntry = Entry(
+          amount: dec('-5'),
+          name: 'Coffee run',
+          sourceID: account.id,
+          categoryID: cafeID,
+          date: day(2),
+        );
+        final ledger = buildLedger(
+          entries: {keepEntry.id: keepEntry, deleteEntry.id: deleteEntry},
+        );
+        await pumpDetail(tester, ledger);
+        await tester.pumpAndSettle();
+
+        await performCustomSemanticsAction(
+          tester,
+          of: find.text('Coffee run', skipOffstage: false),
+          label: 'Delete Food/Cafe',
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Delete'));
+        await tester.pumpAndSettle();
+
+        expect(ledger.state.entries.containsKey(deleteEntry.id), isFalse);
+        expect(ledger.state.entries.containsKey(keepEntry.id), isTrue);
+        handle.dispose();
+      },
+    );
   });
 
   testWidgets('tapping a legend row in StatsScreen pushes the detail screen', (

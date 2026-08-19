@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/settings/plan_list_screen.dart';
 
+import '../../support/semantics_test_support.dart';
+
 void main() {
   Decimal dec(String value) => Decimal.parse(value);
 
@@ -98,4 +100,75 @@ void main() {
     expect(incomeColor, isNot(expenseColor));
     expect(expenseColor, theme.colorScheme.onSurfaceVariant);
   });
+
+  testWidgets('swiping a plan and confirming removes it from plans', (
+    tester,
+  ) async {
+    final plan = RecurringPlan(
+      template: EntryTemplate(
+        amount: dec('-10'),
+        name: 'Rent',
+        sourceID: source.id,
+      ),
+      frequency: RecurrenceFrequency.monthly,
+      anchor: DateTime.utc(2026, 1, 1),
+      lastResolvedDate: DateTime.utc(2025, 12, 31),
+    );
+    final ledger = Ledger(
+      state: LedgerState(
+        moneySources: {source.id: MoneySource.account(source)},
+        plans: {plan.id: plan},
+      ),
+    );
+
+    await pumpScreen(tester, ledger);
+
+    await tester.drag(find.text('Rent'), const Offset(-500, 0));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+
+    expect(ledger.state.plans.containsKey(plan.id), isFalse);
+  });
+
+  testWidgets(
+    'the delete custom semantic action opens the same confirm dialog as '
+    'the swipe and removes the plan once confirmed',
+    (tester) async {
+      final handle = tester.ensureSemantics();
+      final plan = RecurringPlan(
+        template: EntryTemplate(
+          amount: dec('-10'),
+          name: 'Rent',
+          sourceID: source.id,
+        ),
+        frequency: RecurrenceFrequency.monthly,
+        anchor: DateTime.utc(2026, 1, 1),
+        lastResolvedDate: DateTime.utc(2025, 12, 31),
+      );
+      final ledger = Ledger(
+        state: LedgerState(
+          moneySources: {source.id: MoneySource.account(source)},
+          plans: {plan.id: plan},
+        ),
+      );
+
+      await pumpScreen(tester, ledger);
+
+      await performCustomSemanticsAction(
+        tester,
+        of: find.text('Rent'),
+        label: 'Delete Rent',
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Delete Rent?'), findsOneWidget);
+
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+
+      expect(ledger.state.plans.containsKey(plan.id), isFalse);
+      handle.dispose();
+    },
+  );
 }

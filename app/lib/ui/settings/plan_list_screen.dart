@@ -1,5 +1,6 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/format/amount_color.dart';
@@ -78,26 +79,37 @@ class _PlanListScreenState extends State<PlanListScreen> {
               : ListView(
                   children: [
                     for (final plan in plans)
-                      Dismissible(
-                        key: ValueKey('plan-${plan.id}'),
-                        direction: DismissDirection.endToStart,
-                        background: const _DeleteBackground(),
-                        confirmDismiss: (_) => _confirmDelete(plan),
-                        onDismissed: (_) => widget.ledger.deletePlan(plan.id),
-                        child: _PlanRow(
-                          plan: plan,
-                          state: widget.ledger.state,
-                          editing: _editing,
-                          onTap: () => showPlanFormSheet(
-                            context: context,
-                            ledger: widget.ledger,
-                            plan: plan,
-                          ),
-                          onDelete: () async {
+                      Semantics(
+                        customSemanticsActions: {
+                          CustomSemanticsAction(
+                            label: 'Delete ${plan.template.name}',
+                          ): () async {
                             if (await _confirmDelete(plan)) {
                               widget.ledger.deletePlan(plan.id);
                             }
                           },
+                        },
+                        child: Dismissible(
+                          key: ValueKey('plan-${plan.id}'),
+                          direction: DismissDirection.endToStart,
+                          background: const _DeleteBackground(),
+                          confirmDismiss: (_) => _confirmDelete(plan),
+                          onDismissed: (_) => widget.ledger.deletePlan(plan.id),
+                          child: _PlanRow(
+                            plan: plan,
+                            state: widget.ledger.state,
+                            editing: _editing,
+                            onTap: () => showPlanFormSheet(
+                              context: context,
+                              ledger: widget.ledger,
+                              plan: plan,
+                            ),
+                            onDelete: () async {
+                              if (await _confirmDelete(plan)) {
+                                widget.ledger.deletePlan(plan.id);
+                              }
+                            },
+                          ),
                         ),
                       ),
                   ],

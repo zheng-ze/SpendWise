@@ -7,6 +7,8 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/transactions/daily_transactions_screen.dart';
 
+import '../../support/semantics_test_support.dart';
+
 void main() {
   Decimal dec(String value) => Decimal.parse(value);
   // The screen defaults to the current month, so the fixture entries must
@@ -66,6 +68,55 @@ void main() {
     },
   );
 
+  testWidgets(
+    'the delete custom semantic action opens the same confirm dialog as '
+    'the swipe and deletes only that row',
+    (tester) async {
+      final handle = tester.ensureSemantics();
+      final keepEntry = Entry(
+        amount: dec('-5'),
+        name: 'keep me',
+        sourceID: account.id,
+        date: day(1),
+      );
+      final deleteEntry = Entry(
+        amount: dec('-9'),
+        name: 'delete me',
+        sourceID: account.id,
+        date: day(1),
+      );
+
+      final ledger = Ledger(
+        state: LedgerState(
+          moneySources: {account.id: MoneySource.account(account)},
+          entries: {keepEntry.id: keepEntry, deleteEntry.id: deleteEntry},
+        ),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [ledgerProvider.overrideWithValue(ledger)],
+          child: const MaterialApp(home: TransactionsScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await performCustomSemanticsAction(
+        tester,
+        of: find.text('delete me'),
+        label: 'Delete Uncategorized',
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+
+      expect(ledger.state.entries.containsKey(deleteEntry.id), isFalse);
+      expect(ledger.state.entries.containsKey(keepEntry.id), isTrue);
+      handle.dispose();
+    },
+  );
+
   testWidgets('tapping a row opens the entry form for it, read-only', (
     tester,
   ) async {
@@ -98,6 +149,45 @@ void main() {
     expect(find.text('Save'), findsNothing);
     expect(find.byIcon(Icons.edit_outlined), findsOneWidget);
   });
+
+  testWidgets(
+    'a system entry row can be swiped away and deletes like any other row',
+    (tester) async {
+      final systemEntry = Entry(
+        amount: dec('250'),
+        name: 'Opening balance',
+        sourceID: account.id,
+        date: day(1),
+        includeInAnalysis: false,
+        systemKind: SystemEntryKind.openingBalance,
+      );
+
+      final ledger = Ledger(
+        state: LedgerState(
+          moneySources: {account.id: MoneySource.account(account)},
+          entries: {systemEntry.id: systemEntry},
+        ),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [ledgerProvider.overrideWithValue(ledger)],
+          child: const MaterialApp(home: TransactionsScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(Dismissible), findsOneWidget);
+
+      await tester.drag(find.text('Opening balance'), const Offset(-500, 0));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+
+      expect(ledger.state.entries.containsKey(systemEntry.id), isFalse);
+    },
+  );
 
   testWidgets('the add action opens a new, editable entry form', (
     tester,

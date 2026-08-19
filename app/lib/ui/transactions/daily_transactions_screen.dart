@@ -1,5 +1,6 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
@@ -312,17 +313,34 @@ class _DaySliverList extends StatelessWidget {
       itemBuilder: (context, index) {
         final row = section.rows[index];
         final entry = state.entries[row.id]!;
+        final cell = TransactionCell(
+          row: row,
+          onTap: onRowTap == null ? null : () => onRowTap!(entry),
+        );
 
-        return Dismissible(
-          key: ValueKey(entry.id),
-          direction: DismissDirection.endToStart,
-          background: const _DeleteBackground(),
-          confirmDismiss: (_) =>
-              showDeleteConfirmation(context, note: row.note, title: row.title),
-          onDismissed: (_) => ledger.deleteEntry(entry.id),
-          child: TransactionCell(
-            row: row,
-            onTap: onRowTap == null ? null : () => onRowTap!(entry),
+        return Semantics(
+          customSemanticsActions: {
+            CustomSemanticsAction(label: 'Delete ${row.title}'): () async {
+              if (await showDeleteConfirmation(
+                context,
+                note: row.note,
+                title: row.title,
+              )) {
+                ledger.deleteEntry(entry.id);
+              }
+            },
+          },
+          child: Dismissible(
+            key: ValueKey(entry.id),
+            direction: DismissDirection.endToStart,
+            background: const _DeleteBackground(),
+            confirmDismiss: (_) => showDeleteConfirmation(
+              context,
+              note: row.note,
+              title: row.title,
+            ),
+            onDismissed: (_) => ledger.deleteEntry(entry.id),
+            child: cell,
           ),
         );
       },

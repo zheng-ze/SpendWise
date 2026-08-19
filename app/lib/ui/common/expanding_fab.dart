@@ -54,6 +54,7 @@ class _ExpandingFabState extends State<ExpandingFab> {
           padding: const EdgeInsets.all(16),
           child: FloatingActionButton(
             onPressed: widget.primary.onTap,
+            tooltip: widget.primary.label,
             child: Icon(widget.primary.icon),
           ),
         ),
@@ -64,10 +65,12 @@ class _ExpandingFabState extends State<ExpandingFab> {
       children: [
         if (_expanded)
           Positioned.fill(
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: _collapse,
-              child: const SizedBox.expand(),
+            child: ExcludeSemantics(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _collapse,
+                child: const SizedBox.expand(),
+              ),
             ),
           ),
         Align(
@@ -92,6 +95,7 @@ class _ExpandingFabState extends State<ExpandingFab> {
                 ],
                 FloatingActionButton(
                   onPressed: _toggle,
+                  tooltip: _expanded ? 'Close menu' : widget.primary.label,
                   child: AnimatedRotation(
                     turns: _expanded ? 0.125 : 0,
                     duration: const Duration(milliseconds: 200),
@@ -116,21 +120,25 @@ class _ActionCapsule extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Material(
-      color: theme.colorScheme.secondaryContainer,
-      borderRadius: BorderRadius.circular(24),
-      child: InkWell(
+    return Semantics(
+      button: true,
+      label: action.label,
+      child: Material(
+        color: theme.colorScheme.secondaryContainer,
         borderRadius: BorderRadius.circular(24),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(action.label),
-              const SizedBox(width: 8),
-              Icon(action.icon, size: 20),
-            ],
+        child: InkWell(
+          borderRadius: BorderRadius.circular(24),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ExcludeSemantics(child: Text(action.label)),
+                const SizedBox(width: 8),
+                Icon(action.icon, size: 20),
+              ],
+            ),
           ),
         ),
       ),

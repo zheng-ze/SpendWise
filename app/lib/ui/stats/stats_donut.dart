@@ -25,17 +25,34 @@ class StatsDonut extends StatelessWidget {
     final positive = slices.where((s) => s.amount.sign > 0).toList();
     final theme = Theme.of(context);
 
-    return SizedBox(
-      height: 260,
-      child: CustomPaint(
-        painter: _DonutPainter(
-          slices: positive,
-          labelColor: theme.colorScheme.onSurface,
+    return Semantics(
+      label: _summaryLabel(positive),
+      child: SizedBox(
+        height: 260,
+        child: ExcludeSemantics(
+          child: CustomPaint(
+            painter: _DonutPainter(
+              slices: positive,
+              labelColor: theme.colorScheme.onSurface,
+            ),
+            size: Size.infinite,
+          ),
         ),
-        size: Size.infinite,
       ),
     );
   }
+}
+
+/// One line per slice so a screen reader gets the same name, amount and
+/// share the canvas draws visually, since the canvas itself is excluded.
+String _summaryLabel(List<Slice> slices) {
+  return slices
+      .map(
+        (slice) =>
+            '${slice.name}, ${formatCurrency(slice.amount)}, '
+            '${formatPercent(slice.fraction.toDouble())}',
+      )
+      .join('. ');
 }
 
 class _DonutPainter extends CustomPainter {

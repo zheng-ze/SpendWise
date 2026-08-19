@@ -1,3 +1,5 @@
+import 'dart:ui' show Tristate;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ui/common/two_column_picker_sheet.dart';
@@ -87,5 +89,37 @@ void main() {
     await _openAndAct(tester, (tester) async {
       expect(find.text('None'), findsNothing);
     });
+  });
+
+  testWidgets('the selected row exposes its selected state via semantics', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: TwoColumnPickerSheet(
+            title: 'Category',
+            groups: _groups,
+            selectedId: 'food',
+          ),
+        ),
+      ),
+    );
+
+    final selectedNode = tester.getSemantics(find.text('Food'));
+    expect(
+      selectedNode.getSemanticsData().flagsCollection.isSelected,
+      Tristate.isTrue,
+    );
+
+    final unselectedNode = tester.getSemantics(find.text('Travel'));
+    expect(
+      unselectedNode.getSemanticsData().flagsCollection.isSelected,
+      isNot(Tristate.isTrue),
+    );
+
+    handle.dispose();
   });
 }

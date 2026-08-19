@@ -1,5 +1,6 @@
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 
 import 'package:spendwise/ui/accounts/account_sections.dart';
 import 'package:spendwise/ui/format/amount_color.dart';
@@ -35,17 +36,24 @@ class AccountRowTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Dismissible(
-          key: ValueKey('account-${row.id}'),
-          direction: DismissDirection.endToStart,
-          background: const _DeleteBackground(),
-          confirmDismiss: (_) => confirmDeleteAccount(),
-          onDismissed: (_) => onAccountDeleted(),
-          child: _AccountRowBody(
-            row: row,
-            expanded: expanded,
-            onToggleExpanded: onToggleExpanded,
-            onTap: onTap,
+        Semantics(
+          customSemanticsActions: {
+            CustomSemanticsAction(label: 'Delete ${row.name}'): () async {
+              if (await confirmDeleteAccount()) onAccountDeleted();
+            },
+          },
+          child: Dismissible(
+            key: ValueKey('account-${row.id}'),
+            direction: DismissDirection.endToStart,
+            background: const _DeleteBackground(),
+            confirmDismiss: (_) => confirmDeleteAccount(),
+            onDismissed: (_) => onAccountDeleted(),
+            child: _AccountRowBody(
+              row: row,
+              expanded: expanded,
+              onToggleExpanded: onToggleExpanded,
+              onTap: onTap,
+            ),
           ),
         ),
         if (expanded) ...[
@@ -55,16 +63,27 @@ class AccountRowTile extends StatelessWidget {
             onTap: onOpenAccountAlone,
           ),
           for (final pocket in row.pockets)
-            Dismissible(
-              key: ValueKey('pocket-${pocket.id}'),
-              direction: DismissDirection.endToStart,
-              background: const _DeleteBackground(),
-              confirmDismiss: (_) => confirmDeletePocket(pocket),
-              onDismissed: (_) => onPocketDeleted(pocket),
-              child: _SubRow(
-                title: pocket.name,
-                amount: pocket.balance,
-                onTap: () => onOpenPocket(pocket),
+            Semantics(
+              customSemanticsActions: {
+                CustomSemanticsAction(
+                  label: 'Delete ${pocket.name}',
+                ): () async {
+                  if (await confirmDeletePocket(pocket)) {
+                    onPocketDeleted(pocket);
+                  }
+                },
+              },
+              child: Dismissible(
+                key: ValueKey('pocket-${pocket.id}'),
+                direction: DismissDirection.endToStart,
+                background: const _DeleteBackground(),
+                confirmDismiss: (_) => confirmDeletePocket(pocket),
+                onDismissed: (_) => onPocketDeleted(pocket),
+                child: _SubRow(
+                  title: pocket.name,
+                  amount: pocket.balance,
+                  onTap: () => onOpenPocket(pocket),
+                ),
               ),
             ),
         ],

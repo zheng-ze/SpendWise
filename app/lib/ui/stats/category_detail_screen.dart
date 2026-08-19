@@ -2,6 +2,7 @@ import 'package:decimal/decimal.dart';
 import 'package:domain/domain.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
@@ -691,22 +692,38 @@ class _EntryRow extends StatelessWidget {
     final entry = state.entries[row.id];
     if (entry == null) return const SizedBox.shrink();
 
-    return Dismissible(
-      key: ValueKey(entry.id),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        color: Theme.of(context).colorScheme.error,
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: const Icon(Icons.delete_outline, color: Colors.white),
-      ),
-      confirmDismiss: (_) =>
-          showDeleteConfirmation(context, note: row.note, title: row.title),
-      onDismissed: (_) => ledger.deleteEntry(entry.id),
-      child: TransactionCell(
-        row: row,
-        onTap: () =>
-            showEntryFormSheet(context: context, ledger: ledger, entry: entry),
+    return Semantics(
+      customSemanticsActions: {
+        CustomSemanticsAction(label: 'Delete ${row.title}'): () async {
+          if (await showDeleteConfirmation(
+            context,
+            note: row.note,
+            title: row.title,
+          )) {
+            ledger.deleteEntry(entry.id);
+          }
+        },
+      },
+      child: Dismissible(
+        key: ValueKey(entry.id),
+        direction: DismissDirection.endToStart,
+        background: Container(
+          color: Theme.of(context).colorScheme.error,
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: const Icon(Icons.delete_outline, color: Colors.white),
+        ),
+        confirmDismiss: (_) =>
+            showDeleteConfirmation(context, note: row.note, title: row.title),
+        onDismissed: (_) => ledger.deleteEntry(entry.id),
+        child: TransactionCell(
+          row: row,
+          onTap: () => showEntryFormSheet(
+            context: context,
+            ledger: ledger,
+            entry: entry,
+          ),
+        ),
       ),
     );
   }

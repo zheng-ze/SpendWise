@@ -1,5 +1,6 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
@@ -258,40 +259,52 @@ class _BinRowTile extends StatelessWidget {
         ? '1 reference'
         : '${row.referenceCount} references';
 
-    return Dismissible(
-      key: ValueKey('bin-${row.kind}-${row.id}'),
-      direction: DismissDirection.horizontal,
-      background: const _RestoreBackground(),
-      secondaryBackground: const _PurgeBackground(),
-      confirmDismiss: (direction) async {
-        if (direction == DismissDirection.startToEnd) {
-          onRestore();
-          return false;
-        }
-        final confirmed = await onConfirmPurge();
-        if (confirmed) onPurge();
-        return false;
+    return Semantics(
+      customSemanticsActions: {
+        CustomSemanticsAction(label: 'Restore ${row.name}'): onRestore,
+        CustomSemanticsAction(label: 'Purge ${row.name}'): () async {
+          final confirmed = await onConfirmPurge();
+          if (confirmed) onPurge();
+        },
       },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        child: Row(
-          children: [
-            row.symbolName != null
-                ? CategoryIcon(
-                    symbolName: row.symbolName!,
-                    color: row.color ?? colorHexFallback,
-                    size: 28,
-                  )
-                : Icon(sectionIcon, color: theme.colorScheme.onSurfaceVariant),
-            const SizedBox(width: 12),
-            Expanded(child: Text(row.name, style: theme.textTheme.bodyLarge)),
-            Text(
-              referenceLabel,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+      child: Dismissible(
+        key: ValueKey('bin-${row.kind}-${row.id}'),
+        direction: DismissDirection.horizontal,
+        background: const _RestoreBackground(),
+        secondaryBackground: const _PurgeBackground(),
+        confirmDismiss: (direction) async {
+          if (direction == DismissDirection.startToEnd) {
+            onRestore();
+            return false;
+          }
+          final confirmed = await onConfirmPurge();
+          if (confirmed) onPurge();
+          return false;
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
+            children: [
+              row.symbolName != null
+                  ? CategoryIcon(
+                      symbolName: row.symbolName!,
+                      color: row.color ?? colorHexFallback,
+                      size: 28,
+                    )
+                  : Icon(
+                      sectionIcon,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+              const SizedBox(width: 12),
+              Expanded(child: Text(row.name, style: theme.textTheme.bodyLarge)),
+              Text(
+                referenceLabel,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
