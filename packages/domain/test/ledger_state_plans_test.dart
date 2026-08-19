@@ -260,28 +260,6 @@ void main() {
       expect(state.plans[planID], stored);
     });
 
-    test('does not exempt a holder the stored plan already references', () {
-      final state = seeded();
-      final stored = plan();
-      state.addPlan(stored);
-      state.updateAccount(
-        Account(
-          id: accountID,
-          name: 'Checking',
-          type: AccountType.cash,
-          lifecycle: LifecycleState.archived,
-        ),
-      );
-
-      expect(
-        () => state.updatePlan(
-          plan(entryTemplate: template(amount: Decimal.fromInt(-99))),
-        ),
-        throwsA(InactiveReference(accountID)),
-      );
-      expect(state.plans[planID], stored);
-    });
-
     test('a plan with anchor shifted after resolution is rejected '
         'rather than re-minting occurrences under the new schedule', () {
       // Rewinding lastResolvedDate on the incoming plan cannot make this

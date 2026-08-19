@@ -241,30 +241,6 @@ void main() {
       );
     });
 
-    test('archiving an account through an edit takes its pockets down', () {
-      final state = LedgerState();
-      state.addAccount(account());
-      state.addPocket(SubPocket(id: pocketID, name: 'Bills'), accountID);
-
-      final changes = state.updateAccount(
-        account(lifecycle: LifecycleState.archived),
-      );
-
-      expect(state.moneySources[pocketID]!.lifecycle, LifecycleState.archived);
-      expect(
-        changes,
-        contains(
-          UpsertPocket(
-            SubPocket(
-              id: pocketID,
-              name: 'Bills',
-              lifecycle: LifecycleState.archived,
-            ),
-          ),
-        ),
-      );
-    });
-
     test('a pocket less alive than an active account is legal', () {
       final state = LedgerState(
         moneySources: {
@@ -677,6 +653,50 @@ void main() {
       state.addAccount(account());
 
       state.updateAccount(account(lifecycle: LifecycleState.tombstoned));
+
+      expect(state.moneySources[accountID]!.lifecycle, LifecycleState.active);
+    });
+
+    test('an edit cannot move an active, unreferenced account to '
+        'referenceOnly', () {
+      final state = LedgerState();
+      state.addAccount(account());
+
+      state.updateAccount(account(lifecycle: LifecycleState.referenceOnly));
+
+      expect(state.moneySources[accountID]!.lifecycle, LifecycleState.active);
+    });
+
+    test('an edit cannot move an active pocket to referenceOnly', () {
+      final state = LedgerState();
+      state.addAccount(account());
+      state.addPocket(SubPocket(id: pocketID, name: 'Bills'), accountID);
+
+      state.updatePocket(
+        SubPocket(
+          id: pocketID,
+          name: 'Bills',
+          lifecycle: LifecycleState.referenceOnly,
+        ),
+      );
+
+      expect(state.moneySources[pocketID]!.lifecycle, LifecycleState.active);
+    });
+
+    test('an edit cannot move an active category to referenceOnly', () {
+      final state = LedgerState();
+      state.addCategory(category());
+
+      state.updateCategory(category(lifecycle: LifecycleState.referenceOnly));
+
+      expect(state.categories[uuid(5)]!.lifecycle, LifecycleState.active);
+    });
+
+    test('an edit cannot archive an active account', () {
+      final state = LedgerState();
+      state.addAccount(account());
+
+      state.updateAccount(account(lifecycle: LifecycleState.archived));
 
       expect(state.moneySources[accountID]!.lifecycle, LifecycleState.active);
     });

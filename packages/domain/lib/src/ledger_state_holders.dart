@@ -24,9 +24,7 @@ extension LedgerStateHolders on LedgerState {
         .withNormalizedStatementDay()
         .withEligibleTransferFlag()
         .withSubPockets(existing.subPocketIDs)
-        .settingLifecycle(
-          _editableLifecycle(account.lifecycle, existing.lifecycle),
-        );
+        .settingLifecycle(_editableLifecycle(existing.lifecycle));
     _moneySources[stored.id] = AccountSource(stored);
     return _checked([UpsertAccount(stored), ..._demotePocketsBelow(stored)]);
   }
@@ -68,7 +66,7 @@ extension LedgerStateHolders on LedgerState {
     if (existing == null) throw UnknownHolder(pocket.id);
 
     final requested = pocket.settingLifecycle(
-      _editableLifecycle(pocket.lifecycle, existing.lifecycle),
+      _editableLifecycle(existing.lifecycle),
     );
     final stored = _willOutliveParentAccount(requested)
         ? requested.settingLifecycle(existing.lifecycle)

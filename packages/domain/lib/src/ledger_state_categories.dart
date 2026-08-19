@@ -25,7 +25,7 @@ extension LedgerStateCategories on LedgerState {
     _validateParent(category);
 
     final requested = category.settingLifecycle(
-      _editableLifecycle(category.lifecycle, existing.lifecycle),
+      _editableLifecycle(existing.lifecycle),
     );
     final stored = _willOutliveParentCategory(requested)
         ? requested.settingLifecycle(existing.lifecycle)

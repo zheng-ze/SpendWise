@@ -415,12 +415,6 @@ void main() {
         LifecycleState.referenceOnly,
       );
     });
-
-    test('updatePocket may archive a pocket under an active parent', () {
-      ledger.updatePocket(pocket(uuid(2), lifecycle: LifecycleState.archived));
-
-      expect(ledger.moneySources[uuid(2)]?.lifecycle, LifecycleState.archived);
-    });
   });
 
   group('a category may never outlive its parent', () {
@@ -459,27 +453,6 @@ void main() {
 
       expect(changes, [UpsertCategory(ledger.categories[uuid(11)]!)]);
       expect(changes, isNot([UpsertCategory(argument)]));
-    });
-
-    test('a child may be archived under an active parent', () {
-      ledger.updateCategory(
-        category(
-          uuid(11),
-          parent: uuid(10),
-          lifecycle: LifecycleState.archived,
-        ),
-      );
-
-      expect(ledger.categories[uuid(11)]?.lifecycle, LifecycleState.archived);
-    });
-
-    test('a root category changes lifecycle freely', () {
-      final changes = ledger.updateCategory(
-        category(uuid(10), lifecycle: LifecycleState.archived),
-      );
-
-      expect(ledger.categories[uuid(10)]?.lifecycle, LifecycleState.archived);
-      expect(changes, [UpsertCategory(ledger.categories[uuid(10)]!)]);
     });
 
     test('reparenting under an archived parent cannot go active', () {
