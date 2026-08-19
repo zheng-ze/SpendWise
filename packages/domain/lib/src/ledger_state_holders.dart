@@ -14,8 +14,9 @@ extension LedgerStateHolders on LedgerState {
     return _checked([UpsertAccount(stored)]);
   }
 
-  /// Links come from the stored row, so an edit can neither add nor drop a
-  /// pocket. Only `addPocket` and the purge detach may move them.
+  /// An edit can neither add nor drop a pocket link.
+  // Links come from the stored row. Only addPocket and the purge detach may
+  // move them.
   List<LedgerChange> updateAccount(Account account) {
     final existing = _moneySources[account.id]?.asAccount;
     if (existing == null) throw UnknownAccount(account.id);
@@ -29,9 +30,8 @@ extension LedgerStateHolders on LedgerState {
     return _checked([UpsertAccount(stored), ..._demotePocketsBelow(stored)]);
   }
 
-  /// A pocket may never be more alive than its account. The pocket write path
-  /// enforces that by judging the child, so an edit that moves the parent
-  /// instead has to carry its pockets down itself.
+  // A pocket may never be more alive than its account, so an edit that moves
+  // the parent down has to carry its pockets down with it.
   List<LedgerChange> _demotePocketsBelow(Account account) {
     final changes = <LedgerChange>[];
     for (final pocketID in account.subPocketIDs) {

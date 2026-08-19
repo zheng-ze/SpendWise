@@ -46,9 +46,8 @@ class AppBoot extends ChangeNotifier with WidgetsBindingObserver {
 
   EventBus? _bus;
 
-  /// Tracks whatever the current attempt has wired so far, independent of
-  /// phase. A throw after wiring but before (or after) reaching `Ready` still
-  /// leaves something here for `_teardown` to find and dispose.
+  // Tracked separately from phase so a throw during wiring still leaves
+  // something for `_teardown` to dispose.
   PersistenceProcessor? _persistence;
 
   Ledger? _ledger;
@@ -114,11 +113,8 @@ class AppBoot extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  /// Flush must precede disposal or a retry drops the pending writes. This
-  /// runs off the tracked wiring fields rather than `phase is Ready`, since a
-  /// throw partway through `start()` can leave persistence and the ledger
-  /// wired with no `Ready` phase ever reaching them, or a `Ready` reached and
-  /// then overwritten by a later throw in the same attempt.
+  // Checks the tracked wiring fields, not `phase is Ready`, since a
+  // mid-`start()` throw can wire persistence without ever reaching `Ready`.
   Future<void> _teardown() async {
     final persistence = _persistence;
     if (persistence != null) {
@@ -135,14 +131,9 @@ class AppBoot extends ChangeNotifier with WidgetsBindingObserver {
 
   bool _disposed = false;
 
-  /// `ChangeNotifier.dispose()` is synchronous, so the `dispose()` override
-  /// below cannot await the flush and is best-effort: a container torn down
-  /// right as the app exits can still drop a pending write. A caller that
-  /// controls its own shutdown sequence and can await should call this
-  /// instead, ahead of whatever disposes the provider, to get a guaranteed
-  /// flush. Either path marks the notifier disposed, so the provider's own
-  /// later `dispose()` call (Riverpod always makes one) becomes a no-op
-  /// instead of disposing a `ChangeNotifier` twice.
+  /// Flushes pending writes and tears down, then calls the base [dispose].
+  // Call this ahead of provider disposal. The synchronous dispose() override
+  // below cannot await a flush, so this is the only path that guarantees one.
   Future<void> disposeAndFlush() async {
     if (_disposed) return;
     _disposed = true;

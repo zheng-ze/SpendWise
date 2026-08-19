@@ -56,9 +56,9 @@ class LedgerState {
 
   final Map<String, RecurringPlan> _plans;
 
-  /// Views, not the tables. Mutators are one of only two write paths, so the
-  /// guards cannot be walked around and the invariants have a single choke
-  /// point. Replay is the other, and it deliberately skips both.
+  /// An unmodifiable view, not the underlying table.
+  // Keeps a caller from bypassing the mutators' guards by writing through
+  // the returned map.
   Map<String, MoneySource> get moneySources =>
       UnmodifiableMapView(_moneySources);
 
@@ -69,11 +69,11 @@ class LedgerState {
 
   Map<String, RecurringPlan> get plans => UnmodifiableMapView(_plans);
 
-  /// Previous settled lifecycles, for the one check that judges a transition
-  /// rather than a state. Written only from inside an `assert`.
+  // Previous settled lifecycles, for the one check that judges a transition
+  // rather than a state. Written only from inside an `assert`.
   Map<String, LifecycleState>? _lifecycleAtLastCheck;
 
-  /// The closure form keeps the check out of release builds entirely.
+  // The closure form keeps the check out of release builds entirely.
   List<LedgerChange> _checked(List<LedgerChange> changes) {
     assert(() {
       _assertChecked();
@@ -90,6 +90,6 @@ class LedgerState {
     return resolution;
   }
 
-  /// Edit must not change lifecycle. Only delete/restore/purge may.
+  // Edit must not change lifecycle. Only delete/restore/purge may.
   LifecycleState _editableLifecycle(LifecycleState stored) => stored;
 }

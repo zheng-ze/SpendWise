@@ -61,9 +61,8 @@ void main() {
       ProviderScope(
         overrides: [
           ledgerProvider.overrideWithValue(ledger),
-          // This screen refreshes the cache during pump, and a spawned
-          // isolate can't see the test zone's fake-async state, so the cache
-          // is given a synchronous runner instead of its default isolate one.
+          // This screen refreshes the cache during pump, and a spawned isolate
+          // can't see the test zone's fake-async state, so use a synchronous runner.
           analysisCacheProvider.overrideWith(
             (ref) => AnalysisCache(runner: syncComputeRunner),
           ),

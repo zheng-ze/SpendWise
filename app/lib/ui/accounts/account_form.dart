@@ -10,8 +10,7 @@ import 'package:spendwise/ui/common/error_section.dart';
 import 'package:spendwise/ui/common/form_scaffold.dart';
 import 'package:spendwise/ui/common/two_column_picker_sheet.dart';
 
-/// Opens the account/subpocket creation sheet. Creation-only, unlike the
-/// entry form, so there is no entity parameter.
+/// Opens the account/subpocket creation sheet. Creation-only.
 Future<void> showAccountFormSheet({
   required BuildContext context,
   required Ledger ledger,
@@ -96,8 +95,8 @@ class _AccountFormState extends State<AccountForm> {
   }
 
   Future<void> _save() async {
-    // A stale picker selection (parent gone card, or archived between open
-    // and save) must not sneak a pocket past this guard.
+    // Recomputed rather than trusting `_kind`, since the picked parent may
+    // have gone stale between opening the picker and saving.
     final effectiveKind = _isLockedToAccount ? AccountFormKind.account : _kind;
     final name = _nameController.text.trim();
 

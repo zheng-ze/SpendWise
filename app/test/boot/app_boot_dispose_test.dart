@@ -8,8 +8,6 @@ import 'package:spendwise/persistence/ledger_store.dart';
 
 import '../support/in_memory_ledger_store.dart';
 
-/// Blocks `flushNow` on a gate the test controls, so a dispose issued while
-/// a flush is in flight is reproducible instead of racing real IO timing.
 class _GatedFlushStore extends InMemoryLedgerStore {
   _GatedFlushStore({super.hasSeeded});
 
@@ -24,6 +22,8 @@ class _GatedFlushStore extends InMemoryLedgerStore {
   @override
   Future<void> flushNow() async {
     final gate = _gate;
+    // Blocks on a gate the test controls, so a dispose issued mid-flush is
+    // reproducible instead of racing real IO timing.
     if (gate != null) await gate.future;
     await super.flushNow();
     flushCompletions += 1;
@@ -74,7 +74,6 @@ void main() {
 
       await app.disposeAndFlush();
 
-      // Calling dispose again after an explicit dispose-and-flush must not throw.
       expect(app.dispose, returnsNormally);
     },
   );

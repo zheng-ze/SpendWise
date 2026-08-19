@@ -15,14 +15,15 @@ import 'package:spendwise/persistence/ledger_database.dart';
 import 'package:spendwise/persistence/ledger_store.dart';
 import 'package:spendwise/persistence/persistence_processor.dart';
 
-/// Overridden with an in-memory executor in tests, which keeps the store
-/// construction below under test rather than replaced.
+/// Overridden with an in-memory executor in tests.
+// The override keeps the store below under test rather than replacing it.
 final databaseConnectionProvider = Provider<Future<QueryExecutor>>((ref) {
   return openLedgerConnection();
 });
 
-/// [LazyDatabase] defers the open, so the store can be built synchronously
-/// while [AppBoot] awaits the connection.
+/// Builds the store synchronously around a connection that opens lazily.
+// [LazyDatabase] defers the open, letting the store build synchronously
+// while [AppBoot] is the one that awaits the connection.
 final storeProvider = Provider<LedgerStore>((ref) {
   final database = LedgerDatabase(
     LazyDatabase(() => ref.read(databaseConnectionProvider)),
@@ -40,12 +41,10 @@ final analysisCacheProvider = ChangeNotifierProvider<AnalysisCache>((ref) {
   return AnalysisCache();
 });
 
-/// [AppBoot.start] moves from creating the bus to running the first
-/// [Ledger.resolvePlans] with no await in between, so nothing outside it can
-/// interleave once that stretch begins. The listener below is the seam:
-/// `notifyListeners` for the `Ready` phase fires synchronously partway
-/// through that same stretch, ahead of resolvePlans, so joining the cache
-/// from inside the listener still lands before the first mutate.
+/// Joins the analysis cache to the ledger's bus as soon as boot reaches
+/// `Ready`.
+// This must happen synchronously, since nothing can run between reaching
+// `Ready` and [AppBoot.start]'s first mutate.
 final appBootProvider = ChangeNotifierProvider<AppBoot>((ref) {
   final banner = ref.read(bannerStateProvider.notifier);
   final cache = ref.read(analysisCacheProvider.notifier);
@@ -82,9 +81,9 @@ final appPhaseProvider = Provider<AppPhase>((ref) {
   return ref.watch(appBootProvider).phase;
 });
 
-/// Null outside [Ready]. Screens read this only once boot has settled, and a
-/// throw here would just move the null check into every caller instead of
-/// removing it, so callers get a phase-shaped answer they can pattern match.
+/// Null outside [Ready], never a throw.
+// A null callers can pattern match beats a null check pushed onto every
+// caller.
 final ledgerProvider = Provider<Ledger?>((ref) {
   final phase = ref.watch(appPhaseProvider);
   return phase is Ready ? phase.ledger : null;

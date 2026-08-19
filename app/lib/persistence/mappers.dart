@@ -6,10 +6,8 @@ import 'package:drift/drift.dart' show Value;
 import 'package:spendwise/persistence/ledger_database.dart' as rows;
 import 'package:spendwise/persistence/version_vector.dart';
 
-/// A code this version does not know came from a newer writer, so the row loads
-/// as the documented default rather than failing the whole load. A corrupt
-/// version vector is the opposite call and raises, because defaulting there
-/// would erase the row's causal history instead of one readable field.
+// An unrecognized code came from a newer writer, so the row loads as the
+// documented default rather than failing the whole load.
 AccountType _accountType(int code) => switch (code) {
   0 => AccountType.cash,
   1 => AccountType.checking,
@@ -47,9 +45,8 @@ VersionVector versionFromRow(Uint8List blob) => VersionVector.decode(blob);
 Uint8List _versionToBlob(VersionVector version) =>
     Uint8List.fromList(version.encode());
 
-/// Reads the stored day. A row written elsewhere may hold an instant off
-/// midnight, and reading it as an instant would move it a day for anyone east
-/// of Greenwich, so the calendar day is taken and midnight rebuilt from it.
+/// Reads the calendar day and rebuilds midnight from it, since reading a
+/// stored instant off midnight would move it a day for anyone east of Greenwich.
 DateTime dayFromMillis(int millis) =>
     startOfDayUtc(DateTime.fromMillisecondsSinceEpoch(millis, isUtc: true));
 

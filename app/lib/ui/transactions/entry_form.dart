@@ -25,9 +25,8 @@ const _frequencyLabels = <RecurrenceFrequency, String>{
   RecurrenceFrequency.yearly: 'Yearly',
 };
 
-/// Opens the entry form as a near-full-height sheet. Pass [entry] to open an
-/// existing one read-only, or omit it for a new entry. [sourceScope]
-/// prefills the source when opened from an account-scoped screen.
+/// Opens the entry form as a near-full-height sheet. Pass [entry] to open
+/// it read-only, or omit it for a new entry. [sourceScope] prefills the source.
 Future<void> showEntryFormSheet({
   required BuildContext context,
   required Ledger ledger,

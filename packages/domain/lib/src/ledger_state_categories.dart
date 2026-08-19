@@ -57,9 +57,8 @@ extension LedgerStateCategories on LedgerState {
     final category = _categories[id];
     if (category == null || !category.lifecycle.isActive) return _checked([]);
 
-    // No plan cascade here. A plan naming this category is left alone rather
-    // than removed, so restoring the category later does not need to also
-    // resurrect any plan the delete would otherwise have deleted.
+    // No plan cascade here. A plan naming this category is left alone, so
+    // restoring the category does not also need to resurrect a deleted plan.
     return _checked(
       _moveCategoryTree(
         category,
@@ -90,9 +89,8 @@ extension LedgerStateCategories on LedgerState {
     );
   }
 
-  /// A child in any state other than [from] is left where it is.
-  /// `referenceOnly` has left the bin for good, and an already-archived child
-  /// must not be dragged along by an archive.
+  // A child in any state other than `from` is left where it is, so an
+  // already-archived child is not dragged along by an archive.
   List<LedgerChange> _moveCategoryTree(
     TransactionCategory category, {
     required LifecycleState from,
@@ -127,10 +125,8 @@ extension LedgerStateCategories on LedgerState {
     if (parent.parentID != null) throw const CategoryTooDeep();
     if (parent.kind != category.kind) throw const CategoryKindMismatch();
 
-    // An archived parent is allowed, since purgeCategory sweeps children
-    // regardless of lifecycle. A `referenceOnly` one is rejected because the
-    // dereference sweep deletes it without looking for children, orphaning
-    // the child.
+    // An archived parent is fine, since purgeCategory sweeps children regardless
+    // of lifecycle. A referenceOnly parent is rejected, since its sweep would orphan the child.
     if (!parent.lifecycle.isAtLeastAsAliveAs(LifecycleState.archived)) {
       throw InactiveReference(parentID);
     }

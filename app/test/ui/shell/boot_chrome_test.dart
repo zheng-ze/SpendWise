@@ -14,8 +14,8 @@ import 'package:spendwise/ui/transactions/daily_transactions_screen.dart';
 
 import '../../support/in_memory_ledger_store.dart';
 
-/// Lets a test hold boot in Loading, then decide whether the run fails or
-/// succeeds, so all three phases are reachable from one widget.
+// Lets a test hold boot in Loading, then decide whether the run fails or
+// succeeds, so all three phases are reachable from one widget.
 class _GatedStoreFactory {
   _GatedStoreFactory();
 
@@ -49,10 +49,8 @@ void main() {
               AppBoot(createStore: factory.call, seedChanges: seedChanges)
                 ..start(),
         ),
-        // The Stats tab is mounted eagerly by the shell's IndexedStack, so it
-        // refreshes the cache on the very first frame. A spawned isolate can't
-        // see the test zone's fake-async state, so the cache is given a
-        // synchronous runner instead of its default isolate one.
+        // The Stats tab mounts eagerly and refreshes on the first frame, but
+        // a spawned isolate can't see the test zone's fake-async state.
         analysisCacheProvider.overrideWith(
           (ref) => AnalysisCache(runner: syncComputeRunner),
         ),

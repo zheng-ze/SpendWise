@@ -13,11 +13,8 @@ extension LedgerStatePlans on LedgerState {
     final stored = _plans[plan.id];
     if (stored == null) throw UnknownPlan(plan.id);
 
-    // Shifting the anchor or frequency moves the schedule onto different
-    // calendar days. Entries already minted for the old days stay in the
-    // ledger under their old occurrence ids, so once anything has resolved,
-    // no rewound cursor value can make the new schedule land on those same
-    // days again to avoid piling new entries on top of them.
+    // Shifting the anchor or frequency moves the schedule onto different days,
+    // and once anything has resolved there is no cursor that avoids re-minting entries.
     final schedulesChanged =
         stored.anchor != plan.anchor || stored.frequency != plan.frequency;
     if (schedulesChanged && stored.lastResolvedDate.isAfter(stored.anchor)) {

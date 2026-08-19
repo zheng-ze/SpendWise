@@ -8,9 +8,8 @@ import 'package:spendwise/persistence/ledger_database.dart';
 import 'package:spendwise/persistence/ledger_store.dart';
 import 'package:spendwise/persistence/mappers.dart';
 
-/// Hands out timers the test fires by hand, so the suite never waits out a
-/// 250 ms debounce or a 200 ms backoff. Real drift I/O stays genuinely async,
-/// which `FakeAsync` would deadlock on.
+// Hands out timers the test fires by hand, so real time never elapses.
+// Real drift I/O stays genuinely async, which `FakeAsync` would deadlock on.
 class ManualClock {
   final List<_Armed> _armed = [];
 
@@ -24,9 +23,8 @@ class ManualClock {
     return armed;
   }
 
-  /// Fires every timer armed at the moment of the call. A timer armed by one of
-  /// these callbacks waits for the next call, which keeps a re-arming retry
-  /// loop from spinning forever inside one `fire`.
+  // Fires every timer armed at the moment of the call. A timer armed by a
+  // callback waits for the next call, so a re-arming retry loop cannot spin forever here.
   void fire() {
     final due = List<_Armed>.of(_armed);
     _armed.clear();
@@ -47,16 +45,15 @@ class _Armed implements StoreTimer {
   void cancel() => owner._armed.remove(this);
 }
 
-/// Fails the commit of the first [failures] transactions, then behaves
-/// normally. Failing the commit rather than a single statement keeps drift's
-/// own rollback in the path, so the rollback assertions test the real thing.
+// Fails the commit of the first `failures` transactions, then behaves normally.
+// Failing the commit keeps drift's own rollback in the path, so it tests the real thing.
 class FlakyInterceptor extends QueryInterceptor {
   int failures = 0;
 
   int transactionAttempts = 0;
 
-  /// Runs once, as a save opens its transaction. Lets a test enqueue while a
-  /// save is genuinely mid-flight rather than merely started.
+  // Runs once, as a save opens its transaction. Lets a test enqueue while a
+  // save is genuinely mid-flight rather than merely started.
   void Function()? onTransactionBegin;
 
   @override
@@ -133,8 +130,8 @@ void main() {
     symbol: 'fork',
   );
 
-  /// Lets the drain loop and any awaited save run to completion. Nothing here
-  /// sleeps, so this only yields the event loop.
+  // Lets the drain loop and any awaited save run to completion. Nothing here
+  // sleeps, so this only yields the event loop.
   Future<void> settle() async {
     for (var i = 0; i < 20; i++) {
       await Future<void>.delayed(Duration.zero);
@@ -147,8 +144,8 @@ void main() {
     await settle();
   }
 
-  /// Counts once per write the row has taken, so a change applied twice reads
-  /// as two even though the row itself looks the same.
+  // Counts once per write the row has taken, so a change applied twice reads
+  // as two even though the row itself looks the same.
   Future<int> versionBumpsOnAccount(String id) async {
     final row = await (db.select(
       db.accounts,
@@ -211,9 +208,8 @@ void main() {
       final row = await db.select(db.entries).getSingle();
       expect(row.lifecycle, LifecycleState.tombstoned.code);
 
-      // The surviving upsert would have written 99 before tombstoning, so the
-      // untouched amount is what proves the upsert was dropped, not merely
-      // followed by the delete.
+      // A surviving upsert would have written 99 before tombstoning, so the
+      // untouched amount proves the upsert itself was dropped by coalescing.
       expect(row.amount, '10');
     });
 
@@ -247,7 +243,6 @@ void main() {
     });
 
     test('survivors are applied in their original relative order', () async {
-      // Three survivors on distinct ids, all inserted inside this one window.
       // SQLite hands out rowids in insertion order, so the stored rowids are a
       // direct readout of the order the survivors were applied in.
       store
@@ -446,10 +441,8 @@ void main() {
       store.enqueue([UpsertAccount(account('a1', 'v1'))]);
       await settle();
 
-      // Both flushes clear the armed debounce, see 'a1' still pending and enter
-      // their save loops in the same turn, so both call a cycle over the same
-      // prefix. Without the in-flight guard the second runs its own
-      // transaction over that prefix and bumps the row again.
+      // Both calls enter their save loop over the same pending prefix in the same
+      // turn. Without the in-flight guard, the second would bump the row a second time.
       final first = store.flushNow();
       final second = store.flushNow();
       await Future.wait([first, second]);
@@ -581,9 +574,8 @@ void main() {
       // already snapshotted 'a1' when the flush below awaits it.
       clock.fire();
 
-      // Each batch lands mid-transaction, so the save that is running clears
-      // only its own snapshot and leaves the new one pending. Two of them means
-      // the flush must run more than one cycle after the save it awaited.
+      // Each batch lands mid-transaction, so the running save clears only its own
+      // snapshot, leaving flushNow to run more than one cycle after the save it awaited.
       flaky.onTransactionBegin = () {
         store.enqueue([UpsertAccount(account('a2', 'v2'))]);
         flaky.onTransactionBegin = () {
@@ -598,34 +590,30 @@ void main() {
       expect((await db.select(db.accounts).get()).length, 3);
     });
 
-    test(
-      'flushNow stops looping when a cycle ends in failedWillRetry',
-      () async {
-        // More failures than any number of cycles can consume, so a loop
-        // without the give-up exit never sees pending drain.
-        flaky.failures = 99;
-        store.enqueue([UpsertAccount(account('a1', 'v1'))]);
+    test('flushNow stops looping when a cycle ends in failedWillRetry', () async {
+      // More failures than any number of cycles can consume, so a loop
+      // without the give-up exit never sees pending drain.
+      flaky.failures = 99;
+      store.enqueue([UpsertAccount(account('a1', 'v1'))]);
 
-        var returned = false;
-        final flush = store.flushNow().then((_) => returned = true);
+      var returned = false;
+      final flush = store.flushNow().then((_) => returned = true);
 
-        // Fires the in-cycle backoff timers so a cycle can exhaust its retries
-        // and report. Ten passes outlast the three attempts one cycle needs, so
-        // a flush that kept looping would still be unfinished here.
-        for (var i = 0; i < 10; i++) {
-          await settle();
-          clock.fire();
-        }
+      // Ten passes far outlast the three attempts one retry cycle needs, so a
+      // flush that kept looping instead of giving up would still be unfinished here.
+      for (var i = 0; i < 10; i++) {
         await settle();
+        clock.fire();
+      }
+      await settle();
 
-        expect(returned, isTrue, reason: 'the flush never gave up looping');
-        await flush;
+      expect(returned, isTrue, reason: 'the flush never gave up looping');
+      await flush;
 
-        expect(reported.last, SaveBannerState.failedWillRetry);
-        expect(store.pendingCount, 1);
-        expect(await db.select(db.accounts).get(), isEmpty);
-      },
-    );
+      expect(reported.last, SaveBannerState.failedWillRetry);
+      expect(store.pendingCount, 1);
+      expect(await db.select(db.accounts).get(), isEmpty);
+    });
 
     test('flushOnAnIdleStoreIsANoOp', () async {
       await store.flushNow();

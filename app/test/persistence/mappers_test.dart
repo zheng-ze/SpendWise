@@ -613,9 +613,8 @@ void main() {
       }
     });
 
-    // Asserted on the reader rather than through a mapped row, because both
-    // domain constructors re-normalize the date and would hide an
-    // instant-preserving read.
+    // Asserted on the reader rather than a mapped row, since domain
+    // constructors re-normalize the date and would hide an instant-preserving read.
     test('a stored instant off midnight reads as the day it names', () {
       for (final stored in [
         DateTime.utc(2026, 3, 14, 23, 59),

@@ -262,11 +262,8 @@ void main() {
 
     test('a plan with anchor shifted after resolution is rejected '
         'rather than re-minting occurrences under the new schedule', () {
-      // Rewinding lastResolvedDate on the incoming plan cannot make this
-      // safe: a monthly anchor move lands on different calendar days than
-      // the old schedule, so the already-resolved entries and the newly
-      // resolved ones never collide and both stay in the ledger. The only
-      // sound response once anything has resolved is to refuse the edit.
+      // Rewinding lastResolvedDate on the incoming plan cannot help, since a
+      // monthly anchor move lands on different days and both sets of entries stay.
       final state = seeded();
       final original = plan(lastResolvedDate: DateTime.utc(2026, 1, 15));
       state.addPlan(original);
@@ -489,10 +486,8 @@ void main() {
       expect(changes.whereType<DeletePlan>(), isEmpty);
     });
 
-    // The holder upserts precede the plan deletes, but the account and its
-    // pockets archive from an unordered set, so only the relative order is
-    // pinned. Archiving must never emit a deleteMoneySource: the rows survive
-    // for restore.
+    // The holder upserts precede the plan deletes, but pockets archive from an
+    // unordered set, so only relative order is pinned. Rows survive for restore.
     test('archives the holders and drops the plan without deleting rows', () {
       final state = seeded();
       state.addPlan(plan());
@@ -515,14 +510,13 @@ void main() {
     });
   });
 
-  // Archiving only freezes a plan, so these cover the other direction: a row
-  // the dereference sweep DELETES must not leave a plan naming a missing id.
+  // Archiving only freezes a plan, so these cover the other direction, where
+  // the dereference sweep deletes a row and must not leave a plan naming it.
   group('the dereference sweep drops plans naming the row it removes', () {
     final entryID = uuid(7);
 
-    /// Both mutators demand an active source, so the only way to reach a plan
-    /// naming a referenceOnly row is to seed one: the constructor validates
-    /// nothing, which is how persistence replay arrives at the same state.
+    // Both mutators demand an active source, so the only way to reach a plan
+    // naming a referenceOnly row is to seed one directly, the way replay does.
     LedgerState seededWith({
       required MoneySource pocket,
       required Entry entry,
