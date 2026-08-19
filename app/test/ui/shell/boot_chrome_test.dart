@@ -70,7 +70,7 @@ void main() {
     expect(find.byType(AppShell), findsNothing);
   });
 
-  testWidgets('failure shows the headline, the cause and retry', (
+  testWidgets('failure shows the headline, a friendly message and retry', (
     tester,
   ) async {
     final factory = _GatedStoreFactory();
@@ -80,8 +80,28 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text("Couldn't load your data"), findsOneWidget);
-    expect(find.textContaining('disk on fire'), findsOneWidget);
     expect(find.widgetWithText(FilledButton, 'Retry'), findsOneWidget);
+  });
+
+  testWidgets('failure does not leak the raw exception text to the user', (
+    tester,
+  ) async {
+    final factory = _GatedStoreFactory();
+    await tester.pumpWidget(hostedIn(containerWith(factory)));
+
+    // Stands in for a real storage failure whose exact wording should never
+    // reach the screen.
+    factory.fail(Exception('DriftException: disk image is malformed'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('DriftException: disk image is malformed'),
+      findsNothing,
+    );
+    expect(
+      find.textContaining("Something went wrong loading your data"),
+      findsOneWidget,
+    );
   });
 
   testWidgets('retry re-enters loading and re-runs boot', (tester) async {
