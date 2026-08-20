@@ -38,6 +38,7 @@ String friendlyLedgerErrorMessage(LedgerError error) {
     UnknownCategory() => 'the category it refers to no longer exists.',
     UnknownEntry() => 'the entry it refers to no longer exists.',
     UnknownPlan() => 'the recurring plan it refers to no longer exists.',
+    UnknownBudget() => 'the budget it refers to no longer exists.',
     ExhaustedPlan() => 'that recurring plan has already ended.',
     InactiveReference() => 'it refers to something that has been archived.',
     StaleResolutionCursor() =>
@@ -47,5 +48,7 @@ String friendlyLedgerErrorMessage(LedgerError error) {
     CategoryTooDeep() => 'categories cannot be nested that deeply.',
     CategoryKindMismatch() =>
       'that category does not match the transaction kind.',
+    CategoryAlreadyBudgeted() => 'that category already has a budget.',
+    CarryCapInvalid() => 'that rollover cap is not valid for this budget.',
   };
 }
