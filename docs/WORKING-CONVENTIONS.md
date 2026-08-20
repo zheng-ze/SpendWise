@@ -53,6 +53,67 @@ whoever verifies that agent's work before marking a task complete must check for
 slipped through then — not defer it to a separate cleanup pass. Every implementation brief should
 carry this section's rules, not just point at this file.
 
+## Flat methods, single responsibility
+
+A method that nests expression after expression inline is a single-responsibility violation: it ends
+up owning every sub-concern of its whole body at once, and a reader has to hold all of it in their
+head to find the one part they came for. This applies to any method, not only Flutter's `build()` —
+a long function assembling a query, a branch of validation logic, a request handler wiring several
+steps together, all have the same failure shape. This is single responsibility from SOLID, applied
+below the class level: a method, not only a class, should have one reason to change. Two techniques
+fix it:
+
+**Extract a substantial or repeated piece into its own function or class.** Give it one job, so it
+can be read, tested or changed without the rest of the method in view. A three-line spacer, a single
+short callback, or a one-off expression used once isn't substantial — leave those inline. Prefer a
+named function (or class) over a local variable when the piece is logic another caller could use too,
+not just this one method's own layout — a local only helps the method it's declared in, but a
+function extracted with a real name and no hidden dependency on its one call site is reusable the
+moment a second caller needs the same thing. Reach for a local instead when the piece is specific to
+this one call site and unlikely to be needed elsewhere.
+
+**Within one method, name each major expression before the final statement.** Construct it inline in
+the local, not nested in the call that uses it, so the final statement reads as an outline of what
+the method does. Before, from `app/lib/ui/budgets/budget_card.dart`'s widget `build()`:
+
+```dart
+return InkWell(
+  onTap: onTap,
+  child: Padding(
+    padding: EdgeInsets.fromLTRB(isSubcategory ? 32 : 16, 12, 16, 12),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _BudgetCardHeader(name: name, limit: limit, isSubcategory: isSubcategory),
+        const SizedBox(height: 6),
+        _BudgetCardBar(percentOfLimit: percentOfLimit, color: overLimit ? colors.loss : color),
+        const SizedBox(height: 4),
+        _BudgetCardFooter(spend: spend, remaining: remaining, overLimit: overLimit),
+      ],
+    ),
+  ),
+);
+```
+
+After:
+
+```dart
+final header = _BudgetCardHeader(name: name, limit: limit, isSubcategory: isSubcategory);
+final bar = _BudgetCardBar(percentOfLimit: percentOfLimit, color: overLimit ? colors.loss : color);
+final footer = _BudgetCardFooter(spend: spend, remaining: remaining, overLimit: overLimit);
+
+return InkWell(
+  onTap: onTap,
+  child: Padding(
+    padding: EdgeInsets.fromLTRB(isSubcategory ? 32 : 16, 12, 16, 12),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [header, const SizedBox(height: 6), bar, const SizedBox(height: 4), footer],
+    ),
+  ),
+);
+```
+
 ## Staging and commits
 
 **When asked to stage uncommitted work, split it into logical chunks and stage one at a time.**
