@@ -1,7 +1,9 @@
-# SpendWise — Flutter port
+# SpendWise
 
-Rewrite of the frozen SwiftUI app at `../SpendWise-SwiftUI`. That repo is the source of truth for
-behavior; its own CLAUDE.md is stale — trust the Swift code, not its docs.
+A personal finance app built in Flutter. The app reached full parity with the earlier frozen
+SwiftUI prototype at `../SpendWise-SwiftUI`; work past that point (starting with `add-budgets`) is
+greenfield design, not a port — design from domain/product reasoning and this repo's own
+conventions, not by reading the Swift source.
 
 ## Layout
 
@@ -19,49 +21,26 @@ screen never introduces its own formatter, symbol map or month state.
 
 ## Conventions
 
-**Comments: minimal, standalone, write-time and verify-time discipline.** Comment only tricky
-nuance a reader would otherwise get wrong. Never restate the code. No Swift references or spec
-citations in source, no em dashes, semicolons or colon splices in comment prose. Every comment must
-be understandable with only this one file open — no leaning on another function/file/doc without
-restating its point locally. Write the comment last. A dispatched agent should not write one that
-fails this, and whoever verifies the work checks before marking the task complete — this is never a
-later sweep. **`docs/WORKING-CONVENTIONS.md` has the full rule and the failure patterns.**
-
-**At most two wrapped lines, no examples.** A comment runs at most two lines at the file's normal
-wrap width (~100 chars/line) — not one line crammed past that width, and not a paragraph. No
-made-up dates or ids, no step-by-step trace, no `(e.g. X)` naming a real symbol the surrounding code
-already names, and no restating the mechanism the code below already shows — say only the why a
-reader could not get from the code itself. If that why does not fit two lines, the code needs a
-better name, not a longer comment.
-
-**`///` doc comments are for API callers, not implementers.** Write one only when a public member has
-behavior a caller must know and the signature does not already say it — a non-obvious precondition,
-a surprising return value, a contract detail. A private member or an implementation detail (why the
-body is written the way it is) takes a `//` comment instead, never `///` — a caller of the API never
-reads it, so it does not belong in the doc comment. **A `///` states behavior only, never rationale**
-— why the member is built that way is an implementation concern and, if worth keeping at all, belongs
-in a `//` inside the body, not in the doc comment above it.
-
-**A comment sits on the line it explains, not above the block.** Put a `//` right against the
-specific statement it justifies, not once at the top of a function covering several lines below it —
-a reader should never have to carry a comment down past code it does not apply to.
+**Comments, docstrings and prose docs (README, design doc, guide): use the `tech-writer` skill.**
+It carries the full comment rules (minimal, standalone, two-line cap, `///` vs `//`, write/verify
+discipline) plus the Google Developer Documentation Style Guide for prose. Auto-triggers on doc/
+comment requests; invoke it directly if it doesn't fire. `docs/WORKING-CONVENTIONS.md` has the
+failure patterns behind the rule.
 
 **Plain language everywhere**, not only in task files: comments, identifiers and reports alike. Say
 what a thing does in ordinary words rather than in jargon or borrowed vocabulary. A function called
 `monthWithDayUtc` needed a comment to explain that it shifts the month before clamping the day;
 `shiftMonthThenClampDayUtc` needed none.
 
-**The port is a translation, not a redesign.** Type names match Swift (`LedgerState`, `Entry`,
-`MoneySource`, `TransactionCategory`, `LedgerChange`, `LedgerError`). Mutators keep the
-validate → mutate → return `List<LedgerChange>` contract. Deviations from Swift happen only where
-a spec's "KNOWN DEFECT" or "PORT FIX" section sanctions one.
+**Mutators validate, mutate, then return `List<LedgerChange>`.** Every mutation on `LedgerState`
+keeps this contract.
 
 **Money is `Decimal`, never `double`.** `double` in `packages/domain/lib/` is a defect.
 
 **IDs are lowercase uuid strings**, normalized at every construction boundary.
 
-**Int-coded enums** carry an explicit `code` field pinned to the Swift raw value, never
-`enum.index` — persistence writes these codes.
+**Int-coded enums** carry an explicit `code` field, never `enum.index` — persistence writes these
+codes, and `enum.index` shifts silently if a variant is ever reordered.
 
 **Window filters are half-open `[start, end)`** everywhere.
 
@@ -70,15 +49,8 @@ a spec's "KNOWN DEFECT" or "PORT FIX" section sanctions one.
 moves a local midnight back a day for every user east of Greenwich. `design.md` in
 `add-domain-accounting` has the full ruling.
 
-**Illegal states are unreachable; invariants only catch what slips.** `_checked` runs
-`assertInvariants` inside `assert(() {...}())`, so every clause is debug-only. The state maps are
-private behind `UnmodifiableMapView`, and `_detachAndTombstonePocket` is the sole remover of a
-pocket row — those two are what make the bad states impossible rather than merely unlikely. Reject
-rather than silently coerce: `addPocket` throws on a non-active parent, and a category's `kind` is
-fixed at creation. A check that must hold in release needs a real throw, not an `assert`.
-
-**Keep file scope small and single-purpose.** `LedgerState` is split by concern into `part` files.
-Split by concern, not by symbol count.
+**Touching `LedgerState` or its invariants: read `docs/DOMAIN-INVARIANTS.md` first.** Covers how
+illegal states are made unreachable and why `LedgerState` is split into `part` files by concern.
 
 ## Checks
 
@@ -139,46 +111,8 @@ dispatch procedure** — which agent for which job, how to fence parallel work, 
 
 ## Search tools
 
-**Narrow before you read.** Context is the scarce resource, and a `Read` on a file you have not
-located spends it faster than anything else. Find the lines first — `rg` for text, the graph for what
-calls what, `ast-grep` through a rule file for structure — then read the region those return. Reading
-a whole file to find out whether it is relevant is the thing to avoid; reading it once you know it is
-relevant is the job. This binds subagents too, so briefs must not hand over a file path and leave the
-narrowing implied.
-
-**Send the volume reading to another model.** Call the `pal` MCP server's `chat` tool for anything
-where the large window is the point (the frozen Swift app, a whole module doc, cross-repo sweeps),
-passing a `model` from `.pal/gemini_models.json` or `.pal/custom_models.json` — ask `listmodels`
-first if none is named. Ask it which files cover a concern and where to look next, never for a line
-number — `rg -n` answers that exactly and for free. It returns an answer to act on only after you
-verify it, never a conclusion to act on directly. `docs/SUBAGENTS.md` has the dispatch detail, and
-its "Beyond `chat`" section has the per-tool call: `consensus` (multi-model debate, free across
-`.pal/openrouter_models.json`'s 16 models, for a genuinely contested design decision), `thinkdeep`
-(one model's second opinion on a hard tradeoff), `debug` (hypothesis-driven investigation given
-concrete failure evidence), `codereview` (an independent second reviewer with none of this repo's
-conventions baked in, fed those conventions explicitly), `secaudit` (OWASP-based audit — narrow
-surface today, on-disk storage and import/export paths are what it can usefully check now, real
-value once sync/auth or monetisation land) and `challenge` (offloading pushback to a model with no
-stake in the answer) are all adopted. `precommit`/`analyze` stay redundant with `/code-review` and
-the graph, `refactor`/`testgen`/`docgen` a poor fit for this repo's conventions. `docs/TOOLING.md`
-has the full model catalogue.
-
-**Delegating is the default, and it fails by being forgotten rather than by being rejected.** Knowing
-the rule does not fire it: it has been broken twice in one session by an agent that had just written
-it down, once reading a 573-line doc directly and once hand-filtering a file already earmarked for
-`pal`. Three moments are the trigger, and each is a hard stop, not a preference:
-
-- About to `Read` a file over ~300 lines, or the third file in a row on one question. Dispatch instead.
-- About to write a second shell command that filters, greps or reshapes the same data. The first is
-  narrowing; the second means the analysis itself is the job, and the job belongs to a reader model.
-- Already decided a file goes to `pal`. Then it goes now, unfiltered. Preparing it by hand spends
-  the tokens the dispatch existed to save.
-
-**`docs/TOOLING.md` has the measured behavior** of `rg`, `ast-grep`, the code-review-graph MCP server
-and `pal`, and which to reach for. Two rules from it that are never worth rediscovering:
-
-- **`rg` never reports a false zero, and everything else can.** A bare `ast-grep -p` pattern matches
-  nothing on Dart whatever the code contains, because the pattern parses without surrounding context.
-  Ground-truth every empty result with `rg`.
-- **The knowledge graph sees git-tracked files only.** `git add -N` on a file you create is what
-  makes it visible; the rebuild is a hook's job, not yours.
+**Read `docs/SEARCH-TOOLS.md` before locating code or deciding whether to dispatch a subagent.**
+Covers narrowing before reading, sending volume reading to `pal`, and when delegation is mandatory
+rather than optional. Two rules from it that are never worth rediscovering: `rg` never reports a
+false zero and everything else can, and the knowledge graph sees git-tracked files only — `git add -N`
+on a file you create is what makes it visible.
