@@ -192,4 +192,78 @@ void main() {
     expect(find.text('No expense in this period'), findsOneWidget);
     expect(find.byIcon(Icons.pie_chart_outline), findsOneWidget);
   });
+
+  testWidgets(
+    'the Budgets tab groups a subcategory budget next to its parent, indented',
+    (tester) async {
+      const produceID = 'a0000000-0000-0000-0000-000000000003';
+      final produce = TransactionCategory(
+        id: produceID,
+        name: 'Produce',
+        kind: CategoryKind.expense,
+        colorHex: '#00AA00',
+        includeInAnalysis: true,
+        parentID: groceriesID,
+        symbol: 'shopping_cart',
+      );
+      final transportBudget = Budget(
+        id: 'b1',
+        categoryID: transportID,
+        limitEvents: [
+          LimitEvent(
+            effectiveFromMonth: null,
+            value: dec('100'),
+            kind: LimitEventKind.defaultLimit,
+          ),
+        ],
+        rolloverMode: RolloverMode.none,
+        carryCap: null,
+        createdAtMonth: const YearMonth(2026, 1),
+      );
+      final produceBudget = Budget(
+        id: 'b2',
+        categoryID: produceID,
+        limitEvents: [
+          LimitEvent(
+            effectiveFromMonth: null,
+            value: dec('50'),
+            kind: LimitEventKind.defaultLimit,
+          ),
+        ],
+        rolloverMode: RolloverMode.none,
+        carryCap: null,
+        createdAtMonth: const YearMonth(2026, 1),
+      );
+      final ledger = Ledger(
+        state: LedgerState(
+          moneySources: {account.id: MoneySource.account(account)},
+          categories: {
+            groceriesID: groceries,
+            transportID: transport,
+            produceID: produce,
+          },
+          budgets: {
+            transportBudget.id: transportBudget,
+            produceBudget.id: produceBudget,
+          },
+        ),
+      );
+
+      await pumpScreen(tester, ledger);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Budgets'));
+      await tester.pumpAndSettle();
+
+      // Produce (Groceries' child, no budget on Groceries itself) sorts
+      // ahead of Transport, since it groups under "Groceries" < "Transport".
+      final produceCenter = tester.getCenter(find.text('Produce'));
+      final transportCenter = tester.getCenter(find.text('Transport'));
+      expect(produceCenter.dy, lessThan(transportCenter.dy));
+
+      // The subcategory card is indented relative to the top-level one.
+      final produceLeft = tester.getTopLeft(find.text('Produce')).dx;
+      final transportLeft = tester.getTopLeft(find.text('Transport')).dx;
+      expect(produceLeft, greaterThan(transportLeft));
+    },
+  );
 }

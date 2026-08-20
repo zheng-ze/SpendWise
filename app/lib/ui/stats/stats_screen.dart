@@ -5,6 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ui/budgets/budget_card.dart';
+import 'package:spendwise/ui/budgets/budget_detail_screen.dart';
+import 'package:spendwise/ui/budgets/budget_form.dart';
+import 'package:spendwise/ui/common/expanding_fab.dart';
 import 'package:spendwise/ui/common/month_year_selector.dart';
 import 'package:spendwise/ui/common/top_tab_bar.dart';
 import 'package:spendwise/ui/format/amount_color.dart';
@@ -15,9 +19,11 @@ import 'package:spendwise/ui/stats/stats_donut.dart';
 import 'package:spendwise/ui/stats/stats_legend.dart';
 import 'package:spendwise/ui/stats/stats_window.dart';
 
-const _tabTitles = ['Income', 'Expense'];
+const _tabTitles = ['Income', 'Expense', 'Budgets'];
 
 enum StatsRangeMode { month, year }
+
+enum _StatsTab { income, expense, budgets }
 
 class StatsScreen extends ConsumerWidget {
   const StatsScreen({super.key});
@@ -51,12 +57,16 @@ class _StatsScreenBody extends ConsumerStatefulWidget {
 }
 
 class _StatsScreenBodyState extends ConsumerState<_StatsScreenBody> {
-  CategoryKind _kind = CategoryKind.expense;
+  _StatsTab _tab = _StatsTab.expense;
   StatsRangeMode _range = StatsRangeMode.month;
 
-  void _setKind(int tabIndex) {
+  void _setTab(int tabIndex) {
     setState(() {
-      _kind = tabIndex == 0 ? CategoryKind.income : CategoryKind.expense;
+      _tab = switch (tabIndex) {
+        0 => _StatsTab.income,
+        1 => _StatsTab.expense,
+        _ => _StatsTab.budgets,
+      };
     });
   }
 
@@ -64,12 +74,12 @@ class _StatsScreenBodyState extends ConsumerState<_StatsScreenBody> {
     setState(() => _range = range);
   }
 
-  void _onTapCategory(String mainID) {
+  void _onTapCategory(CategoryKind kind, String mainID) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => CategoryDetailScreen(
           mainID: mainID,
-          kind: _kind,
+          kind: kind,
           isYearRange: _range == StatsRangeMode.year,
           initialDate: ref.read(selectedMonthProvider),
         ),
@@ -79,92 +89,200 @@ class _StatsScreenBodyState extends ConsumerState<_StatsScreenBody> {
 
   @override
   Widget build(BuildContext context) {
+    final selectedDate = ref.watch(selectedMonthProvider);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: MonthYearSelector(
+          value: selectedDate,
+          step: _tab == _StatsTab.budgets || _range == StatsRangeMode.month
+              ? MonthYearStep.month
+              : MonthYearStep.year,
+          onChanged: (value) =>
+              ref.read(selectedMonthProvider.notifier).state = value,
+        ),
+        actions: [
+          if (_tab != _StatsTab.budgets)
+            PopupMenuButton<StatsRangeMode>(
+              onSelected: _setRange,
+              itemBuilder: (context) => const [
+                PopupMenuItem(
+                  value: StatsRangeMode.month,
+                  child: Text('Monthly'),
+                ),
+                PopupMenuItem(
+                  value: StatsRangeMode.year,
+                  child: Text('Annually'),
+                ),
+              ],
+            ),
+        ],
+        centerTitle: false,
+      ),
+      body: SafeArea(
+        child: Stack(
+          children: [
+            Column(
+              children: [
+                TopTabBar(
+                  titles: _tabTitles,
+                  selectedIndex: _tab.index,
+                  onSelected: _setTab,
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: _tab == _StatsTab.budgets
+                      ? _BudgetsBody(
+                          ledger: widget.ledger,
+                          items: widget.cache.items,
+                          month: YearMonth.fromUtc(selectedDate),
+                        )
+                      : _AnalysisBody(
+                          ledger: widget.ledger,
+                          items: widget.cache.items,
+                          kind: _tab == _StatsTab.income
+                              ? CategoryKind.income
+                              : CategoryKind.expense,
+                          window: _range == StatsRangeMode.month
+                              ? monthWindow(selectedDate)
+                              : yearWindow(selectedDate),
+                          onTapCategory: _onTapCategory,
+                        ),
+                ),
+              ],
+            ),
+            if (_tab == _StatsTab.budgets)
+              ExpandingFab(
+                primary: FabAction(
+                  label: 'Add Budget',
+                  icon: Icons.add,
+                  onTap: () => showBudgetFormSheet(
+                    context: context,
+                    ledger: widget.ledger,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AnalysisBody extends StatelessWidget {
+  const _AnalysisBody({
+    required this.ledger,
+    required this.items,
+    required this.kind,
+    required this.window,
+    required this.onTapCategory,
+  });
+
+  final Ledger ledger;
+  final List<AnalysisItem> items;
+  final CategoryKind kind;
+  final DateRange window;
+  final void Function(CategoryKind kind, String mainID) onTapCategory;
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = AmountColors.of(theme);
-    final selectedDate = ref.watch(selectedMonthProvider);
-    final step = _range == StatsRangeMode.month
-        ? MonthYearStep.month
-        : MonthYearStep.year;
-    final window = _range == StatsRangeMode.month
-        ? monthWindow(selectedDate)
-        : yearWindow(selectedDate);
 
-    final categorySlices = slices(
-      widget.cache.items,
-      _kind,
-      window,
-      widget.ledger.state,
-    );
+    final categorySlices = slices(items, kind, window, ledger.state);
 
     var total = Decimal.zero;
     for (final slice in categorySlices) {
       total += slice.amount;
     }
 
-    final label = _kind == CategoryKind.income
+    final label = kind == CategoryKind.income
         ? 'Total income'
         : 'Total expenses';
-    final totalColor = _kind == CategoryKind.income ? colors.gain : colors.loss;
+    final totalColor = kind == CategoryKind.income ? colors.gain : colors.loss;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: MonthYearSelector(
-          value: selectedDate,
-          step: step,
-          onChanged: (value) =>
-              ref.read(selectedMonthProvider.notifier).state = value,
+    return ListView(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: AmountHeader(
+            caption: label,
+            amount: total,
+            amountColor: totalColor,
+          ),
         ),
-        actions: [
-          PopupMenuButton<StatsRangeMode>(
-            onSelected: _setRange,
-            itemBuilder: (context) => const [
-              PopupMenuItem(
-                value: StatsRangeMode.month,
-                child: Text('Monthly'),
-              ),
-              PopupMenuItem(
-                value: StatsRangeMode.year,
-                child: Text('Annually'),
-              ),
-            ],
+        if (categorySlices.isEmpty)
+          _EmptyState(kind: kind)
+        else ...[
+          StatsDonut(slices: categorySlices),
+          const Divider(height: 1),
+          StatsLegend(
+            slices: categorySlices,
+            onTapCategory: (mainID) => onTapCategory(kind, mainID),
           ),
         ],
-        centerTitle: false,
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            TopTabBar(
-              titles: _tabTitles,
-              selectedIndex: _kind == CategoryKind.income ? 0 : 1,
-              onSelected: _setKind,
-            ),
-            const Divider(height: 1),
-            Expanded(
-              child: ListView(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: AmountHeader(
-                      caption: label,
-                      amount: total,
-                      amountColor: totalColor,
-                    ),
-                  ),
-                  if (categorySlices.isEmpty)
-                    _EmptyState(kind: _kind)
-                  else ...[
-                    StatsDonut(slices: categorySlices),
-                    const Divider(height: 1),
-                    StatsLegend(
-                      slices: categorySlices,
-                      onTapCategory: _onTapCategory,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
+      ],
+    );
+  }
+}
+
+class _BudgetsBody extends StatelessWidget {
+  const _BudgetsBody({
+    required this.ledger,
+    required this.items,
+    required this.month,
+  });
+
+  final Ledger ledger;
+  final List<AnalysisItem> items;
+  final YearMonth month;
+
+  @override
+  Widget build(BuildContext context) {
+    /// Groups a subcategory's budget under its parent's name, so the two
+    /// sort next to each other even when only the child carries a budget.
+    (String groupName, bool isSubcategory, String ownName) sortKey(
+      Budget budget,
+    ) {
+      final categoryID = budget.categoryID;
+      if (categoryID == null) return ('', false, '');
+      final category = ledger.state.categories[categoryID];
+      if (category == null) {
+        return ('(category deleted)', false, '(category deleted)');
+      }
+      final parentID = category.parentID;
+      if (parentID == null) return (category.name, false, category.name);
+      final parentName =
+          ledger.state.categories[parentID]?.name ?? category.name;
+      return (parentName, true, category.name);
+    }
+
+    final budgets = ledger.state.budgets.values.toList()
+      ..sort((a, b) {
+        final aKey = sortKey(a);
+        final bKey = sortKey(b);
+        final groupCompare = aKey.$1.compareTo(bKey.$1);
+        if (groupCompare != 0) return groupCompare;
+        if (aKey.$2 != bKey.$2) return aKey.$2 ? 1 : -1;
+        return aKey.$3.compareTo(bKey.$3);
+      });
+
+    if (budgets.isEmpty) return const BudgetsEmptyState();
+
+    return ListView.separated(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      itemCount: budgets.length,
+      separatorBuilder: (_, _) => const Divider(height: 1),
+      itemBuilder: (context, index) => BudgetCard(
+        budget: budgets[index],
+        month: month,
+        items: items,
+        state: ledger.state,
+        isSubcategory: sortKey(budgets[index]).$2,
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => BudgetDetailScreen(budget: budgets[index]),
+          ),
         ),
       ),
     );
