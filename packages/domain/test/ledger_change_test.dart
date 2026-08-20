@@ -5,6 +5,7 @@ const accountID = '11111111-1111-4111-8111-111111111111';
 const pocketID = '22222222-2222-4222-8222-222222222222';
 const categoryID = '33333333-3333-4333-8333-333333333333';
 const entryID = '44444444-4444-4444-8444-444444444444';
+const budgetID = '55555555-5555-4555-8555-555555555555';
 
 Account account({String id = accountID, String name = 'acc'}) =>
     Account(id: id, name: name, type: AccountType.savings);
@@ -29,6 +30,21 @@ Entry entry({String id = entryID, String name = 'e'}) => Entry(
   amount: Decimal.fromInt(-10),
   name: name,
   sourceID: accountID,
+);
+
+Budget budget({String id = budgetID, Decimal? amount}) => Budget(
+  id: id,
+  categoryID: categoryID,
+  limitEvents: [
+    LimitEvent(
+      effectiveFromMonth: null,
+      value: amount ?? Decimal.fromInt(100),
+      kind: LimitEventKind.defaultLimit,
+    ),
+  ],
+  rolloverMode: RolloverMode.none,
+  carryCap: null,
+  createdAtMonth: const YearMonth(2026, 1),
 );
 
 void main() {
@@ -92,6 +108,21 @@ void main() {
       );
     });
 
+    test('budget cases behave the same as the other upsert/delete cases', () {
+      expect(UpsertBudget(budget()), UpsertBudget(budget()));
+      expect(UpsertBudget(budget()).hashCode, UpsertBudget(budget()).hashCode);
+      expect(
+        UpsertBudget(budget(amount: Decimal.fromInt(200))),
+        isNot(UpsertBudget(budget())),
+      );
+      expect(const DeleteBudget(budgetID), const DeleteBudget(budgetID));
+      expect(
+        const DeleteBudget(budgetID),
+        isNot(const DeleteBudget(accountID)),
+      );
+      expect(const DeleteBudget(entryID), isNot(const DeleteEntry(entryID)));
+    });
+
     test('change lists compare by value', () {
       expect(
         [UpsertPocket(pocket()), UpsertAccount(account())],
@@ -113,6 +144,8 @@ void main() {
       expect(const DeleteMoneySource(accountID).targetID, accountID);
       expect(const DeleteCategory(categoryID).targetID, categoryID);
       expect(const DeleteEntry(entryID).targetID, entryID);
+      expect(UpsertBudget(budget()).targetID, budgetID);
+      expect(const DeleteBudget(budgetID).targetID, budgetID);
     });
   });
 
@@ -146,6 +179,9 @@ void main() {
       expect(const ZeroAmount(), const ZeroAmount());
       expect(const CategoryTooDeep(), const CategoryTooDeep());
       expect(const CategoryKindMismatch(), const CategoryKindMismatch());
+      expect(const UnknownBudget(budgetID), const UnknownBudget(budgetID));
+      expect(const CategoryAlreadyBudgeted(), const CategoryAlreadyBudgeted());
+      expect(const CarryCapInvalid(), const CarryCapInvalid());
     });
 
     test('equal errors share a hash code', () {
@@ -181,12 +217,25 @@ void main() {
         const UnknownHolder(accountID),
         isNot(const InactiveReference(accountID)),
       );
+      expect(
+        const UnknownBudget(accountID),
+        isNot(const UnknownAccount(accountID)),
+      );
+    });
+
+    test('differing id compares unequal for UnknownBudget', () {
+      expect(
+        const UnknownBudget(budgetID),
+        isNot(const UnknownBudget(accountID)),
+      );
     });
 
     test('payload-free cases never compare equal across cases', () {
       expect(const ZeroAmount(), isNot(const CategoryTooDeep()));
       expect(const CategoryTooDeep(), isNot(const CategoryKindMismatch()));
       expect(const CategoryKindMismatch(), isNot(const ZeroAmount()));
+      expect(const CategoryAlreadyBudgeted(), isNot(const CarryCapInvalid()));
+      expect(const CarryCapInvalid(), isNot(const CategoryKindMismatch()));
     });
 
     test('errors are throwable', () {
