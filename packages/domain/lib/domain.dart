@@ -28,3 +28,4 @@ export 'src/recurring_plan.dart';
 export 'src/sub_pocket.dart';
 export 'src/synthetic_buckets.dart';
 export 'src/transaction_category.dart';
+export 'src/year_month.dart';
