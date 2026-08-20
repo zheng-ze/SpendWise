@@ -89,6 +89,7 @@ extension LedgerStatePurge on LedgerState {
     return [
       DeleteCategory(category.id),
       ..._removePlansCategorized(category.id),
+      ..._removeBudgetCategorized(category.id),
     ];
   }
 
@@ -132,6 +133,7 @@ extension LedgerStatePurge on LedgerState {
     final changes = <LedgerChange>[
       DeleteCategory(categoryID),
       ..._removePlansCategorized(categoryID),
+      ..._removeBudgetCategorized(categoryID),
     ];
     if (parentID == null) return changes;
 

@@ -52,6 +52,8 @@ extension LedgerStateInvariants on LedgerState {
     _assertStatementDayInRange();
     _assertPlansReferenceActiveRows();
     _assertPocketNotMoreAliveThanAccount();
+    _assertBudgetCategoryResolves();
+    _assertBudgetLimitEventShape();
   }
 
   void _assertKeysMatchIDs() {
@@ -295,6 +297,54 @@ extension LedgerStateInvariants on LedgerState {
             15,
             '${account.lifecycle.name} account ${account.id} holds '
             '${pocket.lifecycle.name} pocket $pocketID',
+          );
+        }
+      }
+    }
+  }
+
+  // A budget cannot outlive its category outside the cascade paths in
+  // ledger_state_budgets.dart, which remove the budget in the same operation.
+  void _assertBudgetCategoryResolves() {
+    for (final budget in _budgets.values) {
+      final categoryID = budget.categoryID;
+      if (categoryID == null) continue;
+
+      if (!_categories.containsKey(categoryID)) {
+        throw _violation(
+          16,
+          'budget ${budget.id} references unknown $categoryID',
+        );
+      }
+    }
+  }
+
+  // Defensive backstop: the mutators should already make any other shape
+  // unreachable. Only the first event may carry a null effectiveFromMonth,
+  // and only the first event may be unbounded; no override may be first.
+  void _assertBudgetLimitEventShape() {
+    for (final budget in _budgets.values) {
+      final events = budget.limitEvents;
+      if (events.isEmpty) {
+        throw _violation(17, 'budget ${budget.id} has no limit events');
+      }
+
+      final first = events.first;
+      if (first.effectiveFromMonth != null) {
+        throw _violation(17, 'budget ${budget.id} first event names a month');
+      }
+      if (first.kind != LimitEventKind.defaultLimit) {
+        throw _violation(
+          17,
+          'budget ${budget.id} first event is not a default',
+        );
+      }
+
+      for (final event in events.skip(1)) {
+        if (event.effectiveFromMonth == null) {
+          throw _violation(
+            17,
+            'budget ${budget.id} has a later event with no month',
           );
         }
       }

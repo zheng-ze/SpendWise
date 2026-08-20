@@ -91,6 +91,13 @@ final class ExhaustedPlan extends _IdentifiedError {
   String get _case => 'exhaustedPlan';
 }
 
+final class UnknownBudget extends _IdentifiedError {
+  const UnknownBudget(super.id);
+
+  @override
+  String get _case => 'unknownBudget';
+}
+
 final class InactiveReference extends _IdentifiedError {
   const InactiveReference(super.id);
 
@@ -131,4 +138,18 @@ final class CategoryKindMismatch extends _PlainError {
 
   @override
   String get _case => 'categoryKindMismatch';
+}
+
+final class CategoryAlreadyBudgeted extends _PlainError {
+  const CategoryAlreadyBudgeted();
+
+  @override
+  String get _case => 'categoryAlreadyBudgeted';
+}
+
+final class CarryCapInvalid extends _PlainError {
+  const CarryCapInvalid();
+
+  @override
+  String get _case => 'carryCapInvalid';
 }

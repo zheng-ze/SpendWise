@@ -16,6 +16,8 @@ extension LedgerStateReplay on LedgerState {
           _entries[entry.id] = entry;
         case UpsertPlan(:final plan):
           _plans[plan.id] = plan;
+        case UpsertBudget(:final budget):
+          _budgets[budget.id] = budget;
         case DeleteMoneySource(:final id):
           _moneySources.remove(id);
         case DeleteCategory(:final id):
@@ -24,6 +26,8 @@ extension LedgerStateReplay on LedgerState {
           _entries.remove(id);
         case DeletePlan(:final id):
           _plans.remove(id);
+        case DeleteBudget(:final id):
+          _budgets.remove(id);
       }
     }
   }

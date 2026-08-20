@@ -3,18 +3,22 @@ import 'dart:collection';
 import 'package:decimal/decimal.dart';
 import 'package:domain/src/account.dart';
 import 'package:domain/src/account_type.dart';
+import 'package:domain/src/budget.dart';
 import 'package:domain/src/entry.dart';
 import 'package:domain/src/ids.dart';
 import 'package:domain/src/ledger_change.dart';
 import 'package:domain/src/ledger_error.dart';
 import 'package:domain/src/lifecycle_state.dart';
+import 'package:domain/src/limit_event.dart';
 import 'package:domain/src/money_source.dart';
 import 'package:domain/src/plan_failure.dart';
 import 'package:domain/src/plan_resolution.dart';
 import 'package:domain/src/recurring_plan.dart';
 import 'package:domain/src/sub_pocket.dart';
 import 'package:domain/src/transaction_category.dart';
+import 'package:domain/src/year_month.dart';
 
+part 'ledger_state_budgets.dart';
 part 'ledger_state_categories.dart';
 part 'ledger_state_entries.dart';
 part 'ledger_state_holders.dart';
@@ -30,17 +34,20 @@ class LedgerState {
     Map<String, Entry>? entries,
     Map<String, TransactionCategory>? categories,
     Map<String, RecurringPlan>? plans,
+    Map<String, Budget>? budgets,
   }) : _moneySources = {...?moneySources},
        _entries = {...?entries},
        _categories = {...?categories},
-       _plans = {...?plans};
+       _plans = {...?plans},
+       _budgets = {...?budgets};
 
   /// Throws on a corrupted change stream.
   LedgerState.replaying(List<LedgerChange> changes)
     : _moneySources = {},
       _entries = {},
       _categories = {},
-      _plans = {} {
+      _plans = {},
+      _budgets = {} {
     apply(changes);
 
     // Calls assertInvariants() directly instead of going through the
@@ -56,6 +63,8 @@ class LedgerState {
 
   final Map<String, RecurringPlan> _plans;
 
+  final Map<String, Budget> _budgets;
+
   /// An unmodifiable view, not the underlying table.
   // Keeps a caller from bypassing the mutators' guards by writing through
   // the returned map.
@@ -68,6 +77,8 @@ class LedgerState {
       UnmodifiableMapView(_categories);
 
   Map<String, RecurringPlan> get plans => UnmodifiableMapView(_plans);
+
+  Map<String, Budget> get budgets => UnmodifiableMapView(_budgets);
 
   // Previous settled lifecycles, for the one check that judges a transition
   // rather than a state. Written only from inside an `assert`.
