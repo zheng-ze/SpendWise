@@ -5,6 +5,14 @@ SwiftUI prototype at `../SpendWise-SwiftUI`; work past that point (starting with
 greenfield design, not a port — design from domain/product reasoning and this repo's own
 conventions, not by reading the Swift source.
 
+## Response style
+
+**Default to the `terse` skill for every session.** `.claude/hooks/terse-activate.sh` injects its
+ruleset on `SessionStart`, and `.claude/hooks/terse-reinforce.sh` re-injects a short reminder on
+every `UserPromptSubmit` so the style survives context compaction mid-session — both wired in
+`.claude/settings.json`. This governs chat replies only; comments, docstrings, and prose docs are
+untouched by it and go through `tech-writer` instead. "stop terse" or "normal mode" turns it off.
+
 ## Layout
 
 - `packages/domain/` — pure Dart. Models, `LedgerState`, accounting. Has no Flutter dependency and
@@ -116,3 +124,13 @@ Covers narrowing before reading, sending volume reading to `pal`, and when deleg
 rather than optional. Two rules from it that are never worth rediscovering: `rg` never reports a
 false zero and everything else can, and the knowledge graph sees git-tracked files only — `git add -N`
 on a file you create is what makes it visible.
+
+**For a token-cheap locate/edit/review, use the `cavecrew` skill's three agents** —
+`cavecrew-investigator` (locate), `cavecrew-builder` (1-2 file surgical edit), `cavecrew-reviewer`
+(diff review) — before reaching for a vanilla `Explore` or a full-prose reviewer. Their output is
+compressed in the `terse` skill's register, so a delegation costs roughly a third of the main-context
+tokens a prose subagent would. `terse-review` gives the same one-line-per-finding format for a
+human-facing PR review. All four live in this repo's `.claude/skills/` and `.claude/agents/`, and
+Claude Code auto-discovers skills/agents from those paths for any agent working in this repo — no
+per-session activation needed for the agents themselves (only `terse`'s chat-reply style needs the
+hooks above, since that has to survive mid-session drift, not just be discoverable once).
