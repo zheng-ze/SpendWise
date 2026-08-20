@@ -5,8 +5,8 @@ import 'package:spendwise/ui/format/date_format.dart';
 
 enum MonthYearStep { month, year }
 
-/// Holds no selection of its own. Keeping one here would reset it every time
-/// the shell rebuilt this widget.
+/// Holds no selection of its own; the value comes from the caller.
+// Kept stateless so the caller's selection survives a rebuild of this widget.
 class MonthYearSelector extends StatelessWidget {
   const MonthYearSelector({
     super.key,

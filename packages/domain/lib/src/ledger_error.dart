@@ -9,9 +9,8 @@ sealed class LedgerError implements Exception {
   String get _case;
 }
 
-/// Equality is by case and id together, so two cases naming the same row stay
-/// distinct. `runtimeType` carries the case, which is why no subclass needs to
-/// restate either operator.
+// Equality is by case and id together, so two cases naming the same row stay
+// distinct. `runtimeType` carries the case, so no subclass needs to restate it.
 sealed class _IdentifiedError extends LedgerError {
   const _IdentifiedError(this.id);
 

@@ -227,8 +227,6 @@ class _CategoryTotals {
   final Decimal directTotal;
   final Decimal scopeTotal;
 
-  // The category's own total combines everything logged on it and its
-  // children, so "direct" spend is what's left after the children's share.
   factory _CategoryTotals.compute({
     required Iterable<AnalysisItem> scanned,
     required List<TransactionCategory> children,
@@ -249,6 +247,8 @@ class _CategoryTotals {
       Decimal.zero,
       (sum, amount) => sum + amount,
     );
+    // The category's own total combines everything logged on it and its
+    // children, so direct spend is what's left after the children's share.
     final directTotal = mainTotal - childSum;
 
     final scopeTotal = windowed

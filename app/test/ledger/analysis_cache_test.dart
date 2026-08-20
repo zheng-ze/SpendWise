@@ -8,7 +8,7 @@ import 'package:spendwise/ledger/event_bus.dart';
 Account _account({String name = 'acc'}) =>
     Account(name: name, type: AccountType.savings);
 
-/// One expense, so a real compute over it yields exactly one item.
+// One expense, so a real compute over it yields exactly one item.
 LedgerState _stateWithExpense(String amount) {
   final state = LedgerState();
   final account = _account();
@@ -19,8 +19,8 @@ LedgerState _stateWithExpense(String amount) {
   return state;
 }
 
-/// Hands the test the completer for each compute so the interleaving is fixed
-/// by the test rather than by scheduling.
+// Hands the test the completer for each compute so the interleaving is fixed
+// by the test rather than by scheduling.
 class _ManualRunner {
   final List<Completer<List<AnalysisItem>>> pending = [];
 

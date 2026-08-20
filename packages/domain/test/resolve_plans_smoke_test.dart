@@ -51,9 +51,8 @@ void main() {
     expect(state.entries, hasLength(2));
   });
 
-  /// The advanced cursor alone makes a replay empty, which hides whether an
-  /// occurrence that IS offered again is recognised. Rewinding the cursor puts
-  /// both dates back in range so the sweep must dedupe on the occurrence id.
+  // An advanced cursor alone makes a replay empty, hiding whether a re-offered occurrence is
+  // recognised. Rewinding it puts both dates back in range so the sweep must dedupe by id.
   test('rewinding the cursor re-offers occurrences without duplicating', () {
     final state = seeded();
     final plan = monthly();

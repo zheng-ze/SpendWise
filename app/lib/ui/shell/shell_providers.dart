@@ -11,8 +11,10 @@ final selectedDestinationProvider = StateProvider<ShellDestination>(
 
 DateTime startOfMonthUtc(DateTime date) => DateTime.utc(date.year, date.month);
 
-/// Held here rather than in the shell, so a rebuild cannot reset the user's
-/// choice.
+/// The month currently selected for scoped views, starting as the current
+/// month.
+// Held in a provider rather than the shell widget's state, so a rebuild of
+// the shell cannot reset the user's choice.
 final selectedMonthProvider = StateProvider<DateTime>(
   (ref) => startOfMonthUtc(DateTime.now()),
 );

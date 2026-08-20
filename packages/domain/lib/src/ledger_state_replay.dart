@@ -1,9 +1,8 @@
 part of 'ledger_state.dart';
 
 extension LedgerStateReplay on LedgerState {
-  /// Deleting a pocket here does not unlink it from its parent, because the
-  /// mutation that emitted the deletion emitted the parent's upsert into the
-  /// same stream. Replay trusts the stream to be complete.
+  /// Trusts [changes] to be a complete stream. A pocket deletion here does
+  /// not unlink its parent, since the parent's own upsert carries that.
   void apply(List<LedgerChange> changes) {
     for (final change in changes) {
       switch (change) {

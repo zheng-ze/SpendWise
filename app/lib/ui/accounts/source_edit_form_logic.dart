@@ -5,16 +5,14 @@ bool canSaveSourceEditForm({required String name, required Decimal? balance}) {
   return balance != null;
 }
 
-/// Empty text counts as zero, matching the form's own convention for the
-/// balance field rather than treating a blank entry as unparsed.
+/// Parses the entered balance, treating empty text as zero.
 Decimal parseEnteredBalance(String text) {
   if (text.trim().isEmpty) return Decimal.zero;
   return Decimal.tryParse(text) ?? Decimal.zero;
 }
 
-/// Null when the entered balance matches the current one, so the caller can
-/// tell "no adjustment" apart from "adjustment of zero" without posting a
-/// zero-value entry either way.
+/// Builds the entry that reconciles the current balance to the entered one,
+/// or null if the two already match.
 Entry? balanceAdjustmentEntry({
   required Decimal enteredBalance,
   required Decimal currentBalance,

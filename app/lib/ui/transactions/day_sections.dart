@@ -69,8 +69,8 @@ DaySection _section(
   );
 }
 
-/// Delegates each entry to [Accounting.totals] for the treat-as-expense
-/// transfer rule.
+// Delegates each entry to Accounting.totals for the treat-as-expense
+// transfer rule.
 ({Decimal income, Decimal expenses}) _totals(
   List<Entry> dayEntries,
   LedgerState state,

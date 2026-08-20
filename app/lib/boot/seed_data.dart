@@ -19,8 +19,8 @@ List<LedgerChange> buildSeed(
   return _serialize(state);
 }
 
-/// Reads the final state rather than collecting the mutator returns, so a
-/// cascade that rewrote an earlier row is serialized as its settled version.
+// Reads the final state rather than collecting the mutator returns, so a
+// cascade that rewrote an earlier row is serialized as its settled version.
 List<LedgerChange> _serialize(LedgerState state) => <LedgerChange>[
   ...state.moneySources.values.map(LedgerChange.upsertSource),
   ...state.categories.values.map(UpsertCategory.new),
@@ -162,8 +162,8 @@ class _SeedBuilder {
     );
   }
 
-  /// `lastResolvedDate` sits on the anchor so the first resolve after boot has
-  /// nothing to backfill.
+  // `lastResolvedDate` sits on the anchor so the first resolve after boot has
+  // nothing to backfill.
   void _plan(
     String amount,
     String name,

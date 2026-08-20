@@ -3,8 +3,8 @@ import 'package:test/test.dart';
 
 import 'support/builders.dart';
 
-/// The category branch of the dereference sweep, reached only by dropping the
-/// last entry that carries a referenceOnly category.
+// The category branch of the dereference sweep, reached only by dropping the
+// last entry that carries a referenceOnly category.
 void main() {
   // Entries must be filed while the category is still active; purging it while
   // they survive is what drives it to referenceOnly.

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Statement days run 1-28 so every month has that day, matching the domain
-/// clamp applied on save.
+/// Lets the user pick a statement day from 1 to 28.
 class StatementDayPicker extends StatelessWidget {
   const StatementDayPicker({
     super.key,
@@ -31,6 +30,7 @@ class StatementDayPicker extends StatelessWidget {
         child: SafeArea(
           child: ListView(
             children: [
+              // Capped at 28 so every month has that day, matching the domain clamp on save.
               for (var day = 1; day <= 28; day++)
                 ListTile(
                   title: Text('$day'),

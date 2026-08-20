@@ -50,9 +50,10 @@ class Account {
     return _copy(lifecycle: lifecycle);
   }
 
-  /// Clamped rather than rejected, since a value reaching here came from a
-  /// drift row or an import, and dropping the row would lose more.
+  /// Out-of-range values are clamped into 1-28 rather than rejected.
   Account withNormalizedStatementDay() {
+    // Clamped rather than rejected: a value reaching here came from a drift
+    // row or an import, and dropping the row would lose more.
     final normalized = type == AccountType.card && statementDay != null
         ? statementDay!.clamp(1, 28)
         : null;

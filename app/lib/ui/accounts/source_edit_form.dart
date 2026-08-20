@@ -68,8 +68,8 @@ class _SourceEditFormState extends State<SourceEditForm> {
 
   bool get _isAccount => _account != null;
 
-  /// A pocket has no type of its own, so its eligibility follows whichever
-  /// account holds it.
+  // A pocket has no type of its own, so its eligibility follows whichever
+  // account holds it.
   AccountType? get _eligibleType {
     if (_isAccount) return _type;
     return widget.ledger.state.owningAccount(widget.holderID)?.type;

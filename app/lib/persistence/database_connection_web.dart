@@ -2,7 +2,7 @@ import 'package:drift/wasm.dart';
 
 import 'package:spendwise/persistence/database_connection.dart';
 
-/// Both files are served from `web/`, so the app's own base href resolves them.
+// Both files are served from `web/`, so the app's own base href resolves them.
 final _sqlite3Uri = Uri.parse('sqlite3.wasm');
 final _workerUri = Uri.parse('drift_worker.js');
 

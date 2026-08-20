@@ -3,13 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
 
-/// A stack layer rather than a snackbar, because the save state lasts until the
-/// store clears it. [BannerState] owns the message and the precedence.
+/// Shows the current status message, sourced from [BannerState].
 class StatusBanner extends ConsumerWidget {
   const StatusBanner({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // A stack layer rather than a snackbar, since the message needs to persist
+    // until the store clears it rather than auto-dismissing.
     final message = ref.watch(bannerStateProvider).message;
     if (message == null) return const SizedBox.shrink();
 

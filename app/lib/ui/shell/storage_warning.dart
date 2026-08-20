@@ -3,14 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
-/// A fixed strip rather than a layer of the dismissible overlay, which holds
-/// conditions that pass on their own. Losing the ledger when the tab closes
-/// does not.
+/// Warns the user when the browser cannot persist their data.
 class StorageWarning extends ConsumerWidget {
   const StorageWarning({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // A fixed strip rather than the dismissible overlay, since losing the
+    // ledger on tab close is not a condition that passes on its own.
     if (ref.watch(storageIsDurableProvider)) return const SizedBox.shrink();
 
     final theme = Theme.of(context);

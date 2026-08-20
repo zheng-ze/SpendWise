@@ -15,7 +15,7 @@ sealed class LedgerChange {
     PocketSource(:final pocket) => UpsertPocket(pocket),
   };
 
-  /// Abstract, so a new case without one fails to compile.
+  // Abstract, so a new case without one fails to compile.
   String get targetID;
 }
 

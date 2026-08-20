@@ -1,8 +1,8 @@
 part of 'ledger_state.dart';
 
 extension LedgerStateInvariants on LedgerState {
-  /// Only `_checked` calls this. [assertInvariants] stays snapshot-only so a
-  /// caller can validate a state it did not build, as persistence replay does.
+  // Only `_checked` calls this. `assertInvariants` stays snapshot-only so a
+  // caller can validate a state it did not build, as persistence replay does.
   void _assertChecked() {
     assertInvariants();
     _assertLifecycleMonotonic();
@@ -16,11 +16,8 @@ extension LedgerStateInvariants on LedgerState {
       key: value.lifecycle,
   };
 
-  /// Lifecycle only moves toward less alive, the one sanctioned back-edge being
-  /// `archived` to `active`. That is all a restore mutator can produce, since
-  /// each gates on `== archived`. Judging one state cannot catch a violation
-  /// here, because the result is legal on its own and only the move that
-  /// reached it is not.
+  // Lifecycle only moves toward less alive, except archived back to active.
+  // Needs the prior snapshot because the resulting state alone is legal.
   void _assertLifecycleMonotonic() {
     final before = _lifecycleAtLastCheck;
     if (before == null) return;
@@ -133,10 +130,8 @@ extension LedgerStateInvariants on LedgerState {
         throw _violation(5, 'category ${category.id} kind differs from parent');
       }
 
-      // A category may sit under an archived parent, since archiving cascades
-      // to children, but not under a referenceOnly or tombstoned one. Those
-      // states mean the parent is already leaving and should have taken the
-      // child down with it.
+      // An archived parent is fine, since archiving cascades to children. A
+      // referenceOnly or tombstoned one should have taken the child down too.
       if (!parent.lifecycle.isAtLeastAsAliveAs(category.lifecycle) &&
           !parent.lifecycle.isAtLeastAsAliveAs(LifecycleState.archived)) {
         throw _violation(
@@ -232,8 +227,8 @@ extension LedgerStateInvariants on LedgerState {
     }
   }
 
-  /// The mutators clamp on the write path. This catches a row that arrived
-  /// through the seeding constructor or a future import instead.
+  // The mutators clamp on the write path. This catches a row that arrived
+  // through the seeding constructor or a future import instead.
   void _assertStatementDayInRange() {
     for (final account in _accounts) {
       final statementDay = account.statementDay;
@@ -256,10 +251,8 @@ extension LedgerStateInvariants on LedgerState {
     }
   }
 
-  /// Lifecycle only. Another check covers existence. An archived row is legal
-  /// because archiving freezes a plan rather than dropping it. A `referenceOnly`
-  /// or `tombstoned` row cannot be restored, so a plan naming one got there
-  /// through a cascade that failed to remove it.
+  // Lifecycle only, existence is covered elsewhere. An archived row is legal
+  // since archiving freezes a plan; a leaving row means a cascade missed it.
   void _assertPlansReferenceActiveRows() {
     bool isLeaving(LifecycleState lifecycle) =>
         lifecycle == LifecycleState.referenceOnly ||
@@ -289,9 +282,8 @@ extension LedgerStateInvariants on LedgerState {
     }
   }
 
-  /// `updatePocket` enforces this on the write path but only judges the child,
-  /// so any path that moves the parent instead escapes it. The link and orphan
-  /// checks above never compare the two lifecycles.
+  // updatePocket enforces this on the write path but only judges the child,
+  // so a path that moves the parent instead escapes it uncaught until here.
   void _assertPocketNotMoreAliveThanAccount() {
     for (final account in _accounts) {
       for (final pocketID in account.subPocketIDs) {

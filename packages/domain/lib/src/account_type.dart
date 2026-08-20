@@ -14,10 +14,8 @@ enum AccountType {
 
   final int code;
 
-  /// Only a type representing money outside the user's everyday spending
-  /// control may treat an incoming transfer as an expense. For the others a
-  /// transfer in is money moving, not money spent, and would double-count
-  /// the eventual purchase.
+  /// True only for types representing money outside the user's everyday
+  /// spending control, where an incoming transfer can count as an expense.
   bool get allowsTransfersAsExpense => switch (this) {
     cash || checking || card || prepaid => false,
     savings || investment || insurance || other || loan || overdraft => true,

@@ -1,8 +1,7 @@
 /// Window-width thresholds that decide the shell's navigation layout.
 ///
-/// The rail and extended-rail switches use two thresholds each instead of one,
-/// so a window sitting right at the boundary does not flicker between layouts
-/// as it resizes by a pixel. See [AppShell] for how they are applied.
+/// The rail and extended-rail switches each use two thresholds: one to enter
+/// the mode and a lower one to leave it.
 class LayoutBreakpoints {
   const LayoutBreakpoints._();
 

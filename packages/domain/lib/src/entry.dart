@@ -6,8 +6,7 @@ import 'package:domain/src/lifecycle_state.dart';
 import 'package:meta/meta.dart';
 
 /// Marks an entry the app generates itself rather than one a user typed in,
-/// so the UI and the ledger can tell the two apart and protect the
-/// generated one from edits that would corrupt what it stands for.
+/// so the UI and the ledger can protect it from edits that would corrupt it.
 enum SystemEntryKind {
   openingBalance(0),
   balanceAdjustment(1);

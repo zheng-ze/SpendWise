@@ -9,8 +9,7 @@ import 'package:spendwise/persistence/ledger_store.dart';
 import 'package:spendwise/persistence/mappers.dart';
 import 'package:spendwise/persistence/version_vector.dart';
 
-/// Tests supply their own so the suite never waits out a real debounce or
-/// backoff.
+// Tests supply their own so the suite never waits out a real debounce or backoff.
 abstract class StoreTimer {
   void cancel();
 }
@@ -30,8 +29,8 @@ class _RealTimer implements StoreTimer {
 StoreTimer _armRealTimer(Duration delay, void Function() onFire) =>
     _RealTimer(delay, onFire);
 
-/// Rides the ingest queue alongside the batches. Completing it on the drain
-/// loop is what proves every batch queued ahead of it is already in `pending`.
+// Rides the ingest queue alongside the batches. Completing it on the drain
+// loop is what proves every batch queued ahead of it is already in `pending`.
 class _Barrier {
   final Completer<void> reached = Completer<void>();
 }
@@ -95,19 +94,17 @@ class DriftLedgerStore implements LedgerStore {
   // problem the app never had.
   bool _reportedNonClear = false;
 
-  /// Set while a timed retry cycle runs, so those attempts do not flip the
-  /// banner back to `retrying` and make it flicker.
+  // Set while a timed retry cycle runs, so those attempts do not flip the
+  // banner back to `retrying` and make it flicker.
   bool _inTimedRetry = false;
 
   bool _lastCycleGaveUp = false;
 
-  /// Cleared only once the transaction carrying it has committed, so a rolled
-  /// back seed stays unseeded.
+  // Cleared only once the transaction carrying it has committed, so a rolled
+  // back seed stays unseeded.
   bool _seedFlagPending = false;
 
-  /// Changes buffered but not yet committed. Nothing outside can see these:
-  /// a test that they were kept rather than dropped cannot read the database,
-  /// because not being on disk is the thing under test.
+  /// The number of changes buffered but not yet committed to the database.
   @visibleForTesting
   int get pendingCount => _pending.length;
 
@@ -198,8 +195,8 @@ class DriftLedgerStore implements LedgerStore {
     });
   }
 
-  /// Reporting `clear` puts the store back in the clear state, so the next
-  /// healthy save is silent again.
+  // Reporting `clear` puts the store back in the clear state, so the next
+  // healthy save is silent again.
   void _report(SaveBannerState state) {
     final isClear = state == SaveBannerState.clear;
     if (isClear && !_reportedNonClear) return;
@@ -207,8 +204,8 @@ class DriftLedgerStore implements LedgerStore {
     _handler?.call(state);
   }
 
-  /// The save and the backoff are both awaits, so two overlapping cycles would
-  /// otherwise apply the same pending prefix twice.
+  // The save and the backoff are both awaits, so two overlapping cycles would
+  // otherwise apply the same pending prefix twice.
   Future<void> _saveCycle() {
     final running = _inFlightSave;
     if (running != null) return running;
@@ -257,10 +254,8 @@ class DriftLedgerStore implements LedgerStore {
     }
   }
 
-  /// An upsert rather than an update: the device id is cached the first time it
-  /// is claimed, so an attempt whose insert of the meta row was rolled back
-  /// leaves the cache holding an id that no row carries, and a bare update
-  /// would match nothing.
+  // An upsert rather than an update: the device id is cached on first claim, so a rolled back
+  // insert leaves the cache holding an id no row carries and a bare update would match nothing.
   Future<void> _writeSeedFlag() async {
     await db
         .into(db.storeMeta)
@@ -284,9 +279,8 @@ class DriftLedgerStore implements LedgerStore {
     return completer.future;
   }
 
-  /// Each survivor sits at the index of its final occurrence rather than its
-  /// first. Upserts and deletions share the keyspace, so an upsert followed by
-  /// a deletion of the same id applies only the deletion.
+  // Each survivor sits at its final occurrence's index. Upserts and deletions share the keyspace,
+  // so an upsert followed by a deletion of the same id applies only the deletion.
   static List<LedgerChange> _coalesce(List<LedgerChange> changes) {
     final lastIndex = <String, int>{};
     for (var i = 0; i < changes.length; i++) {

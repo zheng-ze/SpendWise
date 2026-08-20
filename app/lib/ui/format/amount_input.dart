@@ -4,9 +4,8 @@ const int _maxFractionDigits = 2;
 const int _zero = 0x30;
 const int _nine = 0x39;
 
-/// Fraction digits past the second are dropped rather than rounded. Rounding
-/// mid-edit would rewrite digits the user has already typed and move the caret
-/// off the one they are working on.
+/// Strips a raw text field's input down to a valid amount, dropping any
+/// fraction digits past the second rather than rounding them.
 String sanitizeAmount(String text, {required bool allowsNegative}) {
   final buffer = StringBuffer();
   var seenPoint = false;
@@ -32,6 +31,8 @@ String sanitizeAmount(String text, {required bool allowsNegative}) {
     if (char.codeUnitAt(0) < _zero || char.codeUnitAt(0) > _nine) continue;
 
     if (seenPoint) {
+      // Dropped, not rounded, so an edit mid-string never rewrites a digit
+      // the user already typed or shifts the caret off the one they're on.
       if (fractionDigits == _maxFractionDigits) continue;
       fractionDigits++;
     }

@@ -279,9 +279,9 @@ void main() {
       expect(ledger.entries[uuid(4)]?.categoryID, uuid(5));
     });
 
-    /// Editing an entry whose holder was archived after the fact stays legal,
-    /// so a row already naming that holder is exempt from the active-holder
-    /// rule. A brand new entry on the same holder is not.
+    // Editing an entry whose holder was archived after the fact stays legal,
+    // so a row already naming that holder is exempt from the active-holder
+    // rule. A brand new entry on the same holder is not.
     group('the prior-reference exemption', () {
       test('an edit keeps a source archived since the entry was made', () {
         ledger.addEntry(entry(id: uuid(4), sourceID: uuid(1)));

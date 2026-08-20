@@ -1,8 +1,7 @@
 import 'package:domain/src/account_type.dart';
 
-/// The prefix is not uuid-shaped, so this can never collide with a real
-/// category id. Derived at call time and never persisted, so every device
-/// agrees without a migration.
+/// The prefix is not uuid-shaped, so this never collides with a real category
+/// id. Derived at call time and never persisted, so every device agrees.
 String syntheticTransferExpenseBucketID(AccountType type) {
   if (!type.allowsTransfersAsExpense) {
     throw ArgumentError.value(

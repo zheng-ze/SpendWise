@@ -13,13 +13,9 @@ Future<List<AnalysisItem>> syncComputeRunner(LedgerState state) async {
 
 /// The isolate send deep-copies the captured state, and that copy is the
 /// snapshot a mutation landing mid-compute cannot corrupt.
-///
-/// [Isolate.run] must be handed a closure with no link back to the calling
-/// instance, or the send fails with an unsendable-object error on the whole
-/// captured context, [state] included. Passing the top-level function as a
-/// tear-off alongside [state] as a plain argument, rather than wrapping both
-/// in a closure built inside an instance method, is what keeps that link out.
 Future<List<AnalysisItem>> isolateComputeRunner(LedgerState state) {
+  // A closure linking back to a calling instance sends the whole captured
+  // context and fails as unsendable, so state is passed as a plain argument.
   return Isolate.run(() => Accounting.analysisItems(state));
 }
 

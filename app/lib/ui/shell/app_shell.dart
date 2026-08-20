@@ -35,10 +35,8 @@ class _AppShellState extends ConsumerState<AppShell> {
   bool _useRail = false;
   bool _extended = false;
 
-  // Two thresholds instead of one so a window sitting right at a boundary
-  // does not flip layouts back and forth as it resizes by a pixel. Once a
-  // mode is entered, width has to cross past the other threshold before it
-  // is left again.
+  // Two thresholds per mode, so a window sitting right at a boundary does not
+  // flip layouts back and forth as it resizes by a pixel.
   void _updateLayoutMode(double width) {
     final useRail = _useRail
         ? width >= LayoutBreakpoints.railExit
@@ -123,8 +121,8 @@ class _AppShellState extends ConsumerState<AppShell> {
   }
 }
 
-/// [IndexedStack] keeps every destination's [Navigator] mounted, which is what
-/// makes a drilled-in stack survive a switch away and back.
+// IndexedStack keeps every destination's Navigator mounted, which is what
+// makes a drilled-in stack survive a switch away and back.
 class _DestinationStacks extends StatelessWidget {
   const _DestinationStacks({required this.selected, required this.bodies});
 

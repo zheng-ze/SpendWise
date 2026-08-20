@@ -172,7 +172,7 @@ void main() {
     }
   });
 
-  // every day the dataset asks for fits in all twelve months, so the clamp
+  // Every day the dataset asks for fits in all twelve months, so the clamp
   // path is never exercised here.
   test('seedDatesLandOnTheRequestedDayOfTheShiftedMonth', () {
     final entries = _rowsOf<UpsertEntry>(

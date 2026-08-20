@@ -3,9 +3,8 @@ import 'package:test/test.dart';
 
 import 'support/builders.dart';
 
-/// An account counts as referenced through a surviving pocket, not only through
-/// its own entries. Counting direct references alone would let an account funded
-/// solely through its pockets be removed while those pockets survived.
+// An account counts as referenced through a surviving pocket, not only through its own
+// entries, so an account funded only through pockets is not removed while they survive.
 void main() {
   test(
     'purgeAccountWhoseEntriesOnlyReferenceItsPocketsKeepsItReferenceOnly',

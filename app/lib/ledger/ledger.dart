@@ -22,8 +22,8 @@ class Ledger extends ChangeNotifier {
 
   LedgerState get state => _state;
 
-  /// A throw from the mutator leaves every later step unrun, so a rejected
-  /// mutation neither publishes nor notifies.
+  // A throw from the mutator leaves every later step unrun, so a rejected
+  // mutation neither publishes nor notifies.
   List<LedgerChange> _mutate(List<LedgerChange> Function(LedgerState) mutator) {
     // Ahead of publish, or a torn-down collaborator throws first and hides this.
     assert(ChangeNotifier.debugAssertNotDisposed(this));

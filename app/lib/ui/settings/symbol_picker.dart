@@ -5,8 +5,8 @@ import 'package:spendwise/ui/symbol_map.dart';
 
 const _gridColumns = 6;
 
-/// Sections whose names don't match [query] are dropped entirely rather than
-/// kept empty, so the grid never shows a header with nothing under it.
+/// Returns sections whose names match [query], dropping any section left
+/// with no matches rather than keeping it empty.
 Map<String, List<String>> filterSymbolSections(
   Map<String, List<String>> sections,
   String query,

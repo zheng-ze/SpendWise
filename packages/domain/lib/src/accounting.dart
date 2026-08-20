@@ -17,9 +17,8 @@ import 'package:domain/src/synthetic_buckets.dart';
 
 /// Balances are always recomputed from the entry log, never stored.
 abstract final class Accounting {
-  /// [sourceIDs] is the existence set, archived rows included. Only removing a
-  /// holder un-applies its entries, since archiving one would otherwise rewrite
-  /// the counterparty's history.
+  /// [sourceIDs] is the existence set, archived rows included, so removing
+  /// a holder is what un-applies its entries rather than archiving one.
   static bool applies(Entry entry, Set<String> sourceIDs) {
     if (!sourceIDs.contains(entry.sourceID)) return false;
 
@@ -175,9 +174,8 @@ abstract final class Accounting {
     }
   }
 
-  /// The existence check is skipped here, so [entry] must guarantee its
-  /// source and destination ids exist in [LedgerState.moneySources] (any
-  /// entry from `ledger.entries.values` does).
+  /// Skips the existence check, so [entry]'s source and destination ids
+  /// must already exist in [LedgerState.moneySources].
   static ({Decimal income, Decimal expense}) totals(
     Entry entry,
     LedgerState ledger,
@@ -212,9 +210,8 @@ abstract final class Accounting {
     }
   }
 
-  /// A pocket has no type of its own, so a transfer into one buckets by
-  /// whichever account holds it, keeping it in the same bucket as a transfer
-  /// to the account directly.
+  // A pocket has no type of its own, so a transfer into one buckets by
+  // whichever account holds it, same as a transfer to the account directly.
   static AccountType _destinationAccountType(
     MoneySource destination,
     LedgerState ledger,
@@ -254,9 +251,8 @@ abstract final class Accounting {
     final leafID = normalizedOptionalID(rawLeafID);
     if (leafID == null) return null;
 
-    // An id with no category row is not "no bucket". It may be a synthetic
-    // bucket id, which by design has no row behind it. Only a real category
-    // rolls up to its parent, and anything else passes through unchanged.
+    // A missing row is not "no bucket": it may be a synthetic bucket id,
+    // which by design has none, so only a real category rolls up.
     final category = state.categories[leafID];
     if (category == null) return leafID;
 

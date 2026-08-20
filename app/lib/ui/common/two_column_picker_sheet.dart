@@ -15,8 +15,8 @@ class PickerOption {
   final List<PickerOption> children;
 }
 
-/// Confirming None and dismissing are different answers, and a caller that ran
-/// them together would wipe a value the user never touched.
+/// What the user chose in the picker sheet: a specific option, an explicit
+/// clear, or nothing if the sheet was dismissed without an answer.
 @immutable
 sealed class PickerOutcome {
   const PickerOutcome();

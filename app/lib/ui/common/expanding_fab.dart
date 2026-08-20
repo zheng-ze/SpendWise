@@ -17,9 +17,7 @@ class FabAction {
 /// stack above it, and an invisible backdrop collapses it on an outside tap.
 ///
 /// Place this as the last child of a `Stack` wrapping the screen body, not
-/// in `Scaffold.floatingActionButton` — that slot's hit-testing is bounded
-/// to the FAB's own footprint, so a backdrop built inside it could never
-/// catch a tap anywhere else on screen.
+/// in `Scaffold.floatingActionButton`.
 class ExpandingFab extends StatefulWidget {
   const ExpandingFab({super.key, required this.primary, this.secondary});
 

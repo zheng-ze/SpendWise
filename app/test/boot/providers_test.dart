@@ -19,8 +19,8 @@ ProviderContainer _containerFor(InMemoryLedgerStore store) {
   return container;
 }
 
-/// The provider starts [AppBoot] itself, fire-and-forget, so the test waits
-/// for that in-flight start rather than calling start() again.
+// The provider starts AppBoot itself, fire-and-forget, so the test waits
+// for that in-flight start rather than calling start() again.
 Future<Ready> _readyPhase(ProviderContainer container) async {
   final boot = container.read(appBootProvider);
   while (boot.phase is! Ready) {

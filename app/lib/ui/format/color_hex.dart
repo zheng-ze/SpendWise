@@ -11,8 +11,7 @@ Color parseColorHex(String hex) {
   return Color(0xFF000000 | int.parse(match.group(1)!, radix: 16));
 }
 
-/// Alpha is dropped, so a stored color round-trips through the six-digit form
-/// the native app reads.
+/// Formats a color as a six-digit `#RRGGBB` hex string, dropping alpha.
 String toColorHex(Color color) {
   int channel(double value) => (value * 255).round().clamp(0, 255);
 
