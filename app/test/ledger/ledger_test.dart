@@ -90,6 +90,26 @@ void main() {
     expect(ledger.state.entries, isEmpty);
   });
 
+  test('rejectedBudgetMutationPublishesNothing', () {
+    final ledger = Ledger();
+    final batches = _batchesOf(ledger);
+    var notifications = 0;
+    ledger.addListener(() => notifications++);
+
+    expect(
+      () => ledger.updateBudgetAmount(
+        '4f2c1b90-3e5d-4a18-9c7b-6d0e2a1f8b43',
+        Decimal.fromInt(10),
+        YearMonth(2026, 1),
+      ),
+      throwsA(isA<UnknownBudget>()),
+    );
+
+    expect(batches, isEmpty);
+    expect(notifications, 0);
+    expect(ledger.state.budgets, isEmpty);
+  });
+
   test('sequentialMutationsPublishInOrder', () {
     final ledger = Ledger();
     final batches = _batchesOf(ledger);

@@ -35,7 +35,7 @@ class _Barrier {
   final Completer<void> reached = Completer<void>();
 }
 
-/// Replay order is fixed: accounts, pockets, categories, entries, plans.
+/// Replay order is fixed: accounts, pockets, categories, entries, plans, budgets.
 Future<List<LedgerChange>> loadChanges(rows.LedgerDatabase db) async {
   Future<List<D>> live<T extends Table, D extends DataClass>(
     TableInfo<T, D> table,
@@ -55,6 +55,7 @@ Future<List<LedgerChange>> loadChanges(rows.LedgerDatabase db) async {
   final categories = await live(db.categories);
   final entries = await live(db.entries);
   final plans = await live(db.plans);
+  final budgets = await live(db.budgets);
 
   return [
     for (final row in accounts) UpsertAccount(accountFromRow(row)),
@@ -62,6 +63,7 @@ Future<List<LedgerChange>> loadChanges(rows.LedgerDatabase db) async {
     for (final row in categories) UpsertCategory(categoryFromRow(row)),
     for (final row in entries) UpsertEntry(entryFromRow(row)),
     for (final row in plans) UpsertPlan(planFromRow(row)),
+    for (final row in budgets) UpsertBudget(budgetFromRow(row)),
   ];
 }
 
@@ -322,6 +324,11 @@ class DriftLedgerStore implements LedgerStore {
         await db
             .into(db.plans)
             .insertOnConflictUpdate(planToRow(plan, version));
+      case UpsertBudget(:final budget):
+        final version = await _bumpedVersion(db.budgets, budget.id);
+        await db
+            .into(db.budgets)
+            .insertOnConflictUpdate(budgetToRow(budget, version));
       case DeleteMoneySource(:final id):
         // One id space over two tables, so a miss in accounts falls through.
         if (!await _tombstone(db.accounts, id)) {
@@ -333,6 +340,8 @@ class DriftLedgerStore implements LedgerStore {
         await _tombstone(db.entries, id);
       case DeletePlan(:final id):
         await _tombstone(db.plans, id);
+      case DeleteBudget(:final id):
+        await _tombstone(db.budgets, id);
     }
   }
 

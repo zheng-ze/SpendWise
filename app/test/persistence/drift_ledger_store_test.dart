@@ -213,6 +213,42 @@ void main() {
       expect(row.amount, '10');
     });
 
+    test(
+      'a budget upsert followed by a delete of the same id applies only the delete',
+      () async {
+        domain.Budget budget(String amount) => domain.Budget(
+          id: 'b1',
+          categoryID: 'c1',
+          limitEvents: [
+            LimitEvent(
+              effectiveFromMonth: null,
+              value: Decimal.parse(amount),
+              kind: LimitEventKind.defaultLimit,
+            ),
+          ],
+          rolloverMode: RolloverMode.none,
+          carryCap: null,
+          createdAtMonth: const YearMonth(2026, 1),
+        );
+
+        store.enqueue([UpsertBudget(budget('10'))]);
+        await debouncedSave();
+
+        store
+          ..enqueue([UpsertBudget(budget('99'))])
+          ..enqueue([const DeleteBudget('b1')]);
+
+        await debouncedSave();
+
+        final row = await db.select(db.budgets).getSingle();
+        expect(row.lifecycle, LifecycleState.tombstoned.code);
+
+        // A surviving upsert would have written the limit events for '99'
+        // first, so the untouched row proves coalescing dropped the upsert.
+        expect(row.limitEvents, contains('"value":"10"'));
+      },
+    );
+
     test('deleteThenUpsertInOneWindowAppliesOnlyUpsert', () async {
       store.enqueue([UpsertEntry(entry('e1', '10'))]);
       await debouncedSave();
@@ -692,6 +728,7 @@ void main() {
         const DeleteCategory('nope'),
         const DeleteEntry('nope'),
         const DeletePlan('nope'),
+        const DeleteBudget('nope'),
       ]);
 
       await debouncedSave();
@@ -748,6 +785,41 @@ void main() {
         );
       },
     );
+
+    test(
+      'a budget upsert stores an active row and a delete tombstones',
+      () async {
+        final budget = domain.Budget(
+          id: 'b1',
+          categoryID: 'c1',
+          limitEvents: [
+            LimitEvent(
+              effectiveFromMonth: null,
+              value: Decimal.fromInt(500),
+              kind: LimitEventKind.defaultLimit,
+            ),
+          ],
+          rolloverMode: RolloverMode.none,
+          carryCap: null,
+          createdAtMonth: const YearMonth(2026, 1),
+        );
+
+        store.enqueue([UpsertBudget(budget)]);
+        await debouncedSave();
+        expect(
+          (await db.select(db.budgets).getSingle()).lifecycle,
+          LifecycleState.active.code,
+        );
+
+        store.enqueue([const DeleteBudget('b1')]);
+        await debouncedSave();
+
+        expect(
+          (await db.select(db.budgets).getSingle()).lifecycle,
+          LifecycleState.tombstoned.code,
+        );
+      },
+    );
   });
 
   group('load', () {
@@ -766,6 +838,21 @@ void main() {
       lastResolvedDate: DateTime.utc(2026, 1, 1),
     );
 
+    domain.Budget budget(String id) => domain.Budget(
+      id: id,
+      categoryID: 'c1',
+      limitEvents: [
+        LimitEvent(
+          effectiveFromMonth: null,
+          value: Decimal.fromInt(500),
+          kind: LimitEventKind.defaultLimit,
+        ),
+      ],
+      rolloverMode: RolloverMode.none,
+      carryCap: null,
+      createdAtMonth: const YearMonth(2026, 1),
+    );
+
     test('loadReturnsWhatWasEnqueued', () async {
       store.enqueue([
         UpsertAccount(account('a1', 'wallet').addSubPocket('p1')),
@@ -773,6 +860,7 @@ void main() {
         UpsertCategory(category('c1', 'food', parentID: null)),
         UpsertEntry(entry('e1', '12.34', source: 'a1')),
         UpsertPlan(plan('pl1')),
+        UpsertBudget(budget('b1')),
       ]);
       await store.flushNow();
 
@@ -782,6 +870,7 @@ void main() {
       expect(state.categories.keys.toSet(), {'c1'});
       expect(state.entries.keys.toSet(), {'e1'});
       expect(state.plans.keys.toSet(), {'pl1'});
+      expect(state.budgets.keys.toSet(), {'b1'});
       expect(state.entries['e1']!.amount, Decimal.parse('12.34'));
       expect(state.entries['e1']!.date, DateTime.utc(2026, 3, 14));
       expect(state.moneySources['a1']!.name, 'wallet');
@@ -872,10 +961,30 @@ void main() {
       );
     });
 
+    test('budgetPersistsAndTombstonesAcrossLoad', () async {
+      store.enqueue([
+        UpsertCategory(category('c1', 'food', parentID: null)),
+        UpsertBudget(budget('b1')),
+      ]);
+      await store.flushNow();
+
+      expect((await store.load()).budgets.keys.toSet(), {'b1'});
+
+      store.enqueue([const DeleteBudget('b1')]);
+      await store.flushNow();
+
+      expect((await store.load()).budgets, isEmpty);
+      expect(
+        (await db.select(db.budgets).getSingle()).lifecycle,
+        LifecycleState.tombstoned.code,
+      );
+    });
+
     test(
-      'load orders changes accounts pockets categories entries plans',
+      'load orders changes accounts pockets categories entries plans budgets',
       () async {
         store.enqueue([
+          UpsertBudget(budget('b1')),
           UpsertPlan(plan('pl1')),
           UpsertEntry(entry('e1', '12.34')),
           UpsertCategory(category('c1', 'food', parentID: null)),
@@ -892,6 +1001,7 @@ void main() {
           UpsertCategory,
           UpsertEntry,
           UpsertPlan,
+          UpsertBudget,
         ]);
       },
     );

@@ -121,6 +121,24 @@ class Plans extends Table with SyncedRow {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+class Budgets extends Table with SyncedRow {
+  TextColumn get id => text()();
+
+  TextColumn get categoryId => text().named('category_id').nullable()();
+
+  /// JSON-encoded array of {effectiveFromMonth, value, kind}.
+  TextColumn get limitEvents => text().named('limit_events')();
+
+  IntColumn get rolloverMode => integer().named('rollover_mode')();
+
+  TextColumn get carryCap => text().named('carry_cap').nullable()();
+
+  TextColumn get createdAtMonth => text().named('created_at_month')();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 /// Device-local, so it carries neither a version vector nor a lifecycle. The
 /// fixed key holds it to one row.
 @DataClassName('StoreMetaRow')

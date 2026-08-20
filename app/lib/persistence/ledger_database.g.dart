@@ -275,8 +275,8 @@ class Account extends DataClass implements Insertable<Account> {
   final String name;
   final int type;
 
-  /// JSON array of lowercase uuids. Parentage lives here alone, so a pocket row
-  /// has no back pointer to read it from.
+  /// Parentage lives here alone, so a pocket row has no back pointer to read it
+  /// from.
   final String subPocketIds;
   final bool incomingTransfersAsExpenses;
   final bool includeInNetWorth;
@@ -1893,13 +1893,11 @@ class Entry extends DataClass implements Insertable<Entry> {
   final String id;
   final int date;
 
-  /// Decimal string. A float column would not round-trip the stored amount.
+  /// A float column would not round-trip the stored amount.
   final String amount;
   final String name;
   final String? categoryId;
   final String sourceId;
-
-  /// Non-null marks the entry a transfer.
   final String? destinationId;
   final bool includeInAnalysis;
 
@@ -3123,6 +3121,544 @@ class PlansCompanion extends UpdateCompanion<Plan> {
   }
 }
 
+class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, Budget> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $BudgetsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _versionDataMeta = const VerificationMeta(
+    'versionData',
+  );
+  @override
+  late final GeneratedColumn<Uint8List> versionData =
+      GeneratedColumn<Uint8List>(
+        'version_data',
+        aliasedName,
+        false,
+        type: DriftSqlType.blob,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _lifecycleMeta = const VerificationMeta(
+    'lifecycle',
+  );
+  @override
+  late final GeneratedColumn<int> lifecycle = GeneratedColumn<int>(
+    'lifecycle',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _categoryIdMeta = const VerificationMeta(
+    'categoryId',
+  );
+  @override
+  late final GeneratedColumn<String> categoryId = GeneratedColumn<String>(
+    'category_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _limitEventsMeta = const VerificationMeta(
+    'limitEvents',
+  );
+  @override
+  late final GeneratedColumn<String> limitEvents = GeneratedColumn<String>(
+    'limit_events',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _rolloverModeMeta = const VerificationMeta(
+    'rolloverMode',
+  );
+  @override
+  late final GeneratedColumn<int> rolloverMode = GeneratedColumn<int>(
+    'rollover_mode',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _carryCapMeta = const VerificationMeta(
+    'carryCap',
+  );
+  @override
+  late final GeneratedColumn<String> carryCap = GeneratedColumn<String>(
+    'carry_cap',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMonthMeta = const VerificationMeta(
+    'createdAtMonth',
+  );
+  @override
+  late final GeneratedColumn<String> createdAtMonth = GeneratedColumn<String>(
+    'created_at_month',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    versionData,
+    lifecycle,
+    id,
+    categoryId,
+    limitEvents,
+    rolloverMode,
+    carryCap,
+    createdAtMonth,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'budgets';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Budget> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('version_data')) {
+      context.handle(
+        _versionDataMeta,
+        versionData.isAcceptableOrUnknown(
+          data['version_data']!,
+          _versionDataMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_versionDataMeta);
+    }
+    if (data.containsKey('lifecycle')) {
+      context.handle(
+        _lifecycleMeta,
+        lifecycle.isAcceptableOrUnknown(data['lifecycle']!, _lifecycleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_lifecycleMeta);
+    }
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('category_id')) {
+      context.handle(
+        _categoryIdMeta,
+        categoryId.isAcceptableOrUnknown(data['category_id']!, _categoryIdMeta),
+      );
+    }
+    if (data.containsKey('limit_events')) {
+      context.handle(
+        _limitEventsMeta,
+        limitEvents.isAcceptableOrUnknown(
+          data['limit_events']!,
+          _limitEventsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_limitEventsMeta);
+    }
+    if (data.containsKey('rollover_mode')) {
+      context.handle(
+        _rolloverModeMeta,
+        rolloverMode.isAcceptableOrUnknown(
+          data['rollover_mode']!,
+          _rolloverModeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_rolloverModeMeta);
+    }
+    if (data.containsKey('carry_cap')) {
+      context.handle(
+        _carryCapMeta,
+        carryCap.isAcceptableOrUnknown(data['carry_cap']!, _carryCapMeta),
+      );
+    }
+    if (data.containsKey('created_at_month')) {
+      context.handle(
+        _createdAtMonthMeta,
+        createdAtMonth.isAcceptableOrUnknown(
+          data['created_at_month']!,
+          _createdAtMonthMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMonthMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Budget map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Budget(
+      versionData: attachedDatabase.typeMapping.read(
+        DriftSqlType.blob,
+        data['${effectivePrefix}version_data'],
+      )!,
+      lifecycle: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}lifecycle'],
+      )!,
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      categoryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category_id'],
+      ),
+      limitEvents: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}limit_events'],
+      )!,
+      rolloverMode: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}rollover_mode'],
+      )!,
+      carryCap: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}carry_cap'],
+      ),
+      createdAtMonth: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_at_month'],
+      )!,
+    );
+  }
+
+  @override
+  $BudgetsTable createAlias(String alias) {
+    return $BudgetsTable(attachedDatabase, alias);
+  }
+}
+
+class Budget extends DataClass implements Insertable<Budget> {
+  final Uint8List versionData;
+  final int lifecycle;
+  final String id;
+  final String? categoryId;
+
+  /// JSON-encoded array of {effectiveFromMonth, value, kind}.
+  final String limitEvents;
+  final int rolloverMode;
+  final String? carryCap;
+  final String createdAtMonth;
+  const Budget({
+    required this.versionData,
+    required this.lifecycle,
+    required this.id,
+    this.categoryId,
+    required this.limitEvents,
+    required this.rolloverMode,
+    this.carryCap,
+    required this.createdAtMonth,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['version_data'] = Variable<Uint8List>(versionData);
+    map['lifecycle'] = Variable<int>(lifecycle);
+    map['id'] = Variable<String>(id);
+    if (!nullToAbsent || categoryId != null) {
+      map['category_id'] = Variable<String>(categoryId);
+    }
+    map['limit_events'] = Variable<String>(limitEvents);
+    map['rollover_mode'] = Variable<int>(rolloverMode);
+    if (!nullToAbsent || carryCap != null) {
+      map['carry_cap'] = Variable<String>(carryCap);
+    }
+    map['created_at_month'] = Variable<String>(createdAtMonth);
+    return map;
+  }
+
+  BudgetsCompanion toCompanion(bool nullToAbsent) {
+    return BudgetsCompanion(
+      versionData: Value(versionData),
+      lifecycle: Value(lifecycle),
+      id: Value(id),
+      categoryId: categoryId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(categoryId),
+      limitEvents: Value(limitEvents),
+      rolloverMode: Value(rolloverMode),
+      carryCap: carryCap == null && nullToAbsent
+          ? const Value.absent()
+          : Value(carryCap),
+      createdAtMonth: Value(createdAtMonth),
+    );
+  }
+
+  factory Budget.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Budget(
+      versionData: serializer.fromJson<Uint8List>(json['versionData']),
+      lifecycle: serializer.fromJson<int>(json['lifecycle']),
+      id: serializer.fromJson<String>(json['id']),
+      categoryId: serializer.fromJson<String?>(json['categoryId']),
+      limitEvents: serializer.fromJson<String>(json['limitEvents']),
+      rolloverMode: serializer.fromJson<int>(json['rolloverMode']),
+      carryCap: serializer.fromJson<String?>(json['carryCap']),
+      createdAtMonth: serializer.fromJson<String>(json['createdAtMonth']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'versionData': serializer.toJson<Uint8List>(versionData),
+      'lifecycle': serializer.toJson<int>(lifecycle),
+      'id': serializer.toJson<String>(id),
+      'categoryId': serializer.toJson<String?>(categoryId),
+      'limitEvents': serializer.toJson<String>(limitEvents),
+      'rolloverMode': serializer.toJson<int>(rolloverMode),
+      'carryCap': serializer.toJson<String?>(carryCap),
+      'createdAtMonth': serializer.toJson<String>(createdAtMonth),
+    };
+  }
+
+  Budget copyWith({
+    Uint8List? versionData,
+    int? lifecycle,
+    String? id,
+    Value<String?> categoryId = const Value.absent(),
+    String? limitEvents,
+    int? rolloverMode,
+    Value<String?> carryCap = const Value.absent(),
+    String? createdAtMonth,
+  }) => Budget(
+    versionData: versionData ?? this.versionData,
+    lifecycle: lifecycle ?? this.lifecycle,
+    id: id ?? this.id,
+    categoryId: categoryId.present ? categoryId.value : this.categoryId,
+    limitEvents: limitEvents ?? this.limitEvents,
+    rolloverMode: rolloverMode ?? this.rolloverMode,
+    carryCap: carryCap.present ? carryCap.value : this.carryCap,
+    createdAtMonth: createdAtMonth ?? this.createdAtMonth,
+  );
+  Budget copyWithCompanion(BudgetsCompanion data) {
+    return Budget(
+      versionData: data.versionData.present
+          ? data.versionData.value
+          : this.versionData,
+      lifecycle: data.lifecycle.present ? data.lifecycle.value : this.lifecycle,
+      id: data.id.present ? data.id.value : this.id,
+      categoryId: data.categoryId.present
+          ? data.categoryId.value
+          : this.categoryId,
+      limitEvents: data.limitEvents.present
+          ? data.limitEvents.value
+          : this.limitEvents,
+      rolloverMode: data.rolloverMode.present
+          ? data.rolloverMode.value
+          : this.rolloverMode,
+      carryCap: data.carryCap.present ? data.carryCap.value : this.carryCap,
+      createdAtMonth: data.createdAtMonth.present
+          ? data.createdAtMonth.value
+          : this.createdAtMonth,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Budget(')
+          ..write('versionData: $versionData, ')
+          ..write('lifecycle: $lifecycle, ')
+          ..write('id: $id, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('limitEvents: $limitEvents, ')
+          ..write('rolloverMode: $rolloverMode, ')
+          ..write('carryCap: $carryCap, ')
+          ..write('createdAtMonth: $createdAtMonth')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    $driftBlobEquality.hash(versionData),
+    lifecycle,
+    id,
+    categoryId,
+    limitEvents,
+    rolloverMode,
+    carryCap,
+    createdAtMonth,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Budget &&
+          $driftBlobEquality.equals(other.versionData, this.versionData) &&
+          other.lifecycle == this.lifecycle &&
+          other.id == this.id &&
+          other.categoryId == this.categoryId &&
+          other.limitEvents == this.limitEvents &&
+          other.rolloverMode == this.rolloverMode &&
+          other.carryCap == this.carryCap &&
+          other.createdAtMonth == this.createdAtMonth);
+}
+
+class BudgetsCompanion extends UpdateCompanion<Budget> {
+  final Value<Uint8List> versionData;
+  final Value<int> lifecycle;
+  final Value<String> id;
+  final Value<String?> categoryId;
+  final Value<String> limitEvents;
+  final Value<int> rolloverMode;
+  final Value<String?> carryCap;
+  final Value<String> createdAtMonth;
+  final Value<int> rowid;
+  const BudgetsCompanion({
+    this.versionData = const Value.absent(),
+    this.lifecycle = const Value.absent(),
+    this.id = const Value.absent(),
+    this.categoryId = const Value.absent(),
+    this.limitEvents = const Value.absent(),
+    this.rolloverMode = const Value.absent(),
+    this.carryCap = const Value.absent(),
+    this.createdAtMonth = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  BudgetsCompanion.insert({
+    required Uint8List versionData,
+    required int lifecycle,
+    required String id,
+    this.categoryId = const Value.absent(),
+    required String limitEvents,
+    required int rolloverMode,
+    this.carryCap = const Value.absent(),
+    required String createdAtMonth,
+    this.rowid = const Value.absent(),
+  }) : versionData = Value(versionData),
+       lifecycle = Value(lifecycle),
+       id = Value(id),
+       limitEvents = Value(limitEvents),
+       rolloverMode = Value(rolloverMode),
+       createdAtMonth = Value(createdAtMonth);
+  static Insertable<Budget> custom({
+    Expression<Uint8List>? versionData,
+    Expression<int>? lifecycle,
+    Expression<String>? id,
+    Expression<String>? categoryId,
+    Expression<String>? limitEvents,
+    Expression<int>? rolloverMode,
+    Expression<String>? carryCap,
+    Expression<String>? createdAtMonth,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (versionData != null) 'version_data': versionData,
+      if (lifecycle != null) 'lifecycle': lifecycle,
+      if (id != null) 'id': id,
+      if (categoryId != null) 'category_id': categoryId,
+      if (limitEvents != null) 'limit_events': limitEvents,
+      if (rolloverMode != null) 'rollover_mode': rolloverMode,
+      if (carryCap != null) 'carry_cap': carryCap,
+      if (createdAtMonth != null) 'created_at_month': createdAtMonth,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  BudgetsCompanion copyWith({
+    Value<Uint8List>? versionData,
+    Value<int>? lifecycle,
+    Value<String>? id,
+    Value<String?>? categoryId,
+    Value<String>? limitEvents,
+    Value<int>? rolloverMode,
+    Value<String?>? carryCap,
+    Value<String>? createdAtMonth,
+    Value<int>? rowid,
+  }) {
+    return BudgetsCompanion(
+      versionData: versionData ?? this.versionData,
+      lifecycle: lifecycle ?? this.lifecycle,
+      id: id ?? this.id,
+      categoryId: categoryId ?? this.categoryId,
+      limitEvents: limitEvents ?? this.limitEvents,
+      rolloverMode: rolloverMode ?? this.rolloverMode,
+      carryCap: carryCap ?? this.carryCap,
+      createdAtMonth: createdAtMonth ?? this.createdAtMonth,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (versionData.present) {
+      map['version_data'] = Variable<Uint8List>(versionData.value);
+    }
+    if (lifecycle.present) {
+      map['lifecycle'] = Variable<int>(lifecycle.value);
+    }
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (categoryId.present) {
+      map['category_id'] = Variable<String>(categoryId.value);
+    }
+    if (limitEvents.present) {
+      map['limit_events'] = Variable<String>(limitEvents.value);
+    }
+    if (rolloverMode.present) {
+      map['rollover_mode'] = Variable<int>(rolloverMode.value);
+    }
+    if (carryCap.present) {
+      map['carry_cap'] = Variable<String>(carryCap.value);
+    }
+    if (createdAtMonth.present) {
+      map['created_at_month'] = Variable<String>(createdAtMonth.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BudgetsCompanion(')
+          ..write('versionData: $versionData, ')
+          ..write('lifecycle: $lifecycle, ')
+          ..write('id: $id, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('limitEvents: $limitEvents, ')
+          ..write('rolloverMode: $rolloverMode, ')
+          ..write('carryCap: $carryCap, ')
+          ..write('createdAtMonth: $createdAtMonth, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $StoreMetaTable extends StoreMeta
     with TableInfo<$StoreMetaTable, StoreMetaRow> {
   @override
@@ -3379,6 +3915,7 @@ abstract class _$LedgerDatabase extends GeneratedDatabase {
   late final $CategoriesTable categories = $CategoriesTable(this);
   late final $EntriesTable entries = $EntriesTable(this);
   late final $PlansTable plans = $PlansTable(this);
+  late final $BudgetsTable budgets = $BudgetsTable(this);
   late final $StoreMetaTable storeMeta = $StoreMetaTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
@@ -3390,6 +3927,7 @@ abstract class _$LedgerDatabase extends GeneratedDatabase {
     categories,
     entries,
     plans,
+    budgets,
     storeMeta,
   ];
 }
@@ -4854,6 +5392,267 @@ typedef $$PlansTableProcessedTableManager =
       Plan,
       PrefetchHooks Function()
     >;
+typedef $$BudgetsTableCreateCompanionBuilder =
+    BudgetsCompanion Function({
+      required Uint8List versionData,
+      required int lifecycle,
+      required String id,
+      Value<String?> categoryId,
+      required String limitEvents,
+      required int rolloverMode,
+      Value<String?> carryCap,
+      required String createdAtMonth,
+      Value<int> rowid,
+    });
+typedef $$BudgetsTableUpdateCompanionBuilder =
+    BudgetsCompanion Function({
+      Value<Uint8List> versionData,
+      Value<int> lifecycle,
+      Value<String> id,
+      Value<String?> categoryId,
+      Value<String> limitEvents,
+      Value<int> rolloverMode,
+      Value<String?> carryCap,
+      Value<String> createdAtMonth,
+      Value<int> rowid,
+    });
+
+class $$BudgetsTableFilterComposer
+    extends Composer<_$LedgerDatabase, $BudgetsTable> {
+  $$BudgetsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<Uint8List> get versionData => $composableBuilder(
+    column: $table.versionData,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lifecycle => $composableBuilder(
+    column: $table.lifecycle,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get categoryId => $composableBuilder(
+    column: $table.categoryId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get limitEvents => $composableBuilder(
+    column: $table.limitEvents,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get rolloverMode => $composableBuilder(
+    column: $table.rolloverMode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get carryCap => $composableBuilder(
+    column: $table.carryCap,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdAtMonth => $composableBuilder(
+    column: $table.createdAtMonth,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$BudgetsTableOrderingComposer
+    extends Composer<_$LedgerDatabase, $BudgetsTable> {
+  $$BudgetsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<Uint8List> get versionData => $composableBuilder(
+    column: $table.versionData,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lifecycle => $composableBuilder(
+    column: $table.lifecycle,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get categoryId => $composableBuilder(
+    column: $table.categoryId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get limitEvents => $composableBuilder(
+    column: $table.limitEvents,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get rolloverMode => $composableBuilder(
+    column: $table.rolloverMode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get carryCap => $composableBuilder(
+    column: $table.carryCap,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdAtMonth => $composableBuilder(
+    column: $table.createdAtMonth,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$BudgetsTableAnnotationComposer
+    extends Composer<_$LedgerDatabase, $BudgetsTable> {
+  $$BudgetsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<Uint8List> get versionData => $composableBuilder(
+    column: $table.versionData,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get lifecycle =>
+      $composableBuilder(column: $table.lifecycle, builder: (column) => column);
+
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get categoryId => $composableBuilder(
+    column: $table.categoryId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get limitEvents => $composableBuilder(
+    column: $table.limitEvents,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get rolloverMode => $composableBuilder(
+    column: $table.rolloverMode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get carryCap =>
+      $composableBuilder(column: $table.carryCap, builder: (column) => column);
+
+  GeneratedColumn<String> get createdAtMonth => $composableBuilder(
+    column: $table.createdAtMonth,
+    builder: (column) => column,
+  );
+}
+
+class $$BudgetsTableTableManager
+    extends
+        RootTableManager<
+          _$LedgerDatabase,
+          $BudgetsTable,
+          Budget,
+          $$BudgetsTableFilterComposer,
+          $$BudgetsTableOrderingComposer,
+          $$BudgetsTableAnnotationComposer,
+          $$BudgetsTableCreateCompanionBuilder,
+          $$BudgetsTableUpdateCompanionBuilder,
+          (Budget, BaseReferences<_$LedgerDatabase, $BudgetsTable, Budget>),
+          Budget,
+          PrefetchHooks Function()
+        > {
+  $$BudgetsTableTableManager(_$LedgerDatabase db, $BudgetsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$BudgetsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$BudgetsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$BudgetsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<Uint8List> versionData = const Value.absent(),
+                Value<int> lifecycle = const Value.absent(),
+                Value<String> id = const Value.absent(),
+                Value<String?> categoryId = const Value.absent(),
+                Value<String> limitEvents = const Value.absent(),
+                Value<int> rolloverMode = const Value.absent(),
+                Value<String?> carryCap = const Value.absent(),
+                Value<String> createdAtMonth = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => BudgetsCompanion(
+                versionData: versionData,
+                lifecycle: lifecycle,
+                id: id,
+                categoryId: categoryId,
+                limitEvents: limitEvents,
+                rolloverMode: rolloverMode,
+                carryCap: carryCap,
+                createdAtMonth: createdAtMonth,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required Uint8List versionData,
+                required int lifecycle,
+                required String id,
+                Value<String?> categoryId = const Value.absent(),
+                required String limitEvents,
+                required int rolloverMode,
+                Value<String?> carryCap = const Value.absent(),
+                required String createdAtMonth,
+                Value<int> rowid = const Value.absent(),
+              }) => BudgetsCompanion.insert(
+                versionData: versionData,
+                lifecycle: lifecycle,
+                id: id,
+                categoryId: categoryId,
+                limitEvents: limitEvents,
+                rolloverMode: rolloverMode,
+                carryCap: carryCap,
+                createdAtMonth: createdAtMonth,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$BudgetsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$LedgerDatabase,
+      $BudgetsTable,
+      Budget,
+      $$BudgetsTableFilterComposer,
+      $$BudgetsTableOrderingComposer,
+      $$BudgetsTableAnnotationComposer,
+      $$BudgetsTableCreateCompanionBuilder,
+      $$BudgetsTableUpdateCompanionBuilder,
+      (Budget, BaseReferences<_$LedgerDatabase, $BudgetsTable, Budget>),
+      Budget,
+      PrefetchHooks Function()
+    >;
 typedef $$StoreMetaTableCreateCompanionBuilder =
     StoreMetaCompanion Function({
       Value<int> id,
@@ -5024,6 +5823,8 @@ class $LedgerDatabaseManager {
       $$EntriesTableTableManager(_db, _db.entries);
   $$PlansTableTableManager get plans =>
       $$PlansTableTableManager(_db, _db.plans);
+  $$BudgetsTableTableManager get budgets =>
+      $$BudgetsTableTableManager(_db, _db.budgets);
   $$StoreMetaTableTableManager get storeMeta =>
       $$StoreMetaTableTableManager(_db, _db.storeMeta);
 }

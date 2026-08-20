@@ -17,6 +17,7 @@ void main() {
   const parentCategoryID = 'd1b2c3d4-4444-4444-8444-dddddddddddd';
   const entryID = 'e1b2c3d4-5555-4555-8555-eeeeeeeeeeee';
   const planID = 'f1b2c3d4-6666-4666-8666-ffffffffffff';
+  const budgetID = 'a2b2c3d4-7777-4777-8777-aaaaaaaaaaab';
 
   group('account', () {
     test('accountRoundTrips', () {
@@ -431,6 +432,189 @@ void main() {
 
       expect(row.lifecycle, 3);
       expect(planToRow(plan, version).lifecycle, 0);
+    });
+  });
+
+  group('budget', () {
+    LimitEvent defaultEvent({YearMonth? from, String value = '500'}) =>
+        LimitEvent(
+          effectiveFromMonth: from,
+          value: Decimal.parse(value),
+          kind: LimitEventKind.defaultLimit,
+        );
+
+    LimitEvent overrideEvent(YearMonth from, String value) => LimitEvent(
+      effectiveFromMonth: from,
+      value: Decimal.parse(value),
+      kind: LimitEventKind.override,
+    );
+
+    test('a budget with one default event round trips', () {
+      final budget = Budget(
+        id: budgetID,
+        categoryID: categoryID,
+        limitEvents: [defaultEvent(from: const YearMonth(2026, 1))],
+        rolloverMode: RolloverMode.none,
+        carryCap: null,
+        createdAtMonth: const YearMonth(2026, 1),
+      );
+
+      final row = budgetToRow(budget, version);
+      expect(budgetFromRow(row), budget);
+      expect(versionFromRow(row.versionData), version);
+    });
+
+    test('a budget with a default event and an override round trips', () {
+      final budget = Budget(
+        id: budgetID,
+        categoryID: categoryID,
+        limitEvents: [
+          defaultEvent(from: const YearMonth(2026, 1)),
+          overrideEvent(const YearMonth(2026, 3), '750'),
+        ],
+        rolloverMode: RolloverMode.both,
+        carryCap: Decimal.parse('200'),
+        createdAtMonth: const YearMonth(2026, 1),
+      );
+
+      final row = budgetToRow(budget, version);
+      expect(budgetFromRow(row), budget);
+    });
+
+    test('a null carryCap round trips as null', () {
+      final budget = Budget(
+        id: budgetID,
+        categoryID: categoryID,
+        limitEvents: [defaultEvent()],
+        rolloverMode: RolloverMode.positiveOnly,
+        carryCap: null,
+        createdAtMonth: const YearMonth(2026, 1),
+      );
+
+      final row = budgetToRow(budget, version);
+
+      expect(row.carryCap, isNull);
+      expect(budgetFromRow(row).carryCap, isNull);
+    });
+
+    test('a non-null carryCap round trips as a decimal string', () {
+      final budget = Budget(
+        id: budgetID,
+        categoryID: categoryID,
+        limitEvents: [defaultEvent()],
+        rolloverMode: RolloverMode.both,
+        carryCap: Decimal.parse('123.45'),
+        createdAtMonth: const YearMonth(2026, 1),
+      );
+
+      final row = budgetToRow(budget, version);
+
+      expect(row.carryCap, '123.45');
+      expect(budgetFromRow(row).carryCap, Decimal.parse('123.45'));
+    });
+
+    test('an overall budget stores a null categoryID', () {
+      final budget = Budget(
+        id: budgetID,
+        categoryID: null,
+        limitEvents: [defaultEvent()],
+        rolloverMode: RolloverMode.none,
+        carryCap: null,
+        createdAtMonth: const YearMonth(2026, 1),
+      );
+
+      final row = budgetToRow(budget, version);
+
+      expect(row.categoryId, isNull);
+      expect(budgetFromRow(row), budget);
+    });
+
+    test('a category budget stores the category id', () {
+      final budget = Budget(
+        id: budgetID,
+        categoryID: categoryID,
+        limitEvents: [defaultEvent()],
+        rolloverMode: RolloverMode.none,
+        carryCap: null,
+        createdAtMonth: const YearMonth(2026, 1),
+      );
+
+      final row = budgetToRow(budget, version);
+
+      expect(row.categoryId, categoryID);
+      expect(budgetFromRow(row), budget);
+    });
+
+    test('the budget row stores the rollover mode code', () {
+      expect(
+        budgetToRow(
+          Budget(
+            id: budgetID,
+            categoryID: null,
+            limitEvents: [defaultEvent()],
+            rolloverMode: RolloverMode.both,
+            carryCap: null,
+            createdAtMonth: const YearMonth(2026, 1),
+          ),
+          version,
+        ).rolloverMode,
+        2,
+      );
+    });
+
+    test('limitEvents is stored as a json array', () {
+      final row = budgetToRow(
+        Budget(
+          id: budgetID,
+          categoryID: null,
+          limitEvents: [
+            defaultEvent(from: const YearMonth(2026, 1)),
+            overrideEvent(const YearMonth(2026, 3), '750'),
+          ],
+          rolloverMode: RolloverMode.none,
+          carryCap: null,
+          createdAtMonth: const YearMonth(2026, 1),
+        ),
+        version,
+      );
+
+      final decoded = json.decode(row.limitEvents) as List<dynamic>;
+      expect(decoded, [
+        {'effectiveFromMonth': '2026-01', 'value': '500', 'kind': 0},
+        {'effectiveFromMonth': '2026-03', 'value': '750', 'kind': 1},
+      ]);
+    });
+
+    test('malformed json in limitEvents raises rather than defaulting', () {
+      final row = budgetToRow(
+        Budget(
+          id: budgetID,
+          categoryID: null,
+          limitEvents: [defaultEvent()],
+          rolloverMode: RolloverMode.none,
+          carryCap: null,
+          createdAtMonth: const YearMonth(2026, 1),
+        ),
+        version,
+      ).copyWith(limitEvents: 'not json');
+
+      expect(() => budgetFromRow(row), throwsFormatException);
+    });
+
+    test('limitEvents json missing a required key raises', () {
+      final row = budgetToRow(
+        Budget(
+          id: budgetID,
+          categoryID: null,
+          limitEvents: [defaultEvent()],
+          rolloverMode: RolloverMode.none,
+          carryCap: null,
+          createdAtMonth: const YearMonth(2026, 1),
+        ),
+        version,
+      ).copyWith(limitEvents: json.encode([<String, dynamic>{}]));
+
+      expect(() => budgetFromRow(row), throwsA(isA<TypeError>()));
     });
   });
 

@@ -109,6 +109,40 @@ class Ledger extends ChangeNotifier {
   List<LedgerChange> deletePlan(String rawID) =>
       _mutate((state) => state.deletePlan(rawID));
 
+  List<LedgerChange> addBudget(
+    String? categoryID,
+    Decimal initialAmount,
+    RolloverMode rolloverMode, {
+    Decimal? carryCap,
+  }) => _mutate(
+    (state) => state.addBudget(
+      categoryID,
+      initialAmount,
+      rolloverMode,
+      carryCap: carryCap,
+    ),
+  );
+
+  List<LedgerChange> updateBudgetAmount(
+    String rawBudgetID,
+    Decimal newAmount,
+    YearMonth effectiveFromMonth,
+  ) => _mutate(
+    (state) =>
+        state.updateBudgetAmount(rawBudgetID, newAmount, effectiveFromMonth),
+  );
+
+  List<LedgerChange> setBudgetMonthOverride(
+    String rawBudgetID,
+    YearMonth month,
+    Decimal value,
+  ) => _mutate(
+    (state) => state.setBudgetMonthOverride(rawBudgetID, month, value),
+  );
+
+  List<LedgerChange> deleteBudget(String rawID) =>
+      _mutate((state) => state.deleteBudget(rawID));
+
   /// [now] must be a UTC instant. A device-local one would make occurrence
   /// identity vary by timezone.
   void resolvePlans(DateTime now) {
