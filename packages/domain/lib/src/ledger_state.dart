@@ -4,6 +4,7 @@ import 'package:decimal/decimal.dart';
 import 'package:domain/src/account.dart';
 import 'package:domain/src/account_type.dart';
 import 'package:domain/src/budget.dart';
+import 'package:domain/src/calendar_day.dart';
 import 'package:domain/src/entry.dart';
 import 'package:domain/src/ids.dart';
 import 'package:domain/src/ledger_change.dart';

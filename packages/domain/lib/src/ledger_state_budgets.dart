@@ -7,7 +7,7 @@ extension LedgerStateBudgets on LedgerState {
     _validateCategoryUniqueness(normalizedCategoryID);
     if (initialAmount <= Decimal.zero) throw const ZeroAmount();
 
-    final createdAtMonth = YearMonth.fromUtc(DateTime.now().toUtc());
+    final createdAtMonth = YearMonth.fromUtc(startOfDayUtc(DateTime.now()));
     final budget = Budget(
       categoryID: normalizedCategoryID,
       limitEvents: [
