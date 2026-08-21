@@ -1,27 +1,18 @@
-import 'package:decimal/decimal.dart';
 import 'package:domain/domain.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/common/category_icon.dart';
 import 'package:spendwise/ui/common/month_year_selector.dart';
 import 'package:spendwise/ui/format/amount_color.dart';
-import 'package:spendwise/ui/format/color_hex.dart';
-import 'package:spendwise/ui/format/date_format.dart';
-import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/stats/analysis_scan.dart';
 import 'package:spendwise/ui/stats/category_scope.dart';
+import 'package:spendwise/ui/stats/category_trend_card.dart';
 import 'package:spendwise/ui/stats/stats_window.dart';
-import 'package:spendwise/ui/stats/trend.dart';
-import 'package:spendwise/ui/transactions/day_header.dart';
-import 'package:spendwise/ui/transactions/day_sections.dart';
-import 'package:spendwise/ui/transactions/entry_row.dart';
-
-const _directSymbol = 'radio_button_checked';
+import 'package:spendwise/ui/stats/subcategory_table.dart';
+import 'package:spendwise/ui/transactions/day_sectioned_entry_list.dart';
 
 class CategoryDetailScreen extends ConsumerWidget {
   const CategoryDetailScreen({
@@ -164,7 +155,7 @@ class _CategoryDetailBodyState extends State<_CategoryDetailBody> {
               ),
             ),
             if (children.isNotEmpty)
-              _SubcategoryTable(
+              SubcategoryTable(
                 mainCategory: mainCategory,
                 mainTotal: totals.mainTotal,
                 children: children,
@@ -173,7 +164,7 @@ class _CategoryDetailBodyState extends State<_CategoryDetailBody> {
                 scope: _scope,
                 onSelectScope: _setScope,
               ),
-            _TrendCard(
+            TrendCard(
               scope: _scope,
               mainCategory: mainCategory,
               state: state,
@@ -197,11 +188,16 @@ class _CategoryDetailBodyState extends State<_CategoryDetailBody> {
                 ),
               ),
             ),
-            _ScopedEntryList(
+            DaySectionedEntryList(
               ledger: widget.ledger,
               state: state,
               window: window,
-              scopedBuckets: scopedBuckets,
+              matching: (state) => state.entries.values.where(
+                (entry) =>
+                    !entry.isTransfer &&
+                    scopedBuckets.contains(entry.categoryID) &&
+                    Accounting.includedInAnalysis(entry, state),
+              ),
             ),
           ],
         ),
@@ -280,397 +276,5 @@ String _scopeCaption(String mainName, CategoryScope scope, LedgerState state) {
     case SubScope(:final subID):
       final subName = _resolvedSubName(subID, state) ?? 'Uncategorized';
       return '$mainName › $subName';
-  }
-}
-
-String _scopeShortName(
-  String mainName,
-  CategoryScope scope,
-  LedgerState state,
-) {
-  switch (scope) {
-    case AllScope():
-    case DirectScope():
-      return mainName;
-    case SubScope(:final subID):
-      return _resolvedSubName(subID, state) ?? 'Uncategorized';
-  }
-}
-
-class _SubcategoryRowData {
-  const _SubcategoryRowData({
-    required this.scope,
-    required this.name,
-    required this.symbolName,
-    required this.color,
-    required this.amount,
-  });
-
-  final CategoryScope scope;
-  final String name;
-  final String symbolName;
-  final Color color;
-  final Decimal amount;
-}
-
-class _SubcategoryTable extends StatelessWidget {
-  const _SubcategoryTable({
-    required this.mainCategory,
-    required this.mainTotal,
-    required this.children,
-    required this.childTotals,
-    required this.directTotal,
-    required this.scope,
-    required this.onSelectScope,
-  });
-
-  final TransactionCategory? mainCategory;
-  final Decimal mainTotal;
-  final List<TransactionCategory> children;
-  final Map<String, Decimal> childTotals;
-  final Decimal directTotal;
-  final CategoryScope scope;
-  final void Function(CategoryScope scope) onSelectScope;
-
-  @override
-  Widget build(BuildContext context) {
-    final rows = [
-      for (final category in children)
-        _SubcategoryRowData(
-          scope: SubScope(category.id),
-          name: category.name,
-          symbolName: category.symbol,
-          color: parseColorHex(category.colorHex),
-          amount: childTotals[category.id] ?? Decimal.zero,
-        ),
-      if (directTotal > Decimal.zero)
-        _SubcategoryRowData(
-          scope: const DirectScope(),
-          name: 'Direct',
-          symbolName: _directSymbol,
-          color: mainCategory == null
-              ? colorHexFallback
-              : parseColorHex(mainCategory!.colorHex),
-          amount: directTotal,
-        ),
-    ];
-    rows.sort((a, b) => b.amount.compareTo(a.amount));
-
-    return Column(
-      children: [
-        const Divider(height: 1),
-        _SubcategoryRow(
-          name: 'All ${mainCategory?.name ?? ''}',
-          symbolName: mainCategory?.symbol ?? 'help_outline',
-          color: mainCategory == null
-              ? colorHexFallback
-              : parseColorHex(mainCategory!.colorHex),
-          amount: mainTotal,
-          fraction: Decimal.one,
-          selected: scope is AllScope,
-          onTap: () => onSelectScope(const AllScope()),
-        ),
-        for (final row in rows)
-          _SubcategoryRow(
-            name: row.name,
-            symbolName: row.symbolName,
-            color: row.color,
-            amount: row.amount,
-            fraction: mainTotal == Decimal.zero
-                ? Decimal.zero
-                : (row.amount / mainTotal).toDecimal(
-                    scaleOnInfinitePrecision: 4,
-                  ),
-            selected: row.scope == scope,
-            onTap: () => onSelectScope(row.scope),
-          ),
-      ],
-    );
-  }
-}
-
-class _SubcategoryRow extends StatelessWidget {
-  const _SubcategoryRow({
-    required this.name,
-    required this.symbolName,
-    required this.color,
-    required this.amount,
-    required this.fraction,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String name;
-  final String symbolName;
-  final Color color;
-  final Decimal amount;
-  final Decimal fraction;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Material(
-      color: selected
-          ? theme.colorScheme.primaryContainer.withValues(alpha: 0.4)
-          : Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            children: [
-              CategoryIcon(symbolName: symbolName, color: color, size: 34),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  name,
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-                  ),
-                ),
-              ),
-              Text(
-                formatPercent(fraction.toDouble()),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                formatCurrency(amount),
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _TrendCard extends StatefulWidget {
-  const _TrendCard({
-    required this.scope,
-    required this.mainCategory,
-    required this.state,
-    required this.detailDate,
-    required this.isYearRange,
-    required this.scopedBuckets,
-    required this.scanForTrend,
-    required this.color,
-  });
-
-  final CategoryScope scope;
-  final TransactionCategory? mainCategory;
-  final LedgerState state;
-  final DateTime detailDate;
-  final bool isYearRange;
-  final Set<String?> scopedBuckets;
-  final List<AnalysisItem> Function(Set<String?> buckets) scanForTrend;
-  final Color color;
-
-  @override
-  State<_TrendCard> createState() => _TrendCardState();
-}
-
-class _TrendCardState extends State<_TrendCard> {
-  int? _selectedIndex;
-
-  @override
-  void didUpdateWidget(covariant _TrendCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.scope != widget.scope ||
-        oldWidget.detailDate != widget.detailDate ||
-        oldWidget.isYearRange != widget.isYearRange) {
-      _selectedIndex = null;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final months = trendMonths(
-      widget.detailDate,
-      isYearRange: widget.isYearRange,
-    );
-    final items = widget.scanForTrend(widget.scopedBuckets);
-    final amounts = [for (final month in months) monthTotal(items, month)];
-
-    final mainName = widget.mainCategory?.name ?? '';
-    final titleName = _scopeShortName(mainName, widget.scope, widget.state);
-
-    final maxAmount = amounts.fold(
-      Decimal.zero,
-      (max, amount) => amount > max ? amount : max,
-    );
-    final maxY = maxAmount > Decimal.one ? maxAmount.toDouble() : 1.0;
-
-    final selected = _selectedIndex;
-    final hint = widget.isYearRange ? 'this year' : 'last 6 months';
-    final headerRight = selected == null
-        ? hint
-        : '${formatMonthLabel(months[selected])} · ${formatCurrency(amounts[selected])}';
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      child: Card(
-        color: theme.colorScheme.surfaceContainerHighest,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('$titleName trend', style: theme.textTheme.titleSmall),
-                  Text(
-                    headerRight,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                key: const ValueKey('categoryDetailTrendChart'),
-                height: 160,
-                child: _buildTrendLineChart(theme, months, amounts, maxY),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _monthTick(ThemeData theme, List<DateTime> months, double value) {
-    final index = value.round();
-    if (index < 0 || index >= months.length) return const SizedBox.shrink();
-
-    return Padding(
-      padding: const EdgeInsets.only(top: 4),
-      child: Text(
-        formatMonthLabel(months[index]).substring(0, 3),
-        style: theme.textTheme.labelSmall,
-      ),
-    );
-  }
-
-  void _onTrendTouch(FlTouchEvent event, LineTouchResponse? response) {
-    final spots = response?.lineBarSpots;
-    if (!event.isInterestedForInteractions || spots == null || spots.isEmpty) {
-      if (event is FlPointerExitEvent) setState(() => _selectedIndex = null);
-      return;
-    }
-    setState(() => _selectedIndex = spots.first.x.round());
-  }
-
-  LineChart _buildTrendLineChart(
-    ThemeData theme,
-    List<DateTime> months,
-    List<Decimal> amounts,
-    double maxY,
-  ) {
-    final bottomTitles = AxisTitles(
-      sideTitles: SideTitles(
-        showTitles: true,
-        interval: 1,
-        getTitlesWidget: (value, meta) => _monthTick(theme, months, value),
-      ),
-    );
-
-    final lineTouchData = LineTouchData(
-      // Selection is nearest-month by horizontal position, not proximity
-      // to the line itself, so the threshold has to clear the chart's
-      // full height.
-      touchSpotThreshold: double.infinity,
-      touchTooltipData: LineTouchTooltipData(
-        getTooltipColor: (_) => Colors.transparent,
-        getTooltipItems: (spots) => [for (final _ in spots) null],
-      ),
-      touchCallback: _onTrendTouch,
-    );
-
-    final lineBarsData = [
-      LineChartBarData(
-        spots: [
-          for (var i = 0; i < amounts.length; i++)
-            FlSpot(i.toDouble(), amounts[i].toDouble()),
-        ],
-        isCurved: true,
-        preventCurveOverShooting: true,
-        color: widget.color,
-        barWidth: 2,
-        dotData: const FlDotData(show: true),
-        belowBarData: BarAreaData(show: false),
-      ),
-    ];
-
-    return LineChart(
-      LineChartData(
-        minY: 0,
-        maxY: maxY,
-        titlesData: FlTitlesData(
-          topTitles: const AxisTitles(),
-          rightTitles: const AxisTitles(),
-          leftTitles: const AxisTitles(),
-          bottomTitles: bottomTitles,
-        ),
-        gridData: const FlGridData(show: false),
-        borderData: FlBorderData(show: false),
-        lineTouchData: lineTouchData,
-        lineBarsData: lineBarsData,
-      ),
-    );
-  }
-}
-
-class _ScopedEntryList extends StatelessWidget {
-  const _ScopedEntryList({
-    required this.ledger,
-    required this.state,
-    required this.window,
-    required this.scopedBuckets,
-  });
-
-  final Ledger ledger;
-  final LedgerState state;
-  final DateRange window;
-  final Set<String?> scopedBuckets;
-
-  @override
-  Widget build(BuildContext context) {
-    final matching = state.entries.values.where(
-      (entry) =>
-          !entry.isTransfer &&
-          scopedBuckets.contains(entry.categoryID) &&
-          Accounting.includedInAnalysis(entry, state),
-    );
-
-    final sections = daySections(matching, state, interval: window);
-
-    if (sections.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 32),
-        child: Center(child: Text('No entries in this period')),
-      );
-    }
-
-    return Column(
-      children: [
-        for (final section in sections) ...[
-          DayHeader(day: section.date, net: section.income - section.expenses),
-          for (final row in section.rows)
-            EntryRow(row: row, ledger: ledger, state: state),
-        ],
-      ],
-    );
   }
 }
