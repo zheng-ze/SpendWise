@@ -9,20 +9,10 @@ import 'package:spendwise/ui/accounts/account_row.dart';
 import 'package:spendwise/ui/accounts/account_sections.dart';
 import 'package:spendwise/ui/accounts/delete_holder_confirmation.dart';
 import 'package:spendwise/ui/common/column_text.dart';
+import 'package:spendwise/ui/format/account_type_format.dart';
 import 'package:spendwise/ui/format/amount_color.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/transactions/daily_transactions_screen.dart';
-
-const _typeLabels = {
-  AccountType.cash: 'Cash',
-  AccountType.checking: 'Checking',
-  AccountType.savings: 'Savings',
-  AccountType.card: 'Cards',
-  AccountType.prepaid: 'Prepaid',
-  AccountType.investment: 'Investment',
-  AccountType.insurance: 'Insurance',
-  AccountType.other: 'Other',
-};
 
 class AccountsScreen extends ConsumerWidget {
   const AccountsScreen({super.key});
@@ -260,7 +250,7 @@ class _SectionHeaderRow extends StatelessWidget {
         children: [
           Expanded(
             child: Text(
-              _typeLabels[type]!,
+              accountTypeLabel(type),
               style: theme.textTheme.labelLarge?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),

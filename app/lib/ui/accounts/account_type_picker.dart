@@ -1,18 +1,7 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 
-const _typeLabels = <AccountType, String>{
-  AccountType.cash: 'Cash',
-  AccountType.checking: 'Checking',
-  AccountType.savings: 'Savings',
-  AccountType.card: 'Card',
-  AccountType.prepaid: 'Prepaid',
-  AccountType.investment: 'Investment',
-  AccountType.insurance: 'Insurance',
-  AccountType.other: 'Other',
-  AccountType.loan: 'Loan',
-  AccountType.overdraft: 'Overdraft',
-};
+import 'package:spendwise/ui/format/account_type_format.dart';
 
 class AccountTypePicker extends StatelessWidget {
   const AccountTypePicker({
@@ -29,7 +18,7 @@ class AccountTypePicker extends StatelessWidget {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       title: const Text('Type'),
-      trailing: Text(_typeLabels[selected]!),
+      trailing: Text(accountTypeLabel(selected)),
       onTap: () => _pick(context),
     );
   }
@@ -45,7 +34,7 @@ class AccountTypePicker extends StatelessWidget {
             children: [
               for (final type in AccountType.values)
                 ListTile(
-                  title: Text(_typeLabels[type]!),
+                  title: Text(accountTypeLabel(type)),
                   trailing: type == selected ? const Icon(Icons.check) : null,
                   onTap: () => Navigator.of(context).pop(type),
                 ),
