@@ -1,8 +1,13 @@
 ## Context
 
-`add-budgets` delivered `Budget`, `LimitEvent`, `RolloverMode`, the four mutators, the category
-cascade, and two new `LedgerChange` cases (`UpsertBudget`, `DeleteBudget`) — all domain-only. See
-proposal.md for why persistence and UI are the remaining gap.
+`add-budgets` delivered `Budget`, `LimitEvent`, the four mutators, the category cascade, and two new
+`LedgerChange` cases (`UpsertBudget`, `DeleteBudget`) — all domain-only. See proposal.md for why
+persistence and UI are the remaining gap.
+
+`RolloverMode` and `carryCap` were removed after this design was first written — a later review
+found the form's edit path unreachable and rollover unimplemented (no carry-forward math ever
+existed), so both were scrapped rather than finished. The sections below reflect the current,
+rollover-free shape; historical mentions of rollover in this document have been updated to match.
 
 `drift_ledger_store.dart`'s `_apply` switch is currently non-exhaustive over `LedgerChange` on
 purpose: it was left red rather than given a silent no-op, so the missing budget storage stays
@@ -23,14 +28,14 @@ a fixed 4-value enum: transactions/stats/accounts/settings).
 
 **Goals:**
 - Budgets persist across restart with the same round-trip guarantees every other row kind has.
-- A user can create, edit (limit + override, not category/rollover), and delete a budget from the
-  UI, and see configured limit vs. actual spend per month.
+- A user can create, edit (limit + override, not category), and delete a budget from the UI, and
+  see configured limit vs. actual spend per month.
 - `_apply`'s switch becomes exhaustive again, honestly this time — real storage, not a stand-in.
 
 **Non-Goals:**
 - No new `ShellDestination` tab.
-- No editing of a budget's category or rollover mode in place (delete-and-recreate only, per
-  `add-budgets`'s design.md ruling — this change doesn't revisit that).
+- No editing of a budget's category in place (delete-and-recreate only, per `add-budgets`'s
+  design.md ruling — this change doesn't revisit that).
 - No sync/multi-device conflict resolution beyond what `SyncedRow`'s existing version-vector
   bump-on-write already gives every other table.
 - No year-range view for budgets (Stats' Annually toggle stays scoped to Income/Expense).
@@ -111,8 +116,8 @@ is needed. No new domain function; the domain keeps computing only "configured l
 
 `Ledger` gains:
 ```dart
-List<LedgerChange> addBudget(String? categoryID, Decimal amount, RolloverMode mode, {Decimal? carryCap}) =>
-    _mutate((state) => state.addBudget(categoryID, amount, mode, carryCap: carryCap));
+List<LedgerChange> addBudget(String? categoryID, Decimal amount) =>
+    _mutate((state) => state.addBudget(categoryID, amount));
 List<LedgerChange> updateBudgetAmount(String budgetID, Decimal amount, YearMonth from) =>
     _mutate((state) => state.updateBudgetAmount(budgetID, amount, from));
 List<LedgerChange> setBudgetMonthOverride(String budgetID, YearMonth month, Decimal value) =>
@@ -125,15 +130,16 @@ already carries the try/catch-and-report-`LedgerError` behavior every other muta
 on, so the form-error pattern (`_error` field + `ErrorSection`, as in `plan_form.dart`) needs no new
 machinery.
 
-### Form scope: one form, category+rollover locked after creation
+### Form scope: create-only
 
-One `BudgetForm` widget, reusing `form_scaffold.dart`/`amount_field.dart`/`error_section.dart` as
-`plan_form.dart` does. Create mode shows category picker (any active category, top-level or
-subcategory, excluding one already budgeted, plus an "Overall" option representing
-`categoryID: null`) and rollover mode selector. Edit mode shows those two as read-only text, with
-an editable amount field and an optional override-month picker. This matches the spec's "Rollover
-mode is fixed after creation" scenario and avoids a second widget for what's otherwise the same
-layout.
+`BudgetForm` reuses `form_scaffold.dart`/`amount_field.dart`/`error_section.dart` as `plan_form.dart`
+does. It shows a category picker (any active category, top-level or subcategory, excluding one
+already budgeted, plus an "Overall" option representing `categoryID: null`) and an amount field, and
+only ever creates a new budget. The form's edit-mode path (locked category tile, override-month
+tile, delete button) turned out to be unreachable in the shipped app — `BudgetCard` →
+`BudgetDetailScreen` → `BudgetLimitScreen`'s own bottom sheet is the real edit flow, and
+`showBudgetFormSheet`'s only call site never passed a budget to edit — so it was removed rather than
+wired up.
 
 ## Risks / Trade-offs
 

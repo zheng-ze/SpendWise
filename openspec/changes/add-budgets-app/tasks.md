@@ -1,8 +1,9 @@
 ## 1. Schema
 
 - [x] 1.1 Add `Budgets` table to `app/lib/persistence/tables.dart`: `SyncedRow` mixin, `TextColumn
-      categoryId` (nullable), `TextColumn limitEvents` (JSON-encoded), `IntColumn rolloverMode`,
-      `TextColumn carryCap` (nullable), `TextColumn createdAtMonth`.
+      categoryId` (nullable), `TextColumn limitEvents` (JSON-encoded), `TextColumn createdAtMonth`.
+      No rollover columns: rollover (carry-forward math) is out of scope for this change, so
+      `Budgets` carries no `rolloverMode`/`carryCap` fields. `schemaVersion` bumped to `3`.
 - [x] 1.2 Add `Budgets` to `@DriftDatabase(tables: [...])` in `ledger_database.dart`, bump
       `schemaVersion` from `1` to `2`.
 - [x] 1.3 Run the Drift build runner to regenerate `ledger_database.g.dart` and confirm it compiles.
@@ -11,8 +12,8 @@
 
 - [x] 2.1 Add `budgetFromRow`/`budgetToRow` to `app/lib/persistence/mappers.dart`, following
       `planFromRow`/`planToRow`'s shape: encode/decode `limitEvents` as JSON (`YearMonth` as
-      `"YYYY-MM"`, `Decimal` as its string form, `LimitEventKind` as its int `code`), `carryCap` as
-      a nullable `Decimal` string, `rolloverMode` via its `code`/`fromCode`.
+      `"YYYY-MM"`, `Decimal` as its string form, `LimitEventKind` as its int `code`). No
+      `carryCap`/`rolloverMode` mapping, matching 1.1's rollover-free `Budgets` table.
 - [x] 2.2 Test round-trip encode/decode directly against `budgetFromRow`/`budgetToRow` (no
       database): a budget with one default event, one with an override appended, `carryCap` null
       and non-null, `categoryID` null (overall) and non-null.
@@ -92,11 +93,13 @@
 
 ## 7. Budget form
 
-- [x] 7.1 Add `app/lib/ui/budgets/budget_form.dart` (create + edit modes in one widget, matching
-      `plan_form.dart`'s `showModalBottomSheet` pattern): category picker (excludes categories with
-      an existing budget, plus "Overall") and rollover mode selector, both create-only and shown
-      read-only in edit mode; amount field; optional carry-cap field shown only when rollover mode
-      is not `none`; optional override-month picker.
+- [x] 7.1 Add `app/lib/ui/budgets/budget_form.dart` (create-only, matching `plan_form.dart`'s
+      `showModalBottomSheet` pattern): category picker (excludes categories with an existing
+      budget, plus "Overall") and amount field. No edit mode: editing an existing budget's amount
+      goes through `BudgetCard` → `BudgetDetailScreen` → `BudgetLimitScreen`'s own bottom sheet
+      instead, so the form carries no `budget` param, no override-month picker, and no delete
+      button. No rollover mode selector or carry-cap field, matching 1.1's rollover-free `Budgets`
+      table.
 - [x] 7.2 Build the category picker from `ledger.state.categories`: active expense categories only
       (income is excluded, since a budget only ever tracks expense spend), any nesting level —
       top-level and subcategories alike are budgetable — excluding categories that already carry a
