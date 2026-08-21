@@ -297,38 +297,22 @@ class DriftLedgerStore implements LedgerStore {
   Future<void> _apply(LedgerChange change) async {
     switch (change) {
       case UpsertAccount(:final account):
-        final version = await _bumpedVersion(db.accounts, account.id);
-        await db
-            .into(db.accounts)
-            .insertOnConflictUpdate(accountToRow(account, version));
+        await _upsert(db.accounts, account.id, (v) => accountToRow(account, v));
       case UpsertPocket(:final pocket):
-        final version = await _bumpedVersion(db.subPockets, pocket.id);
-        await db
-            .into(db.subPockets)
-            .insertOnConflictUpdate(pocketToRow(pocket, version));
+        await _upsert(db.subPockets, pocket.id, (v) => pocketToRow(pocket, v));
       case UpsertCategory(:final category):
         final stored = await _categoryRow(category.id);
-        final version = await _bumpedVersion(db.categories, category.id);
-        await db
-            .into(db.categories)
-            .insertOnConflictUpdate(
-              categoryUpsertRow(category, version, stored: stored),
-            );
+        await _upsert(
+          db.categories,
+          category.id,
+          (v) => categoryUpsertRow(category, v, stored: stored),
+        );
       case UpsertEntry(:final entry):
-        final version = await _bumpedVersion(db.entries, entry.id);
-        await db
-            .into(db.entries)
-            .insertOnConflictUpdate(entryToRow(entry, version));
+        await _upsert(db.entries, entry.id, (v) => entryToRow(entry, v));
       case UpsertPlan(:final plan):
-        final version = await _bumpedVersion(db.plans, plan.id);
-        await db
-            .into(db.plans)
-            .insertOnConflictUpdate(planToRow(plan, version));
+        await _upsert(db.plans, plan.id, (v) => planToRow(plan, v));
       case UpsertBudget(:final budget):
-        final version = await _bumpedVersion(db.budgets, budget.id);
-        await db
-            .into(db.budgets)
-            .insertOnConflictUpdate(budgetToRow(budget, version));
+        await _upsert(db.budgets, budget.id, (v) => budgetToRow(budget, v));
       case DeleteMoneySource(:final id):
         // One id space over two tables, so a miss in accounts falls through.
         if (!await _tombstone(db.accounts, id)) {
@@ -368,6 +352,15 @@ class DriftLedgerStore implements LedgerStore {
         ? VersionVector.empty
         : versionFromRow(stored);
     return version.bump(await _device);
+  }
+
+  Future<void> _upsert<T extends Table, D extends DataClass>(
+    TableInfo<T, D> table,
+    String id,
+    Insertable<D> Function(VersionVector version) toRow,
+  ) async {
+    final version = await _bumpedVersion(table, id);
+    await db.into(table).insertOnConflictUpdate(toRow(version));
   }
 
   Future<bool> _tombstone(TableInfo<Table, dynamic> table, String id) async {
