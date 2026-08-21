@@ -24,7 +24,7 @@ class CategoryListScreen extends ConsumerWidget {
   }
 }
 
-class _CategoryListScreenBody extends StatefulWidget {
+class _CategoryListScreenBody extends StatelessWidget {
   const _CategoryListScreenBody({required this.ledger});
 
   final Ledger ledger;
@@ -35,10 +35,6 @@ class _CategoryListScreenBody extends StatefulWidget {
 }
 
 class _CategoryListScreenBodyState extends State<_CategoryListScreenBody> {
-  bool _editing = false;
-
-  void _toggleEditing() => setState(() => _editing = !_editing);
-
   Future<void> _confirmAndDelete(TransactionCategory category) async {
     final referenceCount = widget.ledger.state.entryCountReferencing(
       category.id,
@@ -87,11 +83,10 @@ class _CategoryListScreenBodyState extends State<_CategoryListScreenBody> {
       appBar: AppBar(
         title: const Text('Categories'),
         actions: [
-          TextButton(
-            onPressed: _toggleEditing,
-            child: Text(_editing ? 'Done' : 'Edit'),
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: () => _openForm(context),
           ),
-          IconButton(icon: const Icon(Icons.add), onPressed: () => _openForm()),
         ],
       ),
       body: ListView(
@@ -99,7 +94,6 @@ class _CategoryListScreenBodyState extends State<_CategoryListScreenBody> {
           _CategorySection(
             title: 'Income',
             categories: income,
-            editing: _editing,
             onTap: (category) => _openForm(category: category),
             onDelete: _confirmAndDelete,
             onAddSubcategory: (parent) => _openForm(presetParentID: parent.id),
@@ -107,7 +101,6 @@ class _CategoryListScreenBodyState extends State<_CategoryListScreenBody> {
           _CategorySection(
             title: 'Expense',
             categories: expense,
-            editing: _editing,
             onTap: (category) => _openForm(category: category),
             onDelete: _confirmAndDelete,
             onAddSubcategory: (parent) => _openForm(presetParentID: parent.id),
@@ -122,7 +115,6 @@ class _CategorySection extends StatelessWidget {
   const _CategorySection({
     required this.title,
     required this.categories,
-    required this.editing,
     required this.onTap,
     required this.onDelete,
     required this.onAddSubcategory,
@@ -130,7 +122,6 @@ class _CategorySection extends StatelessWidget {
 
   final String title;
   final List<TransactionCategory> categories;
-  final bool editing;
   final void Function(TransactionCategory category) onTap;
   final Future<void> Function(TransactionCategory category) onDelete;
   final void Function(TransactionCategory parent) onAddSubcategory;
@@ -178,7 +169,6 @@ class _CategorySection extends StatelessWidget {
                 },
                 child: _CategoryRow(
                   category: category,
-                  editing: editing,
                   onTap: () => onTap(category),
                   onDelete: () => onDelete(category),
                   onAddSubcategory: category.parentID == null
@@ -195,14 +185,12 @@ class _CategorySection extends StatelessWidget {
 class _CategoryRow extends StatelessWidget {
   const _CategoryRow({
     required this.category,
-    required this.editing,
     required this.onTap,
     required this.onDelete,
     required this.onAddSubcategory,
   });
 
   final TransactionCategory category;
-  final bool editing;
   final VoidCallback onTap;
   final VoidCallback onDelete;
   final VoidCallback? onAddSubcategory;
@@ -215,12 +203,11 @@ class _CategoryRow extends StatelessWidget {
     return ListTile(
       onTap: onTap,
       contentPadding: EdgeInsets.only(left: 16 + indent, right: 8),
-      leading: editing
-          ? IconButton(
-              icon: const Icon(Icons.remove_circle, color: Colors.red),
-              onPressed: onDelete,
-            )
-          : CategoryIcon(symbolName: category.symbol, color: color, size: 30),
+      leading: CategoryIcon(
+        symbolName: category.symbol,
+        color: color,
+        size: 30,
+      ),
       title: Text(category.name),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
@@ -230,7 +217,7 @@ class _CategoryRow extends StatelessWidget {
               padding: EdgeInsets.only(right: 8),
               child: Icon(Icons.bar_chart),
             ),
-          if (!editing && onAddSubcategory != null)
+          if (onAddSubcategory != null)
             IconButton(
               icon: const Icon(Icons.add_circle_outline),
               onPressed: onAddSubcategory,
