@@ -2,7 +2,6 @@ import 'package:decimal/decimal.dart';
 import 'package:domain/domain.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
@@ -20,10 +19,7 @@ import 'package:spendwise/ui/stats/stats_window.dart';
 import 'package:spendwise/ui/stats/trend.dart';
 import 'package:spendwise/ui/transactions/day_header.dart';
 import 'package:spendwise/ui/transactions/day_sections.dart';
-import 'package:spendwise/ui/transactions/delete_confirmation.dart';
-import 'package:spendwise/ui/transactions/entry_form.dart';
-import 'package:spendwise/ui/transactions/transaction_cell.dart';
-import 'package:spendwise/ui/transactions/transaction_row.dart';
+import 'package:spendwise/ui/transactions/entry_row.dart';
 
 const _directSymbol = 'radio_button_checked';
 
@@ -672,62 +668,9 @@ class _ScopedEntryList extends StatelessWidget {
         for (final section in sections) ...[
           DayHeader(day: section.date, net: section.income - section.expenses),
           for (final row in section.rows)
-            _EntryRow(row: row, ledger: ledger, state: state),
+            EntryRow(row: row, ledger: ledger, state: state),
         ],
       ],
-    );
-  }
-}
-
-class _EntryRow extends StatelessWidget {
-  const _EntryRow({
-    required this.row,
-    required this.ledger,
-    required this.state,
-  });
-
-  final TransactionRow row;
-  final Ledger ledger;
-  final LedgerState state;
-
-  @override
-  Widget build(BuildContext context) {
-    final entry = state.entries[row.id];
-    if (entry == null) return const SizedBox.shrink();
-
-    return Semantics(
-      customSemanticsActions: {
-        CustomSemanticsAction(label: 'Delete ${row.title}'): () async {
-          if (await showDeleteConfirmation(
-            context,
-            note: row.note,
-            title: row.title,
-          )) {
-            ledger.deleteEntry(entry.id);
-          }
-        },
-      },
-      child: Dismissible(
-        key: ValueKey(entry.id),
-        direction: DismissDirection.endToStart,
-        background: Container(
-          color: Theme.of(context).colorScheme.error,
-          alignment: Alignment.centerRight,
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: const Icon(Icons.delete_outline, color: Colors.white),
-        ),
-        confirmDismiss: (_) =>
-            showDeleteConfirmation(context, note: row.note, title: row.title),
-        onDismissed: (_) => ledger.deleteEntry(entry.id),
-        child: TransactionCell(
-          row: row,
-          onTap: () => showEntryFormSheet(
-            context: context,
-            ledger: ledger,
-            entry: entry,
-          ),
-        ),
-      ),
     );
   }
 }
