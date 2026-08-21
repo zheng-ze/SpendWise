@@ -33,11 +33,7 @@ void main() {
     test('creates a budget on an active category', () {
       final state = seeded();
 
-      final changes = state.addBudget(
-        categoryID,
-        Decimal.fromInt(100),
-        RolloverMode.none,
-      );
+      final changes = state.addBudget(categoryID, Decimal.fromInt(100));
 
       expect(changes, hasLength(1));
       final change = changes.single as UpsertBudget;
@@ -48,11 +44,7 @@ void main() {
     test('creates an overall budget when categoryID is null', () {
       final state = seeded();
 
-      final changes = state.addBudget(
-        null,
-        Decimal.fromInt(100),
-        RolloverMode.none,
-      );
+      final changes = state.addBudget(null, Decimal.fromInt(100));
 
       final change = changes.single as UpsertBudget;
       expect(change.budget.categoryID, isNull);
@@ -62,7 +54,7 @@ void main() {
       final state = seeded();
 
       expect(
-        () => state.addBudget(uuid(9), Decimal.fromInt(100), RolloverMode.none),
+        () => state.addBudget(uuid(9), Decimal.fromInt(100)),
         throwsA(isA<UnknownCategory>()),
       );
       expect(state.budgets, isEmpty);
@@ -73,11 +65,7 @@ void main() {
       state.deleteCategory(categoryID);
 
       expect(
-        () => state.addBudget(
-          categoryID,
-          Decimal.fromInt(100),
-          RolloverMode.none,
-        ),
+        () => state.addBudget(categoryID, Decimal.fromInt(100)),
         throwsA(isA<InactiveReference>()),
       );
       expect(state.budgets, isEmpty);
@@ -85,11 +73,10 @@ void main() {
 
     test('rejects a duplicate category', () {
       final state = seeded();
-      state.addBudget(categoryID, Decimal.fromInt(100), RolloverMode.none);
+      state.addBudget(categoryID, Decimal.fromInt(100));
 
       expect(
-        () =>
-            state.addBudget(categoryID, Decimal.fromInt(50), RolloverMode.none),
+        () => state.addBudget(categoryID, Decimal.fromInt(50)),
         throwsA(isA<CategoryAlreadyBudgeted>()),
       );
       expect(state.budgets, hasLength(1));
@@ -97,10 +84,10 @@ void main() {
 
     test('rejects a duplicate null category', () {
       final state = seeded();
-      state.addBudget(null, Decimal.fromInt(100), RolloverMode.none);
+      state.addBudget(null, Decimal.fromInt(100));
 
       expect(
-        () => state.addBudget(null, Decimal.fromInt(50), RolloverMode.none),
+        () => state.addBudget(null, Decimal.fromInt(50)),
         throwsA(isA<CategoryAlreadyBudgeted>()),
       );
       expect(state.budgets, hasLength(1));
@@ -110,7 +97,7 @@ void main() {
       final state = seeded();
 
       expect(
-        () => state.addBudget(categoryID, Decimal.zero, RolloverMode.none),
+        () => state.addBudget(categoryID, Decimal.zero),
         throwsA(isA<ZeroAmount>()),
       );
       expect(state.budgets, isEmpty);
@@ -120,85 +107,10 @@ void main() {
       final state = seeded();
 
       expect(
-        () =>
-            state.addBudget(categoryID, Decimal.fromInt(-1), RolloverMode.none),
+        () => state.addBudget(categoryID, Decimal.fromInt(-1)),
         throwsA(isA<ZeroAmount>()),
       );
       expect(state.budgets, isEmpty);
-    });
-
-    test('rejects a negative carryCap', () {
-      final state = seeded();
-
-      expect(
-        () => state.addBudget(
-          categoryID,
-          Decimal.fromInt(100),
-          RolloverMode.positiveOnly,
-          carryCap: Decimal.fromInt(-1),
-        ),
-        throwsA(isA<CarryCapInvalid>()),
-      );
-      expect(state.budgets, isEmpty);
-    });
-
-    test('rejects a zero carryCap under positiveOnly', () {
-      final state = seeded();
-
-      expect(
-        () => state.addBudget(
-          categoryID,
-          Decimal.fromInt(100),
-          RolloverMode.positiveOnly,
-          carryCap: Decimal.zero,
-        ),
-        throwsA(isA<CarryCapInvalid>()),
-      );
-      expect(state.budgets, isEmpty);
-    });
-
-    test('rejects a zero carryCap under both', () {
-      final state = seeded();
-
-      expect(
-        () => state.addBudget(
-          categoryID,
-          Decimal.fromInt(100),
-          RolloverMode.both,
-          carryCap: Decimal.zero,
-        ),
-        throwsA(isA<CarryCapInvalid>()),
-      );
-      expect(state.budgets, isEmpty);
-    });
-
-    test('rejects a non-null carryCap under none', () {
-      final state = seeded();
-
-      expect(
-        () => state.addBudget(
-          categoryID,
-          Decimal.fromInt(100),
-          RolloverMode.none,
-          carryCap: Decimal.fromInt(50),
-        ),
-        throwsA(isA<CarryCapInvalid>()),
-      );
-      expect(state.budgets, isEmpty);
-    });
-
-    test('accepts a positive carryCap under rollover', () {
-      final state = seeded();
-
-      final changes = state.addBudget(
-        categoryID,
-        Decimal.fromInt(100),
-        RolloverMode.both,
-        carryCap: Decimal.fromInt(50),
-      );
-
-      final change = changes.single as UpsertBudget;
-      expect(change.budget.carryCap, Decimal.fromInt(50));
     });
   });
 
@@ -206,13 +118,7 @@ void main() {
     test('appends a new default event', () {
       final state = seeded();
       final created =
-          (state
-                      .addBudget(
-                        categoryID,
-                        Decimal.fromInt(100),
-                        RolloverMode.none,
-                      )
-                      .single
+          (state.addBudget(categoryID, Decimal.fromInt(100)).single
                   as UpsertBudget)
               .budget;
 
@@ -250,13 +156,7 @@ void main() {
     test('rejects a non-positive amount', () {
       final state = seeded();
       final created =
-          (state
-                      .addBudget(
-                        categoryID,
-                        Decimal.fromInt(100),
-                        RolloverMode.none,
-                      )
-                      .single
+          (state.addBudget(categoryID, Decimal.fromInt(100)).single
                   as UpsertBudget)
               .budget;
 
@@ -275,13 +175,7 @@ void main() {
     test('appends an override event that wins for its month', () {
       final state = seeded();
       final created =
-          (state
-                      .addBudget(
-                        categoryID,
-                        Decimal.fromInt(100),
-                        RolloverMode.none,
-                      )
-                      .single
+          (state.addBudget(categoryID, Decimal.fromInt(100)).single
                   as UpsertBudget)
               .budget;
 
@@ -305,13 +199,7 @@ void main() {
     test('a new override on the same month replaces the previous one', () {
       final state = seeded();
       final created =
-          (state
-                      .addBudget(
-                        categoryID,
-                        Decimal.fromInt(100),
-                        RolloverMode.none,
-                      )
-                      .single
+          (state.addBudget(categoryID, Decimal.fromInt(100)).single
                   as UpsertBudget)
               .budget;
       state.setBudgetMonthOverride(
@@ -351,13 +239,7 @@ void main() {
     test('removes an existing budget', () {
       final state = seeded();
       final created =
-          (state
-                      .addBudget(
-                        categoryID,
-                        Decimal.fromInt(100),
-                        RolloverMode.none,
-                      )
-                      .single
+          (state.addBudget(categoryID, Decimal.fromInt(100)).single
                   as UpsertBudget)
               .budget;
 

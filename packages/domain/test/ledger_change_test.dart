@@ -42,8 +42,6 @@ Budget budget({String id = budgetID, Decimal? amount}) => Budget(
       kind: LimitEventKind.defaultLimit,
     ),
   ],
-  rolloverMode: RolloverMode.none,
-  carryCap: null,
   createdAtMonth: const YearMonth(2026, 1),
 );
 
@@ -181,7 +179,6 @@ void main() {
       expect(const CategoryKindMismatch(), const CategoryKindMismatch());
       expect(const UnknownBudget(budgetID), const UnknownBudget(budgetID));
       expect(const CategoryAlreadyBudgeted(), const CategoryAlreadyBudgeted());
-      expect(const CarryCapInvalid(), const CarryCapInvalid());
     });
 
     test('equal errors share a hash code', () {
@@ -234,8 +231,6 @@ void main() {
       expect(const ZeroAmount(), isNot(const CategoryTooDeep()));
       expect(const CategoryTooDeep(), isNot(const CategoryKindMismatch()));
       expect(const CategoryKindMismatch(), isNot(const ZeroAmount()));
-      expect(const CategoryAlreadyBudgeted(), isNot(const CarryCapInvalid()));
-      expect(const CarryCapInvalid(), isNot(const CategoryKindMismatch()));
     });
 
     test('errors are throwable', () {

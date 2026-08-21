@@ -65,8 +65,6 @@ void main() {
 Budget _budgetWith(List<LimitEvent> events) => Budget(
   categoryID: null,
   limitEvents: events,
-  rolloverMode: RolloverMode.none,
-  carryCap: null,
   createdAtMonth: const YearMonth(2026, 1),
 );
 
