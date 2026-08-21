@@ -135,4 +135,39 @@ void main() {
     expect(find.text('Food'), findsOneWidget);
     expect(find.text('Salary'), findsNothing);
   });
+
+  testWidgets(
+    'dismissing the category picker without choosing leaves the selection '
+    'unchanged',
+    (tester) async {
+      final food = TransactionCategory(
+        id: 'f0000000-0000-0000-0000-000000000001',
+        name: 'Food',
+        kind: CategoryKind.expense,
+        colorHex: '#FF0000',
+        includeInAnalysis: true,
+        parentID: null,
+        symbol: 'restaurant',
+      );
+
+      final ledger = Ledger(state: LedgerState(categories: {food.id: food}));
+
+      await pumpForm(tester, ledger);
+      await tester.tap(find.text('Overall'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Food'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Food'), findsOneWidget);
+
+      await tester.tap(find.text('Category'));
+      await tester.pumpAndSettle();
+      // Tap the barrier above the sheet to dismiss it without choosing.
+      await tester.tapAt(const Offset(20, 20));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Food'), findsOneWidget);
+      expect(find.text('Overall'), findsNothing);
+    },
+  );
 }

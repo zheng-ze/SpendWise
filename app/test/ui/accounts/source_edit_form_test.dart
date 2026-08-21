@@ -10,7 +10,9 @@ void main() {
   Future<void> pumpForm(WidgetTester tester, Ledger ledger, String holderID) {
     return tester.pumpWidget(
       MaterialApp(
-        home: SourceEditForm(ledger: ledger, holderID: holderID),
+        home: Scaffold(
+          body: SourceEditForm(ledger: ledger, holderID: holderID),
+        ),
       ),
     );
   }

@@ -145,9 +145,9 @@ void main() {
     await tester.tap(find.text('Coffee run'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Entry'), findsOneWidget);
+    expect(find.text('Coffee run'), findsWidgets);
     expect(find.text('Save'), findsNothing);
-    expect(find.byIcon(Icons.edit_outlined), findsOneWidget);
+    expect(find.text('Edit'), findsOneWidget);
   });
 
   testWidgets(

@@ -7,7 +7,11 @@ import 'package:spendwise/ui/accounts/account_form_logic.dart';
 
 void main() {
   Future<void> pumpForm(WidgetTester tester, Ledger ledger) {
-    return tester.pumpWidget(MaterialApp(home: AccountForm(ledger: ledger)));
+    return tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: AccountForm(ledger: ledger)),
+      ),
+    );
   }
 
   testWidgets('locks to account kind when no account can hold a pocket', (

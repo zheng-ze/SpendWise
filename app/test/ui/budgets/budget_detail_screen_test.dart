@@ -207,6 +207,74 @@ void main() {
   });
 
   testWidgets(
+    'an entry excluded from analysis never appears in a budget\'s entry list',
+    (tester) async {
+      final overallBudget = budget(categoryID: null, id: 'b9');
+      final excludedEntry = Entry(
+        amount: dec('-7'),
+        name: 'Excluded entry',
+        sourceID: account.id,
+        date: day(1),
+        includeInAnalysis: false,
+      );
+      final ledger = buildLedger(
+        entries: {excludedEntry.id: excludedEntry},
+        forBudget: overallBudget,
+      );
+
+      await pumpDetail(tester, ledger, overallBudget);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Excluded entry'), findsNothing);
+      expect(find.text('No entries in this period'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'an entry in a category excluded from analysis never appears in a '
+    'budget\'s entry list',
+    (tester) async {
+      const excludedCategoryID = 'a0000000-0000-0000-0000-000000000099';
+      final excludedCategory = TransactionCategory(
+        id: excludedCategoryID,
+        name: 'Excluded category',
+        kind: CategoryKind.expense,
+        colorHex: '#AA00AA',
+        includeInAnalysis: false,
+        parentID: null,
+        symbol: 'block',
+      );
+      final overallBudget = budget(categoryID: null, id: 'b10');
+      final entryInExcludedCategory = Entry(
+        amount: dec('-7'),
+        name: 'In excluded category',
+        sourceID: account.id,
+        categoryID: excludedCategoryID,
+        date: day(1),
+      );
+      final ledger = Ledger(
+        state: LedgerState(
+          moneySources: {account.id: MoneySource.account(account)},
+          categories: {
+            foodID: food,
+            hawkerID: hawker,
+            transportID: transport,
+            excludedCategoryID: excludedCategory,
+          },
+          entries: {entryInExcludedCategory.id: entryInExcludedCategory},
+          budgets: {overallBudget.id: overallBudget},
+        ),
+      );
+
+      await pumpDetail(tester, ledger, overallBudget);
+      await tester.pumpAndSettle();
+
+      expect(find.text('In excluded category'), findsNothing);
+      expect(find.text('No entries in this period'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
     'the chart shows all twelve months of the current year, not a six-month window',
     (tester) async {
       final overallBudget = budget(categoryID: null, id: 'b5');

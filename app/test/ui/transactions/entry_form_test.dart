@@ -56,9 +56,18 @@ void main() {
     Entry? entry,
     String? sourceScope,
   }) async {
+    // The real EntryForm always renders inside a modal bottom sheet, which
+    // sits over the host app's own Scaffold/Material. Without one here, Text
+    // falls back to the debug banner's oversized style and rows overflow.
     await tester.pumpWidget(
       MaterialApp(
-        home: EntryForm(ledger: ledger, entry: entry, sourceScope: sourceScope),
+        home: Scaffold(
+          body: EntryForm(
+            ledger: ledger,
+            entry: entry,
+            sourceScope: sourceScope,
+          ),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -89,39 +98,31 @@ void main() {
         entry: entry,
       );
 
-      expect(find.text('Entry'), findsOneWidget);
+      expect(find.text('Coffee run'), findsOneWidget);
       expect(find.text('Save'), findsNothing);
-      expect(find.byIcon(Icons.edit_outlined), findsOneWidget);
+      expect(find.text('Edit'), findsOneWidget);
     });
 
-    testWidgets('all fields are non-interactive in the read-only view', (
-      tester,
-    ) async {
-      final entry = Entry(
-        amount: dec('-5'),
-        name: 'Coffee run',
-        sourceID: checking.id,
-        categoryID: coffee.id,
-      );
-      await pumpForm(
-        tester,
-        ledger: buildLedger(entries: {entry.id: entry}),
-        entry: entry,
-      );
+    testWidgets(
+      'the read-only view has no live input controls, only plain rows',
+      (tester) async {
+        final entry = Entry(
+          amount: dec('-5'),
+          name: 'Coffee run',
+          sourceID: checking.id,
+          categoryID: coffee.id,
+        );
+        await pumpForm(
+          tester,
+          ledger: buildLedger(entries: {entry.id: entry}),
+          entry: entry,
+        );
 
-      final segmented = tester.widget<SegmentedButton<EntryFormKind>>(
-        find.byType(SegmentedButton<EntryFormKind>),
-      );
-      expect(segmented.onSelectionChanged, isNull);
-
-      final ignore = tester.firstWidget<IgnorePointer>(
-        find.ancestor(
-          of: find.byType(TextField).at(1),
-          matching: find.byType(IgnorePointer),
-        ),
-      );
-      expect(ignore.ignoring, isTrue);
-    });
+        expect(find.byType(SegmentedButton<EntryFormKind>), findsNothing);
+        expect(find.byType(TextField), findsNothing);
+        expect(find.byType(SwitchListTile), findsNothing);
+      },
+    );
 
     testWidgets('tapping Edit switches to edit mode with a Save action', (
       tester,
@@ -138,11 +139,49 @@ void main() {
         entry: entry,
       );
 
-      await tester.tap(find.byIcon(Icons.edit_outlined));
+      await tester.tap(find.text('Edit'));
       await tester.pumpAndSettle();
 
       expect(find.text('Edit Entry'), findsOneWidget);
       expect(find.text('Save'), findsOneWidget);
+    });
+
+    testWidgets('while viewing, Delete Entry is unreachable', (tester) async {
+      final entry = Entry(
+        amount: dec('-5'),
+        name: 'Coffee run',
+        sourceID: checking.id,
+        categoryID: coffee.id,
+      );
+      await pumpForm(
+        tester,
+        ledger: buildLedger(entries: {entry.id: entry}),
+        entry: entry,
+      );
+
+      expect(find.text('Delete Entry'), findsNothing);
+    });
+
+    testWidgets('tapping Edit reveals live fields not shown while viewing', (
+      tester,
+    ) async {
+      final entry = Entry(
+        amount: dec('-5'),
+        name: 'Coffee run',
+        sourceID: checking.id,
+        categoryID: coffee.id,
+      );
+      await pumpForm(
+        tester,
+        ledger: buildLedger(entries: {entry.id: entry}),
+        entry: entry,
+      );
+
+      await tester.tap(find.text('Edit'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Save'), findsOneWidget);
+      expect(find.text('Delete Entry'), findsOneWidget);
     });
   });
 
@@ -159,18 +198,22 @@ void main() {
       final ledger = buildLedger(entries: {entry.id: entry});
       await pumpForm(tester, ledger: ledger, entry: entry);
 
-      await tester.tap(find.byIcon(Icons.edit_outlined));
+      await tester.tap(find.text('Edit'));
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField).at(1), 'Changed name');
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Cancel'));
+      // No Cancel button in the new design; a barrier tap or back gesture
+      // reaches the same PopScope revert. Trigger it directly through the
+      // navigator, since this harness hosts EntryForm without a real modal
+      // bottom sheet to tap outside of.
+      await Navigator.of(tester.element(find.byType(EntryForm))).maybePop();
       await tester.pumpAndSettle();
 
-      expect(find.text('Entry'), findsOneWidget);
       expect(find.text('Coffee run'), findsOneWidget);
       expect(find.text('Changed name'), findsNothing);
+      expect(find.text('Edit'), findsOneWidget);
       expect(ledger.state.entries[entry.id]!.name, 'Coffee run');
     });
   });
@@ -210,7 +253,7 @@ void main() {
         final ledger = buildLedger(entries: {entry.id: entry});
         await pumpForm(tester, ledger: ledger, entry: entry);
 
-        await tester.tap(find.byIcon(Icons.edit_outlined));
+        await tester.tap(find.text('Edit'));
         await tester.pumpAndSettle();
 
         await tester.enterText(find.byType(TextField).at(1), 'Updated name');
@@ -220,7 +263,7 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(ledger.state.entries[entry.id]!.name, 'Updated name');
-        expect(find.text('Entry'), findsOneWidget);
+        expect(find.text('Updated name'), findsOneWidget);
         expect(find.text('Save'), findsNothing);
       },
     );
@@ -236,7 +279,7 @@ void main() {
               body: ElevatedButton(
                 onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
-                    builder: (_) => EntryForm(ledger: ledger),
+                    builder: (_) => Scaffold(body: EntryForm(ledger: ledger)),
                   ),
                 ),
                 child: const Text('open'),
@@ -315,7 +358,9 @@ void main() {
               body: ElevatedButton(
                 onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
-                    builder: (_) => EntryForm(ledger: ledger, entry: entry),
+                    builder: (_) => Scaffold(
+                      body: EntryForm(ledger: ledger, entry: entry),
+                    ),
                   ),
                 ),
                 child: const Text('open'),
@@ -327,7 +372,7 @@ void main() {
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(Icons.edit_outlined));
+      await tester.tap(find.text('Edit'));
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Delete Entry'));
@@ -356,8 +401,8 @@ void main() {
           entry: entry,
         );
 
-        expect(find.text('Entry'), findsOneWidget);
-        expect(find.byIcon(Icons.edit_outlined), findsOneWidget);
+        expect(find.text('Opening balance'), findsOneWidget);
+        expect(find.text('Edit'), findsOneWidget);
       },
     );
 
@@ -375,7 +420,7 @@ void main() {
         final ledger = buildLedger(entries: {entry.id: entry});
         await pumpForm(tester, ledger: ledger, entry: entry);
 
-        await tester.tap(find.byIcon(Icons.edit_outlined));
+        await tester.tap(find.text('Edit'));
         await tester.pumpAndSettle();
 
         expect(find.text('Edit Entry'), findsOneWidget);
@@ -431,8 +476,8 @@ void main() {
         entry: entry,
       );
 
-      expect(find.text('Entry'), findsOneWidget);
-      expect(find.byIcon(Icons.edit_outlined), findsOneWidget);
+      expect(find.text('Balance adjustment'), findsOneWidget);
+      expect(find.text('Edit'), findsOneWidget);
     });
 
     testWidgets('a normal entry is unaffected and still offers Edit', (
@@ -450,7 +495,7 @@ void main() {
         entry: entry,
       );
 
-      expect(find.byIcon(Icons.edit_outlined), findsOneWidget);
+      expect(find.text('Edit'), findsOneWidget);
     });
   });
 
@@ -473,7 +518,7 @@ void main() {
         // Captured so it can be removed directly, since the sheet route
         // sits above it and pop() would dismiss the sheet instead.
         final formRoute = MaterialPageRoute<void>(
-          builder: (_) => EntryForm(ledger: ledger),
+          builder: (_) => Scaffold(body: EntryForm(ledger: ledger)),
         );
         await tester.pumpWidget(
           MaterialApp(

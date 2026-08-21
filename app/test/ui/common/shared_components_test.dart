@@ -80,13 +80,14 @@ void main() {
             title: 'Account',
             canSave: false,
             onSave: () async => saved = true,
+            error: const SizedBox.shrink(),
             child: const SizedBox.shrink(),
           ),
         ),
       );
 
-      final save = tester.widget<TextButton>(
-        find.widgetWithText(TextButton, 'Save'),
+      final save = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Save'),
       );
       expect(save.onPressed, isNull);
 
@@ -103,13 +104,14 @@ void main() {
             title: 'Account',
             canSave: true,
             onSave: () async => saved = true,
+            error: const SizedBox.shrink(),
             child: const SizedBox.shrink(),
           ),
         ),
       );
 
-      final save = tester.widget<TextButton>(
-        find.widgetWithText(TextButton, 'Save'),
+      final save = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Save'),
       );
       expect(save.onPressed, isNotNull);
 
@@ -118,7 +120,7 @@ void main() {
       expect(saved, isTrue);
     });
 
-    testWidgets('Cancel dismisses without asking to confirm', (tester) async {
+    testWidgets('tapping outside the sheet dismisses it', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -130,6 +132,7 @@ void main() {
                     title: 'Account',
                     canSave: false,
                     onSave: () async {},
+                    error: const SizedBox.shrink(),
                     child: const Text('form body'),
                   ),
                 ),
@@ -144,7 +147,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('form body'), findsOneWidget);
 
-      await tester.tap(find.text('Cancel'));
+      await tester.tapAt(const Offset(20, 20));
       await tester.pumpAndSettle();
       expect(find.text('form body'), findsNothing);
     });
@@ -217,7 +220,8 @@ class _FailingSaveFormState extends State<_FailingSaveForm> {
           setState(() => _error = error);
         }
       },
-      child: ErrorSection(subject: 'account', error: _error),
+      error: ErrorSection(subject: 'account', error: _error),
+      child: const SizedBox.shrink(),
     );
   }
 }
