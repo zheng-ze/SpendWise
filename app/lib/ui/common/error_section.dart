@@ -49,6 +49,5 @@ String friendlyLedgerErrorMessage(LedgerError error) {
     CategoryKindMismatch() =>
       'that category does not match the transaction kind.',
     CategoryAlreadyBudgeted() => 'that category already has a budget.',
-    CarryCapInvalid() => 'that rollover cap is not valid for this budget.',
   };
 }
