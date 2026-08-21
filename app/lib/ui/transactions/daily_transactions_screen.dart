@@ -97,6 +97,53 @@ class _TransactionsScreenBody extends ConsumerWidget {
   final void Function(Entry entry)? onRowTap;
   final WidgetBuilder? monthlyBuilder;
 
+  Widget _content(
+    BuildContext context,
+    TransactionsScreenState screenState,
+    TransactionsScreenController controller,
+  ) {
+    if (screenState.mode == TransactionsScreenMode.daily) {
+      return _DailyContent(
+        state: ledger.state,
+        sourceScope: scopeIDs,
+        selectedDate: screenState.selectedDate,
+        ledger: ledger,
+        onRowTap: onRowTap,
+      );
+    }
+    return monthlyBuilder?.call(context) ??
+        MonthlyTransactionsView(
+          state: ledger.state,
+          year: screenState.selectedDate,
+          onWeekTap: controller.switchToDaily,
+        );
+  }
+
+  Widget _fab(BuildContext context) {
+    return ExpandingFab(
+      primary: FabAction(
+        label: 'Add Transaction',
+        icon: Icons.add,
+        onTap: () => showEntryFormSheet(
+          context: context,
+          ledger: ledger,
+          sourceScope: sourceScope,
+        ),
+      ),
+      secondary: sourceScope == null
+          ? null
+          : FabAction(
+              label: 'Edit ${ledger.state.sourceName(sourceScope) ?? ''}',
+              icon: Icons.edit_outlined,
+              onTap: () => showSourceEditFormSheet(
+                context: context,
+                ledger: ledger,
+                holderID: sourceScope!,
+              ),
+            ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final provider = transactionsScreenProvider(sourceScope);
@@ -137,46 +184,10 @@ class _TransactionsScreenBody extends ConsumerWidget {
                 mode: screenState.mode,
               ),
               const Divider(height: 1),
-              Expanded(
-                child: screenState.mode == TransactionsScreenMode.daily
-                    ? _DailyContent(
-                        state: ledger.state,
-                        sourceScope: scopeIDs,
-                        selectedDate: screenState.selectedDate,
-                        ledger: ledger,
-                        onRowTap: onRowTap,
-                      )
-                    : (monthlyBuilder?.call(context) ??
-                          MonthlyTransactionsView(
-                            state: ledger.state,
-                            year: screenState.selectedDate,
-                            onWeekTap: controller.switchToDaily,
-                          )),
-              ),
+              Expanded(child: _content(context, screenState, controller)),
             ],
           ),
-          ExpandingFab(
-            primary: FabAction(
-              label: 'Add Transaction',
-              icon: Icons.add,
-              onTap: () => showEntryFormSheet(
-                context: context,
-                ledger: ledger,
-                sourceScope: sourceScope,
-              ),
-            ),
-            secondary: sourceScope == null
-                ? null
-                : FabAction(
-                    label: 'Edit ${ledger.state.sourceName(sourceScope) ?? ''}',
-                    icon: Icons.edit_outlined,
-                    onTap: () => showSourceEditFormSheet(
-                      context: context,
-                      ledger: ledger,
-                      holderID: sourceScope!,
-                    ),
-                  ),
-          ),
+          _fab(context),
         ],
       ),
     );
