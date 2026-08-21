@@ -95,4 +95,35 @@ extension LedgerStateQueries on LedgerState {
       .nonNulls
       .where((account) => account.subPocketIDs.contains(pocketID))
       .firstOrNull;
+
+  List<TransactionCategory> categoriesGroupedByParent(CategoryKind kind) {
+    final active = activeCategories;
+    final matching = categories.values
+        .where(
+          (category) => active.contains(category.id) && category.kind == kind,
+        )
+        .toList();
+
+    final roots =
+        matching.where((category) => category.parentID == null).toList()
+          ..sort(_byName);
+    final childrenByParent = <String, List<TransactionCategory>>{};
+    for (final category in matching) {
+      final parentID = category.parentID;
+      if (parentID == null) continue;
+
+      childrenByParent.putIfAbsent(parentID, () => []).add(category);
+    }
+    for (final children in childrenByParent.values) {
+      children.sort(_byName);
+    }
+
+    return [
+      for (final root in roots) ...[root, ...?childrenByParent[root.id]],
+    ];
+  }
+
+  // Ordinal, so the order is identical on every platform.
+  static int _byName(TransactionCategory a, TransactionCategory b) =>
+      a.name.compareTo(b.name);
 }

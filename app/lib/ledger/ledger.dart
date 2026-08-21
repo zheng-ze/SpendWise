@@ -146,34 +146,6 @@ class Ledger extends ChangeNotifier {
     onPlanError?.call(resolution.failures);
   }
 
-  List<TransactionCategory> categories(CategoryKind kind) {
-    final active = _state.activeCategories;
-    final matching = _state.categories.values
-        .where(
-          (category) => active.contains(category.id) && category.kind == kind,
-        )
-        .toList();
-
-    final roots =
-        matching.where((category) => category.parentID == null).toList()
-          ..sort(_byName);
-    final childrenByParent = <String, List<TransactionCategory>>{};
-    for (final category in matching) {
-      final parentID = category.parentID;
-      if (parentID == null) continue;
-
-      childrenByParent.putIfAbsent(parentID, () => []).add(category);
-    }
-    for (final children in childrenByParent.values) {
-      children.sort(_byName);
-    }
-
-    return [
-      for (final root in roots) ...[root, ...?childrenByParent[root.id]],
-    ];
-  }
-
-  // Ordinal, so the order is identical on every platform.
-  static int _byName(TransactionCategory a, TransactionCategory b) =>
-      a.name.compareTo(b.name);
+  List<TransactionCategory> categories(CategoryKind kind) =>
+      _state.categoriesGroupedByParent(kind);
 }

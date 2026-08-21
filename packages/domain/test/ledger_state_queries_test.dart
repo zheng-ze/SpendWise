@@ -7,6 +7,8 @@ const pocketP = '22222222-2222-4222-8222-222222222221';
 const pocketQ = '22222222-2222-4222-8222-222222222222';
 const categoryC = '33333333-3333-4333-8333-333333333331';
 const categoryD = '33333333-3333-4333-8333-333333333332';
+const categoryE = '33333333-3333-4333-8333-333333333333';
+const categoryF = '33333333-3333-4333-8333-333333333334';
 const ghostID = '99999999-9999-4999-8999-999999999999';
 
 Account account(
@@ -31,14 +33,16 @@ SubPocket pocket(
 TransactionCategory category(
   String id, {
   String name = 'cat',
+  CategoryKind kind = CategoryKind.expense,
+  String? parentID,
   LifecycleState lifecycle = LifecycleState.active,
 }) => TransactionCategory(
   id: id,
   name: name,
-  kind: CategoryKind.expense,
+  kind: kind,
   colorHex: '#888888',
   includeInAnalysis: true,
-  parentID: null,
+  parentID: parentID,
   symbol: 'tag',
   lifecycle: lifecycle,
 );
@@ -254,6 +258,59 @@ void main() {
     test('entryCountReferencing counts entries carrying the category', () {
       expect(ledger.entryCountReferencing(categoryC), 1);
       expect(ledger.entryCountReferencing(ghostID), 0);
+    });
+  });
+
+  group('categoriesGroupedByParent', () {
+    test('roots sorted by name, each root followed by its own children '
+        'sorted by name, archived rows excluded', () {
+      final ledger = LedgerState();
+      // Roots out of name order, to prove the sort rather than insertion order.
+      ledger.addCategory(category(categoryD, name: 'Zeta'));
+      ledger.addCategory(category(categoryC, name: 'Alpha'));
+      // Children out of name order under each root.
+      ledger.addCategory(
+        category(categoryE, name: 'Zulu', parentID: categoryD),
+      );
+      ledger.addCategory(
+        category(categoryF, name: 'Ants', parentID: categoryD),
+      );
+      ledger.addCategory(category(accountA, name: 'Bees', parentID: categoryC));
+      // Archived rows of both shapes must not appear at all.
+      ledger.addCategory(category(accountB, name: 'GoneRoot'));
+      ledger.deleteCategory(accountB);
+      ledger.addCategory(
+        category(pocketP, name: 'GoneChild', parentID: categoryC),
+      );
+      ledger.deleteCategory(pocketP);
+
+      expect(
+        ledger
+            .categoriesGroupedByParent(CategoryKind.expense)
+            .map((c) => c.name),
+        ['Alpha', 'Bees', 'Zeta', 'Ants', 'Zulu'],
+      );
+    });
+
+    test('a different kind is excluded entirely', () {
+      final ledger = LedgerState();
+      ledger.addCategory(category(categoryC, name: 'Food'));
+      ledger.addCategory(
+        category(categoryD, name: 'Salary', kind: CategoryKind.income),
+      );
+
+      expect(
+        ledger
+            .categoriesGroupedByParent(CategoryKind.expense)
+            .map((c) => c.name),
+        ['Food'],
+      );
+      expect(
+        ledger
+            .categoriesGroupedByParent(CategoryKind.income)
+            .map((c) => c.name),
+        ['Salary'],
+      );
     });
   });
 }
