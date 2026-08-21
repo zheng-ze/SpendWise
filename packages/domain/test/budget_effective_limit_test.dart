@@ -52,6 +52,16 @@ void main() {
     expect(effectiveLimit(budget, const YearMonth(2026, 6)), _d(700));
   });
 
+  test('twoDefaultChangesOnTheSameMonthTheLastAppendedWins', () {
+    final budget = _budgetWith([
+      _defaultEvent(null, 100),
+      _defaultEvent(const YearMonth(2026, 6), 200),
+      _defaultEvent(const YearMonth(2026, 6), 300),
+    ]);
+
+    expect(effectiveLimit(budget, const YearMonth(2026, 6)), _d(300));
+  });
+
   test('monthBeforeEveryEventFallsBackToTheUnboundedPastFirstEvent', () {
     final budget = _budgetWith([
       _defaultEvent(null, 100),
