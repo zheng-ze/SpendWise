@@ -12,11 +12,10 @@ import 'package:spendwise/ui/format/amount_color.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/stats/budget_spend.dart';
+import 'package:spendwise/ui/stats/chart_helpers.dart';
 import 'package:spendwise/ui/stats/stats_window.dart';
 import 'package:spendwise/ui/stats/trend.dart';
-import 'package:spendwise/ui/transactions/day_header.dart';
-import 'package:spendwise/ui/transactions/day_sections.dart';
-import 'package:spendwise/ui/transactions/entry_row.dart';
+import 'package:spendwise/ui/transactions/day_sectioned_entry_list.dart';
 
 class BudgetDetailScreen extends ConsumerWidget {
   const BudgetDetailScreen({super.key, required this.budget});
@@ -113,11 +112,21 @@ class _BudgetDetailBodyState extends State<_BudgetDetailBody> {
     final entriesLabel = _BudgetDetailEntriesLabel(
       selectedMonth: _selectedMonth,
     );
-    final entryList = _BudgetEntryList(
+    final bucketIDs = budgetBucketIDs(budget, state);
+    final entryList = DaySectionedEntryList(
       ledger: widget.ledger,
       state: state,
       window: monthWindow(_selectedMonth),
-      bucketIDs: budgetBucketIDs(budget, state),
+      // budgetSpend (budget_spend.dart) also counts synthetic
+      // transfer-expense items for an overall budget; this list can't, since
+      // those items have no backing Entry to show as a row.
+      matching: (state) => state.entries.values.where((entry) {
+        if (entry.isTransfer) return false;
+        if (entry.expectedCategoryKind != CategoryKind.expense) return false;
+        if (!Accounting.includedInAnalysis(entry, state)) return false;
+        if (bucketIDs == null) return true;
+        return entry.categoryID != null && bucketIDs.contains(entry.categoryID);
+      }),
     );
 
     return Scaffold(
@@ -292,19 +301,6 @@ class _BudgetChart extends StatelessWidget {
         month.year == selectedMonth.year && month.month == selectedMonth.month,
   );
 
-  Widget _monthLabel(BuildContext context, double value, TitleMeta meta) {
-    final index = value.round();
-    if (index < 0 || index >= months.length) return const SizedBox.shrink();
-
-    return Padding(
-      padding: const EdgeInsets.only(top: 4),
-      child: Text(
-        formatMonthLabel(months[index]).substring(0, 3),
-        style: Theme.of(context).textTheme.labelSmall,
-      ),
-    );
-  }
-
   Widget _spendBars(BuildContext context) {
     final selectedIndex = _selectedIndex;
 
@@ -316,7 +312,11 @@ class _BudgetChart extends StatelessWidget {
         sideTitles: SideTitles(
           showTitles: true,
           interval: 1,
-          getTitlesWidget: (value, meta) => _monthLabel(context, value, meta),
+          getTitlesWidget: (value, meta) => monthAxisTick(
+            Theme.of(context).textTheme.labelSmall,
+            months,
+            value,
+          ),
         ),
       ),
     );
@@ -412,55 +412,6 @@ class _BudgetChart extends StatelessWidget {
       child: Stack(
         children: [_spendBars(context), _limitLine(context), _tapOverlay()],
       ),
-    );
-  }
-}
-
-class _BudgetEntryList extends StatelessWidget {
-  const _BudgetEntryList({
-    required this.ledger,
-    required this.state,
-    required this.window,
-    required this.bucketIDs,
-  });
-
-  final Ledger ledger;
-  final LedgerState state;
-  final DateRange window;
-
-  /// Null means every expense entry counts (an overall budget).
-  final Set<String>? bucketIDs;
-
-  @override
-  Widget build(BuildContext context) {
-    // budgetSpend (budget_spend.dart) also counts synthetic transfer-expense
-    // items for an overall budget; this list can't, since those items have
-    // no backing Entry to show as a row.
-    final matching = state.entries.values.where((entry) {
-      if (entry.isTransfer) return false;
-      if (entry.expectedCategoryKind != CategoryKind.expense) return false;
-      if (!Accounting.includedInAnalysis(entry, state)) return false;
-      if (bucketIDs == null) return true;
-      return entry.categoryID != null && bucketIDs!.contains(entry.categoryID);
-    });
-
-    final sections = daySections(matching, state, interval: window);
-
-    if (sections.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 32),
-        child: Center(child: Text('No entries in this period')),
-      );
-    }
-
-    return Column(
-      children: [
-        for (final section in sections) ...[
-          DayHeader(day: section.date, net: section.income - section.expenses),
-          for (final row in section.rows)
-            EntryRow(row: row, ledger: ledger, state: state),
-        ],
-      ],
     );
   }
 }
