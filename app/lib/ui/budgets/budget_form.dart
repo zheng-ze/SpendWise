@@ -7,18 +7,10 @@ import 'package:spendwise/ui/common/category_icon.dart';
 import 'package:spendwise/ui/common/error_section.dart';
 import 'package:spendwise/ui/common/form_scaffold.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
-import 'package:spendwise/ui/format/money_format.dart';
-
-const _rolloverLabels = {
-  RolloverMode.none: 'None',
-  RolloverMode.positiveOnly: 'Roll over unused',
-  RolloverMode.both: 'Roll over unused or overspent',
-};
 
 Future<void> showBudgetFormSheet({
   required BuildContext context,
   required Ledger ledger,
-  Budget? budget,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -32,44 +24,24 @@ Future<void> showBudgetFormSheet({
 }
 
 class BudgetForm extends StatefulWidget {
-  const BudgetForm({super.key, required this.ledger, this.budget});
+  const BudgetForm({super.key, required this.ledger});
 
   final Ledger ledger;
-  final Budget? budget;
 
   @override
   State<BudgetForm> createState() => _BudgetFormState();
 }
 
 class _BudgetFormState extends State<BudgetForm> {
-  late final TextEditingController _amountController = TextEditingController(
-    text: widget.budget == null
-        ? ''
-        : formatPlainAmount(effectiveLimit(widget.budget!, _currentMonth)),
-  );
+  final TextEditingController _amountController = TextEditingController();
 
-  late final TextEditingController _carryCapController = TextEditingController(
-    text: widget.budget?.carryCap == null
-        ? ''
-        : formatPlainAmount(widget.budget!.carryCap!),
-  );
-
-  late String? _categoryID = widget.budget?.categoryID;
-  late RolloverMode _rolloverMode =
-      widget.budget?.rolloverMode ?? RolloverMode.none;
-  YearMonth? _overrideMonth;
+  String? _categoryID;
 
   LedgerError? _error;
 
   bool get _isEditing => widget.budget != null;
 
-  YearMonth get _currentMonth => YearMonth.fromUtc(DateTime.now().toUtc());
-
   Decimal? get _parsedAmount => Decimal.tryParse(_amountController.text);
-
-  Decimal? get _parsedCarryCap => _carryCapController.text.trim().isEmpty
-      ? null
-      : Decimal.tryParse(_carryCapController.text);
 
   Set<String?> get _budgetedCategoryIDs {
     final budgeted = widget.ledger.state.budgets.values
@@ -120,7 +92,6 @@ class _BudgetFormState extends State<BudgetForm> {
   @override
   void dispose() {
     _amountController.dispose();
-    _carryCapController.dispose();
     super.dispose();
   }
 
@@ -179,45 +150,11 @@ class _BudgetFormState extends State<BudgetForm> {
     setState(() => _categoryID = chosen);
   }
 
-  Future<void> _pickOverrideMonth() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.utc(_currentMonth.year, _currentMonth.month),
-      firstDate: DateTime.utc(2000),
-      lastDate: DateTime.utc(2100),
-    );
-    if (picked == null) return;
-    if (!mounted) return;
-    setState(() => _overrideMonth = YearMonth(picked.year, picked.month));
-  }
-
   Future<void> _save() async {
     final amount = _parsedAmount!.abs();
 
     try {
-      final overrideMonth = _overrideMonth;
-      if (overrideMonth != null) {
-        widget.ledger.setBudgetMonthOverride(
-          widget.budget!.id,
-          overrideMonth,
-          amount,
-        );
-      } else if (_isEditing) {
-        widget.ledger.updateBudgetAmount(
-          widget.budget!.id,
-          amount,
-          _currentMonth,
-        );
-      } else {
-        widget.ledger.addBudget(
-          _categoryID,
-          amount,
-          _rolloverMode,
-          carryCap: _rolloverMode == RolloverMode.none
-              ? null
-              : _parsedCarryCap?.abs(),
-        );
-      }
+      widget.ledger.addBudget(_categoryID, amount);
 
       if (!mounted) return;
       Navigator.of(context).maybePop();
@@ -252,29 +189,6 @@ class _BudgetFormState extends State<BudgetForm> {
       hintText: 'Limit',
       onChanged: (_) => setState(() {}),
     );
-    final rolloverTile = ListTile(
-      contentPadding: EdgeInsets.zero,
-      title: const Text('Rollover'),
-      trailing: Text(_rolloverLabels[_rolloverMode]!),
-      onTap: _isEditing ? null : () => _showRolloverPicker(context),
-      enabled: !_isEditing,
-    );
-    final carryCapField = AmountField(
-      controller: _carryCapController,
-      allowsNegative: false,
-      hintText: 'Rollover cap (optional)',
-      onChanged: (_) => setState(() {}),
-    );
-    final overrideTile = ListTile(
-      contentPadding: EdgeInsets.zero,
-      title: const Text('One-month override'),
-      trailing: Text(
-        _overrideMonth == null
-            ? 'None'
-            : '${_overrideMonth!.year}-${_overrideMonth!.month.toString().padLeft(2, '0')}',
-      ),
-      onTap: _pickOverrideMonth,
-    );
     final errorSection = ErrorSection(subject: 'budget', error: _error);
     final deleteButton = SizedBox(
       width: double.infinity,
@@ -298,39 +212,11 @@ class _BudgetFormState extends State<BudgetForm> {
           const SizedBox(height: 16),
           amountField,
           const SizedBox(height: 16),
-          rolloverTile,
-          if (_rolloverMode != RolloverMode.none) ...[
-            const SizedBox(height: 16),
-            carryCapField,
-          ],
           if (_isEditing) ...[const SizedBox(height: 16), overrideTile],
           errorSection,
           if (_isEditing) ...[const SizedBox(height: 24), deleteButton],
         ],
       ),
     );
-  }
-
-  Future<void> _showRolloverPicker(BuildContext context) async {
-    final chosen = await showModalBottomSheet<RolloverMode>(
-      context: context,
-      builder: (_) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            for (final mode in RolloverMode.values)
-              ListTile(
-                title: Text(_rolloverLabels[mode]!),
-                onTap: () => Navigator.of(context).pop(mode),
-              ),
-          ],
-        ),
-      ),
-    );
-    if (chosen == null || !mounted) return;
-    setState(() {
-      _rolloverMode = chosen;
-      if (chosen == RolloverMode.none) _carryCapController.clear();
-    });
   }
 }
