@@ -17,11 +17,11 @@ Never run `git commit` — the user commits themself. This skill only stages and
    (scratch, generated) are not a chunk — leave them alone unless the user's instructions say
    otherwise.
 
-   **Docs and task files never share a chunk with code.** `docs/`, `openspec/**/tasks.md`, and any
-   other planning/spec/task file get their own chunk(s), separate from `.dart`, `.swift`, and other
-   source changes — even when they describe the same piece of work. A code chunk may still depend on
-   a docs chunk landing first (or vice versa); note that ordering when presenting the plan, but keep
-   them as distinct chunks with distinct commit messages.
+   **Docs and spec files never share a chunk with code.** `docs/` (including `docs/specs/` and
+   `docs/adr/`), `CONTEXT.md`, and any other planning/spec file get their own chunk(s), separate from
+   `.dart`, `.swift`, and other source changes — even when they describe the same piece of work. A
+   code chunk may still depend on a docs chunk landing first (or vice versa); note that ordering when
+   presenting the plan, but keep them as distinct chunks with distinct commit messages.
 
    **Two files under the same package or directory are not automatically one chunk.** Group by
    whether the changes are independent stories, not by physical proximity: an unrelated bug fix and
@@ -30,9 +30,8 @@ Never run `git commit` — the user commits themself. This skill only stages and
    so and ask which chunk it should join rather than guessing.
 
    **Never stage edits to a file that is about to be deleted or reverted before the end of this
-   session.** If a later step in the same request removes or discards a file (e.g. archiving an
-   openspec change directory right after syncing its specs out), leave that file's edits unstaged —
-   committing them first just adds a commit whose content the next commit deletes.
+   session.** If a later step in the same request removes or discards a file, leave that file's
+   edits unstaged — committing them first just adds a commit whose content the next commit deletes.
 3. Present the planned chunk breakdown before touching anything: list each chunk's files and a
    one-line commit message for it. Wait for confirmation on the plan itself if the grouping is not
    obvious.

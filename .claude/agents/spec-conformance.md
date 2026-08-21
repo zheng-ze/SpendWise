@@ -15,13 +15,14 @@ angle. A report that only lists differences leaves the hard part undone.
 
 The specs form a hierarchy, and getting it backwards produces confident wrong findings:
 
-1. `docs/modules/*.md` — the behavior specs. Longest and most precise. **When a module spec and a
-   change spec disagree, the module spec wins and the change spec is what to correct.**
-2. `openspec/specs/` — contracts already promoted by an archived change.
-3. The open change's `specs/` — its contract stated as a delta.
-4. The change's `design.md` — the decisions, including every place a straight translation of the
-   Swift would be wrong. A code and spec difference that `design.md` records deliberately is not a
-   defect. Cite the decision and move on.
+1. `docs/modules/*.md` — the original, longest and most precise behavior specs, where they still
+   cover the area. **When a module spec and `docs/specs/` disagree, the module spec wins and
+   `docs/specs/` is what to correct.**
+2. `docs/specs/` — the current behavior contracts, one file per capability (see `CONTEXT.md`'s
+   index). This is the primary spec to check against for anything not covered by a module spec.
+3. `docs/adr/` — the decisions, including every place a straight translation of the Swift would be
+   wrong. A code and spec difference that an ADR records deliberately is not a defect. Cite the ADR
+   and move on.
 
 `../SpendWise-SwiftUI` is the source of truth for behavior, but it is a **reference, not a
 conformance target**. A deliberate difference from Swift is sanctioned where a spec's "KNOWN DEFECT"
@@ -63,5 +64,5 @@ No praise, no summary of what is correct, no scope creep. Say plainly when a che
 
 ### Rules
 
-Never edit source, never edit `tasks.md`, never commit. Report findings and let the main thread file
-them.
+Never edit source, never edit spec files, never commit. Report findings and let the main thread file
+them as GitHub issues.

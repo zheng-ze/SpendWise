@@ -130,8 +130,8 @@ Structure:
   first.
 - Do not add a docstring to a private/internal function whose name and signature already say
   everything a caller needs — an empty-content docstring is worse than none.
-- Do not cite Swift source or an openspec spec inside a code comment — the SpendWise rule above bans
-  it even when it would explain the why accurately.
+- Do not cite Swift source or a `docs/specs/` passage inside a code comment — the SpendWise rule
+  above bans it even when it would explain the why accurately.
 
 ## Output
 

@@ -136,9 +136,10 @@ pays off regardless of the actual quota.
    a rule in `CLAUDE.md` gets checked against reality instead of assumed.
 10. **Sizing an unfamiliar change before planning it.** Which files a phase will touch, and roughly
     how much already exists, is worth knowing before tasks are written against it.
-11. **Reconstructing history.** Long `git log` output and old change directories under
-    `openspec/changes/archive/` answer "why is it like this" at a volume not worth paying Claude
-    tokens to read.
+11. **Reconstructing history.** Long `git log` output and old design rationale recovered from
+    deleted-but-tracked files (the pre-migration OpenSpec change directories, findable via
+    `git log --all --diff-filter=D`) answer "why is it like this" at a volume not worth paying
+    Claude tokens to read.
 
 For items 1, 2, 6, 7, 8 and 11 above — where the large window is the point — pass a Gemini model.
 For items 3 and 4 — locating anchors and narrow cross-file sweeps over a named short list — a Custom
@@ -205,8 +206,8 @@ failing test output, or reproduction steps — not a substitute for `mutation-pr
 loop, and not useful on a vague "something's wrong" report; it wants symptoms already in hand.
 
 **`planner` and `apilookup`, situationally.** `planner`'s incremental step-by-step breakdown mostly
-duplicates what `opsx:propose`/`tasks.md` already give this repo — reach for it only when a plan is
-too exploratory or too large for the openspec template, not as a default planning step. `apilookup`
+duplicates what `wayfinder` and GitHub issues already give this repo — reach for it only when a plan
+is too exploratory or too large for a wayfinder map, not as a default planning step. `apilookup`
 forces a live documentation search instead of trained-in knowledge, useful for Flutter/Dart API
 currency checks, but depends on web search being enabled in the CLI config, which has not been
 confirmed here — treat as unverified until tried once.

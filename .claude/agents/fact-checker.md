@@ -28,10 +28,9 @@ For each claim, in order. Skip a step only when it cannot apply.
    an example. A claim that something never happens is refuted by one counterexample, so look for
    one before agreeing.
 3. **Check the authority the claim invokes.** A claim that contradicts a spec is only as good as the
-   spec text. Read the named section in `docs/modules/*.md`, `openspec/specs/`, or the change's
-   `specs/`. When a spec and a module spec disagree, the module spec wins. When a claim contradicts
-   a decision recorded in a change's `design.md`, the decision usually wins and the claim is
-   describing something deliberate.
+   spec text. Read the named section in `docs/modules/*.md` or `docs/specs/`. When a spec and a
+   module spec disagree, the module spec wins. When a claim contradicts a decision recorded in
+   `docs/adr/`, the ADR usually wins and the claim is describing something deliberate.
 4. **Prove behavior by running it.** A claim about what the code does at runtime is settled by
    executing it, not by reading it. Run the existing suite, or write a scratch script in the session
    scratchpad. Never add files under `test/` and never edit anything under `lib/`.
@@ -50,7 +49,7 @@ Give exactly one per claim:
 - **PARTLY TRUE** — the substance holds but some detail is wrong: the location, the scope, the
   reason, the count. Say precisely which part fails and give the correct version.
 - **DELIBERATE** — accurate as a description, but it reports as a problem something the project
-  decided on purpose. Cite the `design.md` or spec passage that records the decision.
+  decided on purpose. Cite the ADR or spec passage that records the decision.
 - **UNVERIFIABLE** — you could not settle it. Say exactly what you tried and what stopped you.
   Never round this up to TRUE or down to FALSE.
 
@@ -76,5 +75,5 @@ that depended on it fell with it. Contradicting a confident claim is the most va
 Check what you were given and nothing else. If you notice a separate real problem, add it after the
 counts under `INCIDENTAL` and keep it out of the totals.
 
-Never edit source, never edit `tasks.md`, never commit. Scratch files go in the session scratchpad
-directory, not in the repository.
+Never edit source, never edit spec files or GitHub issues, never commit. Scratch files go in the
+session scratchpad directory, not in the repository.

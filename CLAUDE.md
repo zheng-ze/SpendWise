@@ -5,6 +5,16 @@ SwiftUI prototype at `../SpendWise-SwiftUI`; work past that point (starting with
 greenfield design, not a port — design from domain/product reasoning and this repo's own
 conventions, not by reading the Swift source.
 
+## Agent skills
+
+### Issue tracker
+
+Issues live as GitHub issues on `zheng-ze/SpendWise`, via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context layout: `CONTEXT.md` + `docs/adr/` at the repo root, created lazily by `/domain-modeling`. See `docs/agents/domain.md`.
+
 ## Response style
 
 **Default to the `terse` skill for every session.** `.claude/hooks/terse-activate.sh` injects its
@@ -18,14 +28,24 @@ untouched by it and go through `tech-writer` instead. "stop terse" or "normal mo
 - `packages/domain/` — pure Dart. Models, `LedgerState`, accounting. Has no Flutter dependency and
   must never gain one; that is what keeps the domain portable and testable.
 - `app/` — the Flutter app. Depends on `domain` by path.
-- `docs/` — behavior specs and working procedure.
-- `openspec/` — the planned work. `project.md` holds the full technical rules (this file is its
-  summary); `changes/<name>/` holds each change's proposal, specs, design and tasks.
+- `docs/` — behavior specs (`docs/specs/`), architecture decisions (`docs/adr/`) and working
+  procedure.
+- `CONTEXT.md` — the domain glossary and index, at the repo root. Read this first: it defines the
+  vocabulary and points at every ADR and spec.
 
-**Read `docs/NAVIGATION.md` before starting work.** It is the reading order, the phase table and the
-sequencing rules. Two things from it that decide what you may touch: the current change is
-`add-transactions-ui`, and **the four screen changes all build on `add-app-shell-and-boot`**, so a
-screen never introduces its own formatter, symbol map or month state.
+**Read `docs/NAVIGATION.md` before starting work.** It is the reading order across `CONTEXT.md`,
+`docs/adr/` and `docs/specs/`, plus the older module docs and the master port plan. The app is at
+full parity with the frozen SwiftUI prototype; work from the budgets feature onward is greenfield
+design, not a port — see `docs/NAVIGATION.md` for what that changes about how to read `docs/adr/`.
+
+**Invoke `spec-keeper` at exactly two points in any change that touches behavior**: once right
+after a plan is settled, before implementation starts, and once right after implementation is
+done, before reporting green. Not per edit — checking specs on every file touch spends tokens
+`docs/specs/` doesn't need spent that often. This applies regardless of which skill is driving —
+`wayfinder`, `grilling`, `domain-modeling`, `tdd`, `prototype`, or plain unassisted work. `CONTEXT.md`
+only indexes `docs/specs/` files by name; it never inlines their content. A `wayfinder` map's
+`## Notes` block should name `spec-keeper` alongside `/grilling` and `/domain-modeling` whenever the
+effort's destination is, or depends on, behavior a spec describes.
 
 ## Conventions
 
@@ -104,11 +124,11 @@ a test uppercases an id to prove normalization, check the id actually contains l
 normalization suite here passed because its helper uppercased a digits-only uuid and returned it
 unchanged.
 
-**`tasks.md` in the open change is the queue and the record, and only the main thread edits it.** A
-subagent reports what it landed and the main thread ticks after verifying at the cited `file:line`.
-Tick as you land, renumber or append when inserting, and check a group's dependencies are really
-done before starting it. At a phase boundary run adversarial reviews from several angles and file
-the confirmed gaps as numbered tasks — the `adversarial-review` skill has the procedure.
+**Open work is tracked as GitHub issues, not a `tasks.md`.** See `docs/agents/issue-tracker.md` for
+the conventions. A subagent reports what it landed; verify at the cited `file:line` before closing
+or commenting on the issue — the same verify-before-trusting discipline this file states elsewhere.
+At a phase boundary run adversarial reviews from several angles and file the confirmed gaps as
+issues — the `adversarial-review` skill has the procedure.
 
 **Verifying is not the deliverable; the next task is.** A request to check something finished is a
 request to check it *and then keep going*, so a turn that audits, reports and stops has done a

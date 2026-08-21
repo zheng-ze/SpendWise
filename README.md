@@ -35,17 +35,17 @@ that, in order:
 5. **Remainder** — amortise/split-payment wizards, search/filter, and smaller items (widgets,
    recurring-plan notifications).
 
-Tracked as OpenSpec changes under `openspec/changes/`; see `docs/NAVIGATION.md` for the current
-phase table and sequencing rules.
+Tracked as GitHub issues; see `docs/NAVIGATION.md` for the current phase table and sequencing
+rules.
 
 ## Layout
 
 - `packages/domain/` — pure Dart. Models, `LedgerState`, and accounting logic. Has no Flutter
   dependency and must never gain one, which keeps the domain portable and testable.
 - `app/` — the Flutter app. Depends on `domain` by path.
-- `docs/` — behavior specs and working procedure.
-- `openspec/` — the planned work. `openspec/project.md` holds the full technical rules;
-  `openspec/changes/<name>/` holds each change's proposal, specs, design, and tasks.
+- `docs/` — behavior specs (`docs/specs/`), architecture decisions (`docs/adr/`) and working
+  procedure.
+- `CONTEXT.md` — the domain glossary and index, at the repo root.
 
 ## Running the app
 
