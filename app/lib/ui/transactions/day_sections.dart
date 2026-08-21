@@ -75,11 +75,12 @@ DaySection _section(
   List<Entry> dayEntries,
   LedgerState state,
 ) {
+  final sourceIDs = state.moneySources.keys.toSet();
   var income = Decimal.zero;
   var expenses = Decimal.zero;
 
   for (final entry in dayEntries) {
-    final contribution = Accounting.totals(entry, state);
+    final contribution = Accounting.totals(entry, state, sourceIDs: sourceIDs);
     income += contribution.income;
     expenses += contribution.expense;
   }

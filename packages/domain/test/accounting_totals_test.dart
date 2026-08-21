@@ -15,7 +15,11 @@ void main() {
       ledger.addAccount(account(a));
       final e = entry(amount: money(-50), sourceID: a);
 
-      final result = Accounting.totals(e, ledger);
+      final result = Accounting.totals(
+        e,
+        ledger,
+        sourceIDs: ledger.moneySources.keys.toSet(),
+      );
 
       expect(result.income, Decimal.zero);
       expect(result.expense, money(50));
@@ -26,7 +30,11 @@ void main() {
       ledger.addAccount(account(a));
       final e = entry(amount: money(1000), sourceID: a);
 
-      final result = Accounting.totals(e, ledger);
+      final result = Accounting.totals(
+        e,
+        ledger,
+        sourceIDs: ledger.moneySources.keys.toSet(),
+      );
 
       expect(result.income, money(1000));
       expect(result.expense, Decimal.zero);
@@ -38,7 +46,11 @@ void main() {
       ledger.addAccount(account(b));
       final e = entry(amount: money(200), sourceID: a, destinationID: b);
 
-      final result = Accounting.totals(e, ledger);
+      final result = Accounting.totals(
+        e,
+        ledger,
+        sourceIDs: ledger.moneySources.keys.toSet(),
+      );
 
       expect(result.income, Decimal.zero);
       expect(result.expense, Decimal.zero);
@@ -52,7 +64,11 @@ void main() {
         ledger.addAccount(account(b, incomingTransfersAsExpenses: true));
         final e = entry(amount: money(300), sourceID: a, destinationID: b);
 
-        final result = Accounting.totals(e, ledger);
+        final result = Accounting.totals(
+          e,
+          ledger,
+          sourceIDs: ledger.moneySources.keys.toSet(),
+        );
 
         expect(result.income, Decimal.zero);
         expect(result.expense, money(300));
@@ -65,7 +81,11 @@ void main() {
       ledger.addAccount(account(b));
       final e = entry(amount: money(300), sourceID: a, destinationID: b);
 
-      final result = Accounting.totals(e, ledger);
+      final result = Accounting.totals(
+        e,
+        ledger,
+        sourceIDs: ledger.moneySources.keys.toSet(),
+      );
 
       expect(result.income, money(300));
       expect(result.expense, Decimal.zero);
@@ -77,7 +97,11 @@ void main() {
       ledger.addAccount(account(b, incomingTransfersAsExpenses: true));
       final e = entry(amount: money(300), sourceID: a, destinationID: b);
 
-      final result = Accounting.totals(e, ledger);
+      final result = Accounting.totals(
+        e,
+        ledger,
+        sourceIDs: ledger.moneySources.keys.toSet(),
+      );
 
       expect(result.income, money(300));
       expect(result.expense, money(300));
@@ -92,10 +116,48 @@ void main() {
         includeInAnalysis: false,
       );
 
-      final result = Accounting.totals(e, ledger);
+      final result = Accounting.totals(
+        e,
+        ledger,
+        sourceIDs: ledger.moneySources.keys.toSet(),
+      );
 
       expect(result.income, Decimal.zero);
       expect(result.expense, Decimal.zero);
     });
+
+    test('an expense whose source holder was removed counts as neither', () {
+      final ledger = LedgerState();
+      // a is never added, standing in for a holder that was removed.
+      final e = entry(amount: money(-50), sourceID: a);
+
+      final result = Accounting.totals(
+        e,
+        ledger,
+        sourceIDs: ledger.moneySources.keys.toSet(),
+      );
+
+      expect(result.income, Decimal.zero);
+      expect(result.expense, Decimal.zero);
+    });
+
+    test(
+      'a transfer whose destination holder was removed counts as neither',
+      () {
+        final ledger = LedgerState();
+        ledger.addAccount(account(a, incomingTransfersAsExpenses: true));
+        // b is never added, standing in for a holder that was removed.
+        final e = entry(amount: money(300), sourceID: a, destinationID: b);
+
+        final result = Accounting.totals(
+          e,
+          ledger,
+          sourceIDs: ledger.moneySources.keys.toSet(),
+        );
+
+        expect(result.income, Decimal.zero);
+        expect(result.expense, Decimal.zero);
+      },
+    );
   });
 }

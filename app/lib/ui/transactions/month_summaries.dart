@@ -129,11 +129,12 @@ DateTime _weekStart(DateTime day) {
   List<Entry> entries,
   LedgerState state,
 ) {
+  final sourceIDs = state.moneySources.keys.toSet();
   var income = Decimal.zero;
   var expenses = Decimal.zero;
 
   for (final entry in entries) {
-    final contribution = Accounting.totals(entry, state);
+    final contribution = Accounting.totals(entry, state, sourceIDs: sourceIDs);
     income += contribution.income;
     expenses += contribution.expense;
   }

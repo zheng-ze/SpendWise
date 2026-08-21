@@ -174,13 +174,12 @@ abstract final class Accounting {
     }
   }
 
-  /// Skips the existence check, so [entry]'s source and destination ids
-  /// must already exist in [LedgerState.moneySources].
   static ({Decimal income, Decimal expense}) totals(
     Entry entry,
-    LedgerState ledger,
-  ) {
-    if (!entry.includeInAnalysis) {
+    LedgerState ledger, {
+    required Set<String> sourceIDs,
+  }) {
+    if (!applies(entry, sourceIDs) || !entry.includeInAnalysis) {
       return (income: Decimal.zero, expense: Decimal.zero);
     }
 
