@@ -216,8 +216,6 @@ void main() {
             kind: LimitEventKind.defaultLimit,
           ),
         ],
-        rolloverMode: RolloverMode.none,
-        carryCap: null,
         createdAtMonth: const YearMonth(2026, 1),
       );
       final produceBudget = Budget(
@@ -230,8 +228,6 @@ void main() {
             kind: LimitEventKind.defaultLimit,
           ),
         ],
-        rolloverMode: RolloverMode.none,
-        carryCap: null,
         createdAtMonth: const YearMonth(2026, 1),
       );
       final ledger = Ledger(

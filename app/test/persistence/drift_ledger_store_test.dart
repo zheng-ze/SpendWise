@@ -226,8 +226,6 @@ void main() {
               kind: LimitEventKind.defaultLimit,
             ),
           ],
-          rolloverMode: RolloverMode.none,
-          carryCap: null,
           createdAtMonth: const YearMonth(2026, 1),
         );
 
@@ -799,8 +797,6 @@ void main() {
               kind: LimitEventKind.defaultLimit,
             ),
           ],
-          rolloverMode: RolloverMode.none,
-          carryCap: null,
           createdAtMonth: const YearMonth(2026, 1),
         );
 
@@ -848,8 +844,6 @@ void main() {
           kind: LimitEventKind.defaultLimit,
         ),
       ],
-      rolloverMode: RolloverMode.none,
-      carryCap: null,
       createdAtMonth: const YearMonth(2026, 1),
     );
 

@@ -454,8 +454,6 @@ void main() {
         id: budgetID,
         categoryID: categoryID,
         limitEvents: [defaultEvent(from: const YearMonth(2026, 1))],
-        rolloverMode: RolloverMode.none,
-        carryCap: null,
         createdAtMonth: const YearMonth(2026, 1),
       );
 
@@ -472,8 +470,6 @@ void main() {
           defaultEvent(from: const YearMonth(2026, 1)),
           overrideEvent(const YearMonth(2026, 3), '750'),
         ],
-        rolloverMode: RolloverMode.both,
-        carryCap: Decimal.parse('200'),
         createdAtMonth: const YearMonth(2026, 1),
       );
 
@@ -481,45 +477,11 @@ void main() {
       expect(budgetFromRow(row), budget);
     });
 
-    test('a null carryCap round trips as null', () {
-      final budget = Budget(
-        id: budgetID,
-        categoryID: categoryID,
-        limitEvents: [defaultEvent()],
-        rolloverMode: RolloverMode.positiveOnly,
-        carryCap: null,
-        createdAtMonth: const YearMonth(2026, 1),
-      );
-
-      final row = budgetToRow(budget, version);
-
-      expect(row.carryCap, isNull);
-      expect(budgetFromRow(row).carryCap, isNull);
-    });
-
-    test('a non-null carryCap round trips as a decimal string', () {
-      final budget = Budget(
-        id: budgetID,
-        categoryID: categoryID,
-        limitEvents: [defaultEvent()],
-        rolloverMode: RolloverMode.both,
-        carryCap: Decimal.parse('123.45'),
-        createdAtMonth: const YearMonth(2026, 1),
-      );
-
-      final row = budgetToRow(budget, version);
-
-      expect(row.carryCap, '123.45');
-      expect(budgetFromRow(row).carryCap, Decimal.parse('123.45'));
-    });
-
     test('an overall budget stores a null categoryID', () {
       final budget = Budget(
         id: budgetID,
         categoryID: null,
         limitEvents: [defaultEvent()],
-        rolloverMode: RolloverMode.none,
-        carryCap: null,
         createdAtMonth: const YearMonth(2026, 1),
       );
 
@@ -534,8 +496,6 @@ void main() {
         id: budgetID,
         categoryID: categoryID,
         limitEvents: [defaultEvent()],
-        rolloverMode: RolloverMode.none,
-        carryCap: null,
         createdAtMonth: const YearMonth(2026, 1),
       );
 
@@ -543,23 +503,6 @@ void main() {
 
       expect(row.categoryId, categoryID);
       expect(budgetFromRow(row), budget);
-    });
-
-    test('the budget row stores the rollover mode code', () {
-      expect(
-        budgetToRow(
-          Budget(
-            id: budgetID,
-            categoryID: null,
-            limitEvents: [defaultEvent()],
-            rolloverMode: RolloverMode.both,
-            carryCap: null,
-            createdAtMonth: const YearMonth(2026, 1),
-          ),
-          version,
-        ).rolloverMode,
-        2,
-      );
     });
 
     test('limitEvents is stored as a json array', () {
@@ -571,8 +514,6 @@ void main() {
             defaultEvent(from: const YearMonth(2026, 1)),
             overrideEvent(const YearMonth(2026, 3), '750'),
           ],
-          rolloverMode: RolloverMode.none,
-          carryCap: null,
           createdAtMonth: const YearMonth(2026, 1),
         ),
         version,
@@ -591,8 +532,6 @@ void main() {
           id: budgetID,
           categoryID: null,
           limitEvents: [defaultEvent()],
-          rolloverMode: RolloverMode.none,
-          carryCap: null,
           createdAtMonth: const YearMonth(2026, 1),
         ),
         version,
@@ -607,8 +546,6 @@ void main() {
           id: budgetID,
           categoryID: null,
           limitEvents: [defaultEvent()],
-          rolloverMode: RolloverMode.none,
-          carryCap: null,
           createdAtMonth: const YearMonth(2026, 1),
         ),
         version,

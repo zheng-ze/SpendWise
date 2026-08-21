@@ -67,8 +67,6 @@ void main() {
           kind: LimitEventKind.defaultLimit,
         ),
       ],
-      rolloverMode: RolloverMode.none,
-      carryCap: null,
       createdAtMonth: const YearMonth(2026, 1),
     );
   }
@@ -175,8 +173,6 @@ void main() {
             kind: LimitEventKind.override,
           ),
         ],
-        rolloverMode: overridden.rolloverMode,
-        carryCap: overridden.carryCap,
         createdAtMonth: overridden.createdAtMonth,
       );
       final ledger = buildLedger(forBudget: withOverride);

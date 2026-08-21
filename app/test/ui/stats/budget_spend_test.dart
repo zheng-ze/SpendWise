@@ -52,8 +52,6 @@ void main() {
         effectiveFromMonth: null,
       ),
     ],
-    rolloverMode: RolloverMode.none,
-    carryCap: null,
     createdAtMonth: month,
   );
 

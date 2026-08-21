@@ -18,18 +18,14 @@ void main() {
           kind: LimitEventKind.defaultLimit,
         ),
       ],
-      rolloverMode: RolloverMode.none,
-      carryCap: null,
       createdAtMonth: const YearMonth(2026, 1),
     );
   }
 
-  Future<void> pumpForm(WidgetTester tester, Ledger ledger, Budget? budget) {
+  Future<void> pumpForm(WidgetTester tester, Ledger ledger) {
     return tester.pumpWidget(
       MaterialApp(
-        home: Scaffold(
-          body: BudgetForm(ledger: ledger, budget: budget),
-        ),
+        home: Scaffold(body: BudgetForm(ledger: ledger)),
       ),
     );
   }
@@ -37,12 +33,14 @@ void main() {
   testWidgets(
     'a rejected save keeps the form field values, showing the error instead',
     (tester) async {
-      // The form is opened on a budget id that is not (or no longer) in
-      // ledger.state, so updateBudgetAmount rejects with UnknownBudget.
-      final staleBudget = buildBudget();
-      final ledger = Ledger();
+      // Overall is already budgeted, so saving another Overall budget
+      // rejects with CategoryAlreadyBudgeted.
+      final existingOverall = buildBudget(categoryID: null, id: 'b1');
+      final ledger = Ledger(
+        state: LedgerState(budgets: {existingOverall.id: existingOverall}),
+      );
 
-      await pumpForm(tester, ledger, staleBudget);
+      await pumpForm(tester, ledger);
       await tester.enterText(find.byType(TextField).first, '250.00');
       await tester.pump();
       await tester.tap(find.text('Save'));
@@ -84,7 +82,7 @@ void main() {
         ),
       );
 
-      await pumpForm(tester, ledger, null);
+      await pumpForm(tester, ledger);
       await tester.tap(find.text('Overall'));
       await tester.pumpAndSettle();
 
@@ -130,7 +128,7 @@ void main() {
       state: LedgerState(categories: {expense.id: expense, income.id: income}),
     );
 
-    await pumpForm(tester, ledger, null);
+    await pumpForm(tester, ledger);
     await tester.tap(find.text('Overall'));
     await tester.pumpAndSettle();
 

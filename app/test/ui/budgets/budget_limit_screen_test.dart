@@ -19,8 +19,6 @@ void main() {
           kind: LimitEventKind.defaultLimit,
         ),
       ],
-      rolloverMode: RolloverMode.none,
-      carryCap: null,
       createdAtMonth: const YearMonth(2026, 1),
     );
   }
