@@ -285,6 +285,12 @@ void main() {
 
       final now = DateTime.now().toUtc();
       expect(find.text(now.year.toString()), findsOneWidget);
+      for (var month = 1; month <= 12; month++) {
+        final label = formatMonthLabel(
+          DateTime.utc(now.year, month),
+        ).substring(0, 3);
+        expect(find.text(label), findsOneWidget);
+      }
     },
   );
 
@@ -301,10 +307,25 @@ void main() {
       final yearBefore = now.year.toString();
       expect(find.text(yearBefore), findsOneWidget);
 
-      await tester.tap(find.byType(BarChart));
+      final targetMonth = now.month == 1 ? 12 : 1;
+      final chart = tester.getRect(find.byType(BarChart));
+      final targetX = chart.left + chart.width * (targetMonth - 0.5) / 12;
+      await tester.tapAt(Offset(targetX, chart.center.dy));
       await tester.pumpAndSettle();
 
       expect(find.text(yearBefore), findsOneWidget);
+      expect(
+        find.text(
+          '${formatMonthLabel(DateTime.utc(now.year, targetMonth)).toUpperCase()} ENTRIES',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.text(
+          '${formatMonthLabel(DateTime.utc(now.year, now.month)).toUpperCase()} ENTRIES',
+        ),
+        findsNothing,
+      );
     },
   );
 
