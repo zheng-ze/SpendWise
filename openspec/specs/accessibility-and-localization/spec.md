@@ -1,11 +1,10 @@
 # accessibility-and-localization Specification
 
 ## Purpose
-Defines the two commitments V1 made and never delivered: an app usable without sight, and one whose
-text can be translated.
+Defines the commitment V1 made and never delivered: an app usable without sight.
 
-Both are specified as requirements rather than polish, because treating them as polish is how they
-were skipped the first time.
+Specified as a requirement rather than polish, because treating it as polish is how it was skipped
+the first time.
 
 ## Requirements
 
@@ -31,18 +30,3 @@ action button, the two-column picker and every swipe action SHALL carry labels o
 
 - **WHEN** a row's delete is offered only as a swipe
 - **THEN** it is also exposed as a custom action
-
-### Requirement: Localization scaffolding
-
-Localization is deferred. This is a personal-use app with a single-language user base today, and
-scaffolding a localization layer with nothing yet routed through it would be dead weight carried for
-no current benefit.
-
-Strings already persisted as data SHALL NOT be retroactively rewritten regardless of when
-localization lands. Entries whose names were stored in English remain as stored; they are marked
-structurally so that display-time naming can take over later without rewriting stored data.
-
-#### Scenario: Stored entry names are left alone
-
-- **WHEN** an entry created before localization lands carries an English stored name
-- **THEN** its stored name is unchanged
