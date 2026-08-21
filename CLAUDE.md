@@ -88,7 +88,11 @@ stage content and that is the user's call. Delete a registered file and git will
 the user clears it, so do not register scratch files.
 
 **Never `git checkout`, `git restore`, `git stash`, `git reset` or `git clean`.** Restore a mutated
-file from a file copy. Under parallel agents these would discard another agent's work.
+file from a file copy. Under parallel agents these would discard another agent's work. This is
+enforced by a blanket `settings.json` deny, so it also blocks the harmless-looking case — unstaging
+an already-`git add`ed file with `git restore --staged` or `git reset <path>` — even though that
+touches the index, not working-tree content. Don't retry with different flags or paths; either ask
+before staging next time, or stage forward past the mistake instead of trying to walk it back.
 
 **Tests first, then implementation.** Write the test against the unfixed code and watch it go red —
 that red is the proof it bites, so no mutate-and-revert step is needed. Then fix, then watch it go
@@ -142,3 +146,6 @@ human-facing PR review. All four live in this repo's `.claude/skills/` and `.cla
 Claude Code auto-discovers skills/agents from those paths for any agent working in this repo — no
 per-session activation needed for the agents themselves (only `terse`'s chat-reply style needs the
 hooks above, since that has to survive mid-session drift, not just be discoverable once).
+
+**A skill missing from the discovered-skills listing may just be manual-only, not absent** — see
+`docs/MANUAL-SKILLS.md` before concluding a review/architecture skill doesn't exist.

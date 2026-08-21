@@ -22,6 +22,17 @@ Never run `git commit` — the user commits themself. This skill only stages and
    source changes — even when they describe the same piece of work. A code chunk may still depend on
    a docs chunk landing first (or vice versa); note that ordering when presenting the plan, but keep
    them as distinct chunks with distinct commit messages.
+
+   **Two files under the same package or directory are not automatically one chunk.** Group by
+   whether the changes are independent stories, not by physical proximity: an unrelated bug fix and
+   an unrelated refactor that both happen to touch `packages/domain/` are two chunks. If one file's
+   accumulated diff spans two chunks' worth of work and a clean hunk-level split isn't practical, say
+   so and ask which chunk it should join rather than guessing.
+
+   **Never stage edits to a file that is about to be deleted or reverted before the end of this
+   session.** If a later step in the same request removes or discards a file (e.g. archiving an
+   openspec change directory right after syncing its specs out), leave that file's edits unstaged —
+   committing them first just adds a commit whose content the next commit deletes.
 3. Present the planned chunk breakdown before touching anything: list each chunk's files and a
    one-line commit message for it. Wait for confirmation on the plan itself if the grouping is not
    obvious.
