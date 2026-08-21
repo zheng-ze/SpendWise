@@ -652,7 +652,10 @@ class _ScopedEntryList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final matching = state.entries.values.where(
-      (entry) => !entry.isTransfer && scopedBuckets.contains(entry.categoryID),
+      (entry) =>
+          !entry.isTransfer &&
+          scopedBuckets.contains(entry.categoryID) &&
+          Accounting.includedInAnalysis(entry, state),
     );
 
     final sections = daySections(matching, state, interval: window);

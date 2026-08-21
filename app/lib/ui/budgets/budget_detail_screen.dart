@@ -435,25 +435,15 @@ class _BudgetEntryList extends StatelessWidget {
   /// Null means every expense entry counts (an overall budget).
   final Set<String>? bucketIDs;
 
-  // budgetSpend (budget_spend.dart) also counts synthetic transfer-expense
-  // items for an overall budget; this list can't, since those items have no
-  // backing Entry to show as a row.
-  bool _includedInAnalysis(Entry entry) {
-    if (!entry.includeInAnalysis) return false;
-    final category = state.categories[entry.categoryID];
-    if (category == null) return true;
-    if (!category.includeInAnalysis) return false;
-    final parentID = category.parentID;
-    return parentID == null ||
-        state.categories[parentID]?.includeInAnalysis != false;
-  }
-
   @override
   Widget build(BuildContext context) {
+    // budgetSpend (budget_spend.dart) also counts synthetic transfer-expense
+    // items for an overall budget; this list can't, since those items have
+    // no backing Entry to show as a row.
     final matching = state.entries.values.where((entry) {
       if (entry.isTransfer) return false;
       if (entry.expectedCategoryKind != CategoryKind.expense) return false;
-      if (!_includedInAnalysis(entry)) return false;
+      if (!Accounting.includedInAnalysis(entry, state)) return false;
       if (bucketIDs == null) return true;
       return entry.categoryID != null && bucketIDs!.contains(entry.categoryID);
     });

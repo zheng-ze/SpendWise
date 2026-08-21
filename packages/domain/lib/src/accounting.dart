@@ -238,6 +238,13 @@ abstract final class Accounting {
     return InCategory(categoryID);
   }
 
+  /// Whether [entry] counts toward analysis: not excluded itself, and not in
+  /// a category (or subcategory of one) that's excluded.
+  static bool includedInAnalysis(Entry entry, LedgerState ledger) {
+    if (!entry.includeInAnalysis) return false;
+    return resolveCategory(entry, ledger) is! Excluded;
+  }
+
   static double fraction(Decimal amount, Decimal over) {
     if (over <= Decimal.zero) return 0.0;
 

@@ -361,6 +361,69 @@ void main() {
       expect(entryText('Coffee run'), findsNothing);
     });
 
+    testWidgets(
+      'an entry excluded from analysis never appears in the entry list',
+      (tester) async {
+        final excludedEntry = Entry(
+          amount: dec('-7'),
+          name: 'Excluded entry',
+          sourceID: account.id,
+          categoryID: foodID,
+          date: day(1),
+          includeInAnalysis: false,
+        );
+        final ledger = buildLedger(entries: {excludedEntry.id: excludedEntry});
+        await pumpDetail(tester, ledger);
+        await tester.pumpAndSettle();
+
+        expect(find.text('Excluded entry', skipOffstage: false), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'an entry in a category excluded from analysis never appears in the '
+      'entry list',
+      (tester) async {
+        const excludedCategoryID = 'a0000000-0000-0000-0000-000000000099';
+        final excludedCategory = TransactionCategory(
+          id: excludedCategoryID,
+          name: 'Excluded category',
+          kind: CategoryKind.expense,
+          colorHex: '#AA00AA',
+          includeInAnalysis: false,
+          parentID: foodID,
+          symbol: 'block',
+        );
+        final entryInExcludedCategory = Entry(
+          amount: dec('-7'),
+          name: 'In excluded category',
+          sourceID: account.id,
+          categoryID: excludedCategoryID,
+          date: day(1),
+        );
+        final ledger = Ledger(
+          state: LedgerState(
+            moneySources: {account.id: MoneySource.account(account)},
+            categories: {
+              foodID: food,
+              hawkerID: hawker,
+              cafeID: cafe,
+              transportID: transport,
+              excludedCategoryID: excludedCategory,
+            },
+            entries: {entryInExcludedCategory.id: entryInExcludedCategory},
+          ),
+        );
+        await pumpDetail(tester, ledger);
+        await tester.pumpAndSettle();
+
+        expect(
+          find.text('In excluded category', skipOffstage: false),
+          findsNothing,
+        );
+      },
+    );
+
     testWidgets('direct scope excludes children entries', (tester) async {
       final directEntry = Entry(
         amount: dec('-20'),
