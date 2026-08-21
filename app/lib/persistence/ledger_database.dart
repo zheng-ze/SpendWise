@@ -18,5 +18,5 @@ class LedgerDatabase extends _$LedgerDatabase {
   LedgerDatabase(super.executor);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 }

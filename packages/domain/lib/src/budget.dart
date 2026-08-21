@@ -4,33 +4,12 @@ import 'package:domain/src/limit_event.dart';
 import 'package:domain/src/year_month.dart';
 import 'package:meta/meta.dart';
 
-enum RolloverMode {
-  none(0),
-  positiveOnly(1),
-  both(2);
-
-  const RolloverMode(this.code);
-
-  final int code;
-
-  static RolloverMode fromCode(int code) {
-    return switch (code) {
-      0 => none,
-      1 => positiveOnly,
-      2 => both,
-      _ => throw ArgumentError.value(code, 'code', 'Unknown RolloverMode'),
-    };
-  }
-}
-
 @immutable
 class Budget {
   Budget({
     String? id,
     required this.categoryID,
     required List<LimitEvent> limitEvents,
-    required this.rolloverMode,
-    required this.carryCap,
     required this.createdAtMonth,
   }) : id = normalizedOrNewID(id),
        limitEvents = List.unmodifiable(limitEvents);
@@ -38,8 +17,6 @@ class Budget {
   final String id;
   final String? categoryID;
   final List<LimitEvent> limitEvents;
-  final RolloverMode rolloverMode;
-  final Decimal? carryCap;
   final YearMonth createdAtMonth;
 
   @override
@@ -48,20 +25,12 @@ class Budget {
         other.id == id &&
         other.categoryID == categoryID &&
         _listEquals(other.limitEvents, limitEvents) &&
-        other.rolloverMode == rolloverMode &&
-        other.carryCap == carryCap &&
         other.createdAtMonth == createdAtMonth;
   }
 
   @override
-  int get hashCode => Object.hash(
-    id,
-    categoryID,
-    Object.hashAll(limitEvents),
-    rolloverMode,
-    carryCap,
-    createdAtMonth,
-  );
+  int get hashCode =>
+      Object.hash(id, categoryID, Object.hashAll(limitEvents), createdAtMonth);
 
   @override
   String toString() => 'Budget($id, $categoryID)';

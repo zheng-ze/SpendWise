@@ -1,17 +1,11 @@
 part of 'ledger_state.dart';
 
 extension LedgerStateBudgets on LedgerState {
-  List<LedgerChange> addBudget(
-    String? categoryID,
-    Decimal initialAmount,
-    RolloverMode rolloverMode, {
-    Decimal? carryCap,
-  }) {
+  List<LedgerChange> addBudget(String? categoryID, Decimal initialAmount) {
     final normalizedCategoryID = normalizedOptionalID(categoryID);
     _validateCategoryReference(normalizedCategoryID);
     _validateCategoryUniqueness(normalizedCategoryID);
     if (initialAmount <= Decimal.zero) throw const ZeroAmount();
-    _validateCarryCap(carryCap, rolloverMode);
 
     final createdAtMonth = YearMonth.fromUtc(DateTime.now().toUtc());
     final budget = Budget(
@@ -23,8 +17,6 @@ extension LedgerStateBudgets on LedgerState {
           kind: LimitEventKind.defaultLimit,
         ),
       ],
-      rolloverMode: rolloverMode,
-      carryCap: carryCap,
       createdAtMonth: createdAtMonth,
     );
     _budgets[budget.id] = budget;
@@ -88,8 +80,6 @@ extension LedgerStateBudgets on LedgerState {
     id: stored.id,
     categoryID: stored.categoryID,
     limitEvents: [...stored.limitEvents, event],
-    rolloverMode: stored.rolloverMode,
-    carryCap: stored.carryCap,
     createdAtMonth: stored.createdAtMonth,
   );
 
@@ -106,16 +96,6 @@ extension LedgerStateBudgets on LedgerState {
       (budget) => budget.categoryID == categoryID,
     );
     if (collides) throw const CategoryAlreadyBudgeted();
-  }
-
-  void _validateCarryCap(Decimal? carryCap, RolloverMode rolloverMode) {
-    if (rolloverMode == RolloverMode.none) {
-      if (carryCap != null) throw const CarryCapInvalid();
-      return;
-    }
-    if (carryCap != null && carryCap <= Decimal.zero) {
-      throw const CarryCapInvalid();
-    }
   }
 
   List<LedgerChange> _removeBudgetCategorized(String categoryID) {

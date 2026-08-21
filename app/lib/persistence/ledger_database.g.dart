@@ -3180,28 +3180,6 @@ class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, Budget> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _rolloverModeMeta = const VerificationMeta(
-    'rolloverMode',
-  );
-  @override
-  late final GeneratedColumn<int> rolloverMode = GeneratedColumn<int>(
-    'rollover_mode',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _carryCapMeta = const VerificationMeta(
-    'carryCap',
-  );
-  @override
-  late final GeneratedColumn<String> carryCap = GeneratedColumn<String>(
-    'carry_cap',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
   static const VerificationMeta _createdAtMonthMeta = const VerificationMeta(
     'createdAtMonth',
   );
@@ -3220,8 +3198,6 @@ class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, Budget> {
     id,
     categoryId,
     limitEvents,
-    rolloverMode,
-    carryCap,
     createdAtMonth,
   ];
   @override
@@ -3277,23 +3253,6 @@ class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, Budget> {
     } else if (isInserting) {
       context.missing(_limitEventsMeta);
     }
-    if (data.containsKey('rollover_mode')) {
-      context.handle(
-        _rolloverModeMeta,
-        rolloverMode.isAcceptableOrUnknown(
-          data['rollover_mode']!,
-          _rolloverModeMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_rolloverModeMeta);
-    }
-    if (data.containsKey('carry_cap')) {
-      context.handle(
-        _carryCapMeta,
-        carryCap.isAcceptableOrUnknown(data['carry_cap']!, _carryCapMeta),
-      );
-    }
     if (data.containsKey('created_at_month')) {
       context.handle(
         _createdAtMonthMeta,
@@ -3334,14 +3293,6 @@ class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, Budget> {
         DriftSqlType.string,
         data['${effectivePrefix}limit_events'],
       )!,
-      rolloverMode: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}rollover_mode'],
-      )!,
-      carryCap: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}carry_cap'],
-      ),
       createdAtMonth: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}created_at_month'],
@@ -3363,8 +3314,6 @@ class Budget extends DataClass implements Insertable<Budget> {
 
   /// JSON-encoded array of {effectiveFromMonth, value, kind}.
   final String limitEvents;
-  final int rolloverMode;
-  final String? carryCap;
   final String createdAtMonth;
   const Budget({
     required this.versionData,
@@ -3372,8 +3321,6 @@ class Budget extends DataClass implements Insertable<Budget> {
     required this.id,
     this.categoryId,
     required this.limitEvents,
-    required this.rolloverMode,
-    this.carryCap,
     required this.createdAtMonth,
   });
   @override
@@ -3386,10 +3333,6 @@ class Budget extends DataClass implements Insertable<Budget> {
       map['category_id'] = Variable<String>(categoryId);
     }
     map['limit_events'] = Variable<String>(limitEvents);
-    map['rollover_mode'] = Variable<int>(rolloverMode);
-    if (!nullToAbsent || carryCap != null) {
-      map['carry_cap'] = Variable<String>(carryCap);
-    }
     map['created_at_month'] = Variable<String>(createdAtMonth);
     return map;
   }
@@ -3403,10 +3346,6 @@ class Budget extends DataClass implements Insertable<Budget> {
           ? const Value.absent()
           : Value(categoryId),
       limitEvents: Value(limitEvents),
-      rolloverMode: Value(rolloverMode),
-      carryCap: carryCap == null && nullToAbsent
-          ? const Value.absent()
-          : Value(carryCap),
       createdAtMonth: Value(createdAtMonth),
     );
   }
@@ -3422,8 +3361,6 @@ class Budget extends DataClass implements Insertable<Budget> {
       id: serializer.fromJson<String>(json['id']),
       categoryId: serializer.fromJson<String?>(json['categoryId']),
       limitEvents: serializer.fromJson<String>(json['limitEvents']),
-      rolloverMode: serializer.fromJson<int>(json['rolloverMode']),
-      carryCap: serializer.fromJson<String?>(json['carryCap']),
       createdAtMonth: serializer.fromJson<String>(json['createdAtMonth']),
     );
   }
@@ -3436,8 +3373,6 @@ class Budget extends DataClass implements Insertable<Budget> {
       'id': serializer.toJson<String>(id),
       'categoryId': serializer.toJson<String?>(categoryId),
       'limitEvents': serializer.toJson<String>(limitEvents),
-      'rolloverMode': serializer.toJson<int>(rolloverMode),
-      'carryCap': serializer.toJson<String?>(carryCap),
       'createdAtMonth': serializer.toJson<String>(createdAtMonth),
     };
   }
@@ -3448,8 +3383,6 @@ class Budget extends DataClass implements Insertable<Budget> {
     String? id,
     Value<String?> categoryId = const Value.absent(),
     String? limitEvents,
-    int? rolloverMode,
-    Value<String?> carryCap = const Value.absent(),
     String? createdAtMonth,
   }) => Budget(
     versionData: versionData ?? this.versionData,
@@ -3457,8 +3390,6 @@ class Budget extends DataClass implements Insertable<Budget> {
     id: id ?? this.id,
     categoryId: categoryId.present ? categoryId.value : this.categoryId,
     limitEvents: limitEvents ?? this.limitEvents,
-    rolloverMode: rolloverMode ?? this.rolloverMode,
-    carryCap: carryCap.present ? carryCap.value : this.carryCap,
     createdAtMonth: createdAtMonth ?? this.createdAtMonth,
   );
   Budget copyWithCompanion(BudgetsCompanion data) {
@@ -3474,10 +3405,6 @@ class Budget extends DataClass implements Insertable<Budget> {
       limitEvents: data.limitEvents.present
           ? data.limitEvents.value
           : this.limitEvents,
-      rolloverMode: data.rolloverMode.present
-          ? data.rolloverMode.value
-          : this.rolloverMode,
-      carryCap: data.carryCap.present ? data.carryCap.value : this.carryCap,
       createdAtMonth: data.createdAtMonth.present
           ? data.createdAtMonth.value
           : this.createdAtMonth,
@@ -3492,8 +3419,6 @@ class Budget extends DataClass implements Insertable<Budget> {
           ..write('id: $id, ')
           ..write('categoryId: $categoryId, ')
           ..write('limitEvents: $limitEvents, ')
-          ..write('rolloverMode: $rolloverMode, ')
-          ..write('carryCap: $carryCap, ')
           ..write('createdAtMonth: $createdAtMonth')
           ..write(')'))
         .toString();
@@ -3506,8 +3431,6 @@ class Budget extends DataClass implements Insertable<Budget> {
     id,
     categoryId,
     limitEvents,
-    rolloverMode,
-    carryCap,
     createdAtMonth,
   );
   @override
@@ -3519,8 +3442,6 @@ class Budget extends DataClass implements Insertable<Budget> {
           other.id == this.id &&
           other.categoryId == this.categoryId &&
           other.limitEvents == this.limitEvents &&
-          other.rolloverMode == this.rolloverMode &&
-          other.carryCap == this.carryCap &&
           other.createdAtMonth == this.createdAtMonth);
 }
 
@@ -3530,8 +3451,6 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
   final Value<String> id;
   final Value<String?> categoryId;
   final Value<String> limitEvents;
-  final Value<int> rolloverMode;
-  final Value<String?> carryCap;
   final Value<String> createdAtMonth;
   final Value<int> rowid;
   const BudgetsCompanion({
@@ -3540,8 +3459,6 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
     this.id = const Value.absent(),
     this.categoryId = const Value.absent(),
     this.limitEvents = const Value.absent(),
-    this.rolloverMode = const Value.absent(),
-    this.carryCap = const Value.absent(),
     this.createdAtMonth = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -3551,15 +3468,12 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
     required String id,
     this.categoryId = const Value.absent(),
     required String limitEvents,
-    required int rolloverMode,
-    this.carryCap = const Value.absent(),
     required String createdAtMonth,
     this.rowid = const Value.absent(),
   }) : versionData = Value(versionData),
        lifecycle = Value(lifecycle),
        id = Value(id),
        limitEvents = Value(limitEvents),
-       rolloverMode = Value(rolloverMode),
        createdAtMonth = Value(createdAtMonth);
   static Insertable<Budget> custom({
     Expression<Uint8List>? versionData,
@@ -3567,8 +3481,6 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
     Expression<String>? id,
     Expression<String>? categoryId,
     Expression<String>? limitEvents,
-    Expression<int>? rolloverMode,
-    Expression<String>? carryCap,
     Expression<String>? createdAtMonth,
     Expression<int>? rowid,
   }) {
@@ -3578,8 +3490,6 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
       if (id != null) 'id': id,
       if (categoryId != null) 'category_id': categoryId,
       if (limitEvents != null) 'limit_events': limitEvents,
-      if (rolloverMode != null) 'rollover_mode': rolloverMode,
-      if (carryCap != null) 'carry_cap': carryCap,
       if (createdAtMonth != null) 'created_at_month': createdAtMonth,
       if (rowid != null) 'rowid': rowid,
     });
@@ -3591,8 +3501,6 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
     Value<String>? id,
     Value<String?>? categoryId,
     Value<String>? limitEvents,
-    Value<int>? rolloverMode,
-    Value<String?>? carryCap,
     Value<String>? createdAtMonth,
     Value<int>? rowid,
   }) {
@@ -3602,8 +3510,6 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
       id: id ?? this.id,
       categoryId: categoryId ?? this.categoryId,
       limitEvents: limitEvents ?? this.limitEvents,
-      rolloverMode: rolloverMode ?? this.rolloverMode,
-      carryCap: carryCap ?? this.carryCap,
       createdAtMonth: createdAtMonth ?? this.createdAtMonth,
       rowid: rowid ?? this.rowid,
     );
@@ -3627,12 +3533,6 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
     if (limitEvents.present) {
       map['limit_events'] = Variable<String>(limitEvents.value);
     }
-    if (rolloverMode.present) {
-      map['rollover_mode'] = Variable<int>(rolloverMode.value);
-    }
-    if (carryCap.present) {
-      map['carry_cap'] = Variable<String>(carryCap.value);
-    }
     if (createdAtMonth.present) {
       map['created_at_month'] = Variable<String>(createdAtMonth.value);
     }
@@ -3650,8 +3550,6 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
           ..write('id: $id, ')
           ..write('categoryId: $categoryId, ')
           ..write('limitEvents: $limitEvents, ')
-          ..write('rolloverMode: $rolloverMode, ')
-          ..write('carryCap: $carryCap, ')
           ..write('createdAtMonth: $createdAtMonth, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -5399,8 +5297,6 @@ typedef $$BudgetsTableCreateCompanionBuilder =
       required String id,
       Value<String?> categoryId,
       required String limitEvents,
-      required int rolloverMode,
-      Value<String?> carryCap,
       required String createdAtMonth,
       Value<int> rowid,
     });
@@ -5411,8 +5307,6 @@ typedef $$BudgetsTableUpdateCompanionBuilder =
       Value<String> id,
       Value<String?> categoryId,
       Value<String> limitEvents,
-      Value<int> rolloverMode,
-      Value<String?> carryCap,
       Value<String> createdAtMonth,
       Value<int> rowid,
     });
@@ -5448,16 +5342,6 @@ class $$BudgetsTableFilterComposer
 
   ColumnFilters<String> get limitEvents => $composableBuilder(
     column: $table.limitEvents,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get rolloverMode => $composableBuilder(
-    column: $table.rolloverMode,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get carryCap => $composableBuilder(
-    column: $table.carryCap,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5501,16 +5385,6 @@ class $$BudgetsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get rolloverMode => $composableBuilder(
-    column: $table.rolloverMode,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get carryCap => $composableBuilder(
-    column: $table.carryCap,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<String> get createdAtMonth => $composableBuilder(
     column: $table.createdAtMonth,
     builder: (column) => ColumnOrderings(column),
@@ -5546,14 +5420,6 @@ class $$BudgetsTableAnnotationComposer
     column: $table.limitEvents,
     builder: (column) => column,
   );
-
-  GeneratedColumn<int> get rolloverMode => $composableBuilder(
-    column: $table.rolloverMode,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<String> get carryCap =>
-      $composableBuilder(column: $table.carryCap, builder: (column) => column);
 
   GeneratedColumn<String> get createdAtMonth => $composableBuilder(
     column: $table.createdAtMonth,
@@ -5594,8 +5460,6 @@ class $$BudgetsTableTableManager
                 Value<String> id = const Value.absent(),
                 Value<String?> categoryId = const Value.absent(),
                 Value<String> limitEvents = const Value.absent(),
-                Value<int> rolloverMode = const Value.absent(),
-                Value<String?> carryCap = const Value.absent(),
                 Value<String> createdAtMonth = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => BudgetsCompanion(
@@ -5604,8 +5468,6 @@ class $$BudgetsTableTableManager
                 id: id,
                 categoryId: categoryId,
                 limitEvents: limitEvents,
-                rolloverMode: rolloverMode,
-                carryCap: carryCap,
                 createdAtMonth: createdAtMonth,
                 rowid: rowid,
               ),
@@ -5616,8 +5478,6 @@ class $$BudgetsTableTableManager
                 required String id,
                 Value<String?> categoryId = const Value.absent(),
                 required String limitEvents,
-                required int rolloverMode,
-                Value<String?> carryCap = const Value.absent(),
                 required String createdAtMonth,
                 Value<int> rowid = const Value.absent(),
               }) => BudgetsCompanion.insert(
@@ -5626,8 +5486,6 @@ class $$BudgetsTableTableManager
                 id: id,
                 categoryId: categoryId,
                 limitEvents: limitEvents,
-                rolloverMode: rolloverMode,
-                carryCap: carryCap,
                 createdAtMonth: createdAtMonth,
                 rowid: rowid,
               ),

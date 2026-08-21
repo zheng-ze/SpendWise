@@ -207,8 +207,6 @@ Budget budgetFromRow(rows.Budget row) => Budget(
     for (final event in json.decode(row.limitEvents) as List<dynamic>)
       _limitEventFromJson(event as Map<String, dynamic>),
   ],
-  rolloverMode: RolloverMode.fromCode(row.rolloverMode),
-  carryCap: row.carryCap == null ? null : Decimal.parse(row.carryCap!),
   createdAtMonth: _yearMonthFromString(row.createdAtMonth),
 );
 
@@ -224,8 +222,6 @@ rows.Budget budgetToRow(
   limitEvents: json.encode([
     for (final event in budget.limitEvents) _limitEventToJson(event),
   ]),
-  rolloverMode: budget.rolloverMode.code,
-  carryCap: budget.carryCap?.toString(),
   createdAtMonth: _yearMonthToString(budget.createdAtMonth),
 );
 

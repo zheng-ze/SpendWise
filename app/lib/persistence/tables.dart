@@ -129,10 +129,6 @@ class Budgets extends Table with SyncedRow {
   /// JSON-encoded array of {effectiveFromMonth, value, kind}.
   TextColumn get limitEvents => text().named('limit_events')();
 
-  IntColumn get rolloverMode => integer().named('rollover_mode')();
-
-  TextColumn get carryCap => text().named('carry_cap').nullable()();
-
   TextColumn get createdAtMonth => text().named('created_at_month')();
 
   @override

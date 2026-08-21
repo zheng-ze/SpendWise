@@ -146,10 +146,3 @@ final class CategoryAlreadyBudgeted extends _PlainError {
   @override
   String get _case => 'categoryAlreadyBudgeted';
 }
-
-final class CarryCapInvalid extends _PlainError {
-  const CarryCapInvalid();
-
-  @override
-  String get _case => 'carryCapInvalid';
-}
