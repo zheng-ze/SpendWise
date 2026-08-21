@@ -415,7 +415,7 @@ void main() {
       expect(row.templateAmount, '-15.5');
     });
 
-    test('a plan row carries the lifecycle it is given', () {
+    test('a plan row is always written active', () {
       final plan = RecurringPlan(
         id: planID,
         template: makeTemplate(),
@@ -424,13 +424,6 @@ void main() {
         lastResolvedDate: DateTime.utc(2026, 1, 5),
       );
 
-      final row = planToRow(
-        plan,
-        version,
-        lifecycle: LifecycleState.tombstoned,
-      );
-
-      expect(row.lifecycle, 3);
       expect(planToRow(plan, version).lifecycle, 0);
     });
   });

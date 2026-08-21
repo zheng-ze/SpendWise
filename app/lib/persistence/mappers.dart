@@ -210,13 +210,9 @@ Budget budgetFromRow(rows.Budget row) => Budget(
   createdAtMonth: _yearMonthFromString(row.createdAtMonth),
 );
 
-rows.Budget budgetToRow(
-  Budget budget,
-  VersionVector version, {
-  LifecycleState lifecycle = LifecycleState.active,
-}) => rows.Budget(
+rows.Budget budgetToRow(Budget budget, VersionVector version) => rows.Budget(
   versionData: _versionToBlob(version),
-  lifecycle: lifecycle.code,
+  lifecycle: LifecycleState.active.code,
   id: budget.id,
   categoryId: budget.categoryID,
   limitEvents: json.encode([
@@ -225,13 +221,9 @@ rows.Budget budgetToRow(
   createdAtMonth: _yearMonthToString(budget.createdAtMonth),
 );
 
-rows.Plan planToRow(
-  RecurringPlan plan,
-  VersionVector version, {
-  LifecycleState lifecycle = LifecycleState.active,
-}) => rows.Plan(
+rows.Plan planToRow(RecurringPlan plan, VersionVector version) => rows.Plan(
   versionData: _versionToBlob(version),
-  lifecycle: lifecycle.code,
+  lifecycle: LifecycleState.active.code,
   id: plan.id,
   frequency: plan.frequency.code,
   anchor: millisFromDay(plan.anchor),
