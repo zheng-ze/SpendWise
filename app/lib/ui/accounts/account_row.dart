@@ -1,8 +1,8 @@
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
 
 import 'package:spendwise/ui/accounts/account_sections.dart';
+import 'package:spendwise/ui/common/swipe_to_delete_row.dart';
 import 'package:spendwise/ui/format/amount_color.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 
@@ -13,11 +13,9 @@ class AccountRowTile extends StatelessWidget {
     required this.expanded,
     required this.onToggleExpanded,
     required this.onTap,
-    required this.confirmDeleteAccount,
     required this.onAccountDeleted,
     required this.onOpenAccountAlone,
     required this.onOpenPocket,
-    required this.confirmDeletePocket,
     required this.onPocketDeleted,
   });
 
@@ -25,35 +23,24 @@ class AccountRowTile extends StatelessWidget {
   final bool expanded;
   final VoidCallback? onToggleExpanded;
   final VoidCallback onTap;
-  final Future<bool> Function() confirmDeleteAccount;
   final VoidCallback onAccountDeleted;
   final VoidCallback onOpenAccountAlone;
   final void Function(PocketRow pocket) onOpenPocket;
-  final Future<bool> Function(PocketRow pocket) confirmDeletePocket;
   final void Function(PocketRow pocket) onPocketDeleted;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Semantics(
-          customSemanticsActions: {
-            CustomSemanticsAction(label: 'Delete ${row.name}'): () async {
-              if (await confirmDeleteAccount()) onAccountDeleted();
-            },
-          },
-          child: Dismissible(
-            key: ValueKey('account-${row.id}'),
-            direction: DismissDirection.endToStart,
-            background: const _DeleteBackground(),
-            confirmDismiss: (_) => confirmDeleteAccount(),
-            onDismissed: (_) => onAccountDeleted(),
-            child: _AccountRowBody(
-              row: row,
-              expanded: expanded,
-              onToggleExpanded: onToggleExpanded,
-              onTap: onTap,
-            ),
+        SwipeToDeleteRow(
+          itemKey: ValueKey('account-${row.id}'),
+          itemName: row.name,
+          onDeleted: onAccountDeleted,
+          child: _AccountRowBody(
+            row: row,
+            expanded: expanded,
+            onToggleExpanded: onToggleExpanded,
+            onTap: onTap,
           ),
         ),
         if (expanded) ...[
@@ -63,27 +50,14 @@ class AccountRowTile extends StatelessWidget {
             onTap: onOpenAccountAlone,
           ),
           for (final pocket in row.pockets)
-            Semantics(
-              customSemanticsActions: {
-                CustomSemanticsAction(
-                  label: 'Delete ${pocket.name}',
-                ): () async {
-                  if (await confirmDeletePocket(pocket)) {
-                    onPocketDeleted(pocket);
-                  }
-                },
-              },
-              child: Dismissible(
-                key: ValueKey('pocket-${pocket.id}'),
-                direction: DismissDirection.endToStart,
-                background: const _DeleteBackground(),
-                confirmDismiss: (_) => confirmDeletePocket(pocket),
-                onDismissed: (_) => onPocketDeleted(pocket),
-                child: _SubRow(
-                  title: pocket.name,
-                  amount: pocket.balance,
-                  onTap: () => onOpenPocket(pocket),
-                ),
+            SwipeToDeleteRow(
+              itemKey: ValueKey('pocket-${pocket.id}'),
+              itemName: pocket.name,
+              onDeleted: () => onPocketDeleted(pocket),
+              child: _SubRow(
+                title: pocket.name,
+                amount: pocket.balance,
+                onTap: () => onOpenPocket(pocket),
               ),
             ),
         ],
@@ -195,20 +169,6 @@ class _SubRow extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _DeleteBackground extends StatelessWidget {
-  const _DeleteBackground();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: Theme.of(context).colorScheme.error,
-      alignment: Alignment.centerRight,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: const Icon(Icons.delete_outline, color: Colors.white),
     );
   }
 }

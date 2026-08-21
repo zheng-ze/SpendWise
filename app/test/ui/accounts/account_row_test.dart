@@ -37,7 +37,6 @@ void main() {
     'as the swipe',
     (tester) async {
       final handle = tester.ensureSemantics();
-      var confirmCalls = 0;
       var deleted = false;
 
       await tester.pumpWidget(
@@ -48,14 +47,9 @@ void main() {
               expanded: false,
               onToggleExpanded: null,
               onTap: () {},
-              confirmDeleteAccount: () async {
-                confirmCalls++;
-                return true;
-              },
               onAccountDeleted: () => deleted = true,
               onOpenAccountAlone: () {},
               onOpenPocket: (_) {},
-              confirmDeletePocket: (_) async => false,
               onPocketDeleted: (_) {},
             ),
           ),
@@ -67,8 +61,12 @@ void main() {
         of: find.text('Main Checking'),
         label: 'Delete Main Checking',
       );
+      await tester.pumpAndSettle();
 
-      expect(confirmCalls, 1);
+      expect(find.text('Delete Main Checking?'), findsOneWidget);
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+
       expect(deleted, isTrue);
       handle.dispose();
     },
@@ -89,11 +87,9 @@ void main() {
               expanded: false,
               onToggleExpanded: null,
               onTap: () {},
-              confirmDeleteAccount: () async => false,
               onAccountDeleted: () => deleted = true,
               onOpenAccountAlone: () {},
               onOpenPocket: (_) {},
-              confirmDeletePocket: (_) async => false,
               onPocketDeleted: (_) {},
             ),
           ),
@@ -105,6 +101,10 @@ void main() {
         of: find.text('Main Checking'),
         label: 'Delete Main Checking',
       );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
 
       expect(deleted, isFalse);
       handle.dispose();
@@ -126,11 +126,9 @@ void main() {
               expanded: true,
               onToggleExpanded: () {},
               onTap: () {},
-              confirmDeleteAccount: () async => false,
               onAccountDeleted: () {},
               onOpenAccountAlone: () {},
               onOpenPocket: (_) {},
-              confirmDeletePocket: (_) async => true,
               onPocketDeleted: (_) => deletedPocket = true,
             ),
           ),
@@ -142,6 +140,11 @@ void main() {
         of: find.text('Rent'),
         label: 'Delete Rent',
       );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Delete Rent?'), findsOneWidget);
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
 
       expect(deletedPocket, isTrue);
       handle.dispose();

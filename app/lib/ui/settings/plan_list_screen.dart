@@ -1,13 +1,14 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
 
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ui/common/swipe_to_delete_row.dart';
 import 'package:spendwise/ui/format/amount_color.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/settings/plan_form.dart';
 import 'package:spendwise/ui/settings/plan_sort.dart';
+import 'package:spendwise/ui/common/delete_confirmation.dart';
 
 const Map<RecurrenceFrequency, String> _frequencyLabels = {
   RecurrenceFrequency.weekly: 'Weekly',
@@ -31,25 +32,41 @@ class _PlanListScreenState extends State<PlanListScreen> {
 
   void _toggleEditing() => setState(() => _editing = !_editing);
 
-  Future<bool> _confirmDelete(RecurringPlan plan) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Delete ${plan.template.name}?'),
-        content: const Text('Already generated transactions are kept.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+  Future<bool> _deletePlan(RecurringPlan plan) async {
+    final confirmed = await showDeleteConfirmation(
+      context,
+      itemName: plan.template.name,
     );
-    return confirmed ?? false;
+    if (confirmed) widget.ledger.deletePlan(plan.id);
+    return confirmed;
+  }
+
+  Widget _planList(List<RecurringPlan> plans) {
+    if (plans.isEmpty) {
+      return const Center(child: Text('No recurring plans yet'));
+    }
+
+    return ListView(
+      children: [
+        for (final plan in plans)
+          SwipeToDeleteRow(
+            itemKey: ValueKey('plan-${plan.id}'),
+            itemName: plan.template.name,
+            onDeleted: () => widget.ledger.deletePlan(plan.id),
+            child: _PlanRow(
+              plan: plan,
+              state: widget.ledger.state,
+              editing: _editing,
+              onTap: () => showPlanFormSheet(
+                context: context,
+                ledger: widget.ledger,
+                plan: plan,
+              ),
+              onDelete: () => _deletePlan(plan),
+            ),
+          ),
+      ],
+    );
   }
 
   @override
@@ -74,46 +91,7 @@ class _PlanListScreenState extends State<PlanListScreen> {
                 ),
             ],
           ),
-          body: plans.isEmpty
-              ? const Center(child: Text('No recurring plans yet'))
-              : ListView(
-                  children: [
-                    for (final plan in plans)
-                      Semantics(
-                        customSemanticsActions: {
-                          CustomSemanticsAction(
-                            label: 'Delete ${plan.template.name}',
-                          ): () async {
-                            if (await _confirmDelete(plan)) {
-                              widget.ledger.deletePlan(plan.id);
-                            }
-                          },
-                        },
-                        child: Dismissible(
-                          key: ValueKey('plan-${plan.id}'),
-                          direction: DismissDirection.endToStart,
-                          background: const _DeleteBackground(),
-                          confirmDismiss: (_) => _confirmDelete(plan),
-                          onDismissed: (_) => widget.ledger.deletePlan(plan.id),
-                          child: _PlanRow(
-                            plan: plan,
-                            state: widget.ledger.state,
-                            editing: _editing,
-                            onTap: () => showPlanFormSheet(
-                              context: context,
-                              ledger: widget.ledger,
-                              plan: plan,
-                            ),
-                            onDelete: () async {
-                              if (await _confirmDelete(plan)) {
-                                widget.ledger.deletePlan(plan.id);
-                              }
-                            },
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
+          body: _planList(plans),
         );
       },
     );
@@ -167,20 +145,6 @@ class _PlanRow extends StatelessWidget {
         ),
       ),
       onTap: onTap,
-    );
-  }
-}
-
-class _DeleteBackground extends StatelessWidget {
-  const _DeleteBackground();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: Theme.of(context).colorScheme.error,
-      alignment: Alignment.centerRight,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: const Icon(Icons.delete_outline, color: Colors.white),
     );
   }
 }

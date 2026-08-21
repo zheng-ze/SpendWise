@@ -7,7 +7,6 @@ import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/accounts/account_form.dart';
 import 'package:spendwise/ui/accounts/account_row.dart';
 import 'package:spendwise/ui/accounts/account_sections.dart';
-import 'package:spendwise/ui/accounts/delete_holder_confirmation.dart';
 import 'package:spendwise/ui/common/column_text.dart';
 import 'package:spendwise/ui/format/account_type_format.dart';
 import 'package:spendwise/ui/format/amount_color.dart';
@@ -69,29 +68,11 @@ class _AccountsScreenBodyState extends State<_AccountsScreenBody> {
   void _openPocket(PocketRow pocket) =>
       _openTransactions(title: pocket.name, scopeIDs: {pocket.id});
 
-  Future<bool> _confirmDeleteAccount(AccountRow row) {
-    final referenceCount = widget.ledger.state.entriesReferencing(row.id);
-    return showDeleteHolderConfirmation(
-      context,
-      name: row.name,
-      referenceCount: referenceCount,
-    );
-  }
-
   void _accountDeleted(AccountRow row) {
     widget.ledger.deleteAccount(row.id);
     if (_expandedAccountID == row.id) {
       setState(() => _expandedAccountID = null);
     }
-  }
-
-  Future<bool> _confirmDeletePocket(PocketRow pocket) {
-    final referenceCount = widget.ledger.state.entriesReferencing(pocket.id);
-    return showDeleteHolderConfirmation(
-      context,
-      name: pocket.name,
-      referenceCount: referenceCount,
-    );
   }
 
   void _pocketDeleted(PocketRow pocket) =>
@@ -167,9 +148,7 @@ class _AccountsScreenBodyState extends State<_AccountsScreenBody> {
                             onOpenAccount: _openAccount,
                             onOpenAccountAlone: _openAccountAlone,
                             onOpenPocket: _openPocket,
-                            confirmDeleteAccount: _confirmDeleteAccount,
                             onAccountDeleted: _accountDeleted,
-                            confirmDeletePocket: _confirmDeletePocket,
                             onPocketDeleted: _pocketDeleted,
                           ),
                       ],
@@ -190,9 +169,7 @@ class _AccountSection extends StatelessWidget {
     required this.onOpenAccount,
     required this.onOpenAccountAlone,
     required this.onOpenPocket,
-    required this.confirmDeleteAccount,
     required this.onAccountDeleted,
-    required this.confirmDeletePocket,
     required this.onPocketDeleted,
   });
 
@@ -202,9 +179,7 @@ class _AccountSection extends StatelessWidget {
   final void Function(AccountRow row) onOpenAccount;
   final void Function(AccountRow row) onOpenAccountAlone;
   final void Function(PocketRow pocket) onOpenPocket;
-  final Future<bool> Function(AccountRow row) confirmDeleteAccount;
   final void Function(AccountRow row) onAccountDeleted;
-  final Future<bool> Function(PocketRow pocket) confirmDeletePocket;
   final void Function(PocketRow pocket) onPocketDeleted;
 
   @override
@@ -221,11 +196,9 @@ class _AccountSection extends StatelessWidget {
                 ? null
                 : () => onToggleExpanded(row.id),
             onTap: () => onOpenAccount(row),
-            confirmDeleteAccount: () => confirmDeleteAccount(row),
             onAccountDeleted: () => onAccountDeleted(row),
             onOpenAccountAlone: () => onOpenAccountAlone(row),
             onOpenPocket: onOpenPocket,
-            confirmDeletePocket: confirmDeletePocket,
             onPocketDeleted: onPocketDeleted,
           ),
       ],

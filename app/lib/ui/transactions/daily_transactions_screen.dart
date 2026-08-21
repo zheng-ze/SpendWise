@@ -1,6 +1,5 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
@@ -8,6 +7,7 @@ import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/column_text.dart';
 import 'package:spendwise/ui/common/expanding_fab.dart';
 import 'package:spendwise/ui/common/month_year_selector.dart';
+import 'package:spendwise/ui/common/swipe_to_delete_row.dart';
 import 'package:spendwise/ui/common/top_tab_bar.dart';
 import 'package:spendwise/ui/format/amount_color.dart';
 import 'package:spendwise/ui/format/money_format.dart';
@@ -15,7 +15,6 @@ import 'package:spendwise/ui/accounts/source_edit_form.dart';
 import 'package:spendwise/ui/stats/stats_window.dart';
 import 'package:spendwise/ui/transactions/day_header.dart';
 import 'package:spendwise/ui/transactions/day_sections.dart';
-import 'package:spendwise/ui/transactions/delete_confirmation.dart';
 import 'package:spendwise/ui/transactions/empty_state.dart';
 import 'package:spendwise/ui/transactions/entry_form.dart';
 import 'package:spendwise/ui/transactions/monthly_transactions_view.dart';
@@ -330,46 +329,13 @@ class _DaySliverList extends StatelessWidget {
           onTap: onRowTap == null ? null : () => onRowTap!(entry),
         );
 
-        return Semantics(
-          customSemanticsActions: {
-            CustomSemanticsAction(label: 'Delete ${row.title}'): () async {
-              if (await showDeleteConfirmation(
-                context,
-                note: row.note,
-                title: row.title,
-              )) {
-                ledger.deleteEntry(entry.id);
-              }
-            },
-          },
-          child: Dismissible(
-            key: ValueKey(entry.id),
-            direction: DismissDirection.endToStart,
-            background: const _DeleteBackground(),
-            confirmDismiss: (_) => showDeleteConfirmation(
-              context,
-              note: row.note,
-              title: row.title,
-            ),
-            onDismissed: (_) => ledger.deleteEntry(entry.id),
-            child: cell,
-          ),
+        return SwipeToDeleteRow(
+          itemKey: ValueKey(entry.id),
+          itemName: row.title,
+          onDeleted: () => ledger.deleteEntry(entry.id),
+          child: cell,
         );
       },
-    );
-  }
-}
-
-class _DeleteBackground extends StatelessWidget {
-  const _DeleteBackground();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: Theme.of(context).colorScheme.error,
-      alignment: Alignment.centerRight,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: const Icon(Icons.delete_outline, color: Colors.white),
     );
   }
 }

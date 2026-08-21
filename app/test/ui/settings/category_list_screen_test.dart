@@ -132,7 +132,7 @@ void main() {
     );
   });
 
-  testWidgets('deleting an unreferenced category needs no reference count', (
+  testWidgets('swiping a category row opens the delete confirmation', (
     tester,
   ) async {
     final ledger = buildLedger(categories: [gifts]);
@@ -143,61 +143,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Delete Gifts?'), findsOneWidget);
-    expect(find.text('This category will be removed.'), findsOneWidget);
-  });
-
-  testWidgets('deleting a referenced category states the singular count', (
-    tester,
-  ) async {
-    final entry = Entry(
-      amount: Decimal.parse('-10'),
-      name: 'x',
-      sourceID: 'a0000000-0000-0000-0000-000000000099',
-      categoryID: food.id,
-    );
-    final ledger = buildLedger(categories: [food], entries: {entry.id: entry});
-    await pumpScreen(tester, ledger);
-    await tester.pumpAndSettle();
-
-    await tester.drag(find.text('Food'), const Offset(-500, 0));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Delete Food?'), findsOneWidget);
-    expect(
-      find.text('1 transaction will become Uncategorized.'),
-      findsOneWidget,
-    );
-  });
-
-  testWidgets('deleting a category referenced by many states the plural', (
-    tester,
-  ) async {
-    final entryA = Entry(
-      amount: Decimal.parse('-10'),
-      name: 'x',
-      sourceID: 'a0000000-0000-0000-0000-000000000099',
-      categoryID: food.id,
-    );
-    final entryB = Entry(
-      amount: Decimal.parse('-5'),
-      name: 'y',
-      sourceID: 'a0000000-0000-0000-0000-000000000099',
-      categoryID: food.id,
-    );
-    final ledger = buildLedger(
-      categories: [food],
-      entries: {entryA.id: entryA, entryB.id: entryB},
-    );
-    await pumpScreen(tester, ledger);
-    await tester.pumpAndSettle();
-
-    await tester.drag(find.text('Food'), const Offset(-500, 0));
-    await tester.pumpAndSettle();
-
-    expect(
-      find.text('2 transactions will become Uncategorized.'),
-      findsOneWidget,
-    );
   });
 
   testWidgets('confirming delete archives the category', (tester) async {

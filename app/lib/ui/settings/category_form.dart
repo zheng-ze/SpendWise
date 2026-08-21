@@ -8,6 +8,7 @@ import 'package:spendwise/ui/common/form_scaffold.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
 import 'package:spendwise/ui/settings/category_form_logic.dart';
 import 'package:spendwise/ui/settings/symbol_picker.dart';
+import 'package:spendwise/ui/common/delete_confirmation.dart';
 
 const _defaultColor = Color(0xFF007AFF);
 
@@ -186,8 +187,16 @@ class _CategoryFormState extends State<CategoryForm> {
     }
   }
 
-  void _delete() {
-    widget.ledger.deleteCategory(widget.category!.id);
+  Future<void> _delete() async {
+    final category = widget.category!;
+    final confirmed = await showDeleteConfirmation(
+      context,
+      itemName: category.name,
+    );
+    if (!confirmed) return;
+
+    widget.ledger.deleteCategory(category.id);
+    if (!mounted) return;
     Navigator.of(context).pop();
   }
 
@@ -305,7 +314,7 @@ class _CategoryFormState extends State<CategoryForm> {
                 style: FilledButton.styleFrom(
                   backgroundColor: Theme.of(context).colorScheme.error,
                 ),
-                onPressed: _delete,
+                onPressed: () => _delete(),
                 child: const Text('Delete Category'),
               ),
             ),

@@ -127,9 +127,7 @@ void main() {
     expect(screen.scopeIDs, {rentPocket.id});
   });
 
-  testWidgets('the delete confirmation states the referencing entry count', (
-    tester,
-  ) async {
+  testWidgets('the delete confirmation names the account', (tester) async {
     final entry = Entry(amount: dec('10'), name: 'x', sourceID: savings.id);
     final ledger = buildLedger(entries: {entry.id: entry});
     await pumpScreen(tester, ledger);
@@ -138,7 +136,7 @@ void main() {
     await tester.drag(find.text('Piggy Bank'), const Offset(-500, 0));
     await tester.pumpAndSettle();
 
-    expect(find.text('1 transaction keep this name.'), findsOneWidget);
+    expect(find.text('Delete Piggy Bank?'), findsOneWidget);
   });
 
   testWidgets('deleting an expanded account collapses it', (tester) async {

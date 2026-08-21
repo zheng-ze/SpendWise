@@ -1,11 +1,11 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/category_icon.dart';
+import 'package:spendwise/ui/common/swipe_to_delete_row.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
 import 'package:spendwise/ui/settings/category_form.dart';
 
@@ -29,46 +29,14 @@ class _CategoryListScreenBody extends StatelessWidget {
 
   final Ledger ledger;
 
-  @override
-  State<_CategoryListScreenBody> createState() =>
-      _CategoryListScreenBodyState();
-}
-
-class _CategoryListScreenBodyState extends State<_CategoryListScreenBody> {
-  Future<void> _confirmAndDelete(TransactionCategory category) async {
-    final referenceCount = widget.ledger.state.entryCountReferencing(
-      category.id,
-    );
-    final entryWord = referenceCount == 1 ? 'transaction' : 'transactions';
-    final message = referenceCount > 0
-        ? '$referenceCount $entryWord will become Uncategorized.'
-        : 'This category will be removed.';
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Delete ${category.name}?'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed ?? false) widget.ledger.deleteCategory(category.id);
-  }
-
-  void _openForm({TransactionCategory? category, String? presetParentID}) {
+  void _openForm(
+    BuildContext context, {
+    TransactionCategory? category,
+    String? presetParentID,
+  }) {
     showCategoryFormSheet(
       context: context,
-      ledger: widget.ledger,
+      ledger: ledger,
       category: category,
       presetParentID: presetParentID,
     );
@@ -76,8 +44,8 @@ class _CategoryListScreenBodyState extends State<_CategoryListScreenBody> {
 
   @override
   Widget build(BuildContext context) {
-    final income = widget.ledger.categories(CategoryKind.income);
-    final expense = widget.ledger.categories(CategoryKind.expense);
+    final income = ledger.categories(CategoryKind.income);
+    final expense = ledger.categories(CategoryKind.expense);
 
     return Scaffold(
       appBar: AppBar(
@@ -94,16 +62,18 @@ class _CategoryListScreenBodyState extends State<_CategoryListScreenBody> {
           _CategorySection(
             title: 'Income',
             categories: income,
-            onTap: (category) => _openForm(category: category),
-            onDelete: _confirmAndDelete,
-            onAddSubcategory: (parent) => _openForm(presetParentID: parent.id),
+            onTap: (category) => _openForm(context, category: category),
+            onDeleted: (category) => ledger.deleteCategory(category.id),
+            onAddSubcategory: (parent) =>
+                _openForm(context, presetParentID: parent.id),
           ),
           _CategorySection(
             title: 'Expense',
             categories: expense,
-            onTap: (category) => _openForm(category: category),
-            onDelete: _confirmAndDelete,
-            onAddSubcategory: (parent) => _openForm(presetParentID: parent.id),
+            onTap: (category) => _openForm(context, category: category),
+            onDeleted: (category) => ledger.deleteCategory(category.id),
+            onAddSubcategory: (parent) =>
+                _openForm(context, presetParentID: parent.id),
           ),
         ],
       ),
@@ -116,67 +86,66 @@ class _CategorySection extends StatelessWidget {
     required this.title,
     required this.categories,
     required this.onTap,
-    required this.onDelete,
+    required this.onDeleted,
     required this.onAddSubcategory,
   });
 
   final String title;
   final List<TransactionCategory> categories;
   final void Function(TransactionCategory category) onTap;
-  final Future<void> Function(TransactionCategory category) onDelete;
+  final void Function(TransactionCategory category) onDeleted;
   final void Function(TransactionCategory parent) onAddSubcategory;
+
+  Widget _title(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+      child: Text(
+        title,
+        style: theme.textTheme.labelLarge?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+      ),
+    );
+  }
+
+  Widget _emptyState(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Text(
+        'No categories yet',
+        style: theme.textTheme.bodyMedium?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+      ),
+    );
+  }
+
+  Iterable<Widget> _categoryList() {
+    return categories.map(
+      (category) => SwipeToDeleteRow(
+        itemKey: ValueKey('category-${category.id}'),
+        itemName: category.name,
+        onDeleted: () => onDeleted(category),
+        child: _CategoryRow(
+          category: category,
+          onTap: () => onTap(category),
+          onAddSubcategory: category.parentID == null
+              ? () => onAddSubcategory(category)
+              : null,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-          child: Text(
-            title,
-            style: theme.textTheme.labelLarge?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-        if (categories.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Text(
-              'No categories yet',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          )
-        else
-          for (final category in categories)
-            Semantics(
-              customSemanticsActions: {
-                CustomSemanticsAction(label: 'Delete ${category.name}'): () =>
-                    onDelete(category),
-              },
-              child: Dismissible(
-                key: ValueKey('category-${category.id}'),
-                direction: DismissDirection.endToStart,
-                background: const _DeleteBackground(),
-                confirmDismiss: (_) async {
-                  await onDelete(category);
-                  return false;
-                },
-                child: _CategoryRow(
-                  category: category,
-                  onTap: () => onTap(category),
-                  onDelete: () => onDelete(category),
-                  onAddSubcategory: category.parentID == null
-                      ? () => onAddSubcategory(category)
-                      : null,
-                ),
-              ),
-            ),
+        _title(context),
+        if (categories.isEmpty) _emptyState(context) else ..._categoryList(),
       ],
     );
   }
@@ -186,13 +155,11 @@ class _CategoryRow extends StatelessWidget {
   const _CategoryRow({
     required this.category,
     required this.onTap,
-    required this.onDelete,
     required this.onAddSubcategory,
   });
 
   final TransactionCategory category;
   final VoidCallback onTap;
-  final VoidCallback onDelete;
   final VoidCallback? onAddSubcategory;
 
   @override
@@ -224,20 +191,6 @@ class _CategoryRow extends StatelessWidget {
             ),
         ],
       ),
-    );
-  }
-}
-
-class _DeleteBackground extends StatelessWidget {
-  const _DeleteBackground();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: Theme.of(context).colorScheme.error,
-      alignment: Alignment.centerRight,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: const Icon(Icons.delete_outline, color: Colors.white),
     );
   }
 }
