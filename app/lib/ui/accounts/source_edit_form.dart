@@ -21,10 +21,7 @@ Future<void> showSourceEditFormSheet({
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    builder: (_) => FractionallySizedBox(
-      heightFactor: 0.95,
-      child: SourceEditForm(ledger: ledger, holderID: holderID),
-    ),
+    builder: (_) => SourceEditForm(ledger: ledger, holderID: holderID),
   );
 }
 
@@ -161,8 +158,9 @@ class _SourceEditFormState extends State<SourceEditForm> {
       title: _isAccount ? 'Edit Account' : 'Edit Subpocket',
       canSave: _canSave,
       onSave: _save,
-      child: ListView(
-        padding: const EdgeInsets.all(16),
+      error: ErrorSection(subject: 'account', error: _error),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           TextField(
             controller: _nameController,
@@ -208,7 +206,6 @@ class _SourceEditFormState extends State<SourceEditForm> {
               value: _includeInNetWorth,
               onChanged: (value) => setState(() => _includeInNetWorth = value),
             ),
-          ErrorSection(subject: 'account', error: _error),
         ],
       ),
     );

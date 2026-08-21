@@ -10,14 +10,6 @@ import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/settings/plan_form_logic.dart';
 import 'package:spendwise/ui/transactions/recurrence_picker.dart';
 
-const Map<RecurrenceFrequency, String> _frequencyLabels = {
-  RecurrenceFrequency.weekly: 'Weekly',
-  RecurrenceFrequency.biweekly: 'Biweekly',
-  RecurrenceFrequency.monthly: 'Monthly',
-  RecurrenceFrequency.quarterly: 'Quarterly',
-  RecurrenceFrequency.yearly: 'Yearly',
-};
-
 Future<void> showPlanFormSheet({
   required BuildContext context,
   required Ledger ledger,
@@ -27,10 +19,7 @@ Future<void> showPlanFormSheet({
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    builder: (_) => FractionallySizedBox(
-      heightFactor: 0.95,
-      child: PlanForm(ledger: ledger, plan: plan),
-    ),
+    builder: (_) => PlanForm(ledger: ledger, plan: plan),
   );
 }
 
@@ -155,8 +144,9 @@ class _PlanFormState extends State<PlanForm> {
       title: 'Edit Plan',
       canSave: _canSave,
       onSave: _save,
-      child: ListView(
-        padding: const EdgeInsets.all(16),
+      error: ErrorSection(subject: 'plan', error: _error),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           TextField(
             controller: _nameController,
@@ -175,7 +165,7 @@ class _PlanFormState extends State<PlanForm> {
           ListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Repeat'),
-            trailing: Text(_frequencyLabels[_frequency]!),
+            trailing: Text(frequencyLabels[_frequency]!),
             onTap: _pickRecurrence,
           ),
           ListTile(
@@ -200,7 +190,6 @@ class _PlanFormState extends State<PlanForm> {
               trailing: Text(formatEntryDate(_endDate ?? _anchor)),
               onTap: _pickEndDate,
             ),
-          ErrorSection(subject: 'plan', error: _error),
         ],
       ),
     );

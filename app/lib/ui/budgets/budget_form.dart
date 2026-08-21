@@ -16,10 +16,7 @@ Future<void> showBudgetFormSheet({
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    builder: (_) => FractionallySizedBox(
-      heightFactor: 0.95,
-      child: BudgetForm(ledger: ledger, budget: budget),
-    ),
+    builder: (_) => BudgetForm(ledger: ledger),
   );
 }
 
@@ -39,17 +36,11 @@ class _BudgetFormState extends State<BudgetForm> {
 
   LedgerError? _error;
 
-  bool get _isEditing => widget.budget != null;
-
   Decimal? get _parsedAmount => Decimal.tryParse(_amountController.text);
 
-  Set<String?> get _budgetedCategoryIDs {
-    final budgeted = widget.ledger.state.budgets.values
-        .map((budget) => budget.categoryID)
-        .toSet();
-    if (_isEditing) budgeted.remove(widget.budget!.categoryID);
-    return budgeted;
-  }
+  Set<String?> get _budgetedCategoryIDs => widget.ledger.state.budgets.values
+      .map((budget) => budget.categoryID)
+      .toSet();
 
   /// Root categories with an unbudgeted child are kept even when the root
   /// itself is already budgeted, so the child still has a group to sit
@@ -95,13 +86,15 @@ class _BudgetFormState extends State<BudgetForm> {
     super.dispose();
   }
 
+  static const _overallSentinel = '__overall__';
+
   Future<void> _pickCategory() async {
     final groups = _groupedCategories;
     final budgeted = _budgetedCategoryIDs;
 
     final overallTile = ListTile(
       title: const Text('Overall'),
-      onTap: () => Navigator.of(context).pop(),
+      onTap: () => Navigator.of(context).pop(_overallSentinel),
     );
     final categoryRows = [
       for (final (root, children) in groups) ...[
@@ -146,8 +139,8 @@ class _BudgetFormState extends State<BudgetForm> {
         ),
       ),
     );
-    if (!mounted) return;
-    setState(() => _categoryID = chosen);
+    if (!mounted || chosen == null) return;
+    setState(() => _categoryID = chosen == _overallSentinel ? null : chosen);
   }
 
   Future<void> _save() async {
@@ -163,11 +156,6 @@ class _BudgetFormState extends State<BudgetForm> {
     }
   }
 
-  void _delete() {
-    widget.ledger.deleteBudget(widget.budget!.id);
-    Navigator.of(context).maybePop();
-  }
-
   String get _categoryLabel {
     final id = _categoryID;
     if (id == null) return 'Overall';
@@ -180,42 +168,24 @@ class _BudgetFormState extends State<BudgetForm> {
       contentPadding: EdgeInsets.zero,
       title: const Text('Category'),
       trailing: Text(_categoryLabel),
-      onTap: _isEditing ? null : _pickCategory,
-      enabled: !_isEditing,
+      onTap: _pickCategory,
     );
     final amountField = AmountField(
       controller: _amountController,
       allowsNegative: false,
       hintText: 'Limit',
+      autofocus: true,
       onChanged: (_) => setState(() {}),
-    );
-    final errorSection = ErrorSection(subject: 'budget', error: _error);
-    final deleteButton = SizedBox(
-      width: double.infinity,
-      child: FilledButton(
-        style: FilledButton.styleFrom(
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-        onPressed: _delete,
-        child: const Text('Delete Budget'),
-      ),
     );
 
     return FormScaffold(
-      title: _isEditing ? 'Edit Budget' : 'New Budget',
+      title: 'New Budget',
       canSave: _canSave,
       onSave: _save,
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          categoryTile,
-          const SizedBox(height: 16),
-          amountField,
-          const SizedBox(height: 16),
-          if (_isEditing) ...[const SizedBox(height: 16), overrideTile],
-          errorSection,
-          if (_isEditing) ...[const SizedBox(height: 24), deleteButton],
-        ],
+      error: ErrorSection(subject: 'budget', error: _error),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [categoryTile, const SizedBox(height: 16), amountField],
       ),
     );
   }

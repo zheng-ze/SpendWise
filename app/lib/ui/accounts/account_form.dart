@@ -19,10 +19,7 @@ Future<void> showAccountFormSheet({
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    builder: (_) => FractionallySizedBox(
-      heightFactor: 0.95,
-      child: AccountForm(ledger: ledger),
-    ),
+    builder: (_) => AccountForm(ledger: ledger),
   );
 }
 
@@ -135,8 +132,9 @@ class _AccountFormState extends State<AccountForm> {
           : 'New Account',
       canSave: _canSave,
       onSave: _save,
-      child: ListView(
-        padding: const EdgeInsets.all(16),
+      error: ErrorSection(subject: 'account', error: _error),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           IgnorePointer(
             ignoring: _isLockedToAccount,
@@ -187,7 +185,6 @@ class _AccountFormState extends State<AccountForm> {
               trailing: Text(_parentLabel() ?? 'Select'),
               onTap: _pickParent,
             ),
-          ErrorSection(subject: 'account', error: _error),
         ],
       ),
     );

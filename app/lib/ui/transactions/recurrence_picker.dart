@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 const _oneTimeLabel = 'One time';
 
-const Map<RecurrenceFrequency, String> _frequencyLabels = {
+const Map<RecurrenceFrequency, String> frequencyLabels = {
   RecurrenceFrequency.weekly: 'Weekly',
   RecurrenceFrequency.biweekly: 'Biweekly',
   RecurrenceFrequency.monthly: 'Monthly',
@@ -20,10 +20,8 @@ Future<RecurrenceFrequency?> showRecurrencePickerSheet({
   return showModalBottomSheet<_RecurrenceOutcome>(
     context: context,
     isScrollControlled: true,
-    builder: (_) => FractionallySizedBox(
-      heightFactor: 0.5,
-      child: _RecurrencePickerSheet(selected: selected),
-    ),
+    useSafeArea: true,
+    builder: (_) => _RecurrencePickerSheet(selected: selected),
   ).then((outcome) => outcome == null ? selected : outcome.frequency);
 }
 
@@ -39,39 +37,39 @@ class _RecurrencePickerSheet extends StatelessWidget {
 
   final RecurrenceFrequency? selected;
 
+  Widget _title(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text('Repeat', style: Theme.of(context).textTheme.titleMedium),
+      ),
+    );
+  }
+
+  List<Widget> _rows(BuildContext context) {
+    return [
+      _RecurrenceRow(
+        label: _oneTimeLabel,
+        selected: selected == null,
+        onTap: () => Navigator.of(context).pop(const _RecurrenceOutcome(null)),
+      ),
+      for (final frequency in RecurrenceFrequency.values)
+        _RecurrenceRow(
+          label: frequencyLabels[frequency]!,
+          selected: selected == frequency,
+          onTap: () => Navigator.of(context).pop(_RecurrenceOutcome(frequency)),
+        ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        AppBar(
-          automaticallyImplyLeading: false,
-          title: const Text('Repeat'),
-          centerTitle: true,
-          leading: TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          leadingWidth: 88,
-        ),
-        Expanded(
-          child: ListView(
-            children: [
-              _RecurrenceRow(
-                label: _oneTimeLabel,
-                selected: selected == null,
-                onTap: () =>
-                    Navigator.of(context).pop(const _RecurrenceOutcome(null)),
-              ),
-              for (final frequency in RecurrenceFrequency.values)
-                _RecurrenceRow(
-                  label: _frequencyLabels[frequency]!,
-                  selected: selected == frequency,
-                  onTap: () =>
-                      Navigator.of(context).pop(_RecurrenceOutcome(frequency)),
-                ),
-            ],
-          ),
-        ),
+        _title(context),
+        Flexible(child: ListView(shrinkWrap: true, children: _rows(context))),
       ],
     );
   }

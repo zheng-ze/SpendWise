@@ -32,13 +32,10 @@ Future<void> showCategoryFormSheet({
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    builder: (_) => FractionallySizedBox(
-      heightFactor: 0.95,
-      child: CategoryForm(
-        ledger: ledger,
-        category: category,
-        presetParentID: presetParentID,
-      ),
+    builder: (_) => CategoryForm(
+      ledger: ledger,
+      category: category,
+      presetParentID: presetParentID,
     ),
   );
 }
@@ -212,8 +209,9 @@ class _CategoryFormState extends State<CategoryForm> {
       title: _title,
       canSave: _canSave,
       onSave: _save,
-      child: ListView(
-        padding: const EdgeInsets.all(16),
+      error: ErrorSection(subject: 'category', error: _error),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           TextField(
             controller: _nameController,
@@ -299,7 +297,6 @@ class _CategoryFormState extends State<CategoryForm> {
               trailing: Text(_parentLabel ?? 'None'),
               onTap: _pickParent,
             ),
-          ErrorSection(subject: 'category', error: _error),
           if (_isEditing) ...[
             const SizedBox(height: 24),
             SizedBox(

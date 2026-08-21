@@ -1,50 +1,66 @@
 import 'package:flutter/material.dart';
 
-/// Cancel dismisses outright with no confirmation, so a caller that needs a
-/// discard prompt has to wrap this rather than configure it.
+/// The bottom-sheet body shell shared by every form and receipt-style sheet
+/// in this redesign: clears the keyboard, respects the safe area, and pads
+/// the content, sizing to [children] instead of the sheet's full height.
+class SheetShell extends StatelessWidget {
+  const SheetShell({super.key, required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: children,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class FormScaffold extends StatelessWidget {
   const FormScaffold({
     super.key,
     required this.title,
     required this.canSave,
     required this.onSave,
+    required this.error,
     required this.child,
   });
 
   final String title;
   final bool canSave;
   final Future<void> Function() onSave;
+  final Widget error;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: Text(title),
-        centerTitle: true,
-        leading: TextButton(
-          onPressed: () => Navigator.of(context).maybePop(),
-          child: const Text('Cancel'),
-        ),
-        leadingWidth: 88,
-        actions: [
-          TextButton(
+    return SheetShell(
+      children: [
+        Text(title, style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 12),
+        Flexible(child: SingleChildScrollView(child: child)),
+        error,
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton(
             onPressed: canSave ? onSave : null,
-            child: Text(
-              'Save',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: canSave
-                    ? theme.colorScheme.primary
-                    : theme.disabledColor,
-              ),
-            ),
+            child: const Text('Save'),
           ),
-        ],
-      ),
-      body: SafeArea(child: child),
+        ),
+      ],
     );
   }
 }
