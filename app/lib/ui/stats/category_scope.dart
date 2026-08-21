@@ -43,3 +43,8 @@ Set<String?> matchingCategoryIDs(
       return {mainID};
   }
 }
+
+String? resolvedSubName(String? subID, LedgerState state) {
+  if (subID == null) return null;
+  return state.categories[subID]?.name;
+}

@@ -12,6 +12,7 @@ import 'package:spendwise/ui/stats/category_scope.dart';
 import 'package:spendwise/ui/stats/category_trend_card.dart';
 import 'package:spendwise/ui/stats/stats_window.dart';
 import 'package:spendwise/ui/stats/subcategory_table.dart';
+import 'package:spendwise/ui/stats/trend.dart';
 import 'package:spendwise/ui/transactions/day_sectioned_entry_list.dart';
 
 class CategoryDetailScreen extends ConsumerWidget {
@@ -126,6 +127,17 @@ class _CategoryDetailBodyState extends State<_CategoryDetailBody> {
       scopedBuckets: scopedBuckets,
     );
 
+    final trendItems = scanned
+        .where((item) => scopedBuckets.contains(item.bucketID))
+        .toList();
+    final trendMonthsList = trendMonths(
+      _detailDate,
+      isYearRange: widget.isYearRange,
+    );
+    final trendAmounts = [
+      for (final month in trendMonthsList) monthTotal(trendItems, month),
+    ];
+
     final step = widget.isYearRange ? MonthYearStep.year : MonthYearStep.month;
 
     final scopeColor = widget.kind == CategoryKind.income
@@ -170,13 +182,8 @@ class _CategoryDetailBodyState extends State<_CategoryDetailBody> {
               state: state,
               detailDate: _detailDate,
               isYearRange: widget.isYearRange,
-              scopedBuckets: scopedBuckets,
-              scanForTrend: (buckets) => _scan.scan(
-                items: widget.cache.items,
-                itemsRevision: widget.cache.itemsRevision,
-                kind: widget.kind,
-                buckets: buckets,
-              ),
+              months: trendMonthsList,
+              amounts: trendAmounts,
               color: scopeColor,
             ),
             Padding(
@@ -192,7 +199,7 @@ class _CategoryDetailBodyState extends State<_CategoryDetailBody> {
               ledger: widget.ledger,
               state: state,
               window: window,
-              matching: (state) => state.entries.values.where(
+              matching: () => state.entries.values.where(
                 (entry) =>
                     !entry.isTransfer &&
                     scopedBuckets.contains(entry.categoryID) &&
@@ -262,11 +269,6 @@ Decimal _sumBucket(Iterable<AnalysisItem> items, String bucketID) {
       .fold(Decimal.zero, (sum, item) => sum + item.amount);
 }
 
-String? _resolvedSubName(String? subID, LedgerState state) {
-  if (subID == null) return null;
-  return state.categories[subID]?.name;
-}
-
 String _scopeCaption(String mainName, CategoryScope scope, LedgerState state) {
   switch (scope) {
     case AllScope():
@@ -274,7 +276,7 @@ String _scopeCaption(String mainName, CategoryScope scope, LedgerState state) {
     case DirectScope():
       return '$mainName › Direct';
     case SubScope(:final subID):
-      final subName = _resolvedSubName(subID, state) ?? 'Uncategorized';
+      final subName = resolvedSubName(subID, state) ?? 'Uncategorized';
       return '$mainName › $subName';
   }
 }

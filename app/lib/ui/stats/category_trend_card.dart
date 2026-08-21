@@ -6,12 +6,6 @@ import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/stats/category_scope.dart';
 import 'package:spendwise/ui/stats/chart_helpers.dart';
-import 'package:spendwise/ui/stats/trend.dart';
-
-String? _resolvedSubName(String? subID, LedgerState state) {
-  if (subID == null) return null;
-  return state.categories[subID]?.name;
-}
 
 String _scopeShortName(
   String mainName,
@@ -23,7 +17,7 @@ String _scopeShortName(
     case DirectScope():
       return mainName;
     case SubScope(:final subID):
-      return _resolvedSubName(subID, state) ?? 'Uncategorized';
+      return resolvedSubName(subID, state) ?? 'Uncategorized';
   }
 }
 
@@ -35,8 +29,8 @@ class TrendCard extends StatefulWidget {
     required this.state,
     required this.detailDate,
     required this.isYearRange,
-    required this.scopedBuckets,
-    required this.scanForTrend,
+    required this.months,
+    required this.amounts,
     required this.color,
   });
 
@@ -45,8 +39,8 @@ class TrendCard extends StatefulWidget {
   final LedgerState state;
   final DateTime detailDate;
   final bool isYearRange;
-  final Set<String?> scopedBuckets;
-  final List<AnalysisItem> Function(Set<String?> buckets) scanForTrend;
+  final List<DateTime> months;
+  final List<Decimal> amounts;
   final Color color;
 
   @override
@@ -69,12 +63,8 @@ class _TrendCardState extends State<TrendCard> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final months = trendMonths(
-      widget.detailDate,
-      isYearRange: widget.isYearRange,
-    );
-    final items = widget.scanForTrend(widget.scopedBuckets);
-    final amounts = [for (final month in months) monthTotal(items, month)];
+    final months = widget.months;
+    final amounts = widget.amounts;
 
     final mainName = widget.mainCategory?.name ?? '';
     final titleName = _scopeShortName(mainName, widget.scope, widget.state);

@@ -21,11 +21,11 @@ class DaySectionedEntryList extends StatelessWidget {
   final Ledger ledger;
   final LedgerState state;
   final DateRange window;
-  final Iterable<Entry> Function(LedgerState state) matching;
+  final Iterable<Entry> Function() matching;
 
   @override
   Widget build(BuildContext context) {
-    final sections = daySections(matching(state), state, interval: window);
+    final sections = daySections(matching(), state, interval: window);
 
     if (sections.isEmpty) {
       return const Padding(

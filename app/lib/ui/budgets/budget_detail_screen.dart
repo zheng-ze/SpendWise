@@ -120,7 +120,7 @@ class _BudgetDetailBodyState extends State<_BudgetDetailBody> {
       // budgetSpend (budget_spend.dart) also counts synthetic
       // transfer-expense items for an overall budget; this list can't, since
       // those items have no backing Entry to show as a row.
-      matching: (state) => state.entries.values.where((entry) {
+      matching: () => state.entries.values.where((entry) {
         if (entry.isTransfer) return false;
         if (entry.expectedCategoryKind != CategoryKind.expense) return false;
         if (!Accounting.includedInAnalysis(entry, state)) return false;
