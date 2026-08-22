@@ -98,9 +98,9 @@ alternative — so they live here, not in `docs/adr/`.
     `budgets.md`, `data-persistence.md`.
   - Runtime: `ledger-runtime.md`, `event-bus.md`, `analysis-cache.md`, `app-boot.md`.
   - UI: `ui-foundation.md`, `app-shell.md`, `transactions-screen.md`, `entry-form.md`,
-    `accounts-screen.md`, `holder-forms.md`, `stats-screen.md`, `category-detail.md`,
-    `category-management.md`, `plan-management.md`, `recycle-bin.md`, `budgets-ui.md`,
-    `treat-as-expense-buckets.md`, `transfer-scope-display.md`,
+    `ocr-receipt-entry.md`, `accounts-screen.md`, `holder-forms.md`, `stats-screen.md`,
+    `category-detail.md`, `category-management.md`, `plan-management.md`, `recycle-bin.md`,
+    `budgets-ui.md`, `treat-as-expense-buckets.md`, `transfer-scope-display.md`,
     `accessibility-and-localization.md`.
 - **`docs/agents/domain.md`** — how an agent should consume this file and `docs/adr/` before
   exploring the codebase.
