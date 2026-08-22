@@ -10,6 +10,7 @@ dependencies:
   flutter:
     sdk: flutter
   meta: ^1.18.0
+  google_mlkit_text_recognition: ^0.17.1
 
 dev_dependencies:
   test: ^1.31.2
