@@ -95,6 +95,17 @@ Analyzer must be at zero issues, not just zero errors.
 
 ## Working with this repo
 
+**Feature work happens on `dev`, never directly on `main`.** `main` only moves via a reviewed PR.
+When a change is ready, open a PR from the working branch targeting `main` and wait for review and
+merge — do not push feature commits straight to `main`, and do not merge a PR yourself unless the
+user explicitly asks. Creating the PR itself still needs the user's go-ahead, same as any other
+action visible to others.
+
+**Close an issue only after its PR merges to `main`, not when implementation goes green on `dev`.**
+Verifying green on `dev` is the point to comment on the issue with a link to the PR, not to close
+it — closing is what confirms the work actually shipped. Check the PR's merge state
+(`gh pr view <n> --json state,mergedAt`) before closing the issue it resolves.
+
 **The user commits themselves — never run `git commit`.** Report green and hand it over. When
 staging uncommitted work for them, split it into logical chunks and wait for a go-ahead between
 each — `docs/WORKING-CONVENTIONS.md` has the pattern.
