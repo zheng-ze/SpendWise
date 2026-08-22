@@ -52,7 +52,9 @@ to a network endpoint.
 
 The recognizer SHALL be `google_mlkit_text_recognition` on iOS and Android, and a directly-wired
 Tesseract.js integration on web (see ADR-0051 for why this is a per-platform split rather than one
-engine, and why on-device rather than a cloud OCR or vision-LLM API).
+engine, and why on-device rather than a cloud OCR or vision-LLM API; see ADR-0052 for the
+`ReceiptTextRecognizer` seam that keeps the field-extraction heuristics below decoupled from which
+engine is behind it, so the engine can be swapped per platform without touching this section).
 
 The Tesseract.js integration SHALL request `{ blocks: true }` output so per-line geometry
 (`rowAttributes.rowHeight`, falling back to `bbox.y1 - bbox.y0`) is available to the merchant-name
