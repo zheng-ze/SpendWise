@@ -130,8 +130,7 @@ restating open tasks — those live in the next change's `tasks.md`, written so 
 self-contained without the handover's help. A task discovered while closing one change goes into the
 `tasks.md` of whichever change will actually pick it up next, not left behind in the closed change
 because that is where it surfaced. The doc is overwritten each session rather than accumulating —
-one file, current state only, no numbering. Handover docs stay untracked — skip `git add -N` for
-them, unlike every other file an agent creates.
+one file, current state only, no numbering. Handover docs stay untracked.
 
 ## Verifying subagent work
 

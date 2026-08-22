@@ -68,35 +68,6 @@ without `normalizedID`, `enum.index` where a pinned `code` is required.
 **Never conclude "zero occurrences" from an empty `ast-grep` result.** Validate every pattern against
 a case you know matches first.
 
-## code-review-graph
-
-Version 3.4.7, as the `mcp__code-review-graph__*` MCP tools or the `code-review-graph` CLI. Both
-return the same payloads. The MCP tool list binds at session start, so a session that began before
-the server was reachable needs restarting.
-
-**Discovery is git-tracked files only.** An untracked file is invisible however often the graph is
-rebuilt. `git add -N <path>` registers the path without staging content and is enough to make it
-indexable — agents run this on files they create, and `.claude/hooks/graph-rebuild.sh` handles the
-rebuild. `docs/SUBAGENTS.md` has the rule.
-
-**Use `build --skip-flows`, not `update`.** `update` diffs commits and will report `0 files updated`
-for a file that visibly changed on disk. A full build is 1.2 s here.
-
-`search` returns `file_path`, `line_start`, `line_end` and `params`. `line_end` equals `line_start`
-because it points at the declaration rather than the body, so it is an anchor to open, not a range to
-trust. Every response carries a `_graph` block with `built_at_sha` and `head_matches_build` — the
-cheapest staleness check available.
-
-`detect_changes_tool` and `get_affected_flows_tool`, which the generated `review-changes` skill opens
-with, analyse commits rather than the working tree. **Do not use that skill as a pre-commit review
-here.**
-
-Semantic search runs on embeddings computed locally, reachable only through the MCP tool with
-`provider="openai"` and `model="text-embedding-nomic-embed-text-v1.5"`; without those arguments it
-falls back to keyword matching. It retrieves what keyword search cannot — "half-open date window
-filter" finds `accounting.dart::filtered` and `DateRange.contains`, which share no token with the
-query. Re-run `code-review-graph embed` after work that adds nodes.
-
 ## pal
 
 MCP server (`BeehiveInnovations/pal-mcp-server`), configured in `.mcp.json` as `pal`, run via

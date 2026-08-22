@@ -99,14 +99,6 @@ Analyzer must be at zero issues, not just zero errors.
 staging uncommitted work for them, split it into logical chunks and wait for a go-ahead between
 each — `docs/WORKING-CONVENTIONS.md` has the pattern.
 
-**Run `git add -N <path>` on every file you create, agents included.** It is the one git write
-allowed here. The knowledge graph indexes git-tracked files only, so an untracked file is invisible
-to it, and `-N` registers the path without staging any content — `git diff --staged` stays empty and
-nothing reaches a commit. A `PostToolUse` hook rebuilds the graph after every edit, so registering
-the path is all an agent has to do. Bare `git add`, `git add -A` and `git add .` stay denied: those
-stage content and that is the user's call. Delete a registered file and git will show it as `D` until
-the user clears it, so do not register scratch files.
-
 **Never `git checkout`, `git restore`, `git stash`, `git reset` or `git clean`.** Restore a mutated
 file from a file copy. Under parallel agents these would discard another agent's work. This is
 enforced by a blanket `settings.json` deny, so it also blocks the harmless-looking case — unstaging
@@ -153,9 +145,8 @@ dispatch procedure** — which agent for which job, how to fence parallel work, 
 
 **Read `docs/SEARCH-TOOLS.md` before locating code or deciding whether to dispatch a subagent.**
 Covers narrowing before reading, sending volume reading to `pal`, and when delegation is mandatory
-rather than optional. Two rules from it that are never worth rediscovering: `rg` never reports a
-false zero and everything else can, and the knowledge graph sees git-tracked files only — `git add -N`
-on a file you create is what makes it visible.
+rather than optional. One rule from it that is never worth rediscovering: `rg` never reports a false
+zero and everything else can.
 
 **For a token-cheap locate/edit/review, use the `cavecrew` skill's three agents** —
 `cavecrew-investigator` (locate), `cavecrew-builder` (1-2 file surgical edit), `cavecrew-reviewer`

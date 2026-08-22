@@ -4,11 +4,20 @@ Relevant whenever locating code, reviewing a large surface, or deciding whether 
 subagent. Not needed for a small, already-located edit.
 
 **Narrow before you read.** Context is the scarce resource, and a `Read` on a file you have not
-located spends it faster than anything else. Find the lines first — `rg` for text, the graph for what
-calls what, `ast-grep` through a rule file for structure — then read the region those return. Reading
+located spends it faster than anything else. Find the lines first — `rg` for text, `ast-grep` through
+a rule file for structure — then read the region those return. Reading
 a whole file to find out whether it is relevant is the thing to avoid; reading it once you know it is
 relevant is the job. This binds subagents too, so briefs must not hand over a file path and leave the
 narrowing implied.
+
+## Which tool for which question
+
+1. **`rg`** for anything textual, and as the ground truth for every other tool's zero.
+2. **`ast-grep` through a rule file** for structural sweeps a regex cannot express.
+3. **`pal`'s `chat` with a Custom/local model** for pre-narrowed reading, and whenever the Gemini
+   provider is throttled or unavailable.
+4. **`pal`'s `chat` with a Gemini model** when the window is the point — the frozen Swift app,
+   cross-repo sweeps.
 
 **Send the volume reading to another model.** Call the `pal` MCP server's `chat` tool for anything
 where the large window is the point (a whole module doc, cross-repo sweeps), passing a `model` from
@@ -23,7 +32,7 @@ tradeoff), `debug` (hypothesis-driven investigation given concrete failure evide
 explicitly), `secaudit` (OWASP-based audit — narrow surface today, on-disk storage and import/export
 paths are what it can usefully check now, real value once sync/auth or monetisation land) and
 `challenge` (offloading pushback to a model with no stake in the answer) are all adopted.
-`precommit`/`analyze` stay redundant with `/code-review` and the graph, `refactor`/`testgen`/`docgen`
+`precommit`/`analyze` stay redundant with `/code-review`, `refactor`/`testgen`/`docgen`
 a poor fit for this repo's conventions. `docs/TOOLING.md` has the full model catalogue.
 
 **Delegating is the default, and it fails by being forgotten rather than by being rejected.** Knowing
@@ -37,11 +46,9 @@ it down, once reading a 573-line doc directly and once hand-filtering a file alr
 - Already decided a file goes to `pal`. Then it goes now, unfiltered. Preparing it by hand spends
   the tokens the dispatch existed to save.
 
-**`docs/TOOLING.md` has the measured behavior** of `rg`, `ast-grep`, the code-review-graph MCP server
-and `pal`, and which to reach for. Two rules from it that are never worth rediscovering:
+**`docs/TOOLING.md` has the measured behavior** of `rg`, `ast-grep` and `pal`, and which to reach
+for. One rule from it that is never worth rediscovering:
 
 - **`rg` never reports a false zero, and everything else can.** A bare `ast-grep -p` pattern matches
   nothing on Dart whatever the code contains, because the pattern parses without surrounding context.
   Ground-truth every empty result with `rg`.
-- **The knowledge graph sees git-tracked files only.** `git add -N` on a file you create is what
-  makes it visible; the rebuild is a hook's job, not yours.

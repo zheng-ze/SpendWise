@@ -23,7 +23,7 @@ An agent reads the way its brief points it. Hand over a bare file path and it op
 here, and both produced exactly that. The obligation is on the brief, not on the agent's judgement.
 
 Every brief that sends an agent into unfamiliar code states how to narrow before reading: which `rg`
-pattern, which graph query, which symbol to anchor on.
+pattern, which symbol to anchor on.
 
 **An implementation agent should call the `pal` MCP server's `chat` tool for its reading, and its
 brief should say so.** The call spends another model's tokens instead of Claude's, and the saving
@@ -212,10 +212,10 @@ forces a live documentation search instead of trained-in knowledge, useful for F
 currency checks, but depends on web search being enabled in the CLI config, which has not been
 confirmed here — treat as unverified until tried once.
 
-**`codereview` for an independent second reviewer.** The repo's own `/code-review` skill and the
-`code-review-graph` MCP already cover structural review; `codereview` is worth adding alongside them
-specifically because it carries none of this repo's house conventions and none of Claude's own
-blind spots — a genuinely independent model looking at the diff cold. Feed it the same convention
+**`codereview` for an independent second reviewer.** The repo's own `/code-review` skill already
+covers structural review; `codereview` is worth adding alongside it specifically because it carries
+none of this repo's house conventions and none of Claude's own blind spots — a genuinely independent
+model looking at the diff cold. Feed it the same convention
 list `ast-grep`'s rule files audit (Decimal-not-double, half-open windows, `normalizedID`, pinned
 `code` fields) in the prompt so it is reviewing against SpendWise's actual rules, not generic
 practice, or its findings will mostly be noise. Use at a phase boundary alongside the adversarial
@@ -236,11 +236,11 @@ work already in front of it, so it is worth a call when a proposal or a review f
 adversarial pass rather than the same model marking its own work. Pair with `consensus` when the
 question has more than two sides — `challenge` is cheaper for a straight "is this actually right".
 
-**Deliberately not adopted:** `precommit` and `analyze` still overlap `/code-review` and the graph
-closely enough that adding them changes nothing `codereview` above does not already cover.
-`refactor`/`testgen`/`docgen` generate output blind to this repo's house conventions (tests-first,
-minimal comments, translation-not-redesign) and would cost more to correct than to write by hand.
-`tracer` duplicates what `ast-grep`/the graph already answer directly, with an extra step in between.
+**Deliberately not adopted:** `precommit` and `analyze` still overlap `/code-review` closely enough
+that adding them changes nothing `codereview` above does not already cover. `refactor`/`testgen`/
+`docgen` generate output blind to this repo's house conventions (tests-first, minimal comments,
+translation-not-redesign) and would cost more to correct than to write by hand. `tracer` duplicates
+what `ast-grep` already answers directly, with an extra step in between.
 
 ## Briefing an agent
 
@@ -263,34 +263,5 @@ restoring to prove the restore was exact.
 
 An agent running mutations cannot share a working tree with an agent reading the same files.
 
-## Keeping the graph current
-
-**Nobody commits but the user.** Agents get exactly one git write, `git add -N <path>`, and it exists
-for the knowledge graph: discovery is git-tracked files only, so an untracked file is invisible no
-matter how often the graph is rebuilt. Registering the path is what makes it visible. The commit adds
-nothing on top, which is why this needs no commit at all.
-
-**Every agent that creates a file runs `git add -N` on it.** Measured, in a scratch repo, on a file
-whose contents were never staged:
-
-| | `update` | `build` |
-|---|---|---|
-| New file, `git add -N` | 0 nodes | 3 nodes, visible |
-| Later edit to that path | 0 nodes | 1 node, visible |
-
-So `-N` is sufficient and content staging is never needed. `update` is useless here regardless — it
-diffs commits and reports `0 files updated` for a file that visibly changed on disk.
-
-The rebuild is not the agent's job. `.claude/hooks/graph-rebuild.sh` runs `build --skip-flows` after
-every `Edit`/`Write`, 1.2 s, no extension filter — the parser covers 60+ languages and that list
-moves between releases, so `build` decides what it can parse rather than the hook.
-
-Two limits worth knowing. The graph stores Files, Classes and Functions, so an agent that only
-changed method bodies produces no new node and the rebuild is a no-op; the wins concentrate on work
-adding files, classes or methods. And a registered file that is later deleted shows as `D` in
-`git status` until the user clears it, so scratch files stay unregistered — use the job's tmp
-directory for those.
-
-**Never register a file while a mutation proof is in flight.** `-N` stages no content, so a broken
-file cannot reach the index, but the rebuild will index the broken parse and the graph will carry it
-until the restore triggers another rebuild.
+**Nobody commits but the user.** Staging uncommitted work for them follows the pattern in
+`docs/WORKING-CONVENTIONS.md`.
