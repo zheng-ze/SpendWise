@@ -490,6 +490,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "9.5.0"
+  ocr:
+    dependency: "direct main"
+    description:
+      path: "../packages/ocr"
+      relative: true
+    source: path
+    version: "0.1.0"
   package_config:
     dependency: transitive
     description:
