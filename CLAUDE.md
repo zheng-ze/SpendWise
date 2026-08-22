@@ -55,6 +55,9 @@ discipline) plus the Google Developer Documentation Style Guide for prose. Auto-
 comment requests; invoke it directly if it doesn't fire. `docs/WORKING-CONVENTIONS.md` has the
 failure patterns behind the rule.
 
+**Run a `tech-writer` comment pass once implementation is done, before reporting green** — same
+checkpoint as `spec-keeper`'s post-implementation run, and fine to do in the same pass.
+
 **Plain language everywhere**, not only in task files: comments, identifiers and reports alike. Say
 what a thing does in ordinary words rather than in jargon or borrowed vocabulary. A function called
 `monthWithDayUtc` needed a comment to explain that it shifts the month before clamping the day;
