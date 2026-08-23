@@ -1,9 +1,7 @@
 # UI Module — Behavior Spec (Screens + View Models)
 
-**Scope:** everything under `SpendWise-SwiftUI/SpendWise/View/` and `ViewModel/` (Previews excluded),
-plus the UI-facing half of `SpendWiseApp.swift` (boot screen, banners). Every behavior below was
-verified against that code on 2026-08-08. Reference screenshots:
-`../../../SpendWise-SwiftUI/docs/screenshots/{Transactions,Stats,Accounts}.png`.
+**Scope:** everything under `app/lib/ui/` (screens, view models, and boot/banner UI). This doc is
+the current behavior spec for the Dart implementation.
 
 **Sibling specs (referenced, not restated):**
 
@@ -13,44 +11,40 @@ verified against that code on 2026-08-08. Reference screenshots:
 | `plans_and_accounting.md` | `Accounting.*` pure functions (balances, net worth, analysisItems, rollUp, fraction), `RecurringPlan.occurrences/nextOccurrence` |
 | `ledger_runtime.md` | `Ledger` public API, `EventBus`, `AnalysisCache` (revision/generation guard), boot phase machine §5, seeding contract §6 |
 | `persistence.md` | `SaveBannerState` values and when the store emits them |
-| `../Flutter_Port_Tech_Doc.md` (master) | stack decisions (§3), UI port map (§4.4), hazards (§5), phase order (§6) |
+| `../ARCHITECTURE.md` | stack decisions (§3), UI architecture (§4.4), domain and implementation rules (§5) |
 
-**Architecture rule for the port (master doc §4.4 + critique Con 3/4):** every computation listed
-under a "Pure functions to extract" heading below moves OUT of widgets into plain Dart functions or
-Riverpod providers, with unit tests from the first screen. Widgets render and dispatch; nothing else.
+**Architecture rule:** every computation listed under a "Pure functions to extract" heading below
+lives OUT of widgets, in plain Dart functions or Riverpod providers, with unit tests from the first
+screen. Widgets render and dispatch; nothing else.
 
 ---
 
 ## 0. Cross-cutting conventions
 
-### 0.1 State ownership: Swift VM → Riverpod (fixes critique Con 4)
+### 0.1 State ownership
 
-In V1, view models are `@Observable` classes constructed **inline in view bodies**
-(`RootView` does `TransactionsView(viewModel: .init(ledger: ledger))`; child VMs are minted by
-factory methods like `viewModel.entryFormViewModel()` at presentation time). VM lifetime therefore
-hangs off SwiftUI view identity — fragile, untestable, and the reason V1 shipped zero VM tests.
+Screen state lives in Riverpod providers, never in widget-local state that a shell rebuild can
+reset. State that must survive rebuilds — selected month, active sub-tab, expanded account, an
+in-progress form — is owned by a provider or controller, not by a widget's own field.
 
-**Flutter mapping — do not copy the lifetime model:**
+**Provider ownership by screen:**
 
-| Swift VM | Flutter owner |
+| Provider / controller | Owns |
 |---|---|
-| `TransactionsViewModel` | `NotifierProvider` (family-keyed by optional source-scope) holding `selectedDate`, `mode`; derived lists are pure functions of `(LedgerState, params)` |
-| `TransactionsTableViewModel` | no provider needed — thin call-through; fold into the transactions controller |
-| `EntryFormViewModel` | short-lived form controller created per sheet (Riverpod `autoDispose`), seeded with `(defaultDate, prefillSourceID, Entry?)` |
-| `StatsViewModel` / `CategoryDetailViewModel` | providers watching the `AnalysisCache` provider (`ledger_runtime.md` §3) |
-| `AccountsViewModel` | provider; sections/net-worth are derived pure functions |
-| `AccountFormViewModel`, `SourceEditViewModel` | per-sheet `autoDispose` controllers |
-| `SettingsViewModel`, `CategorySettingsViewModel`, `PlanSettingsViewModel`, `RecycleBinViewModel` | providers (they are stateless facades over `Ledger` — mostly become plain provider reads) |
-
-Screen state that must survive rebuilds (selected month, active sub-tab, expanded account) lives in
-providers, never in widget-local state that a shell rebuild can reset.
+| Transactions `NotifierProvider` (family-keyed by optional source-scope) | `selectedDate`, `mode`; derived lists are pure functions of `(LedgerState, params)` |
+| Transactions controller | table/row call-through logic, folded into the same controller rather than split into a separate provider |
+| `EntryFormController` | short-lived form controller created per sheet (Riverpod `autoDispose`), seeded with `(defaultDate, prefillSourceID, Entry?)` |
+| Stats / Category Detail providers | watch the `AnalysisCache` provider (`ledger_runtime.md` §3) |
+| Accounts provider | sections and net-worth, as derived pure functions |
+| Account form / source edit controllers | per-sheet `autoDispose` controllers |
+| Settings / category-settings / plan-settings / recycle-bin providers | stateless facades over `Ledger` — mostly plain provider reads |
 
 ### 0.2 Formatting rules (used by every screen)
 
-- **Currency:** V1 formats everything with `.currency(code: "SGD")` → `$3,200.00` (grouping, 2 dp,
-  `$` symbol). Single-currency assumption is baked in. Flutter: one shared
-  `formatCurrency(Decimal)` via `intl` `NumberFormat.currency(symbol: '\$', decimalDigits: 2)`;
-  keep it in one place so a future multi-currency change is one edit.
+- **Currency:** one shared `formatCurrency(Decimal)` helper, via `intl`
+  `NumberFormat.currency(symbol: '\$', decimalDigits: 2)`, renders every amount as `$3,200.00`
+  (grouping, 2 dp, `$` symbol). The single-currency assumption is deliberate (`../ARCHITECTURE.md`
+  §3); keeping the format in one helper means a future multi-currency change is one edit.
 - **Amount sign display (transaction cells):** magnitude is always shown absolute, then:
   income → `+$X` in blue; expense → `-$X` in red; transfer → `$X` unsigned in gray.
 - **Net-amount color rule** (`Color.netAmount`): `> 0` blue, `< 0` red, `== 0` gray. Used for day
@@ -62,39 +56,38 @@ providers, never in widget-local state that a shell rebuild can reset.
 - **Amount input sanitizer** (`AmountFormat.sanitize`): strips everything except digits and one `.`;
   max 2 fraction digits (extra digits dropped, not rounded); optional single leading `-` only when
   `allowsNegative` (only the balance field in Edit Account/Subpocket allows it). Applied on every
-  keystroke. Port as a pure function + `TextInputFormatter`, unit-tested.
+  keystroke as a pure function plus a `TextInputFormatter`, unit-tested.
 - **Dates:** day-section header = big day number + secondary `"Jul 2026 Tue"` (abbrev weekday,
   abbrev month, year — locale-ordered); month/year selector label = `MMM yyyy` or `yyyy`; week
   range = `"6 Jul - 12 Jul"` (interval end is exclusive → subtract one day before formatting);
   plan next-occurrence = `"Next: 14 Jul 2026"`.
 - **Percentages:** fraction formatted `.percent`, 0 fraction digits (`64%`). `Accounting.fraction`
   guards the zero-total case (see `plans_and_accounting.md`).
-- **Hardcoded `.black` / `.blue` / `.red`:** V1 hardcodes `.black` for "Total" values and label
-  colors in `ColumnText` — broken in dark mode. **Do not copy.** Use theme `onSurface` for neutral
-  text; keep semantic blue/red/gray for amounts (theme-aware shades).
+- **Neutral vs. semantic color:** "Total" values and other label text use theme `onSurface`, so they
+  adapt correctly in dark mode; semantic blue/red/gray for amounts use theme-aware shades of the
+  same three colors, never a fixed hex.
 
-### 0.3 SF Symbol → Material icon mapping (build task)
+### 0.3 Symbol-name to Material icon mapping (build task)
 
-`TransactionCategory.symbol` stores SF Symbol names (master doc §5 hazard 4). Two mapping surfaces:
+`TransactionCategory.symbol` stores an icon name as a string, looked up in a mapping table to a
+Flutter `IconData` (`../ARCHITECTURE.md` §5 rule 4). Two mapping surfaces:
 
-1. **UI chrome symbols** (fixed set, used by widgets directly):
-   `text.book.closed`, `chart.pie`, `wallet.bifold`, `gearshape` (tabs); `plus`,
-   `square.and.pencil`, `trash`, `arrow.uturn.backward`, `multiply`, `checkmark`,
-   `chevron.left/right/down`, `repeat`, `repeat.circle.fill`, `tray`, `banknote`, `tag`,
-   `minus.circle.fill`, `plus.circle`, `chart.bar.xaxis`, `arrow.left.arrow.right` (transfer),
-   `questionmark.circle` (uncategorized), `smallcircle.filled.circle` (Direct bucket),
-   `circle.circle` (fallback). Map each to a fixed Material `IconData` at build time.
+1. **UI chrome symbols** (fixed set, used by widgets directly): symbols for the four tabs (book,
+   pie chart, wallet, gear), for add/edit/delete/undo/dismiss/confirm actions, for navigation
+   chevrons, for recurrence and category glyphs (repeat, tray, banknote, tag, plus/minus circle,
+   bar chart, transfer arrows), for the uncategorized bucket (question mark), for the Direct bucket
+   (filled small circle), and a generic fallback circle. Map each name to a fixed Material
+   `IconData` at build time.
 2. **Category catalog** (`CategorySymbols`): 9 sections × 10 symbols (Food & Drink, Transport,
    Home & Bills, Shopping, Health, Leisure, Work & Education, Money, Other). Build a
    `Map<String, IconData>` covering all ~90 names **plus a fallback icon** for unknown strings
-   (imported/synced data). The symbol picker (§6.3) shows the same catalog with Material icons;
-   the stored string stays the SF-Symbol name so data round-trips with the native app.
+   (imported/synced data). The symbol picker (§5.3) shows the same catalog with Material icons.
 
 **Deliverable:** `symbol_map.dart` + a test asserting every `CategorySymbols` name resolves.
 
-### 0.4 Shared components (port once, reuse)
+### 0.4 Shared components
 
-| V1 component | Behavior contract | Flutter primitive |
+| Component | Behavior contract | Flutter primitive |
 |---|---|---|
 | `TopTabBar` | 2 equal-width text tabs, animated 3 pt underline slides between them, bold when active | `TabBar` or custom row + `AnimatedPositioned` |
 | `MonthYearSelector` | `‹ MMM yyyy ›` (or `yyyy` in year mode); chevrons step ±1 month/year; sits in the app bar | custom row widget; state in the screen's provider |
@@ -111,20 +104,21 @@ providers, never in widget-local state that a shell rebuild can reset.
 
 ## 1. Shell — RootView (+ boot chrome)
 
-### 1.1 V1 behavior
-
-- `TabView` with 4 tabs, in order: **Transactions** (`text.book.closed`), **Stats** (`chart.pie`),
-  **Accounts** (`wallet.bifold`), **Settings** (`gearshape`).
-- Transactions, Stats, Settings are each wrapped in their **own** `NavigationStack`. Accounts owns
-  its stack internally (path-based, §4). Tab switches preserve each tab's nav state.
-- Above the shell, `AppRootView` (in `SpendWiseApp.swift`) runs the boot phase machine — full
-  contract in `ledger_runtime.md` §5. UI obligations only:
+- Adaptive shell with 4 destinations, in order: **Transactions**, **Stats**, **Accounts**,
+  **Settings**. `NavigationBar` on compact width, `NavigationRail` on wide (desktop/web/tablet).
+  Each destination keeps its own `Navigator` (or go_router `StatefulShellRoute`) so per-tab stacks
+  survive switching — Accounts additionally owns its stack internally (path-based, §4).
+- Above the shell, a boot phase provider tracks `loading` / `ready` / `failed` — full contract in
+  `ledger_runtime.md` §5. UI obligations:
   - `loading` → centered spinner.
   - `failed(error)` → **load-failure retry screen**: headline "Couldn't load your data", secondary
-    line with the error description, prominent "Retry" button that re-enters `loading` and re-runs
-    boot.
-  - `ready` → shell, with a **bottom-aligned status banner overlay** (capsule, thin material,
-    footnote text) showing, in priority order: plan-error message if set, else save-state message.
+    line with the error description, prominent "Retry" button that re-invokes boot and re-enters
+    `loading`.
+  - `ready` → shell, with a **bottom-aligned status banner overlay** — a root-level `Stack` layer
+    driven by two providers (save-banner state from the store's error handler; plan-error string
+    with its own auto-dismiss timer), rendered as a capsule with thin material and footnote text,
+    showing in priority order: plan-error message if set, else save-state message. Don't use
+    transient `SnackBar`s for this banner — it must persist while the state is non-clear.
     - Save messages (`persistence.md`): `retrying` → "Couldn't save changes, retrying";
       `failedWillRetry` → "Couldn't save changes, will retry shortly"; `clear` → no banner.
     - Plan error: "A recurring plan couldn't add its entry" (1 plan) / "N recurring plans couldn't
@@ -134,16 +128,6 @@ providers, never in widget-local state that a shell rebuild can reset.
   `ledger_runtime.md` §6). **First-run UI is therefore never empty** — Transactions/Stats/Accounts
   all render seeded content; the empty states in this spec are still reachable (delete everything,
   filtered months) and must be built.
-
-### 1.2 Flutter mapping (master doc §4.4)
-
-- Adaptive shell decided up front: `NavigationBar` (4 destinations, same order/labels) on compact
-  width; `NavigationRail` on wide (desktop/web/tablet). Each destination keeps its own `Navigator`
-  (or go_router `StatefulShellRoute`) so per-tab stacks survive switching.
-- Banner overlay: a root-level `Stack` layer driven by two providers (save-banner state from the
-  store's error handler; plan-error string with its 4 s auto-dismiss). Don't use transient
-  `SnackBar`s for the save banner — it must persist while the state is non-clear.
-- Boot: phase provider `loading / ready / failed`; retry re-invokes boot.
 
 ---
 
@@ -166,18 +150,15 @@ Three columns via `ColumnText`: **Income** (blue), **Expenses** (red), **Total**
 (neutral). Values are the sums of the visible day sections' income/expenses (§2.2 rules) over the
 current interval — month interval on Daily, whole year on Monthly.
 
-> **Open decision — do not preempt (critique Con 2, master doc §1 defect 2):** these totals apply
-> only **entry-level** `includeInAnalysis`. Stats additionally applies category include-gates and
-> treat-as-expense transfer reclassification, so Transactions and Stats can disagree for the same
-> month. The ruling (route both through `Accounting`'s gates vs. document as intentional Realbyte
-> parity) is made once, at the domain level, and recorded in the master doc — this screen just
-> calls whatever shared function results. Build it calling the V1-parity function; keep the call
-> site singular so the ruling is a one-line swap.
+> **Ruled divergence (ADR-0026):** these totals apply only **entry-level** `includeInAnalysis`.
+> Stats additionally applies category include-gates and treat-as-expense transfer reclassification,
+> so Transactions and Stats can show different numbers for the same month — this is intentional,
+> not a bug. This screen calls a single shared function for its totals, so a future decision to
+> unify the two calculations stays a one-line swap rather than a hunt through widgets.
 
 ### 2.2 Daily view — day-sectioned list
 
-**`daySections` — pure function to extract** (this exact algorithm, ported from
-`TransactionRow.daySections` + `TransactionDaySection`):
+**`daySections` — pure function to extract:**
 
 1. Take all entries; if a source scope is set, keep only entries **touching** any scoped id
    (source or destination).
@@ -189,13 +170,13 @@ current interval — month interval on Daily, whole year on Monthly.
    rows (expenses are stored negative → `expenses` is a positive magnitude). Transfers and
    excluded entries count in neither.
 
-Interval containment in the Dart port is **half-open `[start, end)`** everywhere — a flagged
-sanctioned deviation from Swift's end-inclusive `DateInterval.contains` (master plan §5 hazard 8;
-detail in `plans_and_accounting.md` §5.5).
+Interval containment is **half-open `[start, end)`** everywhere (`../ARCHITECTURE.md` §5 rule 8;
+ADR-0008; detail in `plans_and_accounting.md` §5.5), so an entry timestamped exactly on a day
+boundary belongs to exactly one day section, never zero or two.
 
 **Day header row** (gray band): bold day number + secondary `"Jul 2026 Tue"` + trailing **net**
-(= income − expenses) colored by the net-amount rule. Headers are pinned section headers in V1's
-plain list — keep sticky headers in Flutter (`SliverList` + pinned header or equivalent).
+(= income − expenses) colored by the net-amount rule. Headers are sticky (`SliverList` + pinned
+header or equivalent).
 
 **Empty state:** tray icon + "No transactions" (secondary), centered — shown when the interval
 has no sections.
@@ -219,11 +200,11 @@ Resolves an entry against `LedgerState` so cells never touch state:
 | amount | signed; rendered per §0.2 | positive magnitude, unsigned gray |
 
 `TransactionRow.note` = `Entry.name` (the free text the user typed); `title` derives from the
-category. There is **no** `Entry.note` field in V1 (persistence reserves a drift column for it,
-unused until V2).
+category. `Entry` itself has no `note` field — persistence reserves a schema column for it
+(`../ARCHITECTURE.md` §4.3), unused until a future feature needs it.
 
 Cell layout: 36 pt `CategoryIcon` chip · title / optional note (caption) / account line (caption,
-secondary) · trailing amount (semibold). Golden-test this cell (master doc Phase 5).
+secondary) · trailing amount (semibold). Golden-test this cell.
 
 ### 2.4 ExpandingFAB
 
@@ -266,15 +247,15 @@ All fields are disabled (visually normal, non-interactive) in view mode.
 6. `ErrorSection` (appears on save failure: `"Could not save entry: <error>"` — the mutation can
    throw validation errors per `domain_models.md` §3.3).
 7. Existing entry in edit mode only: full-width destructive **Delete Entry** → deletes and
-   dismisses. **No confirmation dialog on this path** (the list-swipe path is the confirmed one) —
-   V1 parity; keep as-is.
+   dismisses. **No confirmation dialog on this path** — the list-swipe path (§2.2) is the
+   confirmed one.
 
 **Validation (`canSave` — extract as pure function):** amount parses and ≠ 0, name non-empty,
 source selected; transfers additionally require destination selected and ≠ source. (Deeper rules —
 category-kind match, holder existence — are the domain validator's job and surface via the error
 section.)
 
-**Save semantics (controller logic, from `EntryFormViewModel`):**
+**Save semantics (controller logic):**
 - Sign is applied from kind: income `+|amount|`, expense `−|amount|`, transfer `+|amount|`
   (with `destinationID` set, `categoryID` nil).
 - Edit existing → `updateEntry` (same id), then **stay open** and flip back to read-only mode.
@@ -283,8 +264,7 @@ section.)
   `anchor = date`, optional `endDate`, and **`lastResolvedDate = date − 1 s`** (so the anchor
   day itself resolves), then immediately call `resolvePlans` — due occurrences (including the
   anchor, if not future-dated) appear in the list at once. Dismiss. See `plans_and_accounting.md`
-  for occurrence semantics; keep the "−1 s cursor" contract via a date-only equivalent per master
-  doc §5 hazard 3.
+  for occurrence semantics and `../ARCHITECTURE.md` §4.3 for the cursor convention.
 - Prefill: on the account-scoped screen, a new entry's source pre-selects the scoped holder.
 
 ### 2.6 Picker sheets — TwoColumnPickerSheet + wrappers
@@ -349,11 +329,8 @@ plan-creation wiring (anchor/endDate/cursor), kind-change-clears-category.
 Layout: `TopTabBar` (**Income | Expense**, default **Expense**) → divider → scrollable column:
 total line, donut, divider, category list. App bar: `MonthYearSelector` leading;
 trailing **range menu** — a dropdown toggling **Monthly | Annually** (switches `mode` between
-month/year; selector label and window follow).
-
-> V1 wrapped that toolbar in `#if os(iOS)` — macOS shipped with **no** date/range controls on
-> Stats. That is a platform gap, not a design decision: Flutter renders the full toolbar on every
-> platform.
+month/year; selector label and window follow). This toolbar, date selector included, renders on
+every platform — desktop and web get the same range controls as mobile.
 
 Data source: `AnalysisCache` (`ledger_runtime.md` §3) — the screen calls `refresh()` on appear and
 re-renders when the cache revision changes. All amounts here are **post-analysis-gate** items
@@ -367,14 +344,13 @@ Total = Σ analysis items of the active kind within the window.
 
 ### 3.2 Donut + slices
 
-**Slices — pure function to extract** (from `StatsViewModel.slices`): filter cache items by kind +
-window → `Accounting.rollUp` to main-category buckets (subcategory amounts fold into their
-parent; `nil` bucket = **Uncategorized**, which includes treat-as-expense transfers) → one slice
-per bucket with `fraction = amount/total`, **sorted by amount descending**. Slice color = category
-`colorHex`; Uncategorized = gray.
+**Slices — pure function to extract:** filter cache items by kind + window → `Accounting.rollUp`
+to main-category buckets (subcategory amounts fold into their parent; `nil` bucket =
+**Uncategorized**, which includes treat-as-expense transfers) → one slice per bucket with
+`fraction = amount/total`, **sorted by amount descending**. Slice color = category `colorHex`;
+Uncategorized = gray.
 
-**Donut geometry** (V1 custom `Canvas`; Flutter: `fl_chart` `PieChart` or a custom painter —
-whichever reproduces this):
+**Donut geometry** (`fl_chart` `PieChart` or a custom painter — whichever reproduces this):
 - Ring: outer radius = 60% of half the shorter side (leaving a label margin), inner radius = 58%
   of ring-outer. Slices start at 12 o'clock, clockwise, in list order (largest first).
 - 1.5° gap between slices (no gap when only one slice).
@@ -427,17 +403,20 @@ confirmation).
   x-axis labelled with abbreviated month names. Horizontal tap/drag selects the **nearest** month;
   a vertical rule + capsule amount annotation marks it. (fl_chart `LineChart` + touch callbacks.)
 
-**Scoping/lookup logic worth porting exactly** (from `CategoryDetailViewModel`):
+**Scoping/lookup logic:**
 - `matchingCategoryIDs(id, isMain)`: main scope → `{main} ∪ children`; sub scope → `{id}`;
-  no category → `{null}`. Drives both totals and entry filtering. Note the Swift set is
-  `Set<UUID?>` — in Dart model the null-bucket case explicitly (master doc §4.1's sealed-result
-  advice applies).
+  no category → the explicit no-category bucket. This drives both totals and entry filtering. The
+  null-bucket case is modeled as its own case, not a bare null that could collide with
+  "uncategorized" — the same sealed `CategoryResolution` (`Excluded | Uncategorized |
+  Category(id)`) that the domain layer uses for analysis gating (`../ARCHITECTURE.md` §4.1,
+  ADR-0007).
 - Entry lists reuse `daySections` then filter rows by the entry's `categoryID` ∈ matching set
   (direct scope: `categoryID == mainID` exactly), dropping now-empty sections.
-- **Memoization to keep:** the detail VM caches its kind+bucket-filtered item scan keyed on the
-  cache's `itemsRevision`, applying the interval filter per call. In Flutter this is a provider
-  that recomputes only when `AnalysisCache` bumps its revision — same guard, idiomatic form.
-  (Per-render scan memoization beyond this is explicitly deferred — master doc §7.)
+- **Memoization:** the detail provider caches its kind+bucket-filtered item scan keyed on the
+  cache's `itemsRevision`, applying the interval filter per call, and recomputes only when
+  `AnalysisCache` bumps its revision. Per-render scan memoization beyond this is deferred until
+  real data sizes demand it (`../ARCHITECTURE.md` §6) — not needed at the app's current, personal
+  scale.
 
 ### 3.5 Provider tests (minimum)
 
@@ -449,8 +428,8 @@ matrix, revision-keyed memoization invalidates on bump.
 
 ## 4. Accounts tab
 
-Owns its own navigation stack. Root screen, top to bottom: **custom header row** (V1 hides the nav
-bar on iOS: left-aligned "Accounts" headline + trailing `+` button opening the account form) →
+Owns its own navigation stack. Root screen, top to bottom: **custom header row** (no standard nav
+bar: left-aligned "Accounts" headline + trailing `+` button opening the account form) →
 **summary bar** → divider → grouped account list.
 
 ### 4.1 Summary bar
@@ -459,7 +438,7 @@ bar on iOS: left-aligned "Accounts" headline + trailing `+` button opening the a
 Straight from `Accounting.netWorth` (`plans_and_accounting.md` — asset/liability split,
 `includeInNetWorth`, archived-pocket exclusion all live there).
 
-### 4.2 Sections — AccountsViewModel math (pure functions to extract)
+### 4.2 Sections (pure functions to extract)
 
 - Group **active** accounts by `AccountType`; render sections in the fixed enum order
   **Cash, Checking, Savings, Cards, Prepaid, Investment, Insurance, Other**, skipping empty types.
@@ -471,8 +450,7 @@ Straight from `Accounting.netWorth` (`plans_and_accounting.md` — asset/liabili
   - pocket sub-rows with individual balances.
 - Section header: type name + subtotal. Non-card: Σ row totals, red when negative. **Cards:
   two labelled columns** — "Payable" (red) and "Outstanding" (secondary), each Σ over the card
-  rows. (The mixed `subtotal` reduce in V1 subtracts payables for card rows, but card sections
-  never render it — port only what renders.)
+  rows; only these two values render for card sections.
 
 ### 4.3 Card math — payable, outstanding, statement cut
 
@@ -482,16 +460,15 @@ Straight from `Accounting.netWorth` (`plans_and_accounting.md` — asset/liabili
   `statementCut ≤ date ≤ now`. I.e. spend since the last statement; transfers (repayments) never
   reduce it, they reduce payable via the balance.
 - **Statement cut**: with statement day `d`, anchor month = current month if `today.day ≥ d`,
-  else previous month; cut = that month's day `d`.
-  - **Known V1 bug — spec the fix (master doc §1 defect 3, §5 hazard 1):** V1 builds this with
-    naive date components, which overflows into the next month for `d` = 29–31 on short months.
-    The V1 form limits `d` to 1–28 so the UI can't create the bad case, but imported/synced data
-    can. **Flutter implementation MUST use the shared `addMonthsClamped`/date-clamp helper:**
-    `cutDate = DateTime(y, m, min(d, daysInMonth(y, m)))`. Dart's `DateTime` rolls over silently,
-    so an unclamped port is wrong by construction. Test the 28/29/30/31 × {Feb, Feb-leap, 30-day,
-    31-day} matrix.
-- `outstanding`/`statementCut` are **pure functions with injected `now`** — V1 buried `Date()`
-  inside the VM; the port takes `now` as a parameter (testability).
+  else previous month; cut = that month's day `d`, clamped into the month rather than rolled over.
+  `d` can be 29–31 from imported or synced data even though the account form itself limits new
+  entries to 1–28, so the clamp must hold regardless of input source. Statement-cut math goes
+  through the shared `addMonthsClamped`/date-clamp helper (`../ARCHITECTURE.md` §5 rule 1):
+  `cutDate = DateTime(y, m, min(d, daysInMonth(y, m)))` — `DateTime` rolls over silently otherwise,
+  so an unclamped implementation is wrong by construction. Test the 28/29/30/31 × {Feb, Feb-leap,
+  30-day, 31-day} matrix.
+- `outstanding`/`statementCut` are **pure functions with injected `now`**, so statement-window
+  logic is testable without depending on the system clock.
 
 ### 4.4 Rows and navigation
 
@@ -503,12 +480,10 @@ Straight from `Accounting.netWorth` (`plans_and_accounting.md` — asset/liabili
   - **"Excluding subpockets"** → pushes scope `[account.id]` only (titled with the account name),
     showing `ownBalance`.
   - One row per pocket → pushes `[pocket.id]`, titled with the pocket name, showing its balance.
-- **Swipe-delete** on account rows and pocket rows → dialog **"Delete \<name\>?"** with
-  destructive Delete / Cancel. Delete = archive to recycle bin (`domain_models.md` §3.6);
-  deleting the expanded account collapses it.
-  - V1 computes the referencing-entry count for the dialog but **never displays it** (the alert
-    has no message). Flutter: include the count in the dialog body ("N transactions keep this
-    name") — cheap fix, matches the recycle-bin copy; note it as a deliberate V1 deviation.
+- **Swipe-delete** on account rows and pocket rows → dialog **"Delete \<name\>?"** with body
+  **"N transactions keep this name"** (matches the recycle-bin copy) and destructive Delete /
+  Cancel. Delete = archive to recycle bin (`domain_models.md` §3.6); deleting the expanded account
+  collapses it.
 
 ### 4.5 Account form (sheet, `FormScaffold` "New Account"/"New Subpocket")
 
@@ -530,8 +505,8 @@ Titles "Edit Account" / "Edit Subpocket".
 - **Balance** section: amount field **allowing negatives**, pre-filled with the current derived
   balance. **Editing it does not rewrite history:** on save, if `target − currentBalance ≠ 0`, the
   controller posts a **"Balance adjustment"** entry for the delta with
-  `includeInAnalysis: false` — the running balance stays replay-consistent. Spec-critical; port
-  exactly (and test: no delta → no entry).
+  `includeInAnalysis: false` — the running balance stays replay-consistent. Spec-critical: test
+  that no delta produces no entry.
 - Toggles: **"Transfers in count as expenses"** (both; footer: "When on, money transferred into
   this holder is treated as spending in analysis." — the treat-as-expense flag,
   `plans_and_accounting.md`); **"Include in net worth"** (accounts only).
@@ -581,7 +556,7 @@ second group: **Recycle Bin** (`trash`). Title "Settings".
 - `canSave`: trimmed name non-empty. Save → add/update (color persisted as `#RRGGBB`); errors
   inline "Could not save category: …".
 - Editing only: **Delete Category** button (red, full width) → archive + dismiss, no confirmation
-  (the list path is the confirmed one — V1 parity).
+  (the list path, §5.1, is the confirmed one).
 
 ### 5.3 Symbol picker (pushed screen "Choose Icon")
 
@@ -592,10 +567,9 @@ with no matches drop out; sticky section headers. Tap → writes selection and p
 
 ### 5.4 Plan list ("Recurring Plans")
 
-- Rows sorted by **next occurrence ascending; ended plans (nil next) last**. The name tiebreak
-  exists **only** between two ended plans; equal non-nil next dates are unspecified order in V1 —
-  pick name as the deterministic tiebreak there too (flagged strengthening). `nextOccurrence`
-  comes from the domain (`plans_and_accounting.md`).
+- Rows sorted by **next occurrence ascending; ended plans (nil next) last**, with name as the
+  deterministic tiebreak whenever next-occurrence dates are equal — including between two ended
+  plans. `nextOccurrence` comes from the domain (`plans_and_accounting.md`).
 - Row: name · caption "\<Frequency\> · \<source name\>" · tertiary caption "Next: 14 Jul 2026"
   or **"Ended"** · trailing `|amount|` currency — **green when the template amount is income
   (≥ 0), primary when expense**.
@@ -609,10 +583,10 @@ with no matches drop out; sticky section headers. Tap → writes selection and p
 
 - Name · Amount (magnitude; **the template's original sign is preserved on save** — an expense
   plan stays an expense) · read-only line "Source: \<name\>" (source is not editable).
-- **Repeat** row → `RecurrencePickerSheet` with a non-optional binding (choosing "One time" is
-  ignored — a plan can't become one-shot; V1 parity, acceptable to keep) · **First date**
-  (anchor) picker · **End date** toggle + picker (no lower-bound constraint here, unlike the
-  entry form — domain handles nonsense ranges by generating nothing).
+- **Repeat** row → `RecurrencePickerSheet` with a non-optional binding — choosing "One time" is
+  ignored, since a plan can't become one-shot — · **First date** (anchor) picker · **End date**
+  toggle + picker (no lower-bound constraint here, unlike the entry form — domain handles nonsense
+  ranges by generating nothing).
 - `canSave`: amount ≠ 0, name non-empty. Save → `updatePlan`, dismiss; errors inline. Editing the
   anchor/frequency does not retro-generate or delete existing entries (cursor semantics:
   `plans_and_accounting.md`).
@@ -628,14 +602,12 @@ text: "Recycle bin is empty".
   holder / referencing the category). Rows within each section sort by **name ascending**.
 - **Leading swipe → Restore** (blue, `arrow.uturn.backward`) → domain restore (`domain_models.md`
   §3.7). Restore on a pocket whose parent account is still binned is a **silent no-op** (domain
-  rule — restore the account first); port that faithfully. If the dead swipe is judged worth
-  fixing, that is a flagged Phase-6 UX change (disable the action or restore-parent-with-
-  confirmation), not a port default.
+  rule — restore the account first). Disabling the action, or a restore-parent-with-confirmation
+  flow, is a possible future UX improvement, not required behavior today.
 - **Trailing swipe → Delete** (red) → **purge confirmation**: title **"Delete permanently?"**,
   message: *"\<name\> leaves the bin for good. Existing transactions keep the name but it can no
   longer be restored."* — destructive Delete → purge (referenceOnly vs tombstone semantics are
-  the domain's, §3.8). **Note:** V1's string interpolation swallowed the space after "good."
-  (renders "good.Existing"); the fixed copy above is the spec.
+  the domain's, §3.8).
 - Purge routing: the controller inspects the id — money source → purgeAccount/purgePocket,
   category → purgeCategory.
 
@@ -647,61 +619,60 @@ routing.
 
 ---
 
-## 6. Known V1 defects & decisions — DO NOT COPY
+## 6. Rules this module holds itself to
 
-| # | V1 behavior | Port ruling |
-|---|---|---|
-| Con 4 | VMs constructed in view bodies; state lifetime tied to view identity; zero VM tests | Riverpod providers own state (§0.1); controller tests per screen from day one |
-| Con 3 | `daySections`, month/week math, `TransactionRow` resolution live in `View/` | Pure functions in application layer (§2.2, §2.3, §2.8) with unit tests |
-| Con 2 | Transactions totals ignore category gates; Stats applies them → divergent numbers | **Open decision, decided at domain level** — Transactions screen must call the shared function and not preempt the ruling (§2.1) |
-| Defect 3 | `statementCut` naive date math (29–31 overflow; Dart rolls over even worse) | Clamped month math mandatory (§4.3), test matrix |
-| Con 10 | No accessibility, no localization | Phase 6 work: `Semantics` on custom widgets (donut needs a text alternative — it's `accessibilityHidden` in V1 with no fallback; FAB, two-column picker, swipe actions need labels/custom actions) + `intl` scaffolding with all §0.2 formats routed through it. Not optional polish; budgeted phases (master doc §6) |
-| — | Hardcoded `.black`/light-only colors in `ColumnText`/bars | Theme tokens (§0.2) |
-| — | Stats toolbar iOS-only → macOS had no range controls | Full toolbar on all platforms (§3) |
-| — | Accounts delete dialog fetches but never shows the entry count | Show it (§4.4) |
-| — | Recycle-bin purge copy missing a space | Fixed copy is spec (§5.6) |
-| — | Treat-as-expense transfers land in "Uncategorized" | Keep V1 behavior during the port; account-type bucketing is a Phase 6 feature (master doc §1 defect 7) — Stats must not invent it early |
+- **State ownership.** Screen state lives in Riverpod providers, not in widgets constructed inline
+  or tied to widget identity, so every screen gets controller tests from day one (§0.1).
+- **Pure functions, not view logic.** `daySections`, month/week math, and `TransactionRow`
+  resolution are plain Dart functions in the application layer, unit-tested independently of any
+  widget (§2.2, §2.3, §2.8).
+- **Transactions/Stats totals divergence is a ruled decision, not a bug** — see §2.1 (ADR-0026).
+  The Transactions screen calls the single shared totals function rather than reimplementing gates
+  locally.
+- **Statement-cut date math is clamped, never allowed to overflow into the next month** (§4.3,
+  `../ARCHITECTURE.md` §5 rule 1), with a test matrix across short and leap-year months.
+- **Theme tokens, not hardcoded colors**, for neutral text; semantic blue/red/gray stay theme-aware
+  (§0.2).
+- **The Stats date/range toolbar renders on every platform**, with no platform gap (§3).
+- **The account/pocket delete dialog shows the referencing-entry count** in its body (§4.4).
+- **Treat-as-expense transfers land in the Uncategorized bucket.** This is documented,
+  intentionally unfinished behavior — `plans_and_accounting.md` §7 has the full rule and the
+  recorded future decision (bucketing by destination account type). Stats must not invent that
+  bucketing ahead of the domain layer implementing it.
+- **Accessibility and localization are open work**, not yet built: `Semantics` labels for custom
+  widgets (the donut chart needs a text alternative; the FAB, two-column picker, and swipe actions
+  need labels or custom actions), plus `intl` scaffolding with every §0.2 format routed through it.
 
 ---
 
-## 7. Build checklist (master doc Phase 5 order: shell → Transactions → Accounts → Stats → Settings → boot/banners)
+## 7. Test coverage checklist
 
-Prereq: Phases 1–4 green (no UI before the domain suite passes — master doc §6 sequencing rule).
+- **Shell:** symbol map (`symbol_map.dart`) resolution test (§0.3); theme tokens (amount
+  blue/red/gray, gray6 surface, dark mode) (§0.2); shared-component tests — `CategoryIcon`,
+  `ColumnText`, `AmountField` sanitizer, `TopTabBar`, `MonthYearSelector`, `FormScaffold`/
+  `ErrorSection` (§0.4).
+- **Transactions:** `TransactionRow.resolve`, `daySections`, interval totals (§2.2–2.3, §2.9);
+  screen provider (selectedDate/mode/scope); daily list with sticky day headers, empty state,
+  swipe-delete dialog; golden test for the transaction cell; `TwoColumnPickerSheet` plus
+  Source/Category wrappers (§2.6); `RecurrencePickerSheet` (§2.7); entry form read-only-first,
+  validation, save/sign/plan-creation matrix (§2.5); `ExpandingFAB` (§2.4); `monthSummaries`,
+  expand/collapse, week-jump (§2.8).
+- **Accounts:** sections, `accountTotal` wiring, payable/outstanding, clamped `statementCut`
+  (§4.2–4.3); root screen — header, net-worth bar, grouped list, expansion rows, card columns;
+  golden test for the account row; navigation to scoped Transactions (§4.4); account form and
+  source-edit form including the balance-adjustment entry (§4.5–4.6); delete dialogs with
+  reference counts.
+- **Stats:** slices/`rollUp` wiring, subSlices+Direct, `trendMonths`, `matchingCategoryIDs`
+  (§3.2, §3.4–3.5); tabs, total, donut with leader labels, legend list, empty state; golden test
+  for the donut; range menu on every platform (§3); category detail scope selection, trend card
+  with point selection, scoped entry list, revision-keyed memoization (§3.4).
+- **Settings:** category list, form, and symbol picker (§5.1–5.3); plan list and form (§5.4–5.5);
+  recycle bin restore/purge (§5.6).
+- **Boot / banners / seed:** boot phase provider — loading spinner, load-failure retry screen
+  (§1); save banner and plan-error banner, 4 s auto-dismiss with plan-error priority (§1);
+  first-launch seeding (`ledger_runtime.md` §6) — verify seeded first-run renders on all four
+  tabs; app lifecycle — resume triggers `resolvePlans`, pause triggers flush
+  (`ledger_runtime.md` §5.3).
 
-1. **Shell**
-   - [ ] Symbol map (`symbol_map.dart`) + resolution test (§0.3)
-   - [ ] Theme tokens: amount blue/red/gray, gray6 surface, dark mode from day one (§0.2)
-   - [ ] Shared components: CategoryIcon, ColumnText, AmountField (+sanitizer tests), TopTabBar, MonthYearSelector, FormScaffold/ErrorSection (§0.4)
-   - [ ] NavigationBar/NavigationRail shell, 4 destinations, per-tab navigators (§1.2)
-2. **Transactions**
-   - [ ] Pure fns + tests: `TransactionRow.resolve`, `daySections`, interval totals (§2.2–2.3, §2.9)
-   - [ ] Screen provider (selectedDate/mode/scope); daily list w/ sticky day headers, empty state, swipe-delete dialog
-   - [ ] Golden: transaction cell
-   - [ ] TwoColumnPickerSheet + Source/Category wrappers (§2.6); RecurrencePickerSheet (§2.7)
-   - [ ] Entry form: read-only-first, validation, save/sign/plan-creation matrix + controller tests (§2.5)
-   - [ ] ExpandingFAB (§2.4)
-   - [ ] Monthly breakdown: `monthSummaries` + tests, expand/collapse, week-jump (§2.8)
-3. **Accounts**
-   - [ ] Pure fns + tests: sections, accountTotal wiring, payable/outstanding, clamped statementCut (§4.2–4.3)
-   - [ ] Root screen: header, net-worth bar, grouped list, expansion rows, card columns; golden: account row
-   - [ ] Navigation to scoped Transactions (reusing screen §2 with scope) (§4.4)
-   - [ ] Account form; source edit form incl. balance-adjustment entry + tests (§4.5–4.6)
-   - [ ] Delete dialogs (with reference counts)
-4. **Stats**
-   - [ ] Pure fns + tests: slices/rollUp wiring, subSlices+Direct, trendMonths, matchingCategoryIDs (§3.2, §3.4–3.5)
-   - [ ] Stats screen: tabs, total, donut (fl_chart/painter w/ leader labels), legend list, empty state; golden: donut
-   - [ ] Range menu on ALL platforms (§3)
-   - [ ] Category detail: scope selection, trend card w/ point selection, scoped entry list, revision-keyed memoization (§3.4)
-5. **Settings**
-   - [ ] Category list + form + symbol picker (§5.1–5.3)
-   - [ ] Plan list + form (§5.4–5.5)
-   - [ ] Recycle bin: restore/purge with fixed copy (§5.6)
-6. **Boot / banners / seed**
-   - [ ] Boot phase provider: loading spinner, load-failure retry screen (§1.1)
-   - [ ] Save banner + plan-error banner (4 s auto-dismiss, plan-error priority) (§1.1)
-   - [ ] First-launch seeding wired (`ledger_runtime.md` §6) — verify seeded first-run renders on all four tabs
-   - [ ] App lifecycle: resume → resolvePlans, pause → flush (`ledger_runtime.md` §5.3)
-
-Exit: provider tests per screen green, goldens for cell/row/donut committed, and every "do not
-copy" row in §6 either fixed or (Con 2, treat-as-expense) explicitly left on V1 behavior with the
-decision recorded in the master doc.
+Exit: provider tests per screen green, goldens for cell/row/donut committed, and every rule in §6
+covered by a test.

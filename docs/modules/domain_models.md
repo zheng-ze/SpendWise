@@ -1,11 +1,14 @@
 # Module Spec: Domain Models + LedgerState
 
-**Module:** `domain` core (Phase 1 of the port plan, see `docs/Flutter_Port_Tech_Doc.md`).
-**Source of truth:** `../SpendWise-SwiftUI/SpendWise/Model/` (all files except `RecurringPlan.swift`, `RecurrenceFrequency.swift`, `OccurrenceID.swift`, which belong to the plans module) and `../SpendWise-SwiftUI/SpendWiseTests/LedgerStateTests.swift`. Every rule below was verified against that code on 2026-08-08.
+**Module:** `domain` core. See `docs/ARCHITECTURE.md` for how this module fits the rest of the app.
+**Source of truth:** this doc is the current behavior spec for the Dart implementation, covering
+every model in `packages/domain/lib/` except `RecurringPlan`, `RecurrenceFrequency`, and
+`OccurrenceID`, which belong to the plans module (`plans_and_accounting.md`).
 
-This doc is a behavior spec: a Dart implementation written and tested against it, without reading the Swift, must be behavior-identical — except for §7, one known defect that the port **fixes rather than copies**.
+This doc is a behavior spec: a Dart implementation written and tested against it must be
+behavior-identical to what is described here, including §7's account-tombstone orphan fix.
 
-## 0. Dart representation conventions (from the master doc)
+## 0. Dart representation conventions
 
 | Swift | Dart |
 |---|---|

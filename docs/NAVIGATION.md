@@ -14,10 +14,10 @@ Planning lives in `CONTEXT.md`, `docs/adr/` and `docs/specs/`. Read in this orde
    `docs/specs/` were originally derived from: `domain_models.md`, `plans_and_accounting.md`,
    `ledger_runtime.md`, `persistence.md`, `ui_screens.md`. Still the reference for anything a spec
    in `docs/specs/` leaves ambiguous.
-5. `docs/Flutter_Port_Tech_Doc.md` — the master plan for the port from the frozen SwiftUI
-   prototype. §6 defines the phases the port went through, §1 lists the V1 defects the port fixed,
-   §8 is the definition of done. Historical now that the port is complete and past work is
-   greenfield design (see below), but still the record of what each phase covered and why.
+5. `docs/ARCHITECTURE.md` — the architecture and behavior spec for the app as a whole: the feature
+   surface, the stack decisions and their rationale, the layer-by-layer architecture, the domain
+   and implementation rules, and the roadmap. Read this for the wide-angle view that ties together
+   the narrower contracts in `docs/specs/` and the narrower decisions in `docs/adr/`.
 6. `docs/reviews/` — completed adversarial and quality-review passes. All confirmed corrections
    are already applied, either directly or via a later ADR recording the fix (see ADR-0050 for the
    review currently in this directory). Do not re-litigate their findings; if one looks
@@ -31,12 +31,10 @@ ADRs hold decisions, specs hold behavior contracts. Open work items — the equi
 to be an OpenSpec change's `tasks.md` — are tracked as GitHub issues; see
 `docs/agents/issue-tracker.md`.
 
-The frozen SwiftUI app at `../SpendWise-SwiftUI` was the source of truth for behavior through the
-end of the port (everything through `add-drift-store`). Its own CLAUDE.md is stale, so trust the
-Swift code over its docs if you ever need to check it. **The app reached full parity with that
-prototype once the port finished; work past that point (starting with the budgets feature) is
-greenfield design, not a port** — design from domain and product reasoning and this repo's own
-conventions, not by reading the Swift source. `docs/adr/` reflects this split: decisions up through
-the persistence layer are mostly translation calls (where a straight port of the Swift behavior
-would have been wrong, and what replaced it); decisions from the budgets feature onward are
-original product and architecture calls with no Swift equivalent to check against.
+An earlier native prototype defined the app's behavior through parity, reached at the end of the
+port (everything through `add-drift-store`). **Work past that point (starting with the budgets
+feature) is greenfield design, not a port** — design from domain and product reasoning and this
+repo's own conventions. `docs/adr/` reflects this split: decisions up through the persistence layer
+are mostly translation calls (where a straight port of the earlier prototype's behavior would have
+been wrong, and what replaced it); decisions from the budgets feature onward are original product
+and architecture calls with no earlier equivalent to check against.

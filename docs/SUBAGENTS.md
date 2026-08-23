@@ -120,28 +120,21 @@ pays off regardless of the actual quota.
 4. **Cross-file sweeps.** "Which test files call `uuid()`?" is a question worth answering before
    deciding whether a shared helper can be changed.
 5. **Pre-review reconnaissance**, so several review angles do not each re-read the same tree.
-6. **Reading the frozen Swift app.** `../SpendWise-SwiftUI` is the behavior source of truth and is
-   read constantly, yet none of it is ever edited, so every token spent reading it in the main
-   thread is pure cost. Ask for the shape of a Swift type, what a view actually renders, or which
-   call sites touch a method, then read only the Swift the briefing flags.
-7. **Swift-to-Dart parity sweeps.** "Which `AccountingTests.swift` cases have no Dart counterpart?"
-   spans two repos and hundreds of test names. The coverage map in a change's `tasks.md` is exactly
-   this question answered by hand.
-8. **Locating where a behavior lives before a UI phase.** Phases 5 to 7 port screens whose logic is
-   spread across SwiftUI views, view models and helpers. Trace it once with `chat` rather than
-   opening the tree in the main thread.
-9. **Auditing a convention across the tree.** "Every `raw…ID` parameter that reaches a map lookup
+6. **Locating where a behavior lives before a UI change.** Screen logic is spread across widgets,
+   controllers and providers. Trace it once with `chat` rather than opening the tree in the main
+   thread.
+7. **Auditing a convention across the tree.** "Every `raw…ID` parameter that reaches a map lookup
    without `normalizedID`" or "every `DateTime` construction that is not `startOfDayUtc`" are sweeps
    whose answer is a candidate list, and the main thread then reads each hit to confirm. This is how
    a rule in `CLAUDE.md` gets checked against reality instead of assumed.
-10. **Sizing an unfamiliar change before planning it.** Which files a phase will touch, and roughly
-    how much already exists, is worth knowing before tasks are written against it.
-11. **Reconstructing history.** Long `git log` output and old design rationale recovered from
-    deleted-but-tracked files (the pre-migration OpenSpec change directories, findable via
-    `git log --all --diff-filter=D`) answer "why is it like this" at a volume not worth paying
-    Claude tokens to read.
+8. **Sizing an unfamiliar change before planning it.** Which files a change will touch, and roughly
+   how much already exists, is worth knowing before tasks are written against it.
+9. **Reconstructing history.** Long `git log` output and old design rationale recovered from
+   deleted-but-tracked files (the pre-migration OpenSpec change directories, findable via
+   `git log --all --diff-filter=D`) answer "why is it like this" at a volume not worth paying
+   Claude tokens to read.
 
-For items 1, 2, 6, 7, 8 and 11 above — where the large window is the point — pass a Gemini model.
+For items 1, 2, 6 and 9 above — where the large window is the point — pass a Gemini model.
 For items 3 and 4 — locating anchors and narrow cross-file sweeps over a named short list — a Custom
 provider model such as `qwen2.5.1-coder-7b-instruct` is unmetered and does not touch the Gemini
 provider's limits at all, whatever those turn out to be. Use the default `qwen2.5.1-coder-7b-instruct`

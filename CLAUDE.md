@@ -1,9 +1,8 @@
 # SpendWise
 
-A personal finance app built in Flutter. The app reached full parity with the earlier frozen
-SwiftUI prototype at `../SpendWise-SwiftUI`; work past that point (starting with `add-budgets`) is
-greenfield design, not a port — design from domain/product reasoning and this repo's own
-conventions, not by reading the Swift source.
+A personal finance app built in Flutter. The app reached full parity with an earlier native
+prototype; work past that point (starting with `add-budgets`) is greenfield design, not a port —
+design from domain/product reasoning and this repo's own conventions.
 
 ## Agent skills
 
@@ -34,8 +33,8 @@ untouched by it and go through `tech-writer` instead. "stop terse" or "normal mo
   vocabulary and points at every ADR and spec.
 
 **Read `docs/NAVIGATION.md` before starting work.** It is the reading order across `CONTEXT.md`,
-`docs/adr/` and `docs/specs/`, plus the older module docs and the master port plan. The app is at
-full parity with the frozen SwiftUI prototype; work from the budgets feature onward is greenfield
+`docs/adr/` and `docs/specs/`, plus the older module docs and `docs/ARCHITECTURE.md`. The app is at
+full parity with an earlier native prototype; work from the budgets feature onward is greenfield
 design, not a port — see `docs/NAVIGATION.md` for what that changes about how to read `docs/adr/`.
 
 **Invoke `spec-keeper` at exactly two points in any change that touches behavior**: once right

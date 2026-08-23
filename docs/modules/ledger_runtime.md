@@ -1,18 +1,18 @@
 # Module Spec — Ledger Runtime
 
 **Scope:** `Ledger`, `EventBus`, `AnalysisCache`, `PersistenceProcessor`, boot phase machine,
-lifecycle hooks, banners, sample seed. Maps to Phase 3 of the master plan
-(`docs/Flutter_Port_Tech_Doc.md`) plus the boot/banner slice of Phase 5.
+lifecycle hooks, banners, sample seed. See `docs/ARCHITECTURE.md` §4.2–4.3 for how this module fits
+the rest of the app.
 
-**Source of truth (verified 2026-08-08):**
+**Source of truth:** this doc is the current behavior spec for the Dart implementation.
 
-| Swift source | Dart home |
+| Concern | Dart home |
 |---|---|
-| `SpendWise/Repository/Ledger.swift` | `app/lib/ledger/ledger.dart` |
-| `SpendWise/Repository/EventBus.swift` | `app/lib/ledger/event_bus.dart` |
-| `SpendWise/Services/AnalysisCache.swift` | `app/lib/ledger/analysis_cache.dart` |
-| `SpendWise/Repository/Persistence/PersistenceProcessor.swift` | `app/lib/persistence/persistence_processor.dart` |
-| `SpendWise/SpendWiseApp.swift` (AppRootView) | `app/lib/app.dart` + `main.dart` |
+| Ledger mutation hub | `app/lib/ledger/ledger.dart` |
+| Event bus | `app/lib/ledger/event_bus.dart` |
+| Analysis cache | `app/lib/ledger/analysis_cache.dart` |
+| Persistence processor | `app/lib/persistence/persistence_processor.dart` |
+| App boot / root | `app/lib/app.dart` + `main.dart` |
 | `SpendWise/Repository/Ledger+Sample.swift` | `app/lib/ledger/sample.dart` |
 | `SpendWiseTests/EventDrivenTests.swift` | `app/test/ledger/event_driven_test.dart` |
 
