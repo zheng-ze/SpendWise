@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
+import 'package:spendwise/settings/settings_providers.dart';
 import 'package:spendwise/ui/settings/category_list_screen.dart';
 import 'package:spendwise/ui/settings/plan_list_screen.dart';
 import 'package:spendwise/ui/settings/recycle_bin_screen.dart';
@@ -13,6 +14,8 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final ledger = ref.watch(ledgerProvider);
     if (ledger == null) return const SizedBox.shrink();
+
+    final scanStripEnabled = ref.watch(scanStripEnabledProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings'), centerTitle: false),
@@ -36,6 +39,17 @@ class SettingsScreen extends ConsumerWidget {
                 builder: (_) => PlanListScreen(ledger: ledger),
               ),
             ),
+          ),
+          const Divider(height: 1),
+          const _SectionHeader('Receipt Scanning'),
+          SwitchListTile(
+            secondary: const Icon(Icons.document_scanner_outlined),
+            title: const Text('Show scan/upload on new entry'),
+            value: scanStripEnabled.value ?? true,
+            onChanged: (value) async {
+              await ref.read(appSettingsProvider).setScanStripEnabled(value);
+              ref.invalidate(scanStripEnabledProvider);
+            },
           ),
           const Divider(height: 1),
           const _SectionHeader('Data'),
