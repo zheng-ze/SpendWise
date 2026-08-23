@@ -343,8 +343,8 @@ class DriftLedgerStore implements LedgerStore {
     return row?.read<Uint8List>('version_data');
   }
 
-  Future<VersionVector> _bumpedVersion(
-    TableInfo<Table, dynamic> table,
+  Future<VersionVector> _bumpedVersion<T extends Table, D extends DataClass>(
+    TableInfo<T, D> table,
     String id,
   ) async {
     final stored = await _storedVersion(table.actualTableName, id);
@@ -363,7 +363,10 @@ class DriftLedgerStore implements LedgerStore {
     await db.into(table).insertOnConflictUpdate(toRow(version));
   }
 
-  Future<bool> _tombstone(TableInfo<Table, dynamic> table, String id) async {
+  Future<bool> _tombstone<T extends Table, D extends DataClass>(
+    TableInfo<T, D> table,
+    String id,
+  ) async {
     final name = table.actualTableName;
     final stored = await _storedVersion(name, id);
     if (stored == null) return false;
