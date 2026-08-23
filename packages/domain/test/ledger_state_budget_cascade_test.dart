@@ -31,7 +31,13 @@ void main() {
   test('deleting a budgeted category removes the budget', () {
     final state = seeded();
     final budget =
-        (state.addBudget(categoryID, Decimal.fromInt(100)).single
+        (state
+                    .addBudget(
+                      categoryID,
+                      Decimal.fromInt(100),
+                      now: DateTime.utc(2026, 1, 1),
+                    )
+                    .single
                 as UpsertBudget)
             .budget;
 
@@ -45,7 +51,13 @@ void main() {
   test('deleting a budgeted child leaves the parent budget intact', () {
     final state = seeded();
     final budget =
-        (state.addBudget(categoryID, Decimal.fromInt(100)).single
+        (state
+                    .addBudget(
+                      categoryID,
+                      Decimal.fromInt(100),
+                      now: DateTime.utc(2026, 1, 1),
+                    )
+                    .single
                 as UpsertBudget)
             .budget;
 
@@ -60,7 +72,13 @@ void main() {
     () {
       final state = seeded();
       final budget =
-          (state.addBudget(categoryID, Decimal.fromInt(100)).single
+          (state
+                      .addBudget(
+                        categoryID,
+                        Decimal.fromInt(100),
+                        now: DateTime.utc(2026, 1, 1),
+                      )
+                      .single
                   as UpsertBudget)
               .budget;
 

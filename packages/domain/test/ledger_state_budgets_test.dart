@@ -33,7 +33,11 @@ void main() {
     test('creates a budget on an active category', () {
       final state = seeded();
 
-      final changes = state.addBudget(categoryID, Decimal.fromInt(100));
+      final changes = state.addBudget(
+        categoryID,
+        Decimal.fromInt(100),
+        now: DateTime.utc(2026, 1, 1),
+      );
 
       expect(changes, hasLength(1));
       final change = changes.single as UpsertBudget;
@@ -41,10 +45,30 @@ void main() {
       expect(state.budgets[change.budget.id], isNotNull);
     });
 
+    test(
+      'stamps createdAtMonth from the caller-supplied now, not the system clock',
+      () {
+        final state = seeded();
+
+        final changes = state.addBudget(
+          categoryID,
+          Decimal.fromInt(100),
+          now: DateTime.utc(2020, 3, 15),
+        );
+
+        final change = changes.single as UpsertBudget;
+        expect(change.budget.createdAtMonth, const YearMonth(2020, 3));
+      },
+    );
+
     test('creates an overall budget when categoryID is null', () {
       final state = seeded();
 
-      final changes = state.addBudget(null, Decimal.fromInt(100));
+      final changes = state.addBudget(
+        null,
+        Decimal.fromInt(100),
+        now: DateTime.utc(2026, 1, 1),
+      );
 
       final change = changes.single as UpsertBudget;
       expect(change.budget.categoryID, isNull);
@@ -54,7 +78,11 @@ void main() {
       final state = seeded();
 
       expect(
-        () => state.addBudget(uuid(9), Decimal.fromInt(100)),
+        () => state.addBudget(
+          uuid(9),
+          Decimal.fromInt(100),
+          now: DateTime.utc(2026, 1, 1),
+        ),
         throwsA(isA<UnknownCategory>()),
       );
       expect(state.budgets, isEmpty);
@@ -65,7 +93,11 @@ void main() {
       state.deleteCategory(categoryID);
 
       expect(
-        () => state.addBudget(categoryID, Decimal.fromInt(100)),
+        () => state.addBudget(
+          categoryID,
+          Decimal.fromInt(100),
+          now: DateTime.utc(2026, 1, 1),
+        ),
         throwsA(isA<InactiveReference>()),
       );
       expect(state.budgets, isEmpty);
@@ -73,10 +105,18 @@ void main() {
 
     test('rejects a duplicate category', () {
       final state = seeded();
-      state.addBudget(categoryID, Decimal.fromInt(100));
+      state.addBudget(
+        categoryID,
+        Decimal.fromInt(100),
+        now: DateTime.utc(2026, 1, 1),
+      );
 
       expect(
-        () => state.addBudget(categoryID, Decimal.fromInt(50)),
+        () => state.addBudget(
+          categoryID,
+          Decimal.fromInt(50),
+          now: DateTime.utc(2026, 1, 1),
+        ),
         throwsA(isA<CategoryAlreadyBudgeted>()),
       );
       expect(state.budgets, hasLength(1));
@@ -84,10 +124,18 @@ void main() {
 
     test('rejects a duplicate null category', () {
       final state = seeded();
-      state.addBudget(null, Decimal.fromInt(100));
+      state.addBudget(
+        null,
+        Decimal.fromInt(100),
+        now: DateTime.utc(2026, 1, 1),
+      );
 
       expect(
-        () => state.addBudget(null, Decimal.fromInt(50)),
+        () => state.addBudget(
+          null,
+          Decimal.fromInt(50),
+          now: DateTime.utc(2026, 1, 1),
+        ),
         throwsA(isA<CategoryAlreadyBudgeted>()),
       );
       expect(state.budgets, hasLength(1));
@@ -97,7 +145,11 @@ void main() {
       final state = seeded();
 
       expect(
-        () => state.addBudget(categoryID, Decimal.zero),
+        () => state.addBudget(
+          categoryID,
+          Decimal.zero,
+          now: DateTime.utc(2026, 1, 1),
+        ),
         throwsA(isA<ZeroAmount>()),
       );
       expect(state.budgets, isEmpty);
@@ -107,7 +159,11 @@ void main() {
       final state = seeded();
 
       expect(
-        () => state.addBudget(categoryID, Decimal.fromInt(-1)),
+        () => state.addBudget(
+          categoryID,
+          Decimal.fromInt(-1),
+          now: DateTime.utc(2026, 1, 1),
+        ),
         throwsA(isA<ZeroAmount>()),
       );
       expect(state.budgets, isEmpty);
@@ -118,7 +174,13 @@ void main() {
     test('appends a new default event', () {
       final state = seeded();
       final created =
-          (state.addBudget(categoryID, Decimal.fromInt(100)).single
+          (state
+                      .addBudget(
+                        categoryID,
+                        Decimal.fromInt(100),
+                        now: DateTime.utc(2026, 1, 1),
+                      )
+                      .single
                   as UpsertBudget)
               .budget;
 
@@ -156,7 +218,13 @@ void main() {
     test('rejects a non-positive amount', () {
       final state = seeded();
       final created =
-          (state.addBudget(categoryID, Decimal.fromInt(100)).single
+          (state
+                      .addBudget(
+                        categoryID,
+                        Decimal.fromInt(100),
+                        now: DateTime.utc(2026, 1, 1),
+                      )
+                      .single
                   as UpsertBudget)
               .budget;
 
@@ -175,7 +243,13 @@ void main() {
     test('appends an override event that wins for its month', () {
       final state = seeded();
       final created =
-          (state.addBudget(categoryID, Decimal.fromInt(100)).single
+          (state
+                      .addBudget(
+                        categoryID,
+                        Decimal.fromInt(100),
+                        now: DateTime.utc(2026, 1, 1),
+                      )
+                      .single
                   as UpsertBudget)
               .budget;
 
@@ -199,7 +273,13 @@ void main() {
     test('a new override on the same month replaces the previous one', () {
       final state = seeded();
       final created =
-          (state.addBudget(categoryID, Decimal.fromInt(100)).single
+          (state
+                      .addBudget(
+                        categoryID,
+                        Decimal.fromInt(100),
+                        now: DateTime.utc(2026, 1, 1),
+                      )
+                      .single
                   as UpsertBudget)
               .budget;
       state.setBudgetMonthOverride(
@@ -239,7 +319,13 @@ void main() {
     test('removes an existing budget', () {
       final state = seeded();
       final created =
-          (state.addBudget(categoryID, Decimal.fromInt(100)).single
+          (state
+                      .addBudget(
+                        categoryID,
+                        Decimal.fromInt(100),
+                        now: DateTime.utc(2026, 1, 1),
+                      )
+                      .single
                   as UpsertBudget)
               .budget;
 

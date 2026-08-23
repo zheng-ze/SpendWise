@@ -147,7 +147,7 @@ class _BudgetFormState extends State<BudgetForm> {
     final amount = _parsedAmount!.abs();
 
     try {
-      widget.ledger.addBudget(_categoryID, amount);
+      widget.ledger.addBudget(_categoryID, amount, now: DateTime.now().toUtc());
 
       if (!mounted) return;
       Navigator.of(context).maybePop();

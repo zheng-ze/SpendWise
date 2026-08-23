@@ -1,13 +1,17 @@
 part of 'ledger_state.dart';
 
 extension LedgerStateBudgets on LedgerState {
-  List<LedgerChange> addBudget(String? categoryID, Decimal initialAmount) {
+  List<LedgerChange> addBudget(
+    String? categoryID,
+    Decimal initialAmount, {
+    required DateTime now,
+  }) {
     final normalizedCategoryID = normalizedOptionalID(categoryID);
     _validateCategoryReference(normalizedCategoryID);
     _validateCategoryUniqueness(normalizedCategoryID);
     if (initialAmount <= Decimal.zero) throw const ZeroAmount();
 
-    final createdAtMonth = YearMonth.fromUtc(startOfDayUtc(DateTime.now()));
+    final createdAtMonth = YearMonth.fromUtc(startOfDayUtc(now));
     final budget = Budget(
       categoryID: normalizedCategoryID,
       limitEvents: [

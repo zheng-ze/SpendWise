@@ -109,8 +109,12 @@ class Ledger extends ChangeNotifier {
   List<LedgerChange> deletePlan(String rawID) =>
       _mutate((state) => state.deletePlan(rawID));
 
-  List<LedgerChange> addBudget(String? categoryID, Decimal initialAmount) =>
-      _mutate((state) => state.addBudget(categoryID, initialAmount));
+  List<LedgerChange> addBudget(
+    String? categoryID,
+    Decimal initialAmount, {
+    required DateTime now,
+  }) =>
+      _mutate((state) => state.addBudget(categoryID, initialAmount, now: now));
 
   List<LedgerChange> updateBudgetAmount(
     String rawBudgetID,
