@@ -83,14 +83,6 @@ moves a local midnight back a day for every user east of Greenwich. `design.md` 
 **Touching `LedgerState` or its invariants: read `docs/DOMAIN-INVARIANTS.md` first.** Covers how
 illegal states are made unreachable and why `LedgerState` is split into `part` files by concern.
 
-**A bloated, deeply nested method stays flat: extract substantial pieces, name the rest.** Applies to
-any method, not only `build()` — a substantial or repeated chunk (a widget subtree, a branch of
-logic, a query pipeline) becomes its own function or class with one job. Prefer a named function over
-a local variable when another caller could reuse the same logic; reach for a local when the piece is
-specific to this one call site. Within one method, assign each major expression to a named local
-before the final statement instead of nesting it inline. Don't extract a one-line spacer or a short
-inline callback — only substance earns a name. `docs/WORKING-CONVENTIONS.md` has the before/after.
-
 ## Checks
 
 `cd packages/domain && dart format . && dart analyze && dart test`, and `cd app && flutter analyze`.
