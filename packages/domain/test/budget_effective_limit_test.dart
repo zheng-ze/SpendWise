@@ -70,6 +70,15 @@ void main() {
 
     expect(effectiveLimit(budget, const YearMonth(2000, 1)), _d(100));
   });
+
+  test('monthBeforeEveryDefaultEventThrowsInsteadOfCrashingOnNull', () {
+    final budget = _budgetWith([_defaultEvent(const YearMonth(2026, 6), 100)]);
+
+    expect(
+      () => effectiveLimit(budget, const YearMonth(2026, 1)),
+      throwsA(isA<StateError>()),
+    );
+  });
 }
 
 Budget _budgetWith(List<LimitEvent> events) => Budget(

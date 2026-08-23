@@ -70,5 +70,8 @@ Decimal effectiveLimit(Budget budget, YearMonth month) {
     }
   }
 
-  return latestDefault!.value;
+  if (latestDefault == null) {
+    throw StateError('Budget ${budget.id} has no default limit event at or before $month.');
+  }
+  return latestDefault.value;
 }
