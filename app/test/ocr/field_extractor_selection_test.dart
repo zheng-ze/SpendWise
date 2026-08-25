@@ -69,5 +69,29 @@ void main() {
         );
       });
     });
+
+    group('web', () {
+      test('returns null when the Prompt API is not eligible', () async {
+        final extractor = await selectFieldExtractor(
+          isWeb: true,
+          isPromptApiEligible: () async => false,
+        );
+
+        expect(extractor, isNull);
+      });
+
+      test(
+        'never checks Nano or Foundation Models eligibility on web',
+        () async {
+          await selectFieldExtractor(
+            isWeb: true,
+            isPromptApiEligible: () async => false,
+            isNanoEligible: () async => fail('should not be called on web'),
+            isFoundationModelsEligible: () async =>
+                fail('should not be called on web'),
+          );
+        },
+      );
+    });
   });
 }
