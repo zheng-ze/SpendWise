@@ -1,0 +1,17 @@
+name: ocr
+description: Text-recognition seam for SpendWise — engine-agnostic interface and value types.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  meta: ^1.18.0
+  google_mlkit_text_recognition: ^0.17.1
+
+dev_dependencies:
+  test: ^1.31.2
+  flutter_lints: ^6.0.0

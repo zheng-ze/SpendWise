@@ -5,11 +5,9 @@ mutators on `LedgerState` (`addPlan` / `updatePlan` / `deletePlan` / `resolvePla
 `removePlansReferencing` + plan validation), and the pure `Accounting` functions (balances,
 net worth, analysis classification, roll-up).
 
-**Source of truth:** every rule below was verified against the Swift code on 2026-08-08:
-`../SpendWise-SwiftUI/SpendWise/Model/{RecurringPlan,RecurrenceFrequency,OccurrenceID,LedgerState}.swift`
-and `Services/{Accounting,Accounting+Analysis}.swift`. This doc is written so the Dart
-implementation and its tests need no reference back to Swift. Conventions (Decimal money,
-String ids, sealed classes, name parity) follow the master doc `../Flutter_Port_Tech_Doc.md`.
+**Source of truth:** this doc is the current behavior spec for the Dart implementation; its
+implementation and tests need no outside reference. Conventions (Decimal money, String ids, sealed
+classes) follow `docs/ARCHITECTURE.md`.
 
 ---
 

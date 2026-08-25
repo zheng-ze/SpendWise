@@ -15,18 +15,28 @@ enum EntryFormMode { newEntry, viewing, editing }
 /// mutations that touch it. Notifies listeners on every change so the split
 /// view/edit/new widgets can rebuild without reaching into a Flutter [State].
 class EntryFormController extends ChangeNotifier {
-  EntryFormController({required this.ledger, this.entry, String? sourceScope})
-    : mode = entry == null ? EntryFormMode.newEntry : EntryFormMode.viewing,
-      kind = _kindOf(entry),
-      amountController = TextEditingController(
-        text: entry == null ? '' : formatPlainAmount(entry.amount.abs()),
-      ),
-      nameController = TextEditingController(text: entry?.name ?? ''),
-      date = entry?.date ?? _todayUtc(),
-      sourceId = entry?.sourceID ?? sourceScope,
-      destinationId = entry?.destinationID,
-      categoryId = entry?.categoryID,
-      includeInAnalysis = entry?.includeInAnalysis ?? true;
+  EntryFormController({
+    required this.ledger,
+    this.entry,
+    String? sourceScope,
+    String? initialName,
+    Decimal? initialAmount,
+    DateTime? initialDate,
+  }) : mode = entry == null ? EntryFormMode.newEntry : EntryFormMode.viewing,
+       kind = _kindOf(entry),
+       amountController = TextEditingController(
+         text: entry != null
+             ? formatPlainAmount(entry.amount.abs())
+             : (initialAmount == null ? '' : formatPlainAmount(initialAmount)),
+       ),
+       nameController = TextEditingController(
+         text: entry?.name ?? initialName ?? '',
+       ),
+       date = entry?.date ?? initialDate ?? _todayUtc(),
+       sourceId = entry?.sourceID ?? sourceScope,
+       destinationId = entry?.destinationID,
+       categoryId = entry?.categoryID,
+       includeInAnalysis = entry?.includeInAnalysis ?? true;
 
   final Ledger ledger;
   final Entry? entry;
@@ -117,6 +127,20 @@ class EntryFormController extends ChangeNotifier {
   /// Called after every keystroke in the amount/name fields, since Save's
   /// enabled state depends on their live text.
   void refresh() => notifyListeners();
+
+  /// Fills the amount/name/date fields from a receipt scan. A null [name] or
+  /// [amount] leaves that field as it was rather than clearing it.
+  void applyScanResult({
+    String? name,
+    Decimal? amount,
+    required DateTime date,
+  }) {
+    if (_disposed) return;
+    if (name != null) nameController.text = name;
+    if (amount != null) amountController.text = formatPlainAmount(amount);
+    this.date = date;
+    notifyListeners();
+  }
 
   void _applyPickerOutcome(
     PickerOutcome? outcome,

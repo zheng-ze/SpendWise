@@ -26,6 +26,10 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>SpendWise uses the camera to scan receipts and prefill a new entry.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>SpendWise uses your photos to prefill a new entry from an uploaded receipt.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

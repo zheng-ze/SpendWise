@@ -1,7 +1,9 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/settings/settings_providers.dart';
 import 'package:spendwise/ui/transactions/entry_form.dart';
 import 'package:spendwise/ui/transactions/entry_form_logic.dart';
 
@@ -60,12 +62,17 @@ void main() {
     // sits over the host app's own Scaffold/Material. Without one here, Text
     // falls back to the debug banner's oversized style and rows overflow.
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: EntryForm(
-            ledger: ledger,
-            entry: entry,
-            sourceScope: sourceScope,
+      ProviderScope(
+        // The new-entry form's scan strip reads this setting; fixed here so
+        // its default doesn't depend on real (unmocked) SharedPreferences.
+        overrides: [scanStripEnabledProvider.overrideWith((ref) async => true)],
+        child: MaterialApp(
+          home: Scaffold(
+            body: EntryForm(
+              ledger: ledger,
+              entry: entry,
+              sourceScope: sourceScope,
+            ),
           ),
         ),
       ),
@@ -273,16 +280,21 @@ void main() {
     ) async {
       final ledger = buildLedger();
       await tester.pumpWidget(
-        MaterialApp(
-          home: Builder(
-            builder: (context) => Scaffold(
-              body: ElevatedButton(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => Scaffold(body: EntryForm(ledger: ledger)),
+        ProviderScope(
+          overrides: [
+            scanStripEnabledProvider.overrideWith((ref) async => true),
+          ],
+          child: MaterialApp(
+            home: Builder(
+              builder: (context) => Scaffold(
+                body: ElevatedButton(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => Scaffold(body: EntryForm(ledger: ledger)),
+                    ),
                   ),
+                  child: const Text('open'),
                 ),
-                child: const Text('open'),
               ),
             ),
           ),
@@ -521,12 +533,17 @@ void main() {
           builder: (_) => Scaffold(body: EntryForm(ledger: ledger)),
         );
         await tester.pumpWidget(
-          MaterialApp(
-            home: Builder(
-              builder: (context) => Scaffold(
-                body: ElevatedButton(
-                  onPressed: () => Navigator.of(context).push(formRoute),
-                  child: const Text('open'),
+          ProviderScope(
+            overrides: [
+              scanStripEnabledProvider.overrideWith((ref) async => true),
+            ],
+            child: MaterialApp(
+              home: Builder(
+                builder: (context) => Scaffold(
+                  body: ElevatedButton(
+                    onPressed: () => Navigator.of(context).push(formRoute),
+                    child: const Text('open'),
+                  ),
                 ),
               ),
             ),

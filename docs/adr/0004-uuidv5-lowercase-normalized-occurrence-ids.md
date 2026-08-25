@@ -24,15 +24,13 @@ Swift's `uuidString` produces. The name string is still measured in seconds from
 matching Swift's reference point.
 
 Because a UUIDv5 name is hashed bytewise, lowercase and uppercase of the same id are different
-names, so this port's occurrence ids differ from the equivalent Swift-computed ids for the same
-plan and day. This is intentional, not a defect to repair: the frozen SwiftUI app is a behavioral
-reference for what the app should do, not a byte-for-byte conformance target, and nothing
-cross-reads occurrence ids between the two apps. Matching Swift here would mean reintroducing an
-uppercase id at exactly the boundary the lowercase-normalization rule exists to close.
+names. Occurrence ids are this app's own identity scheme: nothing requires them to match ids
+produced by any other system for the same plan and day, so there was no byte-for-byte conformance
+target to preserve. Uppercasing the plan id to match Swift's `uuidString` convention would mean
+reintroducing an uppercase id at exactly the boundary the lowercase-normalization rule exists to
+close.
 
 ## Consequences
 
-Occurrence ids computed by this port will never match occurrence ids computed by the Swift app for
-the same plan and day — anyone comparing the two apps' stored data directly needs to know this.
 Every future change to occurrence-id derivation must keep the plan id normalized to lowercase on
 the way into the UUIDv5 name, regardless of how the rest of the derivation evolves.

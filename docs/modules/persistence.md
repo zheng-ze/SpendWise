@@ -1,13 +1,13 @@
 # Persistence Module — Behavior Spec (Drift/SQLite)
 
 **Scope:** `app/lib/persistence/` — `LedgerStore` contract, `InMemoryLedgerStore`, the Drift store,
-schema, mapping, version vectors, seeding. Source of truth for every claim:
-`../SpendWise-SwiftUI/SpendWise/Repository/Persistence/` (verified against code 2026-08-08).
-Parent doc: `docs/Flutter_Port_Tech_Doc.md` (§4.3, §5 hazards 2/3/5/6/7, §1 defects 6–7 context).
+schema, mapping, version vectors, seeding. This doc is the current behavior spec for the Dart
+implementation. Parent doc: `docs/ARCHITECTURE.md` (§4.3 persistence layer, §5 domain and
+implementation rules).
 
-This spec defines **expected behavior** of the Dart implementation. Two deviations from the Swift
-original are deliberate and marked **PORT FIX** (§8): the `flushNow` early-return hole and the
-dead-end `failedWillRetry` state. Everything else is behavior-for-behavior parity.
+This spec defines **expected behavior** of the Dart implementation, including the durable fixes
+marked **PORT FIX** (§8) for the `flushNow` early-return hole and the dead-end `failedWillRetry`
+state.
 
 ---
 
