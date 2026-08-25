@@ -1,12 +1,14 @@
-import 'dart:typed_data';
-
+import 'package:decimal/decimal.dart';
+import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:ocr/ocr.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-import 'package:spendwise/ocr/amount_extraction.dart';
 import 'package:spendwise/ocr/date_extraction.dart';
-import 'package:spendwise/ocr/name_extraction.dart';
+import 'package:spendwise/ocr/field_extraction_failure.dart';
+import 'package:spendwise/ocr/field_extractor.dart';
+import 'package:spendwise/ocr/field_extractor_selection.dart';
+import 'package:spendwise/ocr/line_rows.dart';
 import 'package:spendwise/ocr/receipt_recognizer_selection.dart';
 import 'package:spendwise/ui/transactions/entry_form_controller.dart';
 
@@ -54,7 +56,27 @@ Future<void> runReceiptScan({
 
   final bytes = await picked.readAsBytes();
   final recognized = await _recognize(bytes);
-  _applyExtractedFields(recognized, controller);
+  await applyExtractedFields(recognized, controller);
+}
+
+/// Fills [controller] from [recognized]'s text: date always (heuristic,
+/// defaults to today), name/amount from whatever [selectFieldExtractor]
+/// returns and can extract.
+@visibleForTesting
+Future<void> applyExtractedFields(
+  RecognizedText recognized,
+  EntryFormController controller, {
+  Future<FieldExtractor?> Function()? selectExtractor,
+}) async {
+  final fields = await _extractFields(
+    recognized,
+    selectExtractor ?? selectFieldExtractor,
+  );
+  controller.applyScanResult(
+    name: fields.name,
+    amount: fields.amount,
+    date: extractDate(recognized),
+  );
 }
 
 Future<bool> _requestPermission(Permission permission) async {
@@ -77,13 +99,34 @@ Future<RecognizedText> _recognize(Uint8List bytes) async {
   }
 }
 
-void _applyExtractedFields(
+// Bundled so a caller with nothing to report can hand back one value
+// instead of juggling name and amount separately.
+class _ExtractedFields {
+  const _ExtractedFields({this.name, this.amount});
+
+  final String? name;
+  final Decimal? amount;
+
+  static const none = _ExtractedFields();
+}
+
+// No extractor and a throwing extractor both resolve to blank fields here,
+// same as the recognition failure above.
+Future<_ExtractedFields> _extractFields(
   RecognizedText recognized,
-  EntryFormController controller,
-) {
-  controller.applyScanResult(
-    name: extractName(recognized),
-    amount: extractAmount(recognized),
-    date: extractDate(recognized),
-  );
+  Future<FieldExtractor?> Function() selectExtractor,
+) async {
+  final extractor = await selectExtractor();
+  if (extractor == null) return _ExtractedFields.none;
+
+  try {
+    final text = toReadingOrderText(recognized.lines);
+    final nameFuture = extractor.extractName(text);
+    final amountFuture = extractor.extractAmount(text);
+    return _ExtractedFields(name: await nameFuture, amount: await amountFuture);
+  } on FieldExtractionFailure {
+    return _ExtractedFields.none;
+  } finally {
+    await extractor.dispose();
+  }
 }
