@@ -26,6 +26,15 @@ void main() {
         );
       },
     );
+
+    test('treats a null native response as unavailable', () async {
+      messenger.setMockMethodCallHandler(channel, (call) async => null);
+
+      expect(
+        await FoundationModelsChannel().checkFeatureStatus(),
+        FoundationModelsFeatureStatus.unavailable,
+      );
+    });
   });
 
   group('runInference', () {
@@ -36,7 +45,10 @@ void main() {
         return 'Kopi Tiam';
       });
 
-      expect(await FoundationModelsChannel().runInference('hello'), 'Kopi Tiam');
+      expect(
+        await FoundationModelsChannel().runInference('hello'),
+        'Kopi Tiam',
+      );
     });
 
     test('propagates a PlatformException from the native side', () async {
@@ -49,5 +61,17 @@ void main() {
         throwsA(isA<PlatformException>()),
       );
     });
+
+    test(
+      'throws a PlatformException when the native side returns null',
+      () async {
+        messenger.setMockMethodCallHandler(channel, (call) async => null);
+
+        expect(
+          () => FoundationModelsChannel().runInference('hello'),
+          throwsA(isA<PlatformException>()),
+        );
+      },
+    );
   });
 }

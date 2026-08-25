@@ -34,7 +34,8 @@ Future<FieldExtractor?> selectFieldExtractor({
   }
 
   if (isIOS ?? defaultTargetPlatform == TargetPlatform.iOS) {
-    final eligible = await (isFoundationModelsEligible ?? isFoundationModelsAvailable)();
+    final eligible =
+        await (isFoundationModelsEligible ?? isFoundationModelsAvailable)();
     return eligible ? FoundationModelsFieldExtractor() : null;
   }
 

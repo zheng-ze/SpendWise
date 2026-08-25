@@ -1,7 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ocr/field_extraction_failure.dart';
-import 'package:spendwise/ocr/ios/foundation_models_engine.dart';
 import 'package:spendwise/ocr/ios/foundation_models_field_extractor.dart';
 
 void main() {
@@ -13,33 +12,22 @@ void main() {
 
   tearDown(() => messenger.setMockMethodCallHandler(channel, null));
 
-  test('ChannelFoundationModelsEngine round-trips a successful response', () async {
-    messenger.setMockMethodCallHandler(
-      channel,
-      (call) async => 'Kopi Tiam',
+  test('a PlatformException from the channel becomes a FieldExtractionFailure '
+      'at the FoundationModelsFieldExtractor seam', () async {
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      throw PlatformException(
+        code: 'runInference',
+        message: 'model unavailable mid-call',
+      );
+    });
+
+    final extractor = FoundationModelsFieldExtractor();
+
+    expect(
+      () => extractor.extractName('Kopi Tiam\nTOTAL 9.50'),
+      throwsA(isA<FieldExtractionFailure>()),
     );
-
-    expect(await ChannelFoundationModelsEngine().runInference('name?'), 'Kopi Tiam');
   });
-
-  test(
-    'a PlatformException from the channel becomes a FieldExtractionFailure '
-    'at the FoundationModelsFieldExtractor seam',
-    () async {
-      messenger.setMockMethodCallHandler(channel, (call) async {
-        throw PlatformException(code: 'runInference', message: 'model unavailable mid-call');
-      });
-
-      final extractor = FoundationModelsFieldExtractor(
-        engine: ChannelFoundationModelsEngine(),
-      );
-
-      expect(
-        () => extractor.extractName('Kopi Tiam\nTOTAL 9.50'),
-        throwsA(isA<FieldExtractionFailure>()),
-      );
-    },
-  );
 
   group('isFoundationModelsAvailable', () {
     test('returns true when the channel reports available', () async {

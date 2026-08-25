@@ -1,78 +1,32 @@
 import 'package:decimal/decimal.dart';
 
-import '../field_extraction_failure.dart';
 import '../field_extractor.dart';
+import '../receipt_prompt_field_extractor.dart';
 import 'foundation_models_channel.dart';
-import 'foundation_models_engine.dart';
-
-// The model is told to answer with this exact token when a field isn't on
-// the receipt, so "found nothing" is a string compare instead of another
-// round of free-form-response parsing.
-const _noneFoundToken = 'NONE';
-
-const _namePrompt =
-    'You are reading the text of a store receipt, scanned line by line from '
-    'top to bottom. Identify the name of the merchant or business that '
-    'issued this receipt. Reply with only the merchant name, nothing else. '
-    'If no merchant name is present, reply with exactly "$_noneFoundToken".\n\n'
-    'Receipt text:\n';
-
-// Amount needs explicit exclusion/priority guidance, same finding as
-// Android's prompt (issue #18): an unguided prompt confused "Cash"/"Change
-// Due" lines with the real total.
-const _amountPrompt =
-    'You are reading the text of a store receipt, scanned line by line from '
-    'top to bottom. Identify the final total amount the customer was '
-    'charged. Prefer a line labeled "Total", "Grand Total", or "Amount Due". '
-    'Ignore lines labeled "Subtotal", "Tax", "Cash", "Change Due", or '
-    '"Tendered" - those are not the total. Reply with only the amount as a '
-    'number, optionally with a currency symbol, nothing else. If no total '
-    'amount is present, reply with exactly "$_noneFoundToken".\n\n'
-    'Receipt text:\n';
-
-final _currencyNumber = RegExp(
-  r'\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?|\d+\.\d{1,2}',
-);
 
 /// Extracts receipt fields using Apple's Foundation Models framework
 /// (Apple-Intelligence-eligible devices, iOS 26+). Whether this can even be
 /// constructed for the current device is decided by
 /// `field_extractor_selection.dart`, not here.
 class FoundationModelsFieldExtractor implements FieldExtractor {
-  FoundationModelsFieldExtractor({FoundationModelsEngine? engine})
-    : _engine = engine ?? ChannelFoundationModelsEngine();
+  FoundationModelsFieldExtractor({PromptRunner? runPrompt})
+    : _inner = ReceiptPromptFieldExtractor(
+        runPrompt: runPrompt ?? FoundationModelsChannel().runInference,
+        engineName: 'Foundation Models',
+      );
 
-  final FoundationModelsEngine _engine;
-
-  @override
-  Future<String?> extractName(String readingOrderText) async {
-    final response = await _runInference('$_namePrompt$readingOrderText');
-    final trimmed = response.trim();
-    return trimmed.isEmpty || trimmed == _noneFoundToken ? null : trimmed;
-  }
+  final ReceiptPromptFieldExtractor _inner;
 
   @override
-  Future<Decimal?> extractAmount(String readingOrderText) async {
-    final response = await _runInference('$_amountPrompt$readingOrderText');
-    if (response.trim() == _noneFoundToken) return null;
-
-    final match = _currencyNumber.firstMatch(response);
-    if (match == null) return null;
-    return Decimal.tryParse(match.group(0)!.replaceAll(',', ''));
-  }
-
-  // Fresh prompt per call, never shared across the name and amount calls -
-  // nothing confirms reusing one session across calls is safe here either.
-  Future<String> _runInference(String prompt) async {
-    try {
-      return await _engine.runInference(prompt);
-    } catch (e) {
-      throw FieldExtractionFailure('Foundation Models: $e');
-    }
-  }
+  Future<String?> extractName(String readingOrderText) =>
+      _inner.extractName(readingOrderText);
 
   @override
-  Future<void> dispose() async {}
+  Future<Decimal?> extractAmount(String readingOrderText) =>
+      _inner.extractAmount(readingOrderText);
+
+  @override
+  Future<void> dispose() => _inner.dispose();
 }
 
 /// Reports whether Apple's Foundation Models framework can run on this

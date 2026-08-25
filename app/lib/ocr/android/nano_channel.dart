@@ -14,13 +14,20 @@ class NanoChannel {
 
   Future<NanoFeatureStatus> checkFeatureStatus() async {
     final status = await _channel.invokeMethod<int>('checkFeatureStatus');
-    return NanoFeatureStatus.values[status!];
+    if (status == null) return NanoFeatureStatus.unavailable;
+    return NanoFeatureStatus.values[status];
   }
 
   Future<String> runInference(String prompt) async {
     final response = await _channel.invokeMethod<String>('runInference', {
       'prompt': prompt,
     });
-    return response!;
+    if (response == null) {
+      throw PlatformException(
+        code: 'runInference',
+        message: 'Native side returned no response',
+      );
+    }
+    return response;
   }
 }

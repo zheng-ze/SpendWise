@@ -121,9 +121,9 @@ Future<_ExtractedFields> _extractFields(
 
   try {
     final text = toReadingOrderText(recognized.lines);
-    final name = await extractor.extractName(text);
-    final amount = await extractor.extractAmount(text);
-    return _ExtractedFields(name: name, amount: amount);
+    final nameFuture = extractor.extractName(text);
+    final amountFuture = extractor.extractAmount(text);
+    return _ExtractedFields(name: await nameFuture, amount: await amountFuture);
   } on FieldExtractionFailure {
     return _ExtractedFields.none;
   } finally {

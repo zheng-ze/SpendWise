@@ -23,6 +23,15 @@ void main() {
         NanoFeatureStatus.available,
       );
     });
+
+    test('treats a null native response as unavailable', () async {
+      messenger.setMockMethodCallHandler(channel, (call) async => null);
+
+      expect(
+        await NanoChannel().checkFeatureStatus(),
+        NanoFeatureStatus.unavailable,
+      );
+    });
   });
 
   group('runInference', () {
@@ -46,5 +55,17 @@ void main() {
         throwsA(isA<PlatformException>()),
       );
     });
+
+    test(
+      'throws a PlatformException when the native side returns null',
+      () async {
+        messenger.setMockMethodCallHandler(channel, (call) async => null);
+
+        expect(
+          () => NanoChannel().runInference('hello'),
+          throwsA(isA<PlatformException>()),
+        );
+      },
+    );
   });
 }

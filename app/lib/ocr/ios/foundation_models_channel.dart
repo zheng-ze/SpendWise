@@ -11,17 +11,26 @@ enum FoundationModelsFeatureStatus { unavailable, available }
 /// it. A failure on the native side surfaces as a [PlatformException] from
 /// either method, uncaught.
 class FoundationModelsChannel {
-  static const _channel = MethodChannel('spendwise/foundation_models_field_extractor');
+  static const _channel = MethodChannel(
+    'spendwise/foundation_models_field_extractor',
+  );
 
   Future<FoundationModelsFeatureStatus> checkFeatureStatus() async {
     final status = await _channel.invokeMethod<int>('checkFeatureStatus');
-    return FoundationModelsFeatureStatus.values[status!];
+    if (status == null) return FoundationModelsFeatureStatus.unavailable;
+    return FoundationModelsFeatureStatus.values[status];
   }
 
   Future<String> runInference(String prompt) async {
     final response = await _channel.invokeMethod<String>('runInference', {
       'prompt': prompt,
     });
-    return response!;
+    if (response == null) {
+      throw PlatformException(
+        code: 'runInference',
+        message: 'Native side returned no response',
+      );
+    }
+    return response;
   }
 }
