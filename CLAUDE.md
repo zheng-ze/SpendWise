@@ -100,9 +100,13 @@ Verifying green on `dev` is the point to comment on the issue with a link to the
 it — closing is what confirms the work actually shipped. Check the PR's merge state
 (`gh pr view <n> --json state,mergedAt`) before closing the issue it resolves.
 
-**The user commits themselves — never run `git commit`.** Report green and hand it over. When
-staging uncommitted work for them, split it into logical chunks and wait for a go-ahead between
-each — `docs/WORKING-CONVENTIONS.md` has the pattern.
+**Only the main session runs `git commit`, and only after each logical chunk goes green — no
+per-chunk go-ahead needed.** A subagent must never run `git commit`; it reports its work back to the
+main session, which commits it. Split each chunk further by kind: code, tests, and docs each get
+their own commit, never combined into one. Write commit messages in plain language — no jargon (for
+example, don't say "seam"). A commit message is a summary line only, no body, in this repo's
+`type(scope): summary` form (`feat`, `fix`, `docs`, `style`, `refactor`, etc — see recent commits for
+the exact type list in use). `docs/WORKING-CONVENTIONS.md` has the chunking pattern.
 
 **Never `git checkout`, `git restore`, `git stash`, `git reset` or `git clean`.** Restore a mutated
 file from a file copy. Under parallel agents these would discard another agent's work. This is
