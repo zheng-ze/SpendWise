@@ -40,6 +40,14 @@ kotlin {
     }
 }
 
+dependencies {
+    // Requires API 26 at runtime, below this app's own minSdk on purpose -
+    // every call site guards with Build.VERSION.SDK_INT before touching these classes.
+    implementation("com.google.mlkit:genai-prompt:1.0.0-beta4")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
+    implementation("com.google.android.gms:play-services-mlkit-document-scanner:16.0.0-beta1")
+}
+
 flutter {
     source = "../.."
 }
