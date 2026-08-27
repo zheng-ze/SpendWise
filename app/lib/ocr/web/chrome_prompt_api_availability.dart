@@ -15,10 +15,16 @@ enum PromptApiAvailability { unavailable, downloadable, downloading, available }
 /// the same API) with Gemini Nano downloaded and ready to run right now.
 /// [isWeb] lets a test fix the platform branch instead of reading [kIsWeb].
 /// [checkAvailability] lets a test fake the browser call instead of hitting
-/// a real `LanguageModel` global.
+/// a real `LanguageModel` global. [triggerDownload] lets a test fake starting
+/// the model download instead of calling `LanguageModel.create()`.
+///
+/// Never available on the same call that starts a download: the caller
+/// always sees the model as not-ready-yet and has to check again later, on
+/// a fresh page load.
 Future<bool> isChromePromptApiAvailable({
   bool? isWeb,
   Future<PromptApiAvailability> Function()? checkAvailability,
+  Future<void> Function()? triggerDownload,
 }) async {
   // dart:js_interop globals don't exist on non-web platforms, so that branch
   // is checked first, mirroring receipt_recognizer_selection.dart's kIsWeb
@@ -26,9 +32,9 @@ Future<bool> isChromePromptApiAvailable({
   if (!(isWeb ?? kIsWeb)) return false;
 
   final availability = await (checkAvailability ?? _checkLanguageModel)();
-  // Downloadable/downloading means Nano isn't ready to run yet - treated the
-  // same as unavailable, since triggering and awaiting that download isn't
-  // built (same call Android's field_extractor_selection.dart makes).
+  if (availability == PromptApiAvailability.downloadable) {
+    await (triggerDownload ?? _startModelDownload)();
+  }
   return availability == PromptApiAvailability.available;
 }
 
@@ -37,4 +43,9 @@ Future<PromptApiAvailability> _checkLanguageModel() async {
 
   final result = await JSLanguageModel.availability().toDart;
   return PromptApiAvailability.values.byName(result.toDart);
+}
+
+Future<void> _startModelDownload() async {
+  final session = await JSLanguageModel.create().toDart;
+  session.destroy();
 }
