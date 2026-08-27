@@ -28,10 +28,8 @@ enum _Corner {
   };
 }
 
-/// Web's manual crop step: the picked-up photo, uncropped, with four
-/// draggable corner handles the user drags onto the receipt's actual edges.
-/// Confirming crops to the handles' bounding rect and pops the result;
-/// backing out pops null, matching `ImagePicker`'s own cancel contract.
+/// Shows [imageBytes] with four draggable corner handles. Pops the cropped
+/// bytes on confirm, or null if the user backs out.
 class DocumentCropScreen extends StatefulWidget {
   const DocumentCropScreen({super.key, required this.imageBytes});
 
