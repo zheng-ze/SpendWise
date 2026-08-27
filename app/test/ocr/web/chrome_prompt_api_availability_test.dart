@@ -29,11 +29,40 @@ void main() {
       final result = await isChromePromptApiAvailable(
         isWeb: true,
         checkAvailability: () async => PromptApiAvailability.downloadable,
+        triggerDownload: () async {},
       );
 
       expect(result, isFalse);
     },
   );
+
+  test('starts the download when the model is downloadable', () async {
+    var triggered = false;
+
+    await isChromePromptApiAvailable(
+      isWeb: true,
+      checkAvailability: () async => PromptApiAvailability.downloadable,
+      triggerDownload: () async => triggered = true,
+    );
+
+    expect(triggered, isTrue);
+  });
+
+  test('does not start a download when the model is already available', () async {
+    await isChromePromptApiAvailable(
+      isWeb: true,
+      checkAvailability: () async => PromptApiAvailability.available,
+      triggerDownload: () async => fail('should not be called'),
+    );
+  });
+
+  test('does not start a download while one is already in progress', () async {
+    await isChromePromptApiAvailable(
+      isWeb: true,
+      checkAvailability: () async => PromptApiAvailability.downloading,
+      triggerDownload: () async => fail('should not be called'),
+    );
+  });
 
   test('is false when the model is mid-download', () async {
     final result = await isChromePromptApiAvailable(
