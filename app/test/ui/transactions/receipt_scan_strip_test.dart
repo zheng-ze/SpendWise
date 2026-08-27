@@ -17,7 +17,11 @@ void main() {
     );
   }
 
-  Future<void> pumpStrip(WidgetTester tester, {required bool enabled}) async {
+  Future<void> pumpStrip(
+    WidgetTester tester, {
+    required bool enabled,
+    bool extractionReady = true,
+  }) async {
     final controller = EntryFormController(ledger: buildLedger());
     addTearDown(controller.dispose);
 
@@ -25,6 +29,9 @@ void main() {
       ProviderScope(
         overrides: [
           scanStripEnabledProvider.overrideWith((ref) async => enabled),
+          fieldExtractionReadyProvider.overrideWith(
+            (ref) async => extractionReady,
+          ),
         ],
         child: MaterialApp(
           home: Scaffold(body: ReceiptScanStrip(controller: controller)),
@@ -45,6 +52,15 @@ void main() {
 
   testWidgets('renders nothing when the setting is off', (tester) async {
     await pumpStrip(tester, enabled: false);
+
+    expect(find.text('Scan receipt'), findsNothing);
+    expect(find.text('Upload photo'), findsNothing);
+  });
+
+  testWidgets('renders nothing when field extraction is not ready yet', (
+    tester,
+  ) async {
+    await pumpStrip(tester, enabled: true, extractionReady: false);
 
     expect(find.text('Scan receipt'), findsNothing);
     expect(find.text('Upload photo'), findsNothing);
