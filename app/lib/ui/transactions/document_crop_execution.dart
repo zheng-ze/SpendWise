@@ -4,11 +4,8 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
-/// Crops [sourceBytes] (any format [ui.decodeImageFromList] can read) to
-/// [rect], in the source image's own pixel coordinates, and returns PNG
-/// bytes. [rect] is clamped to the source image's bounds first, so a
-/// dragged handle that ended up outside the image never asks for pixels
-/// that don't exist.
+/// Crops [sourceBytes] to [rect], in the source image's own pixel
+/// coordinates, and returns PNG bytes. Clamps [rect] to the image bounds.
 Future<Uint8List> cropToRect(Uint8List sourceBytes, Rect rect) async {
   final source = await _decodeImage(sourceBytes);
   final bounds = Rect.fromLTWH(
@@ -17,6 +14,8 @@ Future<Uint8List> cropToRect(Uint8List sourceBytes, Rect rect) async {
     source.width.toDouble(),
     source.height.toDouble(),
   );
+  // A dragged handle can end up outside the image; clamping keeps this from
+  // asking for pixels that don't exist.
   final clamped = rect.intersect(bounds);
 
   final recorder = ui.PictureRecorder();

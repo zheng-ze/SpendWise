@@ -21,11 +21,8 @@ private val scannerOptions =
 
 /**
  * Launches ML Kit's own document-scanning UI and returns the scanned page's JPEG bytes, or
- * null if the user backs out without capturing.
- *
- * Requires Google Play Services. [launchScanner] fails fast with an error result when Play
- * Services is missing or outdated, rather than presenting a scanner that would crash mid-flow -
- * the Dart side falls back to the plain image picker on that error.
+ * null if the user backs out without capturing. Returns an error result if Google Play
+ * Services is missing or outdated.
  */
 class DocumentScannerChannel(
     private val activity: Activity,
@@ -45,6 +42,8 @@ class DocumentScannerChannel(
     private fun scanDocument(result: MethodChannel.Result) {
         val availability = GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(activity)
         if (availability != ConnectionResult.SUCCESS) {
+            // Fails here instead of letting the scanner launch and crash mid-flow; the Dart
+            // side falls back to the plain image picker on this error.
             result.error("scanDocument", "Google Play Services is not available", null)
             return
         }

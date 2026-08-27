@@ -37,10 +37,7 @@ enum ReceiptScanStop {
 /// picker. Any other failure still fills [controller] with what it can.
 ///
 /// [preCapturedBytes], when given, skips the permission check and the
-/// picker entirely and recognizes those bytes directly - the caller is
-/// expected to have already captured the image itself (a native document
-/// scanner, or web's manual crop screen), including handling its own
-/// cancel case before ever calling this function.
+/// picker entirely and recognizes those bytes directly.
 Future<void> runReceiptScan({
   required ReceiptScanSource source,
   required EntryFormController controller,
@@ -78,8 +75,6 @@ Future<bool> _requestPermission(Permission permission) async {
   return status.isGranted || status.isLimited;
 }
 
-// A recognition failure returns empty lines rather than throwing further, so
-// a corrupt file behaves the same as an image with no text.
 Future<RecognizedText> _recognize(Uint8List bytes) async {
   final recognizer = selectRecognizer();
   if (recognizer == null) return RecognizedText(const []);
@@ -87,19 +82,39 @@ Future<RecognizedText> _recognize(Uint8List bytes) async {
   try {
     return await recognizer.recognize(RecognizableImage(bytes));
   } on TextRecognitionFailure {
+    // A corrupt file behaves the same as an image with no text.
     return RecognizedText(const []);
   } finally {
     await recognizer.dispose();
   }
 }
 
-void _applyExtractedFields(
+class _ExtractedFields {
+  const _ExtractedFields({this.name, this.amount});
+
+  final String? name;
+  final Decimal? amount;
+
+  // Lets a caller with nothing to report hand back one value.
+  static const none = _ExtractedFields();
+}
+
+Future<_ExtractedFields> _extractFields(
   RecognizedText recognized,
-  EntryFormController controller,
-) {
-  controller.applyScanResult(
-    name: extractName(recognized),
-    amount: extractAmount(recognized),
-    date: extractDate(recognized),
-  );
+  Future<FieldExtractor?> Function() selectExtractor,
+) async {
+  final extractor = await selectExtractor();
+  if (extractor == null) return _ExtractedFields.none;
+
+  try {
+    final text = toReadingOrderText(recognized.lines);
+    final nameFuture = extractor.extractName(text);
+    final amountFuture = extractor.extractAmount(text);
+    return _ExtractedFields(name: await nameFuture, amount: await amountFuture);
+  } on FieldExtractionFailure {
+    // Same blank-fields outcome as no extractor being available above.
+    return _ExtractedFields.none;
+  } finally {
+    await extractor.dispose();
+  }
 }
