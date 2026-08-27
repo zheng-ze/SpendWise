@@ -55,11 +55,13 @@ carry this section's rules, not just point at this file.
 
 ## Staging and commits
 
-**When asked to stage uncommitted work, split it into logical chunks and stage one at a time.**
-Group by task/change, not by file type or directory. Suggest a one-line commit message per chunk but
-do not commit it — the user commits. Wait for an explicit go-ahead before staging the next chunk; a
-short reply like "next" or "yes" means continue the pattern, not a request to compress reporting
-further.
+**Split uncommitted work into logical chunks and commit one at a time.** Group by task/change, not
+by file type or directory. Within a chunk, split further by kind: code, tests, and docs each get
+their own commit, never combined into one. Only the main session runs `git commit` — a subagent
+reports its finished work back to the main session, which commits it; a subagent must never commit
+its own work. No go-ahead is needed between chunks. Write each commit message in plain language, no
+jargon, as a summary line only — no body — in `type(scope): summary` form (`feat`, `fix`, `docs`,
+`style`, `refactor`, etc).
 
 ## Handover docs
 
