@@ -20,7 +20,9 @@ class ReceiptScanStrip extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final enabled = ref.watch(scanStripEnabledProvider).value ?? true;
-    if (!enabled) return const SizedBox.shrink();
+    final extractionReady =
+        ref.watch(fieldExtractionReadyProvider).value ?? true;
+    if (!enabled || !extractionReady) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
