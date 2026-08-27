@@ -48,7 +48,8 @@ class ReceiptScanStrip extends ConsumerWidget {
   }
 
   Future<void> _scanWithNativeScanner(BuildContext context) async {
-    final scanner = selectDocumentScanner();
+    final scanner = await selectDocumentScanner();
+    if (!context.mounted) return;
     if (scanner == null) {
       await _runScan(context, ReceiptScanSource.camera);
       return;
@@ -67,11 +68,7 @@ class ReceiptScanStrip extends ConsumerWidget {
 
     if (bytes == null) return;
     if (!context.mounted) return;
-    await _runScan(
-      context,
-      ReceiptScanSource.camera,
-      preCapturedBytes: bytes,
-    );
+    await _runScan(context, ReceiptScanSource.camera, preCapturedBytes: bytes);
   }
 
   Future<void> _uploadPhoto(BuildContext context) async {
@@ -84,9 +81,7 @@ class ReceiptScanStrip extends ConsumerWidget {
     final bytes = await picked.readAsBytes();
     if (!context.mounted) return;
     final cropped = await Navigator.of(context).push<Uint8List>(
-      MaterialPageRoute(
-        builder: (_) => DocumentCropScreen(imageBytes: bytes),
-      ),
+      MaterialPageRoute(builder: (_) => DocumentCropScreen(imageBytes: bytes)),
     );
     if (cropped == null) return;
     if (!context.mounted) return;
