@@ -1,5 +1,6 @@
 import 'package:decimal/decimal.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:ocr/ocr.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -37,26 +38,39 @@ enum ReceiptScanStop {
 
 /// Returns early and calls [onStop] on a denied permission or a cancelled
 /// picker. Any other failure still fills [controller] with what it can.
+///
+/// [preCapturedBytes], when given, skips the permission check and the
+/// picker entirely and recognizes those bytes directly.
 Future<void> runReceiptScan({
   required ReceiptScanSource source,
   required EntryFormController controller,
+  Uint8List? preCapturedBytes,
   void Function(ReceiptScanStop stop)? onStop,
 }) async {
+  final bytes = preCapturedBytes ?? await _pickImage(source, onStop);
+  if (bytes == null) return;
+
+  final recognized = await _recognize(bytes);
+  await applyExtractedFields(recognized, controller);
+}
+
+Future<Uint8List?> _pickImage(
+  ReceiptScanSource source,
+  void Function(ReceiptScanStop stop)? onStop,
+) async {
   final granted = await _requestPermission(source.permission);
   if (!granted) {
     onStop?.call(ReceiptScanStop.permissionDenied);
-    return;
+    return null;
   }
 
   final picked = await ImagePicker().pickImage(source: source.pickerSource);
   if (picked == null) {
     onStop?.call(ReceiptScanStop.cancelled);
-    return;
+    return null;
   }
 
-  final bytes = await picked.readAsBytes();
-  final recognized = await _recognize(bytes);
-  await applyExtractedFields(recognized, controller);
+  return picked.readAsBytes();
 }
 
 /// Fills [controller] from [recognized]'s text: date always (heuristic,
@@ -84,8 +98,6 @@ Future<bool> _requestPermission(Permission permission) async {
   return status.isGranted || status.isLimited;
 }
 
-// A recognition failure returns empty lines rather than throwing further, so
-// a corrupt file behaves the same as an image with no text.
 Future<RecognizedText> _recognize(Uint8List bytes) async {
   final recognizer = selectRecognizer();
   if (recognizer == null) return RecognizedText(const []);
@@ -93,30 +105,35 @@ Future<RecognizedText> _recognize(Uint8List bytes) async {
   try {
     return await recognizer.recognize(RecognizableImage(bytes));
   } on TextRecognitionFailure {
+    // A corrupt file behaves the same as an image with no text.
     return RecognizedText(const []);
   } finally {
     await recognizer.dispose();
   }
 }
 
-// Bundled so a caller with nothing to report can hand back one value
-// instead of juggling name and amount separately.
 class _ExtractedFields {
   const _ExtractedFields({this.name, this.amount});
 
   final String? name;
   final Decimal? amount;
 
+  // Lets a caller with nothing to report hand back one value.
   static const none = _ExtractedFields();
 }
 
-// No extractor and a throwing extractor both resolve to blank fields here,
-// same as the recognition failure above.
 Future<_ExtractedFields> _extractFields(
   RecognizedText recognized,
   Future<FieldExtractor?> Function() selectExtractor,
 ) async {
-  final extractor = await selectExtractor();
+  FieldExtractor? extractor;
+  try {
+    extractor = await selectExtractor();
+  } on PlatformException {
+    // The device's eligibility check itself failed (for example, AICore
+    // reporting the feature unavailable), not just "no extractor found".
+    return _ExtractedFields.none;
+  }
   if (extractor == null) return _ExtractedFields.none;
 
   try {
@@ -125,6 +142,7 @@ Future<_ExtractedFields> _extractFields(
     final amountFuture = extractor.extractAmount(text);
     return _ExtractedFields(name: await nameFuture, amount: await amountFuture);
   } on FieldExtractionFailure {
+    // Same blank-fields outcome as no extractor being available above.
     return _ExtractedFields.none;
   } finally {
     await extractor.dispose();
