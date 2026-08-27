@@ -20,6 +20,21 @@ platform, including web.
 A setting SHALL control whether this strip is shown at all, defaulting to shown. Hiding it SHALL
 leave the new-entry form otherwise unchanged.
 
+On iOS and Android, "Scan receipt" SHALL launch that platform's own document-scanning UI (Apple's
+`VNDocumentCameraViewController` on iOS, Google's ML Kit `GmsDocumentScanner` on Android) rather
+than a plain camera capture. The scanner's own live edge detection and capture step SHALL run to
+completion before this capability's extraction pipeline ever sees an image; only the scanner's
+finished, cropped page SHALL be handed to extraction. If Android's scanner is unavailable because
+Google Play Services is missing or outdated, "Scan receipt" SHALL fall back to a plain camera
+capture instead of showing an error.
+
+On web, "Upload photo" SHALL show a manual crop step after the file is picked and before
+extraction runs: the picked image, uncropped, with four draggable corner handles the user drags
+onto the receipt's own edges. Confirming SHALL crop to the handles' bounding rectangle and proceed
+to extraction; backing out of this step SHALL return the user to the new-entry form unchanged, the
+same as cancelling the file picker itself. This step does not apply on iOS or Android, where the
+native scanner above already returns a corrected crop.
+
 #### Scenario: Strip hidden by setting
 
 - **WHEN** the user has turned the scan/upload strip off in settings
@@ -30,6 +45,16 @@ leave the new-entry form otherwise unchanged.
 
 - **WHEN** the app is running on web
 - **THEN** "Upload photo" is offered and "Scan receipt" is not
+
+#### Scenario: Android falls back to plain capture without Play Services
+
+- **WHEN** the user taps "Scan receipt" on an Android device without Google Play Services
+- **THEN** a plain camera capture opens instead of the ML Kit scanner, with no error shown
+
+#### Scenario: Backing out of web's crop step returns to an unchanged form
+
+- **WHEN** the user picks a photo on web, reaches the crop step, and backs out without confirming
+- **THEN** the new-entry form is unchanged, as if "Upload photo" had never been tapped
 
 ### Requirement: Permission requests are never speculative
 
@@ -142,7 +167,10 @@ form; this capability SHALL only ever pre-fill the form defined in `entry-form.m
 save path directly.
 
 A single loading indicator SHALL be shown during processing, on every platform, regardless of that
-platform's typical processing speed.
+platform's typical processing speed. This covers only the on-device recognition and extraction
+pipeline; it does not cover the native document scanner (iOS/Android) or the manual crop step
+(web) described under Entry point, which are the user's own interaction with a scanner or crop UI
+and show no loading indicator of their own.
 
 #### Scenario: Unreadable upload produces a blank draft, not an error
 
