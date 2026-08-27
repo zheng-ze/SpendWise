@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -52,7 +53,18 @@ class ReceiptScanStrip extends ConsumerWidget {
       await _runScan(context, ReceiptScanSource.camera);
       return;
     }
-    final bytes = await scanner.scanDocument();
+
+    Uint8List? bytes;
+    try {
+      bytes = await scanner.scanDocument();
+    } on PlatformException {
+      // The scanner itself failed to launch (for example, Android with no
+      // Google Play Services) rather than the user backing out of it.
+      if (!context.mounted) return;
+      await _runScan(context, ReceiptScanSource.camera);
+      return;
+    }
+
     if (bytes == null) return;
     if (!context.mounted) return;
     await _runScan(
