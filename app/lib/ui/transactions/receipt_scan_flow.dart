@@ -1,5 +1,6 @@
 import 'package:decimal/decimal.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:ocr/ocr.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -125,7 +126,14 @@ Future<_ExtractedFields> _extractFields(
   RecognizedText recognized,
   Future<FieldExtractor?> Function() selectExtractor,
 ) async {
-  final extractor = await selectExtractor();
+  FieldExtractor? extractor;
+  try {
+    extractor = await selectExtractor();
+  } on PlatformException {
+    // The device's eligibility check itself failed (for example, AICore
+    // reporting the feature unavailable), not just "no extractor found".
+    return _ExtractedFields.none;
+  }
   if (extractor == null) return _ExtractedFields.none;
 
   try {
