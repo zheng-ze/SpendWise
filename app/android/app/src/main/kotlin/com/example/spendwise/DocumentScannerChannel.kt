@@ -12,6 +12,7 @@ import io.flutter.plugin.common.MethodChannel
 /** Channel name for [DocumentScannerChannel], namespaced to this app. */
 const val DOCUMENT_SCANNER_CHANNEL = "spendwise/document_scanner"
 private const val METHOD_SCAN_DOCUMENT = "scanDocument"
+private const val METHOD_IS_AVAILABLE = "isAvailable"
 
 private val scannerOptions =
     GmsDocumentScannerOptions.Builder()
@@ -35,8 +36,14 @@ class DocumentScannerChannel(
     ) {
         when (call.method) {
             METHOD_SCAN_DOCUMENT -> scanDocument(result)
+            METHOD_IS_AVAILABLE -> isAvailable(result)
             else -> result.notImplemented()
         }
+    }
+
+    private fun isAvailable(result: MethodChannel.Result) {
+        val availability = GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(activity)
+        result.success(availability == ConnectionResult.SUCCESS)
     }
 
     private fun scanDocument(result: MethodChannel.Result) {
