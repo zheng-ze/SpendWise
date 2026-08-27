@@ -79,6 +79,18 @@ void main() {
     expect(controller.amountController.text, isEmpty);
   });
 
+  test('leaves name and amount blank when selection itself throws', () async {
+    await applyExtractedFields(
+      _textOf(['Kopi Tiam', 'TOTAL 9.50']),
+      controller,
+      selectExtractor: () async =>
+          throw PlatformException(code: 'checkFeatureStatus'),
+    );
+
+    expect(controller.nameController.text, isEmpty);
+    expect(controller.amountController.text, isEmpty);
+  });
+
   test('leaves name and amount blank when the extractor throws', () async {
     await applyExtractedFields(
       _textOf(['Kopi Tiam', 'TOTAL 9.50']),
