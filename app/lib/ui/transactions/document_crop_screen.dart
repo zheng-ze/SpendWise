@@ -95,16 +95,7 @@ class _DocumentCropScreenState extends State<DocumentCropScreen> {
       ),
       body: image == null || corners == null
           ? const Center(child: CircularProgressIndicator())
-          : _CropCanvas(
-              image: image,
-              corners: corners,
-              onDragTopLeft: (delta) => _moveCorner(_Corner.topLeft, delta),
-              onDragTopRight: (delta) => _moveCorner(_Corner.topRight, delta),
-              onDragBottomRight: (delta) =>
-                  _moveCorner(_Corner.bottomRight, delta),
-              onDragBottomLeft: (delta) =>
-                  _moveCorner(_Corner.bottomLeft, delta),
-            ),
+          : _CropCanvas(image: image, corners: corners, onDragCorner: _moveCorner),
     );
   }
 }
@@ -113,18 +104,12 @@ class _CropCanvas extends StatelessWidget {
   const _CropCanvas({
     required this.image,
     required this.corners,
-    required this.onDragTopLeft,
-    required this.onDragTopRight,
-    required this.onDragBottomRight,
-    required this.onDragBottomLeft,
+    required this.onDragCorner,
   });
 
   final ui.Image image;
   final DocumentCorners corners;
-  final ValueChanged<Offset> onDragTopLeft;
-  final ValueChanged<Offset> onDragTopRight;
-  final ValueChanged<Offset> onDragBottomRight;
-  final ValueChanged<Offset> onDragBottomLeft;
+  final void Function(_Corner corner, Offset delta) onDragCorner;
 
   @override
   Widget build(BuildContext context) {
@@ -144,26 +129,12 @@ class _CropCanvas extends StatelessWidget {
                   size: displaySize,
                   painter: _CropOverlayPainter(corners: corners, scale: scale),
                 ),
-                _CornerHandle(
-                  position: corners.topLeft * scale,
-                  onDrag: onDragTopLeft,
-                  scale: scale,
-                ),
-                _CornerHandle(
-                  position: corners.topRight * scale,
-                  onDrag: onDragTopRight,
-                  scale: scale,
-                ),
-                _CornerHandle(
-                  position: corners.bottomRight * scale,
-                  onDrag: onDragBottomRight,
-                  scale: scale,
-                ),
-                _CornerHandle(
-                  position: corners.bottomLeft * scale,
-                  onDrag: onDragBottomLeft,
-                  scale: scale,
-                ),
+                for (final corner in _Corner.values)
+                  _CornerHandle(
+                    position: corner.read(corners) * scale,
+                    onDrag: (delta) => onDragCorner(corner, delta),
+                    scale: scale,
+                  ),
               ],
             ),
           ),
