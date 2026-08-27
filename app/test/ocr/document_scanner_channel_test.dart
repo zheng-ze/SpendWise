@@ -20,8 +20,9 @@ void main() {
       });
 
       expect(
-        await DocumentScannerChannel('spendwise/document_scanner')
-            .scanDocument(),
+        await DocumentScannerChannel(
+          'spendwise/document_scanner',
+        ).scanDocument(),
         bytes,
       );
     });
@@ -30,8 +31,9 @@ void main() {
       messenger.setMockMethodCallHandler(channel, (call) async => null);
 
       expect(
-        await DocumentScannerChannel('spendwise/document_scanner')
-            .scanDocument(),
+        await DocumentScannerChannel(
+          'spendwise/document_scanner',
+        ).scanDocument(),
         isNull,
       );
     });
@@ -42,9 +44,47 @@ void main() {
       });
 
       expect(
-        () => DocumentScannerChannel('spendwise/document_scanner')
-            .scanDocument(),
+        () =>
+            DocumentScannerChannel('spendwise/document_scanner').scanDocument(),
         throwsA(isA<PlatformException>()),
+      );
+    });
+  });
+
+  group('isAvailable', () {
+    test('returns true when the native side reports available', () async {
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        expect(call.method, 'isAvailable');
+        return true;
+      });
+
+      expect(
+        await DocumentScannerChannel(
+          'spendwise/document_scanner',
+        ).isAvailable(),
+        isTrue,
+      );
+    });
+
+    test('returns false when the native side reports unavailable', () async {
+      messenger.setMockMethodCallHandler(channel, (call) async => false);
+
+      expect(
+        await DocumentScannerChannel(
+          'spendwise/document_scanner',
+        ).isAvailable(),
+        isFalse,
+      );
+    });
+
+    test('returns false when the native side returns null', () async {
+      messenger.setMockMethodCallHandler(channel, (call) async => null);
+
+      expect(
+        await DocumentScannerChannel(
+          'spendwise/document_scanner',
+        ).isAvailable(),
+        isFalse,
       );
     });
   });
