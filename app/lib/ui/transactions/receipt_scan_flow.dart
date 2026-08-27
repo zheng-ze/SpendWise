@@ -37,26 +37,42 @@ enum ReceiptScanStop {
 
 /// Returns early and calls [onStop] on a denied permission or a cancelled
 /// picker. Any other failure still fills [controller] with what it can.
+///
+/// [preCapturedBytes], when given, skips the permission check and the
+/// picker entirely and recognizes those bytes directly - the caller is
+/// expected to have already captured the image itself (a native document
+/// scanner, or web's manual crop screen), including handling its own
+/// cancel case before ever calling this function.
 Future<void> runReceiptScan({
   required ReceiptScanSource source,
   required EntryFormController controller,
+  Uint8List? preCapturedBytes,
   void Function(ReceiptScanStop stop)? onStop,
 }) async {
+  final bytes = preCapturedBytes ?? await _pickImage(source, onStop);
+  if (bytes == null) return;
+
+  final recognized = await _recognize(bytes);
+  await applyExtractedFields(recognized, controller);
+}
+
+Future<Uint8List?> _pickImage(
+  ReceiptScanSource source,
+  void Function(ReceiptScanStop stop)? onStop,
+) async {
   final granted = await _requestPermission(source.permission);
   if (!granted) {
     onStop?.call(ReceiptScanStop.permissionDenied);
-    return;
+    return null;
   }
 
   final picked = await ImagePicker().pickImage(source: source.pickerSource);
   if (picked == null) {
     onStop?.call(ReceiptScanStop.cancelled);
-    return;
+    return null;
   }
 
-  final bytes = await picked.readAsBytes();
-  final recognized = await _recognize(bytes);
-  await applyExtractedFields(recognized, controller);
+  return picked.readAsBytes();
 }
 
 /// Fills [controller] from [recognized]'s text: date always (heuristic,
