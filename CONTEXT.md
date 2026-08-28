@@ -86,6 +86,51 @@ alternative — so they live here, not in `docs/adr/`.
 - **Mutators validate, mutate, then return `List<LedgerChange>`.** Every mutation on `LedgerState`
   keeps this contract.
 
+## UI-layer vocabulary (MVVM)
+
+`app/lib/ui` is migrating to strict MVVM. These terms apply only to that layer, not to
+`packages/domain`.
+
+**View** — a Flutter widget. Holds no business logic and imports neither `package:domain/` nor any
+persistence or data-layer code. Calls named methods on its ViewModel, each taking only raw,
+unparsed values — a `String` from a text field, a `bool` from a toggle. It never parses,
+validates, or otherwise interprets a value before passing it; that is the ViewModel's job. The
+View depends on its ViewModel's abstract interface type, never the concrete class. See ADR-0058.
+
+**ViewModel** — a concrete class implementing an abstract interface declared per screen (for
+example, `abstract class BudgetDetailViewModel { Future<void> saveBudget(String rawAmount); }`).
+Owns all state and behavior for exactly one View — one screen, or a well-defined section of one. A
+thin Riverpod provider wraps each ViewModel for lifecycle and dependency injection only; the
+provider is not the ViewModel, it exposes one. Any ViewModel backing a screen that loads data uses
+`AsyncNotifier<ViewState>` as its base, so the View renders via `AsyncValue.when(data:, loading:,
+error:)` rather than a hand-rolled loading/error representation. "The View never decides what an
+input means" is a documented convention here, not tool-enforced — reviewed the same way any other
+convention violation is caught.
+
+**Flow** — a `ConsumerStatefulWidget` that owns one feature folder's own nested `Navigator` (its
+own independent route stack), scoped with a `GlobalKey<NavigatorState>` local to that Flow's
+State — never shared app-wide. A Flow watches its screens' ViewModels for a `Step` via
+`ref.listenManual` and maps each `Step` to a push/pop on its own `Navigator`. The View never
+touches navigation; the mapping from `Step` to a concrete pushed screen lives entirely in the
+Flow. See ADR-0059.
+
+**Step** — a sealed Dart type declared per Flow (for example, `sealed class BudgetsStep {}` with
+a variant `BudgetSelected(String id)`), carrying only plain data, never a `Widget` or
+`BuildContext`. A ViewModel emits a `Step?` as part of its `ViewState` when it decides navigation
+should happen; this does not reintroduce a Flutter dependency into the ViewModel, since `Step`
+itself has no Flutter import. `Step` consumption is single-shot — the Flow clears it via the
+ViewModel's `clearStep()` after acting on it. Replaces the earlier `NavigationIntent` field. See
+ADR-0059.
+
+A shared presentation widget (in `ui/common` or `ui/format`) is not a View in this sense and owns
+no ViewModel of its own: it takes plain values and callbacks as constructor parameters, supplied by
+whichever screen's ViewModel is using it. "One ViewModel per View" holds because these shared
+widgets never read Riverpod state directly — confirmed by their having zero `ConsumerWidget`,
+`ConsumerStatefulWidget`, or `WidgetRef` usage as of this migration's start.
+
+**Model** — `packages/domain` (unchanged, already framework-free) plus the data layer: persistence
+today, and any future networking.
+
 ## Index
 
 - **`docs/adr/`** — architecture decisions: a decision, the alternative that was rejected, and the
