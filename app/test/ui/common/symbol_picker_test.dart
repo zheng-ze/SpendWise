@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:spendwise/ui/settings/symbol_picker.dart';
+import 'package:spendwise/ui/common/symbol_picker.dart';
 
 void main() {
   group('filterSymbolSections', () {
