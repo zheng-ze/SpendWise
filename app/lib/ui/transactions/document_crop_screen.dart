@@ -20,12 +20,13 @@ enum _Corner {
     _Corner.bottomLeft => corners.bottomLeft,
   };
 
-  DocumentCorners write(DocumentCorners corners, Offset value) => switch (this) {
-    _Corner.topLeft => corners.copyWith(topLeft: value),
-    _Corner.topRight => corners.copyWith(topRight: value),
-    _Corner.bottomRight => corners.copyWith(bottomRight: value),
-    _Corner.bottomLeft => corners.copyWith(bottomLeft: value),
-  };
+  DocumentCorners write(DocumentCorners corners, Offset value) =>
+      switch (this) {
+        _Corner.topLeft => corners.copyWith(topLeft: value),
+        _Corner.topRight => corners.copyWith(topRight: value),
+        _Corner.bottomRight => corners.copyWith(bottomRight: value),
+        _Corner.bottomLeft => corners.copyWith(bottomLeft: value),
+      };
 }
 
 /// Shows [imageBytes] with four draggable corner handles. Pops the cropped
@@ -95,7 +96,11 @@ class _DocumentCropScreenState extends State<DocumentCropScreen> {
       ),
       body: image == null || corners == null
           ? const Center(child: CircularProgressIndicator())
-          : _CropCanvas(image: image, corners: corners, onDragCorner: _moveCorner),
+          : _CropCanvas(
+              image: image,
+              corners: corners,
+              onDragCorner: _moveCorner,
+            ),
     );
   }
 }
@@ -124,7 +129,11 @@ class _CropCanvas extends StatelessWidget {
             height: displaySize.height,
             child: Stack(
               children: [
-                RawImage(image: image, width: displaySize.width, height: displaySize.height),
+                RawImage(
+                  image: image,
+                  width: displaySize.width,
+                  height: displaySize.height,
+                ),
                 CustomPaint(
                   size: displaySize,
                   painter: _CropOverlayPainter(corners: corners, scale: scale),
@@ -144,7 +153,8 @@ class _CropCanvas extends StatelessWidget {
   }
 
   Size _fitInto(Size source, Size bounds) {
-    final scale = (bounds.width / source.width) < (bounds.height / source.height)
+    final scale =
+        (bounds.width / source.width) < (bounds.height / source.height)
         ? bounds.width / source.width
         : bounds.height / source.height;
     return Size(source.width * scale, source.height * scale);

@@ -33,8 +33,7 @@ class EntryRow extends StatelessWidget {
       onDeleted: () => ledger.deleteEntry(entry.id),
       child: TransactionCell(
         row: row,
-        onTap: () =>
-            showEntryFormSheet(context: context, ledger: ledger, entry: entry),
+        onTap: () => showEntryFormSheet(context: context, entryId: entry.id),
       ),
     );
   }

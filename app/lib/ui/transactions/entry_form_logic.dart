@@ -47,20 +47,3 @@ Entry signedEntryForSave({
     includeInAnalysis: includeInAnalysis,
   );
 }
-
-/// One calendar day behind the anchor, so a half-open scan starting after
-/// this date still includes the anchor day itself.
-RecurringPlan buildRecurringPlanForNewEntry({
-  required EntryTemplate template,
-  required RecurrenceFrequency frequency,
-  required DateTime anchor,
-  DateTime? endDate,
-}) {
-  return RecurringPlan(
-    template: template,
-    frequency: frequency,
-    anchor: anchor,
-    endDate: endDate,
-    lastResolvedDate: anchor.subtract(const Duration(days: 1)),
-  );
-}

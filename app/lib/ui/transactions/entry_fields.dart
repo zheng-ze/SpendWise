@@ -1,33 +1,73 @@
+import 'package:domain/domain.dart' show LedgerStateQueries;
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/common/amount_field.dart';
 import 'package:spendwise/ui/common/category_icon.dart';
 import 'package:spendwise/ui/common/recurrence_picker.dart'
     show frequencyLabels;
 import 'package:spendwise/ui/format/color_hex.dart';
 import 'package:spendwise/ui/format/date_format.dart';
-import 'package:spendwise/ui/transactions/entry_form_controller.dart';
 import 'package:spendwise/ui/transactions/entry_form_logic.dart';
+import 'package:spendwise/ui/transactions/entry_form_view_model.dart';
 
 /// Field body shared by the edit and new-entry forms: kind selector, amount,
 /// name, date, recurrence (new entries only), account/category or from/to,
 /// and the include-in-analysis switch.
-class EntryFields extends StatelessWidget {
+///
+/// A [StatefulWidget], not stateless: the amount/name text fields need their
+/// own [TextEditingController]s (a View-owned resource per this repo's
+/// Flutter conventions), kept in sync with [state]'s raw text so an
+/// external change — a revert, a receipt scan — updates what's on screen.
+class EntryFields extends ConsumerStatefulWidget {
   const EntryFields({
     super.key,
-    required this.controller,
+    required this.viewModel,
+    required this.state,
     required this.readOnly,
     this.showDelete = false,
   });
 
-  final EntryFormController controller;
+  final EntryFormViewModel viewModel;
+  final EntryFormViewState state;
   final bool readOnly;
   final bool showDelete;
 
-  Widget _kindSelector(BuildContext context) {
+  @override
+  ConsumerState<EntryFields> createState() => _EntryFieldsState();
+}
+
+class _EntryFieldsState extends ConsumerState<EntryFields> {
+  late final _amountController = TextEditingController(
+    text: widget.state.amountText,
+  );
+  late final _nameController = TextEditingController(
+    text: widget.state.nameText,
+  );
+
+  @override
+  void didUpdateWidget(EntryFields oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_amountController.text != widget.state.amountText) {
+      _amountController.text = widget.state.amountText;
+    }
+    if (_nameController.text != widget.state.nameText) {
+      _nameController.text = widget.state.nameText;
+    }
+  }
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  Widget _kindSelector() {
     return Center(
       child: IgnorePointer(
-        ignoring: readOnly,
+        ignoring: widget.readOnly,
         child: SegmentedButton<EntryFormKind>(
           segments: const [
             ButtonSegment(value: EntryFormKind.expense, label: Text('Expense')),
@@ -37,155 +77,163 @@ class EntryFields extends StatelessWidget {
               label: Text('Transfer'),
             ),
           ],
-          selected: {controller.kind},
-          onSelectionChanged: readOnly
+          selected: {widget.state.kind},
+          onSelectionChanged: widget.readOnly
               ? null
-              : (selection) => controller.setKind(selection.first),
+              : (selection) => widget.viewModel.setKind(selection.first),
         ),
       ),
     );
   }
 
-  Widget _dateRow(BuildContext context, {required bool isNew}) {
+  Widget _dateRow({required bool isNew}) {
+    final state = widget.state;
     return Row(
       children: [
         Expanded(
           child: ListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Date'),
-            trailing: Text(formatEntryDate(controller.date)),
-            onTap: readOnly ? null : () => controller.pickDate(context),
+            trailing: Text(formatEntryDate(state.date)),
+            onTap: widget.readOnly ? null : widget.viewModel.requestPickDate,
           ),
         ),
         if (isNew)
           IconButton(
-            onPressed: () => controller.pickRecurrence(context),
+            onPressed: widget.viewModel.requestPickRecurrence,
             icon: Icon(
               Icons.repeat,
-              color: controller.recurrence == null
+              color: state.recurrence == null
                   ? null
                   : Theme.of(context).colorScheme.primary,
             ),
-            tooltip: controller.recurrence == null
+            tooltip: state.recurrence == null
                 ? 'Repeat'
-                : frequencyLabels[controller.recurrence!],
+                : frequencyLabels[state.recurrence!],
           ),
       ],
     );
   }
 
-  List<Widget> _recurrenceSection(BuildContext context) {
+  List<Widget> _recurrenceSection() {
+    final state = widget.state;
     return [
       SwitchListTile(
         contentPadding: EdgeInsets.zero,
         title: const Text('Ends'),
-        value: controller.hasEndDate,
-        onChanged: controller.setEndDateEnabled,
+        value: state.hasEndDate,
+        onChanged: widget.viewModel.setEndDateEnabled,
       ),
-      if (controller.hasEndDate)
+      if (state.hasEndDate)
         ListTile(
           contentPadding: EdgeInsets.zero,
           title: const Text('End date'),
-          trailing: Text(
-            formatEntryDate(controller.endDate ?? controller.date),
-          ),
-          onTap: () => controller.pickEndDate(context),
+          trailing: Text(formatEntryDate(state.endDate ?? state.date)),
+          onTap: widget.viewModel.requestPickEndDate,
         ),
     ];
   }
 
-  List<Widget> _sourceDestinationRows(BuildContext context) {
-    final kind = controller.kind;
-    return [
+  @override
+  Widget build(BuildContext context) {
+    final state = widget.state;
+    final readOnly = widget.readOnly;
+    final viewModel = widget.viewModel;
+    final ledgerState = ref.watch(ledgerProvider)?.state;
+    final isNew = state.mode == EntryFormMode.newEntry;
+
+    String? sourceLabel(String? id) => ledgerState?.sourceName(id);
+    String? categoryLabel(String? id) {
+      if (id == null || ledgerState == null) return null;
+      final category = ledgerState.categories[id];
+      if (category == null) return null;
+      final parentID = category.parentID;
+      if (parentID == null) return category.name;
+      final parent = ledgerState.categories[parentID];
+      return parent == null ? category.name : '${parent.name}/${category.name}';
+    }
+
+    Widget? categoryLeading() {
+      final id = state.categoryId;
+      if (id == null || ledgerState == null) return null;
+      final category = ledgerState.categories[id];
+      if (category == null) return null;
+      return CategoryIcon(
+        symbolName: category.symbol,
+        color: parseColorHex(category.colorHex),
+        size: 24,
+      );
+    }
+
+    final kind = state.kind;
+    final sourceDestinationRows = [
       ListTile(
         contentPadding: EdgeInsets.zero,
         title: Text(kind == EntryFormKind.transfer ? 'From' : 'Account'),
-        trailing: Text(controller.sourceLabel(controller.sourceId) ?? 'Select'),
-        onTap: readOnly ? null : () => controller.pickSource(context),
+        trailing: Text(sourceLabel(state.sourceId) ?? 'Select'),
+        onTap: readOnly ? null : viewModel.requestPickSource,
       ),
       if (kind == EntryFormKind.transfer)
         ListTile(
           contentPadding: EdgeInsets.zero,
           title: const Text('To'),
-          trailing: Text(
-            controller.sourceLabel(controller.destinationId) ?? 'Select',
-          ),
-          onTap: readOnly ? null : () => controller.pickDestination(context),
+          trailing: Text(sourceLabel(state.destinationId) ?? 'Select'),
+          onTap: readOnly ? null : viewModel.requestPickDestination,
         )
       else
         ListTile(
           contentPadding: EdgeInsets.zero,
-          leading: _categoryLeading(),
+          leading: categoryLeading(),
           title: const Text('Category'),
-          trailing: Text(
-            controller.categoryLabel(controller.categoryId) ?? 'None',
-          ),
-          onTap: readOnly || controller.isSystemEntry
+          trailing: Text(categoryLabel(state.categoryId) ?? 'None'),
+          onTap: readOnly || state.isSystemEntry
               ? null
-              : () => controller.pickCategory(context),
+              : viewModel.requestPickCategory,
         ),
     ];
-  }
-
-  Widget? _categoryLeading() {
-    final id = controller.categoryId;
-    if (id == null) return null;
-    final category = controller.ledger.state.categories[id];
-    if (category == null) return null;
-    return CategoryIcon(
-      symbolName: category.symbol,
-      color: parseColorHex(category.colorHex),
-      size: 24,
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isNew = controller.mode == EntryFormMode.newEntry;
 
     // A Column, not a ListView: the caller already scrolls this, and a
     // nested scrollable has no bounded height to lay out against.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _kindSelector(context),
+        _kindSelector(),
         const SizedBox(height: 16),
         IgnorePointer(
           ignoring: readOnly,
           child: AmountField(
-            controller: controller.amountController,
+            controller: _amountController,
             allowsNegative: false,
-            onChanged: (_) => controller.refresh(),
+            onChanged: viewModel.setAmount,
           ),
         ),
         const SizedBox(height: 16),
         IgnorePointer(
-          ignoring: readOnly || controller.isSystemEntry,
+          ignoring: readOnly || state.isSystemEntry,
           child: TextField(
-            controller: controller.nameController,
+            controller: _nameController,
             decoration: const InputDecoration(hintText: 'Name'),
-            onChanged: (_) => controller.refresh(),
+            onChanged: viewModel.setName,
           ),
         ),
         const SizedBox(height: 16),
-        _dateRow(context, isNew: isNew),
-        if (isNew && controller.recurrence != null)
-          ..._recurrenceSection(context),
-        ..._sourceDestinationRows(context),
+        _dateRow(isNew: isNew),
+        if (isNew && state.recurrence != null) ..._recurrenceSection(),
+        ...sourceDestinationRows,
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: const Text('Include in Analysis'),
-          value: controller.includeInAnalysis,
-          onChanged: readOnly || controller.isSystemEntry
+          value: state.includeInAnalysis,
+          onChanged: readOnly || state.isSystemEntry
               ? null
-              : controller.setIncludeInAnalysis,
+              : viewModel.setIncludeInAnalysis,
         ),
-        if (showDelete) ...[
+        if (widget.showDelete) ...[
           const SizedBox(height: 8),
           SizedBox(
             width: double.infinity,
             child: TextButton(
-              onPressed: () => controller.delete(context),
+              onPressed: viewModel.delete,
               style: TextButton.styleFrom(
                 foregroundColor: Theme.of(context).colorScheme.error,
               ),

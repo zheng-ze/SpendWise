@@ -1,4 +1,4 @@
-import 'package:domain/domain.dart';
+import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/format/amount_color.dart';
@@ -10,13 +10,11 @@ import 'package:spendwise/ui/transactions/month_summaries.dart';
 class MonthlyTransactionsView extends StatefulWidget {
   const MonthlyTransactionsView({
     super.key,
-    required this.state,
-    required this.year,
+    required this.summaries,
     required this.onWeekTap,
   });
 
-  final LedgerState state;
-  final DateTime year;
+  final List<MonthSummary> summaries;
   final void Function(DateTime month) onWeekTap;
 
   @override
@@ -35,7 +33,7 @@ class _MonthlyTransactionsViewState extends State<MonthlyTransactionsView> {
 
   @override
   Widget build(BuildContext context) {
-    final months = monthSummaries(widget.state, widget.year);
+    final months = widget.summaries;
 
     if (months.isEmpty) return const TransactionsEmptyState();
 
