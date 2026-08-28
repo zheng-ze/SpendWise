@@ -1,6 +1,8 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/budgets/budget_form.dart';
 
@@ -22,12 +24,16 @@ void main() {
     );
   }
 
-  Future<void> pumpForm(WidgetTester tester, Ledger ledger) {
-    return tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(body: BudgetForm(ledger: ledger)),
+  Future<void> pumpForm(WidgetTester tester, Ledger ledger) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [ledgerProvider.overrideWithValue(ledger)],
+        child: const MaterialApp(home: Scaffold(body: BudgetForm())),
       ),
     );
+    // Flushes BudgetFormNotifier.build()'s Future so the form's initial
+    // AsyncData state is in place before a test interacts with it.
+    await tester.pump();
   }
 
   testWidgets(

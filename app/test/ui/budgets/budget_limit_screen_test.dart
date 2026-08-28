@@ -1,6 +1,8 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/budgets/budget_limit_screen.dart';
 import 'package:spendwise/ui/format/date_format.dart';
@@ -25,8 +27,9 @@ void main() {
 
   Future<void> pumpScreen(WidgetTester tester, Ledger ledger, String id) {
     return tester.pumpWidget(
-      MaterialApp(
-        home: BudgetLimitScreen(ledger: ledger, budgetID: id),
+      ProviderScope(
+        overrides: [ledgerProvider.overrideWithValue(ledger)],
+        child: MaterialApp(home: BudgetLimitScreen(budgetID: id)),
       ),
     );
   }
