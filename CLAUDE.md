@@ -93,7 +93,15 @@ Analyzer must be at zero issues, not just zero errors.
 When a change is ready, open a PR from the working branch targeting `main` and wait for review and
 merge — do not push feature commits straight to `main`, and do not merge a PR yourself unless the
 user explicitly asks. Creating the PR itself still needs the user's go-ahead, same as any other
-action visible to others.
+action visible to others. `main` also carries branch protection now, which is a second backstop
+against a direct push landing there.
+
+**Each feature gets its own branch off `dev`, checked out in its own git worktree**, e.g.
+`git worktree add ../SpendWise-<feature> -b feat/<feature> dev`. This lets several features stay
+checked out and buildable at once without switching branches in the main checkout, and keeps a
+feature's working tree isolated from whatever else is in flight. This is separate from the
+`.claude/worktrees/` directory, which subagents use for their own isolated spawns
+(`Agent(isolation: "worktree")`) — that mechanism is unrelated and needs no setup here.
 
 **Close an issue only after its PR merges to `main`, not when implementation goes green on `dev`.**
 Verifying green on `dev` is the point to comment on the issue with a link to the PR, not to close
@@ -108,12 +116,19 @@ example, don't say "seam"). A commit message is a summary line only, no body, in
 `type(scope): summary` form (`feat`, `fix`, `docs`, `style`, `refactor`, etc — see recent commits for
 the exact type list in use). `docs/WORKING-CONVENTIONS.md` has the chunking pattern.
 
-**Never `git checkout`, `git restore`, `git stash`, `git reset` or `git clean`.** Restore a mutated
-file from a file copy. Under parallel agents these would discard another agent's work. This is
-enforced by a blanket `settings.json` deny, so it also blocks the harmless-looking case — unstaging
-an already-`git add`ed file with `git restore --staged` or `git reset <path>` — even though that
-touches the index, not working-tree content. Don't retry with different flags or paths; either ask
-before staging next time, or stage forward past the mistake instead of trying to walk it back.
+**Never `git checkout`, `git restore`, `git stash`, `git reset` or `git clean` in a working tree
+another agent could also be touching.** Restore a mutated file from a file copy instead. Under
+parallel agents sharing one working tree, these commands would discard another agent's work — this
+is a written rule the agent must follow, not a `settings.json` deny (none exists). It also covers
+the harmless-looking case — unstaging an already-`git add`ed file with `git restore --staged` or
+`git reset <path>` — even though that touches the index, not working-tree content. Don't retry with
+different flags or paths; either ask before staging next time, or stage forward past the mistake
+instead of trying to walk it back.
+
+This ban does not apply inside a worktree that only one agent ever touches — a subagent's own
+`.claude/worktrees/` spawn, or a feature worktree the main session is working in alone. There,
+these commands are safe by construction: nothing else shares that working tree to clobber. Still
+confirm before running one, per this repo's usual irreversible-action rule.
 
 **Tests first, then implementation.** Write the test against the unfixed code and watch it go red —
 that red is the proof it bites, so no mutate-and-revert step is needed. Then fix, then watch it go
