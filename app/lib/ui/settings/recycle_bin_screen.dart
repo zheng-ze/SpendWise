@@ -1,107 +1,56 @@
-import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/boot/providers.dart';
-import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/category_icon.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
+import 'package:spendwise/ui/settings/recycle_bin_view_model.dart';
 import 'package:spendwise/ui/symbol_map.dart';
 
-class RecycleBinScreen extends ConsumerWidget {
+class RecycleBinScreen extends ConsumerStatefulWidget {
   const RecycleBinScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final ledger = ref.watch(ledgerProvider);
-    if (ledger == null) return const SizedBox.shrink();
+  ConsumerState<RecycleBinScreen> createState() => _RecycleBinScreenState();
+}
 
-    return ListenableBuilder(
-      listenable: ledger,
-      builder: (context, _) => _RecycleBinScreenBody(ledger: ledger),
+class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
+  ProviderSubscription<AsyncValue<RecycleBinViewState>>? _subscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _subscription = ref.listenManual(
+      recycleBinViewModelProvider,
+      (previous, next) => _handleStep(next.value?.step),
     );
   }
-}
 
-enum _BinRowKind { account, pocket, category }
+  @override
+  void dispose() {
+    _subscription?.close();
+    super.dispose();
+  }
 
-class _BinRow {
-  const _BinRow({
-    required this.kind,
-    required this.id,
-    required this.name,
-    required this.referenceCount,
-    this.symbolName,
-    this.color,
-  });
+  RecycleBinViewModel get _viewModel =>
+      ref.read(recycleBinViewModelProvider.notifier);
 
-  final _BinRowKind kind;
-  final String id;
-  final String name;
-  final int referenceCount;
-  final String? symbolName;
-  final Color? color;
-}
+  void _handleStep(RecycleBinStep? step) {
+    if (step == null) return;
+    switch (step) {
+      case PurgeConfirmationRequested(:final row):
+        _confirmPurge(row);
+    }
+  }
 
-List<_BinRow> _sortedArchivedRows<T>(
-  Iterable<T> source,
-  bool Function(T item) isArchived,
-  _BinRow Function(T item) toRow,
-) {
-  final rows = source.where(isArchived).map(toRow).toList()
-    ..sort((a, b) => a.name.compareTo(b.name));
-  return rows;
-}
-
-List<_BinRow> _accountRows(LedgerState state) => _sortedArchivedRows(
-  state.moneySources.values.map((source) => source.asAccount).nonNulls,
-  (account) => account.lifecycle == LifecycleState.archived,
-  (account) => _BinRow(
-    kind: _BinRowKind.account,
-    id: account.id,
-    name: account.name,
-    referenceCount: state.entriesReferencing(account.id),
-  ),
-);
-
-List<_BinRow> _pocketRows(LedgerState state) => _sortedArchivedRows(
-  state.moneySources.values.map((source) => source.asPocket).nonNulls,
-  (pocket) => pocket.lifecycle == LifecycleState.archived,
-  (pocket) => _BinRow(
-    kind: _BinRowKind.pocket,
-    id: pocket.id,
-    name: state.sourceName(pocket.id) ?? pocket.name,
-    referenceCount: state.entriesReferencing(pocket.id),
-  ),
-);
-
-List<_BinRow> _categoryRows(LedgerState state) => _sortedArchivedRows(
-  state.categories.values,
-  (category) => category.lifecycle == LifecycleState.archived,
-  (category) => _BinRow(
-    kind: _BinRowKind.category,
-    id: category.id,
-    name: category.name,
-    referenceCount: state.entryCountReferencing(category.id),
-    symbolName: category.symbol,
-    color: parseColorHex(category.colorHex),
-  ),
-);
-
-class _RecycleBinScreenBody extends StatelessWidget {
-  const _RecycleBinScreenBody({required this.ledger});
-
-  final Ledger ledger;
-
-  Future<bool> _confirmPurge(BuildContext context, String name) async {
+  Future<void> _confirmPurge(BinRow row) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete permanently?'),
         content: Text(
-          '$name leaves the bin for good. Existing transactions keep the '
-          'name but it can no longer be restored.',
+          '${row.name} leaves the bin for good. Existing transactions keep '
+          'the name but it can no longer be restored.',
         ),
         actions: [
           TextButton(
@@ -115,39 +64,39 @@ class _RecycleBinScreenBody extends StatelessWidget {
         ],
       ),
     );
-    return confirmed ?? false;
-  }
-
-  void _restore(_BinRow row) {
-    switch (row.kind) {
-      case _BinRowKind.account:
-        ledger.restoreAccount(row.id);
-      case _BinRowKind.pocket:
-        // Domain no-ops silently when the pocket's parent account is still
-        // archived, so the row simply stays put.
-        ledger.restorePocket(row.id);
-      case _BinRowKind.category:
-        ledger.restoreCategory(row.id);
-    }
-  }
-
-  void _purge(_BinRow row) {
-    switch (row.kind) {
-      case _BinRowKind.account:
-        ledger.purgeAccount(row.id);
-      case _BinRowKind.pocket:
-        ledger.purgePocket(row.id);
-      case _BinRowKind.category:
-        ledger.purgeCategory(row.id);
-    }
+    if (!mounted) return;
+    _viewModel.applyPurgeConfirmed(confirmed ?? false, row.kind, row.id);
   }
 
   @override
   Widget build(BuildContext context) {
-    final state = ledger.state;
-    final accounts = _accountRows(state);
-    final pockets = _pocketRows(state);
-    final categories = _categoryRows(state);
+    final asyncState = ref.watch(recycleBinViewModelProvider);
+
+    return asyncState.when(
+      data: (viewState) =>
+          _RecycleBinScreenBody(viewState: viewState, viewModel: _viewModel),
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (error, stackTrace) =>
+          Scaffold(body: Center(child: Text('$error'))),
+    );
+  }
+}
+
+class _RecycleBinScreenBody extends StatelessWidget {
+  const _RecycleBinScreenBody({
+    required this.viewState,
+    required this.viewModel,
+  });
+
+  final RecycleBinViewState viewState;
+  final RecycleBinViewModel viewModel;
+
+  @override
+  Widget build(BuildContext context) {
+    final accounts = viewState.accounts;
+    final pockets = viewState.pockets;
+    final categories = viewState.categories;
 
     final isEmpty = accounts.isEmpty && pockets.isEmpty && categories.isEmpty;
 
@@ -163,27 +112,24 @@ class _RecycleBinScreenBody extends StatelessWidget {
                       title: 'Accounts',
                       sectionIcon: symbolIcon('wallet'),
                       rows: accounts,
-                      onRestore: (row) => _restore(row),
-                      onConfirmPurge: (row) => _confirmPurge(context, row.name),
-                      onPurge: (row) => _purge(row),
+                      onRestore: (row) => viewModel.restore(row.kind, row.id),
+                      onRequestPurge: (row) => viewModel.requestPurge(row),
                     ),
                   if (pockets.isNotEmpty)
                     _BinSection(
                       title: 'Subpockets',
                       sectionIcon: symbolIcon('inbox'),
                       rows: pockets,
-                      onRestore: (row) => _restore(row),
-                      onConfirmPurge: (row) => _confirmPurge(context, row.name),
-                      onPurge: (row) => _purge(row),
+                      onRestore: (row) => viewModel.restore(row.kind, row.id),
+                      onRequestPurge: (row) => viewModel.requestPurge(row),
                     ),
                   if (categories.isNotEmpty)
                     _BinSection(
                       title: 'Categories',
                       sectionIcon: null,
                       rows: categories,
-                      onRestore: (row) => _restore(row),
-                      onConfirmPurge: (row) => _confirmPurge(context, row.name),
-                      onPurge: (row) => _purge(row),
+                      onRestore: (row) => viewModel.restore(row.kind, row.id),
+                      onRequestPurge: (row) => viewModel.requestPurge(row),
                     ),
                 ],
               ),
@@ -198,16 +144,14 @@ class _BinSection extends StatelessWidget {
     required this.sectionIcon,
     required this.rows,
     required this.onRestore,
-    required this.onConfirmPurge,
-    required this.onPurge,
+    required this.onRequestPurge,
   });
 
   final String title;
   final IconData? sectionIcon;
-  final List<_BinRow> rows;
-  final void Function(_BinRow row) onRestore;
-  final Future<bool> Function(_BinRow row) onConfirmPurge;
-  final void Function(_BinRow row) onPurge;
+  final List<BinRow> rows;
+  final void Function(BinRow row) onRestore;
+  final void Function(BinRow row) onRequestPurge;
 
   @override
   Widget build(BuildContext context) {
@@ -229,8 +173,7 @@ class _BinSection extends StatelessWidget {
             row: row,
             sectionIcon: sectionIcon,
             onRestore: () => onRestore(row),
-            onConfirmPurge: () => onConfirmPurge(row),
-            onPurge: () => onPurge(row),
+            onRequestPurge: () => onRequestPurge(row),
           ),
       ],
     );
@@ -242,15 +185,13 @@ class _BinRowTile extends StatelessWidget {
     required this.row,
     required this.sectionIcon,
     required this.onRestore,
-    required this.onConfirmPurge,
-    required this.onPurge,
+    required this.onRequestPurge,
   });
 
-  final _BinRow row;
+  final BinRow row;
   final IconData? sectionIcon;
   final VoidCallback onRestore;
-  final Future<bool> Function() onConfirmPurge;
-  final VoidCallback onPurge;
+  final VoidCallback onRequestPurge;
 
   @override
   Widget build(BuildContext context) {
@@ -262,10 +203,7 @@ class _BinRowTile extends StatelessWidget {
     return Semantics(
       customSemanticsActions: {
         CustomSemanticsAction(label: 'Restore ${row.name}'): onRestore,
-        CustomSemanticsAction(label: 'Purge ${row.name}'): () async {
-          final confirmed = await onConfirmPurge();
-          if (confirmed) onPurge();
-        },
+        CustomSemanticsAction(label: 'Purge ${row.name}'): onRequestPurge,
       },
       child: Dismissible(
         key: ValueKey('bin-${row.kind}-${row.id}'),
@@ -275,10 +213,9 @@ class _BinRowTile extends StatelessWidget {
         confirmDismiss: (direction) async {
           if (direction == DismissDirection.startToEnd) {
             onRestore();
-            return false;
+          } else {
+            onRequestPurge();
           }
-          final confirmed = await onConfirmPurge();
-          if (confirmed) onPurge();
           return false;
         },
         child: Padding(

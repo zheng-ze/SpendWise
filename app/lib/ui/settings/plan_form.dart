@@ -1,195 +1,204 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/amount_field.dart';
 import 'package:spendwise/ui/common/error_section.dart';
 import 'package:spendwise/ui/common/form_scaffold.dart';
 import 'package:spendwise/ui/common/recurrence_picker.dart';
-import 'package:spendwise/ui/format/amount_parse.dart';
 import 'package:spendwise/ui/format/date_format.dart';
-import 'package:spendwise/ui/format/money_format.dart';
-import 'package:spendwise/ui/settings/plan_form_logic.dart';
+import 'package:spendwise/ui/settings/plan_form_view_model.dart';
 
+/// Opens the edit sheet for an existing recurring plan. Edit-only: plans are
+/// created from the entry form's recurrence flow, never here.
 Future<void> showPlanFormSheet({
   required BuildContext context,
-  required Ledger ledger,
   required RecurringPlan plan,
 }) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    builder: (_) => PlanForm(ledger: ledger, plan: plan),
+    builder: (_) => PlanForm(planId: plan.id),
   );
 }
 
-class PlanForm extends StatefulWidget {
-  const PlanForm({super.key, required this.ledger, required this.plan});
+class PlanForm extends ConsumerStatefulWidget {
+  const PlanForm({super.key, required this.planId});
 
-  final Ledger ledger;
-  final RecurringPlan plan;
+  final String planId;
 
   @override
-  State<PlanForm> createState() => _PlanFormState();
+  ConsumerState<PlanForm> createState() => _PlanFormState();
 }
 
-class _PlanFormState extends State<PlanForm> {
-  late final TextEditingController _nameController = TextEditingController(
-    text: widget.plan.template.name,
-  );
-  late final TextEditingController _amountController = TextEditingController(
-    text: formatPlainAmount(widget.plan.template.amount.abs()),
-  );
+class _PlanFormState extends ConsumerState<PlanForm> {
+  late final TextEditingController _nameController = TextEditingController();
+  late final TextEditingController _amountController = TextEditingController();
 
-  late RecurrenceFrequency _frequency = widget.plan.frequency;
-  late DateTime _anchor = widget.plan.anchor;
-  late bool _hasEndDate = widget.plan.endDate != null;
-  late DateTime? _endDate = widget.plan.endDate;
+  ProviderSubscription<AsyncValue<PlanFormViewState>>? _subscription;
 
-  LedgerError? _error;
-
-  Decimal? get _parsedAmount => parseAmountInput(_amountController.text);
-
-  bool get _canSave => canSavePlanForm(
-    name: _nameController.text,
-    amount: _parsedAmount ?? Decimal.zero,
-  );
+  @override
+  void initState() {
+    super.initState();
+    _subscription = ref.listenManual(
+      planFormViewModelProvider(widget.planId),
+      (previous, next) => _handleStep(next.value?.step),
+    );
+  }
 
   @override
   void dispose() {
+    _subscription?.close();
     _nameController.dispose();
     _amountController.dispose();
     super.dispose();
   }
 
+  PlanFormViewModel get _viewModel =>
+      ref.read(planFormViewModelProvider(widget.planId).notifier);
+
+  void _handleStep(PlanFormStep? step) {
+    if (step == null) return;
+    switch (step) {
+      case PickRecurrenceRequested():
+        _pickRecurrence();
+      case PickAnchorRequested():
+        _pickAnchor();
+      case PickEndDateRequested():
+        _pickEndDate();
+      case PlanFormSaved():
+        if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+    }
+    _viewModel.clearStep();
+  }
+
   Future<void> _pickRecurrence() async {
+    final formState = ref.read(planFormViewModelProvider(widget.planId)).value;
+    if (formState == null) return;
     final picked = await showRecurrencePickerSheet(
       context: context,
-      selected: _frequency,
+      selected: formState.frequency,
     );
-    if (!mounted) return;
-    setState(() => _frequency = applyPickerResult(_frequency, picked));
+    if (!context.mounted) return;
+    _viewModel.applyPickedRecurrence(picked);
   }
 
   Future<void> _pickAnchor() async {
+    final formState = ref.read(planFormViewModelProvider(widget.planId)).value;
+    if (formState == null) return;
     final picked = await showDatePicker(
       context: context,
-      initialDate: _anchor,
+      initialDate: formState.anchor,
       firstDate: DateTime.utc(2000),
       lastDate: DateTime.utc(2100),
     );
-    if (picked == null) return;
-    if (!mounted) return;
-    setState(
-      () => _anchor = DateTime.utc(picked.year, picked.month, picked.day),
-    );
+    if (!context.mounted) return;
+    _viewModel.applyPickedAnchor(picked);
   }
 
   Future<void> _pickEndDate() async {
+    final formState = ref.read(planFormViewModelProvider(widget.planId)).value;
+    if (formState == null) return;
     final picked = await showDatePicker(
       context: context,
-      initialDate: _endDate ?? _anchor,
+      initialDate: formState.endDate ?? formState.anchor,
       firstDate: DateTime.utc(2000),
       lastDate: DateTime.utc(2100),
     );
-    if (picked == null) return;
-    if (!mounted) return;
-    setState(
-      () => _endDate = DateTime.utc(picked.year, picked.month, picked.day),
-    );
-  }
-
-  Future<void> _save() async {
-    final originalTemplate = widget.plan.template;
-    final magnitude = _parsedAmount!.abs();
-    final amount = applyOriginalSign(
-      magnitude: magnitude,
-      originalAmount: originalTemplate.amount,
-    );
-
-    final template = EntryTemplate(
-      amount: amount,
-      name: _nameController.text.trim(),
-      categoryID: originalTemplate.categoryID,
-      sourceID: originalTemplate.sourceID,
-      destinationID: originalTemplate.destinationID,
-      includeInAnalysis: originalTemplate.includeInAnalysis,
-    );
-
-    final plan = RecurringPlan(
-      id: widget.plan.id,
-      template: template,
-      frequency: _frequency,
-      anchor: _anchor,
-      endDate: _hasEndDate ? _endDate : null,
-      lastResolvedDate: widget.plan.lastResolvedDate,
-    );
-
-    try {
-      widget.ledger.updatePlan(plan);
-      if (!mounted) return;
-      Navigator.of(context).maybePop();
-    } on LedgerError catch (error) {
-      setState(() => _error = error);
-    }
+    if (!context.mounted) return;
+    _viewModel.applyPickedEndDate(picked);
   }
 
   @override
   Widget build(BuildContext context) {
-    final sourceName =
-        widget.ledger.state.sourceName(widget.plan.template.sourceID) ??
-        'Unknown';
+    final asyncState = ref.watch(planFormViewModelProvider(widget.planId));
+
+    return asyncState.when(
+      data: (formState) => _PlanFormBody(
+        formState: formState,
+        viewModel: _viewModel,
+        nameController: _nameController,
+        amountController: _amountController,
+      ),
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, stackTrace) => Center(child: Text('$error')),
+    );
+  }
+}
+
+class _PlanFormBody extends StatelessWidget {
+  const _PlanFormBody({
+    required this.formState,
+    required this.viewModel,
+    required this.nameController,
+    required this.amountController,
+  });
+
+  final PlanFormViewState formState;
+  final PlanFormViewModel viewModel;
+  final TextEditingController nameController;
+  final TextEditingController amountController;
+
+  @override
+  Widget build(BuildContext context) {
+    // Pulled from the ViewModel each build rather than bound both ways,
+    // since the ViewModel is the single source of truth for form text.
+    if (nameController.text != formState.name) {
+      nameController.text = formState.name;
+    }
+    if (amountController.text != formState.amountText) {
+      amountController.text = formState.amountText;
+    }
 
     return FormScaffold(
       title: 'Edit Plan',
-      canSave: _canSave,
-      onSave: _save,
-      error: ErrorSection(subject: 'plan', error: _error),
+      canSave: formState.canSave,
+      onSave: viewModel.save,
+      error: ErrorSection(subject: 'plan', error: formState.error),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           TextField(
-            controller: _nameController,
+            controller: nameController,
             decoration: const InputDecoration(hintText: 'Name'),
-            onChanged: (_) => setState(() {}),
+            onChanged: viewModel.setName,
           ),
           const SizedBox(height: 16),
           AmountField(
-            controller: _amountController,
+            controller: amountController,
             allowsNegative: false,
-            onChanged: (_) => setState(() {}),
+            onChanged: viewModel.setAmount,
           ),
           const SizedBox(height: 16),
-          Text('Source: $sourceName'),
+          Text('Source: ${formState.sourceName}'),
           const SizedBox(height: 16),
           ListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Repeat'),
-            trailing: Text(frequencyLabels[_frequency]!),
-            onTap: _pickRecurrence,
+            trailing: Text(frequencyLabels[formState.frequency]!),
+            onTap: viewModel.requestPickRecurrence,
           ),
           ListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('First date'),
-            trailing: Text(formatEntryDate(_anchor)),
-            onTap: _pickAnchor,
+            trailing: Text(formatEntryDate(formState.anchor)),
+            onTap: viewModel.requestPickAnchor,
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('End date'),
-            value: _hasEndDate,
-            onChanged: (value) => setState(() {
-              _hasEndDate = value;
-              if (value) _endDate ??= _anchor;
-            }),
+            value: formState.hasEndDate,
+            onChanged: viewModel.setHasEndDate,
           ),
-          if (_hasEndDate)
+          if (formState.hasEndDate)
             ListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('Ends on'),
-              trailing: Text(formatEntryDate(_endDate ?? _anchor)),
-              onTap: _pickEndDate,
+              trailing: Text(
+                formatEntryDate(formState.endDate ?? formState.anchor),
+              ),
+              onTap: viewModel.requestPickEndDate,
             ),
         ],
       ),

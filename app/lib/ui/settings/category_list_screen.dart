@@ -2,41 +2,55 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/boot/providers.dart';
-import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/category_icon.dart';
 import 'package:spendwise/ui/common/swipe_to_delete_row.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
 import 'package:spendwise/ui/settings/category_form.dart';
+import 'package:spendwise/ui/settings/category_list_view_model.dart';
 
-class CategoryListScreen extends ConsumerWidget {
+class CategoryListScreen extends ConsumerStatefulWidget {
   const CategoryListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final ledger = ref.watch(ledgerProvider);
-    if (ledger == null) return const SizedBox.shrink();
-
-    return ListenableBuilder(
-      listenable: ledger,
-      builder: (context, _) => _CategoryListScreenBody(ledger: ledger),
-    );
-  }
+  ConsumerState<CategoryListScreen> createState() => _CategoryListScreenState();
 }
 
-class _CategoryListScreenBody extends StatelessWidget {
-  const _CategoryListScreenBody({required this.ledger});
+class _CategoryListScreenState extends ConsumerState<CategoryListScreen> {
+  ProviderSubscription<AsyncValue<CategoryListViewState>>? _stepSubscription;
 
-  final Ledger ledger;
+  @override
+  void initState() {
+    super.initState();
+    _stepSubscription = ref.listenManual(
+      categoryListViewModelProvider,
+      (previous, next) => _handleStep(next.value?.step),
+    );
+  }
 
-  void _openForm(
-    BuildContext context, {
+  @override
+  void dispose() {
+    _stepSubscription?.close();
+    super.dispose();
+  }
+
+  CategoryListViewModel get _viewModel =>
+      ref.read(categoryListViewModelProvider.notifier);
+
+  void _handleStep(CategoryListStep? step) {
+    if (step == null) return;
+    switch (step) {
+      case CategoryFormRequested(:final category, :final presetParentID):
+        _openForm(category: category, presetParentID: presetParentID);
+    }
+  }
+
+  Future<void> _openForm({
     TransactionCategory? category,
     String? presetParentID,
-  }) {
-    showCategoryFormSheet(
+  }) async {
+    _viewModel.clearStep();
+    await showCategoryFormSheet(
       context: context,
-      ledger: ledger,
       category: category,
       presetParentID: presetParentID,
     );
@@ -44,16 +58,37 @@ class _CategoryListScreenBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final income = ledger.categories(CategoryKind.income);
-    final expense = ledger.categories(CategoryKind.expense);
+    final asyncState = ref.watch(categoryListViewModelProvider);
 
+    return asyncState.when(
+      data: (viewState) =>
+          _CategoryListScreenBody(viewState: viewState, viewModel: _viewModel),
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (error, stackTrace) =>
+          Scaffold(body: Center(child: Text('$error'))),
+    );
+  }
+}
+
+class _CategoryListScreenBody extends StatelessWidget {
+  const _CategoryListScreenBody({
+    required this.viewState,
+    required this.viewModel,
+  });
+
+  final CategoryListViewState viewState;
+  final CategoryListViewModel viewModel;
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Categories'),
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            onPressed: () => _openForm(context),
+            onPressed: viewModel.requestNewCategory,
           ),
         ],
       ),
@@ -61,19 +96,17 @@ class _CategoryListScreenBody extends StatelessWidget {
         children: [
           _CategorySection(
             title: 'Income',
-            categories: income,
-            onTap: (category) => _openForm(context, category: category),
-            onDeleted: (category) => ledger.deleteCategory(category.id),
-            onAddSubcategory: (parent) =>
-                _openForm(context, presetParentID: parent.id),
+            categories: viewState.income,
+            onTap: viewModel.requestEditCategory,
+            onDeleted: (category) => viewModel.deleteCategory(category.id),
+            onAddSubcategory: viewModel.requestNewSubcategory,
           ),
           _CategorySection(
             title: 'Expense',
-            categories: expense,
-            onTap: (category) => _openForm(context, category: category),
-            onDeleted: (category) => ledger.deleteCategory(category.id),
-            onAddSubcategory: (parent) =>
-                _openForm(context, presetParentID: parent.id),
+            categories: viewState.expense,
+            onTap: viewModel.requestEditCategory,
+            onDeleted: (category) => viewModel.deleteCategory(category.id),
+            onAddSubcategory: viewModel.requestNewSubcategory,
           ),
         ],
       ),
