@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ui/common/day_sectioned_entry_list.dart';
 import 'package:spendwise/ui/common/month_year_selector.dart';
 import 'package:spendwise/ui/format/amount_color.dart';
 import 'package:spendwise/ui/stats/analysis_scan.dart';
@@ -13,7 +14,6 @@ import 'package:spendwise/ui/stats/category_trend_card.dart';
 import 'package:spendwise/ui/stats/stats_window.dart';
 import 'package:spendwise/ui/stats/subcategory_table.dart';
 import 'package:spendwise/ui/stats/trend.dart';
-import 'package:spendwise/ui/transactions/day_sectioned_entry_list.dart';
 
 class CategoryDetailScreen extends ConsumerWidget {
   const CategoryDetailScreen({

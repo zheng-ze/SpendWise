@@ -3,12 +3,12 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/category_icon.dart';
+import 'package:spendwise/ui/common/delete_confirmation.dart';
 import 'package:spendwise/ui/common/error_section.dart';
 import 'package:spendwise/ui/common/form_scaffold.dart';
+import 'package:spendwise/ui/common/symbol_picker.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
 import 'package:spendwise/ui/settings/category_form_logic.dart';
-import 'package:spendwise/ui/settings/symbol_picker.dart';
-import 'package:spendwise/ui/common/delete_confirmation.dart';
 
 const _defaultColor = Color(0xFF007AFF);
 

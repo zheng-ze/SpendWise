@@ -2,12 +2,12 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/accounts/account_type_picker.dart';
 import 'package:spendwise/ui/accounts/source_edit_form_logic.dart';
-import 'package:spendwise/ui/accounts/statement_day_picker.dart';
+import 'package:spendwise/ui/common/account_type_picker.dart';
 import 'package:spendwise/ui/common/amount_field.dart';
 import 'package:spendwise/ui/common/error_section.dart';
 import 'package:spendwise/ui/common/form_scaffold.dart';
+import 'package:spendwise/ui/common/statement_day_picker.dart';
 import 'package:spendwise/ui/format/amount_parse.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 

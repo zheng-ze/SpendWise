@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/common/amount_field.dart';
 import 'package:spendwise/ui/common/category_icon.dart';
+import 'package:spendwise/ui/common/recurrence_picker.dart'
+    show frequencyLabels;
 import 'package:spendwise/ui/format/color_hex.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/transactions/entry_form_controller.dart';
 import 'package:spendwise/ui/transactions/entry_form_logic.dart';
-import 'package:spendwise/ui/transactions/recurrence_picker.dart'
-    show frequencyLabels;
 
 /// Field body shared by the edit and new-entry forms: kind selector, amount,
 /// name, date, recurrence (new entries only), account/category or from/to,
