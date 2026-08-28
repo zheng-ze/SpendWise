@@ -1,6 +1,7 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:spendwise/ui/transactions/month_summaries.dart';
 import 'package:spendwise/ui/transactions/monthly_transactions_view.dart';
 
 void main() {
@@ -24,10 +25,11 @@ void main() {
     tester,
   ) async {
     final year = DateTime.utc(DateTime.now().year);
+    final summaries = monthSummaries(state(), year);
 
     await pump(
       tester,
-      MonthlyTransactionsView(state: state(), year: year, onWeekTap: (_) {}),
+      MonthlyTransactionsView(summaries: summaries, onWeekTap: (_) {}),
     );
 
     final monthRows = find.textContaining(monthLabel);
@@ -62,13 +64,13 @@ void main() {
     tester,
   ) async {
     final year = DateTime.utc(DateTime.now().year);
+    final summaries = monthSummaries(state(), year);
     DateTime? tapped;
 
     await pump(
       tester,
       MonthlyTransactionsView(
-        state: state(),
-        year: year,
+        summaries: summaries,
         onWeekTap: (month) => tapped = month,
       ),
     );

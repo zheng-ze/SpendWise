@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/accounts/accounts_screen.dart';
-import 'package:spendwise/ui/transactions/daily_transactions_screen.dart';
+import 'package:spendwise/ui/accounts/accounts_view_model.dart';
 
 void main() {
   Decimal dec(String value) => Decimal.parse(value);
@@ -40,13 +40,25 @@ void main() {
     );
   }
 
-  Future<void> pumpScreen(WidgetTester tester, Ledger ledger) {
-    return tester.pumpWidget(
-      ProviderScope(
-        overrides: [ledgerProvider.overrideWithValue(ledger)],
+  Future<ProviderContainer> pumpScreen(
+    WidgetTester tester,
+    Ledger ledger,
+  ) async {
+    final container = ProviderContainer(
+      overrides: [ledgerProvider.overrideWithValue(ledger)],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
         child: const MaterialApp(home: AccountsScreen()),
       ),
     );
+    // Flushes AccountsNotifier.build()'s Future so the screen's initial
+    // AsyncData state is in place before a test interacts with it.
+    await tester.pump();
+    return container;
   }
 
   testWidgets(
@@ -73,58 +85,60 @@ void main() {
     },
   );
 
-  testWidgets('tapping the account row body opens the account plus pockets '
-      'scope', (tester) async {
+  testWidgets('tapping the account row body emits AccountOpened scoped to '
+      'the account plus pockets', (tester) async {
     final ledger = buildLedger();
-    await pumpScreen(tester, ledger);
+    final container = await pumpScreen(tester, ledger);
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Main Checking'));
-    await tester.pumpAndSettle();
+    await tester.pump();
 
-    final screen = tester.widget<TransactionsScreen>(
-      find.byType(TransactionsScreen).last,
-    );
-    expect(screen.title, 'Main Checking');
-    expect(screen.scopeIDs, {checking.id, rentPocket.id});
+    final step = container.read(accountsViewModelProvider).value?.step;
+    expect(step, isA<AccountOpened>());
+    final opened = step as AccountOpened;
+    expect(opened.title, 'Main Checking');
+    expect(opened.scopeIDs, {checking.id, rentPocket.id});
   });
 
-  testWidgets('the excluding-subpockets row opens the account alone', (
+  testWidgets('the excluding-subpockets row emits AccountAloneOpened', (
     tester,
   ) async {
     final ledger = buildLedger();
-    await pumpScreen(tester, ledger);
+    final container = await pumpScreen(tester, ledger);
     await tester.pumpAndSettle();
 
     await tester.tap(find.byIcon(Icons.chevron_right));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Excluding subpockets'));
-    await tester.pumpAndSettle();
+    await tester.pump();
 
-    final screen = tester.widget<TransactionsScreen>(
-      find.byType(TransactionsScreen).last,
-    );
-    expect(screen.title, 'Main Checking');
-    expect(screen.scopeIDs, {checking.id});
+    final step = container.read(accountsViewModelProvider).value?.step;
+    expect(step, isA<AccountAloneOpened>());
+    final opened = step as AccountAloneOpened;
+    expect(opened.title, 'Main Checking');
+    expect(opened.scopeIDs, {checking.id});
   });
 
-  testWidgets('a pocket row opens scoped to the pocket alone', (tester) async {
+  testWidgets('a pocket row emits PocketOpened scoped to the pocket alone', (
+    tester,
+  ) async {
     final ledger = buildLedger();
-    await pumpScreen(tester, ledger);
+    final container = await pumpScreen(tester, ledger);
     await tester.pumpAndSettle();
 
     await tester.tap(find.byIcon(Icons.chevron_right));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Rent'));
-    await tester.pumpAndSettle();
+    await tester.pump();
 
-    final screen = tester.widget<TransactionsScreen>(
-      find.byType(TransactionsScreen).last,
-    );
-    expect(screen.title, 'Rent');
-    expect(screen.scopeIDs, {rentPocket.id});
+    final step = container.read(accountsViewModelProvider).value?.step;
+    expect(step, isA<PocketOpened>());
+    final opened = step as PocketOpened;
+    expect(opened.title, 'Rent');
+    expect(opened.scopeIDs, {rentPocket.id});
   });
 
   testWidgets('the delete confirmation names the account', (tester) async {
