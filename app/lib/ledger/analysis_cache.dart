@@ -60,7 +60,11 @@ class AnalysisCache extends ChangeNotifier {
     });
   }
 
-  void refresh(LedgerState state) {
+  /// Callers that only want the fire-and-forget behavior (a listener
+  /// reacting to a later change) can ignore the returned future; a caller
+  /// that needs the cache populated before it reads [items] (an initial
+  /// build) should await it.
+  Future<void> refresh(LedgerState state) async {
     if (_lastComputed == _revision) return;
 
     final target = _revision;
@@ -68,22 +72,19 @@ class AnalysisCache extends ChangeNotifier {
     // generation cannot start a second pass.
     _lastComputed = target;
 
-    unawaited(
-      _runner(state)
-          .then((computed) {
-            if (target != _lastComputed) return;
+    try {
+      final computed = await _runner(state);
+      if (target != _lastComputed) return;
 
-            _items = computed;
-            _itemsRevision += 1;
-            notifyListeners();
-          })
-          .onError((error, stackTrace) {
-            // A failed compute must not get stuck reporting stale data
-            // forever, so the next refresh() call is allowed to retry.
-            if (target == _lastComputed) _lastComputed = -1;
-            debugPrint('AnalysisCache refresh failed: $error\n$stackTrace');
-          }),
-    );
+      _items = computed;
+      _itemsRevision += 1;
+      notifyListeners();
+    } catch (error, stackTrace) {
+      // A failed compute must not get stuck reporting stale data forever,
+      // so the next refresh() call is allowed to retry.
+      if (target == _lastComputed) _lastComputed = -1;
+      debugPrint('AnalysisCache refresh failed: $error\n$stackTrace');
+    }
   }
 
   @override

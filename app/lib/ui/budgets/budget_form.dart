@@ -1,97 +1,72 @@
-import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ui/budgets/budget_form_view_model.dart';
 import 'package:spendwise/ui/common/amount_field.dart';
 import 'package:spendwise/ui/common/category_icon.dart';
 import 'package:spendwise/ui/common/error_section.dart';
 import 'package:spendwise/ui/common/form_scaffold.dart';
-import 'package:spendwise/ui/format/amount_parse.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
 
-Future<void> showBudgetFormSheet({
-  required BuildContext context,
-  required Ledger ledger,
-}) {
+Future<void> showBudgetFormSheet({required BuildContext context}) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    builder: (_) => BudgetForm(ledger: ledger),
+    builder: (_) => const BudgetForm(),
   );
 }
 
-class BudgetForm extends StatefulWidget {
-  const BudgetForm({super.key, required this.ledger});
-
-  final Ledger ledger;
+class BudgetForm extends ConsumerStatefulWidget {
+  const BudgetForm({super.key});
 
   @override
-  State<BudgetForm> createState() => _BudgetFormState();
+  ConsumerState<BudgetForm> createState() => _BudgetFormState();
 }
 
-class _BudgetFormState extends State<BudgetForm> {
-  final TextEditingController _amountController = TextEditingController();
+class _BudgetFormState extends ConsumerState<BudgetForm> {
+  late final TextEditingController _amountController = TextEditingController();
 
-  String? _categoryID;
+  ProviderSubscription<AsyncValue<BudgetFormViewState>>? _subscription;
 
-  LedgerError? _error;
-
-  Decimal? get _parsedAmount => parseAmountInput(_amountController.text);
-
-  Set<String?> get _budgetedCategoryIDs => widget.ledger.state.budgets.values
-      .map((budget) => budget.categoryID)
-      .toSet();
-
-  /// Root categories with an unbudgeted child are kept even when the root
-  /// itself is already budgeted, so the child still has a group to sit
-  /// under in the picker.
-  List<(TransactionCategory, List<TransactionCategory>)>
-  get _groupedCategories {
-    final budgeted = _budgetedCategoryIDs;
-
-    final active = widget.ledger.state.categories.values.where(
-      (category) =>
-          category.lifecycle.isActive && category.kind == CategoryKind.expense,
+  @override
+  void initState() {
+    super.initState();
+    _subscription = ref.listenManual(
+      budgetFormViewModelProvider,
+      (previous, next) => _handleStep(next.value?.step),
     );
-
-    final roots = active.where((category) => category.parentID == null).toList()
-      ..sort((a, b) => a.name.compareTo(b.name));
-
-    final childrenByParent = <String, List<TransactionCategory>>{};
-    for (final category in active) {
-      final parentID = category.parentID;
-      if (parentID == null || budgeted.contains(category.id)) continue;
-      (childrenByParent[parentID] ??= []).add(category);
-    }
-    for (final children in childrenByParent.values) {
-      children.sort((a, b) => a.name.compareTo(b.name));
-    }
-
-    return [
-      for (final root in roots)
-        if (!budgeted.contains(root.id) ||
-            (childrenByParent[root.id]?.isNotEmpty ?? false))
-          (root, childrenByParent[root.id] ?? const []),
-    ];
-  }
-
-  bool get _canSave {
-    final amount = _parsedAmount;
-    return amount != null && amount > Decimal.zero;
   }
 
   @override
   void dispose() {
+    _subscription?.close();
     _amountController.dispose();
     super.dispose();
+  }
+
+  BudgetFormViewModel get _viewModel =>
+      ref.read(budgetFormViewModelProvider.notifier);
+
+  void _handleStep(BudgetFormStep? step) {
+    if (step == null) return;
+    switch (step) {
+      case PickCategoryRequested():
+        _pickCategory();
+      case BudgetFormSaved():
+        if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+        _viewModel.clearStep();
+    }
   }
 
   static const _overallSentinel = '__overall__';
 
   Future<void> _pickCategory() async {
-    final groups = _groupedCategories;
-    final budgeted = _budgetedCategoryIDs;
+    final formState = ref.read(budgetFormViewModelProvider).value;
+    if (formState == null) return;
+
+    final groups = formState.groupedCategories;
+    final budgeted = formState.budgetedCategoryIDs;
 
     final overallTile = ListTile(
       title: const Text('Overall'),
@@ -140,50 +115,68 @@ class _BudgetFormState extends State<BudgetForm> {
         ),
       ),
     );
-    if (!mounted || chosen == null) return;
-    setState(() => _categoryID = chosen == _overallSentinel ? null : chosen);
-  }
-
-  Future<void> _save() async {
-    final amount = _parsedAmount!.abs();
-
-    try {
-      widget.ledger.addBudget(_categoryID, amount, now: DateTime.now().toUtc());
-
-      if (!mounted) return;
-      Navigator.of(context).maybePop();
-    } on LedgerError catch (error) {
-      setState(() => _error = error);
+    if (!context.mounted) return;
+    if (chosen == null) {
+      _viewModel.clearStep();
+      return;
     }
-  }
-
-  String get _categoryLabel {
-    final id = _categoryID;
-    if (id == null) return 'Overall';
-    return widget.ledger.state.categories[id]?.name ?? '(category deleted)';
+    _viewModel.applyPickedCategory(chosen == _overallSentinel ? null : chosen);
   }
 
   @override
   Widget build(BuildContext context) {
+    final asyncState = ref.watch(budgetFormViewModelProvider);
+
+    return asyncState.when(
+      data: (formState) => _BudgetFormBody(
+        formState: formState,
+        viewModel: _viewModel,
+        amountController: _amountController,
+      ),
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, stackTrace) => Center(child: Text('$error')),
+    );
+  }
+}
+
+class _BudgetFormBody extends StatelessWidget {
+  const _BudgetFormBody({
+    required this.formState,
+    required this.viewModel,
+    required this.amountController,
+  });
+
+  final BudgetFormViewState formState;
+  final BudgetFormViewModel viewModel;
+  final TextEditingController amountController;
+
+  @override
+  Widget build(BuildContext context) {
+    // Pulled from the ViewModel each build rather than bound both ways,
+    // since the ViewModel is the single source of truth for form text.
+    if (amountController.text != formState.amountText) {
+      amountController.text = formState.amountText;
+    }
+
     final categoryTile = ListTile(
       contentPadding: EdgeInsets.zero,
       title: const Text('Category'),
-      trailing: Text(_categoryLabel),
-      onTap: _pickCategory,
+      trailing: Text(formState.categoryLabel),
+      onTap: viewModel.requestPickCategory,
     );
     final amountField = AmountField(
-      controller: _amountController,
+      controller: amountController,
       allowsNegative: false,
       hintText: 'Limit',
       autofocus: true,
-      onChanged: (_) => setState(() {}),
+      onChanged: viewModel.setAmount,
     );
 
     return FormScaffold(
       title: 'New Budget',
-      canSave: _canSave,
-      onSave: _save,
-      error: ErrorSection(subject: 'budget', error: _error),
+      canSave: formState.canSave,
+      onSave: viewModel.save,
+      error: ErrorSection(subject: 'budget', error: formState.error),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [categoryTile, const SizedBox(height: 16), amountField],

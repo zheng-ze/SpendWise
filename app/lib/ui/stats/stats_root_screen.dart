@@ -2,109 +2,84 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/boot/providers.dart';
-import 'package:spendwise/ledger/analysis_cache.dart';
-import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/budgets/budget_card.dart';
-import 'package:spendwise/ui/budgets/budget_detail_screen.dart';
-import 'package:spendwise/ui/budgets/budget_form.dart';
 import 'package:spendwise/ui/common/expanding_fab.dart';
 import 'package:spendwise/ui/common/month_year_selector.dart';
+import 'package:spendwise/ui/common/swipe_to_delete_row.dart';
 import 'package:spendwise/ui/common/top_tab_bar.dart';
 import 'package:spendwise/ui/format/amount_color.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
-import 'package:spendwise/ui/stats/category_detail_screen.dart';
-import 'package:spendwise/ui/stats/slices.dart';
 import 'package:spendwise/ui/stats/stats_donut.dart';
 import 'package:spendwise/ui/stats/stats_legend.dart';
+import 'package:spendwise/ui/stats/stats_root_view_model.dart';
 import 'package:spendwise/ui/stats/stats_window.dart';
 
 const _tabTitles = ['Income', 'Expense', 'Budgets'];
 
-enum StatsRangeMode { month, year }
-
-enum _StatsTab { income, expense, budgets }
-
-class StatsScreen extends ConsumerWidget {
-  const StatsScreen({super.key});
+class StatsRootScreen extends ConsumerWidget {
+  const StatsRootScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final ledger = ref.watch(ledgerProvider);
-    final cache = ref.watch(analysisCacheProvider);
-    if (ledger == null) return const SizedBox.shrink();
+    final asyncState = ref.watch(statsRootViewModelProvider);
+    final viewModel = ref.watch(statsRootViewModelProvider.notifier);
+    final selectedDate = ref.watch(selectedMonthProvider);
 
-    cache.refresh(ledger.state);
-
-    return ListenableBuilder(
-      listenable: ledger,
-      builder: (context, _) => ListenableBuilder(
-        listenable: cache,
-        builder: (context, _) => _StatsScreenBody(ledger: ledger, cache: cache),
+    return asyncState.when(
+      data: (viewState) => _StatsRootBody(
+        viewState: viewState,
+        viewModel: viewModel,
+        selectedDate: selectedDate,
+        onDateChanged: (value) =>
+            ref.read(selectedMonthProvider.notifier).state = value,
       ),
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (error, stackTrace) =>
+          Scaffold(body: Center(child: Text('$error'))),
     );
   }
 }
 
-class _StatsScreenBody extends ConsumerStatefulWidget {
-  const _StatsScreenBody({required this.ledger, required this.cache});
+class _StatsRootBody extends StatelessWidget {
+  const _StatsRootBody({
+    required this.viewState,
+    required this.viewModel,
+    required this.selectedDate,
+    required this.onDateChanged,
+  });
 
-  final Ledger ledger;
-  final AnalysisCache cache;
-
-  @override
-  ConsumerState<_StatsScreenBody> createState() => _StatsScreenBodyState();
-}
-
-class _StatsScreenBodyState extends ConsumerState<_StatsScreenBody> {
-  _StatsTab _tab = _StatsTab.expense;
-  StatsRangeMode _range = StatsRangeMode.month;
+  final StatsRootViewState viewState;
+  final StatsRootViewModel viewModel;
+  final DateTime selectedDate;
+  final ValueChanged<DateTime> onDateChanged;
 
   void _setTab(int tabIndex) {
-    setState(() {
-      _tab = switch (tabIndex) {
-        0 => _StatsTab.income,
-        1 => _StatsTab.expense,
-        _ => _StatsTab.budgets,
-      };
+    viewModel.setTab(switch (tabIndex) {
+      0 => StatsTab.income,
+      1 => StatsTab.expense,
+      _ => StatsTab.budgets,
     });
-  }
-
-  void _setRange(StatsRangeMode range) {
-    setState(() => _range = range);
-  }
-
-  void _onTapCategory(CategoryKind kind, String mainID) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => CategoryDetailScreen(
-          mainID: mainID,
-          kind: kind,
-          isYearRange: _range == StatsRangeMode.year,
-          initialDate: ref.read(selectedMonthProvider),
-        ),
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final selectedDate = ref.watch(selectedMonthProvider);
+    final tab = viewState.tab;
+    final range = viewState.range;
 
     return Scaffold(
       appBar: AppBar(
         title: MonthYearSelector(
           value: selectedDate,
-          step: _tab == _StatsTab.budgets || _range == StatsRangeMode.month
+          step: tab == StatsTab.budgets || range == StatsRangeMode.month
               ? MonthYearStep.month
               : MonthYearStep.year,
-          onChanged: (value) =>
-              ref.read(selectedMonthProvider.notifier).state = value,
+          onChanged: onDateChanged,
         ),
         actions: [
-          if (_tab != _StatsTab.budgets)
+          if (tab != StatsTab.budgets)
             PopupMenuButton<StatsRangeMode>(
-              onSelected: _setRange,
+              onSelected: viewModel.setRange,
               itemBuilder: (context) => const [
                 PopupMenuItem(
                   value: StatsRangeMode.month,
@@ -126,40 +101,38 @@ class _StatsScreenBodyState extends ConsumerState<_StatsScreenBody> {
               children: [
                 TopTabBar(
                   titles: _tabTitles,
-                  selectedIndex: _tab.index,
+                  selectedIndex: tab.index,
                   onSelected: _setTab,
                 ),
                 const Divider(height: 1),
                 Expanded(
-                  child: _tab == _StatsTab.budgets
+                  child: tab == StatsTab.budgets
                       ? _BudgetsBody(
-                          ledger: widget.ledger,
-                          items: widget.cache.items,
+                          viewState: viewState,
+                          viewModel: viewModel,
                           month: YearMonth.fromUtc(selectedDate),
                         )
                       : _AnalysisBody(
-                          ledger: widget.ledger,
-                          items: widget.cache.items,
-                          kind: _tab == _StatsTab.income
+                          viewState: viewState,
+                          viewModel: viewModel,
+                          kind: tab == StatsTab.income
                               ? CategoryKind.income
                               : CategoryKind.expense,
-                          window: _range == StatsRangeMode.month
+                          window: range == StatsRangeMode.month
                               ? monthWindow(selectedDate)
                               : yearWindow(selectedDate),
-                          onTapCategory: _onTapCategory,
+                          isYearRange: range == StatsRangeMode.year,
+                          selectedDate: selectedDate,
                         ),
                 ),
               ],
             ),
-            if (_tab == _StatsTab.budgets)
+            if (tab == StatsTab.budgets)
               ExpandingFab(
                 primary: FabAction(
                   label: 'Add Budget',
                   icon: Icons.add,
-                  onTap: () => showBudgetFormSheet(
-                    context: context,
-                    ledger: widget.ledger,
-                  ),
+                  onTap: viewModel.requestNewBudget,
                 ),
               ),
           ],
@@ -171,25 +144,27 @@ class _StatsScreenBodyState extends ConsumerState<_StatsScreenBody> {
 
 class _AnalysisBody extends StatelessWidget {
   const _AnalysisBody({
-    required this.ledger,
-    required this.items,
+    required this.viewState,
+    required this.viewModel,
     required this.kind,
     required this.window,
-    required this.onTapCategory,
+    required this.isYearRange,
+    required this.selectedDate,
   });
 
-  final Ledger ledger;
-  final List<AnalysisItem> items;
+  final StatsRootViewState viewState;
+  final StatsRootViewModel viewModel;
   final CategoryKind kind;
   final DateRange window;
-  final void Function(CategoryKind kind, String mainID) onTapCategory;
+  final bool isYearRange;
+  final DateTime selectedDate;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = AmountColors.of(theme);
 
-    final categorySlices = slices(items, kind, window, ledger.state);
+    final categorySlices = statsSlices(viewState, kind, window);
 
     var total = Decimal.zero;
     for (final slice in categorySlices) {
@@ -218,7 +193,12 @@ class _AnalysisBody extends StatelessWidget {
           const Divider(height: 1),
           StatsLegend(
             slices: categorySlices,
-            onTapCategory: (mainID) => onTapCategory(kind, mainID),
+            onTapCategory: (mainID) => viewModel.requestCategoryDetail(
+              kind: kind,
+              mainID: mainID,
+              isYearRange: isYearRange,
+              initialDate: selectedDate,
+            ),
           ),
         ],
       ],
@@ -228,44 +208,18 @@ class _AnalysisBody extends StatelessWidget {
 
 class _BudgetsBody extends StatelessWidget {
   const _BudgetsBody({
-    required this.ledger,
-    required this.items,
+    required this.viewState,
+    required this.viewModel,
     required this.month,
   });
 
-  final Ledger ledger;
-  final List<AnalysisItem> items;
+  final StatsRootViewState viewState;
+  final StatsRootViewModel viewModel;
   final YearMonth month;
 
   @override
   Widget build(BuildContext context) {
-    /// Groups a subcategory's budget under its parent's name, so the two
-    /// sort next to each other even when only the child carries a budget.
-    (String groupName, bool isSubcategory, String ownName) sortKey(
-      Budget budget,
-    ) {
-      final categoryID = budget.categoryID;
-      if (categoryID == null) return ('', false, '');
-      final category = ledger.state.categories[categoryID];
-      if (category == null) {
-        return ('(category deleted)', false, '(category deleted)');
-      }
-      final parentID = category.parentID;
-      if (parentID == null) return (category.name, false, category.name);
-      final parentName =
-          ledger.state.categories[parentID]?.name ?? category.name;
-      return (parentName, true, category.name);
-    }
-
-    final budgets = ledger.state.budgets.values.toList()
-      ..sort((a, b) {
-        final aKey = sortKey(a);
-        final bKey = sortKey(b);
-        final groupCompare = aKey.$1.compareTo(bKey.$1);
-        if (groupCompare != 0) return groupCompare;
-        if (aKey.$2 != bKey.$2) return aKey.$2 ? 1 : -1;
-        return aKey.$3.compareTo(bKey.$3);
-      });
+    final budgets = viewState.budgets;
 
     if (budgets.isEmpty) return const BudgetsEmptyState();
 
@@ -273,19 +227,29 @@ class _BudgetsBody extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 8),
       itemCount: budgets.length,
       separatorBuilder: (_, _) => const Divider(height: 1),
-      itemBuilder: (context, index) => BudgetCard(
-        budget: budgets[index],
-        month: month,
-        items: items,
-        state: ledger.state,
-        isSubcategory: sortKey(budgets[index]).$2,
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => BudgetDetailScreen(budget: budgets[index]),
+      itemBuilder: (context, index) {
+        final budget = budgets[index];
+        return SwipeToDeleteRow(
+          itemKey: ValueKey('budget-${budget.id}'),
+          itemName: _budgetDisplayName(budget, viewState.ledgerState),
+          onDeleted: () => viewModel.deleteBudget(budget.id),
+          child: BudgetCard(
+            budget: budget,
+            month: month,
+            items: viewState.items,
+            state: viewState.ledgerState,
+            isSubcategory: viewState.isSubcategoryBudget(budget),
+            onTap: () => viewModel.requestBudgetDetail(budget.id),
           ),
-        ),
-      ),
+        );
+      },
     );
+  }
+
+  String _budgetDisplayName(Budget budget, LedgerState state) {
+    final categoryID = budget.categoryID;
+    if (categoryID == null) return 'Overall';
+    return state.categories[categoryID]?.name ?? '(category deleted)';
   }
 }
 
