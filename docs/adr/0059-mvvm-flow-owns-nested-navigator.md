@@ -126,3 +126,31 @@ itself — only on the plain-Dart `Step` type its own screen can emit.
 The `budgets/` proof migration (issue #33) is the first Flow built against this design. Any gap it
 surfaces — the `PopScope` pattern, the `onEnded` contract, or the single-shot `Step` mechanism —
 gets folded back into this ADR and `CONTEXT.md`'s MVVM vocabulary before that ticket closes.
+
+## Amendment (issue #36): `Step` also covers a launched modal, not only a pushed screen
+
+The `accounts`/`transactions` migration (issue #36) needed a `Step` variant for a picker bottom
+sheet (choosing a parent account, a transfer destination, a category) and for `showDatePicker`.
+Neither is a `Navigator` push: both are a modal launched over the current screen, and the modal's
+raw result — a picked id, a picked date, or nothing if the user backed out — has to reach the
+ViewModel that asked for it.
+
+This ADR's original wording ("the Flow's job is mapping a `Step` value to a push/pop on its own
+`Navigator`") did not cover that case. `Step`'s actual purpose is broader than push/pop: it is any
+UI action a ViewModel needs but must not decide for itself, because deciding it would require a
+`BuildContext` or a Flutter API the ViewModel is not allowed to import. A launched modal fits that
+purpose exactly as well as a pushed screen does, so this ADR now states the contract at that
+broader level instead of only its push/pop instance.
+
+**A `Step` variant maps to one of two Flow actions**: a `Navigator` push or pop, or launching a
+modal (a picker sheet, `showDatePicker`) and reporting its raw outcome back to the ViewModel
+through a named method (for example, `applyPickedParent(String? id)`, `applyPickedDate(DateTime?
+date)`). Both cases keep the same single-shot discipline: the Flow calls `clearStep()` once it has
+acted on the `Step`, whether that action was a push or a modal launch. A ViewModel never launches a
+modal itself; only the Flow reaches for a `BuildContext` and a Flutter picker API, exactly as it
+already was the only place reaching for `Navigator`.
+
+This widening is now the standing pattern, not a one-off exception scoped to `accounts`/
+`transactions`. Any Flow that needs a picker or a native dialog follows the same shape: a request-
+side `Step` variant, a named apply method on the ViewModel receiving the raw result, and
+`clearStep()` afterward.

@@ -107,6 +107,17 @@ error:)` rather than a hand-rolled loading/error representation. "The View never
 input means" is a documented convention here, not tool-enforced — reviewed the same way any other
 convention violation is caught.
 
+Every ViewModel backed by the app's single `Ledger` uses the `LedgerBackedNotifier` mixin
+(`app/lib/ui/common/ledger_backed_notifier.dart`) rather than repeating its own ledger accessor and
+state-update helper. The mixin gives a notifier a `ledger` getter that throws if the ledger is not
+ready yet, and an `updateState()` method that applies a transform to the current `ViewState` and
+no-ops if the provider has already been disposed — the guard a picker callback needs when its
+result arrives after the sheet that launched it is gone. Issue #30 left "should ViewModels share a
+base class?" open pending real examples; issue #36 answered it once `AccountsNotifier`,
+`AccountFormNotifier`, `SourceEditFormNotifier`, `TransactionsNotifier`, and `EntryFormNotifier` all
+turned out to need the same two pieces of boilerplate. A ViewModel with no `Ledger` dependency, or
+one needing a genuinely different state-update shape, has no obligation to use this mixin.
+
 **Flow** — a `ConsumerStatefulWidget` that owns one feature folder's own nested `Navigator` (its
 own independent route stack), scoped with a `GlobalKey<NavigatorState>` local to that Flow's
 State — never shared app-wide. A Flow watches its screens' ViewModels for a `Step` via
@@ -116,11 +127,13 @@ Flow. See ADR-0059.
 
 **Step** — a sealed Dart type declared per Flow (for example, `sealed class BudgetsStep {}` with
 a variant `BudgetSelected(String id)`), carrying only plain data, never a `Widget` or
-`BuildContext`. A ViewModel emits a `Step?` as part of its `ViewState` when it decides navigation
-should happen; this does not reintroduce a Flutter dependency into the ViewModel, since `Step`
-itself has no Flutter import. `Step` consumption is single-shot — the Flow clears it via the
-ViewModel's `clearStep()` after acting on it. Replaces the earlier `NavigationIntent` field. See
-ADR-0059.
+`BuildContext`. A ViewModel emits a `Step?` as part of its `ViewState` when it needs a UI action it
+must not decide for itself: a pushed screen, or a launched modal (a picker sheet, `showDatePicker`)
+whose raw outcome the Flow reports back to the ViewModel through a named method (for example,
+`applyPickedParent(String? id)`). Either way `Step` stays plain data with no Flutter import, so this
+does not reintroduce a Flutter dependency into the ViewModel. `Step` consumption is single-shot —
+the Flow clears it via the ViewModel's `clearStep()` after acting on it, whether that action was a
+push or a modal launch. Replaces the earlier `NavigationIntent` field. See ADR-0059.
 
 A shared presentation widget (in `ui/common` or `ui/format`) is not a View in this sense and owns
 no ViewModel of its own: it takes plain values and callbacks as constructor parameters, supplied by
