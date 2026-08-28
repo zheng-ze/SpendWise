@@ -359,7 +359,7 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
         ledger.addEntry(signedEntry);
       } else {
         ledger.addPlan(_recurringPlanFor(current, signedEntry, recurrence));
-        ledger.resolvePlans(DateTime.now().toUtc());
+        ledger.resolvePlans(startOfDayUtc(DateTime.now()));
       }
       updateState((c) => c.copyWith(dismissed: true));
     } on LedgerError catch (thrown) {
