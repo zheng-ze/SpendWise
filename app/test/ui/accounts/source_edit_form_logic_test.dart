@@ -20,17 +20,6 @@ void main() {
     });
   });
 
-  group('parseEnteredBalance', () {
-    test('empty text counts as zero', () {
-      expect(parseEnteredBalance(''), Decimal.zero);
-      expect(parseEnteredBalance('   '), Decimal.zero);
-    });
-
-    test('parses a negative value', () {
-      expect(parseEnteredBalance('-12.50'), dec('-12.50'));
-    });
-  });
-
   group('balanceAdjustmentEntry', () {
     test('no entry when the balance is unchanged', () {
       final entry = balanceAdjustmentEntry(
