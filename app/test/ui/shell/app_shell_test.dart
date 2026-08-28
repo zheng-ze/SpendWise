@@ -81,15 +81,18 @@ void main() {
       tester,
       size: _compact,
       bodies: {
-        ShellDestination.transactions: (context) => Builder(
-          builder: (context) => Center(
-            child: TextButton(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const Scaffold(body: Text('entry detail')),
+        ShellDestination.transactions: (context) => Navigator(
+          onGenerateRoute: (settings) => MaterialPageRoute<void>(
+            settings: settings,
+            builder: (context) => Center(
+              child: TextButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const Scaffold(body: Text('entry detail')),
+                  ),
                 ),
+                child: const Text('open detail'),
               ),
-              child: const Text('open detail'),
             ),
           ),
         ),
