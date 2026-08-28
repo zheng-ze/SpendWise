@@ -154,3 +154,60 @@ This widening is now the standing pattern, not a one-off exception scoped to `ac
 `transactions`. Any Flow that needs a picker or a native dialog follows the same shape: a request-
 side `Step` variant, a named apply method on the ViewModel receiving the raw result, and
 `clearStep()` afterward.
+
+## Amendment (issue #38): a wrapped `ChangeNotifier` can race `build()`'s own state install
+
+The `stats`/`budgets` migration (issue #38) surfaced a lifecycle hazard distinct from the
+`ref.watch`-outside-`build()` rule ADR-0058 already covers. Several ViewModels in this migration
+wrap `AnalysisCache` (`app/lib/ledger/analysis_cache.dart`), a plain `ChangeNotifier`, the same way
+earlier ViewModels wrap `Ledger`: `build()` calls `addListener` on it and registers `ref.onDispose`
+to remove that listener, so any later change the cache reports updates `ViewState` through the
+listener callback.
+
+The hazard: if `build()` kicks off the cache's own async work without awaiting it (a fire-and-forget
+`cache.refresh(ledgerState)` call, matching the pattern `AnalysisCache.refresh()` itself already
+uses internally), the cache's `ChangeNotifier` can fire and the listener callback can call
+`state = AsyncData(...)` with fresh data *before* Riverpod finishes installing `build()`'s own
+returned `Future` as the notifier's state. When that ordering happens, Riverpod's own state-install
+step runs second and silently overwrites the listener's fresher write with the stale value
+`build()` returned — no error, no test failure signal beyond a wrong value in `state.value`, because
+reading `state.value` from inside the listener callback itself still shows the correct data at the
+moment it runs.
+
+**The fix: `build()` must `await` the wrapped service's own async work**, not fire-and-forget it,
+so `build()`'s returned `Future` already carries the populated result and there is no window for
+Riverpod's install step to run after a listener's write:
+
+```dart
+@override
+Future<StatsRootViewState> build() async {
+  final currentLedger = ledger;
+  currentLedger.addListener(_onLedgerChanged);
+  ref.onDispose(() => currentLedger.removeListener(_onLedgerChanged));
+
+  final cache = _cache; // ref.read, never ref.watch — see ADR-0058
+  cache.addListener(_onCacheChanged);
+  ref.onDispose(() => cache.removeListener(_onCacheChanged));
+
+  await cache.refresh(currentLedger.state); // awaited, not fire-and-forget
+  return _buildState(currentLedger, cache);
+}
+```
+
+`AnalysisCache.refresh()` changed from `void` (internally fire-and-forget) to `Future<void>` for
+exactly this reason: a `build()` method that wraps it now has something to `await`. A listener
+callback that calls `refresh()` itself keeps firing-and-forgetting via `unawaited(...)`, since that
+callback runs outside `build()` and has no `Future` to hand back to Riverpod.
+
+**A second, related ordering trap**: any `late`-seeded field a listener callback reads (for example,
+a screen's initially-selected month or scope) must be assigned *before* the `await` on the wrapped
+service's async work, not after. The service's completion can call the listener callback
+synchronously mid-`await`, and a field assigned only after that `await` is not yet set when the
+callback runs — surfacing as a `LateInitializationError` rather than a silent race, which is at
+least easier to diagnose but still avoidable by ordering the seed assignments first.
+
+This amendment governs any future ViewModel wrapping a `ChangeNotifier`-based cache or service the
+same way `AnalysisCache` is wrapped here (as of this migration: `StatsRootNotifier`,
+`CategoryDetailNotifier`, `BudgetDetailNotifier`) — not only `AnalysisCache` itself. The general
+rule: a `ChangeNotifier` dependency's own async work must be awaited inside `build()`, never started
+and left running past `build()`'s return.

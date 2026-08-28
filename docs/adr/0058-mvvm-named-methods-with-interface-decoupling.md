@@ -61,7 +61,9 @@ idiomatic equivalent of Flutter's official architecture guide's `Command<T>` wra
 pattern is state-management-agnostic and predates Riverpod-specific tooling; `AsyncNotifier` is
 what the same concept looks like in the state-management library this app already depends on.
 Nearly every screen in `app/lib/ui` loads from persistence, so this is the default, not a special
-case.
+case. A ViewModel that also wraps a plain `ChangeNotifier` service (not only `Ledger`) inside
+`build()` must await that service's own async work there rather than firing it and forgetting it —
+see ADR-0059's issue-#38 amendment for the race this avoids.
 
 **Superseded by ADR-0059**: the `NavigationIntent` mechanism below, and the View performing
 `Navigator` calls itself, is replaced by ADR-0059's `Flow`/`Step` design — the View was found to

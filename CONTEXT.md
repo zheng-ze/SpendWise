@@ -118,6 +118,13 @@ base class?" open pending real examples; issue #36 answered it once `AccountsNot
 turned out to need the same two pieces of boilerplate. A ViewModel with no `Ledger` dependency, or
 one needing a genuinely different state-update shape, has no obligation to use this mixin.
 
+A ViewModel that wraps a plain `ChangeNotifier` service inside `build()` (not only `Ledger` — for
+example `AnalysisCache`) must `await` that service's own async work there, not fire it and forget
+it. Starting the work without awaiting it opens a window where the service's listener callback can
+write fresher state before Riverpod finishes installing `build()`'s own returned value, which then
+silently overwrites the fresher write. See ADR-0059's issue-#38 amendment for the full mechanism and
+the fix shape.
+
 **Flow** — a `ConsumerStatefulWidget` that owns one feature folder's own nested `Navigator` (its
 own independent route stack), scoped with a `GlobalKey<NavigatorState>` local to that Flow's
 State — never shared app-wide. A Flow watches its screens' ViewModels for a `Step` via
