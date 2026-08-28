@@ -142,6 +142,12 @@ does not reintroduce a Flutter dependency into the ViewModel. `Step` consumption
 the Flow clears it via the ViewModel's `clearStep()` after acting on it, whether that action was a
 push or a modal launch. Replaces the earlier `NavigationIntent` field. See ADR-0059.
 
+`AppShell` (`app/lib/ui/shell/app_shell.dart`) itself gets no ViewModel: its only state is
+responsive-layout bookkeeping (`_useRail`, `_extended`), a flat width-to-bool computation with no
+async loading and no domain import. It mounts one Flow per destination directly, with no
+shell-level `Navigator` of its own — each Flow already owns its own, per the Flow entry above. This
+was issue #30's last open "does `shell` need a migration ticket" question, closed by issue #39.
+
 A shared presentation widget (in `ui/common` or `ui/format`) is not a View in this sense and owns
 no ViewModel of its own: it takes plain values and callbacks as constructor parameters, supplied by
 whichever screen's ViewModel is using it. "One ViewModel per View" holds because these shared
