@@ -5,6 +5,7 @@ import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/amount_field.dart';
 import 'package:spendwise/ui/common/error_section.dart';
 import 'package:spendwise/ui/common/month_year_selector.dart';
+import 'package:spendwise/ui/format/amount_parse.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 
@@ -204,7 +205,7 @@ class _LimitEditSheetState extends State<_LimitEditSheet> {
                 width: double.infinity,
                 child: FilledButton(
                   onPressed: () {
-                    final amount = Decimal.tryParse(_controller.text);
+                    final amount = parseAmountInput(_controller.text);
                     Navigator.of(context).pop(amount);
                   },
                   child: const Text('Save'),

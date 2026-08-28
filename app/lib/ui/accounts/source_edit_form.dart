@@ -8,6 +8,7 @@ import 'package:spendwise/ui/accounts/statement_day_picker.dart';
 import 'package:spendwise/ui/common/amount_field.dart';
 import 'package:spendwise/ui/common/error_section.dart';
 import 'package:spendwise/ui/common/form_scaffold.dart';
+import 'package:spendwise/ui/format/amount_parse.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 
 /// Opens the edit sheet for an existing account or subpocket, reached from
@@ -84,9 +85,7 @@ class _SourceEditFormState extends State<SourceEditForm> {
     );
   }
 
-  Decimal? get _parsedBalance => Decimal.tryParse(
-    _balanceController.text.trim().isEmpty ? '0' : _balanceController.text,
-  );
+  Decimal? get _parsedBalance => parseAmountInput(_balanceController.text);
 
   bool get _canSave => canSaveSourceEditForm(
     name: _nameController.text,
@@ -110,7 +109,7 @@ class _SourceEditFormState extends State<SourceEditForm> {
 
   Future<void> _save() async {
     final name = _nameController.text.trim();
-    final enteredBalance = parseEnteredBalance(_balanceController.text);
+    final enteredBalance = _parsedBalance ?? Decimal.zero;
 
     try {
       final account = _account;

@@ -9,6 +9,7 @@ import 'package:spendwise/ui/common/amount_field.dart';
 import 'package:spendwise/ui/common/error_section.dart';
 import 'package:spendwise/ui/common/form_scaffold.dart';
 import 'package:spendwise/ui/common/two_column_picker_sheet.dart';
+import 'package:spendwise/ui/format/amount_parse.dart';
 
 /// Opens the account/subpocket creation sheet. Creation-only.
 Future<void> showAccountFormSheet({
@@ -109,7 +110,7 @@ class _AccountFormState extends State<AccountForm> {
         );
         widget.ledger.addAccount(account);
 
-        final balance = Decimal.tryParse(_balanceController.text);
+        final balance = parseAmountInput(_balanceController.text);
         if (balance != null && balance != Decimal.zero) {
           widget.ledger.setOpeningBalance(balance, account.id);
         }

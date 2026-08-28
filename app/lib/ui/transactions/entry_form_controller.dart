@@ -2,6 +2,7 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ui/format/amount_parse.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/transactions/category_picker.dart';
 import 'package:spendwise/ui/transactions/entry_form_logic.dart';
@@ -74,7 +75,7 @@ class EntryFormController extends ChangeNotifier {
         : EntryFormKind.income;
   }
 
-  Decimal? get parsedAmount => Decimal.tryParse(amountController.text);
+  Decimal? get parsedAmount => parseAmountInput(amountController.text);
 
   bool get canSave => canSaveEntryForm(
     amount: parsedAmount,

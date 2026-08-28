@@ -6,6 +6,7 @@ import 'package:spendwise/ui/common/amount_field.dart';
 import 'package:spendwise/ui/common/category_icon.dart';
 import 'package:spendwise/ui/common/error_section.dart';
 import 'package:spendwise/ui/common/form_scaffold.dart';
+import 'package:spendwise/ui/format/amount_parse.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
 
 Future<void> showBudgetFormSheet({
@@ -36,7 +37,7 @@ class _BudgetFormState extends State<BudgetForm> {
 
   LedgerError? _error;
 
-  Decimal? get _parsedAmount => Decimal.tryParse(_amountController.text);
+  Decimal? get _parsedAmount => parseAmountInput(_amountController.text);
 
   Set<String?> get _budgetedCategoryIDs => widget.ledger.state.budgets.values
       .map((budget) => budget.categoryID)

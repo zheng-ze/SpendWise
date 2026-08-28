@@ -5,6 +5,7 @@ import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/amount_field.dart';
 import 'package:spendwise/ui/common/error_section.dart';
 import 'package:spendwise/ui/common/form_scaffold.dart';
+import 'package:spendwise/ui/format/amount_parse.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/settings/plan_form_logic.dart';
@@ -48,7 +49,7 @@ class _PlanFormState extends State<PlanForm> {
 
   LedgerError? _error;
 
-  Decimal? get _parsedAmount => Decimal.tryParse(_amountController.text);
+  Decimal? get _parsedAmount => parseAmountInput(_amountController.text);
 
   bool get _canSave => canSavePlanForm(
     name: _nameController.text,
