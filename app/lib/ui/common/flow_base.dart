@@ -40,7 +40,8 @@ abstract class FlowBaseState<S, T extends FlowBase<S>>
   /// callback for the underlying `ref.listenManual` subscription, so this
   /// base can close it on dispose without needing that subscription's own
   /// value type — `ProviderSubscription<T>` is invariant in `T`, and each
-  /// Flow's provider has a different one.
+  /// Flow's provider has a different one. A Flow whose `S` has no variants
+  /// returns a no-op `() {}` instead, since it has nothing to listen to.
   void Function() subscribeToStep(void Function(S? step) handle);
 
   /// Acts on a non-null step reached via [context] (the nested Navigator's

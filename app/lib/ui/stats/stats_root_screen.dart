@@ -5,10 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/ui/budgets/budgets_flow.dart';
 import 'package:spendwise/ui/common/month_year_selector.dart';
 import 'package:spendwise/ui/common/top_tab_bar.dart';
-import 'package:spendwise/ui/format/amount_color.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
-import 'package:spendwise/ui/stats/stats_donut.dart';
-import 'package:spendwise/ui/stats/stats_legend.dart';
+import 'package:spendwise/ui/stats/analysis_flow.dart';
 import 'package:spendwise/ui/stats/stats_root_view_model.dart';
 import 'package:spendwise/ui/stats/stats_window.dart';
 
@@ -19,22 +17,16 @@ class StatsRootScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final asyncState = ref.watch(statsRootViewModelProvider);
+    final viewState = ref.watch(statsRootViewModelProvider);
     final viewModel = ref.watch(statsRootViewModelProvider.notifier);
     final selectedDate = ref.watch(selectedMonthProvider);
 
-    return asyncState.when(
-      data: (viewState) => _StatsRootBody(
-        viewState: viewState,
-        viewModel: viewModel,
-        selectedDate: selectedDate,
-        onDateChanged: (value) =>
-            ref.read(selectedMonthProvider.notifier).state = value,
-      ),
-      loading: () =>
-          const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (error, stackTrace) =>
-          Scaffold(body: Center(child: Text('$error'))),
+    return _StatsRootBody(
+      viewState: viewState,
+      viewModel: viewModel,
+      selectedDate: selectedDate,
+      onDateChanged: (value) =>
+          ref.read(selectedMonthProvider.notifier).state = value,
     );
   }
 }
@@ -101,123 +93,31 @@ class _StatsRootBody extends StatelessWidget {
               onSelected: _setTab,
             ),
             const Divider(height: 1),
-            Expanded(
-              child: tab == StatsTab.budgets
-                  ? const BudgetsFlow()
-                  : _AnalysisBody(
-                      viewState: viewState,
-                      viewModel: viewModel,
-                      kind: tab == StatsTab.income
-                          ? CategoryKind.income
-                          : CategoryKind.expense,
-                      window: range == StatsRangeMode.month
-                          ? monthWindow(selectedDate)
-                          : yearWindow(selectedDate),
-                      isYearRange: range == StatsRangeMode.year,
-                      selectedDate: selectedDate,
-                    ),
-            ),
+            Expanded(child: _buildTabContent(tab, range)),
           ],
         ),
       ),
     );
   }
-}
 
-class _AnalysisBody extends StatelessWidget {
-  const _AnalysisBody({
-    required this.viewState,
-    required this.viewModel,
-    required this.kind,
-    required this.window,
-    required this.isYearRange,
-    required this.selectedDate,
-  });
-
-  final StatsRootViewState viewState;
-  final StatsRootViewModel viewModel;
-  final CategoryKind kind;
-  final DateRange window;
-  final bool isYearRange;
-  final DateTime selectedDate;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = AmountColors.of(theme);
-
-    final categorySlices = statsSlices(viewState, kind, window);
-
-    var total = Decimal.zero;
-    for (final slice in categorySlices) {
-      total += slice.amount;
+  Widget _buildTabContent(StatsTab tab, StatsRangeMode range) {
+    if (tab == StatsTab.budgets) {
+      return const BudgetsFlow();
     }
 
-    final label = kind == CategoryKind.income
-        ? 'Total income'
-        : 'Total expenses';
-    final totalColor = kind == CategoryKind.income ? colors.gain : colors.loss;
+    final kind = tab == StatsTab.income
+        ? CategoryKind.income
+        : CategoryKind.expense;
+    final isYearRange = range == StatsRangeMode.year;
 
-    return ListView(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: AmountHeader(
-            caption: label,
-            amount: total,
-            amountColor: totalColor,
-          ),
-        ),
-        if (categorySlices.isEmpty)
-          _EmptyState(kind: kind)
-        else ...[
-          StatsDonut(slices: categorySlices),
-          const Divider(height: 1),
-          StatsLegend(
-            slices: categorySlices,
-            onTapCategory: (mainID) => viewModel.requestCategoryDetail(
-              kind: kind,
-              mainID: mainID,
-              isYearRange: isYearRange,
-              initialDate: selectedDate,
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.kind});
-
-  final CategoryKind kind;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final message = kind == CategoryKind.income
-        ? 'No income in this period'
-        : 'No expense in this period';
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 48),
-      child: Column(
-        children: [
-          Icon(
-            Icons.pie_chart_outline,
-            size: 48,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            message,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
+    return AnalysisFlow(
+      key: ValueKey(kind),
+      kind: kind,
+      window: isYearRange
+          ? yearWindow(selectedDate)
+          : monthWindow(selectedDate),
+      isYearRange: isYearRange,
+      selectedDate: selectedDate,
     );
   }
 }
