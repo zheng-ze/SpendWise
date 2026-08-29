@@ -57,6 +57,7 @@ app/android/app/release
 /web/
 
 .claude/
+.agents/
 .gemini/
 .pal/
 .mcp.json
