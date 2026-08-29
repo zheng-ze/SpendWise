@@ -6,7 +6,7 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/settings/plan/plan_list_screen.dart';
 
-import '../../support/semantics_test_support.dart';
+import '../../../support/semantics_test_support.dart';
 
 void main() {
   Decimal dec(String value) => Decimal.parse(value);

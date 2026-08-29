@@ -8,7 +8,7 @@ import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/settings/category/category_form.dart';
 import 'package:spendwise/ui/settings/category/category_list_screen.dart';
 
-import '../../support/semantics_test_support.dart';
+import '../../../support/semantics_test_support.dart';
 
 void main() {
   final food = TransactionCategory(

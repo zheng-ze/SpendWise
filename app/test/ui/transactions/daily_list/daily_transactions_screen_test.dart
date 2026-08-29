@@ -8,7 +8,7 @@ import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/transactions/daily_list/daily_transactions_screen.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
 
-import '../../support/semantics_test_support.dart';
+import '../../../support/semantics_test_support.dart';
 
 void main() {
   Decimal dec(String value) => Decimal.parse(value);

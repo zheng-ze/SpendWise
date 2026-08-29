@@ -12,7 +12,7 @@ import 'package:spendwise/ui/budgets/budget_detail/budget_limit_screen.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_flow.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
 
-import '../../support/semantics_test_support.dart';
+import '../../../support/semantics_test_support.dart';
 
 void main() {
   Decimal dec(String value) => Decimal.parse(value);

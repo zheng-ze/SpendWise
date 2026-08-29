@@ -11,7 +11,7 @@ import 'package:spendwise/ui/stats/category_detail/category_detail_view_model.da
 import 'package:spendwise/ui/stats/stats_flow.dart';
 import 'package:spendwise/ui/stats/stats_root_screen.dart';
 
-import '../../support/semantics_test_support.dart';
+import '../../../support/semantics_test_support.dart';
 
 void main() {
   Decimal dec(String value) => Decimal.parse(value);
