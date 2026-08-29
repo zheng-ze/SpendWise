@@ -9,6 +9,7 @@ import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/stats/category_detail_screen.dart';
 import 'package:spendwise/ui/stats/category_detail_view_model.dart';
 import 'package:spendwise/ui/stats/stats_flow.dart';
+import 'package:spendwise/ui/stats/stats_root_screen.dart';
 
 import '../../support/semantics_test_support.dart';
 
@@ -498,30 +499,31 @@ void main() {
     );
   });
 
-  testWidgets('tapping a legend row in StatsFlow pushes the detail screen', (
-    tester,
-  ) async {
-    final hawkerEntry = Entry(
-      amount: dec('-10'),
-      name: 'Lunch',
-      sourceID: account.id,
-      categoryID: hawkerID,
-      date: day(1),
-    );
-    final ledger = buildLedger(entries: {hawkerEntry.id: hawkerEntry});
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: overridesFor(ledger),
-        child: const MaterialApp(home: StatsFlow()),
-      ),
-    );
-    await tester.pumpAndSettle();
+  testWidgets(
+    'tapping a legend row in StatsRootScreen pushes the detail screen',
+    (tester) async {
+      final hawkerEntry = Entry(
+        amount: dec('-10'),
+        name: 'Lunch',
+        sourceID: account.id,
+        categoryID: hawkerID,
+        date: day(1),
+      );
+      final ledger = buildLedger(entries: {hawkerEntry.id: hawkerEntry});
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: overridesFor(ledger),
+          child: const MaterialApp(home: StatsRootScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Food'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Food'));
+      await tester.pumpAndSettle();
 
-    expect(find.byType(CategoryDetailScreen), findsOneWidget);
-  });
+      expect(find.byType(CategoryDetailScreen), findsOneWidget);
+    },
+  );
 
   group('trend card', () {
     testWidgets('renders month labels for a January selection', (tester) async {

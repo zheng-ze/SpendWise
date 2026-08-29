@@ -6,8 +6,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ui/budgets/budget_detail_screen.dart';
+import 'package:spendwise/ui/budgets/budgets_list_view_model.dart';
+import 'package:spendwise/ui/common/top_tab_bar.dart';
+import 'package:spendwise/ui/stats/analysis_view_model.dart';
 import 'package:spendwise/ui/stats/category_detail_screen.dart';
 import 'package:spendwise/ui/stats/stats_flow.dart';
+import 'package:spendwise/ui/stats/stats_root_screen.dart';
 import 'package:spendwise/ui/stats/stats_root_view_model.dart';
 
 void main() {
@@ -17,29 +22,41 @@ void main() {
     type: AccountType.checking,
   );
 
-  final food = TransactionCategory(
-    id: 'c0000000-0000-0000-0000-000000000001',
-    name: 'Food',
-    kind: CategoryKind.expense,
-    colorHex: '#00AA00',
-    includeInAnalysis: true,
-    parentID: null,
-    symbol: 'restaurant',
-  );
-
   Ledger buildLedger() {
+    final category = TransactionCategory(
+      id: 'c0000000-0000-0000-0000-000000000001',
+      name: 'Food',
+      kind: CategoryKind.expense,
+      colorHex: '#00AA00',
+      includeInAnalysis: true,
+      parentID: null,
+      symbol: 'restaurant',
+    );
+    final budget = Budget(
+      id: 'b0000000-0000-0000-0000-000000000001',
+      categoryID: category.id,
+      limitEvents: [
+        LimitEvent(
+          effectiveFromMonth: null,
+          value: Decimal.parse('100'),
+          kind: LimitEventKind.defaultLimit,
+        ),
+      ],
+      createdAtMonth: const YearMonth(2026, 1),
+    );
     return Ledger(
       state: LedgerState(
         moneySources: {account.id: MoneySource.account(account)},
-        categories: {food.id: food},
+        categories: {category.id: category},
+        budgets: {budget.id: budget},
       ),
     );
   }
 
-  Future<ProviderContainer> pumpFlow(WidgetTester tester, Ledger ledger) async {
+  Future<ProviderContainer> pumpFlow(WidgetTester tester) async {
     final container = ProviderContainer(
       overrides: [
-        ledgerProvider.overrideWithValue(ledger),
+        ledgerProvider.overrideWithValue(buildLedger()),
         analysisCacheProvider.overrideWith(
           (ref) => AnalysisCache(runner: syncComputeRunner),
         ),
@@ -57,23 +74,46 @@ void main() {
     return container;
   }
 
-  testWidgets('CategoryDetailRequested pushes CategoryDetailScreen for that '
-      'category', (tester) async {
-    final container = await pumpFlow(tester, buildLedger());
+  testWidgets('StatsFlow renders StatsRootScreen as its root', (tester) async {
+    await pumpFlow(tester);
+
+    expect(find.byType(StatsRootScreen), findsOneWidget);
+  });
+
+  testWidgets('budget detail replaces the Stats chrome', (tester) async {
+    final container = await pumpFlow(tester);
+    const budgetID = 'b0000000-0000-0000-0000-000000000001';
 
     container
         .read(statsRootViewModelProvider.notifier)
+        .setTab(StatsTab.budgets);
+    await tester.pumpAndSettle();
+    container
+        .read(budgetsListViewModelProvider.notifier)
+        .requestBudgetDetail(budgetID);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(BudgetDetailScreen), findsOneWidget);
+    expect(find.byType(StatsRootScreen), findsNothing);
+    expect(find.byType(TopTabBar), findsNothing);
+  });
+
+  testWidgets('category detail replaces the Stats chrome', (tester) async {
+    final container = await pumpFlow(tester);
+    const categoryID = 'c0000000-0000-0000-0000-000000000001';
+    final selectedDate = DateTime.utc(2026, 3);
+
+    container
+        .read(analysisViewModelProvider(CategoryKind.expense).notifier)
         .requestCategoryDetail(
-          kind: CategoryKind.expense,
-          mainID: food.id,
+          mainID: categoryID,
           isYearRange: false,
-          initialDate: DateTime.utc(2026, 3),
+          initialDate: selectedDate,
         );
     await tester.pumpAndSettle();
 
     expect(find.byType(CategoryDetailScreen), findsOneWidget);
-    // Step is cleared once the Flow has acted on it, so a later rebuild
-    // does not push a second time.
-    expect(container.read(statsRootViewModelProvider).value?.step, isNull);
+    expect(find.byType(StatsRootScreen), findsNothing);
+    expect(find.byType(TopTabBar), findsNothing);
   });
 }
