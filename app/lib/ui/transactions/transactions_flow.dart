@@ -42,7 +42,12 @@ class TransactionsScope {
 /// the app shell when [initialScope] is null, or pushed by `AccountsFlow`
 /// with a scope when reached from an account/pocket row.
 class TransactionsFlow extends FlowBase<TransactionsStep> {
-  const TransactionsFlow({super.key, this.initialScope, this.onEditSource});
+  const TransactionsFlow({
+    super.key,
+    super.onEnded,
+    this.initialScope,
+    this.onEditSource,
+  });
 
   final TransactionsScope? initialScope;
   final void Function(BuildContext context, String holderId)? onEditSource;

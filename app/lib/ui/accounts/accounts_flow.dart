@@ -67,6 +67,7 @@ class _AccountsFlowState
           initialScope: TransactionsScope(title: title, scopeIDs: scopeIDs),
           onEditSource: (context, holderId) =>
               _screenViewModel.requestSourceEdit(holderId),
+          onEnded: () => Navigator.of(context).pop(),
         ),
       ),
     );
