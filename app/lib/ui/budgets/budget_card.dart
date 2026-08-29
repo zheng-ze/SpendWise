@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:spendwise/ui/format/amount_color.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
 import 'package:spendwise/ui/format/money_format.dart';
-import 'package:spendwise/ui/stats/budget_spend.dart';
+import 'package:spendwise/ui/budgets/budget_spend.dart';
 
 const _barHeight = 22.0;
 
@@ -246,23 +246,26 @@ class BudgetsEmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 48),
-      child: Column(
-        children: [
-          Icon(
-            Icons.savings_outlined,
-            size: 48,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'No budgets yet. Tap + to create one.',
-            style: theme.textTheme.bodyMedium?.copyWith(
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 48),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.savings_outlined,
+              size: 48,
               color: theme.colorScheme.onSurfaceVariant,
             ),
-          ),
-        ],
+            const SizedBox(height: 12),
+            Text(
+              'No budgets yet. Tap + to create one.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

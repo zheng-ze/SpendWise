@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/transactions/daily_transactions_screen.dart';
+import 'package:spendwise/ui/transactions/transactions_flow.dart';
 
 import '../../support/semantics_test_support.dart';
 
@@ -117,39 +118,6 @@ void main() {
     },
   );
 
-  testWidgets('tapping a row opens the entry form for it, read-only', (
-    tester,
-  ) async {
-    final entry = Entry(
-      amount: dec('-5'),
-      name: 'Coffee run',
-      sourceID: account.id,
-      date: day(1),
-    );
-
-    final ledger = Ledger(
-      state: LedgerState(
-        moneySources: {account.id: MoneySource.account(account)},
-        entries: {entry.id: entry},
-      ),
-    );
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [ledgerProvider.overrideWithValue(ledger)],
-        child: const MaterialApp(home: TransactionsScreen()),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Coffee run'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Coffee run'), findsWidgets);
-    expect(find.text('Save'), findsNothing);
-    expect(find.text('Edit'), findsOneWidget);
-  });
-
   testWidgets(
     'a system entry row can be swiped away and deletes like any other row',
     (tester) async {
@@ -189,7 +157,7 @@ void main() {
     },
   );
 
-  testWidgets('the add action opens a new, editable entry form', (
+  testWidgets('shows the scope title and an edit-source action when scoped', (
     tester,
   ) async {
     final ledger = Ledger(
@@ -197,19 +165,44 @@ void main() {
         moneySources: {account.id: MoneySource.account(account)},
       ),
     );
+    final scope = TransactionsScope(title: 'Checking', scopeIDs: {account.id});
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [ledgerProvider.overrideWithValue(ledger)],
-        child: const MaterialApp(home: TransactionsScreen()),
+        child: MaterialApp(home: TransactionsScreen(scope: scope)),
       ),
     );
     await tester.pumpAndSettle();
 
+    expect(find.text('Checking'), findsOneWidget);
+
+    // "Edit Checking" is a secondary FAB action, shown only once the FAB
+    // expands.
     await tester.tap(find.byIcon(Icons.add));
     await tester.pumpAndSettle();
-
-    expect(find.text('New Entry'), findsOneWidget);
-    expect(find.text('Save'), findsOneWidget);
+    expect(find.text('Edit Checking'), findsOneWidget);
   });
+
+  testWidgets(
+    'shows the default title and no edit-source action when unscoped',
+    (tester) async {
+      final ledger = Ledger(
+        state: LedgerState(
+          moneySources: {account.id: MoneySource.account(account)},
+        ),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [ledgerProvider.overrideWithValue(ledger)],
+          child: const MaterialApp(home: TransactionsScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Transactions'), findsOneWidget);
+      expect(find.byIcon(Icons.edit_outlined), findsNothing);
+    },
+  );
 }

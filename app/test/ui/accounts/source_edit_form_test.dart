@@ -1,20 +1,30 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/accounts/source_edit_form.dart';
 
 void main() {
   Decimal dec(String value) => Decimal.parse(value);
 
-  Future<void> pumpForm(WidgetTester tester, Ledger ledger, String holderID) {
-    return tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: SourceEditForm(ledger: ledger, holderID: holderID),
+  Future<void> pumpForm(
+    WidgetTester tester,
+    Ledger ledger,
+    String holderID,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [ledgerProvider.overrideWithValue(ledger)],
+        child: MaterialApp(
+          home: Scaffold(body: SourceEditForm(holderID: holderID)),
         ),
       ),
     );
+    // Flushes SourceEditFormNotifier.build()'s Future so the form's
+    // initial AsyncData state is in place before a test interacts with it.
+    await tester.pump();
   }
 
   testWidgets('saving with an unchanged balance posts no entry', (

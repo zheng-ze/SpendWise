@@ -44,8 +44,7 @@ class DocumentCorners {
   int get hashCode => Object.hash(topLeft, topRight, bottomRight, bottomLeft);
 }
 
-/// Starting handle positions: the image's own four corners, per this app's
-/// confirmed web crop UX (start uncropped, user drags every handle).
+/// Starting handle positions: the image's own four corners.
 DocumentCorners initialCorners(Size imageSize) {
   return DocumentCorners(
     topLeft: Offset.zero,
@@ -65,8 +64,7 @@ Offset clampToImage(Offset point, Size imageSize) {
 }
 
 /// The smallest axis-aligned rect containing all four corners. Used as the
-/// crop region for the bounding-rect fallback when a full perspective warp
-/// isn't available.
+/// crop region when a full perspective warp isn't available.
 Rect boundingRect(DocumentCorners corners) {
   final xs = corners.points.map((p) => p.dx);
   final ys = corners.points.map((p) => p.dy);

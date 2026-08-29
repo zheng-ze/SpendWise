@@ -96,7 +96,7 @@ void main() {
     return tester.pumpWidget(
       ProviderScope(
         overrides: overridesFor(ledger),
-        child: MaterialApp(home: BudgetDetailScreen(budget: b)),
+        child: MaterialApp(home: BudgetDetailScreen(budgetID: b.id)),
       ),
     );
   }

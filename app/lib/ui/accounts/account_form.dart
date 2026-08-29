@@ -1,143 +1,154 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/accounts/account_form_logic.dart';
-import 'package:spendwise/ui/accounts/account_type_picker.dart';
-import 'package:spendwise/ui/accounts/statement_day_picker.dart';
+import 'package:spendwise/ui/accounts/account_form_view_model.dart';
+import 'package:spendwise/ui/accounts/accounts_view_model.dart';
+import 'package:spendwise/ui/common/account_type_picker.dart';
 import 'package:spendwise/ui/common/amount_field.dart';
 import 'package:spendwise/ui/common/error_section.dart';
 import 'package:spendwise/ui/common/form_scaffold.dart';
+import 'package:spendwise/ui/common/statement_day_picker.dart';
 import 'package:spendwise/ui/common/two_column_picker_sheet.dart';
 
 /// Opens the account/subpocket creation sheet. Creation-only.
-Future<void> showAccountFormSheet({
-  required BuildContext context,
-  required Ledger ledger,
-}) {
+Future<void> showAccountFormSheet({required BuildContext context}) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    builder: (_) => AccountForm(ledger: ledger),
+    builder: (_) => const AccountForm(),
   );
 }
 
-class AccountForm extends StatefulWidget {
-  const AccountForm({super.key, required this.ledger});
-
-  final Ledger ledger;
+class AccountForm extends ConsumerStatefulWidget {
+  const AccountForm({super.key});
 
   @override
-  State<AccountForm> createState() => _AccountFormState();
+  ConsumerState<AccountForm> createState() => _AccountFormState();
 }
 
-class _AccountFormState extends State<AccountForm> {
+class _AccountFormState extends ConsumerState<AccountForm> {
   late final TextEditingController _nameController = TextEditingController();
   late final TextEditingController _balanceController = TextEditingController();
 
-  AccountFormKind _kind = AccountFormKind.account;
-  AccountType _type = AccountType.cash;
-  int? _statementDay;
-  String? _parentId;
+  ProviderSubscription<AsyncValue<AccountFormViewState>>? _subscription;
 
-  LedgerError? _error;
+  @override
+  void initState() {
+    super.initState();
+    _subscription = ref.listenManual(
+      accountFormViewModelProvider,
+      (previous, next) => _handleStep(next.value?.step),
+    );
+  }
 
   @override
   void dispose() {
+    _subscription?.close();
     _nameController.dispose();
     _balanceController.dispose();
     super.dispose();
   }
 
-  List<Account> get _pocketableParents =>
-      pocketableParents(widget.ledger.state);
+  AccountFormViewModel get _viewModel =>
+      ref.read(accountFormViewModelProvider.notifier);
 
-  bool get _isLockedToAccount => _pocketableParents.isEmpty;
-
-  bool get _canSave => canSaveAccountForm(
-    kind: _isLockedToAccount ? AccountFormKind.account : _kind,
-    name: _nameController.text,
-    parentId: _parentId,
-  );
-
-  void _setKind(AccountFormKind kind) {
-    setState(() {
-      _kind = kind;
-      if (kind == AccountFormKind.account) _parentId = null;
-    });
-  }
-
-  void _setType(AccountType type) {
-    setState(() {
-      _type = type;
-      if (type != AccountType.card) _statementDay = null;
-    });
+  void _handleStep(AccountsStep? step) {
+    if (step == null) return;
+    switch (step) {
+      case PickParentRequested():
+        _pickParent();
+      case AccountFormSaved():
+        if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+      case AccountFormRequested():
+      case SourceEditRequested():
+      case AccountOpened():
+      case AccountAloneOpened():
+      case PocketOpened():
+      case SourceEditFormSaved():
+        // Only AccountsViewModel or SourceEditFormViewModel emit these.
+        // Unreachable here.
+        break;
+    }
+    _viewModel.clearStep();
   }
 
   Future<void> _pickParent() async {
-    final parents = _pocketableParents;
+    final formState = ref.read(accountFormViewModelProvider).value;
+    if (formState == null) return;
     final outcome = await showTwoColumnPickerSheet(
       context: context,
       title: 'Select Account',
       groups: [
-        for (final account in parents)
+        for (final account in formState.pocketableParents)
           PickerOption(id: account.id, label: account.name),
       ],
-      selectedId: _parentId,
+      selectedId: formState.parentId,
     );
+    if (!context.mounted) return;
     if (outcome == null) return;
-    if (!mounted) return;
-    if (outcome is PickerChose) setState(() => _parentId = outcome.id);
-  }
-
-  Future<void> _save() async {
-    // Recomputed rather than trusting `_kind`, since the picked parent may
-    // have gone stale between opening the picker and saving.
-    final effectiveKind = _isLockedToAccount ? AccountFormKind.account : _kind;
-    final name = _nameController.text.trim();
-
-    try {
-      if (effectiveKind == AccountFormKind.subpocket) {
-        widget.ledger.addPocket(SubPocket(name: name), _parentId!);
-      } else {
-        final isCard = _type == AccountType.card;
-        final account = Account(
-          name: name,
-          type: _type,
-          statementDay: isCard ? _statementDay : null,
-        );
-        widget.ledger.addAccount(account);
-
-        final balance = Decimal.tryParse(_balanceController.text);
-        if (balance != null && balance != Decimal.zero) {
-          widget.ledger.setOpeningBalance(balance, account.id);
-        }
-      }
-
-      if (!mounted) return;
-      Navigator.of(context).pop();
-    } on LedgerError catch (error) {
-      setState(() => _error = error);
-    }
+    final id = switch (outcome) {
+      PickerChose(:final id) => id,
+      PickerCleared() => null,
+    };
+    _viewModel.applyPickedParent(id);
   }
 
   @override
   Widget build(BuildContext context) {
-    final effectiveKind = _isLockedToAccount ? AccountFormKind.account : _kind;
+    final asyncState = ref.watch(accountFormViewModelProvider);
+
+    return asyncState.when(
+      data: (formState) => _AccountFormBody(
+        formState: formState,
+        viewModel: _viewModel,
+        nameController: _nameController,
+        balanceController: _balanceController,
+      ),
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, stackTrace) => Center(child: Text('$error')),
+    );
+  }
+}
+
+class _AccountFormBody extends StatelessWidget {
+  const _AccountFormBody({
+    required this.formState,
+    required this.viewModel,
+    required this.nameController,
+    required this.balanceController,
+  });
+
+  final AccountFormViewState formState;
+  final AccountFormViewModel viewModel;
+  final TextEditingController nameController;
+  final TextEditingController balanceController;
+
+  @override
+  Widget build(BuildContext context) {
+    // Pulled from the ViewModel each build rather than bound both ways,
+    // since the ViewModel is the single source of truth for form text.
+    if (nameController.text != formState.name) {
+      nameController.text = formState.name;
+    }
+    if (balanceController.text != formState.balanceText) {
+      balanceController.text = formState.balanceText;
+    }
 
     return FormScaffold(
-      title: effectiveKind == AccountFormKind.subpocket
+      title: formState.effectiveKind == AccountFormKind.subpocket
           ? 'New Subpocket'
           : 'New Account',
-      canSave: _canSave,
-      onSave: _save,
-      error: ErrorSection(subject: 'account', error: _error),
+      canSave: formState.canSave,
+      onSave: viewModel.save,
+      error: ErrorSection(subject: 'account', error: formState.error),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           IgnorePointer(
-            ignoring: _isLockedToAccount,
+            ignoring: formState.isLockedToAccount,
             child: SegmentedButton<AccountFormKind>(
               segments: const [
                 ButtonSegment(
@@ -149,41 +160,44 @@ class _AccountFormState extends State<AccountForm> {
                   label: Text('Subpocket'),
                 ),
               ],
-              selected: {effectiveKind},
-              onSelectionChanged: _isLockedToAccount
+              selected: {formState.effectiveKind},
+              onSelectionChanged: formState.isLockedToAccount
                   ? null
-                  : (selection) => _setKind(selection.first),
+                  : (selection) => viewModel.setKind(selection.first),
             ),
           ),
           const SizedBox(height: 16),
           TextField(
-            controller: _nameController,
+            controller: nameController,
             decoration: const InputDecoration(hintText: 'Name'),
-            onChanged: (_) => setState(() {}),
+            onChanged: viewModel.setName,
           ),
           const SizedBox(height: 16),
-          if (effectiveKind == AccountFormKind.account) ...[
-            AccountTypePicker(selected: _type, onSelected: _setType),
-            if (_type == AccountType.card) ...[
+          if (formState.effectiveKind == AccountFormKind.account) ...[
+            AccountTypePicker(
+              selected: formState.type,
+              onSelected: viewModel.setType,
+            ),
+            if (formState.type == AccountType.card) ...[
               const SizedBox(height: 16),
               StatementDayPicker(
-                selected: _statementDay,
-                onSelected: (day) => setState(() => _statementDay = day),
+                selected: formState.statementDay,
+                onSelected: viewModel.setStatementDay,
               ),
             ],
             const SizedBox(height: 16),
             AmountField(
-              controller: _balanceController,
+              controller: balanceController,
               allowsNegative: true,
               hintText: 'Opening balance',
-              onChanged: (_) => setState(() {}),
+              onChanged: viewModel.setBalance,
             ),
           ] else
             ListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('Account'),
               trailing: Text(_parentLabel() ?? 'Select'),
-              onTap: _pickParent,
+              onTap: viewModel.requestPickParent,
             ),
         ],
       ),
@@ -191,8 +205,11 @@ class _AccountFormState extends State<AccountForm> {
   }
 
   String? _parentLabel() {
-    final id = _parentId;
+    final id = formState.parentId;
     if (id == null) return null;
-    return widget.ledger.state.sourceName(id);
+    for (final account in formState.pocketableParents) {
+      if (account.id == id) return account.name;
+    }
+    return null;
   }
 }

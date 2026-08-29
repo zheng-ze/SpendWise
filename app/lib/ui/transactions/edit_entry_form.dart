@@ -3,37 +3,40 @@ import 'package:flutter/material.dart';
 import 'package:spendwise/ui/common/error_section.dart';
 import 'package:spendwise/ui/common/form_scaffold.dart';
 import 'package:spendwise/ui/transactions/entry_fields.dart';
-import 'package:spendwise/ui/transactions/entry_form_controller.dart';
+import 'package:spendwise/ui/transactions/entry_form_view_model.dart';
 
 /// Editable form for an existing entry. Dismissing without saving (barrier
-/// tap, back gesture) reverts [controller] to the persisted values instead
-/// of closing the sheet.
+/// tap, back gesture) reverts to the persisted values instead of closing
+/// the sheet.
 class EditEntryForm extends StatelessWidget {
-  const EditEntryForm({super.key, required this.controller});
+  const EditEntryForm({
+    super.key,
+    required this.viewModel,
+    required this.state,
+  });
 
-  final EntryFormController controller;
+  final EntryFormViewModel viewModel;
+  final EntryFormViewState state;
 
   @override
   Widget build(BuildContext context) {
     final content = FormScaffold(
       title: 'Edit Entry',
-      canSave: controller.canSave,
-      onSave: () => controller.save(context),
-      error: ErrorSection(subject: 'entry', error: controller.error),
+      canSave: state.canSave,
+      onSave: viewModel.save,
+      error: ErrorSection(subject: 'entry', error: state.error),
       child: EntryFields(
-        controller: controller,
+        viewModel: viewModel,
+        state: state,
         readOnly: false,
         showDelete: true,
       ),
     );
 
-    // Editing an existing entry reverts instead of dismissing, so any pop
-    // attempt (barrier tap, back gesture) intercepts and reverts instead of
-    // closing the sheet.
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) controller.revertToPersisted();
+        if (!didPop) viewModel.revertToPersisted();
       },
       child: content,
     );

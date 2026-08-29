@@ -2,9 +2,9 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/settings/settings_providers.dart';
-import 'package:spendwise/ui/transactions/entry_form_controller.dart';
 import 'package:spendwise/ui/transactions/receipt_scan_strip.dart';
 
 void main() {
@@ -18,16 +18,14 @@ void main() {
   }
 
   Future<void> pumpStrip(WidgetTester tester, {required bool enabled}) async {
-    final controller = EntryFormController(ledger: buildLedger());
-    addTearDown(controller.dispose);
-
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          ledgerProvider.overrideWithValue(buildLedger()),
           scanStripEnabledProvider.overrideWith((ref) async => enabled),
         ],
-        child: MaterialApp(
-          home: Scaffold(body: ReceiptScanStrip(controller: controller)),
+        child: const MaterialApp(
+          home: Scaffold(body: ReceiptScanStrip(formKey: null)),
         ),
       ),
     );

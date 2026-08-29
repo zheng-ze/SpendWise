@@ -1,19 +1,16 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/category_icon.dart';
+import 'package:spendwise/ui/common/delete_confirmation.dart';
 import 'package:spendwise/ui/common/error_section.dart';
 import 'package:spendwise/ui/common/form_scaffold.dart';
-import 'package:spendwise/ui/format/color_hex.dart';
-import 'package:spendwise/ui/settings/category_form_logic.dart';
-import 'package:spendwise/ui/settings/symbol_picker.dart';
-import 'package:spendwise/ui/common/delete_confirmation.dart';
-
-const _defaultColor = Color(0xFF007AFF);
+import 'package:spendwise/ui/common/symbol_picker.dart';
+import 'package:spendwise/ui/settings/category_form_view_model.dart';
 
 const _swatches = [
-  _defaultColor,
+  defaultCategoryColor,
   Color(0xFFFF3B30),
   Color(0xFFFF9500),
   Color(0xFFFFCC00),
@@ -23,9 +20,10 @@ const _swatches = [
   Color(0xFF8E8E93),
 ];
 
+/// Opens the category creation/edit sheet. Pass [category] to edit, or
+/// [presetParentID] to prefill a new subcategory's parent.
 Future<void> showCategoryFormSheet({
   required BuildContext context,
-  required Ledger ledger,
   TransactionCategory? category,
   String? presetParentID,
 }) {
@@ -33,109 +31,81 @@ Future<void> showCategoryFormSheet({
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    builder: (_) => CategoryForm(
-      ledger: ledger,
-      category: category,
-      presetParentID: presetParentID,
-    ),
+    builder: (_) =>
+        CategoryForm(category: category, presetParentID: presetParentID),
   );
 }
 
-class CategoryForm extends StatefulWidget {
-  const CategoryForm({
-    super.key,
-    required this.ledger,
-    this.category,
-    this.presetParentID,
-  });
+class CategoryForm extends ConsumerStatefulWidget {
+  const CategoryForm({super.key, this.category, this.presetParentID});
 
-  final Ledger ledger;
   final TransactionCategory? category;
   final String? presetParentID;
 
   @override
-  State<CategoryForm> createState() => _CategoryFormState();
+  ConsumerState<CategoryForm> createState() => _CategoryFormState();
 }
 
-class _CategoryFormState extends State<CategoryForm> {
-  late final TextEditingController _nameController = TextEditingController(
-    text: widget.category?.name ?? '',
+class _CategoryFormState extends ConsumerState<CategoryForm> {
+  late final TextEditingController _nameController = TextEditingController();
+
+  ProviderSubscription<AsyncValue<CategoryFormViewState>>? _subscription;
+
+  CategoryFormArgs get _args => CategoryFormArgs(
+    category: widget.category,
+    presetParentID: widget.presetParentID,
   );
 
-  late CategoryKind _kind =
-      widget.category?.kind ?? _presetParent?.kind ?? CategoryKind.expense;
-  late String _symbol = widget.category?.symbol ?? 'tag';
-  late Color _color = _initialColor();
-  late bool _includeInAnalysis = widget.category?.includeInAnalysis ?? true;
-  late String? _parentID = widget.category?.parentID ?? widget.presetParentID;
-
-  LedgerError? _error;
-
-  TransactionCategory? get _presetParent {
-    final id = widget.presetParentID;
-    if (id == null) return null;
-    return widget.ledger.state.categories[id];
+  @override
+  void initState() {
+    super.initState();
+    _subscription = ref.listenManual(
+      categoryFormViewModelProvider(_args),
+      (previous, next) => _handleStep(next.value?.step),
+    );
   }
-
-  Color _initialColor() {
-    final ownHex = widget.category?.colorHex;
-    if (ownHex != null) return parseColorHex(ownHex);
-    final parentHex = _presetParent?.colorHex;
-    return parentHex != null ? parseColorHex(parentHex) : _defaultColor;
-  }
-
-  bool get _isEditing => widget.category != null;
-
-  bool get _hasPresetParent => widget.presetParentID != null;
-
-  bool get _isReferenced =>
-      _isEditing &&
-      widget.ledger.state.entryCountReferencing(widget.category!.id) > 0;
-
-  bool get _kindLocked => isKindLocked(
-    hasPresetParent: _hasPresetParent,
-    isReferenced: _isReferenced,
-  );
-
-  List<TransactionCategory> get _eligibleParents => eligibleParents(
-    widget.ledger.state.categories.values.toList(),
-    _kind,
-    excludingID: widget.category?.id,
-  );
-
-  bool get _showParentPicker =>
-      !_hasPresetParent && _eligibleParents.isNotEmpty;
-
-  bool get _canSave => canSaveCategoryForm(_nameController.text);
 
   @override
   void dispose() {
+    _subscription?.close();
     _nameController.dispose();
     super.dispose();
   }
 
-  void _setKind(CategoryKind kind) {
-    setState(() {
-      _kind = kind;
-      final parentID = _parentID;
-      if (parentID != null) {
-        final parent = widget.ledger.state.categories[parentID];
-        if (parent == null || parent.kind != kind) _parentID = null;
-      }
-    });
+  CategoryFormViewModel get _viewModel =>
+      ref.read(categoryFormViewModelProvider(_args).notifier);
+
+  void _handleStep(CategoryFormStep? step) {
+    if (step == null) return;
+    switch (step) {
+      case PickParentRequested():
+        _pickParent();
+      case PickSymbolRequested():
+        _pickSymbol();
+      case DeleteConfirmationRequested():
+        _confirmDelete();
+      case CategoryFormSaved():
+        if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+    }
+    _viewModel.clearStep();
   }
 
   Future<void> _pickSymbol() async {
+    final formState = ref.read(categoryFormViewModelProvider(_args)).value;
+    if (formState == null) return;
     final chosen = await showSymbolPickerSheet(
       context: context,
-      selected: _symbol,
-      color: _color,
+      selected: formState.symbol,
+      color: formState.color,
     );
-    if (chosen != null && mounted) setState(() => _symbol = chosen);
+    if (!context.mounted) return;
+    if (chosen == null) return;
+    _viewModel.applyPickedSymbol(chosen);
   }
 
   Future<void> _pickParent() async {
-    final options = _eligibleParents;
+    final formState = ref.read(categoryFormViewModelProvider(_args)).value;
+    if (formState == null) return;
     final chosen = await showModalBottomSheet<String?>(
       context: context,
       builder: (_) => SafeArea(
@@ -146,7 +116,7 @@ class _CategoryFormState extends State<CategoryForm> {
               title: const Text('None'),
               onTap: () => Navigator.of(context).pop(),
             ),
-            for (final option in options)
+            for (final option in formState.eligibleParentsList)
               ListTile(
                 title: Text(option.name),
                 onTap: () => Navigator.of(context).pop(option.id),
@@ -155,83 +125,74 @@ class _CategoryFormState extends State<CategoryForm> {
         ),
       ),
     );
-    if (!mounted) return;
-    setState(() => _parentID = chosen);
+    if (!context.mounted) return;
+    _viewModel.applyPickedParent(chosen);
   }
 
-  Future<void> _save() async {
-    final name = _nameController.text.trim();
-
-    try {
-      final category = TransactionCategory(
-        id: widget.category?.id,
-        name: name,
-        kind: _kind,
-        colorHex: toColorHex(_color),
-        includeInAnalysis: _includeInAnalysis,
-        parentID: _parentID,
-        symbol: _symbol,
-        lifecycle: widget.category?.lifecycle ?? LifecycleState.active,
-      );
-
-      if (_isEditing) {
-        widget.ledger.updateCategory(category);
-      } else {
-        widget.ledger.addCategory(category);
-      }
-
-      if (!mounted) return;
-      Navigator.of(context).pop();
-    } on LedgerError catch (error) {
-      setState(() => _error = error);
-    }
-  }
-
-  Future<void> _delete() async {
-    final category = widget.category!;
+  Future<void> _confirmDelete() async {
+    final category = widget.category;
+    if (category == null) return;
     final confirmed = await showDeleteConfirmation(
       context,
       itemName: category.name,
     );
-    if (!confirmed) return;
-
-    widget.ledger.deleteCategory(category.id);
-    if (!mounted) return;
-    Navigator.of(context).pop();
-  }
-
-  String get _title {
-    if (_isEditing) return 'Edit Category';
-    if (_hasPresetParent) return 'New Subcategory';
-    return 'New Category';
-  }
-
-  String? get _parentLabel {
-    final id = _parentID;
-    if (id == null) return null;
-    return widget.ledger.state.categories[id]?.name;
+    if (!context.mounted) return;
+    await _viewModel.applyDeleteConfirmed(confirmed);
   }
 
   @override
   Widget build(BuildContext context) {
+    final asyncState = ref.watch(categoryFormViewModelProvider(_args));
+
+    return asyncState.when(
+      data: (formState) => _CategoryFormBody(
+        formState: formState,
+        viewModel: _viewModel,
+        nameController: _nameController,
+      ),
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, stackTrace) => Center(child: Text('$error')),
+    );
+  }
+}
+
+class _CategoryFormBody extends StatelessWidget {
+  const _CategoryFormBody({
+    required this.formState,
+    required this.viewModel,
+    required this.nameController,
+  });
+
+  final CategoryFormViewState formState;
+  final CategoryFormViewModel viewModel;
+  final TextEditingController nameController;
+
+  @override
+  Widget build(BuildContext context) {
+    // Pulled from the ViewModel each build rather than bound both ways,
+    // since the ViewModel is the single source of truth for form text.
+    if (nameController.text != formState.name) {
+      nameController.text = formState.name;
+    }
+
     return FormScaffold(
-      title: _title,
-      canSave: _canSave,
-      onSave: _save,
-      error: ErrorSection(subject: 'category', error: _error),
+      title: formState.title,
+      canSave: formState.canSave,
+      onSave: viewModel.save,
+      error: ErrorSection(subject: 'category', error: formState.error),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           TextField(
-            controller: _nameController,
+            controller: nameController,
             decoration: const InputDecoration(hintText: 'Name'),
-            onChanged: (_) => setState(() {}),
+            onChanged: viewModel.setName,
           ),
           const SizedBox(height: 16),
           IgnorePointer(
-            ignoring: _kindLocked,
+            ignoring: formState.kindLocked,
             child: Opacity(
-              opacity: _kindLocked ? 0.5 : 1,
+              opacity: formState.kindLocked ? 0.5 : 1,
               child: SegmentedButton<CategoryKind>(
                 segments: const [
                   ButtonSegment(
@@ -243,14 +204,14 @@ class _CategoryFormState extends State<CategoryForm> {
                     label: Text('Expense'),
                   ),
                 ],
-                selected: {_kind},
-                onSelectionChanged: _kindLocked
+                selected: {formState.kind},
+                onSelectionChanged: formState.kindLocked
                     ? null
-                    : (selection) => _setKind(selection.first),
+                    : (selection) => viewModel.setKind(selection.first),
               ),
             ),
           ),
-          if (_kindLocked)
+          if (formState.kindLocked)
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Text(
@@ -264,9 +225,12 @@ class _CategoryFormState extends State<CategoryForm> {
           ListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Symbol'),
-            leading: CategoryIcon(symbolName: _symbol, color: _color),
+            leading: CategoryIcon(
+              symbolName: formState.symbol,
+              color: formState.color,
+            ),
             trailing: const Icon(Icons.chevron_right),
-            onTap: _pickSymbol,
+            onTap: viewModel.requestPickSymbol,
           ),
           const SizedBox(height: 16),
           Text('Color', style: Theme.of(context).textTheme.labelLarge),
@@ -277,14 +241,14 @@ class _CategoryFormState extends State<CategoryForm> {
               for (final swatch in _swatches)
                 InkWell(
                   customBorder: const CircleBorder(),
-                  onTap: () => setState(() => _color = swatch),
+                  onTap: () => viewModel.setColor(swatch),
                   child: Container(
                     width: 32,
                     height: 32,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: swatch,
-                      border: swatch == _color
+                      border: swatch == formState.color
                           ? Border.all(color: Colors.black, width: 2)
                           : null,
                     ),
@@ -296,17 +260,17 @@ class _CategoryFormState extends State<CategoryForm> {
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Include in analysis'),
-            value: _includeInAnalysis,
-            onChanged: (value) => setState(() => _includeInAnalysis = value),
+            value: formState.includeInAnalysis,
+            onChanged: viewModel.setIncludeInAnalysis,
           ),
-          if (_showParentPicker)
+          if (formState.showParentPicker)
             ListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('Parent'),
-              trailing: Text(_parentLabel ?? 'None'),
-              onTap: _pickParent,
+              trailing: Text(formState.parentLabel ?? 'None'),
+              onTap: viewModel.requestPickParent,
             ),
-          if (_isEditing) ...[
+          if (formState.isEditing) ...[
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
@@ -314,7 +278,7 @@ class _CategoryFormState extends State<CategoryForm> {
                 style: FilledButton.styleFrom(
                   backgroundColor: Theme.of(context).colorScheme.error,
                 ),
-                onPressed: () => _delete(),
+                onPressed: viewModel.requestDelete,
                 child: const Text('Delete Category'),
               ),
             ),

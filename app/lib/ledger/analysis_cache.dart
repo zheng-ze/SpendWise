@@ -60,7 +60,8 @@ class AnalysisCache extends ChangeNotifier {
     });
   }
 
-  void refresh(LedgerState state) {
+  /// Refreshes [items] from [state]. Callers may await the result or ignore it.
+  Future<void> refresh(LedgerState state) async {
     if (_lastComputed == _revision) return;
 
     final target = _revision;
@@ -68,22 +69,19 @@ class AnalysisCache extends ChangeNotifier {
     // generation cannot start a second pass.
     _lastComputed = target;
 
-    unawaited(
-      _runner(state)
-          .then((computed) {
-            if (target != _lastComputed) return;
+    try {
+      final computed = await _runner(state);
+      if (target != _lastComputed) return;
 
-            _items = computed;
-            _itemsRevision += 1;
-            notifyListeners();
-          })
-          .onError((error, stackTrace) {
-            // A failed compute must not get stuck reporting stale data
-            // forever, so the next refresh() call is allowed to retry.
-            if (target == _lastComputed) _lastComputed = -1;
-            debugPrint('AnalysisCache refresh failed: $error\n$stackTrace');
-          }),
-    );
+      _items = computed;
+      _itemsRevision += 1;
+      notifyListeners();
+    } catch (error, stackTrace) {
+      // A failed compute must not get stuck reporting stale data forever,
+      // so the next refresh() call is allowed to retry.
+      if (target == _lastComputed) _lastComputed = -1;
+      debugPrint('AnalysisCache refresh failed: $error\n$stackTrace');
+    }
   }
 
   @override

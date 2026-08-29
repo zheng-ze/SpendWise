@@ -4,133 +4,107 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
-import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/budgets/budget_limit_screen.dart';
+import 'package:spendwise/ui/budgets/budget_detail_view_model.dart';
+import 'package:spendwise/ui/common/day_sectioned_entry_list.dart';
 import 'package:spendwise/ui/common/month_year_selector.dart';
 import 'package:spendwise/ui/format/amount_color.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
-import 'package:spendwise/ui/stats/budget_spend.dart';
+import 'package:spendwise/ui/budgets/budget_spend.dart';
 import 'package:spendwise/ui/stats/chart_helpers.dart';
 import 'package:spendwise/ui/stats/stats_window.dart';
-import 'package:spendwise/ui/stats/trend.dart';
-import 'package:spendwise/ui/transactions/day_sectioned_entry_list.dart';
 
 class BudgetDetailScreen extends ConsumerWidget {
-  const BudgetDetailScreen({super.key, required this.budget});
+  const BudgetDetailScreen({super.key, required this.budgetID});
 
-  final Budget budget;
+  final String budgetID;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final asyncState = ref.watch(budgetDetailViewModelProvider(budgetID));
     final ledger = ref.watch(ledgerProvider);
-    final cache = ref.watch(analysisCacheProvider);
-    if (ledger == null) return const SizedBox.shrink();
 
-    cache.refresh(ledger.state);
-
-    return ListenableBuilder(
-      listenable: ledger,
-      builder: (context, _) => ListenableBuilder(
-        listenable: cache,
-        builder: (context, _) => _BudgetDetailBody(
-          budgetID: budget.id,
-          ledger: ledger,
-          cache: cache,
-        ),
-      ),
+    return asyncState.when(
+      data: (viewState) => ledger == null
+          ? const SizedBox.shrink()
+          : _BudgetDetailBody(
+              viewState: viewState,
+              viewModel: ref.read(
+                budgetDetailViewModelProvider(budgetID).notifier,
+              ),
+              ledger: ledger,
+            ),
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (error, stackTrace) =>
+          Scaffold(body: Center(child: Text('$error'))),
     );
   }
 }
 
-class _BudgetDetailBody extends StatefulWidget {
+class _BudgetDetailBody extends StatelessWidget {
   const _BudgetDetailBody({
-    required this.budgetID,
+    required this.viewState,
+    required this.viewModel,
     required this.ledger,
-    required this.cache,
   });
 
-  final String budgetID;
+  final BudgetDetailViewState viewState;
+  final BudgetDetailViewModel viewModel;
   final Ledger ledger;
-  final AnalysisCache cache;
-
-  @override
-  State<_BudgetDetailBody> createState() => _BudgetDetailBodyState();
-}
-
-class _BudgetDetailBodyState extends State<_BudgetDetailBody> {
-  late DateTime _displayedYear = DateTime.utc(DateTime.now().toUtc().year);
-  late DateTime _selectedMonth = DateTime.utc(
-    DateTime.now().toUtc().year,
-    DateTime.now().toUtc().month,
-  );
-
-  void _selectMonth(DateTime month) => setState(() => _selectedMonth = month);
-
-  void _changeYear(DateTime year) => setState(() {
-    _displayedYear = DateTime.utc(year.year);
-    _selectedMonth = DateTime.utc(year.year, _selectedMonth.month);
-  });
 
   @override
   Widget build(BuildContext context) {
-    final state = widget.ledger.state;
-
-    final budget = state.budgets[widget.budgetID];
+    final budget = viewState.budget;
     if (budget == null) {
       return const Scaffold(body: Center(child: Text('Budget deleted')));
     }
 
-    final months = trendMonths(_displayedYear, isYearRange: true);
-    final selectedYearMonth = YearMonth(
-      _selectedMonth.year,
-      _selectedMonth.month,
-    );
-
-    final header = _BudgetDetailHeader(
-      budget: budget,
-      state: state,
-      items: widget.cache.items,
-      selectedMonth: selectedYearMonth,
-    );
+    final header = _BudgetDetailHeader(budget: budget, viewState: viewState);
     final yearSelector = Center(
       child: MonthYearSelector(
-        value: _displayedYear,
+        value: viewState.displayedYear,
         step: MonthYearStep.year,
-        onChanged: _changeYear,
+        onChanged: viewModel.changeYear,
       ),
     );
-    final chart = _MonthChart(
-      budget: budget,
-      state: state,
-      items: widget.cache.items,
-      months: months,
-      selectedMonth: _selectedMonth,
-      onSelectMonth: _selectMonth,
+    final chart = SizedBox(
+      height: 220,
+      child: _BudgetChart(
+        months: viewState.months,
+        spend: viewState.spendSeries,
+        limit: viewState.limitSeries,
+        maxY: viewState.chartMaxYValue,
+        selectedMonth: viewState.selectedMonth,
+        onSelectMonth: viewModel.selectMonth,
+        barColor: AmountColors.of(Theme.of(context)).loss,
+      ),
     );
     final entriesLabel = _BudgetDetailEntriesLabel(
-      selectedMonth: _selectedMonth,
+      selectedMonth: viewState.selectedMonth,
     );
-    final bucketIDs = budgetBucketIDs(budget, state);
+    final bucketIDs = viewState.scopedBucketIDs;
     final entryList = DaySectionedEntryList(
-      ledger: widget.ledger,
-      state: state,
-      window: monthWindow(_selectedMonth),
+      ledger: ledger,
+      state: viewState.ledgerState,
+      window: viewState.selectedMonthWindow,
       // budgetSpend (budget_spend.dart) also counts synthetic
       // transfer-expense items for an overall budget; this list can't, since
       // those items have no backing Entry to show as a row.
-      matching: () => state.entries.values.where((entry) {
+      matching: () => viewState.ledgerState.entries.values.where((entry) {
         if (entry.isTransfer) return false;
         if (entry.expectedCategoryKind != CategoryKind.expense) return false;
-        if (!Accounting.includedInAnalysis(entry, state)) return false;
+        if (!Accounting.includedInAnalysis(entry, viewState.ledgerState)) {
+          return false;
+        }
         if (bucketIDs == null) return true;
         return entry.categoryID != null && bucketIDs.contains(entry.categoryID);
       }),
     );
 
     return Scaffold(
-      appBar: _BudgetDetailAppBar(ledger: widget.ledger, budget: budget),
+      appBar: _BudgetDetailAppBar(title: viewState.title, viewModel: viewModel),
       body: SafeArea(
         child: ListView(
           physics: const ClampingScrollPhysics(),
@@ -141,76 +115,25 @@ class _BudgetDetailBodyState extends State<_BudgetDetailBody> {
   }
 }
 
-List<T> _monthSeries<T>(
-  List<DateTime> months,
-  T Function(YearMonth month) forMonth,
-) => [for (final month in months) forMonth(YearMonth(month.year, month.month))];
-
-class _MonthChart extends StatelessWidget {
-  const _MonthChart({
-    required this.budget,
-    required this.state,
-    required this.items,
-    required this.months,
-    required this.selectedMonth,
-    required this.onSelectMonth,
-  });
-
-  final Budget budget;
-  final LedgerState state;
-  final List<AnalysisItem> items;
-  final List<DateTime> months;
-  final DateTime selectedMonth;
-  final void Function(DateTime month) onSelectMonth;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 220,
-      child: _BudgetChart(
-        months: months,
-        spend: _monthSeries(
-          months,
-          (month) => budgetSpend(budget, month, items, state),
-        ),
-        limit: _monthSeries(months, (month) => effectiveLimit(budget, month)),
-        selectedMonth: selectedMonth,
-        onSelectMonth: onSelectMonth,
-        barColor: AmountColors.of(Theme.of(context)).loss,
-      ),
-    );
-  }
-}
-
 class _BudgetDetailAppBar extends StatelessWidget
     implements PreferredSizeWidget {
-  const _BudgetDetailAppBar({required this.ledger, required this.budget});
+  const _BudgetDetailAppBar({required this.title, required this.viewModel});
 
-  final Ledger ledger;
-  final Budget budget;
+  final String title;
+  final BudgetDetailViewModel viewModel;
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 
   @override
   Widget build(BuildContext context) {
-    final state = ledger.state;
-    final title = budget.categoryID == null
-        ? 'Overall'
-        : state.categories[budget.categoryID]?.name ?? '(category deleted)';
-
     return AppBar(
       title: Text(title),
       actions: [
         IconButton(
           icon: const Icon(Icons.edit_outlined),
           tooltip: 'Edit limit history',
-          onPressed: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) =>
-                  BudgetLimitScreen(ledger: ledger, budgetID: budget.id),
-            ),
-          ),
+          onPressed: viewModel.requestLimitEdit,
         ),
       ],
     );
@@ -218,25 +141,24 @@ class _BudgetDetailAppBar extends StatelessWidget
 }
 
 class _BudgetDetailHeader extends StatelessWidget {
-  const _BudgetDetailHeader({
-    required this.budget,
-    required this.state,
-    required this.items,
-    required this.selectedMonth,
-  });
+  const _BudgetDetailHeader({required this.budget, required this.viewState});
 
   final Budget budget;
-  final LedgerState state;
-  final List<AnalysisItem> items;
-  final YearMonth selectedMonth;
+  final BudgetDetailViewState viewState;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = AmountColors.of(theme);
 
+    final selectedMonth = viewState.selectedYearMonth;
     final limit = effectiveLimit(budget, selectedMonth);
-    final spend = budgetSpend(budget, selectedMonth, items, state);
+    final spend = budgetSpend(
+      budget,
+      selectedMonth,
+      viewState.items,
+      viewState.ledgerState,
+    );
     final overLimit = spend > limit;
 
     return Padding(
@@ -276,6 +198,7 @@ class _BudgetChart extends StatelessWidget {
     required this.months,
     required this.spend,
     required this.limit,
+    required this.maxY,
     required this.selectedMonth,
     required this.onSelectMonth,
     required this.barColor,
@@ -284,17 +207,10 @@ class _BudgetChart extends StatelessWidget {
   final List<DateTime> months;
   final List<Decimal> spend;
   final List<Decimal> limit;
+  final double maxY;
   final DateTime selectedMonth;
   final void Function(DateTime month) onSelectMonth;
   final Color barColor;
-
-  double get _maxY {
-    final maxAmount = [
-      ...spend,
-      ...limit,
-    ].fold(Decimal.zero, (max, amount) => amount > max ? amount : max);
-    return maxAmount > Decimal.one ? maxAmount.toDouble() * 1.15 : 1.0;
-  }
 
   int get _selectedIndex => months.indexWhere(
     (month) =>
@@ -341,7 +257,7 @@ class _BudgetChart extends StatelessWidget {
     return BarChart(
       BarChartData(
         minY: 0,
-        maxY: _maxY,
+        maxY: maxY,
         gridData: const FlGridData(show: false),
         borderData: FlBorderData(show: false),
         titlesData: titlesData,
@@ -380,7 +296,7 @@ class _BudgetChart extends StatelessWidget {
           minX: -0.5,
           maxX: months.length - 0.5,
           minY: 0,
-          maxY: _maxY,
+          maxY: maxY,
           gridData: const FlGridData(show: false),
           borderData: FlBorderData(show: false),
           titlesData: const FlTitlesData(show: false),

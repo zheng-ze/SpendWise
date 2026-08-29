@@ -1,6 +1,8 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/settings/plan_list_screen.dart';
 
@@ -15,8 +17,21 @@ void main() {
     type: AccountType.cash,
   );
 
-  Future<void> pumpScreen(WidgetTester tester, Ledger ledger) {
-    return tester.pumpWidget(MaterialApp(home: PlanListScreen(ledger: ledger)));
+  Future<void> pumpScreen(WidgetTester tester, Ledger ledger) async {
+    final container = ProviderContainer(
+      overrides: [ledgerProvider.overrideWithValue(ledger)],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: PlanListScreen()),
+      ),
+    );
+    // Flushes PlanListNotifier.build()'s Future so the screen's initial
+    // AsyncData state is in place before a test interacts with it.
+    await tester.pump();
   }
 
   testWidgets('empty state shows message and no Edit/Done toggle', (

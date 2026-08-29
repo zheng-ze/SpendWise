@@ -121,8 +121,8 @@ class _AppShellState extends ConsumerState<AppShell> {
   }
 }
 
-// IndexedStack keeps every destination's Navigator mounted, which is what
-// makes a drilled-in stack survive a switch away and back.
+// IndexedStack keeps every destination's Flow mounted, so a drilled-in stack
+// survives a switch away and back. Each Flow owns its own Navigator.
 class _DestinationStacks extends StatelessWidget {
   const _DestinationStacks({required this.selected, required this.bodies});
 
@@ -136,44 +136,14 @@ class _DestinationStacks extends StatelessWidget {
       index: selected.index,
       children: [
         for (final destination in ShellDestination.values)
-          _DestinationNavigator(
-            destination: destination,
-            body: bodies[destination],
+          KeyedSubtree(
+            key: ValueKey(destination),
+            child:
+                (bodies[destination] ?? (context) => const SizedBox.shrink())(
+                  context,
+                ),
           ),
       ],
-    );
-  }
-}
-
-class _DestinationNavigator extends StatelessWidget {
-  const _DestinationNavigator({required this.destination, this.body});
-
-  final ShellDestination destination;
-
-  final WidgetBuilder? body;
-
-  @override
-  Widget build(BuildContext context) {
-    return Navigator(
-      key: ValueKey(destination),
-      onGenerateRoute: (settings) => MaterialPageRoute<void>(
-        settings: settings,
-        builder: body ?? (context) => _Placeholder(destination: destination),
-      ),
-    );
-  }
-}
-
-class _Placeholder extends StatelessWidget {
-  const _Placeholder({required this.destination});
-
-  final ShellDestination destination;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(_destinationLabels[destination]!)),
-      body: const SizedBox.shrink(),
     );
   }
 }

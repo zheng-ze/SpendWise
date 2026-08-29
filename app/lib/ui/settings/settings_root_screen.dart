@@ -1,20 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/settings/settings_providers.dart';
-import 'package:spendwise/ui/settings/category_list_screen.dart';
-import 'package:spendwise/ui/settings/plan_list_screen.dart';
-import 'package:spendwise/ui/settings/recycle_bin_screen.dart';
+import 'package:spendwise/ui/settings/settings_root_view_model.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final ledger = ref.watch(ledgerProvider);
-    if (ledger == null) return const SizedBox.shrink();
-
+    final viewModel = ref.watch(settingsRootViewModelProvider.notifier);
     final scanStripEnabled = ref.watch(scanStripEnabledProvider);
 
     return Scaffold(
@@ -25,20 +20,12 @@ class SettingsScreen extends ConsumerWidget {
           _SettingsLink(
             icon: Icons.sell_outlined,
             label: 'Categories',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const CategoryListScreen(),
-              ),
-            ),
+            onTap: viewModel.requestCategories,
           ),
           _SettingsLink(
             icon: Icons.repeat,
             label: 'Recurring Plans',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => PlanListScreen(ledger: ledger),
-              ),
-            ),
+            onTap: viewModel.requestPlans,
           ),
           const Divider(height: 1),
           const _SectionHeader('Receipt Scanning'),
@@ -56,9 +43,7 @@ class SettingsScreen extends ConsumerWidget {
           _SettingsLink(
             icon: Icons.delete_outline,
             label: 'Recycle Bin',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const RecycleBinScreen()),
-            ),
+            onTap: viewModel.requestRecycleBin,
           ),
         ],
       ),

@@ -2,161 +2,107 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/boot/providers.dart';
-import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/accounts/account_form.dart';
 import 'package:spendwise/ui/accounts/account_row.dart';
 import 'package:spendwise/ui/accounts/account_sections.dart';
+import 'package:spendwise/ui/accounts/accounts_view_model.dart';
 import 'package:spendwise/ui/common/column_text.dart';
 import 'package:spendwise/ui/format/account_type_format.dart';
 import 'package:spendwise/ui/format/amount_color.dart';
 import 'package:spendwise/ui/format/money_format.dart';
-import 'package:spendwise/ui/transactions/daily_transactions_screen.dart';
 
 class AccountsScreen extends ConsumerWidget {
   const AccountsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final ledger = ref.watch(ledgerProvider);
-    if (ledger == null) return const SizedBox.shrink();
+    final asyncState = ref.watch(accountsViewModelProvider);
+    final viewModel = ref.watch(accountsViewModelProvider.notifier);
 
-    return ListenableBuilder(
-      listenable: ledger,
-      builder: (context, _) => _AccountsScreenBody(ledger: ledger),
-    );
-  }
-}
-
-class _AccountsScreenBody extends StatefulWidget {
-  const _AccountsScreenBody({required this.ledger});
-
-  final Ledger ledger;
-
-  @override
-  State<_AccountsScreenBody> createState() => _AccountsScreenBodyState();
-}
-
-class _AccountsScreenBodyState extends State<_AccountsScreenBody> {
-  String? _expandedAccountID;
-
-  void _toggleExpanded(String accountID) {
-    setState(() {
-      _expandedAccountID = _expandedAccountID == accountID ? null : accountID;
-    });
-  }
-
-  void _openTransactions({
-    required String title,
-    required Set<String> scopeIDs,
-  }) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => TransactionsScreen(title: title, scopeIDs: scopeIDs),
+    return asyncState.when(
+      data: (viewState) => Scaffold(
+        body: SafeArea(
+          child: _AccountsBody(viewState: viewState, viewModel: viewModel),
+        ),
       ),
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (error, stackTrace) =>
+          Scaffold(body: Center(child: Text('$error'))),
     );
   }
+}
 
-  void _openAccount(AccountRow row) => _openTransactions(
-    title: row.name,
-    scopeIDs: {row.id, for (final pocket in row.pockets) pocket.id},
-  );
+class _AccountsBody extends StatelessWidget {
+  const _AccountsBody({required this.viewState, required this.viewModel});
 
-  void _openAccountAlone(AccountRow row) =>
-      _openTransactions(title: row.name, scopeIDs: {row.id});
-
-  void _openPocket(PocketRow pocket) =>
-      _openTransactions(title: pocket.name, scopeIDs: {pocket.id});
-
-  void _accountDeleted(AccountRow row) {
-    widget.ledger.deleteAccount(row.id);
-    if (_expandedAccountID == row.id) {
-      setState(() => _expandedAccountID = null);
-    }
-  }
-
-  void _pocketDeleted(PocketRow pocket) =>
-      widget.ledger.deletePocket(pocket.id);
+  final AccountsViewState viewState;
+  final AccountsViewModel viewModel;
 
   @override
   Widget build(BuildContext context) {
-    final state = widget.ledger.state;
-    final sections = accountSections(state, now: DateTime.now());
-    final netWorth = Accounting.netWorth(state);
     final colors = AmountColors.of(Theme.of(context));
+    final netWorth = viewState.netWorth;
 
-    return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Accounts',
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.add),
-                    onPressed: () => showAccountFormSheet(
-                      context: context,
-                      ledger: widget.ledger,
-                    ),
-                  ),
-                ],
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Accounts',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: ColumnText(
-                items: [
-                  ColumnTextItem(
-                    caption: 'Assets',
-                    value: formatCurrency(netWorth.asset),
-                    valueColor: colors.gain,
-                  ),
-                  ColumnTextItem(
-                    caption: 'Liabilities',
-                    value: formatCurrency(netWorth.liability),
-                    valueColor: colors.loss,
-                  ),
-                  ColumnTextItem(
-                    caption: 'Total',
-                    value: formatCurrency(netWorth.asset - netWorth.liability),
-                    valueColor: colors.netAmountColor(
-                      netWorth.asset - netWorth.liability,
-                    ),
-                  ),
-                ],
+              IconButton(
+                icon: const Icon(Icons.add),
+                onPressed: viewModel.requestNewAccount,
               ),
-            ),
-            const SizedBox(height: 8),
-            const Divider(height: 1),
-            Expanded(
-              child: sections.isEmpty
-                  ? const _EmptyState()
-                  : ListView(
-                      children: [
-                        for (final section in sections)
-                          _AccountSection(
-                            section: section,
-                            expandedAccountID: _expandedAccountID,
-                            onToggleExpanded: _toggleExpanded,
-                            onOpenAccount: _openAccount,
-                            onOpenAccountAlone: _openAccountAlone,
-                            onOpenPocket: _openPocket,
-                            onAccountDeleted: _accountDeleted,
-                            onPocketDeleted: _pocketDeleted,
-                          ),
-                      ],
-                    ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: ColumnText(
+            items: [
+              ColumnTextItem(
+                caption: 'Assets',
+                value: formatCurrency(netWorth.asset),
+                valueColor: colors.gain,
+              ),
+              ColumnTextItem(
+                caption: 'Liabilities',
+                value: formatCurrency(netWorth.liability),
+                valueColor: colors.loss,
+              ),
+              ColumnTextItem(
+                caption: 'Total',
+                value: formatCurrency(netWorth.asset - netWorth.liability),
+                valueColor: colors.netAmountColor(
+                  netWorth.asset - netWorth.liability,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Divider(height: 1),
+        Expanded(
+          child: viewState.sections.isEmpty
+              ? const _EmptyState()
+              : ListView(
+                  children: [
+                    for (final section in viewState.sections)
+                      _AccountSection(
+                        section: section,
+                        expandedAccountID: viewState.expandedAccountId,
+                        viewModel: viewModel,
+                      ),
+                  ],
+                ),
+        ),
+      ],
     );
   }
 }
@@ -165,22 +111,12 @@ class _AccountSection extends StatelessWidget {
   const _AccountSection({
     required this.section,
     required this.expandedAccountID,
-    required this.onToggleExpanded,
-    required this.onOpenAccount,
-    required this.onOpenAccountAlone,
-    required this.onOpenPocket,
-    required this.onAccountDeleted,
-    required this.onPocketDeleted,
+    required this.viewModel,
   });
 
   final AccountSection section;
   final String? expandedAccountID;
-  final void Function(String accountID) onToggleExpanded;
-  final void Function(AccountRow row) onOpenAccount;
-  final void Function(AccountRow row) onOpenAccountAlone;
-  final void Function(PocketRow pocket) onOpenPocket;
-  final void Function(AccountRow row) onAccountDeleted;
-  final void Function(PocketRow pocket) onPocketDeleted;
+  final AccountsViewModel viewModel;
 
   @override
   Widget build(BuildContext context) {
@@ -194,12 +130,12 @@ class _AccountSection extends StatelessWidget {
             expanded: expandedAccountID == row.id,
             onToggleExpanded: row.pockets.isEmpty
                 ? null
-                : () => onToggleExpanded(row.id),
-            onTap: () => onOpenAccount(row),
-            onAccountDeleted: () => onAccountDeleted(row),
-            onOpenAccountAlone: () => onOpenAccountAlone(row),
-            onOpenPocket: onOpenPocket,
-            onPocketDeleted: onPocketDeleted,
+                : () => viewModel.toggleExpanded(row.id),
+            onTap: () => viewModel.openAccount(row.id),
+            onAccountDeleted: () => viewModel.deleteAccount(row.id),
+            onOpenAccountAlone: () => viewModel.openAccountAlone(row.id),
+            onOpenPocket: (pocket) => viewModel.openPocket(pocket.id),
+            onPocketDeleted: (pocket) => viewModel.deletePocket(pocket.id),
           ),
       ],
     );

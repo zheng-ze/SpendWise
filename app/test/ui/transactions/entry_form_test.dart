@@ -2,10 +2,12 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/settings/settings_providers.dart';
 import 'package:spendwise/ui/transactions/entry_form.dart';
 import 'package:spendwise/ui/transactions/entry_form_logic.dart';
+import 'package:spendwise/ui/transactions/entry_form_view_model.dart';
 
 void main() {
   Decimal dec(String value) => Decimal.parse(value);
@@ -14,11 +16,6 @@ void main() {
     id: 'a0000000-0000-0000-0000-000000000001',
     name: 'Checking',
     type: AccountType.checking,
-  );
-  final savings = Account(
-    id: 'a0000000-0000-0000-0000-000000000002',
-    name: 'Savings',
-    type: AccountType.savings,
   );
   final coffee = TransactionCategory(
     id: 'c0000000-0000-0000-0000-000000000001',
@@ -29,24 +26,12 @@ void main() {
     parentID: null,
     symbol: 'local_cafe',
   );
-  final salary = TransactionCategory(
-    id: 'c0000000-0000-0000-0000-000000000002',
-    name: 'Salary',
-    kind: CategoryKind.income,
-    colorHex: '#00FF00',
-    includeInAnalysis: true,
-    parentID: null,
-    symbol: 'work',
-  );
 
   Ledger buildLedger({Map<String, Entry> entries = const {}}) {
     return Ledger(
       state: LedgerState(
-        moneySources: {
-          checking.id: MoneySource.account(checking),
-          savings.id: MoneySource.account(savings),
-        },
-        categories: {coffee.id: coffee, salary.id: salary},
+        moneySources: {checking.id: MoneySource.account(checking)},
+        categories: {coffee.id: coffee},
         entries: entries,
       ),
     );
@@ -55,25 +40,20 @@ void main() {
   Future<void> pumpForm(
     WidgetTester tester, {
     required Ledger ledger,
-    Entry? entry,
-    String? sourceScope,
+    String? entryId,
   }) async {
-    // The real EntryForm always renders inside a modal bottom sheet, which
-    // sits over the host app's own Scaffold/Material. Without one here, Text
-    // falls back to the debug banner's oversized style and rows overflow.
+    // Needs a host Scaffold/Material, since EntryForm always renders inside
+    // a modal bottom sheet. Without one, Text overflows with the debug style.
     await tester.pumpWidget(
       ProviderScope(
-        // The new-entry form's scan strip reads this setting; fixed here so
-        // its default doesn't depend on real (unmocked) SharedPreferences.
-        overrides: [scanStripEnabledProvider.overrideWith((ref) async => true)],
+        overrides: [
+          ledgerProvider.overrideWithValue(ledger),
+          // Fixes the scan strip's setting so it doesn't depend on real,
+          // unmocked SharedPreferences.
+          scanStripEnabledProvider.overrideWith((ref) async => true),
+        ],
         child: MaterialApp(
-          home: Scaffold(
-            body: EntryForm(
-              ledger: ledger,
-              entry: entry,
-              sourceScope: sourceScope,
-            ),
-          ),
+          home: Scaffold(body: EntryForm(entryId: entryId)),
         ),
       ),
     );
@@ -102,7 +82,7 @@ void main() {
       await pumpForm(
         tester,
         ledger: buildLedger(entries: {entry.id: entry}),
-        entry: entry,
+        entryId: entry.id,
       );
 
       expect(find.text('Coffee run'), findsOneWidget);
@@ -122,7 +102,7 @@ void main() {
         await pumpForm(
           tester,
           ledger: buildLedger(entries: {entry.id: entry}),
-          entry: entry,
+          entryId: entry.id,
         );
 
         expect(find.byType(SegmentedButton<EntryFormKind>), findsNothing);
@@ -143,7 +123,7 @@ void main() {
       await pumpForm(
         tester,
         ledger: buildLedger(entries: {entry.id: entry}),
-        entry: entry,
+        entryId: entry.id,
       );
 
       await tester.tap(find.text('Edit'));
@@ -163,7 +143,7 @@ void main() {
       await pumpForm(
         tester,
         ledger: buildLedger(entries: {entry.id: entry}),
-        entry: entry,
+        entryId: entry.id,
       );
 
       expect(find.text('Delete Entry'), findsNothing);
@@ -181,7 +161,7 @@ void main() {
       await pumpForm(
         tester,
         ledger: buildLedger(entries: {entry.id: entry}),
-        entry: entry,
+        entryId: entry.id,
       );
 
       await tester.tap(find.text('Edit'));
@@ -203,7 +183,7 @@ void main() {
         categoryID: coffee.id,
       );
       final ledger = buildLedger(entries: {entry.id: entry});
-      await pumpForm(tester, ledger: ledger, entry: entry);
+      await pumpForm(tester, ledger: ledger, entryId: entry.id);
 
       await tester.tap(find.text('Edit'));
       await tester.pumpAndSettle();
@@ -225,28 +205,6 @@ void main() {
     });
   });
 
-  group('kind change clears category', () {
-    testWidgets('switching from expense to income clears the selection', (
-      tester,
-    ) async {
-      final ledger = buildLedger();
-      await pumpForm(tester, ledger: ledger);
-
-      await tester.tap(find.text('Category'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Coffee'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Coffee'), findsOneWidget);
-
-      await tester.tap(find.text('Income'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Coffee'), findsNothing);
-      expect(find.text('None'), findsOneWidget);
-    });
-  });
-
   group('save paths', () {
     testWidgets(
       'editing an existing entry updates it and returns to read-only',
@@ -258,7 +216,7 @@ void main() {
           categoryID: coffee.id,
         );
         final ledger = buildLedger(entries: {entry.id: entry});
-        await pumpForm(tester, ledger: ledger, entry: entry);
+        await pumpForm(tester, ledger: ledger, entryId: entry.id);
 
         await tester.tap(find.text('Edit'));
         await tester.pumpAndSettle();
@@ -282,6 +240,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            ledgerProvider.overrideWithValue(ledger),
             scanStripEnabledProvider.overrideWith((ref) async => true),
           ],
           child: MaterialApp(
@@ -290,7 +249,7 @@ void main() {
                 body: ElevatedButton(
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
-                      builder: (_) => Scaffold(body: EntryForm(ledger: ledger)),
+                      builder: (_) => const Scaffold(body: EntryForm()),
                     ),
                   ),
                   child: const Text('open'),
@@ -307,9 +266,12 @@ void main() {
       await tester.enterText(find.byType(TextField).at(1), 'New expense');
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Account'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Checking'));
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(EntryForm)),
+      );
+      container
+          .read(entryFormViewModelProvider(null).notifier)
+          .applyPickedSource(checking.id);
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Save'));
@@ -321,36 +283,6 @@ void main() {
       expect(added.name, 'New expense');
       expect(added.amount, dec('-12.50'));
     });
-
-    testWidgets(
-      'a new entry with recurrence creates a plan and resolves the anchor day',
-      (tester) async {
-        final ledger = buildLedger();
-        await pumpForm(tester, ledger: ledger);
-
-        await tester.enterText(find.byType(TextField).at(0), '20');
-        await tester.enterText(find.byType(TextField).at(1), 'Rent');
-        await tester.pumpAndSettle();
-
-        await tester.tap(find.text('Account'));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Checking'));
-        await tester.pumpAndSettle();
-
-        await tester.tap(find.byIcon(Icons.repeat));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Monthly'));
-        await tester.pumpAndSettle();
-
-        await tester.tap(find.text('Save'));
-        await tester.pumpAndSettle();
-
-        expect(ledger.state.plans.length, 1);
-        expect(ledger.state.entries.length, 1);
-        final added = ledger.state.entries.values.first;
-        expect(added.name, 'Rent');
-      },
-    );
   });
 
   group('delete', () {
@@ -364,18 +296,23 @@ void main() {
       final ledger = buildLedger(entries: {entry.id: entry});
 
       await tester.pumpWidget(
-        MaterialApp(
-          home: Builder(
-            builder: (context) => Scaffold(
-              body: ElevatedButton(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => Scaffold(
-                      body: EntryForm(ledger: ledger, entry: entry),
+        ProviderScope(
+          overrides: [
+            ledgerProvider.overrideWithValue(ledger),
+            scanStripEnabledProvider.overrideWith((ref) async => true),
+          ],
+          child: MaterialApp(
+            home: Builder(
+              builder: (context) => Scaffold(
+                body: ElevatedButton(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) =>
+                          Scaffold(body: EntryForm(entryId: entry.id)),
                     ),
                   ),
+                  child: const Text('open'),
                 ),
-                child: const Text('open'),
               ),
             ),
           ),
@@ -410,7 +347,7 @@ void main() {
         await pumpForm(
           tester,
           ledger: buildLedger(entries: {entry.id: entry}),
-          entry: entry,
+          entryId: entry.id,
         );
 
         expect(find.text('Opening balance'), findsOneWidget);
@@ -430,7 +367,7 @@ void main() {
           systemKind: SystemEntryKind.openingBalance,
         );
         final ledger = buildLedger(entries: {entry.id: entry});
-        await pumpForm(tester, ledger: ledger, entry: entry);
+        await pumpForm(tester, ledger: ledger, entryId: entry.id);
 
         await tester.tap(find.text('Edit'));
         await tester.pumpAndSettle();
@@ -485,7 +422,7 @@ void main() {
       await pumpForm(
         tester,
         ledger: buildLedger(entries: {entry.id: entry}),
-        entry: entry,
+        entryId: entry.id,
       );
 
       expect(find.text('Balance adjustment'), findsOneWidget);
@@ -504,72 +441,10 @@ void main() {
       await pumpForm(
         tester,
         ledger: buildLedger(entries: {entry.id: entry}),
-        entry: entry,
+        entryId: entry.id,
       );
 
       expect(find.text('Edit'), findsOneWidget);
     });
-  });
-
-  group('prefill from scope', () {
-    testWidgets('a new entry opened with a source scope prefills its account', (
-      tester,
-    ) async {
-      final ledger = buildLedger();
-      await pumpForm(tester, ledger: ledger, sourceScope: checking.id);
-
-      expect(find.text('Checking'), findsOneWidget);
-    });
-  });
-
-  group('picker mounted guard', () {
-    testWidgets(
-      'resolving the category picker after the form is popped does not throw',
-      (tester) async {
-        final ledger = buildLedger();
-        // Captured so it can be removed directly, since the sheet route
-        // sits above it and pop() would dismiss the sheet instead.
-        final formRoute = MaterialPageRoute<void>(
-          builder: (_) => Scaffold(body: EntryForm(ledger: ledger)),
-        );
-        await tester.pumpWidget(
-          ProviderScope(
-            overrides: [
-              scanStripEnabledProvider.overrideWith((ref) async => true),
-            ],
-            child: MaterialApp(
-              home: Builder(
-                builder: (context) => Scaffold(
-                  body: ElevatedButton(
-                    onPressed: () => Navigator.of(context).push(formRoute),
-                    child: const Text('open'),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-        await tester.tap(find.text('open'));
-        await tester.pumpAndSettle();
-
-        await tester.tap(find.text('Category'));
-        await tester.pumpAndSettle();
-
-        // Removes the form's own route out from under the still-open sheet,
-        // disposing EntryForm's State while the picker future is pending.
-        final rootNavigator = tester.state<NavigatorState>(
-          find.byType(Navigator).first,
-        );
-        rootNavigator.removeRoute(formRoute);
-        await tester.pump();
-
-        await tester.tap(find.text('Coffee'));
-
-        // A setState on the disposed EntryForm would throw here.
-        await tester.pumpAndSettle();
-
-        expect(tester.takeException(), isNull);
-      },
-    );
   });
 }

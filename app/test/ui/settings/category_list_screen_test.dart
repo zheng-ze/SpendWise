@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ui/settings/category_form.dart';
 import 'package:spendwise/ui/settings/category_list_screen.dart';
 
 import '../../support/semantics_test_support.dart';
@@ -185,5 +186,50 @@ void main() {
       LifecycleState.archived,
     );
     handle.dispose();
+  });
+
+  testWidgets('tapping the add-category button opens a bare form', (
+    tester,
+  ) async {
+    final ledger = buildLedger();
+    await pumpScreen(tester, ledger);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.add));
+    await tester.pumpAndSettle();
+
+    final form = tester.widget<CategoryForm>(find.byType(CategoryForm));
+    expect(form.category, isNull);
+    expect(form.presetParentID, isNull);
+  });
+
+  testWidgets('tapping a category row opens the form for that category', (
+    tester,
+  ) async {
+    final ledger = buildLedger(categories: [food]);
+    await pumpScreen(tester, ledger);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Food'));
+    await tester.pumpAndSettle();
+
+    final form = tester.widget<CategoryForm>(find.byType(CategoryForm));
+    expect(form.category?.id, food.id);
+    expect(form.presetParentID, isNull);
+  });
+
+  testWidgets('tapping add-subcategory on a root opens the form preset to it', (
+    tester,
+  ) async {
+    final ledger = buildLedger(categories: [food]);
+    await pumpScreen(tester, ledger);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.add_circle_outline));
+    await tester.pumpAndSettle();
+
+    final form = tester.widget<CategoryForm>(find.byType(CategoryForm));
+    expect(form.category, isNull);
+    expect(form.presetParentID, food.id);
   });
 }

@@ -7,7 +7,9 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/stats/category_detail_screen.dart';
-import 'package:spendwise/ui/stats/stats_screen.dart';
+import 'package:spendwise/ui/stats/category_detail_view_model.dart';
+import 'package:spendwise/ui/stats/stats_flow.dart';
+import 'package:spendwise/ui/stats/stats_root_screen.dart';
 
 import '../../support/semantics_test_support.dart';
 
@@ -105,10 +107,12 @@ void main() {
         overrides: overridesFor(ledger),
         child: MaterialApp(
           home: CategoryDetailScreen(
-            mainID: mainID,
-            kind: CategoryKind.expense,
-            isYearRange: false,
-            initialDate: initialDate ?? thisMonth,
+            args: CategoryDetailArgs(
+              mainID: mainID,
+              kind: CategoryKind.expense,
+              isYearRange: false,
+              initialDate: initialDate ?? thisMonth,
+            ),
           ),
         ),
       ),
@@ -130,7 +134,7 @@ void main() {
     await pumpDetail(tester, ledger);
     await tester.pumpAndSettle();
 
-    expect(find.byType(PopupMenuButton<StatsRangeMode>), findsNothing);
+    expect(find.byIcon(Icons.more_vert), findsNothing);
   });
 
   testWidgets('date changes in the detail screen do not affect the parent', (
@@ -140,20 +144,21 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: overridesFor(ledger),
-        child: const MaterialApp(home: StatsScreen()),
+        child: const MaterialApp(home: StatsFlow()),
       ),
     );
     await tester.pumpAndSettle();
 
-    final buildContext = tester.element(find.byType(StatsScreen));
-    await tester.runAsync(() async {});
+    final buildContext = tester.element(find.byType(StatsFlow));
     Navigator.of(buildContext).push(
       MaterialPageRoute<void>(
         builder: (_) => CategoryDetailScreen(
-          mainID: foodID,
-          kind: CategoryKind.expense,
-          isYearRange: false,
-          initialDate: thisMonth,
+          args: CategoryDetailArgs(
+            mainID: foodID,
+            kind: CategoryKind.expense,
+            isYearRange: false,
+            initialDate: thisMonth,
+          ),
         ),
       ),
     );
@@ -165,7 +170,7 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
 
-    expect(find.byType(StatsScreen), findsOneWidget);
+    expect(find.byType(StatsFlow), findsOneWidget);
   });
 
   group('subcategory table', () {
@@ -494,30 +499,31 @@ void main() {
     );
   });
 
-  testWidgets('tapping a legend row in StatsScreen pushes the detail screen', (
-    tester,
-  ) async {
-    final hawkerEntry = Entry(
-      amount: dec('-10'),
-      name: 'Lunch',
-      sourceID: account.id,
-      categoryID: hawkerID,
-      date: day(1),
-    );
-    final ledger = buildLedger(entries: {hawkerEntry.id: hawkerEntry});
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: overridesFor(ledger),
-        child: const MaterialApp(home: StatsScreen()),
-      ),
-    );
-    await tester.pumpAndSettle();
+  testWidgets(
+    'tapping a legend row in StatsRootScreen pushes the detail screen',
+    (tester) async {
+      final hawkerEntry = Entry(
+        amount: dec('-10'),
+        name: 'Lunch',
+        sourceID: account.id,
+        categoryID: hawkerID,
+        date: day(1),
+      );
+      final ledger = buildLedger(entries: {hawkerEntry.id: hawkerEntry});
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: overridesFor(ledger),
+          child: const MaterialApp(home: StatsRootScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Food'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Food'));
+      await tester.pumpAndSettle();
 
-    expect(find.byType(CategoryDetailScreen), findsOneWidget);
-  });
+      expect(find.byType(CategoryDetailScreen), findsOneWidget);
+    },
+  );
 
   group('trend card', () {
     testWidgets('renders month labels for a January selection', (tester) async {

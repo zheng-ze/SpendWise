@@ -1,22 +1,30 @@
-import 'package:domain/domain.dart' show Decimal;
+import 'package:domain/domain.dart'
+    show Decimal, LedgerState, LedgerStateQueries;
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/common/form_scaffold.dart';
 import 'package:spendwise/ui/format/amount_color.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
-import 'package:spendwise/ui/transactions/entry_form_controller.dart';
 import 'package:spendwise/ui/transactions/entry_form_logic.dart';
+import 'package:spendwise/ui/transactions/entry_form_view_model.dart';
 
 /// Read-only receipt view: kind pill, entry name and signed amount up top,
-/// plain rows below, and a single "Edit" action that switches [controller]
-/// to [EntryFormMode.editing].
-class ViewEntryForm extends StatelessWidget {
-  const ViewEntryForm({super.key, required this.controller});
+/// plain rows below, and a single "Edit" action that switches to
+/// [EntryFormMode.editing].
+class ViewEntryForm extends ConsumerWidget {
+  const ViewEntryForm({
+    super.key,
+    required this.viewModel,
+    required this.state,
+  });
 
-  final EntryFormController controller;
+  final EntryFormViewModel viewModel;
+  final EntryFormViewState state;
 
-  AmountKind get _amountKind => switch (controller.kind) {
+  AmountKind get _amountKind => switch (state.kind) {
     EntryFormKind.expense => AmountKind.expense,
     EntryFormKind.income => AmountKind.income,
     EntryFormKind.transfer => AmountKind.transfer,
@@ -49,17 +57,18 @@ class ViewEntryForm extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final colors = AmountColors.of(theme);
-    final amount = controller.parsedAmount ?? Decimal.zero;
-    final kind = controller.kind;
+    final ledgerState = ref.watch(ledgerProvider)?.state;
+    final amount = state.parsedAmount ?? Decimal.zero;
+    final kind = state.kind;
     final signedAmount = kind == EntryFormKind.expense ? -amount : amount;
-    final sourceLabel = controller.sourceLabel(controller.sourceId) ?? 'Select';
+    final sourceLabel = ledgerState?.sourceName(state.sourceId) ?? 'Select';
     final destinationLabel =
-        controller.sourceLabel(controller.destinationId) ?? 'Select';
+        ledgerState?.sourceName(state.destinationId) ?? 'Select';
     final categoryLabel =
-        controller.categoryLabel(controller.categoryId) ?? 'None';
+        _categoryLabel(ledgerState, state.categoryId) ?? 'None';
 
     return SheetShell(
       children: [
@@ -72,10 +81,7 @@ class ViewEntryForm extends StatelessWidget {
           child: Text(_kindLabel(kind), style: theme.textTheme.labelSmall),
         ),
         const SizedBox(height: 8),
-        Text(
-          controller.nameController.text,
-          style: theme.textTheme.titleMedium,
-        ),
+        Text(state.nameText, style: theme.textTheme.titleMedium),
         const SizedBox(height: 4),
         Text(
           formatSignedAmount(signedAmount, _amountKind),
@@ -90,7 +96,7 @@ class ViewEntryForm extends StatelessWidget {
           child: SingleChildScrollView(
             child: Column(
               children: [
-                _row('Date', formatEntryDate(controller.date)),
+                _row('Date', formatEntryDate(state.date)),
                 if (kind == EntryFormKind.transfer) ...[
                   _row('From', sourceLabel),
                   _row('To', destinationLabel),
@@ -100,7 +106,7 @@ class ViewEntryForm extends StatelessWidget {
                 ],
                 _row(
                   'Include in Analysis',
-                  controller.includeInAnalysis ? 'Yes' : 'No',
+                  state.includeInAnalysis ? 'Yes' : 'No',
                 ),
               ],
             ),
@@ -110,11 +116,21 @@ class ViewEntryForm extends StatelessWidget {
         SizedBox(
           width: double.infinity,
           child: TextButton(
-            onPressed: controller.startEditing,
+            onPressed: viewModel.startEditing,
             child: const Text('Edit'),
           ),
         ),
       ],
     );
+  }
+
+  String? _categoryLabel(LedgerState? ledgerState, String? id) {
+    if (id == null || ledgerState == null) return null;
+    final category = ledgerState.categories[id];
+    if (category == null) return null;
+    final parentID = category.parentID;
+    if (parentID == null) return category.name;
+    final parent = ledgerState.categories[parentID];
+    return parent == null ? category.name : '${parent.name}/${category.name}';
   }
 }

@@ -86,6 +86,77 @@ alternative — so they live here, not in `docs/adr/`.
 - **Mutators validate, mutate, then return `List<LedgerChange>`.** Every mutation on `LedgerState`
   keeps this contract.
 
+## UI-layer vocabulary (MVVM)
+
+`app/lib/ui` is migrating to strict MVVM. These terms apply only to that layer, not to
+`packages/domain`.
+
+**View** — a Flutter widget. Holds no business logic and imports neither `package:domain/` nor any
+persistence or data-layer code. Calls named methods on its ViewModel, each taking only raw,
+unparsed values — a `String` from a text field, a `bool` from a toggle. It never parses,
+validates, or otherwise interprets a value before passing it; that is the ViewModel's job. The
+View depends on its ViewModel's abstract interface type, never the concrete class. See ADR-0058.
+
+**ViewModel** — a concrete class implementing an abstract interface declared per screen (for
+example, `abstract class BudgetDetailViewModel { Future<void> saveBudget(String rawAmount); }`).
+Owns all state and behavior for exactly one View — one screen, or a well-defined section of one. A
+thin Riverpod provider wraps each ViewModel for lifecycle and dependency injection only; the
+provider is not the ViewModel, it exposes one. Any ViewModel backing a screen that loads data uses
+`AsyncNotifier<ViewState>` as its base, so the View renders via `AsyncValue.when(data:, loading:,
+error:)` rather than a hand-rolled loading/error representation. "The View never decides what an
+input means" is a documented convention here, not tool-enforced — reviewed the same way any other
+convention violation is caught.
+
+Every ViewModel backed by the app's single `Ledger` uses the `LedgerBackedNotifier` mixin
+(`app/lib/ui/common/ledger_backed_notifier.dart`) rather than repeating its own ledger accessor and
+state-update helper. The mixin gives a notifier a `ledger` getter that throws if the ledger is not
+ready yet, and an `updateState()` method that applies a transform to the current `ViewState` and
+no-ops if the provider has already been disposed — the guard a picker callback needs when its
+result arrives after the sheet that launched it is gone. Issue #30 left "should ViewModels share a
+base class?" open pending real examples; issue #36 answered it once `AccountsNotifier`,
+`AccountFormNotifier`, `SourceEditFormNotifier`, `TransactionsNotifier`, and `EntryFormNotifier` all
+turned out to need the same two pieces of boilerplate. A ViewModel with no `Ledger` dependency, or
+one needing a genuinely different state-update shape, has no obligation to use this mixin.
+
+A ViewModel that wraps a plain `ChangeNotifier` service inside `build()` (not only `Ledger` — for
+example `AnalysisCache`) must `await` that service's own async work there, not fire it and forget
+it. Starting the work without awaiting it opens a window where the service's listener callback can
+write fresher state before Riverpod finishes installing `build()`'s own returned value, which then
+silently overwrites the fresher write. See ADR-0059's issue-#38 amendment for the full mechanism and
+the fix shape.
+
+**Flow** — a `ConsumerStatefulWidget` that owns one feature folder's own nested `Navigator` (its
+own independent route stack), scoped with a `GlobalKey<NavigatorState>` local to that Flow's
+State — never shared app-wide. A Flow watches its screens' ViewModels for a `Step` via
+`ref.listenManual` and maps each `Step` to a push/pop on its own `Navigator`. The View never
+touches navigation; the mapping from `Step` to a concrete pushed screen lives entirely in the
+Flow. See ADR-0059.
+
+**Step** — a sealed Dart type declared per Flow (for example, `sealed class BudgetsStep {}` with
+a variant `BudgetSelected(String id)`), carrying only plain data, never a `Widget` or
+`BuildContext`. A ViewModel emits a `Step?` as part of its `ViewState` when it needs a UI action it
+must not decide for itself: a pushed screen, or a launched modal (a picker sheet, `showDatePicker`)
+whose raw outcome the Flow reports back to the ViewModel through a named method (for example,
+`applyPickedParent(String? id)`). Either way `Step` stays plain data with no Flutter import, so this
+does not reintroduce a Flutter dependency into the ViewModel. `Step` consumption is single-shot —
+the Flow clears it via the ViewModel's `clearStep()` after acting on it, whether that action was a
+push or a modal launch. Replaces the earlier `NavigationIntent` field. See ADR-0059.
+
+`AppShell` (`app/lib/ui/shell/app_shell.dart`) itself gets no ViewModel: its only state is
+responsive-layout bookkeeping (`_useRail`, `_extended`), a flat width-to-bool computation with no
+async loading and no domain import. It mounts one Flow per destination directly, with no
+shell-level `Navigator` of its own — each Flow already owns its own, per the Flow entry above. This
+was issue #30's last open "does `shell` need a migration ticket" question, closed by issue #39.
+
+A shared presentation widget (in `ui/common` or `ui/format`) is not a View in this sense and owns
+no ViewModel of its own: it takes plain values and callbacks as constructor parameters, supplied by
+whichever screen's ViewModel is using it. "One ViewModel per View" holds because these shared
+widgets never read Riverpod state directly — confirmed by their having zero `ConsumerWidget`,
+`ConsumerStatefulWidget`, or `WidgetRef` usage as of this migration's start.
+
+**Model** — `packages/domain` (unchanged, already framework-free) plus the data layer: persistence
+today, and any future networking.
+
 ## Index
 
 - **`docs/adr/`** — architecture decisions: a decision, the alternative that was rejected, and the
