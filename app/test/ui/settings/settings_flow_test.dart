@@ -6,9 +6,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/settings/category_list_screen.dart';
-import 'package:spendwise/ui/settings/plan_list_screen.dart';
-import 'package:spendwise/ui/settings/recycle_bin_screen.dart';
+import 'package:spendwise/ui/settings/category/category_list_screen.dart';
+import 'package:spendwise/ui/settings/plan/plan_list_screen.dart';
+import 'package:spendwise/ui/settings/recycle_bin/recycle_bin_screen.dart';
 import 'package:spendwise/ui/settings/settings_flow.dart';
 import 'package:spendwise/ui/settings/settings_root_view_model.dart';
 

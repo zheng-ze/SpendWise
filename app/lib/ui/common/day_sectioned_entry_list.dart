@@ -2,9 +2,9 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/transactions/day_header.dart';
-import 'package:spendwise/ui/transactions/day_sections.dart';
-import 'package:spendwise/ui/transactions/entry_row.dart';
+import 'package:spendwise/ui/transactions/daily_list/day_header.dart';
+import 'package:spendwise/ui/transactions/daily_list/day_sections.dart';
+import 'package:spendwise/ui/transactions/daily_list/entry_row.dart';
 
 /// Renders [matching]'s entries within [window], grouped into day sections.
 class DaySectionedEntryList extends StatelessWidget {

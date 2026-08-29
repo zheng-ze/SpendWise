@@ -8,7 +8,7 @@ import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/stats/stats_flow.dart';
-import 'package:spendwise/ui/stats/stats_window.dart';
+import 'package:spendwise/ui/stats/helpers/stats_window.dart';
 
 // A single-category window can show the same figure in the legend row, so
 // this scopes the match to the AmountHeader that renders the total line.

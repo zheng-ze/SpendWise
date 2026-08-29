@@ -1,10 +1,10 @@
-import 'package:domain/src/account.dart';
-import 'package:domain/src/budget.dart';
-import 'package:domain/src/entry.dart';
-import 'package:domain/src/money_source.dart';
-import 'package:domain/src/recurring_plan.dart';
-import 'package:domain/src/sub_pocket.dart';
-import 'package:domain/src/transaction_category.dart';
+import 'package:domain/src/accounts/account.dart';
+import 'package:domain/src/accounts/money_source.dart';
+import 'package:domain/src/accounts/sub_pocket.dart';
+import 'package:domain/src/budgets/budget.dart';
+import 'package:domain/src/entries/entry.dart';
+import 'package:domain/src/entries/transaction_category.dart';
+import 'package:domain/src/plans/recurring_plan.dart';
 import 'package:meta/meta.dart';
 
 @immutable

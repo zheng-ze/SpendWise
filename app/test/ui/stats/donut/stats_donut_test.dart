@@ -1,0 +1,128 @@
+import 'package:domain/domain.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import 'package:spendwise/ui/stats/helpers/slices.dart';
+import 'package:spendwise/ui/stats/donut/stats_donut.dart';
+
+void main() {
+  Decimal dec(String value) => Decimal.parse(value);
+
+  testWidgets(
+    'multi-slice donut renders the ring with gaps and leader-line labels',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 320);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final slices = [
+        Slice(
+          bucketID: 'a0000000-0000-0000-0000-000000000001',
+          amount: dec('60'),
+          fraction: dec('0.6'),
+          name: 'Food',
+          symbolName: 'restaurant',
+          color: const Color(0xFFE53935),
+        ),
+        Slice(
+          bucketID: 'a0000000-0000-0000-0000-000000000002',
+          amount: dec('30'),
+          fraction: dec('0.3'),
+          name: 'Transport',
+          symbolName: 'directions_bus',
+          color: const Color(0xFF1E88E5),
+        ),
+        Slice(
+          bucketID: null,
+          amount: dec('10'),
+          fraction: dec('0.1'),
+          name: 'Uncategorized',
+          symbolName: 'help_outline',
+          color: const Color(0xFF8E8E93),
+        ),
+      ];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: StatsDonut(slices: slices)),
+        ),
+      );
+
+      await expectLater(
+        find.byType(Scaffold),
+        matchesGoldenFile('goldens/stats_donut_multi.png'),
+      );
+    },
+  );
+
+  testWidgets('single-slice donut renders the ring without a gap', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 320);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final slices = [
+      Slice(
+        bucketID: 'a0000000-0000-0000-0000-000000000001',
+        amount: dec('100'),
+        fraction: dec('1'),
+        name: 'Food',
+        symbolName: 'restaurant',
+        color: const Color(0xFFE53935),
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: StatsDonut(slices: slices)),
+      ),
+    );
+
+    await expectLater(
+      find.byType(Scaffold),
+      matchesGoldenFile('goldens/stats_donut_single.png'),
+    );
+  });
+
+  testWidgets('exposes each slice name, amount and percent as semantics', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+
+    final slices = [
+      Slice(
+        bucketID: 'a0000000-0000-0000-0000-000000000001',
+        amount: dec('60'),
+        fraction: dec('0.6'),
+        name: 'Food',
+        symbolName: 'restaurant',
+        color: const Color(0xFFE53935),
+      ),
+      Slice(
+        bucketID: 'a0000000-0000-0000-0000-000000000002',
+        amount: dec('40'),
+        fraction: dec('0.4'),
+        name: 'Transport',
+        symbolName: 'directions_bus',
+        color: const Color(0xFF1E88E5),
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: StatsDonut(slices: slices)),
+      ),
+    );
+
+    final semantics = tester.getSemantics(find.byType(StatsDonut));
+    expect(semantics.label, contains('Food'));
+    expect(semantics.label, contains(r'$60.00'));
+    expect(semantics.label, contains('60%'));
+    expect(semantics.label, contains('Transport'));
+    expect(semantics.label, contains(r'$40.00'));
+    expect(semantics.label, contains('40%'));
+
+    handle.dispose();
+  });
+}
