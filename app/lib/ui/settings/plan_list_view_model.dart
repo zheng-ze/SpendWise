@@ -6,8 +6,7 @@ import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/step_emitting.dart';
 
 /// Ascending by next occurrence, ended plans (no next occurrence) last.
-/// Ties break by name, so the order is deterministic even between two
-/// plans with the same next occurrence date.
+/// Ties break by name for a deterministic order.
 List<RecurringPlan> sortedPlans(
   List<RecurringPlan> plans,
   LedgerState state,

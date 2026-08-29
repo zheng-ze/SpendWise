@@ -15,10 +15,8 @@ Set<String>? budgetBucketIDs(Budget budget, LedgerState state) {
   };
 }
 
-// No includeInAnalysis check here: items are AnalysisItems, and
-// Accounting.classify (which built them) already dropped excluded ones,
-// unlike the entry filter in budget_detail_screen.dart, which filters raw
-// entries and has to check it directly.
+// No includeInAnalysis check here. Accounting.classify already dropped excluded items
+// when it built this AnalysisItem list, unlike a filter over raw entries.
 bool _budgetMatches(Budget budget, AnalysisItem item, LedgerState state) {
   if (item.kind != CategoryKind.expense) return false;
   if (budget.categoryID == null) return true;

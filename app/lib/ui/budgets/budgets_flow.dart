@@ -15,15 +15,8 @@ import 'package:spendwise/ui/common/flow_base.dart';
 import 'package:spendwise/ui/common/swipe_to_delete_row.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
-/// Owns the budgets tab's own nested Navigator, mediating `BudgetsStep`
-/// (ADR-0059's one-Step-type-per-Flow rule — `TransactionsStep` shared by
-/// `TransactionsViewModel` and `EntryFormViewModel` is the precedent).
-/// Mounted for the budgets tab's whole lifetime, not per-budget: it renders
-/// the budgets list itself, so it can own opening a budget's detail screen,
-/// editing that budget's limit, and adding a new budget. A budget's detail
-/// and limit screens push onto the app's root Navigator instead of this
-/// Flow's own, so they cover the tab row and month selector
-/// `StatsRootScreen` renders above this Flow.
+/// Owns the budgets tab's nested Navigator, rendering the budgets list and
+/// opening a budget's detail, limit-edit, or add-budget screen from it.
 class BudgetsFlow extends FlowBase<BudgetsStep> {
   const BudgetsFlow({super.key});
 
@@ -32,9 +25,8 @@ class BudgetsFlow extends FlowBase<BudgetsStep> {
 }
 
 class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
-  // Re-created per opened budget, since BudgetDetailViewModel/
-  // BudgetLimitViewModel are family instances keyed by budgetID — mirrors
-  // TransactionsFlow._formSubscription's lazy-subscribe-on-open shape.
+  // Re-created per opened budget, since these are family instances keyed by
+  // budgetID.
   ProviderSubscription<AsyncValue<BudgetDetailViewState>>? _detailSubscription;
   ProviderSubscription<AsyncValue<BudgetLimitViewState>>? _limitSubscription;
   String? _openBudgetID;
@@ -125,8 +117,8 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
       case PickLimitRequested():
       case PickCategoryRequested():
       case BudgetFormSaved():
-        // Only BudgetDetailViewModel emits BudgetLimitEditRequested;
-        // unreachable here.
+        // Only BudgetDetailViewModel emits BudgetLimitEditRequested, so this
+        // case never runs here.
         break;
     }
     ref.read(budgetDetailViewModelProvider(budgetID).notifier).clearStep();
@@ -143,9 +135,8 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
       context: context,
       target: step.target,
     );
-    // applyPickedLimit clears the step itself, reading the pending
-    // PickLimitRequested to find its edit target first — clearing it here
-    // first would make that lookup a no-op.
+    // applyPickedLimit clears the step itself, after reading the pending
+    // PickLimitRequested to find its edit target.
     ref
         .read(budgetLimitViewModelProvider(budgetID).notifier)
         .applyPickedLimit(entered);
@@ -177,7 +168,7 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
       case BudgetFormRequested():
       case BudgetLimitEditRequested():
       case PickLimitRequested():
-        // Only BudgetFormViewModel emits these; unreachable here.
+        // Only BudgetFormViewModel emits these, so this case never runs here.
         break;
     }
   }

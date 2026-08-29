@@ -82,7 +82,7 @@ abstract class BudgetsListViewModel {
   void requestBudgetDetail(String budgetID);
   void requestNewBudget();
 
-  /// Deletes without asking again: [SwipeToDeleteRow] already confirmed.
+  /// Deletes the budget without asking for confirmation first.
   void deleteBudget(String id);
   void clearStep();
 }
@@ -92,18 +92,14 @@ class BudgetsListNotifier extends AsyncNotifier<BudgetsListViewState>
         LedgerBackedNotifier<BudgetsListViewState>,
         StepEmitting<BudgetsListViewState, BudgetsStep>
     implements BudgetsListViewModel {
-  // read, not watch: this notifier already tracks the cache through its own
-  // addListener/_onChanged wiring below, so watching it too would rebuild
-  // this provider on every cache refresh, which would call refresh() again
-  // and loop.
+  // read, not watch: _onChanged below already tracks the cache, so watching
+  // too would trigger refresh() on every cache change and loop.
   AnalysisCache get _cache => ref.read(analysisCacheProvider);
 
   BudgetsStep? _step;
 
-  // Captured once instead of read through the ledger getter (which watches):
-  // _onChanged runs outside build(), and ref.watch from there corrupts this
-  // provider's state instead of throwing, so _buildState must never reach
-  // the getter either, since it also runs from inside _onChanged.
+  // Captured once: _onChanged runs outside build(), where ref.watch (the
+  // ledger getter) corrupts state instead of throwing.
   late Ledger _ledger;
 
   @override
@@ -115,10 +111,8 @@ class BudgetsListNotifier extends AsyncNotifier<BudgetsListViewState>
     cache.addListener(_onChanged);
     ref.onDispose(() => currentLedger.removeListener(_onChanged));
     ref.onDispose(() => cache.removeListener(_onChanged));
-    // Awaited so the state build() returns already has the cache's items,
-    // rather than the empty pre-compute list: a later notifyListeners() from
-    // this same refresh would otherwise race build()'s own return value and
-    // could lose to it once Riverpod installs that return value as state.
+    // Awaited so build() returns with the cache's items already computed,
+    // instead of racing a later notifyListeners() from this same refresh.
     await cache.refresh(currentLedger.state);
     return _buildState();
   }

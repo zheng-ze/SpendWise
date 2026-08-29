@@ -5,8 +5,6 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 /// Encodes [image] as PNG bytes, or null if the engine could not encode it.
-/// [cropToRect] takes this as a constructor-style parameter so a test can
-/// exercise the null-result path without a real encoding failure.
 typedef PngEncoder = Future<ByteData?> Function(ui.Image image);
 
 Future<ByteData?> _defaultPngEncoder(ui.Image image) =>
@@ -26,7 +24,7 @@ Future<Uint8List> cropToRect(
     source.width.toDouble(),
     source.height.toDouble(),
   );
-  // A dragged handle can end up outside the image; clamping keeps this from
+  // A dragged handle can end up outside the image. Clamping keeps this from
   // asking for pixels that don't exist.
   final clamped = rect.intersect(bounds);
 

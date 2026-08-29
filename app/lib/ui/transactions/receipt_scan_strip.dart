@@ -8,10 +8,7 @@ import 'package:spendwise/ui/transactions/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/receipt_scan_flow.dart';
 
 /// Hidden when the settings toggle is off. "Scan receipt" is iOS/Android
-/// only; "Upload photo" is offered on every platform. Reads
-/// [entryFormViewModelProvider] rather than taking a ViewModel instance
-/// directly, since the scan/permission-denied outcome only ever surfaces
-/// through that provider's state.
+/// only; "Upload photo" is offered on every platform.
 class ReceiptScanStrip extends ConsumerWidget {
   const ReceiptScanStrip({super.key, required this.formKey});
 
@@ -22,6 +19,8 @@ class ReceiptScanStrip extends ConsumerWidget {
     final enabled = ref.watch(scanStripEnabledProvider).value ?? true;
     if (!enabled) return const SizedBox.shrink();
 
+    // Listens on the provider instead of taking a ViewModel directly, since
+    // only the provider's state carries the scan/permission-denied outcome.
     ref.listen(entryFormViewModelProvider(formKey), (previous, next) {
       final stop = next.value?.scanStop;
       if (stop == null) return;

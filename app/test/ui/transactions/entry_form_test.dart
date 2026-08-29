@@ -42,16 +42,14 @@ void main() {
     required Ledger ledger,
     String? entryId,
   }) async {
-    // EntryForm always renders inside a modal bottom sheet, which sits over
-    // the host app's own Scaffold/Material. Without one here, Text falls
-    // back to the debug banner's oversized style and rows overflow.
+    // Needs a host Scaffold/Material, since EntryForm always renders inside
+    // a modal bottom sheet. Without one, Text overflows with the debug style.
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           ledgerProvider.overrideWithValue(ledger),
-          // The new-entry form's scan strip reads this setting; fixed here
-          // so its default doesn't depend on real (unmocked)
-          // SharedPreferences.
+          // Fixes the scan strip's setting so it doesn't depend on real,
+          // unmocked SharedPreferences.
           scanStripEnabledProvider.overrideWith((ref) async => true),
         ],
         child: MaterialApp(

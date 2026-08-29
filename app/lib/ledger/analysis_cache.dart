@@ -60,10 +60,7 @@ class AnalysisCache extends ChangeNotifier {
     });
   }
 
-  /// Callers that only want the fire-and-forget behavior (a listener
-  /// reacting to a later change) can ignore the returned future; a caller
-  /// that needs the cache populated before it reads [items] (an initial
-  /// build) should await it.
+  /// Refreshes [items] from [state]. Callers may await the result or ignore it.
   Future<void> refresh(LedgerState state) async {
     if (_lastComputed == _revision) return;
 

@@ -121,9 +121,8 @@ class _AppShellState extends ConsumerState<AppShell> {
   }
 }
 
-// IndexedStack keeps every destination's Flow mounted, which is what makes a
-// drilled-in stack survive a switch away and back — each Flow owns its own
-// Navigator (ADR-0059), so the shell does not need one of its own.
+// IndexedStack keeps every destination's Flow mounted, so a drilled-in stack
+// survives a switch away and back. Each Flow owns its own Navigator.
 class _DestinationStacks extends StatelessWidget {
   const _DestinationStacks({required this.selected, required this.bodies});
 

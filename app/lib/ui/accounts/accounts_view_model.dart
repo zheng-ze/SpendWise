@@ -91,9 +91,7 @@ abstract class AccountsViewModel {
   void openPocket(String id);
   void requestNewAccount();
 
-  /// Called by `AccountsFlow` itself when a `TransactionsFlow` it pushed
-  /// reports its edit-source action was tapped, re-entering this Flow's own
-  /// step handling to open the edit sheet.
+  /// Requests the edit sheet for the source or account with id [holderId].
   void requestSourceEdit(String holderId);
   void clearStep();
 }

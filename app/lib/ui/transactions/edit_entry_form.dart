@@ -33,9 +33,6 @@ class EditEntryForm extends StatelessWidget {
       ),
     );
 
-    // Editing an existing entry reverts instead of dismissing, so any pop
-    // attempt (barrier tap, back gesture) intercepts and reverts instead of
-    // closing the sheet.
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {

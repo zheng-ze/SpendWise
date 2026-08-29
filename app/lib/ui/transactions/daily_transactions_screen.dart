@@ -19,10 +19,8 @@ import 'package:spendwise/ui/transactions/transactions_view_model.dart';
 
 const _tabTitles = ['Daily', 'Monthly'];
 
-/// Renders [TransactionsViewModel]'s state. All navigation — opening the
-/// entry form, the picker sheets, the source-edit sheet — is a [Step] the
-/// enclosing [TransactionsFlow] decides and performs; this widget never
-/// touches a `Navigator`.
+/// Renders [TransactionsViewModel]'s state. Never touches a `Navigator`
+/// itself. The enclosing [TransactionsFlow] handles navigation.
 class TransactionsScreen extends ConsumerWidget {
   const TransactionsScreen({super.key, this.scope});
 

@@ -87,9 +87,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(CategoryListScreen), findsOneWidget);
 
-    // Simulate the system back gesture: the outer PopScope has canPop:
-    // false, so this must resolve inside SettingsFlow's own Navigator
-    // (popping the pushed screen) rather than escaping the Flow.
+    // The outer PopScope blocks this, so it must pop the pushed screen
+    // inside SettingsFlow's own Navigator rather than escaping the Flow.
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
 

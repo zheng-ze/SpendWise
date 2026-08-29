@@ -19,11 +19,8 @@ Future<void> showBudgetFormSheet({required BuildContext context}) {
 
 const budgetFormOverallSentinel = '__overall__';
 
-/// Shows the category-picker sheet for the budget form and returns the
-/// chosen category id, [budgetFormOverallSentinel] for "Overall", or null if
-/// the user backed out. Built as a stateless launch function (rather than a
-/// method on `BudgetForm`) since `BudgetsFlow` is the caller — per
-/// ADR-0059, launching a modal in response to a Step is the Flow's job.
+/// Shows the category-picker sheet and returns the chosen category id,
+/// [budgetFormOverallSentinel] for "Overall", or null if the user backed out.
 Future<String?> showBudgetCategoryPickerSheet({
   required BuildContext context,
   required BudgetFormViewState formState,

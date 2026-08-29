@@ -5,8 +5,6 @@ import 'package:spendwise/ui/common/category_icon.dart';
 import 'package:spendwise/ui/common/two_column_picker_sheet.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
 
-/// Transfers have no category, so this sheet is never shown for a transfer
-/// entry: the caller gates it, not this function.
 Future<PickerOutcome?> showCategoryPickerSheet({
   required BuildContext context,
   required LedgerState state,

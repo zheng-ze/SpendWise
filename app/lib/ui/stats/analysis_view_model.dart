@@ -74,16 +74,12 @@ class AnalysisNotifier extends AsyncNotifier<AnalysisViewState>
 
   final CategoryKind _kind;
 
-  // read, not watch: this notifier already tracks the cache through its own
-  // addListener/_onChanged wiring below, so watching it too would rebuild
-  // this provider on every cache refresh, which would call refresh() again
-  // and loop.
+  // Uses read, not watch. This notifier already tracks the cache through
+  // addListener/_onChanged below, so watching too would rebuild on every refresh and loop.
   AnalysisCache get _cache => ref.read(analysisCacheProvider);
 
-  // Captured once instead of read through the ledger getter (which watches):
-  // _onChanged runs outside build(), and ref.watch from there corrupts this
-  // provider's state instead of throwing, so _buildState must never reach
-  // the getter either, since it also runs from inside _onChanged.
+  // Captured once because _onChanged runs outside build(), where ref.watch
+  // corrupts this provider's state instead of throwing.
   late Ledger _ledger;
 
   @override
@@ -95,10 +91,8 @@ class AnalysisNotifier extends AsyncNotifier<AnalysisViewState>
     cache.addListener(_onChanged);
     ref.onDispose(() => currentLedger.removeListener(_onChanged));
     ref.onDispose(() => cache.removeListener(_onChanged));
-    // Awaited so the state build() returns already has the cache's items,
-    // rather than the empty pre-compute list: a later notifyListeners() from
-    // this same refresh would otherwise race build()'s own return value and
-    // could lose to it once Riverpod installs that return value as state.
+    // Awaited so build() returns with the cache's items already computed,
+    // not the empty list this same refresh would otherwise still be racing to fill.
     await cache.refresh(currentLedger.state);
     return _buildState();
   }

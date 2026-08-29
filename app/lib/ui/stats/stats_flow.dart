@@ -4,8 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/ui/common/flow_base.dart';
 import 'package:spendwise/ui/stats/stats_root_screen.dart';
 
-// No variants: AnalysisFlow and BudgetsFlow now mediate their own tab's
-// navigation. StatsFlow stays a Flow anyway so every tab is one, per ADR-0059.
+// Empty because AnalysisFlow and BudgetsFlow now mediate their own tab's
+// navigation. StatsFlow stays a Flow anyway so every shell tab is one consistently.
 sealed class StatsStep {}
 
 class StatsFlow extends FlowBase<StatsStep> {

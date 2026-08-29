@@ -30,7 +30,7 @@ class StatementDayPicker extends StatelessWidget {
         child: SafeArea(
           child: ListView(
             children: [
-              // Capped at 28 so every month has that day, matching the domain clamp on save.
+              // Capped at 28 so the chosen day exists in every month.
               for (var day = 1; day <= 28; day++)
                 ListTile(
                   title: Text('$day'),

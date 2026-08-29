@@ -15,11 +15,6 @@ import 'package:spendwise/ui/transactions/entry_form_view_model.dart';
 /// Field body shared by the edit and new-entry forms: kind selector, amount,
 /// name, date, recurrence (new entries only), account/category or from/to,
 /// and the include-in-analysis switch.
-///
-/// A [StatefulWidget], not stateless: the amount/name text fields need their
-/// own [TextEditingController]s (a View-owned resource per this repo's
-/// Flutter conventions), kept in sync with [state]'s raw text so an
-/// external change — a revert, a receipt scan — updates what's on screen.
 class EntryFields extends ConsumerStatefulWidget {
   const EntryFields({
     super.key,
@@ -49,6 +44,8 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
   @override
   void didUpdateWidget(EntryFields oldWidget) {
     super.didUpdateWidget(oldWidget);
+    // Keeps the controllers in sync when state changes from outside typing,
+    // such as a revert or a receipt scan filling in a value.
     if (_amountController.text != widget.state.amountText) {
       _amountController.text = widget.state.amountText;
     }

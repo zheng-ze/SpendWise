@@ -146,7 +146,6 @@ void main() {
     final added = ledger.state.entries.values.first;
     expect(added.name, 'New expense');
     expect(added.amount, dec('-12.50'));
-    // The sheet closed and control returned to the daily screen.
     expect(find.text('New Entry'), findsNothing);
   });
 
@@ -162,7 +161,7 @@ void main() {
 
       await tester.tap(find.byIcon(Icons.add));
       await tester.pumpAndSettle();
-      // The unscoped add button fires directly; a scoped screen expands a
+      // The unscoped add button fires directly. A scoped screen expands a
       // menu with "Add Transaction" as its primary capsule.
       if (find.text('Add Transaction').evaluate().isNotEmpty) {
         await tester.tap(find.text('Add Transaction'));

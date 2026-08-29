@@ -34,8 +34,7 @@ List<TransactionCategory> eligibleParents(
 }
 
 /// Which category (if any) is being edited, and any parent preset from
-/// "add subcategory". Keyed on this pair so Riverpod's family cache treats
-/// each distinct form target as its own notifier instance.
+/// "add subcategory".
 @immutable
 class CategoryFormArgs {
   const CategoryFormArgs({this.category, this.presetParentID});

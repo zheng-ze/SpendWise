@@ -18,9 +18,8 @@ import 'package:spendwise/ui/transactions/entry_form_logic.dart'
 import 'package:spendwise/ui/transactions/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/transactions_view_model.dart';
 
-/// Identifies which holders a scoped Transactions screen filters to, and
-/// what title it shows. Null [TransactionsFlow.initialScope] means the
-/// unscoped shell tab.
+/// Which holders a scoped Transactions screen filters to, and what title it
+/// shows.
 class TransactionsScope {
   const TransactionsScope({required this.title, required this.scopeIDs});
 
@@ -39,8 +38,7 @@ class TransactionsScope {
 }
 
 /// Owns the Transactions feature's own nested Navigator. Pushed directly by
-/// the app shell when [initialScope] is null, or pushed by `AccountsFlow`
-/// with a scope when reached from an account/pocket row.
+/// the app shell, or by `AccountsFlow` with a scope.
 class TransactionsFlow extends FlowBase<TransactionsStep> {
   const TransactionsFlow({
     super.key,
@@ -59,8 +57,7 @@ class TransactionsFlow extends FlowBase<TransactionsStep> {
 class _TransactionsFlowState
     extends FlowBaseState<TransactionsStep, TransactionsFlow> {
   // Re-created whenever an entry form opens, since the form's ViewModel is a
-  // family instance keyed by which entry (or null, for a new entry) it
-  // edits, so there is no one fixed provider to subscribe to up front.
+  // family instance with no one fixed provider to subscribe to up front.
   ProviderSubscription<AsyncValue<EntryFormViewState>>? _formSubscription;
   String? _openFormKey;
   bool _formKeyIsSet = false;
@@ -158,7 +155,7 @@ class _TransactionsFlowState
         _pushDocumentCrop(context, formKey, imageBytes);
       case EntryFormRequested():
       case SourceEditRequested():
-        // Only TransactionsViewModel emits these; unreachable here.
+        // Only TransactionsViewModel emits these. Unreachable here.
         break;
     }
     _formViewModel(formKey).clearStep();

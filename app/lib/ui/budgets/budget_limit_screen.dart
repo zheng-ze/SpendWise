@@ -13,9 +13,7 @@ import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 
 /// Shows the limit-edit sheet for [target] and returns the entered amount,
-/// or null if the user backed out. Built as a stateless launch function
-/// (rather than a method on a screen) since `BudgetsFlow` is the caller —
-/// per ADR-0059, launching a modal in response to a Step is the Flow's job.
+/// or null if the user backed out.
 Future<Decimal?> showBudgetLimitEditSheet({
   required BuildContext context,
   required LimitEditTarget target,

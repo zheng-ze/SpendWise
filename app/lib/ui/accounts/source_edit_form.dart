@@ -71,8 +71,8 @@ class _SourceEditFormState extends ConsumerState<SourceEditForm> {
       case PocketOpened():
       case PickParentRequested():
       case AccountFormSaved():
-        // Only AccountsViewModel or AccountFormViewModel emit these;
-        // unreachable here.
+        // Only AccountsViewModel or AccountFormViewModel emit these.
+        // Unreachable here.
         break;
     }
     _viewModel.clearStep();

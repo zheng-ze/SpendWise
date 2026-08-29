@@ -11,13 +11,7 @@ import 'package:spendwise/ui/stats/stats_donut.dart';
 import 'package:spendwise/ui/stats/stats_legend.dart';
 import 'package:spendwise/ui/stats/stats_window.dart';
 
-/// Owns one income or expense tab's own nested Navigator. Mounted per [kind]
-/// — construct with a `ValueKey` distinct per kind (`StatsRootScreen` does
-/// this) so switching tabs replaces this widget's `State` instead of leaving
-/// it subscribed to the previous kind's `AnalysisViewModel` instance. A
-/// category's detail screen pushes onto the app's root Navigator instead of
-/// this Flow's own, so it covers the tab row and month selector
-/// `StatsRootScreen` renders above this Flow.
+/// Construct with a `ValueKey` distinct per [kind], one for income and one for expense.
 class AnalysisFlow extends FlowBase<AnalysisStep> {
   const AnalysisFlow({
     super.key,
@@ -65,6 +59,8 @@ class _AnalysisFlowState extends FlowBaseState<AnalysisStep, AnalysisFlow> {
             ),
           ),
         );
+        // Pushes to the root Navigator so the detail screen covers the tab row and month
+        // selector this Flow's own nested Navigator sits under.
         Navigator.of(context, rootNavigator: true).push(route);
     }
     ref.read(analysisViewModelProvider(widget.kind).notifier).clearStep();

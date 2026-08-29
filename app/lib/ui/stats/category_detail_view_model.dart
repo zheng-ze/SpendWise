@@ -14,9 +14,7 @@ import 'package:spendwise/ui/stats/stats_window.dart';
 import 'package:spendwise/ui/stats/trend.dart';
 
 /// Identifies which category detail screen a provider instance backs. Two
-/// screens opened for the same category still get separate ViewModel
-/// instances if any of these differ, since each carries its own local date
-/// and scope state.
+/// screens for the same category get separate instances if any field differs.
 @immutable
 class CategoryDetailArgs {
   const CategoryDetailArgs({
@@ -153,25 +151,19 @@ class CategoryDetailNotifier extends AsyncNotifier<CategoryDetailViewState>
 
   final CategoryDetailArgs _args;
 
-  // read, not watch: this notifier already tracks the cache through its own
-  // addListener/_onChanged wiring below, so watching it too would rebuild
-  // this provider on every cache refresh, which would call refresh() again
-  // and loop.
+  // Uses read, not watch. This notifier already tracks the cache through
+  // addListener/_onChanged below, so watching too would rebuild on every refresh and loop.
   AnalysisCache get _cache => ref.read(analysisCacheProvider);
 
   final AnalysisScan _scan = AnalysisScan();
 
-  // Kept outside state.value so a cache notification arriving before
-  // build()'s own return has been installed (the cache's compute can finish
-  // and call back before that happens) still has a date and scope to
-  // rebuild from, instead of being dropped on the floor.
+  // Kept outside state.value because the cache can finish and call back
+  // before build()'s own return is installed, and that callback needs a date and scope to read.
   late DateTime _detailDate;
   late CategoryScope _scope;
 
-  // Captured once instead of read through the ledger getter (which watches):
-  // _onChanged runs outside build(), and ref.watch from there corrupts this
-  // provider's state instead of throwing, so _buildState must never reach
-  // the getter either, since it also runs from inside _onChanged.
+  // Captured once because _onChanged runs outside build(), where ref.watch
+  // corrupts this provider's state instead of throwing.
   late Ledger _ledger;
 
   @override
@@ -184,18 +176,15 @@ class CategoryDetailNotifier extends AsyncNotifier<CategoryDetailViewState>
     ref.onDispose(() => currentLedger.removeListener(_onChanged));
     ref.onDispose(() => cache.removeListener(_onChanged));
 
-    // Set before the refresh below, since that refresh's own completion can
-    // call _onChanged synchronously (through notifyListeners), and
-    // _onChanged reads these fields.
+    // Set before the refresh below, since its completion can call
+    // _onChanged synchronously, and _onChanged reads these fields.
     _detailDate = _args.isYearRange
         ? DateTime.utc(_args.initialDate.year)
         : DateTime.utc(_args.initialDate.year, _args.initialDate.month);
     _scope = const AllScope();
 
-    // Awaited so the state build() returns already has the cache's items,
-    // rather than the empty pre-compute list: a later notifyListeners() from
-    // this same refresh would otherwise race build()'s own return value and
-    // could lose to it once Riverpod installs that return value as state.
+    // Awaited so build() returns with the cache's items already computed,
+    // not the empty list this same refresh would otherwise still be racing to fill.
     await cache.refresh(currentLedger.state);
 
     return _buildState(detailDate: _detailDate, scope: _scope);

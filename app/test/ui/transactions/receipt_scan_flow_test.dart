@@ -34,10 +34,8 @@ void main() {
     messenger.setMockMethodCallHandler(mlKitChannel, null);
   });
 
-  // Regression: runReceiptScan previously called a nonexistent
-  // FieldExtractor/_extractFields abstraction, which failed to compile and
-  // blocked this whole test file (and every file that transitively imports
-  // it) from loading.
+  // Guards against a past compile failure in runReceiptScan that also broke
+  // every file importing this one.
   test(
     'runs recognition on preCapturedBytes without requesting permission or using the picker',
     () async {

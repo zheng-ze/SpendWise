@@ -158,8 +158,7 @@ abstract class EntryFormViewModel {
   void applyCroppedDocument(Uint8List bytes);
 
   /// Prefills a brand-new entry's source from the screen's scope. A no-op
-  /// once the form already has a source, so it never overwrites a source
-  /// the user already chose.
+  /// once the form already has a source.
   void prefillSource(String? id);
 
   /// Clears a scan's reported [EntryFormViewState.scanStop] once the View
@@ -424,9 +423,8 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
         final capture = await _captureWithNativeScanner();
         switch (capture) {
           case _NativeScannerCancelled():
-            // The user backed out of the native scanner itself; unlike an
-            // unavailable scanner, this does not fall through to the plain
-            // camera picker below.
+            // Unlike an unavailable scanner, this does not fall through to
+            // the plain camera picker below.
             return;
           case _NativeScannerCaptured(:final bytes):
             await runReceiptScan(
@@ -455,8 +453,7 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
   }
 
   // Unavailable means the caller should fall through to the plain camera
-  // picker; cancelled means the user backed out of the native scanner
-  // itself and no fallback should run.
+  // picker. Cancelled means no fallback should run.
   Future<_NativeScannerOutcome> _captureWithNativeScanner() async {
     final scanner = await selectDocumentScanner();
     if (scanner == null) return const _NativeScannerUnavailable();

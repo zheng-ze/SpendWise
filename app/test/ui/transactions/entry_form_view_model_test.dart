@@ -193,10 +193,8 @@ void main() {
           entryFormViewModelProvider(null).notifier,
         );
 
-        // Captured before the save, not after: the form's own default date
-        // is today's date at form-open time, and asserting against a
-        // separately-computed "today" after the save is flaky across a
-        // midnight boundary.
+        // Captured before the save, since computing "today" separately
+        // after the save is flaky across a midnight boundary.
         final anchor = (await stateOf(container, null)).date;
 
         viewModel.setAmount('20');

@@ -179,9 +179,8 @@ void main() {
       );
       expect(pushed.args.kind, CategoryKind.expense);
       expect(pushed.args.mainID, food.id);
-      // The income-kind instance never received a request, so its step must
-      // stay clear — proves the ValueKey swap re-subscribed to the new
-      // kind's ViewModel instance rather than leaving the old one attached.
+      // Proves the ValueKey swap re-subscribed to the new kind's ViewModel
+      // instance instead of leaving the old one attached and stepless.
       expect(
         container
             .read(analysisViewModelProvider(CategoryKind.income))

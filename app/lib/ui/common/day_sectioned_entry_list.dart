@@ -7,8 +7,6 @@ import 'package:spendwise/ui/transactions/day_sections.dart';
 import 'package:spendwise/ui/transactions/entry_row.dart';
 
 /// Renders [matching]'s entries within [window], grouped into day sections.
-/// Shared by the budget and category detail screens, which differ only in
-/// how they filter entries down to the ones they scope to.
 class DaySectionedEntryList extends StatelessWidget {
   const DaySectionedEntryList({
     super.key,

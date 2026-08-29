@@ -182,7 +182,7 @@ class PlanFormNotifier extends AsyncNotifier<PlanFormViewState>
     updateState(
       (s) => s.copyWith(
         hasEndDate: value,
-        // Turning the toggle off leaves endDate as-is; save() gates on
+        // Turning the toggle off leaves endDate as-is. save() gates on
         // hasEndDate, not endDate, so a stale date here is harmless.
         endDate: value ? () => s.endDate ?? s.anchor : null,
       ),

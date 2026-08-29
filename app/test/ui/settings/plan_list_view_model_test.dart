@@ -147,9 +147,7 @@ void main() {
   });
 
   group('PlanListNotifier', () {
-    // Weekly vs. yearly anchored today, so the weekly plan's next occurrence
-    // is always within a week and the yearly plan's is always about a year
-    // out, regardless of which real-world day the suite runs on.
+    // Anchored today so the run stays valid regardless of the calendar date.
     final today = DateTime.now().toUtc();
     final soonerPlan = RecurringPlan(
       template: EntryTemplate(

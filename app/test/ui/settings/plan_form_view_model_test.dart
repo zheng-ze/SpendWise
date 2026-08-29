@@ -119,8 +119,8 @@ void main() {
       planFormViewModelProvider(plan.id).future,
     );
 
-    // PlanFormViewModel exposes no method to change sourceName; this test
-    // documents the read-only display contract from docs/specs/plan-management.md.
+    // PlanFormViewModel exposes no method to change sourceName. It is
+    // read-only display data sourced from the plan's template.
     expect(formState.sourceName, 'Wallet');
   });
 

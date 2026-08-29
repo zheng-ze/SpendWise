@@ -105,9 +105,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(AccountForm), findsOneWidget);
 
-    // Simulate the system back gesture: the outer PopScope has canPop:
-    // false, so this must resolve inside AccountsFlow's own Navigator
-    // (dismissing the modal sheet) rather than escaping the Flow.
+    // The outer PopScope blocks this, so it must dismiss the modal sheet
+    // inside AccountsFlow's own Navigator rather than escaping the Flow.
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
 

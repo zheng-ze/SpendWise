@@ -4,8 +4,8 @@ import 'document_scanner_channel.dart';
 
 const _documentScannerChannelName = 'spendwise/document_scanner';
 
-/// Picks the native document scanner for the current platform, or null if none is eligible right
-/// now, per [isAndroidScannerEligible]'s Play Services check on Android.
+/// Picks the native document scanner for the current platform, or null if none is
+/// eligible right now, per [isAndroidScannerEligible]'s Play Services check on Android.
 Future<DocumentScannerChannel?> selectDocumentScanner({
   bool? isWeb,
   bool? isIOS,

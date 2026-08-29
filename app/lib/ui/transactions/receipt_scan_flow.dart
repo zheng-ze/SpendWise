@@ -40,10 +40,8 @@ typedef ScanResultHandler =
 
 /// Returns early and calls [onStop] on a denied permission or a cancelled
 /// picker. Any other failure still calls [onExtracted] with whatever fields
-/// could be read.
-///
-/// [preCapturedBytes], when given, skips the permission check and the
-/// picker entirely and recognizes those bytes directly.
+/// could be read. [preCapturedBytes], when given, skips straight to
+/// recognizing those bytes.
 Future<void> runReceiptScan({
   required ReceiptScanSource source,
   required ScanResultHandler onExtracted,

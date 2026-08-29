@@ -4,10 +4,7 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 
 /// Shared shape for an `AsyncNotifier<ViewState>` backed by the app's one
-/// [Ledger]: a ready-or-throw ledger accessor, and a state update that
-/// silently no-ops once the provider is gone rather than writing into a
-/// disposed notifier — the guard a picker callback needs when it resolves
-/// after the user has already dismissed the sheet that launched it.
+/// [Ledger], with a state update that no-ops once the provider is gone.
 mixin LedgerBackedNotifier<T> on AsyncNotifier<T> {
   Ledger get ledger {
     final current = ref.watch(ledgerProvider);
@@ -18,6 +15,7 @@ mixin LedgerBackedNotifier<T> on AsyncNotifier<T> {
   }
 
   void updateState(T Function(T current) apply) {
+    // Guards a picker callback that resolves after its sheet is dismissed.
     if (!ref.mounted) return;
     final current = state.value;
     if (current == null) return;

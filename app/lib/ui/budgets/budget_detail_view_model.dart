@@ -12,10 +12,7 @@ import 'package:spendwise/ui/budgets/budget_spend.dart';
 import 'package:spendwise/ui/stats/stats_window.dart';
 import 'package:spendwise/ui/stats/trend.dart';
 
-/// Shared by every ViewModel `BudgetsFlow` mediates (`BudgetDetailViewModel`,
-/// `BudgetLimitViewModel`, `BudgetFormViewModel`), the same way
-/// `TransactionsStep` is shared by `TransactionsViewModel` and
-/// `EntryFormViewModel` — one Step type per Flow, per ADR-0059.
+/// A navigation step that `BudgetsFlow` mediates between its ViewModels.
 sealed class BudgetsStep {}
 
 class BudgetLimitEditRequested extends BudgetsStep {}
@@ -29,10 +26,7 @@ class BudgetDetailRequested extends BudgetsStep {
 class BudgetFormRequested extends BudgetsStep {}
 
 /// Which limit a [PickLimitRequested] step is asking the Flow to edit: the
-/// ongoing default, or one specific month's override. Lives here (rather
-/// than with `BudgetLimitViewModel`, the ViewModel that actually emits
-/// [PickLimitRequested]) because every [BudgetsStep] variant, and the plain
-/// data a variant carries, must live in this file — `BudgetsStep` is sealed.
+/// ongoing default, or one specific month's override.
 sealed class LimitEditTarget {}
 
 class DefaultLimitTarget extends LimitEditTarget {
@@ -172,24 +166,18 @@ class BudgetDetailNotifier extends AsyncNotifier<BudgetDetailViewState>
 
   final String _budgetID;
 
-  // read, not watch: this notifier already tracks the cache through its own
-  // addListener/_onChanged wiring below, so watching it too would rebuild
-  // this provider on every cache refresh, which would call refresh() again
-  // and loop.
+  // read, not watch: _onChanged below already tracks the cache, so watching
+  // too would trigger refresh() on every cache change and loop.
   AnalysisCache get _cache => ref.read(analysisCacheProvider);
 
-  // Kept outside state.value so a cache notification arriving before
-  // build()'s own return has been installed (the cache's compute can finish
-  // and call back before that happens) still has values to rebuild from,
-  // instead of being dropped on the floor.
+  // Kept outside state.value so a cache callback arriving before build()
+  // returns still has values to rebuild from.
   late DateTime _displayedYear;
   late DateTime _selectedMonth;
   BudgetsStep? _step;
 
-  // Captured once instead of read through the ledger getter (which watches):
-  // _onChanged runs outside build(), and ref.watch from there corrupts this
-  // provider's state instead of throwing, so _buildState must never reach
-  // the getter either, since it also runs from inside _onChanged.
+  // Captured once: _onChanged runs outside build(), where ref.watch (the
+  // ledger getter) corrupts state instead of throwing.
   late Ledger _ledger;
 
   @override
@@ -202,17 +190,14 @@ class BudgetDetailNotifier extends AsyncNotifier<BudgetDetailViewState>
     ref.onDispose(() => currentLedger.removeListener(_onChanged));
     ref.onDispose(() => cache.removeListener(_onChanged));
 
-    // Set before the refresh below, since that refresh's own completion can
-    // call _onChanged synchronously (through notifyListeners), and
-    // _onChanged reads these fields.
+    // Set before refresh below, whose completion can call _onChanged
+    // synchronously, and _onChanged reads these fields.
     final now = startOfDayUtc(DateTime.now());
     _displayedYear = DateTime.utc(now.year);
     _selectedMonth = DateTime.utc(now.year, now.month);
 
-    // Awaited so the state build() returns already has the cache's items,
-    // rather than the empty pre-compute list: a later notifyListeners() from
-    // this same refresh would otherwise race build()'s own return value and
-    // could lose to it once Riverpod installs that return value as state.
+    // Awaited so build() returns with the cache's items already computed,
+    // instead of racing a later notifyListeners() from this same refresh.
     await cache.refresh(currentLedger.state);
 
     return _buildState(

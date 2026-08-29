@@ -289,7 +289,7 @@ void main() {
         categoryFormViewModelProvider(args).notifier,
       );
 
-      // A category cannot parent itself; forcing that shape makes save()
+      // A category cannot parent itself. Forcing that shape makes save()
       // hit CategoryTooDeep so the error path is exercised for real.
       viewModel.setParentID(existing.id);
       await viewModel.save();
