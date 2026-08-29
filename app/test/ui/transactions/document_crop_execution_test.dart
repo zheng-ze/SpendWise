@@ -56,4 +56,23 @@ void main() {
     expect(decoded.width, 20);
     expect(decoded.height, 20);
   });
+
+  test('throws a descriptive error when PNG encoding yields no data', () async {
+    final source = await _solidColorPng(50, 50, Colors.green);
+
+    expect(
+      () => cropToRect(
+        source,
+        const Rect.fromLTWH(0, 0, 20, 20),
+        encodePng: (image) async => null,
+      ),
+      throwsA(
+        isA<StateError>().having(
+          (e) => e.message,
+          'message',
+          contains('PNG'),
+        ),
+      ),
+    );
+  });
 }
