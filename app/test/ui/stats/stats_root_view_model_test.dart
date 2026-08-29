@@ -8,8 +8,6 @@ import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/stats/stats_root_view_model.dart';
 
 void main() {
-  Decimal dec(String value) => Decimal.parse(value);
-
   final account = Account(
     id: 'a0000000-0000-0000-0000-000000000001',
     name: 'Checking',
@@ -36,27 +34,11 @@ void main() {
     symbol: 'set_meal',
   );
 
-  Budget budget({String? categoryID, required String id}) {
-    return Budget(
-      id: id,
-      categoryID: categoryID,
-      limitEvents: [
-        LimitEvent(
-          effectiveFromMonth: null,
-          value: dec('100'),
-          kind: LimitEventKind.defaultLimit,
-        ),
-      ],
-      createdAtMonth: const YearMonth(2026, 1),
-    );
-  }
-
-  Ledger buildLedger({Map<String, Budget> budgets = const {}}) {
+  Ledger buildLedger() {
     return Ledger(
       state: LedgerState(
         moneySources: {account.id: MoneySource.account(account)},
         categories: {food.id: food, hawker.id: hawker},
-        budgets: budgets,
       ),
     );
   }
@@ -131,103 +113,21 @@ void main() {
     },
   );
 
-  test(
-    'requestBudgetDetail emits BudgetDetailRequested carrying the budget id',
-    () async {
-      final container = buildContainer(buildLedger());
-      await container.read(statsRootViewModelProvider.future);
-      final viewModel = container.read(statsRootViewModelProvider.notifier);
-
-      viewModel.requestBudgetDetail('b1');
-
-      final step = container.read(statsRootViewModelProvider).value?.step;
-      expect(step, isA<BudgetDetailRequested>());
-      expect((step as BudgetDetailRequested).budgetID, 'b1');
-    },
-  );
-
-  test('requestNewBudget emits BudgetFormRequested', () async {
-    final container = buildContainer(buildLedger());
-    await container.read(statsRootViewModelProvider.future);
-    final viewModel = container.read(statsRootViewModelProvider.notifier);
-
-    viewModel.requestNewBudget();
-
-    expect(
-      container.read(statsRootViewModelProvider).value?.step,
-      isA<BudgetFormRequested>(),
-    );
-  });
-
   test('clearStep resets the step to null', () async {
     final container = buildContainer(buildLedger());
     await container.read(statsRootViewModelProvider.future);
     final viewModel = container.read(statsRootViewModelProvider.notifier);
+    final now = DateTime.utc(2026, 3);
 
-    viewModel.requestNewBudget();
+    viewModel.requestCategoryDetail(
+      kind: CategoryKind.expense,
+      mainID: food.id,
+      isYearRange: false,
+      initialDate: now,
+    );
     expect(container.read(statsRootViewModelProvider).value?.step, isNotNull);
 
     viewModel.clearStep();
     expect(container.read(statsRootViewModelProvider).value?.step, isNull);
   });
-
-  test('deleteBudget removes the budget from the ledger', () async {
-    final overall = budget(categoryID: null, id: 'b1');
-    final ledger = buildLedger(budgets: {overall.id: overall});
-    final container = buildContainer(ledger);
-    await container.read(statsRootViewModelProvider.future);
-    final viewModel = container.read(statsRootViewModelProvider.notifier);
-    expect(
-      container.read(statsRootViewModelProvider).value?.budgets,
-      hasLength(1),
-    );
-
-    viewModel.deleteBudget(overall.id);
-
-    expect(ledger.state.budgets.containsKey(overall.id), isFalse);
-    expect(container.read(statsRootViewModelProvider).value?.budgets, isEmpty);
-  });
-
-  test('deleteBudget leaves entries untouched', () async {
-    final overall = budget(categoryID: null, id: 'b1');
-    final entry = Entry(
-      amount: dec('-7'),
-      name: 'Misc',
-      sourceID: account.id,
-      date: DateTime.utc(2026, 3, 1),
-    );
-    final ledger = Ledger(
-      state: LedgerState(
-        moneySources: {account.id: MoneySource.account(account)},
-        categories: {food.id: food, hawker.id: hawker},
-        budgets: {overall.id: overall},
-        entries: {entry.id: entry},
-      ),
-    );
-    final container = buildContainer(ledger);
-    await container.read(statsRootViewModelProvider.future);
-    final viewModel = container.read(statsRootViewModelProvider.notifier);
-
-    viewModel.deleteBudget(overall.id);
-
-    expect(ledger.state.entries.containsKey(entry.id), isTrue);
-  });
-
-  test(
-    'sortedBudgets groups a subcategory budget next to its parent',
-    () async {
-      final parentBudget = budget(categoryID: food.id, id: 'b1');
-      final childBudget = budget(categoryID: hawker.id, id: 'b2');
-      final ledger = buildLedger(
-        budgets: {parentBudget.id: parentBudget, childBudget.id: childBudget},
-      );
-      final container = buildContainer(ledger);
-
-      final state = await container.read(statsRootViewModelProvider.future);
-
-      expect(state.budgets.map((b) => b.id), [parentBudget.id, childBudget.id]);
-      expect(state.isSubcategoryBudget(parentBudget), isFalse);
-      expect(state.isSubcategoryBudget(childBudget), isTrue);
-    },
-  );
 }
