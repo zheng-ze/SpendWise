@@ -235,6 +235,42 @@ that adding them changes nothing `codereview` above does not already cover. `ref
 translation-not-redesign) and would cost more to correct than to write by hand. `tracer` duplicates
 what `ast-grep` already answers directly, with an extra step in between.
 
+## Beyond `pal`: the Codex plugin
+
+The `codex` plugin (`openai/codex-plugin-cc`) wraps OpenAI's Codex CLI as a second, genuinely
+independent model, not another `pal` provider. It runs through its own binary and its own account
+(ChatGPT sign-in or an API key, checked with `/codex:setup`), and its work happens in the working
+directory rather than through a `chat`-style text answer — a Codex task can read the tree, run
+commands, and write files, which makes it closer to a second agent than to a lookup call.
+
+**`/codex:review` and `/codex:adversarial-review` for a second reviewer with no shared blind spots.**
+Both are read-only. `/codex:review` covers uncommitted changes or a branch diff (`--base <ref>`) the
+same way `/code-review` does; `/codex:adversarial-review` takes free-form focus text and is built to
+challenge a decision rather than list issues — closer to `pal`'s `challenge` than to `codereview`,
+but running as a real second CLI rather than a single model call. Reach for one of these at a phase
+boundary alongside this repo's own adversarial-review pass, the same slot `codereview` already
+earns a place in — not as a replacement for either.
+
+**`codex:rescue` (the `codex:codex-rescue` subagent) for delegating an investigation or a fix.**
+This is dispatch, not a lookup: brief it the way any other subagent in the table above gets briefed
+— what to investigate, what evidence already rules something out, what "done" looks like — and it
+runs a real Codex task against the tree, optionally in the background (`--background`) with
+`/codex:status` and `/codex:result` to check in. `--resume` continues the same repo's last rescue
+thread; `--fresh` starts a new one. Verification still is not delegated: read what it changed or
+found at the cited `file:line` before trusting it, the same as any other subagent's report.
+
+**Running Codex and a `pal`/Claude pass in parallel on the same question is a deliberate second
+opinion, not redundant work** — dispatch both blind to each other (neither briefed on the other's
+existence or findings) when a question is worth cross-checking, then merge the two independent
+answers yourself. This is stronger than running the same model twice, because Codex shares none of
+Claude's training blind spots. `docs/research/ocr-candidate-ranking-pipeline-design.md` and its
+`-codex.md` sibling are a worked example: two independently-dispatched passes on the same design
+question, both landing on the same architecture but catching different sourcing detail, merged by
+hand into one resolution.
+
+**Only the main session commits, same as any other agent** — `codex:rescue` and the review commands
+report findings and diffs; they do not carry an exception to this repo's git-commit rule.
+
 ## Briefing an agent
 
 State what to test, where the bug goes, what breaks for the user, why the current tests miss it, and
@@ -256,5 +292,5 @@ restoring to prove the restore was exact.
 
 An agent running mutations cannot share a working tree with an agent reading the same files.
 
-**Nobody commits but the user.** Staging uncommitted work for them follows the pattern in
+**Only the main session commits.** Staging uncommitted work follows the pattern in
 `docs/WORKING-CONVENTIONS.md`.
