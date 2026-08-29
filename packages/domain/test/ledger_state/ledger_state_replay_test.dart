@@ -1,7 +1,7 @@
 import 'package:domain/domain.dart';
 import 'package:test/test.dart';
 
-import 'support/builders.dart';
+import '../support/builders.dart';
 
 void main() {
   test('replaying init rebuilds an equivalent state', () {

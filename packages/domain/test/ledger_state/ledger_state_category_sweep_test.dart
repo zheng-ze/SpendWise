@@ -1,7 +1,7 @@
 import 'package:domain/domain.dart';
 import 'package:test/test.dart';
 
-import 'support/builders.dart';
+import '../support/builders.dart';
 
 // The category branch of the dereference sweep, reached only by dropping the
 // last entry that carries a referenceOnly category.

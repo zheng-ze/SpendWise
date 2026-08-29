@@ -1,7 +1,7 @@
 import 'package:domain/domain.dart';
 import 'package:test/test.dart';
 
-import 'support/builders.dart';
+import '../support/builders.dart';
 
 void main() {
   late LedgerState ledger;

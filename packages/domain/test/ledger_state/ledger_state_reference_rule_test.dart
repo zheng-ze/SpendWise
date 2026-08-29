@@ -1,7 +1,7 @@
 import 'package:domain/domain.dart';
 import 'package:test/test.dart';
 
-import 'support/builders.dart';
+import '../support/builders.dart';
 
 // An account counts as referenced through a surviving pocket, not only through its own
 // entries, so an account funded only through pockets is not removed while they survive.
