@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/accounts/account_sections.dart';
 import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
+import 'package:spendwise/ui/common/step_emitting.dart';
 
 sealed class AccountsStep {}
 
@@ -46,7 +47,7 @@ class PocketOpened extends AccountsStep {
   final Set<String> scopeIDs;
 }
 
-class AccountsViewState {
+class AccountsViewState implements HasStep<AccountsViewState, AccountsStep> {
   const AccountsViewState({
     required this.sections,
     required this.netWorth,
@@ -57,6 +58,7 @@ class AccountsViewState {
   final List<AccountSection> sections;
   final NetWorth netWorth;
   final String? expandedAccountId;
+  @override
   final AccountsStep? step;
 
   AccountsViewState copyWith({
@@ -74,6 +76,10 @@ class AccountsViewState {
       step: step == null ? this.step : step(),
     );
   }
+
+  @override
+  AccountsViewState withStep(AccountsStep? Function() step) =>
+      copyWith(step: step);
 }
 
 abstract class AccountsViewModel {
@@ -93,7 +99,9 @@ abstract class AccountsViewModel {
 }
 
 class AccountsNotifier extends AsyncNotifier<AccountsViewState>
-    with LedgerBackedNotifier<AccountsViewState>
+    with
+        LedgerBackedNotifier<AccountsViewState>,
+        StepEmitting<AccountsViewState, AccountsStep>
     implements AccountsViewModel {
   @override
   Future<AccountsViewState> build() async {
@@ -162,7 +170,7 @@ class AccountsNotifier extends AsyncNotifier<AccountsViewState>
   void openAccount(String id) {
     final row = _findRow(id);
     if (row == null) return;
-    _emitStep(
+    emitStep(
       AccountOpened(row.name, {row.id, for (final p in row.pockets) p.id}),
     );
   }
@@ -171,7 +179,7 @@ class AccountsNotifier extends AsyncNotifier<AccountsViewState>
   void openAccountAlone(String id) {
     final row = _findRow(id);
     if (row == null) return;
-    _emitStep(AccountAloneOpened(row.name, {row.id}));
+    emitStep(AccountAloneOpened(row.name, {row.id}));
   }
 
   @override
@@ -180,7 +188,7 @@ class AccountsNotifier extends AsyncNotifier<AccountsViewState>
       for (final row in section.rows) {
         for (final pocket in row.pockets) {
           if (pocket.id == id) {
-            _emitStep(PocketOpened(pocket.name, {pocket.id}));
+            emitStep(PocketOpened(pocket.name, {pocket.id}));
             return;
           }
         }
@@ -189,18 +197,11 @@ class AccountsNotifier extends AsyncNotifier<AccountsViewState>
   }
 
   @override
-  void requestNewAccount() => _emitStep(AccountFormRequested());
+  void requestNewAccount() => emitStep(AccountFormRequested());
 
   @override
   void requestSourceEdit(String holderId) =>
-      _emitStep(SourceEditRequested(holderId));
-
-  void _emitStep(AccountsStep step) =>
-      updateState((current) => current.copyWith(step: () => step));
-
-  @override
-  void clearStep() =>
-      updateState((current) => current.copyWith(step: () => null));
+      emitStep(SourceEditRequested(holderId));
 }
 
 final accountsViewModelProvider =

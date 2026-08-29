@@ -4,9 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/ui/accounts/account_form_logic.dart';
 import 'package:spendwise/ui/accounts/accounts_view_model.dart';
 import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
+import 'package:spendwise/ui/common/step_emitting.dart';
 import 'package:spendwise/ui/format/amount_parse.dart';
 
-class AccountFormViewState {
+class AccountFormViewState implements HasStep<AccountFormViewState, AccountsStep> {
   const AccountFormViewState({
     required this.kind,
     required this.name,
@@ -27,6 +28,7 @@ class AccountFormViewState {
   final String balanceText;
   final List<Account> pocketableParents;
   final LedgerError? error;
+  @override
   final AccountsStep? step;
 
   bool get isLockedToAccount => pocketableParents.isEmpty;
@@ -60,6 +62,10 @@ class AccountFormViewState {
       step: step == null ? this.step : step(),
     );
   }
+
+  @override
+  AccountFormViewState withStep(AccountsStep? Function() step) =>
+      copyWith(step: step);
 }
 
 abstract class AccountFormViewModel {
@@ -75,7 +81,9 @@ abstract class AccountFormViewModel {
 }
 
 class AccountFormNotifier extends AsyncNotifier<AccountFormViewState>
-    with LedgerBackedNotifier<AccountFormViewState>
+    with
+        LedgerBackedNotifier<AccountFormViewState>,
+        StepEmitting<AccountFormViewState, AccountsStep>
     implements AccountFormViewModel {
   @override
   Future<AccountFormViewState> build() async {
@@ -118,8 +126,7 @@ class AccountFormNotifier extends AsyncNotifier<AccountFormViewState>
       updateState((s) => s.copyWith(statementDay: () => day));
 
   @override
-  void requestPickParent() =>
-      updateState((s) => s.copyWith(step: () => PickParentRequested()));
+  void requestPickParent() => emitStep(PickParentRequested());
 
   // A picker outcome can arrive after the sheet that opened it was
   // dismissed, so this must no-op rather than update a gone provider.
@@ -170,8 +177,6 @@ class AccountFormNotifier extends AsyncNotifier<AccountFormViewState>
     }
   }
 
-  @override
-  void clearStep() => updateState((s) => s.copyWith(step: () => null));
 }
 
 final accountFormViewModelProvider =

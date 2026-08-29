@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
+import 'package:spendwise/ui/common/step_emitting.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
 
 enum BinRowKind { account, pocket, category }
@@ -79,7 +80,7 @@ class PurgeConfirmationRequested extends RecycleBinStep {
   final BinRow row;
 }
 
-class RecycleBinViewState {
+class RecycleBinViewState implements HasStep<RecycleBinViewState, RecycleBinStep> {
   const RecycleBinViewState({
     required this.accounts,
     required this.pockets,
@@ -90,6 +91,7 @@ class RecycleBinViewState {
   final List<BinRow> accounts;
   final List<BinRow> pockets;
   final List<BinRow> categories;
+  @override
   final RecycleBinStep? step;
 
   RecycleBinViewState copyWith({
@@ -105,6 +107,10 @@ class RecycleBinViewState {
       step: step == null ? this.step : step(),
     );
   }
+
+  @override
+  RecycleBinViewState withStep(RecycleBinStep? Function() step) =>
+      copyWith(step: step);
 }
 
 abstract class RecycleBinViewModel {
@@ -115,7 +121,9 @@ abstract class RecycleBinViewModel {
 }
 
 class RecycleBinNotifier extends AsyncNotifier<RecycleBinViewState>
-    with LedgerBackedNotifier<RecycleBinViewState>
+    with
+        LedgerBackedNotifier<RecycleBinViewState>,
+        StepEmitting<RecycleBinViewState, RecycleBinStep>
     implements RecycleBinViewModel {
   @override
   Future<RecycleBinViewState> build() async {
@@ -155,7 +163,7 @@ class RecycleBinNotifier extends AsyncNotifier<RecycleBinViewState>
   }
 
   @override
-  void requestPurge(BinRow row) => _emitStep(PurgeConfirmationRequested(row));
+  void requestPurge(BinRow row) => emitStep(PurgeConfirmationRequested(row));
 
   @override
   void applyPurgeConfirmed(bool confirmed, BinRowKind kind, String id) {
@@ -171,13 +179,6 @@ class RecycleBinNotifier extends AsyncNotifier<RecycleBinViewState>
     }
     clearStep();
   }
-
-  void _emitStep(RecycleBinStep step) =>
-      updateState((current) => current.copyWith(step: () => step));
-
-  @override
-  void clearStep() =>
-      updateState((current) => current.copyWith(step: () => null));
 }
 
 final recycleBinViewModelProvider =

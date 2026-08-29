@@ -7,6 +7,7 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
+import 'package:spendwise/ui/common/step_emitting.dart';
 import 'package:spendwise/ui/stats/slices.dart';
 
 enum StatsTab { income, expense, budgets }
@@ -68,7 +69,7 @@ List<Budget> sortedBudgets(LedgerState state) {
   return budgets;
 }
 
-class StatsRootViewState {
+class StatsRootViewState implements HasStep<StatsRootViewState, StatsStep> {
   const StatsRootViewState({
     required this.tab,
     required this.range,
@@ -83,6 +84,7 @@ class StatsRootViewState {
   final LedgerState ledgerState;
   final List<AnalysisItem> items;
   final List<Budget> budgets;
+  @override
   final StatsStep? step;
 
   bool isSubcategoryBudget(Budget budget) =>
@@ -105,6 +107,10 @@ class StatsRootViewState {
       step: step == null ? this.step : step(),
     );
   }
+
+  @override
+  StatsRootViewState withStep(StatsStep? Function() step) =>
+      copyWith(step: step);
 }
 
 abstract class StatsRootViewModel {

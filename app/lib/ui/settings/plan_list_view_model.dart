@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
+import 'package:spendwise/ui/common/step_emitting.dart';
 
 /// Ascending by next occurrence, ended plans (no next occurrence) last.
 /// Ties break by name, so the order is deterministic even between two
@@ -44,7 +45,7 @@ class DeleteConfirmationRequested extends PlanListStep {
   final RecurringPlan plan;
 }
 
-class PlanListViewState {
+class PlanListViewState implements HasStep<PlanListViewState, PlanListStep> {
   const PlanListViewState({
     required this.plans,
     required this.ledgerState,
@@ -55,6 +56,7 @@ class PlanListViewState {
   final List<RecurringPlan> plans;
   final LedgerState ledgerState;
   final bool editing;
+  @override
   final PlanListStep? step;
 
   PlanListViewState copyWith({
@@ -70,6 +72,10 @@ class PlanListViewState {
       step: step == null ? this.step : step(),
     );
   }
+
+  @override
+  PlanListViewState withStep(PlanListStep? Function() step) =>
+      copyWith(step: step);
 }
 
 abstract class PlanListViewModel {
@@ -86,7 +92,9 @@ abstract class PlanListViewModel {
 }
 
 class PlanListNotifier extends AsyncNotifier<PlanListViewState>
-    with LedgerBackedNotifier<PlanListViewState>
+    with
+        LedgerBackedNotifier<PlanListViewState>,
+        StepEmitting<PlanListViewState, PlanListStep>
     implements PlanListViewModel {
   @override
   Future<PlanListViewState> build() async {
@@ -126,7 +134,7 @@ class PlanListNotifier extends AsyncNotifier<PlanListViewState>
 
   @override
   void requestEditPlan(RecurringPlan plan) =>
-      _emitStep(PlanFormRequested(plan));
+      emitStep(PlanFormRequested(plan));
 
   @override
   void deletePlan(String id) => ledger.deletePlan(id);
@@ -135,7 +143,7 @@ class PlanListNotifier extends AsyncNotifier<PlanListViewState>
   void requestDeletePlan(String id) {
     final plan = state.value?.ledgerState.plans[id];
     if (plan == null) return;
-    _emitStep(DeleteConfirmationRequested(plan));
+    emitStep(DeleteConfirmationRequested(plan));
   }
 
   @override
@@ -146,13 +154,6 @@ class PlanListNotifier extends AsyncNotifier<PlanListViewState>
     if (step is! DeleteConfirmationRequested) return;
     if (confirmed) ledger.deletePlan(step.plan.id);
   }
-
-  void _emitStep(PlanListStep step) =>
-      updateState((current) => current.copyWith(step: () => step));
-
-  @override
-  void clearStep() =>
-      updateState((current) => current.copyWith(step: () => null));
 }
 
 final planListViewModelProvider =

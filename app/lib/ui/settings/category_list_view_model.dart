@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
+import 'package:spendwise/ui/common/step_emitting.dart';
 
 sealed class CategoryListStep {}
 
@@ -13,7 +14,8 @@ class CategoryFormRequested extends CategoryListStep {
   final String? presetParentID;
 }
 
-class CategoryListViewState {
+class CategoryListViewState
+    implements HasStep<CategoryListViewState, CategoryListStep> {
   const CategoryListViewState({
     required this.income,
     required this.expense,
@@ -22,6 +24,7 @@ class CategoryListViewState {
 
   final List<TransactionCategory> income;
   final List<TransactionCategory> expense;
+  @override
   final CategoryListStep? step;
 
   CategoryListViewState copyWith({
@@ -35,6 +38,10 @@ class CategoryListViewState {
       step: step == null ? this.step : step(),
     );
   }
+
+  @override
+  CategoryListViewState withStep(CategoryListStep? Function() step) =>
+      copyWith(step: step);
 }
 
 abstract class CategoryListViewModel {
@@ -46,7 +53,9 @@ abstract class CategoryListViewModel {
 }
 
 class CategoryListNotifier extends AsyncNotifier<CategoryListViewState>
-    with LedgerBackedNotifier<CategoryListViewState>
+    with
+        LedgerBackedNotifier<CategoryListViewState>,
+        StepEmitting<CategoryListViewState, CategoryListStep>
     implements CategoryListViewModel {
   @override
   Future<CategoryListViewState> build() async {
@@ -70,27 +79,20 @@ class CategoryListNotifier extends AsyncNotifier<CategoryListViewState>
   }
 
   @override
-  void requestNewCategory() => _emitStep(CategoryFormRequested());
+  void requestNewCategory() => emitStep(CategoryFormRequested());
 
   @override
   void requestEditCategory(TransactionCategory category) =>
-      _emitStep(CategoryFormRequested(category: category));
+      emitStep(CategoryFormRequested(category: category));
 
   @override
   void requestNewSubcategory(TransactionCategory parent) =>
-      _emitStep(CategoryFormRequested(presetParentID: parent.id));
+      emitStep(CategoryFormRequested(presetParentID: parent.id));
 
   @override
   Future<void> deleteCategory(String id) async {
     ledger.deleteCategory(id);
   }
-
-  void _emitStep(CategoryListStep step) =>
-      updateState((current) => current.copyWith(step: () => step));
-
-  @override
-  void clearStep() =>
-      updateState((current) => current.copyWith(step: () => null));
 }
 
 final categoryListViewModelProvider =

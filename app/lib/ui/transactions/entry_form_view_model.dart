@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ocr/document_scanner_selection.dart';
 import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
+import 'package:spendwise/ui/common/step_emitting.dart';
 import 'package:spendwise/ui/format/amount_parse.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/transactions/entry_form_logic.dart';
@@ -15,7 +16,7 @@ import 'package:spendwise/ui/transactions/transactions_view_model.dart';
 
 enum EntryFormMode { newEntry, viewing, editing }
 
-class EntryFormViewState {
+class EntryFormViewState implements HasStep<EntryFormViewState, TransactionsStep> {
   const EntryFormViewState({
     required this.mode,
     required this.kind,
@@ -67,6 +68,7 @@ class EntryFormViewState {
   /// True once save or delete has completed and the sheet should close.
   final bool dismissed;
 
+  @override
   final TransactionsStep? step;
 
   Decimal? get parsedAmount => parseAmountInput(amountText);
@@ -122,6 +124,10 @@ class EntryFormViewState {
       step: step == null ? this.step : step(),
     );
   }
+
+  @override
+  EntryFormViewState withStep(TransactionsStep? Function() step) =>
+      copyWith(step: step);
 }
 
 abstract class EntryFormViewModel {
@@ -164,7 +170,9 @@ abstract class EntryFormViewModel {
 // One instance per entry being edited, null for a new entry, since the
 // provider is a family keyed by what it edits.
 class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
-    with LedgerBackedNotifier<EntryFormViewState>
+    with
+        LedgerBackedNotifier<EntryFormViewState>,
+        StepEmitting<EntryFormViewState, TransactionsStep>
     implements EntryFormViewModel {
   EntryFormNotifier(this.entryId);
 
@@ -241,7 +249,7 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
   }
 
   @override
-  void requestPickDate() => _emitStep(PickDateRequested());
+  void requestPickDate() => emitStep(PickDateRequested());
 
   @override
   void applyPickedDate(DateTime? date) {
@@ -256,7 +264,7 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
   }
 
   @override
-  void requestPickEndDate() => _emitStep(PickEndDateRequested());
+  void requestPickEndDate() => emitStep(PickEndDateRequested());
 
   @override
   void applyPickedEndDate(DateTime? date) {
@@ -265,28 +273,28 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
   }
 
   @override
-  void requestPickSource() => _emitStep(PickSourceRequested());
+  void requestPickSource() => emitStep(PickSourceRequested());
 
   @override
   void applyPickedSource(String? id) =>
       updateState((current) => current.copyWith(sourceId: () => id));
 
   @override
-  void requestPickDestination() => _emitStep(PickDestinationRequested());
+  void requestPickDestination() => emitStep(PickDestinationRequested());
 
   @override
   void applyPickedDestination(String? id) =>
       updateState((current) => current.copyWith(destinationId: () => id));
 
   @override
-  void requestPickCategory() => _emitStep(PickCategoryRequested());
+  void requestPickCategory() => emitStep(PickCategoryRequested());
 
   @override
   void applyPickedCategory(String? id) =>
       updateState((current) => current.copyWith(categoryId: () => id));
 
   @override
-  void requestPickRecurrence() => _emitStep(PickRecurrenceRequested());
+  void requestPickRecurrence() => emitStep(PickRecurrenceRequested());
 
   @override
   void applyPickedRecurrence(RecurrenceFrequency? frequency) {
@@ -494,18 +502,11 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
 
   @override
   void requestDocumentCrop(Uint8List bytes) =>
-      _emitStep(DocumentCropRequested(bytes));
+      emitStep(DocumentCropRequested(bytes));
 
   @override
   void applyCroppedDocument(Uint8List bytes) =>
       requestScan(ReceiptScanSource.gallery, preCapturedBytes: bytes);
-
-  void _emitStep(TransactionsStep step) =>
-      updateState((current) => current.copyWith(step: () => step));
-
-  @override
-  void clearStep() =>
-      updateState((current) => current.copyWith(step: () => null));
 
   @override
   void clearScanStop() =>

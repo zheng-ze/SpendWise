@@ -5,10 +5,12 @@ import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/accounts/accounts_view_model.dart';
 import 'package:spendwise/ui/accounts/source_edit_form_logic.dart';
 import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
+import 'package:spendwise/ui/common/step_emitting.dart';
 import 'package:spendwise/ui/format/amount_parse.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 
-class SourceEditFormViewState {
+class SourceEditFormViewState
+    implements HasStep<SourceEditFormViewState, AccountsStep> {
   const SourceEditFormViewState({
     required this.holderID,
     required this.isAccount,
@@ -35,6 +37,7 @@ class SourceEditFormViewState {
   final bool showsTransferToggle;
   final Decimal currentBalance;
   final LedgerError? error;
+  @override
   final AccountsStep? step;
 
   Decimal? get parsedBalance => parseAmountInput(balanceText);
@@ -68,6 +71,10 @@ class SourceEditFormViewState {
       step: step == null ? this.step : step(),
     );
   }
+
+  @override
+  SourceEditFormViewState withStep(AccountsStep? Function() step) =>
+      copyWith(step: step);
 }
 
 abstract class SourceEditFormViewModel {
@@ -82,7 +89,9 @@ abstract class SourceEditFormViewModel {
 }
 
 class SourceEditFormNotifier extends AsyncNotifier<SourceEditFormViewState>
-    with LedgerBackedNotifier<SourceEditFormViewState>
+    with
+        LedgerBackedNotifier<SourceEditFormViewState>,
+        StepEmitting<SourceEditFormViewState, AccountsStep>
     implements SourceEditFormViewModel {
   SourceEditFormNotifier(this._holderID);
 
@@ -208,8 +217,6 @@ class SourceEditFormNotifier extends AsyncNotifier<SourceEditFormViewState>
     }
   }
 
-  @override
-  void clearStep() => updateState((s) => s.copyWith(step: () => null));
 }
 
 final sourceEditFormViewModelProvider =

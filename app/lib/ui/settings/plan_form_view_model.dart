@@ -2,6 +2,7 @@ import 'package:domain/domain.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
+import 'package:spendwise/ui/common/step_emitting.dart';
 import 'package:spendwise/ui/format/amount_parse.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 
@@ -36,7 +37,7 @@ class PickEndDateRequested extends PlanFormStep {}
 
 class PlanFormSaved extends PlanFormStep {}
 
-class PlanFormViewState {
+class PlanFormViewState implements HasStep<PlanFormViewState, PlanFormStep> {
   const PlanFormViewState({
     required this.name,
     required this.amountText,
@@ -57,6 +58,7 @@ class PlanFormViewState {
   final DateTime? endDate;
   final String sourceName;
   final LedgerError? error;
+  @override
   final PlanFormStep? step;
 
   Decimal? get parsedAmount => parseAmountInput(amountText);
@@ -86,6 +88,10 @@ class PlanFormViewState {
       step: step == null ? this.step : step(),
     );
   }
+
+  @override
+  PlanFormViewState withStep(PlanFormStep? Function() step) =>
+      copyWith(step: step);
 }
 
 abstract class PlanFormViewModel {
@@ -103,7 +109,9 @@ abstract class PlanFormViewModel {
 }
 
 class PlanFormNotifier extends AsyncNotifier<PlanFormViewState>
-    with LedgerBackedNotifier<PlanFormViewState>
+    with
+        LedgerBackedNotifier<PlanFormViewState>,
+        StepEmitting<PlanFormViewState, PlanFormStep>
     implements PlanFormViewModel {
   PlanFormNotifier(this._planId);
 
@@ -138,8 +146,7 @@ class PlanFormNotifier extends AsyncNotifier<PlanFormViewState>
   void setAmount(String raw) => updateState((s) => s.copyWith(amountText: raw));
 
   @override
-  void requestPickRecurrence() =>
-      updateState((s) => s.copyWith(step: () => PickRecurrenceRequested()));
+  void requestPickRecurrence() => emitStep(PickRecurrenceRequested());
 
   @override
   void applyPickedRecurrence(RecurrenceFrequency? picked) {
@@ -153,8 +160,7 @@ class PlanFormNotifier extends AsyncNotifier<PlanFormViewState>
   }
 
   @override
-  void requestPickAnchor() =>
-      updateState((s) => s.copyWith(step: () => PickAnchorRequested()));
+  void requestPickAnchor() => emitStep(PickAnchorRequested());
 
   @override
   void applyPickedAnchor(DateTime? picked) {
@@ -184,8 +190,7 @@ class PlanFormNotifier extends AsyncNotifier<PlanFormViewState>
   }
 
   @override
-  void requestPickEndDate() =>
-      updateState((s) => s.copyWith(step: () => PickEndDateRequested()));
+  void requestPickEndDate() => emitStep(PickEndDateRequested());
 
   @override
   void applyPickedEndDate(DateTime? picked) {
@@ -244,8 +249,6 @@ class PlanFormNotifier extends AsyncNotifier<PlanFormViewState>
     }
   }
 
-  @override
-  void clearStep() => updateState((s) => s.copyWith(step: () => null));
 }
 
 final planFormViewModelProvider =

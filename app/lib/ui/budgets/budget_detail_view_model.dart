@@ -7,6 +7,7 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
+import 'package:spendwise/ui/common/step_emitting.dart';
 import 'package:spendwise/ui/stats/budget_spend.dart';
 import 'package:spendwise/ui/stats/stats_window.dart';
 import 'package:spendwise/ui/stats/trend.dart';
@@ -32,7 +33,8 @@ double chartMaxY(List<Decimal> spend, List<Decimal> limit) {
   return maxAmount > Decimal.one ? maxAmount.toDouble() * 1.15 : 1.0;
 }
 
-class BudgetDetailViewState {
+class BudgetDetailViewState
+    implements HasStep<BudgetDetailViewState, BudgetDetailStep> {
   const BudgetDetailViewState({
     required this.budget,
     required this.ledgerState,
@@ -49,6 +51,7 @@ class BudgetDetailViewState {
   final DateTime displayedYear;
   final DateTime selectedMonth;
   final List<DateTime> months;
+  @override
   final BudgetDetailStep? step;
 
   YearMonth get selectedYearMonth =>
@@ -104,6 +107,10 @@ class BudgetDetailViewState {
       step: step == null ? this.step : step(),
     );
   }
+
+  @override
+  BudgetDetailViewState withStep(BudgetDetailStep? Function() step) =>
+      copyWith(step: step);
 }
 
 abstract class BudgetDetailViewModel {

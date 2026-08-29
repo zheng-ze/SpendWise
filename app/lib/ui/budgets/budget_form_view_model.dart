@@ -2,6 +2,7 @@ import 'package:domain/domain.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
+import 'package:spendwise/ui/common/step_emitting.dart';
 import 'package:spendwise/ui/format/amount_parse.dart';
 
 sealed class BudgetFormStep {}
@@ -46,7 +47,7 @@ List<(TransactionCategory, List<TransactionCategory>)> groupedBudgetCategories(
   ];
 }
 
-class BudgetFormViewState {
+class BudgetFormViewState implements HasStep<BudgetFormViewState, BudgetFormStep> {
   const BudgetFormViewState({
     required this.categoryID,
     required this.amountText,
@@ -59,6 +60,7 @@ class BudgetFormViewState {
   final String amountText;
   final LedgerState ledgerState;
   final LedgerError? error;
+  @override
   final BudgetFormStep? step;
 
   Decimal? get parsedAmount => parseAmountInput(amountText);
@@ -95,6 +97,10 @@ class BudgetFormViewState {
       step: step == null ? this.step : step(),
     );
   }
+
+  @override
+  BudgetFormViewState withStep(BudgetFormStep? Function() step) =>
+      copyWith(step: step);
 }
 
 abstract class BudgetFormViewModel {
@@ -106,7 +112,9 @@ abstract class BudgetFormViewModel {
 }
 
 class BudgetFormNotifier extends AsyncNotifier<BudgetFormViewState>
-    with LedgerBackedNotifier<BudgetFormViewState>
+    with
+        LedgerBackedNotifier<BudgetFormViewState>,
+        StepEmitting<BudgetFormViewState, BudgetFormStep>
     implements BudgetFormViewModel {
   @override
   Future<BudgetFormViewState> build() async {
@@ -121,8 +129,7 @@ class BudgetFormNotifier extends AsyncNotifier<BudgetFormViewState>
   void setAmount(String raw) => updateState((s) => s.copyWith(amountText: raw));
 
   @override
-  void requestPickCategory() =>
-      updateState((s) => s.copyWith(step: () => PickCategoryRequested()));
+  void requestPickCategory() => emitStep(PickCategoryRequested());
 
   // A picker outcome can arrive after the sheet that opened it was
   // dismissed, so this must no-op rather than update a gone provider.
@@ -155,8 +162,6 @@ class BudgetFormNotifier extends AsyncNotifier<BudgetFormViewState>
     }
   }
 
-  @override
-  void clearStep() => updateState((s) => s.copyWith(step: () => null));
 }
 
 final budgetFormViewModelProvider =

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
+import 'package:spendwise/ui/common/step_emitting.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart' show startOfMonthUtc;
 import 'package:spendwise/ui/stats/stats_window.dart';
 import 'package:spendwise/ui/transactions/day_sections.dart';
@@ -42,7 +43,8 @@ class DocumentCropRequested extends TransactionsStep {
 /// Forwarded by [TransactionsFlow] to its `onEditSource` callback.
 class SourceEditRequested extends TransactionsStep {}
 
-class TransactionsViewState {
+class TransactionsViewState
+    implements HasStep<TransactionsViewState, TransactionsStep> {
   const TransactionsViewState({
     required this.title,
     required this.mode,
@@ -63,6 +65,7 @@ class TransactionsViewState {
   final Decimal income;
   final Decimal expenses;
   final bool showEditSourceAction;
+  @override
   final TransactionsStep? step;
 
   Decimal get total => income - expenses;
@@ -88,6 +91,10 @@ class TransactionsViewState {
       step: step == null ? this.step : step(),
     );
   }
+
+  @override
+  TransactionsViewState withStep(TransactionsStep? Function() step) =>
+      copyWith(step: step);
 }
 
 abstract class TransactionsViewModel {
@@ -102,7 +109,9 @@ abstract class TransactionsViewModel {
 }
 
 class TransactionsNotifier extends AsyncNotifier<TransactionsViewState>
-    with LedgerBackedNotifier<TransactionsViewState>
+    with
+        LedgerBackedNotifier<TransactionsViewState>,
+        StepEmitting<TransactionsViewState, TransactionsStep>
     implements TransactionsViewModel {
   TransactionsNotifier(this.scope);
 
@@ -212,24 +221,17 @@ class TransactionsNotifier extends AsyncNotifier<TransactionsViewState>
   void openEntry(String id) {
     final entry = ledger.state.entries[id];
     if (entry == null) return;
-    _emitStep(EntryFormRequested(entry));
+    emitStep(EntryFormRequested(entry));
   }
 
   @override
-  void requestNewEntry() => _emitStep(EntryFormRequested(null));
+  void requestNewEntry() => emitStep(EntryFormRequested(null));
 
   @override
   void requestEditSource() {
     if (scope == null) return;
-    _emitStep(SourceEditRequested());
+    emitStep(SourceEditRequested());
   }
-
-  void _emitStep(TransactionsStep step) =>
-      updateState((current) => current.copyWith(step: () => step));
-
-  @override
-  void clearStep() =>
-      updateState((current) => current.copyWith(step: () => null));
 }
 
 final transactionsViewModelProvider =

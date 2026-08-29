@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
+import 'package:spendwise/ui/common/step_emitting.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
 
 const defaultCategoryColor = Color(0xFF007AFF);
@@ -62,7 +63,8 @@ class DeleteConfirmationRequested extends CategoryFormStep {}
 
 class CategoryFormSaved extends CategoryFormStep {}
 
-class CategoryFormViewState {
+class CategoryFormViewState
+    implements HasStep<CategoryFormViewState, CategoryFormStep> {
   const CategoryFormViewState({
     required this.editedCategoryID,
     required this.hasPresetParent,
@@ -96,6 +98,7 @@ class CategoryFormViewState {
   final List<TransactionCategory> allCategories;
 
   final LedgerError? error;
+  @override
   final CategoryFormStep? step;
 
   bool get isEditing => editedCategoryID != null;
@@ -154,6 +157,10 @@ class CategoryFormViewState {
       step: step == null ? this.step : step(),
     );
   }
+
+  @override
+  CategoryFormViewState withStep(CategoryFormStep? Function() step) =>
+      copyWith(step: step);
 }
 
 abstract class CategoryFormViewModel {
@@ -175,7 +182,9 @@ abstract class CategoryFormViewModel {
 // One instance per (category, presetParentID) pair, since the provider is a
 // family keyed by what the form edits.
 class CategoryFormNotifier extends AsyncNotifier<CategoryFormViewState>
-    with LedgerBackedNotifier<CategoryFormViewState>
+    with
+        LedgerBackedNotifier<CategoryFormViewState>,
+        StepEmitting<CategoryFormViewState, CategoryFormStep>
     implements CategoryFormViewModel {
   CategoryFormNotifier(this._args);
 
@@ -251,8 +260,7 @@ class CategoryFormNotifier extends AsyncNotifier<CategoryFormViewState>
       updateState((s) => s.copyWith(parentID: () => id));
 
   @override
-  void requestPickParent() =>
-      updateState((s) => s.copyWith(step: () => PickParentRequested()));
+  void requestPickParent() => emitStep(PickParentRequested());
 
   // A picker outcome can arrive after the sheet that opened it was
   // dismissed, so this must no-op rather than update a gone provider.
@@ -263,8 +271,7 @@ class CategoryFormNotifier extends AsyncNotifier<CategoryFormViewState>
   }
 
   @override
-  void requestPickSymbol() =>
-      updateState((s) => s.copyWith(step: () => PickSymbolRequested()));
+  void requestPickSymbol() => emitStep(PickSymbolRequested());
 
   @override
   void applyPickedSymbol(String name) {
@@ -273,19 +280,18 @@ class CategoryFormNotifier extends AsyncNotifier<CategoryFormViewState>
   }
 
   @override
-  void requestDelete() =>
-      updateState((s) => s.copyWith(step: () => DeleteConfirmationRequested()));
+  void requestDelete() => emitStep(DeleteConfirmationRequested());
 
   @override
   Future<void> applyDeleteConfirmed(bool confirmed) async {
     if (!confirmed) {
-      updateState((s) => s.copyWith(step: () => null));
+      clearStep();
       return;
     }
     final category = _category;
     if (category == null) return;
     ledger.deleteCategory(category.id);
-    updateState((s) => s.copyWith(step: () => CategoryFormSaved()));
+    emitStep(CategoryFormSaved());
   }
 
   @override
@@ -320,9 +326,6 @@ class CategoryFormNotifier extends AsyncNotifier<CategoryFormViewState>
       updateState((s) => s.copyWith(error: () => error));
     }
   }
-
-  @override
-  void clearStep() => updateState((s) => s.copyWith(step: () => null));
 }
 
 final categoryFormViewModelProvider =

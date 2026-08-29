@@ -2,6 +2,7 @@ import 'package:domain/domain.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
+import 'package:spendwise/ui/common/step_emitting.dart';
 
 /// Which limit a [PickLimitRequested] step is asking the Flow to edit: the
 /// ongoing default, or one specific month's override.
@@ -29,7 +30,8 @@ class PickLimitRequested extends BudgetLimitStep {
   final LimitEditTarget target;
 }
 
-class BudgetLimitViewState {
+class BudgetLimitViewState
+    implements HasStep<BudgetLimitViewState, BudgetLimitStep> {
   const BudgetLimitViewState({
     required this.budget,
     required this.displayedYear,
@@ -40,6 +42,7 @@ class BudgetLimitViewState {
   final Budget? budget;
   final DateTime displayedYear;
   final LedgerError? error;
+  @override
   final BudgetLimitStep? step;
 
   Decimal? get defaultLimit {
@@ -68,6 +71,10 @@ class BudgetLimitViewState {
       step: step == null ? this.step : step(),
     );
   }
+
+  @override
+  BudgetLimitViewState withStep(BudgetLimitStep? Function() step) =>
+      copyWith(step: step);
 }
 
 abstract class BudgetLimitViewModel {
@@ -79,7 +86,9 @@ abstract class BudgetLimitViewModel {
 }
 
 class BudgetLimitNotifier extends AsyncNotifier<BudgetLimitViewState>
-    with LedgerBackedNotifier<BudgetLimitViewState>
+    with
+        LedgerBackedNotifier<BudgetLimitViewState>,
+        StepEmitting<BudgetLimitViewState, BudgetLimitStep>
     implements BudgetLimitViewModel {
   BudgetLimitNotifier(this._budgetID);
 
@@ -120,7 +129,7 @@ class BudgetLimitNotifier extends AsyncNotifier<BudgetLimitViewState>
       current.defaultLimit ?? Decimal.zero,
       nextMonth,
     );
-    updateState((s) => s.copyWith(step: () => PickLimitRequested(target)));
+    emitStep(PickLimitRequested(target));
   }
 
   @override
@@ -130,7 +139,7 @@ class BudgetLimitNotifier extends AsyncNotifier<BudgetLimitViewState>
     if (budget == null) return;
 
     final target = MonthLimitTarget(month, effectiveLimit(budget, month));
-    updateState((s) => s.copyWith(step: () => PickLimitRequested(target)));
+    emitStep(PickLimitRequested(target));
   }
 
   // A picker outcome can arrive after the sheet that opened it was
@@ -141,7 +150,7 @@ class BudgetLimitNotifier extends AsyncNotifier<BudgetLimitViewState>
     final current = state.value;
     final step = current?.step;
     if (step is! PickLimitRequested) return;
-    updateState((s) => s.copyWith(step: () => null));
+    clearStep();
     if (amount == null || amount <= Decimal.zero) return;
 
     try {
@@ -157,8 +166,6 @@ class BudgetLimitNotifier extends AsyncNotifier<BudgetLimitViewState>
     }
   }
 
-  @override
-  void clearStep() => updateState((s) => s.copyWith(step: () => null));
 }
 
 final budgetLimitViewModelProvider =
