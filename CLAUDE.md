@@ -89,24 +89,21 @@ Analyzer must be at zero issues, not just zero errors.
 
 ## Working with this repo
 
-**Feature work happens on `dev`, never directly on `main`.** `main` only moves via a reviewed PR.
-When a change is ready, open a PR from the working branch targeting `main` and wait for review and
-merge — do not push feature commits straight to `main`, and do not merge a PR yourself unless the
-user explicitly asks. Creating the PR itself still needs the user's go-ahead, same as any other
-action visible to others. `main` also carries branch protection now, which is a second backstop
-against a direct push landing there.
-
-**Each feature gets its own branch off `dev`, checked out in its own git worktree**, e.g.
-`git worktree add ../SpendWise-<feature> -b feat/<feature> dev`. This lets several features stay
+**Each feature gets its own branch off `main`, checked out in its own git worktree**, e.g.
+`git worktree add ../SpendWise-<feature> -b feat/<feature> main`. This lets several features stay
 checked out and buildable at once without switching branches in the main checkout, and keeps a
-feature's working tree isolated from whatever else is in flight. This is separate from the
-`.claude/worktrees/` directory, which subagents use for their own isolated spawns
-(`Agent(isolation: "worktree")`) — that mechanism is unrelated and needs no setup here.
+feature's working tree isolated from whatever else is in flight. `main` only moves via a reviewed
+PR: do not push feature commits straight to `main`, and do not merge a PR yourself unless the user
+explicitly asks. Creating the PR itself still needs the user's go-ahead, same as any other action
+visible to others. `main` also carries branch protection, which is a second backstop against a
+direct push landing there. This worktree setup is separate from the `.claude/worktrees/`
+directory, which subagents use for their own isolated spawns (`Agent(isolation: "worktree")`) —
+that mechanism is unrelated and needs no setup here.
 
-**Close an issue only after its PR merges to `main`, not when implementation goes green on `dev`.**
-Verifying green on `dev` is the point to comment on the issue with a link to the PR, not to close
-it — closing is what confirms the work actually shipped. Check the PR's merge state
-(`gh pr view <n> --json state,mergedAt`) before closing the issue it resolves.
+**Close an issue only after its PR merges to `main`, not when implementation goes green on the
+feature branch.** Verifying green there is the point to comment on the issue with a link to the
+PR, not to close it — closing is what confirms the work actually shipped. Check the PR's merge
+state (`gh pr view <n> --json state,mergedAt`) before closing the issue it resolves.
 
 **Only the main session runs `git commit`, and only after each logical chunk goes green — no
 per-chunk go-ahead needed.** A subagent must never run `git commit`; it reports its work back to the
