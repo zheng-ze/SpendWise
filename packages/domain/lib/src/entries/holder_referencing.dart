@@ -1,5 +1,5 @@
 import 'package:decimal/decimal.dart';
-import 'package:domain/src/category_kind.dart';
+import 'package:domain/src/entries/category_kind.dart';
 
 enum EntryKind { income, expense, transfer }
 

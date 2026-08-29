@@ -1,6 +1,6 @@
-import 'package:domain/src/account.dart';
+import 'package:domain/src/accounts/account.dart';
+import 'package:domain/src/accounts/sub_pocket.dart';
 import 'package:domain/src/lifecycle_state.dart';
-import 'package:domain/src/sub_pocket.dart';
 import 'package:meta/meta.dart';
 
 /// Gives accounts and pockets one table and one id space in LedgerState.

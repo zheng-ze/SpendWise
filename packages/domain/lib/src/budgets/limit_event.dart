@@ -1,5 +1,5 @@
 import 'package:decimal/decimal.dart';
-import 'package:domain/src/year_month.dart';
+import 'package:domain/src/time/year_month.dart';
 import 'package:meta/meta.dart';
 
 enum LimitEventKind {

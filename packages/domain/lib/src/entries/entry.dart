@@ -1,8 +1,8 @@
 import 'package:decimal/decimal.dart';
-import 'package:domain/src/calendar_day.dart';
-import 'package:domain/src/holder_referencing.dart';
+import 'package:domain/src/entries/holder_referencing.dart';
 import 'package:domain/src/ids.dart';
 import 'package:domain/src/lifecycle_state.dart';
+import 'package:domain/src/time/calendar_day.dart';
 import 'package:meta/meta.dart';
 
 /// Marks an entry the app generates itself rather than one a user typed in,

@@ -1,4 +1,4 @@
-import 'package:domain/src/category_kind.dart';
+import 'package:domain/src/entries/category_kind.dart';
 import 'package:domain/src/ids.dart';
 import 'package:domain/src/lifecycle_state.dart';
 import 'package:meta/meta.dart';

@@ -1,5 +1,5 @@
 import 'package:collection/collection.dart';
-import 'package:domain/src/account_type.dart';
+import 'package:domain/src/accounts/account_type.dart';
 import 'package:domain/src/ids.dart';
 import 'package:domain/src/lifecycle_state.dart';
 import 'package:meta/meta.dart';

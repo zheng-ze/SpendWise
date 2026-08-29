@@ -1,7 +1,7 @@
 import 'package:decimal/decimal.dart';
+import 'package:domain/src/budgets/limit_event.dart';
 import 'package:domain/src/ids.dart';
-import 'package:domain/src/limit_event.dart';
-import 'package:domain/src/year_month.dart';
+import 'package:domain/src/time/year_month.dart';
 import 'package:meta/meta.dart';
 
 @immutable

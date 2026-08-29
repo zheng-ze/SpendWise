@@ -1,8 +1,8 @@
 import 'package:decimal/decimal.dart';
-import 'package:domain/src/entry.dart';
-import 'package:domain/src/holder_referencing.dart';
+import 'package:domain/src/entries/entry.dart';
+import 'package:domain/src/entries/holder_referencing.dart';
 import 'package:domain/src/ids.dart';
-import 'package:domain/src/occurrence_id.dart';
+import 'package:domain/src/plans/occurrence_id.dart';
 import 'package:meta/meta.dart';
 
 @immutable

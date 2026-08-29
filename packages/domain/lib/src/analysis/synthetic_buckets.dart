@@ -1,4 +1,4 @@
-import 'package:domain/src/account_type.dart';
+import 'package:domain/src/accounts/account_type.dart';
 
 /// The prefix is not uuid-shaped, so this never collides with a real category
 /// id. Derived at call time and never persisted, so every device agrees.

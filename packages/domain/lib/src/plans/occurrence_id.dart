@@ -1,5 +1,5 @@
-import 'package:domain/src/calendar_day.dart';
 import 'package:domain/src/ids.dart';
+import 'package:domain/src/time/calendar_day.dart';
 import 'package:uuid/uuid.dart';
 
 const _uuid = Uuid();

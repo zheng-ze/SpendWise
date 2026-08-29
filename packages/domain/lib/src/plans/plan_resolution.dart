@@ -1,6 +1,6 @@
 import 'package:collection/collection.dart';
 import 'package:domain/src/ledger_change.dart';
-import 'package:domain/src/plan_failure.dart';
+import 'package:domain/src/plans/plan_failure.dart';
 import 'package:meta/meta.dart';
 
 const _changeEquality = ListEquality<LedgerChange>();

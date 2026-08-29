@@ -1,19 +1,19 @@
 import 'dart:collection';
 
 import 'package:decimal/decimal.dart';
-import 'package:domain/src/account.dart';
-import 'package:domain/src/account_type.dart';
-import 'package:domain/src/analysis_item.dart';
-import 'package:domain/src/category_kind.dart';
-import 'package:domain/src/category_resolution.dart';
-import 'package:domain/src/date_range.dart';
-import 'package:domain/src/entry.dart';
-import 'package:domain/src/holder_referencing.dart';
+import 'package:domain/src/accounts/account.dart';
+import 'package:domain/src/accounts/account_type.dart';
+import 'package:domain/src/accounts/money_source.dart';
+import 'package:domain/src/analysis/analysis_item.dart';
+import 'package:domain/src/analysis/net_worth.dart';
+import 'package:domain/src/analysis/synthetic_buckets.dart';
+import 'package:domain/src/entries/category_kind.dart';
+import 'package:domain/src/entries/category_resolution.dart';
+import 'package:domain/src/entries/entry.dart';
+import 'package:domain/src/entries/holder_referencing.dart';
 import 'package:domain/src/ids.dart';
-import 'package:domain/src/ledger_state.dart';
-import 'package:domain/src/money_source.dart';
-import 'package:domain/src/net_worth.dart';
-import 'package:domain/src/synthetic_buckets.dart';
+import 'package:domain/src/ledger_state/ledger_state.dart';
+import 'package:domain/src/time/date_range.dart';
 
 /// Balances are always recomputed from the entry log, never stored.
 abstract final class Accounting {

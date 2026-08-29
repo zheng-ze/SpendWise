@@ -1,6 +1,6 @@
 import 'package:decimal/decimal.dart';
-import 'package:domain/src/calendar_day.dart';
-import 'package:domain/src/category_kind.dart';
+import 'package:domain/src/entries/category_kind.dart';
+import 'package:domain/src/time/calendar_day.dart';
 import 'package:meta/meta.dart';
 
 @immutable
