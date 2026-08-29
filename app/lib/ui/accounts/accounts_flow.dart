@@ -5,45 +5,35 @@ import 'package:spendwise/ui/accounts/account_form.dart';
 import 'package:spendwise/ui/accounts/accounts_screen.dart';
 import 'package:spendwise/ui/accounts/accounts_view_model.dart';
 import 'package:spendwise/ui/accounts/source_edit_form.dart';
+import 'package:spendwise/ui/common/flow_base.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
 
 /// Owns the Accounts feature's own nested Navigator, so a picker sheet or
 /// a scoped transactions push never reaches for the app's root Navigator.
-class AccountsFlow extends ConsumerStatefulWidget {
+class AccountsFlow extends FlowBase<AccountsStep> {
   const AccountsFlow({super.key});
 
   @override
   ConsumerState<AccountsFlow> createState() => _AccountsFlowState();
 }
 
-class _AccountsFlowState extends ConsumerState<AccountsFlow> {
-  final _navigatorKey = GlobalKey<NavigatorState>();
-
-  ProviderSubscription<AsyncValue<AccountsViewState>>? _screenSubscription;
-
-  @override
-  void initState() {
-    super.initState();
-    _screenSubscription = ref.listenManual(
-      accountsViewModelProvider,
-      (previous, next) => _handleStep(next.value?.step),
-    );
-  }
-
-  @override
-  void dispose() {
-    _screenSubscription?.close();
-    super.dispose();
-  }
-
+class _AccountsFlowState
+    extends FlowBaseState<AccountsStep, AccountsFlow> {
   AccountsViewModel get _screenViewModel =>
       ref.read(accountsViewModelProvider.notifier);
 
-  void _handleStep(AccountsStep? step) {
-    if (step == null) return;
-    final context = _navigatorKey.currentContext;
-    if (context == null) return;
+  @override
+  void Function() subscribeToStep(void Function(AccountsStep? step) handle) =>
+      ref
+          .listenManual(
+            accountsViewModelProvider,
+            (previous, AsyncValue<AccountsViewState> next) =>
+                handle(next.value?.step),
+          )
+          .close;
 
+  @override
+  void handleStep(BuildContext context, AccountsStep step) {
     switch (step) {
       case AccountFormRequested():
         showAccountFormSheet(context: context);
@@ -71,7 +61,7 @@ class _AccountsFlowState extends ConsumerState<AccountsFlow> {
     String title,
     Set<String> scopeIDs,
   ) {
-    _navigatorKey.currentState?.push(
+    Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => TransactionsFlow(
           initialScope: TransactionsScope(title: title, scopeIDs: scopeIDs),
@@ -83,20 +73,5 @@ class _AccountsFlowState extends ConsumerState<AccountsFlow> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
-        if (didPop) return;
-        _navigatorKey.currentState?.maybePop();
-      },
-      child: Navigator(
-        key: _navigatorKey,
-        onGenerateRoute: (settings) => MaterialPageRoute(
-          settings: settings,
-          builder: (_) => const AccountsScreen(),
-        ),
-      ),
-    );
-  }
+  Widget buildRoot(BuildContext context) => const AccountsScreen();
 }

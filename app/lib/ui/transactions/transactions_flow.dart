@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/common/category_picker.dart';
+import 'package:spendwise/ui/common/flow_base.dart';
 import 'package:spendwise/ui/common/recurrence_picker.dart';
 import 'package:spendwise/ui/common/source_picker.dart';
 import 'package:spendwise/ui/common/two_column_picker_sheet.dart';
@@ -40,7 +41,7 @@ class TransactionsScope {
 /// Owns the Transactions feature's own nested Navigator. Pushed directly by
 /// the app shell when [initialScope] is null, or pushed by `AccountsFlow`
 /// with a scope when reached from an account/pocket row.
-class TransactionsFlow extends ConsumerStatefulWidget {
+class TransactionsFlow extends FlowBase<TransactionsStep> {
   const TransactionsFlow({super.key, this.initialScope, this.onEditSource});
 
   final TransactionsScope? initialScope;
@@ -50,11 +51,8 @@ class TransactionsFlow extends ConsumerStatefulWidget {
   ConsumerState<TransactionsFlow> createState() => _TransactionsFlowState();
 }
 
-class _TransactionsFlowState extends ConsumerState<TransactionsFlow> {
-  final _navigatorKey = GlobalKey<NavigatorState>();
-
-  ProviderSubscription<AsyncValue<TransactionsViewState>>? _screenSubscription;
-
+class _TransactionsFlowState
+    extends FlowBaseState<TransactionsStep, TransactionsFlow> {
   // Re-created whenever an entry form opens, since the form's ViewModel is a
   // family instance keyed by which entry (or null, for a new entry) it
   // edits, so there is no one fixed provider to subscribe to up front.
@@ -63,17 +61,7 @@ class _TransactionsFlowState extends ConsumerState<TransactionsFlow> {
   bool _formKeyIsSet = false;
 
   @override
-  void initState() {
-    super.initState();
-    _screenSubscription = ref.listenManual(
-      transactionsViewModelProvider(widget.initialScope),
-      (previous, next) => _handleScreenStep(next.value?.step),
-    );
-  }
-
-  @override
   void dispose() {
-    _screenSubscription?.close();
     _formSubscription?.close();
     super.dispose();
   }
@@ -84,11 +72,19 @@ class _TransactionsFlowState extends ConsumerState<TransactionsFlow> {
   EntryFormViewModel _formViewModel(String? key) =>
       ref.read(entryFormViewModelProvider(key).notifier);
 
-  void _handleScreenStep(TransactionsStep? step) {
-    if (step == null) return;
-    final context = _navigatorKey.currentContext;
-    if (context == null) return;
+  @override
+  void Function() subscribeToStep(
+    void Function(TransactionsStep? step) handle,
+  ) => ref
+      .listenManual(
+        transactionsViewModelProvider(widget.initialScope),
+        (previous, AsyncValue<TransactionsViewState> next) =>
+            handle(next.value?.step),
+      )
+      .close;
 
+  @override
+  void handleStep(BuildContext context, TransactionsStep step) {
     switch (step) {
       case EntryFormRequested(:final entry):
         _openEntryForm(context, entry?.id);
@@ -137,7 +133,7 @@ class _TransactionsFlowState extends ConsumerState<TransactionsFlow> {
   void _handleFormStep(String? formKey, TransactionsStep? step) {
     if (step == null) return;
     if (!_formKeyIsSet || _openFormKey != formKey) return;
-    final context = _navigatorKey.currentContext;
+    final context = navigatorContext;
     if (context == null) return;
 
     switch (step) {
@@ -268,22 +264,8 @@ class _TransactionsFlowState extends ConsumerState<TransactionsFlow> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
-        if (didPop) return;
-        _navigatorKey.currentState?.maybePop();
-      },
-      child: Navigator(
-        key: _navigatorKey,
-        onGenerateRoute: (settings) => MaterialPageRoute(
-          settings: settings,
-          builder: (_) => TransactionsScreen(scope: widget.initialScope),
-        ),
-      ),
-    );
-  }
+  Widget buildRoot(BuildContext context) =>
+      TransactionsScreen(scope: widget.initialScope);
 }
 
 String? _idFromOutcome(PickerOutcome outcome) => switch (outcome) {
