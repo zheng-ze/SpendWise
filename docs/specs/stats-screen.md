@@ -110,3 +110,19 @@ navigable, since it is a bucket rather than a category.
 
 - **WHEN** the uncategorized row is tapped
 - **THEN** nothing is pushed
+
+### Requirement: Detail routes cover the Stats chrome
+
+Opening a category detail screen or a budget detail screen from Stats SHALL
+replace the whole Stats root route, including the month selector and tab row,
+while remaining within the Stats tab above the app's bottom navigation.
+
+#### Scenario: Opening a category detail screen
+
+- **WHEN** the user opens a category from the Income or Expense legend
+- **THEN** the category detail screen is shown without the Stats month selector or tab row
+
+#### Scenario: Opening a budget detail screen
+
+- **WHEN** the user opens a budget from the Budgets tab
+- **THEN** the budget detail screen is shown without the Stats month selector or tab row
