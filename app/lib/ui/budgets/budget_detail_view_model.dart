@@ -8,13 +8,56 @@ import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/step_emitting.dart';
-import 'package:spendwise/ui/stats/budget_spend.dart';
+import 'package:spendwise/ui/budgets/budget_spend.dart';
 import 'package:spendwise/ui/stats/stats_window.dart';
 import 'package:spendwise/ui/stats/trend.dart';
 
-sealed class BudgetDetailStep {}
+/// Shared by every ViewModel `BudgetsFlow` mediates (`BudgetDetailViewModel`,
+/// `BudgetLimitViewModel`, `BudgetFormViewModel`), the same way
+/// `TransactionsStep` is shared by `TransactionsViewModel` and
+/// `EntryFormViewModel` — one Step type per Flow, per ADR-0059.
+sealed class BudgetsStep {}
 
-class BudgetLimitEditRequested extends BudgetDetailStep {}
+class BudgetLimitEditRequested extends BudgetsStep {}
+
+class BudgetDetailRequested extends BudgetsStep {
+  BudgetDetailRequested(this.budgetID);
+
+  final String budgetID;
+}
+
+class BudgetFormRequested extends BudgetsStep {}
+
+/// Which limit a [PickLimitRequested] step is asking the Flow to edit: the
+/// ongoing default, or one specific month's override. Lives here (rather
+/// than with `BudgetLimitViewModel`, the ViewModel that actually emits
+/// [PickLimitRequested]) because every [BudgetsStep] variant, and the plain
+/// data a variant carries, must live in this file — `BudgetsStep` is sealed.
+sealed class LimitEditTarget {}
+
+class DefaultLimitTarget extends LimitEditTarget {
+  DefaultLimitTarget(this.current, this.effectiveFromMonth);
+
+  final Decimal current;
+  final YearMonth effectiveFromMonth;
+}
+
+class MonthLimitTarget extends LimitEditTarget {
+  MonthLimitTarget(this.month, this.current);
+
+  final YearMonth month;
+  final Decimal current;
+}
+
+class PickLimitRequested extends BudgetsStep {
+  PickLimitRequested(this.target);
+
+  final LimitEditTarget target;
+}
+
+class PickCategoryRequested extends BudgetsStep {}
+
+class BudgetFormSaved extends BudgetsStep {}
 
 /// A month series aligned with [BudgetDetailViewState.months], one value per
 /// month, built by [forMonth] from that month's [YearMonth].
@@ -34,7 +77,7 @@ double chartMaxY(List<Decimal> spend, List<Decimal> limit) {
 }
 
 class BudgetDetailViewState
-    implements HasStep<BudgetDetailViewState, BudgetDetailStep> {
+    implements HasStep<BudgetDetailViewState, BudgetsStep> {
   const BudgetDetailViewState({
     required this.budget,
     required this.ledgerState,
@@ -52,7 +95,7 @@ class BudgetDetailViewState
   final DateTime selectedMonth;
   final List<DateTime> months;
   @override
-  final BudgetDetailStep? step;
+  final BudgetsStep? step;
 
   YearMonth get selectedYearMonth =>
       YearMonth(selectedMonth.year, selectedMonth.month);
@@ -95,7 +138,7 @@ class BudgetDetailViewState
     DateTime? displayedYear,
     DateTime? selectedMonth,
     List<DateTime>? months,
-    BudgetDetailStep? Function()? step,
+    BudgetsStep? Function()? step,
   }) {
     return BudgetDetailViewState(
       budget: budget ?? this.budget,
@@ -109,7 +152,7 @@ class BudgetDetailViewState
   }
 
   @override
-  BudgetDetailViewState withStep(BudgetDetailStep? Function() step) =>
+  BudgetDetailViewState withStep(BudgetsStep? Function() step) =>
       copyWith(step: step);
 }
 
@@ -121,7 +164,9 @@ abstract class BudgetDetailViewModel {
 }
 
 class BudgetDetailNotifier extends AsyncNotifier<BudgetDetailViewState>
-    with LedgerBackedNotifier<BudgetDetailViewState>
+    with
+        LedgerBackedNotifier<BudgetDetailViewState>,
+        StepEmitting<BudgetDetailViewState, BudgetsStep>
     implements BudgetDetailViewModel {
   BudgetDetailNotifier(this._budgetID);
 
@@ -139,7 +184,7 @@ class BudgetDetailNotifier extends AsyncNotifier<BudgetDetailViewState>
   // instead of being dropped on the floor.
   late DateTime _displayedYear;
   late DateTime _selectedMonth;
-  BudgetDetailStep? _step;
+  BudgetsStep? _step;
 
   // Captured once instead of read through the ledger getter (which watches):
   // _onChanged runs outside build(), and ref.watch from there corrupts this
@@ -190,7 +235,7 @@ class BudgetDetailNotifier extends AsyncNotifier<BudgetDetailViewState>
   BudgetDetailViewState _buildState({
     required DateTime displayedYear,
     required DateTime selectedMonth,
-    BudgetDetailStep? step,
+    BudgetsStep? step,
   }) {
     final ledgerState = _ledger.state;
     return BudgetDetailViewState(
@@ -234,13 +279,13 @@ class BudgetDetailNotifier extends AsyncNotifier<BudgetDetailViewState>
   @override
   void requestLimitEdit() {
     _step = BudgetLimitEditRequested();
-    updateState((s) => s.copyWith(step: () => BudgetLimitEditRequested()));
+    emitStep(BudgetLimitEditRequested());
   }
 
   @override
   void clearStep() {
     _step = null;
-    updateState((s) => s.copyWith(step: () => null));
+    super.clearStep();
   }
 }
 

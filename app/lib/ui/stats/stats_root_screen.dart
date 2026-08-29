@@ -2,10 +2,8 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ui/budgets/budget_card.dart';
-import 'package:spendwise/ui/common/expanding_fab.dart';
+import 'package:spendwise/ui/budgets/budgets_flow.dart';
 import 'package:spendwise/ui/common/month_year_selector.dart';
-import 'package:spendwise/ui/common/swipe_to_delete_row.dart';
 import 'package:spendwise/ui/common/top_tab_bar.dart';
 import 'package:spendwise/ui/format/amount_color.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
@@ -95,46 +93,30 @@ class _StatsRootBody extends StatelessWidget {
         centerTitle: false,
       ),
       body: SafeArea(
-        child: Stack(
+        child: Column(
           children: [
-            Column(
-              children: [
-                TopTabBar(
-                  titles: _tabTitles,
-                  selectedIndex: tab.index,
-                  onSelected: _setTab,
-                ),
-                const Divider(height: 1),
-                Expanded(
-                  child: tab == StatsTab.budgets
-                      ? _BudgetsBody(
-                          viewState: viewState,
-                          viewModel: viewModel,
-                          month: YearMonth.fromUtc(selectedDate),
-                        )
-                      : _AnalysisBody(
-                          viewState: viewState,
-                          viewModel: viewModel,
-                          kind: tab == StatsTab.income
-                              ? CategoryKind.income
-                              : CategoryKind.expense,
-                          window: range == StatsRangeMode.month
-                              ? monthWindow(selectedDate)
-                              : yearWindow(selectedDate),
-                          isYearRange: range == StatsRangeMode.year,
-                          selectedDate: selectedDate,
-                        ),
-                ),
-              ],
+            TopTabBar(
+              titles: _tabTitles,
+              selectedIndex: tab.index,
+              onSelected: _setTab,
             ),
-            if (tab == StatsTab.budgets)
-              ExpandingFab(
-                primary: FabAction(
-                  label: 'Add Budget',
-                  icon: Icons.add,
-                  onTap: viewModel.requestNewBudget,
-                ),
-              ),
+            const Divider(height: 1),
+            Expanded(
+              child: tab == StatsTab.budgets
+                  ? const BudgetsFlow()
+                  : _AnalysisBody(
+                      viewState: viewState,
+                      viewModel: viewModel,
+                      kind: tab == StatsTab.income
+                          ? CategoryKind.income
+                          : CategoryKind.expense,
+                      window: range == StatsRangeMode.month
+                          ? monthWindow(selectedDate)
+                          : yearWindow(selectedDate),
+                      isYearRange: range == StatsRangeMode.year,
+                      selectedDate: selectedDate,
+                    ),
+            ),
           ],
         ),
       ),
@@ -203,53 +185,6 @@ class _AnalysisBody extends StatelessWidget {
         ],
       ],
     );
-  }
-}
-
-class _BudgetsBody extends StatelessWidget {
-  const _BudgetsBody({
-    required this.viewState,
-    required this.viewModel,
-    required this.month,
-  });
-
-  final StatsRootViewState viewState;
-  final StatsRootViewModel viewModel;
-  final YearMonth month;
-
-  @override
-  Widget build(BuildContext context) {
-    final budgets = viewState.budgets;
-
-    if (budgets.isEmpty) return const BudgetsEmptyState();
-
-    return ListView.separated(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: budgets.length,
-      separatorBuilder: (_, _) => const Divider(height: 1),
-      itemBuilder: (context, index) {
-        final budget = budgets[index];
-        return SwipeToDeleteRow(
-          itemKey: ValueKey('budget-${budget.id}'),
-          itemName: _budgetDisplayName(budget, viewState.ledgerState),
-          onDeleted: () => viewModel.deleteBudget(budget.id),
-          child: BudgetCard(
-            budget: budget,
-            month: month,
-            items: viewState.items,
-            state: viewState.ledgerState,
-            isSubcategory: viewState.isSubcategoryBudget(budget),
-            onTap: () => viewModel.requestBudgetDetail(budget.id),
-          ),
-        );
-      },
-    );
-  }
-
-  String _budgetDisplayName(Budget budget, LedgerState state) {
-    final categoryID = budget.categoryID;
-    if (categoryID == null) return 'Overall';
-    return state.categories[categoryID]?.name ?? '(category deleted)';
   }
 }
 

@@ -6,64 +6,23 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/budgets/budget_detail_view_model.dart';
-import 'package:spendwise/ui/budgets/budget_limit_screen.dart';
 import 'package:spendwise/ui/common/day_sectioned_entry_list.dart';
 import 'package:spendwise/ui/common/month_year_selector.dart';
 import 'package:spendwise/ui/format/amount_color.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
-import 'package:spendwise/ui/stats/budget_spend.dart';
+import 'package:spendwise/ui/budgets/budget_spend.dart';
 import 'package:spendwise/ui/stats/chart_helpers.dart';
 import 'package:spendwise/ui/stats/stats_window.dart';
 
-class BudgetDetailScreen extends ConsumerStatefulWidget {
+class BudgetDetailScreen extends ConsumerWidget {
   const BudgetDetailScreen({super.key, required this.budgetID});
 
   final String budgetID;
 
   @override
-  ConsumerState<BudgetDetailScreen> createState() => _BudgetDetailScreenState();
-}
-
-class _BudgetDetailScreenState extends ConsumerState<BudgetDetailScreen> {
-  ProviderSubscription<AsyncValue<BudgetDetailViewState>>? _subscription;
-
-  @override
-  void initState() {
-    super.initState();
-    _subscription = ref.listenManual(
-      budgetDetailViewModelProvider(widget.budgetID),
-      (previous, next) => _handleStep(next.value?.step),
-    );
-  }
-
-  @override
-  void dispose() {
-    _subscription?.close();
-    super.dispose();
-  }
-
-  BudgetDetailViewModel get _viewModel =>
-      ref.read(budgetDetailViewModelProvider(widget.budgetID).notifier);
-
-  void _handleStep(BudgetDetailStep? step) {
-    if (step == null) return;
-    switch (step) {
-      case BudgetLimitEditRequested():
-        Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => BudgetLimitScreen(budgetID: widget.budgetID),
-          ),
-        );
-    }
-    _viewModel.clearStep();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final asyncState = ref.watch(
-      budgetDetailViewModelProvider(widget.budgetID),
-    );
+  Widget build(BuildContext context, WidgetRef ref) {
+    final asyncState = ref.watch(budgetDetailViewModelProvider(budgetID));
     final ledger = ref.watch(ledgerProvider);
 
     return asyncState.when(
@@ -71,7 +30,9 @@ class _BudgetDetailScreenState extends ConsumerState<BudgetDetailScreen> {
           ? const SizedBox.shrink()
           : _BudgetDetailBody(
               viewState: viewState,
-              viewModel: _viewModel,
+              viewModel: ref.read(
+                budgetDetailViewModelProvider(budgetID).notifier,
+              ),
               ledger: ledger,
             ),
       loading: () =>

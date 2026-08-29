@@ -1,15 +1,11 @@
 import 'package:domain/domain.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:spendwise/ui/budgets/budget_detail_view_model.dart'
+    show BudgetFormSaved, BudgetsStep, PickCategoryRequested;
 import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/step_emitting.dart';
 import 'package:spendwise/ui/format/amount_parse.dart';
-
-sealed class BudgetFormStep {}
-
-class PickCategoryRequested extends BudgetFormStep {}
-
-class BudgetFormSaved extends BudgetFormStep {}
 
 /// A category with an unbudgeted child stays offered even when the category
 /// itself already carries a budget, since the child still needs a group to
@@ -47,7 +43,7 @@ List<(TransactionCategory, List<TransactionCategory>)> groupedBudgetCategories(
   ];
 }
 
-class BudgetFormViewState implements HasStep<BudgetFormViewState, BudgetFormStep> {
+class BudgetFormViewState implements HasStep<BudgetFormViewState, BudgetsStep> {
   const BudgetFormViewState({
     required this.categoryID,
     required this.amountText,
@@ -61,7 +57,7 @@ class BudgetFormViewState implements HasStep<BudgetFormViewState, BudgetFormStep
   final LedgerState ledgerState;
   final LedgerError? error;
   @override
-  final BudgetFormStep? step;
+  final BudgetsStep? step;
 
   Decimal? get parsedAmount => parseAmountInput(amountText);
 
@@ -87,7 +83,7 @@ class BudgetFormViewState implements HasStep<BudgetFormViewState, BudgetFormStep
     String? amountText,
     LedgerState? ledgerState,
     LedgerError? Function()? error,
-    BudgetFormStep? Function()? step,
+    BudgetsStep? Function()? step,
   }) {
     return BudgetFormViewState(
       categoryID: categoryID == null ? this.categoryID : categoryID(),
@@ -99,7 +95,7 @@ class BudgetFormViewState implements HasStep<BudgetFormViewState, BudgetFormStep
   }
 
   @override
-  BudgetFormViewState withStep(BudgetFormStep? Function() step) =>
+  BudgetFormViewState withStep(BudgetsStep? Function() step) =>
       copyWith(step: step);
 }
 
@@ -114,7 +110,7 @@ abstract class BudgetFormViewModel {
 class BudgetFormNotifier extends AsyncNotifier<BudgetFormViewState>
     with
         LedgerBackedNotifier<BudgetFormViewState>,
-        StepEmitting<BudgetFormViewState, BudgetFormStep>
+        StepEmitting<BudgetFormViewState, BudgetsStep>
     implements BudgetFormViewModel {
   @override
   Future<BudgetFormViewState> build() async {

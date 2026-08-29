@@ -2,6 +2,8 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:spendwise/ui/budgets/budget_detail_view_model.dart'
+    show DefaultLimitTarget, LimitEditTarget, MonthLimitTarget;
 import 'package:spendwise/ui/budgets/budget_limit_view_model.dart';
 import 'package:spendwise/ui/common/amount_field.dart';
 import 'package:spendwise/ui/common/error_section.dart';
@@ -10,78 +12,56 @@ import 'package:spendwise/ui/format/amount_parse.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 
-class BudgetLimitScreen extends ConsumerStatefulWidget {
+/// Shows the limit-edit sheet for [target] and returns the entered amount,
+/// or null if the user backed out. Built as a stateless launch function
+/// (rather than a method on a screen) since `BudgetsFlow` is the caller —
+/// per ADR-0059, launching a modal in response to a Step is the Flow's job.
+Future<Decimal?> showBudgetLimitEditSheet({
+  required BuildContext context,
+  required LimitEditTarget target,
+}) {
+  final (title, subtitle, current) = switch (target) {
+    DefaultLimitTarget(:final current, :final effectiveFromMonth) => (
+      'Default Budget',
+      'Applies from '
+          '${formatMonthLabel(DateTime.utc(effectiveFromMonth.year, effectiveFromMonth.month))} '
+          'onward',
+      current,
+    ),
+    MonthLimitTarget(:final month, :final current) => (
+      formatMonthLabel(DateTime.utc(month.year, month.month)),
+      null,
+      current,
+    ),
+  };
+
+  return showModalBottomSheet<Decimal>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    useRootNavigator: true,
+    builder: (_) => BudgetLimitEditSheet(
+      title: title,
+      subtitle: subtitle,
+      current: current,
+    ),
+  );
+}
+
+class BudgetLimitScreen extends ConsumerWidget {
   const BudgetLimitScreen({super.key, required this.budgetID});
 
   final String budgetID;
 
   @override
-  ConsumerState<BudgetLimitScreen> createState() => _BudgetLimitScreenState();
-}
-
-class _BudgetLimitScreenState extends ConsumerState<BudgetLimitScreen> {
-  ProviderSubscription<AsyncValue<BudgetLimitViewState>>? _subscription;
-
-  @override
-  void initState() {
-    super.initState();
-    _subscription = ref.listenManual(
-      budgetLimitViewModelProvider(widget.budgetID),
-      (previous, next) => _handleStep(next.value?.step),
-    );
-  }
-
-  @override
-  void dispose() {
-    _subscription?.close();
-    super.dispose();
-  }
-
-  BudgetLimitViewModel get _viewModel =>
-      ref.read(budgetLimitViewModelProvider(widget.budgetID).notifier);
-
-  void _handleStep(BudgetLimitStep? step) {
-    if (step == null) return;
-    switch (step) {
-      case PickLimitRequested(:final target):
-        _editLimit(target);
-    }
-  }
-
-  Future<void> _editLimit(LimitEditTarget target) async {
-    final (title, subtitle, current) = switch (target) {
-      DefaultLimitTarget(:final current, :final effectiveFromMonth) => (
-        'Default Budget',
-        'Applies from '
-            '${formatMonthLabel(DateTime.utc(effectiveFromMonth.year, effectiveFromMonth.month))} '
-            'onward',
-        current,
-      ),
-      MonthLimitTarget(:final month, :final current) => (
-        formatMonthLabel(DateTime.utc(month.year, month.month)),
-        null,
-        current,
-      ),
-    };
-
-    final entered = await showModalBottomSheet<Decimal>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (_) =>
-          _LimitEditSheet(title: title, subtitle: subtitle, current: current),
-    );
-    if (!context.mounted) return;
-    _viewModel.applyPickedLimit(entered);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final asyncState = ref.watch(budgetLimitViewModelProvider(widget.budgetID));
+  Widget build(BuildContext context, WidgetRef ref) {
+    final asyncState = ref.watch(budgetLimitViewModelProvider(budgetID));
 
     return asyncState.when(
-      data: (viewState) =>
-          _BudgetLimitScreenBody(viewState: viewState, viewModel: _viewModel),
+      data: (viewState) => _BudgetLimitScreenBody(
+        viewState: viewState,
+        viewModel: ref.read(budgetLimitViewModelProvider(budgetID).notifier),
+      ),
       loading: () =>
           const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (error, stackTrace) =>
@@ -159,8 +139,9 @@ class _BudgetLimitScreenBody extends StatelessWidget {
   }
 }
 
-class _LimitEditSheet extends StatefulWidget {
-  const _LimitEditSheet({
+class BudgetLimitEditSheet extends StatefulWidget {
+  const BudgetLimitEditSheet({
+    super.key,
     required this.title,
     this.subtitle,
     required this.current,
@@ -171,10 +152,10 @@ class _LimitEditSheet extends StatefulWidget {
   final Decimal current;
 
   @override
-  State<_LimitEditSheet> createState() => _LimitEditSheetState();
+  State<BudgetLimitEditSheet> createState() => _BudgetLimitEditSheetState();
 }
 
-class _LimitEditSheetState extends State<_LimitEditSheet> {
+class _BudgetLimitEditSheetState extends State<BudgetLimitEditSheet> {
   late final TextEditingController _controller = TextEditingController(
     text: formatPlainAmount(widget.current),
   );

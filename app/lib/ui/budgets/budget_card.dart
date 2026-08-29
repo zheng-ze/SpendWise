@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:spendwise/ui/format/amount_color.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
 import 'package:spendwise/ui/format/money_format.dart';
-import 'package:spendwise/ui/stats/budget_spend.dart';
+import 'package:spendwise/ui/budgets/budget_spend.dart';
 
 const _barHeight = 22.0;
 

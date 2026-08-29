@@ -7,7 +7,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// routes a system back gesture into that Navigator instead of the app's
 /// root one, and the root-screen scaffolding.
 abstract class FlowBase<S> extends ConsumerStatefulWidget {
-  const FlowBase({super.key});
+  const FlowBase({super.key, this.onEnded});
+
+  /// Called when a back gesture reaches this Flow's own Navigator and that
+  /// Navigator has no route left to pop — the point where control should
+  /// return to whatever pushed this Flow. Null for a Flow nothing pushes
+  /// onto another Flow's Navigator (for example a bottom-nav tab's root
+  /// Flow), where the app's root Navigator already owns getting back out.
+  /// Modeled on `RxFlow`'s `.end(withStepForParentFlow:)`, per ADR-0059.
+  final VoidCallback? onEnded;
 }
 
 /// Shared lifecycle plumbing for a [FlowBase]. A subclass supplies
@@ -65,9 +73,10 @@ abstract class FlowBaseState<S, T extends FlowBase<S>>
   Widget build(BuildContext context) {
     return PopScope(
       canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
+      onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
-        _navigatorKey.currentState?.maybePop();
+        final popped = await _navigatorKey.currentState?.maybePop() ?? false;
+        if (!popped) widget.onEnded?.call();
       },
       child: Navigator(
         key: _navigatorKey,

@@ -1,37 +1,17 @@
 import 'package:domain/domain.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:spendwise/ui/budgets/budget_detail_view_model.dart'
+    show
+        BudgetsStep,
+        DefaultLimitTarget,
+        MonthLimitTarget,
+        PickLimitRequested;
 import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/step_emitting.dart';
 
-/// Which limit a [PickLimitRequested] step is asking the Flow to edit: the
-/// ongoing default, or one specific month's override.
-sealed class LimitEditTarget {}
-
-class DefaultLimitTarget extends LimitEditTarget {
-  DefaultLimitTarget(this.current, this.effectiveFromMonth);
-
-  final Decimal current;
-  final YearMonth effectiveFromMonth;
-}
-
-class MonthLimitTarget extends LimitEditTarget {
-  MonthLimitTarget(this.month, this.current);
-
-  final YearMonth month;
-  final Decimal current;
-}
-
-sealed class BudgetLimitStep {}
-
-class PickLimitRequested extends BudgetLimitStep {
-  PickLimitRequested(this.target);
-
-  final LimitEditTarget target;
-}
-
 class BudgetLimitViewState
-    implements HasStep<BudgetLimitViewState, BudgetLimitStep> {
+    implements HasStep<BudgetLimitViewState, BudgetsStep> {
   const BudgetLimitViewState({
     required this.budget,
     required this.displayedYear,
@@ -43,7 +23,7 @@ class BudgetLimitViewState
   final DateTime displayedYear;
   final LedgerError? error;
   @override
-  final BudgetLimitStep? step;
+  final BudgetsStep? step;
 
   Decimal? get defaultLimit {
     final currentBudget = budget;
@@ -62,7 +42,7 @@ class BudgetLimitViewState
     Budget? Function()? budget,
     DateTime? displayedYear,
     LedgerError? Function()? error,
-    BudgetLimitStep? Function()? step,
+    BudgetsStep? Function()? step,
   }) {
     return BudgetLimitViewState(
       budget: budget == null ? this.budget : budget(),
@@ -73,7 +53,7 @@ class BudgetLimitViewState
   }
 
   @override
-  BudgetLimitViewState withStep(BudgetLimitStep? Function() step) =>
+  BudgetLimitViewState withStep(BudgetsStep? Function() step) =>
       copyWith(step: step);
 }
 
@@ -88,7 +68,7 @@ abstract class BudgetLimitViewModel {
 class BudgetLimitNotifier extends AsyncNotifier<BudgetLimitViewState>
     with
         LedgerBackedNotifier<BudgetLimitViewState>,
-        StepEmitting<BudgetLimitViewState, BudgetLimitStep>
+        StepEmitting<BudgetLimitViewState, BudgetsStep>
     implements BudgetLimitViewModel {
   BudgetLimitNotifier(this._budgetID);
 

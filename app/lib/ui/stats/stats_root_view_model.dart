@@ -30,52 +30,12 @@ class CategoryDetailRequested extends StatsStep {
   final DateTime initialDate;
 }
 
-class BudgetDetailRequested extends StatsStep {
-  BudgetDetailRequested(this.budgetID);
-
-  final String budgetID;
-}
-
-class BudgetFormRequested extends StatsStep {}
-
-/// Groups a subcategory's budget under its parent's name, so the two sort
-/// next to each other even when only the child carries a budget.
-(String groupName, bool isSubcategory, String ownName) budgetSortKey(
-  Budget budget,
-  LedgerState state,
-) {
-  final categoryID = budget.categoryID;
-  if (categoryID == null) return ('', false, '');
-  final category = state.categories[categoryID];
-  if (category == null) {
-    return ('(category deleted)', false, '(category deleted)');
-  }
-  final parentID = category.parentID;
-  if (parentID == null) return (category.name, false, category.name);
-  final parentName = state.categories[parentID]?.name ?? category.name;
-  return (parentName, true, category.name);
-}
-
-List<Budget> sortedBudgets(LedgerState state) {
-  final budgets = state.budgets.values.toList()
-    ..sort((a, b) {
-      final aKey = budgetSortKey(a, state);
-      final bKey = budgetSortKey(b, state);
-      final groupCompare = aKey.$1.compareTo(bKey.$1);
-      if (groupCompare != 0) return groupCompare;
-      if (aKey.$2 != bKey.$2) return aKey.$2 ? 1 : -1;
-      return aKey.$3.compareTo(bKey.$3);
-    });
-  return budgets;
-}
-
 class StatsRootViewState implements HasStep<StatsRootViewState, StatsStep> {
   const StatsRootViewState({
     required this.tab,
     required this.range,
     required this.ledgerState,
     required this.items,
-    required this.budgets,
     this.step,
   });
 
@@ -83,19 +43,14 @@ class StatsRootViewState implements HasStep<StatsRootViewState, StatsStep> {
   final StatsRangeMode range;
   final LedgerState ledgerState;
   final List<AnalysisItem> items;
-  final List<Budget> budgets;
   @override
   final StatsStep? step;
-
-  bool isSubcategoryBudget(Budget budget) =>
-      budgetSortKey(budget, ledgerState).$2;
 
   StatsRootViewState copyWith({
     StatsTab? tab,
     StatsRangeMode? range,
     LedgerState? ledgerState,
     List<AnalysisItem>? items,
-    List<Budget>? budgets,
     StatsStep? Function()? step,
   }) {
     return StatsRootViewState(
@@ -103,7 +58,6 @@ class StatsRootViewState implements HasStep<StatsRootViewState, StatsStep> {
       range: range ?? this.range,
       ledgerState: ledgerState ?? this.ledgerState,
       items: items ?? this.items,
-      budgets: budgets ?? this.budgets,
       step: step == null ? this.step : step(),
     );
   }
@@ -122,11 +76,6 @@ abstract class StatsRootViewModel {
     required bool isYearRange,
     required DateTime initialDate,
   });
-  void requestBudgetDetail(String budgetID);
-  void requestNewBudget();
-
-  /// Deletes without asking again: [SwipeToDeleteRow] already confirmed.
-  void deleteBudget(String id);
   void clearStep();
 }
 
@@ -180,13 +129,11 @@ class StatsRootNotifier extends AsyncNotifier<StatsRootViewState>
     required StatsRangeMode range,
     StatsStep? step,
   }) {
-    final ledgerState = _ledger.state;
     return StatsRootViewState(
       tab: tab,
       range: range,
-      ledgerState: ledgerState,
+      ledgerState: _ledger.state,
       items: _cache.items,
-      budgets: sortedBudgets(ledgerState),
       step: step,
     );
   }
@@ -217,16 +164,6 @@ class StatsRootNotifier extends AsyncNotifier<StatsRootViewState>
       initialDate: initialDate,
     ),
   );
-
-  @override
-  void requestBudgetDetail(String budgetID) =>
-      _emitStep(BudgetDetailRequested(budgetID));
-
-  @override
-  void requestNewBudget() => _emitStep(BudgetFormRequested());
-
-  @override
-  void deleteBudget(String id) => ledger.deleteBudget(id);
 
   void _emitStep(StatsStep step) {
     _step = step;
