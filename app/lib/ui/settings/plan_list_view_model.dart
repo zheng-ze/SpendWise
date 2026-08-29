@@ -133,8 +133,7 @@ class PlanListNotifier extends AsyncNotifier<PlanListViewState>
   }
 
   @override
-  void requestEditPlan(RecurringPlan plan) =>
-      emitStep(PlanFormRequested(plan));
+  void requestEditPlan(RecurringPlan plan) => emitStep(PlanFormRequested(plan));
 
   @override
   void deletePlan(String id) => ledger.deletePlan(id);

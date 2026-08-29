@@ -80,7 +80,8 @@ class PurgeConfirmationRequested extends RecycleBinStep {
   final BinRow row;
 }
 
-class RecycleBinViewState implements HasStep<RecycleBinViewState, RecycleBinStep> {
+class RecycleBinViewState
+    implements HasStep<RecycleBinViewState, RecycleBinStep> {
   const RecycleBinViewState({
     required this.accounts,
     required this.pockets,

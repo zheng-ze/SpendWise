@@ -2,11 +2,7 @@ import 'package:domain/domain.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/budgets/budget_detail_view_model.dart'
-    show
-        BudgetsStep,
-        DefaultLimitTarget,
-        MonthLimitTarget,
-        PickLimitRequested;
+    show BudgetsStep, DefaultLimitTarget, MonthLimitTarget, PickLimitRequested;
 import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/step_emitting.dart';
 
@@ -145,7 +141,6 @@ class BudgetLimitNotifier extends AsyncNotifier<BudgetLimitViewState>
       updateState((s) => s.copyWith(error: () => error));
     }
   }
-
 }
 
 final budgetLimitViewModelProvider =

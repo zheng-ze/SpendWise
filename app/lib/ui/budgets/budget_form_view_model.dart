@@ -157,7 +157,6 @@ class BudgetFormNotifier extends AsyncNotifier<BudgetFormViewState>
       updateState((s) => s.copyWith(error: () => error));
     }
   }
-
 }
 
 final budgetFormViewModelProvider =

@@ -216,7 +216,6 @@ class SourceEditFormNotifier extends AsyncNotifier<SourceEditFormViewState>
       updateState((s) => s.copyWith(error: () => error));
     }
   }
-
 }
 
 final sourceEditFormViewModelProvider =

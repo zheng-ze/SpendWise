@@ -43,7 +43,10 @@ Future<String?> showBudgetCategoryPickerSheet({
           color: parseColorHex(root.colorHex),
           size: 24,
         ),
-        title: Text(root.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+        title: Text(
+          root.name,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
         enabled: !budgeted.contains(root.id),
         onTap: () => Navigator.of(context).pop(root.id),
       ),

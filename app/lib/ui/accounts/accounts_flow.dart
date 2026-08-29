@@ -17,8 +17,7 @@ class AccountsFlow extends FlowBase<AccountsStep> {
   ConsumerState<AccountsFlow> createState() => _AccountsFlowState();
 }
 
-class _AccountsFlowState
-    extends FlowBaseState<AccountsStep, AccountsFlow> {
+class _AccountsFlowState extends FlowBaseState<AccountsStep, AccountsFlow> {
   AccountsViewModel get _screenViewModel =>
       ref.read(accountsViewModelProvider.notifier);
 

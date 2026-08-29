@@ -7,7 +7,8 @@ import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/step_emitting.dart';
 import 'package:spendwise/ui/format/amount_parse.dart';
 
-class AccountFormViewState implements HasStep<AccountFormViewState, AccountsStep> {
+class AccountFormViewState
+    implements HasStep<AccountFormViewState, AccountsStep> {
   const AccountFormViewState({
     required this.kind,
     required this.name,
@@ -176,7 +177,6 @@ class AccountFormNotifier extends AsyncNotifier<AccountFormViewState>
       updateState((s) => s.copyWith(error: () => error));
     }
   }
-
 }
 
 final accountFormViewModelProvider =

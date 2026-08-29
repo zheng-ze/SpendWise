@@ -67,11 +67,7 @@ void main() {
         encodePng: (image) async => null,
       ),
       throwsA(
-        isA<StateError>().having(
-          (e) => e.message,
-          'message',
-          contains('PNG'),
-        ),
+        isA<StateError>().having((e) => e.message, 'message', contains('PNG')),
       ),
     );
   });

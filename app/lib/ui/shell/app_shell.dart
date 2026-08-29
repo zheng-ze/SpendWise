@@ -139,9 +139,10 @@ class _DestinationStacks extends StatelessWidget {
         for (final destination in ShellDestination.values)
           KeyedSubtree(
             key: ValueKey(destination),
-            child: (bodies[destination] ?? (context) => const SizedBox.shrink())(
-              context,
-            ),
+            child:
+                (bodies[destination] ?? (context) => const SizedBox.shrink())(
+                  context,
+                ),
           ),
       ],
     );

@@ -17,8 +17,7 @@ class SettingsFlow extends FlowBase<SettingsStep> {
   ConsumerState<SettingsFlow> createState() => _SettingsFlowState();
 }
 
-class _SettingsFlowState
-    extends FlowBaseState<SettingsStep, SettingsFlow> {
+class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
   @override
   void Function() subscribeToStep(void Function(SettingsStep? step) handle) =>
       ref

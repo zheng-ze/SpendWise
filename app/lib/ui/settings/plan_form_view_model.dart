@@ -248,7 +248,6 @@ class PlanFormNotifier extends AsyncNotifier<PlanFormViewState>
       updateState((s) => s.copyWith(error: () => error));
     }
   }
-
 }
 
 final planFormViewModelProvider =

@@ -16,7 +16,8 @@ import 'package:spendwise/ui/transactions/transactions_view_model.dart';
 
 enum EntryFormMode { newEntry, viewing, editing }
 
-class EntryFormViewState implements HasStep<EntryFormViewState, TransactionsStep> {
+class EntryFormViewState
+    implements HasStep<EntryFormViewState, TransactionsStep> {
   const EntryFormViewState({
     required this.mode,
     required this.kind,
