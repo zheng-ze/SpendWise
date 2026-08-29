@@ -4,7 +4,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:spendwise/ui/transactions/document_crop_execution.dart';
+import 'package:spendwise/ui/transactions/document_crop/document_crop_execution.dart';
 
 Future<ui.Image> _decodeImage(Uint8List bytes) {
   final completer = Completer<ui.Image>();

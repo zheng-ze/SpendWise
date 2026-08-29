@@ -5,8 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/stats/category_detail_view_model.dart';
-import 'package:spendwise/ui/stats/category_scope.dart';
+import 'package:spendwise/ui/stats/category_detail/category_detail_view_model.dart';
+import 'package:spendwise/ui/stats/category_detail/category_scope.dart';
 
 void main() {
   Decimal dec(String value) => Decimal.parse(value);

@@ -2,7 +2,7 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:spendwise/ui/common/recurrence_picker.dart';
+import 'package:spendwise/ui/common/pickers/recurrence_picker.dart';
 
 void main() {
   late Future<RecurrenceFrequency?> pendingOutcome;

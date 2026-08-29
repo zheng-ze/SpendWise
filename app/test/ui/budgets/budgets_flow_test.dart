@@ -6,11 +6,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/budgets/budget_detail_screen.dart';
-import 'package:spendwise/ui/budgets/budget_form.dart';
-import 'package:spendwise/ui/budgets/budget_limit_screen.dart';
-import 'package:spendwise/ui/budgets/budgets_flow.dart';
-import 'package:spendwise/ui/budgets/budgets_list_view_model.dart';
+import 'package:spendwise/ui/budgets/budget_detail/budget_detail_screen.dart';
+import 'package:spendwise/ui/budgets/budget_list/budget_form.dart';
+import 'package:spendwise/ui/budgets/budget_detail/budget_limit_screen.dart';
+import 'package:spendwise/ui/budgets/budget_list/budgets_flow.dart';
+import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
 
 import '../../support/semantics_test_support.dart';
 

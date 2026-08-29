@@ -6,10 +6,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/stats/analysis_flow.dart';
-import 'package:spendwise/ui/stats/analysis_view_model.dart';
-import 'package:spendwise/ui/stats/category_detail_screen.dart';
-import 'package:spendwise/ui/stats/stats_window.dart';
+import 'package:spendwise/ui/stats/analysis/analysis_flow.dart';
+import 'package:spendwise/ui/stats/analysis/analysis_view_model.dart';
+import 'package:spendwise/ui/stats/category_detail/category_detail_screen.dart';
+import 'package:spendwise/ui/stats/helpers/stats_window.dart';
 
 void main() {
   final account = Account(

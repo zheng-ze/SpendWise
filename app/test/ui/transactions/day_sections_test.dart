@@ -1,7 +1,7 @@
 import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ui/format/money_format.dart';
-import 'package:spendwise/ui/transactions/day_sections.dart';
+import 'package:spendwise/ui/transactions/daily_list/day_sections.dart';
 
 void main() {
   Decimal dec(String value) => Decimal.parse(value);

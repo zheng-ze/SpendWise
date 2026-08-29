@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/stats/analysis_view_model.dart';
+import 'package:spendwise/ui/stats/analysis/analysis_view_model.dart';
 
 void main() {
   final account = Account(

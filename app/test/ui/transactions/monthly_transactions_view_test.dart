@@ -1,8 +1,8 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:spendwise/ui/transactions/month_summaries.dart';
-import 'package:spendwise/ui/transactions/monthly_transactions_view.dart';
+import 'package:spendwise/ui/transactions/monthly/month_summaries.dart';
+import 'package:spendwise/ui/transactions/monthly/monthly_transactions_view.dart';
 
 void main() {
   final account = Account(

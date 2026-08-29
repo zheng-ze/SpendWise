@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/accounts/source_edit_form.dart';
+import 'package:spendwise/ui/accounts/source_edit/source_edit_form.dart';
 
 void main() {
   Decimal dec(String value) => Decimal.parse(value);

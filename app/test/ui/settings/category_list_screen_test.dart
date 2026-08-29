@@ -5,8 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/settings/category_form.dart';
-import 'package:spendwise/ui/settings/category_list_screen.dart';
+import 'package:spendwise/ui/settings/category/category_form.dart';
+import 'package:spendwise/ui/settings/category/category_list_screen.dart';
 
 import '../../support/semantics_test_support.dart';
 

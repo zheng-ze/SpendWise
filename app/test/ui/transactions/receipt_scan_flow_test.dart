@@ -5,7 +5,7 @@ import 'package:ocr/ocr.dart';
 import 'package:spendwise/ocr/amount_extraction.dart';
 import 'package:spendwise/ocr/date_extraction.dart';
 import 'package:spendwise/ocr/name_extraction.dart';
-import 'package:spendwise/ui/transactions/receipt_scan_flow.dart';
+import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_flow.dart';
 
 RecognizedText _textOf(List<String> lines) {
   return RecognizedText([

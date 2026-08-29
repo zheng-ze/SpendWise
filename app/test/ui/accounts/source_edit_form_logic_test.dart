@@ -1,6 +1,6 @@
 import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:spendwise/ui/accounts/source_edit_form_logic.dart';
+import 'package:spendwise/ui/accounts/source_edit/source_edit_form_logic.dart';
 
 void main() {
   Decimal dec(String value) => Decimal.parse(value);

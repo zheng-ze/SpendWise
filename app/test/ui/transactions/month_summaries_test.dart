@@ -1,6 +1,6 @@
 import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:spendwise/ui/transactions/month_summaries.dart';
+import 'package:spendwise/ui/transactions/monthly/month_summaries.dart';
 
 void main() {
   Decimal dec(String value) => Decimal.parse(value);

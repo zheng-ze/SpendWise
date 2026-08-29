@@ -2,7 +2,7 @@ import 'dart:ui' show Tristate;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:spendwise/ui/common/two_column_picker_sheet.dart';
+import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
 
 const _groups = [
   PickerOption(

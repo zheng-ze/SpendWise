@@ -2,8 +2,8 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:spendwise/ui/stats/slices.dart';
-import 'package:spendwise/ui/stats/stats_legend.dart';
+import 'package:spendwise/ui/stats/helpers/slices.dart';
+import 'package:spendwise/ui/stats/donut/stats_legend.dart';
 
 void main() {
   Decimal dec(String value) => Decimal.parse(value);

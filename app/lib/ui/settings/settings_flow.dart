@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/common/flow_base.dart';
-import 'package:spendwise/ui/settings/category_list_screen.dart';
-import 'package:spendwise/ui/settings/plan_list_screen.dart';
-import 'package:spendwise/ui/settings/recycle_bin_screen.dart';
+import 'package:spendwise/ui/settings/category/category_list_screen.dart';
+import 'package:spendwise/ui/settings/plan/plan_list_screen.dart';
+import 'package:spendwise/ui/settings/recycle_bin/recycle_bin_screen.dart';
 import 'package:spendwise/ui/settings/settings_root_screen.dart';
 import 'package:spendwise/ui/settings/settings_root_view_model.dart';
 

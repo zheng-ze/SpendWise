@@ -1,6 +1,6 @@
 import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:spendwise/ui/accounts/account_form_logic.dart';
+import 'package:spendwise/ui/accounts/account_form/account_form_logic.dart';
 
 void main() {
   test('pocketable parents exclude cards', () {

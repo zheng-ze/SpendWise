@@ -1,8 +1,8 @@
 import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:spendwise/ui/stats/slices.dart';
-import 'package:spendwise/ui/stats/stats_window.dart';
-import 'package:spendwise/ui/transactions/month_summaries.dart';
+import 'package:spendwise/ui/stats/helpers/slices.dart';
+import 'package:spendwise/ui/stats/helpers/stats_window.dart';
+import 'package:spendwise/ui/transactions/monthly/month_summaries.dart';
 
 // Proves the totals-divergence ruling directly: the same LedgerState, same
 // month, must produce the same expense/income total on the Transactions

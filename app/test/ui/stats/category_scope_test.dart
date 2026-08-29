@@ -1,6 +1,6 @@
 import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:spendwise/ui/stats/category_scope.dart';
+import 'package:spendwise/ui/stats/category_detail/category_scope.dart';
 
 void main() {
   const foodID = 'a0000000-0000-0000-0000-000000000001';

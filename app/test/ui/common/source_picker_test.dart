@@ -2,8 +2,8 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:spendwise/ui/common/source_picker.dart';
-import 'package:spendwise/ui/common/two_column_picker_sheet.dart';
+import 'package:spendwise/ui/common/pickers/source_picker.dart';
+import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
 
 void main() {
   final checking = Account(

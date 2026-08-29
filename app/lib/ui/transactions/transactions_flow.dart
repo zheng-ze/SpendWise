@@ -5,17 +5,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
-import 'package:spendwise/ui/common/category_picker.dart';
+import 'package:spendwise/ui/common/pickers/category_picker.dart';
 import 'package:spendwise/ui/common/flow_base.dart';
-import 'package:spendwise/ui/common/recurrence_picker.dart';
-import 'package:spendwise/ui/common/source_picker.dart';
-import 'package:spendwise/ui/common/two_column_picker_sheet.dart';
-import 'package:spendwise/ui/transactions/daily_transactions_screen.dart';
-import 'package:spendwise/ui/transactions/document_crop_screen.dart';
-import 'package:spendwise/ui/transactions/entry_form.dart';
-import 'package:spendwise/ui/transactions/entry_form_logic.dart'
+import 'package:spendwise/ui/common/pickers/recurrence_picker.dart';
+import 'package:spendwise/ui/common/pickers/source_picker.dart';
+import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
+import 'package:spendwise/ui/transactions/daily_list/daily_transactions_screen.dart';
+import 'package:spendwise/ui/transactions/document_crop/document_crop_screen.dart';
+import 'package:spendwise/ui/transactions/entry/entry_form.dart';
+import 'package:spendwise/ui/transactions/entry/entry_form_logic.dart'
     show EntryFormKind;
-import 'package:spendwise/ui/transactions/entry_form_view_model.dart';
+import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/transactions_view_model.dart';
 
 /// Which holders a scoped Transactions screen filters to, and what title it

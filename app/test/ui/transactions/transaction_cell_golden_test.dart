@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/ui/format/money_format.dart';
-import 'package:spendwise/ui/transactions/transaction_cell.dart';
-import 'package:spendwise/ui/transactions/transaction_row.dart';
+import 'package:spendwise/ui/transactions/daily_list/transaction_cell.dart';
+import 'package:spendwise/ui/transactions/daily_list/transaction_row.dart';
 
 void main() {
   testWidgets('transaction cell layout with note, income and expense rows', (

@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/transactions/entry_form_logic.dart';
-import 'package:spendwise/ui/transactions/entry_form_view_model.dart';
+import 'package:spendwise/ui/transactions/entry/entry_form_logic.dart';
+import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 
 void main() {
   Decimal dec(String value) => Decimal.parse(value);

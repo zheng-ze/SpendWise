@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/settings/category_list_view_model.dart';
+import 'package:spendwise/ui/settings/category/category_list_view_model.dart';
 
 void main() {
   final food = TransactionCategory(

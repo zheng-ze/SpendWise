@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/settings/settings_providers.dart';
-import 'package:spendwise/ui/transactions/receipt_scan_strip.dart';
+import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_strip.dart';
 
 void main() {
   Ledger buildLedger() {

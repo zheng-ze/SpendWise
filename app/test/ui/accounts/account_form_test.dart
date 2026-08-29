@@ -4,8 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/accounts/account_form.dart';
-import 'package:spendwise/ui/accounts/account_form_logic.dart';
+import 'package:spendwise/ui/accounts/account_form/account_form.dart';
+import 'package:spendwise/ui/accounts/account_form/account_form_logic.dart';
 
 void main() {
   Future<void> pumpForm(WidgetTester tester, Ledger ledger) async {

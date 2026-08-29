@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ui/accounts/account_form.dart';
+import 'package:spendwise/ui/accounts/account_form/account_form.dart';
 import 'package:spendwise/ui/accounts/accounts_screen.dart';
 import 'package:spendwise/ui/accounts/accounts_view_model.dart';
-import 'package:spendwise/ui/accounts/source_edit_form.dart';
+import 'package:spendwise/ui/accounts/source_edit/source_edit_form.dart';
 import 'package:spendwise/ui/common/flow_base.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
 

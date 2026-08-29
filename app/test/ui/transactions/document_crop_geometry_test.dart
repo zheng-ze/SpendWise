@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:spendwise/ui/transactions/document_crop_geometry.dart';
+import 'package:spendwise/ui/transactions/document_crop/document_crop_geometry.dart';
 
 void main() {
   group('initialCorners', () {

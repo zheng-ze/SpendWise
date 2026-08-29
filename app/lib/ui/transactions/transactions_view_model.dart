@@ -7,9 +7,9 @@ import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/step_emitting.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart' show startOfMonthUtc;
-import 'package:spendwise/ui/stats/stats_window.dart';
-import 'package:spendwise/ui/transactions/day_sections.dart';
-import 'package:spendwise/ui/transactions/month_summaries.dart';
+import 'package:spendwise/ui/stats/helpers/stats_window.dart';
+import 'package:spendwise/ui/transactions/daily_list/day_sections.dart';
+import 'package:spendwise/ui/transactions/monthly/month_summaries.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
 
 enum TransactionsScreenMode { daily, monthly }
