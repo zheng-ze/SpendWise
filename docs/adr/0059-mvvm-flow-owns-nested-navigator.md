@@ -211,3 +211,27 @@ same way `AnalysisCache` is wrapped here (as of this migration: `StatsRootNotifi
 `CategoryDetailNotifier`, `BudgetDetailNotifier`) — not only `AnalysisCache` itself. The general
 rule: a `ChangeNotifier` dependency's own async work must be awaited inside `build()`, never started
 and left running past `build()`'s return.
+
+## Amendment (issue #47): a Flow may exist with no Step to mediate
+
+The `stats` migration's second phase (issue #47, extracting income/expense analysis into
+`AnalysisFlow`) left `StatsFlow` — the outer Flow that used to wrap `StatsRootScreen` and mediate
+the analysis screens' one step, `CategoryDetailRequested` — with nothing left to mediate once that
+step moved onto `AnalysisFlow`'s own step type. The two choices were deleting `StatsFlow` entirely
+(mounting `StatsRootScreen` directly wherever `StatsFlow` was mounted) or keeping it as a Flow with
+a step-less contract.
+
+The project owner chose to keep `StatsFlow`, so that every top-level tab in the app shell is
+uniformly a Flow, rather than a mix of Flows and bare screens depending on whether that tab
+currently happens to need a step. This is a deliberate exception to this ADR's stated contract
+("the Flow watches its children's Step via `ref.listenManual`"), not an oversight: `StatsStep` is a
+sealed type with zero variants, `handleStep`'s switch has no cases (exhaustive over zero variants,
+so this is not a hole in the type system), and `subscribeToStep` returns a no-op `() {}` instead of
+opening a real `ref.listenManual` subscription, since there is nothing for it to listen to.
+
+**A Flow whose `Step` type has no variants is a valid, sanctioned shape**, not dead code, when kept
+for this reason. `FlowBase.subscribeToStep`'s own doc comment states this exception directly, so an
+implementer reading the base class sees it without needing this ADR open. Any future Flow built the
+same way (a step-less shell kept for shell-composition uniformity) should cite this amendment in its
+own file, the way `stats_flow.dart` does, rather than leaving a reader to guess whether the empty
+step type is intentional.
