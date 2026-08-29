@@ -266,8 +266,10 @@ class _TransactionsFlowState
   }
 
   @override
-  Widget buildRoot(BuildContext context) =>
-      TransactionsScreen(scope: widget.initialScope);
+  Widget buildRoot(BuildContext context) => TransactionsScreen(
+    scope: widget.initialScope,
+    onBackPressed: showsOwnBackButton ? goBack : null,
+  );
 }
 
 String? _idFromOutcome(PickerOutcome outcome) => switch (outcome) {

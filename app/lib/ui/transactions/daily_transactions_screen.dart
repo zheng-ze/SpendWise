@@ -22,9 +22,13 @@ const _tabTitles = ['Daily', 'Monthly'];
 /// Renders [TransactionsViewModel]'s state. Never touches a `Navigator`
 /// itself. The enclosing [TransactionsFlow] handles navigation.
 class TransactionsScreen extends ConsumerWidget {
-  const TransactionsScreen({super.key, this.scope});
+  const TransactionsScreen({super.key, this.scope, this.onBackPressed});
 
   final TransactionsScope? scope;
+
+  /// Called when the user taps this screen's own back button. Set only when
+  /// `TransactionsFlow` was pushed as a page onto another Flow's Navigator.
+  final VoidCallback? onBackPressed;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -38,17 +42,25 @@ class TransactionsScreen extends ConsumerWidget {
       loading: () =>
           const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (error, _) => Scaffold(body: Center(child: Text('$error'))),
-      data: (state) =>
-          _TransactionsScreenBody(state: state, viewModel: viewModel),
+      data: (state) => _TransactionsScreenBody(
+        state: state,
+        viewModel: viewModel,
+        onBackPressed: onBackPressed,
+      ),
     );
   }
 }
 
 class _TransactionsScreenBody extends StatelessWidget {
-  const _TransactionsScreenBody({required this.state, required this.viewModel});
+  const _TransactionsScreenBody({
+    required this.state,
+    required this.viewModel,
+    this.onBackPressed,
+  });
 
   final TransactionsViewState state;
   final TransactionsViewModel viewModel;
+  final VoidCallback? onBackPressed;
 
   Widget _content(BuildContext context) {
     if (state.mode == TransactionsScreenMode.daily) {
@@ -85,6 +97,9 @@ class _TransactionsScreenBody extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
+        leading: onBackPressed == null
+            ? null
+            : BackButton(onPressed: onBackPressed),
         title: Text(state.title),
         actions: [
           MonthYearSelector(

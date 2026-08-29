@@ -23,6 +23,16 @@ abstract class FlowBaseState<S, T extends FlowBase<S>>
   /// to a second step stream beyond [subscribeToStep].
   BuildContext? get navigatorContext => _navigatorKey.currentContext;
 
+  /// Whether this Flow's root screen should show its own back button.
+  bool get showsOwnBackButton => widget.onEnded != null;
+
+  /// Ends this Flow the same way a system back gesture would. Pops this
+  /// Flow's own Navigator if it can, otherwise calls [FlowBase.onEnded].
+  Future<void> goBack() async {
+    final popped = await _navigatorKey.currentState?.maybePop() ?? false;
+    if (!popped) widget.onEnded?.call();
+  }
+
   /// Starts listening for this Flow's steps, calling [handle] with each new
   /// step. Returns a callback that closes the subscription on dispose.
   void Function() subscribeToStep(void Function(S? step) handle);
@@ -59,8 +69,7 @@ abstract class FlowBaseState<S, T extends FlowBase<S>>
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
-        final popped = await _navigatorKey.currentState?.maybePop() ?? false;
-        if (!popped) widget.onEnded?.call();
+        await goBack();
       },
       child: Navigator(
         key: _navigatorKey,

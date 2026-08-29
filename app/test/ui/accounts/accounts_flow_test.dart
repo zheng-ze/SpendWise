@@ -7,6 +7,7 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/accounts/account_form.dart';
 import 'package:spendwise/ui/accounts/accounts_flow.dart';
+import 'package:spendwise/ui/accounts/accounts_screen.dart';
 import 'package:spendwise/ui/accounts/accounts_view_model.dart';
 import 'package:spendwise/ui/accounts/source_edit_form.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
@@ -94,6 +95,28 @@ void main() {
 
     final form = tester.widget<SourceEditForm>(find.byType(SourceEditForm));
     expect(form.holderID, checking.id);
+  });
+
+  testWidgets('AccountOpened pushes a TransactionsFlow whose AppBar shows a '
+      'tappable back button, so a platform with no system back gesture can '
+      'still return to the accounts list', (tester) async {
+    final container = await pumpFlow(tester, buildLedger());
+
+    container.read(accountsViewModelProvider.notifier).openAccount(checking.id);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AccountsScreen), findsNothing);
+
+    final backButtonFinder = find.descendant(
+      of: find.byType(AppBar),
+      matching: find.byTooltip('Back'),
+    );
+    expect(backButtonFinder, findsOneWidget);
+
+    await tester.tap(backButtonFinder);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AccountsScreen), findsOneWidget);
   });
 
   testWidgets('back navigation while the account form sheet is open pops '
