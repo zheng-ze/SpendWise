@@ -34,3 +34,8 @@ close.
 
 Every future change to occurrence-id derivation must keep the plan id normalized to lowercase on
 the way into the UUIDv5 name, regardless of how the rest of the derivation evolves.
+
+## Test evidence
+
+Tests that prove lowercasing must use a UUID containing letters. A digits-only UUID is unchanged by
+uppercasing and cannot demonstrate normalization.
