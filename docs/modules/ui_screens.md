@@ -204,7 +204,7 @@ category. `Entry` itself has no `note` field — persistence reserves a schema c
 (`../ARCHITECTURE.md` §4.3), unused until a future feature needs it.
 
 Cell layout: 36 pt `CategoryIcon` chip · title / optional note (caption) / account line (caption,
-secondary) · trailing amount (semibold). Golden-test this cell.
+secondary) · trailing amount (semibold).
 
 ### 2.4 ExpandingFAB
 
@@ -653,18 +653,18 @@ routing.
   `ErrorSection` (§0.4).
 - **Transactions:** `TransactionRow.resolve`, `daySections`, interval totals (§2.2–2.3, §2.9);
   screen provider (selectedDate/mode/scope); daily list with sticky day headers, empty state,
-  swipe-delete dialog; golden test for the transaction cell; `TwoColumnPickerSheet` plus
+  swipe-delete dialog; `TwoColumnPickerSheet` plus
   Source/Category wrappers (§2.6); `RecurrencePickerSheet` (§2.7); entry form read-only-first,
   validation, save/sign/plan-creation matrix (§2.5); `ExpandingFAB` (§2.4); `monthSummaries`,
   expand/collapse, week-jump (§2.8).
 - **Accounts:** sections, `accountTotal` wiring, payable/outstanding, clamped `statementCut`
   (§4.2–4.3); root screen — header, net-worth bar, grouped list, expansion rows, card columns;
-  golden test for the account row; navigation to scoped Transactions (§4.4); account form and
+  navigation to scoped Transactions (§4.4); account form and
   source-edit form including the balance-adjustment entry (§4.5–4.6); delete dialogs with
   reference counts.
 - **Stats:** slices/`rollUp` wiring, subSlices+Direct, `trendMonths`, `matchingCategoryIDs`
-  (§3.2, §3.4–3.5); tabs, total, donut with leader labels, legend list, empty state; golden test
-  for the donut; range menu on every platform (§3); category detail scope selection, trend card
+  (§3.2, §3.4–3.5); tabs, total, donut with leader labels, legend list, empty state; range menu on
+  every platform (§3); category detail scope selection, trend card
   with point selection, scoped entry list, revision-keyed memoization (§3.4).
 - **Settings:** category list, form, and symbol picker (§5.1–5.3); plan list and form (§5.4–5.5);
   recycle bin restore/purge (§5.6).
@@ -674,5 +674,4 @@ routing.
   tabs; app lifecycle — resume triggers `resolvePlans`, pause triggers flush
   (`ledger_runtime.md` §5.3).
 
-Exit: provider tests per screen green, goldens for cell/row/donut committed, and every rule in §6
-covered by a test.
+Exit: provider tests per screen green and every rule in §6 covered by a test.

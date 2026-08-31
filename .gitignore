@@ -34,9 +34,6 @@ migrate_working_dir/
 **/coverage/
 packages/*/pubspec.lock
 
-# flutter_test golden-diff artifacts
-app/test/**/failures/
-
 # Symbolication related
 app.*.symbols
 
