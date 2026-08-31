@@ -118,7 +118,7 @@ test/receipt_recognition_ja_test.dart
 - Feeds the fake `RecognizedText` into `ReceiptTextProcessor.processText(...)`, then asserts the
   parsed `store`, `total`, `date`, line-item count, and per-item prices against expected values
   recorded alongside each fixture.
-- There is **no image asset, no golden/snapshot image test, and no real-engine-in-the-loop test**
+- There is **no image asset, snapshot image test, or real-engine-in-the-loop test**
   anywhere in this repository's `test/` directory. The entire suite — across normalization,
   optimization, and two locales (default and Japanese) — is fixture-driven against a hand-built
   stand-in for the engine's output shape.
@@ -256,13 +256,10 @@ Concretely, for SpendWise:
      mapping-level proof for, without needing thermal-degradation/skew fidelity a synthetic image
      can't reproduce anyway (and which, per Q1, is the vendor's problem, not this app's to
      benchmark).
-   - **Where it lives**: `app/test/` already has a binary-fixture convention for exactly this shape
-     of thing — `app/test/ui/{transactions,accounts,stats}/goldens/` commit image files alongside
-     their test code. Follow that pattern: `app/test/ocr/fixtures/` (colocated with wherever the
-     `ReceiptTextRecognizer` implementation tests land) holding the small PNG/JPEG set, committed
-     alongside a short note (in the directory or in the test file) that they are synthetic and
-     contain no real personal or financial data — so a future contributor doesn't mistake them for
-     real receipts and hesitate to regenerate or extend the set.
+   - **Where it lives**: Store the fixtures in `app/test/ocr/fixtures/`, colocated with the
+     `ReceiptTextRecognizer` implementation tests. Commit the small PNG/JPEG set alongside a short
+     note in the directory or test file stating that the images are synthetic and contain no real
+     personal or financial data. This lets future contributors regenerate or extend the set.
    - **Not SROIE, not CORD**: both were checked and both are real, accessible, real-licensed
      datasets — CORD's CC BY 4.0 license in particular would permit redistribution — but neither is
      the right fit here. They're the wrong language/currency/keyword-set (CORD) or scanned rather
