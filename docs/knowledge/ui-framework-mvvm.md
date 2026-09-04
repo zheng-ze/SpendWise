@@ -31,14 +31,13 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
 - **View** imports no domain or persistence code, calls named methods on its ViewModel taking only
   raw unparsed values (a `String`, a `bool`), and depends on the ViewModel's abstract interface
   type, never the concrete class. It never parses, validates, or interprets a value; that is the
-  ViewModel's job. (`docs/adr/0058`, `docs/adr/0057`)
+  ViewModel's job.
 - **ViewModel** implements a per-screen abstract interface, owns all state for exactly one View, and
   is exposed by a thin Riverpod provider that is not the ViewModel. A screen that loads data uses
   `AsyncNotifier<ViewState>`, so the View renders via `AsyncValue.when(data:, loading:, error:)`.
-  (`docs/adr/0058`)
 - **Flow** is a `ConsumerStatefulWidget` owning one feature folder's nested `Navigator` scoped with
   a local `GlobalKey<NavigatorState>`; it watches ViewModels for a `Step` via `ref.listenManual` and
-  maps each `Step` to a push/pop. The View never touches navigation. (`docs/adr/0059`)
+  maps each `Step` to a push/pop. The View never touches navigation.
 - **Step** is a sealed per-Flow type carrying only plain data (e.g. `BudgetSelected(String id)`), no
   `Widget` or `BuildContext`; consumption is single-shot — the Flow clears it via `clearStep()` after
   acting. Replaces the earlier `NavigationIntent` field.
@@ -57,7 +56,7 @@ or one needing a different state-update shape, has no obligation to use it.
 A ViewModel that wraps a plain `ChangeNotifier` service (for example `AnalysisCache`) inside
 `build()` must await that service's async work there, not fire it and forget it; starting the work
 without awaiting lets the service's listener write fresher state before Riverpod installs `build()`'s
-value, which then overwrites it. (`docs/adr/0059`, issue #38)
+value, which then overwrites it. (issue #38)
 
 ## Formatting rules
 
@@ -77,7 +76,7 @@ value, which then overwrites it. (`docs/adr/0059`, issue #38)
 ## Gotchas and invariants
 
 - "The View never decides what an input means" is a documented convention reviewed like any other
-  convention violation, not tool-enforced. (`docs/adr/0058`)
+  convention violation, not tool-enforced.
 - The `updateState()` dispose guard is what a picker callback needs when its result arrives after the
   sheet that launched it is gone. (`ledger_backed_notifier.dart`)
 - A `double` in the domain is a defect; the UI formatting layer uses `Decimal` via the format
@@ -86,9 +85,9 @@ value, which then overwrites it. (`docs/adr/0059`, issue #38)
 ## Requirements
 
 - A View imports neither `package:domain/` nor persistence and depends on its ViewModel's abstract
-  interface. (`docs/adr/0058`)
-- One ViewModel per View; screens that load data use `AsyncNotifier<ViewState>`. (`docs/adr/0058`)
+  interface.
+- One ViewModel per View; screens that load data use `AsyncNotifier<ViewState>`.
 - A Flow owns one feature folder's nested navigator scoped with a local `GlobalKey`; the View never
-  navigates. (`docs/adr/0059`)
-- `Step` is sealed plain data, single-shot consumed and cleared by the Flow. (`docs/adr/0059`)
+  navigates.
+- `Step` is sealed plain data, single-shot consumed and cleared by the Flow.
 - ViewModels backed by `Ledger` use the `LedgerBackedNotifier` mixin. (`ledger_backed_notifier.dart`)

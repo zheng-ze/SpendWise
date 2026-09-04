@@ -2,15 +2,14 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:domain/domain.dart';
-import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ocr/document_scanner_selection.dart';
 import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/step_emitting.dart';
 import 'package:spendwise/ui/format/amount_parse.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_logic.dart';
+import 'package:spendwise/ui/transactions/receipt_scan/receipt_entry_coordinator.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_flow.dart';
 import 'package:spendwise/ui/transactions/transactions_view_model.dart';
 
@@ -178,6 +177,11 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
 
   final String? entryId;
 
+  /// The receipt-scan / crop coordinator for this entry form. Read and its
+  /// state mirrored into [EntryFormViewState] in [build]; its lifetime is
+  /// bound to this provider.
+  ReceiptEntryCoordinator? _coordinator;
+
   Entry? get _persisted =>
       entryId == null ? null : ledger.state.entries[entryId];
 
@@ -197,6 +201,15 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
   @override
   Future<EntryFormViewState> build() async {
     final entry = _persisted;
+    _coordinator = ref.read<ReceiptEntryCoordinator>(
+      receiptEntryCoordinatorProvider(entryId).notifier,
+    );
+    ref.listen(receiptEntryCoordinatorProvider(entryId), (_, next) {
+      updateState((current) => current.copyWith(
+        scanning: next.scanning,
+        scanStop: () => next.scanStop,
+      ));
+    });
     return EntryFormViewState(
       mode: entry == null ? EntryFormMode.newEntry : EntryFormMode.viewing,
       kind: _kindOf(entry),
@@ -409,67 +422,13 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
 
   @override
   void requestScan(ReceiptScanSource source, {Uint8List? preCapturedBytes}) {
-    unawaited(_runScan(source, preCapturedBytes));
-  }
-
-  Future<void> _runScan(
-    ReceiptScanSource source,
-    Uint8List? preCapturedBytes,
-  ) async {
-    updateState((current) => current.copyWith(scanning: true));
-    ReceiptScanStop? stop;
-    try {
-      if (source == ReceiptScanSource.camera && preCapturedBytes == null) {
-        final capture = await _captureWithNativeScanner();
-        switch (capture) {
-          case _NativeScannerCancelled():
-            // Unlike an unavailable scanner, this does not fall through to
-            // the plain camera picker below.
-            return;
-          case _NativeScannerCaptured(:final bytes):
-            await runReceiptScan(
-              source: source,
-              preCapturedBytes: bytes,
-              onExtracted: _applyScanResult,
-              onStop: (value) => stop = value,
-            );
-            return;
-          case _NativeScannerUnavailable():
-            break;
-        }
-      }
-
-      await runReceiptScan(
-        source: source,
+    unawaited(
+      _coordinator!.requestScan(
+        source,
         preCapturedBytes: preCapturedBytes,
-        onExtracted: _applyScanResult,
-        onStop: (value) => stop = value,
-      );
-    } finally {
-      updateState(
-        (current) => current.copyWith(scanning: false, scanStop: () => stop),
-      );
-    }
-  }
-
-  // Unavailable means the caller should fall through to the plain camera
-  // picker. Cancelled means no fallback should run.
-  Future<_NativeScannerOutcome> _captureWithNativeScanner() async {
-    final scanner = await selectDocumentScanner();
-    if (scanner == null) return const _NativeScannerUnavailable();
-
-    Uint8List? bytes;
-    try {
-      bytes = await scanner.scanDocument();
-    } on PlatformException {
-      // The scanner itself failed to launch (for example, Android with no
-      // Google Play Services) rather than the user backing out of it.
-      return const _NativeScannerUnavailable();
-    }
-
-    return bytes == null
-        ? const _NativeScannerCancelled()
-        : _NativeScannerCaptured(bytes);
+        onPrefill: _applyScanResult,
+      ),
+    );
   }
 
   @override
@@ -503,12 +462,13 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
       emitStep(DocumentCropRequested(bytes));
 
   @override
-  void applyCroppedDocument(Uint8List bytes) =>
-      requestScan(ReceiptScanSource.gallery, preCapturedBytes: bytes);
+  void applyCroppedDocument(Uint8List bytes) => _coordinator!.applyCroppedDocument(
+    bytes,
+    onPrefill: _applyScanResult,
+  );
 
   @override
-  void clearScanStop() =>
-      updateState((current) => current.copyWith(scanStop: () => null));
+  void clearScanStop() => _coordinator!.clearScanStop();
 }
 
 final entryFormViewModelProvider =
@@ -517,21 +477,3 @@ final entryFormViewModelProvider =
       EntryFormViewState,
       String?
     >(EntryFormNotifier.new);
-
-sealed class _NativeScannerOutcome {
-  const _NativeScannerOutcome();
-}
-
-class _NativeScannerUnavailable extends _NativeScannerOutcome {
-  const _NativeScannerUnavailable();
-}
-
-class _NativeScannerCancelled extends _NativeScannerOutcome {
-  const _NativeScannerCancelled();
-}
-
-class _NativeScannerCaptured extends _NativeScannerOutcome {
-  const _NativeScannerCaptured(this.bytes);
-
-  final Uint8List bytes;
-}

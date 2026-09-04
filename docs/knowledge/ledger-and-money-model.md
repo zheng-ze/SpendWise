@@ -63,12 +63,12 @@ The persistence layer (`persistence.md`) coalesces changes by `LedgerChange.targ
 state via `LedgerState.replaying(changes)`, which applies changes directly into the maps without
 validation or cascade (`ledger_state_replay.dart`).
 
-`Accounting` (`plans_and_accounting.md` §4) reads `LedgerState` as pure functions — balances, net
+`Accounting` reads `LedgerState` as pure functions — balances, net
 worth, and analysis classification — and never mutates it.
 
 ## Lifecycle machine
 
-The state machine, with the rule behind each edge (`domain_models.md` §4, `ledger_state_purge.dart`,
+The state machine, with the rule behind each edge (`ledger_state_purge.dart`,
 `ledger_state_invariants.dart`):
 
 - **Delete archives.** `deleteAccount` / `deletePocket` / `deleteCategory` set `archived`; nothing
@@ -92,7 +92,7 @@ An account counts as referenced while it has direct entry references **or** any 
 itself referenced (not merely present). `purgeAccount` purges pockets first, then the account, so
 each pocket's fate is settled before the account's referencedness is judged. A tombstoned pocket
 detaches from its parent's `subPocketIDs` in the same step, and a parent left at zero references
-with no surviving pockets is tombstoned too. See the regression tests in `domain_models.md` §7.
+with no surviving pockets is tombstoned too. See the regression tests in the purge and sweep code.
 
 ## Mutator contract
 
@@ -137,7 +137,7 @@ the same helper the purge and sweep paths use, so the three can never drift.
 
 ## Gotchas and invariants
 
-- **Transfer normalization** (`domain_models.md` §3.3.9): a negative transfer is stored positive
+- **Transfer normalization**: a negative transfer is stored positive
   with source/destination swapped; "transfer of -100 A→B" and "transfer of 100 B→A" are one fact.
   Self-transfers (`destinationID == sourceID`) are legal and net to zero in balance and analysis.
 - **Prior-reference exemption** applies per reference: editing an entry whose source is now archived

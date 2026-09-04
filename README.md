@@ -43,8 +43,8 @@ rules.
 - `packages/domain/` — pure Dart. Models, `LedgerState`, and accounting logic. Has no Flutter
   dependency and must never gain one, which keeps the domain portable and testable.
 - `app/` — the Flutter app. Depends on `domain` by path.
-- `docs/` — behavior specs (`docs/specs/`), architecture decisions (`docs/adr/`) and working
-  procedure.
+- `docs/` — the feature knowledge base (`docs/knowledge/`, behavior contracts plus the decisions
+  behind them), `docs/ARCHITECTURE.md`, and working procedure.
 - `CONTEXT.md` — the domain glossary and index, at the repo root.
 
 ## Running the app

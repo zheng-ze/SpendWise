@@ -28,17 +28,12 @@ receipt-agnostic) and receipt-specific field-extraction heuristics in `app/`.
 - `app/lib/ocr/receipt_recognizer_selection.dart`, `document_scanner_selection.dart` — platform
   engine and document-scanner selection.
 - `app/lib/ocr/document_scanner_channel.dart` — the shared `DocumentScannerChannel` MethodChannel
-  wrapper (`docs/adr/0056`).
+  wrapper.
 - `app/lib/ui/transactions/document_crop/` — the web 4-point crop screen (`document_crop_screen.dart`).
 - `app/lib/ui/transactions/receipt_scan/` — the scan strip/flow that wires scanner + extraction.
-- `docs/modules/receipt_ocr.md` — the architecture companion spec (structure, not the behavior
-  contract).
-- `docs/specs/ocr-receipt-entry.md` — the ratified Given/When/Then contract; takes precedence on
-  behavior.
-- `docs/adr/0051-on-device-per-platform-ocr-split.md`, `docs/adr/0052-receipt-text-recognizer-seam.md`,
-  `docs/adr/0056-native-document-scanners-replace-custom-detection.md` — the governing decisions.
 
-`packages/ocr/` is a real package sibling to `packages/domain/`. Per ADR-0052 it is allowed to
+
+`packages/ocr/` is a real package sibling to `packages/domain/`. It is allowed to
 depend on Flutter and platform interop — the enforced boundary is "`packages/domain/` may never use
 Flutter", narrower than "only `app/` may use Flutter". `packages/ocr/` depends on neither `app/`
 nor `packages/domain/`.
@@ -81,7 +76,7 @@ temp file (the plugin only accepts a file path), maps `result.blocks` → `block
 `RecognizedLine`s, and reads `boundingBox`, `confidence`, and `recognizedLanguages` per line. Its
 engine is injectable via the `MlKitEngine` interface (`processImage` + `close`) for testing.
 
-Designed but **not yet built** (per ADR-0051/0052): a **`TesseractTextRecognizer`** for web,
+Designed but **not yet built**: a **`TesseractTextRecognizer`** for web,
 directly-wired Tesseract.js with `{ blocks: true }` output (no working Flutter wrapper delivers a
 web binding), and an experimental iOS **`VisionTextRecognizer`** (issue #8). `selectRecognizer`
 returns `null` on web until that path is built.
@@ -93,7 +88,7 @@ returns `null` on web until that path is built.
 is not built yet); otherwise it returns `MlKitTextRecognizer()`. This is the only place platform
 identity is inspected in this layer.
 
-Document capture (`docs/adr/0056`): iOS launches `VNDocumentCameraViewController`, Android launches
+Document capture: iOS launches `VNDocumentCameraViewController`, Android launches
 `GmsDocumentScanner` and falls back to a plain camera capture (`ImagePicker(source: camera)`) when
 Google Play Services is unavailable rather than showing an error; web gets a from-scratch 4-point
 crop screen (`app/lib/ui/transactions/document_crop/`). Both native scanners own their live
@@ -122,8 +117,8 @@ they cannot special-case an engine:
   matches. `locale` and `now` are parameters so tests fix the order and "today" without the device.
 
 None of the three use `confidence` or `recognizedLanguages`; a future consumer may. The exact
-keyword sets, pattern filters, thresholds, and disambiguation are normative in
-`docs/specs/ocr-receipt-entry.md`.
+keyword sets, pattern filters, thresholds, and disambiguation are implemented in the extraction
+heuristics.
 
 ## Failure handling
 
@@ -146,16 +141,12 @@ for external consumers (it has exactly one consumer — this app).
 ## Requirements
 
 - The `TextRecognizer` seam keeps engine and framework swaps from reaching the extraction heuristics.
-  (`docs/modules/receipt_ocr.md` §2–3)
 - Extraction is receipt-specific and lives in `app/`, never in `packages/ocr/`.
-  (`docs/modules/receipt_ocr.md` §4)
 - Recognition is on-device only; an unreadable receipt falls back to manual entry, not a network
-  call. (`docs/adr/0051`, `docs/modules/receipt_ocr.md` §9)
+  call.
 - Every non-extraction outcome lands on the same blank draft form; `TextRecognitionFailure` is caught
-  once, at the UI hook point, and never reaches a widget. (`docs/specs/ocr-receipt-entry.md`,
-  `docs/modules/receipt_ocr.md` §6)
-- No extracted data is retained after prefill. (`docs/modules/receipt_ocr.md` §6)
+  once, at the UI hook point, and never reaches a widget.
+- No extracted data is retained after prefill.
 - `packages/ocr/` may depend on Flutter; only `packages/domain/` is hard Flutter-free.
-  (`docs/adr/0052`)
 - Engine selection checks `kIsWeb` before `Platform.isIOS`/`isAndroid`; only ML Kit is built — web
   returns `null` until the Tesseract path lands. (`app/lib/ocr/receipt_recognizer_selection.dart`)

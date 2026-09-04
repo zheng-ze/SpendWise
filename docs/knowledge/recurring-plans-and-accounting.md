@@ -42,18 +42,17 @@ on-or-after and used by the UI, not resolution.
 
 **Month-end clamping** — Dart's `DateTime` silently rolls Feb 31 over to March, so stepped dates
 use `addMonthsClamped` (also used for card `statementCut` math). The full matrix
-(Jan 31 → Feb 28/29, 30-day months, year rollover, leap-day yearly) is required (`plans_and_accounting.md`
-§2).
+(Jan 31 → Feb 28/29, 30-day months, year rollover, leap-day yearly) is required.
 
 **OccurrenceID** — `OccurrenceID.make(planID, occurrenceDay)` in `occurrence_id.dart` computes a
 deterministic UUIDv5 over the plan id and the occurrence's UTC calendar day, so two devices
 resolving the same (plan, day) mint the same entry id and a future sync merge converges on one
 entry. Namespace `8b9e0c42-5f3a-4d71-9c2e-1a6b7f0d3e85`, plan id rendered **lowercase** via
-`normalizedID(planID)` in the name — the project-wide rule is lowercase (ADR-0004). Seconds since
+`normalizedID(planID)` in the name — the project-wide rule is lowercase. Seconds since
 2001-01-01T00:00:00Z (Apple reference date). No calendar parameter: UTC is baked in via
 `startOfDayUtc`. An occurrence instant's day-boundary normalization, not its time, determines the
-id. A pinned test fixes `cca271e1-a2dc-56cf-9462-a710c0c21922` for a given input (the test's plan
-id is digit-only, so the lowercase/uppercase distinction does not affect it).
+id. A pinned test fixes the id for a given plan id and UTC day and pins the case-insensitive
+plan-id match and the time-of-day collapse (local vs UTC, any time of day) to the same id.
 
 **`resolvePlans(now)`** (`ledger_state_plans.dart`) iterates plans in sorted-id order. For each
 plan it computes `occurrences(after: lastResolvedDate, upTo: now)`, builds each entry via
@@ -61,9 +60,7 @@ plan it computes `occurrences(after: lastResolvedDate, upTo: now)`, builds each 
 (`_validated`), stores on success, and appends a `PlanFailure` on error while continuing. The cursor
 **stops at the first failure**: it advances to the last successfully-materialized or already-present
 occurrence before that failure, then still attempts later dates. A failed occurrence is recorded in
-`failures` and retried on a later sweep. This matches ADR-0048 and the plain `ledger-plans.md`, and
-**contradicts** the module spec `plans_and_accounting.md` (which says the cursor advances to `now`
-and failures are report-once). The plan is retired (removed + `DeletePlan`) if exhausted, else
+`failures` and retried on a later sweep. The plan is retired (removed + `DeletePlan`) if exhausted, else
 upserted if due, else left alone. A `PlanResolution` carries both `changes` and `failures`.
 
 The resolve cursor stops at the first failure because a later cursor would skip the failed
@@ -88,7 +85,7 @@ plan survives and its next resolution emits `PlanFailure(inactiveReference)` per
 ## Accounting
 
 All pure static functions; money is `Decimal`; balances are derived from the entry log, never
-stored (`plans_and_accounting.md` §4).
+stored.
 
 - **`applies(entry, sourceIDs)`** — a transfer counts only when both endpoints are in the existence
   set (every `moneySources` key, including archived/referenceOnly). A tombstoned holder un-applies
@@ -112,7 +109,7 @@ Swift's inclusive interval, which could double-count an entry on a month boundar
 
 **Treat-as-expense gap** — a transfer into a flagged holder classifies as an expense item with
 `bucketID: null` (the Uncategorized bucket). Bucketing by destination account type is a recorded
-Phase 6 decision, never slipped into the port (`plans_and_accounting.md` §7).
+Phase 6 decision, never slipped into the port.
 
 ## Gotchas and invariants
 

@@ -28,7 +28,7 @@ The view model calls `Ledger` query/mutation methods and reads `AnalysisCache` w
 it never holds a `LedgerState` reference. Row resolution and section grouping are pure Dart
 functions in the application layer, unit-tested independently of any widget. Totals apply only
 entry-level `includeInAnalysis`, so Transactions and Stats can diverge for the same month — a ruled
-decision (ADR-0026), not a bug.
+decision, not a bug.
 
 ## Navigation
 
@@ -46,7 +46,6 @@ destination keeps its own navigator.
   negated expenses of entries with `includeInAnalysis == true`. Day headers are sticky and show a
   net colored by the net-amount rule. Empty state: tray icon + "No transactions". Tap a row opens a
   read-only entry sheet; swipe leading-to-trailing opens a "Delete this transaction?" confirmation.
-  `ledger-and-money-model.md` §3.6.
 - **Monthly view** — `monthSummaries` is a pure function: months up to and including the current
   month, newest first, each with weeks kept at full week range even when spilling into neighboring
   months (a spillover week appears under both months). Tap a month expands only it; tap a week jumps
@@ -72,19 +71,18 @@ destination keeps its own navigator.
 ## Gotchas and invariants
 
 - The entry form is read-only-first for existing entries — a memory-pinned design fact, not to be
-  "improved" into edit-first. `ui_screens.md` §2.5
+  "improved" into edit-first.
 - Amount sanitizer strips to digits and one `.`, max 2 fraction digits, dropped not rounded; only
-  the balance field allows a leading `-`. `ui_screens.md` §0.2
+  the balance field allows a leading `-`.
 - Malformed `colorHex` falls back to gray; writing back emits `#RRGGBB` uppercase, components
-  clamped 0–255. `ui_screens.md` §0.2
+  clamped 0–255.
 - Transactions/Stats totals divergence is ruled, not a bug; a single shared totals function keeps a
-  future unification a one-line swap. `ui_screens.md` §2.1, ADR-0026
+  future unification a one-line swap.
 
 ## Requirements
 
-- Screen state (`selectedDate`, `mode`, scope) lives in a provider, not a widget. `ui_screens.md` §0.1
+- Screen state (`selectedDate`, `mode`, scope) lives in a provider, not a widget.
 - `daySections`, `TransactionRow.resolve`, and `monthSummaries` are pure, tested functions.
-  `ui_screens.md` §2.2–2.3, §2.8
-- Interval filters are half-open `[start, end)` everywhere. `ui_screens.md` §2.2
+- Interval filters are half-open `[start, end)` everywhere.
 - Saving a new entry with recurrence creates a plan with `lastResolvedDate = date − 1 s` and resolves
-  immediately. `ui_screens.md` §2.5
+  immediately.

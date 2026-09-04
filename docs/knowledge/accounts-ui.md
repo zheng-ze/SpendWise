@@ -21,7 +21,7 @@ including posting a balance-adjustment delta entry.
 - `app/lib/ui/common/pickers/` — the account type and day pickers.
 - `packages/domain/lib/src/accounting.dart` — `accountTotal`, `netWorth`, `balance` (see
   `recurring-plans-and-accounting.md`).
-- `docs/specs/accounts-screen.md` — the behavior contract.
+
 
 ## Module interactions
 
@@ -52,7 +52,8 @@ forms and the entry form open as sheets.
   `addMonthsClamped` so an imported `d` of 29–31 does not roll over.
 - **Account form** — segmented Account | Subpocket (Subpocket disabled when no pocketable accounts
   exist; pocketable = active, non-card, sorted by name — cards cannot hold pockets). Account mode:
-  name, type picker (8 types), statement-day picker (1–28, cards only), optional opening balance.
+  name, type picker (all `AccountType` values), statement-day picker (1–28, cards only),
+  optional opening balance.
   Subpocket mode: name, parent account picker. Save: `addAccount` (statement day only for cards),
   then `setOpeningBalance` if the balance ≠ 0 (posts the synthetic excluded opening-balance entry);
   Subpocket: `addPocket`.
@@ -64,10 +65,10 @@ forms and the entry form open as sheets.
 ## Gotchas and invariants
 
 - Statement-cut date math is clamped, never allowed to overflow into the next month, with a test
-  matrix across 28/29/30/31 × {Feb, Feb-leap, 30-day, 31-day}. `ui_screens.md` §4.3
+  matrix across 28/29/30/31 × {Feb, Feb-leap, 30-day, 31-day}.
 - Editing a balance does not rewrite history: it posts a synthetic excluded delta entry, keeping the
-  running balance replay-consistent. `ui_screens.md` §4.6
-- Cards cannot hold pockets, guarded in both UI and controller. `ui_screens.md` §4.5
+  running balance replay-consistent.
+- Cards cannot hold pockets, guarded in both UI and controller.
 - `netWorth` splits by sign of the computed total, not by account type; pockets never count at top
   level. `recurring-plans-and-accounting.md` §4.4
 - The domain normalizes `statementDay` on `addAccount`/`updateAccount` (clamp to 1–28, non-card →
@@ -82,10 +83,9 @@ forms and the entry form open as sheets.
 
 ## Requirements
 
-- Sections group active accounts by type in the fixed enum order, skipping empty types.
-  `ui_screens.md` §4.2
+- Sections group active accounts by type in a fixed order (Cash, Checking, Savings, Cards,
+  Prepaid, Investment, Insurance, Other), skipping empty types.
 - Card payable is clamped at 0; outstanding excludes transfers and out-of-window entries.
-  `ui_screens.md` §4.3
 - Balance editing posts a `balanceAdjustment` system entry (`includeInAnalysis: false`) for the
-  delta; no delta produces no entry. `ui_screens.md` §4.6
-- Delete archives to the recycle bin and shows the referencing-entry count. `ui_screens.md` §4.4
+  delta; no delta produces no entry.
+- Delete archives to the recycle bin and shows the referencing-entry count.

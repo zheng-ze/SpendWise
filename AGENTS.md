@@ -8,14 +8,18 @@ SpendWise is a personal finance app built in Flutter.
   Flutter.
 - `app/` is the Flutter app and depends on `domain` by path.
 - `docs/` contains behavior specs, architecture decisions, and working procedures.
+- `docs/knowledge/` is the feature knowledge base. One entry per feature; read the relevant entry
+  before planning or changing a feature. Start at `docs/knowledge/INDEX.md`.
 - `CONTEXT.md` is the domain glossary and index. Read it first when working on the domain.
 
 ## Read before work
 
+- For a feature change, open `docs/knowledge/INDEX.md`, read that feature's entry, then check its
+  `Last reconciled:` marker for possible staleness.
 - Read `docs/NAVIGATION.md` for the required reading order and the greenfield-design boundary.
 - See `docs/agents/issue-tracker.md` for GitHub issue conventions.
 - See `docs/agents/domain.md` for the `CONTEXT.md` and ADR layout.
-- Read `docs/DOMAIN-INVARIANTS.md` before changing `LedgerState` or its invariants.
+- Read `docs/DOMAIN.md` before changing `LedgerState` or its invariants.
 - See `docs/HANDOVER.md` when continuing the repository's recorded working state.
 
 ## Domain conventions

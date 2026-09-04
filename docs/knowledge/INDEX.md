@@ -5,8 +5,8 @@ feature; it records the final implementation, key files, interactions, navigatio
 and requirements from the current diff rather than requiring a scan of the whole codebase.
 
 This index is a link list with one-line descriptions. Shared domain vocabulary lives in
-`CONTEXT.md`; behavior contracts live in `docs/specs/`; the "why" lives in `docs/adr/`. Feature
-entries fold in still-current legacy material when a feature touches it.
+`CONTEXT.md`; the behavior contracts and the decisions behind them live in the feature entries
+themselves. Feature entries fold in still-current legacy material when a feature touches it.
 
 | Feature | Entry |
 |---|---|

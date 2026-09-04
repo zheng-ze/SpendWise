@@ -17,8 +17,8 @@ user's accept/correct/ignore signals.
   and the sealed analysis-resolution result.
 - `packages/domain/lib/src/ledger_state/ledger_state_categories.dart` — category mutators and
   validation on `LedgerState`.
-- `docs/modules/category_classifier.md` — the classifier design spec (no Swift precursor; the
-  intended behavior for a first implementation). No classifier source exists yet.
+- The classifier has no Swift precursor and no implementation source yet; the design below is the
+  intended first implementation.
 
 ## Category model
 
@@ -32,7 +32,7 @@ a category's parent is only a naming ancestor and the purge cascade sweeps child
 lifecycle. See `ledger-and-money-model.md` for the lifecycle machine.
 
 Analysis inclusion is parent-gated: a category is `Excluded` from analysis when its own
-`includeInAnalysis` is false, or when its present parent's is false (`plans_and_accounting.md` §5.4).
+`includeInAnalysis` is false, or when its present parent's is false.
 
 ## Category mutators — `ledger_state_categories.dart`
 
@@ -60,51 +60,45 @@ never corrupt ledger state.
 
 **Tokenization** — lowercase, split on non-alphanumerics, drop tokens under 2 characters, emit
 every unigram plus every adjacent bigram (a merchant phrase carries signal its words do not).
-`category_classifier.md` §2.1.
 
 **Online update — `observe(name, categoryId)`** — tokenize, increment each token's count and
 `totalTokens` by 1, increment `docCount` by 1. One call is O(tokens) and touches only the target
-category; a single correction is reflected in the next prediction. `category_classifier.md` §2.3.
+category; a single correction is reflected in the next prediction.
 
 **Prediction — `predict(name)`** — for each active category of the matching kind, compute the
 log-likelihood with Laplace (add-one) smoothing, convert to normalized posteriors via softmax, and
 return the list sorted descending. When every category has zero documents the degenerates to a
 uniform distribution, so cold start falls out of the formula rather than needing a branch.
-`category_classifier.md` §2.4.
 
 **Confidence-gated suggestion** — top posterior ≥ 0.6 auto-fills the category (overridable, itself a
 training signal); below 0.6 with a non-uniform distribution shows the top 2–3 as chips; a uniform
 distribution prompts to create a new category. The 0.6 threshold is a starting point to tune against
-real usage. `category_classifier.md` §4.
+real usage.
 
 **Training signals** — an unchanged save is a strong positive; opening the picker and choosing a
 different category is an explicit correction logged on the picked category; no interaction is no
 signal. A correction is not weighted higher in scoring but is the higher-value case to log.
-`category_classifier.md` §3.
 
 **Persistence** — each category's `tokenCounts`, `totalTokens`, and `docCount` serialize and store
 per-device through the Drift layer, keyed by category id; `observe` updates the blob incrementally,
-never rebuilding from a full retraining pass. `category_classifier.md` §5.
+never rebuilding from a full retraining pass.
 
 ## Gotchas and invariants
 
 - The classifier has no invariants of its own to check against `LedgerState.assertInvariants` and
-  never emits a `LedgerChange`. `category_classifier.md`
+  never emits a `LedgerChange`
 - Cold start is the third (no-match) branch, not a special case; a keyword table can be layered in
-  later as optional UX polish. `category_classifier.md` §4.1
+  later as optional UX polish
 - No cloud OCR, no cross-user learning, no embeddings — these are classifier non-goals too, but
-  specifically the classifier trains only on this device for this user. `category_classifier.md` §7
+  specifically the classifier trains only on this device for this user.
 
 ## Requirements
 
 - One Naive Bayes model per `CategoryKind`, trained per-device, updated online so a single
-  correction changes the next prediction. (`category_classifier.md` §2–3)
+  correction changes the next prediction.
 - Suggestion is confidence-gated at 0.6, with a chip tier and a cold-start create prompt.
-  (`category_classifier.md` §4)
-- Model state persists per-device incrementally through the Drift layer. (`category_classifier.md`
-  §5)
+- Model state persists per-device incrementally through the Drift layer.
 - The classifier reads `LedgerState` only; it never mutates it or emits a change.
-  (`category_classifier.md`)
 - `updateCategory` locks `kind` (`CategoryKindMismatch`), forbids reparenting a subcategory
   (`CategoryTooDeep`), and re-judges a dropped parent via `_sweepCategory`.
   (`ledger_state_categories.dart`)
