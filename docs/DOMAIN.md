@@ -12,3 +12,14 @@ fixed at creation. A check that must hold in release needs a real throw, not an 
 
 **Keep file scope small and single-purpose.** `LedgerState` is split by concern into `part` files.
 Split by concern, not by symbol count.
+
+## Budgets
+
+Distilled from past sessions. Reconcile against `docs/knowledge/budgets.md`: a budget design was
+reverted once and re-committed, and some sessions predate later refactors.
+
+- A budget scopes to a single category, or to every category when unscoped. It never spans multiple
+  categories.
+- Budgets support create and delete only. Updates are limited to the amount and the rollover setting.
+- Budget start uses a half-open `[start, end)` window. Guard adding an entry earlier than the current
+  earliest entry after the budget exists.

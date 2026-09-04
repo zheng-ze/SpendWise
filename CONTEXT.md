@@ -4,7 +4,8 @@
 
 A glossary of this codebase's vocabulary, plus an index pointing at where decisions and behavior
 contracts live. This file stays lean on purpose: it defines terms once, precisely, and points
-elsewhere for the "why" (`docs/adr/`) and the "what" (`docs/specs/`). It does not inline either.
+elsewhere for the "why" and the "what" — both held together in `docs/knowledge/`. It does not
+inline either.
 
 ## Glossary
 
@@ -47,9 +48,9 @@ from a month forward) or an `override` (pins exactly one month). See ADR-0038.
 
 **Lifecycle state** (`LifecycleState`) — where a row sits in its life: `active`, `archived`
 (user-hidden but still referenced), `referenceOnly` (unreferenced and pending purge), or
-`tombstoned` (gone, kept only as a deletion marker for sync). See `docs/adr/` for the archival-vs-
-deletion split on plans (ADR-0006) and the rule that only delete/restore/purge may move a row
-between these states (ADR-0049).
+`tombstoned` (gone, kept only as a deletion marker for sync). See
+`docs/knowledge/ledger-and-money-model.md` for the archival-vs-deletion split on plans (ADR-0006)
+and the rule that only delete/restore/purge may move a row between these states (ADR-0049).
 
 **LedgerChange** — the sealed vocabulary of what a mutation changed: an upsert of an account, a
 pocket, a category or an entry, or a deletion of a money source, a category or an entry. See
@@ -71,12 +72,12 @@ sync engine. Lives only in the persistence layer, never in `packages/domain`. Se
 
 **Invariant** — a rule `LedgerState` checks after every mutation in debug builds
 (`assertInvariants`), backstopping illegal states that closed maps and dedicated removers are
-meant to make unreachable in the first place. See `docs/specs/ledger-invariants.md`.
+meant to make unreachable in the first place. See `docs/knowledge/ledger-and-money-model.md`.
 
 ## Domain rules with no real alternative (not ADR material)
 
 These are flat conventions applied throughout `packages/domain/`, not decisions with a rejected
-alternative — so they live here, not in `docs/adr/`.
+alternative — so they live here, not as a decision recorded in a knowledge entry.
 
 - **Money is `Decimal`, never `double`.** A `double` anywhere in `packages/domain/lib/` is a
   defect.
@@ -159,21 +160,11 @@ today, and any future networking.
 
 ## Index
 
-- **`docs/adr/`** — architecture decisions: a decision, the alternative that was rejected, and the
-  consequence. Read the ones touching the area you're about to work in before changing it.
-- **`docs/specs/`** — behavior contracts (Given/When/Then requirements) for every capability, one
-  file per capability. This is where "what must the code do" lives; ADRs hold "why it's built this
-  way," not the contract itself.
-  - Domain core: `ledger-state.md`, `ledger-mutations.md`, `ledger-lifecycle.md`,
-    `ledger-plans.md`, `ledger-invariants.md`, `ledger-accounting.md`, `ledger-analysis.md`,
-    `budgets.md`, `data-persistence.md`.
-  - Runtime: `ledger-runtime.md`, `event-bus.md`, `analysis-cache.md`, `app-boot.md`.
-  - UI: `ui-foundation.md`, `app-shell.md`, `transactions-screen.md`, `entry-form.md`,
-    `ocr-receipt-entry.md`, `accounts-screen.md`, `holder-forms.md`, `stats-screen.md`,
-    `category-detail.md`, `category-management.md`, `plan-management.md`, `recycle-bin.md`,
-    `budgets-ui.md`, `treat-as-expense-buckets.md`, `transfer-scope-display.md`,
-    `accessibility-and-localization.md`.
-- **`docs/agents/domain.md`** — how an agent should consume this file and `docs/adr/` before
+- **`docs/knowledge/INDEX.md`**, then the relevant entry under `docs/knowledge/` — one file per
+  feature. Each entry holds both the behavior contract ("what must the code do") and the decisions
+  behind it, including the alternative that was rejected and the consequence — the "why" and the
+  "what" together, not split across separate ADR and spec files.
+- **`docs/agents/domain.md`** — how an agent should consume this file and `docs/knowledge/` before
   exploring the codebase.
 - **`docs/agents/issue-tracker.md`** — how work items and open questions are tracked (GitHub
   issues via `gh`).

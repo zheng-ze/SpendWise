@@ -17,8 +17,7 @@ facades over `Ledger`, with per-sheet `autoDispose` controllers for the forms.
 - `app/lib/ui/settings/recycle_bin/` — the recycle bin.
 - `packages/domain/lib/src/ledger_state/ledger_state_categories.dart`, `ledger_state_plans.dart`
   — the domain mutators (see `ledger-and-money-model.md`, `recurring-plans-and-accounting.md`).
-- `docs/specs/category-management.md`, `docs/specs/plan-management.md`, `docs/specs/recycle-bin.md`,
-  `docs/specs/holder-forms.md` — the behavior contracts.
+
 
 ## Module interactions
 
@@ -71,16 +70,14 @@ three sections (Accounts, Subpockets, Categories), each hidden when empty.
   parent account is archived. `ledger-and-money-model.md` §Restore blocking.
 - Plan delete is a hard delete with no recycle bin; the archive path applies only to money sources
   and categories. `recurring-plans-and-accounting.md`
-- Category kind is locked while transactions reference it. `ui_screens.md` §5.2
+- Category kind is locked while transactions reference it.
 - Purge moves referenced rows to `referenceOnly` and unreferenced rows to tombstoned; the domain
   decides which. `ledger-and-money-model.md` §Purge.
 
 ## Requirements
 
-- Category list ordering is roots-then-children A–Z per kind. `ui_screens.md` §5.1
+- Category list ordering is roots-then-children A–Z per kind.
 - Plan list sorts by next occurrence ascending with ended plans last and name as tiebreak.
-  `ui_screens.md` §5.4
-- Plan save preserves the template's original sign. `ui_screens.md` §5.5
+- Plan save preserves the template's original sign.
 - Recycle bin restore on a pocket whose parent is still binned is a silent no-op.
-  `ui_screens.md` §5.6
-- Delete copy pluralizes by referencing-entry count. `ui_screens.md` §5.1
+- Delete copy pluralizes by referencing-entry count.

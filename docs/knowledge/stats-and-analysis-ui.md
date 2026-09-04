@@ -62,21 +62,18 @@ row in the legend is not navigable.
 
 - Stats can differ from Transactions for the same month because Stats applies category
   include-gates and treat-as-expense reclassification; Transactions applies only entry-level
-  `includeInAnalysis`. This is ruled (ADR-0026). `ui_screens.md` §2.1
+  `includeInAnalysis`. This is ruled.
 - Treat-as-expense transfers land in the Uncategorized bucket; Stats must not invent the recorded
-  account-type bucketing ahead of the domain implementing it. `ui_screens.md` §6
+  account-type bucketing ahead of the domain implementing it.
 - Slice fractions guard the zero-total case; zero/negative slice values clamp out of the ring.
-  `ui_screens.md` §3.2
 - Accessibility and localization are open work, not built: donut, FAB, two-column picker, and swipe
   actions need Semantics labels, and every format in `ui_screens.md` §0.2 must route through `intl`.
-  `ui_screens.md` §6
 
 ## Requirements
 
 - Data source is `AnalysisCache`; the screen refreshes on appear and on revision change.
-  `ui_screens.md` §3
 - Slices roll up to main buckets; Uncategorized includes treat-as-expense transfers; sorted by amount
-  descending. `ui_screens.md` §3.2
+  descending.
 - Category Detail scope selection, subcategory Direct-bucket threshold (`> 0`), trend windows both
-  modes, and `matchingCategoryIDs` are pure, tested functions. `ui_screens.md` §3.4–3.5
-- The date/range toolbar renders on every platform. `ui_screens.md` §3
+  modes, and `matchingCategoryIDs` are pure, tested functions.
+- The date/range toolbar renders on every platform.
