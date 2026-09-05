@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:domain/domain.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/widgets.dart';
 
 import 'package:spendwise/boot/app_phase.dart';
@@ -21,13 +22,18 @@ class AppBoot extends ChangeNotifier with WidgetsBindingObserver {
     this.onPlanError,
     this.onRetry,
     DateTime Function()? now,
-  }) : now = now ?? _utcNow;
+  }) : now = now ?? utcNowFor;
 
   /// Always UTC, never device-local time.
   // UTC keeps occurrence identity from varying by the device's timezone.
   final DateTime Function() now;
 
-  static DateTime _utcNow() => DateTime.now().toUtc();
+  /// Normalizes [localNow] (defaulting to the system clock) to UTC midnight
+  /// of its own calendar day, never `.toUtc()`, which would shift the day for
+  /// any positive UTC offset.
+  @visibleForTesting
+  static DateTime utcNowFor([DateTime? localNow]) =>
+      startOfDayUtc(localNow ?? DateTime.now());
 
   final StoreFactory createStore;
 

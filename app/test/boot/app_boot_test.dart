@@ -113,6 +113,15 @@ void main() {
     expect(store.calls, isNot(contains(StoreCall.load)));
   });
 
+  test('utcNowForKeepsTheLocalCalendarDayInsteadOfShiftingItViaToUtc', () {
+    final justAfterLocalMidnight = DateTime(2026, 1, 15, 0, 30);
+
+    expect(
+      AppBoot.utcNowFor(justAfterLocalMidnight),
+      DateTime.utc(2026, 1, 15),
+    );
+  });
+
   test('mutationThroughTheBootedLedgerReachesTheStore', () async {
     final store = RecordingLedgerStore(hasSeeded: true);
     final boot = _boot(store);
