@@ -10,6 +10,9 @@ import 'package:spendwise/ocr/date_extraction.dart';
 import 'package:spendwise/ocr/name_extraction.dart';
 import 'package:spendwise/ocr/receipt_recognizer_selection.dart';
 
+/// Production recognizer supplier: the platform-aware [selectRecognizer].
+TextRecognizer? defaultRecognizer() => selectRecognizer();
+
 /// Which action the user tapped, and which permission/picker source that
 /// implies.
 enum ReceiptScanSource { camera, gallery }
@@ -38,6 +41,11 @@ enum ReceiptScanStop {
 typedef ScanResultHandler =
     void Function({String? name, Decimal? amount, required DateTime date});
 
+/// Supplies the [TextRecognizer] a scan runs on. The default [defaultRecognizer]
+/// is the production [selectRecognizer] path; tests pass a factory that returns
+/// an in-memory recognizer, so each call gets a fresh instance it can dispose.
+typedef RecognizerFactory = TextRecognizer? Function();
+
 /// Returns early and calls [onStop] on a denied permission or a cancelled
 /// picker. Any other failure still calls [onExtracted] with whatever fields
 /// could be read. [preCapturedBytes], when given, skips straight to
@@ -47,11 +55,12 @@ Future<void> runReceiptScan({
   required ScanResultHandler onExtracted,
   Uint8List? preCapturedBytes,
   void Function(ReceiptScanStop stop)? onStop,
+  RecognizerFactory recognizer = defaultRecognizer,
 }) async {
   final bytes = preCapturedBytes ?? await _pickImage(source, onStop);
   if (bytes == null) return;
 
-  final recognized = await _recognize(bytes);
+  final recognized = await _recognize(recognizer, bytes);
   onExtracted(
     name: extractName(recognized),
     amount: extractAmount(recognized),
@@ -83,8 +92,11 @@ Future<bool> _requestPermission(Permission permission) async {
   return status.isGranted || status.isLimited;
 }
 
-Future<RecognizedText> _recognize(Uint8List bytes) async {
-  final recognizer = selectRecognizer();
+Future<RecognizedText> _recognize(
+  RecognizerFactory factory,
+  Uint8List bytes,
+) async {
+  final recognizer = factory();
   if (recognizer == null) return RecognizedText(const []);
 
   try {
