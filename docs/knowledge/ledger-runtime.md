@@ -1,6 +1,6 @@
 # Ledger Runtime
 
-Last reconciled: 2026-09-02
+Last reconciled: 4f7d3ee
 
 ## Feature overview
 
@@ -65,12 +65,21 @@ Retry button that resets phase to `loading` and re-runs the whole boot).
 
 ## Lifecycle hooks
 
-An `AppLifecycleListener` owned at the root acts only when phase is `ready`: on becoming active it
-calls `ledger.resolvePlans(now)` with a UTC `now`; on leaving foreground it calls
-`persistence.flush()` (fire-and-forget). `resolvePlans` is called once explicitly when entering
-`ready` and on each `onResume`; every call passes a UTC instant, never a device-local
-`DateTime.now()`. Backgrounding `flush()` is the load-bearing durability moment: it pushes the
-debounced store's pending batch to disk before the OS can kill the process.
+`AppBoot` (a `ChangeNotifier` with `WidgetsBindingObserver`) acts only when phase is `ready`: on
+`AppLifecycleState.resumed` it calls `ledger.resolvePlans(now())`; on `inactive`/`paused`/`hidden`
+it calls `persistence.flush()` (fire-and-forget). `resolvePlans` is called once explicitly inside
+`start()` when entering `ready`, and again on each lifecycle resume
+(`app_boot.dart:79`, `:97`). `now` is `AppBoot`'s injectable `DateTime Function()` field, defaulting
+to the `@visibleForTesting` static `AppBoot.utcNowFor([DateTime? localNow]) =>
+startOfDayUtc(localNow ?? DateTime.now())` (`app_boot.dart:29-33`) — UTC midnight of the *local*
+calendar day, not merely "a UTC instant." Before commit `26f6cd4`, the default was
+`DateTime.now().toUtc()`, which preserves the wall-clock instant rather than the calendar day: for
+any device with a positive UTC offset, this shifted the resolved day back by one for part of each
+local day, delaying a recurring plan's due occurrence (issue #41). `utcNowFor`'s `localNow`
+parameter exists solely so a test can supply a fixed local `DateTime` crossing a day boundary,
+since the real system clock's offset cannot be controlled deterministically in this repo's test
+suite. Backgrounding `flush()` is the load-bearing durability moment: it pushes the debounced
+store's pending batch to disk before the OS can kill the process.
 
 ## `resolvePlans` + `onPlanError`
 
@@ -108,7 +117,12 @@ spread, card-vs-checking sourcing, and two live plans (`seed_data.dart`, `ledger
 - The initial `AnalysisCache.revision (0) != lastComputed (-1)` gap is deliberate: the first
   `refresh` always computes so the boot-loaded state gets its first analysis pass.
 - `resolvePlans` has no calendar parameter; `ledger_state_plans.dart` works in fixed UTC, so the
-  caller must pass a UTC `now` at boot, on resume, and after plan creation.
+  caller must pass UTC midnight of the correct *calendar day* at boot, on resume, and after plan
+  creation — not merely any UTC-zoned instant. `.toUtc()` alone is the wrong normalizer here: it
+  preserves the wall-clock instant, which shifts the day for a positive UTC offset. Use
+  `startOfDayUtc(localDateTime)` (`calendar_day.dart`) on a local, non-UTC `DateTime` instead —
+  `AppBoot.utcNowFor` is the boot-layer's instance of this pattern (see Lifecycle hooks above); the
+  same pattern is applied at `entry_form_view_model.dart:383` and three budget ViewModels (#38).
 - With `sync: true`, a subscriber callback runs inside `mutate`; subscribers must never call back
   into `Ledger.mutate` (Dart's sync controller throws on reentrant `add`). Neither ported
   subscriber does.
@@ -122,5 +136,6 @@ spread, card-vs-checking sourcing, and two live plans (`seed_data.dart`, `ledger
 - Every runtime subscriber subscribes to the bus before the first `mutate`. (`app_boot.dart` §5.2)
 - Seeding is gated on `hasSeeded`, not emptiness, and the flag commits atomically with the seed
   data. (`persistence.md` §7)
-- `resolvePlans` is called on entering `ready` and on resume, always with a UTC `now`.
-  (`app_boot.dart` §5.3)
+- `resolvePlans` is called on entering `ready` and on resume, always with UTC midnight of the
+  correct local calendar day, never a `.toUtc()`-shifted instant. (`app_boot.dart:29-33,79,97`,
+  test `utcNowForKeepsTheLocalCalendarDayInsteadOfShiftingItViaToUtc`)
