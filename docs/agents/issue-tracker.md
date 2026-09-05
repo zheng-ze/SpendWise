@@ -9,9 +9,11 @@ Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all o
 - **List issues**: `gh issue list --state open --json number,title,body,labels,comments --jq '[.[] | {number, title, body, labels: [.labels[].name], comments: [.comments[].body]}]'` with appropriate `--label` and `--state` filters.
 - **Comment on an issue**: `gh issue comment <number> --body "..."`
 - **Apply / remove labels**: `gh issue edit <number> --add-label "..."` / `--remove-label "..."`
-- **Close**: `gh issue close <number> --comment "..."`, only after the PR resolving it has merged
-  to `main` — see `CLAUDE.md`'s "Working with this repo" for the PR-gated merge workflow. Before
-  that, comment with a link to the open PR instead of closing.
+- **Close**: record any major decision on the issue itself before opening the PR — a correction to
+  the issue's original text, a design choice made during implementation, a scope change — so the
+  ticket carries that context whether or not anyone reads the PR later. The PR body then references
+  each resolved issue with `Closes #<n>`, and GitHub closes them automatically on merge. Don't
+  reserve decision commentary for a close-time step; write it when the decision is made.
 
 Infer the repo from `git remote -v` — `gh` does this automatically when run inside a clone.
 
