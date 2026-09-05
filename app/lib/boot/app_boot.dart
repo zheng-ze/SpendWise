@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:domain/domain.dart';
-import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/widgets.dart';
 
 import 'package:spendwise/boot/app_phase.dart';
