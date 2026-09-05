@@ -1,6 +1,6 @@
 # Receipt OCR Entry
 
-Last reconciled: 2026-09-02
+Last reconciled: 2026-09-05
 
 _(Reconciled against `packages/ocr/lib/src/` and `app/lib/ocr/` on the date above. The entry
 previously described the OCR engines as unbuilt design; `packages/ocr/` now exists and ships an
@@ -27,6 +27,8 @@ receipt-agnostic) and receipt-specific field-extraction heuristics in `app/`.
   receipt-specific heuristics (in `app/`, consuming `RecognizedText`).
 - `app/lib/ocr/receipt_recognizer_selection.dart`, `document_scanner_selection.dart` — platform
   engine and document-scanner selection.
+- `app/lib/ocr/platform_adapter_selection.dart` — `selectPlatformAdapter`, the shared "first
+  non-null candidate wins, in order" router both helpers delegate to.
 - `app/lib/ocr/document_scanner_channel.dart` — the shared `DocumentScannerChannel` MethodChannel
   wrapper.
 - `app/lib/ui/transactions/document_crop/` — the web 4-point crop screen (`document_crop_screen.dart`).
@@ -83,10 +85,23 @@ returns `null` on web until that path is built.
 
 ## Engine and scanner selection
 
-`selectRecognizer` (`app/lib/ocr/receipt_recognizer_selection.dart`) checks `kIsWeb` first (because
-`dart:io`'s `Platform.isIOS`/`isAndroid` cannot be evaluated on web): web returns `null` (Tesseract
-is not built yet); otherwise it returns `MlKitTextRecognizer()`. This is the only place platform
-identity is inspected in this layer.
+Both selection helpers route platform decisions through `selectPlatformAdapter`
+(`app/lib/ocr/platform_adapter_selection.dart`) while keeping their own web-first gates.
+`selectPlatformAdapter` is platform-agnostic: it only encodes "first non-null candidate wins, in
+order", evaluating an ordered list of already-gated candidate builders and short-circuiting on the
+first hit. The domain helpers keep all their platform and gate rules; they never delegate a gate to
+it.
+
+`selectRecognizer` (`app/lib/ocr/receipt_recognizer_selection.dart`) keeps its web-first gate: it
+checks `kIsWeb` first (because `dart:io`'s `Platform.isIOS`/`isAndroid` cannot be evaluated on web)
+and returns `null` before calling `selectPlatformAdapter`; web therefore returns `null` (Tesseract
+is not built yet). Otherwise it hands `selectPlatformAdapter` an ordered list holding a single
+`MlKitTextRecognizer()` candidate. This is the only place platform identity is inspected in this
+layer.
+
+`selectDocumentScanner` (`app/lib/ocr/document_scanner_selection.dart`) keeps its own gates too: it
+returns `null` on web first, then selects iOS or Android, and on Android checks Play Services
+eligibility before it routes the platform candidate through `selectPlatformAdapter`.
 
 Document capture: iOS launches `VNDocumentCameraViewController`, Android launches
 `GmsDocumentScanner` and falls back to a plain camera capture (`ImagePicker(source: camera)`) when
@@ -138,6 +153,32 @@ extraction, no cloud OCR on any platform ever, no custom-trained model, no recei
 or cloud sync, single-page extraction on both native scanners, and `packages/ocr/` is not hardened
 for external consumers (it has exactly one consumer — this app).
 
+## Recognizer seam for scans
+
+`runReceiptScan` (`app/lib/ui/transactions/receipt_scan/receipt_scan_flow.dart`) takes its
+recognizer from a `RecognizerFactory` parameter (`typedef RecognizerFactory = TextRecognizer?
+Function()`), defaulting to `defaultRecognizer` (`() => selectRecognizer()`), the platform-aware
+production path.
+
+The seam's contract lives in `_recognize`: it invokes the factory to obtain a recognizer and disposes
+whatever non-null recognizer it received in its `finally` block, so any scan that gets a recognizer
+disposes it exactly once. The test that accompanies the seam passes a factory that returns a single
+in-memory recognizer, so it exercises one instance per scan, not per-call construction.
+
+The seam lives on the scan entry point rather than on `selectRecognizer` because the two solve
+different problems. `selectRecognizer` chooses the engine for the current platform and returns
+`null` where none exists; its behaviour is fixed by `kIsWeb` and platform identity, which tests do
+not override. The test seam's job is the opposite: give a test control over the exact recognizer
+instance a scan runs on, and dispose it after the scan. That control belongs at the boundary tests
+actually invoke (`runReceiptScan`), not at the platform-selection function. The platform gate in
+`selectRecognizer` still runs under the default factory, so a platform with no engine still returns
+`null` and the scan degrades to a blank draft rather than crashing.
+
+Under the production default `defaultRecognizer` calls `selectRecognizer` on each scan, and
+`selectRecognizer` constructs a fresh `MlKitTextRecognizer()` on every call, so production scans run
+on and dispose a fresh recognizer each time. The seam does not create this behaviour: it comes from
+the default factory, and the injected-test case does not assert it because it reuses one instance.
+
 ## Requirements
 
 - The `TextRecognizer` seam keeps engine and framework swaps from reaching the extraction heuristics.
@@ -148,5 +189,5 @@ for external consumers (it has exactly one consumer — this app).
   once, at the UI hook point, and never reaches a widget.
 - No extracted data is retained after prefill.
 - `packages/ocr/` may depend on Flutter; only `packages/domain/` is hard Flutter-free.
-- Engine selection checks `kIsWeb` before `Platform.isIOS`/`isAndroid`; only ML Kit is built — web
-  returns `null` until the Tesseract path lands. (`app/lib/ocr/receipt_recognizer_selection.dart`)
+- Engine selection checks `kIsWeb` and returns `null` on web until the Tesseract path lands;
+  otherwise it returns the only built engine, ML Kit. (`app/lib/ocr/receipt_recognizer_selection.dart`)

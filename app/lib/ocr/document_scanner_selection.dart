@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import 'document_scanner_channel.dart';
+import 'platform_adapter_selection.dart';
 
 const _documentScannerChannelName = 'spendwise/document_scanner';
 
@@ -21,7 +22,13 @@ Future<DocumentScannerChannel?> selectDocumentScanner({
 
   final eligible =
       await (isAndroidScannerEligible ?? _isAndroidScannerAvailable)();
-  return eligible ? DocumentScannerChannel(_documentScannerChannelName) : null;
+  return selectPlatformAdapter<DocumentScannerChannel>(
+    <DocumentScannerChannel? Function()>[
+      eligible
+          ? () => DocumentScannerChannel(_documentScannerChannelName)
+          : () => null,
+    ],
+  );
 }
 
 Future<bool> _isAndroidScannerAvailable() {

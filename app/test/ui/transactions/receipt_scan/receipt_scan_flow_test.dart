@@ -14,6 +14,21 @@ RecognizedText _textOf(List<String> lines) {
   ]);
 }
 
+/// In-memory recognizer that hands back fixed [text] without touching any
+/// platform channel, so it can stand in for ML Kit in a scan.
+class _InMemoryRecognizer implements TextRecognizer {
+  _InMemoryRecognizer(this.text);
+
+  final RecognizedText text;
+  bool disposed = false;
+
+  @override
+  Future<void> dispose() async => disposed = true;
+
+  @override
+  Future<RecognizedText> recognize(RecognizableImage image) async => text;
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -33,6 +48,38 @@ void main() {
   tearDown(() {
     messenger.setMockMethodCallHandler(mlKitChannel, null);
   });
+
+  // An injected recognizer runs the whole scan without touching the ML Kit
+  // channel, so the channel mock is dropped for this case.
+  test(
+    'runs recognition through an injected recognizer instead of the ML Kit channel',
+    () async {
+      messenger.setMockMethodCallHandler(mlKitChannel, null);
+
+      final recognized = _textOf(['Coffee Shop', 'Total \$12.50', '01/15/2026']);
+      final recognizer = _InMemoryRecognizer(recognized);
+
+      String? capturedName;
+      Decimal? capturedAmount;
+      DateTime? capturedDate;
+
+      await runReceiptScan(
+        source: ReceiptScanSource.camera,
+        preCapturedBytes: Uint8List(0),
+        recognizer: () => recognizer,
+        onExtracted: ({name, amount, required date}) => (
+          capturedName = name,
+          capturedAmount = amount,
+          capturedDate = date,
+        ),
+      );
+
+      expect(capturedName, 'Coffee Shop');
+      expect(capturedAmount, Decimal.parse('12.50'));
+      expect(capturedDate, DateTime.utc(2026, 1, 15));
+      expect(recognizer.disposed, isTrue);
+    },
+  );
 
   // Guards against a past compile failure in runReceiptScan that also broke
   // every file importing this one.
