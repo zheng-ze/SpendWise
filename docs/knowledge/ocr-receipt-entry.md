@@ -1,6 +1,6 @@
 # Receipt OCR Entry
 
-Last reconciled: f45c303
+Last reconciled: def05c4
 
 _(Reconciled against `packages/ocr/lib/src/` and `app/lib/ocr/` at the commit above. `packages/ocr/`
 now ships two implemented engines, ML Kit and Tesseract.js; the entry previously described Tesseract
@@ -154,16 +154,23 @@ they cannot special-case an engine:
 - **`extractName`** — scans the first 5 lines (`_scanDepth = 5`), skips address/phone/url/boilerplate
   and greeting lines (with a consecutive-skip early return of `null`), and keeps the first surviving
   line that looks like a name (length 3–35, ≤ 6 words, an alphabetic character, digit density
-  < 0.2). Prefers the tallest surviving line when `line.bounds?.height` is known — the one
-  heuristic whose output depends on `bounds`. Returns `null` when none qualifies.
+  < 0.2). Strips a trailing `Store #<digits>` tag from a line before evaluating it (`_trailingStoreNumber`),
+  so a merged header line like `STARBUCKS Store #10208` keeps `STARBUCKS` as a candidate instead of
+  being discarded whole; a line that is only a store-number tag still reduces to empty and is
+  skipped. `MANAGER` is a boilerplate keyword (skips an employee-name line such as
+  `MANAGER DIANA EARNEST`). A line whose `confidence` is present and below `0.4` is skipped before
+  the height comparison, since a stylized logo commonly OCRs as a tall, near-zero-confidence line
+  that would otherwise win on height alone over smaller, legible text (see Gotchas). Prefers the
+  tallest surviving line when `line.bounds?.height` is known — the one heuristic whose output
+  depends on `bounds`. Returns `null` when none qualifies.
 - **`extractDate`** — first date-shaped text with locale-aware day/month disambiguation (month-first
   regions `US, PH, PW, FM, CA`; day-first elsewhere); two-digit years map to 2000+; returns UTC
   midnight. Defaults to today (never null in the caller-visible result) when no date-shaped text
   matches. `locale` and `now` are parameters so tests fix the order and "today" without the device.
 
-None of the three use `confidence` or `recognizedLanguages`; a future consumer may. The exact
-keyword sets, pattern filters, thresholds, and disambiguation are implemented in the extraction
-heuristics.
+`extractName` is the only one of the three that reads `confidence`; `extractAmount` and
+`extractDate` still depend only on `line.text`. None use `recognizedLanguages`. The exact keyword
+sets, pattern filters, thresholds, and disambiguation are implemented in the extraction heuristics.
 
 ## Failure handling
 
@@ -236,6 +243,24 @@ the default factory, and the injected-test case does not assert it because it re
   is Flutter's own explicitly-deprecated test backend. A future session touching this test should
   expect this and either find an environment that serves test assets for this backend, or migrate
   the check to `integration_test`, rather than rediscovering the gap from scratch.
+- `PluginTesseractEngine.terminate()` (`tesseract_text_recognizer_web.dart`) types the worker's
+  `terminate()` call as `JSPromise<JSAny?>`, not `JSPromise<JSAny>`. Tesseract.js's `worker.terminate()`
+  resolves with `undefined`, and completing a non-nullable `Completer<JSAny>` with that value throws
+  inside the promise's own `.then` callback - an unhandled rejection the awaiting `Future` never
+  sees, so `dispose()` hangs forever instead of throwing or returning. This surfaced end-to-end as
+  a receipt scan that recognized text successfully but left the UI stuck on its loading spinner
+  after every scan, discovered only by driving the real web app in a browser (the fake-engine test
+  in `tesseract_text_recognizer_test.dart` never called the real `PluginTesseractEngine`, so it
+  could not catch this). Any other `PluginTesseractEngine` call whose underlying Tesseract.js method
+  can resolve with `undefined` needs the same nullable `JSAny?` type argument, not `JSAny`.
+- Tesseract.js cannot reliably read a stylized brand wordmark or logo font (verified against real
+  photographed receipts: a Walmart receipt's logo OCRs as a tall, 0%-confidence line of garbage
+  text; an Isetan receipt's stencil-font logo never produces the word "ISETAN" anywhere in the
+  output). `extractName`'s confidence filter (see Extraction heuristics) stops that garbage from
+  winning the "tallest line" comparison, but when the merchant's real name never appears in the OCR
+  text at all, no string heuristic can recover it - the name field will still come up wrong or
+  blank for that receipt, and manual entry is the only fix. This is a Tesseract accuracy ceiling,
+  not a bug in the extraction heuristic.
 
 ## Requirements
 
