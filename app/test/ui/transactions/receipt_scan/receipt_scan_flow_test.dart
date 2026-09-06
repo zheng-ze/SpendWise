@@ -38,8 +38,8 @@ void main() {
 
   setUp(() {
     messenger.setMockMethodCallHandler(mlKitChannel, (call) async {
-      if (call.method == 'vision#startTextRecognizer') {
-        return {'text': '', 'blocks': <Object?>[]};
+      if (call.method == 'recognizeText') {
+        return <Map<Object?, Object?>>[];
       }
       return null;
     });
