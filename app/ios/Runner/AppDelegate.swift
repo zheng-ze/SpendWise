@@ -15,5 +15,8 @@ import UIKit
     if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "DocumentScannerChannel") {
       DocumentScannerChannel.register(with: registrar)
     }
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "VisionTextRecognizerChannel") {
+      VisionTextRecognizerChannel.register(with: registrar)
+    }
   }
 }

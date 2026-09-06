@@ -18,6 +18,7 @@
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
 		A4894C3F61EA65A8FEF453A0 /* DocumentScannerChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F25666CB305640A78C4FB8A /* DocumentScannerChannel.swift */; };
+		224D6A446EAA957D0C1AF2AF /* VisionTextRecognizerChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1CD23427BC9417F853693AE /* VisionTextRecognizerChannel.swift */; };
 		D0160D7AC76717817A24EF20 /* Pods_RunnerTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 40B6F93320D246BEC45DDC40 /* Pods_RunnerTests.framework */; };
 /* End PBXBuildFile section */
 
@@ -52,6 +53,7 @@
 		331C8081294A63A400263BE5 /* RunnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RunnerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = AppFrameworkInfo.plist; path = Flutter/AppFrameworkInfo.plist; sourceTree = "<group>"; };
 		3F25666CB305640A78C4FB8A /* DocumentScannerChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentScannerChannel.swift; sourceTree = "<group>"; };
+		D1CD23427BC9417F853693AE /* VisionTextRecognizerChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionTextRecognizerChannel.swift; sourceTree = "<group>"; };
 		40B6F93320D246BEC45DDC40 /* Pods_RunnerTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_RunnerTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		567CF66244B876B447A6512A /* Pods-Runner.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"; sourceTree = "<group>"; };
 		6C561108C04D58091509598C /* Pods-RunnerTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.release.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.release.xcconfig"; sourceTree = "<group>"; };
@@ -171,6 +173,7 @@
 				7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
 				3F25666CB305640A78C4FB8A /* DocumentScannerChannel.swift */,
+				D1CD23427BC9417F853693AE /* VisionTextRecognizerChannel.swift */,
 			);
 			path = Runner;
 			sourceTree = "<group>";
@@ -415,6 +418,7 @@
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 				7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */,
 				A4894C3F61EA65A8FEF453A0 /* DocumentScannerChannel.swift in Sources */,
+				224D6A446EAA957D0C1AF2AF /* VisionTextRecognizerChannel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
