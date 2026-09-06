@@ -50,8 +50,11 @@ RecognizedLine _toRecognizedLine(Map<Object?, Object?> entry) {
     // ML Kit confidence may be absent, so read it as nullable rather than
     // forcing a non-null cast like the Vision side does.
     confidence: entry['confidence'] as double?,
-    // The base recognizer has no output-side language field; set it empty
-    // entirely here rather than reading a key that is not in the payload.
-    recognizedLanguages: const [],
+    // ML Kit reports at most one language per line; the key is absent when
+    // it could not determine one.
+    recognizedLanguages: switch (entry['language']) {
+      final String language => [language],
+      _ => const [],
+    },
   );
 }

@@ -92,7 +92,7 @@ void main() {
     });
 
     test(
-      'recognizedLanguages is always empty on every returned line',
+      'a missing language maps to an empty list rather than null',
       () async {
         final engine = _FakeAndroidEngine([
           {
@@ -103,6 +103,22 @@ void main() {
             'right': 3.0,
             'bottom': 4.0,
           },
+        ]);
+        final recognizer = AndroidTextRecognizer(engine: engine);
+
+        final result = await recognizer.recognize(
+          RecognizableImage(Uint8List(0)),
+        );
+
+        expect(result.lines.single.recognizedLanguages, isEmpty);
+        expect(result.lines.single.recognizedLanguages, isNot(isNull));
+      },
+    );
+
+    test(
+      'a present language passes through as a single-element list',
+      () async {
+        final engine = _FakeAndroidEngine([
           {
             'text': 'b',
             'confidence': 0.2,
@@ -110,6 +126,7 @@ void main() {
             'top': 6.0,
             'right': 7.0,
             'bottom': 8.0,
+            'language': 'en',
           },
         ]);
         final recognizer = AndroidTextRecognizer(engine: engine);
@@ -118,10 +135,7 @@ void main() {
           RecognizableImage(Uint8List(0)),
         );
 
-        for (final line in result.lines) {
-          expect(line.recognizedLanguages, isEmpty);
-          expect(line.recognizedLanguages, isNot(isNull));
-        }
+        expect(result.lines.single.recognizedLanguages, ['en']);
       },
     );
 

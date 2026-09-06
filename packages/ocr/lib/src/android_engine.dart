@@ -8,7 +8,8 @@ abstract class AndroidEngine {
   /// Returns one map per recognized line. Each map holds `text` (String) and
   /// pixel-space, top-left-origin `left`, `top`, `right`, `bottom` (double).
   /// `confidence` (double, 0.0-1.0) is present only when ML Kit reports it;
-  /// the Dart side reads it as a nullable field.
+  /// the Dart side reads it as a nullable field. `language` (String, a BCP-47
+  /// tag) is present only when ML Kit could determine one for that line.
   Future<List<Map<Object?, Object?>>> recognizeText(Uint8List imageBytes);
 }
 
