@@ -1,4 +1,4 @@
-import 'vision_engine.dart';
+import 'android_engine.dart';
 import 'recognizable_image.dart';
 import 'recognized_line.dart';
 import 'recognized_line_bounds.dart';
@@ -6,13 +6,13 @@ import 'recognized_text.dart';
 import 'text_recognition_failure.dart';
 import 'text_recognizer.dart';
 
-/// Recognizes text in an image using the native Apple Vision recognizer,
-/// reached through [VisionEngine].
-class VisionTextRecognizer implements TextRecognizer {
-  VisionTextRecognizer({VisionEngine? engine})
-    : _engine = engine ?? PluginVisionEngine();
+/// Recognizes text in an image using Android's on-device ML Kit recognizer,
+/// reached through [AndroidEngine].
+class AndroidTextRecognizer implements TextRecognizer {
+  AndroidTextRecognizer({AndroidEngine? engine})
+    : _engine = engine ?? PluginAndroidEngine();
 
-  final VisionEngine _engine;
+  final AndroidEngine _engine;
 
   @override
   Future<RecognizedText> recognize(RecognizableImage image) async {
@@ -20,14 +20,14 @@ class VisionTextRecognizer implements TextRecognizer {
       final result = await _engine.recognizeText(image.bytes);
       return _toRecognizedText(result);
     } catch (e) {
-      throw TextRecognitionFailure('Vision: $e');
+      throw TextRecognitionFailure('ML Kit: $e');
     }
   }
 
   @override
   Future<void> dispose() async {
-    // No-op: Vision issues one-shot requests with no persistent resource to
-    // release, unlike Android's process-scoped ML Kit recognizer instance.
+    // No-op: ML Kit issues one-shot requests with no persistent resource to
+    // release, unlike the plugin's long-lived recognizer instance.
   }
 }
 
@@ -47,9 +47,14 @@ RecognizedLine _toRecognizedLine(Map<Object?, Object?> entry) {
       left: entry['left'] as double,
       right: entry['right'] as double,
     ),
-    confidence: entry['confidence'] as double,
-    // Vision has no output-side language field; set it empty entirely here
-    // rather than reading a key that is not in the payload.
-    recognizedLanguages: const [],
+    // ML Kit confidence may be absent, so read it as nullable rather than
+    // forcing a non-null cast like the Vision side does.
+    confidence: entry['confidence'] as double?,
+    // ML Kit reports at most one language per line; the key is absent when
+    // it could not determine one.
+    recognizedLanguages: switch (entry['language']) {
+      final String language => [language],
+      _ => const [],
+    },
   );
 }

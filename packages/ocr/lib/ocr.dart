@@ -1,6 +1,6 @@
 library;
 
-export 'src/ml_kit_text_recognizer.dart';
+export 'src/android_text_recognizer.dart';
 export 'src/recognizable_image.dart';
 export 'src/recognized_line.dart';
 export 'src/recognized_line_bounds.dart';

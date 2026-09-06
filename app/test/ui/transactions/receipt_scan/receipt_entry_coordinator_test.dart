@@ -11,7 +11,7 @@ import 'package:permission_handler_platform_interface/permission_handler_platfor
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_entry_coordinator.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_flow.dart';
 
-const _mlKitChannel = MethodChannel('google_mlkit_text_recognizer');
+const _mlKitChannel = MethodChannel('spendwise/android_text_recognizer');
 const _documentScannerChannel = MethodChannel('spendwise/document_scanner');
 
 /// Ignored [ScanResultHandler] for scans whose prefill a test does not inspect.
@@ -21,9 +21,9 @@ void _ignorePrefill({
   required DateTime date,
 }) {}
 
-/// Freezes [vision#startTextRecognizer] until [gate] completes, so a test can
+/// Freezes the recognition channel reply until [gate] completes, so a test can
 /// observe the coordinator mid-recognition, then returns a recognized result.
-Future<Map<String, dynamic>?> _freezeRecognizer(Completer<void>? gate) async {
+Future<List<Map<String, dynamic>>?> _freezeRecognizer(Completer<void>? gate) async {
   await gate?.future;
   return _recognizedResult(['Coffee Shop', 'Total \$12.50', '01/15/2026']);
 }
@@ -31,47 +31,23 @@ Future<Map<String, dynamic>?> _freezeRecognizer(Completer<void>? gate) async {
 Map<String, dynamic> _rect(double left, double top, double right, double bottom) =>
       {'left': left, 'top': top, 'right': right, 'bottom': bottom};
 
-Map<String, dynamic> _symbol(String text) => {
-      'text': text,
-      'rect': _rect(0, 0, 100, 12),
-      'recognizedLanguages': ['en'],
-      'points': <dynamic>[],
-      'confidence': 0.9,
-      'angle': 0.0,
-    };
+Map<String, dynamic> _line(String text) {
+  final rect = _rect(0, 0, 100, 100);
+  // Flat line shape the Android text-recognition channel returns: one map per
+  // line with pixel-space bounds and an optional confidence.
+  return {
+    'text': text,
+    'left': rect['left'],
+    'top': rect['top'],
+    'right': rect['right'],
+    'bottom': rect['bottom'],
+    'confidence': 0.9,
+  };
+}
 
-Map<String, dynamic> _element(String text) => {
-      'text': text,
-      'rect': _rect(0, 0, 100, 16),
-      'recognizedLanguages': ['en'],
-      'points': <dynamic>[],
-      'confidence': 0.9,
-      'angle': 0.0,
-      'symbols': <dynamic>[_symbol(text)],
-    };
-
-Map<String, dynamic> _line(String text) => {
-      'text': text,
-      'rect': _rect(0, 0, 100, 20),
-      'recognizedLanguages': ['en'],
-      'points': <dynamic>[],
-      'confidence': 0.9,
-      'angle': 0.0,
-      'elements': <dynamic>[_element(text)],
-    };
-
-Map<String, dynamic> _recognizedResult(List<String> lines) => {
-      'text': lines.join('\n'),
-      'blocks': [
-        {
-          'text': lines.join(' '),
-          'rect': _rect(0, 0, 100, 100),
-          'recognizedLanguages': ['en'],
-          'points': <dynamic>[],
-          'lines': <dynamic>[for (final text in lines) _line(text)],
-        },
-      ],
-    };
+List<Map<String, dynamic>> _recognizedResult(List<String> lines) => [
+      for (final text in lines) _line(text),
+    ];
 
 class _FakePermissionHandler extends PermissionHandlerPlatform {
   _FakePermissionHandler(this.status);

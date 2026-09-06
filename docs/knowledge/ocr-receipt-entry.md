@@ -1,12 +1,15 @@
 # Receipt OCR Entry
 
-Last reconciled: 82f789c
+Last reconciled: b7f35df
 
-_(Reconciled against `packages/ocr/lib/src/`, `app/lib/ocr/`, and `app/ios/Runner/` at the commit
-above. `packages/ocr/` now ships three implemented engines: ML Kit, Tesseract.js, and Vision
-(issue #16, previously described here as unbuilt design). Vision now ships as the real iOS engine
-at the shipping call site, superseding issue #16's original "not wired into shipping" acceptance
-criterion — see Engine and scanner selection below.)_
+_(Reconciled against `packages/ocr/lib/src/`, `app/lib/ocr/`, `app/android/app/src/main/kotlin/`,
+and `app/ios/Runner/` at the commit above. `packages/ocr/` now ships three implemented engines:
+Tesseract.js (web), Vision (iOS), and a native Android ML Kit bridge (Android). Issue #77 replaced
+the Android engine: it dropped the `google_mlkit_text_recognition` Flutter plugin entirely in favor
+of a hand-written `AndroidTextRecognizer`/`AndroidEngine` bridge over a native Kotlin MethodChannel,
+mirroring `VisionTextRecognizer`'s own architecture — see Engines below. This also let iOS's
+`IPHONEOS_DEPLOYMENT_TARGET` revert from 15.5 back to 13.0, since the plugin's iOS podspec was the
+sole reason for that floor — see Gotchas.)_
 
 ## Feature overview
 
@@ -23,9 +26,21 @@ receipt-agnostic) and receipt-specific field-extraction heuristics in `app/`.
 - `packages/ocr/lib/src/recognizable_image.dart`, `recognized_text.dart`, `recognized_line.dart`,
   `recognized_line_bounds.dart` — the engine-agnostic value types.
 - `packages/ocr/lib/src/text_recognition_failure.dart` — the engine-failure exception.
-- `packages/ocr/lib/src/ml_kit_text_recognizer.dart`, `ml_kit_engine.dart` — the ML Kit engine
-  (`MlKitTextRecognizer`) and its injectable `MlKitEngine` seam. Android-only at the shipping call
-  site as of this commit (see Gotchas) — the plugin still supports iOS, but iOS ships Vision instead.
+- `packages/ocr/lib/src/android_text_recognizer.dart`, `android_engine.dart` — the native Android
+  engine (`AndroidTextRecognizer`) and its injectable `AndroidEngine` seam, reaching
+  `app/android/app/src/main/kotlin/com/example/spendwise/TextRecognizerChannel.kt` over the
+  `spendwise/android_text_recognizer` method channel (method `recognizeText`). No Flutter-plugin
+  dependency — see Engines below.
+- `app/android/app/src/main/kotlin/com/example/spendwise/TextRecognizerChannel.kt` — the native
+  Android bridge. Registered in `MainActivity.kt`'s `configureFlutterEngine`. Runs
+  `TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)` on a single-thread `Executor`
+  (decode + recognition never block the platform-channel thread), replies exactly once via
+  `Handler(Looper.getMainLooper())`, and exposes a `close()` called from `MainActivity.onDestroy()`
+  that closes the recognizer and shuts down the executor.
+- `app/android/app/build.gradle.kts` — declares `com.google.mlkit:text-recognition:16.0.1` as a
+  plain Gradle dependency, alongside the pre-existing, unrelated
+  `com.google.android.gms:play-services-mlkit-document-scanner` (a different ML Kit module, for
+  document boundary scanning — see `document_scanner_channel.dart` below).
 - `packages/ocr/lib/src/vision_text_recognizer.dart`, `vision_engine.dart` — the native iOS Vision
   engine (`VisionTextRecognizer`) and its injectable `VisionEngine` seam, reaching
   `app/ios/Runner/VisionTextRecognizerChannel.swift` over the `spendwise/vision_text_recognizer`
@@ -98,11 +113,25 @@ reliably only on Android ML Kit.
 
 Implemented today:
 
-- **`MlKitTextRecognizer`** (`packages/ocr/lib/src/ml_kit_text_recognizer.dart`), wraps
-  `google_mlkit_text_recognition` for iOS and Android. It writes the image bytes to a scratch
-  temp file (the plugin only accepts a file path), maps `result.blocks` → `block.lines` to
-  `RecognizedLine`s, and reads `boundingBox`, `confidence`, and `recognizedLanguages` per line. Its
-  engine is injectable via the `MlKitEngine` interface (`processImage` + `close`) for testing.
+- **`AndroidTextRecognizer`** (`packages/ocr/lib/src/android_text_recognizer.dart`), wraps
+  Android's on-device ML Kit text recognizer via `AndroidEngine`/`PluginAndroidEngine`
+  (`packages/ocr/lib/src/android_engine.dart`), reaching the native bridge over the
+  `spendwise/android_text_recognizer` method channel. `PluginAndroidEngine.recognizeText` calls
+  `invokeListMethod<Map<Object?, Object?>>('recognizeText', imageBytes)`; a `null` channel reply
+  throws `StateError('Android text-recognition channel returned null')`, the same
+  never-silently-empty discipline as Vision's engine. Each line map carries `text`, pixel-space
+  top-left-origin `left`/`top`/`right`/`bottom`, an optional `confidence` (present only when ML Kit
+  reports one for that line), and an optional `language` (a BCP-47 tag from ML Kit's
+  `Text.Line.getRecognizedLanguage()`, present only when ML Kit determined one — the native side
+  treats `"und"` the same as absent). The Dart mapping reads `language` into a single-element
+  `recognizedLanguages` list, or empty when absent — ML Kit reports at most one language per line,
+  unlike the removed plugin's own already-list-shaped field. `dispose()` is an intentional no-op:
+  the underlying ML Kit recognizer is process-scoped and owned by the native
+  `TextRecognizerChannel` (closed once, from `MainActivity.onDestroy()`), not per-recognizer-
+  instance like the removed plugin wrapper was. Tested in
+  `packages/ocr/test/android_text_recognizer_test.dart` (mapping, confidence and language
+  passthrough including their absent cases, the empty-vs-failure distinction, dispose-is-truly-a-
+  no-op, and a `PluginAndroidEngine`-focused mocked-channel test proving the null-response throw).
 - **`TesseractTextRecognizer`** (`packages/ocr/lib/src/tesseract_text_recognizer_web.dart`), the web
   engine, directly-wired against Tesseract.js 7.0.0 (no working Flutter wrapper delivers a web
   binding). `app/web/index.html` loads Tesseract.js itself via a pinned `<script>` tag; the
@@ -163,11 +192,12 @@ files) and returns `TesseractTextRecognizer()` directly on that branch, before e
 `selectPlatformAdapter`. Otherwise it hands `selectPlatformAdapter` an ordered candidate list: a
 `VisionTextRecognizer()` candidate gated on `isIOSPlatform` (returns `null` on non-iOS, so
 `VisionTextRecognizer` is never even constructed on Android), then an unconditional
-`MlKitTextRecognizer()` candidate as the fallback every other platform reaches. This is the only
+`AndroidTextRecognizer()` candidate as the fallback every other platform reaches. This is the only
 place platform identity is inspected in this layer. As of issue #15, "Upload photo" runs real
 recognition end-to-end on every platform this app ships to; there is no platform left where OCR
-always falls through to a blank draft by design. As of this commit, iOS runs `VisionTextRecognizer`
-specifically rather than `MlKitTextRecognizer` — see Gotchas for why.
+always falls through to a blank draft by design. As of issue #77, Android runs the native
+`AndroidTextRecognizer` bridge rather than the `google_mlkit_text_recognition` Flutter plugin — no
+platform in this app depends on a Flutter OCR plugin anymore.
 
 `selectDocumentScanner` (`app/lib/ocr/document_scanner_selection.dart`) keeps its own gates too: it
 returns `null` on web first, then selects iOS or Android, and on Android checks Play Services
@@ -252,35 +282,35 @@ actually invoke (`runReceiptScan`), not at the platform-selection function. The 
 `null` and the scan degrades to a blank draft rather than crashing.
 
 Under the production default `defaultRecognizer` calls `selectRecognizer` on each scan, and
-`selectRecognizer` constructs a fresh `MlKitTextRecognizer()` on every call, so production scans run
-on and dispose a fresh recognizer each time. The seam does not create this behaviour: it comes from
-the default factory, and the injected-test case does not assert it because it reuses one instance.
+`selectRecognizer` constructs a fresh recognizer instance on every call (`AndroidTextRecognizer()`
+on Android, `VisionTextRecognizer()` on iOS), so production scans run on and dispose a fresh
+recognizer each time. The seam does not create this behaviour: it comes from the default factory,
+and the injected-test case does not assert it because it reuses one instance.
 
 ## Gotchas and invariants
 
-- **`app/ios`'s `IPHONEOS_DEPLOYMENT_TARGET` is 15.5, not 13.0, and stays that way for now.**
-  `google_mlkit_commons`'s own iOS podspec hard-declares `platform :ios, '15.5'`
-  (`Pods/Local Podspecs/google_mlkit_commons.podspec.json`'s `platforms` key) — a CocoaPods
-  dependency-resolution floor enforced regardless of whether iOS code ever calls the plugin. Since
-  `MlKitTextRecognizer` still ships on Android (see Engine and scanner selection), the plugin stays
-  a resolved dependency, and `pod install` refuses a lower `platform :ios` value in the Podfile.
-  Flutter has no mechanism to exclude one platform's pod from a single combined plugin package
-  (confirmed against `podhelper.rb`'s `flutter_install_all_ios_pods` — no per-platform exclusion
-  exists), so Vision itself needing only iOS 13 does not let this repo drop below 15.5 today. The
-  only real fix is dropping the `google_mlkit_text_recognition` Flutter plugin from the dependency
-  graph entirely — filed as issue #77 (a native Android bridge mirroring `VisionTextRecognizer`'s own
-  architecture, at the Gradle level, never touching CocoaPods). Until #77 lands, do not attempt to
-  revert this deployment target bump.
-- **`MlKitTextRecognizer` cannot be run on an iOS Simulator on current tooling.**
-  `google_mlkit_text_recognition` 0.17.1 (latest published as of this reconciliation) ships no arm64
-  Simulator slice for its native pods (`GoogleMLKit`, `MLImage`, `MLKitCommon`, `MLKitVision`), and
-  a machine with only arm64 Simulator runtimes installed (no x86_64/Rosetta fallback) cannot run it
-  at all — forcing an x86_64 build via `EXCLUDED_ARCHS[sdk=iphonesimulator*]=arm64` still fails,
-  since `flutter test -d <simulator>`'s device matching requires arch parity with the simulator
-  itself. This blocked issue #73 (a planned committed Vision-vs-ML-Kit `integration_test` comparison
-  harness on a real Simulator) — closed as skipped rather than built; see #73's closing comment for
-  the full reproduction. A future session attempting a similar real-Simulator ML Kit run should
-  expect this blocker rather than rediscovering it from scratch.
+- **`app/ios`'s `IPHONEOS_DEPLOYMENT_TARGET` is 13.0, resolved after issue #77.** It was pinned to
+  15.5 for a while because `google_mlkit_commons`'s own iOS podspec hard-declared
+  `platform :ios, '15.5'` — a CocoaPods dependency-resolution floor enforced regardless of whether
+  iOS code ever called the plugin. As long as the app depended on `google_mlkit_text_recognition`
+  for Android OCR, the plugin stayed a resolved dependency and `pod install` refused a lower
+  `platform :ios` value, even though Vision itself only needs iOS 13. Flutter has no mechanism to
+  exclude one platform's pod from a single combined plugin package (`podhelper.rb`'s
+  `flutter_install_all_ios_pods` has no per-platform exclusion). Issue #77 removed
+  `google_mlkit_text_recognition` from the dependency graph entirely (a native Android bridge, at
+  the Gradle level, never touching CocoaPods — see Engines above), which let the deployment target
+  revert. `app/ios/Podfile.lock` now lists only the Flutter pod. This also exposed one incidental
+  compile break: `app/ios/Runner/DocumentScannerChannel.swift`'s key-window lookup used
+  `UIWindowScene.keyWindow`, an iOS-15+-only API; fixed to
+  `.compactMap({ $0 as? UIWindowScene }).flatMap({ $0.windows }).first(where: { $0.isKeyWindow })`,
+  which is iOS-13-safe and finds the same window.
+- **`MlKitTextRecognizer` could not run on an iOS Simulator on the tooling available at the time —
+  no longer relevant, since ML Kit is off iOS entirely as of issue #77.** For history: the plugin's
+  native pods shipped no arm64 Simulator slice, and a machine with only arm64 Simulator runtimes
+  installed could not run it at all. This blocked issue #73 (a planned Vision-vs-ML-Kit comparison
+  harness) — closed as skipped rather than built. Issue #77 resolved this by removing ML Kit from
+  iOS rather than attempting to make it run there; a future session has no reason to hit this
+  blocker again on this codebase.
 - `TesseractEngine` is declared independently in `tesseract_text_recognizer_web.dart` and
   `tesseract_text_recognizer_stub.dart` rather than in one shared file. This is deliberate, not
   duplication by accident: the two files are conditional-export alternatives that are never imported
@@ -340,5 +370,8 @@ the default factory, and the injected-test case does not assert it because it re
 - No extracted data is retained after prefill.
 - `packages/ocr/` may depend on Flutter; only `packages/domain/` is hard Flutter-free.
 - Engine selection checks `kIsWeb` and returns a `TesseractTextRecognizer` on web; otherwise it
-  returns `VisionTextRecognizer` on iOS or `MlKitTextRecognizer` everywhere else (Android).
+  returns `VisionTextRecognizer` on iOS or `AndroidTextRecognizer` everywhere else (Android).
   (`app/lib/ocr/receipt_recognizer_selection.dart`)
+- No platform in this app depends on a Flutter OCR plugin; every engine reaches its native SDK
+  through a hand-written MethodChannel bridge (issue #77 for the last remaining plugin dependency,
+  `google_mlkit_text_recognition`, removed).
