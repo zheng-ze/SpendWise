@@ -6,6 +6,7 @@ const _minLength = 3;
 const _maxLength = 35;
 const _maxWords = 6;
 const _maxDigitDensity = 0.2;
+const _minConfidence = 0.4;
 
 final _addressPattern = RegExp(
   r'\d+\s+\w+\s+(street|st|avenue|ave|road|rd|drive|dr|lane|ln|blvd|boulevard)',
@@ -23,10 +24,20 @@ final _boilerplateKeywords = [
   'THANK YOU',
   'RECEIPT',
   'INVOICE',
+  'MANAGER',
 ];
 final _greetingKeywords = ['WELCOME TO', 'CUSTOMER COPY', 'DUPLICATE'];
 final _alphabeticCharacter = RegExp(r'[a-zA-Z]');
 final _digit = RegExp(r'\d');
+
+// A POS receipt's header line often prints the merchant name and its store
+// number as one OCR line ("STARBUCKS Store #10208"); stripping the trailing
+// store-number tag keeps the merchant name as a candidate instead of
+// discarding the whole line as boilerplate.
+final _trailingStoreNumber = RegExp(
+  r'\s*store\s*#\s*\d+\s*$',
+  caseSensitive: false,
+);
 
 /// Extracts the merchant name from the first few lines, or null if none of
 /// them look like a name rather than an address, phone number, or banner.
@@ -38,7 +49,12 @@ String? extractName(RecognizedText text) {
   var consecutiveSkips = 0;
 
   for (final line in scanned) {
-    if (_isSkippable(line.text)) {
+    final effective = line.text.replaceFirst(_trailingStoreNumber, '');
+    // A stylized logo often OCRs as tall, low-confidence garbage that would
+    // otherwise win on height alone over a smaller, legible line.
+    final tooUncertain =
+        line.confidence != null && line.confidence! < _minConfidence;
+    if (effective.isEmpty || tooUncertain || _isSkippable(effective)) {
       consecutiveSkips++;
       if (bestCandidate == null && consecutiveSkips >= _maxConsecutiveSkips) {
         return null;
@@ -47,14 +63,14 @@ String? extractName(RecognizedText text) {
     }
     consecutiveSkips = 0;
 
-    if (!_looksLikeAName(line.text)) continue;
+    if (!_looksLikeAName(effective)) continue;
 
     final height = line.bounds?.height;
     if (bestCandidate == null) {
-      bestCandidate = line.text;
+      bestCandidate = effective;
       bestHeight = height;
     } else if (bestHeight != null && height != null && height > bestHeight) {
-      bestCandidate = line.text;
+      bestCandidate = effective;
       bestHeight = height;
     }
   }
