@@ -8,8 +8,8 @@ import 'platform_adapter_selection.dart';
 /// real constant.
 TextRecognizer? selectRecognizer({bool? isWeb}) {
   // dart:io's platform checks don't run on web, so that branch is checked
-  // first and left with no engine until one is built.
-  if (isWeb ?? kIsWeb) return null;
+  // first.
+  if (isWeb ?? kIsWeb) return TesseractTextRecognizer();
   return selectPlatformAdapter<TextRecognizer>(<TextRecognizer? Function()>[
     () => MlKitTextRecognizer(),
   ]);
