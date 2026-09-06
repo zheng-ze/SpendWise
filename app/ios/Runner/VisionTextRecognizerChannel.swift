@@ -32,13 +32,15 @@ final class VisionTextRecognizerChannel: NSObject, FlutterPlugin {
     }
 
     private func recognizeText(bytes: Data, result: @escaping FlutterResult) {
-        guard let cgImage = UIImage(data: bytes)?.cgImage else {
-            result(FlutterError(code: "recognizeText", message: "Could not decode image bytes", details: nil))
-            return
-        }
-
-        // Off the main thread: .accurate mode takes ~2s and must not block the platform channel.
+        // Off the main thread: decoding and .accurate mode (~2s) must not block the platform channel.
         DispatchQueue.global(qos: .userInitiated).async {
+            guard let cgImage = UIImage(data: bytes)?.cgImage else {
+                DispatchQueue.main.async {
+                    result(FlutterError(code: "recognizeText", message: "Could not decode image bytes", details: nil))
+                }
+                return
+            }
+
             let width = Double(cgImage.width)
             let height = Double(cgImage.height)
 
