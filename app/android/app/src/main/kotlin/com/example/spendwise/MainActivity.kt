@@ -28,4 +28,9 @@ class MainActivity : FlutterActivity() {
         }
         super.onActivityResult(requestCode, resultCode, data)
     }
+
+    override fun onDestroy() {
+        textRecognizerChannel.close()
+        super.onDestroy()
+    }
 }

@@ -91,8 +91,19 @@ class TextRecognizerChannel : MethodChannel.MethodCallHandler {
                 map["top"] = bounds.top.toDouble()
                 map["right"] = bounds.right.toDouble()
                 map["bottom"] = bounds.bottom.toDouble()
+                // ML Kit reports "und" when it cannot determine a language; treat
+                // that the same as no language rather than passing it through.
+                line.recognizedLanguage.takeIf { it.isNotEmpty() && it != "und" }?.let {
+                    map["language"] = it
+                }
                 map
             }
         }
+    }
+
+    /** Releases the recognizer and stops the background executor. Called once, from [MainActivity.onDestroy]. */
+    fun close() {
+        recognizer.close()
+        executor.shutdown()
     }
 }
