@@ -8,3 +8,4 @@ export 'src/recognized_text.dart';
 export 'src/tesseract_text_recognizer.dart';
 export 'src/text_recognition_failure.dart';
 export 'src/text_recognizer.dart';
+export 'src/vision_text_recognizer.dart';
