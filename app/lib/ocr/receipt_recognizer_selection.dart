@@ -13,6 +13,6 @@ TextRecognizer? selectRecognizer({bool? isWeb, bool? isIOS}) {
   if (isWeb ?? kIsWeb) return TesseractTextRecognizer();
   return selectPlatformAdapter<TextRecognizer>(<TextRecognizer? Function()>[
     () => (isIOS ?? isIOSPlatform) ? VisionTextRecognizer() : null,
-    () => MlKitTextRecognizer(),
+    () => AndroidTextRecognizer(),
   ]);
 }

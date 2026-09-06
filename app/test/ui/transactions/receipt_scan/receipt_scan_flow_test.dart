@@ -32,7 +32,7 @@ class _InMemoryRecognizer implements TextRecognizer {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  const mlKitChannel = MethodChannel('google_mlkit_text_recognizer');
+  const mlKitChannel = MethodChannel('spendwise/android_text_recognizer');
   final messenger =
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
 
