@@ -4,17 +4,27 @@ import 'package:spendwise/ocr/receipt_recognizer_selection.dart';
 
 void main() {
   group('selectRecognizer', () {
-    test('picks MlKitTextRecognizer off the web branch', () {
-      final recognizer = selectRecognizer(isWeb: false);
+    test('picks VisionTextRecognizer on iOS', () {
+      final recognizer = selectRecognizer(isWeb: false, isIOS: true);
+
+      expect(recognizer, isA<VisionTextRecognizer>());
+    });
+
+    test('picks MlKitTextRecognizer off the web branch on non-iOS', () {
+      final recognizer = selectRecognizer(isWeb: false, isIOS: false);
 
       expect(recognizer, isA<MlKitTextRecognizer>());
     });
 
-    test('defaults to the real kIsWeb constant when isWeb is omitted', () {
-      // flutter test always runs on the VM, so kIsWeb is false here.
-      final recognizer = selectRecognizer();
+    test(
+      'defaults to the real kIsWeb/isIOSPlatform constants when omitted',
+      () {
+        // flutter test always runs on the VM (never web) and never on iOS, so
+        // this lands on MlKitTextRecognizer here.
+        final recognizer = selectRecognizer();
 
-      expect(recognizer, isA<MlKitTextRecognizer>());
-    });
+        expect(recognizer, isA<MlKitTextRecognizer>());
+      },
+    );
   });
 }
