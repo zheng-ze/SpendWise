@@ -76,7 +76,7 @@ class PluginTesseractEngine implements TesseractEngine {
     final worker = _worker;
     if (worker == null) return;
     _worker = null;
-    final promise = worker.callMethod<JSPromise<JSAny>>('terminate'.toJS);
+    final promise = worker.callMethod<JSPromise<JSAny?>>('terminate'.toJS);
     await promise.toDart;
   }
 }
