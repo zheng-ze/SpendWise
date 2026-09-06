@@ -27,7 +27,7 @@ class VisionTextRecognizer implements TextRecognizer {
   @override
   Future<void> dispose() async {
     // No-op: Vision issues one-shot requests with no persistent resource to
-    // release, unlike MlKitTextRecognizer's long-lived recognizer instance.
+    // release, unlike Android's process-scoped ML Kit recognizer instance.
   }
 }
 
