@@ -34,8 +34,9 @@ final class DocumentScannerChannel: NSObject, FlutterPlugin, VNDocumentCameraVie
             return
         }
         guard let rootViewController = UIApplication.shared.connectedScenes
-            .compactMap({ ($0 as? UIWindowScene)?.keyWindow })
-            .first?.rootViewController
+            .compactMap({ $0 as? UIWindowScene })
+            .flatMap({ $0.windows })
+            .first(where: { $0.isKeyWindow })?.rootViewController
         else {
             result(FlutterError(code: "scanDocument", message: "No root view controller to present from", details: nil))
             return
