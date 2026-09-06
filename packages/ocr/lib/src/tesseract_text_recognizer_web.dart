@@ -11,33 +11,22 @@ import 'recognized_text.dart';
 import 'text_recognition_failure.dart';
 import 'text_recognizer.dart';
 
-/// The engine calls [TesseractTextRecognizer] needs from Tesseract.js.
-///
-/// Kept free of any JS-interop types so both this and the native stub's
-/// identical interface, plus a hand-written fake used by browser-run unit
-/// tests, stay implementable without every caller needing web imports.
-/// [recognize] returns Tesseract.js's page result as a plain Dart map,
-/// following its `RecognizeResult.data` (`Page`) shape:
-/// `{'blocks': [{'paragraphs': [{'lines': [{'text', 'confidence',
-/// 'rowAttributes': {'rowHeight'}, 'bbox': {'x0', 'y0', 'x1', 'y1'}},
-/// ...]}, ...]}, ...]}`.
+/// [recognize] returns untyped-key maps: `dartify()` nests
+/// `Map<Object?, Object?>` for every JS object, so a String-keyed map here
+/// would throw a cast error on real Tesseract.js output.
 abstract class TesseractEngine {
-  /// [blocks] is always `true` in production; [TesseractTextRecognizer]
-  /// requests block/paragraph/line geometry on every call. It's a parameter
-  /// rather than hardcoded here so a fake engine can assert it was
+  /// Always `true` in production; a parameter so a fake can assert it was
   /// requested.
-  Future<Map<String, Object?>> recognize(
+  Future<Map<Object?, Object?>> recognize(
     Uint8List bytes, {
     required bool blocks,
   });
 
-  /// Releases the underlying Tesseract.js worker.
   Future<void> terminate();
 }
 
-/// Tesseract.js is loaded globally via a `<script>` tag in `index.html`,
-/// pinned to this exact release. `workerPath`/`corePath`/`langPath` below
-/// are pinned to the same release so all four never drift apart.
+/// Pinned to the release loaded by `index.html`'s `<script>` tag so
+/// script, worker, core, and language pack never drift apart.
 const _tesseractVersion = '7.0.0';
 const _workerPath =
     'https://cdn.jsdelivr.net/npm/tesseract.js@$_tesseractVersion/dist/worker.min.js';
@@ -50,7 +39,7 @@ class PluginTesseractEngine implements TesseractEngine {
   JSObject? _worker;
 
   @override
-  Future<Map<String, Object?>> recognize(
+  Future<Map<Object?, Object?>> recognize(
     Uint8List bytes, {
     required bool blocks,
   }) async {
@@ -64,7 +53,7 @@ class PluginTesseractEngine implements TesseractEngine {
     );
     final result = await promise.toDart;
     final data = (result as JSObject)['data'];
-    return Map<String, Object?>.from(data.dartify() as Map<Object?, Object?>);
+    return data.dartify() as Map<Object?, Object?>;
   }
 
   Future<JSObject> _createWorker() async {
@@ -106,37 +95,37 @@ class TesseractTextRecognizer implements TextRecognizer {
 
   @override
   Future<RecognizedText> recognize(RecognizableImage image) async {
-    final Map<String, Object?> data;
     try {
-      data = await _engine.recognize(image.bytes, blocks: true);
+      final data = await _engine.recognize(image.bytes, blocks: true);
+      return _toRecognizedText(data);
     } catch (e) {
       throw TextRecognitionFailure('Tesseract: $e');
     }
-    return _toRecognizedText(data);
   }
 
   @override
   Future<void> dispose() => _engine.terminate();
 }
 
-RecognizedText _toRecognizedText(Map<String, Object?> data) {
+RecognizedText _toRecognizedText(Map<Object?, Object?> data) {
   final blocks = data['blocks'] as List<Object?>? ?? const [];
   final lines = <RecognizedLine>[
     for (final block in blocks)
       for (final paragraph
-          in (block as Map<String, Object?>)['paragraphs'] as List<Object?>? ??
+          in (block as Map<Object?, Object?>)['paragraphs'] as List<Object?>? ??
               const [])
         for (final line
-            in (paragraph as Map<String, Object?>)['lines'] as List<Object?>? ??
+            in (paragraph as Map<Object?, Object?>)['lines']
+                    as List<Object?>? ??
                 const [])
-          _toRecognizedLine(line as Map<String, Object?>),
+          _toRecognizedLine(line as Map<Object?, Object?>),
   ];
   return RecognizedText(lines);
 }
 
-RecognizedLine _toRecognizedLine(Map<String, Object?> line) {
-  final rowAttributes = line['rowAttributes'] as Map<String, Object?>?;
-  final bbox = line['bbox'] as Map<String, Object?>?;
+RecognizedLine _toRecognizedLine(Map<Object?, Object?> line) {
+  final rowAttributes = line['rowAttributes'] as Map<Object?, Object?>?;
+  final bbox = line['bbox'] as Map<Object?, Object?>?;
   final rowHeight = (rowAttributes?['rowHeight'] as num?)?.toDouble();
   final bboxHeight = bbox == null
       ? null

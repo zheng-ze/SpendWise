@@ -10,10 +10,8 @@ import 'package:ocr/ocr.dart' hide TesseractTextRecognizer, TesseractEngine;
 import 'package:ocr/src/tesseract_text_recognizer_web.dart';
 import 'package:web/web.dart' as web;
 
-/// Matches the pinned release in `app/web/index.html`'s `<script>` tag and
-/// `tesseract_text_recognizer_web.dart`'s `corePath`/`workerPath`/`langPath`.
-/// This test lives in `packages/ocr/`, not `app/`, so it can't rely on
-/// `app/web/index.html` — it loads the same script itself.
+/// Pinned to match `index.html`'s script tag; this test can't rely on that
+/// file since it lives in `packages/ocr/`, not `app/`.
 const _tesseractScriptUrl =
     'https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.min.js';
 

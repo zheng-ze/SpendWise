@@ -211,15 +211,18 @@ void main() {
   });
 }
 
-Map<String, Object?> _block(List<Map<String, Object?>> paragraphs) {
+// Untyped-key maps, matching what a real `dartify()` call produces - a
+// String-keyed fake would miss the cast bug this once caused.
+
+Map<Object?, Object?> _block(List<Map<Object?, Object?>> paragraphs) {
   return {'paragraphs': paragraphs};
 }
 
-Map<String, Object?> _paragraph(List<Map<String, Object?>> lines) {
+Map<Object?, Object?> _paragraph(List<Map<Object?, Object?>> lines) {
   return {'lines': lines};
 }
 
-Map<String, Object?> _line({
+Map<Object?, Object?> _line({
   required String text,
   num? confidence,
   num? rowHeight,
@@ -237,12 +240,12 @@ Map<String, Object?> _line({
 class _FakeTesseractEngine implements TesseractEngine {
   _FakeTesseractEngine(this._result);
 
-  final Map<String, Object?> _result;
+  final Map<Object?, Object?> _result;
   bool requestedBlocks = false;
   int terminateCalls = 0;
 
   @override
-  Future<Map<String, Object?>> recognize(
+  Future<Map<Object?, Object?>> recognize(
     Uint8List bytes, {
     required bool blocks,
   }) async {
@@ -262,7 +265,7 @@ class _ThrowingTesseractEngine implements TesseractEngine {
   final Object _error;
 
   @override
-  Future<Map<String, Object?>> recognize(
+  Future<Map<Object?, Object?>> recognize(
     Uint8List bytes, {
     required bool blocks,
   }) async {
