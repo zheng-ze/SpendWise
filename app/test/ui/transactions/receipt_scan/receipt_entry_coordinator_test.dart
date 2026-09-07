@@ -12,6 +12,7 @@ import 'package:spendwise/ui/transactions/receipt_scan/receipt_entry_coordinator
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_flow.dart';
 
 const _mlKitChannel = MethodChannel('spendwise/android_text_recognizer');
+const _visionChannel = MethodChannel('spendwise/vision_text_recognizer');
 const _documentScannerChannel = MethodChannel('spendwise/document_scanner');
 
 /// Ignored [ScanResultHandler] for scans whose prefill a test does not inspect.
@@ -268,7 +269,7 @@ void main() {
     test('a captured native scan recognizes the captured bytes', () async {
       container = startContainer();
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(_mlKitChannel, (call) async =>
+          .setMockMethodCallHandler(_visionChannel, (call) async =>
               _recognizedResult(['Coffee Shop', 'Total \$12.50', '01/15/2026']));
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(_documentScannerChannel, (call) async =>
