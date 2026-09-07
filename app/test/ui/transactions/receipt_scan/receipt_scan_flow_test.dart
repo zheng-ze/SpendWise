@@ -29,6 +29,11 @@ class _InMemoryRecognizer implements TextRecognizer {
   Future<RecognizedText> recognize(RecognizableImage image) async => text;
 }
 
+/// Normalizes [DateTime.now] to UTC midnight, matching how [extractDate]
+/// defaults an unrecognized date to "today".
+DateTime _todayUtc() =>
+    DateTime.utc(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -98,6 +103,33 @@ void main() {
 
       expect(stop, isNull);
       expect(capturedDate, isNotNull);
+    },
+  );
+
+  // A recognizer factory that yields null is the desktop path: selectRecognizer
+  // returns no recognizer on macOS/Windows/Linux. Recognition resolves to an
+  // empty result and extraction falls back to a blank draft.
+  test(
+    'falls through to a null name, null amount and a defaulted date when the recognizer factory returns null',
+    () async {
+      String? capturedName;
+      Decimal? capturedAmount;
+      DateTime? capturedDate;
+
+      await runReceiptScan(
+        source: ReceiptScanSource.camera,
+        preCapturedBytes: Uint8List(0),
+        recognizer: () => null,
+        onExtracted: ({name, amount, required date}) => (
+          capturedName = name,
+          capturedAmount = amount,
+          capturedDate = date,
+        ),
+      );
+
+      expect(capturedName, isNull);
+      expect(capturedAmount, isNull);
+      expect(capturedDate, _todayUtc());
     },
   );
 
