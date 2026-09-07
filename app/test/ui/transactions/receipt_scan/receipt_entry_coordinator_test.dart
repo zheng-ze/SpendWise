@@ -286,23 +286,4 @@ void main() {
     });
   });
 
-  group('applyCroppedDocument', () {
-    test('recognizes the uploaded bytes as a gallery scan', () async {
-      container = startContainer();
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(_mlKitChannel, (call) async =>
-              _recognizedResult(['Coffee Shop', 'Total \$12.50', '01/15/2026']));
-
-      DateTime? capturedDate;
-      coordinator().applyCroppedDocument(
-        Uint8List.fromList([4, 5, 6]),
-        onPrefill: ({name, amount, required date}) => capturedDate = date,
-      );
-
-      await idle();
-
-      expect(capturedDate, DateTime.utc(2026, 1, 15));
-      expect(state().scanStop, isNull);
-    });
-  });
 }

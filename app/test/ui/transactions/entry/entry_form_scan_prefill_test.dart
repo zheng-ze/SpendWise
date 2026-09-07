@@ -141,30 +141,6 @@ void main() {
       expect(state.date, DateTime.utc(2026, 1, 15));
     });
 
-    testWidgets('an uploaded (crop) receipt prefills the same fields', (
-      tester,
-    ) async {
-      await pumpForm(tester);
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(_mlKitChannel,
-              (call) async =>
-                  _recognizedResult(['Coffee Shop', 'Total \$12.50', '01/15/2026']));
-
-      final container = containerFor(tester);
-      final viewModel = container.read(entryFormViewModelProvider(null).notifier);
-
-      await driveScan(
-        tester,
-        container,
-        () => viewModel.applyCroppedDocument(Uint8List.fromList([1, 2, 3])),
-      );
-
-      final state = stateOf(container);
-      expect(state.nameText, 'Coffee Shop');
-      expect(state.amountText, '12.50');
-      expect(state.date, DateTime.utc(2026, 1, 15));
-    });
-
     testWidgets('the scanning indicator shows during recognition then hides', (
       tester,
     ) async {

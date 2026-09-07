@@ -7,7 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/ocr/document_scanner_selection.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_flow.dart';
 
-/// Transient state for the receipt-scan / document-crop flow owned by the
+/// Transient state for the receipt-scan flow owned by the
 /// coordinator. The ViewModel mirrors [scanning] / [scanStop] into its own
 /// state so the View can keep reading them from there.
 class ReceiptOrchestrationState {
@@ -34,9 +34,9 @@ class ReceiptOrchestrationState {
   }
 }
 
-/// Owns the receipt-scan and document-crop orchestration and its transient
-/// state. The [EntryFormNotifier] delegates [requestScan] / [applyCroppedDocument]
-/// to it and mirrors [ReceiptOrchestrationState] into its own state.
+/// Owns the receipt-scan orchestration and its transient state. The
+/// [EntryFormNotifier] delegates [requestScan] to it and mirrors
+/// [ReceiptOrchestrationState] into its own state.
 class ReceiptEntryCoordinator extends Notifier<ReceiptOrchestrationState> {
   ReceiptEntryCoordinator([this.entryId]);
 
@@ -53,13 +53,6 @@ class ReceiptEntryCoordinator extends Notifier<ReceiptOrchestrationState> {
     required ScanResultHandler onPrefill,
   }) async {
     unawaited(_runScan(source, preCapturedBytes, onPrefill));
-  }
-
-  Future<void> applyCroppedDocument(
-    Uint8List bytes, {
-    required ScanResultHandler onPrefill,
-  }) {
-    return requestScan(ReceiptScanSource.gallery, preCapturedBytes: bytes, onPrefill: onPrefill);
   }
 
   void clearScanStop() => state = state.copyWith(scanStop: () => null);

@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:domain/domain.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -33,12 +31,6 @@ class PickRecurrenceRequested extends TransactionsStep {}
 class PickDateRequested extends TransactionsStep {}
 
 class PickEndDateRequested extends TransactionsStep {}
-
-class DocumentCropRequested extends TransactionsStep {
-  DocumentCropRequested(this.imageBytes);
-
-  final Uint8List imageBytes;
-}
 
 /// Forwarded by [TransactionsFlow] to its `onEditSource` callback.
 class SourceEditRequested extends TransactionsStep {}

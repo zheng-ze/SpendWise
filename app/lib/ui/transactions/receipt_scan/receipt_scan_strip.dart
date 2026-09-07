@@ -82,9 +82,11 @@ class ReceiptScanStrip extends ConsumerWidget {
     }
     final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (picked == null) return;
-    final bytes = await picked.readAsBytes();
     if (!context.mounted) return;
-    viewModel.requestDocumentCrop(bytes);
+    // The crop invocation that consumed this image was removed (#89). The
+    // gallery image captured here is wired to a receipt scan in #90; nothing
+    // runs for it until then.
+    return;
   }
 
   void _showPermissionDeniedMessage(

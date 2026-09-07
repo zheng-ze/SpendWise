@@ -153,8 +153,6 @@ abstract class EntryFormViewModel {
   Future<void> save();
   Future<void> delete();
   void requestScan(ReceiptScanSource source, {Uint8List? preCapturedBytes});
-  void requestDocumentCrop(Uint8List bytes);
-  void applyCroppedDocument(Uint8List bytes);
 
   /// Prefills a brand-new entry's source from the screen's scope. A no-op
   /// once the form already has a source.
@@ -177,7 +175,7 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
 
   final String? entryId;
 
-  /// The receipt-scan / crop coordinator for this entry form. Read and its
+  /// The receipt-scan coordinator for this entry form. Read and its
   /// state mirrored into [EntryFormViewState] in [build]; its lifetime is
   /// bound to this provider.
   ReceiptEntryCoordinator? _coordinator;
@@ -456,16 +454,6 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
       ),
     );
   }
-
-  @override
-  void requestDocumentCrop(Uint8List bytes) =>
-      emitStep(DocumentCropRequested(bytes));
-
-  @override
-  void applyCroppedDocument(Uint8List bytes) => _coordinator!.applyCroppedDocument(
-    bytes,
-    onPrefill: _applyScanResult,
-  );
 
   @override
   void clearScanStop() => _coordinator!.clearScanStop();

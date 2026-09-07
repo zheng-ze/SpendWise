@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,7 +9,6 @@ import 'package:spendwise/ui/common/pickers/recurrence_picker.dart';
 import 'package:spendwise/ui/common/pickers/source_picker.dart';
 import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
 import 'package:spendwise/ui/transactions/daily_list/daily_transactions_screen.dart';
-import 'package:spendwise/ui/transactions/document_crop/document_crop_screen.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_logic.dart'
     show EntryFormKind;
@@ -101,7 +98,6 @@ class _TransactionsFlowState
       case PickRecurrenceRequested():
       case PickDateRequested():
       case PickEndDateRequested():
-      case DocumentCropRequested():
         // These variants are only ever emitted by an EntryFormViewModel's
         // own state, handled by _handleFormStep below.
         break;
@@ -151,8 +147,6 @@ class _TransactionsFlowState
         _pickDate(context, formKey);
       case PickEndDateRequested():
         _pickEndDate(context, formKey);
-      case DocumentCropRequested(:final imageBytes):
-        _pushDocumentCrop(context, formKey, imageBytes);
       case EntryFormRequested():
       case SourceEditRequested():
         // Only TransactionsViewModel emits these. Unreachable here.
@@ -248,21 +242,6 @@ class _TransactionsFlowState
     _formViewModel(
       formKey,
     ).applyPickedEndDate(DateTime.utc(picked.year, picked.month, picked.day));
-  }
-
-  Future<void> _pushDocumentCrop(
-    BuildContext context,
-    String? formKey,
-    Uint8List imageBytes,
-  ) async {
-    final cropped = await Navigator.of(context).push<Uint8List>(
-      MaterialPageRoute(
-        builder: (_) => DocumentCropScreen(imageBytes: imageBytes),
-      ),
-    );
-    if (!context.mounted) return;
-    if (cropped == null) return;
-    _formViewModel(formKey).applyCroppedDocument(cropped);
   }
 
   @override
