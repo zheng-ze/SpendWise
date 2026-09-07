@@ -4,27 +4,41 @@ import 'package:spendwise/ocr/receipt_recognizer_selection.dart';
 
 void main() {
   group('selectRecognizer', () {
-    test('picks VisionTextRecognizer on iOS', () {
-      final recognizer = selectRecognizer(isWeb: false, isIOS: true);
+    test('returns the injected vision recognizer on iOS', () {
+      final fakeVision = FakeTextRecognizer();
 
-      expect(recognizer, isA<VisionTextRecognizer>());
+      final recognizer =
+          selectRecognizer(isIOS: true, visionFactory: () => fakeVision);
+
+      expect(recognizer, same(fakeVision));
     });
 
-    test('picks AndroidTextRecognizer off the web branch on non-iOS', () {
-      final recognizer = selectRecognizer(isWeb: false, isIOS: false);
+    test('returns the injected android recognizer on android', () {
+      final fakeAndroid = FakeTextRecognizer();
 
-      expect(recognizer, isA<AndroidTextRecognizer>());
+      final recognizer = selectRecognizer(
+        isIOS: false,
+        isAndroid: true,
+        androidFactory: () => fakeAndroid,
+      );
+
+      expect(recognizer, same(fakeAndroid));
     });
 
-    test(
-      'defaults to the real kIsWeb/isIOSPlatform constants when omitted',
-      () {
-        // flutter test always runs on the VM (never web) and never on iOS, so
-        // this lands on AndroidTextRecognizer here.
-        final recognizer = selectRecognizer();
+    test('returns null when neither iOS nor android is selected', () {
+      final recognizer =
+          selectRecognizer(isIOS: false, isAndroid: false);
 
-        expect(recognizer, isA<AndroidTextRecognizer>());
-      },
-    );
+      expect(recognizer, isNull);
+    });
   });
+}
+
+class FakeTextRecognizer extends TextRecognizer {
+  @override
+  Future<RecognizedText> recognize(RecognizableImage image) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> dispose() => throw UnimplementedError();
 }

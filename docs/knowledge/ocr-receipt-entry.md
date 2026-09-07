@@ -1,11 +1,16 @@
 # Receipt OCR Entry
 
-Last reconciled: b7f35df
+Last reconciled: 20741e0
 
 _(Reconciled against `packages/ocr/lib/src/`, `app/lib/ocr/`, `app/android/app/src/main/kotlin/`,
-and `app/ios/Runner/` at the commit above. `packages/ocr/` now ships three implemented engines:
-Tesseract.js (web), Vision (iOS), and a native Android ML Kit bridge (Android). Issue #77 replaced
-the Android engine: it dropped the `google_mlkit_text_recognition` Flutter plugin entirely in favor
+and `app/ios/Runner/` at the commit above. `packages/ocr/` now ships two implemented engines:
+Vision (iOS) and a native Android ML Kit bridge (Android). Issue #86 dropped web as a supported
+platform: the Tesseract.js engine, its native-vs-web conditional-export facade, and its tests are
+deleted (#87), and `selectRecognizer`/`selectDocumentScanner` no longer have a web branch at all —
+a platform that is neither iOS nor Android (macOS, Windows, Linux) now falls through to `null`
+instead of constructing a recognizer, which also fixes a latent defect where that fallthrough
+would have wrongly constructed `AndroidTextRecognizer` on desktop (#88). Issue #77 replaced the
+Android engine: it dropped the `google_mlkit_text_recognition` Flutter plugin entirely in favor
 of a hand-written `AndroidTextRecognizer`/`AndroidEngine` bridge over a native Kotlin MethodChannel,
 mirroring `VisionTextRecognizer`'s own architecture — see Engines below. This also let iOS's
 `IPHONEOS_DEPLOYMENT_TARGET` revert from 15.5 back to 13.0, since the plugin's iOS podspec was the
@@ -26,7 +31,7 @@ receipt-agnostic) and receipt-specific field-extraction heuristics in `app/`.
 - `packages/ocr/lib/src/recognizable_image.dart`, `recognized_text.dart`, `recognized_line.dart`,
   `recognized_line_bounds.dart` — the engine-agnostic value types.
 - `packages/ocr/lib/src/text_recognition_failure.dart` — the engine-failure exception.
-- `packages/ocr/lib/src/android_text_recognizer.dart`, `android_engine.dart` — the native Android
+- `packages/ocr/lib/src/android/android_text_recognizer.dart`, `android_engine.dart` — the native Android
   engine (`AndroidTextRecognizer`) and its injectable `AndroidEngine` seam, reaching
   `app/android/app/src/main/kotlin/com/example/spendwise/TextRecognizerChannel.kt` over the
   `spendwise/android_text_recognizer` method channel (method `recognizeText`). No Flutter-plugin
@@ -41,7 +46,7 @@ receipt-agnostic) and receipt-specific field-extraction heuristics in `app/`.
   plain Gradle dependency, alongside the pre-existing, unrelated
   `com.google.android.gms:play-services-mlkit-document-scanner` (a different ML Kit module, for
   document boundary scanning — see `document_scanner_channel.dart` below).
-- `packages/ocr/lib/src/vision_text_recognizer.dart`, `vision_engine.dart` — the native iOS Vision
+- `packages/ocr/lib/src/vision/vision_text_recognizer.dart`, `vision_engine.dart` — the native iOS Vision
   engine (`VisionTextRecognizer`) and its injectable `VisionEngine` seam, reaching
   `app/ios/Runner/VisionTextRecognizerChannel.swift` over the `spendwise/vision_text_recognizer`
   method channel (method `recognizeText`).
@@ -50,18 +55,6 @@ receipt-agnostic) and receipt-specific field-extraction heuristics in `app/`.
   image and performing the request inside `DispatchQueue.global(qos: .userInitiated)` (never on the
   calling/main thread — see Gotchas), then hops to `DispatchQueue.main.async` to call `result(...)`
   exactly once on every path. Registered in `AppDelegate.swift` alongside `DocumentScannerChannel`.
-- `app/lib/ocr/ios_platform_check.dart` (+ `_native.dart`/`_web.dart`) — a conditional-export
-  `Platform.isIOS` check (real check natively, `false` stub on web), mirroring
-  `app/lib/persistence/database_connection.dart`'s existing `_native.dart`/`_web.dart` split; needed
-  because `dart:io` cannot be imported directly in a file that also compiles for web.
-- `packages/ocr/lib/src/tesseract_text_recognizer.dart` - the web engine's platform-neutral facade:
-  `export 'tesseract_text_recognizer_stub.dart' if (dart.library.js_interop)
-  'tesseract_text_recognizer_web.dart';`.
-- `packages/ocr/lib/src/tesseract_text_recognizer_web.dart` - the real `TesseractTextRecognizer`,
-  wrapping Tesseract.js via `dart:js_interop`/`package:web`, and its `TesseractEngine` seam.
-- `packages/ocr/lib/src/tesseract_text_recognizer_stub.dart` - the native stub: the same
-  `TesseractEngine` seam declared independently (see Gotchas), and a `TesseractTextRecognizer` whose
-  constructor throws `UnsupportedError('TesseractTextRecognizer is web-only')`.
 - `app/lib/ocr/amount_extraction.dart`, `name_extraction.dart`, `date_extraction.dart` — the three
   receipt-specific heuristics (in `app/`, consuming `RecognizedText`).
 - `app/lib/ocr/receipt_recognizer_selection.dart`, `document_scanner_selection.dart` — platform
@@ -84,10 +77,13 @@ nor `packages/domain/`.
 `TextRecognizer` (`packages/ocr/lib/src/text_recognizer.dart`) is the single seam:
 `recognize(RecognizableImage) -> Future<RecognizedText>`, `dispose()`. It is exactly as generic as
 its name: image bytes in, a flat list of lines out — no receipts, amounts, merchants, or dates, no
-block/paragraph hierarchy. Two swap axes reduce to it: swap the engine by platform (iOS, Android,
-web each need a different on-device engine) and swap the engine by framework on the same platform
-(a second iOS engine, a future Tesseract.js wrapper). Nothing above the seam may know how many
-engines exist for a platform.
+block/paragraph hierarchy. Two swap axes reduce to it: swap the engine by platform (iOS and Android
+each need a different on-device engine) and swap the engine by framework on the same platform (a
+second iOS engine, or a future engine for a platform not yet supported). Nothing above the seam may
+know how many engines exist for a platform. Web was a third platform reached through this same seam
+until issue #86 dropped it as a supported platform (see Gotchas) — the seam itself did not change
+to make that removal possible; only the concrete `TesseractTextRecognizer` implementation and its
+selection branch went away.
 
 Value types (`packages/ocr/lib/src/`):
 
@@ -113,9 +109,9 @@ reliably only on Android ML Kit.
 
 Implemented today:
 
-- **`AndroidTextRecognizer`** (`packages/ocr/lib/src/android_text_recognizer.dart`), wraps
+- **`AndroidTextRecognizer`** (`packages/ocr/lib/src/android/android_text_recognizer.dart`), wraps
   Android's on-device ML Kit text recognizer via `AndroidEngine`/`PluginAndroidEngine`
-  (`packages/ocr/lib/src/android_engine.dart`), reaching the native bridge over the
+  (`packages/ocr/lib/src/android/android_engine.dart`), reaching the native bridge over the
   `spendwise/android_text_recognizer` method channel. `PluginAndroidEngine.recognizeText` calls
   `invokeListMethod<Map<Object?, Object?>>('recognizeText', imageBytes)`; a `null` channel reply
   throws `StateError('Android text-recognition channel returned null')`, the same
@@ -132,29 +128,9 @@ Implemented today:
   `packages/ocr/test/android_text_recognizer_test.dart` (mapping, confidence and language
   passthrough including their absent cases, the empty-vs-failure distinction, dispose-is-truly-a-
   no-op, and a `PluginAndroidEngine`-focused mocked-channel test proving the null-response throw).
-- **`TesseractTextRecognizer`** (`packages/ocr/lib/src/tesseract_text_recognizer_web.dart`), the web
-  engine, directly-wired against Tesseract.js 7.0.0 (no working Flutter wrapper delivers a web
-  binding). `app/web/index.html` loads Tesseract.js itself via a pinned `<script>` tag; the
-  recognizer's `corePath`/`workerPath`/`langPath` (passed to `createWorker`) are pinned to the same
-  `7.0.0` release so script, worker, core, and language pack never drift apart. Worker creation is
-  lazy, inside `recognize()`'s own `try`/`catch` (Dart constructors can't be async): a
-  worker-creation failure and a recognition-call failure both throw `TextRecognitionFailure` the
-  same way, since one `try`/`catch` in `TesseractTextRecognizer.recognize`
-  (`tesseract_text_recognizer_web.dart:113-121`) covers the whole call including result mapping.
-  `recognize()` requests `{ blocks: true }` from the engine (`TesseractEngine.recognize`'s `blocks`
-  parameter) so line geometry is available, then flattens Tesseract.js's nested
-  `Page → Block → Paragraph → Line` result into a flat `RecognizedLine` list. Per line: confidence
-  divides Tesseract's 0-100 integer scale by 100; geometry prefers `rowAttributes.rowHeight`,
-  falling back to `bbox.y1 - bbox.y0`, and is `null` (not a failure) when neither is present;
-  `recognizedLanguages` is always empty (Tesseract.js has no output-side language identification in
-  this integration). Because `dart:js_interop` doesn't exist for native AOT compilation and
-  `packages/ocr` is also compiled into iOS/Android builds, the real implementation sits behind a
-  `dart.library.js_interop` conditional-export facade
-  (`packages/ocr/lib/src/tesseract_text_recognizer.dart`); see Gotchas below.
-
-- **`VisionTextRecognizer`** (`packages/ocr/lib/src/vision_text_recognizer.dart`), wraps Apple's
+- **`VisionTextRecognizer`** (`packages/ocr/lib/src/vision/vision_text_recognizer.dart`), wraps Apple's
   Vision framework for iOS via `VisionEngine`/`PluginVisionEngine`
-  (`packages/ocr/lib/src/vision_engine.dart`), reaching the native bridge over the
+  (`packages/ocr/lib/src/vision/vision_engine.dart`), reaching the native bridge over the
   `spendwise/vision_text_recognizer` method channel. `PluginVisionEngine.recognizeText` decodes via
   `invokeListMethod<Map<Object?, Object?>>` (a raw `invokeMethod<List<Map<Object?, Object?>>>` call
   is rejected by `MethodChannel`'s own generic-type restriction). A `null` channel reply — the
@@ -172,9 +148,11 @@ Implemented today:
   and a `PluginVisionEngine`-focused mocked-channel test proving the null-response throw — this last
   case needs `flutter test`, not `dart test`, for its `TestWidgetsFlutterBinding` requirement).
 
-`selectRecognizer` returns `null` only where no engine is built for a platform at all; as of issue
-#15 every platform this app ships to (iOS, Android, web) has a real engine, and as of this commit
-iOS specifically runs Vision rather than ML Kit (see Engine and scanner selection below).
+`selectRecognizer` returns `null` where no engine is built for a platform at all. As of issue #86,
+that now includes every desktop platform (macOS, Windows, Linux) alongside any platform that is
+neither iOS nor Android — web is no longer a supported platform, so it is not a case the function
+distinguishes at all. iOS specifically runs Vision rather than ML Kit (see Engine and scanner
+selection below).
 
 ## Engine and scanner selection
 
@@ -185,23 +163,32 @@ order", evaluating an ordered list of already-gated candidate builders and short
 first hit. The domain helpers keep all their platform and gate rules; they never delegate a gate to
 it.
 
-`selectRecognizer` (`app/lib/ocr/receipt_recognizer_selection.dart`) keeps its web-first gate: it
-checks `kIsWeb` first (because `dart:io`'s `Platform.isIOS` cannot be evaluated on web, handled via
-the conditional-export `isIOSPlatform` check in `app/lib/ocr/ios_platform_check.dart` — see Key
-files) and returns `TesseractTextRecognizer()` directly on that branch, before ever calling
-`selectPlatformAdapter`. Otherwise it hands `selectPlatformAdapter` an ordered candidate list: a
-`VisionTextRecognizer()` candidate gated on `isIOSPlatform` (returns `null` on non-iOS, so
-`VisionTextRecognizer` is never even constructed on Android), then an unconditional
-`AndroidTextRecognizer()` candidate as the fallback every other platform reaches. This is the only
-place platform identity is inspected in this layer. As of issue #15, "Upload photo" runs real
-recognition end-to-end on every platform this app ships to; there is no platform left where OCR
-always falls through to a blank draft by design. As of issue #77, Android runs the native
-`AndroidTextRecognizer` bridge rather than the `google_mlkit_text_recognition` Flutter plugin — no
-platform in this app depends on a Flutter OCR plugin anymore.
+`selectRecognizer` (`app/lib/ocr/receipt_recognizer_selection.dart`) takes `isIOS`/`isAndroid`
+overrides (letting a test fix the branch instead of reading the real platform) plus two injected
+factory parameters, `visionFactory`/`androidFactory` (typedef `TextRecognizerFactory = TextRecognizer
+Function()`), defaulting to `VisionTextRecognizer.new`/`AndroidTextRecognizer.new`. It hands
+`selectPlatformAdapter` an ordered candidate list: a `visionFactory()` candidate gated on `isIOS ??
+defaultTargetPlatform == TargetPlatform.iOS` (`null` on non-iOS, so the vision recognizer is never
+even constructed there), then an `androidFactory()` candidate gated on `isAndroid ??
+defaultTargetPlatform == TargetPlatform.android`. Both platform checks now go through
+`package:flutter/foundation.dart`'s `defaultTargetPlatform`; there is no more separate `dart:io`
+`Platform.isIOS`-based check or file for iOS (`ios_platform_check.dart` and its native/web variants
+were deleted — the conditional-export split existed only because `dart:io` couldn't be imported in
+a file that also compiled for web, and that constraint disappeared with web support itself). A
+platform that is neither iOS
+nor Android — every desktop target (macOS/Windows/Linux) as of issue #86 — falls through both
+gates to `null`; there is no more unconditional fallback candidate. This is the only place platform
+identity is inspected in this layer. As of issue #77, Android runs the native `AndroidTextRecognizer`
+bridge rather than the `google_mlkit_text_recognition` Flutter plugin — no platform in this app
+depends on a Flutter OCR plugin anymore. The injected factories exist purely for tests: production
+code never passes them, so production still constructs a fresh `VisionTextRecognizer`/
+`AndroidTextRecognizer` per call, same as before the injection was added (see Recognizer seam for
+scans below for why this differs from the scan-level seam).
 
-`selectDocumentScanner` (`app/lib/ocr/document_scanner_selection.dart`) keeps its own gates too: it
-returns `null` on web first, then selects iOS or Android, and on Android checks Play Services
-eligibility before it routes the platform candidate through `selectPlatformAdapter`.
+`selectDocumentScanner` (`app/lib/ocr/document_scanner_selection.dart`) selects iOS or Android
+directly (no more web gate — removed alongside `selectRecognizer`'s in issue #86/#88), and on
+Android checks Play Services eligibility before it routes the platform candidate through
+`selectPlatformAdapter`. On any other platform it falls through to `null`, same as `selectRecognizer`.
 
 Document capture: iOS launches `VNDocumentCameraViewController`, Android launches
 `GmsDocumentScanner` and falls back to a plain camera capture (`ImagePicker(source: camera)`) when
@@ -273,13 +260,16 @@ disposes it exactly once. The test that accompanies the seam passes a factory th
 in-memory recognizer, so it exercises one instance per scan, not per-call construction.
 
 The seam lives on the scan entry point rather than on `selectRecognizer` because the two solve
-different problems. `selectRecognizer` chooses the engine for the current platform and returns
-`null` where none exists; its behaviour is fixed by `kIsWeb` and platform identity, which tests do
-not override. The test seam's job is the opposite: give a test control over the exact recognizer
-instance a scan runs on, and dispose it after the scan. That control belongs at the boundary tests
-actually invoke (`runReceiptScan`), not at the platform-selection function. The platform gate in
-`selectRecognizer` still runs under the default factory, so a platform with no engine still returns
-`null` and the scan degrades to a blank draft rather than crashing.
+different problems, even though `selectRecognizer` also gained its own test-injection parameters
+(`isIOS`/`isAndroid`, `visionFactory`/`androidFactory` — see Engine and scanner selection) when
+issue #86/#88 rewrote it. `selectRecognizer`'s injection exists to let a unit test assert *which*
+recognizer type a given platform combination selects, in isolation, without going through a scan at
+all. The scan-level seam's job is different: give a test control over the exact recognizer
+*instance* a full `runReceiptScan` call runs on, and confirm it gets disposed after the scan — a
+concern `selectRecognizer` itself has no reason to know about. That control belongs at the boundary
+tests actually invoke (`runReceiptScan`), not at the platform-selection function. The platform gate
+in `selectRecognizer` still runs under the default factory, so a platform with no engine still
+returns `null` and the scan degrades to a blank draft rather than crashing.
 
 Under the production default `defaultRecognizer` calls `selectRecognizer` on each scan, and
 `selectRecognizer` constructs a fresh recognizer instance on every call (`AndroidTextRecognizer()`
@@ -311,67 +301,31 @@ and the injected-test case does not assert it because it reuses one instance.
   harness) — closed as skipped rather than built. Issue #77 resolved this by removing ML Kit from
   iOS rather than attempting to make it run there; a future session has no reason to hit this
   blocker again on this codebase.
-- `TesseractEngine` is declared independently in `tesseract_text_recognizer_web.dart` and
-  `tesseract_text_recognizer_stub.dart` rather than in one shared file. This is deliberate, not
-  duplication by accident: the two files are conditional-export alternatives that are never imported
-  together, and factoring the seam into a fifth file would add a file the approved plan (issue #15)
-  didn't call for, for no behavioral gain. The two declarations must stay structurally identical
-  (same method signatures) - a mismatch would only surface when someone tries to write a fake engine
-  against the wrong platform's copy. Reviewed and accepted as a tradeoff in issue #15's Review
-  arbitration (comment 5557210451).
-- `TesseractEngine.recognize` returns `Map<Object?, Object?>`, not a `String`-keyed map, on purpose.
-  `JSAny?.dartify()` (used by the real engine to convert Tesseract.js's JS result) recursively
-  produces `Map<Object?, Object?>` for every nested JS object, even though the keys are all strings
-  in practice. An earlier version of this code typed the seam and its nested casts as
-  `Map<String, Object?>`, which type-checked and passed its own hand-written fake-engine tests, but
-  threw a runtime cast error against real Tesseract.js output the first time a real recognition
-  succeeded - caught by second-opinion-review during issue #15, not by any test that shipped in the
-  same diff. `tesseract_text_recognizer_test.dart`'s fake-engine helpers build the same
-  `Map<Object?, Object?>` shape specifically to guard against this regressing.
-- `packages/ocr/test/tesseract_text_recognizer_browser_test.dart` (the real-Tesseract.js-engine
-  test, loading a fixture via `rootBundle`) is correct but could not be verified in a `flutter test
-  --platform chrome` sandbox as of issue #15: that backend served no asset bundle at all in that
-  environment (even `rootBundle.load('AssetManifest.json')` hung indefinitely, independent of
-  network - the CDN fetch in the same test's script-injection step worked fine). `--platform chrome`
-  is Flutter's own explicitly-deprecated test backend. A future session touching this test should
-  expect this and either find an environment that serves test assets for this backend, or migrate
-  the check to `integration_test`, rather than rediscovering the gap from scratch.
-- `PluginTesseractEngine.terminate()` (`tesseract_text_recognizer_web.dart`) types the worker's
-  `terminate()` call as `JSPromise<JSAny?>`, not `JSPromise<JSAny>`. Tesseract.js's `worker.terminate()`
-  resolves with `undefined`, and completing a non-nullable `Completer<JSAny>` with that value throws
-  inside the promise's own `.then` callback - an unhandled rejection the awaiting `Future` never
-  sees, so `dispose()` hangs forever instead of throwing or returning. This surfaced end-to-end as
-  a receipt scan that recognized text successfully but left the UI stuck on its loading spinner
-  after every scan, discovered only by driving the real web app in a browser (the fake-engine test
-  in `tesseract_text_recognizer_test.dart` never called the real `PluginTesseractEngine`, so it
-  could not catch this). Any other `PluginTesseractEngine` call whose underlying Tesseract.js method
-  can resolve with `undefined` needs the same nullable `JSAny?` type argument, not `JSAny`.
-- Tesseract.js cannot reliably read a stylized brand wordmark or logo font (verified against real
-  photographed receipts: a Walmart receipt's logo OCRs as a tall, 0%-confidence line of garbage
-  text; an Isetan receipt's stencil-font logo never produces the word "ISETAN" anywhere in the
-  output). `extractName`'s confidence filter (see Extraction heuristics) stops that garbage from
-  winning the "tallest line" comparison, but when the merchant's real name never appears in the OCR
-  text at all, no string heuristic can recover it - the name field will still come up wrong or
-  blank for that receipt, and manual entry is the only fix. This is a Tesseract accuracy ceiling,
-  not a bug in the extraction heuristic.
+- **Web is no longer a supported platform (issue #86, sub-tickets #87/#88).** The Tesseract.js
+  engine, its `TesseractEngine` seam, its conditional-export facade, and every accompanying test
+  (`packages/ocr/lib/src/tesseract_text_recognizer*.dart`,
+  `packages/ocr/test/tesseract_text_recognizer*.dart`) were deleted rather than kept dormant, since
+  no build target reaches them anymore. `app/lib/ocr/ios_platform_check.dart` and
+  `ios_platform_check_native.dart` were deleted entirely, not merely simplified: `selectRecognizer`
+  now checks iOS the same way it already checked Android, via `defaultTargetPlatform ==
+  TargetPlatform.iOS` from `package:flutter/foundation.dart`, so the separate `dart:io`-based file
+  (needed only to keep `dart:io` out of a file that also compiled for web) had nothing left to do.
+  A future session should not expect to find any Tesseract-related code, or any `ios_platform_check`
+  file, in this feature; the remaining gotchas below predate this removal and cover the
+  still-shipping Vision and Android engines.
 
 ## Requirements
 
 - The `TextRecognizer` seam keeps engine and framework swaps from reaching the extraction heuristics.
 - Extraction is receipt-specific and lives in `app/`, never in `packages/ocr/`.
-- Recognition never sends receipt image bytes or recognized text off-device. Tesseract.js's own
-  runtime code, WASM core, and English language pack are a one-time code/asset fetch (the same
-  category of network access the web app's own Flutter engine bundle already requires to load the
-  page), not receipt data leaving the browser; if that fetch fails, `recognize()` throws
-  `TextRecognitionFailure` like any other engine failure, and an unreadable receipt falls back to
-  manual entry.
+- Recognition never sends receipt image bytes or recognized text off-device.
 - Every non-extraction outcome lands on the same blank draft form; `TextRecognitionFailure` is caught
   once, at the UI hook point, and never reaches a widget.
 - No extracted data is retained after prefill.
 - `packages/ocr/` may depend on Flutter; only `packages/domain/` is hard Flutter-free.
-- Engine selection checks `kIsWeb` and returns a `TesseractTextRecognizer` on web; otherwise it
-  returns `VisionTextRecognizer` on iOS or `AndroidTextRecognizer` everywhere else (Android).
-  (`app/lib/ocr/receipt_recognizer_selection.dart`)
+- Engine selection returns `VisionTextRecognizer` on iOS, `AndroidTextRecognizer` on Android, and
+  `null` on every other platform (macOS, Windows, Linux — web is no longer a supported platform).
+  (`app/lib/ocr/receipt_recognizer_selection.dart`, reconciled at commit `20741e0`)
 - No platform in this app depends on a Flutter OCR plugin; every engine reaches its native SDK
   through a hand-written MethodChannel bridge (issue #77 for the last remaining plugin dependency,
   `google_mlkit_text_recognition`, removed).

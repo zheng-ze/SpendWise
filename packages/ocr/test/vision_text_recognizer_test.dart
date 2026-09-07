@@ -1,7 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ocr/ocr.dart';
-import 'package:ocr/src/vision_engine.dart';
+import 'package:ocr/src/vision/vision_engine.dart';
 
 void main() {
   // Needed for the PluginVisionEngine channel test below, not the fake-engine tests above it.

@@ -1,18 +1,27 @@
 import 'package:flutter/foundation.dart';
 import 'package:ocr/ocr.dart';
 
-import 'ios_platform_check.dart';
 import 'platform_adapter_selection.dart';
 
+/// Factory for a platform-specific recognizer.
+typedef TextRecognizerFactory = TextRecognizer Function();
+
 /// Picks the recognizer for the current platform, or null if the platform
-/// has none yet. [isWeb] and [isIOS] let a test fix the branch instead of
-/// reading the real platform.
-TextRecognizer? selectRecognizer({bool? isWeb, bool? isIOS}) {
-  // dart:io's platform checks don't run on web, so that branch is checked
-  // first.
-  if (isWeb ?? kIsWeb) return TesseractTextRecognizer();
+/// has none yet. [isIOS] and [isAndroid] let a test fix the branch instead of
+/// reading the real platform; the [visionFactory] and [androidFactory]
+/// parameters let a test inject fakes.
+TextRecognizer? selectRecognizer({
+  bool? isIOS,
+  bool? isAndroid,
+  TextRecognizerFactory visionFactory = VisionTextRecognizer.new,
+  TextRecognizerFactory androidFactory = AndroidTextRecognizer.new,
+}) {
   return selectPlatformAdapter<TextRecognizer>(<TextRecognizer? Function()>[
-    () => (isIOS ?? isIOSPlatform) ? VisionTextRecognizer() : null,
-    () => AndroidTextRecognizer(),
+    () => (isIOS ?? defaultTargetPlatform == TargetPlatform.iOS)
+        ? visionFactory()
+        : null,
+    () => (isAndroid ?? defaultTargetPlatform == TargetPlatform.android)
+        ? androidFactory()
+        : null,
   ]);
 }
