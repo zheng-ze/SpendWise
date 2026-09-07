@@ -31,7 +31,7 @@ receipt-agnostic) and receipt-specific field-extraction heuristics in `app/`.
 - `packages/ocr/lib/src/recognizable_image.dart`, `recognized_text.dart`, `recognized_line.dart`,
   `recognized_line_bounds.dart` — the engine-agnostic value types.
 - `packages/ocr/lib/src/text_recognition_failure.dart` — the engine-failure exception.
-- `packages/ocr/lib/src/android_text_recognizer.dart`, `android_engine.dart` — the native Android
+- `packages/ocr/lib/src/android/android_text_recognizer.dart`, `android_engine.dart` — the native Android
   engine (`AndroidTextRecognizer`) and its injectable `AndroidEngine` seam, reaching
   `app/android/app/src/main/kotlin/com/example/spendwise/TextRecognizerChannel.kt` over the
   `spendwise/android_text_recognizer` method channel (method `recognizeText`). No Flutter-plugin
@@ -46,7 +46,7 @@ receipt-agnostic) and receipt-specific field-extraction heuristics in `app/`.
   plain Gradle dependency, alongside the pre-existing, unrelated
   `com.google.android.gms:play-services-mlkit-document-scanner` (a different ML Kit module, for
   document boundary scanning — see `document_scanner_channel.dart` below).
-- `packages/ocr/lib/src/vision_text_recognizer.dart`, `vision_engine.dart` — the native iOS Vision
+- `packages/ocr/lib/src/vision/vision_text_recognizer.dart`, `vision_engine.dart` — the native iOS Vision
   engine (`VisionTextRecognizer`) and its injectable `VisionEngine` seam, reaching
   `app/ios/Runner/VisionTextRecognizerChannel.swift` over the `spendwise/vision_text_recognizer`
   method channel (method `recognizeText`).
@@ -109,9 +109,9 @@ reliably only on Android ML Kit.
 
 Implemented today:
 
-- **`AndroidTextRecognizer`** (`packages/ocr/lib/src/android_text_recognizer.dart`), wraps
+- **`AndroidTextRecognizer`** (`packages/ocr/lib/src/android/android_text_recognizer.dart`), wraps
   Android's on-device ML Kit text recognizer via `AndroidEngine`/`PluginAndroidEngine`
-  (`packages/ocr/lib/src/android_engine.dart`), reaching the native bridge over the
+  (`packages/ocr/lib/src/android/android_engine.dart`), reaching the native bridge over the
   `spendwise/android_text_recognizer` method channel. `PluginAndroidEngine.recognizeText` calls
   `invokeListMethod<Map<Object?, Object?>>('recognizeText', imageBytes)`; a `null` channel reply
   throws `StateError('Android text-recognition channel returned null')`, the same
@@ -128,9 +128,9 @@ Implemented today:
   `packages/ocr/test/android_text_recognizer_test.dart` (mapping, confidence and language
   passthrough including their absent cases, the empty-vs-failure distinction, dispose-is-truly-a-
   no-op, and a `PluginAndroidEngine`-focused mocked-channel test proving the null-response throw).
-- **`VisionTextRecognizer`** (`packages/ocr/lib/src/vision_text_recognizer.dart`), wraps Apple's
+- **`VisionTextRecognizer`** (`packages/ocr/lib/src/vision/vision_text_recognizer.dart`), wraps Apple's
   Vision framework for iOS via `VisionEngine`/`PluginVisionEngine`
-  (`packages/ocr/lib/src/vision_engine.dart`), reaching the native bridge over the
+  (`packages/ocr/lib/src/vision/vision_engine.dart`), reaching the native bridge over the
   `spendwise/vision_text_recognizer` method channel. `PluginVisionEngine.recognizeText` decodes via
   `invokeListMethod<Map<Object?, Object?>>` (a raw `invokeMethod<List<Map<Object?, Object?>>>` call
   is rejected by `MethodChannel`'s own generic-type restriction). A `null` channel reply — the
