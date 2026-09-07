@@ -7,8 +7,12 @@ import 'package:spendwise/settings/settings_providers.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_flow.dart';
 
-/// Hidden when the settings toggle is off. "Scan receipt" is iOS/Android
-/// only; "Upload photo" is offered on every platform.
+/// Hidden when the settings toggle is off. "Scan receipt" and "Upload photo"
+/// both render on every platform. If no recognizer is available, the scan
+/// resolves to an empty result and extraction falls back to a blank
+/// manual-entry draft. Denied permissions and cancelled pickers are handled
+/// by the scan flow and the receipt entry coordinator, which record the stop
+/// reason for the view to show.
 class ReceiptScanStrip extends ConsumerWidget {
   const ReceiptScanStrip({super.key, required this.formKey});
 
@@ -41,15 +45,14 @@ class ReceiptScanStrip extends ConsumerWidget {
         children: [
           Row(
             children: [
-              if (!kIsWeb)
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: scanning ? null : () => _scan(ref),
-                    icon: const Icon(Icons.camera_alt_outlined),
-                    label: const Text('Scan receipt'),
-                  ),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: scanning ? null : () => _scan(ref),
+                  icon: const Icon(Icons.camera_alt_outlined),
+                  label: const Text('Scan receipt'),
                 ),
-              if (!kIsWeb) const SizedBox(width: 12),
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: scanning ? null : () => _uploadPhoto(context, ref),
