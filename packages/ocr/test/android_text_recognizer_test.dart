@@ -1,7 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ocr/ocr.dart';
-import 'package:ocr/src/android_engine.dart';
+import 'package:ocr/src/android/android_engine.dart';
 
 void main() {
   // Needed for the PluginAndroidEngine channel test below, not the fake-engine tests above it.
@@ -91,29 +91,26 @@ void main() {
       );
     });
 
-    test(
-      'a missing language maps to an empty list rather than null',
-      () async {
-        final engine = _FakeAndroidEngine([
-          {
-            'text': 'a',
-            'confidence': 0.1,
-            'left': 1.0,
-            'top': 2.0,
-            'right': 3.0,
-            'bottom': 4.0,
-          },
-        ]);
-        final recognizer = AndroidTextRecognizer(engine: engine);
+    test('a missing language maps to an empty list rather than null', () async {
+      final engine = _FakeAndroidEngine([
+        {
+          'text': 'a',
+          'confidence': 0.1,
+          'left': 1.0,
+          'top': 2.0,
+          'right': 3.0,
+          'bottom': 4.0,
+        },
+      ]);
+      final recognizer = AndroidTextRecognizer(engine: engine);
 
-        final result = await recognizer.recognize(
-          RecognizableImage(Uint8List(0)),
-        );
+      final result = await recognizer.recognize(
+        RecognizableImage(Uint8List(0)),
+      );
 
-        expect(result.lines.single.recognizedLanguages, isEmpty);
-        expect(result.lines.single.recognizedLanguages, isNot(isNull));
-      },
-    );
+      expect(result.lines.single.recognizedLanguages, isEmpty);
+      expect(result.lines.single.recognizedLanguages, isNot(isNull));
+    });
 
     test(
       'a present language passes through as a single-element list',
@@ -139,29 +136,26 @@ void main() {
       },
     );
 
-    test(
-      'a missing confidence maps to null rather than throwing',
-      () async {
-        // The base recognizer does not report a confidence for every line, so
-        // the engine payload can omit the key entirely.
-        final engine = _FakeAndroidEngine([
-          {
-            'text': 'no confidence',
-            'left': 1.0,
-            'top': 2.0,
-            'right': 3.0,
-            'bottom': 4.0,
-          },
-        ]);
-        final recognizer = AndroidTextRecognizer(engine: engine);
+    test('a missing confidence maps to null rather than throwing', () async {
+      // The base recognizer does not report a confidence for every line, so
+      // the engine payload can omit the key entirely.
+      final engine = _FakeAndroidEngine([
+        {
+          'text': 'no confidence',
+          'left': 1.0,
+          'top': 2.0,
+          'right': 3.0,
+          'bottom': 4.0,
+        },
+      ]);
+      final recognizer = AndroidTextRecognizer(engine: engine);
 
-        final result = await recognizer.recognize(
-          RecognizableImage(Uint8List(0)),
-        );
+      final result = await recognizer.recognize(
+        RecognizableImage(Uint8List(0)),
+      );
 
-        expect(result.lines.single.confidence, isNull);
-      },
-    );
+      expect(result.lines.single.confidence, isNull);
+    });
 
     test(
       'an empty engine result maps to an empty RecognizedText, not a failure',

@@ -1,10 +1,10 @@
 import 'vision_engine.dart';
-import 'recognizable_image.dart';
-import 'recognized_line.dart';
-import 'recognized_line_bounds.dart';
-import 'recognized_text.dart';
-import 'text_recognition_failure.dart';
-import 'text_recognizer.dart';
+import '../recognizable_image.dart';
+import '../recognized_line.dart';
+import '../recognized_line_bounds.dart';
+import '../recognized_text.dart';
+import '../text_recognition_failure.dart';
+import '../text_recognizer.dart';
 
 /// Recognizes text in an image using the native Apple Vision recognizer,
 /// reached through [VisionEngine].
