@@ -30,9 +30,12 @@ class _InMemoryRecognizer implements TextRecognizer {
 }
 
 /// Normalizes [DateTime.now] to UTC midnight, matching how [extractDate]
-/// defaults an unrecognized date to "today".
-DateTime _todayUtc() =>
-    DateTime.utc(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+/// defaults an unrecognized date to "today". The clock is read once so the
+/// year, month and day cannot be sampled across a local midnight boundary.
+DateTime _todayUtc() {
+  final now = DateTime.now();
+  return DateTime.utc(now.year, now.month, now.day);
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

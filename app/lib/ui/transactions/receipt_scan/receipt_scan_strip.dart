@@ -8,10 +8,11 @@ import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_flow.dart';
 
 /// Hidden when the settings toggle is off. "Scan receipt" and "Upload photo"
-/// both render on every platform. Per-platform capability differences are
-/// handled by the selectDocumentScanner and selectRecognizer fallback chains,
-/// which leave an empty manual-entry draft when a platform has no camera,
-/// gallery access, or recognizer.
+/// both render on every platform. If no recognizer is available, the scan
+/// resolves to an empty result and extraction falls back to a blank
+/// manual-entry draft. Denied permissions and cancelled pickers are handled
+/// by the scan flow and the receipt entry coordinator, which record the stop
+/// reason for the view to show.
 class ReceiptScanStrip extends ConsumerWidget {
   const ReceiptScanStrip({super.key, required this.formKey});
 
