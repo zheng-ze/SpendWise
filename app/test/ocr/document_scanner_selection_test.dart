@@ -3,14 +3,8 @@ import 'package:spendwise/ocr/document_scanner_selection.dart';
 
 void main() {
   group('selectDocumentScanner', () {
-    test('has no scanner on web', () async {
-      final scanner = await selectDocumentScanner(isWeb: true);
-
-      expect(scanner, isNull);
-    });
-
     test('picks a scanner on iOS', () async {
-      final scanner = await selectDocumentScanner(isWeb: false, isIOS: true);
+      final scanner = await selectDocumentScanner(isIOS: true);
 
       expect(scanner, isNotNull);
     });
@@ -20,7 +14,6 @@ void main() {
         'returns null when the device fails the eligibility check',
         () async {
           final scanner = await selectDocumentScanner(
-            isWeb: false,
             isIOS: false,
             isAndroid: true,
             isAndroidScannerEligible: () async => false,
@@ -32,7 +25,6 @@ void main() {
 
       test('returns a scanner when the device is eligible', () async {
         final scanner = await selectDocumentScanner(
-          isWeb: false,
           isIOS: false,
           isAndroid: true,
           isAndroidScannerEligible: () async => true,
@@ -47,7 +39,6 @@ void main() {
       () async {
         var eligibleCalled = false;
         final scanner = await selectDocumentScanner(
-          isWeb: false,
           isIOS: true,
           isAndroid: true,
           isAndroidScannerEligible: () async {
@@ -63,7 +54,6 @@ void main() {
 
     test('has no scanner on an unrecognized platform', () async {
       final scanner = await selectDocumentScanner(
-        isWeb: false,
         isIOS: false,
         isAndroid: false,
       );
