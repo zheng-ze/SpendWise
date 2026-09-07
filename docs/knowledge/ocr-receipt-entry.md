@@ -1,6 +1,6 @@
 # Receipt OCR Entry
 
-Last reconciled: 20741e0
+Last reconciled: 322f4b0
 
 _(Reconciled against `packages/ocr/lib/src/`, `app/lib/ocr/`, `app/android/app/src/main/kotlin/`,
 and `app/ios/Runner/` at the commit above. `packages/ocr/` now ships two implemented engines:
@@ -63,7 +63,6 @@ receipt-agnostic) and receipt-specific field-extraction heuristics in `app/`.
   non-null candidate wins, in order" router both helpers delegate to.
 - `app/lib/ocr/document_scanner_channel.dart` — the shared `DocumentScannerChannel` MethodChannel
   wrapper.
-- `app/lib/ui/transactions/document_crop/` — the web 4-point crop screen (`document_crop_screen.dart`).
 - `app/lib/ui/transactions/receipt_scan/` — the scan strip/flow that wires scanner + extraction.
 
 
@@ -192,11 +191,12 @@ Android checks Play Services eligibility before it routes the platform candidate
 
 Document capture: iOS launches `VNDocumentCameraViewController`, Android launches
 `GmsDocumentScanner` and falls back to a plain camera capture (`ImagePicker(source: camera)`) when
-Google Play Services is unavailable rather than showing an error; web gets a from-scratch 4-point
-crop screen (`app/lib/ui/transactions/document_crop/`). Both native scanners own their live
-rectangle feedback and capture; this app sees only the final cropped bytes. `DocumentScannerChannel`
-(Swift + Kotlin) wraps each scanner behind one MethodChannel and one Dart class. No custom
-per-frame document-boundary detection exists anywhere.
+Google Play Services is unavailable rather than showing an error. Both native scanners own their
+live rectangle feedback and capture; this app sees only the final cropped bytes.
+`DocumentScannerChannel` (Swift + Kotlin) wraps each scanner behind one MethodChannel and one Dart
+class. No custom per-frame document-boundary detection exists anywhere. The web-only manual 4-point
+crop screen that used to back the gallery-upload path is removed (issue #86 sub-ticket #89; see
+Gotchas) — no platform has a manual crop UI now.
 
 ## Extraction heuristics (app layer)
 
@@ -313,6 +313,31 @@ and the injected-test case does not assert it because it reuses one instance.
   A future session should not expect to find any Tesseract-related code, or any `ios_platform_check`
   file, in this feature; the remaining gotchas below predate this removal and cover the
   still-shipping Vision and Android engines.
+- **The web document-crop screen is removed (issue #86 sub-ticket #89, commit `c61c462`).** It was
+  reachable only on web: `receipt_scan_strip.dart`'s `_uploadPhoto` returned early on every
+  non-web platform (`if (!kIsWeb) { viewModel.requestScan(...); return; }`), so
+  `requestDocumentCrop` was only ever called when `kIsWeb` was true. Removing it deleted
+  `app/lib/ui/transactions/document_crop/` (`document_crop_screen.dart`,
+  `document_crop_execution.dart`, `document_crop_geometry.dart`) along with
+  `DocumentCropRequested`, `requestDocumentCrop`, `applyCroppedDocument`, and
+  `_pushDocumentCrop`, and their dedicated tests. The web upload branch in `_uploadPhoto` is left as
+  a temporary no-op (picks an image, then returns without acting on it) pending issue #86 sub-ticket
+  #90, which replaces the whole `kIsWeb`-gated branch with an unconditional `requestScan(gallery)`
+  call; a future session touching that file before #90 lands should expect this transitional state,
+  not a completed desktop upload path.
+- **A test mocking the wrong platform's recognition channel silently degrades to today's date
+  instead of failing loudly (fixed in commit `322f4b0`).** `receipt_entry_coordinator_test.dart`'s
+  `'native document scanner routing'` group runs under `TargetPlatform.iOS`
+  (`debugDefaultTargetPlatformOverride`), so `selectRecognizer` constructs a `VisionTextRecognizer`
+  reaching the `spendwise/vision_text_recognizer` channel (`packages/ocr/lib/src/vision/
+  vision_engine.dart:18-20`) — not the `spendwise/android_text_recognizer` channel
+  (`_mlKitChannel`) the Android-recognizer tests use. A test in that iOS group that mocks
+  `_mlKitChannel` instead of the vision channel gets no recognized text, so `extractDate`
+  (`app/lib/ocr/date_extraction.dart:25`) falls through to its `_today(now)` default — the test then
+  reads a real `DateTime.now()` value instead of throwing, so it fails only when the wrong date
+  happens not to match, not obviously at the mocking mistake itself. A future test added to that
+  `TargetPlatform.iOS` group needs `_visionChannel` (`MethodChannel
+  ('spendwise/vision_text_recognizer')`), never `_mlKitChannel`.
 
 ## Requirements
 
