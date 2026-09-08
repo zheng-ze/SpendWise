@@ -7,6 +7,8 @@ import 'package:spendwise/ledger/event_bus.dart';
 
 typedef ComputeRunner = Future<List<AnalysisItem>> Function(LedgerState state);
 
+/// Computes on the calling isolate. Tests inject this so a widget pump sees the
+/// result without waiting on a real isolate.
 Future<List<AnalysisItem>> syncComputeRunner(LedgerState state) async {
   return Accounting.analysisItems(state);
 }
@@ -21,7 +23,7 @@ Future<List<AnalysisItem>> isolateComputeRunner(LedgerState state) {
 
 class AnalysisCache extends ChangeNotifier {
   AnalysisCache({ComputeRunner? runner})
-    : _runner = runner ?? (kIsWeb ? syncComputeRunner : isolateComputeRunner);
+    : _runner = runner ?? isolateComputeRunner;
 
   final ComputeRunner _runner;
 

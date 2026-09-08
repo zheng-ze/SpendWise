@@ -136,7 +136,7 @@ Core domain types: `LedgerState`, `LedgerChange`, `Entry`, `MoneySource`, `Accou
 | Charts | `fl_chart` (or a custom painter) | Donut chart with drill-down |
 | Icons | Material Icons, with a stored-symbol-name mapping table | A category's stored icon name is remapped to a `IconData` once at read time, never re-stored |
 | Codegen | Drift and `build_runner` only | No codegen for the domain package: hand-written immutable-by-discipline classes keep the package dependency-light and readable; equality is implemented by hand or with `equatable` where tests need it |
-| Off-main compute | `Isolate.run` / `compute()` | Used for analysis recompute; web has no isolates, so it falls back to synchronous compute there, which is acceptable at personal-scale data volumes |
+| Off-main compute | `Isolate.run` / `compute()` | Used for analysis recompute; tests inject a synchronous runner instead, so a widget pump sees the result without waiting on a real isolate |
 | Tests | `package:test` (domain) and `flutter_test` (app) | — |
 
 `LedgerState` is a mutable class, mutated in place, owned exclusively by `Ledger` — nothing else
@@ -146,10 +146,10 @@ Riverpod notifications published after each mutation.
 
 **Snapshot rule.** Handing the live `LedgerState` to anything asynchronous is unsafe, because it
 can be mutated again before the async work reads it. `AnalysisCache` computes analysis through a
-swappable `ComputeRunner`: on mobile it runs `Isolate.run`, and the isolate's message serialization
+swappable `ComputeRunner`: it runs `Isolate.run`, and the isolate's message serialization
 deep-copies the `LedgerState` argument it is handed — that copy is the snapshot, so a mutation
-landing mid-compute cannot corrupt the result the compute returns. The web runner computes
-synchronously on the live object, which is safe only because that path is synchronous end to end;
+landing mid-compute cannot corrupt the result the compute returns. The synchronous runner tests
+inject computes on the live object, which is safe only because that path is synchronous end to end;
 the live object must never be handed to anything async. A generation counter (`_lastComputed`
 versus the per-batch `revision`) discards a compute whose generation moved on before it finished, so
 a stale result never overwrites a fresh one (ADR-0015).
@@ -321,8 +321,9 @@ observed class of bug.
    computed from a hash is lowercased immediately. A case mismatch between two representations of
    the same id is a common source of phantom "missing holder" bugs, so normalization happens once,
    at the boundary, rather than being assumed downstream.
-6. **Web has no isolates.** `AnalysisCache` on web computes synchronously on the live object instead
-   of dispatching to `Isolate.run`, which is safe only because that path is synchronous end to end.
+6. **The synchronous runner is a test seam.** `AnalysisCache` dispatches to `Isolate.run` on every
+   platform the app ships to. A test injects `syncComputeRunner` to compute on the live object
+   instead, which is safe only because that path is synchronous end to end.
 7. **`flushNow` is a real barrier.** Every write enqueued before a `flushNow` call is guaranteed to
    be on disk before the call returns. This is tested directly, because backgrounding on mobile is
    exactly the moment this guarantee has to hold.
