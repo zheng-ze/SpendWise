@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/ui/shell/layout_breakpoints.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/shell/status_banner.dart';
-import 'package:spendwise/ui/shell/storage_warning.dart';
 
 const _layoutTransitionDuration = Duration(milliseconds: 180);
 
@@ -62,17 +61,10 @@ class _AppShellState extends ConsumerState<AppShell> {
         ref.read(selectedDestinationProvider.notifier).state =
             ShellDestination.values[index];
 
-    final content = Column(
+    final content = Stack(
       children: [
-        const StorageWarning(),
-        Expanded(
-          child: Stack(
-            children: [
-              _DestinationStacks(selected: selected, bodies: widget.bodies),
-              const StatusBanner(),
-            ],
-          ),
-        ),
+        _DestinationStacks(selected: selected, bodies: widget.bodies),
+        const StatusBanner(),
       ],
     );
 

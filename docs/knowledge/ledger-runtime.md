@@ -1,6 +1,6 @@
 # Ledger Runtime
 
-Last reconciled: 4f7d3ee
+Last reconciled: b1edf90
 
 ## Feature overview
 
@@ -20,7 +20,10 @@ banners, and first-launch seeding. These live in `app/lib/ledger/` and `app/lib/
   the store.
 - `app/lib/boot/app_boot.dart`, `app_phase.dart`, `banner_state.dart`, `providers.dart`,
   `seed_data.dart` — boot state machine, banner state, Riverpod wiring, and the sample dataset.
-- `app/lib/ui/shell/status_banner.dart`, `storage_warning.dart` — the bottom status banner overlay.
+- `app/lib/ui/shell/status_banner.dart` — the bottom status banner overlay. The browser-storage
+  durability warning (`storage_warning.dart`, `storageIsDurableProvider`) was removed in commit
+  `4d465f0` alongside the dropped web platform target; `status_banner.dart` is now the only banner
+  in the shell.
 
 ## Module interactions
 
@@ -35,8 +38,13 @@ must `listen` before the first `mutate` is possible — during boot, before the 
 the UI — because a sync broadcast stream delivers only to attached listeners (`persistence.md` §4).
 
 `AnalysisCache.start(bus)` subscribes and bumps `revision` by one per delivered batch;
-`refresh(state)` computes off the main isolate (or synchronously on web) under a generation guard
-so a stale result is discarded when a newer refresh has already claimed a higher revision.
+`refresh(state)` computes off the main isolate via `isolateComputeRunner` on every platform under a
+generation guard so a stale result is discarded when a newer refresh has already claimed a higher
+revision. `AnalysisCache` no longer branches on `kIsWeb`: commit `7403a01` dropped the web-only
+`syncComputeRunner` default now that web is not a supported platform. `syncComputeRunner`
+(`analysis_cache.dart`) itself is retained purely as a test seam — 13 test call sites construct
+`AnalysisCache(runner: syncComputeRunner)` so a widget pump sees the result without waiting on a
+real isolate; it is never selected in production.
 
 ## Boot order
 

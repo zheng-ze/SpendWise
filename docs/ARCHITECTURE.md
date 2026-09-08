@@ -1,10 +1,10 @@
 # SpendWise architecture and behavior spec
 
-SpendWise is a personal finance app built with Flutter, targeting Android, iOS, web, macOS,
-Windows, and Linux from one codebase and one renderer, so the UI is pixel-identical across
-platforms. This document describes what the app does and how it is built: the feature surface, the
-stack decisions and their rationale, the layer-by-layer architecture, the domain and implementation
-rules every change must respect, and the roadmap for future work.
+SpendWise is a personal finance app built with Flutter, targeting Android, iOS, macOS, Windows,
+and Linux from one codebase and one renderer, so the UI is pixel-identical across platforms. This
+document describes what the app does and how it is built: the feature surface, the stack decisions
+and their rationale, the layer-by-layer architecture, the domain and implementation rules every
+change must respect, and the roadmap for future work.
 
 For narrower, per-capability detail, see `docs/knowledge/` (the feature knowledge base, one entry
 per feature, holding both the behavior contract and the rationale for each capability). This
@@ -85,8 +85,8 @@ document is the wide-angle view that ties those entries together.
   pockets nested under their parent and card accounts showing payable and outstanding balances.
   Forms exist for entries, accounts, pockets, categories, and plans, plus a category picker, a
   recurrence picker, and a recycle bin for restoring or purging archived rows. The app seeds sample
-  data on first launch and shows save-error, plan-error, and storage-warning banners plus a retry
-  screen on load failure.
+  data on first launch and shows save-error and plan-error banners plus a retry screen on load
+  failure.
 
 ## 2. Repository layout
 
@@ -129,14 +129,14 @@ Core domain types: `LedgerState`, `LedgerChange`, `Entry`, `MoneySource`, `Accou
 |---|---|---|
 | Language | Dart 3 | — |
 | State management | Riverpod (`Notifier`/`Provider`) | Testable without widgets; compile-safe dependency injection |
-| Persistence | Drift (SQLite) | Typed schema and migrations, and it runs on every target, including web via wasm sqlite3 |
+| Persistence | Drift (SQLite) | Typed schema and migrations, and it runs on every target |
 | OCR recognition | `packages/ocr` (platform channel) | On-device text recognition behind a per-platform seam (native scanner on Android, ML Kit on iOS); the package is pure Dart and testable without a device |
 | Money | `decimal` package | `double` is never precise enough for currency; stored as `TEXT` in SQLite |
 | IDs | `String` (lowercase uuid), `uuid` package | Dart represents uuids natively as strings; the package supports v5 out of the box for occurrence ids |
 | Charts | `fl_chart` (or a custom painter) | Donut chart with drill-down |
 | Icons | Material Icons, with a stored-symbol-name mapping table | A category's stored icon name is remapped to a `IconData` once at read time, never re-stored |
 | Codegen | Drift and `build_runner` only | No codegen for the domain package: hand-written immutable-by-discipline classes keep the package dependency-light and readable; equality is implemented by hand or with `equatable` where tests need it |
-| Off-main compute | `Isolate.run` / `compute()` | Used for analysis recompute; web has no isolates, so it falls back to synchronous compute there, which is acceptable at personal-scale data volumes |
+| Off-main compute | `Isolate.run` / `compute()` | Used for analysis recompute; tests inject a synchronous runner instead, so a widget pump sees the result without waiting on a real isolate |
 | Tests | `package:test` (domain) and `flutter_test` (app) | — |
 
 `LedgerState` is a mutable class, mutated in place, owned exclusively by `Ledger` — nothing else
@@ -146,10 +146,10 @@ Riverpod notifications published after each mutation.
 
 **Snapshot rule.** Handing the live `LedgerState` to anything asynchronous is unsafe, because it
 can be mutated again before the async work reads it. `AnalysisCache` computes analysis through a
-swappable `ComputeRunner`: on mobile it runs `Isolate.run`, and the isolate's message serialization
+swappable `ComputeRunner`: it runs `Isolate.run`, and the isolate's message serialization
 deep-copies the `LedgerState` argument it is handed — that copy is the snapshot, so a mutation
-landing mid-compute cannot corrupt the result the compute returns. The web runner computes
-synchronously on the live object, which is safe only because that path is synchronous end to end;
+landing mid-compute cannot corrupt the result the compute returns. The synchronous runner tests
+inject computes on the live object, which is safe only because that path is synchronous end to end;
 the live object must never be handed to anything async. A generation counter (`_lastComputed`
 versus the per-batch `revision`) discards a compute whose generation moved on before it finished, so
 a stale result never overwrites a fresh one (ADR-0015).
@@ -261,7 +261,7 @@ separator input is a recorded non-goal until localization work begins.
 The app is phone-first with one shell that adapts to width:
 
 - `NavigationBar` with 4 destinations on compact width, `NavigationRail` on wide layouts (desktop,
-  web, tablet).
+  tablet).
 - Screen-level state — selected month, selector mode, stats kind, and similar per-tab state — lives
   in providers, never in widget-local state that a rebuild can silently recreate. Controllers that
   window on "now" take an injected clock, so statement and summary window logic can be pinned in
@@ -294,8 +294,8 @@ The app is phone-first with one shell that adapts to width:
   message).
 - Boot: a sealed `AppPhase` machine (`Loading` / `Ready` / `Failed`) living in `boot/`, with
   `Ready` carrying the `Ledger` and `PersistenceProcessor`; sample-data seeding gated on
-  `hasSeeded`; a retry that invalidates the prior provider (ADR-0047); and save/plan-error and
-  storage-warning banners shown as a persistent overlay (ADR-0025).
+  `hasSeeded`; a retry that invalidates the prior provider (ADR-0047); and save/plan-error banners
+  shown as a persistent overlay (ADR-0025).
 
 ## 5. Domain and implementation rules
 
@@ -321,8 +321,9 @@ observed class of bug.
    computed from a hash is lowercased immediately. A case mismatch between two representations of
    the same id is a common source of phantom "missing holder" bugs, so normalization happens once,
    at the boundary, rather than being assumed downstream.
-6. **Web has no isolates.** `AnalysisCache` on web computes synchronously on the live object instead
-   of dispatching to `Isolate.run`, which is safe only because that path is synchronous end to end.
+6. **The synchronous runner is a test seam.** `AnalysisCache` dispatches to `Isolate.run` on every
+   platform the app ships to. A test injects `syncComputeRunner` to compute on the live object
+   instead, which is safe only because that path is synchronous end to end.
 7. **`flushNow` is a real barrier.** Every write enqueued before a `flushNow` call is guaranteed to
    be on disk before the call returns. This is tested directly, because backgrounding on mobile is
    exactly the moment this guarantee has to hold.
@@ -343,7 +344,7 @@ Future work, in intended order:
    `isConcurrent`, with conflict surfacing for edits that are genuinely concurrent. Transport is not
    yet decided — starting with file or export-based sync, or a self-hosted option, and evaluating a
    hosted backend only if it can preserve the app's offline-first behavior. Cross-platform sync
-   (Android, iOS, desktop, and web all converging) is the goal.
+   (Android, iOS, and desktop all converging) is the goal.
 2. **Realbyte import and export/backup.** CSV/Excel import from Money Manager, to migrate existing
    transaction history (and to generate realistic data for performance testing), plus an
    export/backup path — an offline-first app with no backup story loses data whenever a device is

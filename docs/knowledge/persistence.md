@@ -1,6 +1,6 @@
 # Persistence
 
-Last reconciled: 2026-09-02
+Last reconciled: b1edf90
 
 ## Feature overview
 
@@ -18,8 +18,12 @@ Lives in `app/lib/persistence/`.
   generated row models.
 - `app/lib/persistence/mappers.dart` — domain ↔ row mapping.
 - `app/lib/persistence/version_vector.dart` — `VersionVector` and its JSON codec.
-- `app/lib/persistence/database_connection.dart`, `database_connection_native.dart`,
-  `database_connection_web.dart` — native vs web (`sqlite3.wasm`) connection selection.
+- `app/lib/persistence/database_connection.dart` — `openLedgerConnection`, which imports
+  `database_connection_native.dart` directly (no conditional import; web support was dropped in
+  commit `e7a963d`).
+- `app/lib/persistence/database_connection_native.dart` — `openConnection`, which opens a
+  `NativeDatabase` file under the app's documents directory on every supported platform (Android,
+  iOS, macOS, Windows, Linux).
 - `app/lib/persistence/persistence_processor.dart` — bus-to-store bridge (also `ledger_runtime.md`).
 
 ## Module interactions
