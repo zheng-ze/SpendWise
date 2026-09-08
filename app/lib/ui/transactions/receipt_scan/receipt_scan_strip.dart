@@ -1,7 +1,5 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image_picker/image_picker.dart';
 
 import 'package:spendwise/settings/settings_providers.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
@@ -55,7 +53,7 @@ class ReceiptScanStrip extends ConsumerWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: scanning ? null : () => _uploadPhoto(context, ref),
+                  onPressed: scanning ? null : () => _uploadPhoto(ref),
                   icon: const Icon(Icons.upload_outlined),
                   label: const Text('Upload photo'),
                 ),
@@ -77,17 +75,10 @@ class ReceiptScanStrip extends ConsumerWidget {
         .requestScan(ReceiptScanSource.camera);
   }
 
-  Future<void> _uploadPhoto(BuildContext context, WidgetRef ref) async {
-    final viewModel = ref.read(entryFormViewModelProvider(formKey).notifier);
-    if (!kIsWeb) {
-      viewModel.requestScan(ReceiptScanSource.gallery);
-      return;
-    }
-    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (picked == null) return;
-    final bytes = await picked.readAsBytes();
-    if (!context.mounted) return;
-    viewModel.requestDocumentCrop(bytes);
+  void _uploadPhoto(WidgetRef ref) {
+    ref
+        .read(entryFormViewModelProvider(formKey).notifier)
+        .requestScan(ReceiptScanSource.gallery);
   }
 
   void _showPermissionDeniedMessage(
