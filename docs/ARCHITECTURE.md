@@ -85,8 +85,8 @@ document is the wide-angle view that ties those entries together.
   pockets nested under their parent and card accounts showing payable and outstanding balances.
   Forms exist for entries, accounts, pockets, categories, and plans, plus a category picker, a
   recurrence picker, and a recycle bin for restoring or purging archived rows. The app seeds sample
-  data on first launch and shows save-error, plan-error, and storage-warning banners plus a retry
-  screen on load failure.
+  data on first launch and shows save-error and plan-error banners plus a retry screen on load
+  failure.
 
 ## 2. Repository layout
 
@@ -294,8 +294,8 @@ The app is phone-first with one shell that adapts to width:
   message).
 - Boot: a sealed `AppPhase` machine (`Loading` / `Ready` / `Failed`) living in `boot/`, with
   `Ready` carrying the `Ledger` and `PersistenceProcessor`; sample-data seeding gated on
-  `hasSeeded`; a retry that invalidates the prior provider (ADR-0047); and save/plan-error and
-  storage-warning banners shown as a persistent overlay (ADR-0025).
+  `hasSeeded`; a retry that invalidates the prior provider (ADR-0047); and save/plan-error banners
+  shown as a persistent overlay (ADR-0025).
 
 ## 5. Domain and implementation rules
 
