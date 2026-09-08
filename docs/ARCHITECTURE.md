@@ -1,10 +1,10 @@
 # SpendWise architecture and behavior spec
 
-SpendWise is a personal finance app built with Flutter, targeting Android, iOS, web, macOS,
-Windows, and Linux from one codebase and one renderer, so the UI is pixel-identical across
-platforms. This document describes what the app does and how it is built: the feature surface, the
-stack decisions and their rationale, the layer-by-layer architecture, the domain and implementation
-rules every change must respect, and the roadmap for future work.
+SpendWise is a personal finance app built with Flutter, targeting Android, iOS, macOS, Windows,
+and Linux from one codebase and one renderer, so the UI is pixel-identical across platforms. This
+document describes what the app does and how it is built: the feature surface, the stack decisions
+and their rationale, the layer-by-layer architecture, the domain and implementation rules every
+change must respect, and the roadmap for future work.
 
 For narrower, per-capability detail, see `docs/knowledge/` (the feature knowledge base, one entry
 per feature, holding both the behavior contract and the rationale for each capability). This
@@ -129,7 +129,7 @@ Core domain types: `LedgerState`, `LedgerChange`, `Entry`, `MoneySource`, `Accou
 |---|---|---|
 | Language | Dart 3 | — |
 | State management | Riverpod (`Notifier`/`Provider`) | Testable without widgets; compile-safe dependency injection |
-| Persistence | Drift (SQLite) | Typed schema and migrations, and it runs on every target, including web via wasm sqlite3 |
+| Persistence | Drift (SQLite) | Typed schema and migrations, and it runs on every target |
 | OCR recognition | `packages/ocr` (platform channel) | On-device text recognition behind a per-platform seam (native scanner on Android, ML Kit on iOS); the package is pure Dart and testable without a device |
 | Money | `decimal` package | `double` is never precise enough for currency; stored as `TEXT` in SQLite |
 | IDs | `String` (lowercase uuid), `uuid` package | Dart represents uuids natively as strings; the package supports v5 out of the box for occurrence ids |
@@ -261,7 +261,7 @@ separator input is a recorded non-goal until localization work begins.
 The app is phone-first with one shell that adapts to width:
 
 - `NavigationBar` with 4 destinations on compact width, `NavigationRail` on wide layouts (desktop,
-  web, tablet).
+  tablet).
 - Screen-level state — selected month, selector mode, stats kind, and similar per-tab state — lives
   in providers, never in widget-local state that a rebuild can silently recreate. Controllers that
   window on "now" take an injected clock, so statement and summary window logic can be pinned in
@@ -343,7 +343,7 @@ Future work, in intended order:
    `isConcurrent`, with conflict surfacing for edits that are genuinely concurrent. Transport is not
    yet decided — starting with file or export-based sync, or a self-hosted option, and evaluating a
    hosted backend only if it can preserve the app's offline-first behavior. Cross-platform sync
-   (Android, iOS, desktop, and web all converging) is the goal.
+   (Android, iOS, and desktop all converging) is the goal.
 2. **Realbyte import and export/backup.** CSV/Excel import from Money Manager, to migrate existing
    transaction history (and to generate realistic data for performance testing), plus an
    export/backup path — an offline-first app with no backup story loses data whenever a device is
