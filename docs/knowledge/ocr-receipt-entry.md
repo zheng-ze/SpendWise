@@ -1,6 +1,6 @@
 # Receipt OCR Entry
 
-Last reconciled: a2920de
+Last reconciled: b1edf90
 
 _(Reconciled against `packages/ocr/lib/src/`, `app/lib/ocr/`, `app/android/app/src/main/kotlin/`,
 `app/lib/ui/transactions/receipt_scan/`, and `app/ios/Runner/` at the commit above.
@@ -318,6 +318,15 @@ and the injected-test case does not assert it because it reuses one instance.
 
 ## Gotchas and invariants
 
+- **A test that forces `TargetPlatform.iOS` must mock the Vision channel, not the Android one.**
+  `app/test/ui/transactions/receipt_scan/receipt_entry_coordinator_test.dart`'s "native document
+  scanner routing" group sets `debugDefaultTargetPlatformOverride = TargetPlatform.iOS`, so
+  recognition routes through `VisionTextRecognizer` on the `spendwise/vision_text_recognizer`
+  channel. Before commit `70f7671` the group mocked only `spendwise/android_text_recognizer`
+  (`_mlKitChannel`), leaving the Vision channel unmocked; recognition silently returned no result
+  and `extractDate` fell back to `DateTime.now()`, so the test's date assertion passed only by
+  coincidence, when run near the asserted date. The fix mocks `_visionChannel` instead and clears
+  it in `tearDown`.
 - **`app/ios`'s `IPHONEOS_DEPLOYMENT_TARGET` is 13.0, resolved after issue #77.** It was pinned to
   15.5 for a while because `google_mlkit_commons`'s own iOS podspec hard-declared
   `platform :ios, '15.5'` — a CocoaPods dependency-resolution floor enforced regardless of whether
