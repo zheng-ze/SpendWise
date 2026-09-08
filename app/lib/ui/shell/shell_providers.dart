@@ -1,7 +1,4 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
-
-import 'package:spendwise/persistence/database_connection.dart';
 
 enum ShellDestination { transactions, stats, accounts, settings }
 
@@ -18,7 +15,3 @@ DateTime startOfMonthUtc(DateTime date) => DateTime.utc(date.year, date.month);
 final selectedMonthProvider = StateProvider<DateTime>(
   (ref) => startOfMonthUtc(DateTime.now()),
 );
-
-/// [storageIsDurable] is set while the connection opens, so this only carries
-/// an answer once boot has resolved the database.
-final storageIsDurableProvider = Provider<bool>((ref) => storageIsDurable);
