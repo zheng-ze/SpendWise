@@ -1,6 +1,6 @@
 # Receipt OCR Entry
 
-Last reconciled: b1edf90
+Last reconciled: fdd9adf
 
 _(Reconciled against `packages/ocr/lib/src/`, `app/lib/ocr/`, `app/android/app/src/main/kotlin/`,
 `app/lib/ui/transactions/receipt_scan/`, and `app/ios/Runner/` at the commit above.
@@ -19,7 +19,10 @@ sole reason for that floor — see Gotchas. Issue #90 finished the UI half of #8
 `ReceiptScanStrip` no longer hides its "Scan receipt" button behind a `kIsWeb` gate, so both
 buttons render on every supported platform. The document-crop flow that #86's plan originally
 scheduled for deletion was deliberately kept instead, for a future macOS/Windows crop feature - see
-Gotchas.)_
+Gotchas. Commit `fdd9adf` removed `_uploadPhoto`'s dead `kIsWeb` branch in
+`receipt_scan_strip.dart`, so "Upload photo" now unconditionally requests a gallery scan and the
+document-crop flow it used to reach has no caller left in the app at all - see Scan strip buttons
+and upload routing, and Gotchas.)_
 
 ## Feature overview
 
@@ -69,9 +72,10 @@ receipt-agnostic) and receipt-specific field-extraction heuristics in `app/`.
 - `app/lib/ocr/document_scanner_channel.dart` — the shared `DocumentScannerChannel` MethodChannel
   wrapper.
 - `app/lib/ui/transactions/document_crop/` — the from-scratch 4-point crop screen
-  (`document_crop_screen.dart`), reached only from `_uploadPhoto`'s web branch. Retained on purpose
-  for a future macOS/Windows crop feature rather than deleted with the rest of the web surface - see
-  Gotchas.
+  (`document_crop_screen.dart`). Its last caller was `_uploadPhoto`'s `kIsWeb` branch in
+  `receipt_scan_strip.dart`, removed in commit `fdd9adf`; it now has no caller at all. Retained on
+  purpose for a future macOS/Windows crop feature rather than deleted with the rest of the web
+  surface - see Gotchas.
 - `app/lib/ui/transactions/receipt_scan/` — the scan strip/flow that wires scanner + extraction.
   `receipt_scan_strip.dart` holds the two buttons and their routing; `receipt_scan_flow.dart` holds
   `runReceiptScan` and the recognizer seam.
@@ -203,9 +207,9 @@ Android checks Play Services eligibility before it routes the platform candidate
 Document capture: iOS launches `VNDocumentCameraViewController`, Android launches
 `GmsDocumentScanner` and falls back to a plain camera capture (`ImagePicker(source: camera)`) when
 Google Play Services is unavailable rather than showing an error. The from-scratch 4-point crop
-screen (`app/lib/ui/transactions/document_crop/`) is reachable only through `_uploadPhoto`'s web
-branch, so no shipping platform reaches it today; it survives for a future macOS/Windows crop
-feature - see Scan strip buttons and upload routing below. Both native scanners own their live
+screen (`app/lib/ui/transactions/document_crop/`) has no caller left at all as of commit `fdd9adf`,
+so no shipping platform reaches it today; it survives for a future macOS/Windows crop feature - see
+Scan strip buttons and upload routing below. Both native scanners own their live
 rectangle feedback and capture; this app sees only the final cropped bytes. `DocumentScannerChannel`
 (Swift + Kotlin) wraps each scanner behind one MethodChannel and one Dart class. No custom
 per-frame document-boundary detection exists anywhere.
@@ -264,7 +268,7 @@ for external consumers (it has exactly one consumer — this app).
 `ReceiptScanStrip` (`app/lib/ui/transactions/receipt_scan/receipt_scan_strip.dart`) is the only
 entry point into a scan from the transaction entry form. It renders two buttons, "Scan receipt" and
 "Upload photo", and hides the whole strip when `scanStripEnabledProvider` reports the settings
-toggle is off (`receipt_scan_strip.dart:23-24`).
+toggle is off (`receipt_scan_strip.dart:21-22`).
 
 Both buttons render on every supported platform. Before issue #90 the "Scan receipt" button and its
 spacer sat behind `if (!kIsWeb)` gates; commit `8f36d8b` removed both, so the UI layer holds no
@@ -273,18 +277,20 @@ underneath instead: `selectDocumentScanner` and `selectRecognizer` each return `
 platform has no implementation, and the scan degrades to a blank draft rather than hiding a control
 (see Engine and scanner selection, and Failure handling).
 
-"Scan receipt" calls `requestScan(ReceiptScanSource.camera)`. "Upload photo" routes through
-`_uploadPhoto`, which still branches on `kIsWeb` (`receipt_scan_strip.dart:80-91`): every non-web
-platform takes the early return and calls `requestScan(ReceiptScanSource.gallery)`, and the web
-branch picks an image through `ImagePicker` and hands the bytes to `requestDocumentCrop`. That web
-branch, its `image_picker` import, and the crop screen behind it were deliberately kept when the
-rest of the web surface came out - see Gotchas.
+"Scan receipt" calls `requestScan(ReceiptScanSource.camera)` from `_scan`
+(`receipt_scan_strip.dart:72-76`). "Upload photo" calls `requestScan(ReceiptScanSource.gallery)` from
+`_uploadPhoto` (`receipt_scan_strip.dart:78-82`), a synchronous `void` method with no platform branch.
+The strip holds no `kIsWeb` check, `BuildContext`, or `ImagePicker` call anywhere in it; commit
+`fdd9adf` removed `_uploadPhoto`'s dead `kIsWeb`-gated branch, which used to pick an image through
+`ImagePicker` and hand the bytes to `requestDocumentCrop`, along with this file's
+`package:flutter/foundation.dart` and `package:image_picker/image_picker.dart` imports. The
+document-crop flow that branch used to reach was deliberately kept anyway - see Gotchas.
 
 Both buttons are disabled while a scan runs, driven by a `select` on the view model's `scanning`
-field so an unrelated form change does not rebuild the strip (`receipt_scan_strip.dart:36-40`). The
+field so an unrelated form change does not rebuild the strip (`receipt_scan_strip.dart:34-38`). The
 strip also listens for `scanStop` on the same provider and shows a snack bar for
 `ReceiptScanStop.permissionDenied`, clearing the stop once shown so it fires once per occurrence
-(`receipt_scan_strip.dart:28-34`, `_showPermissionDeniedMessage`).
+(`receipt_scan_strip.dart:26-32`, `_showPermissionDeniedMessage`).
 
 ## Recognizer seam for scans
 
@@ -361,24 +367,40 @@ and the injected-test case does not assert it because it reuses one instance.
   A future session should not expect to find any Tesseract-related code, or any `ios_platform_check`
   file, in this feature; the remaining gotchas below predate this removal and cover the
   still-shipping Vision and Android engines.
-- **The document-crop flow is deliberately kept and currently unreachable, not dead code.** Issue
+- **The document-crop flow is deliberately kept and now has no caller at all, not dead code.** Issue
   #86's approved plan scheduled `app/lib/ui/transactions/document_crop/`,
   `DocumentCropRequested`, `requestDocumentCrop`, `applyCroppedDocument`, and `_pushDocumentCrop`
   for deletion along with the rest of the web surface, and sub-ticket #89 owned that deletion. The
   deletion was reversed: #89 was closed without merging its pull request, because the crop screen
-  is wanted for a future macOS/Windows crop feature. All of that code still exists and still
-  compiles; its only caller is `_uploadPhoto`'s `kIsWeb` branch
-  (`receipt_scan_strip.dart:88-90`), which no shipping platform takes now that web is gone. A
-  future session should not delete this as apparent dead code without reopening that decision.
-- **`kIsWeb` is a compile-time `false` under `flutter test`, which limits what the strip-level
-  tests can prove.** A widget test cannot distinguish the strip with its old `if (!kIsWeb)`
-  visibility gates from the strip without them, since both compile to the same `false` constant
-  and render both buttons either way. The two strip-level tests in
-  `app/test/ui/transactions/receipt_scan/receipt_scan_strip_test.dart` pass identically against
-  the gated and ungated widget: they stand as regression guards against a gate being
-  reintroduced, but they cannot prove the gate removal itself. Making them able to fail would
-  need either a browser-target test run, which contradicts issue #86's decision to drop web, or a
-  platform-flag parameter on `ReceiptScanStrip`, which that same plan's out-of-scope list
+  is wanted for a future macOS/Windows crop feature. That code's last caller was `_uploadPhoto`'s
+  `kIsWeb` branch in `receipt_scan_strip.dart`, and commit `fdd9adf` removed that branch, so
+  `requestDocumentCrop` and `applyCroppedDocument`
+  (`app/lib/ui/transactions/entry/entry_form_view_model.dart`), `DocumentCropRequested`
+  (`app/lib/ui/transactions/transactions_view_model.dart`), `_pushDocumentCrop`
+  (`app/lib/ui/transactions/transactions_flow.dart`), and the whole
+  `app/lib/ui/transactions/document_crop/` screen and its tests now compile but have no caller
+  anywhere in the app. This is deliberate, not a regression to clean up: the chain is retained as
+  the seam for a future macOS/Windows crop feature, and a future session must not delete it as
+  apparent dead code without reopening that decision. `image_picker` stays a dependency in
+  `app/pubspec.yaml:24` regardless, because `app/lib/ui/transactions/receipt_scan/receipt_scan_flow.dart:6,81`
+  still calls `ImagePicker().pickImage(source: source.pickerSource)` for the camera/gallery capture
+  paths that do ship.
+- **`receipt_scan_strip.dart` no longer contains a `kIsWeb` check anywhere, but the strip-level
+  tests still cannot prove a platform branch is absent.** Issue #90 removed the "Scan receipt"
+  button's `if (!kIsWeb)` visibility gate, and commit `fdd9adf` removed `_uploadPhoto`'s
+  `kIsWeb`-gated branch along with the file's `package:flutter/foundation.dart` import, so the
+  symbol is gone from the file entirely. The underlying limitation predates and survives both
+  removals: `kIsWeb` compiles to the same `false` constant under `flutter test` as on every
+  non-web platform, so a widget test run this way cannot distinguish a strip with either gate from
+  one without it - both take the same `!kIsWeb` branch and render identically. The three
+  strip-level tests in `app/test/ui/transactions/receipt_scan/receipt_scan_strip_test.dart`
+  (`shows both buttons when the setting is on`, `renders nothing when the setting is off`, and
+  `tapping Upload photo starts a gallery scan` at line 98, which taps "Upload photo" and asserts
+  `recorder.scanSources` contains `ReceiptScanSource.gallery`) pass identically whether or not a
+  `kIsWeb` gate is present: they stand as regression guards against a gate being reintroduced, but
+  `flutter test` alone cannot prove one is absent. Making them able to fail on a reintroduced gate
+  would need either a browser-target test run, which contradicts issue #86's decision to drop web,
+  or a platform-flag parameter on `ReceiptScanStrip`, which that same plan's out-of-scope list
   excludes. `.agents/rules/testing-and-mocking.md` holds that a test which cannot fail reports
   safety that is not there, so this limitation is recorded here rather than left for the tests to
   imply a stronger guarantee than they give.
@@ -399,11 +421,12 @@ and the injected-test case does not assert it because it reuses one instance.
   through a hand-written MethodChannel bridge (issue #77 for the last remaining plugin dependency,
   `google_mlkit_text_recognition`, removed).
 - Both the "Scan receipt" and "Upload photo" buttons render on every supported platform, and the UI
-  layer holds no platform-specific visibility gate. (`receipt_scan_strip.dart:46-64`; test `shows
+  layer holds no platform-specific visibility gate. (`receipt_scan_strip.dart:44-62`; test `shows
   both buttons when the setting is on` in
   `app/test/ui/transactions/receipt_scan/receipt_scan_strip_test.dart`; commit `8f36d8b`.)
-- "Upload photo" requests `ReceiptScanSource.gallery` on every non-web platform.
-  (`receipt_scan_strip.dart:82-85`; test `tapping Upload photo starts a gallery scan`.)
+- "Upload photo" requests `ReceiptScanSource.gallery` unconditionally, with no platform branch.
+  (`receipt_scan_strip.dart:78-82`; test `tapping Upload photo starts a gallery scan` at
+  `app/test/ui/transactions/receipt_scan/receipt_scan_strip_test.dart:98`; commit `fdd9adf`.)
 - A scan whose recognizer factory returns `null` prefills a null name, a null amount, and today's
   date rather than failing. This is the desktop path, since `selectRecognizer` returns `null` on
   macOS, Windows, and Linux. (`receipt_scan_flow.dart`'s `_recognize`, which returns
