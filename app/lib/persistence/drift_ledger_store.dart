@@ -16,6 +16,18 @@ abstract class StoreTimer {
 
 typedef ArmTimer = StoreTimer Function(Duration delay, void Function() onFire);
 
+/// Raised when a row's stored version vector cannot be decoded, which makes
+/// the row permanently unsaveable: every future write to it fails the same
+/// way, so retrying never clears it.
+class PermanentSaveError implements Exception {
+  const PermanentSaveError(this.reason);
+
+  final String reason;
+
+  @override
+  String toString() => 'PermanentSaveError($reason)';
+}
+
 class _RealTimer implements StoreTimer {
   _RealTimer(Duration delay, void Function() onFire)
     : _timer = Timer(delay, onFire);
@@ -237,6 +249,12 @@ class DriftLedgerStore implements LedgerStore {
           }
           if (seedingThisCycle) await _writeSeedFlag();
         });
+      } on PermanentSaveError {
+        // A corrupt version vector is permanent, so the row stays pending and
+        // no timed retry is armed: this save cycle ends without recovery.
+        _lastCycleGaveUp = true;
+        _report(SaveBannerState.permanentlyFailed);
+        return;
       } on Object {
         if (attempt < _maxRetries) {
           if (!_inTimedRetry) _report(SaveBannerState.retrying);
@@ -343,6 +361,16 @@ class DriftLedgerStore implements LedgerStore {
     return row?.read<Uint8List>('version_data');
   }
 
+  // A corrupt vector is a permanent failure, so it surfaces as a typed error
+  // _runCycle can tell apart from a real disk fault.
+  VersionVector _decodeVersion(Uint8List stored) {
+    try {
+      return versionFromRow(stored);
+    } on VersionVectorDecodeError catch (error) {
+      throw PermanentSaveError(error.reason);
+    }
+  }
+
   Future<VersionVector> _bumpedVersion<T extends Table, D extends DataClass>(
     TableInfo<T, D> table,
     String id,
@@ -350,7 +378,7 @@ class DriftLedgerStore implements LedgerStore {
     final stored = await _storedVersion(table.actualTableName, id);
     final version = stored == null
         ? VersionVector.empty
-        : versionFromRow(stored);
+        : _decodeVersion(stored);
     return version.bump(await _device);
   }
 
@@ -371,7 +399,7 @@ class DriftLedgerStore implements LedgerStore {
     final stored = await _storedVersion(name, id);
     if (stored == null) return false;
 
-    final bumped = versionFromRow(stored).bump(await _device);
+    final bumped = _decodeVersion(stored).bump(await _device);
     await db.customUpdate(
       'UPDATE $name SET lifecycle = ?, version_data = ? WHERE id = ?',
       variables: [

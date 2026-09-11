@@ -23,6 +23,7 @@ class BannerState extends ChangeNotifier {
     SaveBannerState.retrying => "Couldn't save changes, retrying",
     SaveBannerState.failedWillRetry =>
       "Couldn't save changes, will retry shortly",
+    SaveBannerState.permanentlyFailed => "Couldn't save changes",
   };
 
   // A clear means the store has nothing to report, never that a plan error

@@ -488,6 +488,76 @@ void main() {
     });
   });
 
+  group('terminal save failure', () {
+    // Corrupts the stored version vector of [id] so its next write cannot be
+    // decoded, then reports what the handler receives.
+    Future<void> corruptVersion(String id) => db.customUpdate(
+      'UPDATE accounts SET version_data = ? WHERE id = ?',
+      variables: [
+        Variable<Uint8List>(Uint8List.fromList([0xff, 0xfe])),
+        const Variable<String>('a1'),
+      ],
+      updates: {db.accounts},
+    );
+
+    test('a corrupt version vector reports the terminal state once', () async {
+      store.enqueue([UpsertAccount(account('a1', 'wallet'))]);
+      await debouncedSave();
+      expect((await db.select(db.accounts).getSingle()).name, 'wallet');
+
+      await corruptVersion('a1');
+      reported.clear();
+
+      store.enqueue([UpsertAccount(account('a1', 'changed name'))]);
+      await debouncedSave();
+
+      // The terminal state arrives, never preceded by retrying or
+      // failedWillRetry.
+      expect(reported, [SaveBannerState.permanentlyFailed]);
+
+      // No timed retry is armed, so firing every timer many times must emit no
+      // further reports and leave the banner at the terminal state.
+      for (var i = 0; i < 10; i++) {
+        expect(clock.armedCount, 0);
+        clock.fire();
+        await settle();
+      }
+      expect(reported, [SaveBannerState.permanentlyFailed]);
+
+      // The failed write was rolled back, so the row is unchanged.
+      expect((await db.select(db.accounts).getSingle()).name, 'wallet');
+    });
+
+    test('the terminal save never drains the pending batch', () async {
+      store.enqueue([UpsertAccount(account('a1', 'wallet'))]);
+      await debouncedSave();
+
+      await corruptVersion('a1');
+      reported.clear();
+
+      store.enqueue([UpsertAccount(account('a1', 'changed name'))]);
+      var returned = false;
+      final flush = store.flushNow().then((_) => returned = true);
+
+      // Ten passes outlast every retry a cycle could run; a loop that kept
+      // retrying the corrupt row would never return here.
+      for (var i = 0; i < 10; i++) {
+        await settle();
+        clock.fire();
+      }
+      await settle();
+
+      expect(returned, isTrue);
+      await flush;
+
+      expect(reported.last, SaveBannerState.permanentlyFailed);
+      expect(store.pendingCount, 1);
+
+      // The failed write was rolled back, so the row still holds its old value.
+      expect((await db.select(db.accounts).getSingle()).name, 'wallet');
+    });
+  });
+
   group('banner reporting', () {
     test('clearReportedOnlyAfterNonClearState', () async {
       store.enqueue([UpsertAccount(account('a1', 'v1'))]);
