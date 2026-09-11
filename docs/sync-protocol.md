@@ -171,14 +171,14 @@ responses, and lifecycle must permit only `live` and `tombstone`.
 
 | Field | Wire JSON | Storage visibility | AAD | Sibling ID | Collection hash | Operation I/O | Lifecycle values |
 |---|---|---|---|---|---|---|---|
-| `protocol_version` | present | not stored | present | not hashed | object field | present | n/a |
-| `user_id` | present | not stored | present | input | object field | present | n/a |
-| `collection` | present | not stored | present | input | object field | present | n/a |
-| `row_id` | present | not stored | present | input | object field | present | n/a |
-| `sibling_id` | present | not stored | present | the digest | object field | response input | n/a |
-| `version_vector` | present | not stored | present | input | object field | present | n/a |
-| `lifecycle` | present | not stored | present | not hashed | object field | present | `live`, `tombstone` |
-| `ciphertext` | present | opaque | present | not hashed | object field | present | n/a |
+| `protocol_version` | present | stored, server-visible metadata | present | not hashed | object field | present | n/a |
+| `user_id` | present | stored, server-visible metadata | present | input | object field | present | n/a |
+| `collection` | present | stored, server-visible metadata | present | input | object field | present | n/a |
+| `row_id` | present | stored, server-visible metadata | present | input | object field | present | n/a |
+| `sibling_id` | present | stored, server-visible metadata | present | the digest | object field | response input | n/a |
+| `version_vector` | present | stored, server-visible metadata | present | input | object field | present | n/a |
+| `lifecycle` | present | stored, server-visible metadata | present | not hashed | object field | present | `live`, `tombstone` |
+| `ciphertext` | present | opaque | n/a — authenticated by AEAD tag integrity, not AAD | not hashed | object field | present | n/a |
 | server change position/timestamp | response only | server-assigned | n/a | n/a | n/a | response only | n/a |
 
 **Collection hash field set.** Each collection-digest object contains only the AAD-bound metadata
@@ -209,8 +209,11 @@ stable, server-assigned cursor, returns at most the requested page size up to th
 500 envelopes, and never permits a client clock to influence ordering. Clients may request a page
 below the 500 default, and servers may return fewer entries. Pulled envelopes with the same
 collection and logical row ID are grouped into staged sibling sets by the client; the client does
-not prune the frontier after pull, and conflicting siblings never enter `LedgerState`. Pull carries
-one cursor or reconciliation context and one optional lower page limit.
+not prune the frontier after pull, and conflicting siblings never enter `LedgerState`. The returned
+cursor only becomes durable once its page is staged and acknowledged, so a page received but not
+yet staged and acknowledged must be retried from the last acknowledged durable checkpoint
+(Acknowledge, per above), never from the received-but-unstaged page. Pull carries one cursor or
+reconciliation context and one optional lower page limit.
 
 **Reconcile.** `reconcile` is represented by the sealed `BeginReconcile` and `CompleteReconcile`
 variants through one public method. `begin_reconcile` is device-scoped and returns a device-bound
@@ -237,7 +240,7 @@ independent cursor.
 
 | Aspect | Contract |
 |---|---|
-| Dart request type | `Future<SyncOutcome<PushResult>> push(SyncCredential, List<Envelope>, {write_proof?})` |
+| Dart request type | `Future<SyncOutcome<PushResult>> push(SyncCredential, List<Envelope>, {writeProof?})` |
 | Wire fields | sibling envelope array; optional top-level `write_proof` string |
 | Success fields | per-row `applied` / `already_present` / `rejected`, and resulting causal frontier per row |
 | Applicable typed failures | `stale_or_invalid_proof`, `invalid_request` |
@@ -254,7 +257,7 @@ independent cursor.
 | Wire fields | one collection, one cursor or reconciliation context, one optional lower page limit |
 | Success fields | page of envelopes, one server-assigned cursor advance, optional end-of-snapshot marker |
 | Applicable typed failures | `reconciliation_required`, `credential_expired`, `rate_limited`, `network_unavailable`, `backend_unavailable`, `invalid_request` |
-| Recovery action | advance the opaque cursor on retry; stage without pruning frontier |
+| Recovery action | retry from the last acknowledged durable checkpoint, never a received-but-unstaged page; stage without pruning frontier; the returned cursor only becomes durable once staged and acknowledged |
 | Authorization transport | HTTPS `Authorization: Bearer` header |
 | Call granularity | exactly one named collection per call |
 | Atomicity boundary | none per call; page boundary only; default maximum 500 envelopes |
@@ -317,6 +320,12 @@ strings. The same rule applies to each collection-digest object, whose only fiel
 `protocol_version`, `user_id`, `collection`, `row_id`, `sibling_id`, `version_vector`, `lifecycle`,
 and `ciphertext`.
 
+`VersionVector.encode`/`decode` are the unchanged local Drift-storage codec (integer counters) and
+are unrelated to the wire protocol's own canonical JSON projection of a version vector, which uses
+string counters per this section's canonical JSON rule. The wire projection is a new, separate
+serialization that follow-on implementation adds; it is not a change to `VersionVector.encode`
+itself.
+
 **Sibling-ID algorithm.** Sibling ID is the unpadded base64url SHA-256 digest of the RFC 8785
 canonical UTF-8 JSON containing `user_id`, `collection`, `row_id`, and `version_vector`. Keys are
 sorted ascending (`collection`, `row_id`, `user_id`, `version_vector`). A change to any of
@@ -344,15 +353,25 @@ empty array `[]`, and its key is still present in `collection_hashes`, never omi
 - Envelope A: sibling_id `XppaREBfNCVu4mlApnRPSkmvgYQrSnkb1HVcGW4QXj8`, lifecycle `live`, ciphertext `Y2lwaGVydHh4MT0=`, version_vector `{"deviceA":"3"}`
 - Envelope B: sibling_id `jp7-ibI8If_KrX5yYK5t6evYCrcXXRQonT-fNICdYzo`, lifecycle `tombstone`, ciphertext `Y2lwaGVydHh4MjA=`, version_vector `{"deviceA":"2"}`
 - Bytewise order over base64url: A before B
-- Canonical array input (RFC 8785, compact, keys sorted): `[{"collection":"entries","ciphertext":"Y2lwaGVydHh4MT0=","lifecycle":"live","protocol_version":1,"row_id":"11111111-1111-1111-1111-111111111111","sibling_id":"XppaREBfNCVu4mlApnRPSkmvgYQrSnkb1HVcGW4QXj8","user_id":"22222222-2222-2222-2222-222222222222","version_vector":{"deviceA":"3"}},{"collection":"entries","ciphertext":"Y2lwaGVydHh4MjA=","lifecycle":"tombstone","protocol_version":1,"row_id":"11111111-1111-1111-1111-111111111111","sibling_id":"jp7-ibI8If_KrX5yYK5t6evYCrcXXRQonT-fNICdYzo","user_id":"22222222-2222-2222-2222-222222222222","version_vector":{"deviceA":"2"}}]`
-- SHA-256 digest, unpadded base64url: `6H-4u1cu24BArfI200LO-tAi5hC59q_wRnTy_h1OpXw`
+- Canonical array input (RFC 8785, compact, keys sorted ascending by code point): `[{"ciphertext":"Y2lwaGVydHh4MT0=","collection":"entries","lifecycle":"live","protocol_version":1,"row_id":"11111111-1111-1111-1111-111111111111","sibling_id":"XppaREBfNCVu4mlApnRPSkmvgYQrSnkb1HVcGW4QXj8","user_id":"22222222-2222-2222-2222-222222222222","version_vector":{"deviceA":"3"}},{"ciphertext":"Y2lwaGVydHh4MjA=","collection":"entries","lifecycle":"tombstone","protocol_version":1,"row_id":"11111111-1111-1111-1111-111111111111","sibling_id":"jp7-ibI8If_KrX5yYK5t6evYCrcXXRQonT-fNICdYzo","user_id":"22222222-2222-2222-2222-222222222222","version_vector":{"deviceA":"2"}}]`
+- SHA-256 digest, unpadded base64url: `YHj5efH6cb6_AqustEQ5q4O2Wy5uQjnyxMv0ANqbQIU`
 
 **Empty-collection golden vector (all-empty first-sync reconciliation).**
 
 - Canonical JSON input: `[]`
 - SHA-256 digest, unpadded base64url: `T1PNoYwrqgwDVLtfmj7L5e0Sq02OEbqHPC8RFhICuUU`
 
-**collection_hashes shape.** `complete_reconcile` submits `collection_hashes`, an object containing
+**Collection-hash golden vectors (four single-collection empty cases).** Each of the four
+collections not otherwise enumerated hashes the same empty canonical array, since an all-empty
+first-sync reconciliation carries no envelopes for any single collection. The canonical JSON input
+is `[]` and the digest is `T1PNoYwrqgwDVLtfmj7L5e0Sq02OEbqHPC8RFhICuUU` for every one.
+
+- **money_sources empty collection.** Canonical JSON input: `[]`. SHA-256 digest, unpadded base64url: `T1PNoYwrqgwDVLtfmj7L5e0Sq02OEbqHPC8RFhICuUU`.
+- **categories empty collection.** Canonical JSON input: `[]`. SHA-256 digest, unpadded base64url: `T1PNoYwrqgwDVLtfmj7L5e0Sq02OEbqHPC8RFhICuUU`.
+- **plans empty collection.** Canonical JSON input: `[]`. SHA-256 digest, unpadded base64url: `T1PNoYwrqgwDVLtfmj7L5e0Sq02OEbqHPC8RFhICuUU`.
+- **budgets empty collection.** Canonical JSON input: `[]`. SHA-256 digest, unpadded base64url: `T1PNoYwrqgwDVLtfmj7L5e0Sq02OEbqHPC8RFhICuUU`.
+
+**collection_hashes shape**. `complete_reconcile` submits `collection_hashes`, an object containing
 exactly `money_sources`, `entries`, `categories`, `plans`, and `budgets`, each mapped to its
 individual unpadded base64url SHA-256 digest. No combined digest is calculated. The per-collection
 golden vectors (including the empty-collection vector that covers a new device's all-empty first
