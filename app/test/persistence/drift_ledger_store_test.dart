@@ -495,7 +495,7 @@ void main() {
       'UPDATE accounts SET version_data = ? WHERE id = ?',
       variables: [
         Variable<Uint8List>(Uint8List.fromList([0xff, 0xfe])),
-        const Variable<String>('a1'),
+        Variable<String>(id),
       ],
       updates: {db.accounts},
     );
