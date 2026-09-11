@@ -345,6 +345,9 @@ Future work, in intended order:
    yet decided — starting with file or export-based sync, or a self-hosted option, and evaluating a
    hosted backend only if it can preserve the app's offline-first behavior. Cross-platform sync
    (Android, iOS, and desktop all converging) is the goal.
+
+The engine-agnostic backend transport contract this engine uses is specified in `docs/sync-protocol.md`,
+which is reachable through the required reading order in `docs/NAVIGATION.md`.
 2. **Realbyte import and export/backup.** CSV/Excel import from Money Manager, to migrate existing
    transaction history (and to generate realistic data for performance testing), plus an
    export/backup path — an offline-first app with no backup story loses data whenever a device is
