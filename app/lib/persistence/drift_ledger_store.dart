@@ -4,10 +4,11 @@ import 'dart:collection';
 import 'package:domain/domain.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:spendwise/persistence/device_identity.dart';
 import 'package:spendwise/persistence/ledger_database.dart' as rows;
 import 'package:spendwise/persistence/ledger_store.dart';
 import 'package:spendwise/persistence/mappers.dart';
-import 'package:spendwise/persistence/version_vector.dart';
+import 'package:sync/sync.dart';
 
 // Tests supply their own so the suite never waits out a real debounce or backoff.
 abstract class StoreTimer {
@@ -367,7 +368,7 @@ class DriftLedgerStore implements LedgerStore {
     try {
       return versionFromRow(stored);
     } on VersionVectorDecodeError catch (error) {
-      throw PermanentSaveError(error.reason);
+      throw PermanentSaveError(error.message);
     }
   }
 

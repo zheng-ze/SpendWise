@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:domain/domain.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:spendwise/persistence/ledger_database.dart' as rows;
-import 'package:spendwise/persistence/version_vector.dart';
+import 'package:sync/sync.dart';
 
 // An unrecognized code came from a newer writer, so the row loads as the
 // documented default rather than failing the whole load.

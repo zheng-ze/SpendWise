@@ -3,8 +3,9 @@ import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:spendwise/persistence/device_identity.dart';
 import 'package:spendwise/persistence/ledger_database.dart';
-import 'package:spendwise/persistence/version_vector.dart';
+import 'package:sync/sync.dart';
 
 void main() {
   final uuidV4 = RegExp(
