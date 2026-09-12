@@ -77,9 +77,9 @@ Retry button that resets phase to `loading` and re-runs the whole boot).
 `AppLifecycleState.resumed` it calls `ledger.resolvePlans(now())`; on `inactive`/`paused`/`hidden`
 it calls `persistence.flush()` (fire-and-forget). `resolvePlans` is called once explicitly inside
 `start()` when entering `ready`, and again on each lifecycle resume
-(`app_boot.dart:79`, `:97`). `now` is `AppBoot`'s injectable `DateTime Function()` field, defaulting
-to the `@visibleForTesting` static `AppBoot.utcNowFor([DateTime? localNow]) =>
-startOfDayUtc(localNow ?? DateTime.now())` (`app_boot.dart:29-33`) — UTC midnight of the *local*
+(`AppBoot.start`, `AppBoot.didChangeAppLifecycleState`). `now` is `AppBoot`'s injectable
+`DateTime Function()` field, defaulting to the `@visibleForTesting` static
+`AppBoot.utcNowFor([DateTime? localNow]) => startOfDayUtc(localNow ?? DateTime.now())` — UTC midnight of the *local*
 calendar day, not merely "a UTC instant." Before commit `26f6cd4`, the default was
 `DateTime.now().toUtc()`, which preserves the wall-clock instant rather than the calendar day: for
 any device with a positive UTC offset, this shifted the resolved day back by one for part of each
@@ -130,7 +130,7 @@ spread, card-vs-checking sourcing, and two live plans (`seed_data.dart`, `ledger
   preserves the wall-clock instant, which shifts the day for a positive UTC offset. Use
   `startOfDayUtc(localDateTime)` (`calendar_day.dart`) on a local, non-UTC `DateTime` instead —
   `AppBoot.utcNowFor` is the boot-layer's instance of this pattern (see Lifecycle hooks above); the
-  same pattern is applied at `entry_form_view_model.dart:383` and three budget ViewModels (#38).
+  same pattern is applied at `EntryFormViewModel.save` and three budget ViewModels (#38).
 - With `sync: true`, a subscriber callback runs inside `mutate`; subscribers must never call back
   into `Ledger.mutate` (Dart's sync controller throws on reentrant `add`). Neither ported
   subscriber does.
@@ -145,5 +145,6 @@ spread, card-vs-checking sourcing, and two live plans (`seed_data.dart`, `ledger
 - Seeding is gated on `hasSeeded`, not emptiness, and the flag commits atomically with the seed
   data. (`persistence.md` §7)
 - `resolvePlans` is called on entering `ready` and on resume, always with UTC midnight of the
-  correct local calendar day, never a `.toUtc()`-shifted instant. (`app_boot.dart:29-33,79,97`,
+  correct local calendar day, never a `.toUtc()`-shifted instant. (`AppBoot.utcNowFor`,
+  `AppBoot.start`, `AppBoot.didChangeAppLifecycleState`,
   test `utcNowForKeepsTheLocalCalendarDayInsteadOfShiftingItViaToUtc`)
