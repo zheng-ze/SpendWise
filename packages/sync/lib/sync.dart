@@ -1,0 +1,18 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:crypto/crypto.dart';
+import 'package:domain/domain.dart' show normalizedID;
+import 'package:http/http.dart' as http;
+
+part 'src/protocol/canonical_json.dart';
+part 'src/protocol/credential.dart';
+part 'src/protocol/envelope.dart';
+part 'src/protocol/interfaces.dart';
+part 'src/protocol/outcome.dart';
+part 'src/protocol/requests.dart';
+part 'src/protocol/version_vector.dart';
+part 'src/backends/http_support.dart';
+part 'src/backends/in_memory_backend.dart';
+part 'src/backends/custom_endpoint_backend.dart';
+part 'src/backends/supabase_backend.dart';

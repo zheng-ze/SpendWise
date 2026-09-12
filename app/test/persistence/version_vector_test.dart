@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:spendwise/persistence/version_vector.dart';
+import 'package:sync/sync.dart';
 
 void main() {
   const deviceA = 'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa';

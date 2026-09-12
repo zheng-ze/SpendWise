@@ -46,7 +46,7 @@ runs (`persistence.md` §5). Replay is shared by `load()`, the in-memory double,
 | `enqueue(changes)` | Synchronous, non-blocking; empty list is a no-op; batches ingest in call order. |
 | `flushNow()` | Barrier: everything enqueued before the call is on disk when it returns. |
 | `setErrorHandler(h)` | Registers the single banner callback; replaces it; no multicast. |
-| `SaveBannerState` | `clear`, `retrying`, `failedWillRetry`, and `permanentlyFailed`; the handler signature remains `void Function(SaveBannerState)`. (`app/lib/persistence/ledger_store.dart:5-12`) |
+| `SaveBannerState` | `clear`, `retrying`, `failedWillRetry`, and `permanentlyFailed`; the handler signature remains `void Function(SaveBannerState)`. (`ledger_store.dart:SaveBannerState`, `SaveErrorHandler`) |
 
 Schema conventions: IDs are lowercase `TEXT` PKs; money is `Decimal` `TEXT` (never `REAL`); dates
 are epoch-millis UTC `INTEGER`; booleans are `INTEGER` 0/1; `version_data` is a `BLOB` JSON vector
@@ -84,9 +84,7 @@ does not arm a timed retry. (`app/lib/persistence/drift_ledger_store.dart:_decod
 
 Drift's transaction implementation rolls back and rethrows the callback exception unchanged, so
 the preceding typed catch receives `PermanentSaveError` rather than the generic retry path.
-(`drift 2.34.3`, `ConnectionUser.transaction`,
-`/Users/macbook/.pub-cache/hosted/pub.dev/drift-2.34.3/lib/src/runtime/api/connection_user.dart:518-526`;
-`app/lib/persistence/drift_ledger_store.dart:_runCycle`)
+(`drift 2.34.3`, `ConnectionUser.transaction`; `drift_ledger_store.dart:_runCycle`)
 
 A terminally failing change remains in `_pending`: only a committed transaction removes its raw
 prefix. Each later cycle coalesces the full pending prefix and applies it in one transaction, so a
@@ -132,8 +130,9 @@ cleanly. See `ledger_runtime.md` §6 for the seed dataset.
   classifies an undecodable `version_data` blob as `PermanentSaveError`; `_runCycle` reports
   `SaveBannerState.permanentlyFailed` and does not retry forever. Pinned by
   `a corrupt version vector reports the terminal state once`.
-  (`app/lib/persistence/drift_ledger_store.dart:_decodeVersion`, `_runCycle`;
-  `app/test/persistence/drift_ledger_store_test.dart:503-528`; commit `2445ed2`)
+  (`drift_ledger_store.dart:_decodeVersion`, `_runCycle`;
+  test `a corrupt version vector reports the terminal state once` in
+  `drift_ledger_store_test.dart`; commit `2445ed2`)
 - **`category_parent_id` is immutable on upsert** — an existing category's `parent_id` is never
   rewritten on upsert, matching Swift (parent fixed at creation). Pinned by the required test
   `categoryParentIDImmutableOnUpsert` (`persistence.md` §9).
@@ -151,6 +150,8 @@ cleanly. See `ledger_runtime.md` §6 for the seed dataset.
 - Tombstones set `lifecycle = 3` and are hidden from `load()` but remain in SQLite.
   (`drift_ledger_store.dart` §5)
 - An undecodable stored version vector reports `permanentlyFailed` once, arms no timed retry, and
-  leaves its pending batch undrained. (`app/test/persistence/drift_ledger_store_test.dart:503-557`)
+  leaves its pending batch undrained. (tests `a corrupt version vector reports the terminal state
+  once`, `the terminal save never drains the pending batch` in `drift_ledger_store_test.dart`)
 - `BannerState` renders `permanentlyFailed` as `"Couldn't save changes"`.
-  (`app/lib/boot/banner_state.dart:21-27`; `app/test/boot/banner_state_test.dart:29-33`)
+  (`BannerState._saveMessage`; test `permanentlyFailedShowsExactSaveMessage` in
+  `banner_state_test.dart`)

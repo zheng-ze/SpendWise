@@ -6,7 +6,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/persistence/ledger_database.dart' as rows;
 import 'package:spendwise/persistence/mappers.dart';
-import 'package:spendwise/persistence/version_vector.dart';
+import 'package:sync/sync.dart';
 
 void main() {
   final version = VersionVector({'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa': 3});
