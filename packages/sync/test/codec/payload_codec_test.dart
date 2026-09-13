@@ -137,9 +137,22 @@ void main() {
       // Budget does not self-normalize categoryID, so this stays green only if
       // the codec normalizes it on decode rather than the domain entity.
       final encoded = codec.encodeChange(UpsertBudget(testBudget()));
-      final json = jsonDecode(utf8.decode(encoded)) as Map<String, dynamic>;
-      final data = json['data'] as Map<String, dynamic>;
+      final decoded = jsonDecode(utf8.decode(encoded));
+      if (decoded is! Map<Object?, Object?>) {
+        fail('Encoded payload must decode to a JSON object.');
+      }
+      final json = decoded.map<String, Object?>(
+        (key, value) => MapEntry(key.toString(), value),
+      );
+      final rawData = json['data'];
+      if (rawData is! Map<Object?, Object?>) {
+        fail('Encoded payload data must be a JSON object.');
+      }
+      final data = rawData.map<String, Object?>(
+        (key, value) => MapEntry(key.toString(), value),
+      );
       data['categoryID'] = 'FAKE-CAT-UPPER';
+      json['data'] = data;
       final change =
           codec.decodeChange(utf8.encode(canonicalJson(json))) as UpsertBudget;
       expect(change.budget.categoryID, 'fake-cat-upper');
