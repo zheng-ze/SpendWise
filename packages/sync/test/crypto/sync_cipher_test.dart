@@ -55,9 +55,13 @@ void main() {
   });
 
   group('known-answer vector', () {
-    test('matches the pinned XChaCha20-Poly1305 framing output', () async {
-      // Fixed 256-bit key, 24-byte nonce, and AAD, so the AEAD output is
-      // deterministic. The framing is nonce || ciphertext || appended tag.
+    test('decrypts the pinned XChaCha20-Poly1305 vector through SyncCipher',
+        () async {
+      // Fixed 256-bit key, 24-byte nonce, and AAD produce a deterministic
+      // AEAD output. Build the framing the same way SyncCipher does (nonce ||
+      // ciphertext || appended tag), then exercise SyncCipher's own decode and
+      // decrypt path against the pinned vector so a framing regression here
+      // fails this test rather than staying green.
       final nonce =
           Uint8List.fromList(List<int>.generate(24, (index) => index + 1));
       final plaintext = Uint8List.fromList(utf8.encode('hello sync'));
@@ -70,15 +74,15 @@ void main() {
       );
       final framed = <int>[...nonce, ...box.cipherText, ...box.mac.bytes];
       expect(
-        base64Url.encode(framed).replaceAll('=', ''),
-        'AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcY'
-        '1J4-9sQ8y0pbaw9NdsXMQhAVVJXR-6CgASY',
-      );
-      expect(
-          framed.length,
-          SyncCipher.nonceByteCount +
-              plaintext.length +
-              SyncCipher.tagByteCount);
+        framed.length,
+        SyncCipher.nonceByteCount +
+            plaintext.length +
+            SyncCipher.tagByteCount);
+      final pinned = base64Url.encode(framed).replaceAll('=', '');
+      expect(pinned, 'AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcY1J4-9sQ8y0pbaw9NdsXMQhAVVJXR-6CgASY');
+      final decrypted =
+          await cipher.decrypt(key: key, ciphertext: pinned, aad: aad);
+      expect(decrypted, plaintext);
     });
   });
 
