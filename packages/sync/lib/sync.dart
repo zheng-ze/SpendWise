@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
+import 'package:cryptography/cryptography.dart';
 import 'package:domain/domain.dart' show normalizedID;
 import 'package:http/http.dart' as http;
 
@@ -12,6 +14,7 @@ part 'src/protocol/interfaces.dart';
 part 'src/protocol/outcome.dart';
 part 'src/protocol/requests.dart';
 part 'src/protocol/version_vector.dart';
+part 'src/crypto/sync_cipher.dart';
 part 'src/backends/http_support.dart';
 part 'src/backends/in_memory_backend.dart';
 part 'src/backends/custom_endpoint_backend.dart';
