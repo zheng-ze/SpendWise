@@ -156,6 +156,17 @@ void main() {
         throwsA(isA<SyncPayloadDecryptionError>()),
       );
     });
+
+    test('rejects a ciphertext that is not valid base64url', () async {
+      await expectLater(
+        cipher.decrypt(
+          key: key,
+          ciphertext: 'not*valid*base64!!',
+          aad: aad,
+        ),
+        throwsA(isA<SyncPayloadDecryptionError>()),
+      );
+    });
   });
 
   group('key length', () {

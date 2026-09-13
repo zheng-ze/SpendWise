@@ -52,7 +52,14 @@ final class SyncCipher {
     required Uint8List aad,
   }) async {
     _assertKeyLength(key);
-    final raw = _decodeBase64Url(ciphertext);
+    final Uint8List raw;
+    try {
+      raw = _decodeBase64Url(ciphertext);
+    } on FormatException {
+      throw const SyncPayloadDecryptionError(
+        'Ciphertext is not valid base64url.',
+      );
+    }
     if (raw.length < nonceByteCount + tagByteCount) {
       throw const SyncPayloadDecryptionError(
         'Ciphertext is shorter than nonce plus tag.',
