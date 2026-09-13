@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
-import 'package:domain/domain.dart';
 import 'package:sync/sync.dart';
 
 import 'package:spendwise/persistence/ledger_database.dart';
@@ -27,17 +26,21 @@ class DriftSyncStagingStore {
   Future<void> stage(StagedConflict conflict) async {
     final siblings = _encodeSiblings(conflict.siblings);
     await _db.transaction(() async {
-      await (_db.delete(_db.syncStagingGroup)
-          ..where((t) => t.collection.equals(conflict.collection.wireName) &
-                t.rowID.equals(conflict.rowID))
-        ).go();
-      await _db.into(_db.syncStagingGroup).insert(
-        SyncStagingGroupCompanion.insert(
-          collection: conflict.collection.wireName,
-          rowID: conflict.rowID,
-          siblings: siblings,
-        ),
-      );
+      await (_db.delete(_db.syncStagingGroup)..where(
+            (t) =>
+                t.collection.equals(conflict.collection.wireName) &
+                t.rowID.equals(conflict.rowID),
+          ))
+          .go();
+      await _db
+          .into(_db.syncStagingGroup)
+          .insert(
+            SyncStagingGroupCompanion.insert(
+              collection: conflict.collection.wireName,
+              rowID: conflict.rowID,
+              siblings: siblings,
+            ),
+          );
     });
   }
 
@@ -55,47 +58,53 @@ class DriftSyncStagingStore {
   }
 
   Future<void> resolve(StagedConflict conflict) async {
-    await (_db.delete(_db.syncStagingGroup)
-          ..where((t) => t.collection.equals(conflict.collection.wireName) &
-                t.rowID.equals(conflict.rowID))
-        ).go();
+    await (_db.delete(_db.syncStagingGroup)..where(
+          (t) =>
+              t.collection.equals(conflict.collection.wireName) &
+              t.rowID.equals(conflict.rowID),
+        ))
+        .go();
   }
 
   StagedConflict _stagedConflict(
     SyncCollection collection,
     String rowID,
     Uint8List siblings,
-  ) =>
-      StagedConflict(collection, rowID, _decodeSiblings(collection, siblings));
+  ) => StagedConflict(
+    collection,
+    rowID,
+    _decodeSiblings(collection, rowID, siblings),
+  );
 
   Uint8List _encodeSiblings(List<DecodedSibling> siblings) {
     final entries = <Object?>[
       for (final sibling in siblings)
         {
           'siblingID': sibling.siblingID,
-          'versionVector':
-              base64Url.encode(sibling.versionVector.encode()),
+          'versionVector': base64Url.encode(sibling.versionVector.encode()),
           'change': base64Url.encode(
             const PayloadCodec().encodeChange(sibling.change),
           ),
-        }
+        },
     ];
     return utf8.encode(jsonEncode(entries));
   }
 
   List<DecodedSibling> _decodeSiblings(
     SyncCollection collection,
+    String rowID,
     Uint8List blob,
   ) {
     final entries = jsonDecode(utf8.decode(blob)) as List<dynamic>;
     return [
       for (final raw in entries)
-        _decodeSibling(collection, raw as Map<String, dynamic>),
+        _decodeSibling(collection, rowID, raw as Map<String, dynamic>),
     ];
   }
 
   DecodedSibling _decodeSibling(
     SyncCollection collection,
+    String rowID,
     Map<String, dynamic> entry,
   ) {
     final siblingID = entry['siblingID'] as String;
@@ -103,29 +112,19 @@ class DriftSyncStagingStore {
       base64Url.decode(entry['versionVector'] as String),
     );
     final payload = base64Url.decode(entry['change'] as String);
+    // Deletes encode as empty payloads. Rebuild the delete for the group row,
+    // not the sibling id: the sibling id identifies the source envelope, so
+    // using it here would fabricate a delete for a row that never existed.
     final change = payload.isEmpty
-        ? _deleteFor(collection, siblingID)
+        ? deleteFor(collection, rowID)
         : const PayloadCodec().decodeChange(payload);
     return DecodedSibling(versionVector, change, siblingID);
   }
 
-  LedgerChange _deleteFor(SyncCollection collection, String rowID) {
-    switch (collection) {
-      case SyncCollection.moneySources:
-        return DeleteMoneySource(rowID);
-      case SyncCollection.entries:
-        return DeleteEntry(rowID);
-      case SyncCollection.categories:
-        return DeleteCategory(rowID);
-      case SyncCollection.plans:
-        return DeletePlan(rowID);
-      case SyncCollection.budgets:
-        return DeleteBudget(rowID);
-    }
-  }
-
-  SyncCollection _collection(String wireName) => SyncCollection.values.firstWhere(
-    (collection) => collection.wireName == wireName,
-    orElse: () => throw FormatException('Unknown sync collection: $wireName'),
-  );
+  SyncCollection _collection(String wireName) =>
+      SyncCollection.values.firstWhere(
+        (collection) => collection.wireName == wireName,
+        orElse: () =>
+            throw FormatException('Unknown sync collection: $wireName'),
+      );
 }
