@@ -16,16 +16,6 @@ final class DeviceCredential extends SyncCredential {
   final String deviceID;
   final String _bearerToken;
 
-  /// Prototype-only escape hatch for adapter and contract tests.
-  ///
-  /// Remove this factory once production authenticators are implemented.
-  factory DeviceCredential.testing({
-    required String deviceID,
-    required String bearerToken,
-  }) {
-    return DeviceCredential._(deviceID: deviceID, bearerToken: bearerToken);
-  }
-
   @override
   String toString() =>
       'DeviceCredential(deviceID: $deviceID, token: <redacted>)';

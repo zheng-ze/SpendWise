@@ -5,8 +5,10 @@ import 'package:http/testing.dart';
 import 'package:sync/sync.dart';
 import 'package:test/test.dart';
 
+import '../support/credential_fixture.dart';
+
 void main() {
-  final credential = DeviceCredential.testing(
+  final credential = restoreTestCredential(
     deviceID: 'device-a',
     bearerToken: 'secret',
   );

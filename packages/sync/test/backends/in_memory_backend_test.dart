@@ -1,10 +1,12 @@
 import 'package:sync/sync.dart';
 import 'package:test/test.dart';
 
+import '../support/credential_fixture.dart';
+
 void main() {
   test('fake records backend operations', () async {
     final backend = InMemorySyncBackend();
-    final credential = DeviceCredential.testing(
+    final credential = restoreTestCredential(
       deviceID: 'device-a',
       bearerToken: 'token',
     );
