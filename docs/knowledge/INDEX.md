@@ -13,6 +13,7 @@ themselves. Feature entries fold in still-current legacy material when a feature
 | Domain models, `LedgerState`, lifecycle machine | [ledger-and-money-model.md](ledger-and-money-model.md) |
 | Runtime hub, event bus, analysis cache, boot, banners, seeding | [ledger-runtime.md](ledger-runtime.md) |
 | Persistence (Drift store, coalescing, version vectors, replay) | [persistence.md](persistence.md) |
+| Sync package engine, payload codec, encryption, reconciliation, staging | [sync-package-engine.md](sync-package-engine.md) |
 | Recurring plans, occurrences, accounting, analysis | [recurring-plans-and-accounting.md](recurring-plans-and-accounting.md) |
 | Budgets | [budgets.md](budgets.md) |
 | Categories and the on-device category classifier | [categories-and-classification.md](categories-and-classification.md) |

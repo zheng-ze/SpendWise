@@ -29,4 +29,13 @@ final class DeviceCredential extends SyncCredential {
   @override
   String toString() =>
       'DeviceCredential(deviceID: $deviceID, token: <redacted>)';
+
+  @override
+  bool operator ==(Object other) =>
+      other is DeviceCredential &&
+      other.deviceID == deviceID &&
+      other._bearerToken == _bearerToken;
+
+  @override
+  int get hashCode => Object.hash(deviceID, _bearerToken);
 }

@@ -8,9 +8,11 @@ environment:
 
 dependencies:
   crypto: ^3.0.7
+  cryptography: 2.9.0
   domain:
     path: ../domain
   http: ^1.6.0
+  meta: ^1.16.0
 
 dev_dependencies:
   lints: ^5.1.1

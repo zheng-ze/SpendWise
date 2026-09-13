@@ -125,4 +125,11 @@ void main() {
       VersionVector({'device-a': 2}),
     );
   });
+
+  test('toString reports sorted counters instead of the default Object form',
+      () {
+    final vector = VersionVector({'device-b': 1, 'device-a': 2});
+
+    expect(vector.toString(), 'VersionVector(device-a:2, device-b:1)');
+  });
 }
