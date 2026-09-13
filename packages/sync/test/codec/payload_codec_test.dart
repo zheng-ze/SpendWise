@@ -132,6 +132,18 @@ void main() {
       final change = codec.decodeChange(payload) as UpsertEntry;
       expect(change.entry.categoryID, 'fake-cat-upper');
     });
+
+    test('decodes a mixed-case budget category id into lowercase', () {
+      // Budget does not self-normalize categoryID, so this stays green only if
+      // the codec normalizes it on decode rather than the domain entity.
+      final encoded = codec.encodeChange(UpsertBudget(testBudget()));
+      final json = jsonDecode(utf8.decode(encoded)) as Map<String, dynamic>;
+      final data = json['data'] as Map<String, dynamic>;
+      data['categoryID'] = 'FAKE-CAT-UPPER';
+      final change =
+          codec.decodeChange(utf8.encode(canonicalJson(json))) as UpsertBudget;
+      expect(change.budget.categoryID, 'fake-cat-upper');
+    });
   });
 
   group('malformed domain fields', () {
