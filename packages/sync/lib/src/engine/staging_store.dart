@@ -4,17 +4,32 @@ part of '../../sync.dart';
 /// cannot be resolved without user review.
 @immutable
 final class StagedConflict {
-  const StagedConflict(
+  StagedConflict._(
     this.collection,
     this.rowID,
-    this.envelopes,
+    this.siblings,
   );
 
+  factory StagedConflict(
+    SyncCollection collection,
+    String rowID,
+    List<DecodedSibling> siblings,
+  ) =>
+      StagedConflict._(
+        collection,
+        normalizedID(rowID),
+        List<DecodedSibling>.unmodifiable(siblings),
+      );
+
   final SyncCollection collection;
+
+  /// Normalized lowercase-UUID row ID for this conflict.
   final String rowID;
 
-  /// The decrypted sibling envelopes that share this collection and row.
-  final List<SyncEnvelope> envelopes;
+  /// The decrypted siblings that share this collection and row, ordered as
+  /// decoded. Unmodifiable: in-place mutation of the caller's list cannot
+  /// reach this conflict.
+  final List<DecodedSibling> siblings;
 
   SyncRowID get row => SyncRowID.of(collection, rowID);
 
@@ -23,18 +38,11 @@ final class StagedConflict {
       other is StagedConflict &&
       other.collection == collection &&
       other.rowID == rowID &&
-      _envelopesEqual(other.envelopes);
+      _siblingsEqual(other.siblings, siblings);
 
   @override
-  int get hashCode => Object.hash(collection, rowID);
-
-  bool _envelopesEqual(List<SyncEnvelope> others) {
-    if (others.length != envelopes.length) return false;
-    for (var index = 0; index < envelopes.length; index += 1) {
-      if (envelopes[index].siblingID != others[index].siblingID) return false;
-    }
-    return true;
-  }
+  int get hashCode =>
+      Object.hash(collection, rowID, _hashList(siblings));
 }
 
 /// Contract for durable staging of unresolved conflict groups.
@@ -78,4 +86,12 @@ class InMemorySyncStagingStore implements SyncStagingStore {
           existing.rowID == conflict.rowID,
     );
   }
+}
+
+bool _siblingsEqual(List<DecodedSibling> a, List<DecodedSibling> b) {
+  if (a.length != b.length) return false;
+  for (var index = 0; index < a.length; index += 1) {
+    if (a[index] != b[index]) return false;
+  }
+  return true;
 }

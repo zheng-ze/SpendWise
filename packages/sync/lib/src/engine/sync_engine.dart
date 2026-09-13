@@ -6,6 +6,33 @@ part of '../../sync.dart';
 /// credential payload; this is its only key-related dependency.
 typedef SyncE2EKeyAccessor = Future<Uint8List> Function();
 
+/// Error thrown when an authenticated envelope's decrypted payload does not
+/// match the envelope's declared collection, row ID, or tombstone shape.
+///
+/// Distinct from [SyncPayloadDecryptionError] (AEAD authentication failure)
+/// and [PayloadDecodeError] (authentic bytes this codec cannot read): an
+/// identity mismatch means the bytes were authentic but the decoded entity
+/// does not belong to this envelope.
+final class SyncPayloadIdentityError implements Exception {
+  const SyncPayloadIdentityError(this.message);
+
+  final String message;
+
+  @override
+  String toString() => 'SyncPayloadIdentityError: $message';
+}
+
+/// Error thrown when [SyncEngine.encode] is asked to push a row the version
+/// source does not track, so no stored [RowVersion] is available.
+final class SyncUntrackedRowError implements Exception {
+  const SyncUntrackedRowError(this.message);
+
+  final String message;
+
+  @override
+  String toString() => 'SyncUntrackedRowError: $message';
+}
+
 /// Output of [SyncEngine.reconcile]: the conflict-free stamped changes, the
 /// per-row stamps, and the staged conflict groups.
 @immutable
@@ -21,11 +48,25 @@ final class ReconcileResult {
   final List<StagedConflict> stagedConflicts;
 
   bool get hasConflicts => stagedConflicts.isNotEmpty;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ReconcileResult &&
+      _listEquals(other.changes, changes) &&
+      _mapEquals(other.stamps, stamps) &&
+      _listEquals(other.stagedConflicts, stagedConflicts);
+
+  @override
+  int get hashCode => Object.hash(
+        _hashList(changes),
+        _hashMap(stamps),
+        _hashList(stagedConflicts),
+      );
 }
 
 /// Flutter-free sync engine: encodes local rows, decrypts and decodes pulled
-/// envelopes, groups mutually concurrent siblings by [SyncRowID], and either
-/// returns stamped conflict-free [LedgerChange]s or stages conflicting groups.
+/// envelopes, groups concurrent siblings by [SyncRowID], and either returns
+/// stamped conflict-free [LedgerChange]s or stages conflicting groups.
 class SyncEngine {
   SyncEngine({
     required this.userID,
@@ -44,7 +85,9 @@ class SyncEngine {
 
   /// Decrypts, decodes, groups, and classifies [envelopes].
   ///
-  /// Throws [SyncPayloadDecryptionError] on AEAD authentication failure.
+  /// Throws [SyncPayloadDecryptionError] on AEAD authentication failure and
+  /// [SyncPayloadIdentityError] when an authenticated envelope decodes to an
+  /// entity that does not belong to it.
   Future<ReconcileResult> reconcile(Iterable<SyncEnvelope> envelopes) async {
     final key = await _keyAccessor();
     final decoded = <_DecodedRow>[];
@@ -65,19 +108,23 @@ class SyncEngine {
 
     for (final rowID in byRow.keys) {
       final siblings = byRow[rowID]!;
-      if (_hasConcurrentSiblings(siblings)) {
-        final group = StagedConflict(
-          siblings.first.envelope.collection,
-          siblings.first.envelope.rowID,
-          siblings.map((sibling) => sibling.envelope).toList(),
-        );
-        stagedConflicts.add(group);
-        _staging.stage(group);
+      // A sibling that dominates every other sibling in the group resolves the
+      // row conflict-free, even when the group also contains a concurrent pair.
+      // Only when no single sibling dominates all the others is the group a
+      // genuine unresolved conflict.
+      final dominant = _dominantSibling(siblings);
+      if (dominant != null) {
+        changes.add(dominant.change);
+        stamps[rowID] = dominant.envelope.versionVector;
         continue;
       }
-      final winner = _winnerOf(siblings);
-      changes.add(winner.change);
-      stamps[rowID] = winner.envelope.versionVector;
+      final group = StagedConflict(
+        rowID.collection,
+        rowID.rowID,
+        siblings.map(_toDecodedSibling).toList(),
+      );
+      stagedConflicts.add(group);
+      _staging.stage(group);
     }
 
     return ReconcileResult(
@@ -91,33 +138,36 @@ class SyncEngine {
     Uint8List key,
     SyncEnvelope envelope,
   ) async {
-    if (envelope.lifecycle == SiblingLifecycle.tombstone) {
-      return deleteFor(envelope.collection, envelope.rowID);
-    }
-    final aad = envelope.aadBytes();
+    // Authenticate the AEAD ciphertext for every envelope, including
+    // tombstones, before trusting any lifecycle, collection, or row ID.
     final plaintext = await _cipher.decrypt(
       key: key,
       ciphertext: envelope.ciphertext,
-      aad: aad,
+      aad: envelope.aadBytes(),
     );
-    return _codec.decodeChange(plaintext);
-  }
-
-  static bool _hasConcurrentSiblings(List<_DecodedRow> siblings) {
-    for (var i = 0; i < siblings.length; i += 1) {
-      for (var j = i + 1; j < siblings.length; j += 1) {
-        if (siblings[i]
-            .envelope
-            .versionVector
-            .isConcurrent(siblings[j].envelope.versionVector)) {
-          return true;
-        }
+    if (envelope.lifecycle == SiblingLifecycle.tombstone) {
+      if (plaintext.isNotEmpty) {
+        throw const SyncPayloadIdentityError(
+          'Tombstone payload must be empty.',
+        );
       }
+      return deleteFor(envelope.collection, envelope.rowID);
     }
-    return false;
+    final change = _codec.decodeChange(plaintext);
+    if (collectionFor(change) != envelope.collection) {
+      throw const SyncPayloadIdentityError(
+        'Decoded entity collection does not match the envelope.',
+      );
+    }
+    if (normalizedID(change.targetID) != normalizedID(envelope.rowID)) {
+      throw const SyncPayloadIdentityError(
+        'Decoded entity ID does not match the envelope row ID.',
+      );
+    }
+    return change;
   }
 
-  static _DecodedRow _winnerOf(List<_DecodedRow> siblings) {
+  static _DecodedRow? _dominantSibling(List<_DecodedRow> siblings) {
     for (final candidate in siblings) {
       final dominatesAll = siblings.every(
         (sibling) => candidate.envelope.versionVector
@@ -125,8 +175,13 @@ class SyncEngine {
       );
       if (dominatesAll) return candidate;
     }
-    throw StateError('No dominant sibling in a concurrent-free group.');
+    return null;
   }
+
+  static DecodedSibling _toDecodedSibling(_DecodedRow row) => DecodedSibling(
+        row.envelope.versionVector,
+        row.change,
+      );
 
   /// Converts local [changes] plus their exact stored versions into
   /// push-ready envelopes.
@@ -141,7 +196,13 @@ class SyncEngine {
       final rowID = normalizedID(change.targetID);
       final row = SyncRowID.of(collection, rowID);
       final stored = versionSource.readRowVersion(row);
-      final version = stored?.versionVector ?? VersionVector.empty;
+      if (stored == null) {
+        throw SyncUntrackedRowError(
+          'Cannot encode row $rowID in $collection: the version source '
+          'does not track a stored version for it.',
+        );
+      }
+      final version = stored.versionVector;
       final lifecycle = _lifecycleFor(change);
       final payload = Uint8List.fromList(_codec.encodeChange(change));
       final ciphertext = await _framePayload(
@@ -204,14 +265,16 @@ class SyncEngine {
     return base64Url.encode(framed).replaceAll('=', '');
   }
 
-  static SiblingLifecycle _lifecycleFor(LedgerChange change) =>
-      change is DeleteBudget ||
-              change is DeleteCategory ||
-              change is DeleteEntry ||
-              change is DeletePlan ||
-              change is DeleteMoneySource
-          ? SiblingLifecycle.tombstone
-          : SiblingLifecycle.live;
+  static SiblingLifecycle _lifecycleFor(LedgerChange change) => switch (
+        change
+      ) {
+        DeleteBudget() || DeleteCategory() || DeleteEntry() || DeletePlan() ||
+            DeleteMoneySource() =>
+          SiblingLifecycle.tombstone,
+        UpsertAccount() || UpsertPocket() || UpsertCategory() || UpsertEntry() ||
+            UpsertPlan() || UpsertBudget() =>
+          SiblingLifecycle.live,
+      };
 }
 
 /// Maps a [LedgerChange] to its [SyncCollection]. Total across every variant.
@@ -240,9 +303,60 @@ LedgerChange deleteFor(SyncCollection collection, String rowID) =>
       SyncCollection.budgets => DeleteBudget(normalizedID(rowID)),
     };
 
+/// A decoded, decrypted sibling carried into a [StagedConflict]: its version
+/// vector and the [LedgerChange] decoded from its ciphertext.
+///
+/// [StagedConflict] carries these decoded values rather than raw envelopes so
+/// a later durable store can persist already-decrypted content without a
+/// second decryption pass.
+@immutable
+final class DecodedSibling {
+  const DecodedSibling(this.versionVector, this.change);
+
+  final VersionVector versionVector;
+  final LedgerChange change;
+
+  @override
+  bool operator ==(Object other) =>
+      other is DecodedSibling &&
+      other.versionVector == versionVector &&
+      other.change == change;
+
+  @override
+  int get hashCode => Object.hash(versionVector, change);
+
+  @override
+  String toString() => 'DecodedSibling($change under $versionVector)';
+}
+
 class _DecodedRow {
   const _DecodedRow(this.rowID, this.change, this.envelope);
   final SyncRowID rowID;
   final LedgerChange change;
   final SyncEnvelope envelope;
 }
+
+bool _listEquals<T>(List<T> a, List<T> b) {
+  if (a.length != b.length) return false;
+  for (var index = 0; index < a.length; index += 1) {
+    if (a[index] != b[index]) return false;
+  }
+  return true;
+}
+
+bool _mapEquals<K, V>(Map<K, V> a, Map<K, V> b) {
+  if (a.length != b.length) return false;
+  for (final entry in a.entries) {
+    if (!b.containsKey(entry.key) || b[entry.key] != entry.value) {
+      return false;
+    }
+  }
+  return true;
+}
+
+int _hashList<T>(List<T> values) =>
+    Object.hashAll(values.map((value) => value.hashCode));
+
+int _hashMap<K, V>(Map<K, V> map) => Object.hashAll(
+      map.entries.map((entry) => Object.hash(entry.key, entry.value)),
+    );

@@ -126,7 +126,90 @@ void main() {
       final conflict = result.stagedConflicts.first;
       expect(conflict.collection, SyncCollection.entries);
       expect(conflict.rowID, 'row-1');
-      expect(conflict.envelopes, hasLength(2));
+      expect(conflict.siblings, hasLength(2));
+      // Staged siblings expose decoded LedgerChange content, not ciphertext.
+      expect(
+        conflict.siblings.map((sibling) => sibling.change),
+        <LedgerChange>[
+          UpsertEntry(testEntry(id: 'row-1')),
+          UpsertEntry(testEntry(id: 'row-1')),
+        ],
+      );
+    });
+
+    test('a dominant sibling resolves a group even with a concurrent pair',
+        () async {
+      // devA and devB are mutually concurrent, but devA+devB dominates both.
+      final concurrentA = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-1',
+        version: VersionVector(<String, int>{'devA': 1}),
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertEntry(testEntry(id: 'row-1')),
+      );
+      final concurrentB = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-1',
+        version: VersionVector(<String, int>{'devB': 1}),
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertEntry(testEntry(id: 'row-1')),
+      );
+      final merged = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-1',
+        version: VersionVector(<String, int>{'devA': 1, 'devB': 1}),
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertEntry(testEntry(id: 'row-1')),
+      );
+      final result =
+          await engine().reconcile(<SyncEnvelope>[concurrentA, merged, concurrentB]);
+      expect(result.changes, hasLength(1));
+      expect(result.stamps[SyncRowID.of(SyncCollection.entries, 'row-1')],
+          VersionVector(<String, int>{'devA': 1, 'devB': 1}));
+      expect(result.hasConflicts, isFalse);
+    });
+
+    test('a tampered tombstone envelope throws, not a silent delete', () async {
+      final tombstone = await buildEnvelope(
+        collection: SyncCollection.moneySources,
+        rowID: 'ms-1',
+        version: VersionVector(<String, int>{'dev': 1}),
+        lifecycle: SiblingLifecycle.tombstone,
+      );
+      // A tombstone envelope still carries an AEAD-sealed (empty) payload;
+      // corrupting it must fail authentication on decode.
+      final tamperedCiphertext = base64Url
+          .encode(_tamperBytes(_b64urlDecode(tombstone.ciphertext)))
+          .replaceAll('=', '');
+      final tampered = SyncEnvelope(
+        protocolVersion: syncProtocolVersion,
+        userID: 'user',
+        collection: SyncCollection.moneySources,
+        rowID: 'ms-1',
+        siblingID: tombstone.siblingID,
+        versionVector: VersionVector(<String, int>{'dev': 1}),
+        lifecycle: SiblingLifecycle.tombstone,
+        ciphertext: tamperedCiphertext,
+      );
+      await expectLater(
+        engine().reconcile(<SyncEnvelope>[tampered]),
+        throwsA(isA<SyncPayloadDecryptionError>()),
+      );
+    });
+
+    test('an authenticated envelope decoding to another entity identity',
+        () async {
+      final misrouted = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-1',
+        version: VersionVector(<String, int>{'dev': 1}),
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertCategory(testCategory(id: 'row-1')),
+      );
+      await expectLater(
+        engine().reconcile(<SyncEnvelope>[misrouted]),
+        throwsA(isA<SyncPayloadIdentityError>()),
+      );
     });
 
     test('a tombstone decode is payload-free and conflict-free', () async {
@@ -138,6 +221,8 @@ void main() {
       );
       final result = await engine().reconcile(<SyncEnvelope>[tombstone]);
       expect(result.changes, [DeleteMoneySource('ms-1')]);
+      expect(result.stamps[SyncRowID.of(SyncCollection.moneySources, 'ms-1')],
+          VersionVector(<String, int>{'dev': 1}));
       expect(result.stamps[SyncRowID.of(SyncCollection.moneySources, 'ms-1')],
           VersionVector(<String, int>{'dev': 1}));
     });
@@ -269,12 +354,26 @@ void main() {
     });
 
     test('encodes a delete as a payload-free tombstone envelope', () async {
+      final versionSource = InMemorySyncVersionSource(<SyncRowID, RowVersion>{
+        SyncRowID.of(SyncCollection.entries, 'row-1'): RowVersion.empty(),
+      });
       final envelopes = await engine().encode(
         <LedgerChange>[DeleteEntry('row-1')],
-        InMemorySyncVersionSource(),
+        versionSource,
       );
       expect(envelopes, hasLength(1));
       expect(envelopes.first.lifecycle, SiblingLifecycle.tombstone);
+    });
+
+    test('throws for a change whose row the version source never tracked',
+        () async {
+      await expectLater(
+        engine().encode(
+          <LedgerChange>[UpsertEntry(testEntry(id: 'untracked-row'))],
+          InMemorySyncVersionSource(),
+        ),
+        throwsA(isA<SyncUntrackedRowError>()),
+      );
     });
   });
 
@@ -286,10 +385,13 @@ void main() {
         return Future<Uint8List>.value(key);
       }
 
+      final versionSource = InMemorySyncVersionSource(<SyncRowID, RowVersion>{
+        SyncRowID.of(SyncCollection.entries, 'row-1'): RowVersion.empty(),
+      });
       final local = SyncEngine(userID: 'user', keyAccessor: recording);
       final envelopes = await local.encode(
         <LedgerChange>[UpsertEntry(testEntry(id: 'row-1'))],
-        InMemorySyncVersionSource(),
+        versionSource,
       );
       expect(calls, 1);
       expect(envelopes, hasLength(1));
@@ -315,4 +417,18 @@ void main() {
       expect(collectionFor(DeleteBudget('x')), SyncCollection.budgets);
     });
   });
+}
+
+// Flips one byte of an AEAD frame so its tag no longer authenticates.
+Uint8List _tamperBytes(Uint8List frame) {
+  final corrupted = Uint8List.fromList(frame);
+  corrupted[corrupted.length - 1] ^= 0xFF;
+  return corrupted;
+}
+
+// Decodes an unpadded base64url string, as the cipher frames produce.
+Uint8List _b64urlDecode(String value) {
+  final remainder = value.length % 4;
+  final padded = remainder == 0 ? value : value + '=' * (4 - remainder);
+  return Uint8List.fromList(base64Url.decode(padded));
 }

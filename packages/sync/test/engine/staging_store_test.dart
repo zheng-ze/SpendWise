@@ -1,22 +1,19 @@
+import 'package:domain/domain.dart';
 import 'package:sync/sync.dart';
 import 'package:test/test.dart';
 
+import '../support/entities.dart';
+
 void main() {
-  SyncEnvelope makeEnvelope(int counter) => SyncEnvelope(
-        protocolVersion: syncProtocolVersion,
-        userID: 'user',
-        collection: SyncCollection.entries,
-        rowID: 'row-a',
-        siblingID: 'sibling-$counter',
-        versionVector: VersionVector(<String, int>{'dev': counter}),
-        lifecycle: SiblingLifecycle.live,
-        ciphertext: '',
+  DecodedSibling makeSibling(int counter) => DecodedSibling(
+        VersionVector(<String, int>{'dev': counter}),
+        UpsertEntry(testEntry(id: 'row-$counter')),
       );
 
   StagedConflict makeConflict() => StagedConflict(
         SyncCollection.entries,
         'row-a',
-        [makeEnvelope(1), makeEnvelope(2)],
+        [makeSibling(1), makeSibling(2)],
       );
 
   group('stage', () {
@@ -25,7 +22,7 @@ void main() {
       store.stage(makeConflict());
       store.stage(makeConflict());
       expect(store.pendingConflicts, hasLength(1));
-      expect(store.pendingConflicts.first.envelopes, hasLength(2));
+      expect(store.pendingConflicts.first.siblings, hasLength(2));
     });
 
     test('keeps distinct groups for different rows', () {
@@ -33,12 +30,12 @@ void main() {
       store.stage(StagedConflict(
         SyncCollection.entries,
         'row-a',
-        [makeEnvelope(1)],
+        [makeSibling(1)],
       ));
       store.stage(StagedConflict(
         SyncCollection.entries,
         'row-b',
-        [makeEnvelope(1)],
+        [makeSibling(1)],
       ));
       expect(store.pendingConflicts, hasLength(2));
     });
@@ -48,14 +45,27 @@ void main() {
       store.stage(StagedConflict(
         SyncCollection.entries,
         'row-a',
-        [makeEnvelope(1)],
+        [makeSibling(1)],
       ));
       store.stage(StagedConflict(
         SyncCollection.categories,
         'row-a',
-        [makeEnvelope(1)],
+        [makeSibling(1)],
       ));
       expect(store.pendingConflicts, hasLength(2));
+    });
+
+    test('siblings expose decoded LedgerChange content', () {
+      final store = InMemorySyncStagingStore();
+      store.stage(makeConflict());
+      final conflict = store.pendingConflicts.first;
+      expect(
+        conflict.siblings.map((sibling) => sibling.change).toList(),
+        <LedgerChange>[
+          UpsertEntry(testEntry(id: 'row-1')),
+          UpsertEntry(testEntry(id: 'row-2')),
+        ],
+      );
     });
   });
 
@@ -65,12 +75,12 @@ void main() {
       final first = StagedConflict(
         SyncCollection.entries,
         'row-a',
-        [makeEnvelope(1)],
+        [makeSibling(1)],
       );
       final second = StagedConflict(
         SyncCollection.entries,
         'row-b',
-        [makeEnvelope(1)],
+        [makeSibling(1)],
       );
       store.stage(first);
       store.stage(second);
@@ -95,6 +105,31 @@ void main() {
       store.resolve(makeConflict());
       store.resolve(makeConflict());
       expect(store.pendingConflicts, isEmpty);
+    });
+  });
+
+  group('rowID normalization', () {
+    test('normalizes an upper-case row ID on construction', () {
+      final conflict = StagedConflict(
+        SyncCollection.entries,
+        'ROW-A',
+        [makeSibling(1)],
+      );
+      expect(conflict.rowID, 'row-a');
+      expect(conflict.row, SyncRowID.of(SyncCollection.entries, 'row-a'));
+    });
+  });
+
+  group('sibling list is defensive', () {
+    test('mutating the supplied list does not change the conflict', () {
+      final siblings = <DecodedSibling>[makeSibling(1), makeSibling(2)];
+      final conflict = StagedConflict(
+        SyncCollection.entries,
+        'row-a',
+        siblings,
+      );
+      siblings.add(makeSibling(3));
+      expect(conflict.siblings, hasLength(2));
     });
   });
 }

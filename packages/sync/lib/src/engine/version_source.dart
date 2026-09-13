@@ -14,6 +14,15 @@ final class RowVersion {
 
   final VersionVector versionVector;
   final SiblingLifecycle lifecycle;
+
+  @override
+  bool operator ==(Object other) =>
+      other is RowVersion &&
+      other.versionVector == versionVector &&
+      other.lifecycle == lifecycle;
+
+  @override
+  int get hashCode => Object.hash(versionVector, lifecycle);
 }
 
 /// Read seam over durable current row versions.
