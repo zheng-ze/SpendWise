@@ -37,6 +37,22 @@ Create a GitHub issue.
 
 Run `gh issue view <number> --comments`.
 
+## Recon operations
+
+Used by the `recon` skill. The **work map** is a GitHub Project (v2), not an issue.
+
+- **Canonical Project**: [SpendWise Work Map](https://github.com/users/zheng-ze/projects/1). Discover it with `gh project list --owner zheng-ze` when the URL is not already known; do not create a second one.
+- **Fields**: built-in `Labels` (carries `type:decision`/`type:research`/`type:task` and `mode:hitl`/`mode:afk`), built-in `Parent issue` and `Sub-issues progress` (native hierarchy), plus custom fields `Feature` (single select), `Claim` (text, opaque session token), and `Claimed at` (date). List field/option IDs with `gh project field-list <number> --owner zheng-ze --format json`.
+- **Registering an issue**: `gh project item-add <number> --owner zheng-ze --url <issue-url>`. Adding an issue that has native GitHub sub-issues also adds its sub-issues automatically.
+- **Setting a field**: `gh project item-edit --id <item-id> --field-id <field-id> --project-id <project-id> --single-select-option-id <option-id>` (single select) or `--text <value>` (text/date fields).
+- **Claiming**: read the item's `Claim` field immediately before writing (`fieldValueByName` on the `ProjectV2Item` via `gh api graphql`), write this session's token only if empty (`updateProjectV2ItemFieldValue` with a `text` value), then re-read to confirm the write held. Release with `clearProjectV2ItemFieldValue`. This is a check-then-set, not an atomic compare-and-swap — a race window exists between the read and the write.
+- **Hierarchy**: `gh api repos/<owner>/<repo>/issues/<n>/sub_issues` lists native children; add one with `gh api --method POST repos/<owner>/<repo>/issues/<parent>/sub_issues -f sub_issue_id=<child-database-id>`.
+- **Blocking**: same native-dependency mechanism as Wayfinding below — `issue_dependencies_summary.blocked_by` on `gh api repos/<owner>/<repo>/issues/<n>`, with the `Blocked by: #<n>` body-line fallback only when unavailable.
+- **Frontier query**: every Project item that is an open issue, has `issue_dependencies_summary.blocked_by == 0`, and has an empty `Claim` (or a `Claim` equal to this session's token).
+- **Markdown fallback**: `docs/map.md`, used only if the Project becomes unavailable; none exists today because the Project backend is available.
+
+The retired `recon:map` issue-only work map (a single issue such as the closed #70) is not the canonical index. Historical `recon:map`-labeled issues are kept only as historical record.
+
 ## Wayfinding operations
 
 Used by `/wayfinder`. The **map** is a single issue with **child** issues as tickets.
