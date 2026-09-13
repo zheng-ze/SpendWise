@@ -165,6 +165,13 @@ final class VersionVector {
     final keys = _counters.keys.toList()..sort();
     return Object.hashAll(keys.expand((key) => <Object>[key, _counters[key]!]));
   }
+
+  @override
+  String toString() {
+    final keys = _counters.keys.toList()..sort();
+    final entries = keys.map((key) => '$key:${_counters[key]}').join(', ');
+    return 'VersionVector($entries)';
+  }
 }
 
 final class VersionVectorDecodeError implements FormatException {
