@@ -18,24 +18,59 @@ final class CredentialProvider {
   Future<T> withCredential<T>(
     FutureOr<T> Function(DeviceCredential credential) use,
   ) async {
+    final String? payload;
+    try {
+      payload = await _secretStore.read(syncCredentialSecretKey);
+    } catch (_) {
+      throw const CredentialUnavailableException(
+        CredentialUnavailableReason.storageFailed,
+      );
+    }
+    if (payload == null) {
+      throw const CredentialUnavailableException(
+        CredentialUnavailableReason.absent,
+      );
+    }
+
     final DeviceCredential credential;
     try {
-      final payload = await _secretStore.read(syncCredentialSecretKey);
-      if (payload == null) throw const CredentialUnavailableException();
       credential = const CredentialCodec().restore(payload);
-      if (credential.deviceID != await deviceID(_database)) {
-        throw const CredentialUnavailableException();
-      }
-    } catch (_) {
-      throw const CredentialUnavailableException();
+    } on FormatException {
+      throw const CredentialUnavailableException(
+        CredentialUnavailableReason.malformed,
+      );
     }
+
+    final String currentDeviceID;
+    try {
+      currentDeviceID = await deviceID(_database);
+    } catch (_) {
+      throw const CredentialUnavailableException(
+        CredentialUnavailableReason.identityFailed,
+      );
+    }
+    if (credential.deviceID != currentDeviceID) {
+      throw const CredentialUnavailableException(
+        CredentialUnavailableReason.identityFailed,
+      );
+    }
+
     return use(credential);
   }
 }
 
+enum CredentialUnavailableReason {
+  absent,
+  malformed,
+  storageFailed,
+  identityFailed,
+}
+
 final class CredentialUnavailableException implements Exception {
-  const CredentialUnavailableException();
+  const CredentialUnavailableException(this.reason);
+
+  final CredentialUnavailableReason reason;
 
   @override
-  String toString() => 'Sync credential unavailable.';
+  String toString() => 'Sync credential unavailable (${reason.name}).';
 }

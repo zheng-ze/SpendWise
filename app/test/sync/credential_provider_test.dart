@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/persistence/device_identity.dart';
 import 'package:spendwise/persistence/ledger_database.dart';
 import 'package:spendwise/sync/credential_provider.dart';
+import 'package:spendwise/sync/secret_store.dart';
 import 'package:spendwise/sync/sync_secret_keys.dart';
 import 'package:sync/sync.dart';
 
@@ -68,9 +69,17 @@ void main() {
     await expectLater(
       provider.withCredential((_) => called = true),
       throwsA(
-        predicate<Object>(
-          (error) => error.toString() == 'Sync credential unavailable.',
-        ),
+        isA<CredentialUnavailableException>()
+            .having(
+              (error) => error.reason,
+              'reason',
+              CredentialUnavailableReason.identityFailed,
+            )
+            .having(
+              (error) => error.toString(),
+              'message',
+              'Sync credential unavailable (identityFailed).',
+            ),
       ),
     );
 
@@ -85,11 +94,17 @@ void main() {
       await expectLater(
         provider.withCredential((_) => called = true),
         throwsA(
-          isA<CredentialUnavailableException>().having(
-            (error) => error.toString(),
-            'message',
-            'Sync credential unavailable.',
-          ),
+          isA<CredentialUnavailableException>()
+              .having(
+                (error) => error.reason,
+                'reason',
+                CredentialUnavailableReason.absent,
+              )
+              .having(
+                (error) => error.toString(),
+                'message',
+                'Sync credential unavailable (absent).',
+              ),
         ),
       );
 
@@ -107,11 +122,17 @@ void main() {
       await expectLater(
         provider.withCredential((_) => called = true),
         throwsA(
-          isA<CredentialUnavailableException>().having(
-            (error) => error.toString(),
-            'message',
-            'Sync credential unavailable.',
-          ),
+          isA<CredentialUnavailableException>()
+              .having(
+                (error) => error.reason,
+                'reason',
+                CredentialUnavailableReason.malformed,
+              )
+              .having(
+                (error) => error.toString(),
+                'message',
+                'Sync credential unavailable (malformed).',
+              ),
         ),
       );
 
@@ -128,11 +149,17 @@ void main() {
     await expectLater(
       provider.withCredential((_) => called = true),
       throwsA(
-        isA<CredentialUnavailableException>().having(
-          (error) => error.toString(),
-          'message',
-          'Sync credential unavailable.',
-        ),
+        isA<CredentialUnavailableException>()
+            .having(
+              (error) => error.reason,
+              'reason',
+              CredentialUnavailableReason.storageFailed,
+            )
+            .having(
+              (error) => error.toString(),
+              'message',
+              'Sync credential unavailable (storageFailed).',
+            ),
       ),
     );
     expect(called, isFalse);
@@ -154,9 +181,47 @@ void main() {
 
     await expectLater(
       provider.withCredential((_) => called = true),
-      throwsA(isA<CredentialUnavailableException>()),
+      throwsA(
+        isA<CredentialUnavailableException>().having(
+          (error) => error.reason,
+          'reason',
+          CredentialUnavailableReason.identityFailed,
+        ),
+      ),
     );
     expect(called, isFalse);
+  });
+
+  test('storage failure and absence keep distinct redacted reasons', () async {
+    Future<CredentialUnavailableException> unavailableFrom(
+      Future<void> Function() action,
+    ) async {
+      try {
+        await action();
+      } on CredentialUnavailableException catch (error) {
+        return error;
+      }
+      throw StateError('Expected credential unavailability.');
+    }
+
+    secrets.readFailure = const SecretStoreException();
+    final storageUnavailable = await unavailableFrom(
+      () => provider.withCredential(
+        (_) => fail('A storage failure used a credential.'),
+      ),
+    );
+    secrets.readFailure = null;
+    final absentUnavailable = await unavailableFrom(
+      () => provider.withCredential(
+        (_) => fail('An absent credential was used.'),
+      ),
+    );
+
+    expect(storageUnavailable.reason, isNot(absentUnavailable.reason));
+    expect(storageUnavailable.toString(), isNot(contains('test-bearer')));
+    expect(storageUnavailable.toString(), isNot(contains('db-error')));
+    expect(absentUnavailable.toString(), isNot(contains('test-bearer')));
+    expect(absentUnavailable.toString(), isNot(contains('db-error')));
   });
 
   test(
