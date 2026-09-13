@@ -189,13 +189,26 @@ class SyncEngine {
   // vectors no other sibling dominates. Exact-duplicate vectors collapse to one
   // representative; a vector survives only if no other distinct vector
   // dominates it.
+  //
+  // Two authenticated envelopes sharing a version vector but decoding to
+  // different content is an anomalous state, not a case to resolve by input
+  // order: throws [SyncPayloadIdentityError] rather than silently keeping
+  // whichever sibling happened to appear first.
   static List<_DecodedRow> _nonDominatedFrontier(List<_DecodedRow> siblings) {
     final distinct = <VersionVector, _DecodedRow>{};
     for (final sibling in siblings) {
-      distinct.putIfAbsent(
-        sibling.envelope.versionVector,
-        () => sibling,
-      );
+      final existing = distinct[sibling.envelope.versionVector];
+      if (existing == null) {
+        distinct[sibling.envelope.versionVector] = sibling;
+        continue;
+      }
+      if (existing.change != sibling.change) {
+        throw SyncPayloadIdentityError(
+          'Two authenticated envelopes for the same row share version '
+          'vector ${sibling.envelope.versionVector} but decode to '
+          'different content.',
+        );
+      }
     }
     final members = distinct.values.toList();
     return members

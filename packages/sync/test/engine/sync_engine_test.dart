@@ -105,6 +105,81 @@ void main() {
       expect(result.stamps[SyncRowID.of(SyncCollection.entries, 'row-1')], v1);
     });
 
+    test(
+        'divergent live content under an identical version vector throws, '
+        'first-argument order', () async {
+      final v = VersionVector(<String, int>{'dev': 1});
+      final first = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-1',
+        version: v,
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertEntry(testEntry(id: 'row-1')),
+      );
+      final second = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-1',
+        version: v,
+        lifecycle: SiblingLifecycle.live,
+        change:
+            UpsertEntry(testEntry(id: 'row-1', date: DateTime.utc(2024, 4, 1))),
+      );
+      await expectLater(
+        engine().reconcile(<SyncEnvelope>[first, second]),
+        throwsA(isA<SyncPayloadIdentityError>()),
+      );
+    });
+
+    test(
+        'divergent live content under an identical version vector throws, '
+        'reversed order', () async {
+      final v = VersionVector(<String, int>{'dev': 1});
+      final first = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-1',
+        version: v,
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertEntry(testEntry(id: 'row-1')),
+      );
+      final second = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-1',
+        version: v,
+        lifecycle: SiblingLifecycle.live,
+        change:
+            UpsertEntry(testEntry(id: 'row-1', date: DateTime.utc(2024, 4, 1))),
+      );
+      // Prove neither input order silently picks a winner: the bug is
+      // specifically about which one wins by appearing first.
+      await expectLater(
+        engine().reconcile(<SyncEnvelope>[second, first]),
+        throwsA(isA<SyncPayloadIdentityError>()),
+      );
+    });
+
+    test(
+        'a live sibling and a tombstone sibling sharing a version vector '
+        'throws', () async {
+      final v = VersionVector(<String, int>{'dev': 1});
+      final live = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-1',
+        version: v,
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertEntry(testEntry(id: 'row-1')),
+      );
+      final tombstone = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-1',
+        version: v,
+        lifecycle: SiblingLifecycle.tombstone,
+      );
+      await expectLater(
+        engine().reconcile(<SyncEnvelope>[live, tombstone]),
+        throwsA(isA<SyncPayloadIdentityError>()),
+      );
+    });
+
     test('mutually concurrent siblings enter staging', () async {
       final a = await buildEnvelope(
         collection: SyncCollection.entries,
