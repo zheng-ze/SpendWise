@@ -458,6 +458,50 @@ void main() {
       expect(collectionFor(DeleteBudget('x')), SyncCollection.budgets);
     });
   });
+
+  group('ReconcileResult equality', () {
+    test('independently built equal instances share hashCode', () {
+      final r1 = ReconcileResult(
+        changes: <LedgerChange>[UpsertEntry(testEntry(id: 'row-1'))],
+        stamps: <SyncRowID, VersionVector>{
+          SyncRowID.of(SyncCollection.entries, 'row-1'):
+              VersionVector(<String, int>{'dev': 1}),
+        },
+        stagedConflicts: <StagedConflict>[],
+      );
+      final r2 = ReconcileResult(
+        changes: <LedgerChange>[UpsertEntry(testEntry(id: 'row-1'))],
+        stamps: <SyncRowID, VersionVector>{
+          SyncRowID.of(SyncCollection.entries, 'row-1'):
+              VersionVector(<String, int>{'dev': 1}),
+        },
+        stagedConflicts: <StagedConflict>[],
+      );
+      expect(r1, equals(r2));
+      expect(r1.hashCode, r2.hashCode);
+    });
+
+    test('mutating the supplied collections does not change the result', () {
+      final changes = <LedgerChange>[UpsertEntry(testEntry(id: 'row-1'))];
+      final stamps = <SyncRowID, VersionVector>{
+        SyncRowID.of(SyncCollection.entries, 'row-1'):
+            VersionVector(<String, int>{'dev': 1}),
+      };
+      final result = ReconcileResult(
+        changes: changes,
+        stamps: stamps,
+        stagedConflicts: <StagedConflict>[],
+      );
+      changes.add(UpsertEntry(testEntry(id: 'row-2')));
+      stamps[SyncRowID.of(SyncCollection.entries, 'row-1')] =
+          VersionVector(<String, int>{'dev': 2});
+      expect(result.changes, hasLength(1));
+      expect(
+        result.stamps[SyncRowID.of(SyncCollection.entries, 'row-1')],
+        VersionVector(<String, int>{'dev': 1}),
+      );
+    });
+  });
 }
 
 // Flips one byte of an AEAD frame so its tag no longer authenticates.

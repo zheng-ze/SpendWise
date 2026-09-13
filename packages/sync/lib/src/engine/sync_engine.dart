@@ -37,11 +37,25 @@ final class SyncUntrackedRowError implements Exception {
 /// per-row stamps, and the staged conflict groups.
 @immutable
 final class ReconcileResult {
-  const ReconcileResult({
-    required this.changes,
-    required this.stamps,
-    required this.stagedConflicts,
-  });
+  ReconcileResult._(
+    this.changes,
+    this.stamps,
+    this.stagedConflicts,
+  );
+
+  /// Builds an immutable [ReconcileResult], copying every collection so a
+  /// later mutation of the caller's list or map cannot change this result's
+  /// content-based equality or hash code.
+  factory ReconcileResult({
+    required List<LedgerChange> changes,
+    required Map<SyncRowID, VersionVector> stamps,
+    required List<StagedConflict> stagedConflicts,
+  }) =>
+      ReconcileResult._(
+        List.unmodifiable(changes),
+        Map.unmodifiable(stamps),
+        List.unmodifiable(stagedConflicts),
+      );
 
   final List<LedgerChange> changes;
   final Map<SyncRowID, VersionVector> stamps;
