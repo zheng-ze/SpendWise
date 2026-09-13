@@ -5,16 +5,24 @@ import 'package:test/test.dart';
 import '../support/entities.dart';
 
 void main() {
-  DecodedSibling makeSibling(int counter) => DecodedSibling(
+  DecodedSibling makeSibling(
+    SyncCollection collection,
+    String rowID,
+    int counter,
+  ) =>
+      DecodedSibling(
         VersionVector(<String, int>{'dev': counter}),
-        UpsertEntry(testEntry(id: 'row-$counter')),
-        'sibling-$counter',
+        _changeFor(collection, rowID),
+        'sibling-$rowID-$counter',
       );
 
   StagedConflict makeConflict() => StagedConflict(
         SyncCollection.entries,
         'row-a',
-        [makeSibling(1), makeSibling(2)],
+        [
+          makeSibling(SyncCollection.entries, 'row-a', 1),
+          makeSibling(SyncCollection.entries, 'row-a', 2),
+        ],
       );
 
   group('stage', () {
@@ -31,12 +39,18 @@ void main() {
       store.stage(StagedConflict(
         SyncCollection.entries,
         'row-a',
-        [makeSibling(1)],
+        [
+          makeSibling(SyncCollection.entries, 'row-a', 1),
+          makeSibling(SyncCollection.entries, 'row-a', 2),
+        ],
       ));
       store.stage(StagedConflict(
         SyncCollection.entries,
         'row-b',
-        [makeSibling(1)],
+        [
+          makeSibling(SyncCollection.entries, 'row-b', 1),
+          makeSibling(SyncCollection.entries, 'row-b', 2),
+        ],
       ));
       expect(store.pendingConflicts, hasLength(2));
     });
@@ -46,12 +60,18 @@ void main() {
       store.stage(StagedConflict(
         SyncCollection.entries,
         'row-a',
-        [makeSibling(1)],
+        [
+          makeSibling(SyncCollection.entries, 'row-a', 1),
+          makeSibling(SyncCollection.entries, 'row-a', 2),
+        ],
       ));
       store.stage(StagedConflict(
         SyncCollection.categories,
         'row-a',
-        [makeSibling(1)],
+        [
+          makeSibling(SyncCollection.categories, 'row-a', 1),
+          makeSibling(SyncCollection.categories, 'row-a', 2),
+        ],
       ));
       expect(store.pendingConflicts, hasLength(2));
     });
@@ -63,8 +83,8 @@ void main() {
       expect(
         conflict.siblings.map((sibling) => sibling.change).toList(),
         <LedgerChange>[
-          UpsertEntry(testEntry(id: 'row-1')),
-          UpsertEntry(testEntry(id: 'row-2')),
+          UpsertEntry(testEntry(id: 'row-a')),
+          UpsertEntry(testEntry(id: 'row-a')),
         ],
       );
     });
@@ -76,12 +96,18 @@ void main() {
       final first = StagedConflict(
         SyncCollection.entries,
         'row-a',
-        [makeSibling(1)],
+        [
+          makeSibling(SyncCollection.entries, 'row-a', 1),
+          makeSibling(SyncCollection.entries, 'row-a', 2),
+        ],
       );
       final second = StagedConflict(
         SyncCollection.entries,
         'row-b',
-        [makeSibling(1)],
+        [
+          makeSibling(SyncCollection.entries, 'row-b', 1),
+          makeSibling(SyncCollection.entries, 'row-b', 2),
+        ],
       );
       store.stage(first);
       store.stage(second);
@@ -114,7 +140,10 @@ void main() {
       final conflict = StagedConflict(
         SyncCollection.entries,
         'ROW-A',
-        [makeSibling(1)],
+        [
+          makeSibling(SyncCollection.entries, 'row-a', 1),
+          makeSibling(SyncCollection.entries, 'row-a', 2),
+        ],
       );
       expect(conflict.rowID, 'row-a');
       expect(conflict.row, SyncRowID.of(SyncCollection.entries, 'row-a'));
@@ -123,31 +152,75 @@ void main() {
 
   group('sibling list is defensive', () {
     test('mutating the supplied list does not change the conflict', () {
-      final siblings = <DecodedSibling>[makeSibling(1), makeSibling(2)];
+      final siblings = <DecodedSibling>[
+        makeSibling(SyncCollection.entries, 'row-a', 1),
+        makeSibling(SyncCollection.entries, 'row-a', 2),
+      ];
       final conflict = StagedConflict(
         SyncCollection.entries,
         'row-a',
         siblings,
       );
-      siblings.add(makeSibling(3));
+      siblings.add(makeSibling(SyncCollection.entries, 'row-a', 3));
       expect(conflict.siblings, hasLength(2));
+    });
+  });
+
+  group('validation', () {
+    test('rejects a group with fewer than two siblings', () {
+      expect(
+        () => StagedConflict(
+          SyncCollection.entries,
+          'row-a',
+          [makeSibling(SyncCollection.entries, 'row-a', 1)],
+        ),
+        throwsA(isA<StagedConflictValidationError>()),
+      );
+    });
+
+    test('rejects siblings that target a different row', () {
+      expect(
+        () => StagedConflict(
+          SyncCollection.entries,
+          'row-a',
+          [
+            makeSibling(SyncCollection.entries, 'row-b', 1),
+            makeSibling(SyncCollection.entries, 'row-b', 2),
+          ],
+        ),
+        throwsA(isA<StagedConflictValidationError>()),
+      );
+    });
+
+    test('rejects siblings from a different collection', () {
+      expect(
+        () => StagedConflict(
+          SyncCollection.categories,
+          'row-a',
+          [
+            makeSibling(SyncCollection.entries, 'row-a', 1),
+            makeSibling(SyncCollection.entries, 'row-a', 2),
+          ],
+        ),
+        throwsA(isA<StagedConflictValidationError>()),
+      );
     });
   });
 
   group('DecodedSibling equality', () {
     test('equal instances share hashCode and field equality', () {
-      final a = makeSibling(1);
+      final a = makeSibling(SyncCollection.entries, 'row-1', 1);
       final b = DecodedSibling(
         VersionVector(<String, int>{'dev': 1}),
         UpsertEntry(testEntry(id: 'row-1')),
-        'sibling-1',
+        'sibling-row-1-1',
       );
       expect(a, equals(b));
       expect(a.hashCode, b.hashCode);
     });
 
     test('a differing siblingID is not equal', () {
-      final a = makeSibling(1);
+      final a = makeSibling(SyncCollection.entries, 'row-1', 1);
       final b = DecodedSibling(
         VersionVector(<String, int>{'dev': 1}),
         UpsertEntry(testEntry(id: 'row-1')),
@@ -156,4 +229,19 @@ void main() {
       expect(a, isNot(equals(b)));
     });
   });
+}
+
+LedgerChange _changeFor(SyncCollection collection, String rowID) {
+  switch (collection) {
+    case SyncCollection.moneySources:
+      return DeleteMoneySource(rowID);
+    case SyncCollection.categories:
+      return UpsertCategory(testCategory(id: rowID));
+    case SyncCollection.entries:
+      return UpsertEntry(testEntry(id: rowID));
+    case SyncCollection.plans:
+      return UpsertPlan(testPlan());
+    case SyncCollection.budgets:
+      return UpsertBudget(testBudget());
+  }
 }

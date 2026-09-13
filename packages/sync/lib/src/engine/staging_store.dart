@@ -1,5 +1,17 @@
 part of '../../sync.dart';
 
+/// Error thrown when a [StagedConflict] group fails construction validation:
+/// fewer than two siblings, or a sibling whose decoded change targets a
+/// different collection or row than the group itself.
+final class StagedConflictValidationError implements Exception {
+  const StagedConflictValidationError(this.message);
+
+  final String message;
+
+  @override
+  String toString() => 'StagedConflictValidationError: $message';
+}
+
 /// A group of mutually concurrent siblings for one collection and row that
 /// cannot be resolved without user review.
 @immutable
@@ -14,12 +26,33 @@ final class StagedConflict {
     SyncCollection collection,
     String rowID,
     List<DecodedSibling> siblings,
-  ) =>
-      StagedConflict._(
-        collection,
-        normalizedID(rowID),
-        List<DecodedSibling>.unmodifiable(siblings),
+  ) {
+    final normalizedRowID = normalizedID(rowID);
+    final owned = List<DecodedSibling>.unmodifiable(siblings);
+    if (owned.length < 2) {
+      throw StagedConflictValidationError(
+        'A conflict group needs at least two siblings; received '
+        '${owned.length}.',
       );
+    }
+    for (final sibling in owned) {
+      if (collectionFor(sibling.change) != collection) {
+        throw StagedConflictValidationError(
+          'Sibling ${sibling.siblingID} targets '
+          '${collectionFor(sibling.change)}, not the group collection '
+          '$collection.',
+        );
+      }
+      if (normalizedID(sibling.change.targetID) != normalizedRowID) {
+        throw StagedConflictValidationError(
+          'Sibling ${sibling.siblingID} targets '
+          '${normalizedID(sibling.change.targetID)}, not the group row '
+          '$normalizedRowID.',
+        );
+      }
+    }
+    return StagedConflict._(collection, normalizedRowID, owned);
+  }
 
   final SyncCollection collection;
 
