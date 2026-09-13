@@ -10,8 +10,11 @@ import 'package:spendwise/settings/settings_providers.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_logic.dart'
     show EntryFormKind;
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart'
-    show EntryFormMode, EntryFormNotifier, EntryFormViewState,
-    entryFormViewModelProvider;
+    show
+        EntryFormMode,
+        EntryFormNotifier,
+        EntryFormViewState,
+        entryFormViewModelProvider;
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_flow.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_strip.dart';
 
@@ -25,21 +28,21 @@ class _RecordingEntryFormNotifier extends EntryFormNotifier {
 
   @override
   Future<EntryFormViewState> build() async => EntryFormViewState(
-        mode: EntryFormMode.newEntry,
-        kind: EntryFormKind.expense,
-        amountText: '',
-        nameText: '',
-        date: DateTime.utc(2026, 1, 1),
-        sourceId: null,
-        destinationId: null,
-        categoryId: null,
-        includeInAnalysis: true,
-        recurrence: null,
-        hasEndDate: false,
-        endDate: null,
-        isSystemEntry: false,
-        entryId: null,
-      );
+    mode: EntryFormMode.newEntry,
+    kind: EntryFormKind.expense,
+    amountText: '',
+    nameText: '',
+    date: DateTime.utc(2026, 1, 1),
+    sourceId: null,
+    destinationId: null,
+    categoryId: null,
+    includeInAnalysis: true,
+    recurrence: null,
+    hasEndDate: false,
+    endDate: null,
+    isSystemEntry: false,
+    entryId: null,
+  );
 
   // The strip only starts scans. Recording the source here captures the call
   // the button makes without running a real scan or touching a permission
@@ -95,9 +98,7 @@ void main() {
     expect(find.text('Upload photo'), findsNothing);
   });
 
-  testWidgets('tapping Upload photo starts a gallery scan', (
-    tester,
-  ) async {
+  testWidgets('tapping Upload photo starts a gallery scan', (tester) async {
     final recorder = _RecordingEntryFormNotifier();
     await pumpStrip(tester, enabled: true, recorder: recorder);
 

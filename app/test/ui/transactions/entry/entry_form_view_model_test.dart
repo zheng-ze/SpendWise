@@ -183,36 +183,33 @@ void main() {
       },
     );
 
-    test(
-      'a new entry with recurrence creates a plan instead, resolving the anchor day immediately',
-      () async {
-        final ledger = buildLedger();
-        final container = containerFor(ledger);
-        await stateOf(container, null);
-        final viewModel = container.read(
-          entryFormViewModelProvider(null).notifier,
-        );
+    test('a new entry with recurrence creates a plan instead, resolving the anchor day immediately', () async {
+      final ledger = buildLedger();
+      final container = containerFor(ledger);
+      await stateOf(container, null);
+      final viewModel = container.read(
+        entryFormViewModelProvider(null).notifier,
+      );
 
-        // Captured before the save, since computing "today" separately
-        // after the save is flaky across a midnight boundary.
-        final anchor = (await stateOf(container, null)).date;
+      // Captured before the save, since computing "today" separately
+      // after the save is flaky across a midnight boundary.
+      final anchor = (await stateOf(container, null)).date;
 
-        viewModel.setAmount('20');
-        viewModel.setName('Rent');
-        viewModel.applyPickedSource(checking.id);
-        viewModel.applyPickedRecurrence(RecurrenceFrequency.monthly);
-        await viewModel.save();
+      viewModel.setAmount('20');
+      viewModel.setName('Rent');
+      viewModel.applyPickedSource(checking.id);
+      viewModel.applyPickedRecurrence(RecurrenceFrequency.monthly);
+      await viewModel.save();
 
-        expect(ledger.state.plans.length, 1);
-        expect(ledger.state.entries.length, 1);
+      expect(ledger.state.plans.length, 1);
+      expect(ledger.state.entries.length, 1);
 
-        final plan = ledger.state.plans.values.first;
-        expect(plan.anchor, anchor);
-        // resolvePlans already ran once (inside save()), so the anchor day
-        // itself is resolved rather than still pending.
-        expect(plan.lastResolvedDate, anchor);
-      },
-    );
+      final plan = ledger.state.plans.values.first;
+      expect(plan.anchor, anchor);
+      // resolvePlans already ran once (inside save()), so the anchor day
+      // itself is resolved rather than still pending.
+      expect(plan.lastResolvedDate, anchor);
+    });
 
     test(
       'a domain rejection surfaces as state.error rather than throwing',
@@ -329,20 +326,17 @@ void main() {
       },
     );
 
-    test(
-      'applying a late picker result after the provider is disposed is a no-op, not a throw',
-      () async {
-        final container = containerFor(buildLedger());
-        await stateOf(container, null);
-        final viewModel = container.read(
-          entryFormViewModelProvider(null).notifier,
-        );
+    test('applying a late picker result after the provider is disposed is a no-op, not a throw', () async {
+      final container = containerFor(buildLedger());
+      await stateOf(container, null);
+      final viewModel = container.read(
+        entryFormViewModelProvider(null).notifier,
+      );
 
-        container.dispose();
+      container.dispose();
 
-        expect(() => viewModel.applyPickedSource(checking.id), returnsNormally);
-      },
-    );
+      expect(() => viewModel.applyPickedSource(checking.id), returnsNormally);
+    });
   });
 
   group('prefillSource', () {

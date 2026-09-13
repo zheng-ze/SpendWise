@@ -229,9 +229,8 @@ class _TransactionsFlowState
     );
     if (!context.mounted) return;
     if (picked == null) return;
-    _formViewModel(
-      formKey,
-    ).applyPickedDate(DateTime.utc(picked.year, picked.month, picked.day));
+    _formViewModel(formKey)
+        .applyPickedDate(DateTime.utc(picked.year, picked.month, picked.day));
   }
 
   Future<void> _pickEndDate(BuildContext context, String? formKey) async {

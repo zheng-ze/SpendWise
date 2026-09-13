@@ -2,12 +2,7 @@ import 'package:domain/domain.dart';
 
 /// What the store is doing about a failed save, so the banner stops claiming
 /// "retrying" once the store has given up on the current attempt.
-enum SaveBannerState {
-  clear,
-  retrying,
-  failedWillRetry,
-  permanentlyFailed,
-}
+enum SaveBannerState { clear, retrying, failedWillRetry, permanentlyFailed }
 
 typedef SaveErrorHandler = void Function(SaveBannerState state);
 

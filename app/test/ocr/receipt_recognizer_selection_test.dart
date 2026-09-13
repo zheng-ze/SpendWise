@@ -7,8 +7,10 @@ void main() {
     test('returns the injected vision recognizer on iOS', () {
       final fakeVision = FakeTextRecognizer();
 
-      final recognizer =
-          selectRecognizer(isIOS: true, visionFactory: () => fakeVision);
+      final recognizer = selectRecognizer(
+        isIOS: true,
+        visionFactory: () => fakeVision,
+      );
 
       expect(recognizer, same(fakeVision));
     });
@@ -26,8 +28,7 @@ void main() {
     });
 
     test('returns null when neither iOS nor android is selected', () {
-      final recognizer =
-          selectRecognizer(isIOS: false, isAndroid: false);
+      final recognizer = selectRecognizer(isIOS: false, isAndroid: false);
 
       expect(recognizer, isNull);
     });

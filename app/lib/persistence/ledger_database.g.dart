@@ -3830,32 +3830,30 @@ abstract class _$LedgerDatabase extends GeneratedDatabase {
   ];
 }
 
-typedef $$AccountsTableCreateCompanionBuilder =
-    AccountsCompanion Function({
-      required Uint8List versionData,
-      required int lifecycle,
-      required String id,
-      required String name,
-      required int type,
-      required String subPocketIds,
-      required bool incomingTransfersAsExpenses,
-      required bool includeInNetWorth,
-      Value<int?> statementDay,
-      Value<int> rowid,
-    });
-typedef $$AccountsTableUpdateCompanionBuilder =
-    AccountsCompanion Function({
-      Value<Uint8List> versionData,
-      Value<int> lifecycle,
-      Value<String> id,
-      Value<String> name,
-      Value<int> type,
-      Value<String> subPocketIds,
-      Value<bool> incomingTransfersAsExpenses,
-      Value<bool> includeInNetWorth,
-      Value<int?> statementDay,
-      Value<int> rowid,
-    });
+typedef $$AccountsTableCreateCompanionBuilder = AccountsCompanion Function({
+  required Uint8List versionData,
+  required int lifecycle,
+  required String id,
+  required String name,
+  required int type,
+  required String subPocketIds,
+  required bool incomingTransfersAsExpenses,
+  required bool includeInNetWorth,
+  Value<int?> statementDay,
+  Value<int> rowid,
+});
+typedef $$AccountsTableUpdateCompanionBuilder = AccountsCompanion Function({
+  Value<Uint8List> versionData,
+  Value<int> lifecycle,
+  Value<String> id,
+  Value<String> name,
+  Value<int> type,
+  Value<String> subPocketIds,
+  Value<bool> incomingTransfersAsExpenses,
+  Value<bool> includeInNetWorth,
+  Value<int?> statementDay,
+  Value<int> rowid,
+});
 
 class $$AccountsTableFilterComposer
     extends Composer<_$LedgerDatabase, $AccountsTable> {
@@ -4110,24 +4108,22 @@ typedef $$AccountsTableProcessedTableManager =
       Account,
       PrefetchHooks Function()
     >;
-typedef $$SubPocketsTableCreateCompanionBuilder =
-    SubPocketsCompanion Function({
-      required Uint8List versionData,
-      required int lifecycle,
-      required String id,
-      required String name,
-      required bool incomingTransfersAsExpenses,
-      Value<int> rowid,
-    });
-typedef $$SubPocketsTableUpdateCompanionBuilder =
-    SubPocketsCompanion Function({
-      Value<Uint8List> versionData,
-      Value<int> lifecycle,
-      Value<String> id,
-      Value<String> name,
-      Value<bool> incomingTransfersAsExpenses,
-      Value<int> rowid,
-    });
+typedef $$SubPocketsTableCreateCompanionBuilder = SubPocketsCompanion Function({
+  required Uint8List versionData,
+  required int lifecycle,
+  required String id,
+  required String name,
+  required bool incomingTransfersAsExpenses,
+  Value<int> rowid,
+});
+typedef $$SubPocketsTableUpdateCompanionBuilder = SubPocketsCompanion Function({
+  Value<Uint8List> versionData,
+  Value<int> lifecycle,
+  Value<String> id,
+  Value<String> name,
+  Value<bool> incomingTransfersAsExpenses,
+  Value<int> rowid,
+});
 
 class $$SubPocketsTableFilterComposer
     extends Composer<_$LedgerDatabase, $SubPocketsTable> {
@@ -4314,32 +4310,30 @@ typedef $$SubPocketsTableProcessedTableManager =
       SubPocket,
       PrefetchHooks Function()
     >;
-typedef $$CategoriesTableCreateCompanionBuilder =
-    CategoriesCompanion Function({
-      required Uint8List versionData,
-      required int lifecycle,
-      required String id,
-      required String name,
-      required int kind,
-      required String colorHex,
-      required bool includeInAnalysis,
-      Value<String?> parentId,
-      required String symbol,
-      Value<int> rowid,
-    });
-typedef $$CategoriesTableUpdateCompanionBuilder =
-    CategoriesCompanion Function({
-      Value<Uint8List> versionData,
-      Value<int> lifecycle,
-      Value<String> id,
-      Value<String> name,
-      Value<int> kind,
-      Value<String> colorHex,
-      Value<bool> includeInAnalysis,
-      Value<String?> parentId,
-      Value<String> symbol,
-      Value<int> rowid,
-    });
+typedef $$CategoriesTableCreateCompanionBuilder = CategoriesCompanion Function({
+  required Uint8List versionData,
+  required int lifecycle,
+  required String id,
+  required String name,
+  required int kind,
+  required String colorHex,
+  required bool includeInAnalysis,
+  Value<String?> parentId,
+  required String symbol,
+  Value<int> rowid,
+});
+typedef $$CategoriesTableUpdateCompanionBuilder = CategoriesCompanion Function({
+  Value<Uint8List> versionData,
+  Value<int> lifecycle,
+  Value<String> id,
+  Value<String> name,
+  Value<int> kind,
+  Value<String> colorHex,
+  Value<bool> includeInAnalysis,
+  Value<String?> parentId,
+  Value<String> symbol,
+  Value<int> rowid,
+});
 
 class $$CategoriesTableFilterComposer
     extends Composer<_$LedgerDatabase, $CategoriesTable> {
@@ -4591,38 +4585,36 @@ typedef $$CategoriesTableProcessedTableManager =
       Category,
       PrefetchHooks Function()
     >;
-typedef $$EntriesTableCreateCompanionBuilder =
-    EntriesCompanion Function({
-      required Uint8List versionData,
-      required int lifecycle,
-      required String id,
-      required int date,
-      required String amount,
-      required String name,
-      Value<String?> categoryId,
-      required String sourceId,
-      Value<String?> destinationId,
-      required bool includeInAnalysis,
-      Value<String?> note,
-      Value<int?> systemKind,
-      Value<int> rowid,
-    });
-typedef $$EntriesTableUpdateCompanionBuilder =
-    EntriesCompanion Function({
-      Value<Uint8List> versionData,
-      Value<int> lifecycle,
-      Value<String> id,
-      Value<int> date,
-      Value<String> amount,
-      Value<String> name,
-      Value<String?> categoryId,
-      Value<String> sourceId,
-      Value<String?> destinationId,
-      Value<bool> includeInAnalysis,
-      Value<String?> note,
-      Value<int?> systemKind,
-      Value<int> rowid,
-    });
+typedef $$EntriesTableCreateCompanionBuilder = EntriesCompanion Function({
+  required Uint8List versionData,
+  required int lifecycle,
+  required String id,
+  required int date,
+  required String amount,
+  required String name,
+  Value<String?> categoryId,
+  required String sourceId,
+  Value<String?> destinationId,
+  required bool includeInAnalysis,
+  Value<String?> note,
+  Value<int?> systemKind,
+  Value<int> rowid,
+});
+typedef $$EntriesTableUpdateCompanionBuilder = EntriesCompanion Function({
+  Value<Uint8List> versionData,
+  Value<int> lifecycle,
+  Value<String> id,
+  Value<int> date,
+  Value<String> amount,
+  Value<String> name,
+  Value<String?> categoryId,
+  Value<String> sourceId,
+  Value<String?> destinationId,
+  Value<bool> includeInAnalysis,
+  Value<String?> note,
+  Value<int?> systemKind,
+  Value<int> rowid,
+});
 
 class $$EntriesTableFilterComposer
     extends Composer<_$LedgerDatabase, $EntriesTable> {
@@ -4928,40 +4920,38 @@ typedef $$EntriesTableProcessedTableManager =
       Entry,
       PrefetchHooks Function()
     >;
-typedef $$PlansTableCreateCompanionBuilder =
-    PlansCompanion Function({
-      required Uint8List versionData,
-      required int lifecycle,
-      required String id,
-      required int frequency,
-      required int anchor,
-      Value<int?> endDate,
-      required int lastResolvedDate,
-      required String templateAmount,
-      required String templateName,
-      Value<String?> templateCategoryId,
-      required String templateSourceId,
-      Value<String?> templateDestinationId,
-      required bool templateIncludeInAnalysis,
-      Value<int> rowid,
-    });
-typedef $$PlansTableUpdateCompanionBuilder =
-    PlansCompanion Function({
-      Value<Uint8List> versionData,
-      Value<int> lifecycle,
-      Value<String> id,
-      Value<int> frequency,
-      Value<int> anchor,
-      Value<int?> endDate,
-      Value<int> lastResolvedDate,
-      Value<String> templateAmount,
-      Value<String> templateName,
-      Value<String?> templateCategoryId,
-      Value<String> templateSourceId,
-      Value<String?> templateDestinationId,
-      Value<bool> templateIncludeInAnalysis,
-      Value<int> rowid,
-    });
+typedef $$PlansTableCreateCompanionBuilder = PlansCompanion Function({
+  required Uint8List versionData,
+  required int lifecycle,
+  required String id,
+  required int frequency,
+  required int anchor,
+  Value<int?> endDate,
+  required int lastResolvedDate,
+  required String templateAmount,
+  required String templateName,
+  Value<String?> templateCategoryId,
+  required String templateSourceId,
+  Value<String?> templateDestinationId,
+  required bool templateIncludeInAnalysis,
+  Value<int> rowid,
+});
+typedef $$PlansTableUpdateCompanionBuilder = PlansCompanion Function({
+  Value<Uint8List> versionData,
+  Value<int> lifecycle,
+  Value<String> id,
+  Value<int> frequency,
+  Value<int> anchor,
+  Value<int?> endDate,
+  Value<int> lastResolvedDate,
+  Value<String> templateAmount,
+  Value<String> templateName,
+  Value<String?> templateCategoryId,
+  Value<String> templateSourceId,
+  Value<String?> templateDestinationId,
+  Value<bool> templateIncludeInAnalysis,
+  Value<int> rowid,
+});
 
 class $$PlansTableFilterComposer
     extends Composer<_$LedgerDatabase, $PlansTable> {
@@ -5290,26 +5280,24 @@ typedef $$PlansTableProcessedTableManager =
       Plan,
       PrefetchHooks Function()
     >;
-typedef $$BudgetsTableCreateCompanionBuilder =
-    BudgetsCompanion Function({
-      required Uint8List versionData,
-      required int lifecycle,
-      required String id,
-      Value<String?> categoryId,
-      required String limitEvents,
-      required String createdAtMonth,
-      Value<int> rowid,
-    });
-typedef $$BudgetsTableUpdateCompanionBuilder =
-    BudgetsCompanion Function({
-      Value<Uint8List> versionData,
-      Value<int> lifecycle,
-      Value<String> id,
-      Value<String?> categoryId,
-      Value<String> limitEvents,
-      Value<String> createdAtMonth,
-      Value<int> rowid,
-    });
+typedef $$BudgetsTableCreateCompanionBuilder = BudgetsCompanion Function({
+  required Uint8List versionData,
+  required int lifecycle,
+  required String id,
+  Value<String?> categoryId,
+  required String limitEvents,
+  required String createdAtMonth,
+  Value<int> rowid,
+});
+typedef $$BudgetsTableUpdateCompanionBuilder = BudgetsCompanion Function({
+  Value<Uint8List> versionData,
+  Value<int> lifecycle,
+  Value<String> id,
+  Value<String?> categoryId,
+  Value<String> limitEvents,
+  Value<String> createdAtMonth,
+  Value<int> rowid,
+});
 
 class $$BudgetsTableFilterComposer
     extends Composer<_$LedgerDatabase, $BudgetsTable> {
@@ -5511,18 +5499,16 @@ typedef $$BudgetsTableProcessedTableManager =
       Budget,
       PrefetchHooks Function()
     >;
-typedef $$StoreMetaTableCreateCompanionBuilder =
-    StoreMetaCompanion Function({
-      Value<int> id,
-      required String deviceId,
-      Value<bool> hasSeeded,
-    });
-typedef $$StoreMetaTableUpdateCompanionBuilder =
-    StoreMetaCompanion Function({
-      Value<int> id,
-      Value<String> deviceId,
-      Value<bool> hasSeeded,
-    });
+typedef $$StoreMetaTableCreateCompanionBuilder = StoreMetaCompanion Function({
+  Value<int> id,
+  required String deviceId,
+  Value<bool> hasSeeded,
+});
+typedef $$StoreMetaTableUpdateCompanionBuilder = StoreMetaCompanion Function({
+  Value<int> id,
+  Value<String> deviceId,
+  Value<bool> hasSeeded,
+});
 
 class $$StoreMetaTableFilterComposer
     extends Composer<_$LedgerDatabase, $StoreMetaTable> {

@@ -28,8 +28,12 @@ class _FakePermissionHandler extends PermissionHandlerPlatform {
   }
 }
 
-Map<String, dynamic> _rect(double left, double top, double right, double bottom) =>
-    {'left': left, 'top': top, 'right': right, 'bottom': bottom};
+Map<String, dynamic> _rect(
+  double left,
+  double top,
+  double right,
+  double bottom,
+) => {'left': left, 'top': top, 'right': right, 'bottom': bottom};
 
 /// Builds one flat line map per text line, matching the shape the Android
 /// text-recognition channel returns: pixel-space bounds plus an optional
@@ -49,20 +53,23 @@ Map<String, dynamic> _line(String text) {
 /// Mocks the channel to return a receipt with a merchant line, a total line
 /// and a date line.
 List<Map<String, dynamic>> _recognizedResult(List<String> lines) => [
-      for (final text in lines) _line(text),
-    ];
+  for (final text in lines) _line(text),
+];
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  final account =
-      Account(id: 'a0000000-0000-0000-0000-000000000001', name: 'Checking', type: AccountType.checking);
+  final account = Account(
+    id: 'a0000000-0000-0000-0000-000000000001',
+    name: 'Checking',
+    type: AccountType.checking,
+  );
 
   Ledger buildLedger() => Ledger(
-        state: LedgerState(
-          moneySources: {account.id: MoneySource.account(account)},
-        ),
-      );
+    state: LedgerState(
+      moneySources: {account.id: MoneySource.account(account)},
+    ),
+  );
 
   Future<void> pumpForm(WidgetTester tester, {String? entryId}) async {
     await tester.pumpWidget(
@@ -115,16 +122,24 @@ void main() {
   });
 
   group('scan -> prefill through the entry form', () {
-    testWidgets('recognizing a camera receipt prefills name, amount and date',
-        (tester) async {
+    testWidgets('recognizing a camera receipt prefills name, amount and date', (
+      tester,
+    ) async {
       await pumpForm(tester);
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(_mlKitChannel,
-              (call) async =>
-                  _recognizedResult(['Coffee Shop', 'Total \$12.50', '01/15/2026']));
+          .setMockMethodCallHandler(
+            _mlKitChannel,
+            (call) async => _recognizedResult([
+              'Coffee Shop',
+              'Total \$12.50',
+              '01/15/2026',
+            ]),
+          );
 
       final container = containerFor(tester);
-      final viewModel = container.read(entryFormViewModelProvider(null).notifier);
+      final viewModel = container.read(
+        entryFormViewModelProvider(null).notifier,
+      );
 
       await driveScan(
         tester,
@@ -146,12 +161,19 @@ void main() {
     ) async {
       await pumpForm(tester);
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(_mlKitChannel,
-              (call) async =>
-                  _recognizedResult(['Coffee Shop', 'Total \$12.50', '01/15/2026']));
+          .setMockMethodCallHandler(
+            _mlKitChannel,
+            (call) async => _recognizedResult([
+              'Coffee Shop',
+              'Total \$12.50',
+              '01/15/2026',
+            ]),
+          );
 
       final container = containerFor(tester);
-      final viewModel = container.read(entryFormViewModelProvider(null).notifier);
+      final viewModel = container.read(
+        entryFormViewModelProvider(null).notifier,
+      );
 
       await driveScan(
         tester,
@@ -172,12 +194,18 @@ void main() {
       await pumpForm(tester);
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(_mlKitChannel, (call) async {
-        await gate.future;
-        return _recognizedResult(['Coffee Shop', 'Total \$12.50', '01/15/2026']);
-      });
+            await gate.future;
+            return _recognizedResult([
+              'Coffee Shop',
+              'Total \$12.50',
+              '01/15/2026',
+            ]);
+          });
 
       final container = containerFor(tester);
-      final viewModel = container.read(entryFormViewModelProvider(null).notifier);
+      final viewModel = container.read(
+        entryFormViewModelProvider(null).notifier,
+      );
 
       // The scan runs on the real event zone, so it is started and released in
       // runAsync while a gate freezes recognition. A lone fake-frame pump
@@ -209,31 +237,36 @@ void main() {
       expect(find.byType(CircularProgressIndicator), findsNothing);
     });
 
-    testWidgets('a scan that ends without prefilling shows the scan-end message',
-        (tester) async {
-      await pumpForm(tester);
-      PermissionHandlerPlatform.instance =
-          _FakePermissionHandler(PermissionStatus.denied);
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(_documentScannerChannel, (call) async {
-        if (call.method == 'isAvailable') return false;
-        return null;
-      });
+    testWidgets(
+      'a scan that ends without prefilling shows the scan-end message',
+      (tester) async {
+        await pumpForm(tester);
+        PermissionHandlerPlatform.instance = _FakePermissionHandler(
+          PermissionStatus.denied,
+        );
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(_documentScannerChannel, (call) async {
+              if (call.method == 'isAvailable') return false;
+              return null;
+            });
 
-      final container = containerFor(tester);
-      final viewModel = container.read(entryFormViewModelProvider(null).notifier);
+        final container = containerFor(tester);
+        final viewModel = container.read(
+          entryFormViewModelProvider(null).notifier,
+        );
 
-      await driveScan(
-        tester,
-        container,
-        () => viewModel.requestScan(ReceiptScanSource.camera),
-      );
-      await tester.pump();
+        await driveScan(
+          tester,
+          container,
+          () => viewModel.requestScan(ReceiptScanSource.camera),
+        );
+        await tester.pump();
 
-      expect(
-        find.text('Camera or photo library access was denied.'),
-        findsOneWidget,
-      );
-    });
+        expect(
+          find.text('Camera or photo library access was denied.'),
+          findsOneWidget,
+        );
+      },
+    );
   });
 }

@@ -38,8 +38,11 @@ enum ReceiptScanStop {
 
 /// Extracted fields ready to prefill the entry form. A field left unresolved
 /// stays null rather than guessed, except [date], which defaults to today.
-typedef ScanResultHandler =
-    void Function({String? name, Decimal? amount, required DateTime date});
+typedef ScanResultHandler = void Function({
+  String? name,
+  Decimal? amount,
+  required DateTime date,
+});
 
 /// Supplies the [TextRecognizer] a scan runs on. The default [defaultRecognizer]
 /// is the production [selectRecognizer] path; tests pass a factory that returns

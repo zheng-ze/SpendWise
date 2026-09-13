@@ -32,9 +32,8 @@ class ReceiptScanStrip extends ConsumerWidget {
     });
 
     final scanning = ref.watch(
-      entryFormViewModelProvider(
-        formKey,
-      ).select((value) => value.value?.scanning ?? false),
+      entryFormViewModelProvider(formKey)
+          .select((value) => value.value?.scanning ?? false),
     );
 
     return Padding(

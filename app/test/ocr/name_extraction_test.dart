@@ -176,18 +176,15 @@ void main() {
     expect(extractName(text), 'Save money. Live better.');
   });
 
-  test(
-    'rejectsATallLowConfidenceLogoLineThatWouldOtherwiseWinOnHeight',
-    () {
-      final text = textOf(
-        ['aiMafit 4...', 'Save money. Live better.'],
-        heights: [60, 26],
-        confidences: [0, 0.95],
-      );
+  test('rejectsATallLowConfidenceLogoLineThatWouldOtherwiseWinOnHeight', () {
+    final text = textOf(
+      ['aiMafit 4...', 'Save money. Live better.'],
+      heights: [60, 26],
+      confidences: [0, 0.95],
+    );
 
-      expect(extractName(text), 'Save money. Live better.');
-    },
-  );
+    expect(extractName(text), 'Save money. Live better.');
+  });
 
   test('keepsALegibleShortNameEvenAtModerateConfidence', () {
     final text = textOf(['Kopi Tiam'], confidences: [0.5]);
