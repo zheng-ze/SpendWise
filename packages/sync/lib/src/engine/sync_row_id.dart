@@ -7,11 +7,15 @@ part of '../../sync.dart';
 /// they keep independent stamps, acknowledged vectors, and grouping outcomes.
 @immutable
 final class SyncRowID {
-  const SyncRowID(this.collection, this.rowID);
+  SyncRowID._(this.collection, this.rowID);
 
   /// Builds a row ID, normalizing [rowID] to a lowercase UUID string.
+  ///
+  /// This is the only public construction path: the raw generative
+  /// constructor is private so an unnormalized [rowID] can never enter a
+  /// [SyncRowID] and break map-key equality and lookup.
   factory SyncRowID.of(SyncCollection collection, String rowID) =>
-      SyncRowID(collection, normalizedID(rowID));
+      SyncRowID._(collection, normalizedID(rowID));
 
   final SyncCollection collection;
   final String rowID;
