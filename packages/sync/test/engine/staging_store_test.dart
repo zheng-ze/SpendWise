@@ -5,13 +5,16 @@ import 'package:test/test.dart';
 import '../support/entities.dart';
 
 void main() {
+  // Each sibling gets its own device key so distinct siblings are pairwise
+  // concurrent, matching what reconcile()'s frontier reduction would actually
+  // produce for a genuine conflict group.
   DecodedSibling makeSibling(
     SyncCollection collection,
     String rowID,
     int counter,
   ) =>
       DecodedSibling(
-        VersionVector(<String, int>{'dev': counter}),
+        VersionVector(<String, int>{'dev-$counter': 1}),
         _changeFor(collection, rowID),
         'sibling-$rowID-$counter',
       );
@@ -205,13 +208,57 @@ void main() {
         throwsA(isA<StagedConflictValidationError>()),
       );
     });
+
+    test('rejects a pair with an equal version vector', () {
+      expect(
+        () => StagedConflict(
+          SyncCollection.entries,
+          'row-a',
+          [
+            DecodedSibling(
+              VersionVector(<String, int>{'dev': 1}),
+              _changeFor(SyncCollection.entries, 'row-a'),
+              'sibling-row-a-1',
+            ),
+            DecodedSibling(
+              VersionVector(<String, int>{'dev': 1}),
+              _changeFor(SyncCollection.entries, 'row-a'),
+              'sibling-row-a-2',
+            ),
+          ],
+        ),
+        throwsA(isA<StagedConflictValidationError>()),
+      );
+    });
+
+    test('rejects a pair where one vector dominates the other', () {
+      expect(
+        () => StagedConflict(
+          SyncCollection.entries,
+          'row-a',
+          [
+            DecodedSibling(
+              VersionVector(<String, int>{'dev': 1}),
+              _changeFor(SyncCollection.entries, 'row-a'),
+              'sibling-row-a-1',
+            ),
+            DecodedSibling(
+              VersionVector(<String, int>{'dev': 2}),
+              _changeFor(SyncCollection.entries, 'row-a'),
+              'sibling-row-a-2',
+            ),
+          ],
+        ),
+        throwsA(isA<StagedConflictValidationError>()),
+      );
+    });
   });
 
   group('DecodedSibling equality', () {
     test('equal instances share hashCode and field equality', () {
       final a = makeSibling(SyncCollection.entries, 'row-1', 1);
       final b = DecodedSibling(
-        VersionVector(<String, int>{'dev': 1}),
+        VersionVector(<String, int>{'dev-1': 1}),
         UpsertEntry(testEntry(id: 'row-1')),
         'sibling-row-1-1',
       );
@@ -222,7 +269,7 @@ void main() {
     test('a differing siblingID is not equal', () {
       final a = makeSibling(SyncCollection.entries, 'row-1', 1);
       final b = DecodedSibling(
-        VersionVector(<String, int>{'dev': 1}),
+        VersionVector(<String, int>{'dev-1': 1}),
         UpsertEntry(testEntry(id: 'row-1')),
         'sibling-different',
       );

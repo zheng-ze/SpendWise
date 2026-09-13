@@ -1,8 +1,9 @@
 part of '../../sync.dart';
 
 /// Error thrown when a [StagedConflict] group fails construction validation:
-/// fewer than two siblings, or a sibling whose decoded change targets a
-/// different collection or row than the group itself.
+/// fewer than two siblings, a sibling whose decoded change targets a
+/// different collection or row than the group itself, or a pair of siblings
+/// that is not mutually concurrent.
 final class StagedConflictValidationError implements Exception {
   const StagedConflictValidationError(this.message);
 
@@ -49,6 +50,19 @@ final class StagedConflict {
           '${normalizedID(sibling.change.targetID)}, not the group row '
           '$normalizedRowID.',
         );
+      }
+    }
+    for (var i = 0; i < owned.length; i += 1) {
+      for (var j = i + 1; j < owned.length; j += 1) {
+        final first = owned[i];
+        final second = owned[j];
+        if (!first.versionVector.isConcurrent(second.versionVector)) {
+          throw StagedConflictValidationError(
+            'Siblings ${first.siblingID} and ${second.siblingID} are not '
+            'mutually concurrent; a conflict group must contain only '
+            'siblings with no causal ordering between them.',
+          );
+        }
       }
     }
     return StagedConflict._(collection, normalizedRowID, owned);
