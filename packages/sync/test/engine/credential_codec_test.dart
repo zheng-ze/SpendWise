@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:sync/sync.dart';
 import 'package:test/test.dart';
 
@@ -39,9 +41,12 @@ void main() {
       expect(credential().toString(), isNot(contains(bearer)));
     });
 
-    test('restore fails without exposing the bearer', () {
+    test('a bearer-bearing malformed payload never leaks the bearer', () {
+      // Valid base64url that decodes to the bearer string; jsonDecode then
+      // fails, and the thrown message must not echo the bearer substring.
+      final payload = base64Url.encode(utf8.encode(bearer));
       expect(
-        () => codec.restore('garbage-that-is-not-json'),
+        () => codec.restore(payload),
         throwsA(
           isA<FormatException>().having(
             (error) => error.toString(),

@@ -22,25 +22,32 @@ final class CredentialCodec {
   }
 
   DeviceCredential restore(String payload) {
-    final decoded = jsonDecode(utf8.decode(_decodeBase64Url(payload)));
-    if (decoded is! Map<Object?, Object?>) {
-      throw const FormatException(
-        'Credential payload must be a JSON object.',
+    try {
+      // Every parsing step (base64 decode, UTF-8 decode, JSON parse, and the
+      // embedded bearer decode) can throw on a malformed payload. Collapse any
+      // of those into one constant message so a raw exception message never
+      // echoes bearer-derived bytes back to the caller.
+      final Object? decoded =
+          jsonDecode(utf8.decode(_decodeBase64Url(payload)));
+      if (decoded is! Map<Object?, Object?>) {
+        throw const FormatException('Credential payload must be a JSON object.');
+      }
+      final map = decoded.map<String, Object?>(
+        (key, value) => MapEntry(key.toString(), value),
       );
-    }
-    final map = decoded.map<String, Object?>(
-      (key, value) => MapEntry(key.toString(), value),
-    );
-    final deviceID = map['deviceID'];
-    final bearerB64 = map['bearerToken'];
-    if (deviceID is! String || bearerB64 is! String) {
+      final deviceID = map['deviceID'];
+      final bearerB64 = map['bearerToken'];
+      if (deviceID is! String || bearerB64 is! String) {
+        throw const FormatException('Credential payload is malformed.');
+      }
+      final bearer = utf8.decode(_decodeBase64Url(bearerB64));
+      // Reconstruct through the private constructor so the bearer never reaches
+      // any public factory or field.
+      return DeviceCredential._(
+          deviceID: normalizedID(deviceID), bearerToken: bearer);
+    } catch (_) {
       throw const FormatException('Credential payload is malformed.');
     }
-    final bearer = utf8.decode(_decodeBase64Url(bearerB64));
-    // Reconstruct through the private constructor so the bearer never reaches
-    // any public factory or field.
-    return DeviceCredential._(
-        deviceID: normalizedID(deviceID), bearerToken: bearer);
   }
 
   Uint8List _decodeBase64Url(String value) {
