@@ -30,7 +30,8 @@ final class CredentialCodec {
       final Object? decoded =
           jsonDecode(utf8.decode(_decodeBase64Url(payload)));
       if (decoded is! Map<Object?, Object?>) {
-        throw const FormatException('Credential payload must be a JSON object.');
+        throw const FormatException(
+            'Credential payload must be a JSON object.');
       }
       final map = decoded.map<String, Object?>(
         (key, value) => MapEntry(key.toString(), value),

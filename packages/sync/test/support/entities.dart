@@ -64,8 +64,7 @@ EntryTemplate testTemplate() => EntryTemplate(
       includeInAnalysis: true,
     );
 
-RecurringPlan testPlan({DateTime? end, bool nullEnd = false}) =>
-    RecurringPlan(
+RecurringPlan testPlan({DateTime? end, bool nullEnd = false}) => RecurringPlan(
       id: uuidPlans,
       template: testTemplate(),
       frequency: RecurrenceFrequency.monthly,

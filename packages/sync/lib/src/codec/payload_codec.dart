@@ -220,8 +220,8 @@ final class PayloadCodec {
           name: _str(data, 'name'),
           incomingTransfersAsExpenses:
               _bool(data, 'incomingTransfersAsExpenses'),
-          lifecycle: _fromCode(
-              'lifecycle', () => LifecycleState.fromCode(_int(data, 'lifecycle'))),
+          lifecycle: _fromCode('lifecycle',
+              () => LifecycleState.fromCode(_int(data, 'lifecycle'))),
         ),
       );
 
@@ -229,13 +229,14 @@ final class PayloadCodec {
         TransactionCategory(
           id: normalizedID(_str(data, 'id')),
           name: _str(data, 'name'),
-          kind: _fromCode('kind', () => CategoryKind.fromCode(_int(data, 'kind'))),
+          kind: _fromCode(
+              'kind', () => CategoryKind.fromCode(_int(data, 'kind'))),
           colorHex: _str(data, 'colorHex'),
           includeInAnalysis: _bool(data, 'includeInAnalysis'),
           parentID: normalizedOptionalID(_strNullable(data, 'parentID')),
           symbol: _str(data, 'symbol'),
-          lifecycle: _fromCode(
-              'lifecycle', () => LifecycleState.fromCode(_int(data, 'lifecycle'))),
+          lifecycle: _fromCode('lifecycle',
+              () => LifecycleState.fromCode(_int(data, 'lifecycle'))),
         ),
       );
 
@@ -243,8 +244,8 @@ final class PayloadCodec {
     final systemKindCode = _intNullable(data, 'systemKind');
     final systemKind = systemKindCode == null
         ? null
-        : _fromCode('systemKind',
-            () => SystemEntryKind.fromCode(systemKindCode));
+        : _fromCode(
+            'systemKind', () => SystemEntryKind.fromCode(systemKindCode));
     if (systemKindCode != null && systemKind == null) {
       throw const PayloadDecodeError('Field systemKind is invalid.');
     }
@@ -256,10 +257,11 @@ final class PayloadCodec {
         name: _str(data, 'name'),
         categoryID: normalizedOptionalID(_strNullable(data, 'categoryID')),
         sourceID: normalizedID(_str(data, 'sourceID')),
-        destinationID: normalizedOptionalID(_strNullable(data, 'destinationID')),
+        destinationID:
+            normalizedOptionalID(_strNullable(data, 'destinationID')),
         includeInAnalysis: _bool(data, 'includeInAnalysis'),
-        lifecycle: _fromCode(
-            'lifecycle', () => LifecycleState.fromCode(_int(data, 'lifecycle'))),
+        lifecycle: _fromCode('lifecycle',
+            () => LifecycleState.fromCode(_int(data, 'lifecycle'))),
         systemKind: systemKind,
       ),
     );
@@ -275,8 +277,8 @@ final class PayloadCodec {
           endDate: _strNullable(data, 'endDate') == null
               ? null
               : _dateTime('endDate', _str(data, 'endDate')),
-          lastResolvedDate: _dateTime(
-              'lastResolvedDate', _str(data, 'lastResolvedDate')),
+          lastResolvedDate:
+              _dateTime('lastResolvedDate', _str(data, 'lastResolvedDate')),
         ),
       );
 

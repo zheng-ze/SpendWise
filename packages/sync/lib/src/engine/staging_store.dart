@@ -41,8 +41,7 @@ final class StagedConflict {
       _siblingsEqual(other.siblings, siblings);
 
   @override
-  int get hashCode =>
-      Object.hash(collection, rowID, _hashList(siblings));
+  int get hashCode => Object.hash(collection, rowID, _hashList(siblings));
 }
 
 /// Contract for durable staging of unresolved conflict groups.

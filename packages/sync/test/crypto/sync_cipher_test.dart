@@ -74,12 +74,13 @@ void main() {
       );
       final framed = <int>[...nonce, ...box.cipherText, ...box.mac.bytes];
       expect(
-        framed.length,
-        SyncCipher.nonceByteCount +
-            plaintext.length +
-            SyncCipher.tagByteCount);
+          framed.length,
+          SyncCipher.nonceByteCount +
+              plaintext.length +
+              SyncCipher.tagByteCount);
       final pinned = base64Url.encode(framed).replaceAll('=', '');
-      expect(pinned, 'AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcY1J4-9sQ8y0pbaw9NdsXMQhAVVJXR-6CgASY');
+      expect(pinned,
+          'AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcY1J4-9sQ8y0pbaw9NdsXMQhAVVJXR-6CgASY');
       final decrypted =
           await cipher.decrypt(key: key, ciphertext: pinned, aad: aad);
       expect(decrypted, plaintext);

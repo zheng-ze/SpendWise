@@ -265,14 +265,20 @@ class SyncEngine {
     return base64Url.encode(framed).replaceAll('=', '');
   }
 
-  static SiblingLifecycle _lifecycleFor(LedgerChange change) => switch (
-        change
-      ) {
-        DeleteBudget() || DeleteCategory() || DeleteEntry() || DeletePlan() ||
-            DeleteMoneySource() =>
+  static SiblingLifecycle _lifecycleFor(LedgerChange change) =>
+      switch (change) {
+        DeleteBudget() ||
+        DeleteCategory() ||
+        DeleteEntry() ||
+        DeletePlan() ||
+        DeleteMoneySource() =>
           SiblingLifecycle.tombstone,
-        UpsertAccount() || UpsertPocket() || UpsertCategory() || UpsertEntry() ||
-            UpsertPlan() || UpsertBudget() =>
+        UpsertAccount() ||
+        UpsertPocket() ||
+        UpsertCategory() ||
+        UpsertEntry() ||
+        UpsertPlan() ||
+        UpsertBudget() =>
           SiblingLifecycle.live,
       };
 }

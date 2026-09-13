@@ -161,8 +161,8 @@ void main() {
         lifecycle: SiblingLifecycle.live,
         change: UpsertEntry(testEntry(id: 'row-1')),
       );
-      final result =
-          await engine().reconcile(<SyncEnvelope>[concurrentA, merged, concurrentB]);
+      final result = await engine()
+          .reconcile(<SyncEnvelope>[concurrentA, merged, concurrentB]);
       expect(result.changes, hasLength(1));
       expect(result.stamps[SyncRowID.of(SyncCollection.entries, 'row-1')],
           VersionVector(<String, int>{'devA': 1, 'devB': 1}));
