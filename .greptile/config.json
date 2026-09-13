@@ -1,0 +1,14 @@
+{
+  "strictness": 2,
+  "commentTypes": [
+    "logic",
+    "syntax"
+  ],
+  "triggerOnUpdates": false,
+  "statusCheck": true,
+  "excludeAuthors": [
+    "dependabot[bot]"
+  ],
+  "ignorePatterns": "**/*.g.dart\n**/*.freezed.dart\n**/pubspec.lock\n**/build/**\n**/.dart_tool/**",
+  "instructions": "SpendWise is a Flutter/Dart personal finance application. Prioritize correctness, regressions, accounting and domain invariants, persistence and data integrity, sync and concurrency behavior, security and privacy issues, and platform-specific problems. Avoid style-only comments unless they indicate a meaningful maintainability or correctness issue."
+}
