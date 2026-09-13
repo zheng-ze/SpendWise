@@ -20,6 +20,7 @@ part 'src/codec/payload_codec.dart';
 part 'src/engine/sync_row_id.dart';
 part 'src/engine/version_source.dart';
 part 'src/engine/staging_store.dart';
+part 'src/credential/credential_codec.dart';
 part 'src/backends/http_support.dart';
 part 'src/backends/in_memory_backend.dart';
 part 'src/backends/custom_endpoint_backend.dart';
