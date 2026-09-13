@@ -8,6 +8,7 @@ void main() {
   DecodedSibling makeSibling(int counter) => DecodedSibling(
         VersionVector(<String, int>{'dev': counter}),
         UpsertEntry(testEntry(id: 'row-$counter')),
+        'sibling-$counter',
       );
 
   StagedConflict makeConflict() => StagedConflict(
@@ -130,6 +131,29 @@ void main() {
       );
       siblings.add(makeSibling(3));
       expect(conflict.siblings, hasLength(2));
+    });
+  });
+
+  group('DecodedSibling equality', () {
+    test('equal instances share hashCode and field equality', () {
+      final a = makeSibling(1);
+      final b = DecodedSibling(
+        VersionVector(<String, int>{'dev': 1}),
+        UpsertEntry(testEntry(id: 'row-1')),
+        'sibling-1',
+      );
+      expect(a, equals(b));
+      expect(a.hashCode, b.hashCode);
+    });
+
+    test('a differing siblingID is not equal', () {
+      final a = makeSibling(1);
+      final b = DecodedSibling(
+        VersionVector(<String, int>{'dev': 1}),
+        UpsertEntry(testEntry(id: 'row-1')),
+        'sibling-different',
+      );
+      expect(a, isNot(equals(b)));
     });
   });
 }
