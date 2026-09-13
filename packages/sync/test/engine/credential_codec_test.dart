@@ -3,13 +3,15 @@ import 'dart:convert';
 import 'package:sync/sync.dart';
 import 'package:test/test.dart';
 
+import '../support/credential_fixture.dart';
+
 void main() {
   final codec = const CredentialCodec();
   const deviceID = 'deadbeef-0000-1111-2222-333333333333';
   const bearer = 'eyJhbGciOiJIUzI1NiJ9.payload.signature-secret-part';
 
   DeviceCredential credential() =>
-      DeviceCredential.testing(deviceID: deviceID, bearerToken: bearer);
+      restoreTestCredential(deviceID: deviceID, bearerToken: bearer);
 
   group('round-trip', () {
     test('exports and restores an authenticated credential', () {
@@ -19,9 +21,8 @@ void main() {
     });
 
     test('restores a normalized device id', () {
-      final payload = codec.export(
-        DeviceCredential.testing(deviceID: 'DEADBEEF', bearerToken: bearer),
-      );
+      final payload =
+          credentialPayload(deviceID: 'DEADBEEF', bearerToken: bearer);
       expect(codec.restore(payload).deviceID, 'deadbeef');
     });
 
