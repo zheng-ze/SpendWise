@@ -253,6 +253,65 @@ void main() {
       );
     });
 
+    test('an authenticated envelope whose entity ID does not match the row ID',
+        () async {
+      // Collection matches, so only the row-ID comparison can reject this.
+      final misrouted = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-1',
+        version: VersionVector(<String, int>{'dev': 1}),
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertEntry(testEntry(id: 'row-2')),
+      );
+      await expectLater(
+        engine().reconcile(<SyncEnvelope>[misrouted]),
+        throwsA(isA<SyncPayloadIdentityError>()),
+      );
+    });
+
+    test('an authenticated tombstone with a non-empty payload throws',
+        () async {
+      // A tombstone must carry an empty payload. Framing a real entity under a
+      // tombstone lifecycle authenticates (valid AEAD) so decode reaches the
+      // tombstone-shape check, not the authentication check.
+      final preview = SyncEnvelope(
+        protocolVersion: syncProtocolVersion,
+        userID: 'user',
+        collection: SyncCollection.entries,
+        rowID: 'row-1',
+        siblingID: computeSiblingID(
+          userID: 'user',
+          collection: SyncCollection.entries,
+          rowID: 'row-1',
+          versionVector: VersionVector(<String, int>{'dev': 1}),
+        ),
+        versionVector: VersionVector(<String, int>{'dev': 1}),
+        lifecycle: SiblingLifecycle.tombstone,
+        ciphertext: '',
+      );
+      final framed = await cipher.encrypt(
+        key: key,
+        plaintext: Uint8List.fromList(codec.encodeChange(
+          UpsertEntry(testEntry(id: 'row-1')),
+        )),
+        aad: preview.aadBytes(),
+      );
+      final tombstoneWithPayload = SyncEnvelope(
+        protocolVersion: syncProtocolVersion,
+        userID: 'user',
+        collection: SyncCollection.entries,
+        rowID: 'row-1',
+        siblingID: preview.siblingID,
+        versionVector: VersionVector(<String, int>{'dev': 1}),
+        lifecycle: SiblingLifecycle.tombstone,
+        ciphertext: base64Url.encode(framed).replaceAll('=', ''),
+      );
+      await expectLater(
+        engine().reconcile(<SyncEnvelope>[tombstoneWithPayload]),
+        throwsA(isA<SyncPayloadIdentityError>()),
+      );
+    });
+
     test('a tombstone decode is payload-free and conflict-free', () async {
       final tombstone = await buildEnvelope(
         collection: SyncCollection.moneySources,
@@ -262,8 +321,6 @@ void main() {
       );
       final result = await engine().reconcile(<SyncEnvelope>[tombstone]);
       expect(result.changes, [DeleteMoneySource('ms-1')]);
-      expect(result.stamps[SyncRowID.of(SyncCollection.moneySources, 'ms-1')],
-          VersionVector(<String, int>{'dev': 1}));
       expect(result.stamps[SyncRowID.of(SyncCollection.moneySources, 'ms-1')],
           VersionVector(<String, int>{'dev': 1}));
     });
