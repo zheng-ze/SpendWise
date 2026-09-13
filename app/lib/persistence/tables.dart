@@ -135,6 +135,87 @@ class Budgets extends Table with SyncedRow {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+/// Device-local sync metadata, fixed to one row. Backend selection stays null
+/// until enrollment. Enrollment phase and the write gate live here and carry
+/// neither a bearer token, E2E key, opaque credential, nor a second device ID.
+@DataClassName('SyncMetadataRow')
+class SyncMetadata extends Table {
+  IntColumn get id => integer()();
+
+  /// Selected backend profile and endpoint configuration. Null until
+  /// enrollment, so a pre-enrollment read never infers a backend.
+  TextColumn get backendSelection => text().nullable()();
+
+  /// Monotonic durable enrollment phase, stored as its explicit code. Null
+  /// before enrollment starts; only a reconciliation-complete phase permits
+  /// the idempotent gate flip.
+  IntColumn get enrollmentPhase => integer().nullable()();
+
+  /// Whether new sync runs may start. Defaults off so a fresh or migrated
+  /// store never enables writes before enrollment.
+  BoolColumn get writeGate =>
+      boolean().withDefault(const Constant(false))();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+
+  @override
+  List<String> get customConstraints => ['CHECK (id = 0)'];
+}
+
+/// One per-collection pull watermark, stored as an encoded version vector. Five
+/// rows, one for each sync collection.
+class SyncWatermark extends Table {
+  TextColumn get collection => text()();
+
+  BlobColumn get versionData => blob().named('version_data')();
+
+  @override
+  Set<Column<Object>> get primaryKey => {collection};
+}
+
+/// A version vector the backend has acknowledged for one normalized collection
+/// and row id, so identical UUIDs in different collections stay independent.
+class SyncAcknowledgedVector extends Table {
+  TextColumn get collection => text()();
+
+  TextColumn get rowID => text().named('row_id')();
+
+  BlobColumn get versionData => blob().named('version_data')();
+
+  @override
+  Set<Column<Object>> get primaryKey => {collection, rowID};
+}
+
+/// A pull-page acknowledgement still owed to the backend, keyed by collection
+/// and checkpoint. Retained across failures until acknowledged succeeds.
+class SyncPendingAck extends Table {
+  TextColumn get collection => text()();
+
+  TextColumn get checkpoint => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {collection, checkpoint};
+}
+
+/// One durable conflict group: the decrypted staged siblings for one collection
+/// and row, ordered oldest first by the auto-increment sequence.
+class SyncStagingGroup extends Table {
+  /// Insertion order: oldest-first ordering reads this column ascending.
+  IntColumn get sequence => integer().autoIncrement()();
+
+  TextColumn get collection => text()();
+
+  TextColumn get rowID => text().named('row_id')();
+
+  /// JSON-serialized, decrypted staged siblings for this group.
+  BlobColumn get siblings => blob().named('sibling_data')();
+
+  @override
+  List<String> get customConstraints =>
+      ['UNIQUE (collection, row_id)'];
+}
+
 /// Device-local, so it carries neither a version vector nor a lifecycle. The
 /// fixed key holds it to one row.
 @DataClassName('StoreMetaRow')

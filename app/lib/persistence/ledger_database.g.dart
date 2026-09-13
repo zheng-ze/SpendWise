@@ -3805,6 +3805,1390 @@ class StoreMetaCompanion extends UpdateCompanion<StoreMetaRow> {
   }
 }
 
+class $SyncMetadataTable extends SyncMetadata
+    with TableInfo<$SyncMetadataTable, SyncMetadataRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SyncMetadataTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _backendSelectionMeta = const VerificationMeta(
+    'backendSelection',
+  );
+  @override
+  late final GeneratedColumn<String> backendSelection = GeneratedColumn<String>(
+    'backend_selection',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _enrollmentPhaseMeta = const VerificationMeta(
+    'enrollmentPhase',
+  );
+  @override
+  late final GeneratedColumn<int> enrollmentPhase = GeneratedColumn<int>(
+    'enrollment_phase',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _writeGateMeta = const VerificationMeta(
+    'writeGate',
+  );
+  @override
+  late final GeneratedColumn<bool> writeGate = GeneratedColumn<bool>(
+    'write_gate',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("write_gate" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    backendSelection,
+    enrollmentPhase,
+    writeGate,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'sync_metadata';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SyncMetadataRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('backend_selection')) {
+      context.handle(
+        _backendSelectionMeta,
+        backendSelection.isAcceptableOrUnknown(
+          data['backend_selection']!,
+          _backendSelectionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('enrollment_phase')) {
+      context.handle(
+        _enrollmentPhaseMeta,
+        enrollmentPhase.isAcceptableOrUnknown(
+          data['enrollment_phase']!,
+          _enrollmentPhaseMeta,
+        ),
+      );
+    }
+    if (data.containsKey('write_gate')) {
+      context.handle(
+        _writeGateMeta,
+        writeGate.isAcceptableOrUnknown(data['write_gate']!, _writeGateMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SyncMetadataRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SyncMetadataRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      backendSelection: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}backend_selection'],
+      ),
+      enrollmentPhase: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}enrollment_phase'],
+      ),
+      writeGate: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}write_gate'],
+      )!,
+    );
+  }
+
+  @override
+  $SyncMetadataTable createAlias(String alias) {
+    return $SyncMetadataTable(attachedDatabase, alias);
+  }
+}
+
+class SyncMetadataRow extends DataClass implements Insertable<SyncMetadataRow> {
+  final int id;
+
+  /// Selected backend profile and endpoint configuration. Null until
+  /// enrollment, so a pre-enrollment read never infers a backend.
+  final String? backendSelection;
+
+  /// Monotonic durable enrollment phase, stored as its explicit code. Null
+  /// before enrollment starts; only a reconciliation-complete phase permits
+  /// the idempotent gate flip.
+  final int? enrollmentPhase;
+
+  /// Whether new sync runs may start. Defaults off so a fresh or migrated
+  /// store never enables writes before enrollment.
+  final bool writeGate;
+  const SyncMetadataRow({
+    required this.id,
+    this.backendSelection,
+    this.enrollmentPhase,
+    required this.writeGate,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    if (!nullToAbsent || backendSelection != null) {
+      map['backend_selection'] = Variable<String>(backendSelection);
+    }
+    if (!nullToAbsent || enrollmentPhase != null) {
+      map['enrollment_phase'] = Variable<int>(enrollmentPhase);
+    }
+    map['write_gate'] = Variable<bool>(writeGate);
+    return map;
+  }
+
+  SyncMetadataCompanion toCompanion(bool nullToAbsent) {
+    return SyncMetadataCompanion(
+      id: Value(id),
+      backendSelection: backendSelection == null && nullToAbsent
+          ? const Value.absent()
+          : Value(backendSelection),
+      enrollmentPhase: enrollmentPhase == null && nullToAbsent
+          ? const Value.absent()
+          : Value(enrollmentPhase),
+      writeGate: Value(writeGate),
+    );
+  }
+
+  factory SyncMetadataRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SyncMetadataRow(
+      id: serializer.fromJson<int>(json['id']),
+      backendSelection: serializer.fromJson<String?>(json['backendSelection']),
+      enrollmentPhase: serializer.fromJson<int?>(json['enrollmentPhase']),
+      writeGate: serializer.fromJson<bool>(json['writeGate']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'backendSelection': serializer.toJson<String?>(backendSelection),
+      'enrollmentPhase': serializer.toJson<int?>(enrollmentPhase),
+      'writeGate': serializer.toJson<bool>(writeGate),
+    };
+  }
+
+  SyncMetadataRow copyWith({
+    int? id,
+    Value<String?> backendSelection = const Value.absent(),
+    Value<int?> enrollmentPhase = const Value.absent(),
+    bool? writeGate,
+  }) => SyncMetadataRow(
+    id: id ?? this.id,
+    backendSelection: backendSelection.present
+        ? backendSelection.value
+        : this.backendSelection,
+    enrollmentPhase: enrollmentPhase.present
+        ? enrollmentPhase.value
+        : this.enrollmentPhase,
+    writeGate: writeGate ?? this.writeGate,
+  );
+  SyncMetadataRow copyWithCompanion(SyncMetadataCompanion data) {
+    return SyncMetadataRow(
+      id: data.id.present ? data.id.value : this.id,
+      backendSelection: data.backendSelection.present
+          ? data.backendSelection.value
+          : this.backendSelection,
+      enrollmentPhase: data.enrollmentPhase.present
+          ? data.enrollmentPhase.value
+          : this.enrollmentPhase,
+      writeGate: data.writeGate.present ? data.writeGate.value : this.writeGate,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncMetadataRow(')
+          ..write('id: $id, ')
+          ..write('backendSelection: $backendSelection, ')
+          ..write('enrollmentPhase: $enrollmentPhase, ')
+          ..write('writeGate: $writeGate')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, backendSelection, enrollmentPhase, writeGate);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SyncMetadataRow &&
+          other.id == this.id &&
+          other.backendSelection == this.backendSelection &&
+          other.enrollmentPhase == this.enrollmentPhase &&
+          other.writeGate == this.writeGate);
+}
+
+class SyncMetadataCompanion extends UpdateCompanion<SyncMetadataRow> {
+  final Value<int> id;
+  final Value<String?> backendSelection;
+  final Value<int?> enrollmentPhase;
+  final Value<bool> writeGate;
+  const SyncMetadataCompanion({
+    this.id = const Value.absent(),
+    this.backendSelection = const Value.absent(),
+    this.enrollmentPhase = const Value.absent(),
+    this.writeGate = const Value.absent(),
+  });
+  SyncMetadataCompanion.insert({
+    this.id = const Value.absent(),
+    this.backendSelection = const Value.absent(),
+    this.enrollmentPhase = const Value.absent(),
+    this.writeGate = const Value.absent(),
+  });
+  static Insertable<SyncMetadataRow> custom({
+    Expression<int>? id,
+    Expression<String>? backendSelection,
+    Expression<int>? enrollmentPhase,
+    Expression<bool>? writeGate,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (backendSelection != null) 'backend_selection': backendSelection,
+      if (enrollmentPhase != null) 'enrollment_phase': enrollmentPhase,
+      if (writeGate != null) 'write_gate': writeGate,
+    });
+  }
+
+  SyncMetadataCompanion copyWith({
+    Value<int>? id,
+    Value<String?>? backendSelection,
+    Value<int?>? enrollmentPhase,
+    Value<bool>? writeGate,
+  }) {
+    return SyncMetadataCompanion(
+      id: id ?? this.id,
+      backendSelection: backendSelection ?? this.backendSelection,
+      enrollmentPhase: enrollmentPhase ?? this.enrollmentPhase,
+      writeGate: writeGate ?? this.writeGate,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (backendSelection.present) {
+      map['backend_selection'] = Variable<String>(backendSelection.value);
+    }
+    if (enrollmentPhase.present) {
+      map['enrollment_phase'] = Variable<int>(enrollmentPhase.value);
+    }
+    if (writeGate.present) {
+      map['write_gate'] = Variable<bool>(writeGate.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncMetadataCompanion(')
+          ..write('id: $id, ')
+          ..write('backendSelection: $backendSelection, ')
+          ..write('enrollmentPhase: $enrollmentPhase, ')
+          ..write('writeGate: $writeGate')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SyncWatermarkTable extends SyncWatermark
+    with TableInfo<$SyncWatermarkTable, SyncWatermarkData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SyncWatermarkTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _collectionMeta = const VerificationMeta(
+    'collection',
+  );
+  @override
+  late final GeneratedColumn<String> collection = GeneratedColumn<String>(
+    'collection',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _versionDataMeta = const VerificationMeta(
+    'versionData',
+  );
+  @override
+  late final GeneratedColumn<Uint8List> versionData =
+      GeneratedColumn<Uint8List>(
+        'version_data',
+        aliasedName,
+        false,
+        type: DriftSqlType.blob,
+        requiredDuringInsert: true,
+      );
+  @override
+  List<GeneratedColumn> get $columns => [collection, versionData];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'sync_watermark';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SyncWatermarkData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('collection')) {
+      context.handle(
+        _collectionMeta,
+        collection.isAcceptableOrUnknown(data['collection']!, _collectionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_collectionMeta);
+    }
+    if (data.containsKey('version_data')) {
+      context.handle(
+        _versionDataMeta,
+        versionData.isAcceptableOrUnknown(
+          data['version_data']!,
+          _versionDataMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_versionDataMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {collection};
+  @override
+  SyncWatermarkData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SyncWatermarkData(
+      collection: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}collection'],
+      )!,
+      versionData: attachedDatabase.typeMapping.read(
+        DriftSqlType.blob,
+        data['${effectivePrefix}version_data'],
+      )!,
+    );
+  }
+
+  @override
+  $SyncWatermarkTable createAlias(String alias) {
+    return $SyncWatermarkTable(attachedDatabase, alias);
+  }
+}
+
+class SyncWatermarkData extends DataClass
+    implements Insertable<SyncWatermarkData> {
+  final String collection;
+  final Uint8List versionData;
+  const SyncWatermarkData({
+    required this.collection,
+    required this.versionData,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['collection'] = Variable<String>(collection);
+    map['version_data'] = Variable<Uint8List>(versionData);
+    return map;
+  }
+
+  SyncWatermarkCompanion toCompanion(bool nullToAbsent) {
+    return SyncWatermarkCompanion(
+      collection: Value(collection),
+      versionData: Value(versionData),
+    );
+  }
+
+  factory SyncWatermarkData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SyncWatermarkData(
+      collection: serializer.fromJson<String>(json['collection']),
+      versionData: serializer.fromJson<Uint8List>(json['versionData']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'collection': serializer.toJson<String>(collection),
+      'versionData': serializer.toJson<Uint8List>(versionData),
+    };
+  }
+
+  SyncWatermarkData copyWith({String? collection, Uint8List? versionData}) =>
+      SyncWatermarkData(
+        collection: collection ?? this.collection,
+        versionData: versionData ?? this.versionData,
+      );
+  SyncWatermarkData copyWithCompanion(SyncWatermarkCompanion data) {
+    return SyncWatermarkData(
+      collection: data.collection.present
+          ? data.collection.value
+          : this.collection,
+      versionData: data.versionData.present
+          ? data.versionData.value
+          : this.versionData,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncWatermarkData(')
+          ..write('collection: $collection, ')
+          ..write('versionData: $versionData')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(collection, $driftBlobEquality.hash(versionData));
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SyncWatermarkData &&
+          other.collection == this.collection &&
+          $driftBlobEquality.equals(other.versionData, this.versionData));
+}
+
+class SyncWatermarkCompanion extends UpdateCompanion<SyncWatermarkData> {
+  final Value<String> collection;
+  final Value<Uint8List> versionData;
+  final Value<int> rowid;
+  const SyncWatermarkCompanion({
+    this.collection = const Value.absent(),
+    this.versionData = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SyncWatermarkCompanion.insert({
+    required String collection,
+    required Uint8List versionData,
+    this.rowid = const Value.absent(),
+  }) : collection = Value(collection),
+       versionData = Value(versionData);
+  static Insertable<SyncWatermarkData> custom({
+    Expression<String>? collection,
+    Expression<Uint8List>? versionData,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (collection != null) 'collection': collection,
+      if (versionData != null) 'version_data': versionData,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SyncWatermarkCompanion copyWith({
+    Value<String>? collection,
+    Value<Uint8List>? versionData,
+    Value<int>? rowid,
+  }) {
+    return SyncWatermarkCompanion(
+      collection: collection ?? this.collection,
+      versionData: versionData ?? this.versionData,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (collection.present) {
+      map['collection'] = Variable<String>(collection.value);
+    }
+    if (versionData.present) {
+      map['version_data'] = Variable<Uint8List>(versionData.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncWatermarkCompanion(')
+          ..write('collection: $collection, ')
+          ..write('versionData: $versionData, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SyncAcknowledgedVectorTable extends SyncAcknowledgedVector
+    with TableInfo<$SyncAcknowledgedVectorTable, SyncAcknowledgedVectorData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SyncAcknowledgedVectorTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _collectionMeta = const VerificationMeta(
+    'collection',
+  );
+  @override
+  late final GeneratedColumn<String> collection = GeneratedColumn<String>(
+    'collection',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _rowIDMeta = const VerificationMeta('rowID');
+  @override
+  late final GeneratedColumn<String> rowID = GeneratedColumn<String>(
+    'row_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _versionDataMeta = const VerificationMeta(
+    'versionData',
+  );
+  @override
+  late final GeneratedColumn<Uint8List> versionData =
+      GeneratedColumn<Uint8List>(
+        'version_data',
+        aliasedName,
+        false,
+        type: DriftSqlType.blob,
+        requiredDuringInsert: true,
+      );
+  @override
+  List<GeneratedColumn> get $columns => [collection, rowID, versionData];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'sync_acknowledged_vector';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SyncAcknowledgedVectorData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('collection')) {
+      context.handle(
+        _collectionMeta,
+        collection.isAcceptableOrUnknown(data['collection']!, _collectionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_collectionMeta);
+    }
+    if (data.containsKey('row_id')) {
+      context.handle(
+        _rowIDMeta,
+        rowID.isAcceptableOrUnknown(data['row_id']!, _rowIDMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_rowIDMeta);
+    }
+    if (data.containsKey('version_data')) {
+      context.handle(
+        _versionDataMeta,
+        versionData.isAcceptableOrUnknown(
+          data['version_data']!,
+          _versionDataMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_versionDataMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {collection, rowID};
+  @override
+  SyncAcknowledgedVectorData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SyncAcknowledgedVectorData(
+      collection: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}collection'],
+      )!,
+      rowID: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}row_id'],
+      )!,
+      versionData: attachedDatabase.typeMapping.read(
+        DriftSqlType.blob,
+        data['${effectivePrefix}version_data'],
+      )!,
+    );
+  }
+
+  @override
+  $SyncAcknowledgedVectorTable createAlias(String alias) {
+    return $SyncAcknowledgedVectorTable(attachedDatabase, alias);
+  }
+}
+
+class SyncAcknowledgedVectorData extends DataClass
+    implements Insertable<SyncAcknowledgedVectorData> {
+  final String collection;
+  final String rowID;
+  final Uint8List versionData;
+  const SyncAcknowledgedVectorData({
+    required this.collection,
+    required this.rowID,
+    required this.versionData,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['collection'] = Variable<String>(collection);
+    map['row_id'] = Variable<String>(rowID);
+    map['version_data'] = Variable<Uint8List>(versionData);
+    return map;
+  }
+
+  SyncAcknowledgedVectorCompanion toCompanion(bool nullToAbsent) {
+    return SyncAcknowledgedVectorCompanion(
+      collection: Value(collection),
+      rowID: Value(rowID),
+      versionData: Value(versionData),
+    );
+  }
+
+  factory SyncAcknowledgedVectorData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SyncAcknowledgedVectorData(
+      collection: serializer.fromJson<String>(json['collection']),
+      rowID: serializer.fromJson<String>(json['rowID']),
+      versionData: serializer.fromJson<Uint8List>(json['versionData']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'collection': serializer.toJson<String>(collection),
+      'rowID': serializer.toJson<String>(rowID),
+      'versionData': serializer.toJson<Uint8List>(versionData),
+    };
+  }
+
+  SyncAcknowledgedVectorData copyWith({
+    String? collection,
+    String? rowID,
+    Uint8List? versionData,
+  }) => SyncAcknowledgedVectorData(
+    collection: collection ?? this.collection,
+    rowID: rowID ?? this.rowID,
+    versionData: versionData ?? this.versionData,
+  );
+  SyncAcknowledgedVectorData copyWithCompanion(
+    SyncAcknowledgedVectorCompanion data,
+  ) {
+    return SyncAcknowledgedVectorData(
+      collection: data.collection.present
+          ? data.collection.value
+          : this.collection,
+      rowID: data.rowID.present ? data.rowID.value : this.rowID,
+      versionData: data.versionData.present
+          ? data.versionData.value
+          : this.versionData,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncAcknowledgedVectorData(')
+          ..write('collection: $collection, ')
+          ..write('rowID: $rowID, ')
+          ..write('versionData: $versionData')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(collection, rowID, $driftBlobEquality.hash(versionData));
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SyncAcknowledgedVectorData &&
+          other.collection == this.collection &&
+          other.rowID == this.rowID &&
+          $driftBlobEquality.equals(other.versionData, this.versionData));
+}
+
+class SyncAcknowledgedVectorCompanion
+    extends UpdateCompanion<SyncAcknowledgedVectorData> {
+  final Value<String> collection;
+  final Value<String> rowID;
+  final Value<Uint8List> versionData;
+  final Value<int> rowid;
+  const SyncAcknowledgedVectorCompanion({
+    this.collection = const Value.absent(),
+    this.rowID = const Value.absent(),
+    this.versionData = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SyncAcknowledgedVectorCompanion.insert({
+    required String collection,
+    required String rowID,
+    required Uint8List versionData,
+    this.rowid = const Value.absent(),
+  }) : collection = Value(collection),
+       rowID = Value(rowID),
+       versionData = Value(versionData);
+  static Insertable<SyncAcknowledgedVectorData> custom({
+    Expression<String>? collection,
+    Expression<String>? rowID,
+    Expression<Uint8List>? versionData,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (collection != null) 'collection': collection,
+      if (rowID != null) 'row_id': rowID,
+      if (versionData != null) 'version_data': versionData,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SyncAcknowledgedVectorCompanion copyWith({
+    Value<String>? collection,
+    Value<String>? rowID,
+    Value<Uint8List>? versionData,
+    Value<int>? rowid,
+  }) {
+    return SyncAcknowledgedVectorCompanion(
+      collection: collection ?? this.collection,
+      rowID: rowID ?? this.rowID,
+      versionData: versionData ?? this.versionData,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (collection.present) {
+      map['collection'] = Variable<String>(collection.value);
+    }
+    if (rowID.present) {
+      map['row_id'] = Variable<String>(rowID.value);
+    }
+    if (versionData.present) {
+      map['version_data'] = Variable<Uint8List>(versionData.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncAcknowledgedVectorCompanion(')
+          ..write('collection: $collection, ')
+          ..write('rowID: $rowID, ')
+          ..write('versionData: $versionData, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SyncPendingAckTable extends SyncPendingAck
+    with TableInfo<$SyncPendingAckTable, SyncPendingAckData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SyncPendingAckTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _collectionMeta = const VerificationMeta(
+    'collection',
+  );
+  @override
+  late final GeneratedColumn<String> collection = GeneratedColumn<String>(
+    'collection',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _checkpointMeta = const VerificationMeta(
+    'checkpoint',
+  );
+  @override
+  late final GeneratedColumn<String> checkpoint = GeneratedColumn<String>(
+    'checkpoint',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [collection, checkpoint];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'sync_pending_ack';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SyncPendingAckData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('collection')) {
+      context.handle(
+        _collectionMeta,
+        collection.isAcceptableOrUnknown(data['collection']!, _collectionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_collectionMeta);
+    }
+    if (data.containsKey('checkpoint')) {
+      context.handle(
+        _checkpointMeta,
+        checkpoint.isAcceptableOrUnknown(data['checkpoint']!, _checkpointMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_checkpointMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {collection, checkpoint};
+  @override
+  SyncPendingAckData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SyncPendingAckData(
+      collection: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}collection'],
+      )!,
+      checkpoint: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}checkpoint'],
+      )!,
+    );
+  }
+
+  @override
+  $SyncPendingAckTable createAlias(String alias) {
+    return $SyncPendingAckTable(attachedDatabase, alias);
+  }
+}
+
+class SyncPendingAckData extends DataClass
+    implements Insertable<SyncPendingAckData> {
+  final String collection;
+  final String checkpoint;
+  const SyncPendingAckData({
+    required this.collection,
+    required this.checkpoint,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['collection'] = Variable<String>(collection);
+    map['checkpoint'] = Variable<String>(checkpoint);
+    return map;
+  }
+
+  SyncPendingAckCompanion toCompanion(bool nullToAbsent) {
+    return SyncPendingAckCompanion(
+      collection: Value(collection),
+      checkpoint: Value(checkpoint),
+    );
+  }
+
+  factory SyncPendingAckData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SyncPendingAckData(
+      collection: serializer.fromJson<String>(json['collection']),
+      checkpoint: serializer.fromJson<String>(json['checkpoint']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'collection': serializer.toJson<String>(collection),
+      'checkpoint': serializer.toJson<String>(checkpoint),
+    };
+  }
+
+  SyncPendingAckData copyWith({String? collection, String? checkpoint}) =>
+      SyncPendingAckData(
+        collection: collection ?? this.collection,
+        checkpoint: checkpoint ?? this.checkpoint,
+      );
+  SyncPendingAckData copyWithCompanion(SyncPendingAckCompanion data) {
+    return SyncPendingAckData(
+      collection: data.collection.present
+          ? data.collection.value
+          : this.collection,
+      checkpoint: data.checkpoint.present
+          ? data.checkpoint.value
+          : this.checkpoint,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncPendingAckData(')
+          ..write('collection: $collection, ')
+          ..write('checkpoint: $checkpoint')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(collection, checkpoint);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SyncPendingAckData &&
+          other.collection == this.collection &&
+          other.checkpoint == this.checkpoint);
+}
+
+class SyncPendingAckCompanion extends UpdateCompanion<SyncPendingAckData> {
+  final Value<String> collection;
+  final Value<String> checkpoint;
+  final Value<int> rowid;
+  const SyncPendingAckCompanion({
+    this.collection = const Value.absent(),
+    this.checkpoint = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SyncPendingAckCompanion.insert({
+    required String collection,
+    required String checkpoint,
+    this.rowid = const Value.absent(),
+  }) : collection = Value(collection),
+       checkpoint = Value(checkpoint);
+  static Insertable<SyncPendingAckData> custom({
+    Expression<String>? collection,
+    Expression<String>? checkpoint,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (collection != null) 'collection': collection,
+      if (checkpoint != null) 'checkpoint': checkpoint,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SyncPendingAckCompanion copyWith({
+    Value<String>? collection,
+    Value<String>? checkpoint,
+    Value<int>? rowid,
+  }) {
+    return SyncPendingAckCompanion(
+      collection: collection ?? this.collection,
+      checkpoint: checkpoint ?? this.checkpoint,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (collection.present) {
+      map['collection'] = Variable<String>(collection.value);
+    }
+    if (checkpoint.present) {
+      map['checkpoint'] = Variable<String>(checkpoint.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncPendingAckCompanion(')
+          ..write('collection: $collection, ')
+          ..write('checkpoint: $checkpoint, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SyncStagingGroupTable extends SyncStagingGroup
+    with TableInfo<$SyncStagingGroupTable, SyncStagingGroupData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SyncStagingGroupTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _sequenceMeta = const VerificationMeta(
+    'sequence',
+  );
+  @override
+  late final GeneratedColumn<int> sequence = GeneratedColumn<int>(
+    'sequence',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _collectionMeta = const VerificationMeta(
+    'collection',
+  );
+  @override
+  late final GeneratedColumn<String> collection = GeneratedColumn<String>(
+    'collection',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _rowIDMeta = const VerificationMeta('rowID');
+  @override
+  late final GeneratedColumn<String> rowID = GeneratedColumn<String>(
+    'row_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _siblingsMeta = const VerificationMeta(
+    'siblings',
+  );
+  @override
+  late final GeneratedColumn<Uint8List> siblings = GeneratedColumn<Uint8List>(
+    'sibling_data',
+    aliasedName,
+    false,
+    type: DriftSqlType.blob,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [sequence, collection, rowID, siblings];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'sync_staging_group';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SyncStagingGroupData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('sequence')) {
+      context.handle(
+        _sequenceMeta,
+        sequence.isAcceptableOrUnknown(data['sequence']!, _sequenceMeta),
+      );
+    }
+    if (data.containsKey('collection')) {
+      context.handle(
+        _collectionMeta,
+        collection.isAcceptableOrUnknown(data['collection']!, _collectionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_collectionMeta);
+    }
+    if (data.containsKey('row_id')) {
+      context.handle(
+        _rowIDMeta,
+        rowID.isAcceptableOrUnknown(data['row_id']!, _rowIDMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_rowIDMeta);
+    }
+    if (data.containsKey('sibling_data')) {
+      context.handle(
+        _siblingsMeta,
+        siblings.isAcceptableOrUnknown(data['sibling_data']!, _siblingsMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_siblingsMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {sequence};
+  @override
+  SyncStagingGroupData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SyncStagingGroupData(
+      sequence: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sequence'],
+      )!,
+      collection: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}collection'],
+      )!,
+      rowID: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}row_id'],
+      )!,
+      siblings: attachedDatabase.typeMapping.read(
+        DriftSqlType.blob,
+        data['${effectivePrefix}sibling_data'],
+      )!,
+    );
+  }
+
+  @override
+  $SyncStagingGroupTable createAlias(String alias) {
+    return $SyncStagingGroupTable(attachedDatabase, alias);
+  }
+}
+
+class SyncStagingGroupData extends DataClass
+    implements Insertable<SyncStagingGroupData> {
+  /// Insertion order: oldest-first ordering reads this column ascending.
+  final int sequence;
+  final String collection;
+  final String rowID;
+
+  /// JSON-serialized, decrypted staged siblings for this group.
+  final Uint8List siblings;
+  const SyncStagingGroupData({
+    required this.sequence,
+    required this.collection,
+    required this.rowID,
+    required this.siblings,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['sequence'] = Variable<int>(sequence);
+    map['collection'] = Variable<String>(collection);
+    map['row_id'] = Variable<String>(rowID);
+    map['sibling_data'] = Variable<Uint8List>(siblings);
+    return map;
+  }
+
+  SyncStagingGroupCompanion toCompanion(bool nullToAbsent) {
+    return SyncStagingGroupCompanion(
+      sequence: Value(sequence),
+      collection: Value(collection),
+      rowID: Value(rowID),
+      siblings: Value(siblings),
+    );
+  }
+
+  factory SyncStagingGroupData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SyncStagingGroupData(
+      sequence: serializer.fromJson<int>(json['sequence']),
+      collection: serializer.fromJson<String>(json['collection']),
+      rowID: serializer.fromJson<String>(json['rowID']),
+      siblings: serializer.fromJson<Uint8List>(json['siblings']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'sequence': serializer.toJson<int>(sequence),
+      'collection': serializer.toJson<String>(collection),
+      'rowID': serializer.toJson<String>(rowID),
+      'siblings': serializer.toJson<Uint8List>(siblings),
+    };
+  }
+
+  SyncStagingGroupData copyWith({
+    int? sequence,
+    String? collection,
+    String? rowID,
+    Uint8List? siblings,
+  }) => SyncStagingGroupData(
+    sequence: sequence ?? this.sequence,
+    collection: collection ?? this.collection,
+    rowID: rowID ?? this.rowID,
+    siblings: siblings ?? this.siblings,
+  );
+  SyncStagingGroupData copyWithCompanion(SyncStagingGroupCompanion data) {
+    return SyncStagingGroupData(
+      sequence: data.sequence.present ? data.sequence.value : this.sequence,
+      collection: data.collection.present
+          ? data.collection.value
+          : this.collection,
+      rowID: data.rowID.present ? data.rowID.value : this.rowID,
+      siblings: data.siblings.present ? data.siblings.value : this.siblings,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncStagingGroupData(')
+          ..write('sequence: $sequence, ')
+          ..write('collection: $collection, ')
+          ..write('rowID: $rowID, ')
+          ..write('siblings: $siblings')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    sequence,
+    collection,
+    rowID,
+    $driftBlobEquality.hash(siblings),
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SyncStagingGroupData &&
+          other.sequence == this.sequence &&
+          other.collection == this.collection &&
+          other.rowID == this.rowID &&
+          $driftBlobEquality.equals(other.siblings, this.siblings));
+}
+
+class SyncStagingGroupCompanion extends UpdateCompanion<SyncStagingGroupData> {
+  final Value<int> sequence;
+  final Value<String> collection;
+  final Value<String> rowID;
+  final Value<Uint8List> siblings;
+  const SyncStagingGroupCompanion({
+    this.sequence = const Value.absent(),
+    this.collection = const Value.absent(),
+    this.rowID = const Value.absent(),
+    this.siblings = const Value.absent(),
+  });
+  SyncStagingGroupCompanion.insert({
+    this.sequence = const Value.absent(),
+    required String collection,
+    required String rowID,
+    required Uint8List siblings,
+  }) : collection = Value(collection),
+       rowID = Value(rowID),
+       siblings = Value(siblings);
+  static Insertable<SyncStagingGroupData> custom({
+    Expression<int>? sequence,
+    Expression<String>? collection,
+    Expression<String>? rowID,
+    Expression<Uint8List>? siblings,
+  }) {
+    return RawValuesInsertable({
+      if (sequence != null) 'sequence': sequence,
+      if (collection != null) 'collection': collection,
+      if (rowID != null) 'row_id': rowID,
+      if (siblings != null) 'sibling_data': siblings,
+    });
+  }
+
+  SyncStagingGroupCompanion copyWith({
+    Value<int>? sequence,
+    Value<String>? collection,
+    Value<String>? rowID,
+    Value<Uint8List>? siblings,
+  }) {
+    return SyncStagingGroupCompanion(
+      sequence: sequence ?? this.sequence,
+      collection: collection ?? this.collection,
+      rowID: rowID ?? this.rowID,
+      siblings: siblings ?? this.siblings,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (sequence.present) {
+      map['sequence'] = Variable<int>(sequence.value);
+    }
+    if (collection.present) {
+      map['collection'] = Variable<String>(collection.value);
+    }
+    if (rowID.present) {
+      map['row_id'] = Variable<String>(rowID.value);
+    }
+    if (siblings.present) {
+      map['sibling_data'] = Variable<Uint8List>(siblings.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncStagingGroupCompanion(')
+          ..write('sequence: $sequence, ')
+          ..write('collection: $collection, ')
+          ..write('rowID: $rowID, ')
+          ..write('siblings: $siblings')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$LedgerDatabase extends GeneratedDatabase {
   _$LedgerDatabase(QueryExecutor e) : super(e);
   $LedgerDatabaseManager get managers => $LedgerDatabaseManager(this);
@@ -3815,6 +5199,14 @@ abstract class _$LedgerDatabase extends GeneratedDatabase {
   late final $PlansTable plans = $PlansTable(this);
   late final $BudgetsTable budgets = $BudgetsTable(this);
   late final $StoreMetaTable storeMeta = $StoreMetaTable(this);
+  late final $SyncMetadataTable syncMetadata = $SyncMetadataTable(this);
+  late final $SyncWatermarkTable syncWatermark = $SyncWatermarkTable(this);
+  late final $SyncAcknowledgedVectorTable syncAcknowledgedVector =
+      $SyncAcknowledgedVectorTable(this);
+  late final $SyncPendingAckTable syncPendingAck = $SyncPendingAckTable(this);
+  late final $SyncStagingGroupTable syncStagingGroup = $SyncStagingGroupTable(
+    this,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3827,6 +5219,11 @@ abstract class _$LedgerDatabase extends GeneratedDatabase {
     plans,
     budgets,
     storeMeta,
+    syncMetadata,
+    syncWatermark,
+    syncAcknowledgedVector,
+    syncPendingAck,
+    syncStagingGroup,
   ];
 }
 
@@ -5716,6 +7113,925 @@ typedef $$StoreMetaTableProcessedTableManager =
       StoreMetaRow,
       PrefetchHooks Function()
     >;
+typedef $$SyncMetadataTableCreateCompanionBuilder =
+    SyncMetadataCompanion Function({
+      Value<int> id,
+      Value<String?> backendSelection,
+      Value<int?> enrollmentPhase,
+      Value<bool> writeGate,
+    });
+typedef $$SyncMetadataTableUpdateCompanionBuilder =
+    SyncMetadataCompanion Function({
+      Value<int> id,
+      Value<String?> backendSelection,
+      Value<int?> enrollmentPhase,
+      Value<bool> writeGate,
+    });
+
+class $$SyncMetadataTableFilterComposer
+    extends Composer<_$LedgerDatabase, $SyncMetadataTable> {
+  $$SyncMetadataTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get backendSelection => $composableBuilder(
+    column: $table.backendSelection,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get enrollmentPhase => $composableBuilder(
+    column: $table.enrollmentPhase,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get writeGate => $composableBuilder(
+    column: $table.writeGate,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SyncMetadataTableOrderingComposer
+    extends Composer<_$LedgerDatabase, $SyncMetadataTable> {
+  $$SyncMetadataTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get backendSelection => $composableBuilder(
+    column: $table.backendSelection,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get enrollmentPhase => $composableBuilder(
+    column: $table.enrollmentPhase,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get writeGate => $composableBuilder(
+    column: $table.writeGate,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SyncMetadataTableAnnotationComposer
+    extends Composer<_$LedgerDatabase, $SyncMetadataTable> {
+  $$SyncMetadataTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get backendSelection => $composableBuilder(
+    column: $table.backendSelection,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get enrollmentPhase => $composableBuilder(
+    column: $table.enrollmentPhase,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get writeGate =>
+      $composableBuilder(column: $table.writeGate, builder: (column) => column);
+}
+
+class $$SyncMetadataTableTableManager
+    extends
+        RootTableManager<
+          _$LedgerDatabase,
+          $SyncMetadataTable,
+          SyncMetadataRow,
+          $$SyncMetadataTableFilterComposer,
+          $$SyncMetadataTableOrderingComposer,
+          $$SyncMetadataTableAnnotationComposer,
+          $$SyncMetadataTableCreateCompanionBuilder,
+          $$SyncMetadataTableUpdateCompanionBuilder,
+          (
+            SyncMetadataRow,
+            BaseReferences<
+              _$LedgerDatabase,
+              $SyncMetadataTable,
+              SyncMetadataRow
+            >,
+          ),
+          SyncMetadataRow,
+          PrefetchHooks Function()
+        > {
+  $$SyncMetadataTableTableManager(_$LedgerDatabase db, $SyncMetadataTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SyncMetadataTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SyncMetadataTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SyncMetadataTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String?> backendSelection = const Value.absent(),
+                Value<int?> enrollmentPhase = const Value.absent(),
+                Value<bool> writeGate = const Value.absent(),
+              }) => SyncMetadataCompanion(
+                id: id,
+                backendSelection: backendSelection,
+                enrollmentPhase: enrollmentPhase,
+                writeGate: writeGate,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String?> backendSelection = const Value.absent(),
+                Value<int?> enrollmentPhase = const Value.absent(),
+                Value<bool> writeGate = const Value.absent(),
+              }) => SyncMetadataCompanion.insert(
+                id: id,
+                backendSelection: backendSelection,
+                enrollmentPhase: enrollmentPhase,
+                writeGate: writeGate,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SyncMetadataTable, SyncMetadataRow>(table),
+                  BaseReferences<
+                    _$LedgerDatabase,
+                    $SyncMetadataTable,
+                    SyncMetadataRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SyncMetadataTableProcessedTableManager =
+    ProcessedTableManager<
+      _$LedgerDatabase,
+      $SyncMetadataTable,
+      SyncMetadataRow,
+      $$SyncMetadataTableFilterComposer,
+      $$SyncMetadataTableOrderingComposer,
+      $$SyncMetadataTableAnnotationComposer,
+      $$SyncMetadataTableCreateCompanionBuilder,
+      $$SyncMetadataTableUpdateCompanionBuilder,
+      (
+        SyncMetadataRow,
+        BaseReferences<_$LedgerDatabase, $SyncMetadataTable, SyncMetadataRow>,
+      ),
+      SyncMetadataRow,
+      PrefetchHooks Function()
+    >;
+typedef $$SyncWatermarkTableCreateCompanionBuilder =
+    SyncWatermarkCompanion Function({
+      required String collection,
+      required Uint8List versionData,
+      Value<int> rowid,
+    });
+typedef $$SyncWatermarkTableUpdateCompanionBuilder =
+    SyncWatermarkCompanion Function({
+      Value<String> collection,
+      Value<Uint8List> versionData,
+      Value<int> rowid,
+    });
+
+class $$SyncWatermarkTableFilterComposer
+    extends Composer<_$LedgerDatabase, $SyncWatermarkTable> {
+  $$SyncWatermarkTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get collection => $composableBuilder(
+    column: $table.collection,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<Uint8List> get versionData => $composableBuilder(
+    column: $table.versionData,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SyncWatermarkTableOrderingComposer
+    extends Composer<_$LedgerDatabase, $SyncWatermarkTable> {
+  $$SyncWatermarkTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get collection => $composableBuilder(
+    column: $table.collection,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<Uint8List> get versionData => $composableBuilder(
+    column: $table.versionData,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SyncWatermarkTableAnnotationComposer
+    extends Composer<_$LedgerDatabase, $SyncWatermarkTable> {
+  $$SyncWatermarkTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get collection => $composableBuilder(
+    column: $table.collection,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<Uint8List> get versionData => $composableBuilder(
+    column: $table.versionData,
+    builder: (column) => column,
+  );
+}
+
+class $$SyncWatermarkTableTableManager
+    extends
+        RootTableManager<
+          _$LedgerDatabase,
+          $SyncWatermarkTable,
+          SyncWatermarkData,
+          $$SyncWatermarkTableFilterComposer,
+          $$SyncWatermarkTableOrderingComposer,
+          $$SyncWatermarkTableAnnotationComposer,
+          $$SyncWatermarkTableCreateCompanionBuilder,
+          $$SyncWatermarkTableUpdateCompanionBuilder,
+          (
+            SyncWatermarkData,
+            BaseReferences<
+              _$LedgerDatabase,
+              $SyncWatermarkTable,
+              SyncWatermarkData
+            >,
+          ),
+          SyncWatermarkData,
+          PrefetchHooks Function()
+        > {
+  $$SyncWatermarkTableTableManager(
+    _$LedgerDatabase db,
+    $SyncWatermarkTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SyncWatermarkTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SyncWatermarkTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SyncWatermarkTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> collection = const Value.absent(),
+                Value<Uint8List> versionData = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SyncWatermarkCompanion(
+                collection: collection,
+                versionData: versionData,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String collection,
+                required Uint8List versionData,
+                Value<int> rowid = const Value.absent(),
+              }) => SyncWatermarkCompanion.insert(
+                collection: collection,
+                versionData: versionData,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SyncWatermarkTable, SyncWatermarkData>(table),
+                  BaseReferences<
+                    _$LedgerDatabase,
+                    $SyncWatermarkTable,
+                    SyncWatermarkData
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SyncWatermarkTableProcessedTableManager =
+    ProcessedTableManager<
+      _$LedgerDatabase,
+      $SyncWatermarkTable,
+      SyncWatermarkData,
+      $$SyncWatermarkTableFilterComposer,
+      $$SyncWatermarkTableOrderingComposer,
+      $$SyncWatermarkTableAnnotationComposer,
+      $$SyncWatermarkTableCreateCompanionBuilder,
+      $$SyncWatermarkTableUpdateCompanionBuilder,
+      (
+        SyncWatermarkData,
+        BaseReferences<
+          _$LedgerDatabase,
+          $SyncWatermarkTable,
+          SyncWatermarkData
+        >,
+      ),
+      SyncWatermarkData,
+      PrefetchHooks Function()
+    >;
+typedef $$SyncAcknowledgedVectorTableCreateCompanionBuilder =
+    SyncAcknowledgedVectorCompanion Function({
+      required String collection,
+      required String rowID,
+      required Uint8List versionData,
+      Value<int> rowid,
+    });
+typedef $$SyncAcknowledgedVectorTableUpdateCompanionBuilder =
+    SyncAcknowledgedVectorCompanion Function({
+      Value<String> collection,
+      Value<String> rowID,
+      Value<Uint8List> versionData,
+      Value<int> rowid,
+    });
+
+class $$SyncAcknowledgedVectorTableFilterComposer
+    extends Composer<_$LedgerDatabase, $SyncAcknowledgedVectorTable> {
+  $$SyncAcknowledgedVectorTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get collection => $composableBuilder(
+    column: $table.collection,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get rowID => $composableBuilder(
+    column: $table.rowID,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<Uint8List> get versionData => $composableBuilder(
+    column: $table.versionData,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SyncAcknowledgedVectorTableOrderingComposer
+    extends Composer<_$LedgerDatabase, $SyncAcknowledgedVectorTable> {
+  $$SyncAcknowledgedVectorTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get collection => $composableBuilder(
+    column: $table.collection,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get rowID => $composableBuilder(
+    column: $table.rowID,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<Uint8List> get versionData => $composableBuilder(
+    column: $table.versionData,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SyncAcknowledgedVectorTableAnnotationComposer
+    extends Composer<_$LedgerDatabase, $SyncAcknowledgedVectorTable> {
+  $$SyncAcknowledgedVectorTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get collection => $composableBuilder(
+    column: $table.collection,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get rowID =>
+      $composableBuilder(column: $table.rowID, builder: (column) => column);
+
+  GeneratedColumn<Uint8List> get versionData => $composableBuilder(
+    column: $table.versionData,
+    builder: (column) => column,
+  );
+}
+
+class $$SyncAcknowledgedVectorTableTableManager
+    extends
+        RootTableManager<
+          _$LedgerDatabase,
+          $SyncAcknowledgedVectorTable,
+          SyncAcknowledgedVectorData,
+          $$SyncAcknowledgedVectorTableFilterComposer,
+          $$SyncAcknowledgedVectorTableOrderingComposer,
+          $$SyncAcknowledgedVectorTableAnnotationComposer,
+          $$SyncAcknowledgedVectorTableCreateCompanionBuilder,
+          $$SyncAcknowledgedVectorTableUpdateCompanionBuilder,
+          (
+            SyncAcknowledgedVectorData,
+            BaseReferences<
+              _$LedgerDatabase,
+              $SyncAcknowledgedVectorTable,
+              SyncAcknowledgedVectorData
+            >,
+          ),
+          SyncAcknowledgedVectorData,
+          PrefetchHooks Function()
+        > {
+  $$SyncAcknowledgedVectorTableTableManager(
+    _$LedgerDatabase db,
+    $SyncAcknowledgedVectorTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SyncAcknowledgedVectorTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$SyncAcknowledgedVectorTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$SyncAcknowledgedVectorTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> collection = const Value.absent(),
+                Value<String> rowID = const Value.absent(),
+                Value<Uint8List> versionData = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SyncAcknowledgedVectorCompanion(
+                collection: collection,
+                rowID: rowID,
+                versionData: versionData,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String collection,
+                required String rowID,
+                required Uint8List versionData,
+                Value<int> rowid = const Value.absent(),
+              }) => SyncAcknowledgedVectorCompanion.insert(
+                collection: collection,
+                rowID: rowID,
+                versionData: versionData,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<
+                    $SyncAcknowledgedVectorTable,
+                    SyncAcknowledgedVectorData
+                  >(table),
+                  BaseReferences<
+                    _$LedgerDatabase,
+                    $SyncAcknowledgedVectorTable,
+                    SyncAcknowledgedVectorData
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SyncAcknowledgedVectorTableProcessedTableManager =
+    ProcessedTableManager<
+      _$LedgerDatabase,
+      $SyncAcknowledgedVectorTable,
+      SyncAcknowledgedVectorData,
+      $$SyncAcknowledgedVectorTableFilterComposer,
+      $$SyncAcknowledgedVectorTableOrderingComposer,
+      $$SyncAcknowledgedVectorTableAnnotationComposer,
+      $$SyncAcknowledgedVectorTableCreateCompanionBuilder,
+      $$SyncAcknowledgedVectorTableUpdateCompanionBuilder,
+      (
+        SyncAcknowledgedVectorData,
+        BaseReferences<
+          _$LedgerDatabase,
+          $SyncAcknowledgedVectorTable,
+          SyncAcknowledgedVectorData
+        >,
+      ),
+      SyncAcknowledgedVectorData,
+      PrefetchHooks Function()
+    >;
+typedef $$SyncPendingAckTableCreateCompanionBuilder =
+    SyncPendingAckCompanion Function({
+      required String collection,
+      required String checkpoint,
+      Value<int> rowid,
+    });
+typedef $$SyncPendingAckTableUpdateCompanionBuilder =
+    SyncPendingAckCompanion Function({
+      Value<String> collection,
+      Value<String> checkpoint,
+      Value<int> rowid,
+    });
+
+class $$SyncPendingAckTableFilterComposer
+    extends Composer<_$LedgerDatabase, $SyncPendingAckTable> {
+  $$SyncPendingAckTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get collection => $composableBuilder(
+    column: $table.collection,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get checkpoint => $composableBuilder(
+    column: $table.checkpoint,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SyncPendingAckTableOrderingComposer
+    extends Composer<_$LedgerDatabase, $SyncPendingAckTable> {
+  $$SyncPendingAckTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get collection => $composableBuilder(
+    column: $table.collection,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get checkpoint => $composableBuilder(
+    column: $table.checkpoint,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SyncPendingAckTableAnnotationComposer
+    extends Composer<_$LedgerDatabase, $SyncPendingAckTable> {
+  $$SyncPendingAckTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get collection => $composableBuilder(
+    column: $table.collection,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get checkpoint => $composableBuilder(
+    column: $table.checkpoint,
+    builder: (column) => column,
+  );
+}
+
+class $$SyncPendingAckTableTableManager
+    extends
+        RootTableManager<
+          _$LedgerDatabase,
+          $SyncPendingAckTable,
+          SyncPendingAckData,
+          $$SyncPendingAckTableFilterComposer,
+          $$SyncPendingAckTableOrderingComposer,
+          $$SyncPendingAckTableAnnotationComposer,
+          $$SyncPendingAckTableCreateCompanionBuilder,
+          $$SyncPendingAckTableUpdateCompanionBuilder,
+          (
+            SyncPendingAckData,
+            BaseReferences<
+              _$LedgerDatabase,
+              $SyncPendingAckTable,
+              SyncPendingAckData
+            >,
+          ),
+          SyncPendingAckData,
+          PrefetchHooks Function()
+        > {
+  $$SyncPendingAckTableTableManager(
+    _$LedgerDatabase db,
+    $SyncPendingAckTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SyncPendingAckTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SyncPendingAckTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SyncPendingAckTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> collection = const Value.absent(),
+                Value<String> checkpoint = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SyncPendingAckCompanion(
+                collection: collection,
+                checkpoint: checkpoint,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String collection,
+                required String checkpoint,
+                Value<int> rowid = const Value.absent(),
+              }) => SyncPendingAckCompanion.insert(
+                collection: collection,
+                checkpoint: checkpoint,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SyncPendingAckTable, SyncPendingAckData>(table),
+                  BaseReferences<
+                    _$LedgerDatabase,
+                    $SyncPendingAckTable,
+                    SyncPendingAckData
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SyncPendingAckTableProcessedTableManager =
+    ProcessedTableManager<
+      _$LedgerDatabase,
+      $SyncPendingAckTable,
+      SyncPendingAckData,
+      $$SyncPendingAckTableFilterComposer,
+      $$SyncPendingAckTableOrderingComposer,
+      $$SyncPendingAckTableAnnotationComposer,
+      $$SyncPendingAckTableCreateCompanionBuilder,
+      $$SyncPendingAckTableUpdateCompanionBuilder,
+      (
+        SyncPendingAckData,
+        BaseReferences<
+          _$LedgerDatabase,
+          $SyncPendingAckTable,
+          SyncPendingAckData
+        >,
+      ),
+      SyncPendingAckData,
+      PrefetchHooks Function()
+    >;
+typedef $$SyncStagingGroupTableCreateCompanionBuilder =
+    SyncStagingGroupCompanion Function({
+      Value<int> sequence,
+      required String collection,
+      required String rowID,
+      required Uint8List siblings,
+    });
+typedef $$SyncStagingGroupTableUpdateCompanionBuilder =
+    SyncStagingGroupCompanion Function({
+      Value<int> sequence,
+      Value<String> collection,
+      Value<String> rowID,
+      Value<Uint8List> siblings,
+    });
+
+class $$SyncStagingGroupTableFilterComposer
+    extends Composer<_$LedgerDatabase, $SyncStagingGroupTable> {
+  $$SyncStagingGroupTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get sequence => $composableBuilder(
+    column: $table.sequence,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get collection => $composableBuilder(
+    column: $table.collection,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get rowID => $composableBuilder(
+    column: $table.rowID,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<Uint8List> get siblings => $composableBuilder(
+    column: $table.siblings,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SyncStagingGroupTableOrderingComposer
+    extends Composer<_$LedgerDatabase, $SyncStagingGroupTable> {
+  $$SyncStagingGroupTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get sequence => $composableBuilder(
+    column: $table.sequence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get collection => $composableBuilder(
+    column: $table.collection,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get rowID => $composableBuilder(
+    column: $table.rowID,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<Uint8List> get siblings => $composableBuilder(
+    column: $table.siblings,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SyncStagingGroupTableAnnotationComposer
+    extends Composer<_$LedgerDatabase, $SyncStagingGroupTable> {
+  $$SyncStagingGroupTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get sequence =>
+      $composableBuilder(column: $table.sequence, builder: (column) => column);
+
+  GeneratedColumn<String> get collection => $composableBuilder(
+    column: $table.collection,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get rowID =>
+      $composableBuilder(column: $table.rowID, builder: (column) => column);
+
+  GeneratedColumn<Uint8List> get siblings =>
+      $composableBuilder(column: $table.siblings, builder: (column) => column);
+}
+
+class $$SyncStagingGroupTableTableManager
+    extends
+        RootTableManager<
+          _$LedgerDatabase,
+          $SyncStagingGroupTable,
+          SyncStagingGroupData,
+          $$SyncStagingGroupTableFilterComposer,
+          $$SyncStagingGroupTableOrderingComposer,
+          $$SyncStagingGroupTableAnnotationComposer,
+          $$SyncStagingGroupTableCreateCompanionBuilder,
+          $$SyncStagingGroupTableUpdateCompanionBuilder,
+          (
+            SyncStagingGroupData,
+            BaseReferences<
+              _$LedgerDatabase,
+              $SyncStagingGroupTable,
+              SyncStagingGroupData
+            >,
+          ),
+          SyncStagingGroupData,
+          PrefetchHooks Function()
+        > {
+  $$SyncStagingGroupTableTableManager(
+    _$LedgerDatabase db,
+    $SyncStagingGroupTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SyncStagingGroupTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SyncStagingGroupTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SyncStagingGroupTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> sequence = const Value.absent(),
+                Value<String> collection = const Value.absent(),
+                Value<String> rowID = const Value.absent(),
+                Value<Uint8List> siblings = const Value.absent(),
+              }) => SyncStagingGroupCompanion(
+                sequence: sequence,
+                collection: collection,
+                rowID: rowID,
+                siblings: siblings,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> sequence = const Value.absent(),
+                required String collection,
+                required String rowID,
+                required Uint8List siblings,
+              }) => SyncStagingGroupCompanion.insert(
+                sequence: sequence,
+                collection: collection,
+                rowID: rowID,
+                siblings: siblings,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SyncStagingGroupTable, SyncStagingGroupData>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$LedgerDatabase,
+                    $SyncStagingGroupTable,
+                    SyncStagingGroupData
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SyncStagingGroupTableProcessedTableManager =
+    ProcessedTableManager<
+      _$LedgerDatabase,
+      $SyncStagingGroupTable,
+      SyncStagingGroupData,
+      $$SyncStagingGroupTableFilterComposer,
+      $$SyncStagingGroupTableOrderingComposer,
+      $$SyncStagingGroupTableAnnotationComposer,
+      $$SyncStagingGroupTableCreateCompanionBuilder,
+      $$SyncStagingGroupTableUpdateCompanionBuilder,
+      (
+        SyncStagingGroupData,
+        BaseReferences<
+          _$LedgerDatabase,
+          $SyncStagingGroupTable,
+          SyncStagingGroupData
+        >,
+      ),
+      SyncStagingGroupData,
+      PrefetchHooks Function()
+    >;
 
 class $LedgerDatabaseManager {
   final _$LedgerDatabase _db;
@@ -5734,4 +8050,17 @@ class $LedgerDatabaseManager {
       $$BudgetsTableTableManager(_db, _db.budgets);
   $$StoreMetaTableTableManager get storeMeta =>
       $$StoreMetaTableTableManager(_db, _db.storeMeta);
+  $$SyncMetadataTableTableManager get syncMetadata =>
+      $$SyncMetadataTableTableManager(_db, _db.syncMetadata);
+  $$SyncWatermarkTableTableManager get syncWatermark =>
+      $$SyncWatermarkTableTableManager(_db, _db.syncWatermark);
+  $$SyncAcknowledgedVectorTableTableManager get syncAcknowledgedVector =>
+      $$SyncAcknowledgedVectorTableTableManager(
+        _db,
+        _db.syncAcknowledgedVector,
+      );
+  $$SyncPendingAckTableTableManager get syncPendingAck =>
+      $$SyncPendingAckTableTableManager(_db, _db.syncPendingAck);
+  $$SyncStagingGroupTableTableManager get syncStagingGroup =>
+      $$SyncStagingGroupTableTableManager(_db, _db.syncStagingGroup);
 }
