@@ -169,6 +169,47 @@ void main() {
       expect(result.hasConflicts, isFalse);
     });
 
+    test('a strictly dominated sibling never reaches a staged conflict',
+        () async {
+      // {devA:2} dominates {devA:1} (obsolete history), but neither dominates
+      // {devB:1}; only the {devA:2} vs {devB:1} pair is a real disagreement.
+      final obsolete = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-1',
+        version: VersionVector(<String, int>{'devA': 1}),
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertEntry(testEntry(id: 'row-1')),
+      );
+      final winner = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-1',
+        version: VersionVector(<String, int>{'devA': 2}),
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertEntry(testEntry(id: 'row-1')),
+      );
+      final concurrent = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-1',
+        version: VersionVector(<String, int>{'devB': 1}),
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertEntry(testEntry(id: 'row-1')),
+      );
+      final result = await engine()
+          .reconcile(<SyncEnvelope>[winner, concurrent, obsolete]);
+      expect(result.changes, isEmpty);
+      expect(result.hasConflicts, isTrue);
+      expect(result.stagedConflicts, hasLength(1));
+      final conflict = result.stagedConflicts.first;
+      expect(conflict.siblings, hasLength(2));
+      expect(
+        conflict.siblings.map((sibling) => sibling.versionVector),
+        <VersionVector>[
+          VersionVector(<String, int>{'devA': 2}),
+          VersionVector(<String, int>{'devB': 1}),
+        ],
+      );
+    });
+
     test('a tampered tombstone envelope throws, not a silent delete', () async {
       final tombstone = await buildEnvelope(
         collection: SyncCollection.moneySources,

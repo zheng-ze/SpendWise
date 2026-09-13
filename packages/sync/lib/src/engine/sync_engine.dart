@@ -106,22 +106,26 @@ class SyncEngine {
     final stamps = <SyncRowID, VersionVector>{};
     final stagedConflicts = <StagedConflict>[];
 
-    for (final rowID in byRow.keys) {
-      final siblings = byRow[rowID]!;
-      // A sibling that dominates every other sibling in the group resolves the
-      // row conflict-free, even when the group also contains a concurrent pair.
-      // Only when no single sibling dominates all the others is the group a
-      // genuine unresolved conflict.
-      final dominant = _dominantSibling(siblings);
-      if (dominant != null) {
-        changes.add(dominant.change);
-        stamps[rowID] = dominant.envelope.versionVector;
+    for (final entry in byRow.entries) {
+      final rowID = entry.key;
+      final siblings = entry.value;
+      // Reduce the group to its non-dominated frontier: the siblings no other
+      // sibling dominates. A strictly superseded sibling (whose version vector
+      // some other sibling dominates) is obsolete history, never a genuine
+      // concurrent alternative, so it must never reach conflict review.
+      final frontier = _nonDominatedFrontier(siblings);
+      if (frontier.length == 1) {
+        // The sole frontier member dominates every other sibling, so the row
+        // is conflict-free.
+        final winner = frontier.single;
+        changes.add(winner.change);
+        stamps[rowID] = winner.envelope.versionVector;
         continue;
       }
       final group = StagedConflict(
         rowID.collection,
         rowID.rowID,
-        siblings.map(_toDecodedSibling).toList(),
+        frontier.map(_toDecodedSibling).toList(),
       );
       stagedConflicts.add(group);
       _staging.stage(group);
@@ -167,15 +171,29 @@ class SyncEngine {
     return change;
   }
 
-  static _DecodedRow? _dominantSibling(List<_DecodedRow> siblings) {
-    for (final candidate in siblings) {
-      final dominatesAll = siblings.every(
-        (sibling) => candidate.envelope.versionVector
-            .dominates(sibling.envelope.versionVector),
+  // Returns the non-dominated frontier of [siblings]: the subset whose version
+  // vectors no other sibling dominates. Exact-duplicate vectors collapse to one
+  // representative; a vector survives only if no other distinct vector
+  // dominates it.
+  static List<_DecodedRow> _nonDominatedFrontier(List<_DecodedRow> siblings) {
+    final distinct = <VersionVector, _DecodedRow>{};
+    for (final sibling in siblings) {
+      distinct.putIfAbsent(
+        sibling.envelope.versionVector,
+        () => sibling,
       );
-      if (dominatesAll) return candidate;
     }
-    return null;
+    final members = distinct.values.toList();
+    return members
+        .where(
+          (candidate) => members.every(
+            (other) =>
+                candidate == other ||
+                !other.envelope.versionVector
+                    .dominates(candidate.envelope.versionVector),
+          ),
+        )
+        .toList();
   }
 
   static DecodedSibling _toDecodedSibling(_DecodedRow row) => DecodedSibling(
