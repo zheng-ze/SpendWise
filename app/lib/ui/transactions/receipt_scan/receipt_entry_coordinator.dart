@@ -11,10 +11,7 @@ import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_flow.dart';
 /// coordinator. The ViewModel mirrors [scanning] / [scanStop] into its own
 /// state so the View can keep reading them from there.
 class ReceiptOrchestrationState {
-  const ReceiptOrchestrationState({
-    this.scanning = false,
-    this.scanStop,
-  });
+  const ReceiptOrchestrationState({this.scanning = false, this.scanStop});
 
   /// True while a receipt scan is recognizing an image.
   final bool scanning;
@@ -59,7 +56,11 @@ class ReceiptEntryCoordinator extends Notifier<ReceiptOrchestrationState> {
     Uint8List bytes, {
     required ScanResultHandler onPrefill,
   }) {
-    return requestScan(ReceiptScanSource.gallery, preCapturedBytes: bytes, onPrefill: onPrefill);
+    return requestScan(
+      ReceiptScanSource.gallery,
+      preCapturedBytes: bytes,
+      onPrefill: onPrefill,
+    );
   }
 
   void clearScanStop() => state = state.copyWith(scanStop: () => null);

@@ -1,0 +1,121 @@
+name: Platform Builds
+
+on:
+  pull_request:
+    branches: [main]
+
+  push:
+    branches: [main]
+
+  merge_group:
+    branches: [main]
+
+  workflow_dispatch:
+
+concurrency:
+  group: platform-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    name: Android build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          channel: stable
+          flutter-version-file: app/pubspec.yaml
+          cache: true
+          pub-cache: true
+
+      - name: Get dependencies
+        working-directory: app
+        run: flutter pub get
+
+      - name: Build Android debug APK
+        working-directory: app
+        run: flutter build apk --debug
+
+  windows:
+    name: Windows build
+    runs-on: windows-2022
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          channel: stable
+          flutter-version-file: app/pubspec.yaml
+          cache: true
+          pub-cache: true
+
+      - name: Get dependencies
+        working-directory: app
+        run: flutter pub get
+
+      - name: Build Windows app
+        working-directory: app
+        run: flutter build windows --debug
+
+  ios:
+    name: iOS simulator build
+    runs-on: macos-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          channel: stable
+          flutter-version-file: app/pubspec.yaml
+          cache: true
+          pub-cache: true
+
+      - name: Get dependencies
+        working-directory: app
+        run: flutter pub get
+
+      - name: Build iOS simulator app
+        working-directory: app
+        run: flutter build ios --simulator --debug --no-codesign
+
+  macos:
+    name: macOS build
+    runs-on: macos-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          channel: stable
+          flutter-version-file: app/pubspec.yaml
+          cache: true
+          pub-cache: true
+
+      - name: Get dependencies
+        working-directory: app
+        run: flutter pub get
+
+      - name: Build macOS app
+        working-directory: app
+        run: flutter build macos --debug

@@ -69,91 +69,85 @@ void main() {
     expect(sections.single.rows.map((r) => r.name), ['Active']);
   });
 
-  test(
-    'a row totals its own balance plus its active pockets, excluding an archived pocket',
-    () {
-      final account = Account(
-        id: 'a0000000-0000-0000-0000-000000000001',
-        name: 'Checking',
-        type: AccountType.checking,
-        subPocketIDs: {
-          'a0000000-0000-0000-0000-000000000002',
-          'a0000000-0000-0000-0000-000000000003',
-        },
-      );
-      final activePocket = SubPocket(
-        id: 'a0000000-0000-0000-0000-000000000002',
-        name: 'Rent',
-      );
-      final archivedPocket = SubPocket(
-        id: 'a0000000-0000-0000-0000-000000000003',
-        name: 'Old',
-        lifecycle: LifecycleState.archived,
-      );
+  test('a row totals its own balance plus its active pockets, excluding an archived pocket', () {
+    final account = Account(
+      id: 'a0000000-0000-0000-0000-000000000001',
+      name: 'Checking',
+      type: AccountType.checking,
+      subPocketIDs: {
+        'a0000000-0000-0000-0000-000000000002',
+        'a0000000-0000-0000-0000-000000000003',
+      },
+    );
+    final activePocket = SubPocket(
+      id: 'a0000000-0000-0000-0000-000000000002',
+      name: 'Rent',
+    );
+    final archivedPocket = SubPocket(
+      id: 'a0000000-0000-0000-0000-000000000003',
+      name: 'Old',
+      lifecycle: LifecycleState.archived,
+    );
 
-      final state = LedgerState(
-        moneySources: {
-          account.id: MoneySource.account(account),
-          activePocket.id: MoneySource.pocket(activePocket),
-          archivedPocket.id: MoneySource.pocket(archivedPocket),
-        },
-        entries: {
-          for (final e in [
-            Entry(amount: dec('100'), name: 'own', sourceID: account.id),
-            Entry(amount: dec('30'), name: 'pocket', sourceID: activePocket.id),
-            Entry(
-              amount: dec('999'),
-              name: 'archived pocket',
-              sourceID: archivedPocket.id,
-            ),
-          ])
-            e.id: e,
-        },
-      );
+    final state = LedgerState(
+      moneySources: {
+        account.id: MoneySource.account(account),
+        activePocket.id: MoneySource.pocket(activePocket),
+        archivedPocket.id: MoneySource.pocket(archivedPocket),
+      },
+      entries: {
+        for (final e in [
+          Entry(amount: dec('100'), name: 'own', sourceID: account.id),
+          Entry(amount: dec('30'), name: 'pocket', sourceID: activePocket.id),
+          Entry(
+            amount: dec('999'),
+            name: 'archived pocket',
+            sourceID: archivedPocket.id,
+          ),
+        ])
+          e.id: e,
+      },
+    );
 
-      final row = accountSections(state, now: now).single.rows.single;
+    final row = accountSections(state, now: now).single.rows.single;
 
-      expect(row.ownBalance, dec('100'));
-      expect((row.amount as SingleTotal).total, dec('130'));
-      expect(row.pockets.map((p) => p.name), ['Rent']);
-      expect(row.pockets.single.balance, dec('30'));
-    },
-  );
+    expect(row.ownBalance, dec('100'));
+    expect((row.amount as SingleTotal).total, dec('130'));
+    expect(row.pockets.map((p) => p.name), ['Rent']);
+    expect(row.pockets.single.balance, dec('30'));
+  });
 
-  test(
-    'non-card section header sums row totals, negative when liabilities dominate',
-    () {
-      final a = Account(
-        id: 'a0000000-0000-0000-0000-000000000001',
-        name: 'A',
-        type: AccountType.checking,
-      );
-      final b = Account(
-        id: 'a0000000-0000-0000-0000-000000000002',
-        name: 'B',
-        type: AccountType.checking,
-      );
+  test('non-card section header sums row totals, negative when liabilities dominate', () {
+    final a = Account(
+      id: 'a0000000-0000-0000-0000-000000000001',
+      name: 'A',
+      type: AccountType.checking,
+    );
+    final b = Account(
+      id: 'a0000000-0000-0000-0000-000000000002',
+      name: 'B',
+      type: AccountType.checking,
+    );
 
-      final state = LedgerState(
-        moneySources: {
-          a.id: MoneySource.account(a),
-          b.id: MoneySource.account(b),
-        },
-        entries: {
-          for (final e in [
-            Entry(amount: dec('-50'), name: 'x', sourceID: a.id),
-            Entry(amount: dec('-60'), name: 'y', sourceID: b.id),
-          ])
-            e.id: e,
-        },
-      );
+    final state = LedgerState(
+      moneySources: {
+        a.id: MoneySource.account(a),
+        b.id: MoneySource.account(b),
+      },
+      entries: {
+        for (final e in [
+          Entry(amount: dec('-50'), name: 'x', sourceID: a.id),
+          Entry(amount: dec('-60'), name: 'y', sourceID: b.id),
+        ])
+          e.id: e,
+      },
+    );
 
-      final header =
-          accountSections(state, now: now).single.header as SubtotalHeader;
+    final header =
+        accountSections(state, now: now).single.header as SubtotalHeader;
 
-      expect(header.subtotal, dec('-110'));
-    },
-  );
+    expect(header.subtotal, dec('-110'));
+  });
 
   test(
     'card section header sums payable and outstanding separately over its rows',

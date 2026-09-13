@@ -11,3 +11,10 @@ analyzer:
     unused_local_variable: error
     non_exhaustive_switch_expression: error
     non_exhaustive_switch_statement: error
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+    - windows/**
+    - macos/**
+    - linux/**

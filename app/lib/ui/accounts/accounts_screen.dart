@@ -205,9 +205,8 @@ class _EmptyState extends StatelessWidget {
     return Center(
       child: Text(
         'No accounts yet',
-        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-        ),
+        style: Theme.of(context).textTheme.bodyMedium
+            ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
       ),
     );
   }

@@ -286,9 +286,8 @@ void main() {
       final now = DateTime.now().toUtc();
       expect(find.text(now.year.toString()), findsOneWidget);
       for (var month = 1; month <= 12; month++) {
-        final label = formatMonthLabel(
-          DateTime.utc(now.year, month),
-        ).substring(0, 3);
+        final label = formatMonthLabel(DateTime.utc(now.year, month))
+            .substring(0, 3);
         expect(find.text(label), findsOneWidget);
       }
     },

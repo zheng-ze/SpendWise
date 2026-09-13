@@ -1,0 +1,39 @@
+version: 2
+
+updates:
+  # Dart / Flutter packages
+  - package-ecosystem: "pub"
+    directories:
+      - "/app"
+      - "/packages/domain"
+      - "/packages/sync"
+      - "/packages/ocr"
+
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "10:00"
+      timezone: "Asia/Singapore"
+
+    open-pull-requests-limit: 5
+
+    groups:
+      pub-minor-and-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Keep GitHub Actions themselves current
+  - package-ecosystem: "github-actions"
+    directory: "/"
+
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "10:30"
+      timezone: "Asia/Singapore"
+
+    open-pull-requests-limit: 5

@@ -59,82 +59,67 @@ void main() {
 
   // An injected recognizer runs the whole scan without touching the ML Kit
   // channel, so the channel mock is dropped for this case.
-  test(
-    'runs recognition through an injected recognizer instead of the ML Kit channel',
-    () async {
-      messenger.setMockMethodCallHandler(mlKitChannel, null);
+  test('runs recognition through an injected recognizer instead of the ML Kit channel', () async {
+    messenger.setMockMethodCallHandler(mlKitChannel, null);
 
-      final recognized = _textOf(['Coffee Shop', 'Total \$12.50', '01/15/2026']);
-      final recognizer = _InMemoryRecognizer(recognized);
+    final recognized = _textOf(['Coffee Shop', 'Total \$12.50', '01/15/2026']);
+    final recognizer = _InMemoryRecognizer(recognized);
 
-      String? capturedName;
-      Decimal? capturedAmount;
-      DateTime? capturedDate;
+    String? capturedName;
+    Decimal? capturedAmount;
+    DateTime? capturedDate;
 
-      await runReceiptScan(
-        source: ReceiptScanSource.camera,
-        preCapturedBytes: Uint8List(0),
-        recognizer: () => recognizer,
-        onExtracted: ({name, amount, required date}) => (
-          capturedName = name,
-          capturedAmount = amount,
-          capturedDate = date,
-        ),
-      );
+    await runReceiptScan(
+      source: ReceiptScanSource.camera,
+      preCapturedBytes: Uint8List(0),
+      recognizer: () => recognizer,
+      onExtracted: ({name, amount, required date}) =>
+          (capturedName = name, capturedAmount = amount, capturedDate = date),
+    );
 
-      expect(capturedName, 'Coffee Shop');
-      expect(capturedAmount, Decimal.parse('12.50'));
-      expect(capturedDate, DateTime.utc(2026, 1, 15));
-      expect(recognizer.disposed, isTrue);
-    },
-  );
+    expect(capturedName, 'Coffee Shop');
+    expect(capturedAmount, Decimal.parse('12.50'));
+    expect(capturedDate, DateTime.utc(2026, 1, 15));
+    expect(recognizer.disposed, isTrue);
+  });
 
   // Guards against a past compile failure in runReceiptScan that also broke
   // every file importing this one.
-  test(
-    'runs recognition on preCapturedBytes without requesting permission or using the picker',
-    () async {
-      ReceiptScanStop? stop;
-      DateTime? capturedDate;
+  test('runs recognition on preCapturedBytes without requesting permission or using the picker', () async {
+    ReceiptScanStop? stop;
+    DateTime? capturedDate;
 
-      await runReceiptScan(
-        source: ReceiptScanSource.camera,
-        preCapturedBytes: Uint8List(0),
-        onExtracted: ({name, amount, required date}) => capturedDate = date,
-        onStop: (value) => stop = value,
-      );
+    await runReceiptScan(
+      source: ReceiptScanSource.camera,
+      preCapturedBytes: Uint8List(0),
+      onExtracted: ({name, amount, required date}) => capturedDate = date,
+      onStop: (value) => stop = value,
+    );
 
-      expect(stop, isNull);
-      expect(capturedDate, isNotNull);
-    },
-  );
+    expect(stop, isNull);
+    expect(capturedDate, isNotNull);
+  });
 
   // A recognizer factory that yields null is the desktop path: selectRecognizer
   // returns no recognizer on macOS/Windows/Linux. Recognition resolves to an
   // empty result and extraction falls back to a blank draft.
-  test(
-    'falls through to a null name, null amount and a defaulted date when the recognizer factory returns null',
-    () async {
-      String? capturedName;
-      Decimal? capturedAmount;
-      DateTime? capturedDate;
+  test('falls through to a null name, null amount and a defaulted date when the recognizer factory returns null', () async {
+    String? capturedName;
+    Decimal? capturedAmount;
+    DateTime? capturedDate;
 
-      await runReceiptScan(
-        source: ReceiptScanSource.camera,
-        preCapturedBytes: Uint8List(0),
-        recognizer: () => null,
-        onExtracted: ({name, amount, required date}) => (
-          capturedName = name,
-          capturedAmount = amount,
-          capturedDate = date,
-        ),
-      );
+    await runReceiptScan(
+      source: ReceiptScanSource.camera,
+      preCapturedBytes: Uint8List(0),
+      recognizer: () => null,
+      onExtracted: ({name, amount, required date}) =>
+          (capturedName = name, capturedAmount = amount, capturedDate = date),
+    );
 
-      expect(capturedName, isNull);
-      expect(capturedAmount, isNull);
-      expect(capturedDate, _todayUtc());
-    },
-  );
+    expect(capturedName, isNull);
+    expect(capturedAmount, isNull);
+    expect(capturedDate, _todayUtc());
+  });
 
   test('extracts name, amount and date from recognized receipt text', () {
     final recognized = _textOf(['Coffee Shop', 'Total \$12.50', '01/15/2026']);

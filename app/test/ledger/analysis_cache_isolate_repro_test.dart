@@ -55,9 +55,8 @@ void main() {
       ),
     );
 
-    final result = await isolateComputeRunner(
-      state,
-    ).timeout(const Duration(seconds: 10));
+    final result = await isolateComputeRunner(state)
+        .timeout(const Duration(seconds: 10));
 
     expect(result, isNotEmpty);
   });

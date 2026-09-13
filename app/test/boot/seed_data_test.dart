@@ -23,9 +23,9 @@ void main() {
   });
 
   test('seedChangesEmitsFifteenEntriesPlusFourOpeningBalances', () {
-    final entries = _rowsOf<UpsertEntry>(
-      seedChanges(),
-    ).map((change) => change.entry).toList();
+    final entries = _rowsOf<UpsertEntry>(seedChanges())
+        .map((change) => change.entry)
+        .toList();
 
     expect(entries, hasLength(19));
     expect(
@@ -55,12 +55,10 @@ void main() {
 
   test('seedChangesCarriesTheAccountsAndPocketsFromTheSpec', () {
     final changes = seedChanges();
-    final accounts = _rowsOf<UpsertAccount>(
-      changes,
-    ).map((change) => change.account);
-    final pockets = _rowsOf<UpsertPocket>(
-      changes,
-    ).map((change) => change.pocket);
+    final accounts = _rowsOf<UpsertAccount>(changes)
+        .map((change) => change.account);
+    final pockets = _rowsOf<UpsertPocket>(changes)
+        .map((change) => change.pocket);
 
     final card = accounts.singleWhere((account) => account.name == 'Amex Card');
     final savings = accounts.singleWhere(
@@ -82,9 +80,9 @@ void main() {
   });
 
   test('seedChangesCarriesTheCategoryTreeFromTheSpec', () {
-    final categories = _rowsOf<UpsertCategory>(
-      seedChanges(),
-    ).map((change) => change.category).toList();
+    final categories = _rowsOf<UpsertCategory>(seedChanges())
+        .map((change) => change.category)
+        .toList();
 
     final byName = {for (final category in categories) category.name: category};
 
@@ -109,12 +107,12 @@ void main() {
 
   test('seedChangesCoversTheDeliberateEdgeCases', () {
     final changes = seedChanges();
-    final entries = _rowsOf<UpsertEntry>(
-      changes,
-    ).map((change) => change.entry).toList();
-    final categoryIDs = _rowsOf<UpsertCategory>(
-      changes,
-    ).map((change) => change.category.id).toSet();
+    final entries = _rowsOf<UpsertEntry>(changes)
+        .map((change) => change.entry)
+        .toList();
+    final categoryIDs = _rowsOf<UpsertCategory>(changes)
+        .map((change) => change.category.id)
+        .toSet();
 
     final transfer = entries.singleWhere((entry) => entry.name == 'To savings');
     final rent = entries.singleWhere((entry) => entry.name == 'Rent');
@@ -213,9 +211,9 @@ void main() {
 
   test('plansDoNotBackfillOnFirstResolve', () {
     final today = DateTime.utc(2026, 3, 31);
-    final plans = _rowsOf<UpsertPlan>(
-      seedChanges(today: today),
-    ).map((change) => change.plan).toList();
+    final plans = _rowsOf<UpsertPlan>(seedChanges(today: today))
+        .map((change) => change.plan)
+        .toList();
 
     expect(plans, hasLength(2));
     for (final plan in plans) {

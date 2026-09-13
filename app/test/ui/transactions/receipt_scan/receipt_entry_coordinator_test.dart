@@ -16,21 +16,23 @@ const _visionChannel = MethodChannel('spendwise/vision_text_recognizer');
 const _documentScannerChannel = MethodChannel('spendwise/document_scanner');
 
 /// Ignored [ScanResultHandler] for scans whose prefill a test does not inspect.
-void _ignorePrefill({
-  String? name,
-  Decimal? amount,
-  required DateTime date,
-}) {}
+void _ignorePrefill({String? name, Decimal? amount, required DateTime date}) {}
 
 /// Freezes the recognition channel reply until [gate] completes, so a test can
 /// observe the coordinator mid-recognition, then returns a recognized result.
-Future<List<Map<String, dynamic>>?> _freezeRecognizer(Completer<void>? gate) async {
+Future<List<Map<String, dynamic>>?> _freezeRecognizer(
+  Completer<void>? gate,
+) async {
   await gate?.future;
   return _recognizedResult(['Coffee Shop', 'Total \$12.50', '01/15/2026']);
 }
 
-Map<String, dynamic> _rect(double left, double top, double right, double bottom) =>
-      {'left': left, 'top': top, 'right': right, 'bottom': bottom};
+Map<String, dynamic> _rect(
+  double left,
+  double top,
+  double right,
+  double bottom,
+) => {'left': left, 'top': top, 'right': right, 'bottom': bottom};
 
 Map<String, dynamic> _line(String text) {
   final rect = _rect(0, 0, 100, 100);
@@ -47,8 +49,8 @@ Map<String, dynamic> _line(String text) {
 }
 
 List<Map<String, dynamic>> _recognizedResult(List<String> lines) => [
-      for (final text in lines) _line(text),
-    ];
+  for (final text in lines) _line(text),
+];
 
 class _FakePermissionHandler extends PermissionHandlerPlatform {
   _FakePermissionHandler(this.status);
@@ -109,107 +111,127 @@ void main() {
   }
 
   group('recognition state', () {
-    test('scanning is true during recognition, then returns to false', () async {
-      container = startContainer();
-      gate = Completer<void>();
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(_mlKitChannel, (call) async =>
-              await _freezeRecognizer(gate));
+    test(
+      'scanning is true during recognition, then returns to false',
+      () async {
+        container = startContainer();
+        gate = Completer<void>();
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(
+              _mlKitChannel,
+              (call) async => await _freezeRecognizer(gate),
+            );
 
-      coordinator().requestScan(
-        ReceiptScanSource.camera,
-        preCapturedBytes: Uint8List(0),
-        onPrefill: _ignorePrefill,
-      );
+        coordinator().requestScan(
+          ReceiptScanSource.camera,
+          preCapturedBytes: Uint8List(0),
+          onPrefill: _ignorePrefill,
+        );
 
-      // _runScan sets scanning true synchronously before its first await.
-      expect(state().scanning, isTrue);
+        // _runScan sets scanning true synchronously before its first await.
+        expect(state().scanning, isTrue);
 
-      gate!.complete();
-      await idle();
+        gate!.complete();
+        await idle();
 
-      expect(state().scanning, isFalse);
-    });
+        expect(state().scanning, isFalse);
+      },
+    );
 
-    test('calls onPrefill once with the extracted fields after recognition',
-        () async {
-      container = startContainer();
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(_mlKitChannel, (call) async =>
-              _recognizedResult(['Coffee Shop', 'Total \$12.50', '01/15/2026']));
+    test(
+      'calls onPrefill once with the extracted fields after recognition',
+      () async {
+        container = startContainer();
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(
+              _mlKitChannel,
+              (call) async => _recognizedResult([
+                'Coffee Shop',
+                'Total \$12.50',
+                '01/15/2026',
+              ]),
+            );
 
-      DateTime? capturedDate;
-      Decimal? capturedAmount;
+        DateTime? capturedDate;
+        Decimal? capturedAmount;
 
-      coordinator().requestScan(
-        ReceiptScanSource.camera,
-        preCapturedBytes: Uint8List(0),
-        onPrefill: ({name, amount, required date}) {
-          capturedDate = date;
-          capturedAmount = amount;
-        },
-      );
+        coordinator().requestScan(
+          ReceiptScanSource.camera,
+          preCapturedBytes: Uint8List(0),
+          onPrefill: ({name, amount, required date}) {
+            capturedDate = date;
+            capturedAmount = amount;
+          },
+        );
 
-      await idle();
+        await idle();
 
-      expect(capturedDate, DateTime.utc(2026, 1, 15));
-      expect(capturedAmount, Decimal.parse('12.50'));
-    });
+        expect(capturedDate, DateTime.utc(2026, 1, 15));
+        expect(capturedAmount, Decimal.parse('12.50'));
+      },
+    );
   });
 
   group('scanStop', () {
-    test('is set exactly once on a scan that ends without prefilling', () async {
-      container = startContainer();
-      PermissionHandlerPlatform.instance =
-          _FakePermissionHandler(PermissionStatus.denied);
-      var isAvailableCalled = false;
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(_documentScannerChannel, (call) async {
-        if (call.method == 'isAvailable') {
-          isAvailableCalled = true;
-          return false; // native scanner unavailable -> fall through to picker
-        }
-        return null;
-      });
+    test(
+      'is set exactly once on a scan that ends without prefilling',
+      () async {
+        container = startContainer();
+        PermissionHandlerPlatform.instance = _FakePermissionHandler(
+          PermissionStatus.denied,
+        );
+        var isAvailableCalled = false;
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(_documentScannerChannel, (call) async {
+              if (call.method == 'isAvailable') {
+                isAvailableCalled = true;
+                return false; // native scanner unavailable -> fall through to picker
+              }
+              return null;
+            });
 
-      var prefillCalls = 0;
-      coordinator().requestScan(
-        ReceiptScanSource.camera,
-        onPrefill: ({name, amount, required date}) => prefillCalls++,
-      );
+        var prefillCalls = 0;
+        coordinator().requestScan(
+          ReceiptScanSource.camera,
+          onPrefill: ({name, amount, required date}) => prefillCalls++,
+        );
 
-      await idle();
+        await idle();
 
-      expect(state().scanStop, ReceiptScanStop.permissionDenied);
-      expect(prefillCalls, 0);
-      expect(isAvailableCalled, isTrue);
-    });
+        expect(state().scanStop, ReceiptScanStop.permissionDenied);
+        expect(prefillCalls, 0);
+        expect(isAvailableCalled, isTrue);
+      },
+    );
 
-    test('clearScanStop clears a previously set scanStop exactly once',
-        () async {
-      container = startContainer();
-      PermissionHandlerPlatform.instance =
-          _FakePermissionHandler(PermissionStatus.denied);
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(_documentScannerChannel, (call) async {
-        if (call.method == 'isAvailable') return false;
-        return null;
-      });
+    test(
+      'clearScanStop clears a previously set scanStop exactly once',
+      () async {
+        container = startContainer();
+        PermissionHandlerPlatform.instance = _FakePermissionHandler(
+          PermissionStatus.denied,
+        );
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(_documentScannerChannel, (call) async {
+              if (call.method == 'isAvailable') return false;
+              return null;
+            });
 
-      coordinator().requestScan(
-        ReceiptScanSource.camera,
-        onPrefill: _ignorePrefill,
-      );
-      await idle();
-      expect(state().scanStop, ReceiptScanStop.permissionDenied);
+        coordinator().requestScan(
+          ReceiptScanSource.camera,
+          onPrefill: _ignorePrefill,
+        );
+        await idle();
+        expect(state().scanStop, ReceiptScanStop.permissionDenied);
 
-      coordinator().clearScanStop();
-      expect(state().scanStop, isNull);
+        coordinator().clearScanStop();
+        expect(state().scanStop, isNull);
 
-      // A second clear is a no-op: the single-shot state never re-arms.
-      coordinator().clearScanStop();
-      expect(state().scanStop, isNull);
-    });
+        // A second clear is a no-op: the single-shot state never re-arms.
+        coordinator().clearScanStop();
+        expect(state().scanStop, isNull);
+      },
+    );
   });
 
   group('native document scanner routing', () {
@@ -227,9 +249,9 @@ void main() {
       container = startContainer();
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(_documentScannerChannel, (call) async {
-        if (call.method == 'scanDocument') return null; // user backed out
-        return null;
-      });
+            if (call.method == 'scanDocument') return null; // user backed out
+            return null;
+          });
 
       var prefillCalls = 0;
       coordinator().requestScan(
@@ -245,15 +267,16 @@ void main() {
 
     test('an unavailable scanner falls through to the plain picker', () async {
       container = startContainer();
-      PermissionHandlerPlatform.instance =
-          _FakePermissionHandler(PermissionStatus.denied);
+      PermissionHandlerPlatform.instance = _FakePermissionHandler(
+        PermissionStatus.denied,
+      );
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(_documentScannerChannel, (call) async {
-        if (call.method == 'scanDocument') {
-          throw PlatformException(code: 'unavailable');
-        }
-        return null;
-      });
+            if (call.method == 'scanDocument') {
+              throw PlatformException(code: 'unavailable');
+            }
+            return null;
+          });
 
       var prefillCalls = 0;
       coordinator().requestScan(
@@ -274,11 +297,19 @@ void main() {
       // mocking the Android one here would leave Vision unmocked and silently
       // fall back to today's date.
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(_visionChannel, (call) async =>
-              _recognizedResult(['Coffee Shop', 'Total \$12.50', '01/15/2026']));
+          .setMockMethodCallHandler(
+            _visionChannel,
+            (call) async => _recognizedResult([
+              'Coffee Shop',
+              'Total \$12.50',
+              '01/15/2026',
+            ]),
+          );
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(_documentScannerChannel, (call) async =>
-              Uint8List.fromList([1, 2, 3]));
+          .setMockMethodCallHandler(
+            _documentScannerChannel,
+            (call) async => Uint8List.fromList([1, 2, 3]),
+          );
 
       DateTime? capturedDate;
       coordinator().requestScan(
@@ -296,8 +327,14 @@ void main() {
     test('recognizes the uploaded bytes as a gallery scan', () async {
       container = startContainer();
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(_mlKitChannel, (call) async =>
-              _recognizedResult(['Coffee Shop', 'Total \$12.50', '01/15/2026']));
+          .setMockMethodCallHandler(
+            _mlKitChannel,
+            (call) async => _recognizedResult([
+              'Coffee Shop',
+              'Total \$12.50',
+              '01/15/2026',
+            ]),
+          );
 
       DateTime? capturedDate;
       coordinator().applyCroppedDocument(

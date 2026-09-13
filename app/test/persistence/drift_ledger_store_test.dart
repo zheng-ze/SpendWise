@@ -213,39 +213,36 @@ void main() {
       expect(row.amount, '10');
     });
 
-    test(
-      'a budget upsert followed by a delete of the same id applies only the delete',
-      () async {
-        domain.Budget budget(String amount) => domain.Budget(
-          id: 'b1',
-          categoryID: 'c1',
-          limitEvents: [
-            LimitEvent(
-              effectiveFromMonth: null,
-              value: Decimal.parse(amount),
-              kind: LimitEventKind.defaultLimit,
-            ),
-          ],
-          createdAtMonth: const YearMonth(2026, 1),
-        );
+    test('a budget upsert followed by a delete of the same id applies only the delete', () async {
+      domain.Budget budget(String amount) => domain.Budget(
+        id: 'b1',
+        categoryID: 'c1',
+        limitEvents: [
+          LimitEvent(
+            effectiveFromMonth: null,
+            value: Decimal.parse(amount),
+            kind: LimitEventKind.defaultLimit,
+          ),
+        ],
+        createdAtMonth: const YearMonth(2026, 1),
+      );
 
-        store.enqueue([UpsertBudget(budget('10'))]);
-        await debouncedSave();
+      store.enqueue([UpsertBudget(budget('10'))]);
+      await debouncedSave();
 
-        store
-          ..enqueue([UpsertBudget(budget('99'))])
-          ..enqueue([const DeleteBudget('b1')]);
+      store
+        ..enqueue([UpsertBudget(budget('99'))])
+        ..enqueue([const DeleteBudget('b1')]);
 
-        await debouncedSave();
+      await debouncedSave();
 
-        final row = await db.select(db.budgets).getSingle();
-        expect(row.lifecycle, LifecycleState.tombstoned.code);
+      final row = await db.select(db.budgets).getSingle();
+      expect(row.lifecycle, LifecycleState.tombstoned.code);
 
-        // A surviving upsert would have written the limit events for '99'
-        // first, so the untouched row proves coalescing dropped the upsert.
-        expect(row.limitEvents, contains('"value":"10"'));
-      },
-    );
+      // A surviving upsert would have written the limit events for '99'
+      // first, so the untouched row proves coalescing dropped the upsert.
+      expect(row.limitEvents, contains('"value":"10"'));
+    });
 
     test('deleteThenUpsertInOneWindowAppliesOnlyUpsert', () async {
       store.enqueue([UpsertEntry(entry('e1', '10'))]);
@@ -694,30 +691,33 @@ void main() {
       expect((await db.select(db.accounts).get()).length, 3);
     });
 
-    test('flushNow stops looping when a cycle ends in failedWillRetry', () async {
-      // More failures than any number of cycles can consume, so a loop
-      // without the give-up exit never sees pending drain.
-      flaky.failures = 99;
-      store.enqueue([UpsertAccount(account('a1', 'v1'))]);
+    test(
+      'flushNow stops looping when a cycle ends in failedWillRetry',
+      () async {
+        // More failures than any number of cycles can consume, so a loop
+        // without the give-up exit never sees pending drain.
+        flaky.failures = 99;
+        store.enqueue([UpsertAccount(account('a1', 'v1'))]);
 
-      var returned = false;
-      final flush = store.flushNow().then((_) => returned = true);
+        var returned = false;
+        final flush = store.flushNow().then((_) => returned = true);
 
-      // Ten passes far outlast the three attempts one retry cycle needs, so a
-      // flush that kept looping instead of giving up would still be unfinished here.
-      for (var i = 0; i < 10; i++) {
+        // Ten passes far outlast the three attempts one retry cycle needs, so a
+        // flush that kept looping instead of giving up would still be unfinished here.
+        for (var i = 0; i < 10; i++) {
+          await settle();
+          clock.fire();
+        }
         await settle();
-        clock.fire();
-      }
-      await settle();
 
-      expect(returned, isTrue, reason: 'the flush never gave up looping');
-      await flush;
+        expect(returned, isTrue, reason: 'the flush never gave up looping');
+        await flush;
 
-      expect(reported.last, SaveBannerState.failedWillRetry);
-      expect(store.pendingCount, 1);
-      expect(await db.select(db.accounts).get(), isEmpty);
-    });
+        expect(reported.last, SaveBannerState.failedWillRetry);
+        expect(store.pendingCount, 1);
+        expect(await db.select(db.accounts).get(), isEmpty);
+      },
+    );
 
     test('flushOnAnIdleStoreIsANoOp', () async {
       await store.flushNow();
@@ -990,9 +990,8 @@ void main() {
 
       // The delete bumps rather than clears, so a tombstone carries the causal
       // history a future sync needs to see it as newer than the upsert.
-      final counters = versionFromRow(
-        row.read<Uint8List>('version_data'),
-      ).counters;
+      final counters = versionFromRow(row.read<Uint8List>('version_data'))
+          .counters;
       expect(counters.values.fold(0, (sum, count) => sum + count), 2);
     });
 

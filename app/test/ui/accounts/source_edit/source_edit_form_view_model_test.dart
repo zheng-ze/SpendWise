@@ -158,40 +158,37 @@ void main() {
     },
   );
 
-  test(
-    'switching an account to an ineligible type resets the transfer toggle on save',
-    () async {
-      final account = Account(
-        name: 'Nest egg',
-        type: AccountType.savings,
-        incomingTransfersAsExpenses: true,
-      );
-      final ledger = Ledger(
-        state: LedgerState(
-          moneySources: {account.id: MoneySource.account(account)},
-        ),
-      );
-      final container = buildContainer(ledger);
-      await container.read(sourceEditFormViewModelProvider(account.id).future);
-      final viewModel = container.read(
-        sourceEditFormViewModelProvider(account.id).notifier,
-      );
+  test('switching an account to an ineligible type resets the transfer toggle on save', () async {
+    final account = Account(
+      name: 'Nest egg',
+      type: AccountType.savings,
+      incomingTransfersAsExpenses: true,
+    );
+    final ledger = Ledger(
+      state: LedgerState(
+        moneySources: {account.id: MoneySource.account(account)},
+      ),
+    );
+    final container = buildContainer(ledger);
+    await container.read(sourceEditFormViewModelProvider(account.id).future);
+    final viewModel = container.read(
+      sourceEditFormViewModelProvider(account.id).notifier,
+    );
 
-      viewModel.setType(AccountType.checking);
-      expect(
-        container
-            .read(sourceEditFormViewModelProvider(account.id))
-            .value
-            ?.showsTransferToggle,
-        isFalse,
-      );
+    viewModel.setType(AccountType.checking);
+    expect(
+      container
+          .read(sourceEditFormViewModelProvider(account.id))
+          .value
+          ?.showsTransferToggle,
+      isFalse,
+    );
 
-      await viewModel.save();
+    await viewModel.save();
 
-      final stored = ledger.state.moneySources[account.id]!.asAccount!;
-      expect(stored.incomingTransfersAsExpenses, isFalse);
-    },
-  );
+    final stored = ledger.state.moneySources[account.id]!.asAccount!;
+    expect(stored.incomingTransfersAsExpenses, isFalse);
+  });
 
   test('save emits SourceEditFormSaved on success', () async {
     final account = Account(name: 'Wallet', type: AccountType.cash);

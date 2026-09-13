@@ -20,9 +20,8 @@ void main() {
       });
 
       expect(
-        await DocumentScannerChannel(
-          'spendwise/document_scanner',
-        ).scanDocument(),
+        await DocumentScannerChannel('spendwise/document_scanner')
+            .scanDocument(),
         bytes,
       );
     });
@@ -31,9 +30,8 @@ void main() {
       messenger.setMockMethodCallHandler(channel, (call) async => null);
 
       expect(
-        await DocumentScannerChannel(
-          'spendwise/document_scanner',
-        ).scanDocument(),
+        await DocumentScannerChannel('spendwise/document_scanner')
+            .scanDocument(),
         isNull,
       );
     });
@@ -59,9 +57,8 @@ void main() {
       });
 
       expect(
-        await DocumentScannerChannel(
-          'spendwise/document_scanner',
-        ).isAvailable(),
+        await DocumentScannerChannel('spendwise/document_scanner')
+            .isAvailable(),
         isTrue,
       );
     });
@@ -70,9 +67,8 @@ void main() {
       messenger.setMockMethodCallHandler(channel, (call) async => false);
 
       expect(
-        await DocumentScannerChannel(
-          'spendwise/document_scanner',
-        ).isAvailable(),
+        await DocumentScannerChannel('spendwise/document_scanner')
+            .isAvailable(),
         isFalse,
       );
     });
@@ -81,9 +77,8 @@ void main() {
       messenger.setMockMethodCallHandler(channel, (call) async => null);
 
       expect(
-        await DocumentScannerChannel(
-          'spendwise/document_scanner',
-        ).isAvailable(),
+        await DocumentScannerChannel('spendwise/document_scanner')
+            .isAvailable(),
         isFalse,
       );
     });

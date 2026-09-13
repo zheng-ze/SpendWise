@@ -205,10 +205,12 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
       receiptEntryCoordinatorProvider(entryId).notifier,
     );
     ref.listen(receiptEntryCoordinatorProvider(entryId), (_, next) {
-      updateState((current) => current.copyWith(
-        scanning: next.scanning,
-        scanStop: () => next.scanStop,
-      ));
+      updateState(
+        (current) => current.copyWith(
+          scanning: next.scanning,
+          scanStop: () => next.scanStop,
+        ),
+      );
     });
     return EntryFormViewState(
       mode: entry == null ? EntryFormMode.newEntry : EntryFormMode.viewing,
@@ -462,10 +464,8 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
       emitStep(DocumentCropRequested(bytes));
 
   @override
-  void applyCroppedDocument(Uint8List bytes) => _coordinator!.applyCroppedDocument(
-    bytes,
-    onPrefill: _applyScanResult,
-  );
+  void applyCroppedDocument(Uint8List bytes) =>
+      _coordinator!.applyCroppedDocument(bytes, onPrefill: _applyScanResult);
 
   @override
   void clearScanStop() => _coordinator!.clearScanStop();

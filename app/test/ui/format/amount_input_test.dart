@@ -112,9 +112,8 @@ void main() {
         text: text,
         selection: TextSelection.collapsed(offset: selection ?? text.length),
       );
-      return AmountInputFormatter(
-        allowsNegative: allowsNegative,
-      ).formatEditUpdate(TextEditingValue.empty, value);
+      return AmountInputFormatter(allowsNegative: allowsNegative)
+          .formatEditUpdate(TextEditingValue.empty, value);
     }
 
     test('sanitizes the incoming keystroke', () {

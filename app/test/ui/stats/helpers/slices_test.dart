@@ -79,17 +79,14 @@ void main() {
     expect(result.single.amount, dec('15'));
   });
 
-  test(
-    'a treat-as-expense transfer item arrives with a null bucket and lands in uncategorized',
-    () {
-      final items = [item(null, '25', kind: CategoryKind.expense)];
+  test('a treat-as-expense transfer item arrives with a null bucket and lands in uncategorized', () {
+    final items = [item(null, '25', kind: CategoryKind.expense)];
 
-      final result = slices(items, CategoryKind.expense, window, state);
+    final result = slices(items, CategoryKind.expense, window, state);
 
-      expect(result.single.bucketID, null);
-      expect(result.single.amount, dec('25'));
-    },
-  );
+    expect(result.single.bucketID, null);
+    expect(result.single.amount, dec('25'));
+  });
 
   test('excludes items of the other kind and outside the window', () {
     final wrongKind = item(foodID, '40', kind: CategoryKind.income);
