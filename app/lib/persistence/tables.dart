@@ -153,8 +153,7 @@ class SyncMetadata extends Table {
 
   /// Whether new sync runs may start. Defaults off so a fresh or migrated
   /// store never enables writes before enrollment.
-  BoolColumn get writeGate =>
-      boolean().withDefault(const Constant(false))();
+  BoolColumn get writeGate => boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -212,8 +211,7 @@ class SyncStagingGroup extends Table {
   BlobColumn get siblings => blob().named('sibling_data')();
 
   @override
-  List<String> get customConstraints =>
-      ['UNIQUE (collection, row_id)'];
+  List<String> get customConstraints => ['UNIQUE (collection, row_id)'];
 }
 
 /// Device-local, so it carries neither a version vector nor a lifecycle. The

@@ -37,28 +37,30 @@ class LedgerDatabase extends _$LedgerDatabase {
 
   /// Creates the five additive sync tables introduced at schema v4. The DDL
   /// mirrors the table definitions in `tables.dart` so a live database gains
-  /// exactly the columns the generated rows expect.
+  /// exactly the columns the generated rows expect. Table-level CHECK
+  /// constraints trail the column definitions because SQLite rejects them
+  /// between columns.
   Future<void> _createSyncTables(Migrator db) async {
     await db.database.customStatement(
       'CREATE TABLE sync_metadata ('
       'id INTEGER NOT NULL PRIMARY KEY, '
-      'CHECK (id = 0), '
       'backend_selection TEXT, '
       'enrollment_phase INTEGER, '
-      'write_gate INTEGER NOT NULL DEFAULT 0'
+      'write_gate INTEGER NOT NULL DEFAULT 0 CHECK (write_gate IN (0, 1)), '
+      'CHECK (id = 0)'
       ')',
     );
     await db.database.customStatement(
       'CREATE TABLE sync_watermark ('
       'collection TEXT NOT NULL PRIMARY KEY, '
-      'version_data BLOB'
+      'version_data BLOB NOT NULL'
       ')',
     );
     await db.database.customStatement(
       'CREATE TABLE sync_acknowledged_vector ('
       'collection TEXT NOT NULL, '
       'row_id TEXT NOT NULL, '
-      'version_data BLOB, '
+      'version_data BLOB NOT NULL, '
       'PRIMARY KEY (collection, row_id)'
       ')',
     );
@@ -74,7 +76,7 @@ class LedgerDatabase extends _$LedgerDatabase {
       'sequence INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, '
       'collection TEXT NOT NULL, '
       'row_id TEXT NOT NULL, '
-      'sibling_data BLOB, '
+      'sibling_data BLOB NOT NULL, '
       'UNIQUE (collection, row_id)'
       ')',
     );
