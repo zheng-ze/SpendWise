@@ -73,8 +73,9 @@ class SyncMetadataStore {
   /// store reports pre-enrollment defaults instead of a missing row.
   Future<SyncMetadataRow> _ensureScalar() async {
     final row =
-        await (_db.select(_db.syncMetadata)..where((t) => t.id.equals(_metaRowId)))
-            .getSingleOrNull() ??
+        await (_db.select(
+          _db.syncMetadata,
+        )..where((t) => t.id.equals(_metaRowId))).getSingleOrNull() ??
         SyncMetadataRow(
           id: _metaRowId,
           backendSelection: null,
@@ -93,12 +94,14 @@ class SyncMetadataStore {
     final existing = await _ensureScalar();
     await _db
         .into(_db.syncMetadata)
-        .insertOnConflictUpdate(SyncMetadataRow(
-          id: _metaRowId,
-          backendSelection: profileID,
-          enrollmentPhase: existing.enrollmentPhase,
-          writeGate: existing.writeGate,
-        ));
+        .insertOnConflictUpdate(
+          SyncMetadataRow(
+            id: _metaRowId,
+            backendSelection: profileID,
+            enrollmentPhase: existing.enrollmentPhase,
+            writeGate: existing.writeGate,
+          ),
+        );
   }
 
   Future<EnrollmentPhase?> getPhase() async {
@@ -111,12 +114,14 @@ class SyncMetadataStore {
     final existing = await _ensureScalar();
     await _db
         .into(_db.syncMetadata)
-        .insertOnConflictUpdate(SyncMetadataRow(
-          id: _metaRowId,
-          backendSelection: existing.backendSelection,
-          enrollmentPhase: phase.code,
-          writeGate: existing.writeGate,
-        ));
+        .insertOnConflictUpdate(
+          SyncMetadataRow(
+            id: _metaRowId,
+            backendSelection: existing.backendSelection,
+            enrollmentPhase: phase.code,
+            writeGate: existing.writeGate,
+          ),
+        );
   }
 
   Future<bool> isWriteGateEnabled() async {
@@ -128,12 +133,14 @@ class SyncMetadataStore {
     final existing = await _ensureScalar();
     await _db
         .into(_db.syncMetadata)
-        .insertOnConflictUpdate(SyncMetadataRow(
-          id: _metaRowId,
-          backendSelection: existing.backendSelection,
-          enrollmentPhase: existing.enrollmentPhase,
-          writeGate: enabled,
-        ));
+        .insertOnConflictUpdate(
+          SyncMetadataRow(
+            id: _metaRowId,
+            backendSelection: existing.backendSelection,
+            enrollmentPhase: existing.enrollmentPhase,
+            writeGate: enabled,
+          ),
+        );
   }
 
   // --- Per-collection watermarks ------------------------------------------------
@@ -141,8 +148,8 @@ class SyncMetadataStore {
   Future<VersionVector?> getWatermark(SyncCollection collection) async {
     final row =
         await (_db.select(_db.syncWatermark)
-          ..where((t) => t.collection.equals(collection.wireName))
-        ).getSingleOrNull();
+              ..where((t) => t.collection.equals(collection.wireName)))
+            .getSingleOrNull();
     return _decodeVector(row?.versionData);
   }
 
@@ -159,7 +166,10 @@ class SyncMetadataStore {
     final rows = await _db.select(_db.syncWatermark).get();
     final result = <SyncCollection, VersionVector>{};
     for (final row in rows) {
-      result[_collection(row.collection)] = _decodeVector(row.versionData)!;
+      result[_collection(row.collection)] = _requireVector(
+        row.versionData,
+        'watermark ${row.collection}',
+      );
     }
     return result;
   }
@@ -168,10 +178,12 @@ class SyncMetadataStore {
 
   Future<VersionVector?> getAcknowledgedVector(SyncRowID rowID) async {
     final row =
-        await (_db.select(_db.syncAcknowledgedVector)
-          ..where((t) => t.collection.equals(rowID.collection.wireName) &
-                t.rowID.equals(rowID.rowID))
-        ).getSingleOrNull();
+        await (_db.select(_db.syncAcknowledgedVector)..where(
+              (t) =>
+                  t.collection.equals(rowID.collection.wireName) &
+                  t.rowID.equals(rowID.rowID),
+            ))
+            .getSingleOrNull();
     return _decodeVector(row?.versionData);
   }
 
@@ -188,21 +200,24 @@ class SyncMetadataStore {
     final rows = await _db.select(_db.syncAcknowledgedVector).get();
     final result = <SyncRowID, VersionVector>{};
     for (final row in rows) {
-      result[
-        SyncRowID.of(
-          _collection(row.collection),
-          row.rowID,
-        )
-      ] = _decodeVector(row.versionData)!;
+      result[SyncRowID.of(
+        _collection(row.collection),
+        row.rowID,
+      )] = _requireVector(
+        row.versionData,
+        'acknowledged vector ${row.collection}/${row.rowID}',
+      );
     }
     return result;
   }
 
   Future<void> clearAcknowledgedVector(SyncRowID rowID) async {
-    await (_db.delete(_db.syncAcknowledgedVector)
-          ..where((t) => t.collection.equals(rowID.collection.wireName) &
-                t.rowID.equals(rowID.rowID))
-        ).go();
+    await (_db.delete(_db.syncAcknowledgedVector)..where(
+          (t) =>
+              t.collection.equals(rowID.collection.wireName) &
+              t.rowID.equals(rowID.rowID),
+        ))
+        .go();
   }
 
   // --- Pending pull acknowledgements --------------------------------------------
@@ -212,10 +227,12 @@ class SyncMetadataStore {
     String checkpoint,
   ) async {
     final row =
-        await (_db.select(_db.syncPendingAck)
-          ..where((t) => t.collection.equals(collection.wireName) &
-                t.checkpoint.equals(checkpoint))
-        ).getSingleOrNull();
+        await (_db.select(_db.syncPendingAck)..where(
+              (t) =>
+                  t.collection.equals(collection.wireName) &
+                  t.checkpoint.equals(checkpoint),
+            ))
+            .getSingleOrNull();
     return row != null;
   }
 
@@ -223,22 +240,28 @@ class SyncMetadataStore {
     SyncCollection collection,
     String checkpoint,
   ) async {
+    // Upsert: a crash/retry replays the same checkpoint, so the row may
+    // already exist. A plain insert would fail with a UNIQUE violation.
     await _db
         .into(_db.syncPendingAck)
-        .insert(SyncPendingAckData(
-          collection: collection.wireName,
-          checkpoint: checkpoint,
-        ));
+        .insertOnConflictUpdate(
+          SyncPendingAckData(
+            collection: collection.wireName,
+            checkpoint: checkpoint,
+          ),
+        );
   }
 
   Future<void> clearPendingAck(
     SyncCollection collection,
     String checkpoint,
   ) async {
-    await (_db.delete(_db.syncPendingAck)
-          ..where((t) => t.collection.equals(collection.wireName) &
-                t.checkpoint.equals(checkpoint))
-        ).go();
+    await (_db.delete(_db.syncPendingAck)..where(
+          (t) =>
+              t.collection.equals(collection.wireName) &
+              t.checkpoint.equals(checkpoint),
+        ))
+        .go();
   }
 
   Future<List<PendingCheckpoint>> allPendingCheckpoints() async {
@@ -262,19 +285,23 @@ class SyncMetadataStore {
   }) async {
     await _db.transaction(() async {
       for (final entry in acknowledgedVectors.entries) {
-        await _db.into(_db.syncAcknowledgedVector).insertOnConflictUpdate(
-          _ackVectorRow(entry.key, entry.value),
-        );
+        await _db
+            .into(_db.syncAcknowledgedVector)
+            .insertOnConflictUpdate(_ackVectorRow(entry.key, entry.value));
       }
-      await _db.into(_db.syncWatermark).insertOnConflictUpdate(
-        _watermarkRow(collection, watermark),
-      );
+      await _db
+          .into(_db.syncWatermark)
+          .insertOnConflictUpdate(_watermarkRow(collection, watermark));
+      // Upsert for the same crash/retry reason as [setPendingAck]: the row
+      // for this collection and checkpoint may already exist.
       await _db
           .into(_db.syncPendingAck)
-          .insert(SyncPendingAckData(
-            collection: collection.wireName,
-            checkpoint: checkpoint,
-          ));
+          .insertOnConflictUpdate(
+            SyncPendingAckData(
+              collection: collection.wireName,
+              checkpoint: checkpoint,
+            ),
+          );
     });
   }
 
@@ -289,10 +316,20 @@ class SyncMetadataStore {
   // --- Encoding helpers ---------------------------------------------------------
 
   Uint8List _encodeVector(VersionVector vector) =>
-    Uint8List.fromList(vector.encode());
+      Uint8List.fromList(vector.encode());
 
   VersionVector? _decodeVector(Uint8List? blob) =>
       blob == null ? null : VersionVector.decode(blob);
+
+  /// Decodes a stored vector, failing with context instead of a bare null
+  /// assertion when the stored blob is missing or undecodable.
+  VersionVector _requireVector(Uint8List? blob, String context) {
+    final vector = _decodeVector(blob);
+    if (vector == null) {
+      throw StateError('Missing stored version vector for $context.');
+    }
+    return vector;
+  }
 
   SyncWatermarkData _watermarkRow(
     SyncCollection collection,
@@ -311,8 +348,10 @@ class SyncMetadataStore {
     versionData: _encodeVector(vector),
   );
 
-  SyncCollection _collection(String wireName) => SyncCollection.values.firstWhere(
-    (collection) => collection.wireName == wireName,
-    orElse: () => throw FormatException('Unknown sync collection: $wireName'),
-  );
+  SyncCollection _collection(String wireName) =>
+      SyncCollection.values.firstWhere(
+        (collection) => collection.wireName == wireName,
+        orElse: () =>
+            throw FormatException('Unknown sync collection: $wireName'),
+      );
 }
