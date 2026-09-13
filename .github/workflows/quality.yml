@@ -1,0 +1,339 @@
+name: Quality
+
+on:
+  pull_request:
+    branches: [main]
+
+  push:
+    branches: [main]
+
+  merge_group:
+    branches: [main]
+
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    name: Format
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          channel: stable
+          flutter-version-file: app/pubspec.yaml
+          cache: true
+          pub-cache: true
+
+      - name: Get domain dependencies
+        working-directory: packages/domain
+        run: dart pub get
+
+      - name: Get sync dependencies
+        working-directory: packages/sync
+        run: dart pub get
+
+      - name: Get OCR dependencies
+        working-directory: packages/ocr
+        run: flutter pub get
+
+      - name: Get app dependencies
+        working-directory: app
+        run: flutter pub get
+
+      - name: Check domain formatting
+        working-directory: packages/domain
+        run: dart format --output=none --set-exit-if-changed .
+
+      - name: Check sync formatting
+        working-directory: packages/sync
+        run: dart format --output=none --set-exit-if-changed .
+
+      - name: Check OCR formatting
+        working-directory: packages/ocr
+        run: dart format --output=none --set-exit-if-changed .
+
+      - name: Check app formatting
+        working-directory: app
+        run: dart format --output=none --set-exit-if-changed .
+
+  analyze:
+    name: Analyze (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: domain
+            directory: packages/domain
+            pub_get: dart pub get
+            analyze: dart analyze
+
+          - name: sync
+            directory: packages/sync
+            pub_get: dart pub get
+            analyze: dart analyze
+
+          - name: ocr
+            directory: packages/ocr
+            pub_get: flutter pub get
+            analyze: flutter analyze
+
+          - name: app
+            directory: app
+            pub_get: flutter pub get
+            analyze: flutter analyze
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          channel: stable
+          flutter-version-file: app/pubspec.yaml
+          cache: true
+          pub-cache: true
+
+      - name: Get dependencies
+        working-directory: ${{ matrix.directory }}
+        run: ${{ matrix.pub_get }}
+
+      - name: Analyze
+        working-directory: ${{ matrix.directory }}
+        run: ${{ matrix.analyze }}
+
+  tests:
+    name: Tests (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: domain
+            directory: packages/domain
+            pub_get: dart pub get
+            test: dart test
+
+          - name: sync
+            directory: packages/sync
+            pub_get: dart pub get
+            test: dart test
+
+          - name: ocr
+            directory: packages/ocr
+            pub_get: flutter pub get
+            test: flutter test
+
+          - name: app
+            directory: app
+            pub_get: flutter pub get
+            test: flutter test --coverage
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          channel: stable
+          flutter-version-file: app/pubspec.yaml
+          cache: true
+          pub-cache: true
+
+      - name: Get dependencies
+        working-directory: ${{ matrix.directory }}
+        run: ${{ matrix.pub_get }}
+
+      - name: Run tests
+        working-directory: ${{ matrix.directory }}
+        run: ${{ matrix.test }}
+
+      - name: Write coverage summary
+        if: matrix.name == 'app'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          FILE="app/coverage/lcov.info"
+
+          if [ ! -f "$FILE" ]; then
+            echo "::error::Coverage file was not generated."
+            exit 1
+          fi
+
+          FOUND=$(awk -F: '/^LF:/{sum += $2} END {print sum+0}' "$FILE")
+          HIT=$(awk -F: '/^LH:/{sum += $2} END {print sum+0}' "$FILE")
+
+          if [ "$FOUND" -eq 0 ]; then
+            PERCENT="0.00"
+          else
+            PERCENT=$(awk \
+              -v hit="$HIT" \
+              -v found="$FOUND" \
+              'BEGIN { printf "%.2f", (hit / found) * 100 }')
+          fi
+
+          {
+            echo "## App test coverage"
+            echo
+            echo "| Metric | Result |"
+            echo "| --- | ---: |"
+            echo "| Lines hit | $HIT |"
+            echo "| Lines found | $FOUND |"
+            echo "| Line coverage | ${PERCENT}% |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage report
+        if: matrix.name == 'app'
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: spendwise-coverage
+          path: app/coverage/lcov.info
+          if-no-files-found: error
+          retention-days: 14
+
+  migrations:
+    name: Database migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          channel: stable
+          flutter-version-file: app/pubspec.yaml
+          cache: true
+          pub-cache: true
+
+      - name: Get dependencies
+        working-directory: app
+        run: flutter pub get
+
+      # Assumes database/migration tests live under app/test/persistence.
+      - name: Run persistence and migration tests
+        working-directory: app
+        run: flutter test test/persistence
+
+  generated-code:
+    name: Generated code drift
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          channel: stable
+          flutter-version-file: app/pubspec.yaml
+          cache: true
+          pub-cache: true
+
+      - name: Prepare code generation
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          : > /tmp/codegen-dirs
+
+          prepare_codegen() {
+            directory="$1"
+            package_type="$2"
+
+            if grep -Eq '^[[:space:]]*build_runner:' "$directory/pubspec.yaml"; then
+              echo "Found build_runner in $directory"
+              echo "$directory|$package_type" >> /tmp/codegen-dirs
+
+              if [ "$package_type" = "flutter" ]; then
+                (
+                  cd "$directory"
+                  flutter pub get
+                )
+              else
+                (
+                  cd "$directory"
+                  dart pub get
+                )
+              fi
+            else
+              echo "No build_runner in $directory; skipping."
+            fi
+          }
+
+          prepare_codegen packages/domain dart
+          prepare_codegen packages/sync dart
+          prepare_codegen packages/ocr flutter
+          prepare_codegen app flutter
+
+          # Record the repository state after dependency resolution so that
+          # package lockfiles created by `pub get` do not cause false positives.
+          git status --porcelain=v1 > /tmp/status-before-codegen
+
+      - name: Regenerate code
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          while IFS='|' read -r directory package_type; do
+            [ -z "$directory" ] && continue
+
+            echo "Running build_runner in $directory"
+
+            (
+              cd "$directory"
+              dart run build_runner build --delete-conflicting-outputs
+            )
+          done < /tmp/codegen-dirs
+
+      - name: Verify generated code is committed
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git status --porcelain=v1 > /tmp/status-after-codegen
+
+          if ! cmp -s /tmp/status-before-codegen /tmp/status-after-codegen; then
+            echo "::error::Generated code is out of date."
+            echo
+            echo "Repository changes caused by code generation:"
+            diff -u \
+              /tmp/status-before-codegen \
+              /tmp/status-after-codegen || true
+
+            echo
+            echo "Current repository status:"
+            git status --short
+
+            echo
+            echo "Tracked file diff:"
+            git diff
+
+            exit 1
+          fi
+
+          echo "Generated code is up to date."
