@@ -403,6 +403,13 @@ bool _mapEquals<K, V>(Map<K, V> a, Map<K, V> b) {
 int _hashList<T>(List<T> values) =>
     Object.hashAll(values.map((value) => value.hashCode));
 
-int _hashMap<K, V>(Map<K, V> map) => Object.hashAll(
-      map.entries.map((entry) => Object.hash(entry.key, entry.value)),
-    );
+/// Folds each entry's hash with XOR so the result ignores map insertion order,
+/// matching [_mapEquals]. Order-sensitive hashing would let two maps with the
+/// same entries produce different codes and break equals/hashCode.
+int _hashMap<K, V>(Map<K, V> map) {
+  var hash = 0;
+  for (final entry in map.entries) {
+    hash ^= Object.hash(entry.key, entry.value);
+  }
+  return hash;
+}

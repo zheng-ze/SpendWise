@@ -501,6 +501,46 @@ void main() {
         VersionVector(<String, int>{'dev': 1}),
       );
     });
+
+    test('hashCode ignores stamp insertion order', () {
+      final r1 = ReconcileResult(
+        changes: <LedgerChange>[UpsertEntry(testEntry(id: 'row-1'))],
+        stamps: <SyncRowID, VersionVector>{
+          SyncRowID.of(SyncCollection.entries, 'row-1'):
+              VersionVector(<String, int>{'dev': 1}),
+          SyncRowID.of(SyncCollection.entries, 'row-2'):
+              VersionVector(<String, int>{'dev': 1}),
+        },
+        stagedConflicts: <StagedConflict>[],
+      );
+      final r2 = ReconcileResult(
+        changes: <LedgerChange>[UpsertEntry(testEntry(id: 'row-1'))],
+        stamps: <SyncRowID, VersionVector>{
+          SyncRowID.of(SyncCollection.entries, 'row-2'):
+              VersionVector(<String, int>{'dev': 1}),
+          SyncRowID.of(SyncCollection.entries, 'row-1'):
+              VersionVector(<String, int>{'dev': 1}),
+        },
+        stagedConflicts: <StagedConflict>[],
+      );
+      expect(r1, equals(r2));
+      expect(r1.hashCode, r2.hashCode);
+    });
+  });
+
+  group('RowVersion equality', () {
+    test('independently built equal instances share hashCode', () {
+      final v1 = RowVersion(
+        versionVector: VersionVector(<String, int>{'dev': 1}),
+        lifecycle: SiblingLifecycle.live,
+      );
+      final v2 = RowVersion(
+        versionVector: VersionVector(<String, int>{'dev': 1}),
+        lifecycle: SiblingLifecycle.live,
+      );
+      expect(v1, equals(v2));
+      expect(v1.hashCode, v2.hashCode);
+    });
   });
 }
 
