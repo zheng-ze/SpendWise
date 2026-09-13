@@ -29,14 +29,18 @@ SubPocket testSubPocket({String? id}) => SubPocket(
       incomingTransfersAsExpenses: false,
     );
 
-TransactionCategory testCategory({String? id, String? parentID}) =>
+TransactionCategory testCategory({
+  String? id,
+  String? parentID,
+  bool nullParent = false,
+}) =>
     TransactionCategory(
       id: id ?? uuidCategories,
       name: 'Groceries',
       kind: CategoryKind.expense,
       colorHex: '#44AA55',
       includeInAnalysis: true,
-      parentID: parentID ?? uuidParent,
+      parentID: nullParent ? null : (parentID ?? uuidParent),
       symbol: 'food',
     );
 
@@ -60,12 +64,13 @@ EntryTemplate testTemplate() => EntryTemplate(
       includeInAnalysis: true,
     );
 
-RecurringPlan testPlan({DateTime? end}) => RecurringPlan(
+RecurringPlan testPlan({DateTime? end, bool nullEnd = false}) =>
+    RecurringPlan(
       id: uuidPlans,
       template: testTemplate(),
       frequency: RecurrenceFrequency.monthly,
       anchor: anchorDate,
-      endDate: end ?? endDate,
+      endDate: nullEnd ? null : (end ?? endDate),
       lastResolvedDate: resolvedDate,
     );
 

@@ -25,13 +25,15 @@ void main() {
       expect(codec.decodeChange(codec.encodeChange(change)), change);
     });
 
-    test('round-trips a category without a parent', () {
-      final change = UpsertCategory(testCategory(parentID: null));
+    test('round-trips a category with an actually-null parent', () {
+      final change = UpsertCategory(testCategory(nullParent: true));
+      expect(change.category.parentID, isNull);
       expect(codec.decodeChange(codec.encodeChange(change)), change);
     });
 
-    test('round-trips a plan with a null end date', () {
-      final change = UpsertPlan(testPlan(end: null));
+    test('round-trips a plan with an actually-null end date', () {
+      final change = UpsertPlan(testPlan(nullEnd: true));
+      expect(change.plan.endDate, isNull);
       expect(codec.decodeChange(codec.encodeChange(change)), change);
     });
   });
@@ -108,6 +110,92 @@ void main() {
       );
       final change = codec.decodeChange(payload) as UpsertPocket;
       expect(change.pocket.id, 'fake-uuid-upper');
+    });
+
+    test('decodes a mixed-case foreign-key id into lowercase', () {
+      final payload = utf8.encode(canonicalJson(<String, Object?>{
+        'version': 1,
+        'entity': 'entry',
+        'data': <String, Object?>{
+          'id': uuidEntries,
+          'date': '2024-03-15T00:00:00.000Z',
+          'amount': '-12.50',
+          'name': 'Coffee',
+          'categoryID': 'FAKE-CAT-UPPER',
+          'sourceID': uuidAccounts,
+          'destinationID': null,
+          'includeInAnalysis': true,
+          'lifecycle': 0,
+          'systemKind': null,
+        },
+      }));
+      final change = codec.decodeChange(payload) as UpsertEntry;
+      expect(change.entry.categoryID, 'fake-cat-upper');
+    });
+  });
+
+  group('malformed domain fields', () {
+    test('an unknown systemKind code is a PayloadDecodeError', () {
+      final payload = utf8.encode(canonicalJson(<String, Object?>{
+        'version': 1,
+        'entity': 'entry',
+        'data': <String, Object?>{
+          'id': uuidEntries,
+          'date': '2024-03-15T00:00:00.000Z',
+          'amount': '-12.50',
+          'name': 'Coffee',
+          'categoryID': null,
+          'sourceID': uuidAccounts,
+          'destinationID': null,
+          'includeInAnalysis': true,
+          'lifecycle': 0,
+          'systemKind': 99,
+        },
+      }));
+      expect(() => codec.decodeChange(payload),
+          throwsA(isA<PayloadDecodeError>()));
+    });
+
+    test('an unparseable date is a PayloadDecodeError', () {
+      final payload = utf8.encode(canonicalJson(<String, Object?>{
+        'version': 1,
+        'entity': 'entry',
+        'data': <String, Object?>{
+          'id': uuidEntries,
+          'date': 'not a date',
+          'amount': '-12.50',
+          'name': 'Coffee',
+          'categoryID': null,
+          'sourceID': uuidAccounts,
+          'destinationID': null,
+          'includeInAnalysis': true,
+          'lifecycle': 0,
+          'systemKind': null,
+        },
+      }));
+      expect(() => codec.decodeChange(payload),
+          throwsA(isA<PayloadDecodeError>()));
+    });
+
+    test('an unparseable amount is a PayloadDecodeError', () {
+      final payload = utf8.encode(canonicalJson(<String, Object?>{
+        'version': 1,
+        'entity': 'entry',
+        'data': <String, Object?>{
+          'id': uuidEntries,
+          'date': '2024-03-15T00:00:00.000Z',
+          'amount': 'not a number',
+          'name': 'Coffee',
+          'categoryID': null,
+          'sourceID': uuidAccounts,
+          'destinationID': null,
+          'includeInAnalysis': true,
+          'lifecycle': 0,
+          'systemKind': null,
+        },
+      }));
+      expect(() => codec.decodeChange(payload),
+          throwsA(isA<PayloadDecodeError>()));
     });
   });
 

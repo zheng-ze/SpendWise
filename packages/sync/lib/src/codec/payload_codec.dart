@@ -204,12 +204,13 @@ final class PayloadCodec {
     return UpsertAccount(Account(
       id: normalizedID(_str(data, 'id')),
       name: _str(data, 'name'),
-      type: AccountType.fromCode(_int(data, 'type')),
+      type: _fromCode('type', () => AccountType.fromCode(_int(data, 'type'))),
       subPocketIDs: subPocketIDs,
       incomingTransfersAsExpenses: _bool(data, 'incomingTransfersAsExpenses'),
       includeInNetWorth: _bool(data, 'includeInNetWorth'),
       statementDay: _intNullable(data, 'statementDay'),
-      lifecycle: LifecycleState.fromCode(_int(data, 'lifecycle')),
+      lifecycle: _fromCode(
+          'lifecycle', () => LifecycleState.fromCode(_int(data, 'lifecycle'))),
     ));
   }
 
@@ -219,7 +220,8 @@ final class PayloadCodec {
           name: _str(data, 'name'),
           incomingTransfersAsExpenses:
               _bool(data, 'incomingTransfersAsExpenses'),
-          lifecycle: LifecycleState.fromCode(_int(data, 'lifecycle')),
+          lifecycle: _fromCode(
+              'lifecycle', () => LifecycleState.fromCode(_int(data, 'lifecycle'))),
         ),
       );
 
@@ -227,41 +229,54 @@ final class PayloadCodec {
         TransactionCategory(
           id: normalizedID(_str(data, 'id')),
           name: _str(data, 'name'),
-          kind: CategoryKind.fromCode(_int(data, 'kind')),
+          kind: _fromCode('kind', () => CategoryKind.fromCode(_int(data, 'kind'))),
           colorHex: _str(data, 'colorHex'),
           includeInAnalysis: _bool(data, 'includeInAnalysis'),
-          parentID: _strNullable(data, 'parentID'),
+          parentID: normalizedOptionalID(_strNullable(data, 'parentID')),
           symbol: _str(data, 'symbol'),
-          lifecycle: LifecycleState.fromCode(_int(data, 'lifecycle')),
+          lifecycle: _fromCode(
+              'lifecycle', () => LifecycleState.fromCode(_int(data, 'lifecycle'))),
         ),
       );
 
-  LedgerChange _decodeEntry(Map<String, Object?> data) => UpsertEntry(
-        Entry(
-          id: normalizedID(_str(data, 'id')),
-          date: _dateTime(_str(data, 'date')),
-          amount: Decimal.parse(_str(data, 'amount')),
-          name: _str(data, 'name'),
-          categoryID: _strNullable(data, 'categoryID'),
-          sourceID: _str(data, 'sourceID'),
-          destinationID: _strNullable(data, 'destinationID'),
-          includeInAnalysis: _bool(data, 'includeInAnalysis'),
-          lifecycle: LifecycleState.fromCode(_int(data, 'lifecycle')),
-          systemKind:
-              SystemEntryKind.fromCode(_intNullable(data, 'systemKind')),
-        ),
-      );
+  LedgerChange _decodeEntry(Map<String, Object?> data) {
+    final systemKindCode = _intNullable(data, 'systemKind');
+    final systemKind = systemKindCode == null
+        ? null
+        : _fromCode('systemKind',
+            () => SystemEntryKind.fromCode(systemKindCode));
+    if (systemKindCode != null && systemKind == null) {
+      throw const PayloadDecodeError('Field systemKind is invalid.');
+    }
+    return UpsertEntry(
+      Entry(
+        id: normalizedID(_str(data, 'id')),
+        date: _dateTime('date', _str(data, 'date')),
+        amount: _fromCode('amount', () => Decimal.parse(_str(data, 'amount'))),
+        name: _str(data, 'name'),
+        categoryID: normalizedOptionalID(_strNullable(data, 'categoryID')),
+        sourceID: normalizedID(_str(data, 'sourceID')),
+        destinationID: normalizedOptionalID(_strNullable(data, 'destinationID')),
+        includeInAnalysis: _bool(data, 'includeInAnalysis'),
+        lifecycle: _fromCode(
+            'lifecycle', () => LifecycleState.fromCode(_int(data, 'lifecycle'))),
+        systemKind: systemKind,
+      ),
+    );
+  }
 
   LedgerChange _decodePlan(Map<String, Object?> data) => UpsertPlan(
         RecurringPlan(
           id: normalizedID(_str(data, 'id')),
           template: _decodeTemplate(data, 'template'),
-          frequency: RecurrenceFrequency.fromCode(_int(data, 'frequency')),
-          anchor: _dateTime(_str(data, 'anchor')),
+          frequency: _fromCode('frequency',
+              () => RecurrenceFrequency.fromCode(_int(data, 'frequency'))),
+          anchor: _dateTime('anchor', _str(data, 'anchor')),
           endDate: _strNullable(data, 'endDate') == null
               ? null
-              : _dateTime(_str(data, 'endDate')),
-          lastResolvedDate: _dateTime(_str(data, 'lastResolvedDate')),
+              : _dateTime('endDate', _str(data, 'endDate')),
+          lastResolvedDate: _dateTime(
+              'lastResolvedDate', _str(data, 'lastResolvedDate')),
         ),
       );
 
@@ -271,11 +286,11 @@ final class PayloadCodec {
       throw const PayloadDecodeError('Entry template must be an object.');
     }
     return EntryTemplate(
-      amount: Decimal.parse(_str(raw, 'amount')),
+      amount: _fromCode('amount', () => Decimal.parse(_str(raw, 'amount'))),
       name: _str(raw, 'name'),
-      categoryID: _strNullable(raw, 'categoryID'),
-      sourceID: _str(raw, 'sourceID'),
-      destinationID: _strNullable(raw, 'destinationID'),
+      categoryID: normalizedOptionalID(_strNullable(raw, 'categoryID')),
+      sourceID: normalizedID(_str(raw, 'sourceID')),
+      destinationID: normalizedOptionalID(_strNullable(raw, 'destinationID')),
       includeInAnalysis: _bool(raw, 'includeInAnalysis'),
     );
   }
@@ -283,7 +298,7 @@ final class PayloadCodec {
   LedgerChange _decodeBudget(Map<String, Object?> data) => UpsertBudget(
         Budget(
           id: normalizedID(_str(data, 'id')),
-          categoryID: _strNullable(data, 'categoryID'),
+          categoryID: normalizedOptionalID(_strNullable(data, 'categoryID')),
           limitEvents: <LimitEvent>[
             for (final raw in _list(data, 'limitEvents'))
               _decodeLimitEvent(raw),
@@ -299,8 +314,8 @@ final class PayloadCodec {
     }
     return LimitEvent(
       effectiveFromMonth: _decodeYearMonth(map['effectiveFromMonth']),
-      value: Decimal.parse(_str(map, 'value')),
-      kind: LimitEventKind.fromCode(_int(map, 'kind')),
+      value: _fromCode('value', () => Decimal.parse(_str(map, 'value'))),
+      kind: _fromCode('kind', () => LimitEventKind.fromCode(_int(map, 'kind'))),
     );
   }
 
@@ -315,7 +330,20 @@ final class PayloadCodec {
     return YearMonth(_int(raw, 'year'), _int(raw, 'month'));
   }
 
-  DateTime _dateTime(String iso) => DateTime.parse(iso).toUtc();
+  DateTime _dateTime(String field, String iso) =>
+      _fromCode(field, () => DateTime.parse(iso).toUtc());
+
+  /// Runs a domain-level decode that can throw on attacker-controlled content
+  /// (unknown enum codes, unparseable dates or amounts) and converts any
+  /// thrown exception into a [PayloadDecodeError] with a fixed, non-leaking
+  /// message.
+  T _fromCode<T>(String field, T Function() decode) {
+    try {
+      return decode();
+    } catch (_) {
+      throw PayloadDecodeError('Field $field is invalid.');
+    }
+  }
 
   String _str(Map<String, Object?> map, String key) {
     final value = map[key];
