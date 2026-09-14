@@ -275,8 +275,7 @@ class Account extends DataClass implements Insertable<Account> {
   final String name;
   final int type;
 
-  /// Parentage lives here alone, so a pocket row has no back pointer to read it
-  /// from.
+  /// Holds parentage here alone. A pocket row holds no parent link.
   final String subPocketIds;
   final bool incomingTransfersAsExpenses;
   final bool includeInNetWorth;
@@ -1259,7 +1258,7 @@ class Category extends DataClass implements Insertable<Category> {
   final String colorHex;
   final bool includeInAnalysis;
 
-  /// No foreign key: a category may outlive its parent as a reference-only row.
+  /// Holds no foreign key. A category can outlive its parent.
   final String? parentId;
   final String symbol;
   const Category({
@@ -1892,21 +1891,16 @@ class Entry extends DataClass implements Insertable<Entry> {
   final int lifecycle;
   final String id;
   final int date;
-
-  /// A float column would not round-trip the stored amount.
   final String amount;
   final String name;
   final String? categoryId;
   final String sourceId;
   final String? destinationId;
   final bool includeInAnalysis;
-
-  /// Reserved and never written by this version. Adding either column later
-  /// costs a migration, so they are claimed now while the schema is still v1.
   final String? note;
 
-  /// Marks a synthetic entry: 0 opening balance, 1 balance adjustment, null for
-  /// a user entry.
+  /// Marks a synthetic entry. 0 means opening balance, 1 means
+  /// balance adjustment, and null means a user entry.
   final int? systemKind;
   const Entry({
     required this.versionData,
@@ -3312,7 +3306,7 @@ class Budget extends DataClass implements Insertable<Budget> {
   final String id;
   final String? categoryId;
 
-  /// JSON-encoded array of {effectiveFromMonth, value, kind}.
+  /// Holds limit changes as JSON with month, value, and kind.
   final String limitEvents;
   final String createdAtMonth;
   const Budget({
@@ -3940,17 +3934,14 @@ class $SyncMetadataTable extends SyncMetadata
 class SyncMetadataRow extends DataClass implements Insertable<SyncMetadataRow> {
   final int id;
 
-  /// Selected backend profile and endpoint configuration. Null until
-  /// enrollment, so a pre-enrollment read never infers a backend.
+  /// Holds the selected backend. Stays null until enrollment.
   final String? backendSelection;
 
-  /// Monotonic durable enrollment phase, stored as its explicit code. Null
-  /// before enrollment starts; only a reconciliation-complete phase permits
-  /// the idempotent gate flip.
+  /// Holds the enrollment phase as its explicit code. Stays null before
+  /// enrollment starts.
   final int? enrollmentPhase;
 
-  /// Whether new sync runs may start. Defaults off so a fresh or migrated
-  /// store never enables writes before enrollment.
+  /// Whether new sync runs start. Defaults off.
   final bool writeGate;
   const SyncMetadataRow({
     required this.id,
@@ -4995,12 +4986,12 @@ class $SyncStagingGroupTable extends SyncStagingGroup
 
 class SyncStagingGroupData extends DataClass
     implements Insertable<SyncStagingGroupData> {
-  /// Insertion order: oldest-first ordering reads this column ascending.
+  /// Orders groups oldest first when read ascending.
   final int sequence;
   final String collection;
   final String rowID;
 
-  /// JSON-serialized, decrypted staged siblings for this group.
+  /// Holds the decrypted staged siblings for this group as JSON.
   final Uint8List siblings;
   const SyncStagingGroupData({
     required this.sequence,
