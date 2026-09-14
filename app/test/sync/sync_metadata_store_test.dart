@@ -47,8 +47,8 @@ void main() {
 
       await store.setBackendSelection(null);
 
-      // A fresh store over the same database observes the cleared value, so
-      // the null was written to the row rather than omitted from the update.
+      // A fresh store over the same database observes the cleared value,
+      // so the update wrote the null rather than omitting it.
       expect(await SyncMetadataStore(db).getBackendSelection(), isNull);
     });
 
@@ -117,8 +117,8 @@ void main() {
       await store.setPhase(EnrollmentPhase.reconciliationComplete);
       await store.setWriteGateEnabled(true);
 
-      // Already enabled: succeeds without requiring the phase again, even
-      // after the phase advances past reconciliationComplete.
+      // Already enabled, so the call succeeds without the phase check
+      // even after the phase advances.
       await store.setPhase(EnrollmentPhase.gateEnabled);
       await store.setWriteGateEnabled(true);
 
@@ -139,10 +139,8 @@ void main() {
 
     test('concurrent scalar mutations lose no write', () async {
       await store.setPhase(EnrollmentPhase.reconciliationComplete);
-      // A non-null seed is the point: a read-then-upsert without a
-      // transaction would write this stale value back over the concurrent
-      // update. (A null seed would be omitted from the SET clause and mask
-      // the race.)
+      // Seeds a non-null value so a lost update would overwrite it.
+      // A null seed would hide the race.
       await store.setBackendSelection('profile-seed');
 
       await Future.wait([
@@ -191,8 +189,7 @@ void main() {
         final all = await store.getAllWatermarks();
         expect(all.keys.toSet(), equals(SyncCollection.values.toSet()));
         expect(all.length, 5);
-        // The cursor hands straight to PullRequest(cursor: ...): opaque and
-        // server-assigned, never a version vector.
+        // The stored cursor stays opaque and never holds a version vector.
         expect(
           PullRequest(
             collection: SyncCollection.entries,
@@ -442,11 +439,11 @@ void main() {
           throwsA(isA<Exception>()),
         );
 
-        // The failed commit left no partial state behind.
+        // The failed commit leaves no partial state behind.
         expect(await store.getAcknowledgedVector(entryRowE1), isNull);
         expect(await store.getWatermark(SyncCollection.entries), isNull);
 
-        // Pre-existing state is exactly as it was before the call.
+        // Pre-existing state stays exactly as before the call.
         expect(
           await store.getAcknowledgedVector(seededRow),
           VersionVector({'d': 1}),
@@ -459,9 +456,8 @@ void main() {
     );
 
     test('committed page state survives close and reopen', () async {
-      // Reopening one file-backed database as two `LedgerDatabase` instances
-      // is what separates durable metadata from an in-memory cache, so
-      // drift's warning against it is silenced for this test.
+      // Opens one file with two database objects to prove durable metadata.
+      // Silences the multiple-database warning for this test.
       driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
       addTearDown(
         () => driftRuntimeOptions.dontWarnAboutMultipleDatabases = false,
@@ -518,9 +514,7 @@ void main() {
     });
 
     test('ack vectors and the page watermark stay in lockstep', () async {
-      // commitPullPage bundles the ack vectors, the page watermark, and the
-      // pending ack in one Drift transaction, so every read reflects the whole
-      // page rather than a partially committed one.
+      // Reads reflect the whole page, never a partially committed one.
       await store.commitPullPage(
         collection: SyncCollection.entries,
         checkpoint: 'cp-10',

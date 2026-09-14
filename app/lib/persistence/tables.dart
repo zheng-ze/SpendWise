@@ -1,6 +1,6 @@
 import 'package:drift/drift.dart';
 
-/// `store_meta` is device-local and so is the one table that stays out.
+/// Marks tables that sync. StoreMeta omits it to stay device-local.
 mixin SyncedRow on Table {
   BlobColumn get versionData => blob().named('version_data')();
 
@@ -14,8 +14,7 @@ class Accounts extends Table with SyncedRow {
 
   IntColumn get type => integer()();
 
-  /// Parentage lives here alone, so a pocket row has no back pointer to read it
-  /// from.
+  /// Holds parentage here alone. A pocket row holds no parent link.
   TextColumn get subPocketIds => text().named('sub_pocket_ids')();
 
   BoolColumn get incomingTransfersAsExpenses =>
@@ -52,7 +51,7 @@ class Categories extends Table with SyncedRow {
 
   BoolColumn get includeInAnalysis => boolean().named('include_in_analysis')();
 
-  /// No foreign key: a category may outlive its parent as a reference-only row.
+  /// Holds no foreign key. A category can outlive its parent.
   TextColumn get parentId => text().named('parent_id').nullable()();
 
   TextColumn get symbol => text()();
@@ -66,7 +65,7 @@ class Entries extends Table with SyncedRow {
 
   IntColumn get date => integer()();
 
-  /// A float column would not round-trip the stored amount.
+  // Text keeps the stored amount exact.
   TextColumn get amount => text()();
 
   TextColumn get name => text()();
@@ -79,12 +78,11 @@ class Entries extends Table with SyncedRow {
 
   BoolColumn get includeInAnalysis => boolean().named('include_in_analysis')();
 
-  /// Reserved and never written by this version. Adding either column later
-  /// costs a migration, so they are claimed now while the schema is still v1.
+  // Reserves the column. This version never writes it.
   TextColumn get note => text().nullable()();
 
-  /// Marks a synthetic entry: 0 opening balance, 1 balance adjustment, null for
-  /// a user entry.
+  /// Marks a synthetic entry. 0 means opening balance, 1 means
+  /// balance adjustment, and null means a user entry.
   IntColumn get systemKind => integer().named('system_kind').nullable()();
 
   @override
@@ -126,7 +124,7 @@ class Budgets extends Table with SyncedRow {
 
   TextColumn get categoryId => text().named('category_id').nullable()();
 
-  /// JSON-encoded array of {effectiveFromMonth, value, kind}.
+  /// Holds limit changes as JSON with month, value, and kind.
   TextColumn get limitEvents => text().named('limit_events')();
 
   TextColumn get createdAtMonth => text().named('created_at_month')();
@@ -135,24 +133,20 @@ class Budgets extends Table with SyncedRow {
   Set<Column<Object>> get primaryKey => {id};
 }
 
-/// Device-local sync metadata, fixed to one row. Backend selection stays null
-/// until enrollment. Enrollment phase and the write gate live here and carry
-/// neither a bearer token, E2E key, opaque credential, nor a second device ID.
+/// Holds device-local sync metadata in one row. Backend selection stays
+/// null until enrollment.
 @DataClassName('SyncMetadataRow')
 class SyncMetadata extends Table {
   IntColumn get id => integer()();
 
-  /// Selected backend profile and endpoint configuration. Null until
-  /// enrollment, so a pre-enrollment read never infers a backend.
+  /// Holds the selected backend. Stays null until enrollment.
   TextColumn get backendSelection => text().nullable()();
 
-  /// Monotonic durable enrollment phase, stored as its explicit code. Null
-  /// before enrollment starts; only a reconciliation-complete phase permits
-  /// the idempotent gate flip.
+  /// Holds the enrollment phase as its explicit code. Stays null before
+  /// enrollment starts.
   IntColumn get enrollmentPhase => integer().nullable()();
 
-  /// Whether new sync runs may start. Defaults off so a fresh or migrated
-  /// store never enables writes before enrollment.
+  /// Whether new sync runs start. Defaults off.
   BoolColumn get writeGate => boolean().withDefault(const Constant(false))();
 
   @override
@@ -162,10 +156,7 @@ class SyncMetadata extends Table {
   List<String> get customConstraints => ['CHECK (id = 0)'];
 }
 
-/// One per-collection pull position, stored as the opaque server-assigned
-/// cursor from the last staged and acknowledged page. Five rows, one for
-/// each sync collection. Never a version vector: the fixed snapshot
-/// watermark used during initial reconciliation is a separate value.
+/// Holds one opaque pull cursor per collection. Never holds a version vector.
 class SyncWatermark extends Table {
   TextColumn get collection => text()();
 
@@ -175,8 +166,7 @@ class SyncWatermark extends Table {
   Set<Column<Object>> get primaryKey => {collection};
 }
 
-/// A version vector the backend has acknowledged for one normalized collection
-/// and row id, so identical UUIDs in different collections stay independent.
+/// Holds one acknowledged version vector per collection and row.
 class SyncAcknowledgedVector extends Table {
   TextColumn get collection => text()();
 
@@ -188,8 +178,8 @@ class SyncAcknowledgedVector extends Table {
   Set<Column<Object>> get primaryKey => {collection, rowID};
 }
 
-/// A pull-page acknowledgement still owed to the backend, keyed by collection
-/// and checkpoint. Retained across failures until acknowledged succeeds.
+/// Holds one owed pull acknowledgement per collection and checkpoint.
+/// Stays durable across failures until cleared.
 class SyncPendingAck extends Table {
   TextColumn get collection => text()();
 
@@ -199,25 +189,25 @@ class SyncPendingAck extends Table {
   Set<Column<Object>> get primaryKey => {collection, checkpoint};
 }
 
-/// One durable conflict group: the decrypted staged siblings for one collection
-/// and row, ordered oldest first by the auto-increment sequence.
+/// Holds one durable conflict group per collection and row. Reads oldest
+/// first by sequence.
 class SyncStagingGroup extends Table {
-  /// Insertion order: oldest-first ordering reads this column ascending.
+  /// Orders groups oldest first when read ascending.
   IntColumn get sequence => integer().autoIncrement()();
 
   TextColumn get collection => text()();
 
   TextColumn get rowID => text().named('row_id')();
 
-  /// JSON-serialized, decrypted staged siblings for this group.
+  /// Holds the decrypted staged siblings for this group as JSON.
   BlobColumn get siblings => blob().named('sibling_data')();
 
   @override
   List<String> get customConstraints => ['UNIQUE (collection, row_id)'];
 }
 
-/// Device-local, so it carries neither a version vector nor a lifecycle. The
-/// fixed key holds it to one row.
+/// Holds device-local metadata in one row. Carries neither version nor
+/// lifecycle.
 @DataClassName('StoreMetaRow')
 class StoreMeta extends Table {
   IntColumn get id => integer()();

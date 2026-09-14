@@ -7,8 +7,8 @@ import 'package:sync/sync.dart';
 import 'package:spendwise/persistence/ledger_database.dart';
 import 'package:spendwise/sync/drift_sync_staging_store.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
-/// Opens a raw connection without running any migration, so the test can
-/// inspect the schema a failed migration left behind.
+
+// Opens a raw connection without running migrations for schema probes.
 final class _NoMigration implements QueryExecutorUser {
   const _NoMigration();
 
@@ -30,10 +30,8 @@ void main() {
     db = null;
   });
 
-  /// Reads the exact CREATE TABLE statement drift generates for [table] from
-  /// a scratch database, so the pre-upgrade fixture uses the real v3-era DDL
-  /// instead of a hand-written approximation. The v4 change was purely
-  /// additive, so the current user-table DDL is the v3 DDL.
+  // Reads the real CREATE TABLE statement from a scratch database
+  // for the pre-upgrade fixture.
   Future<String> userTableDdl(String table) async {
     final scratch = LedgerDatabase(NativeDatabase.memory());
     try {
@@ -49,10 +47,8 @@ void main() {
     }
   }
 
-  /// Opens a database that already lived through schema v3, so constructing
-  /// the v4 [LedgerDatabase] on it runs the v3-to-v4 upgrade path instead of
-  /// a fresh create. The fixture carries a representative pre-v4 account row,
-  /// so upgrade tests prove existing user data survives the migration.
+  // Opens a v3 database with one account row, so the open runs the upgrade.
+  // Proves existing user data survives the migration.
   Future<LedgerDatabase> openUpgraded() async {
     final accountsDdl = await userTableDdl('accounts');
     final executor = NativeDatabase.memory(
@@ -171,12 +167,8 @@ void main() {
         final path = '${directory.path}${Platform.pathSeparator}ledger.db';
         final accountsDdl = await userTableDdl('accounts');
 
-        // First open: the fixture plants a `sync_pending_ack` table, so the
-        // migration's fourth CREATE TABLE fails with "already exists" after
-        // the first three succeeded, the way a crash or storage failure
-        // partway through would. The planted table stands in for any
-        // pre-existing object: rollback must preserve it while removing
-        // exactly the three tables the failed migration created.
+        // Plants a conflicting table so the migration fails partway.
+        // Rollback keeps the plant and removes what the run created.
         final failingDb = LedgerDatabase(
           NativeDatabase(
             File(path),
@@ -205,9 +197,8 @@ void main() {
         );
         await failingDb.close();
 
-        // Reads the sync tables and the schema version through a raw
-        // connection with migrations disabled, so the probe itself never
-        // stamps a version or runs the upgrade it is inspecting.
+        // Probes through a raw connection without migrations, so the probe
+        // never changes the version or runs the upgrade.
         Future<({Set<String> tables, int version})> probeSchema() async {
           final probe = NativeDatabase(
             File(path),
@@ -235,11 +226,8 @@ void main() {
           }
         }
 
-        // The failed migration left no partial schema behind: only the
-        // planted table remains, and the version is still 3. Without one
-        // enclosing transaction, the three successful CREATE TABLEs would
-        // still exist here and the retry below would fail with "table
-        // already exists", permanently blocking the database from opening.
+        // The failed run leaves no partial schema. Only the plant remains
+        // with the version still at 3.
         final failed = await probeSchema();
         expect(failed.tables, {'sync_pending_ack'});
         expect(failed.version, 3);
@@ -306,7 +294,7 @@ void main() {
     final metadata = SyncMetadataStore(database);
     final staging = await DriftSyncStagingStore.open(database);
 
-    // Pre-enrollment defaults on the migrated store.
+    // Checks pre-enrollment defaults on the migrated store.
     expect(await metadata.getBackendSelection(), isNull);
     expect(await metadata.getPhase(), isNull);
     expect(await metadata.isWriteGateEnabled(), isFalse);

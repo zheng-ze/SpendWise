@@ -21,15 +21,14 @@ void main() {
   });
 
   tearDown(() async {
-    // Drain write-through writes before closing: stage/resolve return
+    // Drains write-through writes before closing. Staging calls return
     // synchronously and persist in the background.
     await store.flush();
     await db.close();
   });
 
-  /// Builds a conflict group with [siblingCount] mutually concurrent siblings
-  /// for [change]. Each sibling carries its own device vector, so no sibling
-  /// causally dominates another and the group is valid.
+  // Builds a valid group. Each sibling uses its own vector so none
+  // dominates another.
   StagedConflict makeGroup(LedgerChange change, {int siblingCount = 2}) {
     final collection = collectionFor(change);
     final rowID = normalizedID(change.targetID);
@@ -162,9 +161,8 @@ void main() {
     test(
       'stage replaces only the matching collection for one shared row id',
       () async {
-        // The same normalized row id in two collections stages two groups.
-        // Replacing the entries group must leave the categories group intact,
-        // proving replacement keys on (collection, rowID), not row ID alone.
+        // Stages one shared row id in two collections. Replacing one group
+        // leaves the other intact.
         store.stage(makeGroup(changeFor(SyncCollection.entries, 'e1')));
         store.stage(makeGroup(changeFor(SyncCollection.categories, 'e1')));
         expect(store.pendingConflicts, hasLength(2));
@@ -185,8 +183,7 @@ void main() {
         expect(entries.siblings, hasLength(3));
         expect(categories.siblings, hasLength(2));
 
-        // The durable rows agree with the cache: two rows keyed by the
-        // composite (collection, row_id).
+        // The durable rows match the cache with two keyed rows.
         final reloaded = await DriftSyncStagingStore.open(db);
         expect(reloaded.pendingConflicts, hasLength(2));
         expect(
@@ -205,7 +202,7 @@ void main() {
     });
 
     test('resolve is an idempotent no-op when the group is absent', () {
-      // Nothing staged; resolving must not throw.
+      // No group exists. Resolving throws nothing.
       store.resolve(makeGroup(changeFor(SyncCollection.entries, 'e1')));
       expect(store.pendingConflicts, isEmpty);
 
@@ -238,8 +235,8 @@ void main() {
       // Reloading from Drift reconstructs the same in-memory state.
       final reloaded = await DriftSyncStagingStore.open(db);
       final read = reloaded.pendingConflicts.single;
-      // Equality compares collection, row id, and every sibling (decoded change,
-      // version vector, and sibling id), so the roundtrip preserved the group.
+      // Equality checks every sibling field, so the roundtrip preserves
+      // the group.
       expect(read, conflict);
     });
 
@@ -272,9 +269,8 @@ void main() {
     });
 
     test('staged siblings survive close and reopen', () async {
-      // Reopening one file-backed database as two `LedgerDatabase` instances
-      // is what separates persisted staging from an in-memory cache, so
-      // drift's warning against it is silenced for this test.
+      // Opens one file with two database objects to prove durable staging.
+      // Silences the multiple-database warning for this test.
       driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
       addTearDown(
         () => driftRuntimeOptions.dontWarnAboutMultipleDatabases = false,
@@ -324,12 +320,11 @@ void main() {
         local.stage(makeGroup(changeFor(SyncCollection.entries, 'e1')));
         await expectLater(local.flush(), throwsA(isA<Exception>()));
         expect(failures, hasLength(1));
-        // The cache holds what Drift lost: the divergence the callback makes
-        // observable instead of silent.
+        // The cache keeps what the database lost for the callback to show.
         expect(local.pendingConflicts, hasLength(1));
 
-        // A failed write never blocks later ones: the next write is attempted
-        // and reported too, instead of the queue stalling.
+        // A failed write never blocks later ones. The next write still runs
+        // and reports.
         local.resolve(makeGroup(changeFor(SyncCollection.entries, 'e1')));
         await expectLater(local.flush(), throwsA(isA<Exception>()));
         expect(failures, hasLength(2));
@@ -364,23 +359,21 @@ void main() {
         await localDb.customStatement('DROP TABLE sync_staging_group');
 
         local.stage(makeGroup(changeFor(SyncCollection.entries, 'e1')));
-        // Wait until the first write has actually failed before restoring
-        // the table, so the failure/success split is deterministic rather
-        // than a race between the background write and the DDL below.
+        // Waits for the first failure before restoring the table. This keeps
+        // the failure and success split deterministic.
         await firstFailure.future;
 
-        // Restore the table with its real DDL: the next write succeeds.
+        // Restores the table from saved DDL, so the next write succeeds.
         await localDb.customStatement(stagingDdl.read<String>('sql'));
         local.stage(makeGroup(changeFor(SyncCollection.entries, 'e2')));
 
-        // The later write succeeded, but flush still surfaces the earlier
-        // failure: without this, staged state the cache holds would read as
-        // durable when it never reached Drift.
+        // The later write succeeds, but flush still reports the earlier
+        // failure that never reached the database.
         await expectLater(local.flush(), throwsA(isA<Exception>()));
         expect(failures, hasLength(1));
 
-        // The cache holds both groups, but only the succeeding write reached
-        // Drift: a reload reconstructs just the durable one.
+        // The cache holds both groups, but only the later write reached
+        // the database.
         expect(
           local.pendingConflicts.map((group) => group.rowID).toList(),
           ['e1', 'e2'],

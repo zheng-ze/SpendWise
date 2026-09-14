@@ -28,23 +28,15 @@ class LedgerDatabase extends _$LedgerDatabase {
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onUpgrade: (db, from, to) async {
-      // Sync stores enter at v4: create every table the sync layer needs.
+      // Creates sync tables for upgrades from before v4.
       if (from < 4) {
         await _createSyncTables(db);
       }
     },
   );
 
-  /// Creates the five additive sync tables introduced at schema v4. The DDL
-  /// mirrors the table definitions in `tables.dart` so a live database gains
-  /// exactly the columns the generated rows expect. Table-level CHECK
-  /// constraints trail the column definitions because SQLite rejects them
-  /// between columns.
-  ///
-  /// The five statements share one transaction: a crash or storage failure
-  /// partway through rolls every CREATE TABLE back instead of leaving a
-  /// partial v4 schema behind at `user_version` 3, which the next launch
-  /// could never open again ("table already exists" on retry).
+  // Creates sync tables in one transaction so a crash rolls back a
+  // partial upgrade. Keeps CHECK constraints after columns.
   Future<void> _createSyncTables(Migrator db) async {
     await db.database.transaction(() async {
       await db.database.customStatement(

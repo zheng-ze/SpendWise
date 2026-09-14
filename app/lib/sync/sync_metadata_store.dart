@@ -4,8 +4,8 @@ import 'package:sync/sync.dart';
 
 import 'package:spendwise/persistence/ledger_database.dart';
 
-/// Monotonic durable enrollment milestones. Stored as the enum's explicit
-/// `code`, never its `index`. Null before enrollment starts.
+/// Holds durable enrollment milestones. Stores each phase as its code,
+/// never its index. Stays null before enrollment starts.
 enum EnrollmentPhase {
   credentialAcquired('credentialAcquired', 0),
   snapshotKeyWorkInProgress('snapshotKeyWorkInProgress', 1),
@@ -27,8 +27,8 @@ enum EnrollmentPhase {
   );
 }
 
-/// Error thrown when enabling the sync write gate before durable enrollment
-/// records reconciliation complete. Disabling the gate never throws.
+/// Signals an early write-gate enable before reconciliation completes.
+/// Disabling the gate never throws.
 final class WriteGateNotReadyError implements Exception {
   const WriteGateNotReadyError(this.message);
 
@@ -39,8 +39,7 @@ final class WriteGateNotReadyError implements Exception {
 }
 
 /// One owed pull-page acknowledgement, keyed by collection and checkpoint.
-///
-/// Retained across failures and restarts until the backend confirms success.
+/// Survives failures and restarts until the backend confirms success.
 @immutable
 final class PendingCheckpoint {
   const PendingCheckpoint(this.collection, this.checkpoint);
@@ -61,16 +60,8 @@ final class PendingCheckpoint {
   String toString() => 'PendingCheckpoint($collection, $checkpoint)';
 }
 
-/// Drift-backed sync metadata for one device.
-///
-/// Owns the backend selection, durable enrollment phases, the write gate, the
-/// five per-collection watermarks, the acknowledged vectors keyed by
-/// [SyncRowID], and the pending pull acknowledgements keyed by collection and
-/// checkpoint.
-///
-/// Every mutation that touches more than one of these values commits inside a
-/// single Drift transaction, so a combined pulled-vector, page-watermark, and
-/// pending-acknowledgement update commits all of them or none.
+/// Holds sync metadata for one device.
+/// Multi-value updates commit atomically.
 class SyncMetadataStore {
   SyncMetadataStore(this._db);
 
@@ -78,10 +69,7 @@ class SyncMetadataStore {
 
   static const _metaRowId = 0;
 
-  // --- Scalars fixed to one row -------------------------------------------------
-
-  /// Ensures the scalar row exists before a read, so a fresh or migrated
-  /// store reports pre-enrollment defaults instead of a missing row.
+  // Keeps fresh or migrated stores on pre-enrollment defaults.
   Future<SyncMetadataRow> _ensureScalar() async {
     final row =
         await (_db.select(
@@ -102,9 +90,8 @@ class SyncMetadataStore {
   }
 
   Future<void> setBackendSelection(String? profileID) async {
-    // The companion carries an explicit present null so clearing the
-    // selection writes NULL. A plain data-class upsert would omit the null
-    // column from the SET clause and silently keep the old value.
+    // Clears to NULL with an explicit present null. A plain upsert omits
+    // the null column and keeps the old value.
     await _db.transaction(() async {
       final existing = await _ensureScalar();
       await _db
@@ -127,9 +114,8 @@ class SyncMetadataStore {
   }
 
   Future<void> setPhase(EnrollmentPhase phase) async {
-    // The read and the upsert share one transaction so two concurrent scalar
-    // mutations serialize instead of interleaving read-read-write-write and
-    // losing one write.
+    // Shares one transaction so concurrent scalar writes serialize
+    // instead of losing one update.
     await _db.transaction(() async {
       final existing = await _ensureScalar();
       await _db
@@ -150,11 +136,8 @@ class SyncMetadataStore {
     return row.writeGate;
   }
 
-  /// Enables the write gate only once durable enrollment records
-  /// [EnrollmentPhase.reconciliationComplete]. Enabling an already-enabled
-  /// gate is an idempotent no-op; disabling the gate has no restriction.
-  ///
-  /// Throws [WriteGateNotReadyError] when enabling from any earlier phase.
+  /// Enables the write gate after reconciliation completes. Repeat enables
+  /// stay enabled. Throws [WriteGateNotReadyError] when enabling early.
   Future<void> setWriteGateEnabled(bool enabled) async {
     await _db.transaction(() async {
       final existing = await _ensureScalar();
@@ -181,11 +164,8 @@ class SyncMetadataStore {
     });
   }
 
-  // --- Per-collection watermarks ------------------------------------------------
-
-  /// Returns the opaque server-assigned pull cursor for [collection], or null
-  /// when no page has been committed yet. The cursor hands straight to
-  /// `PullRequest(cursor: ...)` on the next pull.
+  /// Returns the opaque pull cursor for [collection]. Returns null when no
+  /// page has been committed yet.
   Future<String?> getWatermark(SyncCollection collection) async {
     final row =
         await (_db.select(_db.syncWatermark)
@@ -206,8 +186,6 @@ class SyncMetadataStore {
       for (final row in rows) _collection(row.collection): row.cursor,
     };
   }
-
-  // --- Acknowledged vectors keyed by SyncRowID ----------------------------------
 
   Future<VersionVector?> getAcknowledgedVector(SyncRowID rowID) async {
     final row =
@@ -253,8 +231,6 @@ class SyncMetadataStore {
         .go();
   }
 
-  // --- Pending pull acknowledgements --------------------------------------------
-
   Future<bool> hasPendingAck(
     SyncCollection collection,
     String checkpoint,
@@ -273,8 +249,8 @@ class SyncMetadataStore {
     SyncCollection collection,
     String checkpoint,
   ) async {
-    // Upsert: a crash/retry replays the same checkpoint, so the row may
-    // already exist. A plain insert would fail with a UNIQUE violation.
+    // Replays after a crash reuse the same checkpoint. A plain insert
+    // fails when the row already exists.
     await _db
         .into(_db.syncPendingAck)
         .insertOnConflictUpdate(
@@ -305,11 +281,8 @@ class SyncMetadataStore {
     ];
   }
 
-  // --- Atomic multi-value commits -----------------------------------------------
-
-  /// Commits the acknowledged vectors for a pulled page, that page's
-  /// watermark, and its pending acknowledgement together. All of them commit
-  /// inside one Drift transaction, or the whole commit rolls back.
+  /// Commits page vectors, watermark, and pending acknowledgement together.
+  /// Rolls back the whole commit when any part fails.
   Future<void> commitPullPage({
     required SyncCollection collection,
     required String checkpoint,
@@ -325,8 +298,8 @@ class SyncMetadataStore {
       await _db
           .into(_db.syncWatermark)
           .insertOnConflictUpdate(_watermarkRow(collection, watermark));
-      // Upsert for the same crash/retry reason as [setPendingAck]: the row
-      // for this collection and checkpoint may already exist.
+      // Reuses the checkpoint after a crash. A plain insert fails when the
+      // row already exists.
       await _db
           .into(_db.syncPendingAck)
           .insertOnConflictUpdate(
@@ -346,16 +319,13 @@ class SyncMetadataStore {
     await clearPendingAck(collection, checkpoint);
   }
 
-  // --- Encoding helpers ---------------------------------------------------------
-
   Uint8List _encodeVector(VersionVector vector) =>
       Uint8List.fromList(vector.encode());
 
   VersionVector? _decodeVector(Uint8List? blob) =>
       blob == null ? null : VersionVector.decode(blob);
 
-  /// Decodes a stored vector, failing with context instead of a bare null
-  /// assertion when the stored blob is missing or undecodable.
+  // Fails with context so a missing blob points to its row.
   VersionVector _requireVector(Uint8List? blob, String context) {
     final vector = _decodeVector(blob);
     if (vector == null) {
