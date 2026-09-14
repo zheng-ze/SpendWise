@@ -13,12 +13,40 @@ void main() {
     db = null;
   });
 
+  /// Reads the exact CREATE TABLE statement drift generates for [table] from
+  /// a scratch database, so the pre-upgrade fixture uses the real v3-era DDL
+  /// instead of a hand-written approximation. The v4 change was purely
+  /// additive, so the current user-table DDL is the v3 DDL.
+  Future<String> userTableDdl(String table) async {
+    final scratch = LedgerDatabase(NativeDatabase.memory());
+    try {
+      await scratch.customSelect('SELECT 1').get();
+      final row = await scratch
+          .customSelect(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = '$table'",
+          )
+          .getSingle();
+      return row.read<String>('sql');
+    } finally {
+      await scratch.close();
+    }
+  }
+
   /// Opens a database that already lived through schema v3, so constructing
   /// the v4 [LedgerDatabase] on it runs the v3-to-v4 upgrade path instead of
-  /// a fresh create.
+  /// a fresh create. The fixture carries a representative pre-v4 account row,
+  /// so upgrade tests prove existing user data survives the migration.
   Future<LedgerDatabase> openUpgraded() async {
+    final accountsDdl = await userTableDdl('accounts');
     final executor = NativeDatabase.memory(
       setup: (raw) {
+        raw.execute(accountsDdl);
+        raw.execute(
+          'INSERT INTO accounts (id, name, type, sub_pocket_ids, '
+          'incoming_transfers_as_expenses, include_in_net_worth, '
+          'statement_day, version_data, lifecycle) '
+          "VALUES ('acct-1', 'Cash', 0, '[]', 0, 1, NULL, X'00', 0)",
+        );
         raw.execute('PRAGMA user_version = 3');
       },
     );
@@ -69,6 +97,24 @@ void main() {
         )
         .getSingle();
     expect(metadataSql.read<String>('sql'), contains('CHECK (id = 0)'));
+  });
+
+  test('v3 to v4 upgrade preserves existing user data', () async {
+    final database = await openUpgraded();
+
+    // The pre-v4 account row is still present, unchanged, after the upgrade.
+    final accounts = await database.select(database.accounts).get();
+    expect(accounts, hasLength(1));
+    final account = accounts.single;
+    expect(account.id, 'acct-1');
+    expect(account.name, 'Cash');
+    expect(account.type, 0);
+    expect(account.subPocketIds, '[]');
+    expect(account.incomingTransfersAsExpenses, isFalse);
+    expect(account.includeInNetWorth, isTrue);
+    expect(account.statementDay, isNull);
+    expect(account.versionData, [0]);
+    expect(account.lifecycle, 0);
   });
 
   test('upgraded payload columns reject null like a fresh database', () async {
