@@ -136,6 +136,27 @@ void main() {
       await store.setWriteGateEnabled(false);
       expect(await store.isWriteGateEnabled(), isFalse);
     });
+
+    test('concurrent scalar mutations lose no write', () async {
+      await store.setPhase(EnrollmentPhase.reconciliationComplete);
+      // A non-null seed is the point: a read-then-upsert without a
+      // transaction would write this stale value back over the concurrent
+      // update. (A null seed would be omitted from the SET clause and mask
+      // the race.)
+      await store.setBackendSelection('profile-seed');
+
+      await Future.wait([
+        store.setBackendSelection('profile-concurrent'),
+        store.setWriteGateEnabled(true),
+      ]);
+
+      expect(await store.getBackendSelection(), 'profile-concurrent');
+      expect(await store.isWriteGateEnabled(), isTrue);
+      expect(
+        await store.getPhase(),
+        EnrollmentPhase.reconciliationComplete,
+      );
+    });
   });
 
   group('watermarks', () {

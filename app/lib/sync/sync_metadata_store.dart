@@ -127,17 +127,22 @@ class SyncMetadataStore {
   }
 
   Future<void> setPhase(EnrollmentPhase phase) async {
-    final existing = await _ensureScalar();
-    await _db
-        .into(_db.syncMetadata)
-        .insertOnConflictUpdate(
-          SyncMetadataRow(
-            id: _metaRowId,
-            backendSelection: existing.backendSelection,
-            enrollmentPhase: phase.code,
-            writeGate: existing.writeGate,
-          ),
-        );
+    // The read and the upsert share one transaction so two concurrent scalar
+    // mutations serialize instead of interleaving read-read-write-write and
+    // losing one write.
+    await _db.transaction(() async {
+      final existing = await _ensureScalar();
+      await _db
+          .into(_db.syncMetadata)
+          .insertOnConflictUpdate(
+            SyncMetadataCompanion(
+              id: const Value(_metaRowId),
+              backendSelection: Value(existing.backendSelection),
+              enrollmentPhase: Value<int?>(phase.code),
+              writeGate: Value(existing.writeGate),
+            ),
+          );
+    });
   }
 
   Future<bool> isWriteGateEnabled() async {
