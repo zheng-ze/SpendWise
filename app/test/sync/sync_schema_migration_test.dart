@@ -121,7 +121,7 @@ void main() {
     final database = await openUpgraded();
 
     final watermark = await notNullColumns(database, 'sync_watermark');
-    expect(watermark['version_data'], 1);
+    expect(watermark['cursor'], 1);
 
     final acknowledged = await notNullColumns(
       database,
@@ -158,7 +158,7 @@ void main() {
     await metadata.commitPullPage(
       collection: SyncCollection.entries,
       checkpoint: 'cp-1',
-      watermark: VersionVector({'deviceA': 2}),
+      watermark: 'cp-checkpoint-7',
       acknowledgedVectors: {
         rowID: VersionVector({'deviceA': 2}),
       },

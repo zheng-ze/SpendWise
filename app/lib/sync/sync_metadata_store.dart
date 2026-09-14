@@ -183,33 +183,28 @@ class SyncMetadataStore {
 
   // --- Per-collection watermarks ------------------------------------------------
 
-  Future<VersionVector?> getWatermark(SyncCollection collection) async {
+  /// Returns the opaque server-assigned pull cursor for [collection], or null
+  /// when no page has been committed yet. The cursor hands straight to
+  /// `PullRequest(cursor: ...)` on the next pull.
+  Future<String?> getWatermark(SyncCollection collection) async {
     final row =
         await (_db.select(_db.syncWatermark)
               ..where((t) => t.collection.equals(collection.wireName)))
             .getSingleOrNull();
-    return _decodeVector(row?.versionData);
+    return row?.cursor;
   }
 
-  Future<void> setWatermark(
-    SyncCollection collection,
-    VersionVector vector,
-  ) async {
+  Future<void> setWatermark(SyncCollection collection, String cursor) async {
     await _db
         .into(_db.syncWatermark)
-        .insertOnConflictUpdate(_watermarkRow(collection, vector));
+        .insertOnConflictUpdate(_watermarkRow(collection, cursor));
   }
 
-  Future<Map<SyncCollection, VersionVector>> getAllWatermarks() async {
+  Future<Map<SyncCollection, String>> getAllWatermarks() async {
     final rows = await _db.select(_db.syncWatermark).get();
-    final result = <SyncCollection, VersionVector>{};
-    for (final row in rows) {
-      result[_collection(row.collection)] = _requireVector(
-        row.versionData,
-        'watermark ${row.collection}',
-      );
-    }
-    return result;
+    return {
+      for (final row in rows) _collection(row.collection): row.cursor,
+    };
   }
 
   // --- Acknowledged vectors keyed by SyncRowID ----------------------------------
@@ -318,7 +313,7 @@ class SyncMetadataStore {
   Future<void> commitPullPage({
     required SyncCollection collection,
     required String checkpoint,
-    required VersionVector watermark,
+    required String watermark,
     required Map<SyncRowID, VersionVector> acknowledgedVectors,
   }) async {
     await _db.transaction(() async {
@@ -369,13 +364,8 @@ class SyncMetadataStore {
     return vector;
   }
 
-  SyncWatermarkData _watermarkRow(
-    SyncCollection collection,
-    VersionVector vector,
-  ) => SyncWatermarkData(
-    collection: collection.wireName,
-    versionData: _encodeVector(vector),
-  );
+  SyncWatermarkData _watermarkRow(SyncCollection collection, String cursor) =>
+      SyncWatermarkData(collection: collection.wireName, cursor: cursor);
 
   SyncAcknowledgedVectorData _ackVectorRow(
     SyncRowID rowID,

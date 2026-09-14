@@ -53,7 +53,7 @@ class LedgerDatabase extends _$LedgerDatabase {
     await db.database.customStatement(
       'CREATE TABLE sync_watermark ('
       'collection TEXT NOT NULL PRIMARY KEY, '
-      'version_data BLOB NOT NULL'
+      'cursor TEXT NOT NULL'
       ')',
     );
     await db.database.customStatement(

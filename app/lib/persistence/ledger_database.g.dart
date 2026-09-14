@@ -4152,20 +4152,17 @@ class $SyncWatermarkTable extends SyncWatermark
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _versionDataMeta = const VerificationMeta(
-    'versionData',
+  static const VerificationMeta _cursorMeta = const VerificationMeta('cursor');
+  @override
+  late final GeneratedColumn<String> cursor = GeneratedColumn<String>(
+    'cursor',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
   );
   @override
-  late final GeneratedColumn<Uint8List> versionData =
-      GeneratedColumn<Uint8List>(
-        'version_data',
-        aliasedName,
-        false,
-        type: DriftSqlType.blob,
-        requiredDuringInsert: true,
-      );
-  @override
-  List<GeneratedColumn> get $columns => [collection, versionData];
+  List<GeneratedColumn> get $columns => [collection, cursor];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -4186,16 +4183,13 @@ class $SyncWatermarkTable extends SyncWatermark
     } else if (isInserting) {
       context.missing(_collectionMeta);
     }
-    if (data.containsKey('version_data')) {
+    if (data.containsKey('cursor')) {
       context.handle(
-        _versionDataMeta,
-        versionData.isAcceptableOrUnknown(
-          data['version_data']!,
-          _versionDataMeta,
-        ),
+        _cursorMeta,
+        cursor.isAcceptableOrUnknown(data['cursor']!, _cursorMeta),
       );
     } else if (isInserting) {
-      context.missing(_versionDataMeta);
+      context.missing(_cursorMeta);
     }
     return context;
   }
@@ -4210,9 +4204,9 @@ class $SyncWatermarkTable extends SyncWatermark
         DriftSqlType.string,
         data['${effectivePrefix}collection'],
       )!,
-      versionData: attachedDatabase.typeMapping.read(
-        DriftSqlType.blob,
-        data['${effectivePrefix}version_data'],
+      cursor: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cursor'],
       )!,
     );
   }
@@ -4226,23 +4220,20 @@ class $SyncWatermarkTable extends SyncWatermark
 class SyncWatermarkData extends DataClass
     implements Insertable<SyncWatermarkData> {
   final String collection;
-  final Uint8List versionData;
-  const SyncWatermarkData({
-    required this.collection,
-    required this.versionData,
-  });
+  final String cursor;
+  const SyncWatermarkData({required this.collection, required this.cursor});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['collection'] = Variable<String>(collection);
-    map['version_data'] = Variable<Uint8List>(versionData);
+    map['cursor'] = Variable<String>(cursor);
     return map;
   }
 
   SyncWatermarkCompanion toCompanion(bool nullToAbsent) {
     return SyncWatermarkCompanion(
       collection: Value(collection),
-      versionData: Value(versionData),
+      cursor: Value(cursor),
     );
   }
 
@@ -4253,7 +4244,7 @@ class SyncWatermarkData extends DataClass
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return SyncWatermarkData(
       collection: serializer.fromJson<String>(json['collection']),
-      versionData: serializer.fromJson<Uint8List>(json['versionData']),
+      cursor: serializer.fromJson<String>(json['cursor']),
     );
   }
   @override
@@ -4261,23 +4252,21 @@ class SyncWatermarkData extends DataClass
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'collection': serializer.toJson<String>(collection),
-      'versionData': serializer.toJson<Uint8List>(versionData),
+      'cursor': serializer.toJson<String>(cursor),
     };
   }
 
-  SyncWatermarkData copyWith({String? collection, Uint8List? versionData}) =>
+  SyncWatermarkData copyWith({String? collection, String? cursor}) =>
       SyncWatermarkData(
         collection: collection ?? this.collection,
-        versionData: versionData ?? this.versionData,
+        cursor: cursor ?? this.cursor,
       );
   SyncWatermarkData copyWithCompanion(SyncWatermarkCompanion data) {
     return SyncWatermarkData(
       collection: data.collection.present
           ? data.collection.value
           : this.collection,
-      versionData: data.versionData.present
-          ? data.versionData.value
-          : this.versionData,
+      cursor: data.cursor.present ? data.cursor.value : this.cursor,
     );
   }
 
@@ -4285,57 +4274,56 @@ class SyncWatermarkData extends DataClass
   String toString() {
     return (StringBuffer('SyncWatermarkData(')
           ..write('collection: $collection, ')
-          ..write('versionData: $versionData')
+          ..write('cursor: $cursor')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(collection, $driftBlobEquality.hash(versionData));
+  int get hashCode => Object.hash(collection, cursor);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is SyncWatermarkData &&
           other.collection == this.collection &&
-          $driftBlobEquality.equals(other.versionData, this.versionData));
+          other.cursor == this.cursor);
 }
 
 class SyncWatermarkCompanion extends UpdateCompanion<SyncWatermarkData> {
   final Value<String> collection;
-  final Value<Uint8List> versionData;
+  final Value<String> cursor;
   final Value<int> rowid;
   const SyncWatermarkCompanion({
     this.collection = const Value.absent(),
-    this.versionData = const Value.absent(),
+    this.cursor = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SyncWatermarkCompanion.insert({
     required String collection,
-    required Uint8List versionData,
+    required String cursor,
     this.rowid = const Value.absent(),
   }) : collection = Value(collection),
-       versionData = Value(versionData);
+       cursor = Value(cursor);
   static Insertable<SyncWatermarkData> custom({
     Expression<String>? collection,
-    Expression<Uint8List>? versionData,
+    Expression<String>? cursor,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (collection != null) 'collection': collection,
-      if (versionData != null) 'version_data': versionData,
+      if (cursor != null) 'cursor': cursor,
       if (rowid != null) 'rowid': rowid,
     });
   }
 
   SyncWatermarkCompanion copyWith({
     Value<String>? collection,
-    Value<Uint8List>? versionData,
+    Value<String>? cursor,
     Value<int>? rowid,
   }) {
     return SyncWatermarkCompanion(
       collection: collection ?? this.collection,
-      versionData: versionData ?? this.versionData,
+      cursor: cursor ?? this.cursor,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -4346,8 +4334,8 @@ class SyncWatermarkCompanion extends UpdateCompanion<SyncWatermarkData> {
     if (collection.present) {
       map['collection'] = Variable<String>(collection.value);
     }
-    if (versionData.present) {
-      map['version_data'] = Variable<Uint8List>(versionData.value);
+    if (cursor.present) {
+      map['cursor'] = Variable<String>(cursor.value);
     }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
@@ -4359,7 +4347,7 @@ class SyncWatermarkCompanion extends UpdateCompanion<SyncWatermarkData> {
   String toString() {
     return (StringBuffer('SyncWatermarkCompanion(')
           ..write('collection: $collection, ')
-          ..write('versionData: $versionData, ')
+          ..write('cursor: $cursor, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -7308,13 +7296,13 @@ typedef $$SyncMetadataTableProcessedTableManager =
 typedef $$SyncWatermarkTableCreateCompanionBuilder =
     SyncWatermarkCompanion Function({
       required String collection,
-      required Uint8List versionData,
+      required String cursor,
       Value<int> rowid,
     });
 typedef $$SyncWatermarkTableUpdateCompanionBuilder =
     SyncWatermarkCompanion Function({
       Value<String> collection,
-      Value<Uint8List> versionData,
+      Value<String> cursor,
       Value<int> rowid,
     });
 
@@ -7332,8 +7320,8 @@ class $$SyncWatermarkTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<Uint8List> get versionData => $composableBuilder(
-    column: $table.versionData,
+  ColumnFilters<String> get cursor => $composableBuilder(
+    column: $table.cursor,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -7352,8 +7340,8 @@ class $$SyncWatermarkTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<Uint8List> get versionData => $composableBuilder(
-    column: $table.versionData,
+  ColumnOrderings<String> get cursor => $composableBuilder(
+    column: $table.cursor,
     builder: (column) => ColumnOrderings(column),
   );
 }
@@ -7372,10 +7360,8 @@ class $$SyncWatermarkTableAnnotationComposer
     builder: (column) => column,
   );
 
-  GeneratedColumn<Uint8List> get versionData => $composableBuilder(
-    column: $table.versionData,
-    builder: (column) => column,
-  );
+  GeneratedColumn<String> get cursor =>
+      $composableBuilder(column: $table.cursor, builder: (column) => column);
 }
 
 class $$SyncWatermarkTableTableManager
@@ -7416,21 +7402,21 @@ class $$SyncWatermarkTableTableManager
           updateCompanionCallback:
               ({
                 Value<String> collection = const Value.absent(),
-                Value<Uint8List> versionData = const Value.absent(),
+                Value<String> cursor = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SyncWatermarkCompanion(
                 collection: collection,
-                versionData: versionData,
+                cursor: cursor,
                 rowid: rowid,
               ),
           createCompanionCallback:
               ({
                 required String collection,
-                required Uint8List versionData,
+                required String cursor,
                 Value<int> rowid = const Value.absent(),
               }) => SyncWatermarkCompanion.insert(
                 collection: collection,
-                versionData: versionData,
+                cursor: cursor,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

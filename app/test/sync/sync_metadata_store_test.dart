@@ -165,41 +165,41 @@ void main() {
       () async {
         await store.setWatermark(
           SyncCollection.moneySources,
-          VersionVector({'deviceA': 3}),
+          'cp-checkpoint-1',
         );
-        await store.setWatermark(
-          SyncCollection.entries,
-          VersionVector({'deviceB': 2}),
-        );
+        await store.setWatermark(SyncCollection.entries, 'cp-checkpoint-2');
         await store.setWatermark(
           SyncCollection.categories,
-          VersionVector({'deviceC': 1}),
+          'cp-checkpoint-3',
         );
-        await store.setWatermark(
-          SyncCollection.plans,
-          VersionVector({'deviceA': 5}),
-        );
-        await store.setWatermark(
-          SyncCollection.budgets,
-          VersionVector({'deviceD': 4}),
-        );
+        await store.setWatermark(SyncCollection.plans, 'cp-checkpoint-4');
+        await store.setWatermark(SyncCollection.budgets, 'cp-checkpoint-5');
 
         expect(
           await store.getWatermark(SyncCollection.moneySources),
-          VersionVector({'deviceA': 3}),
+          'cp-checkpoint-1',
         );
         expect(
           await store.getWatermark(SyncCollection.entries),
-          VersionVector({'deviceB': 2}),
+          'cp-checkpoint-2',
         );
         expect(
           await store.getWatermark(SyncCollection.budgets),
-          VersionVector({'deviceD': 4}),
+          'cp-checkpoint-5',
         );
 
         final all = await store.getAllWatermarks();
         expect(all.keys.toSet(), equals(SyncCollection.values.toSet()));
         expect(all.length, 5);
+        // The cursor hands straight to PullRequest(cursor: ...): opaque and
+        // server-assigned, never a version vector.
+        expect(
+          PullRequest(
+            collection: SyncCollection.entries,
+            cursor: all[SyncCollection.entries],
+          ).cursor,
+          'cp-checkpoint-2',
+        );
       },
     );
 
@@ -207,13 +207,13 @@ void main() {
       expect(await store.getWatermark(SyncCollection.entries), isNull);
     });
 
-    test('setWatermark replaces the prior vector for the collection', () async {
-      await store.setWatermark(SyncCollection.entries, VersionVector({'d': 1}));
-      await store.setWatermark(SyncCollection.entries, VersionVector({'d': 7}));
+    test('setWatermark replaces the prior cursor for the collection', () async {
+      await store.setWatermark(SyncCollection.entries, 'cp-checkpoint-1');
+      await store.setWatermark(SyncCollection.entries, 'cp-checkpoint-7');
 
       expect(
         await store.getWatermark(SyncCollection.entries),
-        VersionVector({'d': 7}),
+        'cp-checkpoint-7',
       );
     });
   });
@@ -347,7 +347,7 @@ void main() {
         await store.commitPullPage(
           collection: SyncCollection.entries,
           checkpoint: 'cp-9',
-          watermark: VersionVector({'deviceB': 4}),
+          watermark: 'cp-checkpoint-7',
           acknowledgedVectors: {
             entryRowE1: VersionVector({'deviceB': 4}),
             entryRowE2: VersionVector({'deviceB': 4}),
@@ -364,7 +364,7 @@ void main() {
         );
         expect(
           await store.getWatermark(SyncCollection.entries),
-          VersionVector({'deviceB': 4}),
+          'cp-checkpoint-7',
         );
         expect(
           await store.hasPendingAck(SyncCollection.entries, 'cp-9'),
@@ -383,7 +383,7 @@ void main() {
         Future<void> commit() => store.commitPullPage(
           collection: SyncCollection.entries,
           checkpoint: 'cp-9',
-          watermark: VersionVector({'deviceB': 4}),
+          watermark: 'cp-checkpoint-7',
           acknowledgedVectors: {
             entryRowE1: VersionVector({'deviceB': 4}),
             entryRowE2: VersionVector({'deviceB': 4}),
@@ -405,7 +405,7 @@ void main() {
         );
         expect(
           await store.getWatermark(SyncCollection.entries),
-          VersionVector({'deviceB': 4}),
+          'cp-checkpoint-7',
         );
         expect(
           await store.hasPendingAck(SyncCollection.entries, 'cp-9'),
@@ -423,7 +423,7 @@ void main() {
         await store.setAcknowledgedVector(seededRow, VersionVector({'d': 1}));
         await store.setWatermark(
           SyncCollection.categories,
-          VersionVector({'d': 1}),
+          'cp-checkpoint-seed',
         );
 
         // Fail the commit after the ack-vector and watermark writes, at the
@@ -434,7 +434,7 @@ void main() {
           store.commitPullPage(
             collection: SyncCollection.entries,
             checkpoint: 'cp-9',
-            watermark: VersionVector({'deviceB': 4}),
+            watermark: 'cp-checkpoint-7',
             acknowledgedVectors: {
               entryRowE1: VersionVector({'deviceB': 4}),
             },
@@ -453,7 +453,7 @@ void main() {
         );
         expect(
           await store.getWatermark(SyncCollection.categories),
-          VersionVector({'d': 1}),
+          'cp-checkpoint-seed',
         );
       },
     );
@@ -478,7 +478,7 @@ void main() {
           await firstStore.commitPullPage(
             collection: SyncCollection.entries,
             checkpoint: 'cp-9',
-            watermark: VersionVector({'deviceB': 4}),
+            watermark: 'cp-checkpoint-7',
             acknowledgedVectors: {
               entryRowE1: VersionVector({'deviceB': 4}),
             },
@@ -503,7 +503,7 @@ void main() {
           );
           expect(
             await secondStore.getWatermark(SyncCollection.entries),
-            VersionVector({'deviceB': 4}),
+            'cp-checkpoint-7',
           );
           expect(
             await secondStore.hasPendingAck(SyncCollection.entries, 'cp-9'),
@@ -524,7 +524,7 @@ void main() {
       await store.commitPullPage(
         collection: SyncCollection.entries,
         checkpoint: 'cp-10',
-        watermark: VersionVector({'deviceA': 6}),
+        watermark: 'cp-checkpoint-7',
         acknowledgedVectors: {
           entryRowE1: VersionVector({'deviceA': 6}),
         },
@@ -533,7 +533,7 @@ void main() {
       final acked = await store.getAllAcknowledgedVectors();
       final watermark = await store.getWatermark(SyncCollection.entries);
       expect(acked[entryRowE1], VersionVector({'deviceA': 6}));
-      expect(watermark, VersionVector({'deviceA': 6}));
+      expect(watermark, 'cp-checkpoint-7');
       expect(
         await store.hasPendingAck(SyncCollection.entries, 'cp-10'),
         isTrue,

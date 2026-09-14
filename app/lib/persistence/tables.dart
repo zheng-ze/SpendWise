@@ -162,12 +162,14 @@ class SyncMetadata extends Table {
   List<String> get customConstraints => ['CHECK (id = 0)'];
 }
 
-/// One per-collection pull watermark, stored as an encoded version vector. Five
-/// rows, one for each sync collection.
+/// One per-collection pull position, stored as the opaque server-assigned
+/// cursor from the last staged and acknowledged page. Five rows, one for
+/// each sync collection. Never a version vector: the fixed snapshot
+/// watermark used during initial reconciliation is a separate value.
 class SyncWatermark extends Table {
   TextColumn get collection => text()();
 
-  BlobColumn get versionData => blob().named('version_data')();
+  TextColumn get cursor => text()();
 
   @override
   Set<Column<Object>> get primaryKey => {collection};
