@@ -22,7 +22,9 @@ import 'package:spendwise/persistence/ledger_database.dart';
 ///
 /// A failed write-through never blocks later writes, and it is never silent:
 /// each failure is reported once to [onWriteError] (when one is registered)
-/// and rethrown, so the [flush] awaiting that write throws it.
+/// and the next [flush] throws the first failure enqueued since the previous
+/// flush threw or resolved, even when a later write in the same window
+/// succeeded.
 class DriftSyncStagingStore implements SyncStagingStore {
   DriftSyncStagingStore._(
     this._db,
@@ -60,6 +62,13 @@ class DriftSyncStagingStore implements SyncStagingStore {
   /// in call order; a failed write never blocks later ones from persisting.
   Future<void> _writes = Future<void>.value();
 
+  /// First write-through failure enqueued since the previous flush threw or
+  /// resolved, with its stack trace. Later writes still attempt persistence
+  /// after an earlier failure, but the next [flush] surfaces this failure so
+  /// staged state that never reached Drift never reads as durable.
+  Object? _flushError;
+  StackTrace? _flushStackTrace;
+
   @override
   void stage(StagedConflict conflict) {
     _conflicts.removeWhere(
@@ -86,14 +95,35 @@ class DriftSyncStagingStore implements SyncStagingStore {
 
   /// Awaits every write-through write enqueued so far. Await this before
   /// closing the database (or the process) when staged state must be durable.
-  /// Throws the failure of the latest enqueued write when that write failed;
-  /// earlier failures interrupted by later writes surface only through
-  /// [onWriteError].
-  Future<void> flush() => _writes;
+  /// Throws the first failure enqueued since the previous flush threw or
+  /// resolved, even when a later write in the same window succeeded and is
+  /// durably persisted. Each failure surfaces through exactly one flush (and
+  /// once through [onWriteError]); a flush with no failure since the previous
+  /// one resolves normally.
+  Future<void> flush() async {
+    final pending = _writes;
+    // The failing link already recorded itself in [_flushError] before
+    // rethrowing, so its outcome is deliberately not propagated here: the
+    // window's first failure is reported once below instead.
+    await _settle(pending);
+    final error = _flushError;
+    final stackTrace = _flushStackTrace;
+    _flushError = null;
+    _flushStackTrace = null;
+    if (error != null) {
+      Error.throwWithStackTrace(error, stackTrace ?? StackTrace.empty);
+    }
+  }
 
   void _enqueue(Future<void> Function() work) {
     final prior = _writes;
-    _writes = _runAfter(prior, work);
+    final next = _runAfter(prior, work);
+    _writes = next;
+    // Every link already routes its failure to [onWriteError] and the next
+    // [flush]. Observe it here as well so the failure never also escapes to
+    // the zone as an unhandled async error while no later write or flush has
+    // attached to the link yet.
+    next.ignore();
   }
 
   Future<void> _runAfter(
@@ -104,14 +134,19 @@ class DriftSyncStagingStore implements SyncStagingStore {
     try {
       await work();
     } on Object catch (error, stackTrace) {
+      // Keep the window's first failure: later writes still run (the chain
+      // settles each prior link), but the next flush reports this one even
+      // when those later writes succeed.
+      _flushError ??= error;
+      _flushStackTrace ??= stackTrace;
       onWriteError?.call(error, stackTrace);
       rethrow;
     }
   }
 
   /// Awaits [future] without propagating its outcome. A prior link's failure
-  /// was already reported to [onWriteError] (and rethrown to its own
-  /// flusher) when it ran, so only the chain linkage is swallowed here and
+  /// was already reported to [onWriteError] (and recorded for its window's
+  /// flush) when it ran, so only the chain linkage is swallowed here and
   /// later writes still persist.
   static Future<void> _settle(Future<void> future) async {
     try {

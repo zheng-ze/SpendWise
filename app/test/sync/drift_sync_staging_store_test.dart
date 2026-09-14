@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:domain/domain.dart';
@@ -332,6 +333,63 @@ void main() {
         local.resolve(makeGroup(changeFor(SyncCollection.entries, 'e1')));
         await expectLater(local.flush(), throwsA(isA<Exception>()));
         expect(failures, hasLength(2));
+      },
+    );
+
+    test(
+      'flush throws the first failure even when a later write succeeds',
+      () async {
+        final failures = <Object>[];
+        final firstFailure = Completer<void>();
+        final localDb = persistence.LedgerDatabase(NativeDatabase.memory());
+        addTearDown(localDb.close);
+        final local = await DriftSyncStagingStore.open(
+          localDb,
+          onWriteError: (error, _) {
+            failures.add(error);
+            if (!firstFailure.isCompleted) {
+              firstFailure.complete();
+            }
+          },
+        );
+        final stagingDdl =
+            await localDb
+                .customSelect(
+                  "SELECT sql FROM sqlite_master WHERE type = 'table' "
+                  "AND name = 'sync_staging_group'",
+                )
+                .getSingle();
+        // Dropping the table forces the next write-through to fail, the way
+        // a full disk or a corrupt page would.
+        await localDb.customStatement('DROP TABLE sync_staging_group');
+
+        local.stage(makeGroup(changeFor(SyncCollection.entries, 'e1')));
+        // Wait until the first write has actually failed before restoring
+        // the table, so the failure/success split is deterministic rather
+        // than a race between the background write and the DDL below.
+        await firstFailure.future;
+
+        // Restore the table with its real DDL: the next write succeeds.
+        await localDb.customStatement(stagingDdl.read<String>('sql'));
+        local.stage(makeGroup(changeFor(SyncCollection.entries, 'e2')));
+
+        // The later write succeeded, but flush still surfaces the earlier
+        // failure: without this, staged state the cache holds would read as
+        // durable when it never reached Drift.
+        await expectLater(local.flush(), throwsA(isA<Exception>()));
+        expect(failures, hasLength(1));
+
+        // The cache holds both groups, but only the succeeding write reached
+        // Drift: a reload reconstructs just the durable one.
+        expect(
+          local.pendingConflicts.map((group) => group.rowID).toList(),
+          ['e1', 'e2'],
+        );
+        final reloaded = await DriftSyncStagingStore.open(localDb);
+        expect(
+          reloaded.pendingConflicts.map((group) => group.rowID).toList(),
+          ['e2'],
+        );
       },
     );
   });
