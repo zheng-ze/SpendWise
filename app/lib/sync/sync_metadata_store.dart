@@ -27,6 +27,17 @@ enum EnrollmentPhase {
   );
 }
 
+/// Error thrown when enabling the sync write gate before durable enrollment
+/// records reconciliation complete. Disabling the gate never throws.
+final class WriteGateNotReadyError implements Exception {
+  const WriteGateNotReadyError(this.message);
+
+  final String message;
+
+  @override
+  String toString() => 'WriteGateNotReadyError: $message';
+}
+
 /// One owed pull-page acknowledgement, keyed by collection and checkpoint.
 ///
 /// Retained across failures and restarts until the backend confirms success.
@@ -134,18 +145,35 @@ class SyncMetadataStore {
     return row.writeGate;
   }
 
+  /// Enables the write gate only once durable enrollment records
+  /// [EnrollmentPhase.reconciliationComplete]. Enabling an already-enabled
+  /// gate is an idempotent no-op; disabling the gate has no restriction.
+  ///
+  /// Throws [WriteGateNotReadyError] when enabling from any earlier phase.
   Future<void> setWriteGateEnabled(bool enabled) async {
-    final existing = await _ensureScalar();
-    await _db
-        .into(_db.syncMetadata)
-        .insertOnConflictUpdate(
-          SyncMetadataRow(
-            id: _metaRowId,
-            backendSelection: existing.backendSelection,
-            enrollmentPhase: existing.enrollmentPhase,
-            writeGate: enabled,
-          ),
-        );
+    await _db.transaction(() async {
+      final existing = await _ensureScalar();
+      if (enabled && !existing.writeGate) {
+        final code = existing.enrollmentPhase;
+        final phase = code == null ? null : EnrollmentPhase.fromCode(code);
+        if (phase != EnrollmentPhase.reconciliationComplete) {
+          throw WriteGateNotReadyError(
+            'Cannot enable the write gate from phase $phase: durable '
+            'enrollment must reach reconciliationComplete first.',
+          );
+        }
+      }
+      await _db
+          .into(_db.syncMetadata)
+          .insertOnConflictUpdate(
+            SyncMetadataCompanion(
+              id: const Value(_metaRowId),
+              backendSelection: Value(existing.backendSelection),
+              enrollmentPhase: Value(existing.enrollmentPhase),
+              writeGate: Value(enabled),
+            ),
+          );
+    });
   }
 
   // --- Per-collection watermarks ------------------------------------------------

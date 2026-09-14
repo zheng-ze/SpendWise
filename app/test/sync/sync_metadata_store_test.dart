@@ -63,18 +63,78 @@ void main() {
     test('setWriteGateEnabled persists the flag', () async {
       expect(await store.isWriteGateEnabled(), isFalse);
 
+      await store.setPhase(EnrollmentPhase.reconciliationComplete);
       await store.setWriteGateEnabled(true);
       expect(await store.isWriteGateEnabled(), isTrue);
     });
 
     test('setting each scalar keeps them independent in one row', () async {
       await store.setBackendSelection('profile-x');
-      await store.setPhase(EnrollmentPhase.gateEnabled);
+      await store.setPhase(EnrollmentPhase.reconciliationComplete);
       await store.setWriteGateEnabled(true);
 
       expect(await store.getBackendSelection(), 'profile-x');
-      expect(await store.getPhase(), EnrollmentPhase.gateEnabled);
+      expect(await store.getPhase(), EnrollmentPhase.reconciliationComplete);
       expect(await store.isWriteGateEnabled(), isTrue);
+    });
+
+    test(
+      'enabling the write gate before reconciliationComplete throws',
+      () async {
+        expect(await store.getPhase(), isNull);
+        await expectLater(
+          store.setWriteGateEnabled(true),
+          throwsA(isA<WriteGateNotReadyError>()),
+        );
+        expect(await store.isWriteGateEnabled(), isFalse);
+
+        await store.setPhase(EnrollmentPhase.snapshotKeyWorkInProgress);
+        await expectLater(
+          store.setWriteGateEnabled(true),
+          throwsA(isA<WriteGateNotReadyError>()),
+        );
+        expect(await store.isWriteGateEnabled(), isFalse);
+      },
+    );
+
+    test(
+      'enabling the write gate at reconciliationComplete succeeds',
+      () async {
+        await store.setPhase(EnrollmentPhase.reconciliationComplete);
+
+        await store.setWriteGateEnabled(true);
+
+        expect(await store.isWriteGateEnabled(), isTrue);
+        expect(
+          await SyncMetadataStore(db).isWriteGateEnabled(),
+          isTrue,
+          reason: 'the enabled gate persists across store instances',
+        );
+      },
+    );
+
+    test('enabling an already-enabled gate is an idempotent no-op', () async {
+      await store.setPhase(EnrollmentPhase.reconciliationComplete);
+      await store.setWriteGateEnabled(true);
+
+      // Already enabled: succeeds without requiring the phase again, even
+      // after the phase advances past reconciliationComplete.
+      await store.setPhase(EnrollmentPhase.gateEnabled);
+      await store.setWriteGateEnabled(true);
+
+      expect(await store.isWriteGateEnabled(), isTrue);
+      expect(await store.getPhase(), EnrollmentPhase.gateEnabled);
+    });
+
+    test('disabling the write gate succeeds from any phase', () async {
+      await store.setPhase(EnrollmentPhase.credentialAcquired);
+      await store.setWriteGateEnabled(false);
+      expect(await store.isWriteGateEnabled(), isFalse);
+
+      await store.setPhase(EnrollmentPhase.reconciliationComplete);
+      await store.setWriteGateEnabled(true);
+      await store.setWriteGateEnabled(false);
+      expect(await store.isWriteGateEnabled(), isFalse);
     });
   });
 
