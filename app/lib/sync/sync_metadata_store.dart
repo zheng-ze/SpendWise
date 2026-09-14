@@ -91,17 +91,22 @@ class SyncMetadataStore {
   }
 
   Future<void> setBackendSelection(String? profileID) async {
-    final existing = await _ensureScalar();
-    await _db
-        .into(_db.syncMetadata)
-        .insertOnConflictUpdate(
-          SyncMetadataRow(
-            id: _metaRowId,
-            backendSelection: profileID,
-            enrollmentPhase: existing.enrollmentPhase,
-            writeGate: existing.writeGate,
-          ),
-        );
+    // The companion carries an explicit present null so clearing the
+    // selection writes NULL. A plain data-class upsert would omit the null
+    // column from the SET clause and silently keep the old value.
+    await _db.transaction(() async {
+      final existing = await _ensureScalar();
+      await _db
+          .into(_db.syncMetadata)
+          .insertOnConflictUpdate(
+            SyncMetadataCompanion(
+              id: const Value(_metaRowId),
+              backendSelection: Value(profileID),
+              enrollmentPhase: Value(existing.enrollmentPhase),
+              writeGate: Value(existing.writeGate),
+            ),
+          );
+    });
   }
 
   Future<EnrollmentPhase?> getPhase() async {

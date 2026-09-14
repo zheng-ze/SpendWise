@@ -41,6 +41,17 @@ void main() {
       expect(await store.getBackendSelection(), 'profile-2');
     });
 
+    test('setBackendSelection(null) clears a prior selection', () async {
+      await store.setBackendSelection('profile-1');
+      expect(await store.getBackendSelection(), 'profile-1');
+
+      await store.setBackendSelection(null);
+
+      // A fresh store over the same database observes the cleared value, so
+      // the null was written to the row rather than omitted from the update.
+      expect(await SyncMetadataStore(db).getBackendSelection(), isNull);
+    });
+
     test('setPhase stores the explicit code and returns the enum', () async {
       await store.setPhase(EnrollmentPhase.reconciliationComplete);
       expect(await store.getPhase(), EnrollmentPhase.reconciliationComplete);
