@@ -383,5 +383,40 @@ void main() {
         ]);
       },
     );
+
+    test('each failure in one window surfaces through its own flush', () async {
+      final localDb = persistence.LedgerDatabase(NativeDatabase.memory());
+      addTearDown(localDb.close);
+      final local = await DriftSyncStagingStore.open(localDb);
+      // Dropping the table forces every subsequent write-through to fail,
+      // the way a full disk or a corrupt page would.
+      await localDb.customStatement('DROP TABLE sync_staging_group');
+
+      // Both writes fail inside one flush window. The first flush throws
+      // the first failure, but the second failure must stay queued: the
+      // next flush throws it instead of succeeding and silently losing
+      // the write.
+      local.stage(makeGroup(changeFor(SyncCollection.entries, 'e1')));
+      local.stage(makeGroup(changeFor(SyncCollection.entries, 'e2')));
+      await expectLater(local.flush(), throwsA(isA<Exception>()));
+      await expectLater(local.flush(), throwsA(isA<Exception>()));
+    });
+
+    test('a flush never consumes a failure queued after its barrier', () async {
+      final localDb = persistence.LedgerDatabase(NativeDatabase.memory());
+      addTearDown(localDb.close);
+      final local = await DriftSyncStagingStore.open(localDb);
+      // Dropping the table forces every subsequent write-through to fail,
+      // the way a full disk or a corrupt page would.
+      await localDb.customStatement('DROP TABLE sync_staging_group');
+
+      local.stage(makeGroup(changeFor(SyncCollection.entries, 'e1')));
+      // Starts the flush, then queues another failing write inside the
+      // flush window. The first flush only covers the first write.
+      final first = local.flush();
+      local.stage(makeGroup(changeFor(SyncCollection.entries, 'e2')));
+      await expectLater(first, throwsA(isA<Exception>()));
+      await expectLater(local.flush(), throwsA(isA<Exception>()));
+    });
   });
 }
