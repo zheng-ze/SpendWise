@@ -7,23 +7,75 @@ import 'package:spendwise/persistence/ledger_database.dart';
 
 /// Drift-backed durable staging of unresolved conflict groups.
 ///
-/// Behaviorally matches the package's [SyncStagingStore] contract: [stage]
-/// replaces the prior group for the same collection and row, [pendingConflicts]
-/// returns groups oldest first, and [resolve] removes a group, acting as an
-/// idempotent no-op when it is absent. Decrypted staged siblings are stored in
-/// plaintext, consistent with the existing plaintext LedgerState storage
-/// policy, and survive restart and force-quit because they live in the same
-/// database file.
+/// Implements the package's synchronous [SyncStagingStore] contract on top of
+/// an in-memory cache, so the object passed to [SyncEngine] satisfies the seam
+/// directly: [stage] replaces the prior group for the same collection and row,
+/// [pendingConflicts] returns groups oldest first, and [resolve] removes a
+/// group, acting as an idempotent no-op when it is absent.
 ///
-/// The package's [SyncStagingStore] contract is synchronous and is implemented
-/// in-memory by the package engine; Drift reads and writes are asynchronous, so
-/// this concrete class exposes the same operations as async members.
-class DriftSyncStagingStore {
-  DriftSyncStagingStore(this._db);
+/// Durability comes from Drift write-through: every mutation updates the cache
+/// synchronously and enqueues the matching Drift write, which [flush] awaits.
+/// [open] hydrates the cache from Drift, so staged groups survive restart and
+/// force-quit because they live in the same database file. Decrypted staged
+/// siblings are stored in plaintext, consistent with the existing plaintext
+/// LedgerState storage policy.
+class DriftSyncStagingStore implements SyncStagingStore {
+  DriftSyncStagingStore._(this._db, List<StagedConflict> seed)
+    : _conflicts = List.of(seed);
+
+  /// Opens [db] and hydrates the in-memory cache from its durable staging
+  /// rows, oldest first. Await this before handing the store to [SyncEngine].
+  static Future<DriftSyncStagingStore> open(LedgerDatabase db) async {
+    final rows = await (db.select(db.syncStagingGroup)).get();
+    final ordered = List.of(rows)
+      ..sort((a, b) => a.sequence.compareTo(b.sequence));
+    return DriftSyncStagingStore._(db, [
+      for (final row in ordered)
+        _decodeGroup(_collection(row.collection), row.rowID, row.siblings),
+    ]);
+  }
 
   final LedgerDatabase _db;
+  final List<StagedConflict> _conflicts;
 
-  Future<void> stage(StagedConflict conflict) async {
+  /// Write-through writes in flight. Chained so concurrent mutations persist
+  /// in call order; a failed write never blocks later ones from persisting.
+  Future<void> _writes = Future<void>.value();
+
+  @override
+  void stage(StagedConflict conflict) {
+    _conflicts.removeWhere(
+      (existing) =>
+          existing.collection == conflict.collection &&
+          existing.rowID == conflict.rowID,
+    );
+    _conflicts.add(conflict);
+    _enqueue(() => _persistStage(conflict));
+  }
+
+  @override
+  List<StagedConflict> get pendingConflicts =>
+      List.unmodifiable(_conflicts);
+
+  @override
+  void resolve(StagedConflict conflict) {
+    _conflicts.removeWhere(
+      (existing) =>
+          existing.collection == conflict.collection &&
+          existing.rowID == conflict.rowID,
+    );
+    _enqueue(() => _persistResolve(conflict));
+  }
+
+  /// Awaits every write-through write enqueued so far. Await this before
+  /// closing the database (or the process) when staged state must be durable.
+  Future<void> flush() => _writes;
+
+  void _enqueue(Future<void> Function() work) {
+    _writes = _writes.then((_) => work(), onError: (_) => work());
+  }
+
+  Future<void> _persistStage(StagedConflict conflict) async {
     final siblings = _encodeSiblings(conflict.siblings);
     await _db.transaction(() async {
       await (_db.delete(_db.syncStagingGroup)..where(
@@ -44,20 +96,7 @@ class DriftSyncStagingStore {
     });
   }
 
-  Future<List<StagedConflict>> get pendingConflicts async {
-    // The staging table holds only unresolved conflicts, so fetch and sort by
-    // the auto-increment sequence in Dart. The ascending sequence orders the
-    // oldest stage first, matching the abstract store's oldest-first contract.
-    final rows = await (_db.select(_db.syncStagingGroup)).get();
-    final ordered = List<SyncStagingGroupData>.from(rows)
-      ..sort((a, b) => a.sequence.compareTo(b.sequence));
-    return [
-      for (final row in ordered)
-        _stagedConflict(_collection(row.collection), row.rowID, row.siblings),
-    ];
-  }
-
-  Future<void> resolve(StagedConflict conflict) async {
+  Future<void> _persistResolve(StagedConflict conflict) async {
     await (_db.delete(_db.syncStagingGroup)..where(
           (t) =>
               t.collection.equals(conflict.collection.wireName) &
@@ -65,16 +104,6 @@ class DriftSyncStagingStore {
         ))
         .go();
   }
-
-  StagedConflict _stagedConflict(
-    SyncCollection collection,
-    String rowID,
-    Uint8List siblings,
-  ) => StagedConflict(
-    collection,
-    rowID,
-    _decodeSiblings(collection, rowID, siblings),
-  );
 
   Uint8List _encodeSiblings(List<DecodedSibling> siblings) {
     final entries = <Object?>[
@@ -90,7 +119,17 @@ class DriftSyncStagingStore {
     return utf8.encode(jsonEncode(entries));
   }
 
-  List<DecodedSibling> _decodeSiblings(
+  static StagedConflict _decodeGroup(
+    SyncCollection collection,
+    String rowID,
+    Uint8List blob,
+  ) => StagedConflict(
+    collection,
+    rowID,
+    _decodeSiblings(collection, rowID, blob),
+  );
+
+  static List<DecodedSibling> _decodeSiblings(
     SyncCollection collection,
     String rowID,
     Uint8List blob,
@@ -102,7 +141,7 @@ class DriftSyncStagingStore {
     ];
   }
 
-  DecodedSibling _decodeSibling(
+  static DecodedSibling _decodeSibling(
     SyncCollection collection,
     String rowID,
     Map<String, dynamic> entry,
@@ -121,7 +160,7 @@ class DriftSyncStagingStore {
     return DecodedSibling(versionVector, change, siblingID);
   }
 
-  SyncCollection _collection(String wireName) =>
+  static SyncCollection _collection(String wireName) =>
       SyncCollection.values.firstWhere(
         (collection) => collection.wireName == wireName,
         orElse: () =>

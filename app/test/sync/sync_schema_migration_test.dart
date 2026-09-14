@@ -101,7 +101,7 @@ void main() {
   test('upgraded database serves both sync stores', () async {
     final database = await openUpgraded();
     final metadata = SyncMetadataStore(database);
-    final staging = DriftSyncStagingStore(database);
+    final staging = await DriftSyncStagingStore.open(database);
 
     // Pre-enrollment defaults on the migrated store.
     expect(await metadata.getBackendSelection(), isNull);
@@ -126,6 +126,6 @@ void main() {
       isTrue,
     );
 
-    expect(await staging.pendingConflicts, isEmpty);
+    expect(staging.pendingConflicts, isEmpty);
   });
 }

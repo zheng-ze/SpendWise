@@ -16,10 +16,13 @@ void main() {
 
   setUp(() async {
     db = persistence.LedgerDatabase(NativeDatabase.memory());
-    store = DriftSyncStagingStore(db);
+    store = await DriftSyncStagingStore.open(db);
   });
 
   tearDown(() async {
+    // Drain write-through writes before closing: stage/resolve return
+    // synchronously and persist in the background.
+    await store.flush();
     await db.close();
   });
 
@@ -94,15 +97,49 @@ void main() {
     }
   }
 
-  group('contract', () {
-    test('is empty when nothing is staged', () async {
-      expect(await store.pendingConflicts, isEmpty);
+  group('engine seam', () {
+    test('satisfies the SyncStagingStore interface', () {
+      // Assigning to the package seam type proves the store compiles as the
+      // actual SyncStagingStore the engine receives, not a lookalike.
+      final SyncStagingStore seam = store;
+      final group = makeGroup(changeFor(SyncCollection.entries, 'e1'));
+
+      seam.stage(group);
+      expect(seam.pendingConflicts, [group]);
+
+      seam.resolve(group);
+      expect(seam.pendingConflicts, isEmpty);
     });
 
-    test('stage adds a conflict group', () async {
-      await store.stage(makeGroup(changeFor(SyncCollection.entries, 'e1')));
+    test('can be injected into SyncEngine as its staging store', () {
+      final SyncStagingStore seam = store;
+      final engine = SyncEngine(
+        userID: 'device-a',
+        keyAccessor: () async => Uint8List(0),
+        stagingStore: seam,
+      );
+      expect(engine, isA<SyncEngine>());
+    });
 
-      final pending = await store.pendingConflicts;
+    test('synchronous reads observe writes immediately', () {
+      expect(store.pendingConflicts, isEmpty);
+
+      store.stage(makeGroup(changeFor(SyncCollection.entries, 'e1')));
+
+      expect(store.pendingConflicts, hasLength(1));
+      expect(store.pendingConflicts.single.rowID, 'e1');
+    });
+  });
+
+  group('contract', () {
+    test('is empty when nothing is staged', () {
+      expect(store.pendingConflicts, isEmpty);
+    });
+
+    test('stage adds a conflict group', () {
+      store.stage(makeGroup(changeFor(SyncCollection.entries, 'e1')));
+
+      final pending = store.pendingConflicts;
       expect(pending, hasLength(1));
       expect(pending.single.collection, SyncCollection.entries);
       expect(pending.single.rowID, 'e1');
@@ -110,63 +147,107 @@ void main() {
 
     test(
       'stage replaces the prior group for the same collection and row',
-      () async {
-        await store.stage(
+      () {
+        store.stage(
           makeGroup(changeFor(SyncCollection.entries, 'e1'), siblingCount: 2),
         );
-        await store.stage(
+        store.stage(
           makeGroup(changeFor(SyncCollection.entries, 'e1'), siblingCount: 3),
         );
 
-        final pending = await store.pendingConflicts;
+        final pending = store.pendingConflicts;
         expect(pending, hasLength(1));
         expect(pending.single.siblings, hasLength(3));
       },
     );
 
-    test('resolve removes a group', () async {
-      await store.stage(makeGroup(changeFor(SyncCollection.entries, 'e1')));
+    test(
+      'stage replaces only the matching collection for one shared row id',
+      () async {
+        // The same normalized row id in two collections stages two groups.
+        // Replacing the entries group must leave the categories group intact,
+        // proving replacement keys on (collection, rowID), not row ID alone.
+        store.stage(makeGroup(changeFor(SyncCollection.entries, 'e1')));
+        store.stage(makeGroup(changeFor(SyncCollection.categories, 'e1')));
+        expect(store.pendingConflicts, hasLength(2));
 
-      await store.resolve(makeGroup(changeFor(SyncCollection.entries, 'e1')));
+        store.stage(
+          makeGroup(
+            changeFor(SyncCollection.entries, 'e1'),
+            siblingCount: 3,
+          ),
+        );
+        await store.flush();
 
-      expect(await store.pendingConflicts, isEmpty);
+        final pending = store.pendingConflicts;
+        expect(pending, hasLength(2));
+        final entries = pending.firstWhere(
+          (group) => group.collection == SyncCollection.entries,
+        );
+        final categories = pending.firstWhere(
+          (group) => group.collection == SyncCollection.categories,
+        );
+        expect(entries.siblings, hasLength(3));
+        expect(categories.siblings, hasLength(2));
+
+        // The durable rows agree with the cache: two rows keyed by the
+        // composite (collection, row_id).
+        final reloaded = await DriftSyncStagingStore.open(db);
+        expect(reloaded.pendingConflicts, hasLength(2));
+        expect(
+          reloaded.pendingConflicts.map((group) => group.collection).toSet(),
+          {SyncCollection.entries, SyncCollection.categories},
+        );
+      },
+    );
+
+    test('resolve removes a group', () {
+      store.stage(makeGroup(changeFor(SyncCollection.entries, 'e1')));
+
+      store.resolve(makeGroup(changeFor(SyncCollection.entries, 'e1')));
+
+      expect(store.pendingConflicts, isEmpty);
     });
 
-    test('resolve is an idempotent no-op when the group is absent', () async {
+    test('resolve is an idempotent no-op when the group is absent', () {
       // Nothing staged; resolving must not throw.
-      await store.resolve(makeGroup(changeFor(SyncCollection.entries, 'e1')));
-      expect(await store.pendingConflicts, isEmpty);
+      store.resolve(makeGroup(changeFor(SyncCollection.entries, 'e1')));
+      expect(store.pendingConflicts, isEmpty);
 
       // Stage one group, then resolve a different row.
-      await store.stage(makeGroup(changeFor(SyncCollection.entries, 'e1')));
-      await store.resolve(makeGroup(changeFor(SyncCollection.entries, 'e2')));
-      expect(await store.pendingConflicts, hasLength(1));
+      store.stage(makeGroup(changeFor(SyncCollection.entries, 'e1')));
+      store.resolve(makeGroup(changeFor(SyncCollection.entries, 'e2')));
+      expect(store.pendingConflicts, hasLength(1));
     });
 
-    test('pendingConflicts returns groups oldest first', () async {
-      await store.stage(makeGroup(changeFor(SyncCollection.entries, 'e1')));
-      await store.stage(makeGroup(changeFor(SyncCollection.entries, 'e2')));
+    test('pendingConflicts returns groups oldest first', () {
+      store.stage(makeGroup(changeFor(SyncCollection.entries, 'e1')));
+      store.stage(makeGroup(changeFor(SyncCollection.entries, 'e2')));
 
-      final pending = await store.pendingConflicts;
+      final pending = store.pendingConflicts;
       expect(pending.map((c) => c.rowID).toList(), ['e1', 'e2']);
 
       // Re-staging 'e1' advances its sequence, so it now sorts last.
-      await store.stage(
+      store.stage(
         makeGroup(changeFor(SyncCollection.entries, 'e1'), siblingCount: 2),
       );
-      final reordered = await store.pendingConflicts;
+      final reordered = store.pendingConflicts;
       expect(reordered.map((c) => c.rowID).toList(), ['e2', 'e1']);
     });
 
     test('staged siblings survive a store roundtrip', () async {
       final conflict = makeGroup(changeFor(SyncCollection.entries, 'e1'));
-      await store.stage(conflict);
+      store.stage(conflict);
+      await store.flush();
 
-      final read = (await store.pendingConflicts).single;
+      // Reloading from Drift reconstructs the same in-memory state.
+      final reloaded = await DriftSyncStagingStore.open(db);
+      final read = reloaded.pendingConflicts.single;
       // Equality compares collection, row id, and every sibling (decoded change,
       // version vector, and sibling id), so the roundtrip preserved the group.
       expect(read, conflict);
     });
+
     test('tombstone siblings roundtrip to deletes for the group row', () async {
       // Deletes encode as empty payloads, so the decode path must rebuild the
       // delete from the group row id rather than the sibling id.
@@ -183,9 +264,11 @@ void main() {
           'sibling-1',
         ),
       ]);
-      await store.stage(conflict);
+      store.stage(conflict);
+      await store.flush();
 
-      final read = (await store.pendingConflicts).single;
+      final reloaded = await DriftSyncStagingStore.open(db);
+      final read = reloaded.pendingConflicts.single;
       expect(read, conflict);
       expect(read.siblings.map((sibling) => sibling.change).toList(), [
         DeleteEntry(rowID),
@@ -207,14 +290,16 @@ void main() {
         final conflict = makeGroup(changeFor(SyncCollection.entries, 'e1'));
 
         final first = persistence.LedgerDatabase(NativeDatabase(File(path)));
-        await DriftSyncStagingStore(first).stage(conflict);
+        final firstStore = await DriftSyncStagingStore.open(first);
+        firstStore.stage(conflict);
+        await firstStore.flush();
         await first.close();
 
         // A fresh store over the same file reconstructs the staged group,
         // modelling a force-quit between stage and review.
         final second = persistence.LedgerDatabase(NativeDatabase(File(path)));
         try {
-          expect(await DriftSyncStagingStore(second).pendingConflicts, [
+          expect((await DriftSyncStagingStore.open(second)).pendingConflicts, [
             conflict,
           ]);
         } finally {
