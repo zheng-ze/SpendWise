@@ -288,13 +288,25 @@ class SyncMetadataStore {
   }
 
   /// Commits page vectors, watermark, and pending acknowledgement together.
-  /// Rolls back the whole commit when any part fails.
+  /// Rolls back the whole commit when any part fails. Every key in
+  /// [acknowledgedVectors] must belong to [collection]; a mismatched key
+  /// throws before anything is written.
   Future<void> commitPullPage({
     required SyncCollection collection,
     required String checkpoint,
     required String watermark,
     required Map<SyncRowID, VersionVector> acknowledgedVectors,
   }) async {
+    for (final rowID in acknowledgedVectors.keys) {
+      if (rowID.collection != collection) {
+        throw ArgumentError.value(
+          rowID,
+          'acknowledgedVectors',
+          'Row collection ${rowID.collection} does not match page '
+              'collection $collection.',
+        );
+      }
+    }
     await _db.transaction(() async {
       for (final entry in acknowledgedVectors.entries) {
         await _db

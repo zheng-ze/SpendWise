@@ -527,5 +527,30 @@ void main() {
         isTrue,
       );
     });
+
+    test(
+      'commitPullPage rejects vectors from another collection without writing',
+      () async {
+        await expectLater(
+          store.commitPullPage(
+            collection: SyncCollection.entries,
+            checkpoint: 'cp-9',
+            watermark: 'cp-checkpoint-7',
+            acknowledgedVectors: {
+              categoryRowE1: VersionVector({'deviceB': 4}),
+            },
+          ),
+          throwsArgumentError,
+        );
+
+        // The rejected commit leaves no partial state behind.
+        expect(await store.getAcknowledgedVector(categoryRowE1), isNull);
+        expect(await store.getWatermark(SyncCollection.entries), isNull);
+        expect(
+          await store.hasPendingAck(SyncCollection.entries, 'cp-9'),
+          isFalse,
+        );
+      },
+    );
   });
 }
