@@ -145,21 +145,18 @@ void main() {
       expect(pending.single.rowID, 'e1');
     });
 
-    test(
-      'stage replaces the prior group for the same collection and row',
-      () {
-        store.stage(
-          makeGroup(changeFor(SyncCollection.entries, 'e1'), siblingCount: 2),
-        );
-        store.stage(
-          makeGroup(changeFor(SyncCollection.entries, 'e1'), siblingCount: 3),
-        );
+    test('stage replaces the prior group for the same collection and row', () {
+      store.stage(
+        makeGroup(changeFor(SyncCollection.entries, 'e1'), siblingCount: 2),
+      );
+      store.stage(
+        makeGroup(changeFor(SyncCollection.entries, 'e1'), siblingCount: 3),
+      );
 
-        final pending = store.pendingConflicts;
-        expect(pending, hasLength(1));
-        expect(pending.single.siblings, hasLength(3));
-      },
-    );
+      final pending = store.pendingConflicts;
+      expect(pending, hasLength(1));
+      expect(pending.single.siblings, hasLength(3));
+    });
 
     test(
       'stage replaces only the matching collection for one shared row id',
@@ -172,10 +169,7 @@ void main() {
         expect(store.pendingConflicts, hasLength(2));
 
         store.stage(
-          makeGroup(
-            changeFor(SyncCollection.entries, 'e1'),
-            siblingCount: 3,
-          ),
+          makeGroup(changeFor(SyncCollection.entries, 'e1'), siblingCount: 3),
         );
         await store.flush();
 
@@ -309,5 +303,36 @@ void main() {
         await directory.delete(recursive: true);
       }
     });
+  });
+
+  group('write-through failures', () {
+    test(
+      'a failed durable write surfaces instead of diverging silently',
+      () async {
+        final failures = <Object>[];
+        final localDb = persistence.LedgerDatabase(NativeDatabase.memory());
+        addTearDown(localDb.close);
+        final local = await DriftSyncStagingStore.open(
+          localDb,
+          onWriteError: (error, _) => failures.add(error),
+        );
+        // Dropping the table forces every subsequent write-through to fail,
+        // the way a full disk or a corrupt page would.
+        await localDb.customStatement('DROP TABLE sync_staging_group');
+
+        local.stage(makeGroup(changeFor(SyncCollection.entries, 'e1')));
+        await expectLater(local.flush(), throwsA(isA<Exception>()));
+        expect(failures, hasLength(1));
+        // The cache holds what Drift lost: the divergence the callback makes
+        // observable instead of silent.
+        expect(local.pendingConflicts, hasLength(1));
+
+        // A failed write never blocks later ones: the next write is attempted
+        // and reported too, instead of the queue stalling.
+        local.resolve(makeGroup(changeFor(SyncCollection.entries, 'e1')));
+        await expectLater(local.flush(), throwsA(isA<Exception>()));
+        expect(failures, hasLength(2));
+      },
+    );
   });
 }

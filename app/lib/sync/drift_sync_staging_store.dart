@@ -19,24 +19,42 @@ import 'package:spendwise/persistence/ledger_database.dart';
 /// force-quit because they live in the same database file. Decrypted staged
 /// siblings are stored in plaintext, consistent with the existing plaintext
 /// LedgerState storage policy.
+///
+/// A failed write-through never blocks later writes, and it is never silent:
+/// each failure is reported once to [onWriteError] (when one is registered)
+/// and rethrown, so the [flush] awaiting that write throws it.
 class DriftSyncStagingStore implements SyncStagingStore {
-  DriftSyncStagingStore._(this._db, List<StagedConflict> seed)
-    : _conflicts = List.of(seed);
+  DriftSyncStagingStore._(
+    this._db,
+    List<StagedConflict> seed, {
+    this.onWriteError,
+  }) : _conflicts = List.of(seed);
 
   /// Opens [db] and hydrates the in-memory cache from its durable staging
   /// rows, oldest first. Await this before handing the store to [SyncEngine].
-  static Future<DriftSyncStagingStore> open(LedgerDatabase db) async {
+  ///
+  /// [onWriteError] observes each durable write-through failure once, with
+  /// its stack trace. Register one wherever staged state must be durable:
+  /// without it, a failure between the synchronous cache update and the
+  /// background Drift write is visible only to the [flush] awaiting it.
+  static Future<DriftSyncStagingStore> open(
+    LedgerDatabase db, {
+    void Function(Object error, StackTrace stackTrace)? onWriteError,
+  }) async {
     final rows = await (db.select(db.syncStagingGroup)).get();
     final ordered = List.of(rows)
       ..sort((a, b) => a.sequence.compareTo(b.sequence));
     return DriftSyncStagingStore._(db, [
       for (final row in ordered)
         _decodeGroup(_collection(row.collection), row.rowID, row.siblings),
-    ]);
+    ], onWriteError: onWriteError);
   }
 
   final LedgerDatabase _db;
   final List<StagedConflict> _conflicts;
+
+  /// Observes one durable write-through failure, with its stack trace.
+  final void Function(Object error, StackTrace stackTrace)? onWriteError;
 
   /// Write-through writes in flight. Chained so concurrent mutations persist
   /// in call order; a failed write never blocks later ones from persisting.
@@ -54,8 +72,7 @@ class DriftSyncStagingStore implements SyncStagingStore {
   }
 
   @override
-  List<StagedConflict> get pendingConflicts =>
-      List.unmodifiable(_conflicts);
+  List<StagedConflict> get pendingConflicts => List.unmodifiable(_conflicts);
 
   @override
   void resolve(StagedConflict conflict) {
@@ -69,10 +86,39 @@ class DriftSyncStagingStore implements SyncStagingStore {
 
   /// Awaits every write-through write enqueued so far. Await this before
   /// closing the database (or the process) when staged state must be durable.
+  /// Throws the failure of the latest enqueued write when that write failed;
+  /// earlier failures interrupted by later writes surface only through
+  /// [onWriteError].
   Future<void> flush() => _writes;
 
   void _enqueue(Future<void> Function() work) {
-    _writes = _writes.then((_) => work(), onError: (_) => work());
+    final prior = _writes;
+    _writes = _runAfter(prior, work);
+  }
+
+  Future<void> _runAfter(
+    Future<void> prior,
+    Future<void> Function() work,
+  ) async {
+    await _settle(prior);
+    try {
+      await work();
+    } on Object catch (error, stackTrace) {
+      onWriteError?.call(error, stackTrace);
+      rethrow;
+    }
+  }
+
+  /// Awaits [future] without propagating its outcome. A prior link's failure
+  /// was already reported to [onWriteError] (and rethrown to its own
+  /// flusher) when it ran, so only the chain linkage is swallowed here and
+  /// later writes still persist.
+  static Future<void> _settle(Future<void> future) async {
+    try {
+      await future;
+    } on Object catch (_) {
+      // Deliberate: see [_runAfter]. The failure itself was already reported.
+    }
   }
 
   Future<void> _persistStage(StagedConflict conflict) async {
