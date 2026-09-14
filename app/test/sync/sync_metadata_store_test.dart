@@ -150,10 +150,7 @@ void main() {
 
       expect(await store.getBackendSelection(), 'profile-concurrent');
       expect(await store.isWriteGateEnabled(), isTrue);
-      expect(
-        await store.getPhase(),
-        EnrollmentPhase.reconciliationComplete,
-      );
+      expect(await store.getPhase(), EnrollmentPhase.reconciliationComplete);
     });
   });
 
@@ -166,10 +163,7 @@ void main() {
           'cp-checkpoint-1',
         );
         await store.setWatermark(SyncCollection.entries, 'cp-checkpoint-2');
-        await store.setWatermark(
-          SyncCollection.categories,
-          'cp-checkpoint-3',
-        );
+        await store.setWatermark(SyncCollection.categories, 'cp-checkpoint-3');
         await store.setWatermark(SyncCollection.plans, 'cp-checkpoint-4');
         await store.setWatermark(SyncCollection.budgets, 'cp-checkpoint-5');
 

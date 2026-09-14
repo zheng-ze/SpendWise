@@ -157,137 +157,123 @@ void main() {
     expect(writeGate.read<String?>('dflt_value'), '0');
   });
 
-  test(
-    'a mid-migration failure rolls back and the retry completes',
-    () async {
-      final directory = await Directory.systemTemp.createTemp(
-        'migration-atomicity',
-      );
-      try {
-        final path = '${directory.path}${Platform.pathSeparator}ledger.db';
-        final accountsDdl = await userTableDdl('accounts');
+  test('a mid-migration failure rolls back and the retry completes', () async {
+    final directory = await Directory.systemTemp.createTemp(
+      'migration-atomicity',
+    );
+    try {
+      final path = '${directory.path}${Platform.pathSeparator}ledger.db';
+      final accountsDdl = await userTableDdl('accounts');
 
-        // Plants a conflicting table so the migration fails partway.
-        // Rollback keeps the plant and removes what the run created.
-        final failingDb = LedgerDatabase(
-          NativeDatabase(
-            File(path),
-            setup: (raw) {
-              raw.execute(accountsDdl);
-              raw.execute(
-                'INSERT INTO accounts (id, name, type, sub_pocket_ids, '
-                'incoming_transfers_as_expenses, include_in_net_worth, '
-                'statement_day, version_data, lifecycle) '
-                "VALUES ('acct-1', 'Cash', 0, '[]', 0, 1, NULL, X'00', 0)",
-              );
-              raw.execute(
-                'CREATE TABLE sync_pending_ack ('
-                'collection TEXT NOT NULL, '
-                'checkpoint TEXT NOT NULL, '
-                'PRIMARY KEY (collection, checkpoint)'
-                ')',
-              );
-              raw.execute('PRAGMA user_version = 3');
-            },
-          ),
-        );
-        await expectLater(
-          failingDb.customSelect('SELECT 1').get(),
-          throwsA(isA<Exception>()),
-        );
-        await failingDb.close();
-
-        // Probes through a raw connection without migrations, so the probe
-        // never changes the version or runs the upgrade.
-        Future<({Set<String> tables, int version})> probeSchema() async {
-          final probe = NativeDatabase(
-            File(path),
-            enableMigrations: false,
-          );
-          try {
-            await probe.ensureOpen(const _NoMigration());
-            final rows = await probe.runSelect(
-              "SELECT name FROM sqlite_master WHERE type = 'table' "
-              "AND name LIKE 'sync_%'",
-              <Object?>[],
-            );
-            final versions = await probe.runSelect(
-              'PRAGMA user_version',
-              <Object?>[],
-            );
-            return (
-              tables: {
-                for (final row in rows) (row['name'] as String),
-              },
-              version: versions.single['user_version'] as int,
-            );
-          } finally {
-            await probe.close();
-          }
-        }
-
-        // The failed run leaves no partial schema. Only the plant remains
-        // with the version still at 3.
-        final failed = await probeSchema();
-        expect(failed.tables, {'sync_pending_ack'});
-        expect(failed.version, 3);
-
-        // Remove the conflicting plant, as a crash recovery would leave no
-        // conflict behind, then retry from the clean v3 state.
-        final cleaner = NativeDatabase(
+      // Plants a conflicting table so the migration fails partway.
+      // Rollback keeps the plant and removes what the run created.
+      final failingDb = LedgerDatabase(
+        NativeDatabase(
           File(path),
-          enableMigrations: false,
-        );
+          setup: (raw) {
+            raw.execute(accountsDdl);
+            raw.execute(
+              'INSERT INTO accounts (id, name, type, sub_pocket_ids, '
+              'incoming_transfers_as_expenses, include_in_net_worth, '
+              'statement_day, version_data, lifecycle) '
+              "VALUES ('acct-1', 'Cash', 0, '[]', 0, 1, NULL, X'00', 0)",
+            );
+            raw.execute(
+              'CREATE TABLE sync_pending_ack ('
+              'collection TEXT NOT NULL, '
+              'checkpoint TEXT NOT NULL, '
+              'PRIMARY KEY (collection, checkpoint)'
+              ')',
+            );
+            raw.execute('PRAGMA user_version = 3');
+          },
+        ),
+      );
+      await expectLater(
+        failingDb.customSelect('SELECT 1').get(),
+        throwsA(isA<Exception>()),
+      );
+      await failingDb.close();
+
+      // Probes through a raw connection without migrations, so the probe
+      // never changes the version or runs the upgrade.
+      Future<({Set<String> tables, int version})> probeSchema() async {
+        final probe = NativeDatabase(File(path), enableMigrations: false);
         try {
-          await cleaner.ensureOpen(const _NoMigration());
-          await cleaner.runCustom('DROP TABLE sync_pending_ack');
+          await probe.ensureOpen(const _NoMigration());
+          final rows = await probe.runSelect(
+            "SELECT name FROM sqlite_master WHERE type = 'table' "
+            "AND name LIKE 'sync_%'",
+            <Object?>[],
+          );
+          final versions = await probe.runSelect(
+            'PRAGMA user_version',
+            <Object?>[],
+          );
+          return (
+            tables: {for (final row in rows) (row['name'] as String)},
+            version: versions.single['user_version'] as int,
+          );
         } finally {
-          await cleaner.close();
+          await probe.close();
         }
-
-        // A subsequent normal open completes the full upgrade, preserving
-        // the pre-v4 user data.
-        final database = LedgerDatabase(NativeDatabase(File(path)));
-        db = database;
-        await database.customSelect('SELECT 1').get();
-        for (final table in [
-          'sync_metadata',
-          'sync_watermark',
-          'sync_acknowledged_vector',
-          'sync_pending_ack',
-          'sync_staging_group',
-        ]) {
-          final rows = await database
-              .customSelect(
-                "SELECT name FROM sqlite_master WHERE type = 'table' "
-                "AND name = '$table'",
-              )
-              .get();
-          expect(rows, hasLength(1), reason: 'missing table $table');
-        }
-        final upgradedVersion = await database
-            .customSelect('PRAGMA user_version')
-            .getSingle();
-        expect(upgradedVersion.read<int>('user_version'), 4);
-        final accounts = await database.select(database.accounts).get();
-        expect(accounts.map((account) => account.id).toList(), ['acct-1']);
-
-        // The retried schema serves the stores, with watermarks as opaque
-        // pull cursors.
-        final metadata = SyncMetadataStore(database);
-        await metadata.setWatermark(
-          SyncCollection.entries,
-          'cp-checkpoint-7',
-        );
-        expect(
-          await metadata.getWatermark(SyncCollection.entries),
-          'cp-checkpoint-7',
-        );
-      } finally {
-        await directory.delete(recursive: true);
       }
-    },
-  );
+
+      // The failed run leaves no partial schema. Only the plant remains
+      // with the version still at 3.
+      final failed = await probeSchema();
+      expect(failed.tables, {'sync_pending_ack'});
+      expect(failed.version, 3);
+
+      // Remove the conflicting plant, as a crash recovery would leave no
+      // conflict behind, then retry from the clean v3 state.
+      final cleaner = NativeDatabase(File(path), enableMigrations: false);
+      try {
+        await cleaner.ensureOpen(const _NoMigration());
+        await cleaner.runCustom('DROP TABLE sync_pending_ack');
+      } finally {
+        await cleaner.close();
+      }
+
+      // A subsequent normal open completes the full upgrade, preserving
+      // the pre-v4 user data.
+      final database = LedgerDatabase(NativeDatabase(File(path)));
+      db = database;
+      await database.customSelect('SELECT 1').get();
+      for (final table in [
+        'sync_metadata',
+        'sync_watermark',
+        'sync_acknowledged_vector',
+        'sync_pending_ack',
+        'sync_staging_group',
+      ]) {
+        final rows = await database
+            .customSelect(
+              "SELECT name FROM sqlite_master WHERE type = 'table' "
+              "AND name = '$table'",
+            )
+            .get();
+        expect(rows, hasLength(1), reason: 'missing table $table');
+      }
+      final upgradedVersion = await database
+          .customSelect('PRAGMA user_version')
+          .getSingle();
+      expect(upgradedVersion.read<int>('user_version'), 4);
+      final accounts = await database.select(database.accounts).get();
+      expect(accounts.map((account) => account.id).toList(), ['acct-1']);
+
+      // The retried schema serves the stores, with watermarks as opaque
+      // pull cursors.
+      final metadata = SyncMetadataStore(database);
+      await metadata.setWatermark(SyncCollection.entries, 'cp-checkpoint-7');
+      expect(
+        await metadata.getWatermark(SyncCollection.entries),
+        'cp-checkpoint-7',
+      );
+    } finally {
+      await directory.delete(recursive: true);
+    }
+  });
 
   test('upgraded database serves both sync stores', () async {
     final database = await openUpgraded();

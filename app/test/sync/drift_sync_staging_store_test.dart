@@ -347,13 +347,12 @@ void main() {
             }
           },
         );
-        final stagingDdl =
-            await localDb
-                .customSelect(
-                  "SELECT sql FROM sqlite_master WHERE type = 'table' "
-                  "AND name = 'sync_staging_group'",
-                )
-                .getSingle();
+        final stagingDdl = await localDb
+            .customSelect(
+              "SELECT sql FROM sqlite_master WHERE type = 'table' "
+              "AND name = 'sync_staging_group'",
+            )
+            .getSingle();
         // Dropping the table forces the next write-through to fail, the way
         // a full disk or a corrupt page would.
         await localDb.customStatement('DROP TABLE sync_staging_group');
@@ -374,15 +373,14 @@ void main() {
 
         // The cache holds both groups, but only the later write reached
         // the database.
-        expect(
-          local.pendingConflicts.map((group) => group.rowID).toList(),
-          ['e1', 'e2'],
-        );
+        expect(local.pendingConflicts.map((group) => group.rowID).toList(), [
+          'e1',
+          'e2',
+        ]);
         final reloaded = await DriftSyncStagingStore.open(localDb);
-        expect(
-          reloaded.pendingConflicts.map((group) => group.rowID).toList(),
-          ['e2'],
-        );
+        expect(reloaded.pendingConflicts.map((group) => group.rowID).toList(), [
+          'e2',
+        ]);
       },
     );
   });

@@ -182,9 +182,7 @@ class SyncMetadataStore {
 
   Future<Map<SyncCollection, String>> getAllWatermarks() async {
     final rows = await _db.select(_db.syncWatermark).get();
-    return {
-      for (final row in rows) _collection(row.collection): row.cursor,
-    };
+    return {for (final row in rows) _collection(row.collection): row.cursor};
   }
 
   Future<VersionVector?> getAcknowledgedVector(SyncRowID rowID) async {
