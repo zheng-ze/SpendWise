@@ -27,10 +27,15 @@ class LedgerDatabase extends _$LedgerDatabase {
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-    onUpgrade: (db, from, to) async {
-      // Creates sync tables for upgrades from before v4.
+    onUpgrade: (m, from, to) async {
+      // Creates sync tables for upgrades from before v4. Budgets entered
+      // at v2 without its own migration step, so pre-v4 databases may
+      // lack the table even when stamped v2 or v3. createTable is
+      // IF NOT EXISTS, so it repairs that gap without touching tables
+      // that already exist.
       if (from < 4) {
-        await _createSyncTables(db);
+        await m.createTable(budgets);
+        await _createSyncTables(m);
       }
     },
   );

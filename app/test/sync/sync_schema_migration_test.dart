@@ -51,6 +51,33 @@ void main() {
   // Proves existing user data survives the migration.
   Future<LedgerDatabase> openUpgraded() async {
     final accountsDdl = await userTableDdl('accounts');
+    final budgetsDdl = await userTableDdl('budgets');
+    final executor = NativeDatabase.memory(
+      setup: (raw) {
+        raw.execute(accountsDdl);
+        raw.execute(budgetsDdl);
+        raw.execute(
+          'INSERT INTO accounts (id, name, type, sub_pocket_ids, '
+          'incoming_transfers_as_expenses, include_in_net_worth, '
+          'statement_day, version_data, lifecycle) '
+          "VALUES ('acct-1', 'Cash', 0, '[]', 0, 1, NULL, X'00', 0)",
+        );
+        raw.execute('PRAGMA user_version = 3');
+      },
+    );
+    final upgraded = LedgerDatabase(executor);
+    // Trigger the open and the upgrade.
+    await upgraded.customSelect('SELECT 1').get();
+    db = upgraded;
+    return upgraded;
+  }
+
+  // Opens a v1 database with one account row and no budgets table, so the
+  // open runs the full upgrade. Budgets entered at v2 without its own
+  // migration step, so this proves a direct v1 to v4 upgrade gains the
+  // table instead of stamping v4 without it.
+  Future<LedgerDatabase> openUpgradedFromV1() async {
+    final accountsDdl = await userTableDdl('accounts');
     final executor = NativeDatabase.memory(
       setup: (raw) {
         raw.execute(accountsDdl);
@@ -60,7 +87,7 @@ void main() {
           'statement_day, version_data, lifecycle) '
           "VALUES ('acct-1', 'Cash', 0, '[]', 0, 1, NULL, X'00', 0)",
         );
-        raw.execute('PRAGMA user_version = 3');
+        raw.execute('PRAGMA user_version = 1');
       },
     );
     final upgraded = LedgerDatabase(executor);
@@ -110,6 +137,36 @@ void main() {
         )
         .getSingle();
     expect(metadataSql.read<String>('sql'), contains('CHECK (id = 0)'));
+  });
+
+  test('v1 to v4 upgrade creates the budgets table and the sync tables', () async {
+    final database = await openUpgradedFromV1();
+
+    for (final table in [
+      'budgets',
+      'sync_metadata',
+      'sync_watermark',
+      'sync_acknowledged_vector',
+      'sync_pending_ack',
+      'sync_staging_group',
+    ]) {
+      final rows = await database
+          .customSelect(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = '$table'",
+          )
+          .get();
+      expect(rows, hasLength(1), reason: 'missing table $table');
+    }
+
+    final version = await database
+        .customSelect('PRAGMA user_version')
+        .getSingle();
+    expect(version.read<int>('user_version'), 4);
+
+    // The pre-v2 account row survives, and budgets is queryable.
+    final accounts = await database.select(database.accounts).get();
+    expect(accounts.map((account) => account.id).toList(), ['acct-1']);
+    expect(await database.select(database.budgets).get(), isEmpty);
   });
 
   test('v3 to v4 upgrade preserves existing user data', () async {
