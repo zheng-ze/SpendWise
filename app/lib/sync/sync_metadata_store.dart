@@ -113,11 +113,19 @@ class SyncMetadataStore {
     return code == null ? null : EnrollmentPhase.fromCode(code);
   }
 
+  /// Records an enrollment milestone. Phases are monotonic: the stored
+  /// phase only advances when [phase] has a higher code. Retries of an
+  /// earlier milestone are a no-op so a retried step cannot regress the
+  /// stored phase while the write gate stays enabled.
   Future<void> setPhase(EnrollmentPhase phase) async {
     // Shares one transaction so concurrent scalar writes serialize
     // instead of losing one update.
     await _db.transaction(() async {
       final existing = await _ensureScalar();
+      final existingCode = existing.enrollmentPhase;
+      if (existingCode != null && phase.code <= existingCode) {
+        return;
+      }
       await _db
           .into(_db.syncMetadata)
           .insertOnConflictUpdate(
