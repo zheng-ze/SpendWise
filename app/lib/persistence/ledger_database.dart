@@ -40,45 +40,52 @@ class LedgerDatabase extends _$LedgerDatabase {
   /// exactly the columns the generated rows expect. Table-level CHECK
   /// constraints trail the column definitions because SQLite rejects them
   /// between columns.
+  ///
+  /// The five statements share one transaction: a crash or storage failure
+  /// partway through rolls every CREATE TABLE back instead of leaving a
+  /// partial v4 schema behind at `user_version` 3, which the next launch
+  /// could never open again ("table already exists" on retry).
   Future<void> _createSyncTables(Migrator db) async {
-    await db.database.customStatement(
-      'CREATE TABLE sync_metadata ('
-      'id INTEGER NOT NULL PRIMARY KEY, '
-      'backend_selection TEXT, '
-      'enrollment_phase INTEGER, '
-      'write_gate INTEGER NOT NULL DEFAULT 0 CHECK (write_gate IN (0, 1)), '
-      'CHECK (id = 0)'
-      ')',
-    );
-    await db.database.customStatement(
-      'CREATE TABLE sync_watermark ('
-      'collection TEXT NOT NULL PRIMARY KEY, '
-      'cursor TEXT NOT NULL'
-      ')',
-    );
-    await db.database.customStatement(
-      'CREATE TABLE sync_acknowledged_vector ('
-      'collection TEXT NOT NULL, '
-      'row_id TEXT NOT NULL, '
-      'version_data BLOB NOT NULL, '
-      'PRIMARY KEY (collection, row_id)'
-      ')',
-    );
-    await db.database.customStatement(
-      'CREATE TABLE sync_pending_ack ('
-      'collection TEXT NOT NULL, '
-      'checkpoint TEXT NOT NULL, '
-      'PRIMARY KEY (collection, checkpoint)'
-      ')',
-    );
-    await db.database.customStatement(
-      'CREATE TABLE sync_staging_group ('
-      'sequence INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, '
-      'collection TEXT NOT NULL, '
-      'row_id TEXT NOT NULL, '
-      'sibling_data BLOB NOT NULL, '
-      'UNIQUE (collection, row_id)'
-      ')',
-    );
+    await db.database.transaction(() async {
+      await db.database.customStatement(
+        'CREATE TABLE sync_metadata ('
+        'id INTEGER NOT NULL PRIMARY KEY, '
+        'backend_selection TEXT, '
+        'enrollment_phase INTEGER, '
+        'write_gate INTEGER NOT NULL DEFAULT 0 CHECK (write_gate IN (0, 1)), '
+        'CHECK (id = 0)'
+        ')',
+      );
+      await db.database.customStatement(
+        'CREATE TABLE sync_watermark ('
+        'collection TEXT NOT NULL PRIMARY KEY, '
+        'cursor TEXT NOT NULL'
+        ')',
+      );
+      await db.database.customStatement(
+        'CREATE TABLE sync_acknowledged_vector ('
+        'collection TEXT NOT NULL, '
+        'row_id TEXT NOT NULL, '
+        'version_data BLOB NOT NULL, '
+        'PRIMARY KEY (collection, row_id)'
+        ')',
+      );
+      await db.database.customStatement(
+        'CREATE TABLE sync_pending_ack ('
+        'collection TEXT NOT NULL, '
+        'checkpoint TEXT NOT NULL, '
+        'PRIMARY KEY (collection, checkpoint)'
+        ')',
+      );
+      await db.database.customStatement(
+        'CREATE TABLE sync_staging_group ('
+        'sequence INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, '
+        'collection TEXT NOT NULL, '
+        'row_id TEXT NOT NULL, '
+        'sibling_data BLOB NOT NULL, '
+        'UNIQUE (collection, row_id)'
+        ')',
+      );
+    });
   }
 }
