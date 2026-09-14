@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:domain/domain.dart';
 import 'package:spendwise/persistence/ledger_store.dart';
+import 'package:sync/sync.dart';
 
 /// Ingest is queued in arrival order and applied only by [flushNow], standing
 /// in for the real store's debounce window. That makes a missing flush visible
@@ -23,6 +24,8 @@ class InMemoryLedgerStore implements LedgerStore {
 
   final List<List<LedgerChange>> _enqueued = [];
 
+  final List<Map<SyncRowID, VersionVector>?> _receivedStamps = [];
+
   bool _started = false;
 
   bool get isStarted => _started;
@@ -33,6 +36,11 @@ class InMemoryLedgerStore implements LedgerStore {
   /// forwarded apart from what the store ended up holding.
   List<List<LedgerChange>> get enqueuedBatches =>
       List.unmodifiable(_enqueued.map(List<LedgerChange>.unmodifiable));
+
+  /// Parallel to [enqueuedBatches]: the stamps each enqueue carried, or null
+  /// when the batch arrived through the unstamped [enqueue] path.
+  List<Map<SyncRowID, VersionVector>?> get enqueuedStamps =>
+      List.unmodifiable(_receivedStamps);
 
   @override
   Future<LedgerState> load() async => _state;
@@ -58,6 +66,22 @@ class InMemoryLedgerStore implements LedgerStore {
     if (changes.isEmpty) return;
     _enqueued.add(List<LedgerChange>.of(changes));
     _pending.add(List<LedgerChange>.of(changes));
+    _receivedStamps.add(null);
+  }
+
+  @override
+  void enqueueStamped(
+    List<LedgerChange> changes,
+    Map<SyncRowID, VersionVector> stamps,
+  ) {
+    if (changes.isEmpty) return;
+    _enqueued.add(List<LedgerChange>.of(changes));
+    _pending.add(List<LedgerChange>.of(changes));
+    _receivedStamps.add(
+      Map<SyncRowID, VersionVector>.unmodifiable(
+        Map<SyncRowID, VersionVector>.of(stamps),
+      ),
+    );
   }
 
   @override

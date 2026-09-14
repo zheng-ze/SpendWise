@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:domain/domain.dart';
 import 'package:spendwise/ledger/event_bus.dart';
 import 'package:spendwise/persistence/ledger_store.dart';
 
@@ -13,14 +12,25 @@ class PersistenceProcessor {
 
   final EventBus bus;
 
-  StreamSubscription<List<LedgerChange>>? _subscription;
+  StreamSubscription<LedgerPublication>? _subscription;
 
   /// The subscription is taken before the first await, so a batch published
   /// while the store is still starting is not lost. The stream is a broadcast
   /// with no buffer for a late listener.
   Future<void> start() async {
-    _subscription ??= bus.subscribe().listen(store.enqueue);
+    _subscription ??= bus.subscribe().listen(_forward);
     await store.start();
+  }
+
+  /// The sole persistence route: unstamped publications keep the existing
+  /// enqueue bump path, stamped ones go to `enqueueStamped`.
+  void _forward(LedgerPublication publication) {
+    final stamps = publication.stamps;
+    if (stamps != null && stamps.isNotEmpty) {
+      store.enqueueStamped(publication.changes, stamps);
+    } else {
+      store.enqueue(publication.changes);
+    }
   }
 
   Future<void> flush() => store.flushNow();

@@ -1,4 +1,5 @@
 import 'package:domain/domain.dart';
+import 'package:sync/sync.dart';
 
 /// What the store is doing about a failed save, so the banner stops claiming
 /// "retrying" once the store has given up on the current attempt.
@@ -17,6 +18,14 @@ abstract class LedgerStore {
   Future<void> start();
 
   void enqueue(List<LedgerChange> changes);
+
+  /// Stamped variant of [enqueue] for sync publications carrying per-row
+  /// version vectors. Unstamped publications keep the existing [enqueue]
+  /// bump path.
+  void enqueueStamped(
+    List<LedgerChange> changes,
+    Map<SyncRowID, VersionVector> stamps,
+  );
 
   Future<void> flushNow();
 
