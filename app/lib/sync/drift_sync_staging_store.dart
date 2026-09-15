@@ -40,18 +40,11 @@ final class DriftSyncStagingStore implements SyncStagingStore {
   /// Stages [conflict], replacing the prior group for the same collection and
   /// row, and moves the group to the newest position.
   Future<void> stageConflict(StagedConflict conflict) async {
-    final collection = conflict.collection.wireName;
+    final collection = conflict.collection;
     final rowID = conflict.rowID;
     const codec = PayloadCodec();
     await _db.transaction(() async {
-      await (_db.delete(_db.syncStagedSiblings)..where(
-            (t) => t.collection.equals(collection) & t.rowId.equals(rowID),
-          ))
-          .go();
-      await (_db.delete(_db.syncStagedConflicts)..where(
-            (t) => t.collection.equals(collection) & t.rowId.equals(rowID),
-          ))
-          .go();
+      await _deleteGroup(collection, rowID);
       await _db
           .into(_db.syncStagedConflicts)
           .insert(
@@ -69,7 +62,7 @@ final class DriftSyncStagingStore implements SyncStagingStore {
                 collection: collection,
                 rowId: rowID,
                 siblingId: sibling.siblingID,
-                versionData: Uint8List.fromList(sibling.versionVector.encode()),
+                versionData: sibling.versionVector,
                 payload: Uint8List.fromList(codec.encodeChange(sibling.change)),
                 lifecycle: _lifecycleOf(sibling.change),
                 position: index,
@@ -94,23 +87,27 @@ final class DriftSyncStagingStore implements SyncStagingStore {
   /// Resolves the group for the same collection and row, acting as an
   /// idempotent no-op when it is absent.
   Future<void> resolveConflict(StagedConflict conflict) async {
-    final collection = conflict.collection.wireName;
+    final collection = conflict.collection;
     final rowID = conflict.rowID;
-    await _db.transaction(() async {
-      await (_db.delete(_db.syncStagedSiblings)..where(
-            (t) => t.collection.equals(collection) & t.rowId.equals(rowID),
-          ))
-          .go();
-      await (_db.delete(_db.syncStagedConflicts)..where(
-            (t) => t.collection.equals(collection) & t.rowId.equals(rowID),
-          ))
-          .go();
-    });
+    await _db.transaction(() => _deleteGroup(collection, rowID));
     _mirror.removeWhere(
       (existing) =>
           existing.collection == conflict.collection &&
           existing.rowID == conflict.rowID,
     );
+  }
+
+  /// Deletes the staged siblings and conflict row for [collection]/[rowID].
+  /// Callers must run this inside their own transaction.
+  Future<void> _deleteGroup(SyncCollection collection, String rowID) async {
+    await (_db.delete(_db.syncStagedSiblings)..where(
+          (t) => t.collection.equalsValue(collection) & t.rowId.equals(rowID),
+        ))
+        .go();
+    await (_db.delete(_db.syncStagedConflicts)..where(
+          (t) => t.collection.equalsValue(collection) & t.rowId.equals(rowID),
+        ))
+        .go();
   }
 
   /// Settles writes enqueued through the synchronous engine-path overrides.
@@ -153,7 +150,7 @@ final class DriftSyncStagingStore implements SyncStagingStore {
           await (_db.select(_db.syncStagedSiblings)
                 ..where(
                   (t) =>
-                      t.collection.equals(collection.wireName) &
+                      t.collection.equalsValue(collection) &
                       t.rowId.equals(rowID),
                 )
                 ..orderBy([
@@ -176,8 +173,8 @@ final class DriftSyncStagingStore implements SyncStagingStore {
     PayloadCodec codec,
     StagedSiblingRow row,
   ) {
-    final collection = SyncCollection.fromWireName(row.collection);
-    final vector = VersionVector.decode(row.versionData.toList());
+    final collection = row.collection;
+    final vector = row.versionData;
     final LedgerChange change;
     if (row.lifecycle == _stagedLifecycleTombstone) {
       change = deleteFor(collection, row.rowId);

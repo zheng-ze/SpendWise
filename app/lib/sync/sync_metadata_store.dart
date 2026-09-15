@@ -118,33 +118,19 @@ final class SyncMetadataStore {
   Future<void> setBackendSelection({
     required SyncBackendKind backend,
     String? endpoint,
-  }) => _db.transaction(() async {
-    await _ensureMetaRow();
-    await (_db.update(_db.syncMeta)..where((t) => t.id.equals(0))).write(
-      SyncMetaCompanion(
-        backend: Value(backend.code),
-        endpoint: Value(endpoint),
-      ),
-    );
-  });
+  }) => _updateMeta(
+    SyncMetaCompanion(backend: Value(backend.code), endpoint: Value(endpoint)),
+  );
 
-  Future<void> clearBackendSelection() => _db.transaction(() async {
-    await _ensureMetaRow();
-    await (_db.update(_db.syncMeta)..where((t) => t.id.equals(0))).write(
-      SyncMetaCompanion(
-        backend: const Value<String?>(null),
-        endpoint: const Value<String?>(null),
-      ),
-    );
-  });
+  Future<void> clearBackendSelection() => _updateMeta(
+    SyncMetaCompanion(
+      backend: const Value<String?>(null),
+      endpoint: const Value<String?>(null),
+    ),
+  );
 
   Future<void> setEnrollmentPhase(SyncEnrollmentPhase phase) =>
-      _db.transaction(() async {
-        await _ensureMetaRow();
-        await (_db.update(_db.syncMeta)..where((t) => t.id.equals(0))).write(
-          SyncMetaCompanion(enrollmentPhase: Value(phase.code)),
-        );
-      });
+      _updateMeta(SyncMetaCompanion(enrollmentPhase: Value(phase.code)));
 
   /// Flips the write gate. Enabling is refused with [SyncWriteGateException]
   /// unless the stored enrollment phase is reconciliation-complete; the phase
@@ -163,38 +149,28 @@ final class SyncMetadataStore {
         );
       }
     }
-    await (_db.update(_db.syncMeta)..where((t) => t.id.equals(0))).write(
-      SyncMetaCompanion(writeEnabled: Value(value)),
-    );
+    await _writeMeta(SyncMetaCompanion(writeEnabled: Value(value)));
   });
 
   Future<void> setPullWatermark(SyncCollection collection, String? cursor) =>
-      _db.transaction(() async {
-        await _ensureMetaRow();
-        await (_db.update(_db.syncMeta)..where((t) => t.id.equals(0))).write(
-          _watermarkCompanion(collection, cursor),
-        );
-      });
+      _updateMeta(_watermarkCompanion(collection, cursor));
 
   Future<VersionVector?> acknowledgedVector(SyncRowID row) async {
     final found =
         await (_db.select(_db.syncAcknowledgedVectors)..where(
               (t) =>
-                  t.collection.equals(row.collection.wireName) &
+                  t.collection.equalsValue(row.collection) &
                   t.rowId.equals(row.rowID),
             ))
             .getSingleOrNull();
-    return found == null
-        ? null
-        : VersionVector.decode(found.versionData.toList());
+    return found?.versionData;
   }
 
   Future<Map<SyncRowID, VersionVector>> acknowledgedVectors() async {
     final rows = await _db.select(_db.syncAcknowledgedVectors).get();
     return {
       for (final row in rows)
-        SyncRowID.of(SyncCollection.fromWireName(row.collection), row.rowId):
-            VersionVector.decode(row.versionData.toList()),
+        SyncRowID.of(row.collection, row.rowId): row.versionData,
     };
   }
 
@@ -204,27 +180,23 @@ final class SyncMetadataStore {
             .into(_db.syncAcknowledgedVectors)
             .insertOnConflictUpdate(
               SyncAcknowledgedVectorsCompanion.insert(
-                collection: row.collection.wireName,
+                collection: row.collection,
                 rowId: row.rowID,
-                versionData: Uint8List.fromList(vector.encode()),
+                versionData: vector,
               ),
             );
       });
 
   Future<String?> pendingAcknowledgement(SyncCollection collection) async {
-    final found =
-        await (_db.select(_db.syncPendingAcknowledgements)
-              ..where((t) => t.collection.equals(collection.wireName)))
-            .getSingleOrNull();
+    final found = await (_db.select(
+      _db.syncPendingAcknowledgements,
+    )..where((t) => t.collection.equalsValue(collection))).getSingleOrNull();
     return found?.checkpoint;
   }
 
   Future<Map<SyncCollection, String>> pendingAcknowledgements() async {
     final rows = await _db.select(_db.syncPendingAcknowledgements).get();
-    return {
-      for (final row in rows)
-        SyncCollection.fromWireName(row.collection): row.checkpoint,
-    };
+    return {for (final row in rows) row.collection: row.checkpoint};
   }
 
   Future<void> setPendingAcknowledgement(
@@ -235,7 +207,7 @@ final class SyncMetadataStore {
         .into(_db.syncPendingAcknowledgements)
         .insertOnConflictUpdate(
           SyncPendingAcknowledgementsCompanion.insert(
-            collection: collection.wireName,
+            collection: collection,
             checkpoint: checkpoint,
           ),
         );
@@ -245,7 +217,7 @@ final class SyncMetadataStore {
       _db.transaction(() async {
         await (_db.delete(
           _db.syncPendingAcknowledgements,
-        )..where((t) => t.collection.equals(collection.wireName))).go();
+        )..where((t) => t.collection.equalsValue(collection))).go();
       });
 
   /// Commits one pulled page durably: the verified per-row vectors, the page
@@ -272,21 +244,19 @@ final class SyncMetadataStore {
           .into(_db.syncAcknowledgedVectors)
           .insertOnConflictUpdate(
             SyncAcknowledgedVectorsCompanion.insert(
-              collection: collection.wireName,
+              collection: collection,
               rowId: entry.key.rowID,
-              versionData: Uint8List.fromList(entry.value.encode()),
+              versionData: entry.value,
             ),
           );
     }
     await _ensureMetaRow();
-    await (_db.update(_db.syncMeta)..where((t) => t.id.equals(0))).write(
-      _watermarkCompanion(collection, watermark),
-    );
+    await _writeMeta(_watermarkCompanion(collection, watermark));
     await _db
         .into(_db.syncPendingAcknowledgements)
         .insertOnConflictUpdate(
           SyncPendingAcknowledgementsCompanion.insert(
-            collection: collection.wireName,
+            collection: collection,
             checkpoint: checkpoint,
           ),
         );
@@ -296,6 +266,18 @@ final class SyncMetadataStore {
     await _ensureMetaRow();
     return (_db.select(_db.syncMeta)..where((t) => t.id.equals(0))).getSingle();
   }
+
+  /// Writes [companion] to the singleton row, without its own transaction.
+  /// Callers must already hold a transaction and have called
+  /// [_ensureMetaRow].
+  Future<void> _writeMeta(SyncMetaCompanion companion) =>
+      (_db.update(_db.syncMeta)..where((t) => t.id.equals(0))).write(companion);
+
+  Future<void> _updateMeta(SyncMetaCompanion companion) =>
+      _db.transaction(() async {
+        await _ensureMetaRow();
+        await _writeMeta(companion);
+      });
 
   Future<void> _ensureMetaRow() async {
     final existing = await (_db.select(
@@ -311,26 +293,50 @@ final class SyncMetadataStore {
   static String? _watermarkOf(
     SyncMetadataRow meta,
     SyncCollection collection,
-  ) => switch (collection) {
-    SyncCollection.moneySources => meta.moneySourcesCursor,
-    SyncCollection.entries => meta.entriesCursor,
-    SyncCollection.categories => meta.categoriesCursor,
-    SyncCollection.plans => meta.plansCursor,
-    SyncCollection.budgets => meta.budgetsCursor,
-  };
+  ) => _watermarkColumns[collection]!.readCursor(meta);
 
   static SyncMetaCompanion _watermarkCompanion(
     SyncCollection collection,
     String? cursor,
-  ) => switch (collection) {
-    SyncCollection.moneySources => SyncMetaCompanion(
-      moneySourcesCursor: Value(cursor),
+  ) => _watermarkColumns[collection]!.buildCompanion(cursor);
+
+  static final Map<SyncCollection, _WatermarkColumn> _watermarkColumns = {
+    SyncCollection.moneySources: _WatermarkColumn(
+      readCursor: (meta) => meta.moneySourcesCursor,
+      buildCompanion: (cursor) =>
+          SyncMetaCompanion(moneySourcesCursor: Value(cursor)),
     ),
-    SyncCollection.entries => SyncMetaCompanion(entriesCursor: Value(cursor)),
-    SyncCollection.categories => SyncMetaCompanion(
-      categoriesCursor: Value(cursor),
+    SyncCollection.entries: _WatermarkColumn(
+      readCursor: (meta) => meta.entriesCursor,
+      buildCompanion: (cursor) =>
+          SyncMetaCompanion(entriesCursor: Value(cursor)),
     ),
-    SyncCollection.plans => SyncMetaCompanion(plansCursor: Value(cursor)),
-    SyncCollection.budgets => SyncMetaCompanion(budgetsCursor: Value(cursor)),
+    SyncCollection.categories: _WatermarkColumn(
+      readCursor: (meta) => meta.categoriesCursor,
+      buildCompanion: (cursor) =>
+          SyncMetaCompanion(categoriesCursor: Value(cursor)),
+    ),
+    SyncCollection.plans: _WatermarkColumn(
+      readCursor: (meta) => meta.plansCursor,
+      buildCompanion: (cursor) => SyncMetaCompanion(plansCursor: Value(cursor)),
+    ),
+    SyncCollection.budgets: _WatermarkColumn(
+      readCursor: (meta) => meta.budgetsCursor,
+      buildCompanion: (cursor) =>
+          SyncMetaCompanion(budgetsCursor: Value(cursor)),
+    ),
   };
+}
+
+/// One [SyncCollection]'s watermark column, paired as a single map entry so
+/// adding a collection means adding one entry instead of extending two
+/// separate switches that had no compiler tie keeping them in lockstep.
+final class _WatermarkColumn {
+  const _WatermarkColumn({
+    required this.readCursor,
+    required this.buildCompanion,
+  });
+
+  final String? Function(SyncMetadataRow meta) readCursor;
+  final SyncMetaCompanion Function(String? cursor) buildCompanion;
 }

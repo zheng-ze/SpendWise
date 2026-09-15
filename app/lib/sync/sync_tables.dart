@@ -1,4 +1,32 @@
 import 'package:drift/drift.dart';
+import 'package:sync/sync.dart';
+
+/// Drift column codec for [SyncCollection], delegating to its own wire-name
+/// mapping so the collection column reads and writes a typed enum instead of
+/// call sites hand-converting `.wireName`/`.fromWireName` at each use.
+class SyncCollectionConverter extends TypeConverter<SyncCollection, String> {
+  const SyncCollectionConverter();
+
+  @override
+  SyncCollection fromSql(String fromDb) => SyncCollection.fromWireName(fromDb);
+
+  @override
+  String toSql(SyncCollection value) => value.wireName;
+}
+
+/// Drift column codec for [VersionVector], delegating to its own persistence
+/// codec ([VersionVector.encode]/[VersionVector.decode]) so a version column
+/// reads and writes a typed vector instead of call sites hand-encoding to and
+/// decoding from a raw blob at each use.
+class VersionVectorConverter extends TypeConverter<VersionVector, Uint8List> {
+  const VersionVectorConverter();
+
+  @override
+  VersionVector fromSql(Uint8List fromDb) => VersionVector.decode(fromDb);
+
+  @override
+  Uint8List toSql(VersionVector value) => Uint8List.fromList(value.encode());
+}
 
 /// Singleton sync-coordination row, sibling to the device-local `store_meta`.
 ///
@@ -54,11 +82,12 @@ class SyncMeta extends Table {
 /// synced row from a locally edited one.
 @DataClassName('AcknowledgedVectorRow')
 class SyncAcknowledgedVectors extends Table {
-  TextColumn get collection => text()();
+  TextColumn get collection => text().map(const SyncCollectionConverter())();
 
   TextColumn get rowId => text().named('row_id')();
 
-  BlobColumn get versionData => blob().named('version_data')();
+  BlobColumn get versionData =>
+      blob().named('version_data').map(const VersionVectorConverter())();
 
   @override
   Set<Column<Object>> get primaryKey => {collection, rowId};
@@ -71,7 +100,7 @@ class SyncAcknowledgedVectors extends Table {
 /// startup can retry it before any new pull or push work.
 @DataClassName('PendingAcknowledgementRow')
 class SyncPendingAcknowledgements extends Table {
-  TextColumn get collection => text()();
+  TextColumn get collection => text().map(const SyncCollectionConverter())();
 
   TextColumn get checkpoint => text()();
 
@@ -86,7 +115,7 @@ class SyncPendingAcknowledgements extends Table {
 /// a replacement moves to the newest position, matching the in-memory store.
 @DataClassName('StagedConflictRow')
 class SyncStagedConflicts extends Table {
-  TextColumn get collection => text()();
+  TextColumn get collection => text().map(const SyncCollectionConverter())();
 
   TextColumn get rowId => text().named('row_id')();
 
@@ -103,13 +132,14 @@ class SyncStagedConflicts extends Table {
 /// order the engine produced.
 @DataClassName('StagedSiblingRow')
 class SyncStagedSiblings extends Table {
-  TextColumn get collection => text()();
+  TextColumn get collection => text().map(const SyncCollectionConverter())();
 
   TextColumn get rowId => text().named('row_id')();
 
   TextColumn get siblingId => text().named('sibling_id')();
 
-  BlobColumn get versionData => blob().named('version_data')();
+  BlobColumn get versionData =>
+      blob().named('version_data').map(const VersionVectorConverter())();
 
   BlobColumn get payload => blob()();
 
