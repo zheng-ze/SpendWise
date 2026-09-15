@@ -1,5 +1,6 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/foundation.dart';
+import 'package:sync/sync.dart';
 
 import 'package:spendwise/ledger/event_bus.dart';
 
@@ -135,6 +136,41 @@ class Ledger extends ChangeNotifier {
 
   List<LedgerChange> deleteBudget(String rawID) =>
       _mutate((state) => state.deleteBudget(rawID));
+
+  /// Applies an already-decided remote batch: the coordinator owns
+  /// classification and reconciliation, so this takes the decided [changes]
+  /// plus the complete per-row [stamps] at face value.
+  ///
+  /// Copy-validates first: builds a candidate from the five live tables,
+  /// applies [changes] to the candidate, and runs the structural invariants
+  /// unconditionally, outside `assert` and without mutator clause 12
+  /// lifecycle monotonicity, so a legitimate remote transition this device
+  /// never observed still passes. Only then adopts the candidate into the
+  /// live state (keeping the same [LedgerState] object), publishes one
+  /// stamped publication, and notifies once.
+  ///
+  /// A validation failure throws before any of those happen, so the live
+  /// tables, the bus, and the listeners are all untouched.
+  List<LedgerChange> applySyncBatch(
+    List<LedgerChange> changes,
+    Map<SyncRowID, VersionVector> stamps,
+  ) {
+    assert(ChangeNotifier.debugAssertNotDisposed(this));
+
+    final candidate = LedgerState(
+      moneySources: _state.moneySources,
+      entries: _state.entries,
+      categories: _state.categories,
+      plans: _state.plans,
+      budgets: _state.budgets,
+    );
+    candidate.apply(changes);
+    candidate.assertInvariants();
+    _state.adopt(candidate);
+    bus.publish(changes, stamps: stamps);
+    notifyListeners();
+    return changes;
+  }
 
   /// [now] must be a UTC instant. A device-local one would make occurrence
   /// identity vary by timezone.
