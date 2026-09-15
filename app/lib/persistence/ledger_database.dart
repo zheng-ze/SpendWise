@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:spendwise/persistence/tables.dart';
 import 'package:spendwise/sync/sync_tables.dart';
+import 'package:sync/sync.dart';
 
 part 'ledger_database.g.dart';
 

@@ -35,7 +35,16 @@ class Ledger extends ChangeNotifier {
       _state.assertInvariants();
       return true;
     }());
-    bus.publish(changes);
+    return _commit(changes);
+  }
+
+  // Both [_mutate] and [applySyncBatch] reach here only after their own
+  // validation passes, so this tail needs no validation of its own.
+  List<LedgerChange> _commit(
+    List<LedgerChange> changes, {
+    Map<SyncRowID, VersionVector>? stamps,
+  }) {
+    bus.publish(changes, stamps: stamps);
     notifyListeners();
     return changes;
   }
@@ -168,9 +177,7 @@ class Ledger extends ChangeNotifier {
     candidate.apply(changes);
     candidate.assertInvariants();
     _state.adopt(candidate);
-    bus.publish(changes, stamps: stamps);
-    notifyListeners();
-    return changes;
+    return _commit(changes, stamps: stamps);
   }
 
   /// [now] must be a UTC instant. A device-local one would make occurrence

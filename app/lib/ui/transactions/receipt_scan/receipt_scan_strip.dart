@@ -28,7 +28,7 @@ class ReceiptScanStrip extends ConsumerWidget {
       if (stop == null) return;
       if (previous?.value?.scanStop == stop) return;
       _showPermissionDeniedMessage(context, stop);
-      ref.read(entryFormViewModelProvider(formKey).notifier).clearScanStop();
+      _scanController(ref).clearScanStop();
     });
 
     final scanning = ref.watch(
@@ -69,16 +69,15 @@ class ReceiptScanStrip extends ConsumerWidget {
   }
 
   void _scan(WidgetRef ref) {
-    ref
-        .read(entryFormViewModelProvider(formKey).notifier)
-        .requestScan(ReceiptScanSource.camera);
+    _scanController(ref).requestScan(ReceiptScanSource.camera);
   }
 
   void _uploadPhoto(WidgetRef ref) {
-    ref
-        .read(entryFormViewModelProvider(formKey).notifier)
-        .requestScan(ReceiptScanSource.gallery);
+    _scanController(ref).requestScan(ReceiptScanSource.gallery);
   }
+
+  ReceiptScanController _scanController(WidgetRef ref) =>
+      ref.read(entryFormViewModelProvider(formKey).notifier);
 
   void _showPermissionDeniedMessage(
     BuildContext context,

@@ -93,14 +93,33 @@ class _StatsRootBody extends StatelessWidget {
               onSelected: _setTab,
             ),
             const Divider(height: 1),
-            Expanded(child: _buildTabContent(tab, range)),
+            Expanded(
+              child: _StatsTabContent(
+                tab: tab,
+                range: range,
+                selectedDate: selectedDate,
+              ),
+            ),
           ],
         ),
       ),
     );
   }
+}
 
-  Widget _buildTabContent(StatsTab tab, StatsRangeMode range) {
+class _StatsTabContent extends StatelessWidget {
+  const _StatsTabContent({
+    required this.tab,
+    required this.range,
+    required this.selectedDate,
+  });
+
+  final StatsTab tab;
+  final StatsRangeMode range;
+  final DateTime selectedDate;
+
+  @override
+  Widget build(BuildContext context) {
     if (tab == StatsTab.budgets) {
       return const BudgetsFlow();
     }

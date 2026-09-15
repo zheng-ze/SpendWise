@@ -152,18 +152,22 @@ abstract class EntryFormViewModel {
   void revertToPersisted();
   Future<void> save();
   Future<void> delete();
-  void requestScan(ReceiptScanSource source, {Uint8List? preCapturedBytes});
   void requestDocumentCrop(Uint8List bytes);
-  void applyCroppedDocument(Uint8List bytes);
 
   /// Prefills a brand-new entry's source from the screen's scope. A no-op
   /// once the form already has a source.
   void prefillSource(String? id);
+  void clearStep();
+}
+
+/// The receipt-scan / crop surface of an entry form.
+abstract class ReceiptScanController {
+  void requestScan(ReceiptScanSource source, {Uint8List? preCapturedBytes});
+  void applyCroppedDocument(Uint8List bytes);
 
   /// Clears a scan's reported [EntryFormViewState.scanStop] once the View
-  /// has shown its message, the same single-shot discipline as [clearStep].
+  /// has shown its message, the same single-shot discipline as [EntryFormViewModel.clearStep].
   void clearScanStop();
-  void clearStep();
 }
 
 // One instance per entry being edited, null for a new entry, since the
@@ -172,7 +176,7 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
     with
         LedgerBackedNotifier<EntryFormViewState>,
         StepEmitting<EntryFormViewState, TransactionsStep>
-    implements EntryFormViewModel {
+    implements EntryFormViewModel, ReceiptScanController {
   EntryFormNotifier(this.entryId);
 
   final String? entryId;

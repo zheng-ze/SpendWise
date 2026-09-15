@@ -212,13 +212,54 @@ class _BudgetChart extends StatelessWidget {
   final void Function(DateTime month) onSelectMonth;
   final Color barColor;
 
-  int get _selectedIndex => months.indexWhere(
-    (month) =>
-        month.year == selectedMonth.year && month.month == selectedMonth.month,
-  );
+  @override
+  Widget build(BuildContext context) {
+    final spendBars = _BudgetDetailSpendBars(
+      months: months,
+      spend: spend,
+      maxY: maxY,
+      selectedMonth: selectedMonth,
+      barColor: barColor,
+    );
+    final limitLine = _BudgetDetailLimitLine(
+      months: months,
+      limit: limit,
+      maxY: maxY,
+    );
+    final tapOverlay = _BudgetDetailTapOverlay(
+      months: months,
+      onSelectMonth: onSelectMonth,
+    );
 
-  Widget _spendBars(BuildContext context) {
-    final selectedIndex = _selectedIndex;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+      child: Stack(children: [spendBars, limitLine, tapOverlay]),
+    );
+  }
+}
+
+class _BudgetDetailSpendBars extends StatelessWidget {
+  const _BudgetDetailSpendBars({
+    required this.months,
+    required this.spend,
+    required this.maxY,
+    required this.selectedMonth,
+    required this.barColor,
+  });
+
+  final List<DateTime> months;
+  final List<Decimal> spend;
+  final double maxY;
+  final DateTime selectedMonth;
+  final Color barColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final selectedIndex = months.indexWhere(
+      (month) =>
+          month.year == selectedMonth.year &&
+          month.month == selectedMonth.month,
+    );
 
     final titlesData = FlTitlesData(
       topTitles: const AxisTitles(),
@@ -266,8 +307,21 @@ class _BudgetChart extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _limitLine(BuildContext context) {
+class _BudgetDetailLimitLine extends StatelessWidget {
+  const _BudgetDetailLimitLine({
+    required this.months,
+    required this.limit,
+    required this.maxY,
+  });
+
+  final List<DateTime> months;
+  final List<Decimal> limit;
+  final double maxY;
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     final lineBarsData = [
@@ -306,8 +360,19 @@ class _BudgetChart extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _tapOverlay() {
+class _BudgetDetailTapOverlay extends StatelessWidget {
+  const _BudgetDetailTapOverlay({
+    required this.months,
+    required this.onSelectMonth,
+  });
+
+  final List<DateTime> months;
+  final void Function(DateTime month) onSelectMonth;
+
+  @override
+  Widget build(BuildContext context) {
     return Row(
       children: [
         for (var i = 0; i < months.length; i++)
@@ -318,16 +383,6 @@ class _BudgetChart extends StatelessWidget {
             ),
           ),
       ],
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-      child: Stack(
-        children: [_spendBars(context), _limitLine(context), _tapOverlay()],
-      ),
     );
   }
 }

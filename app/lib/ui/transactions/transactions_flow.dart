@@ -74,6 +74,9 @@ class _TransactionsFlowState
   EntryFormViewModel _formViewModel(String? key) =>
       ref.read(entryFormViewModelProvider(key).notifier);
 
+  ReceiptScanController _scanController(String? key) =>
+      ref.read(entryFormViewModelProvider(key).notifier);
+
   @override
   void Function() subscribeToStep(
     void Function(TransactionsStep? step) handle,
@@ -261,7 +264,7 @@ class _TransactionsFlowState
     );
     if (!context.mounted) return;
     if (cropped == null) return;
-    _formViewModel(formKey).applyCroppedDocument(cropped);
+    _scanController(formKey).applyCroppedDocument(cropped);
   }
 
   @override

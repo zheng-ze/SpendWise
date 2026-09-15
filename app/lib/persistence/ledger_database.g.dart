@@ -4471,17 +4471,18 @@ class $SyncAcknowledgedVectorsTable extends SyncAcknowledgedVectors
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
   $SyncAcknowledgedVectorsTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _collectionMeta = const VerificationMeta(
-    'collection',
-  );
   @override
-  late final GeneratedColumn<String> collection = GeneratedColumn<String>(
-    'collection',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
+  late final GeneratedColumnWithTypeConverter<SyncCollection, String>
+  collection =
+      GeneratedColumn<String>(
+        'collection',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      ).withConverter<SyncCollection>(
+        $SyncAcknowledgedVectorsTable.$convertercollection,
+      );
   static const VerificationMeta _rowIdMeta = const VerificationMeta('rowId');
   @override
   late final GeneratedColumn<String> rowId = GeneratedColumn<String>(
@@ -4491,17 +4492,17 @@ class $SyncAcknowledgedVectorsTable extends SyncAcknowledgedVectors
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _versionDataMeta = const VerificationMeta(
-    'versionData',
-  );
   @override
-  late final GeneratedColumn<Uint8List> versionData =
+  late final GeneratedColumnWithTypeConverter<VersionVector, Uint8List>
+  versionData =
       GeneratedColumn<Uint8List>(
         'version_data',
         aliasedName,
         false,
         type: DriftSqlType.blob,
         requiredDuringInsert: true,
+      ).withConverter<VersionVector>(
+        $SyncAcknowledgedVectorsTable.$converterversionData,
       );
   @override
   List<GeneratedColumn> get $columns => [collection, rowId, versionData];
@@ -4517,14 +4518,6 @@ class $SyncAcknowledgedVectorsTable extends SyncAcknowledgedVectors
   }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
-    if (data.containsKey('collection')) {
-      context.handle(
-        _collectionMeta,
-        collection.isAcceptableOrUnknown(data['collection']!, _collectionMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_collectionMeta);
-    }
     if (data.containsKey('row_id')) {
       context.handle(
         _rowIdMeta,
@@ -4532,17 +4525,6 @@ class $SyncAcknowledgedVectorsTable extends SyncAcknowledgedVectors
       );
     } else if (isInserting) {
       context.missing(_rowIdMeta);
-    }
-    if (data.containsKey('version_data')) {
-      context.handle(
-        _versionDataMeta,
-        versionData.isAcceptableOrUnknown(
-          data['version_data']!,
-          _versionDataMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_versionDataMeta);
     }
     return context;
   }
@@ -4553,18 +4535,22 @@ class $SyncAcknowledgedVectorsTable extends SyncAcknowledgedVectors
   AcknowledgedVectorRow map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return AcknowledgedVectorRow(
-      collection: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}collection'],
-      )!,
+      collection: $SyncAcknowledgedVectorsTable.$convertercollection.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}collection'],
+        )!,
+      ),
       rowId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}row_id'],
       )!,
-      versionData: attachedDatabase.typeMapping.read(
-        DriftSqlType.blob,
-        data['${effectivePrefix}version_data'],
-      )!,
+      versionData: $SyncAcknowledgedVectorsTable.$converterversionData.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.blob,
+          data['${effectivePrefix}version_data'],
+        )!,
+      ),
     );
   }
 
@@ -4572,13 +4558,18 @@ class $SyncAcknowledgedVectorsTable extends SyncAcknowledgedVectors
   $SyncAcknowledgedVectorsTable createAlias(String alias) {
     return $SyncAcknowledgedVectorsTable(attachedDatabase, alias);
   }
+
+  static TypeConverter<SyncCollection, String> $convertercollection =
+      const SyncCollectionConverter();
+  static TypeConverter<VersionVector, Uint8List> $converterversionData =
+      const VersionVectorConverter();
 }
 
 class AcknowledgedVectorRow extends DataClass
     implements Insertable<AcknowledgedVectorRow> {
-  final String collection;
+  final SyncCollection collection;
   final String rowId;
-  final Uint8List versionData;
+  final VersionVector versionData;
   const AcknowledgedVectorRow({
     required this.collection,
     required this.rowId,
@@ -4587,9 +4578,17 @@ class AcknowledgedVectorRow extends DataClass
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
-    map['collection'] = Variable<String>(collection);
+    {
+      map['collection'] = Variable<String>(
+        $SyncAcknowledgedVectorsTable.$convertercollection.toSql(collection),
+      );
+    }
     map['row_id'] = Variable<String>(rowId);
-    map['version_data'] = Variable<Uint8List>(versionData);
+    {
+      map['version_data'] = Variable<Uint8List>(
+        $SyncAcknowledgedVectorsTable.$converterversionData.toSql(versionData),
+      );
+    }
     return map;
   }
 
@@ -4607,25 +4606,25 @@ class AcknowledgedVectorRow extends DataClass
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return AcknowledgedVectorRow(
-      collection: serializer.fromJson<String>(json['collection']),
+      collection: serializer.fromJson<SyncCollection>(json['collection']),
       rowId: serializer.fromJson<String>(json['rowId']),
-      versionData: serializer.fromJson<Uint8List>(json['versionData']),
+      versionData: serializer.fromJson<VersionVector>(json['versionData']),
     );
   }
   @override
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
-      'collection': serializer.toJson<String>(collection),
+      'collection': serializer.toJson<SyncCollection>(collection),
       'rowId': serializer.toJson<String>(rowId),
-      'versionData': serializer.toJson<Uint8List>(versionData),
+      'versionData': serializer.toJson<VersionVector>(versionData),
     };
   }
 
   AcknowledgedVectorRow copyWith({
-    String? collection,
+    SyncCollection? collection,
     String? rowId,
-    Uint8List? versionData,
+    VersionVector? versionData,
   }) => AcknowledgedVectorRow(
     collection: collection ?? this.collection,
     rowId: rowId ?? this.rowId,
@@ -4656,22 +4655,21 @@ class AcknowledgedVectorRow extends DataClass
   }
 
   @override
-  int get hashCode =>
-      Object.hash(collection, rowId, $driftBlobEquality.hash(versionData));
+  int get hashCode => Object.hash(collection, rowId, versionData);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is AcknowledgedVectorRow &&
           other.collection == this.collection &&
           other.rowId == this.rowId &&
-          $driftBlobEquality.equals(other.versionData, this.versionData));
+          other.versionData == this.versionData);
 }
 
 class SyncAcknowledgedVectorsCompanion
     extends UpdateCompanion<AcknowledgedVectorRow> {
-  final Value<String> collection;
+  final Value<SyncCollection> collection;
   final Value<String> rowId;
-  final Value<Uint8List> versionData;
+  final Value<VersionVector> versionData;
   final Value<int> rowid;
   const SyncAcknowledgedVectorsCompanion({
     this.collection = const Value.absent(),
@@ -4680,9 +4678,9 @@ class SyncAcknowledgedVectorsCompanion
     this.rowid = const Value.absent(),
   });
   SyncAcknowledgedVectorsCompanion.insert({
-    required String collection,
+    required SyncCollection collection,
     required String rowId,
-    required Uint8List versionData,
+    required VersionVector versionData,
     this.rowid = const Value.absent(),
   }) : collection = Value(collection),
        rowId = Value(rowId),
@@ -4702,9 +4700,9 @@ class SyncAcknowledgedVectorsCompanion
   }
 
   SyncAcknowledgedVectorsCompanion copyWith({
-    Value<String>? collection,
+    Value<SyncCollection>? collection,
     Value<String>? rowId,
-    Value<Uint8List>? versionData,
+    Value<VersionVector>? versionData,
     Value<int>? rowid,
   }) {
     return SyncAcknowledgedVectorsCompanion(
@@ -4719,13 +4717,21 @@ class SyncAcknowledgedVectorsCompanion
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     if (collection.present) {
-      map['collection'] = Variable<String>(collection.value);
+      map['collection'] = Variable<String>(
+        $SyncAcknowledgedVectorsTable.$convertercollection.toSql(
+          collection.value,
+        ),
+      );
     }
     if (rowId.present) {
       map['row_id'] = Variable<String>(rowId.value);
     }
     if (versionData.present) {
-      map['version_data'] = Variable<Uint8List>(versionData.value);
+      map['version_data'] = Variable<Uint8List>(
+        $SyncAcknowledgedVectorsTable.$converterversionData.toSql(
+          versionData.value,
+        ),
+      );
     }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
@@ -4755,17 +4761,18 @@ class $SyncPendingAcknowledgementsTable extends SyncPendingAcknowledgements
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
   $SyncPendingAcknowledgementsTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _collectionMeta = const VerificationMeta(
-    'collection',
-  );
   @override
-  late final GeneratedColumn<String> collection = GeneratedColumn<String>(
-    'collection',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
+  late final GeneratedColumnWithTypeConverter<SyncCollection, String>
+  collection =
+      GeneratedColumn<String>(
+        'collection',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      ).withConverter<SyncCollection>(
+        $SyncPendingAcknowledgementsTable.$convertercollection,
+      );
   static const VerificationMeta _checkpointMeta = const VerificationMeta(
     'checkpoint',
   );
@@ -4791,14 +4798,6 @@ class $SyncPendingAcknowledgementsTable extends SyncPendingAcknowledgements
   }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
-    if (data.containsKey('collection')) {
-      context.handle(
-        _collectionMeta,
-        collection.isAcceptableOrUnknown(data['collection']!, _collectionMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_collectionMeta);
-    }
     if (data.containsKey('checkpoint')) {
       context.handle(
         _checkpointMeta,
@@ -4819,10 +4818,13 @@ class $SyncPendingAcknowledgementsTable extends SyncPendingAcknowledgements
   }) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return PendingAcknowledgementRow(
-      collection: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}collection'],
-      )!,
+      collection: $SyncPendingAcknowledgementsTable.$convertercollection
+          .fromSql(
+            attachedDatabase.typeMapping.read(
+              DriftSqlType.string,
+              data['${effectivePrefix}collection'],
+            )!,
+          ),
       checkpoint: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}checkpoint'],
@@ -4834,11 +4836,14 @@ class $SyncPendingAcknowledgementsTable extends SyncPendingAcknowledgements
   $SyncPendingAcknowledgementsTable createAlias(String alias) {
     return $SyncPendingAcknowledgementsTable(attachedDatabase, alias);
   }
+
+  static TypeConverter<SyncCollection, String> $convertercollection =
+      const SyncCollectionConverter();
 }
 
 class PendingAcknowledgementRow extends DataClass
     implements Insertable<PendingAcknowledgementRow> {
-  final String collection;
+  final SyncCollection collection;
   final String checkpoint;
   const PendingAcknowledgementRow({
     required this.collection,
@@ -4847,7 +4852,13 @@ class PendingAcknowledgementRow extends DataClass
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
-    map['collection'] = Variable<String>(collection);
+    {
+      map['collection'] = Variable<String>(
+        $SyncPendingAcknowledgementsTable.$convertercollection.toSql(
+          collection,
+        ),
+      );
+    }
     map['checkpoint'] = Variable<String>(checkpoint);
     return map;
   }
@@ -4865,7 +4876,7 @@ class PendingAcknowledgementRow extends DataClass
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return PendingAcknowledgementRow(
-      collection: serializer.fromJson<String>(json['collection']),
+      collection: serializer.fromJson<SyncCollection>(json['collection']),
       checkpoint: serializer.fromJson<String>(json['checkpoint']),
     );
   }
@@ -4873,13 +4884,13 @@ class PendingAcknowledgementRow extends DataClass
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
-      'collection': serializer.toJson<String>(collection),
+      'collection': serializer.toJson<SyncCollection>(collection),
       'checkpoint': serializer.toJson<String>(checkpoint),
     };
   }
 
   PendingAcknowledgementRow copyWith({
-    String? collection,
+    SyncCollection? collection,
     String? checkpoint,
   }) => PendingAcknowledgementRow(
     collection: collection ?? this.collection,
@@ -4919,7 +4930,7 @@ class PendingAcknowledgementRow extends DataClass
 
 class SyncPendingAcknowledgementsCompanion
     extends UpdateCompanion<PendingAcknowledgementRow> {
-  final Value<String> collection;
+  final Value<SyncCollection> collection;
   final Value<String> checkpoint;
   final Value<int> rowid;
   const SyncPendingAcknowledgementsCompanion({
@@ -4928,7 +4939,7 @@ class SyncPendingAcknowledgementsCompanion
     this.rowid = const Value.absent(),
   });
   SyncPendingAcknowledgementsCompanion.insert({
-    required String collection,
+    required SyncCollection collection,
     required String checkpoint,
     this.rowid = const Value.absent(),
   }) : collection = Value(collection),
@@ -4946,7 +4957,7 @@ class SyncPendingAcknowledgementsCompanion
   }
 
   SyncPendingAcknowledgementsCompanion copyWith({
-    Value<String>? collection,
+    Value<SyncCollection>? collection,
     Value<String>? checkpoint,
     Value<int>? rowid,
   }) {
@@ -4961,7 +4972,11 @@ class SyncPendingAcknowledgementsCompanion
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     if (collection.present) {
-      map['collection'] = Variable<String>(collection.value);
+      map['collection'] = Variable<String>(
+        $SyncPendingAcknowledgementsTable.$convertercollection.toSql(
+          collection.value,
+        ),
+      );
     }
     if (checkpoint.present) {
       map['checkpoint'] = Variable<String>(checkpoint.value);
@@ -4989,17 +5004,18 @@ class $SyncStagedConflictsTable extends SyncStagedConflicts
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
   $SyncStagedConflictsTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _collectionMeta = const VerificationMeta(
-    'collection',
-  );
   @override
-  late final GeneratedColumn<String> collection = GeneratedColumn<String>(
-    'collection',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
+  late final GeneratedColumnWithTypeConverter<SyncCollection, String>
+  collection =
+      GeneratedColumn<String>(
+        'collection',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      ).withConverter<SyncCollection>(
+        $SyncStagedConflictsTable.$convertercollection,
+      );
   static const VerificationMeta _rowIdMeta = const VerificationMeta('rowId');
   @override
   late final GeneratedColumn<String> rowId = GeneratedColumn<String>(
@@ -5023,14 +5039,6 @@ class $SyncStagedConflictsTable extends SyncStagedConflicts
   }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
-    if (data.containsKey('collection')) {
-      context.handle(
-        _collectionMeta,
-        collection.isAcceptableOrUnknown(data['collection']!, _collectionMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_collectionMeta);
-    }
     if (data.containsKey('row_id')) {
       context.handle(
         _rowIdMeta,
@@ -5048,10 +5056,12 @@ class $SyncStagedConflictsTable extends SyncStagedConflicts
   StagedConflictRow map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return StagedConflictRow(
-      collection: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}collection'],
-      )!,
+      collection: $SyncStagedConflictsTable.$convertercollection.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}collection'],
+        )!,
+      ),
       rowId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}row_id'],
@@ -5063,17 +5073,24 @@ class $SyncStagedConflictsTable extends SyncStagedConflicts
   $SyncStagedConflictsTable createAlias(String alias) {
     return $SyncStagedConflictsTable(attachedDatabase, alias);
   }
+
+  static TypeConverter<SyncCollection, String> $convertercollection =
+      const SyncCollectionConverter();
 }
 
 class StagedConflictRow extends DataClass
     implements Insertable<StagedConflictRow> {
-  final String collection;
+  final SyncCollection collection;
   final String rowId;
   const StagedConflictRow({required this.collection, required this.rowId});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
-    map['collection'] = Variable<String>(collection);
+    {
+      map['collection'] = Variable<String>(
+        $SyncStagedConflictsTable.$convertercollection.toSql(collection),
+      );
+    }
     map['row_id'] = Variable<String>(rowId);
     return map;
   }
@@ -5091,7 +5108,7 @@ class StagedConflictRow extends DataClass
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return StagedConflictRow(
-      collection: serializer.fromJson<String>(json['collection']),
+      collection: serializer.fromJson<SyncCollection>(json['collection']),
       rowId: serializer.fromJson<String>(json['rowId']),
     );
   }
@@ -5099,12 +5116,12 @@ class StagedConflictRow extends DataClass
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
-      'collection': serializer.toJson<String>(collection),
+      'collection': serializer.toJson<SyncCollection>(collection),
       'rowId': serializer.toJson<String>(rowId),
     };
   }
 
-  StagedConflictRow copyWith({String? collection, String? rowId}) =>
+  StagedConflictRow copyWith({SyncCollection? collection, String? rowId}) =>
       StagedConflictRow(
         collection: collection ?? this.collection,
         rowId: rowId ?? this.rowId,
@@ -5138,7 +5155,7 @@ class StagedConflictRow extends DataClass
 }
 
 class SyncStagedConflictsCompanion extends UpdateCompanion<StagedConflictRow> {
-  final Value<String> collection;
+  final Value<SyncCollection> collection;
   final Value<String> rowId;
   final Value<int> rowid;
   const SyncStagedConflictsCompanion({
@@ -5147,7 +5164,7 @@ class SyncStagedConflictsCompanion extends UpdateCompanion<StagedConflictRow> {
     this.rowid = const Value.absent(),
   });
   SyncStagedConflictsCompanion.insert({
-    required String collection,
+    required SyncCollection collection,
     required String rowId,
     this.rowid = const Value.absent(),
   }) : collection = Value(collection),
@@ -5165,7 +5182,7 @@ class SyncStagedConflictsCompanion extends UpdateCompanion<StagedConflictRow> {
   }
 
   SyncStagedConflictsCompanion copyWith({
-    Value<String>? collection,
+    Value<SyncCollection>? collection,
     Value<String>? rowId,
     Value<int>? rowid,
   }) {
@@ -5180,7 +5197,9 @@ class SyncStagedConflictsCompanion extends UpdateCompanion<StagedConflictRow> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     if (collection.present) {
-      map['collection'] = Variable<String>(collection.value);
+      map['collection'] = Variable<String>(
+        $SyncStagedConflictsTable.$convertercollection.toSql(collection.value),
+      );
     }
     if (rowId.present) {
       map['row_id'] = Variable<String>(rowId.value);
@@ -5208,17 +5227,18 @@ class $SyncStagedSiblingsTable extends SyncStagedSiblings
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
   $SyncStagedSiblingsTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _collectionMeta = const VerificationMeta(
-    'collection',
-  );
   @override
-  late final GeneratedColumn<String> collection = GeneratedColumn<String>(
-    'collection',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
+  late final GeneratedColumnWithTypeConverter<SyncCollection, String>
+  collection =
+      GeneratedColumn<String>(
+        'collection',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      ).withConverter<SyncCollection>(
+        $SyncStagedSiblingsTable.$convertercollection,
+      );
   static const VerificationMeta _rowIdMeta = const VerificationMeta('rowId');
   @override
   late final GeneratedColumn<String> rowId = GeneratedColumn<String>(
@@ -5239,17 +5259,17 @@ class $SyncStagedSiblingsTable extends SyncStagedSiblings
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _versionDataMeta = const VerificationMeta(
-    'versionData',
-  );
   @override
-  late final GeneratedColumn<Uint8List> versionData =
+  late final GeneratedColumnWithTypeConverter<VersionVector, Uint8List>
+  versionData =
       GeneratedColumn<Uint8List>(
         'version_data',
         aliasedName,
         false,
         type: DriftSqlType.blob,
         requiredDuringInsert: true,
+      ).withConverter<VersionVector>(
+        $SyncStagedSiblingsTable.$converterversionData,
       );
   static const VerificationMeta _payloadMeta = const VerificationMeta(
     'payload',
@@ -5306,14 +5326,6 @@ class $SyncStagedSiblingsTable extends SyncStagedSiblings
   }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
-    if (data.containsKey('collection')) {
-      context.handle(
-        _collectionMeta,
-        collection.isAcceptableOrUnknown(data['collection']!, _collectionMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_collectionMeta);
-    }
     if (data.containsKey('row_id')) {
       context.handle(
         _rowIdMeta,
@@ -5329,17 +5341,6 @@ class $SyncStagedSiblingsTable extends SyncStagedSiblings
       );
     } else if (isInserting) {
       context.missing(_siblingIdMeta);
-    }
-    if (data.containsKey('version_data')) {
-      context.handle(
-        _versionDataMeta,
-        versionData.isAcceptableOrUnknown(
-          data['version_data']!,
-          _versionDataMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_versionDataMeta);
     }
     if (data.containsKey('payload')) {
       context.handle(
@@ -5374,10 +5375,12 @@ class $SyncStagedSiblingsTable extends SyncStagedSiblings
   StagedSiblingRow map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return StagedSiblingRow(
-      collection: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}collection'],
-      )!,
+      collection: $SyncStagedSiblingsTable.$convertercollection.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}collection'],
+        )!,
+      ),
       rowId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}row_id'],
@@ -5386,10 +5389,12 @@ class $SyncStagedSiblingsTable extends SyncStagedSiblings
         DriftSqlType.string,
         data['${effectivePrefix}sibling_id'],
       )!,
-      versionData: attachedDatabase.typeMapping.read(
-        DriftSqlType.blob,
-        data['${effectivePrefix}version_data'],
-      )!,
+      versionData: $SyncStagedSiblingsTable.$converterversionData.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.blob,
+          data['${effectivePrefix}version_data'],
+        )!,
+      ),
       payload: attachedDatabase.typeMapping.read(
         DriftSqlType.blob,
         data['${effectivePrefix}payload'],
@@ -5409,14 +5414,19 @@ class $SyncStagedSiblingsTable extends SyncStagedSiblings
   $SyncStagedSiblingsTable createAlias(String alias) {
     return $SyncStagedSiblingsTable(attachedDatabase, alias);
   }
+
+  static TypeConverter<SyncCollection, String> $convertercollection =
+      const SyncCollectionConverter();
+  static TypeConverter<VersionVector, Uint8List> $converterversionData =
+      const VersionVectorConverter();
 }
 
 class StagedSiblingRow extends DataClass
     implements Insertable<StagedSiblingRow> {
-  final String collection;
+  final SyncCollection collection;
   final String rowId;
   final String siblingId;
-  final Uint8List versionData;
+  final VersionVector versionData;
   final Uint8List payload;
 
   /// Explicit sibling-lifecycle code: 0 is live, 1 is tombstone.
@@ -5434,10 +5444,18 @@ class StagedSiblingRow extends DataClass
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
-    map['collection'] = Variable<String>(collection);
+    {
+      map['collection'] = Variable<String>(
+        $SyncStagedSiblingsTable.$convertercollection.toSql(collection),
+      );
+    }
     map['row_id'] = Variable<String>(rowId);
     map['sibling_id'] = Variable<String>(siblingId);
-    map['version_data'] = Variable<Uint8List>(versionData);
+    {
+      map['version_data'] = Variable<Uint8List>(
+        $SyncStagedSiblingsTable.$converterversionData.toSql(versionData),
+      );
+    }
     map['payload'] = Variable<Uint8List>(payload);
     map['lifecycle'] = Variable<int>(lifecycle);
     map['position'] = Variable<int>(position);
@@ -5462,10 +5480,10 @@ class StagedSiblingRow extends DataClass
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return StagedSiblingRow(
-      collection: serializer.fromJson<String>(json['collection']),
+      collection: serializer.fromJson<SyncCollection>(json['collection']),
       rowId: serializer.fromJson<String>(json['rowId']),
       siblingId: serializer.fromJson<String>(json['siblingId']),
-      versionData: serializer.fromJson<Uint8List>(json['versionData']),
+      versionData: serializer.fromJson<VersionVector>(json['versionData']),
       payload: serializer.fromJson<Uint8List>(json['payload']),
       lifecycle: serializer.fromJson<int>(json['lifecycle']),
       position: serializer.fromJson<int>(json['position']),
@@ -5475,10 +5493,10 @@ class StagedSiblingRow extends DataClass
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
-      'collection': serializer.toJson<String>(collection),
+      'collection': serializer.toJson<SyncCollection>(collection),
       'rowId': serializer.toJson<String>(rowId),
       'siblingId': serializer.toJson<String>(siblingId),
-      'versionData': serializer.toJson<Uint8List>(versionData),
+      'versionData': serializer.toJson<VersionVector>(versionData),
       'payload': serializer.toJson<Uint8List>(payload),
       'lifecycle': serializer.toJson<int>(lifecycle),
       'position': serializer.toJson<int>(position),
@@ -5486,10 +5504,10 @@ class StagedSiblingRow extends DataClass
   }
 
   StagedSiblingRow copyWith({
-    String? collection,
+    SyncCollection? collection,
     String? rowId,
     String? siblingId,
-    Uint8List? versionData,
+    VersionVector? versionData,
     Uint8List? payload,
     int? lifecycle,
     int? position,
@@ -5537,7 +5555,7 @@ class StagedSiblingRow extends DataClass
     collection,
     rowId,
     siblingId,
-    $driftBlobEquality.hash(versionData),
+    versionData,
     $driftBlobEquality.hash(payload),
     lifecycle,
     position,
@@ -5549,17 +5567,17 @@ class StagedSiblingRow extends DataClass
           other.collection == this.collection &&
           other.rowId == this.rowId &&
           other.siblingId == this.siblingId &&
-          $driftBlobEquality.equals(other.versionData, this.versionData) &&
+          other.versionData == this.versionData &&
           $driftBlobEquality.equals(other.payload, this.payload) &&
           other.lifecycle == this.lifecycle &&
           other.position == this.position);
 }
 
 class SyncStagedSiblingsCompanion extends UpdateCompanion<StagedSiblingRow> {
-  final Value<String> collection;
+  final Value<SyncCollection> collection;
   final Value<String> rowId;
   final Value<String> siblingId;
-  final Value<Uint8List> versionData;
+  final Value<VersionVector> versionData;
   final Value<Uint8List> payload;
   final Value<int> lifecycle;
   final Value<int> position;
@@ -5575,10 +5593,10 @@ class SyncStagedSiblingsCompanion extends UpdateCompanion<StagedSiblingRow> {
     this.rowid = const Value.absent(),
   });
   SyncStagedSiblingsCompanion.insert({
-    required String collection,
+    required SyncCollection collection,
     required String rowId,
     required String siblingId,
-    required Uint8List versionData,
+    required VersionVector versionData,
     required Uint8List payload,
     required int lifecycle,
     required int position,
@@ -5613,10 +5631,10 @@ class SyncStagedSiblingsCompanion extends UpdateCompanion<StagedSiblingRow> {
   }
 
   SyncStagedSiblingsCompanion copyWith({
-    Value<String>? collection,
+    Value<SyncCollection>? collection,
     Value<String>? rowId,
     Value<String>? siblingId,
-    Value<Uint8List>? versionData,
+    Value<VersionVector>? versionData,
     Value<Uint8List>? payload,
     Value<int>? lifecycle,
     Value<int>? position,
@@ -5638,7 +5656,9 @@ class SyncStagedSiblingsCompanion extends UpdateCompanion<StagedSiblingRow> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     if (collection.present) {
-      map['collection'] = Variable<String>(collection.value);
+      map['collection'] = Variable<String>(
+        $SyncStagedSiblingsTable.$convertercollection.toSql(collection.value),
+      );
     }
     if (rowId.present) {
       map['row_id'] = Variable<String>(rowId.value);
@@ -5647,7 +5667,9 @@ class SyncStagedSiblingsCompanion extends UpdateCompanion<StagedSiblingRow> {
       map['sibling_id'] = Variable<String>(siblingId.value);
     }
     if (versionData.present) {
-      map['version_data'] = Variable<Uint8List>(versionData.value);
+      map['version_data'] = Variable<Uint8List>(
+        $SyncStagedSiblingsTable.$converterversionData.toSql(versionData.value),
+      );
     }
     if (payload.present) {
       map['payload'] = Variable<Uint8List>(payload.value);
@@ -7917,16 +7939,16 @@ typedef $$SyncMetaTableProcessedTableManager =
     >;
 typedef $$SyncAcknowledgedVectorsTableCreateCompanionBuilder =
     SyncAcknowledgedVectorsCompanion Function({
-      required String collection,
+      required SyncCollection collection,
       required String rowId,
-      required Uint8List versionData,
+      required VersionVector versionData,
       Value<int> rowid,
     });
 typedef $$SyncAcknowledgedVectorsTableUpdateCompanionBuilder =
     SyncAcknowledgedVectorsCompanion Function({
-      Value<String> collection,
+      Value<SyncCollection> collection,
       Value<String> rowId,
-      Value<Uint8List> versionData,
+      Value<VersionVector> versionData,
       Value<int> rowid,
     });
 
@@ -7939,9 +7961,10 @@ class $$SyncAcknowledgedVectorsTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<String> get collection => $composableBuilder(
+  ColumnWithTypeConverterFilters<SyncCollection, SyncCollection, String>
+  get collection => $composableBuilder(
     column: $table.collection,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => ColumnWithTypeConverterFilters(column),
   );
 
   ColumnFilters<String> get rowId => $composableBuilder(
@@ -7949,9 +7972,10 @@ class $$SyncAcknowledgedVectorsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<Uint8List> get versionData => $composableBuilder(
+  ColumnWithTypeConverterFilters<VersionVector, VersionVector, Uint8List>
+  get versionData => $composableBuilder(
     column: $table.versionData,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => ColumnWithTypeConverterFilters(column),
   );
 }
 
@@ -7989,18 +8013,20 @@ class $$SyncAcknowledgedVectorsTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<String> get collection => $composableBuilder(
-    column: $table.collection,
-    builder: (column) => column,
-  );
+  GeneratedColumnWithTypeConverter<SyncCollection, String> get collection =>
+      $composableBuilder(
+        column: $table.collection,
+        builder: (column) => column,
+      );
 
   GeneratedColumn<String> get rowId =>
       $composableBuilder(column: $table.rowId, builder: (column) => column);
 
-  GeneratedColumn<Uint8List> get versionData => $composableBuilder(
-    column: $table.versionData,
-    builder: (column) => column,
-  );
+  GeneratedColumnWithTypeConverter<VersionVector, Uint8List> get versionData =>
+      $composableBuilder(
+        column: $table.versionData,
+        builder: (column) => column,
+      );
 }
 
 class $$SyncAcknowledgedVectorsTableTableManager
@@ -8049,9 +8075,9 @@ class $$SyncAcknowledgedVectorsTableTableManager
               ),
           updateCompanionCallback:
               ({
-                Value<String> collection = const Value.absent(),
+                Value<SyncCollection> collection = const Value.absent(),
                 Value<String> rowId = const Value.absent(),
-                Value<Uint8List> versionData = const Value.absent(),
+                Value<VersionVector> versionData = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SyncAcknowledgedVectorsCompanion(
                 collection: collection,
@@ -8061,9 +8087,9 @@ class $$SyncAcknowledgedVectorsTableTableManager
               ),
           createCompanionCallback:
               ({
-                required String collection,
+                required SyncCollection collection,
                 required String rowId,
-                required Uint8List versionData,
+                required VersionVector versionData,
                 Value<int> rowid = const Value.absent(),
               }) => SyncAcknowledgedVectorsCompanion.insert(
                 collection: collection,
@@ -8114,13 +8140,13 @@ typedef $$SyncAcknowledgedVectorsTableProcessedTableManager =
     >;
 typedef $$SyncPendingAcknowledgementsTableCreateCompanionBuilder =
     SyncPendingAcknowledgementsCompanion Function({
-      required String collection,
+      required SyncCollection collection,
       required String checkpoint,
       Value<int> rowid,
     });
 typedef $$SyncPendingAcknowledgementsTableUpdateCompanionBuilder =
     SyncPendingAcknowledgementsCompanion Function({
-      Value<String> collection,
+      Value<SyncCollection> collection,
       Value<String> checkpoint,
       Value<int> rowid,
     });
@@ -8134,9 +8160,10 @@ class $$SyncPendingAcknowledgementsTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<String> get collection => $composableBuilder(
+  ColumnWithTypeConverterFilters<SyncCollection, SyncCollection, String>
+  get collection => $composableBuilder(
     column: $table.collection,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => ColumnWithTypeConverterFilters(column),
   );
 
   ColumnFilters<String> get checkpoint => $composableBuilder(
@@ -8174,10 +8201,11 @@ class $$SyncPendingAcknowledgementsTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<String> get collection => $composableBuilder(
-    column: $table.collection,
-    builder: (column) => column,
-  );
+  GeneratedColumnWithTypeConverter<SyncCollection, String> get collection =>
+      $composableBuilder(
+        column: $table.collection,
+        builder: (column) => column,
+      );
 
   GeneratedColumn<String> get checkpoint => $composableBuilder(
     column: $table.checkpoint,
@@ -8231,7 +8259,7 @@ class $$SyncPendingAcknowledgementsTableTableManager
               ),
           updateCompanionCallback:
               ({
-                Value<String> collection = const Value.absent(),
+                Value<SyncCollection> collection = const Value.absent(),
                 Value<String> checkpoint = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SyncPendingAcknowledgementsCompanion(
@@ -8241,7 +8269,7 @@ class $$SyncPendingAcknowledgementsTableTableManager
               ),
           createCompanionCallback:
               ({
-                required String collection,
+                required SyncCollection collection,
                 required String checkpoint,
                 Value<int> rowid = const Value.absent(),
               }) => SyncPendingAcknowledgementsCompanion.insert(
@@ -8292,13 +8320,13 @@ typedef $$SyncPendingAcknowledgementsTableProcessedTableManager =
     >;
 typedef $$SyncStagedConflictsTableCreateCompanionBuilder =
     SyncStagedConflictsCompanion Function({
-      required String collection,
+      required SyncCollection collection,
       required String rowId,
       Value<int> rowid,
     });
 typedef $$SyncStagedConflictsTableUpdateCompanionBuilder =
     SyncStagedConflictsCompanion Function({
-      Value<String> collection,
+      Value<SyncCollection> collection,
       Value<String> rowId,
       Value<int> rowid,
     });
@@ -8312,9 +8340,10 @@ class $$SyncStagedConflictsTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<String> get collection => $composableBuilder(
+  ColumnWithTypeConverterFilters<SyncCollection, SyncCollection, String>
+  get collection => $composableBuilder(
     column: $table.collection,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => ColumnWithTypeConverterFilters(column),
   );
 
   ColumnFilters<String> get rowId => $composableBuilder(
@@ -8352,10 +8381,11 @@ class $$SyncStagedConflictsTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<String> get collection => $composableBuilder(
-    column: $table.collection,
-    builder: (column) => column,
-  );
+  GeneratedColumnWithTypeConverter<SyncCollection, String> get collection =>
+      $composableBuilder(
+        column: $table.collection,
+        builder: (column) => column,
+      );
 
   GeneratedColumn<String> get rowId =>
       $composableBuilder(column: $table.rowId, builder: (column) => column);
@@ -8404,7 +8434,7 @@ class $$SyncStagedConflictsTableTableManager
               ),
           updateCompanionCallback:
               ({
-                Value<String> collection = const Value.absent(),
+                Value<SyncCollection> collection = const Value.absent(),
                 Value<String> rowId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SyncStagedConflictsCompanion(
@@ -8414,7 +8444,7 @@ class $$SyncStagedConflictsTableTableManager
               ),
           createCompanionCallback:
               ({
-                required String collection,
+                required SyncCollection collection,
                 required String rowId,
                 Value<int> rowid = const Value.absent(),
               }) => SyncStagedConflictsCompanion.insert(
@@ -8464,10 +8494,10 @@ typedef $$SyncStagedConflictsTableProcessedTableManager =
     >;
 typedef $$SyncStagedSiblingsTableCreateCompanionBuilder =
     SyncStagedSiblingsCompanion Function({
-      required String collection,
+      required SyncCollection collection,
       required String rowId,
       required String siblingId,
-      required Uint8List versionData,
+      required VersionVector versionData,
       required Uint8List payload,
       required int lifecycle,
       required int position,
@@ -8475,10 +8505,10 @@ typedef $$SyncStagedSiblingsTableCreateCompanionBuilder =
     });
 typedef $$SyncStagedSiblingsTableUpdateCompanionBuilder =
     SyncStagedSiblingsCompanion Function({
-      Value<String> collection,
+      Value<SyncCollection> collection,
       Value<String> rowId,
       Value<String> siblingId,
-      Value<Uint8List> versionData,
+      Value<VersionVector> versionData,
       Value<Uint8List> payload,
       Value<int> lifecycle,
       Value<int> position,
@@ -8494,9 +8524,10 @@ class $$SyncStagedSiblingsTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<String> get collection => $composableBuilder(
+  ColumnWithTypeConverterFilters<SyncCollection, SyncCollection, String>
+  get collection => $composableBuilder(
     column: $table.collection,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => ColumnWithTypeConverterFilters(column),
   );
 
   ColumnFilters<String> get rowId => $composableBuilder(
@@ -8509,9 +8540,10 @@ class $$SyncStagedSiblingsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<Uint8List> get versionData => $composableBuilder(
+  ColumnWithTypeConverterFilters<VersionVector, VersionVector, Uint8List>
+  get versionData => $composableBuilder(
     column: $table.versionData,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => ColumnWithTypeConverterFilters(column),
   );
 
   ColumnFilters<Uint8List> get payload => $composableBuilder(
@@ -8584,10 +8616,11 @@ class $$SyncStagedSiblingsTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<String> get collection => $composableBuilder(
-    column: $table.collection,
-    builder: (column) => column,
-  );
+  GeneratedColumnWithTypeConverter<SyncCollection, String> get collection =>
+      $composableBuilder(
+        column: $table.collection,
+        builder: (column) => column,
+      );
 
   GeneratedColumn<String> get rowId =>
       $composableBuilder(column: $table.rowId, builder: (column) => column);
@@ -8595,10 +8628,11 @@ class $$SyncStagedSiblingsTableAnnotationComposer
   GeneratedColumn<String> get siblingId =>
       $composableBuilder(column: $table.siblingId, builder: (column) => column);
 
-  GeneratedColumn<Uint8List> get versionData => $composableBuilder(
-    column: $table.versionData,
-    builder: (column) => column,
-  );
+  GeneratedColumnWithTypeConverter<VersionVector, Uint8List> get versionData =>
+      $composableBuilder(
+        column: $table.versionData,
+        builder: (column) => column,
+      );
 
   GeneratedColumn<Uint8List> get payload =>
       $composableBuilder(column: $table.payload, builder: (column) => column);
@@ -8650,10 +8684,10 @@ class $$SyncStagedSiblingsTableTableManager
               ),
           updateCompanionCallback:
               ({
-                Value<String> collection = const Value.absent(),
+                Value<SyncCollection> collection = const Value.absent(),
                 Value<String> rowId = const Value.absent(),
                 Value<String> siblingId = const Value.absent(),
-                Value<Uint8List> versionData = const Value.absent(),
+                Value<VersionVector> versionData = const Value.absent(),
                 Value<Uint8List> payload = const Value.absent(),
                 Value<int> lifecycle = const Value.absent(),
                 Value<int> position = const Value.absent(),
@@ -8670,10 +8704,10 @@ class $$SyncStagedSiblingsTableTableManager
               ),
           createCompanionCallback:
               ({
-                required String collection,
+                required SyncCollection collection,
                 required String rowId,
                 required String siblingId,
-                required Uint8List versionData,
+                required VersionVector versionData,
                 required Uint8List payload,
                 required int lifecycle,
                 required int position,
