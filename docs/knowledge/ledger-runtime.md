@@ -33,7 +33,11 @@ invariant sweep, `bus.publish(changes)` as one atomic batch, then Riverpod liste
 (`ledger.dart`). Local `Ledger` mutations publish unstamped `LedgerPublication` values (no stamps).
 A cascade such as `addPocket` publishes the pocket upsert and the updated parent
 account as one batch. A throwing mutator publishes nothing. An empty change list publishes
-nothing, even with stamps present (`event_bus.dart:publish`).
+nothing, even with stamps present (`event_bus.dart:publish`). Delivered publications wrap
+`changes` (and `stamps`, when present) in unmodifiable views under the existing debug-only
+assert discipline, so a subscriber cannot mutate a batch in flight. An empty stamps map counts
+as unstamped: `LedgerPublication.hasStamps` is false and the processor keeps the `enqueue` bump
+path (`ledger_publication.dart`, `persistence_processor.dart:_forward`).
 
 The bus is internal wiring subscribed by exactly two consumers: `PersistenceProcessor` and
 `AnalysisCache`. UI never touches the bus; it reacts to Riverpod notifications. Every subscriber

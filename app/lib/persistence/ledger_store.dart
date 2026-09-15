@@ -17,6 +17,9 @@ abstract class LedgerStore {
 
   Future<void> start();
 
+  /// Unstamped path: local publications (an empty stamps map counts as
+  /// unstamped at the processor). Stamped sync publications go to
+  /// [enqueueStamped].
   void enqueue(List<LedgerChange> changes);
 
   /// Stamped variant of [enqueue] for sync publications carrying per-row

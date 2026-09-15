@@ -61,7 +61,8 @@ unused in V1). `plans` flattens the `EntryTemplate` into `template_*` scalar col
 Constants: `debounce = 250 ms`, `maxRetries = 2`, `retryBackoff = 200 ms` (`drift_ledger_store.dart`).
 
 1. **Ordered ingest** — `enqueue` appends to an unbounded FIFO; two enqueues stay in sequence,
-   which makes last-write-wins coalescing correct.
+   which makes last-write-wins coalescing correct. `enqueueStamped` shares the same FIFO and
+   ordering.
 2. **Debounce** — each batch buffered into `pending` cancels the previous timer and starts a fresh
    250 ms one; a burst produces one save ~250 ms after the last edit.
 3. **Coalescing** — at flush, keep only the last change per `targetID`, preserving survivor order;
