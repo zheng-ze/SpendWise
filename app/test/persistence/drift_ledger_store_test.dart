@@ -3,10 +3,12 @@ import 'package:domain/domain.dart' as domain;
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:spendwise/persistence/device_identity.dart';
 import 'package:spendwise/persistence/drift_ledger_store.dart';
 import 'package:spendwise/persistence/ledger_database.dart';
 import 'package:spendwise/persistence/ledger_store.dart';
 import 'package:spendwise/persistence/mappers.dart';
+import 'package:sync/sync.dart';
 
 // Hands out timers the test fires by hand, so real time never elapses.
 // Real drift I/O stays genuinely async, which `FakeAsync` would deadlock on.
@@ -1162,6 +1164,299 @@ void main() {
 
       expect(await hasSeeded(), isTrue);
       expect((await store.load()).entries.keys.toSet(), {'e1'});
+    });
+  });
+
+  group('stamped ingestion', () {
+    Map<SyncRowID, VersionVector> stampsFor(
+      LedgerChange change,
+      VersionVector stamp,
+    ) => {SyncRowID.of(collectionFor(change), change.targetID): stamp};
+
+    Future<VersionVector> accountVersion(String id) async => versionFromRow(
+      (await (db.select(
+        db.accounts,
+      )..where((row) => row.id.equals(id))).getSingle()).versionData,
+    );
+
+    test(
+      'a stamped upsert persists its stamp verbatim without a local bump',
+      () async {
+        final stamp = VersionVector({'remote-a': 3});
+        final change = UpsertAccount(account('a1', 'remote'));
+        store.enqueueStamped([change], stampsFor(change, stamp));
+
+        await debouncedSave();
+
+        final row = await db.select(db.accounts).getSingle();
+        expect(row.name, 'remote');
+        // Equality with the stamp proves no device bump was added.
+        expect(versionFromRow(row.versionData), stamp);
+      },
+    );
+
+    test('stamped batches flattened by the drain keep their stamps', () async {
+      final first = UpsertAccount(account('a1', 'remote-a1'));
+      final second = UpsertAccount(account('a2', 'remote-a2'));
+      final firstStamp = VersionVector({'remote-a': 1});
+      final secondStamp = VersionVector({'remote-b': 2});
+      store.enqueueStamped([first], stampsFor(first, firstStamp));
+      store.enqueueStamped([second], stampsFor(second, secondStamp));
+
+      // No clock.fire, so only the flush's drain can put these on disk.
+      await store.flushNow();
+
+      expect(await accountVersion('a1'), firstStamp);
+      expect(await accountVersion('a2'), secondStamp);
+    });
+
+    test('a stamped remote then local edit stores local content with a '
+        'dominating vector', () async {
+      final remote = UpsertEntry(entry('e1', '10'));
+      final stamp = VersionVector({'remote-a': 2});
+      store.enqueueStamped([remote], stampsFor(remote, stamp));
+      store.enqueue([UpsertEntry(entry('e1', '42'))]);
+
+      await debouncedSave();
+
+      final row = await db.select(db.entries).getSingle();
+      expect(row.amount, '42');
+      // The local survivor bumps max(carried, stored): the empty stored
+      // vector contributes nothing, so the result is the stamp plus exactly
+      // one device bump.
+      expect(
+        versionFromRow(row.versionData),
+        VersionVector({'remote-a': 2, await deviceID(db): 1}),
+      );
+    });
+
+    test('a local edit then stamped remote stores remote content with its '
+        'stamp verbatim', () async {
+      store.enqueue([UpsertEntry(entry('e1', '10'))]);
+      final remote = UpsertEntry(entry('e1', '99'));
+      final stamp = VersionVector({'remote-a': 5});
+      store.enqueueStamped([remote], stampsFor(remote, stamp));
+
+      await debouncedSave();
+
+      final row = await db.select(db.entries).getSingle();
+      expect(row.amount, '99');
+      expect(versionFromRow(row.versionData), stamp);
+    });
+
+    test(
+      'every observed stamp contributes to the carried maximum independently '
+      'of last arrival',
+      () async {
+        final first = UpsertAccount(account('a1', 'remote-v1'));
+        final second = UpsertAccount(account('a1', 'remote-v2'));
+        store.enqueueStamped([
+          first,
+        ], stampsFor(first, VersionVector({'remote-a': 1})));
+        store.enqueueStamped([
+          second,
+        ], stampsFor(second, VersionVector({'remote-b': 1})));
+        // Last arrival is unstamped, so it selects content while both remote
+        // stamps must still contribute to the carried maximum.
+        store.enqueue([UpsertAccount(account('a1', 'local'))]);
+
+        await debouncedSave();
+
+        final row = await db.select(db.accounts).getSingle();
+        expect(row.name, 'local');
+        expect(
+          versionFromRow(row.versionData),
+          VersionVector({'remote-a': 1, 'remote-b': 1, await deviceID(db): 1}),
+        );
+      },
+    );
+
+    test('a stamped survivor keeps its own stamp verbatim', () async {
+      final first = UpsertAccount(account('a1', 'remote-v1'));
+      final second = UpsertAccount(account('a1', 'remote-v2'));
+      store.enqueueStamped([
+        first,
+      ], stampsFor(first, VersionVector({'remote-a': 1})));
+      final survivorStamp = VersionVector({'remote-b': 1});
+      store.enqueueStamped([second], stampsFor(second, survivorStamp));
+
+      await debouncedSave();
+
+      final row = await db.select(db.accounts).getSingle();
+      expect(row.name, 'remote-v2');
+      // The survivor's own stamp is written as-is even though the earlier
+      // concurrent stamp is not dominated by it.
+      expect(versionFromRow(row.versionData), survivorStamp);
+    });
+
+    test(
+      'a stamp survives a failed attempt and lands verbatim on retry',
+      () async {
+        flaky.failures = 1;
+        final change = UpsertAccount(account('a1', 'remote'));
+        final stamp = VersionVector({'remote-a': 4});
+        store.enqueueStamped([change], stampsFor(change, stamp));
+
+        await debouncedSave();
+        expect(reported, [SaveBannerState.retrying]);
+        expect(await db.select(db.accounts).get(), isEmpty);
+
+        clock.fire();
+        await settle();
+
+        final row = await db.select(db.accounts).getSingle();
+        expect(row.name, 'remote');
+        // The retry recomputes from the pending pair, so the stamp is neither
+        // lost nor bumped by the failed attempt.
+        expect(versionFromRow(row.versionData), stamp);
+        expect(reported.last, SaveBannerState.clear);
+      },
+    );
+
+    test(
+      'a local edit buffered mid-save still dominates the stamped prefix',
+      () async {
+        final remote = UpsertAccount(account('a1', 'remote'));
+        final stamp = VersionVector({'remote-a': 2});
+        store.enqueueStamped([remote], stampsFor(remote, stamp));
+        await settle();
+
+        // Fires as the first transaction begins, so the running save clears
+        // only its stamped prefix and the buffered edit lands in a later
+        // partial-prefix cycle.
+        flaky.onTransactionBegin = () {
+          store.enqueue([UpsertAccount(account('a1', 'local'))]);
+        };
+
+        await store.flushNow();
+
+        final row = await db.select(db.accounts).getSingle();
+        expect(row.name, 'local');
+        // The later cycle carries no stamp of its own, so provenance flows
+        // through the stored verbatim stamp the first cycle wrote.
+        expect(
+          versionFromRow(row.versionData),
+          VersionVector({'remote-a': 2, await deviceID(db): 1}),
+        );
+      },
+    );
+
+    test('an upsert pocket followed by delete money source coalesces to one '
+        'deletion', () async {
+      store.enqueue([
+        UpsertPocket(domain.SubPocket(id: 'p1', name: 'original')),
+      ]);
+      await debouncedSave();
+
+      store
+        ..enqueue([
+          UpsertPocket(domain.SubPocket(id: 'p1', name: 'replacement')),
+        ])
+        ..enqueue([const DeleteMoneySource('p1')]);
+
+      await debouncedSave();
+
+      // The dropped upsert never wrote 'replacement' and never created an
+      // account row for the shared moneySources identity.
+      expect(await db.select(db.accounts).get(), isEmpty);
+      final pocket = await db.select(db.subPockets).getSingle();
+      expect(pocket.lifecycle, LifecycleState.tombstoned.code);
+      expect(pocket.name, 'original');
+    });
+
+    test(
+      'a stamped pocket and delete coalesce to one stamped deletion',
+      () async {
+        store.enqueue([
+          UpsertPocket(domain.SubPocket(id: 'p1', name: 'original')),
+        ]);
+        await debouncedSave();
+
+        final pocket = UpsertPocket(
+          domain.SubPocket(id: 'p1', name: 'replacement'),
+        );
+        store.enqueueStamped([
+          pocket,
+        ], stampsFor(pocket, VersionVector({'remote-a': 1})));
+        const deletion = DeleteMoneySource('p1');
+        final deleteStamp = VersionVector({'remote-a': 2});
+        store.enqueueStamped([deletion], stampsFor(deletion, deleteStamp));
+
+        await debouncedSave();
+
+        expect(await db.select(db.accounts).get(), isEmpty);
+        final row = await db.select(db.subPockets).getSingle();
+        expect(row.lifecycle, LifecycleState.tombstoned.code);
+        expect(row.name, 'original');
+        // Only the deletion survives the shared moneySources keyspace, so its
+        // stamp is the one written verbatim.
+        expect(versionFromRow(row.versionData), deleteStamp);
+      },
+    );
+
+    test('identical ids in different collections stay independent', () async {
+      final accountChange = UpsertAccount(account('shared', 'wallet'));
+      final entryChange = UpsertEntry(entry('shared', '10'));
+      final accountStamp = VersionVector({'remote-a': 1});
+      final entryStamp = VersionVector({'remote-b': 2});
+      store.enqueueStamped(
+        [accountChange, entryChange],
+        {
+          ...stampsFor(accountChange, accountStamp),
+          ...stampsFor(entryChange, entryStamp),
+        },
+      );
+
+      await debouncedSave();
+
+      // Same id, different SyncRowIDs: neither content nor stamp coalesces.
+      expect((await db.select(db.accounts).getSingle()).name, 'wallet');
+      expect((await db.select(db.entries).getSingle()).amount, '10');
+      expect(await accountVersion('shared'), accountStamp);
+      expect(
+        versionFromRow((await db.select(db.entries).getSingle()).versionData),
+        entryStamp,
+      );
+    });
+
+    test('an empty stamps map keeps the local bump path', () async {
+      store.enqueueStamped([UpsertAccount(account('a1', 'v1'))], {});
+
+      await debouncedSave();
+
+      expect(await versionBumpsOnAccount('a1'), 1);
+    });
+
+    test(
+      'a stamped delete persists its stamp verbatim on the tombstone',
+      () async {
+        store.enqueue([UpsertEntry(entry('e1', '10'))]);
+        await debouncedSave();
+
+        const deletion = DeleteEntry('e1');
+        final stamp = VersionVector({'remote-a': 7});
+        store.enqueueStamped([deletion], stampsFor(deletion, stamp));
+
+        await debouncedSave();
+
+        final row = await db.select(db.entries).getSingle();
+        expect(row.lifecycle, LifecycleState.tombstoned.code);
+        expect(versionFromRow(row.versionData), stamp);
+      },
+    );
+
+    test('a stamped delete for an absent id stays a silent no-op', () async {
+      // Orphan tombstones belong to a later ticket; until then a stamped
+      // delete with no stored row behaves like the existing unstamped miss.
+      const deletion = DeleteEntry('ghost');
+      store.enqueueStamped([
+        deletion,
+      ], stampsFor(deletion, VersionVector({'remote-a': 1})));
+
+      await debouncedSave();
+
+      expect(reported, isEmpty);
+      expect(await db.select(db.entries).get(), isEmpty);
     });
   });
 }
