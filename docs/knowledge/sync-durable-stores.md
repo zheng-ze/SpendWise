@@ -1,16 +1,17 @@
 # Sync: durable app stores
 
-Last reconciled: 693d471
+Last reconciled: ace164232a85ef644f60fa6a2769bcac62f9f5e1
 
 ## Layer overview
 
-The app-side durable sync layer keeps sync coordination state in Drift so it survives restart.
-It owns the sync schema, the metadata store, and the Drift-backed staging-store implementation.
-It never holds a bearer token, the E2E key, or the opaque credential payload; `SecretStore`
-owns those separately. Nothing calls these stores yet; the coordinator and the enrollment flow
-arrive in later tickets. Source: `app/lib/sync/sync_tables.dart` - table doc comments;
-`app/lib/sync/sync_metadata_store.dart` - `SyncMetadataStore`;
-`app/lib/sync/drift_sync_staging_store.dart` - `DriftSyncStagingStore`.
+The app-side durable sync layer keeps coordination state and current stored row versions in Drift
+so they survive restart. It owns the sync schema, metadata and staging stores, a bulk collection
+version reader, and post-flush readback classification. It never holds a bearer token, the E2E
+key, or the opaque credential payload; `SecretStore` owns those separately. Production composition
+does not yet instantiate these components. Source: `app/lib/sync/sync_tables.dart` - table doc
+comments; `app/lib/sync/sync_metadata_store.dart` - `SyncMetadataStore`;
+`app/lib/sync/drift_sync_staging_store.dart` - `DriftSyncStagingStore`;
+`app/lib/sync/collection_version_reader.dart` - `CollectionVersionReader`.
 
 ## Key files
 
@@ -19,6 +20,11 @@ arrive in later tickets. Source: `app/lib/sync/sync_tables.dart` - table doc com
   `SyncBackendKind`, and `SyncMetadataSnapshot`.
 - `app/lib/sync/drift_sync_staging_store.dart` - `DriftSyncStagingStore`, the Drift-backed
   `SyncStagingStore` with async durable core methods and synchronous engine-path overrides.
+- `app/lib/sync/collection_version_reader.dart` - `CollectionVersionReader`, its Drift-backed
+  per-collection implementation, and the in-memory test fake.
+- `app/lib/sync/post_flush_readback_verifier.dart` - `PostFlushReadbackVerifier`, which groups
+  submitted stamps by collection and classifies durable readback.
+- `app/lib/sync/row_readback_outcome.dart` - The sealed readback outcome hierarchy.
 - `app/lib/persistence/ledger_database.dart` - Schema version 4 and the additive v3 to v4
   migration.
 - `app/test/sync/sync_metadata_store_test.dart` - Metadata defaults, round-trips, atomicity and
@@ -27,6 +33,10 @@ arrive in later tickets. Source: `app/lib/sync/sync_tables.dart` - table doc com
   and restart durability.
 - `app/test/sync/sync_migration_test.dart` - The additive migration over a version-3-shaped
   database.
+- `app/test/sync/collection_version_reader_test.dart` - Durable collection reads, lifecycle
+  mapping, and the money-source union.
+- `app/test/sync/post_flush_readback_verifier_test.dart` - Equal, dominated, missing,
+  incompatible, and multi-collection readback outcomes.
 
 ## Module interactions
 
@@ -49,6 +59,25 @@ durable path; the synchronous overrides enqueue the same work for the engine and
 settles it. Source: `app/lib/sync/drift_sync_staging_store.dart` - `DriftSyncStagingStore`;
 `packages/sync/lib/src/engine/staging_store.dart` - `SyncStagingStore`.
 
+`DriftCollectionVersionReader` reads every persisted row in one `SyncCollection` as a
+`Map<SyncRowID, RowVersion>`. `moneySources` combines `Accounts` and `SubPockets`; categories,
+entries, plans, and budgets each read their own content table. It preserves each row's stored
+version vector and maps only domain `LifecycleState.tombstoned` to package
+`SiblingLifecycle.tombstone`; active, archived, and reference-only rows remain
+`SiblingLifecycle.live`. Source: `app/lib/sync/collection_version_reader.dart` -
+`DriftCollectionVersionReader.readRowVersions`, `_moneySources`, `_siblingLifecycleOf`;
+`app/test/sync/collection_version_reader_test.dart` - tests `a tombstoned row reads back with
+tombstone lifecycle` and `an archived row reads back as live, not tombstone`.
+
+`PostFlushReadbackVerifier` reads a submitted stamp set once per collection through
+`CollectionVersionReader`. It returns `RowReadbackEqual` or `RowReadbackDominated` when the
+stored vector equals or strictly dominates the submitted vector, and `RowReadbackMissing` or
+`RowReadbackIncompatible` otherwise. It only classifies readback; it does not mutate metadata.
+Source: `app/lib/sync/post_flush_readback_verifier.dart` -
+`PostFlushReadbackVerifier.verify`, `_classify`; `app/lib/sync/row_readback_outcome.dart` -
+`RowReadbackOutcome`; `app/test/sync/post_flush_readback_verifier_test.dart` - test
+`a stored vector neither equal to nor dominating the stamp fails as incompatible`.
+
 The v3 to v4 migration creates the five tables with `CREATE TABLE IF NOT EXISTS`, so existing
 user rows are preserved. Source: `app/lib/persistence/ledger_database.dart` - `migration`;
 `app/test/sync/sync_migration_test.dart` - test
@@ -56,8 +85,7 @@ user rows are preserved. Source: `app/lib/persistence/ledger_database.dart` - `m
 
 ## Navigation
 
-This layer has no routes or screens. Enrollment, coordination, and conflict-review UI consume
-these stores from later tickets. Source: `app/lib/sync/sync_metadata_store.dart` - class doc
+This layer has no routes or screens. Source: `app/lib/sync/sync_metadata_store.dart` - class doc
 `This store never holds a bearer token`.
 
 ## APIs
@@ -71,8 +99,11 @@ these stores from later tickets. Source: `app/lib/sync/sync_metadata_store.dart`
 - `SyncMetadataStore.setEnrollmentPhase` records `notEnrolled`, `credentialAcquired`,
   `snapshotInProgress`, `reconciliationComplete`, or `gateEnabled` under explicit integer
   codes. Source: `app/lib/sync/sync_metadata_store.dart` - `SyncEnrollmentPhase`.
-- `SyncMetadataStore.setWriteEnabled` flips the write gate. Source:
-  `app/lib/sync/sync_metadata_store.dart` - `SyncMetadataStore.setWriteEnabled`.
+- `SyncMetadataStore.setWriteEnabled` enables the write gate only from
+  `reconciliationComplete`; a refused enable throws `SyncWriteGateException` and persists
+  nothing, while disabling remains allowed. Source: `app/lib/sync/sync_metadata_store.dart` -
+  `SyncMetadataStore.setWriteEnabled`; `app/test/sync/sync_metadata_store_test.dart` - test
+  `an early enable is refused and persists nothing`.
 - `SyncMetadataStore.setPullWatermark` records one collection cursor; a null cursor clears it.
   Source: `app/lib/sync/sync_metadata_store.dart` - `SyncMetadataStore.setPullWatermark`.
 - `SyncMetadataStore.acknowledgedVector`, `acknowledgedVectors`, and `setAcknowledgedVector`
@@ -92,6 +123,13 @@ these stores from later tickets. Source: `app/lib/sync/sync_metadata_store.dart`
   `pendingConflictList` re-reads them oldest first. Source:
   `app/lib/sync/drift_sync_staging_store.dart` - `DriftSyncStagingStore.open`,
   `DriftSyncStagingStore.pendingConflictList`.
+- `CollectionVersionReader.readRowVersions(collection)` asynchronously returns every persisted
+  row version for that collection. `InMemoryCollectionVersionReader` supplies an isolated fake
+  with `upsert`. Source: `app/lib/sync/collection_version_reader.dart` -
+  `CollectionVersionReader`, `InMemoryCollectionVersionReader`.
+- `PostFlushReadbackVerifier.verify(stamped)` returns one `RowReadbackOutcome` per submitted
+  `SyncRowID`; it does not commit acknowledgement or other metadata state. Source:
+  `app/lib/sync/post_flush_readback_verifier.dart` - `PostFlushReadbackVerifier.verify`.
 
 ## Gotchas and invariants
 
@@ -124,6 +162,16 @@ these stores from later tickets. Source: `app/lib/sync/sync_metadata_store.dart`
   `app/lib/sync/sync_metadata_store.dart` - `SyncEnrollmentPhase.fromCode`,
   `SyncBackendKind.fromCode`;
   `app/lib/sync/drift_sync_staging_store.dart` - `DriftSyncStagingStore._decodeSibling`.
+- `CollectionVersionReader` is intentionally distinct from package `SyncVersionSource`.
+  `SyncVersionSource` synchronously looks up one row for `SyncEngine.encode`; the app reader
+  asynchronously reads one whole collection for push-candidate selection and readback. Do not
+  rename or implement one as the other. Source:
+  `packages/sync/lib/src/engine/version_source.dart` - `SyncVersionSource.readRowVersion`;
+  `app/lib/sync/collection_version_reader.dart` - `CollectionVersionReader.readRowVersions`.
+- A stored vector that strictly dominates a submitted stamp passes readback because a local edit
+  landed after the stamped write; missing and incomparable vectors fail. Source:
+  `app/lib/sync/row_readback_outcome.dart` - `RowReadbackDominated`,
+  `RowReadbackMissing`, `RowReadbackIncompatible`.
 
 ## Requirements
 
@@ -144,3 +192,13 @@ these stores from later tickets. Source: `app/lib/sync/sync_metadata_store.dart`
   idempotent resolve, and post-force-quit reconstruction. Source:
   `app/test/sync/drift_sync_staging_store_test.dart` - groups `stage`,
   `pendingConflicts`, `resolve`, and `restart durability`.
+- Read every persisted live row and tombstone for a requested collection with its exact stored
+  vector. Keep `moneySources` as the `Accounts` plus `SubPockets` union, and map only domain
+  tombstones to the sync tombstone lifecycle. Source:
+  `app/lib/sync/collection_version_reader.dart` - `DriftCollectionVersionReader`;
+  `app/test/sync/collection_version_reader_test.dart` - tests `moneySources unions accounts and
+  subPockets` and `a tombstoned row reads back with tombstone lifecycle`.
+- Classify every submitted stamp after a flush from one read per collection. Exact or dominating
+  vectors pass; missing or incomparable vectors fail; classification does not change metadata.
+  Source: `app/lib/sync/post_flush_readback_verifier.dart` -
+  `PostFlushReadbackVerifier.verify`, `_classify`.
