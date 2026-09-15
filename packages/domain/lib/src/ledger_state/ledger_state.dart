@@ -20,6 +20,7 @@ import 'package:domain/src/plans/recurring_plan.dart';
 import 'package:domain/src/time/calendar_day.dart';
 import 'package:domain/src/time/year_month.dart';
 
+part 'ledger_state_adopt.dart';
 part 'ledger_state_budgets.dart';
 part 'ledger_state_categories.dart';
 part 'ledger_state_entries.dart';

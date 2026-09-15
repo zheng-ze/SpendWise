@@ -70,14 +70,15 @@ document is the wide-angle view that ties those entries together.
   candidate, recognizes its text, looks the result up against past corrections, and pre-fills the
   entry form when confident. No receipt image or extracted text leaves the device. See
   `docs/knowledge/ocr-receipt-entry.md` and ADR-0051, ADR-0052, ADR-0056.
-- **Persistence** — a `LedgerStore` contract (`load` / `start` / `enqueue` / `flushNow` /
-  `setErrorHandler`) backed by Drift (SQLite), with an in-memory implementation for tests. Writes
-  flow through an ordered ingest queue with a 250 ms debounce and per-target coalescing, so only the
-  last write to a given row within a batch is applied. A failed write retries twice with backoff;
+- **Persistence** — a `LedgerStore` contract (`load` / `start` / `enqueue` / `enqueueStamped` /
+  `flushNow` / `setErrorHandler`) backed by Drift (SQLite), with an in-memory implementation for tests. Writes
+  flow through an ordered ingest queue with a 250 ms debounce and per-`SyncRowID` coalescing, so only the
+  last write to a given row within a batch is applied (see `docs/knowledge/persistence.md` for the pipeline). A failed write retries twice with backoff;
   the save-banner state machine (`clear` / `retrying` / `failedWillRetry`) reflects this, and
   `flushNow` provides a barrier that waits until every write enqueued before the call is on disk.
   Each row carries a version vector (`bump` / `dominates` / `isConcurrent`) to support a future sync
-  engine; merge logic itself is deferred to that engine. Store metadata tracks a per-device id and
+  engine; full merge logic is deferred to that engine, while the store already computes the carried
+  pointwise maximum for stamped ingestion. Store metadata tracks a per-device id and
   whether the store has been seeded.
 - **UI** — four top-level destinations: Transactions, Stats, Accounts, and Settings. Transactions
   shows a month-navigated list grouped into day sections, with month and week summaries. Stats
@@ -240,14 +241,14 @@ separator input is a recorded non-goal until localization work begins.
   silently reset to an empty vector — resetting it would erase a row's causal history, which
   becomes real data loss once the sync engine is in place.
 - The write pipeline is a FIFO ingest queue with a 250 ms debounce (`Timer`), coalescing to the
-  last change per target. A batch stays pending until its save succeeds, retries twice with 200 ms
+  last change per `SyncRowID` (see `docs/knowledge/persistence.md`). A batch stays pending until its save succeeds, retries twice with 200 ms
   backoff, then settles into `failedWillRetry`. `flushNow` loops until the pending queue is empty,
   and a `clear` banner state is only reported after a preceding non-clear state, so a client
   watching the banner never misses a transition. After `failedWillRetry`, the store schedules a
   timed re-flush on the same backoff cadence rather than waiting passively for the next mutation to
   trigger a retry.
-- `VersionVector` is a `Map<String, int>` supporting `bump` / `dominates` / `isConcurrent`. Merge
-  logic is deferred to the sync engine.
+- `VersionVector` is a `Map<String, int>` supporting `bump` / `dominates` / `isConcurrent`. Full merge
+  logic is deferred to the sync engine; the store computes only the carried pointwise maximum for stamped ingestion.
 - App lifecycle: on `resumed`, the app calls `ledger.resolvePlans()`; on `inactive`/`paused`, it
   calls `persistence.flush()`. `resolvePlans` also fires immediately after a plan is created from
   the entry form — creation sets `lastResolvedDate = anchor − 1s` so the anchor occurrence
