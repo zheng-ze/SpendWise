@@ -63,6 +63,13 @@ The persistence layer (`persistence.md`) coalesces changes by `LedgerChange.targ
 state via `LedgerState.replaying(changes)`, which applies changes directly into the maps without
 validation or cascade (`ledger_state_replay.dart`).
 
+`LedgerState.adopt` (`ledger_state_adopt.dart`) is the sync apply boundary's counterpart: it
+clears and refills all five live tables in place, keeping the same `LedgerState` object, without
+validating. The caller (`Ledger.applySyncBatch`, see `ledger_runtime.md`) validates the candidate
+structurally before adopting. The `_lifecycleAtLastCheck` baseline refreshes only inside the
+existing debug-only assert closure, so release builds allocate no snapshot map and the next debug
+local mutation judges clause 12 against the post-sync baseline.
+
 `Accounting` reads `LedgerState` as pure functions — balances, net
 worth, and analysis classification — and never mutates it.
 

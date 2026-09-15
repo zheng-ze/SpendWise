@@ -39,6 +39,15 @@ assert discipline, so a subscriber cannot mutate a batch in flight. An empty sta
 as unstamped: `LedgerPublication.hasStamps` is false and the processor keeps the `enqueue` bump
 path (`ledger_publication.dart`, `persistence_processor.dart:_forward`).
 
+`Ledger.applySyncBatch(changes, stamps)` (`ledger.dart`) is the sync apply boundary for an
+already-decided remote batch; no caller uses it yet. It copies the five live tables into a
+candidate `LedgerState`, applies the batch there, and calls `candidate.assertInvariants` directly
+outside `assert` — structural clauses only, no mutator clause 12 monotonicity, so a legitimate
+remote lifecycle transition this device never observed still passes. Only then it adopts the
+candidate into the live object (`LedgerState.adopt`), publishes one stamped `LedgerPublication`,
+and notifies once. A validation failure throws before any of those, so the live tables, the bus,
+and the listeners are untouched.
+
 The bus is internal wiring subscribed by exactly two consumers: `PersistenceProcessor` and
 `AnalysisCache`. UI never touches the bus; it reacts to Riverpod notifications. Every subscriber
 must `listen` before the first `mutate` is possible — during boot, before the `Ledger` is handed to
