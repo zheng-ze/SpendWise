@@ -48,6 +48,29 @@ class _Barrier {
   final Completer<void> reached = Completer<void>();
 }
 
+// One ordered ingest element: content plus its optional sync stamp. A null
+// stamp is an ordinary local write and keeps the existing bump path.
+final class _StampedChange {
+  const _StampedChange(this.change, [this.stamp]);
+
+  final LedgerChange change;
+
+  final VersionVector? stamp;
+}
+
+// One coalesced survivor: the last-arriving content for its SyncRowID, the
+// survivor's own stamp when it arrived stamped, and the pointwise maximum of
+// every stamp observed for the row independently of surviving content.
+final class _CoalescedWrite {
+  const _CoalescedWrite(this.change, this.stamp, this.carried);
+
+  final LedgerChange change;
+
+  final VersionVector? stamp;
+
+  final VersionVector? carried;
+}
+
 /// Replay order is fixed: accounts, pockets, categories, entries, plans, budgets.
 Future<List<LedgerChange>> loadChanges(rows.LedgerDatabase db) async {
   Future<List<D>> live<T extends Table, D extends DataClass>(
@@ -93,7 +116,7 @@ class DriftLedgerStore implements LedgerStore {
 
   final Queue<Object> _ingest = Queue();
 
-  final List<LedgerChange> _pending = [];
+  final List<_StampedChange> _pending = [];
 
   SaveErrorHandler? _handler;
 
@@ -133,7 +156,7 @@ class DriftLedgerStore implements LedgerStore {
   @override
   void enqueue(List<LedgerChange> changes) {
     if (changes.isEmpty) return;
-    _ingest.add(List<LedgerChange>.of(changes));
+    _ingest.add([for (final change in changes) _StampedChange(change)]);
     if (_started) _drain();
   }
 
@@ -142,10 +165,15 @@ class DriftLedgerStore implements LedgerStore {
     List<LedgerChange> changes,
     Map<SyncRowID, VersionVector> stamps,
   ) {
-    // T4 carries stamps to this seam only; persisting them is T6 (#117).
-    // Until then a stamped batch takes the existing local bump path. No
-    // producer emits stamps yet, so this path is unreachable in production.
-    enqueue(changes);
+    if (changes.isEmpty) return;
+    _ingest.add([
+      for (final change in changes)
+        _StampedChange(
+          change,
+          stamps[SyncRowID.of(collectionFor(change), change.targetID)],
+        ),
+    ]);
+    if (_started) _drain();
   }
 
   @override
@@ -203,7 +231,7 @@ class DriftLedgerStore implements LedgerStore {
         item.reached.complete();
         continue;
       }
-      _pending.addAll(item as List<LedgerChange>);
+      _pending.addAll(item as List<_StampedChange>);
       buffered = true;
     }
     // A queue holding only barriers has nothing new to save, so arming the
@@ -256,8 +284,8 @@ class DriftLedgerStore implements LedgerStore {
 
       try {
         await db.transaction(() async {
-          for (final change in coalesced) {
-            await _apply(change);
+          for (final write in coalesced) {
+            await _apply(write);
           }
           if (seedingThisCycle) await _writeSeedFlag();
         });
@@ -311,51 +339,110 @@ class DriftLedgerStore implements LedgerStore {
     return completer.future;
   }
 
-  // Each survivor sits at its final occurrence's index. Upserts and deletions share the keyspace,
-  // so an upsert followed by a deletion of the same id applies only the deletion.
-  static List<LedgerChange> _coalesce(List<LedgerChange> changes) {
-    final lastIndex = <String, int>{};
-    for (var i = 0; i < changes.length; i++) {
-      lastIndex[changes[i].targetID] = i;
+  // Each survivor sits at its final occurrence's index. Rows are keyed by
+  // SyncRowID, so upserts and deletions share the moneySources keyspace (an
+  // upsert followed by a deletion of the same id applies only the deletion)
+  // while identical ids in different collections stay independent. Every
+  // observed stamp contributes to the row's carried pointwise maximum
+  // independently of which occurrence survives.
+  static List<_CoalescedWrite> _coalesce(List<_StampedChange> pending) {
+    final lastIndex = <SyncRowID, int>{};
+    final carried = <SyncRowID, VersionVector>{};
+    for (var i = 0; i < pending.length; i++) {
+      final change = pending[i].change;
+      final row = SyncRowID.of(collectionFor(change), change.targetID);
+      lastIndex[row] = i;
+      final stamp = pending[i].stamp;
+      if (stamp != null) {
+        final soFar = carried[row];
+        carried[row] = soFar == null ? stamp : _pointwiseMax(soFar, stamp);
+      }
     }
-    final kept = lastIndex.values.toList()..sort();
-    return [for (final i in kept) changes[i]];
+    final kept = lastIndex.entries.toList()
+      ..sort((a, b) => a.value.compareTo(b.value));
+    return [
+      for (final survivor in kept)
+        _CoalescedWrite(
+          pending[survivor.value].change,
+          pending[survivor.value].stamp,
+          carried[survivor.key],
+        ),
+    ];
   }
+
+  // VersionVector owns no merge, so the store computes the pointwise maximum
+  // from the public counters view. Zero counters never occur: the factory
+  // drops them at construction.
+  static VersionVector _pointwiseMax(VersionVector a, VersionVector b) {
+    final counters = Map<String, int>.of(a.counters);
+    for (final entry in b.counters.entries) {
+      final current = counters[entry.key];
+      if (current == null || entry.value > current) {
+        counters[entry.key] = entry.value;
+      }
+    }
+    return VersionVector(counters);
+  }
+
+  // Folds the carried stamp maximum under the stored vector. A null floor
+  // keeps the existing local bump path bit-for-bit.
+  static VersionVector _withFloor(VersionVector stored, VersionVector? floor) =>
+      floor == null ? stored : _pointwiseMax(floor, stored);
 
   Future<String> get _device => deviceID(db);
 
-  Future<void> _apply(LedgerChange change) async {
+  // A stamped survivor writes its stamp verbatim and never takes a local
+  // bump. An unstamped survivor bumps max(carried, stored), so a local edit
+  // coalesced after a stamped remote strictly dominates every carried stamp.
+  Future<void> _apply(_CoalescedWrite write) async {
+    final change = write.change;
     switch (change) {
       case UpsertAccount(:final account):
-        await _upsert(db.accounts, account.id, (v) => accountToRow(account, v));
+        await _upsert(
+          db.accounts,
+          account.id,
+          write,
+          (v) => accountToRow(account, v),
+        );
       case UpsertPocket(:final pocket):
-        await _upsert(db.subPockets, pocket.id, (v) => pocketToRow(pocket, v));
+        await _upsert(
+          db.subPockets,
+          pocket.id,
+          write,
+          (v) => pocketToRow(pocket, v),
+        );
       case UpsertCategory(:final category):
         final stored = await _categoryRow(category.id);
         await _upsert(
           db.categories,
           category.id,
+          write,
           (v) => categoryUpsertRow(category, v, stored: stored),
         );
       case UpsertEntry(:final entry):
-        await _upsert(db.entries, entry.id, (v) => entryToRow(entry, v));
+        await _upsert(db.entries, entry.id, write, (v) => entryToRow(entry, v));
       case UpsertPlan(:final plan):
-        await _upsert(db.plans, plan.id, (v) => planToRow(plan, v));
+        await _upsert(db.plans, plan.id, write, (v) => planToRow(plan, v));
       case UpsertBudget(:final budget):
-        await _upsert(db.budgets, budget.id, (v) => budgetToRow(budget, v));
+        await _upsert(
+          db.budgets,
+          budget.id,
+          write,
+          (v) => budgetToRow(budget, v),
+        );
       case DeleteMoneySource(:final id):
         // One id space over two tables, so a miss in accounts falls through.
-        if (!await _tombstone(db.accounts, id)) {
-          await _tombstone(db.subPockets, id);
+        if (!await _tombstone(db.accounts, id, write)) {
+          await _tombstone(db.subPockets, id, write);
         }
       case DeleteCategory(:final id):
-        await _tombstone(db.categories, id);
+        await _tombstone(db.categories, id, write);
       case DeleteEntry(:final id):
-        await _tombstone(db.entries, id);
+        await _tombstone(db.entries, id, write);
       case DeletePlan(:final id):
-        await _tombstone(db.plans, id);
+        await _tombstone(db.plans, id, write);
       case DeleteBudget(:final id):
-        await _tombstone(db.budgets, id);
+        await _tombstone(db.budgets, id, write);
     }
   }
 
@@ -385,38 +472,44 @@ class DriftLedgerStore implements LedgerStore {
 
   Future<VersionVector> _bumpedVersion<T extends Table, D extends DataClass>(
     TableInfo<T, D> table,
-    String id,
-  ) async {
+    String id, [
+    VersionVector? floor,
+  ]) async {
     final stored = await _storedVersion(table.actualTableName, id);
     final version = stored == null
         ? VersionVector.empty
         : _decodeVersion(stored);
-    return version.bump(await _device);
+    return _withFloor(version, floor).bump(await _device);
   }
 
   Future<void> _upsert<T extends Table, D extends DataClass>(
     TableInfo<T, D> table,
     String id,
+    _CoalescedWrite write,
     Insertable<D> Function(VersionVector version) toRow,
   ) async {
-    final version = await _bumpedVersion(table, id);
+    final version =
+        write.stamp ?? await _bumpedVersion(table, id, write.carried);
     await db.into(table).insertOnConflictUpdate(toRow(version));
   }
 
   Future<bool> _tombstone<T extends Table, D extends DataClass>(
     TableInfo<T, D> table,
     String id,
+    _CoalescedWrite write,
   ) async {
     final name = table.actualTableName;
     final stored = await _storedVersion(name, id);
     if (stored == null) return false;
 
-    final bumped = _decodeVersion(stored).bump(await _device);
+    final version =
+        write.stamp ??
+        _withFloor(_decodeVersion(stored), write.carried).bump(await _device);
     await db.customUpdate(
       'UPDATE $name SET lifecycle = ?, version_data = ? WHERE id = ?',
       variables: [
         Variable<int>(LifecycleState.tombstoned.code),
-        Variable<Uint8List>(Uint8List.fromList(bumped.encode())),
+        Variable<Uint8List>(Uint8List.fromList(version.encode())),
         Variable<String>(normalizedID(id)),
       ],
       updates: {table},
