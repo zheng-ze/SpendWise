@@ -1,6 +1,6 @@
 # Persistence
 
-Last reconciled: 2445ed2
+Last reconciled: 9066882
 
 ## Feature overview
 
@@ -37,6 +37,8 @@ map) go to `store.enqueue`, stamped ones to `store.enqueueStamped`. `Ledger` pub
 it. `load()` rebuilds `LedgerState` via `LedgerState.replaying(changes)`, which bypasses validation
 by design — it never calls the domain mutators, so no `LedgerError`, no invariant sweep, no cascade
 runs (`persistence.md` §5). Replay is shared by `load()`, the in-memory double, and seeding.
+Stamped publications carry one `VersionVector` per `SyncRowID`; the store pairs each change with
+its stamp at the ingest boundary and carries the pairs through the whole pipeline below.
 
 ## `LedgerStore` contract
 
@@ -45,7 +47,7 @@ runs (`persistence.md` §5). Replay is shared by `load()`, the in-memory double,
 | `load()` | Reads all non-tombstoned rows, maps to domain, rebuilds `LedgerState` by replay. Throws on failure. Boot-time only. |
 | `start()` | Begins draining the ingest queue. Idempotent; safe to call from `flushNow`. |
 | `enqueue(changes)` | Synchronous, non-blocking; empty list is a no-op; batches ingest in call order. |
-| `enqueueStamped(changes, stamps)` | Stamped variant of `enqueue` for sync publications; unstamped publications (including an empty stamps map) keep the `enqueue` bump path. Until stamps are persisted, a stamped batch takes the existing local bump path. |
+| `enqueueStamped(changes, stamps)` | Stamped variant of `enqueue` for sync publications; each change pairs with the stamp keyed by its `SyncRowID` (`collectionFor` plus `targetID`), or no stamp when the map has none for it. Unstamped publications (including an empty stamps map) keep the `enqueue` bump path. |
 | `flushNow()` | Barrier: everything enqueued before the call is on disk when it returns. |
 | `setErrorHandler(h)` | Registers the single banner callback; replaces it; no multicast. |
 | `SaveBannerState` | `clear`, `retrying`, `failedWillRetry`, and `permanentlyFailed`; the handler signature remains `void Function(SaveBannerState)`. (`ledger_store.dart:SaveBannerState`, `SaveErrorHandler`) |
@@ -60,18 +62,27 @@ unused in V1). `plans` flattens the `EntryTemplate` into `template_*` scalar col
 
 Constants: `debounce = 250 ms`, `maxRetries = 2`, `retryBackoff = 200 ms` (`drift_ledger_store.dart`).
 
-1. **Ordered ingest** — `enqueue` appends to an unbounded FIFO; two enqueues stay in sequence,
-   which makes last-write-wins coalescing correct. `enqueueStamped` shares the same FIFO and
-   ordering.
+1. **Ordered ingest** — `enqueue` appends unstamped pairs to an unbounded FIFO; `enqueueStamped`
+   appends ordered change-plus-optional-stamp pairs; two enqueues stay in sequence,
+   which makes last-write-wins coalescing correct.
 2. **Debounce** — each batch buffered into `pending` cancels the previous timer and starts a fresh
    250 ms one; a burst produces one save ~250 ms after the last edit.
-3. **Coalescing** — at flush, keep only the last change per `targetID`, preserving survivor order;
-   upserts and deletes coalesce in the same keyspace. Coalescing spans everything in `pending`, not
+3. **Coalescing** — at flush, keep only the last change per `SyncRowID`, preserving survivor order;
+   upserts and deletes coalesce in the same keyspace, so `UpsertPocket` followed by
+   `DeleteMoneySource` for one id applies only the deletion, while identical ids in different
+   collections stay independent. Every observed stamp contributes to the row's carried pointwise
+   maximum independently of which occurrence survives. Coalescing spans everything in `pending`, not
    a single enqueue batch.
-4. **Flush, retry, rollback** — one SQLite transaction applies the coalesced changes with a version
-   bump per applied change. Non-terminal failures retry with `retrying`, then report
+4. **Flush, retry, rollback** — one SQLite transaction applies the coalesced writes. A stamped
+   survivor writes its stamp verbatim and never takes a local bump; an unstamped survivor writes
+   `max(carriedStamp, storedVector).bump(deviceID)`, so a local edit coalesced after a stamped
+   remote strictly dominates every carried stamp, while a stamped remote arriving last keeps its
+   surviving stamp verbatim. A null carried floor keeps the existing local bump path bit-for-bit.
+   Non-terminal failures retry with `retrying`, then report
    `failedWillRetry` and arm a timed retry; `PermanentSaveError` reports `permanentlyFailed` and
-   returns without arming one. (`app/lib/persistence/drift_ledger_store.dart:_runCycle`)
+   returns without arming one. Retries and later partial-prefix cycles recompute coalescing from
+   the still-pending pairs, so stamp provenance survives them.
+   (`app/lib/persistence/drift_ledger_store.dart:_runCycle`)
 5. **`flushNow` barrier** — calls `start()` defensively, pushes a barrier, cancels the debounce
    timer, awaits any in-flight flush, then loops flush cycles until `pending` is empty (or a cycle
    gives up after reporting a retryable or terminal failure state.
@@ -98,18 +109,21 @@ new unrelated change shares the failing transaction until the corrupted row is r
 
 `VersionVector` (`version_vector.dart`) holds `Map<String, int>` device→counters with `bump`,
 `dominates`, and `isConcurrent`. Merge is deliberately absent — deferred to the future sync
-engine. Every applied write, upsert or tombstone, bumps the row's vector once with this device's
-`device_id` (a uuid v4 created once in `store_meta`, never changing). Encode is a normalized JSON
+engine — so the store computes the carried pointwise maximum itself from the public `counters`
+view (`drift_ledger_store.dart:_pointwiseMax`). Every applied unstamped write, upsert or tombstone, bumps the row's vector once with this device's
+`device_id` (a uuid v4 created once in `store_meta`, never changing). A stamped survivor writes
+its stamp verbatim with no bump. Encode is a normalized JSON
 object; decode recognizes both the normalized object form and the Swift alternating-array form.
 Decode failure does not affect boot because `loadChanges` never decodes `version_data`; the next
-write or tombstone of that row classifies it as `PermanentSaveError` instead of silently resetting
-causal history. (`app/lib/persistence/drift_ledger_store.dart:loadChanges`, `_decodeVersion`,
+unstamped write or tombstone of that row classifies it as `PermanentSaveError` instead of silently resetting
+causal history, while a stamped survivor bypasses that decode and overwrites a corrupt stored
+vector with its verbatim stamp. (`app/lib/persistence/drift_ledger_store.dart:loadChanges`, `_decodeVersion`,
 `_bumpedVersion`, `_tombstone`; commit `2445ed2`)
 
 ## Tombstones and load
 
-A delete change never issues SQL `DELETE`; it sets `lifecycle = 3` (tombstoned) and bumps the
-vector. The row stays in SQLite forever as the sync engine's future deletion record. `load()`
+A delete change never issues SQL `DELETE`; it sets `lifecycle = 3` (tombstoned) and advances the
+vector — a bump for an unstamped delete, the verbatim stamp for a stamped one. The row stays in SQLite forever as the sync engine's future deletion record. `load()`
 fetches `WHERE lifecycle != 3` from every table, maps via `toDomain()`, and rebuilds in the order
 accounts, pockets, categories, entries, plans.
 
@@ -144,16 +158,18 @@ cleanly. See `ledger_runtime.md` §6 for the seed dataset.
 
 - `flushNow` is a barrier: everything enqueued before the call is on disk when it returns.
   (`ledger_store.dart`, `drift_ledger_store.dart` §4.5)
-- Batches ingest in call order; coalescing keeps only the last change per `targetID`.
+- Batches ingest in call order; coalescing keeps only the last change per `SyncRowID`, carrying
+  the pointwise maximum of every observed stamp for the row.
   (`drift_ledger_store.dart` §4.1–4.3)
-- Every applied write bumps the row's version vector exactly once. (`drift_ledger_store.dart` §4.6)
+- Every applied unstamped write bumps the row's version vector exactly once; a stamped survivor
+  writes its stamp verbatim with no bump. (`drift_ledger_store.dart` §4.6)
 - Vector decode failure throws; merge is absent. (`version_vector.dart`)
 - Seeding is gated on `has_seeded`, not emptiness, and commits the flag atomically with the seed.
   (`persistence.md` §7)
 - Tombstones set `lifecycle = 3` and are hidden from `load()` but remain in SQLite.
   (`drift_ledger_store.dart` §5)
-- An undecodable stored version vector reports `permanentlyFailed` once, arms no timed retry, and
-  leaves its pending batch undrained. (tests `a corrupt version vector reports the terminal state
+- An undecodable stored version vector on an unstamped write reports `permanentlyFailed` once, arms no timed retry, and
+  leaves its pending batch undrained. A stamped survivor bypasses the decode. (tests `a corrupt version vector reports the terminal state
   once`, `the terminal save never drains the pending batch` in `drift_ledger_store_test.dart`)
 - `BannerState` renders `permanentlyFailed` as `"Couldn't save changes"`.
   (`BannerState._saveMessage`; test `permanentlyFailedShowsExactSaveMessage` in
