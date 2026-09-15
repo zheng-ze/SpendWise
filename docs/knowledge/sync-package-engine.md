@@ -1,6 +1,6 @@
 # Sync: package engine
 
-Last reconciled: e23a0c98bdfa40808be3447faee661a0e37dddb6
+Last reconciled: ace164232a85ef644f60fa6a2769bcac62f9f5e1
 
 ## Layer overview
 
@@ -183,10 +183,12 @@ orchestration and conflict-review UI remain outside `packages/sync`. Source:
   production caller must inject a durable `SyncStagingStore`. Source:
   `packages/sync/lib/src/engine/sync_engine.dart` - `SyncEngine` constructor;
   `packages/sync/lib/src/engine/staging_store.dart` - `InMemorySyncStagingStore`.
-- The package's `SyncVersionSource` is a synchronous single-row read seam used by `encode()`. The
-  issue #105 context proposes the same name for a future app-side batch reader. Review this naming
-  collision when the app layer ships, and treat only the package seam as current behavior. Source:
-  `packages/sync/lib/src/engine/version_source.dart` - `SyncVersionSource.readRowVersion`.
+- The package's `SyncVersionSource` is the synchronous, single-row seam used by `encode()`.
+  It is separate from app-layer `CollectionVersionReader`, which asynchronously reads one whole
+  collection for durable readback and push-candidate selection. Neither type implements or
+  replaces the other. Source: `packages/sync/lib/src/engine/version_source.dart` -
+  `SyncVersionSource.readRowVersion`; `app/lib/sync/collection_version_reader.dart` -
+  `CollectionVersionReader.readRowVersions`.
 - `docs/sync-protocol.md` predates this engine and still describes deferred engine behavior. For
   this layer, current code and tests establish empty authenticated tombstone plaintext and
   non-dominated frontier reduction. Source: `docs/sync-protocol.md` -
