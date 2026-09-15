@@ -31,8 +31,9 @@ Lives in `app/lib/persistence/`.
 
 ## Module interactions
 
-`PersistenceProcessor` subscribes to the `EventBus` and forwards every batch to `store.enqueue`
-as-is, same batch boundaries, no filtering. `Ledger` publishes through the bus; UI never touches
+`PersistenceProcessor` subscribes to the `EventBus` and forwards each `LedgerPublication` with
+the same batch boundaries and no filtering: unstamped publications (including an empty stamps
+map) go to `store.enqueue`, stamped ones to `store.enqueueStamped`. `Ledger` publishes through the bus; UI never touches
 it. `load()` rebuilds `LedgerState` via `LedgerState.replaying(changes)`, which bypasses validation
 by design — it never calls the domain mutators, so no `LedgerError`, no invariant sweep, no cascade
 runs (`persistence.md` §5). Replay is shared by `load()`, the in-memory double, and seeding.
@@ -44,6 +45,7 @@ runs (`persistence.md` §5). Replay is shared by `load()`, the in-memory double,
 | `load()` | Reads all non-tombstoned rows, maps to domain, rebuilds `LedgerState` by replay. Throws on failure. Boot-time only. |
 | `start()` | Begins draining the ingest queue. Idempotent; safe to call from `flushNow`. |
 | `enqueue(changes)` | Synchronous, non-blocking; empty list is a no-op; batches ingest in call order. |
+| `enqueueStamped(changes, stamps)` | Stamped variant of `enqueue` for sync publications; unstamped publications (including an empty stamps map) keep the `enqueue` bump path. Until stamps are persisted, a stamped batch takes the existing local bump path. |
 | `flushNow()` | Barrier: everything enqueued before the call is on disk when it returns. |
 | `setErrorHandler(h)` | Registers the single banner callback; replaces it; no multicast. |
 | `SaveBannerState` | `clear`, `retrying`, `failedWillRetry`, and `permanentlyFailed`; the handler signature remains `void Function(SaveBannerState)`. (`ledger_store.dart:SaveBannerState`, `SaveErrorHandler`) |

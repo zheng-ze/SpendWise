@@ -210,9 +210,9 @@ separator input is a recorded non-goal until localization work begins.
 - `Ledger` is a `ChangeNotifier` exposed by a provider, with a public mutation API. `mutate` runs
   the corresponding domain method, checks invariants in debug builds, publishes the resulting changes
   on the event bus, then notifies listeners.
-- `EventBus` is a single `StreamController<List<LedgerChange>>.broadcast(sync: true)`. Dart's
-  single-threaded event loop gives ordered, lossless, synchronous fan-out without any additional
-  locking. A cascade delete's changes still land as one atomic batch.
+- `EventBus` is the synchronous broadcast carrying `LedgerPublication` batches; see
+  `docs/knowledge/ledger-runtime.md` for the contract. A cascade delete's changes still land as
+  one atomic batch.
 - `AnalysisCache` is a provider that subscribes to the bus and recomputes `analysisItems` via
   `Isolate.run`, guarded by a generation counter captured before the compute starts; a result is
   discarded if the generation has moved on by the time it finishes. It exposes `items` and
@@ -220,9 +220,9 @@ separator input is a recorded non-goal until localization work begins.
 
 ### 4.3 Persistence (`app/lib/persistence/`)
 
-- `LedgerStore` is an abstract class exposing `load` / `start` / `enqueue` / `flushNow` /
-  `setErrorHandler`, plus `SaveBannerState`. `InMemoryLedgerStore` backs tests.
-  `PersistenceProcessor` subscribes to the event bus and writes through to the store.
+- `LedgerStore` is the durable contract backed by Drift; `InMemoryLedgerStore` backs tests.
+  See `docs/knowledge/persistence.md` for the contract and `docs/knowledge/ledger-runtime.md`
+  for the bus-to-store bridge.
 - The Drift schema is the persistence model, distinct from the domain model: `accounts`,
   `sub_pockets`, `categories`, `entries`, `plans` (a plan's template fields are flattened into
   columns), `budgets`, and `store_meta` (device id, `hasSeeded`). Every row carries a `version_data BLOB`
