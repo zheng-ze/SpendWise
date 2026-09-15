@@ -267,9 +267,8 @@ final class SyncMetadataStore {
     return (_db.select(_db.syncMeta)..where((t) => t.id.equals(0))).getSingle();
   }
 
-  /// Writes [companion] to the singleton row, without its own transaction.
-  /// Callers must already hold a transaction and have called
-  /// [_ensureMetaRow].
+  // Writes companion to the singleton row, without its own transaction.
+  // Callers must already hold a transaction and have called _ensureMetaRow.
   Future<void> _writeMeta(SyncMetaCompanion companion) =>
       (_db.update(_db.syncMeta)..where((t) => t.id.equals(0))).write(companion);
 
@@ -300,8 +299,8 @@ final class SyncMetadataStore {
     String? cursor,
   ) => _watermarkColumnOf(collection).buildCompanion(cursor);
 
-  /// One switch, not two: the analyzer flags a missing [SyncCollection] case
-  /// here at compile time, unlike a lookup keyed by a `Map`.
+  // One switch, not two: the analyzer flags a missing SyncCollection case
+  // here at compile time, unlike a lookup keyed by a Map.
   static _WatermarkColumn _watermarkColumnOf(SyncCollection collection) =>
       switch (collection) {
         SyncCollection.moneySources => _WatermarkColumn(
@@ -332,10 +331,8 @@ final class SyncMetadataStore {
       };
 }
 
-/// One [SyncCollection]'s watermark column: a getter and a companion-builder
-/// paired so adding a collection means adding one switch case instead of
-/// extending two separate switches with no compiler tie keeping them in
-/// lockstep.
+// A SyncCollection's watermark column: a row getter paired with a companion
+// builder, one switch case per collection.
 final class _WatermarkColumn {
   const _WatermarkColumn({
     required this.readCursor,

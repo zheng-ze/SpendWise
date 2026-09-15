@@ -1,9 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:sync/sync.dart';
 
-/// Drift column codec for [SyncCollection], delegating to its own wire-name
-/// mapping so the collection column reads and writes a typed enum instead of
-/// call sites hand-converting `.wireName`/`.fromWireName` at each use.
+/// Reads and writes a `collection` column as a typed [SyncCollection].
 class SyncCollectionConverter extends TypeConverter<SyncCollection, String> {
   const SyncCollectionConverter();
 
@@ -14,10 +12,7 @@ class SyncCollectionConverter extends TypeConverter<SyncCollection, String> {
   String toSql(SyncCollection value) => value.wireName;
 }
 
-/// Drift column codec for [VersionVector], delegating to its own persistence
-/// codec ([VersionVector.encode]/[VersionVector.decode]) so a version column
-/// reads and writes a typed vector instead of call sites hand-encoding to and
-/// decoding from a raw blob at each use.
+/// Reads and writes a version-data column as a typed [VersionVector].
 class VersionVectorConverter extends TypeConverter<VersionVector, Uint8List> {
   const VersionVectorConverter();
 

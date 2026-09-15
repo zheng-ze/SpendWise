@@ -20,9 +20,8 @@ class AndroidTextRecognizer implements TextRecognizer {
       final result = await _engine.recognizeText(image.bytes);
       return _toRecognizedText(result);
     } catch (e) {
-      // Untyped catch is deliberate here: the platform channel can throw
-      // PlatformException, MissingPluginException, or an arbitrary native
-      // error, none of which this package can enumerate in advance.
+      // Untyped catch is deliberate: the platform channel can throw
+      // PlatformException, MissingPluginException, or another native error.
       throw TextRecognitionFailure('ML Kit: $e');
     }
   }

@@ -38,10 +38,8 @@ class Ledger extends ChangeNotifier {
     return _commit(changes);
   }
 
-  // Shared tail for [_mutate] and [applySyncBatch]: both have already
-  // validated and applied their changes to [_state] by the time they call
-  // this, so all that is left is to announce [changes] on the bus and to
-  // listeners.
+  // Both [_mutate] and [applySyncBatch] reach here only after their own
+  // validation passes, so this tail needs no validation of its own.
   List<LedgerChange> _commit(
     List<LedgerChange> changes, {
     Map<SyncRowID, VersionVector>? stamps,

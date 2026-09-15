@@ -97,8 +97,8 @@ final class DriftSyncStagingStore implements SyncStagingStore {
     );
   }
 
-  /// Deletes the staged siblings and conflict row for [collection]/[rowID].
-  /// Callers must run this inside their own transaction.
+  // Deletes the staged siblings and conflict row for collection/rowID.
+  // Callers must run this inside their own transaction.
   Future<void> _deleteGroup(SyncCollection collection, String rowID) async {
     await (_db.delete(_db.syncStagedSiblings)..where(
           (t) => t.collection.equalsValue(collection) & t.rowId.equals(rowID),

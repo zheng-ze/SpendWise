@@ -160,10 +160,7 @@ abstract class EntryFormViewModel {
   void clearStep();
 }
 
-/// The receipt-scan / crop surface of an entry form, split out from
-/// [EntryFormViewModel] since it changes for a different reason: each method
-/// here only forwards to a [ReceiptEntryCoordinator] rather than touching
-/// form-field state directly.
+/// The receipt-scan / crop surface of an entry form.
 abstract class ReceiptScanController {
   void requestScan(ReceiptScanSource source, {Uint8List? preCapturedBytes});
   void applyCroppedDocument(Uint8List bytes);
