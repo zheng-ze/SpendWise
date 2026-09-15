@@ -293,44 +293,49 @@ final class SyncMetadataStore {
   static String? _watermarkOf(
     SyncMetadataRow meta,
     SyncCollection collection,
-  ) => _watermarkColumns[collection]!.readCursor(meta);
+  ) => _watermarkColumnOf(collection).readCursor(meta);
 
   static SyncMetaCompanion _watermarkCompanion(
     SyncCollection collection,
     String? cursor,
-  ) => _watermarkColumns[collection]!.buildCompanion(cursor);
+  ) => _watermarkColumnOf(collection).buildCompanion(cursor);
 
-  static final Map<SyncCollection, _WatermarkColumn> _watermarkColumns = {
-    SyncCollection.moneySources: _WatermarkColumn(
-      readCursor: (meta) => meta.moneySourcesCursor,
-      buildCompanion: (cursor) =>
-          SyncMetaCompanion(moneySourcesCursor: Value(cursor)),
-    ),
-    SyncCollection.entries: _WatermarkColumn(
-      readCursor: (meta) => meta.entriesCursor,
-      buildCompanion: (cursor) =>
-          SyncMetaCompanion(entriesCursor: Value(cursor)),
-    ),
-    SyncCollection.categories: _WatermarkColumn(
-      readCursor: (meta) => meta.categoriesCursor,
-      buildCompanion: (cursor) =>
-          SyncMetaCompanion(categoriesCursor: Value(cursor)),
-    ),
-    SyncCollection.plans: _WatermarkColumn(
-      readCursor: (meta) => meta.plansCursor,
-      buildCompanion: (cursor) => SyncMetaCompanion(plansCursor: Value(cursor)),
-    ),
-    SyncCollection.budgets: _WatermarkColumn(
-      readCursor: (meta) => meta.budgetsCursor,
-      buildCompanion: (cursor) =>
-          SyncMetaCompanion(budgetsCursor: Value(cursor)),
-    ),
-  };
+  /// One switch, not two: the analyzer flags a missing [SyncCollection] case
+  /// here at compile time, unlike a lookup keyed by a `Map`.
+  static _WatermarkColumn _watermarkColumnOf(SyncCollection collection) =>
+      switch (collection) {
+        SyncCollection.moneySources => _WatermarkColumn(
+          readCursor: (meta) => meta.moneySourcesCursor,
+          buildCompanion: (cursor) =>
+              SyncMetaCompanion(moneySourcesCursor: Value(cursor)),
+        ),
+        SyncCollection.entries => _WatermarkColumn(
+          readCursor: (meta) => meta.entriesCursor,
+          buildCompanion: (cursor) =>
+              SyncMetaCompanion(entriesCursor: Value(cursor)),
+        ),
+        SyncCollection.categories => _WatermarkColumn(
+          readCursor: (meta) => meta.categoriesCursor,
+          buildCompanion: (cursor) =>
+              SyncMetaCompanion(categoriesCursor: Value(cursor)),
+        ),
+        SyncCollection.plans => _WatermarkColumn(
+          readCursor: (meta) => meta.plansCursor,
+          buildCompanion: (cursor) =>
+              SyncMetaCompanion(plansCursor: Value(cursor)),
+        ),
+        SyncCollection.budgets => _WatermarkColumn(
+          readCursor: (meta) => meta.budgetsCursor,
+          buildCompanion: (cursor) =>
+              SyncMetaCompanion(budgetsCursor: Value(cursor)),
+        ),
+      };
 }
 
-/// One [SyncCollection]'s watermark column, paired as a single map entry so
-/// adding a collection means adding one entry instead of extending two
-/// separate switches that had no compiler tie keeping them in lockstep.
+/// One [SyncCollection]'s watermark column: a getter and a companion-builder
+/// paired so adding a collection means adding one switch case instead of
+/// extending two separate switches with no compiler tie keeping them in
+/// lockstep.
 final class _WatermarkColumn {
   const _WatermarkColumn({
     required this.readCursor,
