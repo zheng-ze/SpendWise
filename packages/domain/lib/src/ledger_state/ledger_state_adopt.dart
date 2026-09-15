@@ -9,6 +9,10 @@ extension LedgerStateAdopt on LedgerState {
   /// skip entirely: no snapshot map is allocated there, and the next debug
   /// local mutation evaluates clause 12 against the post-sync baseline.
   void adopt(LedgerState other) {
+    // A self-adoption would clear the tables it then reads back, so it is a
+    // no-op up front.
+    if (identical(this, other)) return;
+
     _moneySources
       ..clear()
       ..addAll(other._moneySources);

@@ -63,6 +63,23 @@ void main() {
     expect(live.budgets, isEmpty);
   });
 
+  test('selfAdoptionIsANoOp', () {
+    final state = _fiveTableState();
+    final moneySources = Map<String, MoneySource>.of(state.moneySources);
+    final entries = Map<String, Entry>.of(state.entries);
+    final categories = Map<String, TransactionCategory>.of(state.categories);
+    final plans = Map<String, RecurringPlan>.of(state.plans);
+    final budgets = Map<String, Budget>.of(state.budgets);
+
+    state.adopt(state);
+
+    expect(state.moneySources, moneySources);
+    expect(state.entries, entries);
+    expect(state.categories, categories);
+    expect(state.plans, plans);
+    expect(state.budgets, budgets);
+  });
+
   test('unseen lifecycle transition passes structural validation', () {
     // The device archived then stopped referencing the account, so its
     // baseline sits at referenceOnly. Another device restored it to active:

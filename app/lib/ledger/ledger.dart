@@ -6,6 +6,35 @@ import 'package:spendwise/ledger/event_bus.dart';
 
 typedef PlanErrorHandler = void Function(List<PlanFailure> failures);
 
+/// The sync row a decided change touches: accounts and pockets share the
+/// money-sources table, and every other change maps to its own table's
+/// collection.
+SyncRowID _syncRowID(LedgerChange change) => switch (change) {
+  UpsertAccount(:final account) => SyncRowID.of(
+    SyncCollection.moneySources,
+    account.id,
+  ),
+  UpsertPocket(:final pocket) => SyncRowID.of(
+    SyncCollection.moneySources,
+    pocket.id,
+  ),
+  UpsertCategory(:final category) => SyncRowID.of(
+    SyncCollection.categories,
+    category.id,
+  ),
+  UpsertEntry(:final entry) => SyncRowID.of(SyncCollection.entries, entry.id),
+  UpsertPlan(:final plan) => SyncRowID.of(SyncCollection.plans, plan.id),
+  UpsertBudget(:final budget) => SyncRowID.of(
+    SyncCollection.budgets,
+    budget.id,
+  ),
+  DeleteMoneySource(:final id) => SyncRowID.of(SyncCollection.moneySources, id),
+  DeleteCategory(:final id) => SyncRowID.of(SyncCollection.categories, id),
+  DeleteEntry(:final id) => SyncRowID.of(SyncCollection.entries, id),
+  DeletePlan(:final id) => SyncRowID.of(SyncCollection.plans, id),
+  DeleteBudget(:final id) => SyncRowID.of(SyncCollection.budgets, id),
+};
+
 /// The only object allowed to hold a mutable [LedgerState], so no change can
 /// reach storage or the screen without passing through [_mutate] (local
 /// mutations) or [applySyncBatch] (decided remote batches) and being
@@ -142,6 +171,9 @@ class Ledger extends ChangeNotifier {
   /// classification and reconciliation, so this takes the decided [changes]
   /// plus the complete per-row [stamps] at face value.
   ///
+  /// [stamps] must cover exactly the rows [changes] touches, no more and no
+  /// less; anything else throws [ArgumentError] before anything is mutated.
+  ///
   /// Copy-validates first: builds a candidate from the five live tables,
   /// applies [changes] to the candidate, and runs the structural invariants
   /// unconditionally, outside `assert` and without mutator clause 12
@@ -157,6 +189,20 @@ class Ledger extends ChangeNotifier {
     Map<SyncRowID, VersionVector> stamps,
   ) {
     assert(ChangeNotifier.debugAssertNotDisposed(this));
+
+    final covered = <SyncRowID>{
+      for (final change in changes) _syncRowID(change),
+    };
+    // Set == is identity, so compare by content: same size and mutual
+    // containment.
+    final stamped = stamps.keys.toSet();
+    if (stamped.length != covered.length || !stamped.containsAll(covered)) {
+      throw ArgumentError.value(
+        stamps.keys.toList(),
+        'stamps',
+        'must cover exactly the rows the batch touches',
+      );
+    }
 
     final candidate = LedgerState(
       moneySources: _state.moneySources,

@@ -108,6 +108,103 @@ void main() {
     await processor.dispose();
   });
 
+  test('missingStampRejectsTheBatchBeforeAnythingMoves', () async {
+    final bus = EventBus();
+    final store = InMemoryLedgerStore();
+    final processor = PersistenceProcessor(store: store, bus: bus);
+    await processor.start();
+    final ledger = Ledger(bus: bus);
+
+    final publications = <LedgerPublication>[];
+    bus.subscribe().listen(publications.add);
+    var notifications = 0;
+    ledger.addListener(() => notifications++);
+
+    final account = _account();
+    final category = _category();
+    final changes = <LedgerChange>[
+      UpsertAccount(account),
+      UpsertCategory(category),
+    ];
+    final stamps = {
+      SyncRowID.of(SyncCollection.moneySources, account.id): _stamp(1),
+    };
+
+    expect(
+      () => ledger.applySyncBatch(changes, stamps),
+      throwsA(isA<ArgumentError>()),
+    );
+
+    expect(ledger.state.moneySources, isEmpty);
+    expect(ledger.state.categories, isEmpty);
+    expect(publications, isEmpty);
+    expect(store.enqueuedBatches, isEmpty);
+    expect(notifications, 0);
+
+    await processor.dispose();
+  });
+
+  test('extraStampRejectsTheBatchBeforeAnythingMoves', () async {
+    final bus = EventBus();
+    final store = InMemoryLedgerStore();
+    final processor = PersistenceProcessor(store: store, bus: bus);
+    await processor.start();
+    final ledger = Ledger(bus: bus);
+
+    final publications = <LedgerPublication>[];
+    bus.subscribe().listen(publications.add);
+    var notifications = 0;
+    ledger.addListener(() => notifications++);
+
+    final account = _account();
+    final untouched = _category();
+    final stamps = {
+      SyncRowID.of(SyncCollection.moneySources, account.id): _stamp(1),
+      SyncRowID.of(SyncCollection.categories, untouched.id): _stamp(1),
+    };
+
+    expect(
+      () => ledger.applySyncBatch([UpsertAccount(account)], stamps),
+      throwsA(isA<ArgumentError>()),
+    );
+
+    expect(ledger.state.moneySources, isEmpty);
+    expect(publications, isEmpty);
+    expect(store.enqueuedBatches, isEmpty);
+    expect(notifications, 0);
+
+    await processor.dispose();
+  });
+
+  test('emptyStampsRejectANonemptyBatch', () async {
+    final bus = EventBus();
+    final store = InMemoryLedgerStore();
+    final processor = PersistenceProcessor(store: store, bus: bus);
+    await processor.start();
+    final ledger = Ledger(bus: bus);
+
+    final publications = <LedgerPublication>[];
+    bus.subscribe().listen(publications.add);
+    var notifications = 0;
+    ledger.addListener(() => notifications++);
+
+    final account = _account();
+
+    expect(
+      () => ledger.applySyncBatch([
+        UpsertAccount(account),
+      ], const <SyncRowID, VersionVector>{}),
+      throwsA(isA<ArgumentError>()),
+    );
+
+    expect(ledger.state.moneySources, isEmpty);
+    expect(publications, isEmpty);
+    expect(store.enqueuedBatches, isEmpty);
+    expect(notifications, 0);
+
+    await processor.dispose();
+  });
+
   test('unseenLifecycleTransitionPassesAndRefreshesTheBaseline', () {
     final ledger = Ledger();
 
