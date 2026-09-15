@@ -6,7 +6,8 @@ Last reconciled: 2445ed2
 
 The durable layer: a `LedgerStore` contract backed by Drift (SQLite), an in-memory implementation
 for tests, the ordered ingest pipeline with debounce and coalescing, the version vector codec, and
-the domain-to-row mapping. Rows mirror the domain models 1:1 and must never leak past the store.
+the domain-to-row mapping. Ledger rows mirror the domain models 1:1 and must never leak past the
+store. Sync-coordination state lives separately in `app/lib/sync/` (see `sync-durable-stores.md`).
 Lives in `app/lib/persistence/`.
 
 ## Key files
