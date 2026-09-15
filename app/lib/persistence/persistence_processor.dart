@@ -25,9 +25,8 @@ class PersistenceProcessor {
   /// The sole persistence route: unstamped publications keep the existing
   /// enqueue bump path, stamped ones go to `enqueueStamped`.
   void _forward(LedgerPublication publication) {
-    final stamps = publication.stamps;
-    if (stamps != null && stamps.isNotEmpty) {
-      store.enqueueStamped(publication.changes, stamps);
+    if (publication.hasStamps) {
+      store.enqueueStamped(publication.changes, publication.stamps!);
     } else {
       store.enqueue(publication.changes);
     }
