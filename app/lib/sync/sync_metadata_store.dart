@@ -51,6 +51,19 @@ enum SyncBackendKind {
   }
 }
 
+/// Error thrown when enabling the sync write gate is refused.
+///
+/// Only a durable [SyncEnrollmentPhase.reconciliationComplete] phase permits
+/// the gate flip; credential presence alone never enables writes.
+final class SyncWriteGateException implements Exception {
+  const SyncWriteGateException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => 'SyncWriteGateException: $message';
+}
+
 /// Immutable read view of the singleton sync metadata row.
 final class SyncMetadataSnapshot {
   const SyncMetadataSnapshot({
@@ -133,8 +146,23 @@ final class SyncMetadataStore {
         );
       });
 
+  /// Flips the write gate. Enabling is refused with [SyncWriteGateException]
+  /// unless the stored enrollment phase is reconciliation-complete; the phase
+  /// check runs inside the same transaction as the write, so a refused enable
+  /// persists nothing. Disabling is always allowed.
   Future<void> setWriteEnabled(bool value) => _db.transaction(() async {
     await _ensureMetaRow();
+    if (value) {
+      final phase = SyncEnrollmentPhase.fromCode(
+        (await _metaRow()).enrollmentPhase,
+      );
+      if (phase != SyncEnrollmentPhase.reconciliationComplete) {
+        throw SyncWriteGateException(
+          'Cannot enable sync writes from phase ${phase.name}; '
+          'reconciliation must complete first.',
+        );
+      }
+    }
     await (_db.update(_db.syncMeta)..where((t) => t.id.equals(0))).write(
       SyncMetaCompanion(writeEnabled: Value(value)),
     );
