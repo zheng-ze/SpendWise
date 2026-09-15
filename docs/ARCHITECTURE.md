@@ -226,8 +226,13 @@ separator input is a recorded non-goal until localization work begins.
   for the bus-to-store bridge.
 - The Drift schema is the persistence model, distinct from the domain model: `accounts`,
   `sub_pockets`, `categories`, `entries`, `plans` (a plan's template fields are flattened into
-  columns), `budgets`, and `store_meta` (device id, `hasSeeded`). Every row carries a `version_data BLOB`
-  (an encoded version vector) and a `lifecycle INT`. Amount and other decimal columns are stored as
+  columns), `budgets`, and `store_meta` (device id, `hasSeeded`). Every ledger row (every table
+  except `store_meta`) carries a `version_data BLOB`
+  (an encoded version vector) and a `lifecycle INT`. The v4 sync-coordination tables
+  (`sync_meta`, `sync_acknowledged_vectors`, `sync_pending_acknowledgements`,
+  `sync_staged_conflicts`, `sync_staged_siblings`) follow their own keys instead; their table
+  doc comments in `app/lib/sync/sync_tables.dart` own that schema, with the coordination
+  behavior covered in `docs/knowledge/sync-durable-stores.md`. Amount and other decimal columns are stored as
   `TEXT`. Budgets store an append-only `limit_events` column (a JSON array of `effectiveFromMonth`,
   `value`, and `kind`) alongside a nullable `category_id` and `created_at_month`. `load()` filters
   out rows with `lifecycle == tombstoned` and rebuilds `LedgerState` by replaying upserts.

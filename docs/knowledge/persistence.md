@@ -6,7 +6,8 @@ Last reconciled: 9066882
 
 The durable layer: a `LedgerStore` contract backed by Drift (SQLite), an in-memory implementation
 for tests, the ordered ingest pipeline with debounce and coalescing, the version vector codec, and
-the domain-to-row mapping. Rows mirror the domain models 1:1 and must never leak past the store.
+the domain-to-row mapping. Ledger rows mirror the domain models 1:1 and must never leak past the
+store. Sync-coordination state lives separately in `app/lib/sync/` (see `sync-durable-stores.md`).
 Lives in `app/lib/persistence/`.
 
 ## Key files
@@ -52,10 +53,12 @@ its stamp at the ingest boundary and carries the pairs through the whole pipelin
 | `setErrorHandler(h)` | Registers the single banner callback; replaces it; no multicast. |
 | `SaveBannerState` | `clear`, `retrying`, `failedWillRetry`, and `permanentlyFailed`; the handler signature remains `void Function(SaveBannerState)`. (`ledger_store.dart:SaveBannerState`, `SaveErrorHandler`) |
 
-Schema conventions: IDs are lowercase `TEXT` PKs; money is `Decimal` `TEXT` (never `REAL`); dates
-are epoch-millis UTC `INTEGER`; booleans are `INTEGER` 0/1; `version_data` is a `BLOB` JSON vector
-on every table except `store_meta`; `lifecycle` is an `INTEGER` raw value on every table except
-`store_meta`. The `entries` table reserves `note` and `system_kind` columns (day-one reservations,
+Ledger-row conventions (tables mixing in `SyncedRow` in `tables.dart`): IDs are lowercase
+`TEXT` PKs; money is `Decimal` `TEXT` (never `REAL`); dates are epoch-millis UTC `INTEGER`;
+booleans are `INTEGER` 0/1; `version_data` is a `BLOB` JSON vector and `lifecycle` is an `INTEGER`
+raw value on every such table (`store_meta` mixes in nothing and carries neither). Sync-coordination
+tables in `app/lib/sync/sync_tables.dart` follow their own keys; their table doc comments own that
+schema. The `entries` table reserves `note` and `system_kind` columns (day-one reservations,
 unused in V1). `plans` flattens the `EntryTemplate` into `template_*` scalar columns.
 
 ## Write pipeline
