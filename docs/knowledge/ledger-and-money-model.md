@@ -59,7 +59,7 @@ an id and equality is by case + id: `IdCollision`, `UnknownAccount`, `UnknownHol
 publish the returned changes to the `EventBus`, then notify Riverpod listeners (`ledger_runtime.md`
 §1.1). On a thrown `LedgerError` nothing happens — no change, no invariant sweep, no publish.
 
-The persistence layer (`persistence.md`) coalesces changes by `LedgerChange.targetID` and rebuilds
+The persistence layer coalesces changes per `SyncRowID` (see `persistence.md` § Write pipeline) and rebuilds
 state via `LedgerState.replaying(changes)`, which applies changes directly into the maps without
 validation or cascade (`ledger_state_replay.dart`).
 

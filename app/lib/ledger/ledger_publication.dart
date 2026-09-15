@@ -6,8 +6,8 @@ import 'package:sync/sync.dart';
 /// [changes] is the persistence and analysis payload. [stamps] carries the
 /// optional per-row sync version vectors supplied by the sync engine; it is
 /// null for ordinary local mutations, which keep the existing store bump
-/// path. No producer emits stamps yet, so every publication is currently
-/// unstamped.
+/// path. No `Ledger` producer emits stamps yet, so every local publication is
+/// currently unstamped.
 ///
 /// Immutability is provided by the publisher: [EventBus.publish] wraps both
 /// collections in unmodifiable views under its existing debug-only assertion
