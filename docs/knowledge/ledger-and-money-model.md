@@ -32,8 +32,8 @@ an id and equality is by case + id: `IdCollision`, `UnknownAccount`, `UnknownHol
 
 ## Key files
 
-- `packages/domain/lib/src/ledger_state/ledger_state.dart` — the container: four id-keyed maps
-  (`moneySources`, `entries`, `categories`, `plans`) and every mutator.
+- `packages/domain/lib/src/ledger_state/ledger_state.dart` — the container: five id-keyed maps
+  (`moneySources`, `entries`, `categories`, `plans`, `budgets`) and every mutator.
 - `packages/domain/lib/src/ledger_state/ledger_state_invariants.dart` — the debug `assertInvariants`
   sweep run after every mutation.
 - `packages/domain/lib/src/ledger_state/ledger_state_queries.dart` — read-only queries and the
@@ -54,10 +54,11 @@ an id and equality is by case + id: `IdCollision`, `UnknownAccount`, `UnknownHol
 ## Module interactions
 
 `Ledger` (app layer, `app/lib/ledger/ledger.dart`) is the only object allowed to touch
-`LedgerState`; views and view models never hold a `LedgerState` reference. Every public
+`LedgerState`; views and view models never hold a `LedgerState` reference. Every local
 `Ledger` mutation runs the same pipeline: run the domain mutator, sweep invariants in debug,
 publish the returned changes to the `EventBus`, then notify Riverpod listeners (`ledger_runtime.md`
-§1.1). On a thrown `LedgerError` nothing happens — no change, no invariant sweep, no publish.
+§1.1); the sync boundary (`Ledger.applySyncBatch`) is described in `ledger_runtime.md`, not here.
+On a thrown `LedgerError` nothing happens — no change, no invariant sweep, no publish.
 
 The persistence layer (`persistence.md`) coalesces changes by `LedgerChange.targetID` and rebuilds
 state via `LedgerState.replaying(changes)`, which applies changes directly into the maps without

@@ -11,8 +11,9 @@ banners, and first-launch seeding. These live in `app/lib/ledger/` and `app/lib/
 
 ## Key files
 
-- `app/lib/ledger/ledger.dart` — the only object permitted to touch `LedgerState`; every public
-  method forwards to a domain mutator through `mutate`.
+- `app/lib/ledger/ledger.dart` — the only object permitted to touch `LedgerState`; every local
+  mutation forwards to a domain mutator through `mutate` (`applySyncBatch` below is the sync
+  boundary, not a local mutation).
 - `app/lib/ledger/event_bus.dart` — one `StreamController<LedgerPublication>.broadcast(sync: true)`.
 - `app/lib/ledger/ledger_publication.dart` — the `LedgerPublication` batch (`changes` plus optional sync `stamps`).
 - `app/lib/ledger/analysis_cache.dart` — bus-driven cache of `Accounting.analysisItems`, with a

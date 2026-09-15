@@ -7,7 +7,8 @@ import 'package:spendwise/ledger/event_bus.dart';
 typedef PlanErrorHandler = void Function(List<PlanFailure> failures);
 
 /// The only object allowed to hold a mutable [LedgerState], so no change can
-/// reach storage or the screen without passing through [_mutate] and being
+/// reach storage or the screen without passing through [_mutate] (local
+/// mutations) or [applySyncBatch] (decided remote batches) and being
 /// announced on the bus.
 class Ledger extends ChangeNotifier {
   Ledger({LedgerState? state, EventBus? bus})
