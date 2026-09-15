@@ -1,6 +1,7 @@
 import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ledger/event_bus.dart';
+import 'package:sync/sync.dart';
 
 Account _account({String name = 'acc'}) =>
     Account(name: name, type: AccountType.savings);
@@ -9,7 +10,7 @@ void main() {
   test('subscriberReceivesPublishedBatch', () {
     final bus = EventBus();
     final received = <List<LedgerChange>>[];
-    bus.subscribe().listen(received.add);
+    bus.subscribe().listen((publication) => received.add(publication.changes));
 
     final a = _account();
     bus.publish([UpsertAccount(a)]);
@@ -21,7 +22,7 @@ void main() {
   test('batchArrivesAtomicallyNotFlattened', () {
     final bus = EventBus();
     final received = <List<LedgerChange>>[];
-    bus.subscribe().listen(received.add);
+    bus.subscribe().listen((publication) => received.add(publication.changes));
 
     final a = _account();
     final entry = Entry(amount: Decimal.fromInt(10), name: 'x', sourceID: a.id);
@@ -35,7 +36,7 @@ void main() {
   test('ordersBatchesInPublishOrder', () {
     final bus = EventBus();
     final received = <List<LedgerChange>>[];
-    bus.subscribe().listen(received.add);
+    bus.subscribe().listen((publication) => received.add(publication.changes));
 
     final a = _account(name: 'a');
     final b = _account(name: 'b');
@@ -55,8 +56,8 @@ void main() {
     final bus = EventBus();
     final first = <List<LedgerChange>>[];
     final second = <List<LedgerChange>>[];
-    bus.subscribe().listen(first.add);
-    bus.subscribe().listen(second.add);
+    bus.subscribe().listen((publication) => first.add(publication.changes));
+    bus.subscribe().listen((publication) => second.add(publication.changes));
 
     final a = _account();
     bus.publish([UpsertAccount(a)]);
@@ -72,7 +73,7 @@ void main() {
   test('emptyBatchIsNotDelivered', () {
     final bus = EventBus();
     final received = <List<LedgerChange>>[];
-    bus.subscribe().listen(received.add);
+    bus.subscribe().listen((publication) => received.add(publication.changes));
 
     bus.publish([]);
     final a = _account();
@@ -87,7 +88,7 @@ void main() {
   test('bufferingIsLosslessBeforeConsumptionStarts', () {
     final bus = EventBus();
     final received = <List<LedgerChange>>[];
-    bus.subscribe().listen(received.add);
+    bus.subscribe().listen((publication) => received.add(publication.changes));
 
     final a = _account(name: 'a');
     final b = _account(name: 'b');
@@ -103,7 +104,7 @@ void main() {
   test('publishedBatchIsUnmodifiableByASubscriber', () {
     final bus = EventBus();
     final received = <List<LedgerChange>>[];
-    bus.subscribe().listen(received.add);
+    bus.subscribe().listen((publication) => received.add(publication.changes));
 
     bus.publish([UpsertAccount(_account())]);
 
@@ -116,7 +117,9 @@ void main() {
   test('cancelledSubscriberStopsReceiving', () async {
     final bus = EventBus();
     final received = <List<LedgerChange>>[];
-    final subscription = bus.subscribe().listen(received.add);
+    final subscription = bus.subscribe().listen(
+      (publication) => received.add(publication.changes),
+    );
 
     final a = _account(name: 'a');
     bus.publish([UpsertAccount(a)]);
@@ -143,9 +146,9 @@ void main() {
     final b = _account(name: 'b');
     final received = <List<LedgerChange>>[];
     Object? caught;
-    bus.subscribe().listen((batch) {
-      received.add(batch);
-      if (batch.single != UpsertAccount(a)) return;
+    bus.subscribe().listen((publication) {
+      received.add(publication.changes);
+      if (publication.changes.single != UpsertAccount(a)) return;
       try {
         bus.publish([UpsertAccount(b)]);
       } on Object catch (error) {
@@ -159,5 +162,85 @@ void main() {
     expect(received, [
       [UpsertAccount(a)],
     ]);
+  });
+
+  test('ordinaryPublicationCarriesNoStamps', () {
+    final bus = EventBus();
+    final publications = <LedgerPublication>[];
+    bus.subscribe().listen(publications.add);
+
+    bus.publish([UpsertAccount(_account())]);
+
+    expect(publications, hasLength(1));
+    expect(publications.single.stamps, isNull);
+    expect(publications.single.hasStamps, isFalse);
+  });
+
+  test('stampedPublicationDeliversStamps', () {
+    final bus = EventBus();
+    final publications = <LedgerPublication>[];
+    bus.subscribe().listen(publications.add);
+
+    final account = _account();
+    final row = SyncRowID.of(SyncCollection.moneySources, account.id);
+    final stamps = {
+      row: VersionVector({'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa': 3}),
+    };
+    bus.publish([UpsertAccount(account)], stamps: stamps);
+
+    expect(publications, hasLength(1));
+    expect(publications.single.changes, [UpsertAccount(account)]);
+    expect(publications.single.stamps, stamps);
+    expect(publications.single.hasStamps, isTrue);
+  });
+
+  test('publishedStampsAreUnmodifiableByASubscriber', () {
+    final bus = EventBus();
+    final publications = <LedgerPublication>[];
+    bus.subscribe().listen(publications.add);
+
+    final account = _account();
+    final row = SyncRowID.of(SyncCollection.moneySources, account.id);
+    bus.publish(
+      [UpsertAccount(account)],
+      stamps: {
+        row: VersionVector({'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa': 3}),
+      },
+    );
+
+    final other = SyncRowID.of(
+      SyncCollection.entries,
+      '4f2c1b90-3e5d-4a18-9c7b-6d0e2a1f8b43',
+    );
+    expect(
+      () => publications.single.stamps![other] = VersionVector.empty,
+      throwsUnsupportedError,
+    );
+  });
+
+  test('emptyChangesWithStampsIsNotDelivered', () {
+    final bus = EventBus();
+    final publications = <LedgerPublication>[];
+    bus.subscribe().listen(publications.add);
+
+    final row = SyncRowID.of(
+      SyncCollection.moneySources,
+      '4f2c1b90-3e5d-4a18-9c7b-6d0e2a1f8b43',
+    );
+    bus.publish([], stamps: {row: VersionVector.empty});
+    bus.publish([UpsertAccount(_account())]);
+
+    expect(publications, hasLength(1));
+    expect(publications.single.stamps, isNull);
+  });
+
+  test('deliveryIsSynchronous', () {
+    final bus = EventBus();
+    var delivered = false;
+    bus.subscribe().listen((_) => delivered = true);
+
+    bus.publish([UpsertAccount(_account())]);
+
+    expect(delivered, isTrue);
   });
 }

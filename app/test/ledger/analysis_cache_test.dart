@@ -4,6 +4,7 @@ import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/event_bus.dart';
+import 'package:sync/sync.dart';
 
 Account _account({String name = 'acc'}) =>
     Account(name: name, type: AccountType.savings);
@@ -45,6 +46,23 @@ void main() {
     final cache = AnalysisCache()..start(bus);
 
     bus.publish([UpsertAccount(_account())]);
+
+    expect(cache.revision, 1);
+  });
+
+  test('stampedBusEventBumpsRevisionWithoutReadingStamps', () {
+    final bus = EventBus();
+    final cache = AnalysisCache()..start(bus);
+
+    final account = _account();
+    bus.publish(
+      [UpsertAccount(account)],
+      stamps: {
+        SyncRowID.of(SyncCollection.moneySources, account.id): VersionVector({
+          'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa': 3,
+        }),
+      },
+    );
 
     expect(cache.revision, 1);
   });
@@ -209,8 +227,7 @@ void main() {
   test('isolateRunnerRoundTripsDecimalMoney', () async {
     final cache = AnalysisCache();
 
-    cache.refresh(_stateWithExpense('-1234.56'));
-    await pumpEventQueue();
+    await cache.refresh(_stateWithExpense('-1234.56'));
 
     expect(cache.items, hasLength(1));
     expect(cache.items.single.amount, Decimal.parse('1234.56'));

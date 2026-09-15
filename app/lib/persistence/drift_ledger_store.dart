@@ -138,6 +138,17 @@ class DriftLedgerStore implements LedgerStore {
   }
 
   @override
+  void enqueueStamped(
+    List<LedgerChange> changes,
+    Map<SyncRowID, VersionVector> stamps,
+  ) {
+    // T4 carries stamps to this seam only; persisting them is T6 (#117).
+    // Until then a stamped batch takes the existing local bump path. No
+    // producer emits stamps yet, so this path is unreachable in production.
+    enqueue(changes);
+  }
+
+  @override
   Future<void> setErrorHandler(SaveErrorHandler handler) async {
     _handler = handler;
   }

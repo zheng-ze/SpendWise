@@ -5,7 +5,7 @@ Last reconciled: b1edf90
 ## Feature overview
 
 The app-layer runtime that wraps the domain: `Ledger` (the sole mutation hub), `EventBus`
-(synchronous broadcast of change batches), `AnalysisCache` (a generation-guarded cache of analysis
+(synchronous broadcast of `LedgerPublication` batches), `AnalysisCache` (a generation-guarded cache of analysis
 items), `PersistenceProcessor` (the pipe from bus to store), the boot phase machine, the save/plan
 banners, and first-launch seeding. These live in `app/lib/ledger/` and `app/lib/boot/`.
 
@@ -13,11 +13,12 @@ banners, and first-launch seeding. These live in `app/lib/ledger/` and `app/lib/
 
 - `app/lib/ledger/ledger.dart` — the only object permitted to touch `LedgerState`; every public
   method forwards to a domain mutator through `mutate`.
-- `app/lib/ledger/event_bus.dart` — one `StreamController<List<LedgerChange>>.broadcast(sync: true)`.
+- `app/lib/ledger/event_bus.dart` — one `StreamController<LedgerPublication>.broadcast(sync: true)`.
+- `app/lib/ledger/ledger_publication.dart` — the `LedgerPublication` batch (`changes` plus optional sync `stamps`).
 - `app/lib/ledger/analysis_cache.dart` — bus-driven cache of `Accounting.analysisItems`, with a
   revision counter and a generation guard.
-- `app/lib/persistence/persistence_processor.dart` — subscribes to the bus and forwards batches to
-  the store.
+- `app/lib/persistence/persistence_processor.dart` — subscribes to the bus and forwards each
+  publication to `enqueue` (unstamped) or `enqueueStamped` (stamped).
 - `app/lib/boot/app_boot.dart`, `app_phase.dart`, `banner_state.dart`, `providers.dart`,
   `seed_data.dart` — boot state machine, banner state, Riverpod wiring, and the sample dataset.
 - `app/lib/ui/shell/status_banner.dart` — the bottom status banner overlay. The browser-storage
@@ -29,15 +30,22 @@ banners, and first-launch seeding. These live in `app/lib/ledger/` and `app/lib/
 
 `Ledger.mutate` runs, in order: the domain mutator (throws `LedgerError` on rejection), the debug
 invariant sweep, `bus.publish(changes)` as one atomic batch, then Riverpod listener notification
-(`ledger.dart`). A cascade such as `addPocket` publishes the pocket upsert and the updated parent
-account as one batch. A throwing mutator publishes nothing.
+(`ledger.dart`). Local `Ledger` mutations publish unstamped `LedgerPublication` values (no stamps).
+A cascade such as `addPocket` publishes the pocket upsert and the updated parent
+account as one batch. A throwing mutator publishes nothing. An empty change list publishes
+nothing, even with stamps present (`event_bus.dart:publish`). Delivered publications wrap
+`changes` (and `stamps`, when present) in unmodifiable views under the existing debug-only
+assert discipline, so a subscriber cannot mutate a batch in flight. An empty stamps map counts
+as unstamped: `LedgerPublication.hasStamps` is false and the processor keeps the `enqueue` bump
+path (`ledger_publication.dart`, `persistence_processor.dart:_forward`).
 
 The bus is internal wiring subscribed by exactly two consumers: `PersistenceProcessor` and
 `AnalysisCache`. UI never touches the bus; it reacts to Riverpod notifications. Every subscriber
 must `listen` before the first `mutate` is possible — during boot, before the `Ledger` is handed to
 the UI — because a sync broadcast stream delivers only to attached listeners (`persistence.md` §4).
 
-`AnalysisCache.start(bus)` subscribes and bumps `revision` by one per delivered batch;
+`AnalysisCache.start(bus)` subscribes and bumps `revision` by one per delivered batch, reading
+only the publication's `changes` and ignoring `stamps`;
 `refresh(state)` computes off the main isolate via `isolateComputeRunner` on every platform under a
 generation guard so a stale result is discarded when a newer refresh has already claimed a higher
 revision. `AnalysisCache` no longer branches on `kIsWeb`: commit `7403a01` dropped the web-only

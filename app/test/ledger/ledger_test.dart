@@ -1,5 +1,6 @@
 import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:spendwise/ledger/event_bus.dart';
 import 'package:spendwise/ledger/ledger.dart';
 
 Account _account({String name = 'acc'}) =>
@@ -41,7 +42,9 @@ RecurringPlan _plan({
 
 List<List<LedgerChange>> _batchesOf(Ledger ledger) {
   final batches = <List<LedgerChange>>[];
-  ledger.bus.subscribe().listen(batches.add);
+  ledger.bus.subscribe().listen(
+    (publication) => batches.add(publication.changes),
+  );
   return batches;
 }
 
@@ -56,6 +59,19 @@ void main() {
     expect(batches, [
       [UpsertAccount(account)],
     ]);
+  });
+
+  test('localMutationsPublishUnstamped', () {
+    final ledger = Ledger();
+    final publications = <LedgerPublication>[];
+    ledger.bus.subscribe().listen(publications.add);
+
+    final account = _account();
+    ledger.addAccount(account);
+
+    expect(publications, hasLength(1));
+    expect(publications.single.changes, [UpsertAccount(account)]);
+    expect(publications.single.stamps, isNull);
   });
 
   test('cascadeMutationPublishesAllFactsInOneBatch', () {
