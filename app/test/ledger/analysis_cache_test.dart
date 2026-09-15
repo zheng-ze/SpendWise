@@ -227,8 +227,7 @@ void main() {
   test('isolateRunnerRoundTripsDecimalMoney', () async {
     final cache = AnalysisCache();
 
-    cache.refresh(_stateWithExpense('-1234.56'));
-    await pumpEventQueue();
+    await cache.refresh(_stateWithExpense('-1234.56'));
 
     expect(cache.items, hasLength(1));
     expect(cache.items.single.amount, Decimal.parse('1234.56'));
