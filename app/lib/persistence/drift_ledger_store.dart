@@ -432,17 +432,28 @@ class DriftLedgerStore implements LedgerStore {
         );
       case DeleteMoneySource(:final id):
         // One id space over two tables, so a miss in accounts falls through.
+        // Only a miss in both stores the stamp as an orphan tombstone.
         if (!await _tombstone(db.accounts, id, write)) {
-          await _tombstone(db.subPockets, id, write);
+          if (!await _tombstone(db.subPockets, id, write)) {
+            await _writeOrphanIfStamped(SyncCollection.moneySources, id, write);
+          }
         }
       case DeleteCategory(:final id):
-        await _tombstone(db.categories, id, write);
+        if (!await _tombstone(db.categories, id, write)) {
+          await _writeOrphanIfStamped(SyncCollection.categories, id, write);
+        }
       case DeleteEntry(:final id):
-        await _tombstone(db.entries, id, write);
+        if (!await _tombstone(db.entries, id, write)) {
+          await _writeOrphanIfStamped(SyncCollection.entries, id, write);
+        }
       case DeletePlan(:final id):
-        await _tombstone(db.plans, id, write);
+        if (!await _tombstone(db.plans, id, write)) {
+          await _writeOrphanIfStamped(SyncCollection.plans, id, write);
+        }
       case DeleteBudget(:final id):
-        await _tombstone(db.budgets, id, write);
+        if (!await _tombstone(db.budgets, id, write)) {
+          await _writeOrphanIfStamped(SyncCollection.budgets, id, write);
+        }
     }
   }
 
@@ -488,8 +499,26 @@ class DriftLedgerStore implements LedgerStore {
     _CoalescedWrite write,
     Insertable<D> Function(VersionVector version) toRow,
   ) async {
-    final version =
-        write.stamp ?? await _bumpedVersion(table, id, write.carried);
+    final collection = collectionFor(write.change);
+    final orphan = await _orphanVersion(collection, id);
+    if (orphan == null) {
+      final version =
+          write.stamp ?? await _bumpedVersion(table, id, write.carried);
+      await db.into(table).insertOnConflictUpdate(toRow(version));
+      return;
+    }
+    await _clearOrphan(collection, id);
+    final stamp = write.stamp;
+    if (stamp != null) {
+      // The survivor's own stamp is written verbatim, merged only with the
+      // orphan: `carried` can hold stamps from discarded occurrences, so it
+      // never enters this branch.
+      final version = _pointwiseMax(orphan, stamp);
+      await db.into(table).insertOnConflictUpdate(toRow(version));
+      return;
+    }
+    final floor = _pointwiseMax(orphan, write.carried ?? VersionVector.empty);
+    final version = await _bumpedVersion(table, id, floor);
     await db.into(table).insertOnConflictUpdate(toRow(version));
   }
 
@@ -515,5 +544,60 @@ class DriftLedgerStore implements LedgerStore {
       updates: {table},
     );
     return true;
+  }
+
+  // Reads the orphan tombstone for (collection, id) through the raw row, so a
+  // corrupt vector surfaces as a permanent failure exactly like a corrupt
+  // content vector. Null when no orphan is stored.
+  Future<VersionVector?> _orphanVersion(
+    SyncCollection collection,
+    String id,
+  ) async {
+    final row = await db
+        .customSelect(
+          'SELECT version_data FROM sync_orphan_tombstones '
+          'WHERE collection = ? AND row_id = ?',
+          variables: [
+            Variable<String>(collection.wireName),
+            Variable<String>(normalizedID(id)),
+          ],
+          readsFrom: {db.syncOrphanTombstones},
+        )
+        .getSingleOrNull();
+    final stored = row?.read<Uint8List>('version_data');
+    return stored == null ? null : _decodeVersion(stored);
+  }
+
+  // Persists a stamped delete for a never-stored row as an orphan tombstone,
+  // carrying its stamp verbatim. Re-delivery of the same stamp is idempotent;
+  // a later different stamp replaces the stored vector. A local (unstamped)
+  // delete stays a no-op.
+  Future<void> _writeOrphanIfStamped(
+    SyncCollection collection,
+    String id,
+    _CoalescedWrite write,
+  ) async {
+    final stamp = write.stamp;
+    if (stamp == null) return;
+    await db
+        .into(db.syncOrphanTombstones)
+        .insertOnConflictUpdate(
+          rows.OrphanTombstoneRow(
+            collection: collection,
+            rowId: normalizedID(id),
+            versionData: stamp,
+          ),
+        );
+  }
+
+  Future<void> _clearOrphan(SyncCollection collection, String id) async {
+    await db.customUpdate(
+      'DELETE FROM sync_orphan_tombstones WHERE collection = ? AND row_id = ?',
+      variables: [
+        Variable<String>(collection.wireName),
+        Variable<String>(normalizedID(id)),
+      ],
+      updates: {db.syncOrphanTombstones},
+    );
   }
 }

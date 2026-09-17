@@ -19,13 +19,14 @@ part 'ledger_database.g.dart';
     SyncPendingAcknowledgements,
     SyncStagedConflicts,
     SyncStagedSiblings,
+    SyncOrphanTombstones,
   ],
 )
 class LedgerDatabase extends _$LedgerDatabase {
   LedgerDatabase(super.executor);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -34,6 +35,9 @@ class LedgerDatabase extends _$LedgerDatabase {
     // CREATE TABLE IF NOT EXISTS, so existing user rows are preserved.
     onUpgrade: (m, from, to) async {
       if (from < 4) {
+        await m.createAll();
+      }
+      if (from < 5) {
         await m.createAll();
       }
     },

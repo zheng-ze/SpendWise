@@ -103,6 +103,28 @@ class SyncPendingAcknowledgements extends Table {
   Set<Column<Object>> get primaryKey => {collection};
 }
 
+/// Orphan tombstones for stamped deletes of rows never stored locally.
+///
+/// A stamped (remote-originated) delete for a row with no local content row
+/// cannot tombstone a content table, so it persists here keyed by
+/// [SyncRowID], carrying its exact stamp vector. A later real upsert for the
+/// same key absorbs and clears the orphan, seeding the content row's version
+/// from it. Every row here is definitionally a tombstone, so there is no
+/// lifecycle column. Local (unstamped) deletes of never-stored rows stay a
+/// no-op and never write here.
+@DataClassName('OrphanTombstoneRow')
+class SyncOrphanTombstones extends Table {
+  TextColumn get collection => text().map(const SyncCollectionConverter())();
+
+  TextColumn get rowId => text().named('row_id')();
+
+  BlobColumn get versionData =>
+      blob().named('version_data').map(const VersionVectorConverter())();
+
+  @override
+  Set<Column<Object>> get primaryKey => {collection, rowId};
+}
+
 /// Durable staged-conflict groups, keyed by [SyncRowID].
 ///
 /// Insertion order carries oldest-first ordering: groups are read back with

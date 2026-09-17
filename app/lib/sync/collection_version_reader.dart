@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:domain/domain.dart';
-import 'package:drift/drift.dart' show Selectable;
+import 'package:drift/drift.dart' show Selectable, Variable;
 import 'package:spendwise/persistence/ledger_database.dart';
 import 'package:spendwise/persistence/mappers.dart';
 import 'package:sync/sync.dart';
@@ -20,9 +20,11 @@ abstract class CollectionVersionReader {
 /// Drift-backed [CollectionVersionReader], sibling to the other app/lib/sync
 /// stores reading over [LedgerDatabase].
 ///
-/// `moneySources` unions `Accounts` and `SubPockets`; every other collection
-/// reads its own content table directly. This reader covers exactly the six
-/// existing content tables; no orphan-tombstone table exists yet.
+/// `moneySources` unions `Accounts`, `SubPockets`, and the money-sources
+/// orphan tombstones; every other collection unions its own content table
+/// with its orphan tombstones. Content wins when both hold the same key.
+/// Every constituent read for a collection runs inside one transaction, so
+/// the union is a single consistent snapshot.
 final class DriftCollectionVersionReader implements CollectionVersionReader {
   DriftCollectionVersionReader(this._db);
 
@@ -31,37 +33,56 @@ final class DriftCollectionVersionReader implements CollectionVersionReader {
   @override
   Future<Map<SyncRowID, RowVersion>> readRowVersions(
     SyncCollection collection,
-  ) => switch (collection) {
-    SyncCollection.moneySources => _moneySources(),
-    SyncCollection.categories => _table(
-      _db.select(_db.categories),
-      SyncCollection.categories,
-      (row) => row.id,
-      (row) => row.versionData,
-      (row) => row.lifecycle,
-    ),
-    SyncCollection.entries => _table(
-      _db.select(_db.entries),
-      SyncCollection.entries,
-      (row) => row.id,
-      (row) => row.versionData,
-      (row) => row.lifecycle,
-    ),
-    SyncCollection.plans => _table(
-      _db.select(_db.plans),
-      SyncCollection.plans,
-      (row) => row.id,
-      (row) => row.versionData,
-      (row) => row.lifecycle,
-    ),
-    SyncCollection.budgets => _table(
-      _db.select(_db.budgets),
-      SyncCollection.budgets,
-      (row) => row.id,
-      (row) => row.versionData,
-      (row) => row.lifecycle,
-    ),
-  };
+  ) => _db.transaction(() async {
+    switch (collection) {
+      case SyncCollection.moneySources:
+        return _moneySources();
+      case SyncCollection.categories:
+        return _withOrphans(
+          SyncCollection.categories,
+          _table(
+            _db.select(_db.categories),
+            SyncCollection.categories,
+            (row) => row.id,
+            (row) => row.versionData,
+            (row) => row.lifecycle,
+          ),
+        );
+      case SyncCollection.entries:
+        return _withOrphans(
+          SyncCollection.entries,
+          _table(
+            _db.select(_db.entries),
+            SyncCollection.entries,
+            (row) => row.id,
+            (row) => row.versionData,
+            (row) => row.lifecycle,
+          ),
+        );
+      case SyncCollection.plans:
+        return _withOrphans(
+          SyncCollection.plans,
+          _table(
+            _db.select(_db.plans),
+            SyncCollection.plans,
+            (row) => row.id,
+            (row) => row.versionData,
+            (row) => row.lifecycle,
+          ),
+        );
+      case SyncCollection.budgets:
+        return _withOrphans(
+          SyncCollection.budgets,
+          _table(
+            _db.select(_db.budgets),
+            SyncCollection.budgets,
+            (row) => row.id,
+            (row) => row.versionData,
+            (row) => row.lifecycle,
+          ),
+        );
+    }
+  });
 
   Future<Map<SyncRowID, RowVersion>> _moneySources() async {
     final accounts = await _table(
@@ -78,7 +99,42 @@ final class DriftCollectionVersionReader implements CollectionVersionReader {
       (row) => row.versionData,
       (row) => row.lifecycle,
     );
-    return {...accounts, ...pockets};
+    final orphans = await _orphanRows(SyncCollection.moneySources);
+    return {...orphans, ...accounts, ...pockets};
+  }
+
+  // Unions one collection's content rows with its orphan tombstones. Content
+  // wins on key collision; every orphan is definitionally a tombstone.
+  Future<Map<SyncRowID, RowVersion>> _withOrphans(
+    SyncCollection collection,
+    Future<Map<SyncRowID, RowVersion>> content,
+  ) async {
+    final contentRows = await content;
+    final orphanRows = await _orphanRows(collection);
+    return {...orphanRows, ...contentRows};
+  }
+
+  // Reads the orphan tombstones for one collection through the raw row,
+  // never the generated accessor, so the read cannot depend on mapped-row
+  // decoding.
+  Future<Map<SyncRowID, RowVersion>> _orphanRows(
+    SyncCollection collection,
+  ) async {
+    final found = await _db
+        .customSelect(
+          'SELECT row_id, version_data FROM sync_orphan_tombstones '
+          'WHERE collection = ?',
+          variables: [Variable<String>(collection.wireName)],
+          readsFrom: {_db.syncOrphanTombstones},
+        )
+        .get();
+    return {
+      for (final row in found)
+        SyncRowID.of(collection, row.read<String>('row_id')): RowVersion(
+          versionVector: versionFromRow(row.read<Uint8List>('version_data')),
+          lifecycle: SiblingLifecycle.tombstone,
+        ),
+    };
   }
 
   static Future<Map<SyncRowID, RowVersion>> _table<T>(

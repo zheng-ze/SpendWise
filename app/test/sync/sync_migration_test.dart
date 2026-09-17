@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/persistence/ledger_database.dart';
 import 'package:spendwise/sync/drift_sync_staging_store.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
+import 'package:sync/sync.dart';
 
 // Representative schema-version-3 DDL, matching the synced-row and
 // device-local shapes in app/lib/persistence/tables.dart before the sync
@@ -134,6 +135,122 @@ void main() {
         'sync_pending_acknowledgements',
         'sync_staged_conflicts',
         'sync_staged_siblings',
+        'sync_orphan_tombstones',
+      },
+    );
+  });
+
+  test('a fresh database creates the orphan tombstone table', () async {
+    final db = LedgerDatabase(NativeDatabase.memory());
+    addTearDown(db.close);
+
+    final tables = await db
+        .customSelect(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND "
+          "name = 'sync_orphan_tombstones'",
+        )
+        .get();
+    expect(tables, hasLength(1));
+
+    final columns = await db
+        .customSelect('PRAGMA table_info(sync_orphan_tombstones)')
+        .get();
+    expect(
+      {for (final row in columns) row.read<String>('name')},
+      {'collection', 'row_id', 'version_data'},
+    );
+  });
+
+  test('the v4 to v5 migration preserves existing rows and adds the orphan '
+      'table', () async {
+    // Seeds the version-4 shape: content and sync tables as drift created
+    // them at v4, plus the user version. The migration must add only the
+    // orphan table and leave every prior row untouched.
+    final executor = NativeDatabase.memory(
+      setup: (raw) {
+        raw.execute(_v3Accounts);
+        raw.execute(_v3Entries);
+        raw.execute(_v3StoreMeta);
+        raw.execute(
+          'CREATE TABLE sync_acknowledged_vectors ('
+          'collection TEXT NOT NULL, '
+          'row_id TEXT NOT NULL, '
+          'version_data BLOB NOT NULL, '
+          'PRIMARY KEY (collection, row_id))',
+        );
+        raw.execute(
+          "INSERT INTO accounts (id, name, type, sub_pocket_ids, "
+          "incoming_transfers_as_expenses, include_in_net_worth, statement_day, "
+          "version_data, lifecycle) VALUES "
+          "('aaaaaaaa-0000-1111-2222-333333333333', 'Checking', 0, '[]', 0, 1, "
+          "NULL, X'7B7D', 0)",
+        );
+        raw.execute(
+          "INSERT INTO sync_acknowledged_vectors (collection, row_id, "
+          "version_data) VALUES ('entries', "
+          "'eeeeeeee-0000-1111-2222-777777777777', X'7B7D')",
+        );
+        raw.execute(
+          "INSERT INTO store_meta (id, device_id, has_seeded) VALUES "
+          "(0, 'bbbbbbbb-0000-1111-2222-444444444444', 1)",
+        );
+        raw.execute('PRAGMA user_version = 4');
+      },
+    );
+
+    final db = LedgerDatabase(executor);
+    addTearDown(db.close);
+
+    // Opening runs the migration; the new table accepts an orphan row.
+    await db
+        .into(db.syncOrphanTombstones)
+        .insert(
+          OrphanTombstoneRow(
+            collection: SyncCollection.entries,
+            rowId: 'eeeeeeee-0000-1111-2222-777777777777',
+            versionData: VersionVector({'remote-a': 1}),
+          ),
+        );
+    expect(await db.select(db.syncOrphanTombstones).get(), hasLength(1));
+
+    // Every prior row is unchanged by the upgrade.
+    final accounts = await db
+        .customSelect('SELECT id, name FROM accounts')
+        .get();
+    expect(accounts, hasLength(1));
+    expect(
+      accounts.single.read<String>('id'),
+      'aaaaaaaa-0000-1111-2222-333333333333',
+    );
+    expect(accounts.single.read<String>('name'), 'Checking');
+
+    final acknowledged = await db
+        .customSelect(
+          'SELECT collection, row_id FROM sync_acknowledged_vectors',
+        )
+        .get();
+    expect(acknowledged, hasLength(1));
+    expect(acknowledged.single.read<String>('collection'), 'entries');
+    expect(
+      acknowledged.single.read<String>('row_id'),
+      'eeeeeeee-0000-1111-2222-777777777777',
+    );
+
+    final syncTables = await db
+        .customSelect(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND "
+          "name LIKE 'sync_%'",
+        )
+        .get();
+    expect(
+      {for (final row in syncTables) row.read<String>('name')},
+      {
+        'sync_meta',
+        'sync_acknowledged_vectors',
+        'sync_pending_acknowledgements',
+        'sync_staged_conflicts',
+        'sync_staged_siblings',
+        'sync_orphan_tombstones',
       },
     );
   });
