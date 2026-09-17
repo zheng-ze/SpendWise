@@ -24,6 +24,7 @@ dependencies:
   path: ^1.9.1
   intl: ^0.20.3
   fl_chart: ^1.2.0
+  http: ^1.6.0
   image_picker: ^1.2.3
   permission_handler: ^13.0.1
   shared_preferences: ^2.5.5
