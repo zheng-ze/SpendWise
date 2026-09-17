@@ -35,12 +35,15 @@ final class SupabaseConfig {
   /// strings), meaning "not configured". A device that never selects the
   /// supabase backend must still boot, so the not-configured case never
   /// throws here; a later [SyncBackendResolver.resolve] for the supabase
-  /// backend throws [SyncBackendConfigurationException] instead.
+  /// backend throws [SyncBackendConfigurationException] instead. A malformed
+  /// `SUPABASE_URL` parses to an empty [Uri] rather than throwing, so the
+  /// same resolver validation catches it as a configuration failure instead
+  /// of aborting boot with a raw [FormatException].
   static SupabaseConfig? fromEnvironment() {
     const url = String.fromEnvironment('SUPABASE_URL');
     const key = String.fromEnvironment('SUPABASE_ANON_KEY');
     if (url.isEmpty && key.isEmpty) return null;
-    return SupabaseConfig(projectUrl: Uri.parse(url), anonKey: key);
+    return SupabaseConfig(projectUrl: Uri.tryParse(url) ?? Uri(), anonKey: key);
   }
 
   @override
