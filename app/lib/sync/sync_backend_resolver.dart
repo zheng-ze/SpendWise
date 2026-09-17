@@ -115,6 +115,24 @@ final class SyncBackendResolver {
         'SupabaseConfig.anonKey must not be empty.',
       );
     }
+    final projectUrl = supabaseConfig.projectUrl;
+    if (!projectUrl.isAbsolute) {
+      throw SyncBackendConfigurationException(
+        'SupabaseConfig.projectUrl must be an absolute URI; got "$projectUrl".',
+      );
+    }
+    if (projectUrl.scheme != 'https') {
+      throw SyncBackendConfigurationException(
+        'SupabaseConfig.projectUrl scheme must be "https"; '
+        'got "${projectUrl.scheme}".',
+      );
+    }
+    if (projectUrl.host.isEmpty) {
+      throw SyncBackendConfigurationException(
+        'SupabaseConfig.projectUrl must have a non-empty host; '
+        'got "$projectUrl".',
+      );
+    }
     return SupabaseSyncBackend(
       projectUrl: supabaseConfig.projectUrl,
       anonKey: supabaseConfig.anonKey,

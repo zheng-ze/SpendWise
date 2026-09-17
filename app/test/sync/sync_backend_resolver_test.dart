@@ -150,6 +150,72 @@ void main() {
         throwsA(isA<SyncBackendConfigurationException>()),
       );
     });
+
+    test('an empty projectUrl throws before any backend is constructed', () {
+      // Covers the half-configured shape: SUPABASE_ANON_KEY set via
+      // --dart-define while SUPABASE_URL is not, which reaches resolve()
+      // as an empty, non-absolute projectUrl with a real anon key.
+      final config = SupabaseConfig(
+        projectUrl: Uri.parse(''),
+        anonKey: 'anon-key',
+      );
+
+      expect(
+        () => resolver.resolve(
+          snapshotOf(backend: SyncBackendKind.supabase),
+          supabaseConfig: config,
+        ),
+        throwsA(
+          isA<SyncBackendConfigurationException>().having(
+            (error) => error.message,
+            'message',
+            contains('absolute'),
+          ),
+        ),
+      );
+    });
+
+    test('a non-https projectUrl throws', () {
+      final config = SupabaseConfig(
+        projectUrl: Uri.parse('http://project.supabase.co'),
+        anonKey: 'anon-key',
+      );
+
+      expect(
+        () => resolver.resolve(
+          snapshotOf(backend: SyncBackendKind.supabase),
+          supabaseConfig: config,
+        ),
+        throwsA(
+          isA<SyncBackendConfigurationException>().having(
+            (error) => error.message,
+            'message',
+            contains('https'),
+          ),
+        ),
+      );
+    });
+
+    test('a projectUrl with an empty host throws', () {
+      final config = SupabaseConfig(
+        projectUrl: Uri.parse('https://'),
+        anonKey: 'anon-key',
+      );
+
+      expect(
+        () => resolver.resolve(
+          snapshotOf(backend: SyncBackendKind.supabase),
+          supabaseConfig: config,
+        ),
+        throwsA(
+          isA<SyncBackendConfigurationException>().having(
+            (error) => error.message,
+            'message',
+            contains('host'),
+          ),
+        ),
+      );
+    });
   });
 
   group('no backend selected', () {
