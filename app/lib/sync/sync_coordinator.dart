@@ -51,7 +51,7 @@ final class SyncCoordinator {
     required this._credentialProvider,
     required this.ledger,
     required this.persistenceProcessor,
-  });
+  }) : _status = const SyncIdle();
 
   /// Assembles a coordinator over already-constructed collaborators.
   ///
@@ -132,5 +132,7 @@ final class SyncCoordinator {
 
   final PersistenceProcessor persistenceProcessor;
 
-  SyncStatus get status => const SyncIdle();
+  final SyncStatus _status;
+
+  SyncStatus get status => _status;
 }
