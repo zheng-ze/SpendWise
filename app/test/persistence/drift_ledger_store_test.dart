@@ -155,6 +155,26 @@ void main() {
     return versionFromRow(row.versionData).counters.values.single;
   }
 
+  // Reads the stored orphan tombstones for one collection, keyed by row id.
+  // An empty map means no orphan is stored, never a fabricated content row.
+  Future<Map<String, VersionVector>> orphanVectors(
+    SyncCollection collection,
+  ) async {
+    final found = await db
+        .customSelect(
+          'SELECT row_id, version_data FROM sync_orphan_tombstones '
+          'WHERE collection = ?',
+          variables: [Variable<String>(collection.wireName)],
+        )
+        .get();
+    return {
+      for (final row in found)
+        row.read<String>('row_id'): versionFromRow(
+          row.read<Uint8List>('version_data'),
+        ),
+    };
+  }
+
   group('ordered ingest and debounce', () {
     test('enqueue buffers synchronously in arrival order', () async {
       store
@@ -1445,17 +1465,331 @@ void main() {
       },
     );
 
-    test('a stamped delete for an absent id stays a silent no-op', () async {
-      // Orphan tombstones belong to a later ticket; until then a stamped
-      // delete with no stored row behaves like the existing unstamped miss.
-      const deletion = DeleteEntry('ghost');
-      store.enqueueStamped([
-        deletion,
-      ], stampsFor(deletion, VersionVector({'remote-a': 1})));
+    test(
+      'a stamped delete for an absent id persists an orphan tombstone',
+      () async {
+        // Orphan tombstones carry a stamped delete for a never-stored row until
+        // real content absorbs it.
+        const deletion = DeleteEntry('ghost');
+        final stamp = VersionVector({'remote-a': 1});
+        store.enqueueStamped([deletion], stampsFor(deletion, stamp));
+
+        await debouncedSave();
+
+        expect(reported, isEmpty);
+        // No fabricated content row: the delete alone never creates one.
+        expect(await db.select(db.entries).get(), isEmpty);
+        expect(await orphanVectors(SyncCollection.entries), {'ghost': stamp});
+      },
+    );
+  });
+
+  group('orphan tombstones', () {
+    Map<SyncRowID, VersionVector> stampsFor(
+      LedgerChange change,
+      VersionVector stamp,
+    ) => {SyncRowID.of(collectionFor(change), change.targetID): stamp};
+
+    Future<VersionVector> contentVersion(String table, String id) async {
+      final row = await db
+          .customSelect(
+            'SELECT version_data FROM $table WHERE id = ?',
+            variables: [Variable<String>(id)],
+          )
+          .getSingle();
+      return versionFromRow(row.read<Uint8List>('version_data'));
+    }
+
+    test('a stamped money-source delete absent from both tables writes an '
+        'orphan', () async {
+      const deletion = DeleteMoneySource('ghost');
+      final stamp = VersionVector({'remote-a': 2});
+      store.enqueueStamped([deletion], stampsFor(deletion, stamp));
+
+      await debouncedSave();
+
+      expect(await db.select(db.accounts).get(), isEmpty);
+      expect(await db.select(db.subPockets).get(), isEmpty);
+      expect(await orphanVectors(SyncCollection.moneySources), {
+        'ghost': stamp,
+      });
+    });
+
+    test(
+      'a stamped money-source delete hitting accounts writes no orphan',
+      () async {
+        store.enqueue([UpsertAccount(account('a1', 'wallet'))]);
+        await debouncedSave();
+
+        const deletion = DeleteMoneySource('a1');
+        final stamp = VersionVector({'remote-a': 2});
+        store.enqueueStamped([deletion], stampsFor(deletion, stamp));
+
+        await debouncedSave();
+
+        expect(
+          (await db.select(db.accounts).getSingle()).lifecycle,
+          LifecycleState.tombstoned.code,
+        );
+        expect(await orphanVectors(SyncCollection.moneySources), isEmpty);
+      },
+    );
+
+    test(
+      'a stamped money-source delete hitting pockets writes no orphan',
+      () async {
+        store.enqueue([
+          UpsertPocket(domain.SubPocket(id: 'p1', name: 'envelope')),
+        ]);
+        await debouncedSave();
+
+        const deletion = DeleteMoneySource('p1');
+        final stamp = VersionVector({'remote-a': 2});
+        store.enqueueStamped([deletion], stampsFor(deletion, stamp));
+
+        await debouncedSave();
+
+        expect(
+          (await db.select(db.subPockets).getSingle()).lifecycle,
+          LifecycleState.tombstoned.code,
+        );
+        expect(await orphanVectors(SyncCollection.moneySources), isEmpty);
+      },
+    );
+
+    test('an unstamped delete for an absent id writes no orphan', () async {
+      store.enqueue([
+        const DeleteMoneySource('ghost'),
+        const DeleteCategory('ghost'),
+        const DeleteEntry('ghost'),
+        const DeletePlan('ghost'),
+        const DeleteBudget('ghost'),
+      ]);
 
       await debouncedSave();
 
       expect(reported, isEmpty);
+      for (final collection in SyncCollection.values) {
+        expect(await orphanVectors(collection), isEmpty);
+      }
+    });
+
+    test('duplicate delivery of the same stamp is idempotent', () async {
+      const deletion = DeleteEntry('ghost');
+      final stamp = VersionVector({'remote-a': 1});
+      store.enqueueStamped([deletion], stampsFor(deletion, stamp));
+      await debouncedSave();
+
+      store.enqueueStamped([deletion], stampsFor(deletion, stamp));
+      await debouncedSave();
+
+      expect(await orphanVectors(SyncCollection.entries), {'ghost': stamp});
+    });
+
+    test('a later different stamp replaces the stored orphan vector', () async {
+      const deletion = DeleteEntry('ghost');
+      store.enqueueStamped([
+        deletion,
+      ], stampsFor(deletion, VersionVector({'remote-a': 1})));
+      await debouncedSave();
+
+      final replacement = VersionVector({'remote-a': 2, 'remote-b': 1});
+      store.enqueueStamped([deletion], stampsFor(deletion, replacement));
+      await debouncedSave();
+
+      expect(await orphanVectors(SyncCollection.entries), {
+        'ghost': replacement,
+      });
+    });
+
+    test('an uppercase-id stamped deletion stores its orphan under the '
+        'lowercase key', () async {
+      // 'GHOST-ROW' contains letters, so lowercasing fires: a digits-only id
+      // would pass through unchanged and prove nothing about normalization.
+      const deletion = DeleteEntry('GHOST-ROW');
+      final stamp = VersionVector({'remote-a': 1});
+      store.enqueueStamped([deletion], stampsFor(deletion, stamp));
+
+      await debouncedSave();
+
+      expect(await orphanVectors(SyncCollection.entries), {'ghost-row': stamp});
+    });
+
+    test('a stamped upsert absorbs its orphan and clears it', () async {
+      const deletion = DeleteEntry('e1');
+      final orphan = VersionVector({'remote-o': 5});
+      store.enqueueStamped([deletion], stampsFor(deletion, orphan));
+      await debouncedSave();
+
+      final stamp = VersionVector({'remote-s': 1});
+      final upsert = UpsertEntry(entry('e1', '10'));
+      store.enqueueStamped([upsert], stampsFor(upsert, stamp));
+      await debouncedSave();
+
+      // The orphan merged with the survivor's own stamp, and the orphan row
+      // is gone: its ancestry lives on only inside the content row.
+      expect(await orphanVectors(SyncCollection.entries), isEmpty);
+      expect(
+        await contentVersion('entries', 'e1'),
+        VersionVector({'remote-o': 5, 'remote-s': 1}),
+      );
+    });
+
+    test(
+      'an unstamped upsert absorbs its orphan under a device bump',
+      () async {
+        const deletion = DeleteEntry('e1');
+        store.enqueueStamped([
+          deletion,
+        ], stampsFor(deletion, VersionVector({'remote-o': 3})));
+        await debouncedSave();
+
+        store.enqueue([UpsertEntry(entry('e1', '10'))]);
+        await debouncedSave();
+
+        expect(await orphanVectors(SyncCollection.entries), isEmpty);
+        expect(
+          await contentVersion('entries', 'e1'),
+          VersionVector({'remote-o': 3, await deviceID(db): 1}),
+        );
+      },
+    );
+
+    test('a stamped survivor ignores stamps carried from discarded '
+        'occurrences', () async {
+      const deletion = DeleteEntry('e9');
+      store.enqueueStamped([
+        deletion,
+      ], stampsFor(deletion, VersionVector({'remote-o': 2})));
+      await debouncedSave();
+
+      final first = UpsertEntry(entry('e9', '10'));
+      final second = UpsertEntry(entry('e9', '99'));
+      store.enqueueStamped([
+        first,
+      ], stampsFor(first, VersionVector({'remote-a': 1})));
+      store.enqueueStamped([
+        second,
+      ], stampsFor(second, VersionVector({'remote-b': 1})));
+      await debouncedSave();
+
+      final row = await db.select(db.entries).getSingle();
+      expect(row.amount, '99');
+      // Only the surviving stamp merges with the orphan. The discarded
+      // 'remote-a' stamp is carried through coalescing but must not leak
+      // into the stamped branch.
+      expect(
+        versionFromRow(row.versionData),
+        VersionVector({'remote-o': 2, 'remote-b': 1}),
+      );
+      expect(await orphanVectors(SyncCollection.entries), isEmpty);
+    });
+
+    test(
+      'an unstamped survivor folds the orphan into its carried floor',
+      () async {
+        const deletion = DeleteEntry('e8');
+        store.enqueueStamped([
+          deletion,
+        ], stampsFor(deletion, VersionVector({'remote-o': 3})));
+        await debouncedSave();
+
+        final first = UpsertEntry(entry('e8', '10'));
+        store.enqueueStamped([
+          first,
+        ], stampsFor(first, VersionVector({'remote-c': 1})));
+        store.enqueue([UpsertEntry(entry('e8', '42'))]);
+        await debouncedSave();
+
+        final row = await db.select(db.entries).getSingle();
+        expect(row.amount, '42');
+        // The unstamped survivor bumps max(orphan, carried): both remote
+        // provenances survive under exactly one device bump.
+        expect(
+          versionFromRow(row.versionData),
+          VersionVector({'remote-o': 3, 'remote-c': 1, await deviceID(db): 1}),
+        );
+        expect(await orphanVectors(SyncCollection.entries), isEmpty);
+      },
+    );
+
+    test('a lowercase upsert absorbs an orphan stored from an uppercase '
+        'delete', () async {
+      const deletion = DeleteEntry('ABSORB-ME');
+      store.enqueueStamped([
+        deletion,
+      ], stampsFor(deletion, VersionVector({'remote-o': 1})));
+      await debouncedSave();
+      expect(
+        await orphanVectors(SyncCollection.entries),
+        contains('absorb-me'),
+      );
+
+      store.enqueue([UpsertEntry(entry('absorb-me', '10'))]);
+      await debouncedSave();
+
+      expect(await orphanVectors(SyncCollection.entries), isEmpty);
+      expect((await db.select(db.entries).getSingle()).amount, '10');
+    });
+
+    test('orphan X, live sub-pocket X, delete X, reload leaves X absent with '
+        'a vector descending from the orphan', () async {
+      final orphan = VersionVector({'remote-o': 4});
+      store.enqueueStamped([
+        const DeleteMoneySource('ac2x'),
+      ], stampsFor(const DeleteMoneySource('ac2x'), orphan));
+      await debouncedSave();
+
+      store.enqueue([
+        UpsertPocket(domain.SubPocket(id: 'ac2x', name: 'envelope')),
+      ]);
+      await debouncedSave();
+
+      store.enqueue([const DeleteMoneySource('ac2x')]);
+      await debouncedSave();
+
+      final state = await store.load();
+      expect(state.moneySources, isEmpty);
+
+      final row = await db.select(db.subPockets).getSingle();
+      expect(row.lifecycle, LifecycleState.tombstoned.code);
+      expect(versionFromRow(row.versionData).dominates(orphan), isTrue);
+      expect(await orphanVectors(SyncCollection.moneySources), isEmpty);
+    });
+
+    test('a corrupt orphan vector reports the terminal state once', () async {
+      await db.customStatement(
+        "INSERT INTO sync_orphan_tombstones (collection, row_id, version_data) "
+        "VALUES ('entries', 'e1', X'FFFE')",
+      );
+      reported.clear();
+
+      store.enqueue([UpsertEntry(entry('e1', '10'))]);
+      await debouncedSave();
+
+      // The terminal state arrives, never preceded by retrying or
+      // failedWillRetry.
+      expect(reported, [SaveBannerState.permanentlyFailed]);
+
+      // No timed retry is armed, so firing every timer many times must emit
+      // no further reports and leave the banner at the terminal state.
+      for (var i = 0; i < 10; i++) {
+        expect(clock.armedCount, 0);
+        clock.fire();
+        await settle();
+      }
+      expect(reported, [SaveBannerState.permanentlyFailed]);
+
+      // The failed write was rolled back, so the orphan is still stored and
+      // no content row was fabricated. The row is counted, not decoded: its
+      // vector is corrupt by construction.
+      final orphans = await db
+          .customSelect(
+            'SELECT row_id FROM sync_orphan_tombstones '
+            "WHERE collection = 'entries'",
+          )
+          .get();
+      expect([for (final row in orphans) row.read<String>('row_id')], ['e1']);
       expect(await db.select(db.entries).get(), isEmpty);
     });
   });

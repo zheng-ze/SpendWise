@@ -5702,6 +5702,288 @@ class SyncStagedSiblingsCompanion extends UpdateCompanion<StagedSiblingRow> {
   }
 }
 
+class $SyncOrphanTombstonesTable extends SyncOrphanTombstones
+    with TableInfo<$SyncOrphanTombstonesTable, OrphanTombstoneRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SyncOrphanTombstonesTable(this.attachedDatabase, [this._alias]);
+  @override
+  late final GeneratedColumnWithTypeConverter<SyncCollection, String>
+  collection =
+      GeneratedColumn<String>(
+        'collection',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      ).withConverter<SyncCollection>(
+        $SyncOrphanTombstonesTable.$convertercollection,
+      );
+  static const VerificationMeta _rowIdMeta = const VerificationMeta('rowId');
+  @override
+  late final GeneratedColumn<String> rowId = GeneratedColumn<String>(
+    'row_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<VersionVector, Uint8List>
+  versionData =
+      GeneratedColumn<Uint8List>(
+        'version_data',
+        aliasedName,
+        false,
+        type: DriftSqlType.blob,
+        requiredDuringInsert: true,
+      ).withConverter<VersionVector>(
+        $SyncOrphanTombstonesTable.$converterversionData,
+      );
+  @override
+  List<GeneratedColumn> get $columns => [collection, rowId, versionData];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'sync_orphan_tombstones';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<OrphanTombstoneRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('row_id')) {
+      context.handle(
+        _rowIdMeta,
+        rowId.isAcceptableOrUnknown(data['row_id']!, _rowIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_rowIdMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {collection, rowId};
+  @override
+  OrphanTombstoneRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return OrphanTombstoneRow(
+      collection: $SyncOrphanTombstonesTable.$convertercollection.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}collection'],
+        )!,
+      ),
+      rowId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}row_id'],
+      )!,
+      versionData: $SyncOrphanTombstonesTable.$converterversionData.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.blob,
+          data['${effectivePrefix}version_data'],
+        )!,
+      ),
+    );
+  }
+
+  @override
+  $SyncOrphanTombstonesTable createAlias(String alias) {
+    return $SyncOrphanTombstonesTable(attachedDatabase, alias);
+  }
+
+  static TypeConverter<SyncCollection, String> $convertercollection =
+      const SyncCollectionConverter();
+  static TypeConverter<VersionVector, Uint8List> $converterversionData =
+      const VersionVectorConverter();
+}
+
+class OrphanTombstoneRow extends DataClass
+    implements Insertable<OrphanTombstoneRow> {
+  final SyncCollection collection;
+  final String rowId;
+  final VersionVector versionData;
+  const OrphanTombstoneRow({
+    required this.collection,
+    required this.rowId,
+    required this.versionData,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    {
+      map['collection'] = Variable<String>(
+        $SyncOrphanTombstonesTable.$convertercollection.toSql(collection),
+      );
+    }
+    map['row_id'] = Variable<String>(rowId);
+    {
+      map['version_data'] = Variable<Uint8List>(
+        $SyncOrphanTombstonesTable.$converterversionData.toSql(versionData),
+      );
+    }
+    return map;
+  }
+
+  SyncOrphanTombstonesCompanion toCompanion(bool nullToAbsent) {
+    return SyncOrphanTombstonesCompanion(
+      collection: Value(collection),
+      rowId: Value(rowId),
+      versionData: Value(versionData),
+    );
+  }
+
+  factory OrphanTombstoneRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return OrphanTombstoneRow(
+      collection: serializer.fromJson<SyncCollection>(json['collection']),
+      rowId: serializer.fromJson<String>(json['rowId']),
+      versionData: serializer.fromJson<VersionVector>(json['versionData']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'collection': serializer.toJson<SyncCollection>(collection),
+      'rowId': serializer.toJson<String>(rowId),
+      'versionData': serializer.toJson<VersionVector>(versionData),
+    };
+  }
+
+  OrphanTombstoneRow copyWith({
+    SyncCollection? collection,
+    String? rowId,
+    VersionVector? versionData,
+  }) => OrphanTombstoneRow(
+    collection: collection ?? this.collection,
+    rowId: rowId ?? this.rowId,
+    versionData: versionData ?? this.versionData,
+  );
+  OrphanTombstoneRow copyWithCompanion(SyncOrphanTombstonesCompanion data) {
+    return OrphanTombstoneRow(
+      collection: data.collection.present
+          ? data.collection.value
+          : this.collection,
+      rowId: data.rowId.present ? data.rowId.value : this.rowId,
+      versionData: data.versionData.present
+          ? data.versionData.value
+          : this.versionData,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('OrphanTombstoneRow(')
+          ..write('collection: $collection, ')
+          ..write('rowId: $rowId, ')
+          ..write('versionData: $versionData')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(collection, rowId, versionData);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is OrphanTombstoneRow &&
+          other.collection == this.collection &&
+          other.rowId == this.rowId &&
+          other.versionData == this.versionData);
+}
+
+class SyncOrphanTombstonesCompanion
+    extends UpdateCompanion<OrphanTombstoneRow> {
+  final Value<SyncCollection> collection;
+  final Value<String> rowId;
+  final Value<VersionVector> versionData;
+  final Value<int> rowid;
+  const SyncOrphanTombstonesCompanion({
+    this.collection = const Value.absent(),
+    this.rowId = const Value.absent(),
+    this.versionData = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SyncOrphanTombstonesCompanion.insert({
+    required SyncCollection collection,
+    required String rowId,
+    required VersionVector versionData,
+    this.rowid = const Value.absent(),
+  }) : collection = Value(collection),
+       rowId = Value(rowId),
+       versionData = Value(versionData);
+  static Insertable<OrphanTombstoneRow> custom({
+    Expression<String>? collection,
+    Expression<String>? rowId,
+    Expression<Uint8List>? versionData,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (collection != null) 'collection': collection,
+      if (rowId != null) 'row_id': rowId,
+      if (versionData != null) 'version_data': versionData,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SyncOrphanTombstonesCompanion copyWith({
+    Value<SyncCollection>? collection,
+    Value<String>? rowId,
+    Value<VersionVector>? versionData,
+    Value<int>? rowid,
+  }) {
+    return SyncOrphanTombstonesCompanion(
+      collection: collection ?? this.collection,
+      rowId: rowId ?? this.rowId,
+      versionData: versionData ?? this.versionData,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (collection.present) {
+      map['collection'] = Variable<String>(
+        $SyncOrphanTombstonesTable.$convertercollection.toSql(collection.value),
+      );
+    }
+    if (rowId.present) {
+      map['row_id'] = Variable<String>(rowId.value);
+    }
+    if (versionData.present) {
+      map['version_data'] = Variable<Uint8List>(
+        $SyncOrphanTombstonesTable.$converterversionData.toSql(
+          versionData.value,
+        ),
+      );
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncOrphanTombstonesCompanion(')
+          ..write('collection: $collection, ')
+          ..write('rowId: $rowId, ')
+          ..write('versionData: $versionData, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$LedgerDatabase extends GeneratedDatabase {
   _$LedgerDatabase(QueryExecutor e) : super(e);
   $LedgerDatabaseManager get managers => $LedgerDatabaseManager(this);
@@ -5721,6 +6003,8 @@ abstract class _$LedgerDatabase extends GeneratedDatabase {
       $SyncStagedConflictsTable(this);
   late final $SyncStagedSiblingsTable syncStagedSiblings =
       $SyncStagedSiblingsTable(this);
+  late final $SyncOrphanTombstonesTable syncOrphanTombstones =
+      $SyncOrphanTombstonesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -5738,6 +6022,7 @@ abstract class _$LedgerDatabase extends GeneratedDatabase {
     syncPendingAcknowledgements,
     syncStagedConflicts,
     syncStagedSiblings,
+    syncOrphanTombstones,
   ];
 }
 
@@ -8762,6 +9047,203 @@ typedef $$SyncStagedSiblingsTableProcessedTableManager =
       StagedSiblingRow,
       PrefetchHooks Function()
     >;
+typedef $$SyncOrphanTombstonesTableCreateCompanionBuilder =
+    SyncOrphanTombstonesCompanion Function({
+      required SyncCollection collection,
+      required String rowId,
+      required VersionVector versionData,
+      Value<int> rowid,
+    });
+typedef $$SyncOrphanTombstonesTableUpdateCompanionBuilder =
+    SyncOrphanTombstonesCompanion Function({
+      Value<SyncCollection> collection,
+      Value<String> rowId,
+      Value<VersionVector> versionData,
+      Value<int> rowid,
+    });
+
+class $$SyncOrphanTombstonesTableFilterComposer
+    extends Composer<_$LedgerDatabase, $SyncOrphanTombstonesTable> {
+  $$SyncOrphanTombstonesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnWithTypeConverterFilters<SyncCollection, SyncCollection, String>
+  get collection => $composableBuilder(
+    column: $table.collection,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<String> get rowId => $composableBuilder(
+    column: $table.rowId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<VersionVector, VersionVector, Uint8List>
+  get versionData => $composableBuilder(
+    column: $table.versionData,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+}
+
+class $$SyncOrphanTombstonesTableOrderingComposer
+    extends Composer<_$LedgerDatabase, $SyncOrphanTombstonesTable> {
+  $$SyncOrphanTombstonesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get collection => $composableBuilder(
+    column: $table.collection,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get rowId => $composableBuilder(
+    column: $table.rowId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<Uint8List> get versionData => $composableBuilder(
+    column: $table.versionData,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SyncOrphanTombstonesTableAnnotationComposer
+    extends Composer<_$LedgerDatabase, $SyncOrphanTombstonesTable> {
+  $$SyncOrphanTombstonesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumnWithTypeConverter<SyncCollection, String> get collection =>
+      $composableBuilder(
+        column: $table.collection,
+        builder: (column) => column,
+      );
+
+  GeneratedColumn<String> get rowId =>
+      $composableBuilder(column: $table.rowId, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<VersionVector, Uint8List> get versionData =>
+      $composableBuilder(
+        column: $table.versionData,
+        builder: (column) => column,
+      );
+}
+
+class $$SyncOrphanTombstonesTableTableManager
+    extends
+        RootTableManager<
+          _$LedgerDatabase,
+          $SyncOrphanTombstonesTable,
+          OrphanTombstoneRow,
+          $$SyncOrphanTombstonesTableFilterComposer,
+          $$SyncOrphanTombstonesTableOrderingComposer,
+          $$SyncOrphanTombstonesTableAnnotationComposer,
+          $$SyncOrphanTombstonesTableCreateCompanionBuilder,
+          $$SyncOrphanTombstonesTableUpdateCompanionBuilder,
+          (
+            OrphanTombstoneRow,
+            BaseReferences<
+              _$LedgerDatabase,
+              $SyncOrphanTombstonesTable,
+              OrphanTombstoneRow
+            >,
+          ),
+          OrphanTombstoneRow,
+          PrefetchHooks Function()
+        > {
+  $$SyncOrphanTombstonesTableTableManager(
+    _$LedgerDatabase db,
+    $SyncOrphanTombstonesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SyncOrphanTombstonesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SyncOrphanTombstonesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$SyncOrphanTombstonesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<SyncCollection> collection = const Value.absent(),
+                Value<String> rowId = const Value.absent(),
+                Value<VersionVector> versionData = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SyncOrphanTombstonesCompanion(
+                collection: collection,
+                rowId: rowId,
+                versionData: versionData,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required SyncCollection collection,
+                required String rowId,
+                required VersionVector versionData,
+                Value<int> rowid = const Value.absent(),
+              }) => SyncOrphanTombstonesCompanion.insert(
+                collection: collection,
+                rowId: rowId,
+                versionData: versionData,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SyncOrphanTombstonesTable, OrphanTombstoneRow>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$LedgerDatabase,
+                    $SyncOrphanTombstonesTable,
+                    OrphanTombstoneRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SyncOrphanTombstonesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$LedgerDatabase,
+      $SyncOrphanTombstonesTable,
+      OrphanTombstoneRow,
+      $$SyncOrphanTombstonesTableFilterComposer,
+      $$SyncOrphanTombstonesTableOrderingComposer,
+      $$SyncOrphanTombstonesTableAnnotationComposer,
+      $$SyncOrphanTombstonesTableCreateCompanionBuilder,
+      $$SyncOrphanTombstonesTableUpdateCompanionBuilder,
+      (
+        OrphanTombstoneRow,
+        BaseReferences<
+          _$LedgerDatabase,
+          $SyncOrphanTombstonesTable,
+          OrphanTombstoneRow
+        >,
+      ),
+      OrphanTombstoneRow,
+      PrefetchHooks Function()
+    >;
 
 class $LedgerDatabaseManager {
   final _$LedgerDatabase _db;
@@ -8797,4 +9279,6 @@ class $LedgerDatabaseManager {
       $$SyncStagedConflictsTableTableManager(_db, _db.syncStagedConflicts);
   $$SyncStagedSiblingsTableTableManager get syncStagedSiblings =>
       $$SyncStagedSiblingsTableTableManager(_db, _db.syncStagedSiblings);
+  $$SyncOrphanTombstonesTableTableManager get syncOrphanTombstones =>
+      $$SyncOrphanTombstonesTableTableManager(_db, _db.syncOrphanTombstones);
 }
