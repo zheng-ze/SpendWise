@@ -1,6 +1,6 @@
 # Sync: package engine
 
-Last reconciled: ace164232a85ef644f60fa6a2769bcac62f9f5e1
+Last reconciled: 001954c
 
 ## Layer overview
 
@@ -36,6 +36,8 @@ Source: `packages/sync/pubspec.yaml` - `dependencies`;
   codec.
 - `packages/sync/lib/src/protocol/envelope.dart` - Envelope metadata, authenticated associated
   data, and sibling identity.
+- `packages/sync/lib/src/protocol/requests.dart` - Request wire encoders and typed pull-page
+  response accessors.
 - `packages/sync/lib/src/protocol/version_vector.dart` - Causal ordering and persistence and wire
   codecs for version vectors.
 - `packages/sync/pubspec.yaml` - Pure-Dart dependency boundary, including the pinned cryptography
@@ -92,6 +94,12 @@ orchestration and conflict-review UI remain outside `packages/sync`. Source:
   with stored version vectors. It derives lifecycle from the change and throws
   `SyncUntrackedRowError` when the source has no row version. Source:
   `packages/sync/lib/src/engine/sync_engine.dart` - `SyncEngine.encode`.
+- `PullResponse.envelopes`, `cursor`, and `endOfSnapshot` are typed views of a pull-page wire
+  response. `envelopes` decodes each item through `SyncEnvelope.fromWireJson` and returns an
+  unmodifiable list; `cursor` is required; `endOfSnapshot` defaults to false when absent. Missing
+  or malformed fields throw `FormatException`. Source:
+  `packages/sync/lib/src/protocol/requests.dart` - `PullResponse`;
+  `packages/sync/test/protocol/pull_response_test.dart` - group `PullResponse`.
 - `PayloadCodec.encodeChange` and `PayloadCodec.decodeChange` implement payload version 1 for
   every domain upsert variant. Deletes encode as empty payloads, while decoding an empty,
   malformed, or unsupported payload throws `PayloadDecodeError`. Source:
@@ -189,6 +197,11 @@ orchestration and conflict-review UI remain outside `packages/sync`. Source:
   replaces the other. Source: `packages/sync/lib/src/engine/version_source.dart` -
   `SyncVersionSource.readRowVersion`; `app/lib/sync/collection_version_reader.dart` -
   `CollectionVersionReader.readRowVersions`.
+- `PullResponse` is the first repository definition of the pull-page response schema, but it is
+  provisional. No deployed backend or SQL migration fixes its keys or semantics yet; lock the
+  backend RPC signature with its SQL migration before treating the schema as deployed. Source:
+  `packages/sync/lib/src/protocol/requests.dart` - `PullResponse`;
+  `packages/sync/lib/src/backends/supabase_backend.dart` - `SupabaseSyncBackend`.
 - `docs/sync-protocol.md` predates this engine and still describes deferred engine behavior. For
   this layer, current code and tests establish empty authenticated tombstone plaintext and
   non-dominated frontier reduction. Source: `docs/sync-protocol.md` -
