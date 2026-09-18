@@ -126,10 +126,10 @@ Future<SyncEnvelope> _pullEnvelope({
   required String rowID,
   required VersionVector version,
   LedgerChange? change,
+  SyncCollection collection = SyncCollection.entries,
 }) async {
   const cipher = SyncCipher();
   const codec = PayloadCodec();
-  const collection = SyncCollection.entries;
   const userID = 'user';
   final normalized = normalizedID(rowID);
   SyncEnvelope preview({required String ciphertext}) => SyncEnvelope(
@@ -811,6 +811,42 @@ void main() {
       final snapshot = await coordinator.metadataStore.snapshot();
       expect(snapshot.watermarks[SyncCollection.entries], isNull);
     });
+
+    test(
+      'an envelope declaring a different collection throws without '
+      'committing anything',
+      () async {
+        final key = _freshKey();
+        final rowID = '11111111-1111-1111-1111-111111111111';
+        final vector = VersionVector(<String, int>{'deva': 1});
+        final wrongCollectionEnvelope = await _pullEnvelope(
+          key: key,
+          rowID: rowID,
+          version: vector,
+          collection: SyncCollection.categories,
+        );
+        final backend = _FakeSyncBackend(
+          pages: {
+            SyncCollection.entries: _pullPage(<SyncEnvelope>[
+              wrongCollectionEnvelope,
+            ], 'cursor-1'),
+          },
+        );
+        final coordinator = await pullCoordinator(
+          backend: backend,
+          versionSource: InMemorySyncVersionSource(),
+          staging: InMemorySyncStagingStore(),
+          e2eKey: key,
+        );
+
+        await expectLater(
+          coordinator.processPullPage(SyncCollection.entries),
+          throwsA(isA<StateError>()),
+        );
+        final snapshot = await coordinator.metadataStore.snapshot();
+        expect(snapshot.watermarks[SyncCollection.entries], isNull);
+      },
+    );
   });
 
   group('recoverPendingAcknowledgements (TS5)', () {
@@ -941,5 +977,41 @@ void main() {
         'cursor-categories',
       );
     });
+
+    test(
+      'a success for a stale checkpoint does not clear a newer pending '
+      'checkpoint recorded for the same collection',
+      () async {
+        final backend = _FakeSyncBackend();
+        final coordinator = await pullCoordinator(
+          backend: backend,
+          versionSource: InMemorySyncVersionSource(),
+          staging: InMemorySyncStagingStore(),
+          e2eKey: _freshKey(),
+        );
+        await coordinator.metadataStore.setPendingAcknowledgement(
+          SyncCollection.entries,
+          'cursor-old',
+        );
+
+        // Simulates a newer checkpoint landing (e.g. via processPullPage)
+        // after this stale success was already in flight.
+        await coordinator.metadataStore.setPendingAcknowledgement(
+          SyncCollection.entries,
+          'cursor-new',
+        );
+        await coordinator.metadataStore.clearPendingAcknowledgementIfMatches(
+          SyncCollection.entries,
+          'cursor-old',
+        );
+
+        expect(
+          await coordinator.metadataStore.pendingAcknowledgement(
+            SyncCollection.entries,
+          ),
+          'cursor-new',
+        );
+      },
+    );
   });
 }

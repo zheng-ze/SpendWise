@@ -174,8 +174,9 @@ final class SyncCoordinator {
   /// publishes nothing to [Ledger.bus] and enqueues nothing to the
   /// persistence store. A page with a new row or a staged conflict commits
   /// nothing further; the engine's own (idempotent) conflict staging from
-  /// [SyncEngine.reconcile] still stands. A failed pull throws [StateError];
-  /// retry classification belongs to a later slice.
+  /// [SyncEngine.reconcile] still stands. A failed pull, or a returned
+  /// envelope declaring a collection other than [collection], throws
+  /// [StateError]; retry classification belongs to a later slice.
   Future<void> processPullPage(SyncCollection collection) async {
     final SyncBackend? backend = this.backend;
     if (backend == null) {
@@ -200,6 +201,14 @@ final class SyncCoordinator {
         throw StateError('Pull of $collection failed ($code): $message.');
     }
     final List<SyncEnvelope> envelopes = response.envelopes;
+    for (final SyncEnvelope envelope in envelopes) {
+      if (envelope.collection != collection) {
+        throw StateError(
+          'Pull of $collection returned an envelope for '
+          '${envelope.collection}.',
+        );
+      }
+    }
     final String nextCursor = response.cursor;
     final ReconcileResult result = await engine.reconcile(envelopes);
     // The production cache starts empty and only populates via refresh();
@@ -232,11 +241,13 @@ final class SyncCoordinator {
   ///
   /// Reads [SyncMetadataStore.pendingAcknowledgements] and replays each
   /// stored checkpoint through [SyncBackend.acknowledge]. A confirmed
-  /// [SyncSuccess] clears that collection's pending record; any
-  /// [SyncFailure] leaves it durable for the next recovery pass, without
-  /// throwing and without blocking the remaining collections. Retry
-  /// scheduling belongs to a later slice: a failed collection is simply left
-  /// in place for the next invocation.
+  /// [SyncSuccess] clears that collection's pending record only if its
+  /// stored checkpoint still equals the one just acknowledged, so a newer
+  /// checkpoint recorded concurrently (for example by [processPullPage])
+  /// is never lost. Any [SyncFailure] leaves the pending record durable
+  /// for the next recovery pass, without throwing and without blocking the
+  /// remaining collections. Retry scheduling belongs to a later slice: a
+  /// failed collection is simply left in place for the next invocation.
   Future<void> recoverPendingAcknowledgements() async {
     final SyncBackend? backend = this.backend;
     if (backend == null) {
@@ -259,7 +270,10 @@ final class SyncCoordinator {
           );
       switch (outcome) {
         case SyncSuccess<AcknowledgeResponse>():
-          await metadataStore.clearPendingAcknowledgement(entry.key);
+          await metadataStore.clearPendingAcknowledgementIfMatches(
+            entry.key,
+            entry.value,
+          );
         case SyncFailure<AcknowledgeResponse>():
           continue;
       }
