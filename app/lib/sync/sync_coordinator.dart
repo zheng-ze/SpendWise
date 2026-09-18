@@ -161,14 +161,12 @@ final class SyncCoordinator {
   /// True when [stored] exists and its vector causally dominates [pulled],
   /// including the reflexive equal-vector case ([VersionVector.dominates] is
   /// reflexive). A null [stored] (row never seen locally) is never covered.
-  /// Kept as a named helper so a later slice (T12, applying conflict-free
-  /// content) can find and reuse the same classification.
   static bool _isDuplicateOrDominated(
     RowVersion? stored,
     VersionVector pulled,
   ) => stored != null && stored.versionVector.dominates(pulled);
 
-  /// Processes one pulled page for [collection] (T11b slice).
+  /// Processes one pulled page for [collection].
   ///
   /// Pulls from the current watermark, reconciles the page, and — when every
   /// row is duplicate or already-dominated — durably advances the watermark
@@ -230,8 +228,7 @@ final class SyncCoordinator {
     );
   }
 
-  /// Retries every durable pending collection-checkpoint acknowledgement
-  /// (T11c slice).
+  /// Retries every durable pending collection-checkpoint acknowledgement.
   ///
   /// Reads [SyncMetadataStore.pendingAcknowledgements] and replays each
   /// stored checkpoint through [SyncBackend.acknowledge]. A confirmed

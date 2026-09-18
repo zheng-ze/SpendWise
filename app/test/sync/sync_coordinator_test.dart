@@ -781,8 +781,8 @@ void main() {
         expect(publications, isEmpty);
         expect(store.calls, isEmpty);
         expect(store.enqueuedBatches, isEmpty);
-        // The engine's own conflict staging still stands: forward progress
-        // for the later conflict-resolution slice.
+        // The engine's own conflict staging still stands even though the
+        // coordinator commits no watermark for this page.
         expect(staging.pendingConflicts, hasLength(1));
         expect(
           staging.pendingConflicts.single.collection,
