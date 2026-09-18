@@ -5,6 +5,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/persistence/device_identity.dart';
 import 'package:spendwise/persistence/ledger_database.dart';
+import 'package:spendwise/sync/credential_provider.dart';
 import 'package:spendwise/sync/sync_e2e_key_provider.dart';
 import 'package:spendwise/sync/sync_enrollment_service.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
@@ -79,7 +80,8 @@ void main() {
 
   SyncEnrollmentService service({
     Future<Uint8List> Function()? resolveE2EKey,
-    Future<Map<SyncCollection, String>> Function()? resolveCollectionHashes,
+    Future<Map<SyncCollection, String>> Function(ReconcileResponse)?
+    resolveCollectionHashes,
   }) => SyncEnrollmentService(
     authenticator: authenticator,
     backend: backend,
@@ -91,7 +93,7 @@ void main() {
         CompleteEnrollmentRequest(const {}),
     resolveE2EKey: resolveE2EKey ?? () async => validE2EKey(),
     resolveCollectionHashes:
-        resolveCollectionHashes ?? () async => testHashes(),
+        resolveCollectionHashes ?? (_) async => testHashes(),
   );
 
   Future<void> configureHandshakeSuccess({
@@ -121,6 +123,9 @@ void main() {
     backend = InMemorySyncBackend(
       onReconcile: (credential, request) async {
         reconcileTypes.add(request.runtimeType);
+        if (request is CompleteReconcile) {
+          return SyncSuccess(ReconcileResponse({'write_proof': 'proof-123'}));
+        }
         return SyncSuccess(ReconcileResponse(const {}));
       },
     );
@@ -135,10 +140,54 @@ void main() {
     final storedKey = await secrets.read(syncE2EKeySecretKey);
     expect(storedKey, isNotNull);
     expect(decodeAndValidateSyncE2EKey(storedKey!), validE2EKey());
+    expect(await secrets.read(syncWriteProofSecretKey), 'proof-123');
     final snapshot = await metadataStore.snapshot();
     expect(snapshot.phase, SyncEnrollmentPhase.gateEnabled);
     expect(snapshot.writeEnabled, isTrue);
   });
+
+  test(
+    'a complete-reconcile response without a write proof leaves none stored',
+    () async {
+      await configureHandshakeSuccess();
+      backend = InMemorySyncBackend(
+        onReconcile: (credential, request) async =>
+            SyncSuccess(ReconcileResponse(const {})),
+      );
+
+      await service().enroll();
+
+      expect(await secrets.read(syncWriteProofSecretKey), isNull);
+    },
+  );
+
+  test(
+    'resolveCollectionHashes receives the begin-reconcile response',
+    () async {
+      await configureHandshakeSuccess();
+      backend = InMemorySyncBackend(
+        onReconcile: (credential, request) async {
+          if (request is BeginReconcile) {
+            return SyncSuccess(
+              ReconcileResponse({'reconciliation_id': 'recon-42'}),
+            );
+          }
+          return SyncSuccess(ReconcileResponse(const {}));
+        },
+      );
+      ReconcileResponse? received;
+
+      await service(
+        resolveCollectionHashes: (beginResponse) async {
+          received = beginResponse;
+          return testHashes();
+        },
+      ).enroll();
+
+      expect(received, isNotNull);
+      expect(received!.wire['reconciliation_id'], 'recon-42');
+    },
+  );
 
   test(
     'crash after credential write resumes without re-running the handshake',
@@ -535,4 +584,35 @@ void main() {
     expect(snapshot.phase, SyncEnrollmentPhase.notEnrolled);
     expect(snapshot.writeEnabled, isFalse);
   });
+
+  test(
+    'a fresh credential for another device is rejected, not stored',
+    () async {
+      authenticator.onComplete = () => SyncSuccess(
+        const CredentialCodec().restore(
+          credentialPayload('another-device', 'test-bearer'),
+        ),
+      );
+
+      Object? thrown;
+      try {
+        await service().enroll();
+      } catch (error) {
+        thrown = error;
+      }
+
+      expect(
+        thrown,
+        isA<CredentialUnavailableException>().having(
+          (error) => error.reason,
+          'reason',
+          CredentialUnavailableReason.identityFailed,
+        ),
+      );
+      expect(await secrets.read(syncCredentialSecretKey), isNull);
+      final snapshot = await metadataStore.snapshot();
+      expect(snapshot.phase, SyncEnrollmentPhase.notEnrolled);
+      expect(snapshot.writeEnabled, isFalse);
+    },
+  );
 }

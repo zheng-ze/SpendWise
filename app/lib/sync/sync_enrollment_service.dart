@@ -67,7 +67,18 @@ final class SyncEnrollmentService {
   )
   buildCompleteRequest;
   final Future<Uint8List> Function() resolveE2EKey;
-  final Future<Map<SyncCollection, String>> Function() resolveCollectionHashes;
+
+  /// Computes the five collection digests for `CompleteReconcile`.
+  ///
+  /// Receives `BeginReconcile`'s response so the caller can page every
+  /// collection under its returned device-bound reconciliation context
+  /// (reconciliation ID, fixed snapshot watermark, expiry) before hashing, per
+  /// `docs/sync-protocol.md` section 4. This service does not itself page the
+  /// snapshot; that belongs to the caller's pull machinery.
+  final Future<Map<SyncCollection, String>> Function(
+    ReconcileResponse beginResponse,
+  )
+  resolveCollectionHashes;
 
   /// Advances enrollment until the gate is durably enabled.
   Future<void> enroll() async {
@@ -161,28 +172,40 @@ final class SyncEnrollmentService {
   }
 
   /// Runs the begin/complete reconcile round trip, then records completion.
+  ///
+  /// Threads `BeginReconcile`'s response into [resolveCollectionHashes] so it
+  /// can page the snapshot under the returned reconciliation context, and
+  /// durably captures the single-use write-proof `CompleteReconcile` returns
+  /// before recording completion, so the first post-reconciliation push can
+  /// supply it.
   Future<SyncEnrollmentPhase> _stepSnapshotInProgress() async {
     final credential = await CredentialProvider(
       database: database,
       secretStore: secretStore,
     ).withCredential((restored) => restored);
-    _requireSuccess(
+    final beginResponse = _requireSuccess(
       await backend.reconcile(credential, const BeginReconcile()),
       step: 'reconcileBegin',
     );
-    final hashes = await resolveCollectionHashes();
-    _requireSuccess(
+    final hashes = await resolveCollectionHashes(beginResponse);
+    final completeResponse = _requireSuccess(
       await backend.reconcile(
         credential,
         CompleteReconcile(collectionHashes: hashes),
       ),
       step: 'reconcileComplete',
     );
+    final writeProof = completeResponse.wire[_writeProofWireKey];
+    if (writeProof is String) {
+      await secretStore.write(syncWriteProofSecretKey, writeProof);
+    }
     await metadataStore.setEnrollmentPhase(
       SyncEnrollmentPhase.reconciliationComplete,
     );
     return SyncEnrollmentPhase.reconciliationComplete;
   }
+
+  static const _writeProofWireKey = 'write_proof';
 
   /// Flips the write gate, then records the terminal phase.
   Future<SyncEnrollmentPhase> _stepReconciliationComplete() async {
