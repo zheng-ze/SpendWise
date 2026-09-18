@@ -111,6 +111,11 @@ final class SyncEnrollmentService {
       ),
       step: 'completeEnrollment',
     );
+    if (credential.deviceID != await deviceID(database)) {
+      throw const CredentialUnavailableException(
+        CredentialUnavailableReason.identityFailed,
+      );
+    }
     await secretStore.write(
       syncCredentialSecretKey,
       const CredentialCodec().export(credential),
