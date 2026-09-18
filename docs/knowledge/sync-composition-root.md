@@ -1,21 +1,23 @@
 # Sync: composition root
 
-Last reconciled: ac01168
+Last reconciled: 001954c
 
 ## Overview
 
 `SyncCoordinator.create` is the app-side composition root for already-constructed ledger and
 persistence collaborators. It opens the durable staging store, resolves the selected backend from
 persisted metadata and caller-provided configuration, and creates a `SyncEngine` with a scoped
-E2E-key accessor. It owns assembly only. Sync runs, scheduling, cache refresh, backend calls, and
-starting the persistence processor remain a later slice. See
+E2E-key accessor. It also owns single-page pull processing and pending-acknowledgement recovery.
+It has no production run, scheduling, trigger, or lifecycle wiring, and it never starts the
+persistence processor. See
 [sync-durable-stores.md](sync-durable-stores.md), [sync-package-engine.md](sync-package-engine.md),
 and [persistence.md](persistence.md) for the assembled layers. Source:
 `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.create`, `SyncCoordinator.status`.
 
 ## Key locations
 
-- `app/lib/sync/sync_coordinator.dart` - composition root, collaborators, and wiring validation.
+- `app/lib/sync/sync_coordinator.dart` - composition root, pull-page processing, acknowledgement
+  recovery, collaborators, and wiring validation.
 - `app/lib/sync/sync_status.dart` - the current idle-only coordinator status.
 - `app/lib/sync/cached_collection_version_source.dart` - async collection reads exposed through
   the synchronous package version-source contract.
@@ -34,8 +36,9 @@ or starting either. Source: `app/lib/sync/sync_coordinator.dart` -
 `SyncCoordinator.create`, `SyncCoordinatorWiringException`.
 
 The coordinator gives `SyncEngine` only `SyncE2EKeyProvider.accessor`, not a `SecretStore` or a
-device credential. It retains `CredentialProvider` privately for a later pull slice. Source:
-`app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.create`.
+device credential. It retains `CredentialProvider` privately for pull and acknowledgement backend
+calls. Source: `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.create`,
+`SyncCoordinator.processPullPage`, `SyncCoordinator.recoverPendingAcknowledgements`.
 
 `SyncBackendResolver` maps the persisted selected backend to `CustomEndpointSyncBackend` or
 `SupabaseSyncBackend`, or returns null when no backend was selected. Custom endpoints and Supabase
@@ -79,6 +82,30 @@ cache only after all reads succeed, and joins overlapping refresh calls. Source:
   `http.Client` and `SecretStore` support controlled composition; absent values use backend defaults
   and `SecureSecretStore`. Source: `app/lib/sync/sync_coordinator.dart` -
   `SyncCoordinator.create`.
+- `SyncCoordinator.forTesting(...)` synchronously mirrors the private constructor's collaborator
+  list so tests can inject a `SyncBackend` and any `SyncVersionSource`. The production `create`
+  path remains unchanged; its version-source field is interface-typed to support this test seam.
+  Source: `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.forTesting`,
+  `SyncCoordinator.create`; `app/test/sync/sync_coordinator_test.dart` - group
+  `processPullPage: duplicate/dominated pages (TS1)`.
+- `SyncCoordinator.processPullPage(collection)` pulls at that collection's current watermark and
+  reconciles the response through `SyncEngine.reconcile`. It refreshes a
+  `CachedCollectionVersionSource` before classifying conflict-free stamps. If every row is locally
+  equal or dominated, it calls `SyncMetadataStore.recordPulledPage` with an empty vectors map and
+  the response cursor as watermark and checkpoint, publishing nothing to `Ledger` and enqueueing
+  nothing to `PersistenceProcessor`. A page with a new row or staged conflict commits no page
+  metadata, although reconciliation's unconditional, idempotent conflict staging remains. Pull
+  failures throw `StateError`. Source: `app/lib/sync/sync_coordinator.dart` -
+  `SyncCoordinator.processPullPage`, `SyncCoordinator._isDuplicateOrDominated`;
+  `app/test/sync/sync_coordinator_test.dart` - groups
+  `processPullPage: duplicate/dominated pages (TS1)` and
+  `processPullPage: new and conflicting pages (TS2, TS3)`.
+- `SyncCoordinator.recoverPendingAcknowledgements()` replays every durable collection checkpoint
+  from `SyncMetadataStore.pendingAcknowledgements()` through `SyncBackend.acknowledge`. A
+  `SyncSuccess` clears only that collection's record. A `SyncFailure` remains durable, and does
+  not block acknowledgement attempts for other collections. Source:
+  `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.recoverPendingAcknowledgements`;
+  `app/test/sync/sync_coordinator_test.dart` - group `recoverPendingAcknowledgements (TS5)`.
 - `SyncCoordinator.status` is `SyncIdle` after creation. No state transition exists in this slice.
   Source: `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.status`;
   `app/lib/sync/sync_status.dart` - `SyncIdle`.
@@ -89,11 +116,20 @@ cache only after all reads succeed, and joins overlapping refresh calls. Source:
 
 ## Gotchas
 
-- The version cache starts empty, so synchronous reads return null until a later run slice calls
-  `refresh`. A failed refresh preserves the prior cache. Source:
+- The version cache starts empty, so synchronous reads return null until a pull-page call refreshes
+  it. `processPullPage` refreshes only `CachedCollectionVersionSource`; a future
+  `SyncVersionSource` implementation that also needs refreshing requires explicit handling. A
+  failed refresh preserves the prior cache. Source:
   `app/lib/sync/cached_collection_version_source.dart` -
-  `CachedCollectionVersionSource.refresh`, `CachedCollectionVersionSource.readRowVersion`.
-- `SyncIdle` is deliberately the only current status. It remains so because this slice performs no
-  run, scheduling, trigger, cache-refresh, backend-call, or persistence-start action. Source:
-  `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.create`, `SyncCoordinator.status`;
+  `CachedCollectionVersionSource.refresh`, `CachedCollectionVersionSource.readRowVersion`;
+  `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.processPullPage`.
+- `processPullPage` and `recoverPendingAcknowledgements` are coordinator capabilities only.
+  Neither has a production caller, so startup/lifecycle wiring remains explicit future scope.
+  Source: `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.processPullPage`,
+  `SyncCoordinator.recoverPendingAcknowledgements`; `app/test/sync/sync_coordinator_test.dart` -
+  groups `processPullPage: duplicate/dominated pages (TS1)` and
+  `recoverPendingAcknowledgements (TS5)`.
+- `SyncIdle` is deliberately the only current status. It remains so because this slice has no
+  run, scheduling, trigger, lifecycle, or persistence-start wiring. Source:
+  `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.status`;
   `app/lib/sync/sync_status.dart` - `SyncStatus`, `SyncIdle`.

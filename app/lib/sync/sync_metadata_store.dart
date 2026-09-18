@@ -220,6 +220,25 @@ final class SyncMetadataStore {
         )..where((t) => t.collection.equalsValue(collection))).go();
       });
 
+  /// Clears [collection]'s pending acknowledgement only if its currently
+  /// stored checkpoint still equals [checkpoint].
+  ///
+  /// A newer checkpoint already recorded for [collection] (for example by a
+  /// concurrent [recordPulledPage] call while an older checkpoint's
+  /// acknowledge call was in flight) is left untouched, so its retry
+  /// obligation is never lost.
+  Future<void> clearPendingAcknowledgementIfMatches(
+    SyncCollection collection,
+    String checkpoint,
+  ) => _db.transaction(() async {
+    await (_db.delete(_db.syncPendingAcknowledgements)..where(
+          (t) =>
+              t.collection.equalsValue(collection) &
+              t.checkpoint.equals(checkpoint),
+        ))
+        .go();
+  });
+
   /// Commits one pulled page durably: the verified per-row vectors, the page
   /// watermark, and the pending collection-checkpoint acknowledgement, all in
   /// one atomic Drift transaction.

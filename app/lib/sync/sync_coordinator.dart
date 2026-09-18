@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:http/http.dart' as http;
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/persistence/device_identity.dart';
@@ -111,6 +112,25 @@ final class SyncCoordinator {
     );
   }
 
+  /// Test-only assembly over already-constructed collaborators.
+  ///
+  /// Mirrors [SyncCoordinator._] exactly so a test can inject a fake
+  /// [SyncBackend], an [InMemorySyncVersionSource], and a stubbed
+  /// [CredentialProvider] without touching the network or secure storage.
+  /// [versionSource] is typed to the [SyncVersionSource] interface (not the
+  /// concrete cache) for the same reason.
+  @visibleForTesting
+  SyncCoordinator.forTesting({
+    required this.engine,
+    required this.backend,
+    required this.versionSource,
+    required this.metadataStore,
+    required this.verifier,
+    required this._credentialProvider,
+    required this.ledger,
+    required this.persistenceProcessor,
+  }) : _status = const SyncIdle();
+
   /// The real sync engine, keyed by [deviceID] with the scoped E2E accessor.
   final SyncEngine engine;
 
@@ -118,7 +138,7 @@ final class SyncCoordinator {
   final SyncBackend? backend;
 
   /// Empty until the run slice calls [CachedCollectionVersionSource.refresh].
-  final CachedCollectionVersionSource versionSource;
+  final SyncVersionSource versionSource;
 
   final SyncMetadataStore metadataStore;
 
@@ -135,4 +155,128 @@ final class SyncCoordinator {
   final SyncStatus _status;
 
   SyncStatus get status => _status;
+
+  /// Whether a pulled row version is already covered locally.
+  ///
+  /// True when [stored] exists and its vector causally dominates [pulled],
+  /// including the reflexive equal-vector case ([VersionVector.dominates] is
+  /// reflexive). A null [stored] (row never seen locally) is never covered.
+  static bool _isDuplicateOrDominated(
+    RowVersion? stored,
+    VersionVector pulled,
+  ) => stored != null && stored.versionVector.dominates(pulled);
+
+  /// Processes one pulled page for [collection].
+  ///
+  /// Pulls from the current watermark, reconciles the page, and — when every
+  /// row is duplicate or already-dominated — durably advances the watermark
+  /// and pending acknowledgement with an empty vectors map. This branch
+  /// publishes nothing to [Ledger.bus] and enqueues nothing to the
+  /// persistence store. A page with a new row or a staged conflict commits
+  /// nothing further; the engine's own (idempotent) conflict staging from
+  /// [SyncEngine.reconcile] still stands. A failed pull, or a returned
+  /// envelope declaring a collection other than [collection], throws
+  /// [StateError]; retry classification belongs to a later slice.
+  Future<void> processPullPage(SyncCollection collection) async {
+    final SyncBackend? backend = this.backend;
+    if (backend == null) {
+      throw StateError(
+        'Cannot pull $collection before enrollment: no sync backend.',
+      );
+    }
+    final SyncMetadataSnapshot snapshot = await metadataStore.snapshot();
+    final String? cursor = snapshot.watermarks[collection];
+    final SyncOutcome<PullResponse> outcome = await _credentialProvider
+        .withCredential(
+          (DeviceCredential credential) => backend.pull(
+            credential,
+            PullRequest(collection: collection, cursor: cursor),
+          ),
+        );
+    final PullResponse response;
+    switch (outcome) {
+      case SyncSuccess<PullResponse>(value: final value):
+        response = value;
+      case SyncFailure<PullResponse>(code: final code, message: final message):
+        throw StateError('Pull of $collection failed ($code): $message.');
+    }
+    final List<SyncEnvelope> envelopes = response.envelopes;
+    for (final SyncEnvelope envelope in envelopes) {
+      if (envelope.collection != collection) {
+        throw StateError(
+          'Pull of $collection returned an envelope for '
+          '${envelope.collection}.',
+        );
+      }
+    }
+    final String nextCursor = response.cursor;
+    final ReconcileResult result = await engine.reconcile(envelopes);
+    // The production cache starts empty and only populates via refresh();
+    // without this every row would read as unseen and misclassify. The
+    // in-memory test fake has no refresh and is pre-populated directly, so
+    // refresh only when the concrete source supports it. Reads stay typed to
+    // the SyncVersionSource interface; no new abstraction is introduced.
+    final SyncVersionSource source = versionSource;
+    if (source is CachedCollectionVersionSource) {
+      await source.refresh();
+    }
+    final bool allDuplicateOrDominated =
+        result.stagedConflicts.isEmpty &&
+        result.stamps.entries.every(
+          (entry) => _isDuplicateOrDominated(
+            versionSource.readRowVersion(entry.key),
+            entry.value,
+          ),
+        );
+    if (!allDuplicateOrDominated) return;
+    await metadataStore.recordPulledPage(
+      collection: collection,
+      vectors: const <SyncRowID, VersionVector>{},
+      watermark: nextCursor,
+      checkpoint: nextCursor,
+    );
+  }
+
+  /// Retries every durable pending collection-checkpoint acknowledgement.
+  ///
+  /// Reads [SyncMetadataStore.pendingAcknowledgements] and replays each
+  /// stored checkpoint through [SyncBackend.acknowledge]. A confirmed
+  /// [SyncSuccess] clears that collection's pending record only if its
+  /// stored checkpoint still equals the one just acknowledged, so a newer
+  /// checkpoint recorded concurrently (for example by [processPullPage])
+  /// is never lost. Any [SyncFailure] leaves the pending record durable
+  /// for the next recovery pass, without throwing and without blocking the
+  /// remaining collections. Retry scheduling belongs to a later slice: a
+  /// failed collection is simply left in place for the next invocation.
+  Future<void> recoverPendingAcknowledgements() async {
+    final SyncBackend? backend = this.backend;
+    if (backend == null) {
+      throw StateError(
+        'Cannot acknowledge before enrollment: no sync backend.',
+      );
+    }
+    final Map<SyncCollection, String> pending = await metadataStore
+        .pendingAcknowledgements();
+    for (final MapEntry<SyncCollection, String> entry in pending.entries) {
+      final SyncOutcome<AcknowledgeResponse> outcome = await _credentialProvider
+          .withCredential(
+            (DeviceCredential credential) => backend.acknowledge(
+              credential,
+              AcknowledgeRequest(
+                collection: entry.key,
+                checkpoint: entry.value,
+              ),
+            ),
+          );
+      switch (outcome) {
+        case SyncSuccess<AcknowledgeResponse>():
+          await metadataStore.clearPendingAcknowledgementIfMatches(
+            entry.key,
+            entry.value,
+          );
+        case SyncFailure<AcknowledgeResponse>():
+          continue;
+      }
+    }
+  }
 }
