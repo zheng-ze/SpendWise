@@ -1,15 +1,18 @@
 # Sync: durable app stores
 
-Last reconciled: ace164232a85ef644f60fa6a2769bcac62f9f5e1
+Last reconciled: ac01168
 
 ## Layer overview
 
 The app-side durable sync layer keeps coordination state and current stored row versions in Drift
 so they survive restart. It owns the sync schema, metadata and staging stores, a bulk collection
 version reader, and post-flush readback classification. It never holds a bearer token, the E2E
-key, or the opaque credential payload; `SecretStore` owns those separately. Production composition
-does not yet instantiate these components. Source: `app/lib/sync/sync_tables.dart` - table doc
-comments; `app/lib/sync/sync_metadata_store.dart` - `SyncMetadataStore`;
+key, or the opaque credential payload; `SecretStore` owns those separately. `SyncCoordinator.create`
+opens the durable staging store and constructs the metadata store, collection reader, and readback
+verifier. The composition root owns assembly, while run and scheduling remain a later slice. See
+`sync-composition-root.md`. Source: `app/lib/sync/sync_coordinator.dart` -
+`SyncCoordinator.create`; `app/lib/sync/sync_tables.dart` - table doc comments;
+`app/lib/sync/sync_metadata_store.dart` - `SyncMetadataStore`;
 `app/lib/sync/drift_sync_staging_store.dart` - `DriftSyncStagingStore`;
 `app/lib/sync/collection_version_reader.dart` - `CollectionVersionReader`.
 
