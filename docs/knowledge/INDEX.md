@@ -15,6 +15,7 @@ themselves. Feature entries fold in still-current legacy material when a feature
 | Persistence (Drift store, coalescing, version vectors, replay) | [persistence.md](persistence.md) |
 | Sync package engine, payload codec, encryption, reconciliation, staging | [sync-package-engine.md](sync-package-engine.md) |
 | App-side durable sync stores (metadata, staging, migration) | [sync-durable-stores.md](sync-durable-stores.md) |
+| Sync composition root, credential and key boundaries, backend selection | [sync-composition-root.md](sync-composition-root.md) |
 | Recurring plans, occurrences, accounting, analysis | [recurring-plans-and-accounting.md](recurring-plans-and-accounting.md) |
 | Budgets | [budgets.md](budgets.md) |
 | Categories and the on-device category classifier | [categories-and-classification.md](categories-and-classification.md) |
