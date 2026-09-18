@@ -229,4 +229,43 @@ final class SyncCoordinator {
       checkpoint: nextCursor,
     );
   }
+
+  /// Retries every durable pending collection-checkpoint acknowledgement
+  /// (T11c slice).
+  ///
+  /// Reads [SyncMetadataStore.pendingAcknowledgements] and replays each
+  /// stored checkpoint through [SyncBackend.acknowledge]. A confirmed
+  /// [SyncSuccess] clears that collection's pending record; any
+  /// [SyncFailure] leaves it durable for the next recovery pass, without
+  /// throwing and without blocking the remaining collections. Retry
+  /// scheduling belongs to a later slice: a failed collection is simply left
+  /// in place for the next invocation.
+  Future<void> recoverPendingAcknowledgements() async {
+    final SyncBackend? backend = this.backend;
+    if (backend == null) {
+      throw StateError(
+        'Cannot acknowledge before enrollment: no sync backend.',
+      );
+    }
+    final Map<SyncCollection, String> pending = await metadataStore
+        .pendingAcknowledgements();
+    for (final MapEntry<SyncCollection, String> entry in pending.entries) {
+      final SyncOutcome<AcknowledgeResponse> outcome = await _credentialProvider
+          .withCredential(
+            (DeviceCredential credential) => backend.acknowledge(
+              credential,
+              AcknowledgeRequest(
+                collection: entry.key,
+                checkpoint: entry.value,
+              ),
+            ),
+          );
+      switch (outcome) {
+        case SyncSuccess<AcknowledgeResponse>():
+          await metadataStore.clearPendingAcknowledgement(entry.key);
+        case SyncFailure<AcknowledgeResponse>():
+          continue;
+      }
+    }
+  }
 }

@@ -45,18 +45,27 @@ final class _RecordingHttpClient extends http.BaseClient {
   }
 }
 
-/// Hand-written fake backend serving one stubbed pull page per collection.
+/// Hand-written fake backend serving one stubbed pull page per collection
+/// and one stubbed acknowledge outcome per collection.
 ///
-/// Only `pull` has real behavior; the other three methods throw because no
-/// pull-page test needs them. An optional [failure] makes `pull` return a
-/// typed failure instead of a page.
-final class _FakePullBackend implements SyncBackend {
-  _FakePullBackend({Map<SyncCollection, PullResponse>? pages, this.failure})
-    : pages = pages ?? const {};
+/// Only `pull` and `acknowledge` have real behavior; `push` and `reconcile`
+/// throw because no coordinator test needs them. An optional [failure] makes
+/// `pull` return a typed failure instead of a page; [acknowledgeOutcomes]
+/// overrides the default acknowledge success for a collection.
+final class _FakeSyncBackend implements SyncBackend {
+  _FakeSyncBackend({
+    Map<SyncCollection, PullResponse>? pages,
+    this.failure,
+    Map<SyncCollection, SyncOutcome<AcknowledgeResponse>>? acknowledgeOutcomes,
+  }) : pages = pages ?? const {},
+       acknowledgeOutcomes = acknowledgeOutcomes ?? const {};
 
   final Map<SyncCollection, PullResponse> pages;
   final SyncOutcome<PullResponse>? failure;
+  final Map<SyncCollection, SyncOutcome<AcknowledgeResponse>>
+  acknowledgeOutcomes;
   final List<PullRequest> pulls = [];
+  final List<AcknowledgeRequest> acknowledges = [];
 
   @override
   Future<SyncOutcome<PullResponse>> pull(
@@ -77,23 +86,27 @@ final class _FakePullBackend implements SyncBackend {
   Future<SyncOutcome<PushResponse>> push(
     SyncCredential credential,
     PushRequest request,
-  ) => throw UnimplementedError('Push is out of scope for pull-page tests.');
+  ) => throw UnimplementedError('Push is out of scope for coordinator tests.');
 
   @override
   Future<SyncOutcome<ReconcileResponse>> reconcile(
     SyncCredential credential,
     ReconcileRequest request,
   ) => throw UnimplementedError(
-    'Reconcile RPC is out of scope for pull-page tests.',
+    'Reconcile RPC is out of scope for coordinator tests.',
   );
 
   @override
   Future<SyncOutcome<AcknowledgeResponse>> acknowledge(
     SyncCredential credential,
     AcknowledgeRequest request,
-  ) => throw UnimplementedError(
-    'Acknowledge RPC is out of scope for pull-page tests.',
-  );
+  ) async {
+    acknowledges.add(request);
+    return acknowledgeOutcomes[request.collection] ??
+        SyncSuccess<AcknowledgeResponse>(
+          AcknowledgeResponse(<String, Object?>{}),
+        );
+  }
 }
 
 Entry _pullTestEntry(String id) => Entry(
@@ -233,7 +246,7 @@ void main() {
   /// nothing reaches the ledger bus or the persistence store.
   Future<void> expectDuplicatePageCommit(
     SyncCoordinator coordinator,
-    _FakePullBackend backend,
+    _FakeSyncBackend backend,
     String cursor,
     List<LedgerPublication> publications,
   ) async {
@@ -462,7 +475,7 @@ void main() {
         version: vector,
         change: UpsertEntry(_pullTestEntry(rowID)),
       );
-      final backend = _FakePullBackend(
+      final backend = _FakeSyncBackend(
         pages: {
           SyncCollection.entries: _pullPage(<SyncEnvelope>[
             envelope,
@@ -511,7 +524,7 @@ void main() {
           version: pulled,
           change: UpsertEntry(_pullTestEntry(rowID)),
         );
-        final backend = _FakePullBackend(
+        final backend = _FakeSyncBackend(
           pages: {
             SyncCollection.entries: _pullPage(<SyncEnvelope>[
               envelope,
@@ -548,7 +561,7 @@ void main() {
 
     test('an empty page still commits watermark and acknowledgement', () async {
       final key = _freshKey();
-      final backend = _FakePullBackend(
+      final backend = _FakeSyncBackend(
         pages: {
           SyncCollection.entries: _pullPage(const <SyncEnvelope>[], 'cursor-3'),
         },
@@ -585,7 +598,7 @@ void main() {
           version: vector,
           change: UpsertEntry(_pullTestEntry(rowID)),
         );
-        final backend = _FakePullBackend(
+        final backend = _FakeSyncBackend(
           pages: {
             SyncCollection.entries: _pullPage(<SyncEnvelope>[
               envelope,
@@ -636,7 +649,7 @@ void main() {
         version: VersionVector(<String, int>{'deva': 1}),
         change: UpsertEntry(_pullTestEntry(rowID)),
       );
-      final backend = _FakePullBackend(
+      final backend = _FakeSyncBackend(
         pages: {
           SyncCollection.entries: _pullPage(<SyncEnvelope>[
             envelope,
@@ -681,7 +694,7 @@ void main() {
         version: VersionVector(<String, int>{'devb': 1}),
         change: UpsertEntry(_pullTestEntry(rowID)),
       );
-      final backend = _FakePullBackend(
+      final backend = _FakeSyncBackend(
         pages: {
           SyncCollection.entries: _pullPage(<SyncEnvelope>[
             envelope,
@@ -737,7 +750,7 @@ void main() {
           version: VersionVector(<String, int>{'devb': 1}),
           change: UpsertEntry(_pullTestEntry(rowID)),
         );
-        final backend = _FakePullBackend(
+        final backend = _FakeSyncBackend(
           pages: {
             SyncCollection.entries: _pullPage(<SyncEnvelope>[
               first,
@@ -780,7 +793,7 @@ void main() {
 
     test('a failed pull throws without committing anything', () async {
       final key = _freshKey();
-      final backend = _FakePullBackend(
+      final backend = _FakeSyncBackend(
         failure: const NetworkUnavailable<PullResponse>(message: 'down'),
       );
       final staging = InMemorySyncStagingStore();
@@ -797,6 +810,136 @@ void main() {
       );
       final snapshot = await coordinator.metadataStore.snapshot();
       expect(snapshot.watermarks[SyncCollection.entries], isNull);
+    });
+  });
+
+  group('recoverPendingAcknowledgements (TS5)', () {
+    test(
+      'a pending acknowledgement is retried and cleared on success',
+      () async {
+        final backend = _FakeSyncBackend();
+        final coordinator = await pullCoordinator(
+          backend: backend,
+          versionSource: InMemorySyncVersionSource(),
+          staging: InMemorySyncStagingStore(),
+          e2eKey: _freshKey(),
+        );
+        await coordinator.metadataStore.setPendingAcknowledgement(
+          SyncCollection.entries,
+          'cursor-1',
+        );
+
+        await coordinator.recoverPendingAcknowledgements();
+
+        expect(backend.acknowledges, hasLength(1));
+        expect(backend.acknowledges.single.collection, SyncCollection.entries);
+        expect(backend.acknowledges.single.checkpoint, 'cursor-1');
+        expect(
+          await coordinator.metadataStore.pendingAcknowledgement(
+            SyncCollection.entries,
+          ),
+          isNull,
+        );
+      },
+    );
+
+    test('a failure leaves the pending row durable and retries on the next '
+        'invocation', () async {
+      final backend = _FakeSyncBackend(
+        acknowledgeOutcomes: {
+          SyncCollection.entries: const NetworkUnavailable<AcknowledgeResponse>(
+            message: 'down',
+          ),
+        },
+      );
+      final coordinator = await pullCoordinator(
+        backend: backend,
+        versionSource: InMemorySyncVersionSource(),
+        staging: InMemorySyncStagingStore(),
+        e2eKey: _freshKey(),
+      );
+      await coordinator.metadataStore.setPendingAcknowledgement(
+        SyncCollection.entries,
+        'cursor-1',
+      );
+
+      await coordinator.recoverPendingAcknowledgements();
+
+      expect(backend.acknowledges, hasLength(1));
+      expect(
+        await coordinator.metadataStore.pendingAcknowledgement(
+          SyncCollection.entries,
+        ),
+        'cursor-1',
+      );
+
+      await coordinator.recoverPendingAcknowledgements();
+
+      expect(backend.acknowledges, hasLength(2));
+      expect(
+        await coordinator.metadataStore.pendingAcknowledgement(
+          SyncCollection.entries,
+        ),
+        'cursor-1',
+      );
+    });
+
+    test('no pending acknowledgement means zero acknowledge calls', () async {
+      final backend = _FakeSyncBackend();
+      final coordinator = await pullCoordinator(
+        backend: backend,
+        versionSource: InMemorySyncVersionSource(),
+        staging: InMemorySyncStagingStore(),
+        e2eKey: _freshKey(),
+      );
+
+      await coordinator.recoverPendingAcknowledgements();
+
+      expect(backend.acknowledges, isEmpty);
+    });
+
+    test('a mixed outcome clears only the succeeding collection', () async {
+      final backend = _FakeSyncBackend(
+        acknowledgeOutcomes: {
+          SyncCollection.categories:
+              const NetworkUnavailable<AcknowledgeResponse>(message: 'down'),
+        },
+      );
+      final coordinator = await pullCoordinator(
+        backend: backend,
+        versionSource: InMemorySyncVersionSource(),
+        staging: InMemorySyncStagingStore(),
+        e2eKey: _freshKey(),
+      );
+      await coordinator.metadataStore.setPendingAcknowledgement(
+        SyncCollection.entries,
+        'cursor-entries',
+      );
+      await coordinator.metadataStore.setPendingAcknowledgement(
+        SyncCollection.categories,
+        'cursor-categories',
+      );
+
+      await coordinator.recoverPendingAcknowledgements();
+
+      // Both collections were attempted: no short-circuit on failure.
+      expect(backend.acknowledges, hasLength(2));
+      expect(
+        backend.acknowledges.map((request) => request.collection),
+        containsAll([SyncCollection.entries, SyncCollection.categories]),
+      );
+      expect(
+        await coordinator.metadataStore.pendingAcknowledgement(
+          SyncCollection.entries,
+        ),
+        isNull,
+      );
+      expect(
+        await coordinator.metadataStore.pendingAcknowledgement(
+          SyncCollection.categories,
+        ),
+        'cursor-categories',
+      );
     });
   });
 }
