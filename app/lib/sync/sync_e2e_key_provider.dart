@@ -29,27 +29,32 @@ final class SyncE2EKeyProvider {
         SyncE2EKeyUnavailableReason.absent,
       );
     }
-    final Uint8List bytes;
-    try {
-      bytes = base64Url.decode(_addPadding(stored));
-    } on FormatException {
-      throw const SyncE2EKeyUnavailableException(
-        SyncE2EKeyUnavailableReason.malformed,
-      );
-    }
-    if (bytes.length != SyncCipher.keyByteCount) {
-      throw const SyncE2EKeyUnavailableException(
-        SyncE2EKeyUnavailableReason.wrongLength,
-      );
-    }
-    return bytes;
+    return decodeAndValidateSyncE2EKey(stored);
   }
+}
 
-  static String _addPadding(String value) {
-    final remainder = value.length % 4;
-    if (remainder == 0) return value;
-    return value + '=' * (4 - remainder);
+/// Decodes an unpadded base64url-encoded E2E key and validates its length.
+Uint8List decodeAndValidateSyncE2EKey(String encoded) {
+  final Uint8List bytes;
+  try {
+    bytes = base64Url.decode(_addPadding(encoded));
+  } on FormatException {
+    throw const SyncE2EKeyUnavailableException(
+      SyncE2EKeyUnavailableReason.malformed,
+    );
   }
+  if (bytes.length != SyncCipher.keyByteCount) {
+    throw const SyncE2EKeyUnavailableException(
+      SyncE2EKeyUnavailableReason.wrongLength,
+    );
+  }
+  return bytes;
+}
+
+String _addPadding(String value) {
+  final remainder = value.length % 4;
+  if (remainder == 0) return value;
+  return value + '=' * (4 - remainder);
 }
 
 enum SyncE2EKeyUnavailableReason {

@@ -214,4 +214,44 @@ void main() {
       'credential-payload',
     );
   });
+
+  group('decodeAndValidateSyncE2EKey', () {
+    test('a valid 32-byte key decodes to the original bytes', () {
+      final expected = Uint8List.fromList(
+        List<int>.generate(32, (index) => index),
+      );
+
+      expect(decodeAndValidateSyncE2EKey(encodeKey(expected)), expected);
+    });
+
+    test('malformed input fails with the malformed reason', () {
+      expect(
+        () => decodeAndValidateSyncE2EKey('!!!-not-valid-base64-!!!'),
+        throwsA(
+          isA<SyncE2EKeyUnavailableException>().having(
+            (error) => error.reason,
+            'reason',
+            SyncE2EKeyUnavailableReason.malformed,
+          ),
+        ),
+      );
+    });
+
+    test('well-formed input of the wrong length fails', () {
+      final short = Uint8List.fromList(
+        List<int>.generate(16, (index) => index),
+      );
+
+      expect(
+        () => decodeAndValidateSyncE2EKey(encodeKey(short)),
+        throwsA(
+          isA<SyncE2EKeyUnavailableException>().having(
+            (error) => error.reason,
+            'reason',
+            SyncE2EKeyUnavailableReason.wrongLength,
+          ),
+        ),
+      );
+    });
+  });
 }
