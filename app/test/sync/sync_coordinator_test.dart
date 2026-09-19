@@ -48,13 +48,15 @@ final class _RecordingHttpClient extends http.BaseClient {
   }
 }
 
-/// Hand-written fake backend serving one stubbed pull page per collection
-/// and one stubbed acknowledge outcome per collection.
+/// Hand-written fake backend serving one stubbed pull page per collection,
+/// one stubbed acknowledge outcome per collection, and a scriptable push
+/// handler.
 ///
-/// Only `pull` and `acknowledge` have real behavior; `push` and `reconcile`
-/// throw because no coordinator test needs them. An optional [failure] makes
-/// `pull` return a typed failure instead of a page; [acknowledgeOutcomes]
-/// overrides the default acknowledge success for a collection.
+/// `pull` serves [pages] (or [failure]); `acknowledge` records and serves
+/// [acknowledgeOutcomes] defaulting to success; `push` records every request
+/// in [pushes] and delegates to [onPush], which each push test scripts.
+/// `reconcile` throws because no coordinator test needs it. An optional
+/// [failure] makes `pull` return a typed failure instead of a page.
 final class _FakeSyncBackend implements SyncBackend {
   _FakeSyncBackend({
     Map<SyncCollection, PullResponse>? pages,
@@ -73,6 +75,11 @@ final class _FakeSyncBackend implements SyncBackend {
   acknowledgeOutcomes;
   final List<PullRequest> pulls = [];
   final List<AcknowledgeRequest> acknowledges = [];
+  final List<PushRequest> pushes = [];
+
+  /// Scripted per-test push behavior. Unset means the test expects no push
+  /// call: [push] throws instead of silently succeeding.
+  Future<SyncOutcome<PushResponse>> Function(PushRequest request)? onPush;
 
   @override
   Future<SyncOutcome<PullResponse>> pull(
@@ -93,7 +100,14 @@ final class _FakeSyncBackend implements SyncBackend {
   Future<SyncOutcome<PushResponse>> push(
     SyncCredential credential,
     PushRequest request,
-  ) => throw UnimplementedError('Push is out of scope for coordinator tests.');
+  ) async {
+    pushes.add(request);
+    final handler = onPush;
+    if (handler == null) {
+      throw StateError('No stubbed push outcome.');
+    }
+    return handler(request);
+  }
 
   @override
   Future<SyncOutcome<ReconcileResponse>> reconcile(
@@ -223,6 +237,7 @@ void main() {
     required SyncStagingStore staging,
     required Uint8List e2eKey,
     CollectionVersionReader? reader,
+    CollectionVersionReader? versionReader,
   }) async {
     final id = await deviceID(db);
     await secrets.write(
@@ -238,6 +253,7 @@ void main() {
       ),
       backend: backend,
       versionSource: versionSource,
+      versionReader: versionReader ?? InMemoryCollectionVersionReader(),
       metadataStore: SyncMetadataStore(db),
       verifier: PostFlushReadbackVerifier(
         reader ?? DriftCollectionVersionReader(db),
@@ -359,6 +375,7 @@ void main() {
       engine: engine,
       backend: backend,
       versionSource: effectiveVersions,
+      versionReader: effectiveReader,
       metadataStore: SyncMetadataStore(db),
       verifier: PostFlushReadbackVerifier(effectiveReader),
       credentialProvider: CredentialProvider(
@@ -402,6 +419,39 @@ void main() {
         sourceID: sourceID,
         includeInAnalysis: true,
       );
+
+  /// Push-test assembly: a fake backend, an in-memory candidate reader and
+  /// version source, and an enabled write gate, so pushCollection reaches
+  /// the backend unless the test opts out with [enableWrites] false.
+  Future<_PushSetup> pushSetup({
+    _FakeSyncBackend? backend,
+    bool enableWrites = true,
+  }) async {
+    final effective = backend ?? _FakeSyncBackend();
+    final reader = InMemoryCollectionVersionReader();
+    final versions = InMemorySyncVersionSource();
+    final staging = InMemorySyncStagingStore();
+    final coordinator = await pullCoordinator(
+      backend: effective,
+      versionSource: versions,
+      staging: staging,
+      e2eKey: _freshKey(),
+      versionReader: reader,
+    );
+    if (enableWrites) {
+      await coordinator.metadataStore.setEnrollmentPhase(
+        SyncEnrollmentPhase.reconciliationComplete,
+      );
+      await coordinator.metadataStore.setWriteEnabled(true);
+    }
+    return _PushSetup(
+      coordinator: coordinator,
+      backend: effective,
+      reader: reader,
+      versions: versions,
+      staging: staging,
+    );
+  }
 
   group('custom backend', () {
     test('a coherent pair with a valid custom endpoint returns an idle '
@@ -2097,6 +2147,627 @@ void main() {
       );
     });
   });
+
+  group('pushCollection: write gate (TS4)', () {
+    test('a closed gate throws StateError before any backend call', () async {
+      final setup = await pushSetup(enableWrites: false);
+      await setup.seedRow(
+        '11111111-1111-1111-1111-111111111111',
+        VersionVector(<String, int>{'dev': 1}),
+      );
+
+      await expectLater(
+        setup.coordinator.pushCollection(SyncCollection.entries),
+        throwsA(isA<StateError>()),
+      );
+      expect(setup.backend.pushes, isEmpty);
+      expect(setup.backend.acknowledges, isEmpty);
+      expect(
+        await setup.coordinator.metadataStore.acknowledgedVectors(),
+        isEmpty,
+      );
+    });
+
+    test('an open gate submits the candidate and retires its vector', () async {
+      final setup = await pushSetup();
+      setup.backend.onPush = _appliedPush;
+      const rowID = '22222222-2222-2222-2222-222222222222';
+      final stored = VersionVector(<String, int>{'dev': 1});
+      await setup.seedRow(rowID, stored);
+
+      await setup.coordinator.pushCollection(SyncCollection.entries);
+
+      expect(setup.backend.pushes, hasLength(1));
+      expect(await setup.coordinator.metadataStore.acknowledgedVectors(), {
+        SyncRowID.of(SyncCollection.entries, rowID): stored,
+      });
+    });
+  });
+
+  group('pushCollection: candidate derivation (TS1)', () {
+    test('a newer stored vector is pushed', () async {
+      final setup = await pushSetup();
+      setup.backend.onPush = _appliedPush;
+      const rowID = '33333333-3333-3333-3333-333333333333';
+      final stored = VersionVector(<String, int>{'dev': 2});
+      await setup.seedRow(
+        rowID,
+        stored,
+        acknowledged: VersionVector(<String, int>{'dev': 1}),
+      );
+
+      await setup.coordinator.pushCollection(SyncCollection.entries);
+
+      expect(setup.backend.pushes, hasLength(1));
+      expect(
+        setup.backend.pushes.single.envelopes.map((envelope) => envelope.rowID),
+        [normalizedID(rowID)],
+      );
+      expect(await setup.coordinator.metadataStore.acknowledgedVectors(), {
+        SyncRowID.of(SyncCollection.entries, rowID): stored,
+      });
+    });
+
+    test('an equal stored vector is dominated and never submitted', () async {
+      final setup = await pushSetup();
+      setup.backend.onPush = _appliedPush;
+      final vector = VersionVector(<String, int>{'dev': 1});
+      await setup.seedRow(
+        '44444444-4444-4444-4444-444444444444',
+        vector,
+        acknowledged: vector,
+      );
+
+      await setup.coordinator.pushCollection(SyncCollection.entries);
+
+      expect(setup.backend.pushes, isEmpty);
+      expect(await setup.coordinator.metadataStore.acknowledgedVectors(), {
+        SyncRowID.of(
+          SyncCollection.entries,
+          '44444444-4444-4444-4444-444444444444',
+        ): vector,
+      });
+    });
+
+    test('a strictly dominated stored vector is never submitted', () async {
+      final setup = await pushSetup();
+      setup.backend.onPush = _appliedPush;
+      await setup.seedRow(
+        '55555555-5555-5555-5555-555555555555',
+        VersionVector(<String, int>{'dev': 1}),
+        acknowledged: VersionVector(<String, int>{'dev': 1, 'other': 1}),
+      );
+
+      await setup.coordinator.pushCollection(SyncCollection.entries);
+
+      expect(setup.backend.pushes, isEmpty);
+    });
+
+    test('a row without acknowledgement is eligible', () async {
+      final setup = await pushSetup();
+      setup.backend.onPush = _appliedPush;
+      const rowID = '66666666-6666-6666-6666-666666666666';
+      final stored = VersionVector(<String, int>{'dev': 1});
+      await setup.seedRow(rowID, stored);
+
+      await setup.coordinator.pushCollection(SyncCollection.entries);
+
+      expect(setup.backend.pushes, hasLength(1));
+      expect(await setup.coordinator.metadataStore.acknowledgedVectors(), {
+        SyncRowID.of(SyncCollection.entries, rowID): stored,
+      });
+    });
+
+    test('only eligible rows are submitted', () async {
+      final setup = await pushSetup();
+      setup.backend.onPush = _appliedPush;
+      const eligibleID = '77777777-7777-7777-7777-777777777777';
+      const dominatedID = '88888888-8888-8888-8888-888888888888';
+      final eligibleVector = VersionVector(<String, int>{'dev': 2});
+      final dominatedVector = VersionVector(<String, int>{'dev': 1});
+      await setup.seedRow(eligibleID, eligibleVector);
+      await setup.seedRow(
+        dominatedID,
+        dominatedVector,
+        acknowledged: dominatedVector,
+      );
+
+      await setup.coordinator.pushCollection(SyncCollection.entries);
+
+      expect(setup.backend.pushes, hasLength(1));
+      expect(setup.backend.pushes.single.envelopes, hasLength(1));
+      expect(
+        setup.backend.pushes.single.envelopes.single.rowID,
+        normalizedID(eligibleID),
+      );
+      // The dominated row's pre-existing acknowledgement is untouched; only
+      // the eligible row's submitted vector is newly retired.
+      expect(await setup.coordinator.metadataStore.acknowledgedVectors(), {
+        SyncRowID.of(SyncCollection.entries, eligibleID): eligibleVector,
+        SyncRowID.of(SyncCollection.entries, dominatedID): dominatedVector,
+      });
+    });
+
+    test('an orphan tombstone pushes as a tombstone delete', () async {
+      final setup = await pushSetup();
+      setup.backend.onPush = _appliedPush;
+      const rowID = '99999999-9999-9999-9999-999999999999';
+      final stored = VersionVector(<String, int>{'dev': 1});
+      await setup.seedRow(
+        rowID,
+        stored,
+        inLedger: false,
+        lifecycle: SiblingLifecycle.tombstone,
+      );
+
+      await setup.coordinator.pushCollection(SyncCollection.entries);
+
+      expect(setup.backend.pushes, hasLength(1));
+      final envelope = setup.backend.pushes.single.envelopes.single;
+      expect(envelope.lifecycle, SiblingLifecycle.tombstone);
+      expect(await setup.coordinator.metadataStore.acknowledgedVectors(), {
+        SyncRowID.of(SyncCollection.entries, rowID): stored,
+      });
+    });
+  });
+
+  group('pushCollection: recovery-before-push ordering (TS2)', () {
+    test('a pending acknowledgement is recovered and cleared before the push '
+        'query', () async {
+      final backend = _FakeSyncBackend();
+      final setup = await pushSetup(backend: backend);
+      backend.onPush = _appliedPush;
+      await setup.seedRow(
+        'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        VersionVector(<String, int>{'dev': 1}),
+      );
+      await setup.coordinator.metadataStore.setPendingAcknowledgement(
+        SyncCollection.entries,
+        'cursor-1',
+      );
+
+      // Completing at all proves the inline recovery did not re-enter the
+      // held collection lock: the public recovery would self-deadlock here.
+      await setup.coordinator.pushCollection(SyncCollection.entries);
+
+      expect(backend.acknowledges, hasLength(1));
+      expect(backend.acknowledges.single.checkpoint, 'cursor-1');
+      expect(
+        await setup.coordinator.metadataStore.pendingAcknowledgement(
+          SyncCollection.entries,
+        ),
+        isNull,
+      );
+      expect(backend.pushes, hasLength(1));
+    });
+
+    test('the version cache refreshes before candidates are encoded', () async {
+      final backend = _FakeSyncBackend();
+      backend.onPush = _appliedPush;
+      final reader = InMemoryCollectionVersionReader();
+      // The cache starts empty; the row lives only in the reader.
+      final cached = CachedCollectionVersionSource(reader);
+      final coordinator = await pullCoordinator(
+        backend: backend,
+        versionSource: cached,
+        staging: InMemorySyncStagingStore(),
+        e2eKey: _freshKey(),
+        versionReader: reader,
+      );
+      await coordinator.metadataStore.setEnrollmentPhase(
+        SyncEnrollmentPhase.reconciliationComplete,
+      );
+      await coordinator.metadataStore.setWriteEnabled(true);
+      const holderID = 'aaaaaaaa-0000-1111-2222-333333333333';
+      const rowID = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+      ledger.addAccount(
+        Account(id: holderID, name: 'holder', type: AccountType.cash),
+      );
+      ledger.addEntry(driftEntry(rowID, holderID));
+      final row = SyncRowID.of(SyncCollection.entries, rowID);
+      reader.upsert(
+        row,
+        RowVersion(
+          versionVector: VersionVector(<String, int>{'dev': 1}),
+          lifecycle: SiblingLifecycle.live,
+        ),
+      );
+      expect(cached.readRowVersion(row), isNull);
+
+      await coordinator.pushCollection(SyncCollection.entries);
+
+      // Encode observed the row only because refresh ran first: without it
+      // encode throws SyncUntrackedRowError.
+      expect(backend.pushes, hasLength(1));
+    });
+  });
+
+  group('pushCollection: recovery-not-cleared deferral (TS8)', () {
+    test('a failed recovery defers silently with no push query', () async {
+      final backend = _FakeSyncBackend(
+        acknowledgeOutcomes: {
+          SyncCollection.entries: const NetworkUnavailable<AcknowledgeResponse>(
+            message: 'down',
+          ),
+        },
+      );
+      final setup = await pushSetup(backend: backend);
+      backend.onPush = _appliedPush;
+      await setup.seedRow(
+        'cccccccc-cccc-cccc-cccc-cccccccccccc',
+        VersionVector(<String, int>{'dev': 1}),
+      );
+      await setup.coordinator.metadataStore.setPendingAcknowledgement(
+        SyncCollection.entries,
+        'cursor-1',
+      );
+
+      await setup.coordinator.pushCollection(SyncCollection.entries);
+
+      expect(backend.acknowledges, hasLength(1));
+      expect(backend.pushes, isEmpty);
+      expect(
+        await setup.coordinator.metadataStore.pendingAcknowledgement(
+          SyncCollection.entries,
+        ),
+        'cursor-1',
+      );
+      expect(
+        await setup.coordinator.metadataStore.acknowledgedVectors(),
+        isEmpty,
+      );
+    });
+
+    test('a conflict-blocked pending acknowledgement defers until the conflict '
+        'resolves', () async {
+      const conflictID = 'dddddddd-dddd-dddd-dddd-dddddddddddd';
+      final key = _freshKey();
+      final first = await _pullEnvelope(
+        key: key,
+        rowID: conflictID,
+        version: VersionVector(<String, int>{'deva': 1}),
+        change: UpsertEntry(_pullTestEntry(conflictID)),
+      );
+      final second = await _pullEnvelope(
+        key: key,
+        rowID: conflictID,
+        version: VersionVector(<String, int>{'devb': 1}),
+        change: UpsertEntry(_pullTestEntry(conflictID)),
+      );
+      final backend = _FakeSyncBackend(
+        pages: {
+          SyncCollection.entries: _pullPage(<SyncEnvelope>[
+            first,
+            second,
+          ], 'cursor-conflict'),
+        },
+      );
+      final setup = await pushSetup(backend: backend);
+      backend.onPush = _appliedPush;
+      await setup.coordinator.processPullPage(SyncCollection.entries);
+      expect(setup.staging.pendingConflicts, hasLength(1));
+      const pushID = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee';
+      final stored = VersionVector(<String, int>{'dev': 1});
+      await setup.seedRow(pushID, stored);
+
+      await setup.coordinator.pushCollection(SyncCollection.entries);
+
+      expect(backend.pushes, isEmpty);
+      expect(
+        await setup.coordinator.metadataStore.pendingAcknowledgement(
+          SyncCollection.entries,
+        ),
+        'cursor-conflict',
+      );
+
+      setup.staging.resolve(setup.staging.pendingConflicts.single);
+      await setup.coordinator.pushCollection(SyncCollection.entries);
+
+      expect(backend.pushes, hasLength(1));
+      expect(
+        await setup.coordinator.metadataStore.pendingAcknowledgement(
+          SyncCollection.entries,
+        ),
+        isNull,
+      );
+      expect(await setup.coordinator.metadataStore.acknowledgedVectors(), {
+        SyncRowID.of(SyncCollection.entries, pushID): stored,
+      });
+    });
+  });
+
+  group('pushCollection: response classification (TS3)', () {
+    test(
+      'applied commits the submitted vector, never the response frontier',
+      () async {
+        final setup = await pushSetup();
+        const rowID = 'ffffffff-ffff-ffff-ffff-ffffffffffff';
+        final stored = VersionVector(<String, int>{'dev': 1});
+        setup.backend.onPush = (request) async => SyncSuccess<PushResponse>(
+          _pushRowsResponse(
+            request.envelopes,
+            frontier: VersionVector(<String, int>{'server': 9}),
+          ),
+        );
+        await setup.seedRow(rowID, stored);
+
+        await setup.coordinator.pushCollection(SyncCollection.entries);
+
+        expect(await setup.coordinator.metadataStore.acknowledgedVectors(), {
+          SyncRowID.of(SyncCollection.entries, rowID): stored,
+        });
+      },
+    );
+
+    test('already_present commits the submitted vector', () async {
+      final setup = await pushSetup();
+      const rowID = '10101010-1010-1010-1010-101010101010';
+      final stored = VersionVector(<String, int>{'dev': 1});
+      setup.backend.onPush = (request) async => SyncSuccess<PushResponse>(
+        _pushRowsResponse(request.envelopes, status: 'already_present'),
+      );
+      await setup.seedRow(rowID, stored);
+
+      await setup.coordinator.pushCollection(SyncCollection.entries);
+
+      expect(await setup.coordinator.metadataStore.acknowledgedVectors(), {
+        SyncRowID.of(SyncCollection.entries, rowID): stored,
+      });
+    });
+
+    test('rejected leaves the row eligible for the next push', () async {
+      final setup = await pushSetup();
+      setup.backend.onPush = (request) async => SyncSuccess<PushResponse>(
+        _pushRowsResponse(request.envelopes, status: 'rejected'),
+      );
+      await setup.seedRow(
+        '20202020-2020-2020-2020-202020202020',
+        VersionVector(<String, int>{'dev': 1}),
+      );
+
+      await setup.coordinator.pushCollection(SyncCollection.entries);
+      await setup.coordinator.pushCollection(SyncCollection.entries);
+
+      expect(setup.backend.pushes, hasLength(2));
+      expect(
+        await setup.coordinator.metadataStore.acknowledgedVectors(),
+        isEmpty,
+      );
+    });
+
+    test('a sibling-ID mismatch commits nothing', () async {
+      final setup = await pushSetup();
+      setup.backend.onPush = (request) async {
+        final envelope = request.envelopes.single;
+        return SyncSuccess<PushResponse>(
+          PushResponse(<String, Object?>{
+            'rows': [
+              <String, Object?>{
+                'row_id': envelope.rowID,
+                'collection': envelope.collection.wireName,
+                'sibling_id': 'wrong-sibling',
+                'status': 'applied',
+                'version_vector': envelope.versionVector.toWireCounters(),
+              },
+            ],
+          }),
+        );
+      };
+      await setup.seedRow(
+        '30303030-3030-3030-3030-303030303030',
+        VersionVector(<String, int>{'dev': 1}),
+      );
+
+      await setup.coordinator.pushCollection(SyncCollection.entries);
+
+      expect(setup.backend.pushes, hasLength(1));
+      expect(
+        await setup.coordinator.metadataStore.acknowledgedVectors(),
+        isEmpty,
+      );
+    });
+
+    test('a missing response entry commits nothing without throwing', () async {
+      final setup = await pushSetup();
+      setup.backend.onPush = (request) async => SyncSuccess<PushResponse>(
+        PushResponse(<String, Object?>{'rows': const <Object?>[]}),
+      );
+      await setup.seedRow(
+        '40404040-4040-4040-4040-404040404040',
+        VersionVector(<String, int>{'dev': 1}),
+      );
+
+      await setup.coordinator.pushCollection(SyncCollection.entries);
+
+      expect(setup.backend.pushes, hasLength(1));
+      expect(
+        await setup.coordinator.metadataStore.acknowledgedVectors(),
+        isEmpty,
+      );
+    });
+
+    test('a push failure throws StateError and writes nothing', () async {
+      final setup = await pushSetup();
+      setup.backend.onPush = (request) async =>
+          const NetworkUnavailable<PushResponse>(message: 'down');
+      await setup.seedRow(
+        '50505050-5050-5050-5050-505050505050',
+        VersionVector(<String, int>{'dev': 1}),
+      );
+
+      await expectLater(
+        setup.coordinator.pushCollection(SyncCollection.entries),
+        throwsA(isA<StateError>()),
+      );
+      expect(setup.backend.pushes, hasLength(1));
+      expect(
+        await setup.coordinator.metadataStore.acknowledgedVectors(),
+        isEmpty,
+      );
+    });
+
+    test('a mid-flight version change cannot move the commit off the submitted '
+        'vector', () async {
+      final setup = await pushSetup();
+      const rowID = '60606060-6060-6060-6060-606060606060';
+      final row = SyncRowID.of(SyncCollection.entries, rowID);
+      final submitted = VersionVector(<String, int>{'dev': 1});
+      final midFlight = VersionVector(<String, int>{'dev': 2});
+      setup.backend.onPush = (request) async {
+        // A concurrent refresh lands a newer vector after encode: the
+        // commit must still retire the encode-time-captured vector.
+        setup.versions.upsert(
+          row,
+          RowVersion(
+            versionVector: midFlight,
+            lifecycle: SiblingLifecycle.live,
+          ),
+        );
+        return SyncSuccess<PushResponse>(_pushRowsResponse(request.envelopes));
+      };
+      await setup.seedRow(rowID, submitted);
+
+      await setup.coordinator.pushCollection(SyncCollection.entries);
+
+      expect(await setup.coordinator.metadataStore.acknowledgedVectors(), {
+        row: submitted,
+      });
+    });
+  });
+
+  group('pushCollection: lock interaction (TS5)', () {
+    test(
+      'overlapping pushes for one collection serialize without deadlock',
+      () async {
+        final setup = await pushSetup();
+        setup.backend.onPush = (request) async => SyncSuccess<PushResponse>(
+          _pushRowsResponse(request.envelopes, status: 'rejected'),
+        );
+        await setup.seedRow(
+          '70707070-7070-7070-7070-707070707070',
+          VersionVector(<String, int>{'dev': 1}),
+        );
+
+        await Future.wait([
+          setup.coordinator.pushCollection(SyncCollection.entries),
+          setup.coordinator.pushCollection(SyncCollection.entries),
+        ]);
+
+        // Rejected rows stay eligible, so both serialized holders submitted.
+        expect(setup.backend.pushes, hasLength(2));
+      },
+    );
+  });
+
+  group('pushCollection: write-proof pass-through (TS7)', () {
+    test('writeProof reaches the push request unchanged', () async {
+      final setup = await pushSetup();
+      setup.backend.onPush = (request) async => SyncSuccess<PushResponse>(
+        _pushRowsResponse(request.envelopes, status: 'rejected'),
+      );
+      await setup.seedRow(
+        '80808080-8080-8080-8080-808080808080',
+        VersionVector(<String, int>{'dev': 1}),
+      );
+
+      await setup.coordinator.pushCollection(SyncCollection.entries);
+      await setup.coordinator.pushCollection(
+        SyncCollection.entries,
+        writeProof: 'proof-1',
+      );
+
+      expect(setup.backend.pushes, hasLength(2));
+      expect(setup.backend.pushes[0].writeProof, isNull);
+      expect(setup.backend.pushes[1].writeProof, 'proof-1');
+    });
+  });
+}
+
+/// Builds a push wire response marking every submitted envelope with
+/// [status] under its own sibling ID. The resulting frontier defaults to a
+/// vector distinct from every submitted vector, so a test proves the commit
+/// retires the encode-time-captured vector, never the response frontier.
+PushResponse _pushRowsResponse(
+  List<SyncEnvelope> submitted, {
+  String status = 'applied',
+  VersionVector? frontier,
+}) => PushResponse(<String, Object?>{
+  'rows': [
+    for (final envelope in submitted)
+      <String, Object?>{
+        'row_id': envelope.rowID,
+        'collection': envelope.collection.wireName,
+        'sibling_id': envelope.siblingID,
+        'status': status,
+        if (status != 'rejected')
+          'version_vector': (frontier ?? envelope.versionVector)
+              .toWireCounters(),
+      },
+  ],
+});
+
+/// A push handler answering every submission as applied under the submitted
+/// sibling IDs.
+Future<SyncOutcome<PushResponse>> _appliedPush(PushRequest request) async =>
+    SyncSuccess<PushResponse>(_pushRowsResponse(request.envelopes));
+
+/// One push-test assembly: the coordinator under test with handles to its
+/// scriptable backend, candidate reader, encode version source, and staging
+/// store.
+final class _PushSetup {
+  _PushSetup({
+    required this.coordinator,
+    required this.backend,
+    required this.reader,
+    required this.versions,
+    required this.staging,
+  });
+
+  final SyncCoordinator coordinator;
+  final _FakeSyncBackend backend;
+  final InMemoryCollectionVersionReader reader;
+  final InMemorySyncVersionSource versions;
+  final InMemorySyncStagingStore staging;
+
+  final Set<String> _holders = <String>{};
+
+  /// Seeds one local entries row across the ledger, the candidate reader,
+  /// and the encode version source, with an optional pre-existing
+  /// acknowledgement. A row omitted from the ledger ([inLedger] false)
+  /// pushes as a tombstone delete.
+  Future<void> seedRow(
+    String rowID,
+    VersionVector vector, {
+    String holderID = 'aaaaaaaa-0000-1111-2222-333333333333',
+    bool inLedger = true,
+    SiblingLifecycle lifecycle = SiblingLifecycle.live,
+    VersionVector? acknowledged,
+  }) async {
+    final row = SyncRowID.of(SyncCollection.entries, rowID);
+    if (inLedger) {
+      if (_holders.add(holderID)) {
+        coordinator.ledger.addAccount(
+          Account(id: holderID, name: 'holder', type: AccountType.cash),
+        );
+      }
+      coordinator.ledger.addEntry(
+        Entry(
+          id: rowID,
+          date: DateTime.utc(2024, 3, 15),
+          amount: Decimal.parse('-12.50'),
+          name: 'Local',
+          sourceID: holderID,
+          includeInAnalysis: true,
+        ),
+      );
+    }
+    final version = RowVersion(versionVector: vector, lifecycle: lifecycle);
+    reader.upsert(row, version);
+    versions.upsert(row, version);
+    if (acknowledged != null) {
+      await coordinator.metadataStore.setAcknowledgedVector(row, acknowledged);
+    }
+  }
 }
 
 /// One drift-backed coordinator assembly with handles to the spies a race
