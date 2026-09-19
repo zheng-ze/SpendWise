@@ -224,7 +224,10 @@ class DriftLedgerStore implements LedgerStore {
     await flushNow();
   }
 
-  /// Everything enqueued before this call is on disk when it returns.
+  /// Everything enqueued before this call has landed when it returns.
+  ///
+  /// Throws [PersistenceBarrierFailure] when the save gives up with writes
+  /// still pending instead of returning silently with an unwritten queue.
   @override
   Future<void> flushNow() async {
     await start();

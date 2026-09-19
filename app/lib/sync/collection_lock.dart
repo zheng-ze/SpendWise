@@ -9,6 +9,10 @@ import 'package:sync/sync.dart';
 /// Pure in-memory synchronization primitive with no external dependencies.
 /// Each collection tracks its current "tail" future; a new caller chains
 /// behind the tail it observes and installs its own replacement tail.
+///
+/// Not reentrant: a [withLock] call for the same collection from inside a
+/// running body self-deadlocks (the inner call awaits the outer call's own
+/// gate).
 final class CollectionLock {
   final Map<SyncCollection, Future<void>> _tails = {};
 
