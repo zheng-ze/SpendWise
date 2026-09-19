@@ -44,6 +44,47 @@ final class SyncCoordinatorWiringException implements Exception {
 /// pass still resolves normally. Any other exception propagates uncaught.
 typedef PassFailureHandler = void Function(Object error);
 
+/// Structured outcome of one [SyncCoordinator.pushCollection] call.
+///
+/// Every path that reaches the backend or skips it reports which one it took:
+/// [PushNoop] submitted nothing, [PushDeferred] skipped the push while a
+/// pending acknowledgement stayed uncleared, [PushFullyAcknowledged] retired
+/// every submitted row, and [PushUnresolvedRows] names the submitted rows
+/// that stay eligible for the next push.
+sealed class PushCollectionResult {
+  const PushCollectionResult();
+}
+
+/// No eligible candidates, so no outbound push was submitted.
+final class PushNoop extends PushCollectionResult {
+  const PushNoop();
+}
+
+/// Pending-acknowledgement recovery did not clear, so no outbound push was
+/// submitted.
+final class PushDeferred extends PushCollectionResult {
+  const PushDeferred();
+}
+
+/// Every submitted row came back applied or already-present with a matching
+/// sibling ID and was acknowledged.
+final class PushFullyAcknowledged extends PushCollectionResult {
+  PushFullyAcknowledged(Set<SyncRowID> acknowledged)
+    : acknowledged = Set.unmodifiable(acknowledged);
+
+  final Set<SyncRowID> acknowledged;
+}
+
+/// One or more submitted rows were rejected, mismatched, malformed, or
+/// missing from the response. Those rows were not acknowledged and stay
+/// eligible for the next push.
+final class PushUnresolvedRows extends PushCollectionResult {
+  PushUnresolvedRows(Set<SyncRowID> unresolved)
+    : unresolved = Set.unmodifiable(unresolved);
+
+  final Set<SyncRowID> unresolved;
+}
+
 /// Assembles the sync collaborators into one owner.
 ///
 /// [create] is the only place that awaits I/O. It takes an already-built
@@ -913,8 +954,10 @@ final class SyncCoordinator extends ChangeNotifier {
   ///
   /// Holds [_lock] for [collection] and delegates to [_pushCollectionLocked],
   /// so a push never interleaves with that collection's pull loop or
-  /// acknowledgement recovery.
-  Future<void> pushCollection(
+  /// acknowledgement recovery. The returned [PushCollectionResult] reports
+  /// which path the push took; [_pullThenPush] awaits the push and discards
+  /// it.
+  Future<PushCollectionResult> pushCollection(
     SyncCollection collection, {
     String? writeProof,
   }) => _lock.withLock(
@@ -940,8 +983,11 @@ final class SyncCoordinator extends ChangeNotifier {
   /// every row whose response entry is applied/already-present with a
   /// sibling ID exactly matching the submitted one. Anything else —
   /// rejected, mismatched, malformed, or missing — leaves the row eligible
-  /// for the next push cycle.
-  Future<void> _pushCollectionLocked(
+  /// for the next push cycle. The return value reports which of those paths
+  /// the push took: [PushNoop] when no row was eligible, [PushDeferred] when
+  /// the repair did not clear, [PushFullyAcknowledged] when every submitted
+  /// row was acknowledged, and [PushUnresolvedRows] otherwise.
+  Future<PushCollectionResult> _pushCollectionLocked(
     SyncCollection collection, {
     String? writeProof,
   }) async {
@@ -964,7 +1010,7 @@ final class SyncCoordinator extends ChangeNotifier {
     if (pending != null) {
       await _recoverOneAcknowledgementLocked(backend, collection, pending);
       if (await metadataStore.pendingAcknowledgement(collection) != null) {
-        return;
+        return const PushDeferred();
       }
     }
 
@@ -985,7 +1031,7 @@ final class SyncCoordinator extends ChangeNotifier {
       }
     }
     if (candidates.isEmpty) {
-      return;
+      return const PushNoop();
     }
 
     final LedgerState liveState = ledger.state;
@@ -1021,10 +1067,19 @@ final class SyncCoordinator extends ChangeNotifier {
       case SyncFailure<PushResponse>(code: final code, message: final message):
         throw StateError('Push of $collection failed ($code): $message.');
     }
-    final Map<SyncRowID, PushRowOutcome> rowOutcomes = response.rowOutcomes;
+    final Map<SyncRowID, PushRowOutcome> rowOutcomes;
+    try {
+      rowOutcomes = response.rowOutcomes;
+    } on FormatException {
+      // A malformed response retires nothing: every submitted row stays
+      // eligible, exactly like a rejected or missing entry.
+      return PushUnresolvedRows(submitted.keys.toSet());
+    }
+    final Set<SyncRowID> unresolved = <SyncRowID>{};
     for (final MapEntry<SyncRowID, _SubmittedPush> entry in submitted.entries) {
       final PushRowOutcome? rowOutcome = rowOutcomes[entry.key];
       if (rowOutcome == null || rowOutcome.siblingID != entry.value.siblingID) {
+        unresolved.add(entry.key);
         continue;
       }
       switch (rowOutcome) {
@@ -1035,9 +1090,14 @@ final class SyncCoordinator extends ChangeNotifier {
             entry.value.vector,
           );
         case PushRejected():
+          unresolved.add(entry.key);
           break;
       }
     }
+    if (unresolved.isEmpty) {
+      return PushFullyAcknowledged(submitted.keys.toSet());
+    }
+    return PushUnresolvedRows(unresolved);
   }
 }
 
