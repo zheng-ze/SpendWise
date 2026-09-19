@@ -29,6 +29,26 @@ class PermanentSaveError implements Exception {
   String toString() => 'PermanentSaveError($reason)';
 }
 
+/// Raised by [DriftLedgerStore.flushNow] when the persistence barrier gives up
+/// instead of landing everything enqueued before the call: either a
+/// [PermanentSaveError] or retry exhaustion of a transient failure.
+///
+/// Carries the original [cause] and [stackTrace] from whichever failure caused
+/// the give-up, so callers can distinguish a corrupt row from a failing disk
+/// without re-running the save.
+final class PersistenceBarrierFailure implements Exception {
+  const PersistenceBarrierFailure(this.message, {this.cause, this.stackTrace});
+
+  final String message;
+
+  final Object? cause;
+
+  final StackTrace? stackTrace;
+
+  @override
+  String toString() => 'PersistenceBarrierFailure: $message';
+}
+
 class _RealTimer implements StoreTimer {
   _RealTimer(Duration delay, void Function() onFire)
     : _timer = Timer(delay, onFire);
@@ -138,6 +158,12 @@ class DriftLedgerStore implements LedgerStore {
 
   bool _lastCycleGaveUp = false;
 
+  // The failure that caused the last give-up, alongside [_lastCycleGaveUp],
+  // so flushNow can throw it instead of returning silently.
+  Object? _lastFailure;
+
+  StackTrace? _lastFailureStack;
+
   // Cleared only once the transaction carrying it has committed, so a rolled
   // back seed stays unseeded.
   bool _seedFlagPending = false;
@@ -198,7 +224,10 @@ class DriftLedgerStore implements LedgerStore {
     await flushNow();
   }
 
-  /// Everything enqueued before this call is on disk when it returns.
+  /// Everything enqueued before this call has landed when it returns.
+  ///
+  /// Throws [PersistenceBarrierFailure] when the save gives up with writes
+  /// still pending instead of returning silently with an unwritten queue.
   @override
   Future<void> flushNow() async {
     await start();
@@ -217,8 +246,17 @@ class DriftLedgerStore implements LedgerStore {
     while (_pending.isNotEmpty) {
       await _saveCycle();
       // The timed retry owns recovery from a failing disk. Without this exit
-      // the loop would spin against it and never return.
-      if (_lastCycleGaveUp) return;
+      // the loop would spin against it and never return. The give-up is
+      // reported by throwing, never by returning silently: a caller awaiting
+      // the barrier guarantee must not mistake an unwritten queue for a
+      // landed one.
+      if (_lastCycleGaveUp) {
+        throw PersistenceBarrierFailure(
+          'The persistence barrier gave up with writes still pending.',
+          cause: _lastFailure,
+          stackTrace: _lastFailureStack,
+        );
+      }
     }
   }
 
@@ -271,6 +309,8 @@ class DriftLedgerStore implements LedgerStore {
 
   Future<void> _runCycle() async {
     _lastCycleGaveUp = false;
+    _lastFailure = null;
+    _lastFailureStack = null;
     for (var attempt = 0; attempt <= _maxRetries; attempt++) {
       if (_pending.isEmpty && !_seedFlagPending) return;
 
@@ -289,19 +329,23 @@ class DriftLedgerStore implements LedgerStore {
           }
           if (seedingThisCycle) await _writeSeedFlag();
         });
-      } on PermanentSaveError {
+      } on PermanentSaveError catch (error, stackTrace) {
         // A corrupt version vector is permanent, so the row stays pending and
         // no timed retry is armed: this save cycle ends without recovery.
         _lastCycleGaveUp = true;
+        _lastFailure = error;
+        _lastFailureStack = stackTrace;
         _report(SaveBannerState.permanentlyFailed);
         return;
-      } on Object {
+      } on Object catch (error, stackTrace) {
         if (attempt < _maxRetries) {
           if (!_inTimedRetry) _report(SaveBannerState.retrying);
           await _wait(_retryBackoff);
           continue;
         }
         _lastCycleGaveUp = true;
+        _lastFailure = error;
+        _lastFailureStack = stackTrace;
         _report(SaveBannerState.failedWillRetry);
         _armTimedRetry();
         return;

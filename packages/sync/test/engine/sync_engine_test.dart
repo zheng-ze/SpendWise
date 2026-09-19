@@ -466,6 +466,118 @@ void main() {
     });
   });
 
+  group('winningInputIndex', () {
+    test('records the winner position in the original input sequence',
+        () async {
+      final obsolete = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-a',
+        version: VersionVector(<String, int>{'devA': 1}),
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertEntry(testEntry(id: 'row-a')),
+      );
+      final winner = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-a',
+        version: VersionVector(<String, int>{'devA': 2}),
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertEntry(testEntry(id: 'row-a')),
+      );
+      final solo = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-b',
+        version: VersionVector(<String, int>{'devB': 1}),
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertEntry(testEntry(id: 'row-b')),
+      );
+      final result = await engine().reconcile(<SyncEnvelope>[
+        obsolete,
+        winner,
+        solo,
+      ]);
+      expect(result.hasConflicts, isFalse);
+      expect(
+        result.winningInputIndex,
+        <SyncRowID, int>{
+          SyncRowID.of(SyncCollection.entries, 'row-a'): 1,
+          SyncRowID.of(SyncCollection.entries, 'row-b'): 2,
+        },
+      );
+    });
+
+    test('staged rows get no entry, conflict-free rows do', () async {
+      final conflictA = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-a',
+        version: VersionVector(<String, int>{'devA': 1}),
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertEntry(testEntry(id: 'row-a')),
+      );
+      final conflictB = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-a',
+        version: VersionVector(<String, int>{'devB': 1}),
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertEntry(testEntry(id: 'row-a')),
+      );
+      final free = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-b',
+        version: VersionVector(<String, int>{'devC': 1}),
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertEntry(testEntry(id: 'row-b')),
+      );
+      final result = await engine().reconcile(<SyncEnvelope>[
+        conflictA,
+        conflictB,
+        free,
+      ]);
+      expect(result.hasConflicts, isTrue);
+      expect(
+        result.winningInputIndex,
+        <SyncRowID, int>{
+          SyncRowID.of(SyncCollection.entries, 'row-b'): 2,
+        },
+      );
+    });
+
+    test(
+        'equal-vector same-content survivors collapse without conflict: '
+        'a fold-in tie can never reach the two-input path', () async {
+      // A row whose local vector equals the pulled vector is classified
+      // duplicate/dominated before fold-in's two-input reconcile path, and
+      // VersionVector.dominates is reflexive, so an exact match dominates
+      // itself. This proves the unreachability at the engine level: two
+      // same-content envelopes sharing one version vector collapse to a
+      // single conflict-free winner instead of staging a spurious conflict.
+      final vector = VersionVector(<String, int>{'dev': 3});
+      final first = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-1',
+        version: vector,
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertEntry(testEntry(id: 'row-1')),
+      );
+      final second = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-1',
+        version: vector,
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertEntry(testEntry(id: 'row-1')),
+      );
+      final result = await engine().reconcile(<SyncEnvelope>[first, second]);
+      expect(result.changes, hasLength(1));
+      expect(result.hasConflicts, isFalse);
+      expect(result.stagedConflicts, isEmpty);
+      expect(
+        result.winningInputIndex,
+        <SyncRowID, int>{
+          SyncRowID.of(SyncCollection.entries, 'row-1'): 0,
+        },
+      );
+    });
+  });
+
   group('identical UUIDs in different collections', () {
     test('keep distinct SyncRowIDs, stamps, and grouping', () async {
       final inEntries = await buildEnvelope(
@@ -600,6 +712,9 @@ void main() {
               VersionVector(<String, int>{'dev': 1}),
         },
         stagedConflicts: <StagedConflict>[],
+        winningInputIndex: <SyncRowID, int>{
+          SyncRowID.of(SyncCollection.entries, 'row-1'): 0,
+        },
       );
       final r2 = ReconcileResult(
         changes: <LedgerChange>[UpsertEntry(testEntry(id: 'row-1'))],
@@ -608,6 +723,9 @@ void main() {
               VersionVector(<String, int>{'dev': 1}),
         },
         stagedConflicts: <StagedConflict>[],
+        winningInputIndex: <SyncRowID, int>{
+          SyncRowID.of(SyncCollection.entries, 'row-1'): 0,
+        },
       );
       expect(r1, equals(r2));
       expect(r1.hashCode, r2.hashCode);
@@ -619,18 +737,27 @@ void main() {
         SyncRowID.of(SyncCollection.entries, 'row-1'):
             VersionVector(<String, int>{'dev': 1}),
       };
+      final winningInputIndex = <SyncRowID, int>{
+        SyncRowID.of(SyncCollection.entries, 'row-1'): 0,
+      };
       final result = ReconcileResult(
         changes: changes,
         stamps: stamps,
         stagedConflicts: <StagedConflict>[],
+        winningInputIndex: winningInputIndex,
       );
       changes.add(UpsertEntry(testEntry(id: 'row-2')));
       stamps[SyncRowID.of(SyncCollection.entries, 'row-1')] =
           VersionVector(<String, int>{'dev': 2});
+      winningInputIndex[SyncRowID.of(SyncCollection.entries, 'row-1')] = 7;
       expect(result.changes, hasLength(1));
       expect(
         result.stamps[SyncRowID.of(SyncCollection.entries, 'row-1')],
         VersionVector(<String, int>{'dev': 1}),
+      );
+      expect(
+        result.winningInputIndex[SyncRowID.of(SyncCollection.entries, 'row-1')],
+        0,
       );
     });
 
@@ -644,6 +771,10 @@ void main() {
               VersionVector(<String, int>{'dev': 1}),
         },
         stagedConflicts: <StagedConflict>[],
+        winningInputIndex: <SyncRowID, int>{
+          SyncRowID.of(SyncCollection.entries, 'row-1'): 0,
+          SyncRowID.of(SyncCollection.entries, 'row-2'): 1,
+        },
       );
       final r2 = ReconcileResult(
         changes: <LedgerChange>[UpsertEntry(testEntry(id: 'row-1'))],
@@ -654,6 +785,10 @@ void main() {
               VersionVector(<String, int>{'dev': 1}),
         },
         stagedConflicts: <StagedConflict>[],
+        winningInputIndex: <SyncRowID, int>{
+          SyncRowID.of(SyncCollection.entries, 'row-2'): 1,
+          SyncRowID.of(SyncCollection.entries, 'row-1'): 0,
+        },
       );
       expect(r1, equals(r2));
       expect(r1.hashCode, r2.hashCode);

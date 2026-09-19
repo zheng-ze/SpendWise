@@ -21,6 +21,7 @@ final class CachedCollectionVersionSource implements SyncVersionSource {
   ///
   /// Single-flight: a call arriving while one is in-flight joins the same
   /// future instead of starting a second read.
+  @override
   Future<void> refresh() {
     final inFlight = _inFlight;
     if (inFlight != null) return inFlight;

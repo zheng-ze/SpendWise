@@ -9,7 +9,9 @@ typedef SaveErrorHandler = void Function(SaveBannerState state);
 
 /// [enqueue] is fire-and-forget: an implementation may debounce and coalesce
 /// within its own window, so the only durability promise is [flushNow], which
-/// returns once everything enqueued before the call has landed.
+/// returns once everything enqueued before the call has landed, or throws
+/// [PersistenceBarrierFailure] when the save gives up with writes still
+/// pending instead of landing them.
 abstract class LedgerStore {
   Future<LedgerState> load();
 
@@ -30,6 +32,11 @@ abstract class LedgerStore {
     Map<SyncRowID, VersionVector> stamps,
   );
 
+  /// Everything enqueued before this call has landed when it returns.
+  ///
+  /// Throws [PersistenceBarrierFailure] when the save gives up with writes
+  /// still pending — a corrupt row or exhausted retries — instead of
+  /// returning silently with an unwritten queue.
   Future<void> flushNow();
 
   Future<void> setErrorHandler(SaveErrorHandler handler);

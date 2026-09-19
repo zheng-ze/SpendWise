@@ -123,7 +123,11 @@ class AppBoot extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> _teardown() async {
     final persistence = _persistence;
     if (persistence != null) {
-      await persistence.flush();
+      try {
+        await persistence.flush();
+      } catch (error, stackTrace) {
+        debugPrint('AppBoot teardown flush failed: $error\n$stackTrace');
+      }
       await persistence.dispose();
     }
     _ledger?.dispose();

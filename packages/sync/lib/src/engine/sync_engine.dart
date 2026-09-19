@@ -41,6 +41,7 @@ final class ReconcileResult {
     this.changes,
     this.stamps,
     this.stagedConflicts,
+    this.winningInputIndex,
   );
 
   /// Builds an immutable [ReconcileResult], copying every collection so a
@@ -50,16 +51,25 @@ final class ReconcileResult {
     required List<LedgerChange> changes,
     required Map<SyncRowID, VersionVector> stamps,
     required List<StagedConflict> stagedConflicts,
+    required Map<SyncRowID, int> winningInputIndex,
   }) =>
       ReconcileResult._(
         List.unmodifiable(changes),
         Map.unmodifiable(stamps),
         List.unmodifiable(stagedConflicts),
+        Map.unmodifiable(winningInputIndex),
       );
 
   final List<LedgerChange> changes;
   final Map<SyncRowID, VersionVector> stamps;
   final List<StagedConflict> stagedConflicts;
+
+  /// For each conflict-free row, the index of its winning envelope within the
+  /// `envelopes` iterable originally passed into [SyncEngine.reconcile]. Rows
+  /// that end up staged have no entry: only conflict-free rows have a single
+  /// winning input to record. The engine stays agnostic to who submitted
+  /// which envelope; only the position is recorded.
+  final Map<SyncRowID, int> winningInputIndex;
 
   bool get hasConflicts => stagedConflicts.isNotEmpty;
 
@@ -68,13 +78,15 @@ final class ReconcileResult {
       other is ReconcileResult &&
       _listEquals(other.changes, changes) &&
       _mapEquals(other.stamps, stamps) &&
-      _listEquals(other.stagedConflicts, stagedConflicts);
+      _listEquals(other.stagedConflicts, stagedConflicts) &&
+      _mapEquals(other.winningInputIndex, winningInputIndex);
 
   @override
   int get hashCode => Object.hash(
         _hashList(changes),
         _hashMap(stamps),
         _hashList(stagedConflicts),
+        _hashMap(winningInputIndex),
       );
 }
 
@@ -104,11 +116,15 @@ class SyncEngine {
   /// entity that does not belong to it.
   Future<ReconcileResult> reconcile(Iterable<SyncEnvelope> envelopes) async {
     final key = await _keyAccessor();
+    // Materialize once so each decoded row can carry its position in the
+    // original input sequence; that index is what `winningInputIndex` reports.
+    final inputs = envelopes.toList();
     final decoded = <_DecodedRow>[];
-    for (final envelope in envelopes) {
+    for (var index = 0; index < inputs.length; index += 1) {
+      final envelope = inputs[index];
       final rowID = SyncRowID.of(envelope.collection, envelope.rowID);
       final change = await _decodeRow(key, envelope);
-      decoded.add(_DecodedRow(rowID, change, envelope));
+      decoded.add(_DecodedRow(rowID, change, envelope, index));
     }
 
     final byRow = <SyncRowID, List<_DecodedRow>>{};
@@ -119,6 +135,7 @@ class SyncEngine {
     final changes = <LedgerChange>[];
     final stamps = <SyncRowID, VersionVector>{};
     final stagedConflicts = <StagedConflict>[];
+    final winningInputIndex = <SyncRowID, int>{};
 
     for (final entry in byRow.entries) {
       final rowID = entry.key;
@@ -134,6 +151,7 @@ class SyncEngine {
         final winner = frontier.single;
         changes.add(winner.change);
         stamps[rowID] = winner.envelope.versionVector;
+        winningInputIndex[rowID] = winner.inputIndex;
         continue;
       }
       final group = StagedConflict(
@@ -149,6 +167,7 @@ class SyncEngine {
       changes: changes,
       stamps: stamps,
       stagedConflicts: stagedConflicts,
+      winningInputIndex: winningInputIndex,
     );
   }
 
@@ -389,10 +408,14 @@ final class DecodedSibling {
 }
 
 class _DecodedRow {
-  const _DecodedRow(this.rowID, this.change, this.envelope);
+  const _DecodedRow(this.rowID, this.change, this.envelope, this.inputIndex);
   final SyncRowID rowID;
   final LedgerChange change;
   final SyncEnvelope envelope;
+
+  /// Position of the originating envelope within the `envelopes` iterable
+  /// passed into [SyncEngine.reconcile].
+  final int inputIndex;
 }
 
 bool _listEquals<T>(List<T> a, List<T> b) {

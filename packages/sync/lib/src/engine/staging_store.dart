@@ -96,12 +96,20 @@ final class StagedConflict {
 /// [stage] replaces the prior group for the same collection and row;
 /// [pendingConflicts] returns groups oldest first; [resolve] removes a group,
 /// acting as an idempotent no-op when it is absent.
+///
+/// [pendingConflictList] is the async durable read behind [pendingConflicts];
+/// [flush] settles writes enqueued through the synchronous engine-path
+/// overrides, so callers can await durability before acting on staged rows.
 abstract class SyncStagingStore {
   void stage(StagedConflict conflict);
 
   List<StagedConflict> get pendingConflicts;
 
   void resolve(StagedConflict conflict);
+
+  Future<List<StagedConflict>> pendingConflictList();
+
+  Future<void> flush();
 }
 
 /// In-memory [SyncStagingStore] used as a test fake inside packages/sync.
@@ -132,6 +140,15 @@ class InMemorySyncStagingStore implements SyncStagingStore {
           existing.rowID == conflict.rowID,
     );
   }
+
+  /// Delegates to the synchronous [pendingConflicts] getter: the in-memory
+  /// rows are written directly, so there is nothing async to reload.
+  @override
+  Future<List<StagedConflict>> pendingConflictList() async => pendingConflicts;
+
+  /// No-op: there is nothing async to settle in the in-memory fake.
+  @override
+  Future<void> flush() async {}
 }
 
 bool _siblingsEqual(List<DecodedSibling> a, List<DecodedSibling> b) {

@@ -119,6 +119,31 @@ void main() {
     });
   });
 
+  group('pendingConflictList', () {
+    test('mirrors the synchronous pendingConflicts view', () async {
+      final store = InMemorySyncStagingStore();
+      store.stage(makeConflict());
+      expect(await store.pendingConflictList(), store.pendingConflicts);
+    });
+
+    test('is empty when nothing is staged', () async {
+      expect(
+        await InMemorySyncStagingStore().pendingConflictList(),
+        isEmpty,
+      );
+    });
+  });
+
+  group('flush', () {
+    test('is a safe no-op', () async {
+      final store = InMemorySyncStagingStore();
+      store.stage(makeConflict());
+      await store.flush();
+      await store.flush();
+      expect(store.pendingConflicts, hasLength(1));
+    });
+  });
+
   group('resolve', () {
     test('removes the matching group', () {
       final store = InMemorySyncStagingStore();
