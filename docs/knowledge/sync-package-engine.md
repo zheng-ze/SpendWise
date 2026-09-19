@@ -1,6 +1,6 @@
 # Sync: package engine
 
-Last reconciled: f819017
+Last reconciled: 693eb53
 
 ## Layer overview
 
@@ -36,8 +36,8 @@ Source: `packages/sync/pubspec.yaml` - `dependencies`;
   codec.
 - `packages/sync/lib/src/protocol/envelope.dart` - Envelope metadata, authenticated associated
   data, and sibling identity.
-- `packages/sync/lib/src/protocol/requests.dart` - Request wire encoders and typed pull-page
-  response accessors.
+- `packages/sync/lib/src/protocol/requests.dart` - Request wire encoders and typed pull-page and
+  push-response accessors.
 - `packages/sync/lib/src/protocol/version_vector.dart` - Causal ordering and persistence and wire
   codecs for version vectors.
 - `packages/sync/pubspec.yaml` - Pure-Dart dependency boundary, including the pinned cryptography
@@ -102,6 +102,19 @@ orchestration and conflict-review UI remain outside `packages/sync`. Source:
   or malformed fields throw `FormatException`. Source:
   `packages/sync/lib/src/protocol/requests.dart` - `PullResponse`;
   `packages/sync/test/protocol/pull_response_test.dart` - group `PullResponse`.
+- `PushResponse.rowOutcomes` returns an unmodifiable `SyncRowID`-keyed map of the closed
+  `PushRowOutcome` set: `PushApplied`, `PushAlreadyPresent`, or `PushRejected`. Every variant
+  carries `siblingID`; applied and already-present outcomes also carry the resulting frontier.
+  Missing `rows` or any malformed entry throws `FormatException`, including a missing or invalid
+  status or sibling ID and a missing frontier where required. The push response schema is
+  provisional: no deployed backend or SQL migration fixes its wire keys or semantics, so lock the
+  backend RPC signature with its SQL migration before treating it as deployed. Source:
+  `packages/sync/lib/src/protocol/requests.dart` - `PushRowOutcome`, `PushApplied`,
+  `PushAlreadyPresent`, `PushRejected`, `PushResponse.rowOutcomes`;
+  `packages/sync/test/protocol/push_response_test.dart` - tests
+  `decodes applied, already_present and rejected rows keyed by SyncRowID`,
+  `missing status throws a typed error, never a raw cast error`, and
+  `missing sibling_id throws a typed error`.
 - `PayloadCodec.encodeChange` and `PayloadCodec.decodeChange` implement payload version 1 for
   every domain upsert variant. Deletes encode as empty payloads, while decoding an empty,
   malformed, or unsupported payload throws `PayloadDecodeError`. Source:
