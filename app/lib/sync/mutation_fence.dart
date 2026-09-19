@@ -21,7 +21,6 @@ import 'package:spendwise/ledger/event_bus.dart';
 /// a candidate set of rows is decided, [checkClean] immediately before the
 /// final commit decision, and [uninstall] when the attempt ends.
 final class MutationFence {
-  /// Takes the [EventBus] to observe via constructor injection.
   MutationFence(this._bus);
 
   final EventBus _bus;
@@ -40,7 +39,6 @@ final class MutationFence {
     });
   }
 
-  /// Returns the current epoch value, a cheap synchronous read.
   int snapshot() => _epoch;
 
   /// Returns true iff the epoch has not advanced since [snapshot] was taken,

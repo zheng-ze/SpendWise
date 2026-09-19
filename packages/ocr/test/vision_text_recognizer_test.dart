@@ -198,7 +198,7 @@ void main() {
               const MethodChannel('spendwise/vision_text_recognizer'),
               (MethodCall call) async {
                 // A successful reply carrying no list: the native side never
-                // produced one. Must throw, not coerce to an empty list.
+                // produced one.
                 return null;
               },
             );

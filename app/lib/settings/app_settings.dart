@@ -2,7 +2,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 const _scanStripEnabledKey = 'scanStripEnabled';
 
-/// Persisted app settings.
 class AppSettings {
   const AppSettings();
 

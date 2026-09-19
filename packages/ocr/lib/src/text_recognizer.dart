@@ -2,8 +2,8 @@ import 'recognizable_image.dart';
 import 'recognized_text.dart';
 import 'text_recognition_failure.dart';
 
-/// Recognizes text in an image. Implementations wrap a specific engine and
-/// map its result into [RecognizedText].
+/// Engine-swappable seam: implementations wrap a specific engine and map
+/// its result into [RecognizedText].
 abstract class TextRecognizer {
   /// Throws [TextRecognitionFailure] if the engine can't run. Never returns
   /// an empty result to signal failure, so "ran and found nothing" and

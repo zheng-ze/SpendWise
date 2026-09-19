@@ -85,8 +85,6 @@ final class SyncCoordinator extends ChangeNotifier {
     );
   }
 
-  /// Assembles a coordinator over already-constructed collaborators.
-  ///
   /// Throws [SyncCoordinatorWiringException] before any I/O when the ledger
   /// and the persistence processor do not share one event bus. The caller
   /// must also ensure the processor's store is backed by [database]; no
@@ -231,8 +229,7 @@ final class SyncCoordinator extends ChangeNotifier {
   /// before touching [_status] or notifying listeners.
   bool _disposed = false;
 
-  /// Single-flight scheduler with one coalesced trailing pass, bound to
-  /// [_runOnePass] and [_handleSchedulerStatus] in the constructors above.
+  /// Single-flight scheduler with one coalesced trailing pass.
   late final SyncRunScheduler _scheduler;
 
   /// Fire-and-forget trigger: starts a pass when idle, otherwise queues one
@@ -286,7 +283,6 @@ final class SyncCoordinator extends ChangeNotifier {
     }
   }
 
-  /// Pulls one page for [collection], then pushes its locally-newer rows.
   Future<void> _pullThenPush(SyncCollection collection) async {
     await processPullPage(collection);
     await pushCollection(collection);
@@ -1056,7 +1052,6 @@ final class _SubmittedPush {
   final String siblingID;
 }
 
-/// One validated pulled page: the accepted envelopes with the server's cursor.
 final class _PulledPage {
   const _PulledPage({required this.envelopes, required this.nextCursor});
 

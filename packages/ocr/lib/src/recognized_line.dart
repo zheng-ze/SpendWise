@@ -2,9 +2,8 @@ import 'package:meta/meta.dart';
 
 import 'recognized_line_bounds.dart';
 
-/// One line of recognized text. [bounds] and [confidence] are null, and
-/// [recognizedLanguages] is empty, when the engine that produced this line
-/// doesn't expose that data.
+/// [bounds] and [confidence] are null, and [recognizedLanguages] is empty,
+/// when the engine that produced this line doesn't expose that data.
 @immutable
 class RecognizedLine {
   RecognizedLine({

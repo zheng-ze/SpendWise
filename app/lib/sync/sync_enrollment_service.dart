@@ -137,7 +137,6 @@ final class SyncEnrollmentService {
     return SyncEnrollmentPhase.credentialAcquired;
   }
 
-  /// Returns true when [stored] restores to a credential for this device.
   Future<bool> _storedCredentialMatchesDevice(String stored) async {
     final DeviceCredential restored;
     try {
@@ -207,7 +206,6 @@ final class SyncEnrollmentService {
 
   static const _writeProofWireKey = 'write_proof';
 
-  /// Flips the write gate, then records the terminal phase.
   Future<SyncEnrollmentPhase> _stepReconciliationComplete() async {
     await metadataStore.setWriteEnabled(true);
     await metadataStore.setEnrollmentPhase(SyncEnrollmentPhase.gateEnabled);

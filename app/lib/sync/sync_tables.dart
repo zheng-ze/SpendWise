@@ -1,7 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:sync/sync.dart';
 
-/// Reads and writes a `collection` column as a typed [SyncCollection].
 class SyncCollectionConverter extends TypeConverter<SyncCollection, String> {
   const SyncCollectionConverter();
 
@@ -12,7 +11,6 @@ class SyncCollectionConverter extends TypeConverter<SyncCollection, String> {
   String toSql(SyncCollection value) => value.wireName;
 }
 
-/// Reads and writes a version-data column as a typed [VersionVector].
 class VersionVectorConverter extends TypeConverter<VersionVector, Uint8List> {
   const VersionVectorConverter();
 

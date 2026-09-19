@@ -21,7 +21,6 @@ Decimal applyOriginalSign({
   return originalAmount < Decimal.zero ? -magnitude : magnitude;
 }
 
-/// Returns [picked], or [current] if the picker returned null.
 RecurrenceFrequency applyPickerResult(
   RecurrenceFrequency current,
   RecurrenceFrequency? picked,

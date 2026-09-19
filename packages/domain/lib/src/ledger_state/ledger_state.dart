@@ -68,9 +68,8 @@ class LedgerState {
 
   final Map<String, Budget> _budgets;
 
-  /// An unmodifiable view, not the underlying table.
-  // Keeps a caller from bypassing the mutators' guards by writing through
-  // the returned map.
+  /// Unmodifiable, so a caller cannot bypass the mutators' guards by writing
+  /// through the returned map.
   Map<String, MoneySource> get moneySources =>
       UnmodifiableMapView(_moneySources);
 
