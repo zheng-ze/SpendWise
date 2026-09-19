@@ -32,6 +32,14 @@ SpendWise is a personal finance app built in Flutter.
 - A domain date is UTC midnight for its named calendar day. Normalize it with `startOfDayUtc`, never
   `.toUtc()`.
 
+## Comments
+
+- Write self-documenting code: name variables, functions, and types so the code explains itself
+  without narration.
+- Comment only what the code cannot say on its own — a non-obvious constraint, invariant, or the
+  reason behind a workaround. Skip a comment or docstring that just restates what the following
+  line or signature already shows.
+
 ## Checks
 
 Run `cd packages/domain && dart format . && dart analyze && dart test`, then run
