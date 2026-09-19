@@ -1,32 +1,19 @@
 import 'dart:async';
 
-/// Pure-Dart single-flight scheduler with exactly one coalesced trailing slot.
+/// Single-flight scheduler with one coalesced trailing pass.
 ///
-/// The scheduler owns no I/O, backend, persistence, or coordinator state: a
-/// pass is whatever the injected [runPass] callback does, and running-versus-
-/// idle transitions are reported through the injected [onStatusChanged]
-/// callback. A future sibling wires this into the sync coordinator; until
-/// then this class has no production caller.
-///
-/// Behavior:
-/// - [requestRun] is fire-and-forget. It starts a pass immediately when none
-///   is active, queues exactly one coalesced trailing pass when one is
-///   already active, and is a no-op when both slots are already full.
-/// - [runNow] starts a pass when none is active and resolves when that pass
-///   completes; while a pass is active it joins the same single trailing slot
-///   a [requestRun] would have queued, resolving only once that trailing pass
-///   completes rather than the already-active one. Overlapping [runNow] calls
-///   share one coalesced trailing pass.
-/// - [onStatusChanged] reports `true` while a pass (or a chained trailing
-///   pass) is running and `false` once the scheduler settles idle. It never
-///   reports idle between an active pass and its immediately-chained trailing
-///   pass.
-///
-/// A [runPass] failure is delivered to every pending [runNow] future and then
-/// settles the scheduler back to idle; no retry or failure policy lives here.
+/// [requestRun] starts a pass when idle, otherwise queues one trailing pass.
+/// [runNow] starts a pass when idle and resolves when it completes; while a
+/// pass is active it joins the same trailing slot, resolving when that
+/// trailing pass completes. Overlapping [runNow] calls share one trailing
+/// pass. [onStatusChanged] reports `true` while running and `false` once
+/// idle, with no idle report between a pass and its chained trailing pass.
+/// A [runPass] failure completes every pending [runNow] future with that
+/// error; no retry lives here.
 final class SyncRunScheduler {
-  // Private named parameters are not legal Dart, so initializing formals
-  // cannot be used for these private fields; the ignores below are exact.
+  // `this._runPass` cannot be used: the public parameter name differs from
+  // the private field name, so explicit assignment is required and the
+  // prefer_initializing_formals ignores below are exact.
   SyncRunScheduler({
     required Future<void> Function() runPass,
     required void Function(bool running) onStatusChanged,
@@ -42,10 +29,8 @@ final class SyncRunScheduler {
   final List<Completer<void>> _activeWaiters = <Completer<void>>[];
   final List<Completer<void>> _trailingWaiters = <Completer<void>>[];
 
-  /// Requests a pass without waiting for it.
-  ///
-  /// Starts a pass when idle; otherwise ensures one coalesced trailing pass
-  /// follows the active one. A no-op when a trailing pass is already queued.
+  /// Starts a pass immediately if idle, otherwise queues one coalesced
+  /// trailing pass; a no-op if a trailing pass is already queued.
   void requestRun() {
     if (_active) {
       _trailingQueued = true;
