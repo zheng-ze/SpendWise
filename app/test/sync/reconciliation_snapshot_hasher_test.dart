@@ -274,6 +274,28 @@ void main() {
     );
   });
 
+  test('a malformed page translates into the typed exception, never a raw FormatException', () async {
+    final malformed = ScriptedSnapshotBackend({
+      for (final collection in SyncCollection.values)
+        collection: [
+          PullResponse(<String, Object?>{
+            'envelopes': <Object?>['not-an-envelope'],
+            'cursor': 'cursor-0',
+            'end_of_snapshot': true,
+          }),
+        ],
+    });
+    final hasher = ReconciliationSnapshotHasher(
+      backend: malformed,
+      credential: testCredential(),
+    );
+
+    await expectLater(
+      hasher.hashAll(testContext()),
+      throwsA(isA<ReconciliationSnapshotException>()),
+    );
+  });
+
   test('attempts re-page from scratch without cached snapshot state', () async {
     SyncBackend scripted() => ScriptedSnapshotBackend({
       for (final collection in SyncCollection.values)

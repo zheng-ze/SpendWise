@@ -35,7 +35,8 @@ final class ReconciliationSnapshotHasher {
   /// Every page carries the same reconciliation ID, watermark, and expiry;
   /// only the nested snapshot-only continuation cursor advances. An empty
   /// collection hashes the canonical empty array, so its key is always
-  /// present. A pull failure throws [ReconciliationSnapshotException].
+  /// present. A pull failure or a malformed page (raw [FormatException] from
+  /// [PullResponse]) throws [ReconciliationSnapshotException].
   Future<String> hashCollection(
     ReconciliationContext context,
     SyncCollection collection,
@@ -67,9 +68,16 @@ final class ReconciliationSnapshotHasher {
             retryAfter: retryAfter,
           ),
       };
-      envelopes.addAll(page.envelopes);
-      if (page.endOfSnapshot) return computeSnapshotHash(envelopes);
-      continuation = page.cursor;
+      try {
+        envelopes.addAll(page.envelopes);
+        if (page.endOfSnapshot) return computeSnapshotHash(envelopes);
+        continuation = page.cursor;
+      } on FormatException catch (error) {
+        throw ReconciliationSnapshotException(
+          code: 'invalid_request',
+          message: error.message,
+        );
+      }
     }
   }
 
