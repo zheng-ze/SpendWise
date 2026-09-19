@@ -51,9 +51,16 @@ final class StaleOrInvalidProof<T> extends SyncFailure<T> {
 }
 
 final class SnapshotHashMismatch<T> extends SyncFailure<T> {
-  const SnapshotHashMismatch({super.message});
+  const SnapshotHashMismatch({super.message, this.mismatchedCollection});
   @override
   String get code => 'snapshot_hash_mismatch';
+
+  /// First differing collection in fixed order, when the backend named one.
+  ///
+  /// Stays null for failures that carry no (or an unrecognized)
+  /// `mismatched_collection`, and for generic uses outside reconciliation.
+  /// Reconciliation retry treats absence as an unrecoverable mismatch.
+  final SyncCollection? mismatchedCollection;
 }
 
 final class ProtocolUnsupported<T> extends SyncFailure<T> {
