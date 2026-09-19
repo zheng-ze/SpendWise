@@ -1,6 +1,6 @@
 # Sync: composition root
 
-Last reconciled: 001954c
+Last reconciled: 1022150
 
 ## Overview
 
@@ -20,7 +20,7 @@ and [persistence.md](persistence.md) for the assembled layers. Source:
   recovery, collaborators, and wiring validation.
 - `app/lib/sync/sync_status.dart` - the current idle-only coordinator status.
 - `app/lib/sync/cached_collection_version_source.dart` - async collection reads exposed through
-  the synchronous package version-source contract.
+  the package version-source contract.
 - `app/lib/sync/sync_e2e_key_provider.dart` - scoped E2E-key accessor and unavailable-key errors.
 - `app/lib/sync/sync_backend_resolver.dart` - backend selection and Supabase configuration
   validation.
@@ -49,9 +49,9 @@ is never persisted in `SyncMetadataSnapshot`. Source:
 `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.create`;
 `app/lib/sync/sync_metadata_store.dart` - `SyncMetadataSnapshot`.
 
-`CachedCollectionVersionSource` bridges bulk asynchronous reads to the synchronous
-`SyncVersionSource` used by the engine. A refresh reads every `SyncCollection`, publishes its new
-cache only after all reads succeed, and joins overlapping refresh calls. Source:
+`CachedCollectionVersionSource` bridges bulk asynchronous reads to the `SyncVersionSource` used
+by the engine. A refresh reads every `SyncCollection`, publishes its new cache only after all
+reads succeed, and joins overlapping refresh calls. Source:
 `app/lib/sync/cached_collection_version_source.dart` -
 `CachedCollectionVersionSource.refresh`, `CachedCollectionVersionSource.readRowVersion`;
 `packages/sync/lib/src/engine/version_source.dart` - `SyncVersionSource`.
@@ -88,24 +88,23 @@ cache only after all reads succeed, and joins overlapping refresh calls. Source:
   Source: `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.forTesting`,
   `SyncCoordinator.create`; `app/test/sync/sync_coordinator_test.dart` - group
   `processPullPage: duplicate/dominated pages (TS1)`.
-- `SyncCoordinator.processPullPage(collection)` pulls at that collection's current watermark and
-  reconciles the response through `SyncEngine.reconcile`. It refreshes a
-  `CachedCollectionVersionSource` before classifying conflict-free stamps. If every row is locally
-  equal or dominated, it calls `SyncMetadataStore.recordPulledPage` with an empty vectors map and
-  the response cursor as watermark and checkpoint, publishing nothing to `Ledger` and enqueueing
-  nothing to `PersistenceProcessor`. A page with a new row or staged conflict commits no page
-  metadata, although reconciliation's unconditional, idempotent conflict staging remains. Pull
-  failures throw `StateError`. Source: `app/lib/sync/sync_coordinator.dart` -
-  `SyncCoordinator.processPullPage`, `SyncCoordinator._isDuplicateOrDominated`;
-  `app/test/sync/sync_coordinator_test.dart` - groups
-  `processPullPage: duplicate/dominated pages (TS1)` and
-  `processPullPage: new and conflicting pages (TS2, TS3)`.
-- `SyncCoordinator.recoverPendingAcknowledgements()` replays every durable collection checkpoint
-  from `SyncMetadataStore.pendingAcknowledgements()` through `SyncBackend.acknowledge`. A
-  `SyncSuccess` clears only that collection's record. A `SyncFailure` remains durable, and does
-  not block acknowledgement attempts for other collections. Source:
-  `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.recoverPendingAcknowledgements`;
-  `app/test/sync/sync_coordinator_test.dart` - group `recoverPendingAcknowledgements (TS5)`.
+- `SyncCoordinator.processPullPage(collection)` serializes work per collection, pulls at that
+  collection's current watermark, and reconciles the page. It applies eligible remote changes
+  through `Ledger.applySyncBatch`; after persistence and durable readback verification, it records
+  their vectors, watermark, and acknowledgement checkpoint. Staged conflicts are durable before
+  page metadata advances. A local mutation race, persistence-barrier failure, or failed readback
+  leaves the page metadata unchanged. Pull failures throw `StateError`. Source:
+  `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.processPullPage`,
+  `_processPullPageLocked`, `_finalizeAndMaybeAcknowledge`; `app/lib/sync/collection_lock.dart` -
+  `CollectionLock`; `app/lib/sync/mutation_fence.dart` - `MutationFence`; `app/lib/ledger/ledger.dart`
+  - `Ledger.applySyncBatch`.
+- `SyncCoordinator.recoverPendingAcknowledgements()` dispatches each durable collection checkpoint
+  under that collection's lock. It skips acknowledgement while that collection has an unresolved
+  staged conflict; otherwise `SyncSuccess` clears only the matching collection/checkpoint record
+  and `SyncFailure` leaves it durable. A blocked or failed collection does not prevent attempts
+  for other collections. Source: `app/lib/sync/sync_coordinator.dart` -
+  `SyncCoordinator.recoverPendingAcknowledgements`, `_recoverOneAcknowledgement`;
+  `app/lib/sync/collection_lock.dart` - `CollectionLock`.
 - `SyncCoordinator.status` is `SyncIdle` after creation. No state transition exists in this slice.
   Source: `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.status`;
   `app/lib/sync/sync_status.dart` - `SyncIdle`.
@@ -117,12 +116,13 @@ cache only after all reads succeed, and joins overlapping refresh calls. Source:
 ## Gotchas
 
 - The version cache starts empty, so synchronous reads return null until a pull-page call refreshes
-  it. `processPullPage` refreshes only `CachedCollectionVersionSource`; a future
-  `SyncVersionSource` implementation that also needs refreshing requires explicit handling. A
-  failed refresh preserves the prior cache. Source:
+  it. `SyncVersionSource.refresh()` makes this refresh part of the source contract; the in-memory
+  test source implements it as a no-op. A failed cache refresh preserves the prior cache. Source:
   `app/lib/sync/cached_collection_version_source.dart` -
   `CachedCollectionVersionSource.refresh`, `CachedCollectionVersionSource.readRowVersion`;
-  `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.processPullPage`.
+  `packages/sync/lib/src/engine/version_source.dart` - `SyncVersionSource.refresh`,
+  `InMemorySyncVersionSource.refresh`; `app/lib/sync/sync_coordinator.dart` -
+  `SyncCoordinator.processPullPage`.
 - `processPullPage` and `recoverPendingAcknowledgements` are coordinator capabilities only.
   Neither has a production caller, so startup/lifecycle wiring remains explicit future scope.
   Source: `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.processPullPage`,
