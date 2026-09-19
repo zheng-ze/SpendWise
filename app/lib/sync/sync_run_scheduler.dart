@@ -82,7 +82,12 @@ final class SyncRunScheduler {
       try {
         await _runPass();
       } catch (error, stackTrace) {
+        final hadWaiters =
+            _activeWaiters.isNotEmpty || _trailingWaiters.isNotEmpty;
         _failPending(error, stackTrace);
+        if (!hadWaiters) {
+          Error.throwWithStackTrace(error, stackTrace);
+        }
         return;
       }
       _completePassWaiters();

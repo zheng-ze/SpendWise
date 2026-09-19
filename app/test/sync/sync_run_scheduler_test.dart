@@ -23,6 +23,11 @@ final class FakeRunPass {
     gate.complete();
   }
 
+  void failOldest(Object error, [StackTrace? stackTrace]) {
+    final gate = gates.removeAt(0);
+    gate.completeError(error, stackTrace);
+  }
+
   bool get hasPendingPass => gates.isNotEmpty;
 }
 
@@ -229,6 +234,56 @@ void main() {
       await second;
       expect(fake.calls, 2);
     });
+  });
+
+  group('SyncRunScheduler failure', () {
+    test(
+      'runNow future completes with the pass error and settles idle',
+      () async {
+        final fake = FakeRunPass();
+        final statuses = <bool>[];
+        final scheduler = schedulerWith(fake: fake, statuses: statuses);
+        final failure = StateError('pass failed');
+
+        final pending = scheduler.runNow();
+        await pumpScheduler();
+
+        fake.failOldest(failure);
+        await expectLater(pending, throwsA(same(failure)));
+        await pumpScheduler();
+
+        expect(statuses, <bool>[true, false]);
+      },
+    );
+
+    test(
+      'requestRun-only failure escapes to the zone and settles idle',
+      () async {
+        final fake = FakeRunPass();
+        final statuses = <bool>[];
+        final failure = StateError('pass failed');
+        final zoneErrors = <Object>[];
+
+        await runZonedGuarded(
+          () async {
+            final scheduler = schedulerWith(fake: fake, statuses: statuses);
+            scheduler.requestRun();
+            await pumpScheduler();
+
+            fake.failOldest(failure);
+            await pumpScheduler();
+            await pumpScheduler();
+          },
+          (Object error, StackTrace stackTrace) {
+            zoneErrors.add(error);
+          },
+        );
+        await pumpScheduler();
+
+        expect(zoneErrors, <Object>[failure]);
+        expect(statuses, <bool>[true, false]);
+      },
+    );
   });
 
   group('SyncRunScheduler status reporting', () {
