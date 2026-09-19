@@ -1358,7 +1358,6 @@ void main() {
           ], 'cursor-stage4-race'),
         },
       );
-      final staging = InMemorySyncStagingStore();
       // The drifting row reads concurrent through classification, capture,
       // and encode, then drifted at the Stage-4 check, on every attempt: the
       // exclusion races instead of committing the surviving sibling, and the
@@ -1384,11 +1383,18 @@ void main() {
           ),
         ],
       });
-      final coordinator = await pullCoordinator(
+      // Drift-backed with a started processor, so an applied batch would
+      // genuinely persist, verify, and advance metadata: the watermark and
+      // acknowledgement assertions below only hold because Stage 4 raced.
+      final setup = await driftSetup(
         backend: backend,
-        versionSource: versions,
-        staging: staging,
         e2eKey: key,
+        wrapVersions: (_) => versions,
+      );
+      final coordinator = setup.coordinator;
+      await seedDriftHolder(
+        'aaaaaaaa-0000-1111-2222-333333333333',
+        coordinator.persistenceProcessor,
       );
 
       final publications = await collectPublications(
@@ -1401,7 +1407,7 @@ void main() {
       expect(publications, isEmpty);
       expect(ledger.state.entries.containsKey(directID), isFalse);
       expect(ledger.state.entries.containsKey(driftID), isFalse);
-      expect(staging.pendingConflicts, isEmpty);
+      expect(setup.staging.pendingConflicts, isEmpty);
       final snapshot = await coordinator.metadataStore.snapshot();
       expect(snapshot.watermarks[SyncCollection.entries], isNull);
       expect(
