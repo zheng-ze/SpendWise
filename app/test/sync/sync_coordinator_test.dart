@@ -3144,6 +3144,29 @@ void main() {
       // the status it held at disposal time.
       expect(coordinator.status, const SyncRunning());
     });
+
+    test('requestSync is a no-op after dispose', () async {
+      final backend = _TimelineBackend(pages: _emptyPages('dispose-request'));
+      final setup = await pushSetup(backend: backend);
+      final coordinator = setup.coordinator;
+
+      coordinator.dispose();
+      coordinator.requestSync();
+      for (var i = 0; i < 20; i++) {
+        await Future<void>.delayed(Duration.zero);
+      }
+
+      expect(backend.events, isEmpty);
+    });
+
+    test('syncNow throws after dispose', () async {
+      final setup = await pushSetup();
+      final coordinator = setup.coordinator;
+
+      coordinator.dispose();
+
+      expect(coordinator.syncNow, throwsStateError);
+    });
   });
 }
 

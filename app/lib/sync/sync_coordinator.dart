@@ -236,12 +236,23 @@ final class SyncCoordinator extends ChangeNotifier {
   late final SyncRunScheduler _scheduler;
 
   /// Fire-and-forget trigger: starts a pass when idle, otherwise queues one
-  /// coalesced trailing pass.
-  void requestSync() => _scheduler.requestRun();
+  /// coalesced trailing pass. A no-op once [dispose] has run, so a disposed
+  /// coordinator cannot initiate further backend or durable-store work.
+  void requestSync() {
+    if (_disposed) return;
+    _scheduler.requestRun();
+  }
 
   /// Joins the active run and guarantees a trailing pass, resolving when the
-  /// joined pass finishes.
-  Future<void> syncNow() => _scheduler.runNow();
+  /// joined pass finishes. Throws [StateError] once [dispose] has run,
+  /// so a disposed coordinator cannot initiate further backend or
+  /// durable-store work.
+  Future<void> syncNow() {
+    if (_disposed) {
+      throw StateError('Cannot sync: this SyncCoordinator has been disposed.');
+    }
+    return _scheduler.runNow();
+  }
 
   @override
   void dispose() {
