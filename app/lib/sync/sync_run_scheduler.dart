@@ -11,15 +11,7 @@ import 'dart:async';
 /// A [runPass] failure completes every pending [runNow] future with that
 /// error; no retry lives here.
 final class SyncRunScheduler {
-  // `this._runPass` cannot be used: the public parameter name differs from
-  // the private field name, so explicit assignment is required and the
-  // prefer_initializing_formals ignores below are exact.
-  SyncRunScheduler({
-    required Future<void> Function() runPass,
-    required void Function(bool running) onStatusChanged,
-  }) : _runPass = runPass, // ignore: prefer_initializing_formals
-       _onStatusChanged = // ignore: prefer_initializing_formals
-           onStatusChanged;
+  SyncRunScheduler({required this._runPass, required this._onStatusChanged});
 
   final Future<void> Function() _runPass;
   final void Function(bool running) _onStatusChanged;
