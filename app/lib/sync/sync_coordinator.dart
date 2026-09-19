@@ -54,6 +54,7 @@ final class SyncCoordinator {
     required this.engine,
     required this.backend,
     required this.versionSource,
+    required this.versionReader,
     required this.metadataStore,
     required this.verifier,
     required this._credentialProvider,
@@ -112,6 +113,7 @@ final class SyncCoordinator {
       engine: engine,
       backend: backend,
       versionSource: versionSource,
+      versionReader: reader,
       metadataStore: metadataStore,
       verifier: PostFlushReadbackVerifier(reader),
       credentialProvider: credentialProvider,
@@ -133,6 +135,7 @@ final class SyncCoordinator {
     required this.engine,
     required this.backend,
     required this.versionSource,
+    required this.versionReader,
     required this.metadataStore,
     required this.verifier,
     required this._credentialProvider,
@@ -155,6 +158,12 @@ final class SyncCoordinator {
 
   /// Empty until the run slice calls [CachedCollectionVersionSource.refresh].
   final SyncVersionSource versionSource;
+
+  /// Bulk per-collection reader backing [versionSource] in production and
+  /// push-candidate selection in [pushCollection]. Held separately (not only
+  /// inside the cache) so the push path can bulk-read one collection's
+  /// current rows without widening the [SyncVersionSource] interface.
+  final CollectionVersionReader versionReader;
 
   final SyncMetadataStore metadataStore;
 
@@ -356,10 +365,7 @@ final class SyncCoordinator {
     final Map<SyncRowID, LedgerChange> remoteWinnerChange =
         <SyncRowID, LedgerChange>{};
     for (final LedgerChange change in remoteResult.changes) {
-      remoteWinnerChange[SyncRowID.of(
-            collectionFor(change),
-            change.targetID,
-          )] =
+      remoteWinnerChange[SyncRowID.of(collectionFor(change), change.targetID)] =
           change;
     }
     return _RemoteProvenance(
@@ -553,10 +559,9 @@ final class SyncCoordinator {
         foldInExcluded = true;
         continue;
       }
-      final List<SyncEnvelope> encoded = await engine.encode(
-        <LedgerChange>[local],
-        versionSource,
-      );
+      final List<SyncEnvelope> encoded = await engine.encode(<LedgerChange>[
+        local,
+      ], versionSource);
       if (encoded.length != 1) {
         foldInExcluded = true;
         continue;
@@ -756,6 +761,20 @@ final class SyncCoordinator {
     SyncBackend backend,
     SyncCollection collection,
     String checkpoint,
+  ) => _recoverOneAcknowledgementLocked(backend, collection, checkpoint);
+
+  /// Lock-free acknowledgement-recovery body shared by
+  /// [recoverPendingAcknowledgements] and [pushCollection].
+  ///
+  /// Never acquires [_lock] itself: the public recovery wraps each call in
+  /// [_lock.withLock], and [pushCollection] already holds the collection's
+  /// lock when it calls this inline. Calling the public
+  /// [recoverPendingAcknowledgements] from inside [pushCollection] would
+  /// re-enter [CollectionLock] and self-deadlock.
+  Future<void> _recoverOneAcknowledgementLocked(
+    SyncBackend backend,
+    SyncCollection collection,
+    String checkpoint,
   ) async {
     final List<StagedConflict> staged = await stagingStore
         .pendingConflictList();
@@ -781,6 +800,148 @@ final class SyncCoordinator {
         break;
     }
   }
+
+  /// Pushes [collection]'s locally-newer rows, serialized per collection.
+  ///
+  /// Holds [_lock] for [collection] and delegates to [_pushCollectionLocked],
+  /// so a push never interleaves with that collection's pull loop or
+  /// acknowledgement recovery.
+  Future<void> pushCollection(
+    SyncCollection collection, {
+    String? writeProof,
+  }) => _lock.withLock(
+    collection,
+    () => _pushCollectionLocked(collection, writeProof: writeProof),
+  );
+
+  /// Repairs, selects, encodes, submits, and commits one collection's push.
+  ///
+  /// Inside the collection's lock: (1) throws a [StateError] when the durable
+  /// write gate is closed, before any read or backend call; (2) repairs this
+  /// collection's pending acknowledgement inline and returns silently when
+  /// the repair does not clear it, submitting no outbound query; (3) lands
+  /// every debounced local edit through the persistence barrier, then
+  /// refreshes [versionSource], so the versions and content below observe
+  /// them; (4) bulk-reads the collection's current rows
+  /// via [versionReader] and keeps rows whose stored vector is not dominated
+  /// by the acknowledged vector (an absent acknowledgement is eligible);
+  /// (5) encodes the candidates and captures each submitted envelope's own
+  /// vector and sibling ID before any further await; (6) submits via
+  /// [SyncBackend.push], throwing a [StateError] on [SyncFailure] and
+  /// writing nothing; (7) on [SyncSuccess], commits the captured vector for
+  /// every row whose response entry is applied/already-present with a
+  /// sibling ID exactly matching the submitted one. Anything else —
+  /// rejected, mismatched, malformed, or missing — leaves the row eligible
+  /// for the next push cycle.
+  Future<void> _pushCollectionLocked(
+    SyncCollection collection, {
+    String? writeProof,
+  }) async {
+    final SyncMetadataSnapshot gate = await metadataStore.snapshot();
+    if (!gate.writeEnabled) {
+      throw StateError(
+        'Cannot push $collection while sync writes are disabled.',
+      );
+    }
+    final SyncBackend? backend = this.backend;
+    if (backend == null) {
+      throw StateError(
+        'Cannot push $collection before enrollment: no sync backend.',
+      );
+    }
+
+    final String? pending = await metadataStore.pendingAcknowledgement(
+      collection,
+    );
+    if (pending != null) {
+      await _recoverOneAcknowledgementLocked(backend, collection, pending);
+      if (await metadataStore.pendingAcknowledgement(collection) != null) {
+        return;
+      }
+    }
+
+    // The barrier lands every debounced local edit before the refresh, so
+    // the versions and content below observe them.
+    await persistenceProcessor.flush();
+    await versionSource.refresh();
+
+    final Map<SyncRowID, RowVersion> stored = await versionReader
+        .readRowVersions(collection);
+    final Map<SyncRowID, VersionVector> acknowledged = await metadataStore
+        .acknowledgedVectors();
+    final List<SyncRowID> candidates = <SyncRowID>[];
+    for (final MapEntry<SyncRowID, RowVersion> entry in stored.entries) {
+      final VersionVector? acked = acknowledged[entry.key];
+      if (acked == null || !acked.dominates(entry.value.versionVector)) {
+        candidates.add(entry.key);
+      }
+    }
+    if (candidates.isEmpty) {
+      return;
+    }
+
+    final LedgerState liveState = ledger.state;
+    final List<LedgerChange> changes = <LedgerChange>[
+      for (final SyncRowID row in candidates)
+        _currentLocalChange(liveState, row),
+    ];
+    final List<SyncEnvelope> envelopes = await engine.encode(
+      changes,
+      versionSource,
+    );
+    final Map<SyncRowID, _SubmittedPush> submitted = Map.unmodifiable(
+      <SyncRowID, _SubmittedPush>{
+        for (final SyncEnvelope envelope in envelopes)
+          SyncRowID.of(envelope.collection, envelope.rowID): _SubmittedPush(
+            vector: envelope.versionVector,
+            siblingID: envelope.siblingID,
+          ),
+      },
+    );
+
+    final SyncOutcome<PushResponse> outcome = await _credentialProvider
+        .withCredential(
+          (DeviceCredential credential) => backend.push(
+            credential,
+            PushRequest(envelopes: envelopes, writeProof: writeProof),
+          ),
+        );
+    final PushResponse response;
+    switch (outcome) {
+      case SyncSuccess<PushResponse>(value: final value):
+        response = value;
+      case SyncFailure<PushResponse>(code: final code, message: final message):
+        throw StateError('Push of $collection failed ($code): $message.');
+    }
+    final Map<SyncRowID, PushRowOutcome> rowOutcomes = response.rowOutcomes;
+    for (final MapEntry<SyncRowID, _SubmittedPush> entry in submitted.entries) {
+      final PushRowOutcome? rowOutcome = rowOutcomes[entry.key];
+      if (rowOutcome == null || rowOutcome.siblingID != entry.value.siblingID) {
+        continue;
+      }
+      switch (rowOutcome) {
+        case PushApplied():
+        case PushAlreadyPresent():
+          await metadataStore.setAcknowledgedVector(
+            entry.key,
+            entry.value.vector,
+          );
+        case PushRejected():
+          break;
+      }
+    }
+  }
+}
+
+/// One encode-time-captured push submission: the exact vector and sibling ID
+/// the coordinator submitted for a row, frozen strictly before the backend
+/// call so the commit reads neither the shared version cache (refreshable
+/// mid-flight) nor the response's own resulting frontier.
+final class _SubmittedPush {
+  const _SubmittedPush({required this.vector, required this.siblingID});
+
+  final VersionVector vector;
+  final String siblingID;
 }
 
 /// One validated pulled page: the accepted envelopes with the server's cursor.

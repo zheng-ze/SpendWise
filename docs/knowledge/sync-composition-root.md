@@ -1,15 +1,15 @@
 # Sync: composition root
 
-Last reconciled: 1022150
+Last reconciled: 693eb53
 
 ## Overview
 
 `SyncCoordinator.create` is the app-side composition root for already-constructed ledger and
 persistence collaborators. It opens the durable staging store, resolves the selected backend from
 persisted metadata and caller-provided configuration, and creates a `SyncEngine` with a scoped
-E2E-key accessor. It also owns single-page pull processing and pending-acknowledgement recovery.
-It has no production run, scheduling, trigger, or lifecycle wiring, and it never starts the
-persistence processor. See
+E2E-key accessor. It also owns single-page pull processing, pending-acknowledgement recovery, and
+per-collection push-candidate submission. It has no production run, scheduling, trigger, or
+lifecycle wiring, and it never starts the persistence processor. See
 [sync-durable-stores.md](sync-durable-stores.md), [sync-package-engine.md](sync-package-engine.md),
 and [persistence.md](persistence.md) for the assembled layers. Source:
 `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.create`, `SyncCoordinator.status`.
@@ -17,10 +17,14 @@ and [persistence.md](persistence.md) for the assembled layers. Source:
 ## Key locations
 
 - `app/lib/sync/sync_coordinator.dart` - composition root, pull-page processing, acknowledgement
-  recovery, collaborators, and wiring validation.
+  recovery, push-candidate selection and acknowledgement, collaborators, and wiring validation.
 - `app/lib/sync/sync_status.dart` - the current idle-only coordinator status.
 - `app/lib/sync/cached_collection_version_source.dart` - async collection reads exposed through
   the package version-source contract.
+- `app/lib/sync/collection_version_reader.dart` - bulk per-collection version reads for durable
+  readback and push-candidate selection.
+- `app/lib/sync/collection_lock.dart` - non-reentrant per-collection serialization shared by pull,
+  acknowledgement recovery, and push.
 - `app/lib/sync/sync_e2e_key_provider.dart` - scoped E2E-key accessor and unavailable-key errors.
 - `app/lib/sync/sync_backend_resolver.dart` - backend selection and Supabase configuration
   validation.
@@ -36,9 +40,10 @@ or starting either. Source: `app/lib/sync/sync_coordinator.dart` -
 `SyncCoordinator.create`, `SyncCoordinatorWiringException`.
 
 The coordinator gives `SyncEngine` only `SyncE2EKeyProvider.accessor`, not a `SecretStore` or a
-device credential. It retains `CredentialProvider` privately for pull and acknowledgement backend
-calls. Source: `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.create`,
-`SyncCoordinator.processPullPage`, `SyncCoordinator.recoverPendingAcknowledgements`.
+device credential. It retains `CredentialProvider` privately for pull, acknowledgement, and push
+backend calls. Source: `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.create`,
+`SyncCoordinator.processPullPage`, `SyncCoordinator.recoverPendingAcknowledgements`,
+`SyncCoordinator.pushCollection`.
 
 `SyncBackendResolver` maps the persisted selected backend to `CustomEndpointSyncBackend` or
 `SupabaseSyncBackend`, or returns null when no backend was selected. Custom endpoints and Supabase
@@ -75,6 +80,19 @@ reads succeed, and joins overlapping refresh calls. Source:
   configuration throws `SyncBackendConfigurationException` before adapter construction or network
   I/O. Source: `app/lib/sync/sync_backend_resolver.dart` - `SyncBackendResolver.resolve`,
   `_resolveCustom`, `_resolveSupabase`.
+- `SyncCoordinator.pushCollection` requires `SyncMetadataStore.writeEnabled` before version or
+  candidate reads and before any backend call. It selects a row only when its current
+  `CollectionVersionReader` vector is not
+  dominated by that row's acknowledged vector; a row without an acknowledgement is eligible.
+  Source: `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.pushCollection`,
+  `_pushCollectionLocked`; `app/lib/sync/sync_metadata_store.dart` -
+  `SyncMetadataSnapshot.writeEnabled`, `SyncMetadataStore.acknowledgedVectors`.
+- Push acknowledgement commits only an `applied` or `already_present` response whose `siblingID`
+  exactly matches the submitted sibling. The committed vector is captured from that envelope at
+  encode time, never re-read from the version cache after the response or taken from the response
+  frontier. Source: `app/lib/sync/sync_coordinator.dart` - `_pushCollectionLocked`,
+  `_SubmittedPush`; `app/test/sync/sync_coordinator_test.dart` - group
+  `pushCollection: response classification (TS3)`.
 
 ## Entry points and flows
 
@@ -105,6 +123,18 @@ reads succeed, and joins overlapping refresh calls. Source:
   for other collections. Source: `app/lib/sync/sync_coordinator.dart` -
   `SyncCoordinator.recoverPendingAcknowledgements`, `_recoverOneAcknowledgement`;
   `app/lib/sync/collection_lock.dart` - `CollectionLock`.
+- `SyncCoordinator.pushCollection(collection, {writeProof})` holds the collection lock, repairs a
+  pending acknowledgement inline, refreshes the encode cache, derives eligible candidates from
+  `versionReader` and `acknowledgedVectors`, then encodes and submits them. The inline
+  `_recoverOneAcknowledgementLocked` helper avoids re-entering `CollectionLock`, whose documented
+  same-collection re-entry self-deadlocks. An uncleared recovery defers the push without an
+  outbound query. Source: `app/lib/sync/sync_coordinator.dart` -
+  `SyncCoordinator.pushCollection`, `_pushCollectionLocked`,
+  `_recoverOneAcknowledgementLocked`; `app/lib/sync/collection_lock.dart` - `CollectionLock`;
+  `app/test/sync/sync_coordinator_test.dart` - groups
+  `pushCollection: candidate derivation (TS1)`,
+  `pushCollection: recovery-before-push ordering (TS2)`, and
+  `pushCollection: recovery-not-cleared deferral (TS8)`.
 - `SyncCoordinator.status` is `SyncIdle` after creation. No state transition exists in this slice.
   Source: `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.status`;
   `app/lib/sync/sync_status.dart` - `SyncIdle`.
@@ -123,12 +153,15 @@ reads succeed, and joins overlapping refresh calls. Source:
   `packages/sync/lib/src/engine/version_source.dart` - `SyncVersionSource.refresh`,
   `InMemorySyncVersionSource.refresh`; `app/lib/sync/sync_coordinator.dart` -
   `SyncCoordinator.processPullPage`.
-- `processPullPage` and `recoverPendingAcknowledgements` are coordinator capabilities only.
-  Neither has a production caller, so startup/lifecycle wiring remains explicit future scope.
-  Source: `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.processPullPage`,
-  `SyncCoordinator.recoverPendingAcknowledgements`; `app/test/sync/sync_coordinator_test.dart` -
-  groups `processPullPage: duplicate/dominated pages (TS1)` and
-  `recoverPendingAcknowledgements (TS5)`.
+- `processPullPage`, `recoverPendingAcknowledgements`, and `pushCollection` are coordinator
+  capabilities only. None has a production caller, so startup/lifecycle wiring remains explicit
+  future scope. `pushCollection` also provides no scheduling or coalescing and does not derive
+  pushes from conflicts. Source: `app/lib/sync/sync_coordinator.dart` -
+  `SyncCoordinator.processPullPage`, `SyncCoordinator.recoverPendingAcknowledgements`,
+  `SyncCoordinator.pushCollection`; `app/test/sync/sync_coordinator_test.dart` - groups
+  `processPullPage: duplicate/dominated pages (TS1)`,
+  `recoverPendingAcknowledgements (TS5)`, and
+  `pushCollection: candidate derivation (TS1)`.
 - `SyncIdle` is deliberately the only current status. It remains so because this slice has no
   run, scheduling, trigger, lifecycle, or persistence-start wiring. Source:
   `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.status`;
