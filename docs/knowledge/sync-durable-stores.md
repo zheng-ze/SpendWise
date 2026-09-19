@@ -1,6 +1,6 @@
 # Sync: durable app stores
 
-Last reconciled: ac01168
+Last reconciled: 1022150
 
 ## Layer overview
 
@@ -114,9 +114,13 @@ This layer has no routes or screens. Source: `app/lib/sync/sync_metadata_store.d
   collections independent. Source: `app/lib/sync/sync_metadata_store.dart` -
   `SyncMetadataStore.setAcknowledgedVector`.
 - `SyncMetadataStore.pendingAcknowledgement`, `pendingAcknowledgements`,
-  `setPendingAcknowledgement`, and `clearPendingAcknowledgement` keep one durable checkpoint
-  per collection, removed only after confirmed acknowledgement. Source:
-  `app/lib/sync/sync_metadata_store.dart` - `SyncMetadataStore.setPendingAcknowledgement`.
+  `setPendingAcknowledgement`, `clearPendingAcknowledgement`, and
+  `clearPendingAcknowledgementIfMatches` keep one durable checkpoint per collection. The
+  coordinator's conditional clearing preserves a newer checkpoint when an older acknowledgement
+  completes after it. Source: `app/lib/sync/sync_metadata_store.dart` -
+  `SyncMetadataStore.setPendingAcknowledgement`,
+  `SyncMetadataStore.clearPendingAcknowledgementIfMatches`;
+  `app/lib/sync/sync_coordinator.dart` - `_recoverOneAcknowledgement`.
 - `SyncMetadataStore.recordPulledPage` commits verified per-row vectors, the page watermark,
   and the pending acknowledgement atomically; an empty vector map still advances the watermark
   and acknowledgement for duplicate or dominated pages, and a cross-collection vector throws
