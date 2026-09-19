@@ -3103,6 +3103,47 @@ void main() {
 
       expect(setup.coordinator.dispose, returnsNormally);
     });
+
+    test('a pass settling after dispose does not notify listeners', () async {
+      final backend = _TimelineBackend(pages: _emptyPages('dispose-gated'));
+      final setup = await pushSetup(backend: backend);
+      final coordinator = setup.coordinator;
+
+      final gate = Completer<void>();
+      var pullCalls = 0;
+      backend.onPull = () {
+        pullCalls += 1;
+        if (pullCalls <= SyncCollection.values.length) return gate.future;
+        return Future<void>.value();
+      };
+
+      coordinator.requestSync();
+      expect(await _settled(() => pullCalls == 5), isTrue);
+      expect(coordinator.status, const SyncRunning());
+
+      coordinator.dispose();
+      gate.complete();
+      // Let the gated pass run to completion. Without the disposed guard,
+      // the scheduler's idle callback would call notifyListeners() on the
+      // disposed notifier and throw a FlutterError, which the test
+      // framework reports as an unhandled async error.
+      expect(
+        await _settled(
+          () =>
+              backend.events
+                  .where((event) => event.startsWith('pull-end:'))
+                  .length ==
+              5,
+        ),
+        isTrue,
+      );
+      for (var i = 0; i < 20; i++) {
+        await Future<void>.delayed(Duration.zero);
+      }
+      // The late idle report was dropped: the disposed coordinator keeps
+      // the status it held at disposal time.
+      expect(coordinator.status, const SyncRunning());
+    });
   });
 }
 

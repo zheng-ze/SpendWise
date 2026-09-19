@@ -226,6 +226,11 @@ final class SyncCoordinator extends ChangeNotifier {
 
   SyncStatus get status => _status;
 
+  /// True once [dispose] has run. A pass started before disposal may still
+  /// settle afterwards, so the scheduler's status callback checks this
+  /// before touching [_status] or notifying listeners.
+  bool _disposed = false;
+
   /// Single-flight scheduler with one coalesced trailing pass, bound to
   /// [_runOnePass] and [_handleSchedulerStatus] in the constructors above.
   late final SyncRunScheduler _scheduler;
@@ -242,6 +247,10 @@ final class SyncCoordinator extends ChangeNotifier {
   void dispose() {
     // The scheduler holds no releasable resources of its own (no timers,
     // subscriptions, or closables), so disposal is just the notifier itself.
+    // Mark disposal first: a pass in flight may still settle afterwards, and
+    // its status callback must no-op instead of notifying a disposed
+    // notifier.
+    _disposed = true;
     super.dispose();
   }
 
@@ -276,6 +285,10 @@ final class SyncCoordinator extends ChangeNotifier {
   /// change. The scheduler never reports idle between a pass and its chained
   /// trailing pass, so no intermediate idle notification escapes here.
   void _handleSchedulerStatus(bool running) {
+    // A pass started before dispose() may settle afterwards: drop the late
+    // report instead of touching a disposed notifier, whose notifyListeners
+    // would throw once disposed.
+    if (_disposed) return;
     _status = running ? const SyncRunning() : const SyncIdle();
     notifyListeners();
   }
