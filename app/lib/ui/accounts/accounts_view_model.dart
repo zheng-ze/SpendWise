@@ -91,7 +91,6 @@ abstract class AccountsViewModel {
   void openPocket(String id);
   void requestNewAccount();
 
-  /// Requests the edit sheet for the source or account with id [holderId].
   void requestSourceEdit(String holderId);
   void clearStep();
 }

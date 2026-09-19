@@ -83,8 +83,6 @@ void main() {
     expect(recognizer.disposed, isTrue);
   });
 
-  // Guards against a past compile failure in runReceiptScan that also broke
-  // every file importing this one.
   test('runs recognition on preCapturedBytes without requesting permission or using the picker', () async {
     ReceiptScanStop? stop;
     DateTime? capturedDate;

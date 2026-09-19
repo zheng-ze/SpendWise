@@ -17,8 +17,7 @@ abstract class CollectionVersionReader {
   Future<Map<SyncRowID, RowVersion>> readRowVersions(SyncCollection collection);
 }
 
-/// Drift-backed [CollectionVersionReader], sibling to the other app/lib/sync
-/// stores reading over [LedgerDatabase].
+/// Drift-backed [CollectionVersionReader].
 ///
 /// `moneySources` unions `Accounts`, `SubPockets`, and the money-sources
 /// orphan tombstones; every other collection unions its own content table

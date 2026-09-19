@@ -1,6 +1,6 @@
 import 'package:meta/meta.dart';
 
-/// Bounding box of a recognized line, in the source image's coordinate space.
+/// Bounding box in the source image's coordinate space.
 @immutable
 class RecognizedLineBounds {
   const RecognizedLineBounds({

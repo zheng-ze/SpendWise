@@ -244,7 +244,6 @@ const _categoryIcons = <String, IconData>{
   'more_horiz': Icons.more_horiz,
 };
 
-/// Every name the picker offers, in section order.
 List<String> get categoryIconNames => [
   for (final section in categoryIconSections.values) ...section,
 ];

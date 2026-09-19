@@ -3,8 +3,7 @@ import 'package:flutter/foundation.dart';
 /// Lifecycle status of sync coordination.
 ///
 /// Ships exactly two variants: [SyncIdle] when no sync run is in progress and
-/// [SyncRunning] while a pass is active. Future slices may add further
-/// variants (conflict review, blocked) to this still-sealed hierarchy.
+/// [SyncRunning] while a pass is active.
 @immutable
 sealed class SyncStatus {
   const SyncStatus();

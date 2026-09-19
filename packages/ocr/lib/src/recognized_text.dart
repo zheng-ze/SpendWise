@@ -2,8 +2,8 @@ import 'package:meta/meta.dart';
 
 import 'recognized_line.dart';
 
-/// The full result of one recognition call: a flat list of lines, in the
-/// order the engine returned them.
+/// The result of one recognition call, with lines in the order the engine
+/// returned them.
 @immutable
 class RecognizedText {
   RecognizedText(List<RecognizedLine> lines) : lines = List.unmodifiable(lines);

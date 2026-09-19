@@ -350,8 +350,6 @@ final class SyncMetadataStore {
       };
 }
 
-// A SyncCollection's watermark column: a row getter paired with a companion
-// builder, one switch case per collection.
 final class _WatermarkColumn {
   const _WatermarkColumn({
     required this.readCursor,
