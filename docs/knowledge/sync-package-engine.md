@@ -1,6 +1,6 @@
 # Sync: package engine
 
-Last reconciled: 001954c
+Last reconciled: f819017
 
 ## Layer overview
 
@@ -83,8 +83,10 @@ orchestration and conflict-review UI remain outside `packages/sync`. Source:
 ## APIs
 
 - `SyncEngine.reconcile(envelopes)` returns an immutable `ReconcileResult` containing
-  conflict-free `changes`, their exact `stamps`, and `stagedConflicts`. Authentication failures
-  throw `SyncPayloadDecryptionError`. Authenticated payload-shape or identity mismatches throw
+  conflict-free `changes`, their exact `stamps`, `stagedConflicts`, and `winningInputIndex`.
+  `winningInputIndex` maps each conflict-free `SyncRowID` to its winning envelope's index in the
+  original input iterable; staged rows have no entry. Authentication failures throw
+  `SyncPayloadDecryptionError`. Authenticated payload-shape or identity mismatches throw
   `SyncPayloadIdentityError`. Authentic bytes that the payload codec cannot read throw
   `PayloadDecodeError`. Source: `packages/sync/lib/src/engine/sync_engine.dart` -
   `SyncEngine.reconcile`, `ReconcileResult`, `SyncPayloadIdentityError`;
@@ -115,12 +117,15 @@ orchestration and conflict-review UI remain outside `packages/sync`. Source:
   `packages/sync/test/engine/sync_engine_test.dart` - group
   `identical UUIDs in different collections`.
 - `SyncVersionSource.readRowVersion(rowID)` is the engine's synchronous, single-row seam for
-  reading exact stored versions. `InMemorySyncVersionSource` is the package test implementation.
-  Source: `packages/sync/lib/src/engine/version_source.dart` - `SyncVersionSource`,
+  reading exact stored versions. `refresh()` asynchronously reloads the versions backing that
+  read. `InMemorySyncVersionSource` is the package test implementation and its `refresh()` is a
+  no-op. Source: `packages/sync/lib/src/engine/version_source.dart` - `SyncVersionSource`,
   `InMemorySyncVersionSource`.
 - `SyncStagingStore.stage`, `pendingConflicts`, and `resolve` define conflict persistence behavior.
   Staging replaces the group for the same collection and row, pending groups retain oldest-first
-  order, and resolving an absent group is an idempotent no-op. Source:
+  order, and resolving an absent group is an idempotent no-op. `pendingConflictList()` is the
+  asynchronous durable read behind `pendingConflicts`; `flush()` settles writes enqueued through
+  the synchronous engine-path overrides. Source:
   `packages/sync/lib/src/engine/staging_store.dart` - `SyncStagingStore`,
   `InMemorySyncStagingStore`; `packages/sync/test/engine/staging_store_test.dart` - groups `stage`,
   `pendingConflicts`, and `resolve`.
@@ -191,11 +196,12 @@ orchestration and conflict-review UI remain outside `packages/sync`. Source:
   production caller must inject a durable `SyncStagingStore`. Source:
   `packages/sync/lib/src/engine/sync_engine.dart` - `SyncEngine` constructor;
   `packages/sync/lib/src/engine/staging_store.dart` - `InMemorySyncStagingStore`.
-- The package's `SyncVersionSource` is the synchronous, single-row seam used by `encode()`.
-  It is separate from app-layer `CollectionVersionReader`, which asynchronously reads one whole
-  collection for durable readback and push-candidate selection. Neither type implements or
-  replaces the other. Source: `packages/sync/lib/src/engine/version_source.dart` -
-  `SyncVersionSource.readRowVersion`; `app/lib/sync/collection_version_reader.dart` -
+- The package's `SyncVersionSource` exposes synchronous single-row reads for `encode()` and an
+  asynchronous `refresh()` for its backing versions. It is separate from app-layer
+  `CollectionVersionReader`, which asynchronously reads one whole collection for durable readback
+  and push-candidate selection. Neither type implements or replaces the other. Source:
+  `packages/sync/lib/src/engine/version_source.dart` - `SyncVersionSource.readRowVersion`,
+  `SyncVersionSource.refresh`; `app/lib/sync/collection_version_reader.dart` -
   `CollectionVersionReader.readRowVersions`.
 - `PullResponse` is the first repository definition of the pull-page response schema, but it is
   provisional. No deployed backend or SQL migration fixes its keys or semantics yet; lock the
