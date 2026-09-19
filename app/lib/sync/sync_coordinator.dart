@@ -1,5 +1,5 @@
 import 'package:domain/domain.dart';
-import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter/foundation.dart' show ChangeNotifier, visibleForTesting;
 import 'package:http/http.dart' as http;
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/persistence/device_identity.dart';
@@ -20,6 +20,7 @@ import 'package:spendwise/sync/secret_store.dart';
 import 'package:spendwise/sync/sync_backend_resolver.dart';
 import 'package:spendwise/sync/sync_e2e_key_provider.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
+import 'package:spendwise/sync/sync_run_scheduler.dart';
 import 'package:spendwise/sync/sync_status.dart';
 import 'package:sync/sync.dart';
 
@@ -35,6 +36,14 @@ final class SyncCoordinatorWiringException implements Exception {
       'processor must share one event bus; their bus instances differ.';
 }
 
+/// Reports a sync pass that failed with a [StateError].
+///
+/// The pass composition catches only [StateError] (the type the pull, push,
+/// and acknowledgement-recovery paths throw on documented failures) and
+/// reports it here instead of rethrowing, so a [syncNow] caller joined to the
+/// pass still resolves normally. Any other exception propagates uncaught.
+typedef PassFailureHandler = void Function(Object error);
+
 /// Assembles the sync collaborators into one owner.
 ///
 /// [create] is the only place that awaits I/O. It takes an already-built
@@ -45,11 +54,18 @@ final class SyncCoordinatorWiringException implements Exception {
 /// never passed to the engine; there is deliberately no getter reaching it,
 /// the [SecretStore], or any [DeviceCredential] from outside.
 ///
-/// This slice owns assembly only: no run, scheduling, or trigger logic.
+/// This slice owns assembly and scheduling: [requestSync] and [syncNow]
+/// trigger passes through the internal scheduler, and each pass runs
+/// acknowledgement recovery followed by every collection's pull-then-push.
 /// Population of the version cache ([CachedCollectionVersionSource.refresh]),
 /// backend calls, and [PersistenceProcessor.start] all belong to later
-/// slices, so [status] stays [SyncIdle].
-final class SyncCoordinator {
+/// slices, so [status] stays [SyncIdle] until a trigger runs.
+///
+/// Scheduling runs through an internal [SyncRunScheduler]: [requestSync]
+/// fire-and-forget triggers a pass (coalescing while one is active), and
+/// [syncNow] joins the active run, guaranteeing a trailing pass. [status]
+/// reports [SyncRunning] while a pass is active and [SyncIdle] otherwise.
+final class SyncCoordinator extends ChangeNotifier {
   SyncCoordinator._({
     required this.engine,
     required this.backend,
@@ -61,7 +77,13 @@ final class SyncCoordinator {
     required this.ledger,
     required this.persistenceProcessor,
     required this.stagingStore,
-  }) : _status = const SyncIdle();
+    this.onPassFailure,
+  }) : _status = const SyncIdle() {
+    _scheduler = SyncRunScheduler(
+      runPass: _runOnePass,
+      onStatusChanged: _handleSchedulerStatus,
+    );
+  }
 
   /// Assembles a coordinator over already-constructed collaborators.
   ///
@@ -76,6 +98,7 @@ final class SyncCoordinator {
     SupabaseConfig? supabaseConfig,
     http.Client? httpClient,
     SecretStore? secretStore,
+    PassFailureHandler? onPassFailure,
   }) async {
     if (!identical(ledger.bus, persistenceProcessor.bus)) {
       throw const SyncCoordinatorWiringException();
@@ -120,6 +143,7 @@ final class SyncCoordinator {
       ledger: ledger,
       persistenceProcessor: persistenceProcessor,
       stagingStore: staging,
+      onPassFailure: onPassFailure,
     );
   }
 
@@ -142,7 +166,13 @@ final class SyncCoordinator {
     required this.ledger,
     required this.persistenceProcessor,
     required this.stagingStore,
-  }) : _status = const SyncIdle();
+    this.onPassFailure,
+  }) : _status = const SyncIdle() {
+    _scheduler = SyncRunScheduler(
+      runPass: _runOnePass,
+      onStatusChanged: _handleSchedulerStatus,
+    );
+  }
 
   /// Bounds the fold-in retry loop in [_processPullPageLocked]. A fence
   /// invalidation or a Stage-4 race detection retries the whole attempt with
@@ -183,14 +213,96 @@ final class SyncCoordinator {
   /// once on every exit path as an unavoidable choke point.
   final SyncStagingStore stagingStore;
 
+  /// Reported when a pass fails with a [StateError]. Null (the default)
+  /// drops the report; the pass still settles back to idle either way.
+  final PassFailureHandler? onPassFailure;
+
   /// Serializes concurrent pull and acknowledgement work per collection.
   /// Different collections still run fully concurrently. The lock never
   /// poisons: a throwing body propagates to its caller only.
   final CollectionLock _lock = CollectionLock();
 
-  final SyncStatus _status;
+  SyncStatus _status;
 
   SyncStatus get status => _status;
+
+  /// True once [dispose] has run. A pass started before disposal may still
+  /// settle afterwards, so the scheduler's status callback checks this
+  /// before touching [_status] or notifying listeners.
+  bool _disposed = false;
+
+  /// Single-flight scheduler with one coalesced trailing pass, bound to
+  /// [_runOnePass] and [_handleSchedulerStatus] in the constructors above.
+  late final SyncRunScheduler _scheduler;
+
+  /// Fire-and-forget trigger: starts a pass when idle, otherwise queues one
+  /// coalesced trailing pass. A no-op once [dispose] has run, so a disposed
+  /// coordinator cannot initiate further backend or durable-store work.
+  void requestSync() {
+    if (_disposed) return;
+    _scheduler.requestRun();
+  }
+
+  /// Joins the active run and guarantees a trailing pass, resolving when the
+  /// joined pass finishes. Throws [StateError] once [dispose] has run,
+  /// so a disposed coordinator cannot initiate further backend or
+  /// durable-store work.
+  Future<void> syncNow() {
+    if (_disposed) {
+      throw StateError('Cannot sync: this SyncCoordinator has been disposed.');
+    }
+    return _scheduler.runNow();
+  }
+
+  @override
+  void dispose() {
+    // The scheduler holds no releasable resources of its own (no timers,
+    // subscriptions, or closables), so disposal is just the notifier itself.
+    // Mark disposal first: a pass in flight may still settle afterwards, and
+    // its status callback must no-op instead of notifying a disposed
+    // notifier.
+    _disposed = true;
+    super.dispose();
+  }
+
+  /// Runs one sync pass: acknowledgement recovery once, then every
+  /// collection's pull-then-push concurrently.
+  ///
+  /// Catches only [StateError] (the type the recovery, pull, and push paths
+  /// throw on documented failures) and reports it via [onPassFailure]. Any
+  /// other exception propagates to the scheduler, which rethrows it to the
+  /// zone when no [syncNow] caller is waiting or delivers it to the waiting
+  /// caller.
+  Future<void> _runOnePass() async {
+    try {
+      await recoverPendingAcknowledgements();
+      final passes = <Future<void>>[
+        for (final collection in SyncCollection.values)
+          _pullThenPush(collection),
+      ];
+      await Future.wait(passes);
+    } on StateError catch (error) {
+      onPassFailure?.call(error);
+    }
+  }
+
+  /// Pulls one page for [collection], then pushes its locally-newer rows.
+  Future<void> _pullThenPush(SyncCollection collection) async {
+    await processPullPage(collection);
+    await pushCollection(collection);
+  }
+
+  /// Mirrors the scheduler's running flag onto [status], notifying on every
+  /// change. The scheduler never reports idle between a pass and its chained
+  /// trailing pass, so no intermediate idle notification escapes here.
+  void _handleSchedulerStatus(bool running) {
+    // A pass started before dispose() may settle afterwards: drop the late
+    // report instead of touching a disposed notifier, whose notifyListeners
+    // would throw once disposed.
+    if (_disposed) return;
+    _status = running ? const SyncRunning() : const SyncIdle();
+    notifyListeners();
+  }
 
   /// Whether a pulled row version is already covered locally.
   ///

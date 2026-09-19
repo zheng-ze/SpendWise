@@ -1,14 +1,17 @@
 # Sync: run scheduler
 
-Last reconciled: 0b47300
+Last reconciled: 7f56144
 
 ## Overview
 
 `SyncRunScheduler` is a pure-Dart, callback-driven scheduling utility. It owns no I/O, backend,
 persistence, coordinator, or status state beyond whether a pass is running. Callers supply the
-pass through `runPass` and receive running-state transitions through `onStatusChanged`. It has no
-production caller yet; a future integration will connect it to `SyncCoordinator` (#167). Source:
-`app/lib/sync/sync_run_scheduler.dart` - `SyncRunScheduler`.
+pass through `runPass` and receive running-state transitions through `onStatusChanged`.
+`SyncCoordinator` wires it to its sync-pass composition and coordinator status; see
+[sync-composition-root.md](sync-composition-root.md#scheduler-integration). Source:
+`app/lib/sync/sync_run_scheduler.dart` - `SyncRunScheduler`;
+`app/lib/sync/sync_coordinator.dart` - `SyncCoordinator._scheduler`,
+`SyncCoordinator._runOnePass`, `SyncCoordinator._handleSchedulerStatus`.
 
 ## Key locations
 

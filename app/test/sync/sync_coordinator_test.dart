@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -238,6 +239,7 @@ void main() {
     required Uint8List e2eKey,
     CollectionVersionReader? reader,
     CollectionVersionReader? versionReader,
+    PassFailureHandler? onPassFailure,
   }) async {
     final id = await deviceID(db);
     await secrets.write(
@@ -265,6 +267,7 @@ void main() {
       ledger: ledger,
       persistenceProcessor: processor,
       stagingStore: staging,
+      onPassFailure: onPassFailure,
     );
   }
 
@@ -426,6 +429,7 @@ void main() {
   Future<_PushSetup> pushSetup({
     _FakeSyncBackend? backend,
     bool enableWrites = true,
+    PassFailureHandler? onPassFailure,
   }) async {
     final effective = backend ?? _FakeSyncBackend();
     final reader = InMemoryCollectionVersionReader();
@@ -437,6 +441,7 @@ void main() {
       staging: staging,
       e2eKey: _freshKey(),
       versionReader: reader,
+      onPassFailure: onPassFailure,
     );
     if (enableWrites) {
       await coordinator.metadataStore.setEnrollmentPhase(
@@ -2352,9 +2357,8 @@ void main() {
       // barrier landed that same edit: without the push-time flush the
       // envelope would still carry the pre-edit vector here.
       await coordinator.persistenceProcessor.flush();
-      final durable = await DriftCollectionVersionReader(
-        db,
-      ).readRowVersions(SyncCollection.entries);
+      final durable = await DriftCollectionVersionReader(db)
+          .readRowVersions(SyncCollection.entries);
       final row = SyncRowID.of(SyncCollection.entries, rowID);
       expect(envelope.versionVector, durable[row]!.versionVector);
       expect(
@@ -2742,6 +2746,428 @@ void main() {
       expect(setup.backend.pushes[1].writeProof, 'proof-1');
     });
   });
+
+  group('scheduling integration: status transitions (TS2)', () {
+    test('idle at construction, running during a pass, idle after', () async {
+      final backend = _TimelineBackend(pages: _emptyPages('ts2-idle'));
+      final setup = await pushSetup(backend: backend);
+      final coordinator = setup.coordinator;
+      final observed = <SyncStatus>[];
+      coordinator.addListener(() => observed.add(coordinator.status));
+
+      expect(coordinator.status, const SyncIdle());
+
+      final gate = Completer<void>();
+      var pullCalls = 0;
+      backend.onPull = () {
+        pullCalls += 1;
+        if (pullCalls <= SyncCollection.values.length) return gate.future;
+        return Future<void>.value();
+      };
+
+      coordinator.requestSync();
+      expect(await _settled(() => pullCalls == 5), isTrue);
+      expect(coordinator.status, const SyncRunning());
+      expect(observed, [const SyncRunning()]);
+
+      gate.complete();
+      expect(
+        await _settled(() => coordinator.status == const SyncIdle()),
+        isTrue,
+      );
+      expect(observed, [const SyncRunning(), const SyncIdle()]);
+      expect(backend.pulls, hasLength(5));
+    });
+
+    test(
+      'a trailing pass chains with no intermediate idle notification',
+      () async {
+        final backend = _TimelineBackend(pages: _emptyPages('ts2-chain'));
+        final setup = await pushSetup(backend: backend);
+        final coordinator = setup.coordinator;
+        final observed = <SyncStatus>[];
+        coordinator.addListener(() => observed.add(coordinator.status));
+
+        final gate = Completer<void>();
+        var pullCalls = 0;
+        backend.onPull = () {
+          pullCalls += 1;
+          if (pullCalls <= SyncCollection.values.length) return gate.future;
+          return Future<void>.value();
+        };
+
+        coordinator.requestSync();
+        expect(await _settled(() => pullCalls == 5), isTrue);
+        expect(observed, [const SyncRunning()]);
+
+        // Queued while the first pass is in flight: still running, no new
+        // notification for the chained handoff itself.
+        coordinator.requestSync();
+        for (var i = 0; i < 5; i++) {
+          await Future<void>.delayed(Duration.zero);
+        }
+        expect(observed, [const SyncRunning()]);
+
+        gate.complete();
+        expect(
+          await _settled(() => coordinator.status == const SyncIdle()),
+          isTrue,
+        );
+        // Exactly one running and one idle notification: the chained trailing
+        // pass never surfaced an intermediate idle.
+        expect(observed, [const SyncRunning(), const SyncIdle()]);
+        expect(backend.pulls, hasLength(10));
+      },
+    );
+  });
+
+  group('scheduling integration: run composition (TS3)', () {
+    test('recovery runs once before any pull or push; every collection pulls '
+        'exactly once, then pushes exactly once after its own pull', () async {
+      final backend = _TimelineBackend(pages: _emptyPages('ts3'));
+      final seenFailures = <Object>[];
+      final setup = await pushSetup(
+        backend: backend,
+        onPassFailure: seenFailures.add,
+      );
+      backend.onPush = _appliedPush;
+      for (final collection in SyncCollection.values) {
+        final row = SyncRowID.of(collection, _ts3RowID(collection));
+        final version = RowVersion(
+          versionVector: VersionVector(<String, int>{'dev': 1}),
+          lifecycle: SiblingLifecycle.live,
+        );
+        setup.reader.upsert(row, version);
+        setup.versions.upsert(row, version);
+      }
+      await setup.coordinator.metadataStore.setPendingAcknowledgement(
+        SyncCollection.entries,
+        'cursor-seeded',
+      );
+
+      await setup.coordinator.syncNow();
+
+      expect(seenFailures, isEmpty);
+      // The seeded recovery acknowledgement ran before any pull or push.
+      expect(backend.events.first, 'ack:entries');
+      // Every collection pulled exactly once.
+      expect(backend.pulls, hasLength(5));
+      expect(
+        backend.pulls.map((request) => request.collection).toSet(),
+        SyncCollection.values.toSet(),
+      );
+      // Every collection pushed exactly once.
+      expect(backend.pushes, hasLength(5));
+      expect(
+        backend.pushes
+            .map((request) => request.envelopes.single.collection)
+            .toSet(),
+        SyncCollection.values.toSet(),
+      );
+      // Within a collection, the pull finished before that push started.
+      for (final collection in SyncCollection.values) {
+        final pullEnd = backend.events.indexOf('pull-end:${collection.name}');
+        final push = backend.events.indexOf('push:${collection.name}');
+        expect(pullEnd, isNot(-1), reason: collection.name);
+        expect(push, isNot(-1), reason: collection.name);
+        expect(pullEnd, lessThan(push), reason: collection.name);
+      }
+    });
+  });
+
+  group('scheduling integration: failure handling (TS4)', () {
+    test('a StateError reports via onPassFailure exactly once and settles '
+        'idle', () async {
+      final backend = _FakeSyncBackend(
+        failure: const NetworkUnavailable<PullResponse>(message: 'down'),
+      );
+      final failures = <Object>[];
+      final setup = await pushSetup(
+        backend: backend,
+        onPassFailure: failures.add,
+      );
+      final coordinator = setup.coordinator;
+      final observed = <SyncStatus>[];
+      coordinator.addListener(() => observed.add(coordinator.status));
+
+      coordinator.requestSync();
+      expect(
+        await _settled(
+          () => coordinator.status == const SyncIdle() && failures.isNotEmpty,
+        ),
+        isTrue,
+      );
+
+      expect(failures, hasLength(1));
+      expect(failures.single, isA<StateError>());
+      expect(observed, [const SyncRunning(), const SyncIdle()]);
+    });
+
+    test(
+      'a syncNow joined to a StateError-failing pass resolves normally',
+      () async {
+        final backend = _FakeSyncBackend(
+          failure: const NetworkUnavailable<PullResponse>(message: 'down'),
+        );
+        final failures = <Object>[];
+        final setup = await pushSetup(
+          backend: backend,
+          onPassFailure: failures.add,
+        );
+
+        await setup.coordinator.syncNow();
+
+        expect(failures, hasLength(1));
+        expect(failures.single, isA<StateError>());
+        expect(setup.coordinator.status, const SyncIdle());
+      },
+    );
+
+    test('a non-StateError from a requestSync-only pass escapes to the zone '
+        'without invoking onPassFailure', () async {
+      final backend = _TimelineBackend(pages: _emptyPages('ts4-zone'));
+      final failures = <Object>[];
+      final setup = await pushSetup(
+        backend: backend,
+        onPassFailure: failures.add,
+      );
+      backend.onPush = (request) async => throw FormatException('boom');
+      await setup.seedRow(
+        'aaaaaaaa-1111-2222-3333-444444444444',
+        VersionVector(<String, int>{'dev': 1}),
+      );
+      final zoneErrors = <Object>[];
+
+      await runZonedGuarded(() async {
+        setup.coordinator.requestSync();
+        expect(await _settled(() => backend.pushes.isNotEmpty), isTrue);
+        expect(
+          await _settled(() => setup.coordinator.status == const SyncIdle()),
+          isTrue,
+        );
+        for (var i = 0; i < 10; i++) {
+          await Future<void>.delayed(Duration.zero);
+        }
+      }, (Object error, StackTrace stackTrace) => zoneErrors.add(error));
+
+      expect(zoneErrors, hasLength(1));
+      expect(zoneErrors.single, isA<FormatException>());
+      expect(failures, isEmpty);
+      expect(setup.coordinator.status, const SyncIdle());
+    });
+
+    test('a non-StateError from a syncNow-joined pass rethrows to the caller '
+        'without invoking onPassFailure', () async {
+      final backend = _TimelineBackend(pages: _emptyPages('ts4-rethrow'));
+      final failures = <Object>[];
+      final setup = await pushSetup(
+        backend: backend,
+        onPassFailure: failures.add,
+      );
+      backend.onPush = (request) async => throw FormatException('boom');
+      await setup.seedRow(
+        'bbbbbbbb-1111-2222-3333-444444444444',
+        VersionVector(<String, int>{'dev': 1}),
+      );
+
+      await expectLater(
+        setup.coordinator.syncNow(),
+        throwsA(isA<FormatException>()),
+      );
+
+      expect(failures, isEmpty);
+      expect(setup.coordinator.status, const SyncIdle());
+    });
+
+    test(
+      'a trigger after a failure starts and completes a fresh pass',
+      () async {
+        final backend = _FakeSyncBackend(
+          failure: const NetworkUnavailable<PullResponse>(message: 'down'),
+        );
+        final failures = <Object>[];
+        final setup = await pushSetup(
+          backend: backend,
+          onPassFailure: failures.add,
+        );
+        final coordinator = setup.coordinator;
+
+        coordinator.requestSync();
+        expect(
+          await _settled(
+            () => coordinator.status == const SyncIdle() && failures.isNotEmpty,
+          ),
+          isTrue,
+        );
+        expect(failures, hasLength(1));
+
+        backend.failure = null;
+        backend.pages.addAll(_emptyPages('ts4-retry'));
+        coordinator.requestSync();
+        expect(await _settled(() => backend.pulls.length == 10), isTrue);
+        expect(
+          await _settled(() => coordinator.status == const SyncIdle()),
+          isTrue,
+        );
+
+        expect(failures, hasLength(1));
+      },
+    );
+  });
+
+  group('scheduling integration: scheduler delegation (TS6)', () {
+    test('rapid requestSync calls during an in-flight pass collapse to at '
+        'most one trailing pass', () async {
+      final backend = _TimelineBackend(pages: _emptyPages('ts6-collapse'));
+      final setup = await pushSetup(backend: backend);
+      final coordinator = setup.coordinator;
+      final observed = <SyncStatus>[];
+      coordinator.addListener(() => observed.add(coordinator.status));
+
+      final gate = Completer<void>();
+      var pullCalls = 0;
+      backend.onPull = () {
+        pullCalls += 1;
+        if (pullCalls <= SyncCollection.values.length) return gate.future;
+        return Future<void>.value();
+      };
+
+      coordinator.requestSync();
+      expect(await _settled(() => pullCalls == 5), isTrue);
+      coordinator.requestSync();
+      coordinator.requestSync();
+      coordinator.requestSync();
+
+      gate.complete();
+      expect(
+        await _settled(() => coordinator.status == const SyncIdle()),
+        isTrue,
+      );
+
+      // One active pass plus exactly one coalesced trailing pass.
+      expect(backend.pulls, hasLength(10));
+      expect(observed, [const SyncRunning(), const SyncIdle()]);
+    });
+
+    test('syncNow during an in-flight pass resolves only after the trailing '
+        'pass completes', () async {
+      final backend = _TimelineBackend(pages: _emptyPages('ts6-join'));
+      final setup = await pushSetup(backend: backend);
+      final coordinator = setup.coordinator;
+
+      final firstGate = Completer<void>();
+      final trailingGate = Completer<void>();
+      var pullCalls = 0;
+      backend.onPull = () {
+        pullCalls += 1;
+        if (pullCalls <= SyncCollection.values.length) {
+          return firstGate.future;
+        }
+        if (pullCalls <= 2 * SyncCollection.values.length) {
+          return trailingGate.future;
+        }
+        return Future<void>.value();
+      };
+
+      coordinator.requestSync();
+      expect(await _settled(() => pullCalls == 5), isTrue);
+
+      var resolved = false;
+      final pending = coordinator.syncNow();
+      unawaited(
+        pending.then((_) {
+          resolved = true;
+        }),
+      );
+      for (var i = 0; i < 5; i++) {
+        await Future<void>.delayed(Duration.zero);
+      }
+
+      // The first pass drains while the joined call still waits: the trailing
+      // pass has started but not finished.
+      firstGate.complete();
+      expect(await _settled(() => pullCalls == 10), isTrue);
+      expect(resolved, isFalse);
+
+      trailingGate.complete();
+      await pending;
+      expect(resolved, isTrue);
+      expect(backend.pulls, hasLength(10));
+      expect(coordinator.status, const SyncIdle());
+    });
+  });
+
+  group('scheduling integration: dispose', () {
+    test('dispose when idle completes without error', () async {
+      final setup = await pushSetup();
+
+      expect(setup.coordinator.dispose, returnsNormally);
+    });
+
+    test('a pass settling after dispose does not notify listeners', () async {
+      final backend = _TimelineBackend(pages: _emptyPages('dispose-gated'));
+      final setup = await pushSetup(backend: backend);
+      final coordinator = setup.coordinator;
+
+      final gate = Completer<void>();
+      var pullCalls = 0;
+      backend.onPull = () {
+        pullCalls += 1;
+        if (pullCalls <= SyncCollection.values.length) return gate.future;
+        return Future<void>.value();
+      };
+
+      coordinator.requestSync();
+      expect(await _settled(() => pullCalls == 5), isTrue);
+      expect(coordinator.status, const SyncRunning());
+
+      coordinator.dispose();
+      gate.complete();
+      // Let the gated pass run to completion. Without the disposed guard,
+      // the scheduler's idle callback would call notifyListeners() on the
+      // disposed notifier and throw a FlutterError, which the test
+      // framework reports as an unhandled async error.
+      expect(
+        await _settled(
+          () =>
+              backend.events
+                  .where((event) => event.startsWith('pull-end:'))
+                  .length ==
+              5,
+        ),
+        isTrue,
+      );
+      for (var i = 0; i < 20; i++) {
+        await Future<void>.delayed(Duration.zero);
+      }
+      // The late idle report was dropped: the disposed coordinator keeps
+      // the status it held at disposal time.
+      expect(coordinator.status, const SyncRunning());
+    });
+
+    test('requestSync is a no-op after dispose', () async {
+      final backend = _TimelineBackend(pages: _emptyPages('dispose-request'));
+      final setup = await pushSetup(backend: backend);
+      final coordinator = setup.coordinator;
+
+      coordinator.dispose();
+      coordinator.requestSync();
+      for (var i = 0; i < 20; i++) {
+        await Future<void>.delayed(Duration.zero);
+      }
+
+      expect(backend.events, isEmpty);
+    });
+
+    test('syncNow throws after dispose', () async {
+      final setup = await pushSetup();
+      final coordinator = setup.coordinator;
+
+      coordinator.dispose();
+
+      expect(coordinator.syncNow, throwsStateError);
+    });
+  });
 }
 
 /// Builds a push wire response marking every submitted envelope with
@@ -3070,4 +3496,83 @@ final class _ArmedTimer implements StoreTimer {
 
   @override
   void cancel() => owner._armed.remove(this);
+}
+
+/// Polls [done] across event-loop turns until it holds, returning whether it
+/// held within the bound. Scheduling tests use this instead of fixed pumps so
+/// a pass reaching its gate does not depend on exact microtask counts.
+Future<bool> _settled(bool Function() done) async {
+  for (var i = 0; i < 200 && !done(); i++) {
+    await Future<void>.delayed(Duration.zero);
+  }
+  return done();
+}
+
+/// Hand-written fake backend with a shared event timeline and gateable pulls.
+///
+/// Every pull logs `pull-start:<collection>` on entry and
+/// `pull-end:<collection>` once its page is served; every push logs
+/// `push:<collection>`; every acknowledge logs `ack:<collection>`. [onPull]
+/// runs at the top of each pull so a test can block a pass on a [Completer]
+/// gate. All backend behavior otherwise delegates to [_FakeSyncBackend].
+final class _TimelineBackend extends _FakeSyncBackend {
+  _TimelineBackend({super.pages});
+
+  final List<String> events = [];
+
+  Future<void> Function()? onPull;
+
+  @override
+  Future<SyncOutcome<PullResponse>> pull(
+    SyncCredential credential,
+    PullRequest request,
+  ) async {
+    events.add('pull-start:${request.collection.name}');
+    final hook = onPull;
+    if (hook != null) await hook();
+    final outcome = await super.pull(credential, request);
+    events.add('pull-end:${request.collection.name}');
+    return outcome;
+  }
+
+  @override
+  Future<SyncOutcome<PushResponse>> push(
+    SyncCredential credential,
+    PushRequest request,
+  ) async {
+    final names = request.envelopes.map((envelope) => envelope.collection.name);
+    events.add('push:${names.join('+')}');
+    return super.push(credential, request);
+  }
+
+  @override
+  Future<SyncOutcome<AcknowledgeResponse>> acknowledge(
+    SyncCredential credential,
+    AcknowledgeRequest request,
+  ) async {
+    events.add('ack:${request.collection.name}');
+    return super.acknowledge(credential, request);
+  }
+}
+
+/// One empty pull page per collection, each with a distinct cursor.
+Map<SyncCollection, PullResponse> _emptyPages(String prefix) => {
+  for (final collection in SyncCollection.values)
+    collection: _pullPage(const <SyncEnvelope>[], '$prefix-${collection.name}'),
+};
+
+/// One distinct seeded row ID per collection for the composition test.
+String _ts3RowID(SyncCollection collection) {
+  switch (collection) {
+    case SyncCollection.moneySources:
+      return '10000000-0000-1111-2222-333333333333';
+    case SyncCollection.entries:
+      return '20000000-0000-1111-2222-333333333333';
+    case SyncCollection.categories:
+      return '30000000-0000-1111-2222-333333333333';
+    case SyncCollection.plans:
+      return '40000000-0000-1111-2222-333333333333';
+    case SyncCollection.budgets:
+      return '50000000-0000-1111-2222-333333333333';
+  }
 }
