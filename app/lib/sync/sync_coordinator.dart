@@ -229,6 +229,73 @@ final class SyncCoordinator {
   /// [stagingStore.flush] always completes strictly before
   /// [SyncMetadataStore.recordPulledPage] begins.
   Future<void> _processPullPageLocked(SyncCollection collection) async {
+    final _PulledPage page = await _pullAndValidatePage(collection);
+
+    try {
+      // Remote-only reconciliation, run once per page. Stages remote-vs-remote
+      // conflicts as an unconditional side effect; a mid-decode throw can
+      // leave an earlier row's conflict staged, which the outer finally below
+      // still guarantees durable.
+      final ReconcileResult remoteResult = await engine.reconcile(
+        page.envelopes,
+      );
+      final _RemoteProvenance provenance = _indexRemoteProvenance(
+        page.envelopes,
+        remoteResult,
+      );
+
+      var applied = false;
+      var everyAttemptWasEmptyAttemptRows = false;
+
+      for (var attempt = 1; attempt <= _maxFoldInAttempts; attempt += 1) {
+        final _AttemptOutcome outcome = await _runFoldInAttempt(
+          collection: collection,
+          nextCursor: page.nextCursor,
+          remoteResult: remoteResult,
+          remoteWinner: provenance.remoteWinner,
+          remoteWinnerChange: provenance.remoteWinnerChange,
+        );
+        if (outcome is _AttemptRetry) {
+          continue;
+        }
+        if (outcome is _AttemptEmpty) {
+          everyAttemptWasEmptyAttemptRows = true;
+          break;
+        }
+        applied = true;
+        return;
+      }
+
+      if (!applied) {
+        if (everyAttemptWasEmptyAttemptRows) {
+          await _finalizeAndMaybeAcknowledge(
+            collection,
+            stamps: const <SyncRowID, VersionVector>{},
+            watermark: page.nextCursor,
+            checkpoint: page.nextCursor,
+          );
+        }
+        // Else the retry budget is exhausted: pure defer, return silently
+        // without advancing anything; the next pull cycle retries fresh.
+      }
+    } on PersistenceBarrierFailure {
+      // A persistence-layer failure is not a transient race: hard-stop the
+      // whole page. Staging still settles through the choke point below.
+      return;
+    } finally {
+      // Single unavoidable choke point: covers the initial reconcile() call
+      // itself and every abort, defer, and failure exit after it.
+      await stagingStore.flush();
+    }
+  }
+
+  /// Pulls one page for [collection] at the current watermark and validates it.
+  ///
+  /// Reads the stored watermark, pulls through [_credentialProvider], throws a
+  /// [StateError] when no backend is enrolled or the pull fails, and rejects a
+  /// page carrying an envelope for any other collection. Returns the accepted
+  /// envelopes with the server's cursor for the page.
+  Future<_PulledPage> _pullAndValidatePage(SyncCollection collection) async {
     final SyncBackend? backend = this.backend;
     if (backend == null) {
       throw StateError(
@@ -260,210 +327,268 @@ final class SyncCoordinator {
         );
       }
     }
-    final String nextCursor = response.cursor;
+    return _PulledPage(envelopes: envelopes, nextCursor: response.cursor);
+  }
 
-    try {
-      // Remote-only reconciliation, run once per page. Stages remote-vs-remote
-      // conflicts as an unconditional side effect; a mid-decode throw can
-      // leave an earlier row's conflict staged, which the outer finally below
-      // still guarantees durable.
-      final ReconcileResult remoteResult = await engine.reconcile(envelopes);
-      // The pulled winner envelope per conflict-free row, located by the
-      // index-based provenance: the coordinator passed the pulled envelopes
-      // in order, so the winning input index addresses this list directly.
-      final Map<SyncRowID, SyncEnvelope> remoteWinner =
-          <SyncRowID, SyncEnvelope>{};
-      for (final MapEntry<SyncRowID, int> entry
-          in remoteResult.winningInputIndex.entries) {
-        final int index = entry.value;
-        if (index < 0 || index >= envelopes.length) continue;
-        remoteWinner[entry.key] = envelopes[index];
-      }
-      // The winner change per conflict-free row, for the commit decision to
-      // apply without re-decoding.
-      final Map<SyncRowID, LedgerChange> remoteWinnerChange =
-          <SyncRowID, LedgerChange>{};
-      for (final LedgerChange change in remoteResult.changes) {
-        remoteWinnerChange[SyncRowID.of(
-              collectionFor(change),
-              change.targetID,
-            )] =
-            change;
-      }
-
-      var applied = false;
-      var everyAttemptWasEmptyAttemptRows = false;
-
-      for (var attempt = 1; attempt <= _maxFoldInAttempts; attempt += 1) {
-        final MutationFence fence = MutationFence(ledger.bus)..install();
-        // The finally below uninstalls exactly once on every path after
-        // install: break, continue, return, or a throw from refresh, the
-        // barrier flush, encode, reconcile, apply, verification, or metadata.
-        // No path inside uninstalls explicitly, so a retained listener is
-        // impossible and a double uninstall cannot happen.
-        try {
-          final int epoch = fence.snapshot();
-
-          await versionSource.refresh();
-          // Classification is redone fresh every iteration, so a direct-apply
-          // row that gains a version mid-attempt is automatically reclassified
-          // (usually into fold-in) on the next pass.
-          final Set<SyncRowID> directApplyCandidates = <SyncRowID>{};
-          final Set<SyncRowID> foldInCandidates = <SyncRowID>{};
-          for (final MapEntry<SyncRowID, VersionVector> entry
-              in remoteResult.stamps.entries) {
-            final SyncRowID row = entry.key;
-            final RowVersion? stored = versionSource.readRowVersion(row);
-            if (_isDuplicateOrDominated(stored, entry.value)) continue;
-            if (stored == null) {
-              directApplyCandidates.add(row);
-            } else {
-              foldInCandidates.add(row);
-            }
-          }
-          final Set<SyncRowID> attemptRows = <SyncRowID>{
-            ...directApplyCandidates,
-            ...foldInCandidates,
-          };
-          if (attemptRows.isEmpty) {
-            everyAttemptWasEmptyAttemptRows = true;
-            break;
-          }
-
-          // The barrier lands every debounced local edit before the second
-          // refresh, so the versions and content below observe them.
-          await persistenceProcessor.flush();
-          await versionSource.refresh();
-          if (!fence.checkClean(epoch)) {
-            continue;
-          }
-
-          final Map<SyncRowID, RowVersion?> refreshedVersions =
-              <SyncRowID, RowVersion?>{};
-          for (final SyncRowID row in attemptRows) {
-            refreshedVersions[row] = versionSource.readRowVersion(row);
-          }
-          final LedgerState liveState = ledger.state;
-          final Map<SyncRowID, LedgerChange> refreshedContent =
-              <SyncRowID, LedgerChange>{};
-          for (final SyncRowID row in attemptRows) {
-            refreshedContent[row] = _currentLocalChange(liveState, row);
-          }
-
-          // A defensive fold-in skip (a missing winner envelope, missing
-          // local content, an off-contract encode result, or a winner without
-          // a stamp) races the whole attempt, like a Stage-4 exclusion: every
-          // fold-in candidate provably carries all of these, so an absence is
-          // a breach, never a row to skip past.
-          var foldInExcluded = false;
-          final Map<SyncRowID, VersionVector> remoteEligible =
-              <SyncRowID, VersionVector>{};
-          for (final SyncRowID row in foldInCandidates) {
-            final SyncEnvelope? remote = remoteWinner[row];
-            final LedgerChange? local = refreshedContent[row];
-            if (remote == null || local == null) {
-              foldInExcluded = true;
-              continue;
-            }
-            final List<SyncEnvelope> encoded = await engine.encode(
-              <LedgerChange>[local],
-              versionSource,
-            );
-            if (encoded.length != 1) {
-              foldInExcluded = true;
-              continue;
-            }
-            final ReconcileResult foldInResult = await engine.reconcile(
-              <SyncEnvelope>[remote, encoded[0]],
-            );
-            final int? winner = foldInResult.winningInputIndex[row];
-            switch (winner) {
-              case 0:
-                // The pulled winner causally supersedes the local content:
-                // eligible for apply under its pulled stamp.
-                final VersionVector? stamp = foldInResult.stamps[row];
-                if (stamp == null) {
-                  foldInExcluded = true;
-                } else {
-                  remoteEligible[row] = stamp;
-                }
-              case 1:
-                // The local input survived: a concurrent edit landed and now
-                // dominates, so this row is neither applied nor acknowledged.
-                break;
-              case null:
-                // A multi-member frontier: reconcile() staged the conflict
-                // itself, so there is nothing to apply for this row.
-                break;
-            }
-          }
-          if (foldInExcluded) {
-            continue;
-          }
-
-          final _FinalDecision decision = _finalizeSynchronously(
-            directApplyCandidates: directApplyCandidates,
-            remoteEligible: remoteEligible,
-            remoteWinnerChange: remoteWinnerChange,
-            remoteStamps: remoteResult.stamps,
-            refreshedVersions: refreshedVersions,
-            fence: fence,
-            epoch: epoch,
-          );
-          if (decision.raceDetected) {
-            continue;
-          }
-
-          // Zero await between the decision above and this apply: the commit
-          // decision and the batch land as one linearization step, so a
-          // concurrent edit cannot slip in after the last race check. The
-          // fence stays installed across the apply; its epoch is already
-          // decided and our own publication needs no observation.
-          if (decision.changes.isNotEmpty) {
-            ledger.applySyncBatch(decision.changes, decision.stamps);
-          }
-          applied = true;
-
-          if (decision.changes.isNotEmpty) {
-            await persistenceProcessor.flush();
-            final Map<SyncRowID, RowReadbackOutcome> outcomes = await verifier
-                .verify(decision.stamps);
-            if (outcomes.values.any((result) => !result.passed)) return;
-          }
-
-          await _finalizeAndMaybeAcknowledge(
-            collection,
-            stamps: decision.stamps,
-            watermark: nextCursor,
-            checkpoint: nextCursor,
-          );
-          return;
-        } finally {
-          await fence.uninstall();
-        }
-      }
-
-      if (!applied) {
-        if (everyAttemptWasEmptyAttemptRows) {
-          await _finalizeAndMaybeAcknowledge(
-            collection,
-            stamps: const <SyncRowID, VersionVector>{},
-            watermark: nextCursor,
-            checkpoint: nextCursor,
-          );
-        }
-        // Else the retry budget is exhausted: pure defer, return silently
-        // without advancing anything; the next pull cycle retries fresh.
-      }
-    } on PersistenceBarrierFailure {
-      // A persistence-layer failure is not a transient race: hard-stop the
-      // whole page. Staging still settles through the choke point below.
-      return;
-    } finally {
-      // Single unavoidable choke point: covers the initial reconcile() call
-      // itself and every abort, defer, and failure exit after it.
-      await stagingStore.flush();
+  /// Indexes the remote-only reconciliation outcome back onto the pulled page.
+  ///
+  /// [remoteResult] carries index-based provenance: the coordinator passed
+  /// [envelopes] in order, so each winning input index addresses that list
+  /// directly. Returns the pulled winner envelope and the winner change per
+  /// conflict-free row, for the commit decision to apply without re-decoding.
+  _RemoteProvenance _indexRemoteProvenance(
+    List<SyncEnvelope> envelopes,
+    ReconcileResult remoteResult,
+  ) {
+    // The pulled winner envelope per conflict-free row, located by the
+    // index-based provenance: the coordinator passed the pulled envelopes
+    // in order, so the winning input index addresses this list directly.
+    final Map<SyncRowID, SyncEnvelope> remoteWinner =
+        <SyncRowID, SyncEnvelope>{};
+    for (final MapEntry<SyncRowID, int> entry
+        in remoteResult.winningInputIndex.entries) {
+      final int index = entry.value;
+      if (index < 0 || index >= envelopes.length) continue;
+      remoteWinner[entry.key] = envelopes[index];
     }
+    // The winner change per conflict-free row, for the commit decision to
+    // apply without re-decoding.
+    final Map<SyncRowID, LedgerChange> remoteWinnerChange =
+        <SyncRowID, LedgerChange>{};
+    for (final LedgerChange change in remoteResult.changes) {
+      remoteWinnerChange[SyncRowID.of(
+            collectionFor(change),
+            change.targetID,
+          )] =
+          change;
+    }
+    return _RemoteProvenance(
+      remoteWinner: remoteWinner,
+      remoteWinnerChange: remoteWinnerChange,
+    );
+  }
+
+  /// Runs one fenced fold-in attempt over the pulled page.
+  ///
+  /// Redoes classification fresh against a refreshed [versionSource], lands
+  /// debounced local edits through the persistence barrier, captures the
+  /// versions and content to reconcile against, folds the local content in,
+  /// then linearizes and - for rows that survive - applies the batch and
+  /// durably advances the watermark with the verified vectors. Reports
+  /// [_AttemptRetry] when a fence invalidation or a race detection must retry
+  /// the page with a freshly refreshed classification, [_AttemptEmpty] when
+  /// no attempt row remains, and [_AttemptDone] when the page is fully
+  /// handled: either acknowledged, or stopped by a verification failure
+  /// before any metadata moves.
+  Future<_AttemptOutcome> _runFoldInAttempt({
+    required SyncCollection collection,
+    required String nextCursor,
+    required ReconcileResult remoteResult,
+    required Map<SyncRowID, SyncEnvelope> remoteWinner,
+    required Map<SyncRowID, LedgerChange> remoteWinnerChange,
+  }) async {
+    final MutationFence fence = MutationFence(ledger.bus)..install();
+    // The finally below uninstalls exactly once on every path after
+    // install: any returned outcome, or a throw from refresh, the
+    // barrier flush, encode, reconcile, apply, verification, or metadata.
+    // No path inside uninstalls explicitly, so a retained listener is
+    // impossible and a double uninstall cannot happen.
+    try {
+      final int epoch = fence.snapshot();
+
+      await versionSource.refresh();
+      final _AttemptClassification classification = _classifyAttemptRows(
+        remoteResult.stamps,
+      );
+      if (classification.attemptRows.isEmpty) {
+        return const _AttemptEmpty();
+      }
+
+      // The barrier lands every debounced local edit before the second
+      // refresh, so the versions and content below observe them.
+      await persistenceProcessor.flush();
+      await versionSource.refresh();
+      if (!fence.checkClean(epoch)) {
+        return const _AttemptRetry();
+      }
+
+      final _AttemptSnapshot captured = _captureAttemptSnapshot(
+        classification.attemptRows,
+      );
+
+      final _FoldInOutcome foldIn = await _reconcileFoldInCandidates(
+        foldInCandidates: classification.foldInCandidates,
+        remoteWinner: remoteWinner,
+        refreshedContent: captured.refreshedContent,
+      );
+      if (foldIn.excluded) {
+        return const _AttemptRetry();
+      }
+
+      final _FinalDecision decision = _finalizeSynchronously(
+        directApplyCandidates: classification.directApplyCandidates,
+        remoteEligible: foldIn.remoteEligible,
+        remoteWinnerChange: remoteWinnerChange,
+        remoteStamps: remoteResult.stamps,
+        refreshedVersions: captured.refreshedVersions,
+        fence: fence,
+        epoch: epoch,
+      );
+      if (decision.raceDetected) {
+        return const _AttemptRetry();
+      }
+
+      // Zero await between the decision above and this apply: the commit
+      // decision and the batch land as one linearization step, so a
+      // concurrent edit cannot slip in after the last race check. The
+      // fence stays installed across the apply; its epoch is already
+      // decided and our own publication needs no observation.
+      if (decision.changes.isNotEmpty) {
+        ledger.applySyncBatch(decision.changes, decision.stamps);
+      }
+
+      if (decision.changes.isNotEmpty) {
+        await persistenceProcessor.flush();
+        final Map<SyncRowID, RowReadbackOutcome> outcomes = await verifier
+            .verify(decision.stamps);
+        if (outcomes.values.any((result) => !result.passed)) {
+          return const _AttemptDone();
+        }
+      }
+
+      await _finalizeAndMaybeAcknowledge(
+        collection,
+        stamps: decision.stamps,
+        watermark: nextCursor,
+        checkpoint: nextCursor,
+      );
+      return const _AttemptDone();
+    } finally {
+      await fence.uninstall();
+    }
+  }
+
+  /// Classifies one attempt's rows fresh against the refreshed [versionSource].
+  ///
+  /// Duplicate or dominated rows are skipped, unseen rows become direct-apply
+  /// candidates, and concurrently-versioned rows become fold-in candidates
+  /// whose current local content is reconciled against the pulled winner.
+  _AttemptClassification _classifyAttemptRows(
+    Map<SyncRowID, VersionVector> stamps,
+  ) {
+    // Classification is redone fresh every iteration, so a direct-apply
+    // row that gains a version mid-attempt is automatically reclassified
+    // (usually into fold-in) on the next pass.
+    final Set<SyncRowID> directApplyCandidates = <SyncRowID>{};
+    final Set<SyncRowID> foldInCandidates = <SyncRowID>{};
+    for (final MapEntry<SyncRowID, VersionVector> entry in stamps.entries) {
+      final SyncRowID row = entry.key;
+      final RowVersion? stored = versionSource.readRowVersion(row);
+      if (_isDuplicateOrDominated(stored, entry.value)) continue;
+      if (stored == null) {
+        directApplyCandidates.add(row);
+      } else {
+        foldInCandidates.add(row);
+      }
+    }
+    final Set<SyncRowID> attemptRows = <SyncRowID>{
+      ...directApplyCandidates,
+      ...foldInCandidates,
+    };
+    return _AttemptClassification(
+      directApplyCandidates: directApplyCandidates,
+      foldInCandidates: foldInCandidates,
+      attemptRows: attemptRows,
+    );
+  }
+
+  /// Captures the versions and local content one attempt reconciles against.
+  ///
+  /// Runs after the persistence barrier and the second refresh, so both maps
+  /// observe every debounced local edit the barrier landed.
+  _AttemptSnapshot _captureAttemptSnapshot(Set<SyncRowID> attemptRows) {
+    final Map<SyncRowID, RowVersion?> refreshedVersions =
+        <SyncRowID, RowVersion?>{};
+    for (final SyncRowID row in attemptRows) {
+      refreshedVersions[row] = versionSource.readRowVersion(row);
+    }
+    final LedgerState liveState = ledger.state;
+    final Map<SyncRowID, LedgerChange> refreshedContent =
+        <SyncRowID, LedgerChange>{};
+    for (final SyncRowID row in attemptRows) {
+      refreshedContent[row] = _currentLocalChange(liveState, row);
+    }
+    return _AttemptSnapshot(
+      refreshedVersions: refreshedVersions,
+      refreshedContent: refreshedContent,
+    );
+  }
+
+  /// Reconciles each fold-in candidate against its current local content.
+  ///
+  /// Encodes the refreshed local change and reconciles it two-inputs-at-a-time
+  /// against the pulled winner: the local envelope is always input index 1,
+  /// and [ReconcileResult.winningInputIndex] maps the outcome back without any
+  /// content or vector equality inference. A pulled winner that causally
+  /// supersedes the local content becomes eligible for apply under its pulled
+  /// stamp; locally-surviving and multi-member-frontier rows carry nothing to
+  /// apply for this row.
+  Future<_FoldInOutcome> _reconcileFoldInCandidates({
+    required Set<SyncRowID> foldInCandidates,
+    required Map<SyncRowID, SyncEnvelope> remoteWinner,
+    required Map<SyncRowID, LedgerChange> refreshedContent,
+  }) async {
+    // A defensive fold-in skip (a missing winner envelope, missing
+    // local content, an off-contract encode result, or a winner without
+    // a stamp) races the whole attempt, like a Stage-4 exclusion: every
+    // fold-in candidate provably carries all of these, so an absence is
+    // a breach, never a row to skip past.
+    var foldInExcluded = false;
+    final Map<SyncRowID, VersionVector> remoteEligible =
+        <SyncRowID, VersionVector>{};
+    for (final SyncRowID row in foldInCandidates) {
+      final SyncEnvelope? remote = remoteWinner[row];
+      final LedgerChange? local = refreshedContent[row];
+      if (remote == null || local == null) {
+        foldInExcluded = true;
+        continue;
+      }
+      final List<SyncEnvelope> encoded = await engine.encode(
+        <LedgerChange>[local],
+        versionSource,
+      );
+      if (encoded.length != 1) {
+        foldInExcluded = true;
+        continue;
+      }
+      final ReconcileResult foldInResult = await engine.reconcile(
+        <SyncEnvelope>[remote, encoded[0]],
+      );
+      final int? winner = foldInResult.winningInputIndex[row];
+      switch (winner) {
+        case 0:
+          // The pulled winner causally supersedes the local content:
+          // eligible for apply under its pulled stamp.
+          final VersionVector? stamp = foldInResult.stamps[row];
+          if (stamp == null) {
+            foldInExcluded = true;
+          } else {
+            remoteEligible[row] = stamp;
+          }
+        case 1:
+          // The local input survived: a concurrent edit landed and now
+          // dominates, so this row is neither applied nor acknowledged.
+          break;
+        case null:
+          // A multi-member frontier: reconcile() staged the conflict
+          // itself, so there is nothing to apply for this row.
+          break;
+      }
+    }
+    return _FoldInOutcome(
+      excluded: foldInExcluded,
+      remoteEligible: remoteEligible,
+    );
   }
 
   /// Runs the Stage-4 linearization synchronously, with zero await inside.
@@ -656,6 +781,84 @@ final class SyncCoordinator {
         break;
     }
   }
+}
+
+/// One validated pulled page: the accepted envelopes with the server's cursor.
+final class _PulledPage {
+  const _PulledPage({required this.envelopes, required this.nextCursor});
+
+  final List<SyncEnvelope> envelopes;
+  final String nextCursor;
+}
+
+/// The index-based provenance of one remote-only reconciliation: the pulled
+/// winner envelope and the winner change per conflict-free row.
+final class _RemoteProvenance {
+  const _RemoteProvenance({
+    required this.remoteWinner,
+    required this.remoteWinnerChange,
+  });
+
+  final Map<SyncRowID, SyncEnvelope> remoteWinner;
+  final Map<SyncRowID, LedgerChange> remoteWinnerChange;
+}
+
+/// One attempt's fresh classification: unseen rows to apply directly,
+/// concurrently-versioned rows to fold local content into, and their union.
+final class _AttemptClassification {
+  const _AttemptClassification({
+    required this.directApplyCandidates,
+    required this.foldInCandidates,
+    required this.attemptRows,
+  });
+
+  final Set<SyncRowID> directApplyCandidates;
+  final Set<SyncRowID> foldInCandidates;
+  final Set<SyncRowID> attemptRows;
+}
+
+/// The versions and local content one attempt reconciles and linearizes
+/// against, captured after the persistence barrier and the second refresh.
+final class _AttemptSnapshot {
+  const _AttemptSnapshot({
+    required this.refreshedVersions,
+    required this.refreshedContent,
+  });
+
+  final Map<SyncRowID, RowVersion?> refreshedVersions;
+  final Map<SyncRowID, LedgerChange> refreshedContent;
+}
+
+/// The fold-in outcome for one attempt: the rows whose pulled winner causally
+/// supersedes the local content, or a defensive exclusion racing the attempt.
+final class _FoldInOutcome {
+  const _FoldInOutcome({required this.excluded, required this.remoteEligible});
+
+  final bool excluded;
+  final Map<SyncRowID, VersionVector> remoteEligible;
+}
+
+/// The outcome of one fenced fold-in attempt: retry the page, stop because no
+/// attempt row remains, or stop because the page is fully handled (either
+/// acknowledged, or halted by a verification failure before any metadata
+/// moves). The outer loop owns the continue/break/return control flow.
+sealed class _AttemptOutcome {
+  const _AttemptOutcome();
+}
+
+/// A fence invalidation or race detection: retry with a fresh classification.
+final class _AttemptRetry extends _AttemptOutcome {
+  const _AttemptRetry();
+}
+
+/// No attempt row remains: break out to the empty-page acknowledgement.
+final class _AttemptEmpty extends _AttemptOutcome {
+  const _AttemptEmpty();
+}
+
+/// The page is fully handled: return without further attempts.
+final class _AttemptDone extends _AttemptOutcome {
+  const _AttemptDone();
 }
 
 /// The outcome of one Stage-4 linearization: either a detected race, which
