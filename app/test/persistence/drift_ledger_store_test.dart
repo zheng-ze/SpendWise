@@ -555,8 +555,24 @@ void main() {
       reported.clear();
 
       store.enqueue([UpsertAccount(account('a1', 'changed name'))]);
-      var returned = false;
-      final flush = store.flushNow().then((_) => returned = true);
+      // The barrier gives up by throwing, carrying the permanent failure as
+      // its cause, instead of returning silently with an unwritten queue.
+      final flush = expectLater(
+        store.flushNow(),
+        throwsA(
+          isA<PersistenceBarrierFailure>()
+              .having(
+                (error) => error.cause,
+                'cause',
+                isA<PermanentSaveError>(),
+              )
+              .having(
+                (error) => error.stackTrace != null,
+                'has stackTrace',
+                isTrue,
+              ),
+        ),
+      );
 
       // Ten passes outlast every retry a cycle could run; a loop that kept
       // retrying the corrupt row would never return here.
@@ -566,7 +582,6 @@ void main() {
       }
       await settle();
 
-      expect(returned, isTrue);
       await flush;
 
       expect(reported.last, SaveBannerState.permanentlyFailed);
@@ -721,8 +736,23 @@ void main() {
         flaky.failures = 99;
         store.enqueue([UpsertAccount(account('a1', 'v1'))]);
 
-        var returned = false;
-        final flush = store.flushNow().then((_) => returned = true);
+        // The give-up exit throws the barrier failure instead of returning
+        // silently. The preserved cause is whatever the last failing cycle
+        // caught: with the rollback-then-throw test interceptor in the path,
+        // drift surfaces that as a rollback error rather than the raw disk
+        // failure, so only non-null preservation is asserted here.
+        final flush = expectLater(
+          store.flushNow(),
+          throwsA(
+            isA<PersistenceBarrierFailure>()
+                .having((error) => error.cause != null, 'has cause', isTrue)
+                .having(
+                  (error) => error.stackTrace != null,
+                  'has stackTrace',
+                  isTrue,
+                ),
+          ),
+        );
 
         // Ten passes far outlast the three attempts one retry cycle needs, so a
         // flush that kept looping instead of giving up would still be unfinished here.
@@ -732,7 +762,6 @@ void main() {
         }
         await settle();
 
-        expect(returned, isTrue, reason: 'the flush never gave up looping');
         await flush;
 
         expect(reported.last, SaveBannerState.failedWillRetry);
@@ -1159,10 +1188,15 @@ void main() {
 
     test('a failed seed save leaves has_seeded unset', () async {
       // Outlasts every in-cycle retry, so the seed genuinely gives up rather
-      // than merely stumbling on the way to a commit.
+      // than merely stumbling on the way to a commit. The give-up surfaces
+      // as a PersistenceBarrierFailure from the barrier inside
+      // seedIfFirstLaunch; the flag still stays unset.
       flaky.failures = 100;
 
-      final seed = store.seedIfFirstLaunch(seedChanges());
+      final seed = expectLater(
+        store.seedIfFirstLaunch(seedChanges()),
+        throwsA(isA<PersistenceBarrierFailure>()),
+      );
       for (var i = 0; i < 5; i++) {
         await settle();
         clock.fire();

@@ -31,6 +31,9 @@ final class RowVersion {
 /// supplies the Drift-backed implementation.
 abstract class SyncVersionSource {
   RowVersion? readRowVersion(SyncRowID rowID);
+
+  /// Reloads the versions backing [readRowVersion].
+  Future<void> refresh();
 }
 
 /// In-memory [SyncVersionSource] used as a test fake inside packages/sync.
@@ -47,4 +50,9 @@ class InMemorySyncVersionSource implements SyncVersionSource {
 
   @override
   RowVersion? readRowVersion(SyncRowID rowID) => _rows[rowID];
+
+  /// No-op: the in-memory rows are written directly, so there is nothing
+  /// async to reload.
+  @override
+  Future<void> refresh() async {}
 }

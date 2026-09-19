@@ -79,6 +79,7 @@ final class DriftSyncStagingStore implements SyncStagingStore {
   }
 
   /// Reads every staged group oldest first, refreshing the settled view.
+  @override
   Future<List<StagedConflict>> pendingConflictList() async {
     await _reload();
     return List.unmodifiable(_mirror);
@@ -112,6 +113,7 @@ final class DriftSyncStagingStore implements SyncStagingStore {
 
   /// Settles writes enqueued through the synchronous engine-path overrides.
   /// Rethrows the first failure, if any.
+  @override
   Future<void> flush() async {
     if (_pending.isEmpty) return;
     final pending = List<Future<void>>.of(_pending);
