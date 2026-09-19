@@ -819,8 +819,10 @@ final class SyncCoordinator {
   /// Inside the collection's lock: (1) throws a [StateError] when the durable
   /// write gate is closed, before any read or backend call; (2) repairs this
   /// collection's pending acknowledgement inline and returns silently when
-  /// the repair does not clear it, submitting no outbound query; (3)
-  /// refreshes [versionSource]; (4) bulk-reads the collection's current rows
+  /// the repair does not clear it, submitting no outbound query; (3) lands
+  /// every debounced local edit through the persistence barrier, then
+  /// refreshes [versionSource], so the versions and content below observe
+  /// them; (4) bulk-reads the collection's current rows
   /// via [versionReader] and keeps rows whose stored vector is not dominated
   /// by the acknowledged vector (an absent acknowledgement is eligible);
   /// (5) encodes the candidates and captures each submitted envelope's own
@@ -858,6 +860,9 @@ final class SyncCoordinator {
       }
     }
 
+    // The barrier lands every debounced local edit before the refresh, so
+    // the versions and content below observe them.
+    await persistenceProcessor.flush();
     await versionSource.refresh();
 
     final Map<SyncRowID, RowVersion> stored = await versionReader

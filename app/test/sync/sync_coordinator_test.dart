@@ -2311,6 +2311,67 @@ void main() {
     });
   });
 
+  group('pushCollection: snapshot consistency', () {
+    test('a debounced edit not yet flushed pushes new content under the new '
+        'vector', () async {
+      const holderID = 'aaaaaaaa-0000-1111-2222-333333333333';
+      const rowID = 'f1f1f1f1-f1f1-f1f1-f1f1-f1f1f1f1f1f1';
+      final key = _freshKey();
+      final backend = _FakeSyncBackend();
+      backend.onPush = _appliedPush;
+      final setup = await driftSetup(backend: backend, e2eKey: key);
+      final coordinator = setup.coordinator;
+      await seedDriftHolder(holderID, coordinator.persistenceProcessor);
+      ledger.addEntry(driftEntry(rowID, holderID, name: 'Original'));
+      await coordinator.persistenceProcessor.flush();
+      await coordinator.metadataStore.setEnrollmentPhase(
+        SyncEnrollmentPhase.reconciliationComplete,
+      );
+      await coordinator.metadataStore.setWriteEnabled(true);
+      // The edit lands in ledger.state immediately but only reaches the
+      // durable store (and its version vector) once the debounce settles:
+      // leave it unflushed so the push must land it via its own barrier.
+      ledger.updateEntry(driftEntry(rowID, holderID, name: 'Edited'));
+
+      await coordinator.pushCollection(SyncCollection.entries);
+
+      expect(backend.pushes, hasLength(1));
+      expect(backend.pushes.single.envelopes, hasLength(1));
+      final envelope = backend.pushes.single.envelopes.single;
+      expect(envelope.rowID, normalizedID(rowID));
+      // The submitted content is the new edit ...
+      final plaintext = await const SyncCipher().decrypt(
+        key: key,
+        ciphertext: envelope.ciphertext,
+        aad: envelope.aadBytes(),
+      );
+      final change = const PayloadCodec().decodeChange(plaintext);
+      expect(change, isA<UpsertEntry>());
+      expect((change as UpsertEntry).entry.name, 'Edited');
+      // ... stamped with the vector the durable store reached once the
+      // barrier landed that same edit: without the push-time flush the
+      // envelope would still carry the pre-edit vector here.
+      await coordinator.persistenceProcessor.flush();
+      final durable = await DriftCollectionVersionReader(
+        db,
+      ).readRowVersions(SyncCollection.entries);
+      final row = SyncRowID.of(SyncCollection.entries, rowID);
+      expect(envelope.versionVector, durable[row]!.versionVector);
+      expect(
+        envelope.siblingID,
+        computeSiblingID(
+          userID: setup.device,
+          collection: SyncCollection.entries,
+          rowID: normalizedID(rowID),
+          versionVector: durable[row]!.versionVector,
+        ),
+      );
+      expect(await coordinator.metadataStore.acknowledgedVectors(), {
+        row: envelope.versionVector,
+      });
+    });
+  });
+
   group('pushCollection: recovery-before-push ordering (TS2)', () {
     test('a pending acknowledgement is recovered and cleared before the push '
         'query', () async {
