@@ -1,15 +1,15 @@
 # Sync: composition root
 
-Last reconciled: 693eb53
+Last reconciled: 7f56144
 
 ## Overview
 
 `SyncCoordinator.create` is the app-side composition root for already-constructed ledger and
 persistence collaborators. It opens the durable staging store, resolves the selected backend from
 persisted metadata and caller-provided configuration, and creates a `SyncEngine` with a scoped
-E2E-key accessor. It also owns single-page pull processing, pending-acknowledgement recovery, and
-per-collection push-candidate submission. It has no production run, scheduling, trigger, or
-lifecycle wiring, and it never starts the persistence processor. See
+E2E-key accessor. It owns sync-pass scheduling, single-page pull processing, pending-
+acknowledgement recovery, and per-collection push-candidate submission. It does not yet have an
+`AppBoot` or other lifecycle caller, and it never starts the persistence processor. See
 [sync-durable-stores.md](sync-durable-stores.md), [sync-package-engine.md](sync-package-engine.md),
 and [persistence.md](persistence.md) for the assembled layers. Source:
 `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.create`, `SyncCoordinator.status`.
@@ -18,7 +18,7 @@ and [persistence.md](persistence.md) for the assembled layers. Source:
 
 - `app/lib/sync/sync_coordinator.dart` - composition root, pull-page processing, acknowledgement
   recovery, push-candidate selection and acknowledgement, collaborators, and wiring validation.
-- `app/lib/sync/sync_status.dart` - the current idle-only coordinator status.
+- `app/lib/sync/sync_status.dart` - coordinator idle and running status variants.
 - `app/lib/sync/cached_collection_version_source.dart` - async collection reads exposed through
   the package version-source contract.
 - `app/lib/sync/collection_version_reader.dart` - bulk per-collection version reads for durable
@@ -60,6 +60,32 @@ reads succeed, and joins overlapping refresh calls. Source:
 `app/lib/sync/cached_collection_version_source.dart` -
 `CachedCollectionVersionSource.refresh`, `CachedCollectionVersionSource.readRowVersion`;
 `packages/sync/lib/src/engine/version_source.dart` - `SyncVersionSource`.
+
+## Scheduler integration
+
+`requestSync()` delegates a fire-and-forget request to the coordinator's internal
+`SyncRunScheduler`. `syncNow()` delegates a joining request whose future resolves when the
+scheduler-selected pass completes. The scheduler's single-flight and trailing-pass behavior is
+documented in [sync-run-scheduler.md](sync-run-scheduler.md). Source:
+`app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.requestSync`,
+`SyncCoordinator.syncNow`, `SyncCoordinator._scheduler`;
+`app/lib/sync/sync_run_scheduler.dart` - `SyncRunScheduler.requestRun`,
+`SyncRunScheduler.runNow`.
+
+One coordinator pass first calls `recoverPendingAcknowledgements()` once. It then starts flows for
+all five `SyncCollection` values concurrently; each collection's flow awaits `processPullPage`
+before `pushCollection`. Source: `app/lib/sync/sync_coordinator.dart` -
+`SyncCoordinator._runOnePass`, `SyncCoordinator._pullThenPush`;
+`app/test/sync/sync_coordinator_test.dart` - group `scheduling integration: run composition
+(TS3)`.
+
+`_runOnePass` catches only `StateError` and delivers it to the nullable `onPassFailure` callback.
+It leaves every other exception for `SyncRunScheduler`, whose failure behavior is documented in
+[sync-run-scheduler.md](sync-run-scheduler.md). Source:
+`app/lib/sync/sync_coordinator.dart` - `PassFailureHandler`,
+`SyncCoordinator.onPassFailure`, `SyncCoordinator._runOnePass`;
+`app/test/sync/sync_coordinator_test.dart` - group `scheduling integration: failure handling
+(TS4)`.
 
 ## Contracts and invariants
 
@@ -135,9 +161,11 @@ reads succeed, and joins overlapping refresh calls. Source:
   `pushCollection: candidate derivation (TS1)`,
   `pushCollection: recovery-before-push ordering (TS2)`, and
   `pushCollection: recovery-not-cleared deferral (TS8)`.
-- `SyncCoordinator.status` is `SyncIdle` after creation. No state transition exists in this slice.
-  Source: `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.status`;
-  `app/lib/sync/sync_status.dart` - `SyncIdle`.
+- `SyncCoordinator.status` is `SyncIdle` after creation and becomes `SyncRunning` while the
+  scheduler has an active pass, including a chained trailing pass. The scheduler's idle callback
+  restores `SyncIdle`. Source: `app/lib/sync/sync_coordinator.dart` -
+  `SyncCoordinator.status`, `SyncCoordinator._handleSchedulerStatus`;
+  `app/lib/sync/sync_status.dart` - `SyncIdle`, `SyncRunning`.
 - `CachedCollectionVersionSource.refresh()` loads all collections and rethrows an unsuccessful
   read without replacing the last published cache. Source:
   `app/lib/sync/cached_collection_version_source.dart` -
@@ -153,16 +181,16 @@ reads succeed, and joins overlapping refresh calls. Source:
   `packages/sync/lib/src/engine/version_source.dart` - `SyncVersionSource.refresh`,
   `InMemorySyncVersionSource.refresh`; `app/lib/sync/sync_coordinator.dart` -
   `SyncCoordinator.processPullPage`.
-- `processPullPage`, `recoverPendingAcknowledgements`, and `pushCollection` are coordinator
-  capabilities only. None has a production caller, so startup/lifecycle wiring remains explicit
-  future scope. `pushCollection` also provides no scheduling or coalescing and does not derive
-  pushes from conflicts. Source: `app/lib/sync/sync_coordinator.dart` -
-  `SyncCoordinator.processPullPage`, `SyncCoordinator.recoverPendingAcknowledgements`,
-  `SyncCoordinator.pushCollection`; `app/test/sync/sync_coordinator_test.dart` - groups
-  `processPullPage: duplicate/dominated pages (TS1)`,
-  `recoverPendingAcknowledgements (TS5)`, and
-  `pushCollection: candidate derivation (TS1)`.
-- `SyncIdle` is deliberately the only current status. It remains so because this slice has no
-  run, scheduling, trigger, lifecycle, or persistence-start wiring. Source:
-  `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.status`;
-  `app/lib/sync/sync_status.dart` - `SyncStatus`, `SyncIdle`.
+- `SyncCoordinator._runOnePass` is the production caller of `processPullPage`,
+  `recoverPendingAcknowledgements`, and `pushCollection`. `AppBoot` and other lifecycle wiring
+  still do not call `requestSync`, `syncNow`, or `dispose`, and the coordinator does not start the
+  persistence processor. `pushCollection` does not derive pushes from conflicts. Source:
+  `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator._runOnePass`,
+  `SyncCoordinator.requestSync`, `SyncCoordinator.syncNow`, `SyncCoordinator.dispose`;
+  `app/lib/boot/app_boot.dart` - `AppBoot`.
+- `SyncRunning` mirrors `SyncIdle` while the scheduler has an active pass. A pass can settle after
+  `SyncCoordinator.dispose()`, so `_handleSchedulerStatus` must not update status or call
+  `notifyListeners()` once disposal has begun. Source:
+  `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.dispose`,
+  `SyncCoordinator._handleSchedulerStatus`; `app/lib/sync/sync_status.dart` - `SyncRunning`;
+  `app/test/sync/sync_coordinator_test.dart` - group `scheduling integration: dispose`.
