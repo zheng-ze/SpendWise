@@ -1330,6 +1330,88 @@ void main() {
       expect(snapshot.watermarks[SyncCollection.entries], isNull);
       expect(await coordinator.metadataStore.acknowledgedVectors(), isEmpty);
     });
+
+    test('a Stage-4 exclusion races the whole attempt instead of committing '
+        'a sibling', () async {
+      const directID = 'c1c1c1c1-c1c1-c1c1-c1c1-c1c1c1c1c1c1';
+      const driftID = 'd2d2d2d2-d2d2-d2d2-d2d2-d2d2d2d2d2d2';
+      final key = _freshKey();
+      final directVector = VersionVector(<String, int>{'deva': 1});
+      final concurrentLocal = VersionVector(<String, int>{'localdev': 1});
+      final pulledRemote = VersionVector(<String, int>{
+        'localdev': 1,
+        'remotedev': 1,
+      });
+      final driftedLocal = VersionVector(<String, int>{'localdev': 2});
+      Future<SyncEnvelope> envelopeFor(String id, VersionVector version) =>
+          _pullEnvelope(
+            key: key,
+            rowID: id,
+            version: version,
+            change: UpsertEntry(_pullTestEntry(id)),
+          );
+      final backend = _FakeSyncBackend(
+        pages: {
+          SyncCollection.entries: _pullPage(<SyncEnvelope>[
+            await envelopeFor(directID, directVector),
+            await envelopeFor(driftID, pulledRemote),
+          ], 'cursor-stage4-race'),
+        },
+      );
+      final staging = InMemorySyncStagingStore();
+      // The drifting row reads concurrent through classification, capture,
+      // and encode, then drifted at the Stage-4 check, on every attempt: the
+      // exclusion races instead of committing the surviving sibling, and the
+      // budget exhausts into a defer.
+      final versions = _CyclingVersionSource({
+        SyncRowID.of(SyncCollection.entries, directID): const [null],
+        SyncRowID.of(SyncCollection.entries, driftID): [
+          RowVersion(
+            versionVector: concurrentLocal,
+            lifecycle: SiblingLifecycle.live,
+          ),
+          RowVersion(
+            versionVector: concurrentLocal,
+            lifecycle: SiblingLifecycle.live,
+          ),
+          RowVersion(
+            versionVector: concurrentLocal,
+            lifecycle: SiblingLifecycle.live,
+          ),
+          RowVersion(
+            versionVector: driftedLocal,
+            lifecycle: SiblingLifecycle.live,
+          ),
+        ],
+      });
+      final coordinator = await pullCoordinator(
+        backend: backend,
+        versionSource: versions,
+        staging: staging,
+        e2eKey: key,
+      );
+
+      final publications = await collectPublications(
+        () => coordinator.processPullPage(SyncCollection.entries),
+      );
+
+      // All three attempts ran their two refreshes and raced at Stage 4, so
+      // neither remote change applied and nothing advanced.
+      expect(versions.refreshCalls, 6);
+      expect(publications, isEmpty);
+      expect(ledger.state.entries.containsKey(directID), isFalse);
+      expect(ledger.state.entries.containsKey(driftID), isFalse);
+      expect(staging.pendingConflicts, isEmpty);
+      final snapshot = await coordinator.metadataStore.snapshot();
+      expect(snapshot.watermarks[SyncCollection.entries], isNull);
+      expect(
+        await coordinator.metadataStore.pendingAcknowledgement(
+          SyncCollection.entries,
+        ),
+        isNull,
+      );
+      expect(await coordinator.metadataStore.acknowledgedVectors(), isEmpty);
+    });
   });
 
   group('processPullPage: fold-in batch outcomes', () {
@@ -2147,6 +2229,33 @@ final class _ScriptedVersionSource implements SyncVersionSource {
 
   @override
   Future<void> refresh() async {}
+}
+
+/// [SyncVersionSource] replaying a per-row read script cyclically, so a test
+/// can script different vectors for classification, encode, and the Stage-4
+/// check within one attempt. Rows without a script always read null.
+final class _CyclingVersionSource implements SyncVersionSource {
+  _CyclingVersionSource(this._scripts);
+
+  final Map<SyncRowID, List<RowVersion?>> _scripts;
+
+  final Map<SyncRowID, int> _reads = {};
+
+  int refreshCalls = 0;
+
+  @override
+  RowVersion? readRowVersion(SyncRowID rowID) {
+    final script = _scripts[rowID];
+    if (script == null || script.isEmpty) return null;
+    final count = _reads[rowID] ?? 0;
+    _reads[rowID] = count + 1;
+    return script[count % script.length];
+  }
+
+  @override
+  Future<void> refresh() async {
+    refreshCalls += 1;
+  }
 }
 
 /// [CollectionVersionReader] serving a fixed map, so a test can script what
