@@ -1,6 +1,6 @@
 # Sync: composition root
 
-Last reconciled: 7f56144
+Last reconciled: b1a192b
 
 ## Overview
 
@@ -119,6 +119,16 @@ It leaves every other exception for `SyncRunScheduler`, whose failure behavior i
   frontier. Source: `app/lib/sync/sync_coordinator.dart` - `_pushCollectionLocked`,
   `_SubmittedPush`; `app/test/sync/sync_coordinator_test.dart` - group
   `pushCollection: response classification (TS3)`.
+- `SyncCoordinator.pushCollection` returns `Future<PushCollectionResult>`. `PushNoop` means no
+  eligible candidates existed. `PushDeferred` means inline pending-acknowledgement recovery
+  remained uncleared, so no outbound push occurred. `PushFullyAcknowledged` means every submitted
+  row was `applied` or `already_present` with a matching sibling ID and its captured submitted
+  vector was acknowledged. `PushUnresolvedRows` identifies submitted rows with rejected, missing,
+  mismatched, or malformed outcomes; they remain eligible for a later push. Source:
+  `app/lib/sync/sync_coordinator.dart` - `PushCollectionResult`, `PushNoop`, `PushDeferred`,
+  `PushFullyAcknowledged`, `PushUnresolvedRows`, `SyncCoordinator.pushCollection`,
+  `_pushCollectionLocked`; `app/test/sync/sync_coordinator_test.dart` - group
+  `pushCollection: structured result` and group `pushCollection: response classification (TS3)`.
 
 ## Entry points and flows
 
