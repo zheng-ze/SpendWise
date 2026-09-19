@@ -73,4 +73,17 @@ void main() {
     await fresh.uninstall();
     await fresh.uninstall();
   });
+
+  test('overlapping reinstall during in-flight uninstall stays installed',
+      () async {
+    final uninstalling = fence.uninstall();
+    fence.install();
+
+    final before = fence.snapshot();
+    bus.publish(const [DeleteEntry('row-1')]);
+
+    expect(fence.checkClean(before), isFalse);
+
+    await uninstalling;
+  });
 }

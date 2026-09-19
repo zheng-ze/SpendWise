@@ -50,7 +50,8 @@ final class MutationFence {
   /// Cancels the listener subscription. Safe to call even if never installed,
   /// or called twice.
   Future<void> uninstall() async {
-    await _subscription?.cancel();
+    final subscription = _subscription;
     _subscription = null;
+    await subscription?.cancel();
   }
 }
