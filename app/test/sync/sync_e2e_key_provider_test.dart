@@ -33,9 +33,7 @@ void main() {
   });
 
   test('accessing the closure reads lazily on each invocation', () async {
-    final first = Uint8List.fromList(
-      List<int>.generate(32, (index) => index),
-    );
+    final first = Uint8List.fromList(List<int>.generate(32, (index) => index));
     final second = Uint8List.fromList(
       List<int>.generate(32, (index) => 31 - index),
     );
@@ -92,9 +90,7 @@ void main() {
   });
 
   test('a value decoding to the wrong length fails', () async {
-    final short = Uint8List.fromList(
-      List<int>.generate(16, (index) => index),
-    );
+    final short = Uint8List.fromList(List<int>.generate(16, (index) => index));
     final raw = encodeKey(short);
     await secrets.write(syncE2EKeySecretKey, raw);
 
@@ -116,32 +112,33 @@ void main() {
     );
   });
 
-  test('a storage failure surfaces as storageFailed, not the raw error', () async {
-    secrets.readFailure = const SecretStoreException();
+  test(
+    'a storage failure surfaces as storageFailed, not the raw error',
+    () async {
+      secrets.readFailure = const SecretStoreException();
 
-    await expectLater(
-      provider.accessor(),
-      throwsA(
-        isA<SyncE2EKeyUnavailableException>()
-            .having(
-              (error) => error.reason,
-              'reason',
-              SyncE2EKeyUnavailableReason.storageFailed,
-            )
-            .having(
-              (error) => error.toString(),
-              'message',
-              'Sync E2E key unavailable (storageFailed).',
-            ),
-      ),
-    );
-  });
+      await expectLater(
+        provider.accessor(),
+        throwsA(
+          isA<SyncE2EKeyUnavailableException>()
+              .having(
+                (error) => error.reason,
+                'reason',
+                SyncE2EKeyUnavailableReason.storageFailed,
+              )
+              .having(
+                (error) => error.toString(),
+                'message',
+                'Sync E2E key unavailable (storageFailed).',
+              ),
+        ),
+      );
+    },
+  );
 
   test('failure messages never expose key bytes or stored values', () async {
     const malformed = '!!!-sensitive-malformed-value-!!!';
-    final short = Uint8List.fromList(
-      List<int>.generate(16, (index) => index),
-    );
+    final short = Uint8List.fromList(List<int>.generate(16, (index) => index));
     final wrongLengthRaw = encodeKey(short);
 
     Future<String> messageFrom(Future<void> Function() action) async {
@@ -174,9 +171,7 @@ void main() {
   });
 
   test('reading the E2E key never touches the credential key', () async {
-    final key = Uint8List.fromList(
-      List<int>.generate(32, (index) => index),
-    );
+    final key = Uint8List.fromList(List<int>.generate(32, (index) => index));
     await secrets.write(syncE2EKeySecretKey, encodeKey(key));
     await secrets.write(syncCredentialSecretKey, 'credential-payload');
 
@@ -209,10 +204,7 @@ void main() {
     expect(secrets.reads, isNot(contains(syncCredentialSecretKey)));
     expect(secrets.reads, everyElement(syncE2EKeySecretKey));
     secrets.readFailure = null;
-    expect(
-      await secrets.read(syncCredentialSecretKey),
-      'credential-payload',
-    );
+    expect(await secrets.read(syncCredentialSecretKey), 'credential-payload');
   });
 
   group('decodeAndValidateSyncE2EKey', () {
