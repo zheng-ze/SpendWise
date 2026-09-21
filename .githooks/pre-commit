@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Runs this repo's lint checks (format + static analysis) before allowing a
+# commit. Activate once per clone with:
+#   git config core.hooksPath .githooks
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+echo "pre-commit: packages/domain formatting"
+(cd packages/domain && dart format --output=none --set-exit-if-changed .)
+
+echo "pre-commit: packages/domain analyze"
+(cd packages/domain && dart analyze)
+
+echo "pre-commit: app formatting"
+(cd app && dart format --output=none --set-exit-if-changed lib test)
+
+echo "pre-commit: app analyze"
+(cd app && flutter analyze)
+
+echo "pre-commit: lint checks passed"

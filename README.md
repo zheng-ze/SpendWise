@@ -86,3 +86,10 @@ cd app && flutter analyze
 ```
 
 The analyzer must report zero issues, not just zero errors.
+
+A pre-commit hook runs the formatting and analyzer checks automatically. Activate it once per
+clone:
+
+```sh
+git config core.hooksPath .githooks
+```
