@@ -107,9 +107,7 @@ void main() {
     // The tombstone lifecycle survives the round trip.
     expect(
       source
-          .readRowVersion(
-            SyncRowID.of(SyncCollection.entries, _entriesRow),
-          )
+          .readRowVersion(SyncRowID.of(SyncCollection.entries, _entriesRow))
           ?.lifecycle,
       SiblingLifecycle.tombstone,
     );
@@ -211,9 +209,7 @@ void main() {
     await source.refresh();
 
     expect(
-      source.readRowVersion(
-        SyncRowID.of(SyncCollection.entries, _unknownRow),
-      ),
+      source.readRowVersion(SyncRowID.of(SyncCollection.entries, _unknownRow)),
       isNull,
     );
     // Same UUID string seeded under moneySources is a distinct SyncRowID.

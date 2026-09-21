@@ -77,10 +77,7 @@ final class SyncBackendResolver {
     if (backend == null) return null;
     return switch (backend) {
       SyncBackendKind.custom => _resolveCustom(snapshot.endpoint, httpClient),
-      SyncBackendKind.supabase => _resolveSupabase(
-        supabaseConfig,
-        httpClient,
-      ),
+      SyncBackendKind.supabase => _resolveSupabase(supabaseConfig, httpClient),
     };
   }
 
