@@ -346,6 +346,31 @@ void main() {
       expect(backend.pulls.single.toWireJson()['page_limit'], 50);
     },
   );
+
+  test(
+    'a non-progressing cursor fails the collection instead of paging forever',
+    () async {
+      final backend = ScriptedSnapshotBackend({
+        SyncCollection.entries: [
+          snapshotPage(const [], cursor: 'stuck', end: false),
+          snapshotPage(const [], cursor: 'stuck', end: false),
+        ],
+      });
+      final hasher = ReconciliationSnapshotHasher(
+        backend: backend,
+        credential: testCredential(),
+      );
+
+      await expectLater(
+        hasher.hashCollection(testContext(), SyncCollection.entries),
+        throwsA(isA<ReconciliationSnapshotException>()),
+      );
+      expect(backend.pulls.map((request) => request.collection), [
+        SyncCollection.entries,
+        SyncCollection.entries,
+      ], reason: 'fails on the second page, once the repeat is observed.');
+    },
+  );
 }
 
 final class _FailingPullBackend implements SyncBackend {
