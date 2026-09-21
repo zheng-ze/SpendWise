@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:spendwise/persistence/ledger_database.dart';
 import 'package:sync/sync.dart';
 
@@ -98,6 +99,10 @@ final class SyncMetadataStore {
   SyncMetadataStore(this._db);
 
   final LedgerDatabase _db;
+
+  /// Test view of the shared database this store reads and writes.
+  @visibleForTesting
+  LedgerDatabase get database => _db;
 
   /// Reads the singleton row plus every keyed record in one transaction, so
   /// startup recovery observes a consistent view.
