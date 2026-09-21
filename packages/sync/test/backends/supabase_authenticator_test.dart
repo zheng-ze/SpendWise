@@ -29,9 +29,11 @@ void main() {
     );
 
     expect(outcome, isA<SyncSuccess<EnrollmentChallenge>>());
+    expect(seen.method, 'POST');
     expect(seen.url.path, '/auth/v1/otp');
     expect(seen.headers['apikey'], 'anon');
-    final body = jsonDecode(seen.body) as Map<String, dynamic>;
+    expect(seen.headers['content-type'], contains('application/json'));
+    final body = jsonDecode(seen.body) as Map<String, Object?>;
     expect(body, {'email': 'user@example.com'});
     final challenge = (outcome as SyncSuccess<EnrollmentChallenge>).value;
     expect(challenge.wire['identifier'], 'user@example.com');
@@ -69,14 +71,20 @@ void main() {
 
     final outcome = await _authenticator(client).completeEnrollment(
       CompleteEnrollmentRequest(
-        const {'identifier': 'user@example.com', 'otp': '123456'},
+        const {
+          'identifier': 'user@example.com',
+          'otp': '123456',
+          'deviceId': 'device-1',
+        },
       ),
     );
 
     expect(outcome, isA<SyncSuccess<DeviceCredential>>());
+    expect(seen.method, 'POST');
     expect(seen.url.path, '/auth/v1/verify');
     expect(seen.headers['apikey'], 'anon');
-    final body = jsonDecode(seen.body) as Map<String, dynamic>;
+    expect(seen.headers['content-type'], contains('application/json'));
+    final body = jsonDecode(seen.body) as Map<String, Object?>;
     expect(
       body,
       {'email': 'user@example.com', 'token': '123456', 'type': 'email'},
@@ -84,7 +92,7 @@ void main() {
     final credential = (outcome as SyncSuccess<DeviceCredential>).value;
     expect(
       credential,
-      restoreTestCredential(deviceID: 'user-id-1', bearerToken: 'access-123'),
+      restoreTestCredential(deviceID: 'device-1', bearerToken: 'access-123'),
     );
   });
 
@@ -118,11 +126,138 @@ void main() {
 
     final outcome = await _authenticator(client).completeEnrollment(
       CompleteEnrollmentRequest(
-        const {'identifier': 'user@example.com', 'otp': '123456'},
+        const {
+          'identifier': 'user@example.com',
+          'otp': '123456',
+          'deviceId': 'device-1',
+        },
       ),
     );
 
     expect(outcome, isA<InvalidRequest<DeviceCredential>>());
+  });
+
+  test('completeEnrollment maps a 422 GoTrue error to InvalidRequest',
+      () async {
+    final client = MockClient(
+      (request) async => http.Response(
+        jsonEncode(const {'message': 'validation failed'}),
+        422,
+        headers: {'content-type': 'application/json'},
+      ),
+    );
+
+    final outcome = await _authenticator(client).completeEnrollment(
+      CompleteEnrollmentRequest(
+        const {
+          'identifier': 'user@example.com',
+          'otp': '123456',
+          'deviceId': 'device-1',
+        },
+      ),
+    );
+
+    expect(outcome, isA<InvalidRequest<DeviceCredential>>());
+  });
+
+  test('completeEnrollment maps a 429 GoTrue error to RateLimited', () async {
+    final client = MockClient(
+      (request) async => http.Response(
+        jsonEncode(const {'message': 'too many requests'}),
+        429,
+        headers: {
+          'content-type': 'application/json',
+          'retry-after': '30',
+        },
+      ),
+    );
+
+    final outcome = await _authenticator(client).completeEnrollment(
+      CompleteEnrollmentRequest(
+        const {
+          'identifier': 'user@example.com',
+          'otp': '123456',
+          'deviceId': 'device-1',
+        },
+      ),
+    );
+
+    expect(outcome, isA<RateLimited<DeviceCredential>>());
+    expect(
+      (outcome as RateLimited<DeviceCredential>).retryAfter,
+      const Duration(seconds: 30),
+    );
+  });
+
+  test('completeEnrollment maps an unexpected status to BackendUnavailable',
+      () async {
+    final client = MockClient(
+      (request) async => http.Response(
+        jsonEncode(const {'message': 'boom'}),
+        500,
+        headers: {'content-type': 'application/json'},
+      ),
+    );
+
+    final outcome = await _authenticator(client).completeEnrollment(
+      CompleteEnrollmentRequest(
+        const {
+          'identifier': 'user@example.com',
+          'otp': '123456',
+          'deviceId': 'device-1',
+        },
+      ),
+    );
+
+    expect(outcome, isA<BackendUnavailable<DeviceCredential>>());
+  });
+
+  test('beginEnrollment rejects an http projectUrl without calling HTTP',
+      () async {
+    var called = false;
+    final client = MockClient((request) async {
+      called = true;
+      return http.Response('{}', 200);
+    });
+    final authenticator = SupabaseSyncAuthenticator(
+      projectUrl: Uri.parse('http://project.supabase.co'),
+      anonKey: 'anon',
+      client: client,
+    );
+
+    final outcome = await authenticator.beginEnrollment(
+      BeginEnrollmentRequest(const {'identifier': 'user@example.com'}),
+    );
+
+    expect(outcome, isA<InvalidRequest<EnrollmentChallenge>>());
+    expect(called, isFalse);
+  });
+
+  test('completeEnrollment rejects an http projectUrl without calling HTTP',
+      () async {
+    var called = false;
+    final client = MockClient((request) async {
+      called = true;
+      return http.Response('{}', 200);
+    });
+    final authenticator = SupabaseSyncAuthenticator(
+      projectUrl: Uri.parse('http://project.supabase.co'),
+      anonKey: 'anon',
+      client: client,
+    );
+
+    final outcome = await authenticator.completeEnrollment(
+      CompleteEnrollmentRequest(
+        const {
+          'identifier': 'user@example.com',
+          'otp': '123456',
+          'deviceId': 'device-1',
+        },
+      ),
+    );
+
+    expect(outcome, isA<InvalidRequest<DeviceCredential>>());
+    expect(called, isFalse);
   });
 
   test('beginEnrollment maps a network error to NetworkUnavailable', () async {
@@ -149,7 +284,11 @@ void main() {
 
     final outcome = await _authenticator(client).completeEnrollment(
       CompleteEnrollmentRequest(
-        const {'identifier': 'user@example.com', 'otp': '123456'},
+        const {
+          'identifier': 'user@example.com',
+          'otp': '123456',
+          'deviceId': 'device-1',
+        },
       ),
     );
 

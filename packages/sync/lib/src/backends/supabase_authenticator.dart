@@ -19,6 +19,8 @@ final class SupabaseSyncAuthenticator implements SyncAuthenticator {
   Future<SyncOutcome<EnrollmentChallenge>> beginEnrollment(
     BeginEnrollmentRequest request,
   ) async {
+    final schemeFailure = _requireHttps<EnrollmentChallenge>();
+    if (schemeFailure != null) return schemeFailure;
     final identifier = request.wire['identifier'];
     if (identifier is! String || identifier.isEmpty) {
       return const InvalidRequest<EnrollmentChallenge>(
@@ -45,7 +47,7 @@ final class SupabaseSyncAuthenticator implements SyncAuthenticator {
           message: error.message,
         );
       }
-      return _failureFromHttp<EnrollmentChallenge>(
+      return _gotrueFailureFromHttp<EnrollmentChallenge>(
         response.statusCode,
         body,
         retryAfterHeader: response.headers['retry-after'],
@@ -57,19 +59,27 @@ final class SupabaseSyncAuthenticator implements SyncAuthenticator {
     }
   }
 
+  /// Expects CompleteEnrollmentRequest wire to carry "identifier" (email),
+  /// "otp" (6 digits), and "deviceId" (the caller's local device UUID used
+  /// for [DeviceCredential.deviceID]).
   @override
   Future<SyncOutcome<DeviceCredential>> completeEnrollment(
     CompleteEnrollmentRequest request,
   ) async {
+    final schemeFailure = _requireHttps<DeviceCredential>();
+    if (schemeFailure != null) return schemeFailure;
     final identifier = request.wire['identifier'];
     final otp = request.wire['otp'];
+    final deviceID = request.wire['deviceId'];
     if (identifier is! String ||
         identifier.isEmpty ||
         otp is! String ||
-        !_otpPattern.hasMatch(otp)) {
+        !_otpPattern.hasMatch(otp) ||
+        deviceID is! String ||
+        deviceID.isEmpty) {
       return const InvalidRequest<DeviceCredential>(
         message: 'CompleteEnrollmentRequest wire must carry a non-empty '
-            '"identifier" email and a 6-digit "otp".',
+            '"identifier" email, a 6-digit "otp", and a non-empty "deviceId".',
       );
     }
     try {
@@ -89,9 +99,9 @@ final class SupabaseSyncAuthenticator implements SyncAuthenticator {
         return BackendUnavailable<DeviceCredential>(message: error.message);
       }
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        return _credentialFromVerifyBody(body);
+        return _credentialFromVerifyBody(body, deviceID);
       }
-      return _failureFromHttp<DeviceCredential>(
+      return _gotrueFailureFromHttp<DeviceCredential>(
         response.statusCode,
         body,
         retryAfterHeader: response.headers['retry-after'],
@@ -118,26 +128,47 @@ final class SupabaseSyncAuthenticator implements SyncAuthenticator {
         'content-type': 'application/json',
         'accept': 'application/json',
       };
+
+  SyncFailure<T>? _requireHttps<T>() {
+    if (projectUrl.scheme != 'https') {
+      return InvalidRequest<T>(
+        message: 'projectUrl must use https.',
+      );
+    }
+    return null;
+  }
 }
 
 final RegExp _otpPattern = RegExp(r'^\d{6}$');
 
 SyncOutcome<DeviceCredential> _credentialFromVerifyBody(
   Map<String, Object?> body,
+  String deviceID,
 ) {
   final accessToken = body['access_token'];
-  final user = body['user'];
-  var userID = '';
-  if (user is Map<Object?, Object?>) {
-    final rawID = user['id'];
-    if (rawID is String) userID = rawID;
-  }
-  if (accessToken is! String || accessToken.isEmpty || userID.isEmpty) {
+  if (accessToken is! String || accessToken.isEmpty) {
     return const BackendUnavailable<DeviceCredential>(
-      message: 'Verify response must carry access_token and user.id.',
+      message: 'Verify response must carry access_token.',
     );
   }
   return SyncSuccess<DeviceCredential>(
-    DeviceCredential._(deviceID: userID, bearerToken: accessToken),
+    DeviceCredential._(deviceID: deviceID, bearerToken: accessToken),
   );
+}
+
+/// GoTrue status mapper: only the auth-exchange categories apply here.
+SyncFailure<T> _gotrueFailureFromHttp<T>(
+  int statusCode,
+  Map<String, Object?> body, {
+  String? retryAfterHeader,
+}) {
+  final message = body['message']?.toString();
+  final retryAfter = _parseRetryAfter(retryAfterHeader);
+  return switch (statusCode) {
+    400 || 422 => InvalidRequest<T>(message: message),
+    429 => RateLimited<T>(message: message, retryAfter: retryAfter),
+    _ => BackendUnavailable<T>(
+        message: message ?? 'Unexpected HTTP $statusCode.',
+      ),
+  };
 }
