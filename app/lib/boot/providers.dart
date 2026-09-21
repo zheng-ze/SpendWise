@@ -14,6 +14,7 @@ import 'package:spendwise/persistence/drift_ledger_store.dart';
 import 'package:spendwise/persistence/ledger_database.dart';
 import 'package:spendwise/persistence/ledger_store.dart';
 import 'package:spendwise/persistence/persistence_processor.dart';
+import 'package:spendwise/sync/sync_metadata_store.dart';
 
 /// Overridden with an in-memory executor in tests.
 // The override keeps the store below under test rather than replacing it.
@@ -21,16 +22,27 @@ final databaseConnectionProvider = Provider<Future<QueryExecutor>>((ref) {
   return openLedgerConnection();
 });
 
-/// Builds the store synchronously around a connection that opens lazily.
-// [LazyDatabase] defers the open, letting the store build synchronously
-// while [AppBoot] is the one that awaits the connection.
-final storeProvider = Provider<LedgerStore>((ref) {
+/// Sole owner of the shared database. Both the ledger store and the sync
+/// metadata store below build from this one instance, so boot opens exactly
+/// one database.
+final ledgerDatabaseProvider = Provider<LedgerDatabase>((ref) {
   final database = LedgerDatabase(
     LazyDatabase(() => ref.read(databaseConnectionProvider)),
   );
   // Swallowed here since a failed opener's error was already surfaced once.
   ref.onDispose(() => database.close().catchError((_) {}));
-  return DriftLedgerStore(database);
+  return database;
+});
+
+/// Builds the store synchronously around the shared database.
+final storeProvider = Provider<LedgerStore>((ref) {
+  return DriftLedgerStore(ref.watch(ledgerDatabaseProvider));
+});
+
+/// Builds the sync metadata store around the same shared database, so a later
+/// picker controller can take [SyncMetadataStore] without a second database.
+final syncMetadataStoreProvider = Provider<SyncMetadataStore>((ref) {
+  return SyncMetadataStore(ref.watch(ledgerDatabaseProvider));
 });
 
 final bannerStateProvider = ChangeNotifierProvider<BannerState>((ref) {
@@ -54,10 +66,12 @@ final appBootProvider = ChangeNotifierProvider<AppBoot>((ref) {
     seedChanges: seedChanges,
     onSaveState: banner.receiveSaveState,
     onPlanError: banner.receivePlanErrors,
-    // LazyDatabase caches a failed open, so both providers need invalidating
-    // or a retry just replays the same failure.
+    // LazyDatabase caches a failed open, so all three providers need
+    // invalidating or a retry just replays the same failure.
     onRetry: () {
       ref.invalidate(storeProvider);
+      ref.invalidate(syncMetadataStoreProvider);
+      ref.invalidate(ledgerDatabaseProvider);
       ref.invalidate(databaseConnectionProvider);
     },
   );
