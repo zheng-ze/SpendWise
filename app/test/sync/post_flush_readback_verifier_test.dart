@@ -34,9 +34,8 @@ void main() {
 
   tearDown(() => db.close());
 
-  Future<void> storeAccount(String id, VersionVector version) => db
-      .into(db.accounts)
-      .insert(accountToRow(_account(id), version));
+  Future<void> storeAccount(String id, VersionVector version) =>
+      db.into(db.accounts).insert(accountToRow(_account(id), version));
 
   test('an exact stored stamp passes as equal', () async {
     final stamp = VersionVector({'device-a': 1});
@@ -49,19 +48,22 @@ void main() {
     expect(outcomes[id]!.passed, isTrue);
   });
 
-  test('a stored vector that strictly dominates the stamp passes as dominated', () async {
-    final stamp = VersionVector({'device-a': 1});
-    final stored = VersionVector({'device-a': 1, 'device-b': 1});
-    await storeAccount(_rowB, stored);
-    final id = SyncRowID.of(SyncCollection.moneySources, _rowB);
+  test(
+    'a stored vector that strictly dominates the stamp passes as dominated',
+    () async {
+      final stamp = VersionVector({'device-a': 1});
+      final stored = VersionVector({'device-a': 1, 'device-b': 1});
+      await storeAccount(_rowB, stored);
+      final id = SyncRowID.of(SyncCollection.moneySources, _rowB);
 
-    final outcomes = await verifier.verify({id: stamp});
+      final outcomes = await verifier.verify({id: stamp});
 
-    final outcome = outcomes[id];
-    expect(outcome, isA<RowReadbackDominated>());
-    expect(outcome!.passed, isTrue);
-    expect((outcome as RowReadbackDominated).storedVector, stored);
-  });
+      final outcome = outcomes[id];
+      expect(outcome, isA<RowReadbackDominated>());
+      expect(outcome!.passed, isTrue);
+      expect((outcome as RowReadbackDominated).storedVector, stored);
+    },
+  );
 
   test('a missing row is a persistent verification failure', () async {
     final stamp = VersionVector({'device-a': 1});

@@ -36,10 +36,7 @@ void main() {
     test('a relative URI throws before any backend is constructed', () {
       expect(
         () => resolver.resolve(
-          snapshotOf(
-            backend: SyncBackendKind.custom,
-            endpoint: 'sync/push',
-          ),
+          snapshotOf(backend: SyncBackendKind.custom, endpoint: 'sync/push'),
         ),
         throwsA(
           isA<SyncBackendConfigurationException>().having(
@@ -54,10 +51,7 @@ void main() {
     test('an https URI with an empty host throws', () {
       expect(
         () => resolver.resolve(
-          snapshotOf(
-            backend: SyncBackendKind.custom,
-            endpoint: 'https://',
-          ),
+          snapshotOf(backend: SyncBackendKind.custom, endpoint: 'https://'),
         ),
         throwsA(
           isA<SyncBackendConfigurationException>().having(
@@ -71,9 +65,7 @@ void main() {
 
     test('a missing endpoint throws', () {
       expect(
-        () => resolver.resolve(
-          snapshotOf(backend: SyncBackendKind.custom),
-        ),
+        () => resolver.resolve(snapshotOf(backend: SyncBackendKind.custom)),
         throwsA(isA<SyncBackendConfigurationException>()),
       );
     });
@@ -129,9 +121,7 @@ void main() {
 
     test('a null config throws before any backend is constructed', () {
       expect(
-        () => resolver.resolve(
-          snapshotOf(backend: SyncBackendKind.supabase),
-        ),
+        () => resolver.resolve(snapshotOf(backend: SyncBackendKind.supabase)),
         throwsA(isA<SyncBackendConfigurationException>()),
       );
     });
@@ -220,10 +210,7 @@ void main() {
 
   group('no backend selected', () {
     test('a never-enrolled snapshot resolves to null without throwing', () {
-      expect(
-        resolver.resolve(snapshotOf(backend: null)),
-        isNull,
-      );
+      expect(resolver.resolve(snapshotOf(backend: null)), isNull);
     });
   });
 

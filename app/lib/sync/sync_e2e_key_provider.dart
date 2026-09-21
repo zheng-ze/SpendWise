@@ -13,7 +13,8 @@ final class SyncE2EKeyProvider {
 
   final SecretStore _secretStore;
 
-  SyncE2EKeyAccessor get accessor => () => _readKey();
+  SyncE2EKeyAccessor get accessor =>
+      () => _readKey();
 
   Future<Uint8List> _readKey() async {
     final String? stored;
