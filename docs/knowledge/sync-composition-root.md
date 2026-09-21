@@ -1,6 +1,6 @@
 # Sync: composition root
 
-Last reconciled: b1a192b
+Last reconciled: a9ef4ac
 
 ## Overview
 
@@ -53,6 +53,20 @@ is never persisted in `SyncMetadataSnapshot`. Source:
 `app/lib/sync/sync_backend_resolver.dart` - `SyncBackendResolver.resolve`, `SupabaseConfig`;
 `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.create`;
 `app/lib/sync/sync_metadata_store.dart` - `SyncMetadataSnapshot`.
+
+`SupabaseSyncAuthenticator` is a separate package adapter for Supabase-hosted email enrollment.
+It uses GoTrue Auth (`/auth/v1/otp` and `/auth/v1/verify`), while `SupabaseSyncBackend` uses the
+PostgREST RPC surface. Its project URL must use HTTPS. Custom endpoint enrollment authentication
+is out of scope. Source: `packages/sync/lib/src/backends/supabase_authenticator.dart` -
+`SupabaseSyncAuthenticator.beginEnrollment`, `SupabaseSyncAuthenticator.completeEnrollment`;
+`packages/sync/lib/src/backends/supabase_backend.dart` - `SupabaseSyncBackend._rpc`.
+
+The authenticator uses its private `_gotrueFailureFromHttp` mapper rather than the shared RPC
+mapper: GoTrue HTTP 400 and 422 produce `InvalidRequest`, 429 produces `RateLimited`, and every
+other status produces `BackendUnavailable`. The shared mapper assigns custom RPC meanings such as
+HTTP 403 to `DeviceRetired`, which does not apply to the GoTrue exchange. Source:
+`packages/sync/lib/src/backends/supabase_authenticator.dart` - `_gotrueFailureFromHttp`;
+`packages/sync/lib/src/backends/http_support.dart` - `_failureFromHttp`.
 
 `CachedCollectionVersionSource` bridges bulk asynchronous reads to the `SyncVersionSource` used
 by the engine. A refresh reads every `SyncCollection`, publishes its new cache only after all

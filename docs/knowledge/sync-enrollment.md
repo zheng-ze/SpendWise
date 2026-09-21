@@ -1,16 +1,20 @@
 # Sync: enrollment
 
-Last reconciled: 18fbe735
+Last reconciled: a9ef4ac
 
 ## Overview
 
 `SyncEnrollmentService` owns the app-layer enrollment phase machine. It acquires
 or recovers a device credential, ensures an E2E key exists, completes the
 initial reconciliation handshake, and enables writes only after reconciliation
-is durably complete. It is separate from `SyncCoordinator.create`: no shipped
-composition path constructs or calls this service yet. Source:
+is durably complete. A shipped `SupabaseSyncAuthenticator` serves the Supabase-hosted
+email plus 6-digit OTP enrollment exchange, but it is separate from
+`SyncCoordinator.create`: no shipped composition path constructs or calls the
+enrollment service or authenticator yet. Source:
 `app/lib/sync/sync_enrollment_service.dart` - `SyncEnrollmentService`;
-`app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.create`.
+`app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.create`;
+`packages/sync/lib/src/backends/supabase_authenticator.dart` -
+`SupabaseSyncAuthenticator`.
 
 `EnrollmentSnapshotPublisher` is the next app-layer component after the phase
 machine reaches `gateEnabled`: it drives one ordered push across all
@@ -85,6 +89,19 @@ default store is `SecureSecretStore`. Source:
 `app/lib/sync/enrollment_snapshot_publisher.dart` -
 `EnrollmentSnapshotPublisher`, `EnrollmentSnapshotPublisher.publish`;
 `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.pushCollection`.
+
+`SupabaseSyncAuthenticator.completeEnrollment` requires the caller's local `deviceId` in
+`CompleteEnrollmentRequest.wire`. That value becomes `DeviceCredential.deviceID` and must be the
+same identifier returned downstream by `deviceID(database)`. The adapter sends the email and OTP to
+GoTrue `/auth/v1/verify` and maps a successful `access_token` to the opaque credential. Its
+`refreshCredential` always returns `BackendUnavailable` because the credential has no refresh-token
+field; re-enrollment is required. Source:
+`packages/sync/lib/src/backends/supabase_authenticator.dart` -
+`SupabaseSyncAuthenticator.completeEnrollment`, `SupabaseSyncAuthenticator.refreshCredential`,
+`_credentialFromVerifyBody`, `_gotrueFailureFromHttp` (400/422 invalid request, 429 rate limited,
+other statuses backend unavailable);
+`packages/sync/lib/src/protocol/credential.dart` - `DeviceCredential`;
+`app/lib/persistence/device_identity.dart` - `deviceID`.
 
 ## Contracts and invariants
 
