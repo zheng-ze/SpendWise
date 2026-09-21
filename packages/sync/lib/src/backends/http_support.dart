@@ -31,7 +31,10 @@ SyncFailure<T> _failureFromHttp<T>(
     case 'stale_or_invalid_proof':
       return StaleOrInvalidProof<T>(message: message);
     case 'snapshot_hash_mismatch':
-      return SnapshotHashMismatch<T>(message: message);
+      return SnapshotHashMismatch<T>(
+        message: message,
+        mismatchedCollection: _decodeMismatchedCollection(body),
+      );
     case 'protocol_unsupported':
       return ProtocolUnsupported<T>(message: message);
     case 'invalid_request':
@@ -59,6 +62,16 @@ Duration? _parseRetryAfter(String? value) {
   if (value == null) return null;
   final seconds = int.tryParse(value.trim());
   return seconds == null ? null : Duration(seconds: seconds);
+}
+
+SyncCollection? _decodeMismatchedCollection(Map<String, Object?> body) {
+  final raw = body['mismatched_collection'];
+  if (raw is! String) return null;
+  try {
+    return SyncCollection.fromWireName(raw);
+  } on FormatException {
+    return null;
+  }
 }
 
 Map<String, String> _authorizationHeaders(DeviceCredential credential) =>

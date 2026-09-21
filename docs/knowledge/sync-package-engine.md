@@ -1,6 +1,6 @@
 # Sync: package engine
 
-Last reconciled: 693eb53
+Last reconciled: ad25ece
 
 ## Layer overview
 
@@ -102,6 +102,26 @@ orchestration and conflict-review UI remain outside `packages/sync`. Source:
   or malformed fields throw `FormatException`. Source:
   `packages/sync/lib/src/protocol/requests.dart` - `PullResponse`;
   `packages/sync/test/protocol/pull_response_test.dart` - group `PullResponse`.
+- `PullRequest` has two mutually exclusive constructors: the default constructor sends a top-level
+  `cursor` for an ordinary durable pull, and `PullRequest.reconciliation` sends a nested
+  `reconciliation` object (a `ReconciliationContext`) instead, for a fixed-watermark snapshot pull.
+  Only one of `cursor`/`reconciliation` is ever non-null on one request. `ReconciliationContext`
+  carries `reconciliationID`, `snapshotWatermark`, `expiresAt`, and an optional snapshot-only
+  `cursor`; `withContinuation` returns a copy with only that cursor replaced, keeping the
+  reconciliation ID, watermark, and expiry fixed across pages. `ReconcileResponse.reconciliationContext`
+  decodes the same shape from a `begin_reconcile` response's nested `reconciliation` object; a
+  missing or malformed object throws `FormatException`. This wire shape is client-defined ahead of
+  any real backend: no shipped Supabase or custom backend yet serves reconciliation-mode pulls or
+  returns this context from `BeginReconcile`. Source:
+  `packages/sync/lib/src/protocol/requests.dart` - `PullRequest.reconciliation`,
+  `ReconciliationContext`, `ReconciliationContext.withContinuation`,
+  `ReconcileResponse.reconciliationContext`;
+  `packages/sync/test/protocol/reconciliation_context_test.dart`.
+- `SnapshotHashMismatch.mismatchedCollection` names the first differing `SyncCollection`, in fixed
+  order, when the backend's failure response includes one; it stays null for a failure with no (or
+  an unrecognized) `mismatched_collection`, or for a generic `SnapshotHashMismatch` outside
+  reconciliation. Source: `packages/sync/lib/src/protocol/outcome.dart` -
+  `SnapshotHashMismatch.mismatchedCollection`.
 - `PushResponse.rowOutcomes` returns an unmodifiable `SyncRowID`-keyed map of the closed
   `PushRowOutcome` set: `PushApplied`, `PushAlreadyPresent`, or `PushRejected`. Every variant
   carries `siblingID`; applied and already-present outcomes also carry the resulting frontier.

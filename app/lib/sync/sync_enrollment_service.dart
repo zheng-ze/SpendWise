@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:spendwise/persistence/device_identity.dart';
 import 'package:spendwise/persistence/ledger_database.dart';
 import 'package:spendwise/sync/credential_provider.dart';
+import 'package:spendwise/sync/reconciliation_snapshot_hasher.dart';
 import 'package:spendwise/sync/secret_store.dart';
 import 'package:spendwise/sync/sync_e2e_key_provider.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
@@ -53,7 +54,7 @@ final class SyncEnrollmentService {
     required this.buildBeginRequest,
     required this.buildCompleteRequest,
     required this.resolveE2EKey,
-    required this.resolveCollectionHashes,
+    required this.buildSnapshotHasher,
   });
 
   final SyncAuthenticator authenticator;
@@ -68,17 +69,12 @@ final class SyncEnrollmentService {
   buildCompleteRequest;
   final Future<Uint8List> Function() resolveE2EKey;
 
-  /// Computes the five collection digests for `CompleteReconcile`.
-  ///
-  /// Receives `BeginReconcile`'s response so the caller can page every
-  /// collection under its returned device-bound reconciliation context
-  /// (reconciliation ID, fixed snapshot watermark, expiry) before hashing, per
-  /// `docs/sync-protocol.md` section 4. This service does not itself page the
-  /// snapshot; that belongs to the caller's pull machinery.
-  final Future<Map<SyncCollection, String>> Function(
-    ReconcileResponse beginResponse,
-  )
-  resolveCollectionHashes;
+  /// Builds the attempt-scoped hasher that pages the `BeginReconcile`
+  /// snapshot under its returned device-bound reconciliation context
+  /// (reconciliation ID, fixed snapshot watermark, expiry) and hashes the
+  /// fetched envelopes, per `docs/sync-protocol.md` section 4.
+  final ReconciliationSnapshotHasher Function(SyncCredential credential)
+  buildSnapshotHasher;
 
   /// Advances enrollment until the gate is durably enabled.
   Future<void> enroll() async {
@@ -172,11 +168,14 @@ final class SyncEnrollmentService {
 
   /// Runs the begin/complete reconcile round trip, then records completion.
   ///
-  /// Threads `BeginReconcile`'s response into [resolveCollectionHashes] so it
-  /// can page the snapshot under the returned reconciliation context, and
-  /// durably captures the single-use write-proof `CompleteReconcile` returns
-  /// before recording completion, so the first post-reconciliation push can
-  /// supply it.
+  /// Pages the snapshot through the attempt hasher under `BeginReconcile`'s
+  /// context. A `snapshot_hash_mismatch` naming a collection re-pages only
+  /// that collection under the same context, replaces its digest, and retries
+  /// `CompleteReconcile` exactly once. A second mismatch, or one naming no
+  /// (or an unrecognized) collection, fails without advancing the phase, so
+  /// the write gate stays closed. Durably captures the single-use write-proof
+  /// `CompleteReconcile` returns before recording completion, so the first
+  /// post-reconciliation push can supply it.
   Future<SyncEnrollmentPhase> _stepSnapshotInProgress() async {
     final credential = await CredentialProvider(
       database: database,
@@ -186,12 +185,35 @@ final class SyncEnrollmentService {
       await backend.reconcile(credential, const BeginReconcile()),
       step: 'reconcileBegin',
     );
-    final hashes = await resolveCollectionHashes(beginResponse);
-    final completeResponse = _requireSuccess(
-      await backend.reconcile(
+    final context = _decodeContext(beginResponse);
+    final hasher = buildSnapshotHasher(credential);
+    var hashes = await _hashAll(hasher, context);
+    var completeOutcome = await backend.reconcile(
+      credential,
+      CompleteReconcile(collectionHashes: hashes),
+    );
+    if (completeOutcome is SnapshotHashMismatch<ReconcileResponse>) {
+      final mismatched = completeOutcome.mismatchedCollection;
+      if (mismatched == null) {
+        throw SyncEnrollmentException(
+          step: 'reconcileComplete',
+          code: completeOutcome.code,
+          message: completeOutcome.message,
+        );
+      }
+      hashes = Map<SyncCollection, String>.unmodifiable(
+        <SyncCollection, String>{
+          ...hashes,
+          mismatched: await _rehash(hasher, context, mismatched),
+        },
+      );
+      completeOutcome = await backend.reconcile(
         credential,
         CompleteReconcile(collectionHashes: hashes),
-      ),
+      );
+    }
+    final completeResponse = _requireSuccess(
+      completeOutcome,
       step: 'reconcileComplete',
     );
     final writeProof = completeResponse.wire[_writeProofWireKey];
@@ -205,6 +227,52 @@ final class SyncEnrollmentService {
   }
 
   static const _writeProofWireKey = 'write_proof';
+
+  ReconciliationContext _decodeContext(ReconcileResponse beginResponse) {
+    try {
+      return beginResponse.reconciliationContext;
+    } on FormatException catch (error) {
+      throw SyncEnrollmentException(
+        step: 'reconcileBegin',
+        code: 'invalid_request',
+        message: error.message,
+      );
+    }
+  }
+
+  /// Snapshot paging belongs to the begin half of the round trip.
+  Future<Map<SyncCollection, String>> _hashAll(
+    ReconciliationSnapshotHasher hasher,
+    ReconciliationContext context,
+  ) async {
+    try {
+      return await hasher.hashAll(context);
+    } on ReconciliationSnapshotException catch (error) {
+      throw SyncEnrollmentException(
+        step: 'reconcileBegin',
+        code: error.code,
+        message: error.message,
+        retryAfter: error.retryAfter,
+      );
+    }
+  }
+
+  Future<String> _rehash(
+    ReconciliationSnapshotHasher hasher,
+    ReconciliationContext context,
+    SyncCollection collection,
+  ) async {
+    try {
+      return await hasher.hashCollection(context, collection);
+    } on ReconciliationSnapshotException catch (error) {
+      throw SyncEnrollmentException(
+        step: 'reconcileComplete',
+        code: error.code,
+        message: error.message,
+        retryAfter: error.retryAfter,
+      );
+    }
+  }
 
   Future<SyncEnrollmentPhase> _stepReconciliationComplete() async {
     await metadataStore.setWriteEnabled(true);

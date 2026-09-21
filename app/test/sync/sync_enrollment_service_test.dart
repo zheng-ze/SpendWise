@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/persistence/device_identity.dart';
 import 'package:spendwise/persistence/ledger_database.dart';
 import 'package:spendwise/sync/credential_provider.dart';
+import 'package:spendwise/sync/reconciliation_snapshot_hasher.dart';
 import 'package:spendwise/sync/sync_e2e_key_provider.dart';
 import 'package:spendwise/sync/sync_enrollment_service.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
@@ -23,13 +24,52 @@ String credentialPayload(String device, String bearer) => base64Url.encode(
   ),
 );
 
-Map<SyncCollection, String> testHashes() => {
-  for (final collection in SyncCollection.values)
-    collection: 'hash-${collection.name}',
+/// Backend serving empty end-of-snapshot pages for every pull, so the real
+/// snapshot hasher runs without a scripted snapshot unless a test overrides
+/// [onPull].
+InMemorySyncBackend emptySnapshotBackend({
+  PullHandler? onPull,
+  ReconcileHandler? onReconcile,
+}) => InMemorySyncBackend(
+  onPull:
+      onPull ??
+      (credential, request) async => SyncSuccess(
+        PullResponse(const <String, Object?>{
+          'envelopes': <Object?>[],
+          'cursor': 'cursor-0',
+          'end_of_snapshot': true,
+        }),
+      ),
+  onReconcile:
+      onReconcile ??
+      (credential, request) async {
+        if (request is BeginReconcile) {
+          return SyncSuccess(ReconcileResponse(beginContextWire()));
+        }
+        return SyncSuccess(ReconcileResponse(const {}));
+      },
+);
+
+Map<String, Object?> beginContextWire() => <String, Object?>{
+  'reconciliation': <String, Object?>{
+    'reconciliation_id': 'recon-42',
+    'snapshot_watermark': 'watermark-7',
+    'expires_at': '2026-09-19T12:00:00.000Z',
+  },
 };
 
 Uint8List validE2EKey() =>
     Uint8List.fromList(List<int>.generate(32, (index) => index));
+
+SyncEnvelope entriesEnvelope(String row) => SyncEnvelope.create(
+  protocolVersion: syncProtocolVersion,
+  userID: 'user-1',
+  collection: SyncCollection.entries,
+  rowID: row,
+  versionVector: VersionVector({'device-a': 1}),
+  lifecycle: SiblingLifecycle.live,
+  ciphertext: 'cipher-$row',
+);
 
 final class FakeSyncAuthenticator implements SyncAuthenticator {
   SyncOutcome<EnrollmentChallenge> Function()? onBegin;
@@ -73,15 +113,14 @@ void main() {
     secrets = InMemorySecretStore();
     metadataStore = SyncMetadataStore(db);
     authenticator = FakeSyncAuthenticator();
-    backend = InMemorySyncBackend();
+    backend = emptySnapshotBackend();
   });
 
   tearDown(() => db.close());
 
   SyncEnrollmentService service({
     Future<Uint8List> Function()? resolveE2EKey,
-    Future<Map<SyncCollection, String>> Function(ReconcileResponse)?
-    resolveCollectionHashes,
+    ReconciliationSnapshotHasher Function(SyncCredential)? buildSnapshotHasher,
   }) => SyncEnrollmentService(
     authenticator: authenticator,
     backend: backend,
@@ -92,8 +131,12 @@ void main() {
     buildCompleteRequest: (challenge) async =>
         CompleteEnrollmentRequest(const {}),
     resolveE2EKey: resolveE2EKey ?? () async => validE2EKey(),
-    resolveCollectionHashes:
-        resolveCollectionHashes ?? (_) async => testHashes(),
+    buildSnapshotHasher:
+        buildSnapshotHasher ??
+        (credential) => ReconciliationSnapshotHasher(
+          backend: backend,
+          credential: credential,
+        ),
   );
 
   Future<void> configureHandshakeSuccess({
@@ -120,9 +163,12 @@ void main() {
   test('happy path drives notEnrolled all the way to gateEnabled', () async {
     await configureHandshakeSuccess();
     final reconcileTypes = <Type>[];
-    backend = InMemorySyncBackend(
+    backend = emptySnapshotBackend(
       onReconcile: (credential, request) async {
         reconcileTypes.add(request.runtimeType);
+        if (request is BeginReconcile) {
+          return SyncSuccess(ReconcileResponse(beginContextWire()));
+        }
         if (request is CompleteReconcile) {
           return SyncSuccess(ReconcileResponse({'write_proof': 'proof-123'}));
         }
@@ -150,9 +196,13 @@ void main() {
     'a complete-reconcile response without a write proof leaves none stored',
     () async {
       await configureHandshakeSuccess();
-      backend = InMemorySyncBackend(
-        onReconcile: (credential, request) async =>
-            SyncSuccess(ReconcileResponse(const {})),
+      backend = emptySnapshotBackend(
+        onReconcile: (credential, request) async {
+          if (request is BeginReconcile) {
+            return SyncSuccess(ReconcileResponse(beginContextWire()));
+          }
+          return SyncSuccess(ReconcileResponse(const {}));
+        },
       );
 
       await service().enroll();
@@ -162,30 +212,44 @@ void main() {
   );
 
   test(
-    'resolveCollectionHashes receives the begin-reconcile response',
+    'snapshot pulls carry the begin-reconcile context, never a cursor',
     () async {
       await configureHandshakeSuccess();
-      backend = InMemorySyncBackend(
+      final seenPulls = <PullRequest>[];
+      backend = emptySnapshotBackend(
+        onPull: (credential, request) async {
+          seenPulls.add(request);
+          return SyncSuccess(
+            PullResponse(const <String, Object?>{
+              'envelopes': <Object?>[],
+              'cursor': 'cursor-0',
+              'end_of_snapshot': true,
+            }),
+          );
+        },
         onReconcile: (credential, request) async {
           if (request is BeginReconcile) {
-            return SyncSuccess(
-              ReconcileResponse({'reconciliation_id': 'recon-42'}),
-            );
+            return SyncSuccess(ReconcileResponse(beginContextWire()));
           }
           return SyncSuccess(ReconcileResponse(const {}));
         },
       );
-      ReconcileResponse? received;
 
-      await service(
-        resolveCollectionHashes: (beginResponse) async {
-          received = beginResponse;
-          return testHashes();
-        },
-      ).enroll();
+      await service().enroll();
 
-      expect(received, isNotNull);
-      expect(received!.wire['reconciliation_id'], 'recon-42');
+      expect(
+        seenPulls.map((request) => request.collection),
+        SyncCollection.values,
+      );
+      for (final request in seenPulls) {
+        expect(request.cursor, isNull);
+        final context = request.reconciliation;
+        expect(context, isNotNull);
+        expect(context!.reconciliationID, 'recon-42');
+        expect(context.snapshotWatermark, 'watermark-7');
+        expect(context.expiresAt, DateTime.utc(2026, 9, 19, 12));
+      }
+      expect(backend.calls, isNot(contains('acknowledge')));
     },
   );
 
@@ -279,7 +343,13 @@ void main() {
     expect(authenticator.beginCalls, 0);
     expect(authenticator.completeCalls, 0);
     expect(resolveKeyCalls, 0);
-    expect(backend.calls, ['reconcile', 'reconcile']);
+    expect(backend.calls.first, 'reconcile');
+    expect(backend.calls.last, 'reconcile');
+    expect(
+      backend.calls.where((call) => call == 'pull'),
+      hasLength(SyncCollection.values.length),
+    );
+    expect(backend.calls, isNot(contains('acknowledge')));
     expect(
       (await metadataStore.snapshot()).phase,
       SyncEnrollmentPhase.gateEnabled,
@@ -309,11 +379,14 @@ void main() {
     expect(snapshot.writeEnabled, isTrue);
   });
 
-  test('complete reconcile carries exactly the resolved hashes', () async {
+  test('complete reconcile carries the hashed empty snapshot', () async {
     await configureHandshakeSuccess();
     Map<SyncCollection, String>? sentHashes;
-    backend = InMemorySyncBackend(
+    backend = emptySnapshotBackend(
       onReconcile: (credential, request) async {
+        if (request is BeginReconcile) {
+          return SyncSuccess(ReconcileResponse(beginContextWire()));
+        }
         if (request is CompleteReconcile) {
           sentHashes = request.collectionHashes;
         }
@@ -323,7 +396,10 @@ void main() {
 
     await service().enroll();
 
-    expect(sentHashes, testHashes());
+    expect(sentHashes, {
+      for (final collection in SyncCollection.values)
+        collection: computeSnapshotHash(const <SyncEnvelope>[]),
+    });
     expect(sentHashes!.keys.toSet(), SyncCollection.values.toSet());
   });
 
@@ -332,7 +408,7 @@ void main() {
     () async {
       await configureHandshakeSuccess();
       final reconcileTypes = <Type>[];
-      backend = InMemorySyncBackend(
+      backend = emptySnapshotBackend(
         onReconcile: (credential, request) async {
           reconcileTypes.add(request.runtimeType);
           return NetworkUnavailable<ReconcileResponse>(message: 'offline');
@@ -358,9 +434,12 @@ void main() {
   test('reconcile-complete failure keeps snapshotInProgress', () async {
     await configureHandshakeSuccess();
     final reconcileTypes = <Type>[];
-    backend = InMemorySyncBackend(
+    backend = emptySnapshotBackend(
       onReconcile: (credential, request) async {
         reconcileTypes.add(request.runtimeType);
+        if (request is BeginReconcile) {
+          return SyncSuccess(ReconcileResponse(beginContextWire()));
+        }
         if (request is CompleteReconcile) {
           return SnapshotHashMismatch<ReconcileResponse>(
             message: 'hashes diverged',
@@ -379,6 +458,125 @@ void main() {
           .having((e) => e.code, 'code', 'snapshot_hash_mismatch'),
     );
     expect(reconcileTypes, [BeginReconcile, CompleteReconcile]);
+    final snapshot = await metadataStore.snapshot();
+    expect(snapshot.phase, SyncEnrollmentPhase.snapshotInProgress);
+    expect(snapshot.writeEnabled, isFalse);
+  });
+
+  test(
+    'one named mismatch re-pages only that collection, then succeeds',
+    () async {
+      await configureHandshakeSuccess();
+      final firstEntries = entriesEnvelope('row-e1');
+      final secondEntries = entriesEnvelope('row-e2');
+      final pullCounts = <SyncCollection, int>{};
+      var entriesPulls = 0;
+      var completeCalls = 0;
+      final completions = <Map<SyncCollection, String>>[];
+      backend = emptySnapshotBackend(
+        onPull: (credential, request) async {
+          pullCounts.update(
+            request.collection,
+            (count) => count + 1,
+            ifAbsent: () => 1,
+          );
+          if (request.collection == SyncCollection.entries) {
+            entriesPulls++;
+            final envelope = entriesPulls == 1 ? firstEntries : secondEntries;
+            return SyncSuccess(
+              PullResponse(<String, Object?>{
+                'envelopes': <Object?>[envelope.toWireJson()],
+                'cursor': 'cursor-e$entriesPulls',
+                'end_of_snapshot': true,
+              }),
+            );
+          }
+          return SyncSuccess(
+            PullResponse(const <String, Object?>{
+              'envelopes': <Object?>[],
+              'cursor': 'cursor-0',
+              'end_of_snapshot': true,
+            }),
+          );
+        },
+        onReconcile: (credential, request) async {
+          if (request is BeginReconcile) {
+            return SyncSuccess(ReconcileResponse(beginContextWire()));
+          }
+          if (request is CompleteReconcile) {
+            completeCalls++;
+            completions.add(request.collectionHashes);
+            if (completeCalls == 1) {
+              return const SnapshotHashMismatch<ReconcileResponse>(
+                message: 'entries diverged',
+                mismatchedCollection: SyncCollection.entries,
+              );
+            }
+            return SyncSuccess(
+              ReconcileResponse(const {'write_proof': 'proof-123'}),
+            );
+          }
+          return SyncSuccess(ReconcileResponse(const {}));
+        },
+      );
+
+      await service().enroll();
+
+      expect(completeCalls, 2);
+      expect(
+        completions[0][SyncCollection.entries],
+        computeSnapshotHash([firstEntries]),
+      );
+      expect(
+        completions[1][SyncCollection.entries],
+        computeSnapshotHash([secondEntries]),
+      );
+      for (final collection in SyncCollection.values) {
+        if (collection != SyncCollection.entries) {
+          expect(
+            completions[1][collection],
+            completions[0][collection],
+            reason: 'only the named collection is re-paged.',
+          );
+          expect(pullCounts[collection], 1);
+        }
+      }
+      expect(pullCounts[SyncCollection.entries], 2);
+      expect(await secrets.read(syncWriteProofSecretKey), 'proof-123');
+      final snapshot = await metadataStore.snapshot();
+      expect(snapshot.phase, SyncEnrollmentPhase.gateEnabled);
+      expect(snapshot.writeEnabled, isTrue);
+    },
+  );
+
+  test('a repeated mismatch fails safely with the gate closed', () async {
+    await configureHandshakeSuccess();
+    var completeCalls = 0;
+    backend = emptySnapshotBackend(
+      onReconcile: (credential, request) async {
+        if (request is BeginReconcile) {
+          return SyncSuccess(ReconcileResponse(beginContextWire()));
+        }
+        if (request is CompleteReconcile) {
+          completeCalls++;
+          return const SnapshotHashMismatch<ReconcileResponse>(
+            message: 'entries diverged',
+            mismatchedCollection: SyncCollection.entries,
+          );
+        }
+        return SyncSuccess(ReconcileResponse(const {}));
+      },
+    );
+
+    final error = await enrollError(service().enroll);
+
+    expect(
+      error,
+      isA<SyncEnrollmentException>()
+          .having((e) => e.step, 'step', 'reconcileComplete')
+          .having((e) => e.code, 'code', 'snapshot_hash_mismatch'),
+    );
+    expect(completeCalls, 2);
     final snapshot = await metadataStore.snapshot();
     expect(snapshot.phase, SyncEnrollmentPhase.snapshotInProgress);
     expect(snapshot.writeEnabled, isFalse);

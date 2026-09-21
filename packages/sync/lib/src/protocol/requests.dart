@@ -25,17 +25,112 @@ final class PullRequest {
     required this.collection,
     this.cursor,
     this.pageLimit,
-  });
+  }) : reconciliation = null;
+
+  const PullRequest.reconciliation({
+    required this.collection,
+    required this.reconciliation,
+    this.pageLimit,
+  }) : cursor = null;
 
   final SyncCollection collection;
+
+  /// Ordinary durable pull cursor. Never set on a reconciliation pull.
   final String? cursor;
+
+  /// Snapshot-only reconciliation context. Never set on an ordinary pull.
+  ///
+  /// The two constructors keep ordinary and reconciliation pulls mutually
+  /// exclusive: a reconciliation pull carries the nested `reconciliation`
+  /// object (with the continuation cursor inside it) instead of a top-level
+  /// `cursor`.
+  final ReconciliationContext? reconciliation;
   final int? pageLimit;
 
-  Map<String, Object?> toWireJson() => <String, Object?>{
+  Map<String, Object?> toWireJson() {
+    final reconciliation = this.reconciliation;
+    if (reconciliation != null) {
+      return <String, Object?>{
         'collection': collection.wireName,
-        if (cursor != null) 'cursor': cursor,
+        'reconciliation': reconciliation.toWireJson(),
         if (pageLimit != null) 'page_limit': pageLimit,
       };
+    }
+    return <String, Object?>{
+      'collection': collection.wireName,
+      if (cursor != null) 'cursor': cursor,
+      if (pageLimit != null) 'page_limit': pageLimit,
+    };
+  }
+}
+
+/// Device-bound context for paging one fixed-watermark snapshot.
+///
+/// The client owns this wire shape; the future backend must implement these
+/// fields and their semantics. The snapshot watermark stays fixed for the
+/// whole reconciliation while the snapshot-only [cursor] advances inside the
+/// nested context, so durable normal cursors are never read or written here.
+final class ReconciliationContext {
+  const ReconciliationContext({
+    required this.reconciliationID,
+    required this.snapshotWatermark,
+    required this.expiresAt,
+    this.cursor,
+  })  : assert(reconciliationID.length > 0),
+        assert(snapshotWatermark.length > 0);
+
+  final String reconciliationID;
+  final String snapshotWatermark;
+  final DateTime expiresAt;
+  final String? cursor;
+
+  ReconciliationContext withContinuation(String cursor) =>
+      ReconciliationContext(
+        reconciliationID: reconciliationID,
+        snapshotWatermark: snapshotWatermark,
+        expiresAt: expiresAt,
+        cursor: cursor,
+      );
+
+  Map<String, Object?> toWireJson() => <String, Object?>{
+        'reconciliation_id': reconciliationID,
+        'snapshot_watermark': snapshotWatermark,
+        'expires_at': expiresAt.toUtc().toIso8601String(),
+        if (cursor != null) 'cursor': cursor,
+      };
+
+  factory ReconciliationContext.fromWireJson(Map<String, Object?> value) {
+    final reconciliationID = _expectString(value, 'reconciliation_id');
+    final snapshotWatermark = _expectString(value, 'snapshot_watermark');
+    if (reconciliationID.isEmpty || snapshotWatermark.isEmpty) {
+      throw const FormatException(
+        'Reconciliation context IDs must not be empty.',
+      );
+    }
+    final expiresRaw = _expectString(value, 'expires_at');
+    final expiresAt = DateTime.tryParse(expiresRaw)?.toUtc();
+    if (expiresAt == null) {
+      throw const FormatException(
+        'Reconciliation expires_at must be an RFC 3339 timestamp.',
+      );
+    }
+    final rawCursor = value['cursor'];
+    String? cursor;
+    if (rawCursor != null) {
+      if (rawCursor is! String) {
+        throw const FormatException(
+          'Reconciliation cursor must be a string.',
+        );
+      }
+      cursor = rawCursor;
+    }
+    return ReconciliationContext(
+      reconciliationID: reconciliationID,
+      snapshotWatermark: snapshotWatermark,
+      expiresAt: expiresAt,
+      cursor: cursor,
+    );
+  }
 }
 
 sealed class ReconcileRequest {
@@ -304,6 +399,23 @@ final class PullResponse extends _OpaqueWireResponse {
 
 final class ReconcileResponse extends _OpaqueWireResponse {
   ReconcileResponse(super.wire);
+
+  /// Device-bound context decoded from a `begin_reconcile` response.
+  ///
+  /// The response carries the context as a nested `reconciliation` object
+  /// using the same shape a reconciliation pull sends. A missing or
+  /// malformed object throws [FormatException].
+  ReconciliationContext get reconciliationContext {
+    final raw = wire['reconciliation'];
+    if (raw is! Map<Object?, Object?>) {
+      throw const FormatException(
+        'Reconcile response reconciliation must be an object.',
+      );
+    }
+    return ReconciliationContext.fromWireJson(
+      raw.map<String, Object?>((key, value) => MapEntry(key.toString(), value)),
+    );
+  }
 }
 
 final class AcknowledgeResponse extends _OpaqueWireResponse {
