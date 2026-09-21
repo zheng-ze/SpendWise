@@ -1,6 +1,6 @@
 # Sync: enrollment
 
-Last reconciled: ad25ece
+Last reconciled: 18fbe735
 
 ## Overview
 
@@ -12,6 +12,15 @@ composition path constructs or calls this service yet. Source:
 `app/lib/sync/sync_enrollment_service.dart` - `SyncEnrollmentService`;
 `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.create`.
 
+`EnrollmentSnapshotPublisher` is the next app-layer component after the phase
+machine reaches `gateEnabled`: it drives one ordered push across all
+collections and owns the enrollment write-proof lifecycle for that run. It is
+currently standalone. No `SyncEnrollmentService`, `AppBoot`, scheduler, Flow,
+or UI path constructs or calls it. Source:
+`app/lib/sync/enrollment_snapshot_publisher.dart` -
+`EnrollmentSnapshotPublisher`; `app/lib/sync/sync_enrollment_service.dart` -
+`SyncEnrollmentService`; `app/lib/boot/app_boot.dart` - `AppBoot`.
+
 ## Key locations
 
 - `app/lib/sync/sync_enrollment_service.dart` - enrollment orchestration,
@@ -22,10 +31,14 @@ composition path constructs or calls this service yet. Source:
   write-gate guard.
 - `app/lib/sync/reconciliation_snapshot_hasher.dart` - pages one fixed-watermark
   snapshot per collection and hashes it, per collection, for `CompleteReconcile`.
+- `app/lib/sync/enrollment_snapshot_publisher.dart` - ordered post-gate
+  enrollment-snapshot push and write-proof consumption.
 - `app/test/sync/sync_enrollment_service_test.dart` - phase-machine recovery,
   key, reconciliation, and failure contracts.
 - `app/test/sync/reconciliation_snapshot_hasher_test.dart` - paging, hashing,
   and malformed-page contracts.
+- `app/test/sync/enrollment_snapshot_publisher_test.dart` - ordered push,
+  pending-result, write-proof, and failure-propagation contracts.
 
 ## Interactions
 
@@ -65,6 +78,14 @@ It reports malformed and wrong-length values through
 `app/lib/sync/sync_enrollment_service.dart` -
 `SyncEnrollmentService._stepCredentialAcquired`.
 
+`EnrollmentSnapshotPublisher` depends on `SyncCoordinator.pushCollection`,
+which preserves the coordinator's write-gate and push-result semantics. Its
+required coordinator and optional `SecretStore` are constructor-injected; the
+default store is `SecureSecretStore`. Source:
+`app/lib/sync/enrollment_snapshot_publisher.dart` -
+`EnrollmentSnapshotPublisher`, `EnrollmentSnapshotPublisher.publish`;
+`app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.pushCollection`.
+
 ## Contracts and invariants
 
 - If `notEnrolled` finds a stored credential that restores and matches
@@ -102,6 +123,24 @@ It reports malformed and wrong-length values through
   `SyncEnrollmentService._stepSnapshotInProgress`;
   `packages/sync/lib/src/protocol/outcome.dart` -
   `SnapshotHashMismatch.mismatchedCollection`.
+- `EnrollmentSnapshotPublisher.publish()` reads
+  `syncWriteProofSecretKey` once before iterating `SyncCollection.values` in
+  enum order. It supplies that value only with the first non-`PushNoop` result;
+  that proof slot is consumed even when the stored value is null, so later
+  pushes in the same run always receive null. Source:
+  `app/lib/sync/enrollment_snapshot_publisher.dart` -
+  `EnrollmentSnapshotPublisher.publish`.
+- On the proof-bearing push, `PushFullyAcknowledged` or
+  `PushUnresolvedRows` immediately deletes a non-null stored proof.
+  `PushDeferred` preserves it for a later invocation. Source:
+  `app/lib/sync/enrollment_snapshot_publisher.dart` -
+  `EnrollmentSnapshotPublisher.publish`.
+- A run returns `EnrollmentSnapshotPending` at the first `PushDeferred` or
+  `PushUnresolvedRows`, carrying that collection and result. It returns
+  `EnrollmentSnapshotPublished` only when every collection is `PushNoop` or
+  `PushFullyAcknowledged`. Source:
+  `app/lib/sync/enrollment_snapshot_publisher.dart` -
+  `EnrollmentSnapshotPublishResult`, `EnrollmentSnapshotPublisher.publish`.
 
 ## Entry points and flows
 
@@ -117,6 +156,10 @@ It reports malformed and wrong-length values through
   `reconciliationComplete` only after `CompleteReconcile` finally succeeds.
   Source: `app/lib/sync/sync_enrollment_service.dart` -
   `SyncEnrollmentService._stepSnapshotInProgress`.
+- `EnrollmentSnapshotPublisher.publish()` is one pass only. A caller must
+  reinvoke it after `EnrollmentSnapshotPending`; it has no internal retry or
+  scheduling loop. Source: `app/lib/sync/enrollment_snapshot_publisher.dart` -
+  `EnrollmentSnapshotPublisher.publish`.
 
 ## Gotchas
 
@@ -141,3 +184,9 @@ It reports malformed and wrong-length values through
   future backend implementation must match this client-defined contract, not
   the other way around. Source: `packages/sync/lib/src/protocol/requests.dart`
   - `ReconciliationContext`, `PullRequest.reconciliation`.
+- The post-`gateEnabled` publisher is unconnected. Its result is not consumed
+  by the enrollment service or an application lifecycle, scheduler, Flow, or
+  UI caller, so reaching `gateEnabled` does not invoke it. Source:
+  `app/lib/sync/enrollment_snapshot_publisher.dart` -
+  `EnrollmentSnapshotPublisher`; `app/lib/sync/sync_enrollment_service.dart` -
+  `SyncEnrollmentService`; `app/lib/boot/app_boot.dart` - `AppBoot`.
