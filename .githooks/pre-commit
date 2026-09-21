@@ -1,22 +1,24 @@
 #!/usr/bin/env bash
-# Runs this repo's lint checks (format + static analysis) before allowing a
-# commit. Activate once per clone with:
+# Runs this repo's lint checks (format + static analysis) across every
+# package before allowing a commit, mirroring .github/workflows/quality.yml's
+# format and analyze jobs. Activate once per clone with:
 #   git config core.hooksPath .githooks
 set -euo pipefail
 
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
 
-echo "pre-commit: packages/domain formatting"
-(cd packages/domain && dart format --output=none --set-exit-if-changed .)
+check() {
+  local name="$1" directory="$2" analyze_cmd="$3"
+  echo "pre-commit: $name formatting"
+  (cd "$directory" && dart format --output=none --set-exit-if-changed .)
+  echo "pre-commit: $name analyze"
+  (cd "$directory" && $analyze_cmd)
+}
 
-echo "pre-commit: packages/domain analyze"
-(cd packages/domain && dart analyze)
-
-echo "pre-commit: app formatting"
-(cd app && dart format --output=none --set-exit-if-changed lib test)
-
-echo "pre-commit: app analyze"
-(cd app && flutter analyze)
+check domain packages/domain "dart analyze"
+check sync packages/sync "dart analyze"
+check ocr packages/ocr "flutter analyze"
+check app app "flutter analyze"
 
 echo "pre-commit: lint checks passed"
