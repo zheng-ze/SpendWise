@@ -42,10 +42,8 @@ final class SupabaseSyncAuthenticator implements SyncAuthenticator {
       Map<String, Object?> body;
       try {
         body = _decodeJsonObject(response.body);
-      } on FormatException catch (error) {
-        return BackendUnavailable<EnrollmentChallenge>(
-          message: error.message,
-        );
+      } on FormatException {
+        body = const <String, Object?>{};
       }
       return _gotrueFailureFromHttp<EnrollmentChallenge>(
         response.statusCode,
@@ -92,13 +90,17 @@ final class SupabaseSyncAuthenticator implements SyncAuthenticator {
           'type': 'email',
         }),
       );
+      final isSuccess = response.statusCode >= 200 && response.statusCode < 300;
       Map<String, Object?> body;
       try {
         body = _decodeJsonObject(response.body);
       } on FormatException catch (error) {
-        return BackendUnavailable<DeviceCredential>(message: error.message);
+        if (isSuccess) {
+          return BackendUnavailable<DeviceCredential>(message: error.message);
+        }
+        body = const <String, Object?>{};
       }
-      if (response.statusCode >= 200 && response.statusCode < 300) {
+      if (isSuccess) {
         return _credentialFromVerifyBody(body, deviceID);
       }
       return _gotrueFailureFromHttp<DeviceCredential>(
@@ -152,7 +154,10 @@ SyncOutcome<DeviceCredential> _credentialFromVerifyBody(
     );
   }
   return SyncSuccess<DeviceCredential>(
-    DeviceCredential._(deviceID: deviceID, bearerToken: accessToken),
+    DeviceCredential._(
+      deviceID: normalizedID(deviceID),
+      bearerToken: accessToken,
+    ),
   );
 }
 

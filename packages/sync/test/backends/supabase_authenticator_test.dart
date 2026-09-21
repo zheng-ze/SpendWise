@@ -96,6 +96,32 @@ void main() {
     );
   });
 
+  test('completeEnrollment normalizes a mixed-case deviceId to lowercase',
+      () async {
+    final client = MockClient(
+      (request) async => http.Response(
+        jsonEncode(const {'access_token': 'access-123'}),
+        200,
+      ),
+    );
+
+    final outcome = await _authenticator(client).completeEnrollment(
+      CompleteEnrollmentRequest(
+        const {
+          'identifier': 'user@example.com',
+          'otp': '123456',
+          'deviceId': 'DEVICE-1',
+        },
+      ),
+    );
+
+    final credential = (outcome as SyncSuccess<DeviceCredential>).value;
+    expect(
+      credential,
+      restoreTestCredential(deviceID: 'device-1', bearerToken: 'access-123'),
+    );
+  });
+
   test('completeEnrollment rejects a malformed OTP without calling HTTP',
       () async {
     var called = false;
@@ -210,6 +236,49 @@ void main() {
     );
 
     expect(outcome, isA<BackendUnavailable<DeviceCredential>>());
+  });
+
+  test('completeEnrollment maps a non-JSON 429 to RateLimited with retryAfter',
+      () async {
+    final client = MockClient(
+      (request) async => http.Response(
+        'rate limited',
+        429,
+        headers: {
+          'content-type': 'text/plain',
+          'retry-after': '30',
+        },
+      ),
+    );
+
+    final outcome = await _authenticator(client).completeEnrollment(
+      CompleteEnrollmentRequest(
+        const {
+          'identifier': 'user@example.com',
+          'otp': '123456',
+          'deviceId': 'device-1',
+        },
+      ),
+    );
+
+    expect(outcome, isA<RateLimited<DeviceCredential>>());
+    expect(
+      (outcome as RateLimited<DeviceCredential>).retryAfter,
+      const Duration(seconds: 30),
+    );
+  });
+
+  test('beginEnrollment maps a non-JSON error body to a mapped failure',
+      () async {
+    final client = MockClient(
+      (request) async => http.Response('bad gateway', 400),
+    );
+
+    final outcome = await _authenticator(client).beginEnrollment(
+      BeginEnrollmentRequest(const {'identifier': 'user@example.com'}),
+    );
+
+    expect(outcome, isA<InvalidRequest<EnrollmentChallenge>>());
   });
 
   test('beginEnrollment rejects an http projectUrl without calling HTTP',
