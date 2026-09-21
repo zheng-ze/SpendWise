@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:drift/native.dart';
@@ -646,5 +647,48 @@ void main() {
     );
     expect(setup.backend.pushes, isEmpty);
     expect(reader.calls, isEmpty);
+  });
+
+  test('two concurrent publish() calls on the same instance never both submit the proof', () async {
+    // A rejected row stays an eligible candidate for the coordinator's own
+    // fresh recomputation on retry (unlike an acknowledged one), so a
+    // second concurrent call can genuinely reach a real backend.push()
+    // call for the same row with a second (by then stale) writeProof
+    // unless EnrollmentSnapshotPublisher itself serializes concurrent
+    // publish() calls.
+    final setup = await publishSetup();
+    final reader = setup.coordinator.versionReader as _RecordingReader;
+    seedTombstone(
+      reader,
+      setup.coordinator.versionSource as InMemorySyncVersionSource,
+      SyncCollection.moneySources,
+    );
+    var pushCount = 0;
+    final blockFirstPush = Completer<void>();
+    final firstPushStarted = Completer<void>();
+    setup.backend.onPush = (request) async {
+      pushCount += 1;
+      if (pushCount == 1) {
+        firstPushStarted.complete();
+        await blockFirstPush.future;
+        return SyncSuccess<PushResponse>(
+          _pushRowsResponse(request.envelopes, status: 'rejected'),
+        );
+      }
+      return _appliedPush(request);
+    };
+    await proofSecrets.write(syncWriteProofSecretKey, 'proof-1');
+    final publisher = publisherOf(setup.coordinator);
+
+    final first = publisher.publish();
+    await firstPushStarted.future;
+    final second = publisher.publish();
+    blockFirstPush.complete();
+    await Future.wait([first, second]);
+
+    final proofBearingPushes = setup.backend.pushes.where(
+      (request) => request.writeProof != null,
+    );
+    expect(proofBearingPushes, hasLength(1));
   });
 }

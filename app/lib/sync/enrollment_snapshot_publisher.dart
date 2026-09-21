@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:spendwise/sync/secret_store.dart';
 import 'package:spendwise/sync/sync_coordinator.dart';
 import 'package:spendwise/sync/sync_secret_keys.dart';
@@ -54,6 +56,14 @@ final class EnrollmentSnapshotPublisher {
   final SyncCoordinator coordinator;
   final SecretStore _secretStore;
 
+  /// Serializes concurrent [publish] calls on this instance, so a second
+  /// call's proof read always observes any deletion the first call already
+  /// made instead of resubmitting a stale value once the coordinator's own
+  /// per-collection recomputation lets a rejected row through again. The new
+  /// tail installs before awaiting the prior one, so two overlapping callers
+  /// can never both observe the same tail and run concurrently.
+  Future<void>? _tail;
+
   /// Pushes each collection in [SyncCollection.values] order, stopping at the
   /// first collection that stays non-terminal.
   ///
@@ -64,6 +74,21 @@ final class EnrollmentSnapshotPublisher {
   /// backend push) and from the secret store propagate uncaught, leaving the
   /// stored proof untouched unless its own push was already confirmed.
   Future<EnrollmentSnapshotPublishResult> publish() async {
+    final Future<void>? prior = _tail;
+    final Completer<void> gate = Completer<void>();
+    _tail = gate.future;
+    try {
+      if (prior != null) await prior;
+      return await _publishLocked();
+    } finally {
+      if (identical(_tail, gate.future)) {
+        _tail = null;
+      }
+      gate.complete();
+    }
+  }
+
+  Future<EnrollmentSnapshotPublishResult> _publishLocked() async {
     final String? proof = await _secretStore.read(syncWriteProofSecretKey);
     bool proofSlotConsumed = false;
     for (final SyncCollection collection in SyncCollection.values) {
