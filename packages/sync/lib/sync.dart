@@ -26,3 +26,4 @@ part 'src/backends/http_support.dart';
 part 'src/backends/in_memory_backend.dart';
 part 'src/backends/custom_endpoint_backend.dart';
 part 'src/backends/supabase_backend.dart';
+part 'src/backends/supabase_authenticator.dart';
