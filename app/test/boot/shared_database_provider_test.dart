@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,6 +16,12 @@ class _CloseCountingExecutor extends QueryExecutor {
   final QueryExecutor _inner;
 
   var closeCalls = 0;
+
+  final _closed = Completer<void>();
+
+  /// Resolves once [close] has finished delegating, so a test can await
+  /// disposal instead of guessing at a delay.
+  Future<void> get closed => _closed.future;
 
   @override
   SqlDialect get dialect => _inner.dialect;
@@ -54,9 +62,10 @@ class _CloseCountingExecutor extends QueryExecutor {
   QueryExecutor beginExclusive() => _inner.beginExclusive();
 
   @override
-  Future<void> close() {
+  Future<void> close() async {
     closeCalls += 1;
-    return _inner.close();
+    await _inner.close();
+    _closed.complete();
   }
 }
 
@@ -126,8 +135,9 @@ void main() {
     await container.read(syncMetadataStoreProvider).snapshot();
 
     container.dispose();
-    // The provider-owned close floats, so yield before counting it.
-    await Future<void>.delayed(const Duration(milliseconds: 50));
+    // The provider-owned close floats; await its own completion instead of
+    // guessing at a delay.
+    await executor.closed;
 
     expect(executor.closeCalls, 1);
     expect(observer.ledgerDatabaseDisposes, 1);
