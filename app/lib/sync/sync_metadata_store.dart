@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:spendwise/persistence/ledger_database.dart';
+import 'package:spendwise/sync/backend_selection_writer.dart';
 import 'package:sync/sync.dart';
 
 /// Durable enrollment phase with explicit persisted codes.
@@ -95,7 +96,7 @@ final class SyncMetadataSnapshot {
 /// in [recordPulledPage], which commits all values together or rolls back on
 /// failure. This store never holds a bearer token, the E2E key, the opaque
 /// credential payload, or a second device ID.
-final class SyncMetadataStore {
+final class SyncMetadataStore implements BackendSelectionWriter {
   SyncMetadataStore(this._db);
 
   final LedgerDatabase _db;
@@ -120,6 +121,7 @@ final class SyncMetadataStore {
     );
   });
 
+  @override
   Future<void> setBackendSelection({
     required SyncBackendKind backend,
     String? endpoint,
