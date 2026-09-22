@@ -110,7 +110,40 @@ void main() {
       expect(writer.calls, hasLength(1));
       expect(container.read(backendPickerViewModelProvider).saveError, isNull);
       expect(container.read(backendPickerViewModelProvider).step, isNull);
+      expect(container.read(backendPickerViewModelProvider).saving, isFalse);
     });
+
+    test(
+      'selection and endpoint input are ignored while a persist is in flight',
+      () async {
+        final writer = RecordingBackendSelectionWriter()
+          ..gate = Completer<void>();
+        final container = containerWith(writer: writer);
+        final viewModel = container.read(
+          backendPickerViewModelProvider.notifier,
+        );
+
+        final pending = viewModel.continueWithSelection();
+        expect(container.read(backendPickerViewModelProvider).saving, isTrue);
+
+        viewModel.selectBackend(SyncBackendKind.custom);
+        viewModel.updateEndpoint('https://sync.example.com/changed');
+
+        final midState = container.read(backendPickerViewModelProvider);
+        expect(midState.selectedBackend, SyncBackendKind.supabase);
+        expect(midState.endpoint, isEmpty);
+
+        writer.gate!.complete();
+        await pending;
+
+        final state = container.read(backendPickerViewModelProvider);
+        expect(writer.calls.single.backend, SyncBackendKind.supabase);
+        expect(state.selectedBackend, SyncBackendKind.supabase);
+        expect(state.endpoint, isEmpty);
+        expect(state.step, isA<HostedReady>());
+        expect(state.saving, isFalse);
+      },
+    );
 
     test(
       'a second continue while a persist is in flight makes no extra write',
@@ -181,6 +214,57 @@ void main() {
       expect(writer.calls, hasLength(1));
       expect(state.saveError, isNotNull);
       expect(state.step, isNull);
+      expect(state.saving, isFalse);
+    });
+
+    test('writer Error propagates instead of surfacing a save error', () async {
+      final writer = RecordingBackendSelectionWriter()
+        ..failure = UnimplementedError();
+      final container = containerWith(writer: writer);
+      final viewModel = container.read(backendPickerViewModelProvider.notifier);
+
+      viewModel.selectBackend(SyncBackendKind.custom);
+      viewModel.updateEndpoint('https://sync.example.com/sync');
+
+      await expectLater(
+        viewModel.continueWithSelection(),
+        throwsA(isA<UnimplementedError>()),
+      );
+
+      expect(writer.calls, hasLength(1));
+      expect(container.read(backendPickerViewModelProvider).saveError, isNull);
+      expect(container.read(backendPickerViewModelProvider).step, isNull);
+      expect(container.read(backendPickerViewModelProvider).saving, isFalse);
+    });
+
+    test('selection and endpoint input are ignored while a custom persist '
+        'is in flight', () async {
+      final writer = RecordingBackendSelectionWriter()
+        ..gate = Completer<void>();
+      final container = containerWith(writer: writer);
+      final viewModel = container.read(backendPickerViewModelProvider.notifier);
+
+      viewModel.selectBackend(SyncBackendKind.custom);
+      viewModel.updateEndpoint('https://sync.example.com/sync');
+      final pending = viewModel.continueWithSelection();
+      expect(container.read(backendPickerViewModelProvider).saving, isTrue);
+
+      viewModel.selectBackend(SyncBackendKind.supabase);
+      viewModel.updateEndpoint('https://sync.example.com/changed');
+
+      final midState = container.read(backendPickerViewModelProvider);
+      expect(midState.selectedBackend, SyncBackendKind.custom);
+      expect(midState.endpoint, 'https://sync.example.com/sync');
+
+      writer.gate!.complete();
+      await pending;
+
+      final state = container.read(backendPickerViewModelProvider);
+      expect(writer.calls.single.backend, SyncBackendKind.custom);
+      expect(writer.calls.single.endpoint, 'https://sync.example.com/sync');
+      expect(state.selectedBackend, SyncBackendKind.custom);
+      expect(state.endpoint, 'https://sync.example.com/sync');
+      expect(state.step, isA<CustomEndpointUnavailable>());
       expect(state.saving, isFalse);
     });
   });
