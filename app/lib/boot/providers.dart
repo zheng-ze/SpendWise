@@ -34,13 +34,12 @@ final ledgerDatabaseProvider = Provider<LedgerDatabase>((ref) {
   return database;
 });
 
-/// Builds the store synchronously around the shared database.
 final storeProvider = Provider<LedgerStore>((ref) {
   return DriftLedgerStore(ref.watch(ledgerDatabaseProvider));
 });
 
-/// Builds the sync metadata store around the same shared database, so a later
-/// picker controller can take [SyncMetadataStore] without a second database.
+/// Builds the sync metadata store around the same shared database, so the
+/// picker controller takes [SyncMetadataStore] without a second database.
 final syncMetadataStoreProvider = Provider<SyncMetadataStore>((ref) {
   return SyncMetadataStore(ref.watch(ledgerDatabaseProvider));
 });
@@ -53,8 +52,6 @@ final analysisCacheProvider = ChangeNotifierProvider<AnalysisCache>((ref) {
   return AnalysisCache();
 });
 
-/// Joins the analysis cache to the ledger's bus as soon as boot reaches
-/// `Ready`.
 // This must happen synchronously, since nothing can run between reaching
 // `Ready` and [AppBoot.start]'s first mutate.
 final appBootProvider = ChangeNotifierProvider<AppBoot>((ref) {
@@ -66,7 +63,7 @@ final appBootProvider = ChangeNotifierProvider<AppBoot>((ref) {
     seedChanges: seedChanges,
     onSaveState: banner.receiveSaveState,
     onPlanError: banner.receivePlanErrors,
-    // LazyDatabase caches a failed open, so all three providers need
+    // LazyDatabase caches a failed open, so all four providers need
     // invalidating or a retry just replays the same failure.
     onRetry: () {
       ref.invalidate(storeProvider);

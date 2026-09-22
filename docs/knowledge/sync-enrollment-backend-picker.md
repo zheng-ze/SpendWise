@@ -1,6 +1,6 @@
 # Sync enrollment: backend picker
 
-Last reconciled: eea2aac
+Last reconciled: 6de06ba
 
 ## Overview
 
@@ -14,12 +14,21 @@ service, resolver, coordinator, backend, or authenticator. Source:
 `BackendPickerScreen`; `app/lib/ui/sync/enrollment/backend_picker/backend_picker_view_model.dart`
 - `BackendPickerViewModel`, `BackendPickerNotifier`.
 
+`BackendPickerFlow` owns the picker as a `FlowBase` root and consumes its
+one-shot steps. Its required `onHostedReady` callback transfers hosted
+continuation ownership to a future caller; the Flow itself adds no enrollment
+route. Source:
+`app/lib/ui/sync/enrollment/backend_picker/backend_picker_flow.dart` -
+`BackendPickerFlow`, `_BackendPickerFlowState.handleStep`.
+
 ## Key locations
 
 - `app/lib/ui/sync/enrollment/backend_picker/backend_picker_screen.dart` -
   backend-choice screen and custom-endpoint field.
 - `app/lib/ui/sync/enrollment/backend_picker/backend_picker_view_model.dart`
   - picker state, `BackendPickerViewModel`, notifier, and continuation steps.
+- `app/lib/ui/sync/enrollment/backend_picker/backend_picker_flow.dart` -
+  `FlowBase` wrapper, picker root, and one-shot step handling.
 - `app/lib/sync/backend_selection_writer.dart` - narrow durable-selection
   write seam implemented by `SyncMetadataStore`.
 
@@ -35,9 +44,14 @@ service, resolver, coordinator, backend, or authenticator. Source:
 
 ## Gotchas
 
-- No `FlowBase` wrapper, navigator route, or enrollment entry point constructs
-  this screen yet. It is reachable only through its own tests until a flow
-  owns its continuation steps. Source:
-  `app/lib/ui/sync/enrollment/backend_picker/backend_picker_screen.dart` -
-  `BackendPickerScreen`; `app/lib/ui/sync/enrollment/backend_picker/backend_picker_view_model.dart`
-  - `HostedReady`, `CustomEndpointUnavailable`.
+- The `FlowBase` wrapper and continuation-step handling exist, but no app
+  entry point constructs `BackendPickerFlow`; the picker remains reachable
+  only through tests. `HostedReady` invokes `onHostedReady` without Flow
+  navigation, while `CustomEndpointUnavailable` leaves the picker visible
+  with an unavailable affordance. Both steps are cleared after handling.
+  Source: `app/lib/ui/sync/enrollment/backend_picker/backend_picker_flow.dart`
+  - `BackendPickerFlow`, `_BackendPickerFlowState.handleStep`;
+  `app/test/ui/sync/enrollment/backend_picker_flow_test.dart` -
+  `hosted-ready invokes the hosted callback and clears the step`,
+  `custom-unavailable shows the affordance, clears the step, and never invokes
+  the hosted callback`.
