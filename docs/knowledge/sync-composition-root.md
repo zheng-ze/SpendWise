@@ -1,6 +1,6 @@
 # Sync: composition root
 
-Last reconciled: a9ef4ac
+Last reconciled: d005b8dd492b52e0ecb60e988ee5c46542d30f91
 
 ## Overview
 
@@ -27,7 +27,9 @@ and [persistence.md](persistence.md) for the assembled layers. Source:
   acknowledgement recovery, and push.
 - `app/lib/sync/sync_e2e_key_provider.dart` - scoped E2E-key accessor and unavailable-key errors.
 - `app/lib/sync/sync_backend_resolver.dart` - backend selection and Supabase configuration
-  validation.
+  validation delegation.
+- `app/lib/sync/custom_endpoint_validator.dart` - shared non-throwing custom-endpoint validation
+  and typed failures.
 
 ## Interactions
 
@@ -46,11 +48,15 @@ backend calls. Source: `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.c
 `SyncCoordinator.pushCollection`.
 
 `SyncBackendResolver` maps the persisted selected backend to `CustomEndpointSyncBackend` or
-`SupabaseSyncBackend`, or returns null when no backend was selected. Custom endpoints and Supabase
-project URLs must be absolute HTTPS URIs with hosts. `SyncCoordinator.create` accepts an optional
+`SupabaseSyncBackend`, or returns null when no backend was selected. It delegates custom-endpoint
+validation to `CustomEndpointValidation.validate`, then converts an invalid result's typed failure
+back into the resolver's throw-based contract. Custom endpoints and Supabase project URLs must be
+absolute HTTPS URIs with hosts. `SyncCoordinator.create` accepts an optional
 `SupabaseConfig`; this slice does not call `SupabaseConfig.fromEnvironment`. Supabase configuration
 is never persisted in `SyncMetadataSnapshot`. Source:
-`app/lib/sync/sync_backend_resolver.dart` - `SyncBackendResolver.resolve`, `SupabaseConfig`;
+`app/lib/sync/sync_backend_resolver.dart` - `SyncBackendResolver.resolve`, `_resolveCustom`,
+`SupabaseConfig`; `app/lib/sync/custom_endpoint_validator.dart` -
+`CustomEndpointValidation.validate`, `InvalidCustomEndpoint.failure`;
 `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.create`;
 `app/lib/sync/sync_metadata_store.dart` - `SyncMetadataSnapshot`.
 
