@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:spendwise/sync/custom_endpoint_validator.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
 import 'package:sync/sync.dart';
 
@@ -82,23 +83,14 @@ final class SyncBackendResolver {
   }
 
   SyncBackend _resolveCustom(String? endpoint, http.Client? httpClient) {
-    final uri = endpoint == null ? null : Uri.tryParse(endpoint);
-    if (uri == null || !uri.isAbsolute) {
-      throw SyncBackendConfigurationException(
-        'Custom sync endpoint must be an absolute URI; got "$endpoint".',
-      );
-    }
-    if (uri.scheme != 'https') {
-      throw SyncBackendConfigurationException(
-        'Custom sync endpoint scheme must be "https"; got "${uri.scheme}".',
-      );
-    }
-    if (uri.host.isEmpty) {
-      throw SyncBackendConfigurationException(
-        'Custom sync endpoint must have a non-empty host; got "$endpoint".',
-      );
-    }
-    return CustomEndpointSyncBackend(baseUri: uri, client: httpClient);
+    final validation = CustomEndpointValidation.validate(endpoint);
+    return switch (validation) {
+      ValidCustomEndpoint(:final uri) => CustomEndpointSyncBackend(
+        baseUri: uri,
+        client: httpClient,
+      ),
+      InvalidCustomEndpoint(:final failure) => throw failure,
+    };
   }
 
   SyncBackend _resolveSupabase(
