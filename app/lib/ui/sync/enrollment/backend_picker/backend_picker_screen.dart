@@ -48,17 +48,19 @@ class _BackendPickerScreenState extends ConsumerState<BackendPickerScreen> {
           RadioGroup<SyncBackendKind>(
             groupValue: state.selectedBackend,
             onChanged: selectBackend,
-            child: const Column(
+            child: Column(
               children: [
                 _BackendOptionTile(
                   kind: SyncBackendKind.supabase,
                   title: 'Hosted sync',
                   subtitle: 'Sync through the managed SpendWise backend.',
+                  enabled: !state.saving,
                 ),
                 _BackendOptionTile(
                   kind: SyncBackendKind.custom,
                   title: 'Custom server',
                   subtitle: 'Sync through your own server over HTTPS.',
+                  enabled: !state.saving,
                 ),
               ],
             ),
@@ -68,6 +70,7 @@ class _BackendPickerScreenState extends ConsumerState<BackendPickerScreen> {
               controller: _endpointController,
               errorText: state.endpointError,
               onChanged: viewModel.updateEndpoint,
+              enabled: !state.saving,
             ),
           if (saveError != null) _PickerSaveError(message: saveError),
           const SizedBox(height: 16),
@@ -86,11 +89,13 @@ class _BackendOptionTile extends StatelessWidget {
     required this.kind,
     required this.title,
     required this.subtitle,
+    this.enabled = true,
   });
 
   final SyncBackendKind kind;
   final String title;
   final String subtitle;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -98,6 +103,7 @@ class _BackendOptionTile extends StatelessWidget {
       value: kind,
       title: Text(title),
       subtitle: Text(subtitle),
+      enabled: enabled,
     );
   }
 }
@@ -107,11 +113,13 @@ class _CustomEndpointField extends StatelessWidget {
     required this.controller,
     required this.errorText,
     required this.onChanged,
+    this.enabled = true,
   });
 
   final TextEditingController controller;
   final String? errorText;
   final ValueChanged<String> onChanged;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -119,6 +127,7 @@ class _CustomEndpointField extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       child: TextField(
         controller: controller,
+        enabled: enabled,
         decoration: InputDecoration(
           labelText: 'Server URL',
           hintText: 'https://sync.example.com',

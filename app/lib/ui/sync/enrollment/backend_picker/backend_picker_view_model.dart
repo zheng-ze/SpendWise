@@ -102,6 +102,7 @@ class BackendPickerNotifier extends Notifier<BackendPickerState>
 
   @override
   void selectBackend(SyncBackendKind backend) {
+    if (state.saving) return;
     state = state.copyWith(
       selectedBackend: backend,
       endpointError: () => null,
@@ -111,6 +112,7 @@ class BackendPickerNotifier extends Notifier<BackendPickerState>
 
   @override
   void updateEndpoint(String endpoint) {
+    if (state.saving) return;
     state = state.copyWith(endpoint: endpoint, endpointError: () => null);
   }
 
@@ -133,6 +135,11 @@ class BackendPickerNotifier extends Notifier<BackendPickerState>
       if (!ref.mounted) return;
       _failSave();
       return;
+    } catch (_) {
+      if (ref.mounted) {
+        state = state.copyWith(saving: false);
+      }
+      rethrow;
     }
     if (!ref.mounted) return;
     state = state.copyWith(saving: false);
@@ -160,6 +167,11 @@ class BackendPickerNotifier extends Notifier<BackendPickerState>
           if (!ref.mounted) return;
           _failSave();
           return;
+        } catch (_) {
+          if (ref.mounted) {
+            state = state.copyWith(saving: false);
+          }
+          rethrow;
         }
         if (!ref.mounted) return;
         state = state.copyWith(saving: false);
