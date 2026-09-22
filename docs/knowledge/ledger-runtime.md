@@ -1,6 +1,6 @@
 # Ledger Runtime
 
-Last reconciled: b1edf90
+Last reconciled: 70a8665
 
 ## Feature overview
 
@@ -81,7 +81,13 @@ Exact and verified against `app_boot.dart`:
 
 Any throwing step lands in `failed(error)`; there is no partial-ready state. Provider dependency
 direction is `appPhase → (ledger, persistence, analysisCache, banners)`; nothing below `appPhase`
-outlives a retry, so a failed→ready cycle rebuilds the whole graph.
+outlives a retry, so a failed→ready cycle rebuilds the whole graph. `ledgerDatabaseProvider` is
+the sole boot owner of the shared `LedgerDatabase`; `storeProvider` builds `DriftLedgerStore`
+from it, and `syncMetadataStoreProvider` builds `SyncMetadataStore` from that same instance.
+`AppBoot.onRetry` invalidates `ledgerDatabaseProvider` and `syncMetadataStoreProvider` alongside
+`storeProvider` and `databaseConnectionProvider`, ensuring a retry can reopen the database after
+a failed lazy connection. Source: `app/lib/boot/providers.dart` - provider definitions and
+`appBootProvider`'s `onRetry`.
 
 ## Boot phase machine
 
