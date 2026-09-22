@@ -101,7 +101,6 @@ final class SyncMetadataStore implements BackendSelectionWriter {
 
   final LedgerDatabase _db;
 
-  /// Test view of the shared database this store reads and writes.
   @visibleForTesting
   LedgerDatabase get database => _db;
 

@@ -6,7 +6,7 @@ import 'package:spendwise/sync/custom_endpoint_validator.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
 import 'package:spendwise/ui/common/step_emitting.dart';
 
-/// Validates a raw custom endpoint string, injected so tests can substitute it.
+/// Injected seam so tests can substitute endpoint validation.
 typedef CustomEndpointValidator = CustomEndpointValidation Function(
   String? endpoint,
 );
@@ -14,7 +14,6 @@ typedef CustomEndpointValidator = CustomEndpointValidation Function(
 /// One-shot continuation after the picker durably persists its selection.
 sealed class BackendPickerStep {}
 
-/// The hosted choice persisted; the flow may continue enrollment.
 final class HostedReady extends BackendPickerStep {}
 
 /// The custom choice persisted but has no backend behind it yet, so the flow

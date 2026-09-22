@@ -2,11 +2,12 @@ import 'package:spendwise/sync/sync_backend_resolver.dart';
 
 /// Shared non-throwing validator for custom sync endpoints.
 ///
-/// Both [SyncBackendResolver] and a future backend-picker controller enforce
-/// the same rule from here: the endpoint must be an absolute HTTPS URI with a
-/// non-empty host. A picker consumes [InvalidCustomEndpoint.failure] as
-/// validation state; the resolver throws that same failure at its own call
-/// site, preserving its throw-based contract.
+/// Both [SyncBackendResolver] and the picker controller
+/// `BackendPickerNotifier` enforce the same rule from here: the endpoint must
+/// be an absolute HTTPS URI with a non-empty host. A picker consumes
+/// [InvalidCustomEndpoint.failure] as validation state; the resolver throws
+/// that same failure at its own call site, preserving its throw-based
+/// contract.
 sealed class CustomEndpointValidation {
   const CustomEndpointValidation();
 

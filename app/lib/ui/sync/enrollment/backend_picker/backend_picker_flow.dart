@@ -5,12 +5,8 @@ import 'package:spendwise/ui/common/flow_base.dart';
 import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_screen.dart';
 import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_view_model.dart';
 
-/// Owns the backend-picker step of enrollment in its own nested Navigator.
-///
-/// A hosted selection ends by invoking [onHostedReady] for the future caller
-/// to continue enrollment; this Flow owns no routes beyond the picker itself.
-/// A custom selection has no backend behind it yet, so the Flow keeps the
-/// picker on screen with a not-yet-available affordance instead of advancing.
+/// A custom selection builds no backend; the picker stays on screen with a
+/// not-yet-available affordance instead of advancing.
 class BackendPickerFlow extends FlowBase<BackendPickerStep> {
   const BackendPickerFlow({
     super.key,
@@ -18,7 +14,6 @@ class BackendPickerFlow extends FlowBase<BackendPickerStep> {
     required this.onHostedReady,
   });
 
-  /// Continuation a future caller consumes once the hosted choice persists.
   final VoidCallback onHostedReady;
 
   @override
