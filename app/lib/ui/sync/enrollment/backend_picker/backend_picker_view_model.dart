@@ -129,7 +129,7 @@ class BackendPickerNotifier extends Notifier<BackendPickerState>
     state = state.copyWith(saving: true, saveError: () => null);
     try {
       await _writer.setBackendSelection(backend: SyncBackendKind.supabase);
-    } catch (_) {
+    } on Exception catch (_) {
       if (!ref.mounted) return;
       _failSave();
       return;
@@ -156,7 +156,7 @@ class BackendPickerNotifier extends Notifier<BackendPickerState>
             backend: SyncBackendKind.custom,
             endpoint: uri.toString(),
           );
-        } catch (_) {
+        } on Exception catch (_) {
           if (!ref.mounted) return;
           _failSave();
           return;

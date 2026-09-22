@@ -14,7 +14,7 @@ typedef BackendSelectionCall = ({SyncBackendKind backend, String? endpoint});
 final class RecordingBackendSelectionWriter implements BackendSelectionWriter {
   Completer<void>? gate;
   void Function()? onWrite;
-  Exception? failure;
+  Object? failure;
 
   final List<BackendSelectionCall> calls = [];
 
@@ -51,23 +51,27 @@ void main() {
     test(
       'persists supabase with a null endpoint before emitting HostedReady',
       () async {
-        final writer = RecordingBackendSelectionWriter();
+        final writer = RecordingBackendSelectionWriter()
+          ..gate = Completer<void>();
         final container = containerWith(writer: writer);
-        writer.onWrite = () {
-          expect(
-            container.read(backendPickerViewModelProvider).step,
-            isNull,
-            reason: 'no continuation step may exist before the write lands',
-          );
-        };
+        final viewModel = container.read(
+          backendPickerViewModelProvider.notifier,
+        );
 
-        await container
-            .read(backendPickerViewModelProvider.notifier)
-            .continueWithSelection();
+        final pending = viewModel.continueWithSelection();
 
         expect(writer.calls, hasLength(1));
         expect(writer.calls.single.backend, SyncBackendKind.supabase);
         expect(writer.calls.single.endpoint, isNull);
+        expect(
+          container.read(backendPickerViewModelProvider).step,
+          isNull,
+          reason: 'no continuation step may exist while the write is pending',
+        );
+
+        writer.gate!.complete();
+        await pending;
+
         final state = container.read(backendPickerViewModelProvider);
         expect(state.step, isA<HostedReady>());
         expect(state.saving, isFalse);
@@ -89,6 +93,23 @@ void main() {
       expect(state.saveError, isNotNull);
       expect(state.step, isNull);
       expect(state.saving, isFalse);
+    });
+
+    test('writer Error propagates instead of surfacing a save error', () async {
+      final writer = RecordingBackendSelectionWriter()
+        ..failure = UnimplementedError();
+      final container = containerWith(writer: writer);
+
+      await expectLater(
+        container
+            .read(backendPickerViewModelProvider.notifier)
+            .continueWithSelection(),
+        throwsA(isA<UnimplementedError>()),
+      );
+
+      expect(writer.calls, hasLength(1));
+      expect(container.read(backendPickerViewModelProvider).saveError, isNull);
+      expect(container.read(backendPickerViewModelProvider).step, isNull);
     });
 
     test(
@@ -119,24 +140,27 @@ void main() {
   group('BackendPickerNotifier custom continue', () {
     test('persists custom with the validated endpoint before emitting '
         'CustomEndpointUnavailable', () async {
-      final writer = RecordingBackendSelectionWriter();
+      final writer = RecordingBackendSelectionWriter()
+        ..gate = Completer<void>();
       final container = containerWith(writer: writer);
-      writer.onWrite = () {
-        expect(
-          container.read(backendPickerViewModelProvider).step,
-          isNull,
-          reason: 'no continuation step may exist before the write lands',
-        );
-      };
       final viewModel = container.read(backendPickerViewModelProvider.notifier);
 
       viewModel.selectBackend(SyncBackendKind.custom);
       viewModel.updateEndpoint('https://sync.example.com/sync');
-      await viewModel.continueWithSelection();
+      final pending = viewModel.continueWithSelection();
 
       expect(writer.calls, hasLength(1));
       expect(writer.calls.single.backend, SyncBackendKind.custom);
       expect(writer.calls.single.endpoint, 'https://sync.example.com/sync');
+      expect(
+        container.read(backendPickerViewModelProvider).step,
+        isNull,
+        reason: 'no continuation step may exist while the write is pending',
+      );
+
+      writer.gate!.complete();
+      await pending;
+
       final state = container.read(backendPickerViewModelProvider);
       expect(state.step, isA<CustomEndpointUnavailable>());
       expect(state.saving, isFalse);
