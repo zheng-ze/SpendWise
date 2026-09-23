@@ -1901,8 +1901,8 @@ class Entry extends DataClass implements Insertable<Entry> {
   final String? destinationId;
   final bool includeInAnalysis;
 
-  /// Reserved and never written by this version. Adding either column later
-  /// costs a migration, so they are claimed now while the schema is still v1.
+  /// Reserved and never written by this version. Claiming it now avoids a
+  /// migration if a future version starts writing it.
   final String? note;
 
   /// Marks a synthetic entry: 0 opening balance, 1 balance adjustment, null for
@@ -4094,8 +4094,6 @@ class SyncMetadataRow extends DataClass implements Insertable<SyncMetadataRow> {
   /// Endpoint configuration for a custom backend. Null until enrollment and
   /// unused by managed backends.
   final String? endpoint;
-
-  /// Durable enrollment phase as an explicit [SyncEnrollmentPhase] code.
   final int enrollmentPhase;
 
   /// Write-enabled gate. Only a durable reconciliation-complete phase permits
