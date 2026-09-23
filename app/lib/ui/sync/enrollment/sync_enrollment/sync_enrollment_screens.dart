@@ -43,40 +43,44 @@ class _SyncIdentifierScreenState extends ConsumerState<SyncIdentifierScreen> {
           )
         : const Text('Continue');
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Hosted sync sign-in')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          const Text(
-            'Enter the email address used for hosted sync. '
-            'A one-time code will be sent to it.',
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            key: const Key('syncIdentifierField'),
-            controller: _identifierController,
-            enabled: !state.inFlight,
-            decoration: const InputDecoration(
-              labelText: 'Email',
-              hintText: 'you@example.com',
+    return PopScope(
+      canPop: !state.inFlight,
+      child: Scaffold(
+        appBar: AppBar(title: const Text('Hosted sync sign-in')),
+        body: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            const Text(
+              'Enter the email address used for hosted sync. '
+              'A one-time code will be sent to it.',
             ),
-            keyboardType: TextInputType.emailAddress,
-            autocorrect: false,
-            onSubmitted: (_) =>
-                viewModel.submitIdentifier(_identifierController.text),
-          ),
-          if (errorMessage != null)
-            SyncEnrollmentErrorText(message: errorMessage),
-          const SizedBox(height: 16),
-          FilledButton(
-            key: const Key('syncIdentifierContinue'),
-            onPressed: state.inFlight
-                ? null
-                : () => viewModel.submitIdentifier(_identifierController.text),
-            child: action,
-          ),
-        ],
+            const SizedBox(height: 16),
+            TextField(
+              key: const Key('syncIdentifierField'),
+              controller: _identifierController,
+              enabled: !state.inFlight,
+              decoration: const InputDecoration(
+                labelText: 'Email',
+                hintText: 'you@example.com',
+              ),
+              keyboardType: TextInputType.emailAddress,
+              autocorrect: false,
+              onSubmitted: (_) =>
+                  viewModel.submitIdentifier(_identifierController.text),
+            ),
+            if (errorMessage != null)
+              SyncEnrollmentErrorText(message: errorMessage),
+            const SizedBox(height: 16),
+            FilledButton(
+              key: const Key('syncIdentifierContinue'),
+              onPressed: state.inFlight
+                  ? null
+                  : () =>
+                        viewModel.submitIdentifier(_identifierController.text),
+              child: action,
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -70,6 +70,7 @@ abstract class SyncEnrollmentViewModel {
   Future<void> submitIdentifier(String identifier);
   void submitOtp(String otp);
   void cancelOtp();
+  void cancelPendingOperation();
   Future<void> retry();
   void clearStep();
 }
@@ -158,6 +159,18 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
   }
 
   @override
+  void cancelPendingOperation() {
+    // Dispose-safe: completing the completer schedules no synchronous
+    // provider writes. The suspended operation then unwinds through the
+    // cancellation path, which clears the in-flight guard in `finally`.
+    final pending = _otpCompleter;
+    if (pending == null || pending.isCompleted) return;
+    _otpCompleter = null;
+    _session = null;
+    pending.completeError(const SyncEnrollmentOtpCancelled());
+  }
+
+  @override
   Future<void> retry() async {
     if (state.inFlight) return;
     state = state.copyWith(
@@ -187,11 +200,11 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
       return otpCompleter.future;
     }
 
-    final result = await _opener(
+    SyncEnrollmentSessionResult? result = await _openSession(
       identifier: identifier,
       resolveOtp: resolveOtp,
     );
-    if (!ref.mounted) return;
+    if (!ref.mounted || result == null) return;
     if (result is SyncEnrollmentSessionNotReady) {
       state = state.copyWith(
         errorMessage: () =>
@@ -233,11 +246,11 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
   }
 
   Future<SyncEnrollmentSession?> _reopenForResume() async {
-    final result = await _opener(
+    final result = await _openSession(
       identifier: state.identifier,
       resolveOtp: _rejectUnexpectedOtp,
     );
-    if (!ref.mounted) return null;
+    if (!ref.mounted || result == null) return null;
     if (result is SyncEnrollmentSessionReady) return result.session;
     if (result is SyncEnrollmentSessionNotReady) {
       state = state.copyWith(
@@ -257,6 +270,21 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
       throw StateError(
         'OTP is not collected when resuming from a durable phase.',
       );
+
+  Future<SyncEnrollmentSessionResult?> _openSession({
+    required String identifier,
+    required Future<String> Function(EnrollmentChallenge challenge) resolveOtp,
+  }) async {
+    try {
+      return await _opener(identifier: identifier, resolveOtp: resolveOtp);
+    } on StateError catch (error) {
+      await _failPhaseAware(error);
+      return null;
+    } on Exception catch (error) {
+      await _failPhaseAware(error);
+      return null;
+    }
+  }
 
   Future<void> _publishUntilPublished(SyncEnrollmentSession session) async {
     var attempts = 0;

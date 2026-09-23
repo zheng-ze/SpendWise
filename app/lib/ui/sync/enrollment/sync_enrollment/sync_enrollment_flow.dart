@@ -14,6 +14,20 @@ class SyncEnrollmentFlow extends FlowBase<SyncEnrollmentStep> {
 
 class _SyncEnrollmentFlowState
     extends FlowBaseState<SyncEnrollmentStep, SyncEnrollmentFlow> {
+  late final SyncEnrollmentNotifier _viewModel;
+
+  @override
+  void initState() {
+    super.initState();
+    _viewModel = ref.read(syncEnrollmentViewModelProvider.notifier);
+  }
+
+  @override
+  void dispose() {
+    _viewModel.cancelPendingOperation();
+    super.dispose();
+  }
+
   @override
   void Function() subscribeToStep(
     void Function(SyncEnrollmentStep? step) handle,
@@ -60,12 +74,10 @@ class _SyncEnrollmentFlowState
           (_) => false,
         );
     }
-    ref.read(syncEnrollmentViewModelProvider.notifier).clearStep();
+    _viewModel.clearStep();
   }
 
   @override
-  Widget buildRoot(BuildContext context) => BackendPickerFlow(
-    onHostedReady: () =>
-        ref.read(syncEnrollmentViewModelProvider.notifier).hostedReady(),
-  );
+  Widget buildRoot(BuildContext context) =>
+      BackendPickerFlow(onHostedReady: _viewModel.hostedReady);
 }
