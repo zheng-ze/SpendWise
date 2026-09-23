@@ -1,6 +1,6 @@
 # Sync enrollment: backend picker
 
-Last reconciled: 6de06ba
+Last reconciled: 4527938ac06f12b78062169abeddae664ee01b76
 
 ## Overview
 
@@ -17,9 +17,10 @@ service, resolver, coordinator, backend, or authenticator. Source:
 `BackendPickerFlow` owns the picker as a `FlowBase` root and consumes its
 one-shot steps. Its required `onHostedReady` callback transfers hosted
 continuation ownership to a future caller; the Flow itself adds no enrollment
-route. Source:
+route or call to `composeSyncEnrollment`. Source:
 `app/lib/ui/sync/enrollment/backend_picker/backend_picker_flow.dart` -
-`BackendPickerFlow`, `_BackendPickerFlowState.handleStep`.
+`BackendPickerFlow`, `_BackendPickerFlowState.handleStep`;
+`app/lib/sync/sync_enrollment_composition.dart` - `composeSyncEnrollment`.
 
 ## Key locations
 
@@ -31,6 +32,8 @@ route. Source:
   `FlowBase` wrapper, picker root, and one-shot step handling.
 - `app/lib/sync/backend_selection_writer.dart` - narrow durable-selection
   write seam implemented by `SyncMetadataStore`.
+- `app/lib/sync/sync_enrollment_composition.dart` - Supabase-only hosted
+  enrollment factory for a future hosted continuation.
 
 ## Contracts and invariants
 
@@ -47,8 +50,9 @@ route. Source:
 - The `FlowBase` wrapper and continuation-step handling exist, but no app
   entry point constructs `BackendPickerFlow`; the picker remains reachable
   only through tests. `HostedReady` invokes `onHostedReady` without Flow
-  navigation, while `CustomEndpointUnavailable` leaves the picker visible
-  with an unavailable affordance. Both steps are cleared after handling.
+  navigation or composing enrollment, while `CustomEndpointUnavailable` leaves
+  the picker visible with an unavailable affordance. Both steps are cleared
+  after handling.
   Source: `app/lib/ui/sync/enrollment/backend_picker/backend_picker_flow.dart`
   - `BackendPickerFlow`, `_BackendPickerFlowState.handleStep`;
   `app/test/ui/sync/enrollment/backend_picker_flow_test.dart` -

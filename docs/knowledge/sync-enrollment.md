@@ -1,16 +1,18 @@
 # Sync: enrollment
 
-Last reconciled: a9ef4ac
+Last reconciled: 4527938ac06f12b78062169abeddae664ee01b76
 
 ## Overview
 
 `SyncEnrollmentService` owns the app-layer enrollment phase machine. It acquires
 or recovers a device credential, ensures an E2E key exists, completes the
 initial reconciliation handshake, and enables writes only after reconciliation
-is durably complete. A shipped `SupabaseSyncAuthenticator` serves the Supabase-hosted
-email plus 6-digit OTP enrollment exchange, but it is separate from
-`SyncCoordinator.create`: no shipped composition path constructs or calls the
-enrollment service or authenticator yet. Source:
+is durably complete. `composeSyncEnrollment` is the hosted-enrollment factory:
+it creates the Supabase authenticator, service, coordinator, and publisher from
+ready boot providers and persisted Supabase selection. No UI or Flow calls the
+factory yet. Source:
+`app/lib/sync/sync_enrollment_composition.dart` - `composeSyncEnrollment`,
+`SyncEnrollmentComposition`;
 `app/lib/sync/sync_enrollment_service.dart` - `SyncEnrollmentService`;
 `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.create`;
 `packages/sync/lib/src/backends/supabase_authenticator.dart` -
@@ -18,9 +20,9 @@ enrollment service or authenticator yet. Source:
 
 `EnrollmentSnapshotPublisher` is the next app-layer component after the phase
 machine reaches `gateEnabled`: it drives one ordered push across all
-collections and owns the enrollment write-proof lifecycle for that run. It is
-currently standalone. No `SyncEnrollmentService`, `AppBoot`, scheduler, Flow,
-or UI path constructs or calls it. Source:
+collections and owns the enrollment write-proof lifecycle for that run. The
+hosted-enrollment factory constructs it, but no service, `AppBoot`, scheduler,
+Flow, or UI path calls the factory or publisher. Source:
 `app/lib/sync/enrollment_snapshot_publisher.dart` -
 `EnrollmentSnapshotPublisher`; `app/lib/sync/sync_enrollment_service.dart` -
 `SyncEnrollmentService`; `app/lib/boot/app_boot.dart` - `AppBoot`.
@@ -29,6 +31,8 @@ or UI path constructs or calls it. Source:
 
 - `app/lib/sync/sync_enrollment_service.dart` - enrollment orchestration,
   crash recovery, and remote-failure translation.
+- `app/lib/sync/sync_enrollment_composition.dart` - hosted-enrollment factory,
+  typed readiness/configuration outcomes, and production E2E-key source.
 - `app/lib/sync/sync_e2e_key_provider.dart` - shared stored-key decoder and
   validator.
 - `app/lib/sync/sync_metadata_store.dart` - durable enrollment phases and
@@ -89,6 +93,16 @@ default store is `SecureSecretStore`. Source:
 `app/lib/sync/enrollment_snapshot_publisher.dart` -
 `EnrollmentSnapshotPublisher`, `EnrollmentSnapshotPublisher.publish`;
 `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.pushCollection`.
+
+`composeSyncEnrollment` reads `ledgerProvider` and
+`persistenceProcessorProvider` before opening the database or resolving
+configuration. It returns `SyncEnrollmentNotReady` with both readiness flags
+when either is absent. For a ready boot graph, it accepts only a persisted
+Supabase selection, resolves it through `SyncBackendResolver`, then creates the
+authenticator, enrollment service, coordinator, and publisher with one shared
+`SecretStore`. Source: `app/lib/sync/sync_enrollment_composition.dart` -
+`composeSyncEnrollment`, `SyncEnrollmentNotReady`,
+`SyncEnrollmentConfigurationError`.
 
 `SupabaseSyncAuthenticator.completeEnrollment` requires the caller's local `deviceId` in
 `CompleteEnrollmentRequest.wire`. That value becomes `DeviceCredential.deviceID` and must be the
@@ -158,6 +172,20 @@ other statuses backend unavailable);
   `PushFullyAcknowledged`. Source:
   `app/lib/sync/enrollment_snapshot_publisher.dart` -
   `EnrollmentSnapshotPublishResult`, `EnrollmentSnapshotPublisher.publish`.
+- Hosted composition accepts no missing, custom, or invalid persisted Supabase
+  configuration. Those conditions return `SyncEnrollmentConfigurationError`
+  rather than falling back to another backend. Source:
+  `app/lib/sync/sync_enrollment_composition.dart` -
+  `composeSyncEnrollment`; `app/lib/sync/sync_backend_resolver.dart` -
+  `SyncBackendResolver.resolve`, `SyncBackendConfigurationException`.
+- The production E2E-key source uses `Random.secure()` to produce exactly
+  `SyncCipher.keyByteCount` bytes. The complete-enrollment request sends the
+  challenge's `wire['identifier']` verbatim, including a missing, empty, or
+  malformed value; it never substitutes the submitted identifier. Source:
+  `app/lib/sync/sync_enrollment_composition.dart` -
+  `resolveProductionSyncE2EKey`, `composeSyncEnrollment`;
+  `app/test/sync/sync_enrollment_composition_test.dart` -
+  `malformed challenge identifier is carried verbatim, never replaced by the submitted identifier`.
 
 ## Entry points and flows
 
@@ -177,6 +205,13 @@ other statuses backend unavailable);
   reinvoke it after `EnrollmentSnapshotPending`; it has no internal retry or
   scheduling loop. Source: `app/lib/sync/enrollment_snapshot_publisher.dart` -
   `EnrollmentSnapshotPublisher.publish`.
+- `composeSyncEnrollment(...)` is the hosted composition entry point. Callers
+  provide the submitted identifier and OTP resolver. It returns a typed
+  readiness or configuration outcome instead of attempting hosted enrollment
+  before boot dependencies and persisted selection are valid. Source:
+  `app/lib/sync/sync_enrollment_composition.dart` -
+  `composeSyncEnrollment`, `SyncEnrollmentReady`, `SyncEnrollmentNotReady`,
+  `SyncEnrollmentConfigurationError`.
 
 ## Gotchas
 
@@ -201,9 +236,10 @@ other statuses backend unavailable);
   future backend implementation must match this client-defined contract, not
   the other way around. Source: `packages/sync/lib/src/protocol/requests.dart`
   - `ReconciliationContext`, `PullRequest.reconciliation`.
-- The post-`gateEnabled` publisher is unconnected. Its result is not consumed
-  by the enrollment service or an application lifecycle, scheduler, Flow, or
-  UI caller, so reaching `gateEnabled` does not invoke it. Source:
+- The post-`gateEnabled` publisher is unconnected. The factory returns it, but
+  its result is not consumed by the enrollment service or an application
+  lifecycle, scheduler, Flow, or UI caller, so reaching `gateEnabled` does not
+  invoke it. Source:
   `app/lib/sync/enrollment_snapshot_publisher.dart` -
   `EnrollmentSnapshotPublisher`; `app/lib/sync/sync_enrollment_service.dart` -
   `SyncEnrollmentService`; `app/lib/boot/app_boot.dart` - `AppBoot`.
