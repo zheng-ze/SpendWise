@@ -18,7 +18,8 @@ themselves. Feature entries fold in still-current legacy material when a feature
 | Sync composition roots, credential and key boundaries, backend selection | [sync-composition-root.md](sync-composition-root.md) |
 | Sync run scheduler, single-flight and request coalescing | [sync-run-scheduler.md](sync-run-scheduler.md) |
 | Sync enrollment factory, phase machine, and crash recovery | [sync-enrollment.md](sync-enrollment.md) |
-| Sync enrollment backend picker (unwired selection UI) | [sync-enrollment-backend-picker.md](sync-enrollment-backend-picker.md) |
+| Hosted sync enrollment Flow, OTP interaction, and publication retry | [sync-enrollment-flow.md](sync-enrollment-flow.md) |
+| Sync enrollment backend picker | [sync-enrollment-backend-picker.md](sync-enrollment-backend-picker.md) |
 | Recurring plans, occurrences, accounting, analysis | [recurring-plans-and-accounting.md](recurring-plans-and-accounting.md) |
 | Budgets | [budgets.md](budgets.md) |
 | Categories and the on-device category classifier | [categories-and-classification.md](categories-and-classification.md) |
