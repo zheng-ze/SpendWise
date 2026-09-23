@@ -9,19 +9,15 @@ import 'package:sync/sync.dart';
 /// Codes are stored in `sync_meta.enrollment_phase`; never persist
 /// [SyncEnrollmentPhase.index] so reordering the enum cannot corrupt rows.
 enum SyncEnrollmentPhase {
-  /// Nothing enrolled yet. The initial state; backend selection stays null.
+  /// Backend selection stays null in this phase.
   notEnrolled(0),
 
   /// The opaque credential payload reached secure storage.
   credentialAcquired(1),
-
-  /// Snapshot transfer or key work is in progress.
   snapshotInProgress(2),
 
-  /// Reconciliation completed durably. Only this phase permits the gate flip.
+  /// Only this phase permits the write gate flip.
   reconciliationComplete(3),
-
-  /// The write gate was enabled durably.
   gateEnabled(4);
 
   const SyncEnrollmentPhase(this.code);
@@ -292,7 +288,6 @@ final class SyncMetadataStore implements BackendSelectionWriter {
     return (_db.select(_db.syncMeta)..where((t) => t.id.equals(0))).getSingle();
   }
 
-  // Writes companion to the singleton row, without its own transaction.
   // Callers must already hold a transaction and have called _ensureMetaRow.
   Future<void> _writeMeta(SyncMetaCompanion companion) =>
       (_db.update(_db.syncMeta)..where((t) => t.id.equals(0))).write(companion);

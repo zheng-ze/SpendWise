@@ -27,7 +27,6 @@ class ErrorSection extends StatelessWidget {
   }
 }
 
-/// A plain-language message for each `LedgerError` case.
 // Exhaustive, so a new case fails the analyzer here instead of falling
 // through to a raw toString.
 String friendlyLedgerErrorMessage(LedgerError error) {

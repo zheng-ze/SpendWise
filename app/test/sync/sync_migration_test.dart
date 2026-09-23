@@ -87,7 +87,6 @@ void main() {
     final db = LedgerDatabase(executor);
     addTearDown(db.close);
 
-    // Opening runs the migration; the sync stores exercise the new tables.
     final metadata = SyncMetadataStore(db);
     final staging = await DriftSyncStagingStore.open(db);
     expect(await staging.pendingConflictList(), isEmpty);
@@ -201,7 +200,6 @@ void main() {
     final db = LedgerDatabase(executor);
     addTearDown(db.close);
 
-    // Opening runs the migration; the new table accepts an orphan row.
     await db
         .into(db.syncOrphanTombstones)
         .insert(
@@ -213,7 +211,6 @@ void main() {
         );
     expect(await db.select(db.syncOrphanTombstones).get(), hasLength(1));
 
-    // Every prior row is unchanged by the upgrade.
     final accounts = await db
         .customSelect('SELECT id, name FROM accounts')
         .get();

@@ -92,8 +92,6 @@ class CategoryFormViewState
   final bool includeInAnalysis;
   final String? parentID;
 
-  /// Every category in the ledger, used to compute [eligibleParents] and
-  /// [parentLabel] as the kind/parent selection changes.
   final List<TransactionCategory> allCategories;
 
   final LedgerError? error;

@@ -67,8 +67,6 @@ class _LoadFailure extends ConsumerWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                // The raw exception stays out of this widget entirely and
-                // reaches only whatever logs `error` above.
                 'Something went wrong loading your data. Please try again.',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,

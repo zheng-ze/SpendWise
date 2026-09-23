@@ -23,8 +23,8 @@ class AppBoot extends ChangeNotifier with WidgetsBindingObserver {
     DateTime Function()? now,
   }) : now = now ?? utcNowFor;
 
-  /// Always UTC, never device-local time.
-  // UTC keeps occurrence identity from varying by the device's timezone.
+  /// Always UTC, never device-local time: occurrence identity would
+  /// otherwise vary by the device's timezone.
   final DateTime Function() now;
 
   /// Normalizes [localNow] (defaulting to the system clock) to UTC midnight

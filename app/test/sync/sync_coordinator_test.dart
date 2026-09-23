@@ -471,7 +471,7 @@ void main() {
       expect(coordinator.backend, isA<CustomEndpointSyncBackend>());
       expect(coordinator.status, const SyncIdle());
       // Assembly is lazy: no secret reads, no backend I/O, no store start,
-      // and an empty version cache until the run slice calls refresh().
+      // and an empty version cache until refresh() is called.
       expect(secrets.reads, isEmpty);
       expect(httpSpy.requests, 0);
       expect(store.calls, isEmpty);
@@ -678,7 +678,6 @@ void main() {
         () => coordinator.processPullPage(SyncCollection.entries),
       );
 
-      // The first pull carries no watermark yet.
       expect(backend.pulls.single.cursor, isNull);
       await expectDuplicatePageCommit(
         coordinator,
@@ -3147,13 +3146,11 @@ void main() {
       expect(seenFailures, isEmpty);
       // The seeded recovery acknowledgement ran before any pull or push.
       expect(backend.events.first, 'ack:entries');
-      // Every collection pulled exactly once.
       expect(backend.pulls, hasLength(5));
       expect(
         backend.pulls.map((request) => request.collection).toSet(),
         SyncCollection.values.toSet(),
       );
-      // Every collection pushed exactly once.
       expect(backend.pushes, hasLength(5));
       expect(
         backend.pushes

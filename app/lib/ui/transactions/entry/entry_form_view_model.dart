@@ -58,7 +58,6 @@ class EntryFormViewState
 
   final LedgerError? error;
 
-  /// True while a receipt scan is recognizing an image.
   final bool scanning;
 
   /// Set once by a scan that ended without prefilling anything, so the View

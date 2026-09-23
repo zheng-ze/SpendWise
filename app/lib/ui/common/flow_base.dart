@@ -23,7 +23,6 @@ abstract class FlowBaseState<S, T extends FlowBase<S>>
   /// to a second step stream beyond [subscribeToStep].
   BuildContext? get navigatorContext => _navigatorKey.currentContext;
 
-  /// Whether this Flow's root screen should show its own back button.
   bool get showsOwnBackButton => widget.onEnded != null;
 
   /// Ends this Flow the same way a system back gesture would. Pops this
@@ -41,7 +40,6 @@ abstract class FlowBaseState<S, T extends FlowBase<S>>
   /// own context, safe to push routes or show sheets from).
   void handleStep(BuildContext context, S step);
 
-  /// Builds this Flow's first screen.
   Widget buildRoot(BuildContext context);
 
   @override

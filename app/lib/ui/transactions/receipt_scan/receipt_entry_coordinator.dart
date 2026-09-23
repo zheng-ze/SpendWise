@@ -13,7 +13,6 @@ import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_flow.dart';
 class ReceiptOrchestrationState {
   const ReceiptOrchestrationState({this.scanning = false, this.scanStop});
 
-  /// True while a receipt scan is recognizing an image.
   final bool scanning;
 
   /// Set once by a scan that ended without prefilling anything, so the View

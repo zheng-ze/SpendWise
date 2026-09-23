@@ -76,7 +76,6 @@ final class SyncEnrollmentService {
   final ReconciliationSnapshotHasher Function(SyncCredential credential)
   buildSnapshotHasher;
 
-  /// Advances enrollment until the gate is durably enabled.
   Future<void> enroll() async {
     var phase = (await metadataStore.snapshot()).phase;
     while (phase != SyncEnrollmentPhase.gateEnabled) {

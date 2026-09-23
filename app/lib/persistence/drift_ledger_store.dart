@@ -68,8 +68,7 @@ class _Barrier {
   final Completer<void> reached = Completer<void>();
 }
 
-// One ordered ingest element: content plus its optional sync stamp. A null
-// stamp is an ordinary local write and keeps the existing bump path.
+// A null stamp is an ordinary local write and keeps the existing bump path.
 final class _StampedChange {
   const _StampedChange(this.change, [this.stamp]);
 
@@ -428,8 +427,7 @@ class DriftLedgerStore implements LedgerStore {
     return VersionVector(counters);
   }
 
-  // Folds the carried stamp maximum under the stored vector. A null floor
-  // keeps the existing local bump path bit-for-bit.
+  // A null floor keeps the existing local bump path bit-for-bit.
   static VersionVector _withFloor(VersionVector stored, VersionVector? floor) =>
       floor == null ? stored : _pointwiseMax(floor, stored);
 

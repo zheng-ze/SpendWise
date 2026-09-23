@@ -50,8 +50,6 @@ Map<String, dynamic> _line(String text) {
   };
 }
 
-/// Mocks the channel to return a receipt with a merchant line, a total line
-/// and a date line.
 List<Map<String, dynamic>> _recognizedResult(List<String> lines) => [
   for (final text in lines) _line(text),
 ];

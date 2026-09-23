@@ -12,7 +12,6 @@ bool canSavePlanForm({required String name, required Decimal amount}) {
   return true;
 }
 
-/// Carries the template's original sign onto the freshly typed magnitude.
 Decimal applyOriginalSign({
   required Decimal magnitude,
   required Decimal originalAmount,

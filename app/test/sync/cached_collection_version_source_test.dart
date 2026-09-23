@@ -104,7 +104,6 @@ void main() {
     for (final entry in seeded.entries) {
       expect(source.readRowVersion(entry.key), entry.value);
     }
-    // The tombstone lifecycle survives the round trip.
     expect(
       source
           .readRowVersion(SyncRowID.of(SyncCollection.entries, _entriesRow))

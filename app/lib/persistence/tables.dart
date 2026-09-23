@@ -79,8 +79,8 @@ class Entries extends Table with SyncedRow {
 
   BoolColumn get includeInAnalysis => boolean().named('include_in_analysis')();
 
-  /// Reserved and never written by this version. Adding either column later
-  /// costs a migration, so they are claimed now while the schema is still v1.
+  /// Reserved and never written by this version. Claiming it now avoids a
+  /// migration if a future version starts writing it.
   TextColumn get note => text().nullable()();
 
   /// Marks a synthetic entry: 0 opening balance, 1 balance adjustment, null for

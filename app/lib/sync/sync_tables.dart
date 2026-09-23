@@ -38,7 +38,6 @@ class SyncMeta extends Table {
   /// unused by managed backends.
   TextColumn get endpoint => text().nullable()();
 
-  /// Durable enrollment phase as an explicit [SyncEnrollmentPhase] code.
   IntColumn get enrollmentPhase =>
       integer().named('enrollment_phase').withDefault(const Constant(0))();
 

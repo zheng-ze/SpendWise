@@ -509,7 +509,7 @@ void main() {
 
   group('terminal save failure', () {
     // Corrupts the stored version vector of [id] so its next write cannot be
-    // decoded, then reports what the handler receives.
+    // decoded.
     Future<void> corruptVersion(String id) => db.customUpdate(
       'UPDATE accounts SET version_data = ? WHERE id = ?',
       variables: [

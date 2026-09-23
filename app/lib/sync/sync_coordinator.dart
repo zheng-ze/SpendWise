@@ -95,13 +95,6 @@ final class PushUnresolvedRows extends PushCollectionResult {
 /// never passed to the engine; there is deliberately no getter reaching it,
 /// the [SecretStore], or any [DeviceCredential] from outside.
 ///
-/// This slice owns assembly and scheduling: [requestSync] and [syncNow]
-/// trigger passes through the internal scheduler, and each pass runs
-/// acknowledgement recovery followed by every collection's pull-then-push.
-/// Population of the version cache ([CachedCollectionVersionSource.refresh]),
-/// backend calls, and [PersistenceProcessor.start] all belong to later
-/// slices, so [status] stays [SyncIdle] until a trigger runs.
-///
 /// Scheduling runs through an internal [SyncRunScheduler]: [requestSync]
 /// fire-and-forget triggers a pass (coalescing while one is active), and
 /// [syncNow] joins the active run, guaranteeing a trailing pass. [status]
@@ -225,7 +218,7 @@ final class SyncCoordinator extends ChangeNotifier {
   /// The resolved backend, or null when the device never enrolled.
   final SyncBackend? backend;
 
-  /// Empty until the run slice calls [CachedCollectionVersionSource.refresh].
+  /// Empty until [CachedCollectionVersionSource.refresh] is called.
   final SyncVersionSource versionSource;
 
   /// Bulk per-collection reader backing [versionSource] in production and
@@ -238,7 +231,6 @@ final class SyncCoordinator extends ChangeNotifier {
 
   final PostFlushReadbackVerifier verifier;
 
-  /// Held for the run slice, which spends credentials during pulls.
   /// Intentionally unexposed: no getter may leak secrets or credentials.
   final CredentialProvider _credentialProvider; // ignore: unused_field
 
@@ -333,9 +325,6 @@ final class SyncCoordinator extends ChangeNotifier {
   /// change. The scheduler never reports idle between a pass and its chained
   /// trailing pass, so no intermediate idle notification escapes here.
   void _handleSchedulerStatus(bool running) {
-    // A pass started before dispose() may settle afterwards: drop the late
-    // report instead of touching a disposed notifier, whose notifyListeners
-    // would throw once disposed.
     if (_disposed) return;
     _status = running ? const SyncRunning() : const SyncIdle();
     notifyListeners();
@@ -447,12 +436,8 @@ final class SyncCoordinator extends ChangeNotifier {
     }
   }
 
-  /// Pulls one page for [collection] at the current watermark and validates it.
-  ///
-  /// Reads the stored watermark, pulls through [_credentialProvider], throws a
-  /// [StateError] when no backend is enrolled or the pull fails, and rejects a
-  /// page carrying an envelope for any other collection. Returns the accepted
-  /// envelopes with the server's cursor for the page.
+  /// Throws [StateError] when no backend is enrolled, the pull fails, or a
+  /// page carries an envelope for another collection.
   Future<_PulledPage> _pullAndValidatePage(SyncCollection collection) async {
     final SyncBackend? backend = this.backend;
     if (backend == null) {
@@ -498,9 +483,6 @@ final class SyncCoordinator extends ChangeNotifier {
     List<SyncEnvelope> envelopes,
     ReconcileResult remoteResult,
   ) {
-    // The pulled winner envelope per conflict-free row, located by the
-    // index-based provenance: the coordinator passed the pulled envelopes
-    // in order, so the winning input index addresses this list directly.
     final Map<SyncRowID, SyncEnvelope> remoteWinner =
         <SyncRowID, SyncEnvelope>{};
     for (final MapEntry<SyncRowID, int> entry
@@ -509,8 +491,6 @@ final class SyncCoordinator extends ChangeNotifier {
       if (index < 0 || index >= envelopes.length) continue;
       remoteWinner[entry.key] = envelopes[index];
     }
-    // The winner change per conflict-free row, for the commit decision to
-    // apply without re-decoding.
     final Map<SyncRowID, LedgerChange> remoteWinnerChange =
         <SyncRowID, LedgerChange>{};
     for (final LedgerChange change in remoteResult.changes) {
@@ -523,18 +503,10 @@ final class SyncCoordinator extends ChangeNotifier {
     );
   }
 
-  /// Runs one fenced fold-in attempt over the pulled page.
-  ///
-  /// Redoes classification fresh against a refreshed [versionSource], lands
-  /// debounced local edits through the persistence barrier, captures the
-  /// versions and content to reconcile against, folds the local content in,
-  /// then linearizes and - for rows that survive - applies the batch and
-  /// durably advances the watermark with the verified vectors. Reports
+  /// Runs one fenced fold-in attempt over the pulled page. Returns
   /// [_AttemptRetry] when a fence invalidation or a race detection must retry
-  /// the page with a freshly refreshed classification, [_AttemptEmpty] when
-  /// no attempt row remains, and [_AttemptDone] when the page is fully
-  /// handled: either acknowledged, or stopped by a verification failure
-  /// before any metadata moves.
+  /// with a freshly refreshed classification, [_AttemptEmpty] when no attempt
+  /// row remains, and [_AttemptDone] when the page is fully handled.
   Future<_AttemptOutcome> _runFoldInAttempt({
     required SyncCollection collection,
     required String nextCursor,
@@ -624,10 +596,6 @@ final class SyncCoordinator extends ChangeNotifier {
   }
 
   /// Classifies one attempt's rows fresh against the refreshed [versionSource].
-  ///
-  /// Duplicate or dominated rows are skipped, unseen rows become direct-apply
-  /// candidates, and concurrently-versioned rows become fold-in candidates
-  /// whose current local content is reconciled against the pulled winner.
   _AttemptClassification _classifyAttemptRows(
     Map<SyncRowID, VersionVector> stamps,
   ) {
@@ -885,8 +853,8 @@ final class SyncCoordinator extends ChangeNotifier {
   /// checkpoint recorded concurrently (for example by [processPullPage])
   /// is never lost. Any [SyncFailure] leaves the pending record durable
   /// for the next recovery pass, without throwing and without blocking the
-  /// remaining collections. Retry scheduling belongs to a later slice: a
-  /// failed collection is simply left in place for the next invocation.
+  /// remaining collections. A failed collection is simply left in place for
+  /// the next invocation.
   Future<void> recoverPendingAcknowledgements() async {
     final SyncBackend? backend = this.backend;
     if (backend == null) {
@@ -967,26 +935,17 @@ final class SyncCoordinator extends ChangeNotifier {
 
   /// Repairs, selects, encodes, submits, and commits one collection's push.
   ///
-  /// Inside the collection's lock: (1) throws a [StateError] when the durable
-  /// write gate is closed, before any read or backend call; (2) repairs this
-  /// collection's pending acknowledgement inline and returns silently when
-  /// the repair does not clear it, submitting no outbound query; (3) lands
-  /// every debounced local edit through the persistence barrier, then
-  /// refreshes [versionSource], so the versions and content below observe
-  /// them; (4) bulk-reads the collection's current rows
-  /// via [versionReader] and keeps rows whose stored vector is not dominated
-  /// by the acknowledged vector (an absent acknowledgement is eligible);
-  /// (5) encodes the candidates and captures each submitted envelope's own
-  /// vector and sibling ID before any further await; (6) submits via
-  /// [SyncBackend.push], throwing a [StateError] on [SyncFailure] and
-  /// writing nothing; (7) on [SyncSuccess], commits the captured vector for
-  /// every row whose response entry is applied/already-present with a
-  /// sibling ID exactly matching the submitted one. Anything else —
-  /// rejected, mismatched, malformed, or missing — leaves the row eligible
-  /// for the next push cycle. The return value reports which of those paths
-  /// the push took: [PushNoop] when no row was eligible, [PushDeferred] when
-  /// the repair did not clear, [PushFullyAcknowledged] when every submitted
-  /// row was acknowledged, and [PushUnresolvedRows] otherwise.
+  /// A row is push-eligible when its stored vector is not dominated by its
+  /// acknowledged vector (an absent acknowledgement is eligible). Each
+  /// submitted envelope's vector and sibling ID are captured before any
+  /// further await, so the commit step never reads a version that could have
+  /// changed mid-flight. A response entry is accepted only when it is
+  /// applied/already-present with a sibling ID exactly matching what was
+  /// submitted; anything else leaves the row eligible for the next push.
+  /// Returns [PushNoop] when no row was eligible, [PushDeferred] when a
+  /// blocking pending acknowledgement did not clear, [PushFullyAcknowledged]
+  /// when every submitted row was acknowledged, and [PushUnresolvedRows]
+  /// otherwise.
   Future<PushCollectionResult> _pushCollectionLocked(
     SyncCollection collection, {
     String? writeProof,

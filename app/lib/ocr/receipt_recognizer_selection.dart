@@ -3,7 +3,6 @@ import 'package:ocr/ocr.dart';
 
 import 'platform_adapter_selection.dart';
 
-/// Factory for a platform-specific recognizer.
 typedef TextRecognizerFactory = TextRecognizer Function();
 
 /// Picks the recognizer for the current platform, or null if the platform

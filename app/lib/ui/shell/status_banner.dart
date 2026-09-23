@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
 
-/// Shows the current status message, sourced from [BannerState].
 class StatusBanner extends ConsumerWidget {
   const StatusBanner({super.key});
 
