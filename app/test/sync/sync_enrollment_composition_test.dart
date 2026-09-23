@@ -209,6 +209,42 @@ void main() {
     expect(request.wire.keys.toSet(), {'identifier', 'otp', 'deviceId'});
   });
 
+  test('malformed challenge identifier is carried verbatim, never replaced by the submitted identifier', () async {
+    final ready = await composeReady(identifier: 'user@example.com');
+    final malformed = <EnrollmentChallenge>[
+      EnrollmentChallenge(const {}),
+      EnrollmentChallenge(const {'identifier': ''}),
+      EnrollmentChallenge(const {'identifier': 42}),
+    ];
+
+    for (final challenge in malformed) {
+      final request = await ready.enrollmentService.buildCompleteRequest(
+        challenge,
+      );
+      expect(request.wire['identifier'], challenge.wire['identifier']);
+      expect(request.wire['identifier'], isNot('user@example.com'));
+    }
+  });
+
+  test(
+    'malformed challenge identifier is rejected as an invalid request',
+    () async {
+      final ready = await composeReady(identifier: 'user@example.com');
+      final request = await ready.enrollmentService.buildCompleteRequest(
+        EnrollmentChallenge(const {}),
+      );
+
+      final outcome = await ready.authenticator.completeEnrollment(request);
+
+      expect(outcome, isA<SyncFailure<DeviceCredential>>());
+      expect(
+        (outcome as SyncFailure<DeviceCredential>).code,
+        'invalid_request',
+      );
+      expect(httpClient.callsTo('/auth/v1/verify'), isEmpty);
+    },
+  );
+
   test(
     'authenticator and backend carry the validated Supabase configuration',
     () async {

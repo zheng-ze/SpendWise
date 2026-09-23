@@ -123,9 +123,8 @@ Future<SyncEnrollmentComposition> composeSyncEnrollment(
         BeginEnrollmentRequest(<String, Object?>{'identifier': identifier}),
     buildCompleteRequest: (challenge) async {
       final otp = await resolveOtp(challenge);
-      final bound = challenge.wire['identifier'];
       return CompleteEnrollmentRequest(<String, Object?>{
-        'identifier': bound is String && bound.isNotEmpty ? bound : identifier,
+        'identifier': challenge.wire['identifier'],
         'otp': otp,
         'deviceId': await deviceID(database),
       });
