@@ -170,8 +170,6 @@ void main() {
     }
   });
 
-  // Every day the dataset asks for fits in all twelve months, so the clamp
-  // path is never exercised here.
   test('seedDatesLandOnTheRequestedDayOfTheShiftedMonth', () {
     final entries = _rowsOf<UpsertEntry>(
       seedChanges(today: DateTime.utc(2026, 3, 31)),
@@ -257,7 +255,6 @@ void main() {
   }
 
   test('theCollidingIdFactoryReachesEachRowTypeInTurn', () {
-    // Guards the indices above: if the seed order shifts, the cases must move.
     final probe = _CollidingIds(collideAt: 1000);
     final changes = buildSeed(
       LedgerState(),

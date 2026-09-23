@@ -11,8 +11,6 @@ const Map<RecurrenceFrequency, String> frequencyLabels = {
   RecurrenceFrequency.yearly: 'Yearly',
 };
 
-/// Null means "one time", so the return value distinguishes a Cancel (the
-/// dismissed sheet) from choosing "one time" (an explicit null answer).
 Future<RecurrenceFrequency?> showRecurrencePickerSheet({
   required BuildContext context,
   RecurrenceFrequency? selected,

@@ -9,8 +9,6 @@ import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_view_
 
 typedef BackendSelectionCall = ({SyncBackendKind backend, String? endpoint});
 
-/// Records every persist call, optionally holding the caller at a gate or
-/// failing it, so tests can prove ordering and serialization.
 final class RecordingBackendSelectionWriter implements BackendSelectionWriter {
   Completer<void>? gate;
   void Function()? onWrite;

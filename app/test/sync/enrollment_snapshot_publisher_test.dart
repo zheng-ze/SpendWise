@@ -23,8 +23,6 @@ import 'package:sync/sync.dart';
 import '../support/recording_ledger_store.dart';
 import 'in_memory_secret_store.dart';
 
-/// One distinct seeded row ID per collection, so a test can make any subset
-/// of collections non-noop while keeping the rows distinguishable.
 String _rowID(SyncCollection collection) {
   switch (collection) {
     case SyncCollection.moneySources:
@@ -40,18 +38,12 @@ String _rowID(SyncCollection collection) {
   }
 }
 
-/// Hand-written fake backend in the style of the coordinator tests: `push`
-/// records every request and delegates to a scripted [onPush] handler, while
-/// `acknowledge` records and serves [acknowledgeOutcomes] defaulting to
-/// success. `pull` and `reconcile` throw because the push path never calls
-/// them.
 final class _ScriptedPushBackend implements SyncBackend {
   final List<PushRequest> pushes = [];
   final List<AcknowledgeRequest> acknowledges = [];
   final Map<SyncCollection, SyncOutcome<AcknowledgeResponse>>
   acknowledgeOutcomes = {};
 
-  /// Scripted per-test push behavior.
   Future<SyncOutcome<PushResponse>> Function(PushRequest request)? onPush;
 
   @override
@@ -88,9 +80,6 @@ final class _ScriptedPushBackend implements SyncBackend {
   }
 }
 
-/// [CollectionVersionReader] decorator logging every collection the
-/// coordinator reads, so a test can prove the publisher visited collections
-/// in order — including [PushNoop] collections that make no backend call.
 final class _RecordingReader implements CollectionVersionReader {
   _RecordingReader(this.inner);
 
@@ -109,8 +98,6 @@ final class _RecordingReader implements CollectionVersionReader {
   }
 }
 
-/// [SecretStore] decorator logging reads and deletes into [events], so a
-/// test can prove the proof read happened before any push.
 final class _OrderedSecretStore implements SecretStore {
   _OrderedSecretStore(this.inner, this.events);
 
@@ -133,8 +120,6 @@ final class _OrderedSecretStore implements SecretStore {
   }
 }
 
-/// Builds a push wire response marking every submitted envelope [status]
-/// under its own sibling ID.
 PushResponse _pushRowsResponse(
   List<SyncEnvelope> submitted, {
   String status = 'applied',
@@ -152,8 +137,6 @@ PushResponse _pushRowsResponse(
   ],
 });
 
-/// A push handler answering every submission as applied under the submitted
-/// sibling IDs.
 Future<SyncOutcome<PushResponse>> _appliedPush(PushRequest request) async =>
     SyncSuccess<PushResponse>(_pushRowsResponse(request.envelopes));
 
@@ -191,12 +174,6 @@ void main() {
     await db.close();
   });
 
-  /// Assembles a publisher over a real coordinator with a scriptable backend,
-  /// a recording candidate reader, and an enabled write gate (unless
-  /// [enableWrites] is false), mirroring the coordinator tests' push setup.
-  /// The coordinator's credentials live in [coordinatorSecrets]; the write
-  /// proof under test lives in [proofSecrets], so coordinator I/O never
-  /// pollutes the proof accounting.
   Future<({SyncCoordinator coordinator, _ScriptedPushBackend backend})>
   publishSetup({
     _ScriptedPushBackend? backend,
@@ -250,9 +227,6 @@ void main() {
         secretStore: proofSecrets,
       );
 
-  /// Seeds one tombstone row for [collection]: absent from the ledger, it
-  /// pushes as a tombstone delete, so no per-collection ledger seeding is
-  /// needed to make the collection non-noop.
   void seedTombstone(
     _RecordingReader reader,
     InMemorySyncVersionSource versions,
@@ -269,8 +243,6 @@ void main() {
 
   int proofReads() =>
       proofSecrets.reads.where((key) => key == syncWriteProofSecretKey).length;
-
-  // TS1: sequential first-selection across the fixed enum order.
 
   test(
     'all noop returns success in enum order with the proof untouched',
@@ -368,8 +340,6 @@ void main() {
     },
   );
 
-  // TS2: single read, delete-on-confirmation, delete-failure propagation.
-
   test(
     'the proof is read once before any push and deleted after confirmation',
     () async {
@@ -448,8 +418,6 @@ void main() {
     expect(proofSecrets.deletes, [syncWriteProofSecretKey]);
     expect(await proofSecrets.read(syncWriteProofSecretKey), 'proof-1');
   });
-
-  // TS3: pending outcomes stop the run; retries resupply or withhold.
 
   test('deferred keeps the proof and the retry resupplies it to the same collection', () async {
     final backend = _ScriptedPushBackend();
@@ -583,8 +551,6 @@ void main() {
     },
   );
 
-  // TS4: failure propagation without proof deletion or success.
-
   test(
     'a closed write gate throws StateError with no proof deletion',
     () async {
@@ -650,12 +616,6 @@ void main() {
   });
 
   test('two concurrent publish() calls on the same instance never both submit the proof', () async {
-    // A rejected row stays an eligible candidate for the coordinator's own
-    // fresh recomputation on retry (unlike an acknowledged one), so a
-    // second concurrent call can genuinely reach a real backend.push()
-    // call for the same row with a second (by then stale) writeProof
-    // unless EnrollmentSnapshotPublisher itself serializes concurrent
-    // publish() calls.
     final setup = await publishSetup();
     final reader = setup.coordinator.versionReader as _RecordingReader;
     seedTombstone(

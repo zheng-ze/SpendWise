@@ -3,7 +3,6 @@ import 'package:domain/src/accounts/sub_pocket.dart';
 import 'package:domain/src/lifecycle_state.dart';
 import 'package:meta/meta.dart';
 
-/// Gives accounts and pockets one table and one id space in LedgerState.
 @immutable
 sealed class MoneySource {
   const MoneySource();

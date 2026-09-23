@@ -35,9 +35,6 @@ Map<String, dynamic> _rect(
   double bottom,
 ) => {'left': left, 'top': top, 'right': right, 'bottom': bottom};
 
-/// Builds one flat line map per text line, matching the shape the Android
-/// text-recognition channel returns: pixel-space bounds plus an optional
-/// confidence.
 Map<String, dynamic> _line(String text) {
   final rect = _rect(0, 0, 100, 100);
   return {
@@ -50,8 +47,6 @@ Map<String, dynamic> _line(String text) {
   };
 }
 
-/// Mocks the channel to return a receipt with a merchant line, a total line
-/// and a date line.
 List<Map<String, dynamic>> _recognizedResult(List<String> lines) => [
   for (final text in lines) _line(text),
 ];
@@ -92,10 +87,6 @@ void main() {
   EntryFormViewState stateOf(ProviderContainer container) =>
       container.read(entryFormViewModelProvider(null)).asData!.value;
 
-  /// The coordinator's scan work runs on the real event loop, not the frames
-  /// tester.pump advances, so start [action] and wait for scanning to clear
-  /// inside runAsync. pumpAndSettle alone cannot settle while the scanning
-  /// CircularProgressIndicator keeps animating.
   Future<void> driveScan(
     WidgetTester tester,
     ProviderContainer container,
@@ -207,11 +198,6 @@ void main() {
         entryFormViewModelProvider(null).notifier,
       );
 
-      // The scan runs on the real event zone, so it is started and released in
-      // runAsync while a gate freezes recognition. A lone fake-frame pump
-      // (outside runAsync) rebuilds the widget so the indicator shows while
-      // scanning stays true. The pump must not sit inside runAsync, or it
-      // stops the real delays from draining the released scan.
       await tester.runAsync(() async {
         viewModel.requestScan(
           ReceiptScanSource.camera,
@@ -229,7 +215,6 @@ void main() {
 
       await tester.runAsync(() async {
         gate.complete();
-        // The scan finishes in a few real ticks once released.
         await Future<void>.delayed(const Duration(milliseconds: 500));
       });
       await tester.pump();

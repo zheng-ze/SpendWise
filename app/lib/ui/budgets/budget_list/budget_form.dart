@@ -19,8 +19,6 @@ Future<void> showBudgetFormSheet({required BuildContext context}) {
 
 const budgetFormOverallSentinel = '__overall__';
 
-/// Shows the category-picker sheet and returns the chosen category id,
-/// [budgetFormOverallSentinel] for "Overall", or null if the user backed out.
 Future<String?> showBudgetCategoryPickerSheet({
   required BuildContext context,
   required BudgetFormViewState formState,
@@ -122,8 +120,6 @@ class _BudgetFormBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Pulled from the ViewModel each build rather than bound both ways,
-    // since the ViewModel is the single source of truth for form text.
     if (amountController.text != formState.amountText) {
       amountController.text = formState.amountText;
     }

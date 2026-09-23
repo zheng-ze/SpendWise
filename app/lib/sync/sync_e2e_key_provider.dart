@@ -5,9 +5,6 @@ import 'package:spendwise/sync/secret_store.dart';
 import 'package:spendwise/sync/sync_secret_keys.dart';
 import 'package:sync/sync.dart';
 
-/// Scoped E2E key reader: the only key-related dependency the sync engine
-/// receives is [accessor], a closure that reads exactly one secret.
-/// The raw [SecretStore] and the device credential never leave this class.
 final class SyncE2EKeyProvider {
   SyncE2EKeyProvider({required this._secretStore});
 
@@ -34,7 +31,6 @@ final class SyncE2EKeyProvider {
   }
 }
 
-/// Decodes an unpadded base64url-encoded E2E key and validates its length.
 Uint8List decodeAndValidateSyncE2EKey(String encoded) {
   final Uint8List bytes;
   try {

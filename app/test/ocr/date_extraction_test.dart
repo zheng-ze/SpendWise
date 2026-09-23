@@ -30,7 +30,6 @@ void main() {
 
     final result = extractDate(text, locale: 'en_US');
 
-    // en_US orders dates month/day/year, so 03/04 reads as March 4th.
     expect(result, DateTime.utc(2025, 3, 4));
   });
 
@@ -39,7 +38,6 @@ void main() {
 
     final result = extractDate(text, locale: 'en_GB');
 
-    // en_GB orders dates day/month/year, so 03/04 reads as April 3rd.
     expect(result, DateTime.utc(2025, 4, 3));
   });
 

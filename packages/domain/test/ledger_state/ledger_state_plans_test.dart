@@ -262,8 +262,6 @@ void main() {
 
     test('a plan with anchor shifted after resolution is rejected '
         'rather than re-minting occurrences under the new schedule', () {
-      // Rewinding lastResolvedDate on the incoming plan cannot help, since a
-      // monthly anchor move lands on different days and both sets of entries stay.
       final state = seeded();
       final original = plan(lastResolvedDate: DateTime.utc(2026, 1, 15));
       state.addPlan(original);
@@ -359,8 +357,6 @@ void main() {
   });
 
   group('resolvePlans failures', () {
-    // deletePocket archives without cascading to plans, so the plan outlives
-    // the holder its template names and every occurrence then fails validation.
     LedgerState withFrozenPocket() {
       final state = seeded();
       state.addPlan(plan(entryTemplate: template(sourceID: pocketID)));
@@ -419,8 +415,6 @@ void main() {
         'instead of being permanently skipped', () {
       final state = withFrozenPocket();
 
-      // Cursor must not advance past the earliest failure, so a later sweep
-      // still has it to regenerate.
       final firstSweep = state.resolvePlans(DateTime.utc(2026, 3, 20));
       expect(firstSweep.failures.map((failure) => failure.occurrence), [
         DateTime.utc(2026, 2, 15),
@@ -445,7 +439,6 @@ void main() {
 
       state.resolvePlans(DateTime.utc(2026, 3, 20));
 
-      // An all-success sweep must land the cursor on `now`, not the last occurrence.
       expect(state.plans[planID]!.lastResolvedDate, DateTime.utc(2026, 3, 20));
 
       final secondSweep = state.resolvePlans(DateTime.utc(2026, 3, 20));
@@ -486,8 +479,6 @@ void main() {
       expect(changes.whereType<DeletePlan>(), isEmpty);
     });
 
-    // The holder upserts precede the plan deletes, but pockets archive from an
-    // unordered set, so only relative order is pinned. Rows survive for restore.
     test('archives the holders and drops the plan without deleting rows', () {
       final state = seeded();
       state.addPlan(plan());
@@ -510,13 +501,9 @@ void main() {
     });
   });
 
-  // Archiving only freezes a plan, so these cover the other direction, where
-  // the dereference sweep deletes a row and must not leave a plan naming it.
   group('the dereference sweep drops plans naming the row it removes', () {
     final entryID = uuid(7);
 
-    // Both mutators demand an active source, so the only way to reach a plan
-    // naming a referenceOnly row is to seed one directly, the way replay does.
     LedgerState seededWith({
       required MoneySource pocket,
       required Entry entry,

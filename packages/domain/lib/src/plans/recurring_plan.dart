@@ -43,8 +43,6 @@ class RecurringPlan {
     }
   }
 
-  /// A finite plan whose last occurrence is already resolved can never emit
-  /// again, so it is retired rather than carried as live config forever.
   bool isExhausted({required DateTime asOf}) {
     final end = endDate;
     if (end == null) return false;
@@ -52,8 +50,6 @@ class RecurringPlan {
     return !end.isAfter(asOf) && !lastResolvedDate.isBefore(end);
   }
 
-  /// Exclusive of [after] and inclusive of the ceiling, so an occurrence is
-  /// resolved exactly once as the cursor advances across it.
   List<DateTime> occurrences({
     required DateTime after,
     required DateTime upTo,

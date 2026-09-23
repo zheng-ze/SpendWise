@@ -1,7 +1,5 @@
 import 'package:meta/meta.dart';
 
-/// Half-open `[start, end)`. Adjacent ranges sharing an instant place it in the
-/// later one, so windows tiled end-to-end never double-count a boundary item.
 @immutable
 class DateRange {
   const DateRange(this.start, this.end);

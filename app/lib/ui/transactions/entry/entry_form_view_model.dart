@@ -53,19 +53,14 @@ class EntryFormViewState
   final DateTime? endDate;
   final bool isSystemEntry;
 
-  /// Null for a new, unsaved entry.
   final String? entryId;
 
   final LedgerError? error;
 
-  /// True while a receipt scan is recognizing an image.
   final bool scanning;
 
-  /// Set once by a scan that ended without prefilling anything, so the View
-  /// can show why. Cleared the same single-shot way as [step].
   final ReceiptScanStop? scanStop;
 
-  /// True once save or delete has completed and the sheet should close.
   final bool dismissed;
 
   @override
@@ -154,24 +149,17 @@ abstract class EntryFormViewModel {
   Future<void> delete();
   void requestDocumentCrop(Uint8List bytes);
 
-  /// Prefills a brand-new entry's source from the screen's scope. A no-op
-  /// once the form already has a source.
   void prefillSource(String? id);
   void clearStep();
 }
 
-/// The receipt-scan / crop surface of an entry form.
 abstract class ReceiptScanController {
   void requestScan(ReceiptScanSource source, {Uint8List? preCapturedBytes});
   void applyCroppedDocument(Uint8List bytes);
 
-  /// Clears a scan's reported [EntryFormViewState.scanStop] once the View
-  /// has shown its message, the same single-shot discipline as [EntryFormViewModel.clearStep].
   void clearScanStop();
 }
 
-// One instance per entry being edited, null for a new entry, since the
-// provider is a family keyed by what it edits.
 class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
     with
         LedgerBackedNotifier<EntryFormViewState>,
@@ -181,9 +169,6 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
 
   final String? entryId;
 
-  /// The receipt-scan / crop coordinator for this entry form. Read and its
-  /// state mirrored into [EntryFormViewState] in [build]; its lifetime is
-  /// bound to this provider.
   ReceiptEntryCoordinator? _coordinator;
 
   Entry? get _persisted =>
@@ -394,8 +379,6 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
     }
   }
 
-  // lastResolvedDate starts one day behind the anchor so a half-open scan
-  // starting after that date still includes the anchor day itself.
   RecurringPlan _recurringPlanFor(
     EntryFormViewState current,
     Entry signedEntry,

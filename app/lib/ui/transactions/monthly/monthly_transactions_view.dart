@@ -130,8 +130,6 @@ class _WeekRow extends StatelessWidget {
   }
 }
 
-/// Shared row shell for the month and week list rows, which differ only in
-/// background, border, leading icon, and text style.
 class _TransactionSummaryRow extends StatelessWidget {
   const _TransactionSummaryRow({
     this.background,

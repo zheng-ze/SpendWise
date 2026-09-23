@@ -12,8 +12,6 @@ import 'package:spendwise/ui/format/amount_parse.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 
-/// Shows the limit-edit sheet for [target] and returns the entered amount,
-/// or null if the user backed out.
 Future<Decimal?> showBudgetLimitEditSheet({
   required BuildContext context,
   required LimitEditTarget target,

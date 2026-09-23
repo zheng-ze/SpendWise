@@ -31,16 +31,12 @@ void main() {
         child: const MaterialApp(home: Scaffold(body: BudgetForm())),
       ),
     );
-    // Flushes BudgetFormNotifier.build()'s Future so the form's initial
-    // AsyncData state is in place before a test interacts with it.
     await tester.pump();
   }
 
   testWidgets(
     'a rejected save keeps the form field values, showing the error instead',
     (tester) async {
-      // Overall is already budgeted, so saving another Overall budget
-      // rejects with CategoryAlreadyBudgeted.
       final existingOverall = buildBudget(categoryID: null, id: 'b1');
       final ledger = Ledger(
         state: LedgerState(budgets: {existingOverall.id: existingOverall}),

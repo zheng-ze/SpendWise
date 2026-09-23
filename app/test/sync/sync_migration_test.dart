@@ -5,9 +5,6 @@ import 'package:spendwise/sync/drift_sync_staging_store.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
 import 'package:sync/sync.dart';
 
-// Representative schema-version-3 DDL, matching the synced-row and
-// device-local shapes in app/lib/persistence/tables.dart before the sync
-// tables landed. The migration must preserve rows stored under this shape.
 const _v3Accounts = '''
 CREATE TABLE accounts (
   id TEXT NOT NULL PRIMARY KEY,
@@ -54,8 +51,6 @@ CREATE TABLE store_meta (
 
 void main() {
   test('the v3 to v4 migration preserves existing user rows', () async {
-    // Seed the version-3 shape through the executor setup hook, which runs
-    // on the raw connection before drift opens and migrates it.
     final executor = NativeDatabase.memory(
       setup: (raw) {
         raw.execute(_v3Accounts);
@@ -87,7 +82,6 @@ void main() {
     final db = LedgerDatabase(executor);
     addTearDown(db.close);
 
-    // Opening runs the migration; the sync stores exercise the new tables.
     final metadata = SyncMetadataStore(db);
     final staging = await DriftSyncStagingStore.open(db);
     expect(await staging.pendingConflictList(), isEmpty);
@@ -163,9 +157,6 @@ void main() {
 
   test('the v4 to v5 migration preserves existing rows and adds the orphan '
       'table', () async {
-    // Seeds the version-4 shape: content and sync tables as drift created
-    // them at v4, plus the user version. The migration must add only the
-    // orphan table and leave every prior row untouched.
     final executor = NativeDatabase.memory(
       setup: (raw) {
         raw.execute(_v3Accounts);
@@ -201,7 +192,6 @@ void main() {
     final db = LedgerDatabase(executor);
     addTearDown(db.close);
 
-    // Opening runs the migration; the new table accepts an orphan row.
     await db
         .into(db.syncOrphanTombstones)
         .insert(
@@ -213,7 +203,6 @@ void main() {
         );
     expect(await db.select(db.syncOrphanTombstones).get(), hasLength(1));
 
-    // Every prior row is unchanged by the upgrade.
     final accounts = await db
         .customSelect('SELECT id, name FROM accounts')
         .get();

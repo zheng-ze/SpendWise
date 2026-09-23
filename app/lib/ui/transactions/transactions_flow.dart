@@ -18,8 +18,6 @@ import 'package:spendwise/ui/transactions/entry/entry_form_logic.dart'
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/transactions_view_model.dart';
 
-/// Which holders a scoped Transactions screen filters to, and what title it
-/// shows.
 class TransactionsScope {
   const TransactionsScope({required this.title, required this.scopeIDs});
 
@@ -37,8 +35,6 @@ class TransactionsScope {
   int get hashCode => Object.hash(title, Object.hashAllUnordered(scopeIDs));
 }
 
-/// Owns the Transactions feature's own nested Navigator. Pushed directly by
-/// the app shell, or by `AccountsFlow` with a scope.
 class TransactionsFlow extends FlowBase<TransactionsStep> {
   const TransactionsFlow({
     super.key,
@@ -56,8 +52,6 @@ class TransactionsFlow extends FlowBase<TransactionsStep> {
 
 class _TransactionsFlowState
     extends FlowBaseState<TransactionsStep, TransactionsFlow> {
-  // Re-created whenever an entry form opens, since the form's ViewModel is a
-  // family instance with no one fixed provider to subscribe to up front.
   ProviderSubscription<AsyncValue<EntryFormViewState>>? _formSubscription;
   String? _openFormKey;
   bool _formKeyIsSet = false;
@@ -105,8 +99,6 @@ class _TransactionsFlowState
       case PickDateRequested():
       case PickEndDateRequested():
       case DocumentCropRequested():
-        // These variants are only ever emitted by an EntryFormViewModel's
-        // own state, handled by _handleFormStep below.
         break;
     }
     _screenViewModel.clearStep();
@@ -158,7 +150,6 @@ class _TransactionsFlowState
         _pushDocumentCrop(context, formKey, imageBytes);
       case EntryFormRequested():
       case SourceEditRequested():
-        // Only TransactionsViewModel emits these. Unreachable here.
         break;
     }
     _formViewModel(formKey).clearStep();

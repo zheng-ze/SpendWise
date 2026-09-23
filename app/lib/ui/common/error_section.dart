@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 class ErrorSection extends StatelessWidget {
   const ErrorSection({super.key, required this.subject, required this.error});
 
-  /// What failed to save, worded to sit after "Could not save".
   final String subject;
 
   final LedgerError? error;
@@ -27,9 +26,6 @@ class ErrorSection extends StatelessWidget {
   }
 }
 
-/// A plain-language message for each `LedgerError` case.
-// Exhaustive, so a new case fails the analyzer here instead of falling
-// through to a raw toString.
 String friendlyLedgerErrorMessage(LedgerError error) {
   return switch (error) {
     IdCollision() => 'that id is already in use.',

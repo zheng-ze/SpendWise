@@ -15,11 +15,8 @@ const _mlKitChannel = MethodChannel('spendwise/android_text_recognizer');
 const _visionChannel = MethodChannel('spendwise/vision_text_recognizer');
 const _documentScannerChannel = MethodChannel('spendwise/document_scanner');
 
-/// Ignored [ScanResultHandler] for scans whose prefill a test does not inspect.
 void _ignorePrefill({String? name, Decimal? amount, required DateTime date}) {}
 
-/// Freezes the recognition channel reply until [gate] completes, so a test can
-/// observe the coordinator mid-recognition, then returns a recognized result.
 Future<List<Map<String, dynamic>>?> _freezeRecognizer(
   Completer<void>? gate,
 ) async {
@@ -36,8 +33,6 @@ Map<String, dynamic> _rect(
 
 Map<String, dynamic> _line(String text) {
   final rect = _rect(0, 0, 100, 100);
-  // Flat line shape the Android text-recognition channel returns: one map per
-  // line with pixel-space bounds and an optional confidence.
   return {
     'text': text,
     'left': rect['left'],
@@ -100,8 +95,6 @@ void main() {
   ReceiptOrchestrationState state() =>
       container.read(receiptEntryCoordinatorProvider(null));
 
-  /// Waits for the coordinator to reach a non-scanning state by polling, since
-  /// the Notifier exposes no observable stream.
   Future<void> idle() async {
     for (var i = 0; i < 200; i++) {
       if (!state().scanning) return;
@@ -128,7 +121,6 @@ void main() {
           onPrefill: _ignorePrefill,
         );
 
-        // _runScan sets scanning true synchronously before its first await.
         expect(state().scanning, isTrue);
 
         gate!.complete();
@@ -185,7 +177,7 @@ void main() {
             .setMockMethodCallHandler(_documentScannerChannel, (call) async {
               if (call.method == 'isAvailable') {
                 isAvailableCalled = true;
-                return false; // native scanner unavailable -> fall through to picker
+                return false;
               }
               return null;
             });
@@ -227,7 +219,6 @@ void main() {
         coordinator().clearScanStop();
         expect(state().scanStop, isNull);
 
-        // A second clear is a no-op: the single-shot state never re-arms.
         coordinator().clearScanStop();
         expect(state().scanStop, isNull);
       },
@@ -236,8 +227,6 @@ void main() {
 
   group('native document scanner routing', () {
     setUp(() {
-      // iOS selects the scanner without the Android eligibility channel, so
-      // only scanDocument is exercised.
       debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
     });
 
@@ -249,7 +238,7 @@ void main() {
       container = startContainer();
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(_documentScannerChannel, (call) async {
-            if (call.method == 'scanDocument') return null; // user backed out
+            if (call.method == 'scanDocument') return null;
             return null;
           });
 
@@ -286,16 +275,12 @@ void main() {
 
       await idle();
 
-      // Reached the picker path, which denied permission -> scanStop set.
       expect(state().scanStop, ReceiptScanStop.permissionDenied);
       expect(prefillCalls, 0);
     });
 
     test('a captured native scan recognizes the captured bytes', () async {
       container = startContainer();
-      // This group runs as iOS, so recognition goes to the Vision channel;
-      // mocking the Android one here would leave Vision unmocked and silently
-      // fall back to today's date.
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
             _visionChannel,

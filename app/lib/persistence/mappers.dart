@@ -6,8 +6,6 @@ import 'package:drift/drift.dart' show Value;
 import 'package:spendwise/persistence/ledger_database.dart' as rows;
 import 'package:sync/sync.dart';
 
-// An unrecognized code came from a newer writer, so the row loads as the
-// documented default rather than failing the whole load.
 AccountType _accountType(int code) => switch (code) {
   0 => AccountType.cash,
   1 => AccountType.checking,
@@ -45,8 +43,6 @@ VersionVector versionFromRow(Uint8List blob) => VersionVector.decode(blob);
 Uint8List _versionToBlob(VersionVector version) =>
     Uint8List.fromList(version.encode());
 
-/// Reads the calendar day and rebuilds midnight from it, since reading a
-/// stored instant off midnight would move it a day for anyone east of Greenwich.
 DateTime dayFromMillis(int millis) =>
     startOfDayUtc(DateTime.fromMillisecondsSinceEpoch(millis, isUtc: true));
 
@@ -121,8 +117,6 @@ rows.Category categoryToRow(
   symbol: category.symbol,
 );
 
-/// Parentage is fixed at creation, so an upsert keeps the stored parent even
-/// when the incoming category names a different one.
 rows.Category categoryUpsertRow(
   TransactionCategory category,
   VersionVector version, {

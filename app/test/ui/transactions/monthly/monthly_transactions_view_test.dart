@@ -50,8 +50,6 @@ void main() {
         .evaluate()
         .length;
 
-    // A month spans at most 6 overlapping weeks, so if both months' weeks
-    // stayed mounted at once this count would exceed that ceiling.
     expect(visibleAfterSecondExpand, greaterThan(0));
     expect(visibleAfterSecondExpand, lessThanOrEqualTo(6));
 

@@ -155,8 +155,6 @@ class RecycleBinNotifier extends AsyncNotifier<RecycleBinViewState>
       case BinRowKind.account:
         ledger.restoreAccount(id);
       case BinRowKind.pocket:
-        // Domain no-ops silently when the pocket's parent account is still
-        // archived, so the row simply stays put.
         ledger.restorePocket(id);
       case BinRowKind.category:
         ledger.restoreCategory(id);

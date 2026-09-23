@@ -23,7 +23,6 @@ class TransactionCategory {
   final String colorHex;
   final bool includeInAnalysis;
 
-  /// One level of nesting only, enforced by the validator.
   final String? parentID;
 
   final String symbol;

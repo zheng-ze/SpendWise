@@ -6,24 +6,10 @@ import 'package:spendwise/persistence/ledger_database.dart';
 import 'package:spendwise/persistence/mappers.dart';
 import 'package:sync/sync.dart';
 
-/// Bulk, per-collection read seam over durable current row versions.
-///
-/// Distinct from `package:sync`'s own [SyncVersionSource], which looks up one
-/// row at a time for the package engine's own reconciliation path. This is
-/// the app-level primitive push-candidate selection and post-flush
-/// verification read over: every persisted live row and tombstone in one
-/// [SyncCollection], normalized to [SyncRowID].
 abstract class CollectionVersionReader {
   Future<Map<SyncRowID, RowVersion>> readRowVersions(SyncCollection collection);
 }
 
-/// Drift-backed [CollectionVersionReader].
-///
-/// `moneySources` unions `Accounts`, `SubPockets`, and the money-sources
-/// orphan tombstones; every other collection unions its own content table
-/// with its orphan tombstones. Content wins when both hold the same key.
-/// Every constituent read for a collection runs inside one transaction, so
-/// the union is a single consistent snapshot.
 final class DriftCollectionVersionReader implements CollectionVersionReader {
   DriftCollectionVersionReader(this._db);
 
@@ -102,8 +88,6 @@ final class DriftCollectionVersionReader implements CollectionVersionReader {
     return {...orphans, ...accounts, ...pockets};
   }
 
-  // Unions one collection's content rows with its orphan tombstones. Content
-  // wins on key collision; every orphan is definitionally a tombstone.
   Future<Map<SyncRowID, RowVersion>> _withOrphans(
     SyncCollection collection,
     Future<Map<SyncRowID, RowVersion>> content,
@@ -113,9 +97,6 @@ final class DriftCollectionVersionReader implements CollectionVersionReader {
     return {...orphanRows, ...contentRows};
   }
 
-  // Reads the orphan tombstones for one collection through the raw row,
-  // never the generated accessor, so the read cannot depend on mapped-row
-  // decoding.
   Future<Map<SyncRowID, RowVersion>> _orphanRows(
     SyncCollection collection,
   ) async {
@@ -159,8 +140,6 @@ final class DriftCollectionVersionReader implements CollectionVersionReader {
       : SiblingLifecycle.live;
 }
 
-/// In-memory [CollectionVersionReader] test fake for coordinator-level tests
-/// that must not touch a real database.
 final class InMemoryCollectionVersionReader implements CollectionVersionReader {
   InMemoryCollectionVersionReader([Map<SyncRowID, RowVersion> rows = const {}])
     : _rows = Map.of(rows);

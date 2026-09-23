@@ -16,20 +16,14 @@ import 'package:spendwise/persistence/ledger_store.dart';
 import 'package:spendwise/persistence/persistence_processor.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
 
-/// Overridden with an in-memory executor in tests.
-// The override keeps the store below under test rather than replacing it.
 final databaseConnectionProvider = Provider<Future<QueryExecutor>>((ref) {
   return openLedgerConnection();
 });
 
-/// Sole owner of the shared database. Both the ledger store and the sync
-/// metadata store below build from this one instance, so boot opens exactly
-/// one database.
 final ledgerDatabaseProvider = Provider<LedgerDatabase>((ref) {
   final database = LedgerDatabase(
     LazyDatabase(() => ref.read(databaseConnectionProvider)),
   );
-  // Swallowed here since a failed opener's error was already surfaced once.
   ref.onDispose(() => database.close().catchError((_) {}));
   return database;
 });
@@ -38,8 +32,6 @@ final storeProvider = Provider<LedgerStore>((ref) {
   return DriftLedgerStore(ref.watch(ledgerDatabaseProvider));
 });
 
-/// Builds the sync metadata store around the same shared database, so the
-/// picker controller takes [SyncMetadataStore] without a second database.
 final syncMetadataStoreProvider = Provider<SyncMetadataStore>((ref) {
   return SyncMetadataStore(ref.watch(ledgerDatabaseProvider));
 });
@@ -52,8 +44,6 @@ final analysisCacheProvider = ChangeNotifierProvider<AnalysisCache>((ref) {
   return AnalysisCache();
 });
 
-// This must happen synchronously, since nothing can run between reaching
-// `Ready` and [AppBoot.start]'s first mutate.
 final appBootProvider = ChangeNotifierProvider<AppBoot>((ref) {
   final banner = ref.read(bannerStateProvider.notifier);
   final cache = ref.read(analysisCacheProvider.notifier);
@@ -63,8 +53,6 @@ final appBootProvider = ChangeNotifierProvider<AppBoot>((ref) {
     seedChanges: seedChanges,
     onSaveState: banner.receiveSaveState,
     onPlanError: banner.receivePlanErrors,
-    // LazyDatabase caches a failed open, so all four providers need
-    // invalidating or a retry just replays the same failure.
     onRetry: () {
       ref.invalidate(storeProvider);
       ref.invalidate(syncMetadataStoreProvider);
@@ -92,9 +80,6 @@ final appPhaseProvider = Provider<AppPhase>((ref) {
   return ref.watch(appBootProvider).phase;
 });
 
-/// Null outside [Ready], never a throw.
-// A null callers can pattern match beats a null check pushed onto every
-// caller.
 final ledgerProvider = Provider<Ledger?>((ref) {
   final phase = ref.watch(appPhaseProvider);
   return phase is Ready ? phase.ledger : null;

@@ -13,8 +13,6 @@ final class CredentialProvider {
   final LedgerDatabase _database;
   final SecretStore _secretStore;
 
-  /// Restores and checks the current credential before invoking [use].
-  /// The callback must keep credential use within its returned future.
   Future<T> withCredential<T>(
     FutureOr<T> Function(DeviceCredential credential) use,
   ) async {

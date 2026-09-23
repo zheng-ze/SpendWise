@@ -426,8 +426,6 @@ void main() {
     });
 
     test('an unresolvable category renders as uncategorized', () {
-      // A category swept out of the map while an entry still names it. The
-      // mutators cannot reach this state, so it is built directly.
       final dangling = entry(amount: money(-70), categoryID: cat, sourceID: a);
       final ledger = LedgerState(
         moneySources: {a: MoneySource.account(account(a))},
@@ -682,8 +680,6 @@ void main() {
   });
 
   group('normalized ids at the Accounting boundary', () {
-    // uuid() emits digits only, so uppercasing it is identity and would prove
-    // nothing. These carry hex letters.
     const hexParent = 'a1b2c3d4-0000-4000-8000-00000000000a';
     const hexChild = 'b2c3d4e5-0000-4000-8000-00000000000b';
     const hexSource = 'c3d4e5f6-0000-4000-8000-00000000000c';
@@ -839,8 +835,6 @@ void main() {
   });
 
   group('half-open window filtering', () {
-    // The boundary instant belongs to the later window only. A closed interval
-    // would count it in both.
     final march = DateTime.utc(2026, 3);
     final april = DateTime.utc(2026, 4);
     final may = DateTime.utc(2026, 5);
@@ -1029,8 +1023,6 @@ void main() {
       expect(InCategory(cat).hashCode, InCategory(cat).hashCode);
     });
 
-    // Dart dispatches == on the left operand, so each case needs its own
-    // inequality asserted from the left to exercise its own operator.
     test('each case rejects the others from the left', () {
       expect(const Excluded(), isNot(const Uncategorized()));
       expect(const Excluded(), isNot(InCategory(cat)));

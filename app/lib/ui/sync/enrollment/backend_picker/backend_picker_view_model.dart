@@ -6,18 +6,14 @@ import 'package:spendwise/sync/custom_endpoint_validator.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
 import 'package:spendwise/ui/common/step_emitting.dart';
 
-/// Injected seam so tests can substitute endpoint validation.
 typedef CustomEndpointValidator = CustomEndpointValidation Function(
   String? endpoint,
 );
 
-/// One-shot continuation after the picker durably persists its selection.
 sealed class BackendPickerStep {}
 
 final class HostedReady extends BackendPickerStep {}
 
-/// The custom choice persisted but has no backend behind it yet, so the flow
-/// shows its not-available affordance instead of continuing.
 final class CustomEndpointUnavailable extends BackendPickerStep {}
 
 final class BackendPickerState
@@ -34,10 +30,8 @@ final class BackendPickerState
   final SyncBackendKind selectedBackend;
   final String endpoint;
 
-  /// Validation message for the custom URL field, null when the input stands.
   final String? endpointError;
 
-  /// Persistence failure kept in flow, null when no save has failed.
   final String? saveError;
   final bool saving;
 

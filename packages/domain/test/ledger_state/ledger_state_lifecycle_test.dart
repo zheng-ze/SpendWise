@@ -3,8 +3,6 @@ import 'package:test/test.dart';
 
 import '../support/builders.dart';
 
-// Reads outward from the pocket rows, so a pocket nobody claims is caught.
-// Walking subPocketIDs instead would only visit pockets already claimed.
 void expectNoOrphanPocket(LedgerState ledger) {
   final claimed = <String>{};
   for (final source in ledger.moneySources.values) {
@@ -31,8 +29,6 @@ void expectNoOrphanPocket(LedgerState ledger) {
   );
 }
 
-// The lifecycle half of the invariant, judged over every lifecycle rather than
-// only the active rows.
 void expectNoPocketOutlivingItsParent(LedgerState ledger) {
   for (final source in ledger.moneySources.values) {
     final account = source.asAccount;
@@ -175,8 +171,6 @@ void main() {
       expect(ledger.categories[uuid(12)]?.lifecycle, LifecycleState.archived);
       expect(ledger.categories[uuid(13)]?.lifecycle, LifecycleState.active);
       expect(ledger.entries[uuid(4)]?.categoryID, uuid(11));
-      // The parent emits before its children. The children come from an
-      // unordered scan, so this does not assert an order between them.
       expect(
         changes,
         containsAllInOrder([

@@ -189,8 +189,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(BudgetDetailScreen), findsOneWidget);
 
-    // Simulates the system back gesture, which BudgetsFlow's own Navigator
-    // must consume instead of the outer PopScope (canPop: false).
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
 

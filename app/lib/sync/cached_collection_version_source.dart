@@ -2,14 +2,6 @@ import 'package:sync/sync.dart';
 
 import 'collection_version_reader.dart';
 
-/// Bridges async bulk [CollectionVersionReader] reads into the synchronous
-/// per-row [SyncVersionSource] interface.
-///
-/// [refresh] rereads every [SyncCollection] and atomically swaps the
-/// published cache only after every read succeeds; a failure leaves the
-/// previous cache unchanged and rethrows. Overlapping [refresh] calls share
-/// one in-flight read. Population is driven by the run slice, so the cache
-/// starts empty and [readRowVersion] returns null until the first [refresh].
 final class CachedCollectionVersionSource implements SyncVersionSource {
   CachedCollectionVersionSource(this._reader);
 
@@ -17,10 +9,6 @@ final class CachedCollectionVersionSource implements SyncVersionSource {
   Map<SyncRowID, RowVersion> _cache = const {};
   Future<void>? _inFlight;
 
-  /// Reloads every collection and publishes the result atomically.
-  ///
-  /// Single-flight: a call arriving while one is in-flight joins the same
-  /// future instead of starting a second read.
   @override
   Future<void> refresh() {
     final inFlight = _inFlight;

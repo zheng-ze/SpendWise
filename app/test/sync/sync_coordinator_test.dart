@@ -30,15 +30,12 @@ import 'package:sync/sync.dart';
 import '../support/recording_ledger_store.dart';
 import 'in_memory_secret_store.dart';
 
-/// Unpadded base64url, matching this repo's on-the-wire envelope convention.
 String _encodeKey(List<int> bytes) =>
     base64Url.encode(bytes).replaceAll('=', '');
 
 Uint8List _freshKey() =>
     Uint8List.fromList(List<int>.generate(32, (index) => index));
 
-/// Records outbound requests without touching the network, so the test can
-/// prove assembly performed no backend I/O.
 final class _RecordingHttpClient extends http.BaseClient {
   int requests = 0;
 
@@ -49,15 +46,6 @@ final class _RecordingHttpClient extends http.BaseClient {
   }
 }
 
-/// Hand-written fake backend serving one stubbed pull page per collection,
-/// one stubbed acknowledge outcome per collection, and a scriptable push
-/// handler.
-///
-/// `pull` serves [pages] (or [failure]); `acknowledge` records and serves
-/// [acknowledgeOutcomes] defaulting to success; `push` records every request
-/// in [pushes] and delegates to [onPush], which each push test scripts.
-/// `reconcile` throws because no coordinator test needs it. An optional
-/// [failure] makes `pull` return a typed failure instead of a page.
 final class _FakeSyncBackend implements SyncBackend {
   _FakeSyncBackend({
     Map<SyncCollection, PullResponse>? pages,
@@ -68,9 +56,6 @@ final class _FakeSyncBackend implements SyncBackend {
 
   final Map<SyncCollection, PullResponse> pages;
 
-  /// Mutable so a test can fail one call and succeed the next on the same
-  /// coordinator (for example to prove the collection lock is not poisoned
-  /// by a throwing first holder).
   SyncOutcome<PullResponse>? failure;
   final Map<SyncCollection, SyncOutcome<AcknowledgeResponse>>
   acknowledgeOutcomes;
@@ -78,8 +63,6 @@ final class _FakeSyncBackend implements SyncBackend {
   final List<AcknowledgeRequest> acknowledges = [];
   final List<PushRequest> pushes = [];
 
-  /// Scripted per-test push behavior. Unset means the test expects no push
-  /// call: [push] throws instead of silently succeeding.
   Future<SyncOutcome<PushResponse>> Function(PushRequest request)? onPush;
 
   @override
@@ -141,8 +124,6 @@ Entry _pullTestEntry(String id) => Entry(
   includeInAnalysis: true,
 );
 
-/// Builds a live entries envelope encrypted under [key], mirroring the
-/// envelope-construction pattern in packages/sync's engine tests.
 Future<SyncEnvelope> _pullEnvelope({
   required Uint8List key,
   required String rowID,
@@ -228,10 +209,6 @@ void main() {
         secretStore: secrets,
       );
 
-  /// Assembles a coordinator over fakes for pull-page tests: a stubbed
-  /// backend, a pre-seeded version source, a real credential provider backed
-  /// by an enrolled test credential, and a real engine whose staging store
-  /// the test keeps a handle to.
   Future<SyncCoordinator> pullCoordinator({
     required SyncBackend backend,
     required SyncVersionSource versionSource,
@@ -271,9 +248,6 @@ void main() {
     );
   }
 
-  /// Pins the duplicate/dominated-page contract: watermark and pending
-  /// acknowledgement advance to [cursor], no vectors are recorded, and
-  /// nothing reaches the ledger bus or the persistence store.
   Future<void> expectDuplicatePageCommit(
     SyncCoordinator coordinator,
     _FakeSyncBackend backend,
@@ -295,8 +269,6 @@ void main() {
     expect(store.enqueuedBatches, isEmpty);
   }
 
-  /// Subscribes to the ledger bus, runs [work], then returns everything
-  /// published while it ran.
   Future<List<LedgerPublication>> collectPublications(
     Future<void> Function() work,
   ) async {
@@ -310,11 +282,6 @@ void main() {
     return publications;
   }
 
-  /// A drift-backed coordinator setup: the real [DriftLedgerStore], a real
-  /// [DriftSyncStagingStore], and a cached version source plus readback
-  /// verifier both reading the same real database, so pulled rows genuinely
-  /// persist with their stamps and verify equal. The shared in-memory
-  /// [ledger] (on the shared [bus]) fronts the store, exactly like production.
   Future<_DriftSetup> driftSetup({
     required _FakeSyncBackend backend,
     Uint8List? e2eKey,
@@ -335,8 +302,6 @@ void main() {
       _credentialPayload(id, 'test-bearer'),
     );
     await secrets.write(syncE2EKeySecretKey, _encodeKey(key));
-    // A manual clock: the barrier path never needs a timer to fire, and no
-    // stray debounce can outlive the test's database close.
     final clock = _ManualClock();
     final DriftLedgerStore driftStore = DriftLedgerStore(
       db,
@@ -348,8 +313,6 @@ void main() {
       store: effectiveStore,
       bus: bus,
     );
-    // The processor must be started: otherwise publications never reach the
-    // store and every barrier flush is a no-op over an empty queue.
     await driftProcessor.start();
     addTearDown(driftProcessor.dispose);
     final DriftSyncStagingStore driftStaging = DriftSyncStagingStore(db);
@@ -399,8 +362,6 @@ void main() {
     );
   }
 
-  /// Seeds the holder account every drift-test entry references, through the
-  /// ledger and [processor] so memory and the database agree before a pull.
   Future<void> seedDriftHolder(
     String accountID,
     PersistenceProcessor processor,
@@ -411,8 +372,6 @@ void main() {
     await processor.flush();
   }
 
-  /// An entry without a category (coherence only constrains present
-  /// categories), so drift tests need no category seed.
   Entry driftEntry(String id, String sourceID, {String name = 'Coffee'}) =>
       Entry(
         id: id,
@@ -423,9 +382,6 @@ void main() {
         includeInAnalysis: true,
       );
 
-  /// Push-test assembly: a fake backend, an in-memory candidate reader and
-  /// version source, and an enabled write gate, so pushCollection reaches
-  /// the backend unless the test opts out with [enableWrites] false.
   Future<_PushSetup> pushSetup({
     _FakeSyncBackend? backend,
     bool enableWrites = true,
@@ -470,8 +426,6 @@ void main() {
 
       expect(coordinator.backend, isA<CustomEndpointSyncBackend>());
       expect(coordinator.status, const SyncIdle());
-      // Assembly is lazy: no secret reads, no backend I/O, no store start,
-      // and an empty version cache until the run slice calls refresh().
       expect(secrets.reads, isEmpty);
       expect(httpSpy.requests, 0);
       expect(store.calls, isEmpty);
@@ -541,8 +495,6 @@ void main() {
           ),
           throwsA(isA<SyncCoordinatorWiringException>()),
         );
-        // The wiring check runs before any I/O: no secret reads, no backend
-        // requests, and the store was never started.
         expect(secrets.reads, isEmpty);
         expect(httpSpy.requests, 0);
         expect(store.calls, isEmpty);
@@ -608,12 +560,6 @@ void main() {
         'credentials', () async {
       final coordinator = await create();
 
-      // The full reachable surface from outside: engine, backend,
-      // versionSource, metadataStore, verifier, ledger,
-      // persistenceProcessor, and status. None of these getters returns a
-      // SecretStore, CredentialProvider, or DeviceCredential; the
-      // credential provider is held privately with no getter, which this
-      // file verifies by construction: there is simply no member to call.
       expect(coordinator.engine, isA<SyncEngine>());
       expect(coordinator.versionSource, isA<CachedCollectionVersionSource>());
       expect(coordinator.metadataStore, isA<SyncMetadataStore>());
@@ -678,7 +624,6 @@ void main() {
         () => coordinator.processPullPage(SyncCollection.entries),
       );
 
-      // The first pull carries no watermark yet.
       expect(backend.pulls.single.cursor, isNull);
       await expectDuplicatePageCommit(
         coordinator,
@@ -783,8 +728,6 @@ void main() {
             ], 'cursor-4'),
           },
         );
-        // The version lives only in the reader; the cache starts empty. The
-        // page commits only if processPullPage refreshes the cache first.
         final reader = InMemoryCollectionVersionReader();
         reader.upsert(
           SyncRowID.of(SyncCollection.entries, rowID),
@@ -846,8 +789,6 @@ void main() {
           () => coordinator.processPullPage(SyncCollection.entries),
         );
 
-        // The pulled row lands in memory with remote content, durably with
-        // its pulled stamp, and the page advances with that vector recorded.
         expect(publications, hasLength(1));
         expect(ledger.state.entries[rowID]?.name, 'Remote');
         expect(await coordinator.metadataStore.acknowledgedVectors(), {
@@ -892,8 +833,6 @@ void main() {
 
         await coordinator.processPullPage(SyncCollection.entries);
 
-        // The pulled winner causally supersedes the local content, so the
-        // local row is replaced and the pulled vector is acknowledged.
         expect(ledger.state.entries[rowID]?.name, 'Remote');
         expect(await coordinator.metadataStore.acknowledgedVectors(), {
           SyncRowID.of(SyncCollection.entries, rowID): remoteVector,
@@ -928,9 +867,6 @@ void main() {
         () => coordinator.processPullPage(SyncCollection.entries),
       );
 
-      // Neither side dominates: the conflict stages, the local content
-      // stays put, and the page defers with the watermark held so the row
-      // is retried instead of skipped.
       expect(publications, isEmpty);
       expect(ledger.state.entries[rowID]?.name, 'Local');
       expect(setup.staging.pendingConflicts, hasLength(1));
@@ -1080,18 +1016,11 @@ void main() {
       );
       final coordinator = setup.coordinator;
       await seedDriftHolder(holderID, coordinator.persistenceProcessor);
-      // The debounced edit sits in the store queue, unpublished to the
-      // database: classification sees no version, the attempt's own barrier
-      // flush lands it, and the retry folds it in.
       ledger.addEntry(driftEntry(rowID, holderID, name: 'Local'));
       hooked?.flushCalls = 0;
 
       await coordinator.processPullPage(SyncCollection.entries);
 
-      // All three attempts ran their barrier flush (and never a post-apply
-      // one): the first classified the row direct-apply and excluded it at
-      // Stage 4, the next two folded it into a staged conflict. The local
-      // content survived and the conflict staged durably.
       expect(hooked?.flushCalls, 3);
       expect(ledger.state.entries[rowID]?.name, 'Local');
       expect(setup.staging.pendingConflicts, hasLength(1));
@@ -1144,9 +1073,6 @@ void main() {
 
         await coordinator.processPullPage(SyncCollection.entries);
 
-        // The first attempt retried on the fence trip; the second ran clean
-        // and the pulled row applied with its vector acknowledged. The hook
-        // ran on both barrier flushes plus the post-apply flush.
         expect(hookRuns, 3);
         expect(intrusions, 1);
         expect(ledger.state.entries[rowID]?.name, 'Remote');
@@ -1197,8 +1123,6 @@ void main() {
 
         await coordinator.processPullPage(SyncCollection.entries);
 
-        // The edit landed after the fence snapshot but before the commit
-        // decision, so the first attempt retried and the page still applied.
         expect(hooked.refreshCalls, greaterThanOrEqualTo(2));
         expect(ledger.state.entries[rowID]?.name, 'Remote');
         expect(await coordinator.metadataStore.acknowledgedVectors(), {
@@ -1219,8 +1143,6 @@ void main() {
       const otherID = '60606060-6060-6060-6060-606060606060';
       const intruderID = '70707070-7070-7070-7070-707070707070';
       final key = _freshKey();
-      // Two new rows so the page takes the fold-in path with a two-input
-      // reconcile per row, giving the hook its injection point.
       Future<SyncEnvelope> envelopeFor(String id) => _pullEnvelope(
         key: key,
         rowID: id,
@@ -1258,8 +1180,6 @@ void main() {
 
       await coordinator.processPullPage(SyncCollection.entries);
 
-      // The edit landed inside the fold-in awaits, so Stage 4 saw a dirty
-      // fence, retried, and both rows applied on the clean pass.
       expect(ledger.state.entries[rowID]?.name, 'Remote $rowID');
       expect(ledger.state.entries[otherID]?.name, 'Remote $otherID');
       expect(await coordinator.metadataStore.acknowledgedVectors(), {
@@ -1310,8 +1230,6 @@ void main() {
         hooked?.flushCalls = 0;
         var intrusions = 0;
         hooked?.onFlushNow = () async {
-          // Every barrier flush trips the fence again, so no attempt ever
-          // runs clean.
           intrusions += 1;
           ledger.addEntry(
             driftEntry(
@@ -1324,8 +1242,6 @@ void main() {
 
         await coordinator.processPullPage(SyncCollection.entries);
 
-        // Exactly three barrier flushes (one per attempt, never a post-apply
-        // one), no throw, and nothing advanced: the next pull retries fresh.
         expect(intrusions, 3);
         expect(hooked?.flushCalls, 3);
         expect(ledger.state.entries.containsKey(rowID), isFalse);
@@ -1377,8 +1293,6 @@ void main() {
 
       await coordinator.processPullPage(SyncCollection.entries);
 
-      // Classification saw no version, the barrier window created one, and
-      // the retry folded it in as a conflict instead of overwriting it.
       expect(ledger.state.entries[rowID]?.name, 'Local');
       expect(setup.staging.pendingConflicts, hasLength(1));
       final snapshot = await coordinator.metadataStore.snapshot();
@@ -1413,10 +1327,6 @@ void main() {
           ], 'cursor-stage4-race'),
         },
       );
-      // The drifting row reads concurrent through classification, capture,
-      // and encode, then drifted at the Stage-4 check, on every attempt: the
-      // exclusion races instead of committing the surviving sibling, and the
-      // budget exhausts into a defer.
       final versions = _CyclingVersionSource({
         SyncRowID.of(SyncCollection.entries, directID): const [null],
         SyncRowID.of(SyncCollection.entries, driftID): [
@@ -1438,9 +1348,6 @@ void main() {
           ),
         ],
       });
-      // Drift-backed with a started processor, so an applied batch would
-      // genuinely persist, verify, and advance metadata: the watermark and
-      // acknowledgement assertions below only hold because Stage 4 raced.
       final setup = await driftSetup(
         backend: backend,
         e2eKey: key,
@@ -1456,8 +1363,6 @@ void main() {
         () => coordinator.processPullPage(SyncCollection.entries),
       );
 
-      // All three attempts ran their two refreshes and raced at Stage 4, so
-      // neither remote change applied and nothing advanced.
       expect(versions.refreshCalls, 6);
       expect(publications, isEmpty);
       expect(ledger.state.entries.containsKey(directID), isFalse);
@@ -1496,9 +1401,6 @@ void main() {
           },
         );
         final staging = InMemorySyncStagingStore();
-        // Classification observes a concurrent local vector; every later read
-        // observes a dominating one, simulating a local edit that lands and
-        // flushes durably between classification and the fold-in encode.
         final versions = _ScriptedVersionSource(
           first: RowVersion(
             versionVector: VersionVector(<String, int>{'localdev': 1}),
@@ -1523,9 +1425,6 @@ void main() {
           () => coordinator.processPullPage(SyncCollection.entries),
         );
 
-        // The local envelope won the two-input reconcile (index 1), so nothing
-        // was applied and the dominating local vector was never recorded as
-        // pulled — while the page itself still finalized.
         expect(publications, isEmpty);
         expect(staging.pendingConflicts, isEmpty);
         expect(await coordinator.metadataStore.acknowledgedVectors(), isEmpty);
@@ -1577,9 +1476,6 @@ void main() {
 
       await coordinator.processPullPage(SyncCollection.entries);
 
-      // The conflict-free row applied and acknowledged; the concurrent row
-      // staged with its local content intact; the page watermark advanced
-      // over both.
       expect(ledger.state.entries[directID]?.name, 'Remote');
       expect(ledger.state.entries[conflictID]?.name, 'Local');
       expect(await coordinator.metadataStore.acknowledgedVectors(), {
@@ -1636,8 +1532,6 @@ void main() {
 
       await coordinator.processPullPage(SyncCollection.entries);
 
-      // The staged group survives a fresh store reload with both siblings,
-      // and the conflict-free row applied and acknowledged alongside it.
       final reloaded = await DriftSyncStagingStore.open(db);
       expect(reloaded.pendingConflicts, hasLength(1));
       final group = reloaded.pendingConflicts.single;
@@ -1688,8 +1582,6 @@ void main() {
         'injected barrier failure for the coordinator gate test',
       );
 
-      // A barrier failure is a hard stop for the page, not a throw: the
-      // caller observes a quiet return with nothing advanced.
       await coordinator.processPullPage(SyncCollection.entries);
 
       final snapshot = await coordinator.metadataStore.snapshot();
@@ -1723,11 +1615,6 @@ void main() {
           version: VersionVector(<String, int>{'devb': 1}),
           change: UpsertEntry(driftEntry(conflictID, holderID, name: 'Second')),
         );
-        // Reconcile decodes every input before grouping, so a decrypt throw
-        // can never follow a staging: the abort-with-prior-staging case is a
-        // grouping-loop throw instead. Two authenticated envelopes sharing
-        // one vector with different content trip the engine's identity guard
-        // after the earlier row already staged.
         final poisonedVector = VersionVector(<String, int>{'devc': 1});
         final poisonedFirst = await _pullEnvelope(
           key: key,
@@ -1764,8 +1651,6 @@ void main() {
           throwsA(isA<SyncPayloadIdentityError>()),
         );
 
-        // Nothing advanced, but the choke-point flush made the earlier
-        // row's staged conflict durable: a fresh reload still sees it.
         final snapshot = await coordinator.metadataStore.snapshot();
         expect(snapshot.watermarks[SyncCollection.entries], isNull);
         expect(
@@ -1841,8 +1726,6 @@ void main() {
       );
       final staging = InMemorySyncStagingStore();
       final reader = _MapReader(<SyncRowID, RowVersion>{
-        // The readback observes only the passing row: the missing row fails
-        // the whole batch even though its sibling verified.
         SyncRowID.of(SyncCollection.entries, passingID): RowVersion(
           versionVector: passingVector,
           lifecycle: SiblingLifecycle.live,
@@ -1855,16 +1738,12 @@ void main() {
         e2eKey: key,
         reader: reader,
       );
-      // The holder the pulled entries reference must exist in memory for the
-      // apply to pass ledger invariants; only the readback is scripted.
       ledger.addAccount(
         Account(id: holderID, name: 'holder', type: AccountType.cash),
       );
 
       await coordinator.processPullPage(SyncCollection.entries);
 
-      // Both rows applied in memory, but neither advanced: one failing row
-      // blocks metadata for the whole batch.
       expect(ledger.state.entries.containsKey(passingID), isTrue);
       expect(ledger.state.entries.containsKey(missingID), isTrue);
       final snapshot = await coordinator.metadataStore.snapshot();
@@ -2017,7 +1896,6 @@ void main() {
 
       await coordinator.recoverPendingAcknowledgements();
 
-      // Both collections were attempted: no short-circuit on failure.
       expect(backend.acknowledges, hasLength(2));
       expect(
         backend.acknowledges.map((request) => request.collection),
@@ -2068,8 +1946,6 @@ void main() {
         staging: staging,
         e2eKey: key,
       );
-      // The conflicting page stages and leaves a pending acknowledgement
-      // for entries behind.
       await coordinator.processPullPage(SyncCollection.entries);
       expect(staging.pendingConflicts, hasLength(1));
       await coordinator.metadataStore.setPendingAcknowledgement(
@@ -2079,8 +1955,6 @@ void main() {
 
       await coordinator.recoverPendingAcknowledgements();
 
-      // Entries keeps its pending checkpoint while its conflict is staged;
-      // the clean collection still acknowledges.
       expect(
         backend.acknowledges.map((request) => request.collection),
         contains(SyncCollection.categories),
@@ -2133,8 +2007,6 @@ void main() {
         'cursor-old',
       );
 
-      // Simulates a newer checkpoint landing (e.g. via processPullPage)
-      // after this stale success was already in flight.
       await coordinator.metadataStore.setPendingAcknowledgement(
         SyncCollection.entries,
         'cursor-new',
@@ -2306,8 +2178,6 @@ void main() {
         setup.backend.pushes.single.envelopes.single.rowID,
         normalizedID(eligibleID),
       );
-      // The dominated row's pre-existing acknowledgement is untouched; only
-      // the eligible row's submitted vector is newly retired.
       expect(await setup.coordinator.metadataStore.acknowledgedVectors(), {
         SyncRowID.of(SyncCollection.entries, eligibleID): eligibleVector,
         SyncRowID.of(SyncCollection.entries, dominatedID): dominatedVector,
@@ -2357,9 +2227,6 @@ void main() {
         SyncEnrollmentPhase.reconciliationComplete,
       );
       await coordinator.metadataStore.setWriteEnabled(true);
-      // The edit lands in ledger.state immediately but only reaches the
-      // durable store (and its version vector) once the debounce settles:
-      // leave it unflushed so the push must land it via its own barrier.
       ledger.updateEntry(driftEntry(rowID, holderID, name: 'Edited'));
 
       final result = await coordinator.pushCollection(SyncCollection.entries);
@@ -2369,7 +2236,6 @@ void main() {
       expect(backend.pushes.single.envelopes, hasLength(1));
       final envelope = backend.pushes.single.envelopes.single;
       expect(envelope.rowID, normalizedID(rowID));
-      // The submitted content is the new edit ...
       final plaintext = await const SyncCipher().decrypt(
         key: key,
         ciphertext: envelope.ciphertext,
@@ -2378,9 +2244,6 @@ void main() {
       final change = const PayloadCodec().decodeChange(plaintext);
       expect(change, isA<UpsertEntry>());
       expect((change as UpsertEntry).entry.name, 'Edited');
-      // ... stamped with the vector the durable store reached once the
-      // barrier landed that same edit: without the push-time flush the
-      // envelope would still carry the pre-edit vector here.
       await coordinator.persistenceProcessor.flush();
       final durable = await DriftCollectionVersionReader(db)
           .readRowVersions(SyncCollection.entries);
@@ -2416,8 +2279,6 @@ void main() {
         'cursor-1',
       );
 
-      // Completing at all proves the inline recovery did not re-enter the
-      // held collection lock: the public recovery would self-deadlock here.
       final result = await setup.coordinator.pushCollection(
         SyncCollection.entries,
       );
@@ -2438,7 +2299,6 @@ void main() {
       final backend = _FakeSyncBackend();
       backend.onPush = _appliedPush;
       final reader = InMemoryCollectionVersionReader();
-      // The cache starts empty; the row lives only in the reader.
       final cached = CachedCollectionVersionSource(reader);
       final coordinator = await pullCoordinator(
         backend: backend,
@@ -2469,8 +2329,6 @@ void main() {
 
       final result = await coordinator.pushCollection(SyncCollection.entries);
 
-      // Encode observed the row only because refresh ran first: without it
-      // encode throws SyncUntrackedRowError.
       expect(result, isA<PushFullyAcknowledged>());
       expect(backend.pushes, hasLength(1));
     });
@@ -2751,8 +2609,6 @@ void main() {
       final submitted = VersionVector(<String, int>{'dev': 1});
       final midFlight = VersionVector(<String, int>{'dev': 2});
       setup.backend.onPush = (request) async {
-        // A concurrent refresh lands a newer vector after encode: the
-        // commit must still retire the encode-time-captured vector.
         setup.versions.upsert(
           row,
           RowVersion(
@@ -2783,7 +2639,6 @@ void main() {
               'row_id': request.envelopes.single.rowID,
               'collection': request.envelopes.single.collection.wireName,
               'sibling_id': request.envelopes.single.siblingID,
-              // No status: decoding the response throws FormatException.
             },
           ],
         }),
@@ -2935,7 +2790,6 @@ void main() {
         SyncRowID.of(SyncCollection.entries, appliedID): appliedVector,
       });
 
-      // The applied row is retired, so only the rejected row resubmits.
       setup.backend.onPush = _appliedPush;
       final retry = await setup.coordinator.pushCollection(
         SyncCollection.entries,
@@ -2996,7 +2850,6 @@ void main() {
           setup.coordinator.pushCollection(SyncCollection.entries),
         ]);
 
-        // Rejected rows stay eligible, so both serialized holders submitted.
         expect(setup.backend.pushes, hasLength(2));
       },
     );
@@ -3012,8 +2865,6 @@ void main() {
         setup.coordinator.pushCollection(SyncCollection.entries),
       ]);
 
-      // The first holder pushed and retired the row; the second found no
-      // eligible candidates.
       expect(results[0], isA<PushFullyAcknowledged>());
       expect(results[1], isA<PushNoop>());
       expect(setup.backend.pushes, hasLength(1));
@@ -3097,8 +2948,6 @@ void main() {
         expect(await _settled(() => pullCalls == 5), isTrue);
         expect(observed, [const SyncRunning()]);
 
-        // Queued while the first pass is in flight: still running, no new
-        // notification for the chained handoff itself.
         coordinator.requestSync();
         for (var i = 0; i < 5; i++) {
           await Future<void>.delayed(Duration.zero);
@@ -3110,8 +2959,6 @@ void main() {
           await _settled(() => coordinator.status == const SyncIdle()),
           isTrue,
         );
-        // Exactly one running and one idle notification: the chained trailing
-        // pass never surfaced an intermediate idle.
         expect(observed, [const SyncRunning(), const SyncIdle()]);
         expect(backend.pulls, hasLength(10));
       },
@@ -3145,15 +2992,12 @@ void main() {
       await setup.coordinator.syncNow();
 
       expect(seenFailures, isEmpty);
-      // The seeded recovery acknowledgement ran before any pull or push.
       expect(backend.events.first, 'ack:entries');
-      // Every collection pulled exactly once.
       expect(backend.pulls, hasLength(5));
       expect(
         backend.pulls.map((request) => request.collection).toSet(),
         SyncCollection.values.toSet(),
       );
-      // Every collection pushed exactly once.
       expect(backend.pushes, hasLength(5));
       expect(
         backend.pushes
@@ -3161,7 +3005,6 @@ void main() {
             .toSet(),
         SyncCollection.values.toSet(),
       );
-      // Within a collection, the pull finished before that push started.
       for (final collection in SyncCollection.values) {
         final pullEnd = backend.events.indexOf('pull-end:${collection.name}');
         final push = backend.events.indexOf('push:${collection.name}');
@@ -3341,7 +3184,6 @@ void main() {
         isTrue,
       );
 
-      // One active pass plus exactly one coalesced trailing pass.
       expect(backend.pulls, hasLength(10));
       expect(observed, [const SyncRunning(), const SyncIdle()]);
     });
@@ -3380,8 +3222,6 @@ void main() {
         await Future<void>.delayed(Duration.zero);
       }
 
-      // The first pass drains while the joined call still waits: the trailing
-      // pass has started but not finished.
       firstGate.complete();
       expect(await _settled(() => pullCalls == 10), isTrue);
       expect(resolved, isFalse);
@@ -3420,10 +3260,6 @@ void main() {
 
       coordinator.dispose();
       gate.complete();
-      // Let the gated pass run to completion. Without the disposed guard,
-      // the scheduler's idle callback would call notifyListeners() on the
-      // disposed notifier and throw a FlutterError, which the test
-      // framework reports as an unhandled async error.
       expect(
         await _settled(
           () =>
@@ -3437,8 +3273,6 @@ void main() {
       for (var i = 0; i < 20; i++) {
         await Future<void>.delayed(Duration.zero);
       }
-      // The late idle report was dropped: the disposed coordinator keeps
-      // the status it held at disposal time.
       expect(coordinator.status, const SyncRunning());
     });
 
@@ -3467,10 +3301,6 @@ void main() {
   });
 }
 
-/// Builds a push wire response marking every submitted envelope with
-/// [status] under its own sibling ID. The resulting frontier defaults to a
-/// vector distinct from every submitted vector, so a test proves the commit
-/// retires the encode-time-captured vector, never the response frontier.
 PushResponse _pushRowsResponse(
   List<SyncEnvelope> submitted, {
   String status = 'applied',
@@ -3490,14 +3320,9 @@ PushResponse _pushRowsResponse(
   ],
 });
 
-/// A push handler answering every submission as applied under the submitted
-/// sibling IDs.
 Future<SyncOutcome<PushResponse>> _appliedPush(PushRequest request) async =>
     SyncSuccess<PushResponse>(_pushRowsResponse(request.envelopes));
 
-/// One push-test assembly: the coordinator under test with handles to its
-/// scriptable backend, candidate reader, encode version source, and staging
-/// store.
 final class _PushSetup {
   _PushSetup({
     required this.coordinator,
@@ -3515,10 +3340,6 @@ final class _PushSetup {
 
   final Set<String> _holders = <String>{};
 
-  /// Seeds one local entries row across the ledger, the candidate reader,
-  /// and the encode version source, with an optional pre-existing
-  /// acknowledgement. A row omitted from the ledger ([inLedger] false)
-  /// pushes as a tombstone delete.
   Future<void> seedRow(
     String rowID,
     VersionVector vector, {
@@ -3554,8 +3375,6 @@ final class _PushSetup {
   }
 }
 
-/// One drift-backed coordinator assembly with handles to the spies a race
-/// test installs around it.
 final class _DriftSetup {
   _DriftSetup({
     required this.coordinator,
@@ -3570,16 +3389,11 @@ final class _DriftSetup {
   final DriftSyncStagingStore staging;
   final DriftLedgerStore store;
 
-  /// The device ID backing [deviceID] for the setup's database: local version
-  /// bumps carry this counter.
   final String device;
   final LedgerStore effectiveStore;
   final SyncVersionSource effectiveVersions;
 }
 
-/// [LedgerStore] decorator running a one-shot or recurring hook before
-/// delegating a barrier flush, so a test can land a local edit inside the
-/// attempt's own persistence window.
 final class _HookLedgerStore implements LedgerStore {
   _HookLedgerStore(this._inner);
 
@@ -3621,8 +3435,6 @@ final class _HookLedgerStore implements LedgerStore {
   }
 }
 
-/// [SyncVersionSource] decorator running a hook around refresh, so a test
-/// can land a local edit inside the attempt's refresh await window.
 final class _HookVersionSource implements SyncVersionSource {
   _HookVersionSource(this._inner);
 
@@ -3647,9 +3459,6 @@ final class _HookVersionSource implements SyncVersionSource {
   }
 }
 
-/// [SyncEngine] that runs a hook before delegating a two-input (fold-in)
-/// reconcile, so a test can land a local edit after reconciliation inputs
-/// are decided but before the commit decision.
 final class _HookEngine extends SyncEngine {
   _HookEngine({
     required super.userID,
@@ -3671,9 +3480,6 @@ final class _HookEngine extends SyncEngine {
   }
 }
 
-/// [SyncVersionSource] serving one scripted vector on its first read and a
-/// different one afterwards, simulating a local edit that lands (and flushes
-/// durably) between classification and the fold-in encode.
 final class _ScriptedVersionSource implements SyncVersionSource {
   _ScriptedVersionSource({required this.first, required this.later});
 
@@ -3692,9 +3498,6 @@ final class _ScriptedVersionSource implements SyncVersionSource {
   Future<void> refresh() async {}
 }
 
-/// [SyncVersionSource] replaying a per-row read script cyclically, so a test
-/// can script different vectors for classification, encode, and the Stage-4
-/// check within one attempt. Rows without a script always read null.
 final class _CyclingVersionSource implements SyncVersionSource {
   _CyclingVersionSource(this._scripts);
 
@@ -3719,9 +3522,6 @@ final class _CyclingVersionSource implements SyncVersionSource {
   }
 }
 
-/// [CollectionVersionReader] serving a fixed map, so a test can script what
-/// the post-flush readback observes independently of the version source used
-/// for classification.
 final class _MapReader implements CollectionVersionReader {
   _MapReader(this._rows);
 
@@ -3736,8 +3536,6 @@ final class _MapReader implements CollectionVersionReader {
   };
 }
 
-/// [SyncStagingStore] decorator whose flush always throws, proving a
-/// staging-durability failure propagates and blocks page metadata.
 final class _FailingFlushStaging implements SyncStagingStore {
   _FailingFlushStaging(this._inner);
 
@@ -3760,10 +3558,6 @@ final class _FailingFlushStaging implements SyncStagingStore {
   Future<void> flush() => throw StateError('staging flush failed');
 }
 
-/// Hands out timers the store arms for its debounce and retry backoff, so no
-/// real time elapses and no stray timer can outlive a test's database close.
-/// Flushes never need a timer to fire: [DriftLedgerStore.flushNow] saves
-/// directly and cancels the armed debounce.
 final class _ManualClock {
   final List<_ArmedTimer> _armed = [];
 
@@ -3795,9 +3589,6 @@ final class _ArmedTimer implements StoreTimer {
   void cancel() => owner._armed.remove(this);
 }
 
-/// Polls [done] across event-loop turns until it holds, returning whether it
-/// held within the bound. Scheduling tests use this instead of fixed pumps so
-/// a pass reaching its gate does not depend on exact microtask counts.
 Future<bool> _settled(bool Function() done) async {
   for (var i = 0; i < 200 && !done(); i++) {
     await Future<void>.delayed(Duration.zero);
@@ -3805,13 +3596,6 @@ Future<bool> _settled(bool Function() done) async {
   return done();
 }
 
-/// Hand-written fake backend with a shared event timeline and gateable pulls.
-///
-/// Every pull logs `pull-start:<collection>` on entry and
-/// `pull-end:<collection>` once its page is served; every push logs
-/// `push:<collection>`; every acknowledge logs `ack:<collection>`. [onPull]
-/// runs at the top of each pull so a test can block a pass on a [Completer]
-/// gate. All backend behavior otherwise delegates to [_FakeSyncBackend].
 final class _TimelineBackend extends _FakeSyncBackend {
   _TimelineBackend({super.pages});
 
@@ -3852,13 +3636,11 @@ final class _TimelineBackend extends _FakeSyncBackend {
   }
 }
 
-/// One empty pull page per collection, each with a distinct cursor.
 Map<SyncCollection, PullResponse> _emptyPages(String prefix) => {
   for (final collection in SyncCollection.values)
     collection: _pullPage(const <SyncEnvelope>[], '$prefix-${collection.name}'),
 };
 
-/// One distinct seeded row ID per collection for the composition test.
 String _ts3RowID(SyncCollection collection) {
   switch (collection) {
     case SyncCollection.moneySources:

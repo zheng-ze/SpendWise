@@ -191,8 +191,6 @@ void main() {
         entryFormViewModelProvider(null).notifier,
       );
 
-      // Captured before the save, since computing "today" separately
-      // after the save is flaky across a midnight boundary.
       final anchor = (await stateOf(container, null)).date;
 
       viewModel.setAmount('20');
@@ -206,8 +204,6 @@ void main() {
 
       final plan = ledger.state.plans.values.first;
       expect(plan.anchor, anchor);
-      // resolvePlans already ran once (inside save()), so the anchor day
-      // itself is resolved rather than still pending.
       expect(plan.lastResolvedDate, anchor);
     });
 

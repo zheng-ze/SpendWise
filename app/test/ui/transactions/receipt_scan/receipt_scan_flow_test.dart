@@ -14,8 +14,6 @@ RecognizedText _textOf(List<String> lines) {
   ]);
 }
 
-/// In-memory recognizer that hands back fixed [text] without touching any
-/// platform channel, so it can stand in for ML Kit in a scan.
 class _InMemoryRecognizer implements TextRecognizer {
   _InMemoryRecognizer(this.text);
 
@@ -29,9 +27,6 @@ class _InMemoryRecognizer implements TextRecognizer {
   Future<RecognizedText> recognize(RecognizableImage image) async => text;
 }
 
-/// Normalizes [DateTime.now] to UTC midnight, matching how [extractDate]
-/// defaults an unrecognized date to "today". The clock is read once so the
-/// year, month and day cannot be sampled across a local midnight boundary.
 DateTime _todayUtc() {
   final now = DateTime.now();
   return DateTime.utc(now.year, now.month, now.day);
@@ -57,8 +52,6 @@ void main() {
     messenger.setMockMethodCallHandler(mlKitChannel, null);
   });
 
-  // An injected recognizer runs the whole scan without touching the ML Kit
-  // channel, so the channel mock is dropped for this case.
   test('runs recognition through an injected recognizer instead of the ML Kit channel', () async {
     messenger.setMockMethodCallHandler(mlKitChannel, null);
 
@@ -98,9 +91,6 @@ void main() {
     expect(capturedDate, isNotNull);
   });
 
-  // A recognizer factory that yields null is the desktop path: selectRecognizer
-  // returns no recognizer on macOS/Windows/Linux. Recognition resolves to an
-  // empty result and extraction falls back to a blank draft.
   test('falls through to a null name, null amount and a defaulted date when the recognizer factory returns null', () async {
     String? capturedName;
     Decimal? capturedAmount;

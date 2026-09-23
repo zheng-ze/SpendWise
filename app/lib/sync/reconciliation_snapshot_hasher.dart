@@ -1,13 +1,5 @@
 import 'package:sync/sync.dart';
 
-/// Pages one fixed-watermark snapshot and hashes the envelopes fetched.
-///
-/// Constructed per reconciliation attempt with the attempt's backend and
-/// credential. All fetched envelopes stay operation-local: a crash from
-/// `snapshotInProgress` discards them and starts a fresh fixed-watermark
-/// reconciliation, so no persistent staging schema is added. Hashing never
-/// acknowledges, never touches durable normal cursors, and never mutates
-/// `LedgerState`.
 final class ReconciliationSnapshotHasher {
   ReconciliationSnapshotHasher({
     required this.backend,
@@ -19,7 +11,6 @@ final class ReconciliationSnapshotHasher {
   final SyncCredential credential;
   final int? pageLimit;
 
-  /// Hashes all five collections in fixed [SyncCollection.values] order.
   Future<Map<SyncCollection, String>> hashAll(
     ReconciliationContext context,
   ) async {
@@ -30,15 +21,6 @@ final class ReconciliationSnapshotHasher {
     return Map<SyncCollection, String>.unmodifiable(hashes);
   }
 
-  /// Pages one collection to `endOfSnapshot` under [context] and hashes it.
-  ///
-  /// Every page carries the same reconciliation ID, watermark, and expiry;
-  /// only the nested snapshot-only continuation cursor advances. An empty
-  /// collection hashes the canonical empty array, so its key is always
-  /// present. A pull failure, a malformed page (raw [FormatException] from
-  /// [PullResponse]), or a non-terminal page whose cursor repeats the one
-  /// just requested throws [ReconciliationSnapshotException], rather than
-  /// paging that collection forever.
   Future<String> hashCollection(
     ReconciliationContext context,
     SyncCollection collection,
@@ -98,10 +80,6 @@ final class ReconciliationSnapshotHasher {
       );
 }
 
-/// A snapshot pull failed before its collection hashed.
-///
-/// Carries the failing pull's outcome details so the caller can translate it
-/// into its own failure taxonomy.
 final class ReconciliationSnapshotException implements Exception {
   const ReconciliationSnapshotException({
     required this.code,

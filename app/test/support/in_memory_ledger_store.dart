@@ -4,9 +4,6 @@ import 'package:domain/domain.dart';
 import 'package:spendwise/persistence/ledger_store.dart';
 import 'package:sync/sync.dart';
 
-/// Ingest is queued in arrival order and applied only by [flushNow], standing
-/// in for the real store's debounce window. That makes a missing flush visible
-/// to a test rather than hidden by an eager apply.
 class InMemoryLedgerStore implements LedgerStore {
   InMemoryLedgerStore({LedgerState? state, bool hasSeeded = false})
     : _state = state ?? LedgerState(),
@@ -32,13 +29,9 @@ class InMemoryLedgerStore implements LedgerStore {
 
   SaveErrorHandler? errorHandler;
 
-  /// Batch boundaries stay intact, so a test can tell what the processor
-  /// forwarded apart from what the store ended up holding.
   List<List<LedgerChange>> get enqueuedBatches =>
       List.unmodifiable(_enqueued.map(List<LedgerChange>.unmodifiable));
 
-  /// Parallel to [enqueuedBatches]: the stamps each enqueue carried, or null
-  /// when the batch arrived through the unstamped [enqueue] path.
   List<Map<SyncRowID, VersionVector>?> get enqueuedStamps =>
       List.unmodifiable(_receivedStamps);
 
@@ -49,8 +42,6 @@ class InMemoryLedgerStore implements LedgerStore {
   Future<void> seedIfFirstLaunch(List<LedgerChange> changes) async {
     if (_seeded) return;
 
-    // Set before enqueueing, so a crash mid-seed leaves a partial seed rather
-    // than seeding twice on the next launch.
     _seeded = true;
     enqueue(changes);
     await flushNow();

@@ -4,9 +4,6 @@ import 'package:spendwise/ui/stats/helpers/slices.dart';
 import 'package:spendwise/ui/stats/helpers/stats_window.dart';
 import 'package:spendwise/ui/transactions/monthly/month_summaries.dart';
 
-// Proves the totals-divergence ruling directly: the same LedgerState, same
-// month, must produce the same expense/income total on the Transactions
-// screen (monthSummaries) and the Stats screen (slices, summed).
 void main() {
   Decimal dec(String value) => Decimal.parse(value);
   DateTime day(int year, [int month = 1, int d = 1]) =>

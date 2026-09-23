@@ -15,8 +15,6 @@ class PickerOption {
   final List<PickerOption> children;
 }
 
-/// What the user chose in the picker sheet: a specific option, an explicit
-/// clear, or nothing if the sheet was dismissed without an answer.
 @immutable
 sealed class PickerOutcome {
   const PickerOutcome();
@@ -32,7 +30,6 @@ class PickerCleared extends PickerOutcome {
   const PickerCleared();
 }
 
-/// Null means the sheet was dismissed.
 Future<PickerOutcome?> showTwoColumnPickerSheet({
   required BuildContext context,
   required String title,
@@ -174,8 +171,6 @@ class _PickerRow extends StatelessWidget {
         ? theme.colorScheme.surfaceContainerHighest
         : null;
 
-    // tileColor rather than a wrapping ColoredBox, which would paint over the
-    // ink splash ListTile draws on the Material above it.
     return ListTile(
       tileColor: background,
       selected: selected,

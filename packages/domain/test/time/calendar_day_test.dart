@@ -12,7 +12,6 @@ void main() {
   test('shiftMonthThenClampDayClampsTheRequestedDayIntoTheShiftedMonth', () {
     final from = DateTime.utc(2026, 3, 31);
 
-    // A naive DateTime.utc(y, m - 1, 31) overflows to March 3rd.
     expect(
       shiftMonthThenClampDayUtc(from, -1, day: 31),
       DateTime.utc(2026, 2, 28),

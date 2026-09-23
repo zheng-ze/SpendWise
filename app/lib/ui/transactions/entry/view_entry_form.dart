@@ -11,9 +11,6 @@ import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_logic.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 
-/// Read-only receipt view: kind pill, entry name and signed amount up top,
-/// plain rows below, and a single "Edit" action that switches to
-/// [EntryFormMode.editing].
 class ViewEntryForm extends ConsumerWidget {
   const ViewEntryForm({
     super.key,

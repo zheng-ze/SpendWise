@@ -24,9 +24,6 @@ String credentialPayload(String device, String bearer) => base64Url.encode(
   ),
 );
 
-/// Backend serving empty end-of-snapshot pages for every pull, so the real
-/// snapshot hasher runs without a scripted snapshot unless a test overrides
-/// [onPull].
 InMemorySyncBackend emptySnapshotBackend({
   PullHandler? onPull,
   ReconcileHandler? onReconcile,

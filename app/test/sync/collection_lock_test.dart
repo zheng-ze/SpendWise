@@ -17,9 +17,6 @@ void main() {
         return 'first';
       }
 
-      // Both calls are issued synchronously without awaiting in between, so
-      // the second must chain behind the first's tail rather than reading a
-      // stale map entry and running concurrently.
       final first = lock.withLock(SyncCollection.entries, slowBody);
       final second = lock.withLock(SyncCollection.entries, () async {
         events.add('second-start');
@@ -70,8 +67,6 @@ void main() {
         return 'b';
       });
 
-      // B must enter while A is still blocked: different collections run
-      // fully concurrently.
       await enteredB.future.timeout(const Duration(seconds: 5));
       releaseA.complete();
 

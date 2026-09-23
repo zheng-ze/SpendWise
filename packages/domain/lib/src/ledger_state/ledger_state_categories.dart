@@ -13,11 +13,8 @@ extension LedgerStateCategories on LedgerState {
     final existing = _categories[category.id];
     if (existing == null) throw UnknownCategory(category.id);
 
-    // Kind is fixed at creation. A swap would strand both the entries whose
-    // sign it contradicts and the children that inherit it.
     if (existing.kind != category.kind) throw const CategoryKindMismatch();
 
-    // Max depth is two, so a subcategory cannot have children of its own.
     if (category.parentID != null && _children(category.id).isNotEmpty) {
       throw const CategoryTooDeep();
     }
@@ -32,7 +29,6 @@ extension LedgerStateCategories on LedgerState {
         : requested;
     _categories[stored.id] = stored;
 
-    // A parent held up solely by this child's link is re-judged once it moves.
     final droppedParent = existing.parentID == stored.parentID
         ? null
         : existing.parentID;
@@ -57,8 +53,6 @@ extension LedgerStateCategories on LedgerState {
     final category = _categories[id];
     if (category == null || !category.lifecycle.isActive) return _checked([]);
 
-    // No plan cascade here. A plan naming this category is left alone, so
-    // restoring the category does not also need to resurrect a deleted plan.
     return _checked(
       _moveCategoryTree(
         category,
@@ -89,8 +83,6 @@ extension LedgerStateCategories on LedgerState {
     );
   }
 
-  // A child in any state other than `from` is left where it is, so an
-  // already-archived child is not dragged along by an archive.
   List<LedgerChange> _moveCategoryTree(
     TransactionCategory category, {
     required LifecycleState from,
@@ -125,8 +117,6 @@ extension LedgerStateCategories on LedgerState {
     if (parent.parentID != null) throw const CategoryTooDeep();
     if (parent.kind != category.kind) throw const CategoryKindMismatch();
 
-    // An archived parent is fine, since purgeCategory sweeps children regardless
-    // of lifecycle. A referenceOnly parent is rejected, since its sweep would orphan the child.
     if (!parent.lifecycle.isAtLeastAsAliveAs(LifecycleState.archived)) {
       throw InactiveReference(parentID);
     }

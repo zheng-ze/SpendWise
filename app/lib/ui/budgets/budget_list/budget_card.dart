@@ -24,7 +24,6 @@ class BudgetCard extends StatelessWidget {
   final List<AnalysisItem> items;
   final LedgerState state;
 
-  /// Indents the card to show it grouped under its parent category.
   final bool isSubcategory;
   final VoidCallback? onTap;
 

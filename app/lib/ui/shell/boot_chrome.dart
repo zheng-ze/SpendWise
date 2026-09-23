@@ -49,8 +49,6 @@ class _LoadFailure extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
 
-    // Logged only, since the screen below deliberately withholds this
-    // developer-facing detail from the user.
     debugPrint('AppBoot failed to load: $error');
 
     return Scaffold(
@@ -67,8 +65,6 @@ class _LoadFailure extends ConsumerWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                // The raw exception stays out of this widget entirely and
-                // reaches only whatever logs `error` above.
                 'Something went wrong loading your data. Please try again.',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,

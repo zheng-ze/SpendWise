@@ -161,8 +161,6 @@ void main() {
 
       await tester.tap(find.byIcon(Icons.add));
       await tester.pumpAndSettle();
-      // The unscoped add button fires directly. A scoped screen expands a
-      // menu with "Add Transaction" as its primary capsule.
       if (find.text('Add Transaction').evaluate().isNotEmpty) {
         await tester.tap(find.text('Add Transaction'));
         await tester.pumpAndSettle();
@@ -202,8 +200,6 @@ void main() {
     (tester) async {
       await pumpFlow(tester, ledger: buildLedger());
 
-      // PopScope is generic (PopScope<T>), so byType's exact runtime-type
-      // match needs a predicate rather than a fixed type argument.
       final popScope =
           find
                   .byWidgetPredicate((widget) => widget is PopScope)

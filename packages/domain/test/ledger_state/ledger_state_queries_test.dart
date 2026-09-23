@@ -68,9 +68,6 @@ void main() {
   });
 
   group('active and binned sets', () {
-    // The pocket reaches referenceOnly by surviving a purge of its own parent
-    // while an entry still names it; accountB stays merely archived, so the
-    // binned sets have something to hold.
     final ledger = LedgerState();
     ledger.addAccount(account(accountA));
     ledger.addAccount(account(accountB));
@@ -172,8 +169,6 @@ void main() {
       expect(ledger.owningAccount(pocketP)?.id, accountA);
     });
 
-    // An entry naming the pocket pins both rows at referenceOnly, parent
-    // included, so the purge leaves the link intact rather than orphaning it.
     test('a referenced pocket keeps its parent across a purge', () {
       final ledger = LedgerState();
       ledger.addAccount(account(ghostID, name: 'pocket parent'));
@@ -185,8 +180,6 @@ void main() {
       expect(ledger.owningAccount(pocketP)?.id, ghostID);
     });
 
-    // The unreferenced branch of the purge detaches the pocket and drops its
-    // row, so the lookup falls through to the unknown-id case.
     test('a pocket purged away with its parent yields null', () {
       final ledger = LedgerState();
       ledger.addAccount(account(ghostID, name: 'pocket parent'));
@@ -265,10 +258,8 @@ void main() {
     test('roots sorted by name, each root followed by its own children '
         'sorted by name, archived rows excluded', () {
       final ledger = LedgerState();
-      // Roots out of name order, to prove the sort rather than insertion order.
       ledger.addCategory(category(categoryD, name: 'Zeta'));
       ledger.addCategory(category(categoryC, name: 'Alpha'));
-      // Children out of name order under each root.
       ledger.addCategory(
         category(categoryE, name: 'Zulu', parentID: categoryD),
       );
@@ -276,7 +267,6 @@ void main() {
         category(categoryF, name: 'Ants', parentID: categoryD),
       );
       ledger.addCategory(category(accountA, name: 'Bees', parentID: categoryC));
-      // Archived rows of both shapes must not appear at all.
       ledger.addCategory(category(accountB, name: 'GoneRoot'));
       ledger.deleteCategory(accountB);
       ledger.addCategory(

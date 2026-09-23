@@ -6,8 +6,6 @@ import 'package:spendwise/sync/sync_metadata_store.dart';
 import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_screen.dart';
 import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_view_model.dart';
 
-/// Hand-written stand-in for the persistence seam: counts writes without a
-/// database, so the widget suite proves the screen drives the controller.
 final class FakeBackendSelectionWriter implements BackendSelectionWriter {
   var calls = 0;
 

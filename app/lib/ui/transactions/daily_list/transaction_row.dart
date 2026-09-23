@@ -29,8 +29,6 @@ class TransactionRow {
 
   final String title;
 
-  /// The entry's own typed name. Not a separate note field: `Entry` has none,
-  /// and the title above always comes from the category instead.
   final String note;
 
   final String accountLine;

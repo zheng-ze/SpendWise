@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 
 const fallbackSymbolIcon = Icons.circle_outlined;
 
-// A category stores one of these names as free text, so a name this build does
-// not know still has to render.
 const _chromeIcons = <String, IconData>{
   'menu_book': Icons.menu_book,
   'pie_chart_outline': Icons.pie_chart_outline,
@@ -31,7 +29,6 @@ const _chromeIcons = <String, IconData>{
   'radio_button_checked': Icons.radio_button_checked,
 };
 
-/// Icon names grouped by section, in the order the picker shows them.
 const categoryIconSections = <String, List<String>>{
   'Food & Drink': [
     'shopping_cart',

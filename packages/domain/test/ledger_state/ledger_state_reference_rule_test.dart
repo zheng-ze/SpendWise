@@ -3,8 +3,6 @@ import 'package:test/test.dart';
 
 import '../support/builders.dart';
 
-// An account counts as referenced through a surviving pocket, not only through its own
-// entries, so an account funded only through pockets is not removed while they survive.
 void main() {
   test(
     'purgeAccountWhoseEntriesOnlyReferenceItsPocketsKeepsItReferenceOnly',
@@ -32,8 +30,6 @@ void main() {
   );
 
   test('deletingLastDirectEntryKeepsAccountWhilePocketStillReferenced', () {
-    // The deleted entry also references an unrelated reference-only account, so
-    // a sweep that does nothing fails here rather than passing by inaction.
     final ledger = LedgerState();
     ledger.addAccount(account(uuid(1)));
     ledger.addPocket(pocket(uuid(2)), uuid(1));

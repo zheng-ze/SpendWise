@@ -31,7 +31,6 @@ String formatNextOccurrence(DateTime day) => 'Next: ${_fullDay.format(day)}';
 
 String formatEntryDate(DateTime day) => _fullDay.format(day);
 
-/// The window is half-open, so its end is the day after the last one shown.
 String formatWeekRange(DateRange window) {
   final lastIncluded = window.end.subtract(const Duration(days: 1));
   return '${_rangeDay.format(window.start)} - ${_rangeDay.format(lastIncluded)}';

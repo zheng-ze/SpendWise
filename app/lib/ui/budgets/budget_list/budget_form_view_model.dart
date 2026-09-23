@@ -7,7 +7,6 @@ import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/step_emitting.dart';
 import 'package:spendwise/ui/format/amount_parse.dart';
 
-/// Groups categories with their unbudgeted children, for the category picker.
 List<(TransactionCategory, List<TransactionCategory>)> groupedBudgetCategories(
   LedgerState state,
 ) {
@@ -35,7 +34,6 @@ List<(TransactionCategory, List<TransactionCategory>)> groupedBudgetCategories(
 
   return [
     for (final root in roots)
-      // An unbudgeted child still needs its parent's row to sit under in the picker.
       if (!budgeted.contains(root.id) ||
           (childrenByParent[root.id]?.isNotEmpty ?? false))
         (root, childrenByParent[root.id] ?? const []),
@@ -126,8 +124,6 @@ class BudgetFormNotifier extends AsyncNotifier<BudgetFormViewState>
   @override
   void requestPickCategory() => emitStep(PickCategoryRequested());
 
-  // A picker outcome can arrive after the sheet that opened it was
-  // dismissed, so this must no-op rather than update a gone provider.
   @override
   void applyPickedCategory(String? categoryID) {
     if (!ref.mounted) return;

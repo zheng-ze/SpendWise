@@ -13,8 +13,6 @@ extension LedgerStatePlans on LedgerState {
     final stored = _plans[plan.id];
     if (stored == null) throw UnknownPlan(plan.id);
 
-    // Shifting the anchor or frequency moves the schedule onto different days,
-    // and once anything has resolved there is no cursor that avoids re-minting entries.
     final schedulesChanged =
         stored.anchor != plan.anchor || stored.frequency != plan.frequency;
     if (schedulesChanged && stored.lastResolvedDate.isAfter(stored.anchor)) {
@@ -71,13 +69,11 @@ extension LedgerStatePlans on LedgerState {
     final changes = <LedgerChange>[];
     final failures = <PlanFailure>[];
 
-    // Sorted so the emitted change list is reproducible.
     final planIDs = _plans.keys.toList()..sort();
     for (final planID in planIDs) {
       final plan = _plans[planID]!;
       final due = plan.occurrences(after: plan.lastResolvedDate, upTo: now);
 
-      // Cursor stops at the first failure, though later dates still get attempted.
       var cursor = plan.lastResolvedDate;
       var sawFailure = false;
 
@@ -109,8 +105,6 @@ extension LedgerStatePlans on LedgerState {
         _plans[plan.id] = advanced;
         changes.add(UpsertPlan(advanced));
       }
-      // An idle plan is left alone. A stale cursor only gates past
-      // occurrences, so replaying yields the same empty result.
     }
 
     return _checkedResolution(
@@ -125,7 +119,6 @@ extension LedgerStatePlans on LedgerState {
       _removePlansWhere((plan) => plan.template.categoryID == categoryID);
 
   List<LedgerChange> _removePlansWhere(bool Function(RecurringPlan) doomed) {
-    // Materialized before the removal loop. Mutating _plans mid-iteration throws.
     final removed = _plans.values.where(doomed).map((plan) => plan.id).toList();
     for (final planID in removed) {
       _plans.remove(planID);

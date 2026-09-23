@@ -7,7 +7,6 @@ class NetWorth {
 
   final Decimal asset;
 
-  /// A positive magnitude, not a negative balance.
   final Decimal liability;
 
   @override

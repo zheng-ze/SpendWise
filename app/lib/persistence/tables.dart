@@ -1,6 +1,5 @@
 import 'package:drift/drift.dart';
 
-/// `store_meta` is device-local and so is the one table that stays out.
 mixin SyncedRow on Table {
   BlobColumn get versionData => blob().named('version_data')();
 
@@ -14,8 +13,7 @@ class Accounts extends Table with SyncedRow {
 
   IntColumn get type => integer()();
 
-  /// Parentage lives here alone, so a pocket row has no back pointer to read it
-  /// from.
+  /// Sole owner of parentage; pockets hold no back pointer.
   TextColumn get subPocketIds => text().named('sub_pocket_ids')();
 
   BoolColumn get incomingTransfersAsExpenses =>
@@ -52,7 +50,7 @@ class Categories extends Table with SyncedRow {
 
   BoolColumn get includeInAnalysis => boolean().named('include_in_analysis')();
 
-  /// No foreign key: a category may outlive its parent as a reference-only row.
+  /// No foreign key: a category may outlive its parent.
   TextColumn get parentId => text().named('parent_id').nullable()();
 
   TextColumn get symbol => text()();
@@ -66,7 +64,7 @@ class Entries extends Table with SyncedRow {
 
   IntColumn get date => integer()();
 
-  /// A float column would not round-trip the stored amount.
+  /// Text storage: a float column would not round-trip.
   TextColumn get amount => text()();
 
   TextColumn get name => text()();
@@ -79,12 +77,8 @@ class Entries extends Table with SyncedRow {
 
   BoolColumn get includeInAnalysis => boolean().named('include_in_analysis')();
 
-  /// Reserved and never written by this version. Adding either column later
-  /// costs a migration, so they are claimed now while the schema is still v1.
   TextColumn get note => text().nullable()();
 
-  /// Marks a synthetic entry: 0 opening balance, 1 balance adjustment, null for
-  /// a user entry.
   IntColumn get systemKind => integer().named('system_kind').nullable()();
 
   @override
@@ -126,7 +120,7 @@ class Budgets extends Table with SyncedRow {
 
   TextColumn get categoryId => text().named('category_id').nullable()();
 
-  /// JSON-encoded array of {effectiveFromMonth, value, kind}.
+  /// JSON array of {effectiveFromMonth, value, kind}.
   TextColumn get limitEvents => text().named('limit_events')();
 
   TextColumn get createdAtMonth => text().named('created_at_month')();
@@ -135,8 +129,7 @@ class Budgets extends Table with SyncedRow {
   Set<Column<Object>> get primaryKey => {id};
 }
 
-/// Device-local, so it carries neither a version vector nor a lifecycle. The
-/// fixed key holds it to one row.
+/// Device-local; the one table outside sync.
 @DataClassName('StoreMetaRow')
 class StoreMeta extends Table {
   IntColumn get id => integer()();

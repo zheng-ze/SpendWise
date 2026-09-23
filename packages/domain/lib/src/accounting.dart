@@ -15,10 +15,7 @@ import 'package:domain/src/ids.dart';
 import 'package:domain/src/ledger_state/ledger_state.dart';
 import 'package:domain/src/time/date_range.dart';
 
-/// Balances are always recomputed from the entry log, never stored.
 abstract final class Accounting {
-  /// [sourceIDs] is the existence set, archived rows included, so removing
-  /// a holder is what un-applies its entries rather than archiving one.
   static bool applies(Entry entry, Set<String> sourceIDs) {
     if (!sourceIDs.contains(entry.sourceID)) return false;
 
@@ -48,8 +45,6 @@ abstract final class Accounting {
     return total;
   }
 
-  /// Archived pockets stay linked so a restore brings them back, so
-  /// [activePockets] is what keeps their balance out of the total.
   static Decimal accountTotal(
     Account account, {
     required List<Entry> entries,
@@ -65,7 +60,6 @@ abstract final class Accounting {
     return total;
   }
 
-  /// A pocket is never counted at top level, only through its parent's total.
   static NetWorth netWorth(LedgerState ledger) {
     final sourceIDs = ledger.moneySources.keys.toSet();
     final activePockets = ledger.activeSources;
@@ -82,8 +76,6 @@ abstract final class Accounting {
         continue;
       }
 
-      // The sign of the total picks the side, never the account type, so an
-      // overdrawn debit account is a liability and a card in credit an asset.
       final total = accountTotal(
         account,
         entries: entries,
@@ -100,8 +92,6 @@ abstract final class Accounting {
     return NetWorth(asset, liability);
   }
 
-  /// The window-independent pass, meant to be computed once and filtered
-  /// cheaply. Output order is unspecified.
   static List<AnalysisItem> analysisItems(LedgerState ledger) {
     final sourceIDs = ledger.moneySources.keys.toSet();
     return UnmodifiableListView([
@@ -110,8 +100,6 @@ abstract final class Accounting {
     ]);
   }
 
-  /// The treat-as-expense flag is symmetric, each leg reading it off its own
-  /// end, so a transfer to the holder itself emits both and nets to zero.
   static List<AnalysisItem> classify(
     Entry entry,
     Set<String> sourceIDs,
@@ -158,8 +146,6 @@ abstract final class Accounting {
             bucketID = id;
         }
 
-        // Kind comes off the signed amount. Taking the absolute value first
-        // would make every item income.
         final kind = entry.expectedCategoryKind;
         if (kind == null) return const [];
 
@@ -209,8 +195,6 @@ abstract final class Accounting {
     }
   }
 
-  // A pocket has no type of its own, so a transfer into one buckets by
-  // whichever account holds it, same as a transfer to the account directly.
   static AccountType _destinationAccountType(
     MoneySource destination,
     LedgerState ledger,
@@ -237,8 +221,6 @@ abstract final class Accounting {
     return InCategory(categoryID);
   }
 
-  /// Whether [entry] counts toward analysis: not excluded itself, and not in
-  /// a category (or subcategory of one) that's excluded.
   static bool includedInAnalysis(Entry entry, LedgerState ledger) {
     if (!entry.includeInAnalysis) return false;
     return resolveCategory(entry, ledger) is! Excluded;
@@ -257,8 +239,6 @@ abstract final class Accounting {
     final leafID = normalizedOptionalID(rawLeafID);
     if (leafID == null) return null;
 
-    // A missing row is not "no bucket": it may be a synthetic bucket id,
-    // which by design has none, so only a real category rolls up.
     final category = state.categories[leafID];
     if (category == null) return leafID;
 
@@ -279,14 +259,11 @@ abstract final class Accounting {
 }
 
 extension AnalysisItemList on List<AnalysisItem> {
-  /// Each null argument drops its constraint rather than matching nothing.
   List<AnalysisItem> filtered({
     CategoryKind? kind,
     Set<String?>? buckets,
     DateRange? interval,
   }) {
-    // Null is a real bucket, Uncategorized, and normalizedOptionalID returns it
-    // unchanged, so asking for null still matches uncategorized items.
     final wanted = buckets?.map(normalizedOptionalID).toSet();
     return UnmodifiableListView(
       where((item) {

@@ -5,8 +5,6 @@ import 'package:spendwise/ui/symbol_map.dart';
 
 const _gridColumns = 6;
 
-/// Returns sections whose names match [query], dropping any section left
-/// with no matches rather than keeping it empty.
 Map<String, List<String>> filterSymbolSections(
   Map<String, List<String>> sections,
   String query,
@@ -24,8 +22,6 @@ Map<String, List<String>> filterSymbolSections(
   return result;
 }
 
-/// Returns the chosen symbol name, or null if the user backed out without
-/// choosing.
 Future<String?> showSymbolPickerSheet({
   required BuildContext context,
   required String selected,

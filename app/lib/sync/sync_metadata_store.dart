@@ -4,24 +4,13 @@ import 'package:spendwise/persistence/ledger_database.dart';
 import 'package:spendwise/sync/backend_selection_writer.dart';
 import 'package:sync/sync.dart';
 
-/// Durable enrollment phase with explicit persisted codes.
-///
-/// Codes are stored in `sync_meta.enrollment_phase`; never persist
-/// [SyncEnrollmentPhase.index] so reordering the enum cannot corrupt rows.
 enum SyncEnrollmentPhase {
-  /// Nothing enrolled yet. The initial state; backend selection stays null.
   notEnrolled(0),
 
-  /// The opaque credential payload reached secure storage.
   credentialAcquired(1),
-
-  /// Snapshot transfer or key work is in progress.
   snapshotInProgress(2),
 
-  /// Reconciliation completed durably. Only this phase permits the gate flip.
   reconciliationComplete(3),
-
-  /// The write gate was enabled durably.
   gateEnabled(4);
 
   const SyncEnrollmentPhase(this.code);
@@ -35,7 +24,6 @@ enum SyncEnrollmentPhase {
   );
 }
 
-/// Selected sync backend profile with explicit persisted wire strings.
 enum SyncBackendKind {
   supabase('supabase'),
   custom('custom');
@@ -53,10 +41,6 @@ enum SyncBackendKind {
   }
 }
 
-/// Error thrown when enabling the sync write gate is refused.
-///
-/// Only a durable [SyncEnrollmentPhase.reconciliationComplete] phase permits
-/// the gate flip; credential presence alone never enables writes.
 final class SyncWriteGateException implements Exception {
   const SyncWriteGateException(this.message);
 
@@ -66,7 +50,6 @@ final class SyncWriteGateException implements Exception {
   String toString() => 'SyncWriteGateException: $message';
 }
 
-/// Immutable read view of the singleton sync metadata row.
 final class SyncMetadataSnapshot {
   const SyncMetadataSnapshot({
     required this.backend,
@@ -76,26 +59,16 @@ final class SyncMetadataSnapshot {
     required this.watermarks,
   });
 
-  /// Null until enrollment.
   final SyncBackendKind? backend;
 
-  /// Null until enrollment and unused by managed backends.
   final String? endpoint;
 
   final SyncEnrollmentPhase phase;
   final bool writeEnabled;
 
-  /// Durable pull cursor per collection, null before the first pull.
   final Map<SyncCollection, String?> watermarks;
 }
 
-/// Drift-backed durable sync metadata, sibling to the staging store.
-///
-/// Every mutation executes atomically in one Drift transaction, including the
-/// combined pulled-vector, page-watermark, and pending-acknowledgement update
-/// in [recordPulledPage], which commits all values together or rolls back on
-/// failure. This store never holds a bearer token, the E2E key, the opaque
-/// credential payload, or a second device ID.
 final class SyncMetadataStore implements BackendSelectionWriter {
   SyncMetadataStore(this._db);
 
@@ -104,8 +77,6 @@ final class SyncMetadataStore implements BackendSelectionWriter {
   @visibleForTesting
   LedgerDatabase get database => _db;
 
-  /// Reads the singleton row plus every keyed record in one transaction, so
-  /// startup recovery observes a consistent view.
   Future<SyncMetadataSnapshot> snapshot() => _db.transaction(() async {
     final meta = await _metaRow();
     return SyncMetadataSnapshot(
@@ -138,10 +109,6 @@ final class SyncMetadataStore implements BackendSelectionWriter {
   Future<void> setEnrollmentPhase(SyncEnrollmentPhase phase) =>
       _updateMeta(SyncMetaCompanion(enrollmentPhase: Value(phase.code)));
 
-  /// Flips the write gate. Enabling is refused with [SyncWriteGateException]
-  /// unless the stored enrollment phase is reconciliation-complete; the phase
-  /// check runs inside the same transaction as the write, so a refused enable
-  /// persists nothing. Disabling is always allowed.
   Future<void> setWriteEnabled(bool value) => _db.transaction(() async {
     await _ensureMetaRow();
     if (value) {
@@ -226,13 +193,6 @@ final class SyncMetadataStore implements BackendSelectionWriter {
         )..where((t) => t.collection.equalsValue(collection))).go();
       });
 
-  /// Clears [collection]'s pending acknowledgement only if its currently
-  /// stored checkpoint still equals [checkpoint].
-  ///
-  /// A newer checkpoint already recorded for [collection] (for example by a
-  /// concurrent [recordPulledPage] call while an older checkpoint's
-  /// acknowledge call was in flight) is left untouched, so its retry
-  /// obligation is never lost.
   Future<void> clearPendingAcknowledgementIfMatches(
     SyncCollection collection,
     String checkpoint,
@@ -245,13 +205,6 @@ final class SyncMetadataStore implements BackendSelectionWriter {
         .go();
   });
 
-  /// Commits one pulled page durably: the verified per-row vectors, the page
-  /// watermark, and the pending collection-checkpoint acknowledgement, all in
-  /// one atomic Drift transaction.
-  ///
-  /// An empty [vectors] map records a duplicate or dominated page: the
-  /// watermark and acknowledgement still advance while no vector changes.
-  /// Throws [ArgumentError] when a vector targets another collection.
   Future<void> recordPulledPage({
     required SyncCollection collection,
     required Map<SyncRowID, VersionVector> vectors,
@@ -292,8 +245,6 @@ final class SyncMetadataStore implements BackendSelectionWriter {
     return (_db.select(_db.syncMeta)..where((t) => t.id.equals(0))).getSingle();
   }
 
-  // Writes companion to the singleton row, without its own transaction.
-  // Callers must already hold a transaction and have called _ensureMetaRow.
   Future<void> _writeMeta(SyncMetaCompanion companion) =>
       (_db.update(_db.syncMeta)..where((t) => t.id.equals(0))).write(companion);
 
@@ -324,8 +275,6 @@ final class SyncMetadataStore implements BackendSelectionWriter {
     String? cursor,
   ) => _watermarkColumnOf(collection).buildCompanion(cursor);
 
-  // One switch, not two: the analyzer flags a missing SyncCollection case
-  // here at compile time, unlike a lookup keyed by a Map.
   static _WatermarkColumn _watermarkColumnOf(SyncCollection collection) =>
       switch (collection) {
         SyncCollection.moneySources => _WatermarkColumn(

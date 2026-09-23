@@ -8,8 +8,6 @@ import 'package:spendwise/ui/settings/recycle_bin/recycle_bin_screen.dart';
 import 'package:spendwise/ui/settings/settings_root_screen.dart';
 import 'package:spendwise/ui/settings/settings_root_view_model.dart';
 
-/// Owns the Settings feature's own nested Navigator, so its list screens
-/// push without reaching for the app's root Navigator.
 class SettingsFlow extends FlowBase<SettingsStep> {
   const SettingsFlow({super.key});
 

@@ -44,7 +44,6 @@ DeviceCredential testCredential() => const CredentialCodec().restore(
   ),
 );
 
-/// Hand-written fake serving one scripted page queue per collection.
 final class ScriptedSnapshotBackend implements SyncBackend {
   ScriptedSnapshotBackend(this.pages);
 

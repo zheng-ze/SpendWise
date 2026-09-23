@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// The bottom-sheet body shell shared by every form and receipt-style sheet
-/// in this redesign: clears the keyboard, respects the safe area, and pads
-/// the content, sizing to [children] instead of the sheet's full height.
 class SheetShell extends StatelessWidget {
   const SheetShell({super.key, required this.children});
 

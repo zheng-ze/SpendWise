@@ -129,8 +129,6 @@ class AccountFormNotifier extends AsyncNotifier<AccountFormViewState>
   @override
   void requestPickParent() => emitStep(PickParentRequested());
 
-  // A picker outcome can arrive after the sheet that opened it was
-  // dismissed, so this must no-op rather than update a gone provider.
   @override
   void applyPickedParent(String? id) {
     if (!ref.mounted) return;
@@ -146,8 +144,6 @@ class AccountFormNotifier extends AsyncNotifier<AccountFormViewState>
     final current = state.value;
     if (current == null) return;
 
-    // Recomputed rather than trusting the stored kind, since the picked
-    // parent may have gone stale between opening the picker and saving.
     final effectiveKind = current.effectiveKind;
     final name = current.name.trim();
 

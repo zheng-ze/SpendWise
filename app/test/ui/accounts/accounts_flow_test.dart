@@ -52,8 +52,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(AccountForm), findsOneWidget);
-    // Step is cleared once the Flow has acted on it, so a later rebuild
-    // does not relaunch the sheet a second time.
     expect(container.read(accountsViewModelProvider).value?.step, isNull);
   });
 
@@ -85,8 +83,6 @@ void main() {
     expect(pushed.initialScope?.title, 'Main Checking');
     expect(pushed.initialScope?.scopeIDs, {checking.id});
 
-    // The pushed TransactionsFlow's edit-source callback must re-enter this
-    // same AccountsFlow's own step handling, not a disconnected mechanism.
     pushed.onEditSource!(
       tester.element(find.byType(TransactionsFlow)),
       checking.id,
@@ -128,8 +124,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(AccountForm), findsOneWidget);
 
-    // The outer PopScope blocks this, so it must dismiss the modal sheet
-    // inside AccountsFlow's own Navigator rather than escaping the Flow.
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
 

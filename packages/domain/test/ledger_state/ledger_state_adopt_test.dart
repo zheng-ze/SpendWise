@@ -45,7 +45,6 @@ void main() {
 
     live.adopt(source);
 
-    // No swap: an earlier holder of the live object sees the adopted tables.
     expect(identical(ref, live), isTrue);
     expectSameTables(ref, source);
     expect(ref.moneySources[uuid(9)], isNull);
@@ -64,10 +63,6 @@ void main() {
   });
 
   test('unseen lifecycle transition passes structural validation', () {
-    // The device archived then stopped referencing the account, so its
-    // baseline sits at referenceOnly. Another device restored it to active:
-    // a transition the mutator clause 12 baseline never observed, but a
-    // structurally sound row.
     final live = LedgerState();
     live.addAccount(account(uuid(1), name: 'wallet'));
     live.addEntry(entry(id: uuid(2), sourceID: uuid(1)));

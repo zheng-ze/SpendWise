@@ -1,8 +1,6 @@
 part of 'ledger_state.dart';
 
 extension LedgerStatePurge on LedgerState {
-  // Pockets settle first so the account sees their survival when it judges
-  // its own referencedness.
   List<LedgerChange> purgeAccount(String rawID) {
     final id = normalizedID(rawID);
     final account = _moneySources[id]?.asAccount;
@@ -46,8 +44,6 @@ extension LedgerStatePurge on LedgerState {
     return [LedgerChange.upsertSource(kept)];
   }
 
-  // The parent upsert precedes the deletion, so a consumer replaying the
-  // changes never sees the link outlive the row.
   List<LedgerChange> _detachAndTombstonePocket(String pocketID) {
     final parent = _owningAccount(pocketID);
     final changes = <LedgerChange>[];
@@ -70,8 +66,6 @@ extension LedgerStatePurge on LedgerState {
       return _checked([]);
     }
 
-    // Children go regardless of lifecycle, so an active one cannot outlive its
-    // parent row. They sweep first but emit after it, so a survivor is visible.
     final childChanges = [
       for (final child in _children(id)) ..._purgeCategoryRow(child),
     ];
@@ -104,8 +98,6 @@ extension LedgerStatePurge on LedgerState {
     ).any((child) => _isCategoryReferenced(child.id, visited));
   }
 
-  // The only referenceOnly to tombstoned path. Holders sweep before the
-  // category so a holder losing its last reference cannot be missed.
   List<LedgerChange> _tombstoneDereferenced(
     Set<String> holders,
     String? category,
@@ -156,7 +148,6 @@ extension LedgerStatePurge on LedgerState {
       ];
     }
 
-    // Read before the detach below, which clears the link.
     final parent = _owningAccount(holderID);
     final changes = [
       ..._detachAndTombstonePocket(holderID),

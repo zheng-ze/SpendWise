@@ -40,7 +40,6 @@ class DocumentCropRequested extends TransactionsStep {
   final Uint8List imageBytes;
 }
 
-/// Forwarded by [TransactionsFlow] to its `onEditSource` callback.
 class SourceEditRequested extends TransactionsStep {}
 
 class TransactionsViewState

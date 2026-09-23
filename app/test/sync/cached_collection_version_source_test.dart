@@ -42,7 +42,6 @@ Map<SyncRowID, RowVersion> _seededRows() => {
   SyncRowID.of(SyncCollection.budgets, _budgetsRow): _version(_deviceB, 5),
 };
 
-/// Delegates to an in-memory reader but throws [failure] for [failOn].
 final class _FailingReader implements CollectionVersionReader {
   _FailingReader(this._inner);
 
@@ -60,8 +59,6 @@ final class _FailingReader implements CollectionVersionReader {
   }
 }
 
-/// Blocks every collection read on [gate] so overlapping refreshes can be
-/// observed; counts underlying reads.
 final class _GatedReader implements CollectionVersionReader {
   _GatedReader(this._rows, this._gate);
 
@@ -104,7 +101,6 @@ void main() {
     for (final entry in seeded.entries) {
       expect(source.readRowVersion(entry.key), entry.value);
     }
-    // The tombstone lifecycle survives the round trip.
     expect(
       source
           .readRowVersion(SyncRowID.of(SyncCollection.entries, _entriesRow))
@@ -123,8 +119,6 @@ void main() {
     reader
       ..failOn = SyncCollection.plans
       ..failure = failure;
-    // A new row added after the first refresh must not leak into the cache
-    // when the second refresh fails partway.
     inner.upsert(
       SyncRowID.of(SyncCollection.categories, _unknownRow),
       _version(_deviceA, 9),
@@ -212,7 +206,6 @@ void main() {
       source.readRowVersion(SyncRowID.of(SyncCollection.entries, _unknownRow)),
       isNull,
     );
-    // Same UUID string seeded under moneySources is a distinct SyncRowID.
     expect(
       source.readRowVersion(
         SyncRowID.of(SyncCollection.categories, _moneySourcesRow),

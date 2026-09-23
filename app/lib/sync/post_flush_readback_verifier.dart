@@ -2,19 +2,11 @@ import 'package:spendwise/sync/collection_version_reader.dart';
 import 'package:spendwise/sync/row_readback_outcome.dart';
 import 'package:sync/sync.dart';
 
-/// Verifies a stamped flush by reading every submitted row back from real
-/// storage.
-///
-/// This classifies each row's readback outcome. It does not itself commit any
-/// metadata state; the coordinator decides what to do with a passed or failed
-/// classification.
 final class PostFlushReadbackVerifier {
   const PostFlushReadbackVerifier(this._reader);
 
   final CollectionVersionReader _reader;
 
-  /// Reads back every [stamped] row, grouped by collection so each
-  /// collection is read from storage once, and classifies its outcome.
   Future<Map<SyncRowID, RowReadbackOutcome>> verify(
     Map<SyncRowID, VersionVector> stamped,
   ) async {

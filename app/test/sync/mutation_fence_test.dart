@@ -23,8 +23,6 @@ void main() {
 
     bus.publish(const [DeleteEntry('row-1')]);
 
-    // No await between publish and check: the broadcast is sync, so the
-    // fence's listener has already run before publish returned.
     expect(fence.checkClean(before), isFalse);
   });
 
@@ -35,11 +33,9 @@ void main() {
     final second = fence.snapshot();
     expect(second, isNot(first));
 
-    // A different change shape still bumps the epoch by exactly one.
     bus.publish(const [DeleteCategory('row-2')]);
     expect(fence.snapshot(), second + 1);
 
-    // Stamped sync publications bump it too.
     bus.publish(const [DeleteEntry('row-3')], stamps: const {});
     expect(fence.snapshot(), second + 2);
 

@@ -10,7 +10,6 @@ import 'package:spendwise/ui/shell/status_banner.dart';
 void main() {
   late BannerState banner;
 
-  // Riverpod disposes the notifier with the container, so the test must not.
   setUp(() => banner = BannerState());
 
   Future<ProviderContainer> pumpBanner(WidgetTester tester) async {
@@ -45,8 +44,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text("Couldn't save changes, retrying"), findsOneWidget);
 
-    // Well past any snackbar-length timeout, since this is an ongoing
-    // condition rather than a notification.
     await tester.pump(const Duration(seconds: 30));
     expect(find.text("Couldn't save changes, retrying"), findsOneWidget);
 
@@ -77,8 +74,6 @@ void main() {
       findsNothing,
     );
 
-    // The save problem is still outstanding, so it takes the banner back once
-    // the plan error has run its dismissal timer out.
     await tester.pump(const Duration(seconds: 5));
     expect(
       find.text("Couldn't save changes, will retry shortly"),

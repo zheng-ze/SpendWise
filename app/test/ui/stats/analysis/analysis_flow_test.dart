@@ -97,8 +97,6 @@ void main() {
       expect(pushed.args.kind, CategoryKind.expense);
       expect(pushed.args.isYearRange, isFalse);
       expect(pushed.args.initialDate, now);
-      // Step is cleared once the Flow has acted on it, so a later rebuild
-      // does not push a second time.
       expect(
         container
             .read(analysisViewModelProvider(CategoryKind.expense))
@@ -179,8 +177,6 @@ void main() {
       );
       expect(pushed.args.kind, CategoryKind.expense);
       expect(pushed.args.mainID, food.id);
-      // Proves the ValueKey swap re-subscribed to the new kind's ViewModel
-      // instance instead of leaving the old one attached and stepless.
       expect(
         container
             .read(analysisViewModelProvider(CategoryKind.income))

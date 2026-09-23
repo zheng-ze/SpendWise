@@ -70,7 +70,6 @@ extension LedgerStateEntries on LedgerState {
     ]);
   }
 
-  // A literal top-to-bottom sequence, since the check order is observable.
   Entry _validated(Entry entry, {Entry? previous}) {
     if (entry.amount == Decimal.zero) throw const ZeroAmount();
 

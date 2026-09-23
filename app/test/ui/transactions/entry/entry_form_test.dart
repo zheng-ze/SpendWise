@@ -42,14 +42,10 @@ void main() {
     required Ledger ledger,
     String? entryId,
   }) async {
-    // Needs a host Scaffold/Material, since EntryForm always renders inside
-    // a modal bottom sheet. Without one, Text overflows with the debug style.
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           ledgerProvider.overrideWithValue(ledger),
-          // Fixes the scan strip's setting so it doesn't depend on real,
-          // unmocked SharedPreferences.
           scanStripEnabledProvider.overrideWith((ref) async => true),
         ],
         child: MaterialApp(
@@ -191,10 +187,6 @@ void main() {
       await tester.enterText(find.byType(TextField).at(1), 'Changed name');
       await tester.pumpAndSettle();
 
-      // No Cancel button in the new design; a barrier tap or back gesture
-      // reaches the same PopScope revert. Trigger it directly through the
-      // navigator, since this harness hosts EntryForm without a real modal
-      // bottom sheet to tap outside of.
       await Navigator.of(tester.element(find.byType(EntryForm))).maybePop();
       await tester.pumpAndSettle();
 

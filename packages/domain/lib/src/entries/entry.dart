@@ -5,8 +5,6 @@ import 'package:domain/src/lifecycle_state.dart';
 import 'package:domain/src/time/calendar_day.dart';
 import 'package:meta/meta.dart';
 
-/// Marks an entry the app generates itself rather than one a user typed in,
-/// so the UI and the ledger can protect it from edits that would corrupt it.
 enum SystemEntryKind {
   openingBalance(0),
   balanceAdjustment(1);
@@ -44,7 +42,6 @@ class Entry with HolderReferencing {
   final String id;
   final DateTime date;
 
-  /// Signed. Income positive, expense negative. Stored transfers are positive.
   @override
   final Decimal amount;
 

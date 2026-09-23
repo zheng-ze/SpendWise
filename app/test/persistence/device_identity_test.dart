@@ -12,8 +12,6 @@ void main() {
     r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
   );
 
-  // Reopening one file-backed database as two `LedgerDatabase` instances is what
-  // separates a persisted id from one cached in memory, so drift's warning against it is silenced.
   Future<T> withReopenableDatabase<T>(
     Future<T> Function(LedgerDatabase Function() open) body,
   ) async {

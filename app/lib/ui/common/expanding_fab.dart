@@ -12,12 +12,6 @@ class FabAction {
   final VoidCallback onTap;
 }
 
-/// A single action fires directly with no expansion. A second action turns
-/// the button into a toggle: the `+` rotates into an `x`, labelled capsules
-/// stack above it, and an invisible backdrop collapses it on an outside tap.
-///
-/// Place this as the last child of a `Stack` wrapping the screen body, not
-/// in `Scaffold.floatingActionButton`.
 class ExpandingFab extends StatefulWidget {
   const ExpandingFab({super.key, required this.primary, this.secondary});
 

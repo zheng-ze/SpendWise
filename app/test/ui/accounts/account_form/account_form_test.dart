@@ -15,8 +15,6 @@ void main() {
         child: const MaterialApp(home: Scaffold(body: AccountForm())),
       ),
     );
-    // Flushes AccountFormNotifier.build()'s Future so the form's initial
-    // AsyncData state is in place before a test interacts with it.
     await tester.pump();
   }
 

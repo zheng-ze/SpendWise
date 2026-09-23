@@ -33,8 +33,6 @@ class MonthSummary {
   final List<WeekSummary> weeks;
 }
 
-/// [now] lets a test pass a fixed date. Production call sites leave it as
-/// the wall clock.
 List<MonthSummary> monthSummaries(
   LedgerState state,
   DateTime year, {
@@ -117,14 +115,10 @@ List<WeekSummary> _weeks({
   return weeks.reversed.toList();
 }
 
-/// Weeks run Monday to Sunday regardless of device locale, so a spillover
-/// week is deterministic for every user.
 DateTime _weekStart(DateTime day) {
   return day.subtract(Duration(days: day.weekday - DateTime.monday));
 }
 
-/// Delegates each entry to [Accounting.totals] for the treat-as-expense
-/// transfer rule.
 ({Decimal income, Decimal expenses}) sectionTotals(
   List<Entry> entries,
   LedgerState state,

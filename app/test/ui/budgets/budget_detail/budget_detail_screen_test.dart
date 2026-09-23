@@ -338,7 +338,6 @@ void main() {
     await tester.pumpAndSettle();
 
     final now = DateTime.now().toUtc();
-    // Must differ from the already-selected month, or the tap is a no-op.
     final targetMonth = now.month == 1 ? 12 : 1;
     final chart = tester.getRect(find.byType(BarChart));
     final targetX = chart.left + chart.width * (targetMonth - 0.5) / 12;

@@ -89,7 +89,6 @@ void main() {
 
     container.dispose();
 
-    // Must not throw even though the underlying state is gone.
     expect(() => viewModel.applyPickedParent('some-id'), returnsNormally);
   });
 

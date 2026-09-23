@@ -6,8 +6,6 @@ import '../support/builders.dart';
 void main() {
   late LedgerState ledger;
 
-  // uuid() emits only digits and hyphens, so uppercasing it is a no-op and
-  // would exercise no normalization. These ids carry hex letters instead.
   String hex(int n) =>
       '6f1a2b3c-4d5e-6f70-8192-a3b4c5d6e7f${n.toRadixString(16)}';
   String upper(int n) => hex(n).toUpperCase();

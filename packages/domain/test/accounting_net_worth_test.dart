@@ -76,8 +76,6 @@ void main() {
 
     ledger.deleteAccount(b);
 
-    // Archiving drops the account as a subject but keeps it in the existence
-    // set, so the transfer out of the survivor keeps applying.
     final worth = Accounting.netWorth(ledger);
     expect(worth.asset, money(600));
     expect(worth.liability, Decimal.zero);

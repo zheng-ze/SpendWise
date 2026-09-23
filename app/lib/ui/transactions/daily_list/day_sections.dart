@@ -38,10 +38,6 @@ List<DaySection> daySections(
 
   final days = byDay.keys.toList()..sort((a, b) => b.compareTo(a));
 
-  // A domain entry only carries a calendar day, not a time of day, so there
-  // is no timestamp to sort same-day rows by. Input order is treated as
-  // creation order and reversed, since insertion order is what LedgerState
-  // preserves as entries are added.
   return [
     for (final day in days)
       _section(day, byDay[day]!.reversed.toList(), state, sourceScope),
@@ -69,8 +65,6 @@ DaySection _section(
   );
 }
 
-// Delegates each entry to Accounting.totals for the treat-as-expense
-// transfer rule.
 ({Decimal income, Decimal expenses}) _totals(
   List<Entry> dayEntries,
   LedgerState state,

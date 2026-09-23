@@ -5,8 +5,6 @@ bool canSaveSourceEditForm({required String name, required Decimal? balance}) {
   return balance != null;
 }
 
-/// Builds the entry that reconciles the current balance to the entered one,
-/// or null if the two already match.
 Entry? balanceAdjustmentEntry({
   required Decimal enteredBalance,
   required Decimal currentBalance,

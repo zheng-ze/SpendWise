@@ -86,9 +86,6 @@ void main() {
     );
   }
 
-  // This screen refreshes the cache during pump, and a spawned isolate can't
-  // see the test zone's fake-async state, so the cache is given a synchronous
-  // runner instead of its default isolate one.
   overridesFor(Ledger ledger) => [
     ledgerProvider.overrideWithValue(ledger),
     analysisCacheProvider.overrideWith(
@@ -352,8 +349,6 @@ void main() {
       await pumpDetail(tester, ledger);
       await tester.pumpAndSettle();
 
-      // The entry list sits below the trend chart, so it may render offstage
-      // in the test surface without the list ever being scrolled.
       Finder entryText(String text) => find.text(text, skipOffstage: false);
 
       expect(entryText('Lunch at hawker'), findsOneWidget);

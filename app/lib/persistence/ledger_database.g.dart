@@ -275,8 +275,7 @@ class Account extends DataClass implements Insertable<Account> {
   final String name;
   final int type;
 
-  /// Parentage lives here alone, so a pocket row has no back pointer to read it
-  /// from.
+  /// Sole owner of parentage; pockets hold no back pointer.
   final String subPocketIds;
   final bool incomingTransfersAsExpenses;
   final bool includeInNetWorth;
@@ -1259,7 +1258,7 @@ class Category extends DataClass implements Insertable<Category> {
   final String colorHex;
   final bool includeInAnalysis;
 
-  /// No foreign key: a category may outlive its parent as a reference-only row.
+  /// No foreign key: a category may outlive its parent.
   final String? parentId;
   final String symbol;
   const Category({
@@ -1893,20 +1892,14 @@ class Entry extends DataClass implements Insertable<Entry> {
   final String id;
   final int date;
 
-  /// A float column would not round-trip the stored amount.
+  /// Text storage: a float column would not round-trip.
   final String amount;
   final String name;
   final String? categoryId;
   final String sourceId;
   final String? destinationId;
   final bool includeInAnalysis;
-
-  /// Reserved and never written by this version. Adding either column later
-  /// costs a migration, so they are claimed now while the schema is still v1.
   final String? note;
-
-  /// Marks a synthetic entry: 0 opening balance, 1 balance adjustment, null for
-  /// a user entry.
   final int? systemKind;
   const Entry({
     required this.versionData,
@@ -3312,7 +3305,7 @@ class Budget extends DataClass implements Insertable<Budget> {
   final String id;
   final String? categoryId;
 
-  /// JSON-encoded array of {effectiveFromMonth, value, kind}.
+  /// JSON array of {effectiveFromMonth, value, kind}.
   final String limitEvents;
   final String createdAtMonth;
   const Budget({
@@ -4087,23 +4080,10 @@ class $SyncMetaTable extends SyncMeta
 
 class SyncMetadataRow extends DataClass implements Insertable<SyncMetadataRow> {
   final int id;
-
-  /// Selected backend profile (`supabase` or `custom`). Null until enrollment.
   final String? backend;
-
-  /// Endpoint configuration for a custom backend. Null until enrollment and
-  /// unused by managed backends.
   final String? endpoint;
-
-  /// Durable enrollment phase as an explicit [SyncEnrollmentPhase] code.
   final int enrollmentPhase;
-
-  /// Write-enabled gate. Only a durable reconciliation-complete phase permits
-  /// flipping this on; credential presence alone never enables writes.
   final bool writeEnabled;
-
-  /// Durable per-collection pull cursors. Each is the last staged and
-  /// acknowledged checkpoint for its collection, null before the first pull.
   final String? moneySourcesCursor;
   final String? entriesCursor;
   final String? categoriesCursor;
@@ -5428,8 +5408,6 @@ class StagedSiblingRow extends DataClass
   final String siblingId;
   final VersionVector versionData;
   final Uint8List payload;
-
-  /// Explicit sibling-lifecycle code: 0 is live, 1 is tombstone.
   final int lifecycle;
   final int position;
   const StagedSiblingRow({

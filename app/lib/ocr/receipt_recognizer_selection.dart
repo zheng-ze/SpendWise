@@ -3,13 +3,8 @@ import 'package:ocr/ocr.dart';
 
 import 'platform_adapter_selection.dart';
 
-/// Factory for a platform-specific recognizer.
 typedef TextRecognizerFactory = TextRecognizer Function();
 
-/// Picks the recognizer for the current platform, or null if the platform
-/// has none yet. [isIOS] and [isAndroid] let a test fix the branch instead of
-/// reading the real platform; the [visionFactory] and [androidFactory]
-/// parameters let a test inject fakes.
 TextRecognizer? selectRecognizer({
   bool? isIOS,
   bool? isAndroid,

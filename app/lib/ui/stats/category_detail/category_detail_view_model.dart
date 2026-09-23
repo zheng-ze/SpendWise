@@ -13,8 +13,6 @@ import 'package:spendwise/ui/stats/category_detail/category_scope.dart';
 import 'package:spendwise/ui/stats/helpers/stats_window.dart';
 import 'package:spendwise/ui/stats/helpers/trend.dart';
 
-/// Identifies which category detail screen a provider instance backs. Two
-/// screens for the same category get separate instances if any field differs.
 @immutable
 class CategoryDetailArgs {
   const CategoryDetailArgs({
@@ -74,8 +72,6 @@ class CategoryTotals {
       Decimal.zero,
       (sum, amount) => sum + amount,
     );
-    // The category's own total combines everything logged on it and its
-    // children, so direct spend is what's left after the children's share.
     final directTotal = mainTotal - childSum;
 
     final scopeTotal = windowed
@@ -151,19 +147,13 @@ class CategoryDetailNotifier extends AsyncNotifier<CategoryDetailViewState>
 
   final CategoryDetailArgs _args;
 
-  // Uses read, not watch. This notifier already tracks the cache through
-  // addListener/_onChanged below, so watching too would rebuild on every refresh and loop.
   AnalysisCache get _cache => ref.read(analysisCacheProvider);
 
   final AnalysisScan _scan = AnalysisScan();
 
-  // Kept outside state.value because the cache can finish and call back
-  // before build()'s own return is installed, and that callback needs a date and scope to read.
   late DateTime _detailDate;
   late CategoryScope _scope;
 
-  // Captured once because _onChanged runs outside build(), where ref.watch
-  // corrupts this provider's state instead of throwing.
   late Ledger _ledger;
 
   @override
@@ -176,15 +166,11 @@ class CategoryDetailNotifier extends AsyncNotifier<CategoryDetailViewState>
     ref.onDispose(() => currentLedger.removeListener(_onChanged));
     ref.onDispose(() => cache.removeListener(_onChanged));
 
-    // Set before the refresh below, since its completion can call
-    // _onChanged synchronously, and _onChanged reads these fields.
     _detailDate = _args.isYearRange
         ? DateTime.utc(_args.initialDate.year)
         : DateTime.utc(_args.initialDate.year, _args.initialDate.month);
     _scope = const AllScope();
 
-    // Awaited so build() returns with the cache's items already computed,
-    // not the empty list this same refresh would otherwise still be racing to fill.
     await cache.refresh(currentLedger.state);
 
     return _buildState(detailDate: _detailDate, scope: _scope);

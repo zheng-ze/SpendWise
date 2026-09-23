@@ -5,9 +5,6 @@ import 'package:spendwise/ui/common/form_scaffold.dart';
 import 'package:spendwise/ui/transactions/entry/entry_fields.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 
-/// Editable form for an existing entry. Dismissing without saving (barrier
-/// tap, back gesture) reverts to the persisted values instead of closing
-/// the sheet.
 class EditEntryForm extends StatelessWidget {
   const EditEntryForm({
     super.key,

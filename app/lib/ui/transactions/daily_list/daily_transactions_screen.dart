@@ -19,15 +19,11 @@ import 'package:spendwise/ui/transactions/transactions_view_model.dart';
 
 const _tabTitles = ['Daily', 'Monthly'];
 
-/// Renders [TransactionsViewModel]'s state. Never touches a `Navigator`
-/// itself. The enclosing [TransactionsFlow] handles navigation.
 class TransactionsScreen extends ConsumerWidget {
   const TransactionsScreen({super.key, this.scope, this.onBackPressed});
 
   final TransactionsScope? scope;
 
-  /// Called when the user taps this screen's own back button. Set only when
-  /// `TransactionsFlow` was pushed as a page onto another Flow's Navigator.
   final VoidCallback? onBackPressed;
 
   @override

@@ -89,9 +89,6 @@ class _BudgetDetailBody extends StatelessWidget {
       ledger: ledger,
       state: viewState.ledgerState,
       window: viewState.selectedMonthWindow,
-      // budgetSpend (budget_spend.dart) also counts synthetic
-      // transfer-expense items for an overall budget; this list can't, since
-      // those items have no backing Entry to show as a row.
       matching: () => viewState.ledgerState.entries.values.where((entry) {
         if (entry.isTransfer) return false;
         if (entry.expectedCategoryKind != CategoryKind.expense) return false;

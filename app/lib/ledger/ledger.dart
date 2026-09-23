@@ -6,10 +6,6 @@ import 'package:spendwise/ledger/event_bus.dart';
 
 typedef PlanErrorHandler = void Function(List<PlanFailure> failures);
 
-/// The only object allowed to hold a mutable [LedgerState], so no change can
-/// reach storage or the screen without passing through [_mutate] (local
-/// mutations) or [applySyncBatch] (decided remote batches) and being
-/// announced on the bus.
 class Ledger extends ChangeNotifier {
   Ledger({LedgerState? state, EventBus? bus})
     : _state = state ?? LedgerState(),
@@ -19,15 +15,11 @@ class Ledger extends ChangeNotifier {
 
   final EventBus bus;
 
-  /// Reported after resolution commits and publishes, never during it.
   PlanErrorHandler? onPlanError;
 
   LedgerState get state => _state;
 
-  // A throw from the mutator leaves every later step unrun, so a rejected
-  // mutation neither publishes nor notifies.
   List<LedgerChange> _mutate(List<LedgerChange> Function(LedgerState) mutator) {
-    // Ahead of publish, or a torn-down collaborator throws first and hides this.
     assert(ChangeNotifier.debugAssertNotDisposed(this));
 
     final changes = mutator(_state);
@@ -38,8 +30,6 @@ class Ledger extends ChangeNotifier {
     return _commit(changes);
   }
 
-  // Both [_mutate] and [applySyncBatch] reach here only after their own
-  // validation passes, so this tail needs no validation of its own.
   List<LedgerChange> _commit(
     List<LedgerChange> changes, {
     Map<SyncRowID, VersionVector>? stamps,
@@ -147,20 +137,6 @@ class Ledger extends ChangeNotifier {
   List<LedgerChange> deleteBudget(String rawID) =>
       _mutate((state) => state.deleteBudget(rawID));
 
-  /// Applies an already-decided remote batch: the coordinator owns
-  /// classification and reconciliation, so this takes the decided [changes]
-  /// plus the complete per-row [stamps] at face value.
-  ///
-  /// Copy-validates first: builds a candidate from the five live tables,
-  /// applies [changes] to the candidate, and runs the structural invariants
-  /// unconditionally, outside `assert` and without mutator clause 12
-  /// lifecycle monotonicity, so a legitimate remote transition this device
-  /// never observed still passes. Only then adopts the candidate into the
-  /// live state (keeping the same [LedgerState] object), publishes one
-  /// stamped publication, and notifies once.
-  ///
-  /// A validation failure throws before any of those happen, so the live
-  /// tables, the bus, and the listeners are all untouched.
   List<LedgerChange> applySyncBatch(
     List<LedgerChange> changes,
     Map<SyncRowID, VersionVector> stamps,
@@ -180,8 +156,6 @@ class Ledger extends ChangeNotifier {
     return _commit(changes, stamps: stamps);
   }
 
-  /// [now] must be a UTC instant. A device-local one would make occurrence
-  /// identity vary by timezone.
   void resolvePlans(DateTime now) {
     late final PlanResolution resolution;
     _mutate((state) {

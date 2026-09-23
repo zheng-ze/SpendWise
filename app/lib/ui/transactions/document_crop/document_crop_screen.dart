@@ -29,8 +29,6 @@ enum _Corner {
       };
 }
 
-/// Shows [imageBytes] with four draggable corner handles. Pops the cropped
-/// bytes on confirm, or null if the user backs out.
 class DocumentCropScreen extends StatefulWidget {
   const DocumentCropScreen({super.key, required this.imageBytes});
 

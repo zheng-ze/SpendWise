@@ -4,8 +4,6 @@ const int _maxFractionDigits = 2;
 const int _zero = 0x30;
 const int _nine = 0x39;
 
-/// Strips a raw text field's input down to a valid amount, dropping any
-/// fraction digits past the second rather than rounding them.
 String sanitizeAmount(String text, {required bool allowsNegative}) {
   final buffer = StringBuffer();
   var seenPoint = false;
@@ -14,8 +12,6 @@ String sanitizeAmount(String text, {required bool allowsNegative}) {
   for (var i = 0; i < text.length; i++) {
     final char = text[i];
 
-    // First surviving character rather than index 0, so a minus behind a
-    // stripped keystroke still reads as the sign the user meant.
     if (char == '-') {
       if (allowsNegative && buffer.isEmpty) buffer.write(char);
       continue;
@@ -31,8 +27,6 @@ String sanitizeAmount(String text, {required bool allowsNegative}) {
     if (char.codeUnitAt(0) < _zero || char.codeUnitAt(0) > _nine) continue;
 
     if (seenPoint) {
-      // Dropped, not rounded, so an edit mid-string never rewrites a digit
-      // the user already typed or shifts the caret off the one they're on.
       if (fractionDigits == _maxFractionDigits) continue;
       fractionDigits++;
     }
