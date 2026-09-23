@@ -133,14 +133,31 @@ Future<SyncEnrollmentComposition> composeSyncEnrollment(
     buildSnapshotHasher: (credential) =>
         ReconciliationSnapshotHasher(backend: backend, credential: credential),
   );
-  final coordinator = await SyncCoordinator.create(
-    database: database,
-    ledger: ledger,
-    persistenceProcessor: persistence,
-    supabaseConfig: config,
-    httpClient: httpClient,
-    secretStore: sharedSecrets,
-  );
+  final SyncCoordinator coordinator;
+  try {
+    coordinator = await SyncCoordinator.create(
+      database: database,
+      ledger: ledger,
+      persistenceProcessor: persistence,
+      supabaseConfig: config,
+      httpClient: httpClient,
+      secretStore: sharedSecrets,
+    );
+  } on SyncBackendConfigurationException catch (error) {
+    return SyncEnrollmentConfigurationError(error.message, cause: error);
+  }
+  final reselected = await metadataStore.snapshot();
+  if (reselected.backend != snapshot.backend ||
+      reselected.endpoint != snapshot.endpoint) {
+    return const SyncEnrollmentConfigurationError(
+      'The persisted sync backend selection changed during enrollment composition.',
+    );
+  }
+  if (coordinator.backend is! SupabaseSyncBackend) {
+    return const SyncEnrollmentConfigurationError(
+      'Hosted enrollment requires the persisted supabase backend selection.',
+    );
+  }
   return SyncEnrollmentReady(
     backend: backend,
     authenticator: authenticator,

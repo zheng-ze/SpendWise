@@ -1,6 +1,6 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
+import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -141,10 +141,13 @@ void main() {
     Future<String> Function(EnrollmentChallenge)? resolveOtp,
     Future<Uint8List> Function()? resolveE2EKey,
     SupabaseConfig? Function()? configSource,
+    SyncMetadataStore? metadataStoreOverride,
   }) {
     final container = ProviderContainer(
       overrides: [
         ledgerDatabaseProvider.overrideWithValue(db),
+        if (metadataStoreOverride != null)
+          syncMetadataStoreProvider.overrideWithValue(metadataStoreOverride),
         if (overrideLedger)
           ledgerProvider.overrideWithValue(
             forceNullLedger ? null : (ledgerOverride ?? ledger),
@@ -404,6 +407,46 @@ void main() {
         projectUrl: Uri.parse('http://insecure.example.com'),
         anonKey: 'test-anon-key',
       ),
+    );
+
+    expect(composition, isA<SyncEnrollmentConfigurationError>());
+    expect(httpClient.requests, isEmpty);
+  });
+
+  test('backend selection diverging to custom before coordinator construction is a configuration error', () async {
+    driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+    addTearDown(
+      () => driftRuntimeOptions.dontWarnAboutMultipleDatabases = false,
+    );
+    final selectionDb = LedgerDatabase(NativeDatabase.memory());
+    addTearDown(selectionDb.close);
+    await SyncMetadataStore(selectionDb)
+        .setBackendSelection(backend: SyncBackendKind.supabase);
+    await SyncMetadataStore(db).setBackendSelection(
+      backend: SyncBackendKind.custom,
+      endpoint: 'https://custom.example.com',
+    );
+
+    final composition = await compose(
+      metadataStoreOverride: SyncMetadataStore(selectionDb),
+    );
+
+    expect(composition, isA<SyncEnrollmentConfigurationError>());
+    expect(httpClient.requests, isEmpty);
+  });
+
+  test('backend selection diverging to none before coordinator construction is a configuration error', () async {
+    driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+    addTearDown(
+      () => driftRuntimeOptions.dontWarnAboutMultipleDatabases = false,
+    );
+    final selectionDb = LedgerDatabase(NativeDatabase.memory());
+    addTearDown(selectionDb.close);
+    await SyncMetadataStore(selectionDb)
+        .setBackendSelection(backend: SyncBackendKind.supabase);
+
+    final composition = await compose(
+      metadataStoreOverride: SyncMetadataStore(selectionDb),
     );
 
     expect(composition, isA<SyncEnrollmentConfigurationError>());
