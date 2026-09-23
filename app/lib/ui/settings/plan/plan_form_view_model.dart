@@ -16,7 +16,6 @@ Decimal applyOriginalSign({
   required Decimal magnitude,
   required Decimal originalAmount,
 }) {
-  // Keeps an expense plan from silently becoming an income plan through this form.
   return originalAmount < Decimal.zero ? -magnitude : magnitude;
 }
 
@@ -180,8 +179,6 @@ class PlanFormNotifier extends AsyncNotifier<PlanFormViewState>
     updateState(
       (s) => s.copyWith(
         hasEndDate: value,
-        // Turning the toggle off leaves endDate as-is. save() gates on
-        // hasEndDate, not endDate, so a stale date here is harmless.
         endDate: value ? () => s.endDate ?? s.anchor : null,
       ),
     );
@@ -211,8 +208,6 @@ class PlanFormNotifier extends AsyncNotifier<PlanFormViewState>
     if (current == null) return;
 
     final originalTemplate = _plan().template;
-    // canSave requires a non-null parse, and the Save button gates this
-    // call on canSave, so the amount is never null here.
     final magnitude = current.parsedAmount!.abs();
     final amount = applyOriginalSign(
       magnitude: magnitude,

@@ -1,13 +1,6 @@
 part of 'ledger_state.dart';
 
 extension LedgerStateAdopt on LedgerState {
-  /// Replaces every live table with [other]'s contents, keeping this object.
-  ///
-  /// The sync apply boundary validates [other] structurally before calling
-  /// this, so the refill itself never throws. The lifecycle baseline refresh
-  /// lives only inside the debug-only assert closure, which release builds
-  /// skip entirely: no snapshot map is allocated there, and the next debug
-  /// local mutation evaluates clause 12 against the post-sync baseline.
   void adopt(LedgerState other) {
     _moneySources
       ..clear()

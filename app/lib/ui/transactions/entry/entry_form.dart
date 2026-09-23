@@ -6,8 +6,6 @@ import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/entry/new_entry_form.dart';
 import 'package:spendwise/ui/transactions/entry/view_entry_form.dart';
 
-/// Opens the entry form as a bottom sheet. Pass [entryId] to open an
-/// existing entry read-only, or omit it for a new entry.
 Future<void> showEntryFormSheet({
   required BuildContext context,
   String? entryId,

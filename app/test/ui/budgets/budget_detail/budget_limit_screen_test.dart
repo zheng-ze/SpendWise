@@ -46,8 +46,6 @@ void main() {
 
       expect(find.text('Default Budget'), findsOneWidget);
       expect(find.text(r'$100.00'), findsWidgets);
-      // Latest month first (most relevant to the user), so December is
-      // visible without scrolling and January needs a scroll down to reach.
       expect(
         find.text(formatMonthLabel(DateTime.utc(now.year, 12))),
         findsOneWidget,

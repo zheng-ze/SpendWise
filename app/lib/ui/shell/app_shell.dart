@@ -34,8 +34,6 @@ class _AppShellState extends ConsumerState<AppShell> {
   bool _useRail = false;
   bool _extended = false;
 
-  // Two thresholds per mode, so a window sitting right at a boundary does not
-  // flip layouts back and forth as it resizes by a pixel.
   void _updateLayoutMode(double width) {
     final useRail = _useRail
         ? width >= LayoutBreakpoints.railExit
@@ -113,8 +111,6 @@ class _AppShellState extends ConsumerState<AppShell> {
   }
 }
 
-// IndexedStack keeps every destination's Flow mounted, so a drilled-in stack
-// survives a switch away and back. Each Flow owns its own Navigator.
 class _DestinationStacks extends StatelessWidget {
   const _DestinationStacks({required this.selected, required this.bodies});
 

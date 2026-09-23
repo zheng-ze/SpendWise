@@ -2,10 +2,7 @@ import 'package:domain/domain.dart';
 
 enum AccountFormKind { account, subpocket }
 
-/// Returns the active accounts a pocket can be created under.
 List<Account> pocketableParents(LedgerState state) {
-  // Pockets can never live under a card, so this excludes cards rather
-  // than trusting the caller to filter them out.
   return state.activeAccounts
       .where((account) => account.type != AccountType.card)
       .toList();

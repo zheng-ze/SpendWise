@@ -14,8 +14,6 @@ import 'package:spendwise/ui/transactions/daily_list/daily_transactions_screen.d
 
 import '../../support/in_memory_ledger_store.dart';
 
-// Lets a test hold boot in Loading, then decide whether the run fails or
-// succeeds, so all three phases are reachable from one widget.
 class _GatedStoreFactory {
   _GatedStoreFactory();
 
@@ -49,8 +47,6 @@ void main() {
               AppBoot(createStore: factory.call, seedChanges: seedChanges)
                 ..start(),
         ),
-        // The Stats tab mounts eagerly and refreshes on the first frame, but
-        // a spawned isolate can't see the test zone's fake-async state.
         analysisCacheProvider.overrideWith(
           (ref) => AnalysisCache(runner: syncComputeRunner),
         ),
@@ -87,8 +83,6 @@ void main() {
     final factory = _GatedStoreFactory();
     await tester.pumpWidget(hostedIn(containerWith(factory)));
 
-    // Stands in for a real storage failure whose exact wording should never
-    // reach the screen.
     factory.fail(Exception('DriftException: disk image is malformed'));
     await tester.pumpAndSettle();
 

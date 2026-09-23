@@ -90,7 +90,6 @@ void main() {
     () async {
       final store = RecordingLedgerStore(hasSeeded: true);
       final app = boot(store);
-      // Fails after the event bus is created but before boot reaches Ready.
       store.failOn = StoreCall.start;
       await app.start();
       expect(app.phase, isA<Failed>());
@@ -104,7 +103,6 @@ void main() {
       );
       await store.flushNow();
 
-      // Two would mean the orphaned processor still holds a live subscription.
       expect(store.state.moneySources, hasLength(1));
     },
   );

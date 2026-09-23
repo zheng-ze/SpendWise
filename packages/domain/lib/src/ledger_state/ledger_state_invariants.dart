@@ -1,8 +1,6 @@
 part of 'ledger_state.dart';
 
 extension LedgerStateInvariants on LedgerState {
-  // Only `_checked` calls this. `assertInvariants` stays snapshot-only so a
-  // caller can validate a state it did not build, as persistence replay does.
   void _assertChecked() {
     assertInvariants();
     _assertLifecycleMonotonic();
@@ -16,8 +14,6 @@ extension LedgerStateInvariants on LedgerState {
       key: value.lifecycle,
   };
 
-  // Lifecycle only moves toward less alive, except archived back to active.
-  // Needs the prior snapshot because the resulting state alone is legal.
   void _assertLifecycleMonotonic() {
     final before = _lifecycleAtLastCheck;
     if (before == null) return;
@@ -36,7 +32,6 @@ extension LedgerStateInvariants on LedgerState {
     }
   }
 
-  /// Throws [StateError] naming the first clause violated.
   void assertInvariants() {
     _assertKeysMatchIDs();
     _assertPocketLinksResolveAndAreExclusive();
@@ -132,8 +127,6 @@ extension LedgerStateInvariants on LedgerState {
         throw _violation(5, 'category ${category.id} kind differs from parent');
       }
 
-      // An archived parent is fine, since archiving cascades to children. A
-      // referenceOnly or tombstoned one should have taken the child down too.
       if (!parent.lifecycle.isAtLeastAsAliveAs(category.lifecycle) &&
           !parent.lifecycle.isAtLeastAsAliveAs(LifecycleState.archived)) {
         throw _violation(
@@ -229,8 +222,6 @@ extension LedgerStateInvariants on LedgerState {
     }
   }
 
-  // The mutators clamp on the write path. This catches a row that arrived
-  // through the seeding constructor or a future import instead.
   void _assertStatementDayInRange() {
     for (final account in _accounts) {
       final statementDay = account.statementDay;
@@ -253,8 +244,6 @@ extension LedgerStateInvariants on LedgerState {
     }
   }
 
-  // Lifecycle only, existence is covered elsewhere. An archived row is legal
-  // since archiving freezes a plan; a leaving row means a cascade missed it.
   void _assertPlansReferenceActiveRows() {
     bool isLeaving(LifecycleState lifecycle) =>
         lifecycle == LifecycleState.referenceOnly ||
@@ -284,8 +273,6 @@ extension LedgerStateInvariants on LedgerState {
     }
   }
 
-  // updatePocket enforces this on the write path but only judges the child,
-  // so a path that moves the parent instead escapes it uncaught until here.
   void _assertPocketNotMoreAliveThanAccount() {
     for (final account in _accounts) {
       for (final pocketID in account.subPocketIDs) {
@@ -303,8 +290,6 @@ extension LedgerStateInvariants on LedgerState {
     }
   }
 
-  // A budget cannot outlive its category outside the cascade paths in
-  // ledger_state_budgets.dart, which remove the budget in the same operation.
   void _assertBudgetCategoryResolves() {
     for (final budget in _budgets.values) {
       final categoryID = budget.categoryID;
@@ -319,9 +304,6 @@ extension LedgerStateInvariants on LedgerState {
     }
   }
 
-  // Defensive backstop: the mutators should already make any other shape
-  // unreachable. Only the first event may carry a null effectiveFromMonth,
-  // and only the first event may be unbounded; no override may be first.
   void _assertBudgetLimitEventShape() {
     for (final budget in _budgets.values) {
       final events = budget.limitEvents;

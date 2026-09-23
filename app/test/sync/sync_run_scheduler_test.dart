@@ -3,10 +3,6 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/sync/sync_run_scheduler.dart';
 
-/// Hand-written fake for the injected run-pass callback.
-///
-/// Each invocation records a call and returns a gate future the test
-/// completes explicitly, so the test controls exactly when a pass finishes.
 final class FakeRunPass {
   int calls = 0;
   final List<Completer<void>> gates = <Completer<void>>[];
@@ -115,7 +111,6 @@ void main() {
       expect(fake.calls, 2);
       expect(statuses, <bool>[true, false]);
 
-      // The scheduler is reusable once idle: a later trigger starts a pass.
       scheduler.requestRun();
       await pumpScheduler();
       expect(fake.calls, 3);

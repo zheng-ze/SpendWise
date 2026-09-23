@@ -12,10 +12,8 @@ class AnalysisItem {
     required this.kind,
   }) : date = startOfDayUtc(date);
 
-  /// Null is the Uncategorized bucket, not an absent value.
   final String? bucketID;
 
-  /// Always positive. [kind] carries the direction.
   final Decimal amount;
 
   final DateTime date;

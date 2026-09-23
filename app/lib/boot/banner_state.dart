@@ -7,8 +7,6 @@ import 'package:spendwise/persistence/ledger_store.dart';
 
 const _dismissAfter = Duration(seconds: 4);
 
-/// The two banner channels are independent, so neither dismisses the other. A
-/// plan error outranks a save message and clears only on its timer.
 class BannerState extends ChangeNotifier {
   SaveBannerState _saveState = SaveBannerState.clear;
 
@@ -26,8 +24,6 @@ class BannerState extends ChangeNotifier {
     SaveBannerState.permanentlyFailed => "Couldn't save changes",
   };
 
-  // A clear means the store has nothing to report, never that a plan error
-  // showing alongside it has been dismissed.
   void receiveSaveState(SaveBannerState state) {
     _saveState = state;
     notifyListeners();

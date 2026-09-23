@@ -8,8 +8,6 @@ import 'package:spendwise/ui/accounts/source_edit/source_edit_form.dart';
 import 'package:spendwise/ui/common/flow_base.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
 
-/// Owns the Accounts feature's own nested Navigator, so a picker sheet or
-/// a scoped transactions push never reaches for the app's root Navigator.
 class AccountsFlow extends FlowBase<AccountsStep> {
   const AccountsFlow({super.key});
 
@@ -45,11 +43,9 @@ class _AccountsFlowState extends FlowBaseState<AccountsStep, AccountsFlow> {
       case PocketOpened(:final title, :final scopeIDs):
         _pushTransactions(context, title, scopeIDs);
       case PickParentRequested():
-        // The account form sheet's own subscription handles this instead.
         break;
       case AccountFormSaved():
       case SourceEditFormSaved():
-        // Each form sheet's own subscription handles closing itself.
         break;
     }
     _screenViewModel.clearStep();

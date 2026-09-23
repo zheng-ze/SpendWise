@@ -7,18 +7,11 @@ import 'package:spendwise/ledger/ledger_publication.dart';
 
 export 'package:spendwise/ledger/ledger_publication.dart';
 
-/// A handler must only enqueue or bump a counter, never mutate the ledger. It
-/// runs inside [publish], and so inside the mutation that produced the batch,
-/// while the remaining subscribers have yet to be served. The controller
-/// enforces this by throwing on the reentrant add.
+/// Handlers must not mutate the ledger; they run inside publish.
 class EventBus {
   final StreamController<LedgerPublication> _controller =
       StreamController<LedgerPublication>.broadcast(sync: true);
 
-  /// Publishes [changes] with optional sync [stamps]. Ordinary local
-  /// mutations omit [stamps]; the sync engine supplies them for remote
-  /// batches. Returns without publishing when [changes] is empty, even when
-  /// [stamps] is present.
   void publish(
     List<LedgerChange> changes, {
     Map<SyncRowID, VersionVector>? stamps,
@@ -26,7 +19,6 @@ class EventBus {
     if (changes.isEmpty) return;
 
     var publication = LedgerPublication(changes: changes, stamps: stamps);
-    // Debug-only, so the wrapper allocations disappear in release.
     assert(() {
       publication = LedgerPublication(
         changes: List<LedgerChange>.unmodifiable(changes),

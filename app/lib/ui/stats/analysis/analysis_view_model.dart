@@ -74,12 +74,8 @@ class AnalysisNotifier extends AsyncNotifier<AnalysisViewState>
 
   final CategoryKind _kind;
 
-  // Uses read, not watch. This notifier already tracks the cache through
-  // addListener/_onChanged below, so watching too would rebuild on every refresh and loop.
   AnalysisCache get _cache => ref.read(analysisCacheProvider);
 
-  // Captured once because _onChanged runs outside build(), where ref.watch
-  // corrupts this provider's state instead of throwing.
   late Ledger _ledger;
 
   @override
@@ -91,8 +87,6 @@ class AnalysisNotifier extends AsyncNotifier<AnalysisViewState>
     cache.addListener(_onChanged);
     ref.onDispose(() => currentLedger.removeListener(_onChanged));
     ref.onDispose(() => cache.removeListener(_onChanged));
-    // Awaited so build() returns with the cache's items already computed,
-    // not the empty list this same refresh would otherwise still be racing to fill.
     await cache.refresh(currentLedger.state);
     return _buildState();
   }

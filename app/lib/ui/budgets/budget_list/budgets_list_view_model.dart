@@ -10,8 +10,6 @@ import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart
 import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/step_emitting.dart';
 
-/// Groups a subcategory's budget under its parent's name, so the two sort
-/// next to each other even when only the child carries a budget.
 (String groupName, bool isSubcategory, String ownName) budgetSortKey(
   Budget budget,
   LedgerState state,
@@ -82,7 +80,6 @@ abstract class BudgetsListViewModel {
   void requestBudgetDetail(String budgetID);
   void requestNewBudget();
 
-  /// Deletes the budget without asking for confirmation first.
   void deleteBudget(String id);
   void clearStep();
 }
@@ -92,14 +89,10 @@ class BudgetsListNotifier extends AsyncNotifier<BudgetsListViewState>
         LedgerBackedNotifier<BudgetsListViewState>,
         StepEmitting<BudgetsListViewState, BudgetsStep>
     implements BudgetsListViewModel {
-  // read, not watch: _onChanged below already tracks the cache, so watching
-  // too would trigger refresh() on every cache change and loop.
   AnalysisCache get _cache => ref.read(analysisCacheProvider);
 
   BudgetsStep? _step;
 
-  // Captured once: _onChanged runs outside build(), where ref.watch (the
-  // ledger getter) corrupts state instead of throwing.
   late Ledger _ledger;
 
   @override
@@ -111,8 +104,6 @@ class BudgetsListNotifier extends AsyncNotifier<BudgetsListViewState>
     cache.addListener(_onChanged);
     ref.onDispose(() => currentLedger.removeListener(_onChanged));
     ref.onDispose(() => cache.removeListener(_onChanged));
-    // Awaited so build() returns with the cache's items already computed,
-    // instead of racing a later notifyListeners() from this same refresh.
     await cache.refresh(currentLedger.state);
     return _buildState();
   }

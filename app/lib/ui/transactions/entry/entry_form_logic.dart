@@ -21,8 +21,6 @@ bool canSaveEntryForm({
   return true;
 }
 
-/// Applies the stored sign for the kind: income positive, expense negative,
-/// transfer positive with no category. `magnitude` must already be positive.
 Entry signedEntryForSave({
   required EntryFormKind kind,
   required Decimal magnitude,

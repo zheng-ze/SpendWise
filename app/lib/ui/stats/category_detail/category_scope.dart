@@ -1,8 +1,6 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/foundation.dart' show immutable;
 
-/// Sealed rather than an enum so `sub`'s payload can hold the null bucket
-/// explicitly, distinct from `all`'s lack of any id constraint.
 @immutable
 sealed class CategoryScope {
   const CategoryScope();

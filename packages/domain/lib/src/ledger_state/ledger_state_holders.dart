@@ -5,7 +5,6 @@ extension LedgerStateHolders on LedgerState {
     if (_moneySources.containsKey(account.id)) {
       throw IdCollision(account.id);
     }
-    // Links are owned by pocket creation, so a caller-supplied set is dropped.
     final stored = account
         .withNormalizedStatementDay()
         .withEligibleTransferFlag()
@@ -14,9 +13,6 @@ extension LedgerStateHolders on LedgerState {
     return _checked([UpsertAccount(stored)]);
   }
 
-  /// An edit can neither add nor drop a pocket link.
-  // Links come from the stored row. Only addPocket and the purge detach may
-  // move them.
   List<LedgerChange> updateAccount(Account account) {
     final existing = _moneySources[account.id]?.asAccount;
     if (existing == null) throw UnknownAccount(account.id);
@@ -30,8 +26,6 @@ extension LedgerStateHolders on LedgerState {
     return _checked([UpsertAccount(stored), ..._demotePocketsBelow(stored)]);
   }
 
-  // A pocket may never be more alive than its account, so an edit that moves
-  // the parent down has to carry its pockets down with it.
   List<LedgerChange> _demotePocketsBelow(Account account) {
     final changes = <LedgerChange>[];
     for (final pocketID in account.subPocketIDs) {
@@ -87,7 +81,6 @@ extension LedgerStateHolders on LedgerState {
     final account = _moneySources[id]?.asAccount;
     if (account == null || !account.lifecycle.isActive) return _checked([]);
 
-    // Links are kept so restore can find the pockets again.
     final changes = _moveAccountTree(
       account,
       from: LifecycleState.active,
@@ -124,8 +117,6 @@ extension LedgerStateHolders on LedgerState {
     final pocket = _moneySources[id]?.asPocket;
     if (pocket == null || !pocket.lifecycle.isActive) return _checked([]);
 
-    // No plan cascade here. Archiving freezes plans so a restore is not lossy,
-    // and their occurrences fail validation meanwhile, which resolving reports.
     final archived = pocket.settingLifecycle(LifecycleState.archived);
     _moneySources[id] = PocketSource(archived);
     return _checked([UpsertPocket(archived)]);
@@ -138,7 +129,6 @@ extension LedgerStateHolders on LedgerState {
       return _checked([]);
     }
 
-    // referenceOnly pockets stay put, having left the bin permanently.
     return _checked(
       _moveAccountTree(
         account,

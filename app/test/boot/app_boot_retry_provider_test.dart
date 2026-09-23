@@ -5,8 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/app_phase.dart';
 import 'package:spendwise/boot/providers.dart';
 
-// Throws on its first open and succeeds after, standing in for a transient
-// connection failure that has cleared by the time retry runs.
 class _FlakyOpener {
   var _calls = 0;
 

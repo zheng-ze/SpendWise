@@ -44,8 +44,6 @@ bool _listEquals(List<LimitEvent> a, List<LimitEvent> b) {
   return true;
 }
 
-/// An override on [month] always wins, last one appended if more than one.
-/// Otherwise, the latest default event at or before [month].
 Decimal effectiveLimit(Budget budget, YearMonth month) {
   for (final event in budget.limitEvents.reversed) {
     if (event.kind == LimitEventKind.override &&

@@ -8,8 +8,6 @@ final selectedDestinationProvider = StateProvider<ShellDestination>(
 
 DateTime startOfMonthUtc(DateTime date) => DateTime.utc(date.year, date.month);
 
-// Held in a provider rather than the shell widget's state, so a rebuild of
-// the shell cannot reset the user's choice.
 final selectedMonthProvider = StateProvider<DateTime>(
   (ref) => startOfMonthUtc(DateTime.now()),
 );

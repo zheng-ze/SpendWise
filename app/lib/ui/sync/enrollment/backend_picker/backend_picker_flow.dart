@@ -5,8 +5,6 @@ import 'package:spendwise/ui/common/flow_base.dart';
 import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_screen.dart';
 import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_view_model.dart';
 
-/// A custom selection builds no backend; the picker stays on screen with a
-/// not-yet-available affordance instead of advancing.
 class BackendPickerFlow extends FlowBase<BackendPickerStep> {
   const BackendPickerFlow({
     super.key,

@@ -131,8 +131,6 @@ void main() {
     await app.start();
 
     final zoneErrors = <Object>[];
-    // An unhandled async error escapes the current zone, so wrapping in
-    // runZonedGuarded proves whether flush()'s failure was actually caught.
     await runZonedGuarded(() async {
       app.didChangeAppLifecycleState(AppLifecycleState.paused);
       await Future<void>.delayed(Duration.zero);

@@ -5,8 +5,6 @@ const _scanStripEnabledKey = 'scanStripEnabled';
 class AppSettings {
   const AppSettings();
 
-  /// Whether the new-entry form shows the scan/upload strip. Defaults to
-  /// true when nothing has been saved yet.
   Future<bool> scanStripEnabled() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_scanStripEnabledKey) ?? true;

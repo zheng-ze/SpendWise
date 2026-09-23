@@ -8,9 +8,6 @@ import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_flow.
 import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_screen.dart';
 import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_view_model.dart';
 
-/// Hand-written stand-in for the persistence seam: completes writes
-/// immediately, so the suite proves the Flow reacts to the steps the
-/// controller emits rather than to storage behavior.
 final class FakeBackendSelectionWriter implements BackendSelectionWriter {
   final List<({SyncBackendKind backend, String? endpoint})> calls = [];
 

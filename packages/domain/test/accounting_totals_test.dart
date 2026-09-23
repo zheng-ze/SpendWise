@@ -128,7 +128,6 @@ void main() {
 
     test('an expense whose source holder was removed counts as neither', () {
       final ledger = LedgerState();
-      // a is never added, standing in for a holder that was removed.
       final e = entry(amount: money(-50), sourceID: a);
 
       final result = Accounting.totals(
@@ -146,7 +145,6 @@ void main() {
       () {
         final ledger = LedgerState();
         ledger.addAccount(account(a, incomingTransfersAsExpenses: true));
-        // b is never added, standing in for a holder that was removed.
         final e = entry(amount: money(300), sourceID: a, destinationID: b);
 
         final result = Accounting.totals(

@@ -10,8 +10,6 @@ import 'package:spendwise/ui/common/error_section.dart';
 import 'package:spendwise/ui/common/form_scaffold.dart';
 import 'package:spendwise/ui/common/statement_day_picker.dart';
 
-/// Opens the edit sheet for an existing account or subpocket, reached from
-/// the scoped transactions screen's action button.
 Future<void> showSourceEditFormSheet({
   required BuildContext context,
   required String holderID,
@@ -71,8 +69,6 @@ class _SourceEditFormState extends ConsumerState<SourceEditForm> {
       case PocketOpened():
       case PickParentRequested():
       case AccountFormSaved():
-        // Only AccountsViewModel or AccountFormViewModel emit these.
-        // Unreachable here.
         break;
     }
     _viewModel.clearStep();

@@ -3,30 +3,12 @@ import 'package:drift/drift.dart';
 import 'package:spendwise/persistence/ledger_database.dart';
 import 'package:sync/sync.dart';
 
-/// Explicit sibling-lifecycle codes stored in `sync_staged_siblings`.
-///
-/// Never persist an enum index; these codes stay stable across refactors.
 const int _stagedLifecycleLive = 0;
 const int _stagedLifecycleTombstone = 1;
 
-/// Drift-backed [SyncStagingStore] keeping decrypted staged siblings locally,
-/// consistent with the existing plaintext `LedgerState` storage.
-///
-/// The package contract is synchronous while Drift is not. The async core
-/// methods ([stageConflict], [pendingConflictList], [resolveConflict]) are the
-/// durable operations: each commits in one atomic Drift transaction. The
-/// synchronous [SyncStagingStore] overrides exist so the package engine can
-/// hold this store; they enqueue the same durable work, and [flush] settles
-/// engine-enqueued writes. Await [flush] (or the async core method directly)
-/// before relying on durability, for example before advancing a page
-/// watermark over staged rows.
-///
-/// [pendingConflicts] reflects the last settled state; [open] and
-/// [pendingConflictList] reload it from the database.
 final class DriftSyncStagingStore implements SyncStagingStore {
   DriftSyncStagingStore(this._db);
 
-  /// Loads persisted groups so the store survives a force-quit.
   static Future<DriftSyncStagingStore> open(LedgerDatabase db) async {
     final store = DriftSyncStagingStore(db);
     await store._reload();
@@ -37,8 +19,6 @@ final class DriftSyncStagingStore implements SyncStagingStore {
   final List<StagedConflict> _mirror = [];
   final List<Future<void>> _pending = [];
 
-  /// Stages [conflict], replacing the prior group for the same collection and
-  /// row, and moves the group to the newest position.
   Future<void> stageConflict(StagedConflict conflict) async {
     final collection = conflict.collection;
     final rowID = conflict.rowID;
@@ -78,15 +58,12 @@ final class DriftSyncStagingStore implements SyncStagingStore {
     _mirror.add(conflict);
   }
 
-  /// Reads every staged group oldest first, refreshing the settled view.
   @override
   Future<List<StagedConflict>> pendingConflictList() async {
     await _reload();
     return List.unmodifiable(_mirror);
   }
 
-  /// Resolves the group for the same collection and row, acting as an
-  /// idempotent no-op when it is absent.
   Future<void> resolveConflict(StagedConflict conflict) async {
     final collection = conflict.collection;
     final rowID = conflict.rowID;
@@ -98,8 +75,6 @@ final class DriftSyncStagingStore implements SyncStagingStore {
     );
   }
 
-  // Deletes the staged siblings and conflict row for collection/rowID.
-  // Callers must run this inside their own transaction.
   Future<void> _deleteGroup(SyncCollection collection, String rowID) async {
     await (_db.delete(_db.syncStagedSiblings)..where(
           (t) => t.collection.equalsValue(collection) & t.rowId.equals(rowID),
@@ -111,8 +86,6 @@ final class DriftSyncStagingStore implements SyncStagingStore {
         .go();
   }
 
-  /// Settles writes enqueued through the synchronous engine-path overrides.
-  /// Rethrows the first failure, if any.
   @override
   Future<void> flush() async {
     if (_pending.isEmpty) return;

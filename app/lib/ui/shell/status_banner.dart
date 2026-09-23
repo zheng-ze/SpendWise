@@ -8,8 +8,6 @@ class StatusBanner extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // A stack layer rather than a snackbar, since the message needs to persist
-    // until the store clears it rather than auto-dismissing.
     final message = ref.watch(bannerStateProvider).message;
     if (message == null) return const SizedBox.shrink();
 

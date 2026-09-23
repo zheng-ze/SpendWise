@@ -36,8 +36,6 @@ void main() {
     entries: {for (final entry in entries) entry.id: entry},
   );
 
-  // now is pinned to a fixed date via the now parameter so year-cutoff and
-  // current-month/current-week flags do not depend on the wall clock.
   final now = day(2026, 7, 15);
 
   test('a future year yields zero months', () {
@@ -193,9 +191,6 @@ void main() {
   );
 
   test('a spillover week appears under both months with identical totals', () {
-    // 2026-08-01 is a Saturday, so the week containing it (Mon 2026-07-27 to
-    // Sun 2026-08-02) spills from July into August. "now" is pinned to
-    // August here so both months are within the year cutoff.
     final state = baseState(
       entries: [
         Entry(
@@ -258,8 +253,6 @@ void main() {
     final months = monthSummaries(state, day(2026), now: now);
     final july = months.firstWhere((m) => m.month == day(2026, 7, 1));
 
-    // Monday 2026-07-06 through Sunday 2026-07-12, stored end-exclusive as
-    // the 13th.
     final week = july.weeks.firstWhere((w) => w.range.start == day(2026, 7, 6));
     expect(week.range.end, day(2026, 7, 13));
   });

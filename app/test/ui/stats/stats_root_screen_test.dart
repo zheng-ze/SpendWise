@@ -10,8 +10,6 @@ import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/stats/stats_flow.dart';
 import 'package:spendwise/ui/stats/helpers/stats_window.dart';
 
-// A single-category window can show the same figure in the legend row, so
-// this scopes the match to the AmountHeader that renders the total line.
 Finder totalAmountText(String text) =>
     find.descendant(of: find.byType(AmountHeader), matching: find.text(text));
 

@@ -2,8 +2,6 @@ import 'package:domain/domain.dart';
 
 import 'package:spendwise/ui/stats/helpers/stats_window.dart';
 
-/// The category and its children that count toward [budget]'s spend, or
-/// null for an overall budget (every expense category counts).
 Set<String>? budgetBucketIDs(Budget budget, LedgerState state) {
   final categoryID = budget.categoryID;
   if (categoryID == null) return null;
@@ -15,8 +13,6 @@ Set<String>? budgetBucketIDs(Budget budget, LedgerState state) {
   };
 }
 
-// No includeInAnalysis check here. Accounting.classify already dropped excluded items
-// when it built this AnalysisItem list, unlike a filter over raw entries.
 bool _budgetMatches(Budget budget, AnalysisItem item, LedgerState state) {
   if (item.kind != CategoryKind.expense) return false;
   if (budget.categoryID == null) return true;

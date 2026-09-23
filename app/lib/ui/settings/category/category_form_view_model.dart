@@ -15,7 +15,6 @@ bool isKindLocked({
 
 bool canSaveCategoryForm(String name) => name.trim().isNotEmpty;
 
-/// Returns the root categories of [kind], minus [excludingID].
 List<TransactionCategory> eligibleParents(
   List<TransactionCategory> categories,
   CategoryKind kind, {
@@ -24,8 +23,6 @@ List<TransactionCategory> eligibleParents(
   return categories
       .where(
         (category) =>
-            // A child never qualifies: nesting only goes one level deep, so
-            // a child can't parent another.
             category.parentID == null &&
             category.kind == kind &&
             category.id != excludingID,
@@ -33,8 +30,6 @@ List<TransactionCategory> eligibleParents(
       .toList();
 }
 
-/// Which category (if any) is being edited, and any parent preset from
-/// "add subcategory".
 @immutable
 class CategoryFormArgs {
   const CategoryFormArgs({this.category, this.presetParentID});
@@ -79,8 +74,6 @@ class CategoryFormViewState
     this.step,
   });
 
-  /// The id of the category being edited, or null when this form creates a
-  /// new one. Also excludes this category from its own possible parents.
   final String? editedCategoryID;
 
   final bool hasPresetParent;
@@ -176,8 +169,6 @@ abstract class CategoryFormViewModel {
   void clearStep();
 }
 
-// One instance per (category, presetParentID) pair, since the provider is a
-// family keyed by what the form edits.
 class CategoryFormNotifier extends AsyncNotifier<CategoryFormViewState>
     with
         LedgerBackedNotifier<CategoryFormViewState>,
@@ -259,8 +250,6 @@ class CategoryFormNotifier extends AsyncNotifier<CategoryFormViewState>
   @override
   void requestPickParent() => emitStep(PickParentRequested());
 
-  // A picker outcome can arrive after the sheet that opened it was
-  // dismissed, so this must no-op rather than update a gone provider.
   @override
   void applyPickedParent(String? id) {
     if (!ref.mounted) return;

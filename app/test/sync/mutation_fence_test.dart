@@ -23,8 +23,6 @@ void main() {
 
     bus.publish(const [DeleteEntry('row-1')]);
 
-    // No await between publish and check: the broadcast is sync, so the
-    // fence's listener has already run before publish returned.
     expect(fence.checkClean(before), isFalse);
   });
 

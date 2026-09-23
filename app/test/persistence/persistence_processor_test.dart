@@ -15,8 +15,6 @@ Account _account({String name = 'acc'}) =>
 Entry _entry(String sourceID) =>
     Entry(amount: Decimal.fromInt(-10), name: 'entry', sourceID: sourceID);
 
-// Holds `start()` open until the test releases it, so a processor that awaited
-// the store before subscribing would miss anything published in between.
 class _GatedStore extends InMemoryLedgerStore {
   final Completer<void> gate = Completer<void>();
 
@@ -171,8 +169,6 @@ void main() {
 
     final starting = processor.start();
 
-    // Published while `start()` is still suspended on the gate. A subscription
-    // taken only after the await would never see it.
     final early = _account(name: 'early');
     bus.publish([UpsertAccount(early)]);
 

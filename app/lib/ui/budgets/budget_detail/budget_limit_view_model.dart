@@ -118,8 +118,6 @@ class BudgetLimitNotifier extends AsyncNotifier<BudgetLimitViewState>
     emitStep(PickLimitRequested(target));
   }
 
-  // A picker outcome can arrive after the sheet that opened it was
-  // dismissed, so this must no-op rather than update a gone provider.
   @override
   void applyPickedLimit(Decimal? amount) {
     if (!ref.mounted) return;

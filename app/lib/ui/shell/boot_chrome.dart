@@ -49,8 +49,6 @@ class _LoadFailure extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
 
-    // Logged only, since the screen below deliberately withholds this
-    // developer-facing detail from the user.
     debugPrint('AppBoot failed to load: $error');
 
     return Scaffold(

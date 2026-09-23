@@ -670,8 +670,6 @@ void main() {
   });
 
   group('dates', () {
-    // Northern spring forward, southern autumn back, and the two instants a
-    // zone-aware conversion would slide onto the neighbouring day.
     final dstDays = [
       DateTime.utc(2026, 3, 8),
       DateTime.utc(2026, 11, 1),
@@ -727,8 +725,6 @@ void main() {
       }
     });
 
-    // Asserted on the reader rather than a mapped row, since domain
-    // constructors re-normalize the date and would hide an instant-preserving read.
     test('a stored instant off midnight reads as the day it names', () {
       for (final stored in [
         DateTime.utc(2026, 3, 14, 23, 59),

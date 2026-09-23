@@ -22,8 +22,6 @@ void main() {
         ),
       ),
     );
-    // Flushes SourceEditFormNotifier.build()'s Future so the form's
-    // initial AsyncData state is in place before a test interacts with it.
     await tester.pump();
   }
 
@@ -175,8 +173,6 @@ void main() {
     await pumpForm(tester, ledger, pocket.id);
 
     expect(find.text('Include in net worth'), findsNothing);
-    // Cash cannot treat incoming transfers as expenses, and a pocket has no
-    // type of its own, so it follows its parent account's eligibility.
     expect(find.text('Transfers in count as expenses'), findsNothing);
     expect(find.text('Type'), findsNothing);
   });

@@ -10,16 +10,12 @@ import 'package:spendwise/persistence/ledger_store.dart';
 import 'package:spendwise/persistence/mappers.dart';
 import 'package:sync/sync.dart';
 
-// Tests supply their own so the suite never waits out a real debounce or backoff.
 abstract class StoreTimer {
   void cancel();
 }
 
 typedef ArmTimer = StoreTimer Function(Duration delay, void Function() onFire);
 
-/// Raised when a row's stored version vector cannot be decoded, which makes
-/// the row permanently unsaveable: every future write to it fails the same
-/// way, so retrying never clears it.
 class PermanentSaveError implements Exception {
   const PermanentSaveError(this.reason);
 
@@ -29,13 +25,6 @@ class PermanentSaveError implements Exception {
   String toString() => 'PermanentSaveError($reason)';
 }
 
-/// Raised by [DriftLedgerStore.flushNow] when the persistence barrier gives up
-/// instead of landing everything enqueued before the call: either a
-/// [PermanentSaveError] or retry exhaustion of a transient failure.
-///
-/// Carries the original [cause] and [stackTrace] from whichever failure caused
-/// the give-up, so callers can distinguish a corrupt row from a failing disk
-/// without re-running the save.
 final class PersistenceBarrierFailure implements Exception {
   const PersistenceBarrierFailure(this.message, {this.cause, this.stackTrace});
 
@@ -62,13 +51,10 @@ class _RealTimer implements StoreTimer {
 StoreTimer _armRealTimer(Duration delay, void Function() onFire) =>
     _RealTimer(delay, onFire);
 
-// Rides the ingest queue alongside the batches. Completing it on the drain
-// loop is what proves every batch queued ahead of it is already in `pending`.
 class _Barrier {
   final Completer<void> reached = Completer<void>();
 }
 
-// A null stamp is an ordinary local write and keeps the existing bump path.
 final class _StampedChange {
   const _StampedChange(this.change, [this.stamp]);
 
@@ -77,9 +63,6 @@ final class _StampedChange {
   final VersionVector? stamp;
 }
 
-// One coalesced survivor: the last-arriving content for its SyncRowID, the
-// survivor's own stamp when it arrived stamped, and the pointwise maximum of
-// every stamp observed for the row independently of surviving content.
 final class _CoalescedWrite {
   const _CoalescedWrite(this.change, this.stamp, this.carried);
 
@@ -90,7 +73,6 @@ final class _CoalescedWrite {
   final VersionVector? carried;
 }
 
-/// Replay order is fixed: accounts, pockets, categories, entries, plans, budgets.
 Future<List<LedgerChange>> loadChanges(rows.LedgerDatabase db) async {
   Future<List<D>> live<T extends Table, D extends DataClass>(
     TableInfo<T, D> table,
@@ -147,27 +129,18 @@ class DriftLedgerStore implements LedgerStore {
 
   Future<void>? _inFlightSave;
 
-  // Reporting `clear` on every success would emit banner transitions for a
-  // problem the app never had.
   bool _reportedNonClear = false;
 
-  // Set while a timed retry cycle runs, so those attempts do not flip the
-  // banner back to `retrying` and make it flicker.
   bool _inTimedRetry = false;
 
   bool _lastCycleGaveUp = false;
 
-  // The failure that caused the last give-up, alongside [_lastCycleGaveUp],
-  // so flushNow can throw it instead of returning silently.
   Object? _lastFailure;
 
   StackTrace? _lastFailureStack;
 
-  // Cleared only once the transaction carrying it has committed, so a rolled
-  // back seed stays unseeded.
   bool _seedFlagPending = false;
 
-  /// The number of changes buffered but not yet committed to the database.
   @visibleForTesting
   int get pendingCount => _pending.length;
 
@@ -210,9 +183,6 @@ class DriftLedgerStore implements LedgerStore {
   Future<LedgerState> load() async =>
       LedgerState.replaying(await loadChanges(db));
 
-  /// The flag rides the save transaction rather than a transaction of its own,
-  /// so a crash before that commit leaves it unset with no seed rows and the
-  /// next launch seeds cleanly.
   @override
   Future<void> seedIfFirstLaunch(List<LedgerChange> changes) async {
     final meta = await db.select(db.storeMeta).getSingleOrNull();
@@ -223,10 +193,6 @@ class DriftLedgerStore implements LedgerStore {
     await flushNow();
   }
 
-  /// Everything enqueued before this call has landed when it returns.
-  ///
-  /// Throws [PersistenceBarrierFailure] when the save gives up with writes
-  /// still pending instead of returning silently with an unwritten queue.
   @override
   Future<void> flushNow() async {
     await start();
@@ -240,15 +206,8 @@ class DriftLedgerStore implements LedgerStore {
     _debounceTimer = null;
     await _inFlightSave;
 
-    // One trailing save would return with anything buffered during that save
-    // still unwritten.
     while (_pending.isNotEmpty) {
       await _saveCycle();
-      // The timed retry owns recovery from a failing disk. Without this exit
-      // the loop would spin against it and never return. The give-up is
-      // reported by throwing, never by returning silently: a caller awaiting
-      // the barrier guarantee must not mistake an unwritten queue for a
-      // landed one.
       if (_lastCycleGaveUp) {
         throw PersistenceBarrierFailure(
           'The persistence barrier gave up with writes still pending.',
@@ -271,8 +230,6 @@ class DriftLedgerStore implements LedgerStore {
       _pending.addAll(item as List<_StampedChange>);
       buffered = true;
     }
-    // A queue holding only barriers has nothing new to save, so arming the
-    // debounce would wake an idle store.
     if (buffered) _armDebounce();
   }
 
@@ -286,8 +243,6 @@ class DriftLedgerStore implements LedgerStore {
     });
   }
 
-  // Reporting `clear` puts the store back in the clear state, so the next
-  // healthy save is silent again.
   void _report(SaveBannerState state) {
     final isClear = state == SaveBannerState.clear;
     if (isClear && !_reportedNonClear) return;
@@ -295,8 +250,6 @@ class DriftLedgerStore implements LedgerStore {
     _handler?.call(state);
   }
 
-  // The save and the backoff are both awaits, so two overlapping cycles would
-  // otherwise apply the same pending prefix twice.
   Future<void> _saveCycle() {
     final running = _inFlightSave;
     if (running != null) return running;
@@ -313,9 +266,6 @@ class DriftLedgerStore implements LedgerStore {
     for (var attempt = 0; attempt <= _maxRetries; attempt++) {
       if (_pending.isEmpty && !_seedFlagPending) return;
 
-      // The applied list is coalesced, the cleared count is raw. Clearing the
-      // coalesced count would leave written changes pending, and clearing more
-      // would drop batches buffered while the save was in flight.
       final taken = _pending.length;
       final coalesced = _coalesce(_pending.sublist(0, taken));
 
@@ -329,8 +279,6 @@ class DriftLedgerStore implements LedgerStore {
           if (seedingThisCycle) await _writeSeedFlag();
         });
       } on PermanentSaveError catch (error, stackTrace) {
-        // A corrupt version vector is permanent, so the row stays pending and
-        // no timed retry is armed: this save cycle ends without recovery.
         _lastCycleGaveUp = true;
         _lastFailure = error;
         _lastFailureStack = stackTrace;
@@ -357,8 +305,6 @@ class DriftLedgerStore implements LedgerStore {
     }
   }
 
-  // An upsert rather than an update: the device id is cached on first claim, so a rolled back
-  // insert leaves the cache holding an id no row carries and a bare update would match nothing.
   Future<void> _writeSeedFlag() async {
     await db
         .into(db.storeMeta)
@@ -382,12 +328,6 @@ class DriftLedgerStore implements LedgerStore {
     return completer.future;
   }
 
-  // Each survivor sits at its final occurrence's index. Rows are keyed by
-  // SyncRowID, so upserts and deletions share the moneySources keyspace (an
-  // upsert followed by a deletion of the same id applies only the deletion)
-  // while identical ids in different collections stay independent. Every
-  // observed stamp contributes to the row's carried pointwise maximum
-  // independently of which occurrence survives.
   static List<_CoalescedWrite> _coalesce(List<_StampedChange> pending) {
     final lastIndex = <SyncRowID, int>{};
     final carried = <SyncRowID, VersionVector>{};
@@ -413,9 +353,6 @@ class DriftLedgerStore implements LedgerStore {
     ];
   }
 
-  // VersionVector owns no merge, so the store computes the pointwise maximum
-  // from the public counters view. Zero counters never occur: the factory
-  // drops them at construction.
   static VersionVector _pointwiseMax(VersionVector a, VersionVector b) {
     final counters = Map<String, int>.of(a.counters);
     for (final entry in b.counters.entries) {
@@ -427,15 +364,11 @@ class DriftLedgerStore implements LedgerStore {
     return VersionVector(counters);
   }
 
-  // A null floor keeps the existing local bump path bit-for-bit.
   static VersionVector _withFloor(VersionVector stored, VersionVector? floor) =>
       floor == null ? stored : _pointwiseMax(floor, stored);
 
   Future<String> get _device => deviceID(db);
 
-  // A stamped survivor writes its stamp verbatim and never takes a local
-  // bump. An unstamped survivor bumps max(carried, stored), so a local edit
-  // coalesced after a stamped remote strictly dominates every carried stamp.
   Future<void> _apply(_CoalescedWrite write) async {
     final change = write.change;
     switch (change) {
@@ -473,8 +406,6 @@ class DriftLedgerStore implements LedgerStore {
           (v) => budgetToRow(budget, v),
         );
       case DeleteMoneySource(:final id):
-        // One id space over two tables, so a miss in accounts falls through.
-        // Only a miss in both stores the stamp as an orphan tombstone.
         if (!await _tombstone(db.accounts, id, write)) {
           if (!await _tombstone(db.subPockets, id, write)) {
             await _writeOrphanIfStamped(SyncCollection.moneySources, id, write);
@@ -513,8 +444,6 @@ class DriftLedgerStore implements LedgerStore {
     return row?.read<Uint8List>('version_data');
   }
 
-  // A corrupt vector is a permanent failure, so it surfaces as a typed error
-  // _runCycle can tell apart from a real disk fault.
   VersionVector _decodeVersion(Uint8List stored) {
     try {
       return versionFromRow(stored);
@@ -552,9 +481,6 @@ class DriftLedgerStore implements LedgerStore {
     await _clearOrphan(collection, id);
     final stamp = write.stamp;
     if (stamp != null) {
-      // The survivor's own stamp is written verbatim, merged only with the
-      // orphan: `carried` can hold stamps from discarded occurrences, so it
-      // never enters this branch.
       final version = _pointwiseMax(orphan, stamp);
       await db.into(table).insertOnConflictUpdate(toRow(version));
       return;
@@ -588,9 +514,6 @@ class DriftLedgerStore implements LedgerStore {
     return true;
   }
 
-  // Reads the orphan tombstone for (collection, id) through the raw row, so a
-  // corrupt vector surfaces as a permanent failure exactly like a corrupt
-  // content vector. Null when no orphan is stored.
   Future<VersionVector?> _orphanVersion(
     SyncCollection collection,
     String id,
@@ -610,10 +533,6 @@ class DriftLedgerStore implements LedgerStore {
     return stored == null ? null : _decodeVersion(stored);
   }
 
-  // Persists a stamped delete for a never-stored row as an orphan tombstone,
-  // carrying its stamp verbatim. Re-delivery of the same stamp is idempotent;
-  // a later different stamp replaces the stored vector. A local (unstamped)
-  // delete stays a no-op.
   Future<void> _writeOrphanIfStamped(
     SyncCollection collection,
     String id,

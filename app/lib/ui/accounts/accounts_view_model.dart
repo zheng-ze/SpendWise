@@ -16,12 +16,8 @@ class SourceEditRequested extends AccountsStep {
   final String holderId;
 }
 
-// Emitted by AccountFormViewModel; AccountsFlow opens the parent picker
-// sheet since only the Flow launches modals.
 class PickParentRequested extends AccountsStep {}
 
-// Emitted once a form sheet's save succeeds, so AccountsFlow closes the
-// sheet it opened rather than the form View popping itself.
 class AccountFormSaved extends AccountsStep {}
 
 class SourceEditFormSaved extends AccountsStep {}

@@ -147,7 +147,6 @@ void main() {
   });
 
   group('PlanListNotifier', () {
-    // Anchored today so the run stays valid regardless of the calendar date.
     final today = DateTime.now().toUtc();
     final soonerPlan = RecurringPlan(
       template: EntryTemplate(

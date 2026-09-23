@@ -8,7 +8,6 @@ import 'package:spendwise/sync/sync_secret_keys.dart';
 
 import 'in_memory_secret_store.dart';
 
-/// Unpadded base64url, matching this repo's on-the-wire envelope convention.
 String encodeKey(List<int> bytes) =>
     base64Url.encode(bytes).replaceAll('=', '');
 

@@ -8,9 +8,6 @@ void main() {
   const otherID = 'a0000000-0000-0000-0000-000000000002';
 
   group('statementCut clamp matrix', () {
-    // now is the 1st of the month after the target, always short of any
-    // tested statementDay, so the anchor lands on the target month and the
-    // clamp behavior is what each case actually proves.
     final cases = <String, (DateTime now, int statementDay, DateTime want)>{
       'day 28 in February': (
         DateTime.utc(2026, 3, 1),

@@ -11,7 +11,6 @@ import 'package:spendwise/ui/stats/donut/stats_donut.dart';
 import 'package:spendwise/ui/stats/donut/stats_legend.dart';
 import 'package:spendwise/ui/stats/helpers/stats_window.dart';
 
-/// Construct with a `ValueKey` distinct per [kind], one for income and one for expense.
 class AnalysisFlow extends FlowBase<AnalysisStep> {
   const AnalysisFlow({
     super.key,
@@ -59,8 +58,6 @@ class _AnalysisFlowState extends FlowBaseState<AnalysisStep, AnalysisFlow> {
             ),
           ),
         );
-        // Pushes to the root Navigator so the detail screen covers the tab row and month
-        // selector this Flow's own nested Navigator sits under.
         Navigator.of(context, rootNavigator: true).push(route);
     }
     ref.read(analysisViewModelProvider(widget.kind).notifier).clearStep();

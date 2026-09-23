@@ -7,9 +7,6 @@ import 'package:spendwise/ui/transactions/entry/entry_form.dart';
 import 'package:spendwise/ui/transactions/daily_list/transaction_cell.dart';
 import 'package:spendwise/ui/transactions/daily_list/transaction_row.dart';
 
-/// One entry in a scoped list (a budget's or category's entry list): tap
-/// opens the entry, swipe or the equivalent semantic action deletes it after
-/// confirmation.
 class EntryRow extends StatelessWidget {
   const EntryRow({
     super.key,

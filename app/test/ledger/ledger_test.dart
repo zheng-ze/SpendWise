@@ -224,8 +224,6 @@ void main() {
     final parent = _category(name: 'Parent');
     ledger.addCategory(visible);
     ledger.addCategory(parent);
-    // An archived parent still accepts new children, which is the one way an
-    // active child ends up hanging from a row the active filter drops.
     ledger.deleteCategory(parent.id);
     final child = _category(name: 'Child', parentID: parent.id);
     ledger.addCategory(child);
@@ -280,15 +278,11 @@ void main() {
     ledger.addPlan(healthy);
     ledger.addPlan(doomed);
 
-    // Deleting the doomed plan's category leaves the plan active but makes
-    // its occurrences fail validation on resolve.
     ledger.deleteCategory(category.id);
 
     final batches = _batchesOf(ledger);
     final reported = <List<PlanFailure>>[];
     ledger.onPlanError = (failures) {
-      // Recorded inside the callback so the assertion below proves the batch
-      // was already published when the failures arrived.
       reported.add([...failures]);
       expect(batches, hasLength(1));
     };

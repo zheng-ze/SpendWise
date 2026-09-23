@@ -12,9 +12,6 @@ const _elbowDistance = 14.0;
 const _labelLegLength = 12.0;
 const _labelFontSize = 10.0;
 
-/// `fl_chart`'s `PieChartSectionData` has no way to draw a leader line with an
-/// independently positioned elbow and two-tone label text, so this paints
-/// directly rather than compromising on label placement.
 class StatsDonut extends StatelessWidget {
   const StatsDonut({super.key, required this.slices});
 
@@ -43,8 +40,6 @@ class StatsDonut extends StatelessWidget {
   }
 }
 
-/// One line per slice so a screen reader gets the same name, amount and
-/// share the canvas draws visually, since the canvas itself is excluded.
 String _summaryLabel(List<Slice> slices) {
   return slices
       .map(

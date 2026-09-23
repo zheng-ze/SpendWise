@@ -9,8 +9,6 @@ import 'package:spendwise/ui/common/pickers/recurrence_picker.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/settings/plan/plan_form_view_model.dart';
 
-/// Opens the edit sheet for an existing recurring plan. Edit-only: plans are
-/// created from the entry form's recurrence flow, never here.
 Future<void> showPlanFormSheet({
   required BuildContext context,
   required RecurringPlan plan,
@@ -142,8 +140,6 @@ class _PlanFormBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Pulled from the ViewModel each build rather than bound both ways,
-    // since the ViewModel is the single source of truth for form text.
     if (nameController.text != formState.name) {
       nameController.text = formState.name;
     }

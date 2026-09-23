@@ -24,7 +24,6 @@ enum RecurrenceFrequency {
     };
   }
 
-  /// The occurrence [stepCount] steps after [anchor], 0 being the anchor itself.
   DateTime stepFrom(DateTime anchor, int stepCount) {
     return switch (this) {
       weekly => anchor.add(Duration(days: 7 * stepCount)),
@@ -38,14 +37,12 @@ enum RecurrenceFrequency {
 
 DateTime _addMonths(DateTime anchor, int months) {
   final rawMonth = anchor.month - 1 + months;
-  // Euclidean, not truncating. `~/` rounds toward zero, which would hold the
-  // year fixed for every negative rawMonth while `%` still wrapped the month.
+  // Euclidean division; ~/ rounds toward zero.
   final year =
       anchor.year + (rawMonth >= 0 ? rawMonth ~/ 12 : (rawMonth - 11) ~/ 12);
   final month = rawMonth % 12 + 1;
 
-  // DateTime overflows a too-large day into the next month, so the day is
-  // clamped to the target month's length instead.
+  // DateTime overflows into the next month; clamp the day.
   final lastDay = DateTime.utc(year, month + 1, 0).day;
   final day = anchor.day < lastDay ? anchor.day : lastDay;
 

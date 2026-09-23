@@ -1,9 +1,3 @@
-// Probe for the sync apply boundary: runs with asserts disabled to prove
-// the candidate validation is unconditional, not hidden inside an `assert`.
-// It mirrors Ledger.applySyncBatch's domain sequence exactly (public copying
-// constructor over the five live tables, then `apply`, then a direct
-// `assertInvariants` call) on a batch that violates a real structural
-// invariant. Prints PROBE_PASS only when validation still throws.
 import 'dart:io';
 
 import 'package:domain/domain.dart';

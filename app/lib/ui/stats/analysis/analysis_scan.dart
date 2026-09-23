@@ -1,9 +1,5 @@
 import 'package:domain/domain.dart';
 
-/// Caches the kind-and-bucket-filtered scan of the analysis cache's items,
-/// keyed on its items revision. The window filter is the caller's job, run
-/// fresh on top of the cached list on every call so a period change never
-/// forces a recompute.
 class AnalysisScan {
   int? _cachedRevision;
   CategoryKind? _cachedKind;

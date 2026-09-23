@@ -140,9 +140,6 @@ class _TrendCardState extends State<TrendCard> {
     );
 
     final lineTouchData = LineTouchData(
-      // Selection is nearest-month by horizontal position, not proximity
-      // to the line itself, so the threshold has to clear the chart's
-      // full height.
       touchSpotThreshold: double.infinity,
       touchTooltipData: LineTouchTooltipData(
         getTooltipColor: (_) => Colors.transparent,

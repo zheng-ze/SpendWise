@@ -12,7 +12,6 @@ import 'package:spendwise/ui/common/form_scaffold.dart';
 import 'package:spendwise/ui/common/statement_day_picker.dart';
 import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
 
-/// Opens the account/subpocket creation sheet. Creation-only.
 Future<void> showAccountFormSheet({required BuildContext context}) {
   return showModalBottomSheet<void>(
     context: context,
@@ -68,8 +67,6 @@ class _AccountFormState extends ConsumerState<AccountForm> {
       case AccountAloneOpened():
       case PocketOpened():
       case SourceEditFormSaved():
-        // Only AccountsViewModel or SourceEditFormViewModel emit these.
-        // Unreachable here.
         break;
     }
     _viewModel.clearStep();
@@ -128,8 +125,6 @@ class _AccountFormBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Pulled from the ViewModel each build rather than bound both ways,
-    // since the ViewModel is the single source of truth for form text.
     if (nameController.text != formState.name) {
       nameController.text = formState.name;
     }

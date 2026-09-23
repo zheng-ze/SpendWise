@@ -124,8 +124,6 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
-    // The month is read through a widget, not through the container, so a shell
-    // holding its own copy shows a stale value here rather than passing.
     Future<void> mountShell(Key key) => tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
@@ -154,8 +152,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('month 2019-3'), findsOneWidget);
 
-    // A changed key discards the whole shell subtree, which is what a month
-    // held in widget state would not survive.
     await mountShell(const ValueKey('rebuilt'));
     await tester.pumpAndSettle();
 
@@ -168,8 +164,6 @@ void main() {
       await _pumpShell(tester, size: _wide);
       expect(find.byType(NavigationRail), findsOneWidget);
 
-      // Between railExit and railEnter: still rail, because the shell was
-      // already in rail mode before crossing into the dead zone.
       await _resize(
         tester,
         Size(
@@ -192,8 +186,6 @@ void main() {
       await _pumpShell(tester, size: _compact);
       expect(find.byType(NavigationBar), findsOneWidget);
 
-      // Between railExit and railEnter: still bottom nav, because the shell
-      // was already in bottom-nav mode before crossing into the dead zone.
       await _resize(
         tester,
         Size(

@@ -12,8 +12,6 @@ import '../../../support/semantics_test_support.dart';
 
 void main() {
   Decimal dec(String value) => Decimal.parse(value);
-  // The screen defaults to the current month, so the fixture entries must
-  // land inside it rather than a fixed calendar day.
   final today = DateTime.now();
   DateTime day(int d) => DateTime.utc(today.year, today.month, d);
 
@@ -27,9 +25,6 @@ void main() {
     'swiping a row deletes the entry it displays, not another row at the '
     'same position',
     (tester) async {
-      // Same day, same list position after the day's newest-first sort is
-      // what a zip-by-index bug would confuse: the second entry to be
-      // entered lands first in the list and is the one swiped.
       final keepEntry = Entry(
         amount: dec('-5'),
         name: 'keep me',
@@ -177,8 +172,6 @@ void main() {
 
     expect(find.text('Checking'), findsOneWidget);
 
-    // "Edit Checking" is a secondary FAB action, shown only once the FAB
-    // expands.
     await tester.tap(find.byIcon(Icons.add));
     await tester.pumpAndSettle();
     expect(find.text('Edit Checking'), findsOneWidget);

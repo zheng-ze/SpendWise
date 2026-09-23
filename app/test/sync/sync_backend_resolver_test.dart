@@ -142,9 +142,6 @@ void main() {
     });
 
     test('an empty projectUrl throws before any backend is constructed', () {
-      // Covers the half-configured shape: SUPABASE_ANON_KEY set via
-      // --dart-define while SUPABASE_URL is not, which reaches resolve()
-      // as an empty, non-absolute projectUrl with a real anon key.
       final config = SupabaseConfig(
         projectUrl: Uri.parse(''),
         anonKey: 'anon-key',
@@ -216,8 +213,6 @@ void main() {
 
   group('SupabaseConfig.fromEnvironment', () {
     test('without compile-time defines it reports not-configured', () {
-      // No --dart-define flags are passed to the test runner, so both
-      // SUPABASE_URL and SUPABASE_ANON_KEY read as empty strings.
       expect(SupabaseConfig.fromEnvironment(), isNull);
     });
   });

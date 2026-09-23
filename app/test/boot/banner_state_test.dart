@@ -92,7 +92,6 @@ void main() {
         async.elapse(const Duration(seconds: 3));
 
         banner.receivePlanErrors([failure('plan-1'), failure('plan-2')]);
-        // The stale timer from the first call must not clear the newer message.
         async.elapse(const Duration(seconds: 2));
         expect(banner.message, "2 recurring plans couldn't add their entries");
 

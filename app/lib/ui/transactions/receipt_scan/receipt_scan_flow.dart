@@ -10,11 +10,8 @@ import 'package:spendwise/ocr/date_extraction.dart';
 import 'package:spendwise/ocr/name_extraction.dart';
 import 'package:spendwise/ocr/receipt_recognizer_selection.dart';
 
-/// Production recognizer supplier: the platform-aware [selectRecognizer].
 TextRecognizer? defaultRecognizer() => selectRecognizer();
 
-/// Which action the user tapped, and which permission/picker source that
-/// implies.
 enum ReceiptScanSource { camera, gallery }
 
 extension on ReceiptScanSource {
@@ -26,33 +23,16 @@ extension on ReceiptScanSource {
       : ImageSource.gallery;
 }
 
-/// Why a scan attempt produced no prefill, so the caller can decide whether
-/// to show a message.
-enum ReceiptScanStop {
-  /// The user denied the camera/photo-library permission.
-  permissionDenied,
+enum ReceiptScanStop { permissionDenied, cancelled }
 
-  /// The user backed out of the camera/picker without choosing an image.
-  cancelled,
-}
-
-/// Extracted fields ready to prefill the entry form. A field left unresolved
-/// stays null rather than guessed, except [date], which defaults to today.
 typedef ScanResultHandler = void Function({
   String? name,
   Decimal? amount,
   required DateTime date,
 });
 
-/// Supplies the [TextRecognizer] a scan runs on. The default [defaultRecognizer]
-/// is the production [selectRecognizer] path; tests pass a factory that returns
-/// an in-memory recognizer, so each call gets a fresh instance it can dispose.
 typedef RecognizerFactory = TextRecognizer? Function();
 
-/// Returns early and calls [onStop] on a denied permission or a cancelled
-/// picker. Any other failure still calls [onExtracted] with whatever fields
-/// could be read. [preCapturedBytes], when given, skips straight to
-/// recognizing those bytes.
 Future<void> runReceiptScan({
   required ReceiptScanSource source,
   required ScanResultHandler onExtracted,
@@ -105,7 +85,6 @@ Future<RecognizedText> _recognize(
   try {
     return await recognizer.recognize(RecognizableImage(bytes));
   } on TextRecognitionFailure {
-    // A corrupt file behaves the same as an image with no text.
     return RecognizedText(const []);
   } finally {
     await recognizer.dispose();

@@ -13,7 +13,6 @@ final _currencyNumber = RegExp(
   r'\$?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?|\d+\.\d{1,2})',
 );
 
-/// Extracts the receipt's grand total, or null if no currency value is found.
 Decimal? extractAmount(RecognizedText text) {
   for (final line in text.lines) {
     final upper = line.text.toUpperCase();

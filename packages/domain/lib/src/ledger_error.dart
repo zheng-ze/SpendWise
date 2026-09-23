@@ -4,13 +4,10 @@ import 'package:meta/meta.dart';
 sealed class LedgerError implements Exception {
   const LedgerError();
 
-  /// The stable lowerCamelCase name of the case. The exact spelling is
-  /// persisted, so changing it breaks stored rows.
+  /// Persisted; renaming breaks stored rows.
   String get _case;
 }
 
-// Equality is by case and id together, so two cases naming the same row stay
-// distinct. `runtimeType` carries the case, so no subclass needs to restate it.
 sealed class _IdentifiedError extends LedgerError {
   const _IdentifiedError(this.id);
 

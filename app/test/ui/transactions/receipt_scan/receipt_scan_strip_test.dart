@@ -18,9 +18,6 @@ import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart'
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_flow.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_strip.dart';
 
-/// Hand-written fake for the [entryFormViewModelProvider] seam. The strip reads
-/// this notifier to start a scan; recording [scanSources] lets a test observe
-/// which source a button requested without a mocking library.
 class _RecordingEntryFormNotifier extends EntryFormNotifier {
   _RecordingEntryFormNotifier() : super(null);
 
@@ -44,9 +41,6 @@ class _RecordingEntryFormNotifier extends EntryFormNotifier {
     entryId: null,
   );
 
-  // The strip only starts scans. Recording the source here captures the call
-  // the button makes without running a real scan or touching a permission
-  // handler or image picker.
   @override
   void requestScan(ReceiptScanSource source, {Uint8List? preCapturedBytes}) {
     scanSources.add(source);

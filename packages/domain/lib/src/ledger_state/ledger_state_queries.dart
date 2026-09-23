@@ -29,8 +29,6 @@ extension LedgerStateQueries on LedgerState {
     return pockets;
   }
 
-  /// Null for an account, an unknown id, or a pocket no account still holds.
-  /// Resolves a `referenceOnly` pocket too, since its account link stays live.
   Account? owningAccount(String rawPocketID) =>
       _owningAccount(normalizedID(rawPocketID));
 
@@ -65,8 +63,6 @@ extension LedgerStateQueries on LedgerState {
         .length;
   }
 
-  // Expects an already-normalized id. A parent counts as referenced through a
-  // pocket only when that pocket is itself referenced, not merely present.
   bool _isHolderReferenced(String holderID) {
     final source = _moneySources[holderID];
     if (source == null) return false;
@@ -123,7 +119,6 @@ extension LedgerStateQueries on LedgerState {
     ];
   }
 
-  // Ordinal, so the order is identical on every platform.
   static int _byName(TransactionCategory a, TransactionCategory b) =>
       a.name.compareTo(b.name);
 }

@@ -160,8 +160,6 @@ void main() {
     lifecycle: lifecycle,
   );
 
-  // A parent is referenced through a pocket only when that pocket is itself
-  // referenced, so a weaker recursion would wrongly clear the account instead of the pocket.
   group('a pocket is judged by its references, not its row', () {
     test('an entry-free pocket does not hold up its referenceOnly account', () {
       final state = LedgerState(
@@ -347,8 +345,6 @@ void main() {
       );
     });
 
-    // Archiving freezes a plan rather than dropping it, so restore can return
-    // a holder that still has one.
     test('a plan naming an archived holder is legal', () {
       final state = LedgerState(
         moneySources: {
@@ -475,8 +471,6 @@ void main() {
       symbol: 'house',
     );
 
-    // A transfer has no expected kind at all, so any category it names is
-    // incoherent regardless of that category's own kind.
     test('a seeded transfer carrying a category is caught', () {
       final state = LedgerState(
         moneySources: {
@@ -603,8 +597,6 @@ void main() {
       lifecycle: lifecycle,
     );
 
-    // Drives an account to referenceOnly, since purging a row that entries
-    // still name keeps it as a reference rather than deleting it.
     LedgerState stateWithReferenceOnlyAccount() {
       final state = LedgerState();
       state.addAccount(account());
@@ -626,7 +618,6 @@ void main() {
     test('updateAccount may not resurrect a referenceOnly account', () {
       final state = stateWithReferenceOnlyAccount();
 
-      // The edit carries the default `active`, but the stored lifecycle wins.
       state.updateAccount(account(lifecycle: LifecycleState.active));
 
       expect(

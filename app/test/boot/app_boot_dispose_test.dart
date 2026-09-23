@@ -22,8 +22,6 @@ class _GatedFlushStore extends InMemoryLedgerStore {
   @override
   Future<void> flushNow() async {
     final gate = _gate;
-    // Blocks on a gate the test controls, so a dispose issued mid-flush is
-    // reproducible instead of racing real IO timing.
     if (gate != null) await gate.future;
     await super.flushNow();
     flushCompletions += 1;
@@ -84,8 +82,6 @@ void main() {
     await app.start();
 
     final zoneErrors = <Object>[];
-    // dispose() fires teardown via unawaited(...), so a failure surfaces as
-    // a zone error rather than a thrown exception from this call.
     await runZonedGuarded(() async {
       app.dispose();
       await Future<void>.delayed(Duration.zero);

@@ -3,8 +3,7 @@ enum LifecycleState {
   archived(1),
   referenceOnly(2),
 
-  /// Travels in the change stream and never rests in the state, where an
-  /// invariant rejects it.
+  /// Change-stream only; never stored.
   tombstoned(3);
 
   const LifecycleState(this.code);
@@ -23,7 +22,5 @@ enum LifecycleState {
 
   bool get isActive => this == active;
 
-  /// Codes ascend as a row gets less alive, so a child may never hold a lower
-  /// one than its parent.
   bool isAtLeastAsAliveAs(LifecycleState other) => code <= other.code;
 }

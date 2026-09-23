@@ -44,7 +44,6 @@ class LedgerState {
        _plans = {...?plans},
        _budgets = {...?budgets};
 
-  /// Throws on a corrupted change stream.
   LedgerState.replaying(List<LedgerChange> changes)
     : _moneySources = {},
       _entries = {},
@@ -53,8 +52,6 @@ class LedgerState {
       _budgets = {} {
     apply(changes);
 
-    // Calls assertInvariants() directly instead of going through the
-    // debug-only _checked wrapper that every mutator uses.
     assertInvariants();
   }
 
@@ -68,8 +65,6 @@ class LedgerState {
 
   final Map<String, Budget> _budgets;
 
-  /// Unmodifiable, so a caller cannot bypass the mutators' guards by writing
-  /// through the returned map.
   Map<String, MoneySource> get moneySources =>
       UnmodifiableMapView(_moneySources);
 
@@ -82,11 +77,8 @@ class LedgerState {
 
   Map<String, Budget> get budgets => UnmodifiableMapView(_budgets);
 
-  // Previous settled lifecycles, for the one check that judges a transition
-  // rather than a state. Written only from inside an `assert`.
   Map<String, LifecycleState>? _lifecycleAtLastCheck;
 
-  // The closure form keeps the check out of release builds entirely.
   List<LedgerChange> _checked(List<LedgerChange> changes) {
     assert(() {
       _assertChecked();
@@ -103,6 +95,5 @@ class LedgerState {
     return resolution;
   }
 
-  // Edit must not change lifecycle. Only delete/restore/purge may.
   LifecycleState _editableLifecycle(LifecycleState stored) => stored;
 }

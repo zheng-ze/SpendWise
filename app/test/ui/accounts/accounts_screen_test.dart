@@ -55,8 +55,6 @@ void main() {
         child: const MaterialApp(home: AccountsScreen()),
       ),
     );
-    // Flushes AccountsNotifier.build()'s Future so the screen's initial
-    // AsyncData state is in place before a test interacts with it.
     await tester.pump();
     return container;
   }
@@ -76,8 +74,6 @@ void main() {
       expect(find.text('Rent'), findsOneWidget);
       expect(find.text('Excluding subpockets'), findsOneWidget);
 
-      // Piggy Bank has no pockets, so it renders no chevron of its own;
-      // collapse Main Checking directly by tapping its expanded chevron.
       await tester.tap(find.byIcon(Icons.expand_more));
       await tester.pumpAndSettle();
 

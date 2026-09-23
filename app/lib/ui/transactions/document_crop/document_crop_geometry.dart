@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// The four corner handles of the web crop screen, in image display
-/// coordinates (the same coordinate space the decoded image is painted in).
 @immutable
 class DocumentCorners {
   const DocumentCorners({
@@ -44,7 +42,6 @@ class DocumentCorners {
   int get hashCode => Object.hash(topLeft, topRight, bottomRight, bottomLeft);
 }
 
-/// Starting handle positions: the image's own four corners.
 DocumentCorners initialCorners(Size imageSize) {
   return DocumentCorners(
     topLeft: Offset.zero,
@@ -54,8 +51,6 @@ DocumentCorners initialCorners(Size imageSize) {
   );
 }
 
-/// Keeps a dragged handle within the image, so a corner can never end up
-/// pointing outside the picture it's cropping.
 Offset clampToImage(Offset point, Size imageSize) {
   return Offset(
     point.dx.clamp(0, imageSize.width),
@@ -63,8 +58,6 @@ Offset clampToImage(Offset point, Size imageSize) {
   );
 }
 
-/// The smallest axis-aligned rect containing all four corners. Used as the
-/// crop region when a full perspective warp isn't available.
 Rect boundingRect(DocumentCorners corners) {
   final xs = corners.points.map((p) => p.dx);
   final ys = corners.points.map((p) => p.dy);

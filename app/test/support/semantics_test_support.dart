@@ -1,9 +1,6 @@
 import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// Finds the custom semantics action with [label] on the semantics node for
-/// [of] and dispatches it through the real semantics pipeline, the same path
-/// a screen reader uses. Fails the test if no such action is registered.
 Future<void> performCustomSemanticsAction(
   WidgetTester tester, {
   required Finder of,

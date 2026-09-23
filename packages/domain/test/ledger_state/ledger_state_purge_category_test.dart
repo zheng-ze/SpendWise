@@ -45,8 +45,6 @@ void main() {
     test('an active child of the purged parent is swept too', () {
       ledger.addCategory(category(uuid(2)));
       ledger.deleteCategory(uuid(2));
-      // Adding under an archived parent is legal, so the child stays active
-      // while the parent sits in the bin.
       ledger.addCategory(category(uuid(3), parent: uuid(2)));
       expect(ledger.categories[uuid(3)]?.lifecycle, LifecycleState.active);
 

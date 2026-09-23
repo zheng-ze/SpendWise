@@ -30,17 +30,11 @@ final _greetingKeywords = ['WELCOME TO', 'CUSTOMER COPY', 'DUPLICATE'];
 final _alphabeticCharacter = RegExp(r'[a-zA-Z]');
 final _digit = RegExp(r'\d');
 
-// A POS receipt's header line often prints the merchant name and its store
-// number as one OCR line ("STARBUCKS Store #10208"); stripping the trailing
-// store-number tag keeps the merchant name as a candidate instead of
-// discarding the whole line as boilerplate.
 final _trailingStoreNumber = RegExp(
   r'\s*store\s*#\s*\d+\s*$',
   caseSensitive: false,
 );
 
-/// Extracts the merchant name from the first few lines, or null if none of
-/// them look like a name rather than an address, phone number, or banner.
 String? extractName(RecognizedText text) {
   final scanned = text.lines.take(_scanDepth).toList();
 
@@ -50,8 +44,6 @@ String? extractName(RecognizedText text) {
 
   for (final line in scanned) {
     final effective = line.text.replaceFirst(_trailingStoreNumber, '');
-    // A stylized logo often OCRs as tall, low-confidence garbage that would
-    // otherwise win on height alone over a smaller, legible line.
     final tooUncertain =
         line.confidence != null && line.confidence! < _minConfidence;
     if (effective.isEmpty || tooUncertain || _isSkippable(effective)) {

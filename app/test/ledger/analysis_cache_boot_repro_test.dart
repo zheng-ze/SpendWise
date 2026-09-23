@@ -60,12 +60,8 @@ void main() {
       final cache = AnalysisCache();
       cache.start(bus);
 
-      // No plans are due, so this publishes nothing and should be a no-op
-      // on revision.
       ledger.resolvePlans(DateTime.now().toUtc());
 
-      // Two refreshes back to back, the second before the first's isolate
-      // compute has settled.
       cache.refresh(ledger.state);
       cache.refresh(ledger.state);
 

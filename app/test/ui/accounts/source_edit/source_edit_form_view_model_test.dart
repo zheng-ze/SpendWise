@@ -129,8 +129,6 @@ void main() {
         .read(sourceEditFormViewModelProvider(pocket.id))
         .value;
     expect(formState?.isAccount, isFalse);
-    // Cash cannot treat incoming transfers as expenses, and a pocket has no
-    // type of its own, so it follows its parent account's eligibility.
     expect(formState?.showsTransferToggle, isFalse);
   });
 

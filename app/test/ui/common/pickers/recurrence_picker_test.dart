@@ -11,8 +11,6 @@ void main() {
     WidgetTester tester, {
     RecurrenceFrequency? selected,
   }) async {
-    // The half-height sheet holds six rows, taller than the default 800x600
-    // test surface, so a row can go unbuilt outside the ListView viewport.
     await tester.binding.setSurfaceSize(const Size(400, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(

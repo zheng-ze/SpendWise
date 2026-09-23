@@ -27,7 +27,6 @@ class Account {
   final bool incomingTransfersAsExpenses;
   final bool includeInNetWorth;
 
-  /// Day of month the card statement cuts. Meaningful only for card accounts.
   final int? statementDay;
 
   final LifecycleState lifecycle;
@@ -50,10 +49,7 @@ class Account {
     return _copy(lifecycle: lifecycle);
   }
 
-  /// Out-of-range values are clamped into 1-28 rather than rejected.
   Account withNormalizedStatementDay() {
-    // Clamped rather than rejected: a value reaching here came from a drift
-    // row or an import, and dropping the row would lose more.
     final normalized = type == AccountType.card && statementDay != null
         ? statementDay!.clamp(1, 28)
         : null;

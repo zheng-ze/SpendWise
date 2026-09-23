@@ -59,15 +59,12 @@ void main() {
 
     final returned = ledger.applySyncBatch(changes, stamps);
 
-    // The live object is refilled in place, not swapped.
     expect(identical(ledger.state, before), isTrue);
     expect(returned, changes);
     expect(ledger.state.moneySources[account.id]?.asAccount, account);
     expect(ledger.state.categories[category.id], category);
     expect(ledger.state.entries[entry.id], entry);
 
-    // Exactly one composite-stamped publication, one stamped enqueue, one
-    // notification.
     expect(publications, hasLength(1));
     expect(publications.single.changes, changes);
     expect(publications.single.stamps, stamps);
@@ -111,8 +108,6 @@ void main() {
   test('unseenLifecycleTransitionPassesAndRefreshesTheBaseline', () {
     final ledger = Ledger();
 
-    // Local history ends at referenceOnly: the account was deleted, then
-    // purged while still referenced by an entry.
     final account = _account();
     ledger.addAccount(account);
     ledger.addEntry(_entry(account.id));
@@ -123,8 +118,6 @@ void main() {
       LifecycleState.referenceOnly,
     );
 
-    // Another device restored the row; this device never observed the
-    // referenceOnly-to-active move, but the row is structurally sound.
     final publications = <LedgerPublication>[];
     ledger.bus.subscribe().listen(publications.add);
     var notifications = 0;
@@ -148,9 +141,6 @@ void main() {
     expect(publications.single.hasStamps, isTrue);
     expect(notifications, 1);
 
-    // The lifecycle baseline moved to the post-sync state: a local delete
-    // now judges active-to-archived, instead of throwing clause 12 against
-    // the stale referenceOnly baseline.
     ledger.deleteAccount(account.id);
     expect(
       ledger.state.moneySources[account.id]?.lifecycle,

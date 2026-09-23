@@ -23,13 +23,9 @@ class AppBoot extends ChangeNotifier with WidgetsBindingObserver {
     DateTime Function()? now,
   }) : now = now ?? utcNowFor;
 
-  /// Always UTC, never device-local time: occurrence identity would
-  /// otherwise vary by the device's timezone.
+  /// Always UTC, never device-local time.
   final DateTime Function() now;
 
-  /// Normalizes [localNow] (defaulting to the system clock) to UTC midnight
-  /// of its own calendar day, never `.toUtc()`, which would shift the day for
-  /// any positive UTC offset.
   @visibleForTesting
   static DateTime utcNowFor([DateTime? localNow]) =>
       startOfDayUtc(localNow ?? DateTime.now());
@@ -42,7 +38,6 @@ class AppBoot extends ChangeNotifier with WidgetsBindingObserver {
 
   final PlanErrorHandler? onPlanError;
 
-  /// Clears the failed attempt's providers before [retry] calls [start] again.
   final void Function()? onRetry;
 
   AppPhase _phase = const Loading();
@@ -51,8 +46,7 @@ class AppBoot extends ChangeNotifier with WidgetsBindingObserver {
 
   EventBus? _bus;
 
-  // Tracked separately from phase so a throw during wiring still leaves
-  // something for `_teardown` to dispose.
+  // A mid-start throw can wire persistence without reaching Ready.
   PersistenceProcessor? _persistence;
 
   Ledger? _ledger;
@@ -80,7 +74,7 @@ class AppBoot extends ChangeNotifier with WidgetsBindingObserver {
 
       _setPhase(Ready(ledger: ledger, persistence: persistence));
 
-      // The platform fires no resume for the initial launch.
+      // No resume event fires for the initial launch.
       ledger.resolvePlans(now());
     } catch (error, stackTrace) {
       _setPhase(Failed(error, stackTrace));
@@ -118,8 +112,6 @@ class AppBoot extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  // Checks the tracked wiring fields, not `phase is Ready`, since a
-  // mid-`start()` throw can wire persistence without ever reaching `Ready`.
   Future<void> _teardown() async {
     final persistence = _persistence;
     if (persistence != null) {
@@ -140,9 +132,7 @@ class AppBoot extends ChangeNotifier with WidgetsBindingObserver {
 
   bool _disposed = false;
 
-  /// Flushes pending writes and tears down, then calls the base [dispose].
-  // Call this ahead of provider disposal. The synchronous dispose() override
-  // below cannot await a flush, so this is the only path that guarantees one.
+  // dispose cannot await; flush here first.
   Future<void> disposeAndFlush() async {
     if (_disposed) return;
     _disposed = true;

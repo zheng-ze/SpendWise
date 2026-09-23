@@ -6,7 +6,6 @@ import 'package:spendwise/ui/transactions/entry/entry_fields.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_strip.dart';
 
-/// Form for a brand-new entry, including the optional recurrence picker.
 class NewEntryForm extends StatelessWidget {
   const NewEntryForm({
     super.key,

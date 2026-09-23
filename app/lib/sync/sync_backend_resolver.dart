@@ -4,11 +4,6 @@ import 'package:spendwise/sync/custom_endpoint_validator.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
 import 'package:sync/sync.dart';
 
-/// Typed failure for a selected-but-misconfigured sync backend.
-///
-/// The [message] names the specific check that failed, so callers can
-/// surface an actionable enrollment error without switching on a fixed
-/// outcome set.
 final class SyncBackendConfigurationException implements Exception {
   const SyncBackendConfigurationException(this.message);
 
@@ -18,11 +13,6 @@ final class SyncBackendConfigurationException implements Exception {
   String toString() => 'SyncBackendConfigurationException: $message';
 }
 
-/// Supabase connection details, built once at boot and never persisted.
-///
-/// Supabase credentials live outside [SyncMetadataSnapshot] (which carries
-/// no such fields); the coordinator receives a [SupabaseConfig] built via
-/// [SupabaseConfig.fromEnvironment] instead.
 @immutable
 final class SupabaseConfig {
   const SupabaseConfig({required this.projectUrl, required this.anonKey});
@@ -30,16 +20,6 @@ final class SupabaseConfig {
   final Uri projectUrl;
   final String anonKey;
 
-  /// Reads the `SUPABASE_URL` / `SUPABASE_ANON_KEY` compile-time defines.
-  ///
-  /// Returns null when neither define was passed (both read as empty
-  /// strings), meaning "not configured". A device that never selects the
-  /// supabase backend must still boot, so the not-configured case never
-  /// throws here; a later [SyncBackendResolver.resolve] for the supabase
-  /// backend throws [SyncBackendConfigurationException] instead. A malformed
-  /// `SUPABASE_URL` parses to an empty [Uri] rather than throwing, so the
-  /// same resolver validation catches it as a configuration failure instead
-  /// of aborting boot with a raw [FormatException].
   static SupabaseConfig? fromEnvironment() {
     const url = String.fromEnvironment('SUPABASE_URL');
     const key = String.fromEnvironment('SUPABASE_ANON_KEY');
@@ -58,14 +38,6 @@ final class SupabaseConfig {
   int get hashCode => Object.hash(projectUrl, anonKey);
 }
 
-/// Resolves a [SyncMetadataSnapshot] plus boot-time config into a backend.
-///
-/// Returns null when [SyncMetadataSnapshot.backend] is null (never
-/// enrolled). Throws [SyncBackendConfigurationException] for a
-/// selected-but-misconfigured backend before constructing anything or
-/// performing any network call. Construction itself performs no I/O: both
-/// backend adapters only store fields and build an [http.Client] when one
-/// is not provided.
 final class SyncBackendResolver {
   const SyncBackendResolver();
 

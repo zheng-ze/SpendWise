@@ -2,17 +2,12 @@ import 'dart:ui' show PlatformDispatcher;
 
 import 'package:ocr/ocr.dart';
 
-// Regions that write numeric dates month first (M/d/y). Everywhere else
-// defaults to day first (d/M/y), the more common order worldwide.
 const _monthFirstRegions = {'US', 'PH', 'PW', 'FM', 'CA'};
 
 final _dateShapedPattern = RegExp(
   r'\b(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2}|\d{4})\b',
 );
 
-/// Extracts the receipt's date, defaulting to today when no date-shaped text
-/// is found. [locale] lets a test fix the day/month order instead of reading
-/// the device locale. [now] lets a test fix what "today" means.
 DateTime extractDate(RecognizedText text, {String? locale, DateTime? now}) {
   for (final line in text.lines) {
     final match = _dateShapedPattern.firstMatch(line.text);

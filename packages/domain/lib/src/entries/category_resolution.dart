@@ -1,8 +1,6 @@
 import 'package:domain/src/ids.dart';
 import 'package:meta/meta.dart';
 
-/// Three cases, not a nullable id. An absent value would conflate "excluded
-/// from analysis" with "Uncategorized", which bucket differently.
 @immutable
 sealed class CategoryResolution {
   const CategoryResolution();

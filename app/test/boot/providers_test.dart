@@ -19,8 +19,6 @@ ProviderContainer _containerFor(InMemoryLedgerStore store) {
   return container;
 }
 
-// The provider starts AppBoot itself, fire-and-forget, so the test waits
-// for that in-flight start rather than calling start() again.
 Future<Ready> _readyPhase(ProviderContainer container) async {
   final boot = container.read(appBootProvider);
   while (boot.phase is! Ready) {
@@ -112,8 +110,6 @@ void main() {
     final cache = container.read(analysisCacheProvider);
 
     container.dispose();
-    // Disposal completes on a later microtask, not synchronously, so this
-    // yields once before checking.
     await Future<void>.delayed(Duration.zero);
 
     expect(() => banner.addListener(() {}), throwsFlutterError);

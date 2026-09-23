@@ -222,8 +222,6 @@ void main() {
   });
 
   group('orphan tombstones', () {
-    // Seeds an orphan directly against the table: no content row exists for
-    // the key, so the union can only see the orphan.
     Future<void> seedOrphan(
       SyncCollection collection,
       String rowID,

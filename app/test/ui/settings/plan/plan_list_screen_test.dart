@@ -29,8 +29,6 @@ void main() {
         child: const MaterialApp(home: PlanListScreen()),
       ),
     );
-    // Flushes PlanListNotifier.build()'s Future so the screen's initial
-    // AsyncData state is in place before a test interacts with it.
     await tester.pump();
   }
 

@@ -84,7 +84,6 @@ void main() {
     ]);
   });
 
-  // A listener attached before the first publish must still receive it.
   test('bufferingIsLosslessBeforeConsumptionStarts', () {
     final bus = EventBus();
     final received = <List<LedgerChange>>[];

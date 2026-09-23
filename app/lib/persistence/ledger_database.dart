@@ -31,8 +31,6 @@ class LedgerDatabase extends _$LedgerDatabase {
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) async => m.createAll(),
-    // Additive only: later versions create their tables with
-    // CREATE TABLE IF NOT EXISTS, so existing user rows are preserved.
     onUpgrade: (m, from, to) async {
       if (from < 4) {
         await m.createAll();

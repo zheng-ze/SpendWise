@@ -18,9 +18,6 @@ const _syntheticTransferNames = <AccountType, String>{
   AccountType.overdraft: 'Overdraft transfers',
 };
 
-/// Fraction division is not always exact (a third of a total, say), so it
-/// needs a scale to round to rather than the bare `Decimal` division, which
-/// only succeeds when the result terminates.
 const _fractionScale = 12;
 
 @immutable
@@ -34,7 +31,6 @@ class Slice {
     required this.color,
   });
 
-  /// Null is the Uncategorized bucket, not an absent value.
   final String? bucketID;
 
   final Decimal amount;
@@ -43,8 +39,6 @@ class Slice {
   final String symbolName;
   final Color color;
 
-  /// A synthetic bucket has no category row behind it, so there is nothing
-  /// to open a detail screen on.
   bool get isNavigable => bucketID != null && !isSynthetic;
 
   bool get isSynthetic =>

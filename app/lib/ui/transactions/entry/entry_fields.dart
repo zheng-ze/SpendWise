@@ -12,9 +12,6 @@ import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_logic.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 
-/// Field body shared by the edit and new-entry forms: kind selector, amount,
-/// name, date, recurrence (new entries only), account/category or from/to,
-/// and the include-in-analysis switch.
 class EntryFields extends ConsumerStatefulWidget {
   const EntryFields({
     super.key,
@@ -44,8 +41,6 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
   @override
   void didUpdateWidget(EntryFields oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Keeps the controllers in sync when state changes from outside typing,
-    // such as a revert or a receipt scan filling in a value.
     if (_amountController.text != widget.state.amountText) {
       _amountController.text = widget.state.amountText;
     }
@@ -189,8 +184,6 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
         ),
     ];
 
-    // A Column, not a ListView: the caller already scrolls this, and a
-    // nested scrollable has no bounded height to lay out against.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

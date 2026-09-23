@@ -51,8 +51,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(CategoryListScreen), findsOneWidget);
-    // Step is cleared once the Flow has acted on it, so a later rebuild
-    // does not push the same screen a second time.
     expect(container.read(settingsRootViewModelProvider).step, isNull);
   });
 
@@ -87,8 +85,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(CategoryListScreen), findsOneWidget);
 
-    // The outer PopScope blocks this, so it must pop the pushed screen
-    // inside SettingsFlow's own Navigator rather than escaping the Flow.
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
 

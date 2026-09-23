@@ -3,9 +3,6 @@ import 'package:flutter/semantics.dart';
 
 import 'package:spendwise/ui/common/delete_confirmation.dart';
 
-/// A row deletable by swiping left or by the equivalent semantic action, for
-/// a screen reader user who can't swipe. Asks the user to confirm, and calls
-/// [onDeleted] only if they agree.
 class SwipeToDeleteRow extends StatelessWidget {
   const SwipeToDeleteRow({
     super.key,

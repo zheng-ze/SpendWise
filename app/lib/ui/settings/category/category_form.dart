@@ -20,8 +20,6 @@ const _swatches = [
   Color(0xFF8E8E93),
 ];
 
-/// Opens the category creation/edit sheet. Pass [category] to edit, or
-/// [presetParentID] to prefill a new subcategory's parent.
 Future<void> showCategoryFormSheet({
   required BuildContext context,
   TransactionCategory? category,
@@ -169,8 +167,6 @@ class _CategoryFormBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Pulled from the ViewModel each build rather than bound both ways,
-    // since the ViewModel is the single source of truth for form text.
     if (nameController.text != formState.name) {
       nameController.text = formState.name;
     }

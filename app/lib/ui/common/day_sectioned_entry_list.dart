@@ -6,7 +6,6 @@ import 'package:spendwise/ui/transactions/daily_list/day_header.dart';
 import 'package:spendwise/ui/transactions/daily_list/day_sections.dart';
 import 'package:spendwise/ui/transactions/daily_list/entry_row.dart';
 
-/// Renders [matching]'s entries within [window], grouped into day sections.
 class DaySectionedEntryList extends StatelessWidget {
   const DaySectionedEntryList({
     super.key,

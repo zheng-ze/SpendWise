@@ -12,7 +12,6 @@ import 'package:spendwise/ui/budgets/helpers/budget_spend.dart';
 import 'package:spendwise/ui/stats/helpers/stats_window.dart';
 import 'package:spendwise/ui/stats/helpers/trend.dart';
 
-/// A navigation step that `BudgetsFlow` mediates between its ViewModels.
 sealed class BudgetsStep {}
 
 class BudgetLimitEditRequested extends BudgetsStep {}
@@ -25,8 +24,6 @@ class BudgetDetailRequested extends BudgetsStep {
 
 class BudgetFormRequested extends BudgetsStep {}
 
-/// Which limit a [PickLimitRequested] step is asking the Flow to edit: the
-/// ongoing default, or one specific month's override.
 sealed class LimitEditTarget {}
 
 class DefaultLimitTarget extends LimitEditTarget {
@@ -53,15 +50,11 @@ class PickCategoryRequested extends BudgetsStep {}
 
 class BudgetFormSaved extends BudgetsStep {}
 
-/// A month series aligned with [BudgetDetailViewState.months], one value per
-/// month, built by [forMonth] from that month's [YearMonth].
 List<T> monthSeries<T>(
   List<DateTime> months,
   T Function(YearMonth month) forMonth,
 ) => [for (final month in months) forMonth(YearMonth(month.year, month.month))];
 
-/// The chart's Y axis extends 15% past the largest spend or limit bar, so the
-/// tallest bar never touches the chart's top edge.
 double chartMaxY(List<Decimal> spend, List<Decimal> limit) {
   final maxAmount = [
     ...spend,
@@ -166,18 +159,12 @@ class BudgetDetailNotifier extends AsyncNotifier<BudgetDetailViewState>
 
   final String _budgetID;
 
-  // read, not watch: _onChanged below already tracks the cache, so watching
-  // too would trigger refresh() on every cache change and loop.
   AnalysisCache get _cache => ref.read(analysisCacheProvider);
 
-  // Kept outside state.value so a cache callback arriving before build()
-  // returns still has values to rebuild from.
   late DateTime _displayedYear;
   late DateTime _selectedMonth;
   BudgetsStep? _step;
 
-  // Captured once: _onChanged runs outside build(), where ref.watch (the
-  // ledger getter) corrupts state instead of throwing.
   late Ledger _ledger;
 
   @override
@@ -190,14 +177,10 @@ class BudgetDetailNotifier extends AsyncNotifier<BudgetDetailViewState>
     ref.onDispose(() => currentLedger.removeListener(_onChanged));
     ref.onDispose(() => cache.removeListener(_onChanged));
 
-    // Set before refresh below, whose completion can call _onChanged
-    // synchronously, and _onChanged reads these fields.
     final now = startOfDayUtc(DateTime.now());
     _displayedYear = DateTime.utc(now.year);
     _selectedMonth = DateTime.utc(now.year, now.month);
 
-    // Awaited so build() returns with the cache's items already computed,
-    // instead of racing a later notifyListeners() from this same refresh.
     await cache.refresh(currentLedger.state);
 
     return _buildState(

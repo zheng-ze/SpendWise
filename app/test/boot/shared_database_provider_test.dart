@@ -8,8 +8,6 @@ import 'package:spendwise/boot/app_phase.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/persistence/drift_ledger_store.dart';
 
-// Counts closes while delegating every call, so the suite can prove teardown
-// closes the one shared executor exactly once.
 class _CloseCountingExecutor extends QueryExecutor {
   _CloseCountingExecutor(this._inner);
 
@@ -19,8 +17,6 @@ class _CloseCountingExecutor extends QueryExecutor {
 
   final _closed = Completer<void>();
 
-  /// Resolves once [close] has finished delegating, so a test can await
-  /// disposal instead of guessing at a delay.
   Future<void> get closed => _closed.future;
 
   @override
@@ -69,8 +65,6 @@ class _CloseCountingExecutor extends QueryExecutor {
   }
 }
 
-// Counts disposals of the shared database provider, so the suite can prove
-// teardown disposes exactly one LedgerDatabase.
 final class _DatabaseDisposeCounter extends ProviderObserver {
   var ledgerDatabaseDisposes = 0;
 
@@ -82,8 +76,6 @@ final class _DatabaseDisposeCounter extends ProviderObserver {
   }
 }
 
-// Throws on its first open and succeeds after, standing in for a transient
-// connection failure that has cleared by the time retry runs.
 class _FlakyOpener {
   var calls = 0;
 
@@ -129,14 +121,11 @@ void main() {
       observers: [observer],
     );
 
-    // Open the database, or teardown has no live executor to close.
     final store = container.read(storeProvider) as DriftLedgerStore;
     await store.load();
     await container.read(syncMetadataStoreProvider).snapshot();
 
     container.dispose();
-    // The provider-owned close floats; await its own completion instead of
-    // guessing at a delay.
     await executor.closed;
 
     expect(executor.closeCalls, 1);

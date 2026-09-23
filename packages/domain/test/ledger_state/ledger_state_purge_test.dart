@@ -111,8 +111,6 @@ void main() {
       expect(ledger.moneySources[uuid(1)], isNull);
       expect(ledger.moneySources[uuid(2)], isNull);
       expect(ledger.moneySources[uuid(8)], isNull);
-      // The two pockets purge in subPocketIDs order, which is unspecified, so
-      // this only asserts that the account trails both of them.
       expect(changes.last, DeleteMoneySource(uuid(1)));
       expect(changes, hasLength(5));
       expect(changes.whereType<DeleteMoneySource>().map((c) => c.targetID), [

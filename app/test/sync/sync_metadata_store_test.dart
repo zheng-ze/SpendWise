@@ -10,9 +10,6 @@ import 'package:sync/sync.dart';
 const _rowA = '11111111-1111-1111-1111-111111111111';
 const _rowB = '22222222-2222-2222-2222-222222222222';
 
-// Fails the commit of the next [failures] transactions, then behaves
-// normally. Drift rolls the failed transaction back itself; throwing here
-// keeps that real rollback in the path, so it tests the real thing.
 class FailingCommitInterceptor extends QueryInterceptor {
   int failures = 0;
 
@@ -478,7 +475,6 @@ void main() {
     }
 
     test('the sync schema has no column for secret material', () async {
-      // Touch the stores so every sync table exists.
       await store.snapshot();
       await store.setAcknowledgedVector(
         SyncRowID.of(SyncCollection.entries, _rowA),

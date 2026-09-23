@@ -4,14 +4,11 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
-/// Encodes [image] as PNG bytes, or null if the engine could not encode it.
 typedef PngEncoder = Future<ByteData?> Function(ui.Image image);
 
 Future<ByteData?> _defaultPngEncoder(ui.Image image) =>
     image.toByteData(format: ui.ImageByteFormat.png);
 
-/// Crops [sourceBytes] to [rect], in the source image's own pixel
-/// coordinates, and returns PNG bytes. Clamps [rect] to the image bounds.
 Future<Uint8List> cropToRect(
   Uint8List sourceBytes,
   Rect rect, {
@@ -24,8 +21,6 @@ Future<Uint8List> cropToRect(
     source.width.toDouble(),
     source.height.toDouble(),
   );
-  // A dragged handle can end up outside the image. Clamping keeps this from
-  // asking for pixels that don't exist.
   final clamped = rect.intersect(bounds);
 
   final recorder = ui.PictureRecorder();

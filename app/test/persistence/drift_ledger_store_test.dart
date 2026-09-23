@@ -10,8 +10,6 @@ import 'package:spendwise/persistence/ledger_store.dart';
 import 'package:spendwise/persistence/mappers.dart';
 import 'package:sync/sync.dart';
 
-// Hands out timers the test fires by hand, so real time never elapses.
-// Real drift I/O stays genuinely async, which `FakeAsync` would deadlock on.
 class ManualClock {
   final List<_Armed> _armed = [];
 
@@ -25,8 +23,6 @@ class ManualClock {
     return armed;
   }
 
-  // Fires every timer armed at the moment of the call. A timer armed by a
-  // callback waits for the next call, so a re-arming retry loop cannot spin forever here.
   void fire() {
     final due = List<_Armed>.of(_armed);
     _armed.clear();
@@ -47,15 +43,11 @@ class _Armed implements StoreTimer {
   void cancel() => owner._armed.remove(this);
 }
 
-// Fails the commit of the first `failures` transactions, then behaves normally.
-// Failing the commit keeps drift's own rollback in the path, so it tests the real thing.
 class FlakyInterceptor extends QueryInterceptor {
   int failures = 0;
 
   int transactionAttempts = 0;
 
-  // Runs once, as a save opens its transaction. Lets a test enqueue while a
-  // save is genuinely mid-flight rather than merely started.
   void Function()? onTransactionBegin;
 
   @override
@@ -132,8 +124,6 @@ void main() {
     symbol: 'fork',
   );
 
-  // Lets the drain loop and any awaited save run to completion. Nothing here
-  // sleeps, so this only yields the event loop.
   Future<void> settle() async {
     for (var i = 0; i < 20; i++) {
       await Future<void>.delayed(Duration.zero);
@@ -146,8 +136,6 @@ void main() {
     await settle();
   }
 
-  // Counts once per write the row has taken, so a change applied twice reads
-  // as two even though the row itself looks the same.
   Future<int> versionBumpsOnAccount(String id) async {
     final row = await (db.select(
       db.accounts,
@@ -155,8 +143,6 @@ void main() {
     return versionFromRow(row.versionData).counters.values.single;
   }
 
-  // Reads the stored orphan tombstones for one collection, keyed by row id.
-  // An empty map means no orphan is stored, never a fabricated content row.
   Future<Map<String, VersionVector>> orphanVectors(
     SyncCollection collection,
   ) async {
@@ -230,8 +216,6 @@ void main() {
       final row = await db.select(db.entries).getSingle();
       expect(row.lifecycle, LifecycleState.tombstoned.code);
 
-      // A surviving upsert would have written 99 before tombstoning, so the
-      // untouched amount proves the upsert itself was dropped by coalescing.
       expect(row.amount, '10');
     });
 
@@ -261,8 +245,6 @@ void main() {
       final row = await db.select(db.budgets).getSingle();
       expect(row.lifecycle, LifecycleState.tombstoned.code);
 
-      // A surviving upsert would have written the limit events for '99'
-      // first, so the untouched row proves coalescing dropped the upsert.
       expect(row.limitEvents, contains('"value":"10"'));
     });
 
@@ -296,8 +278,6 @@ void main() {
     });
 
     test('survivors are applied in their original relative order', () async {
-      // SQLite hands out rowids in insertion order, so the stored rowids are a
-      // direct readout of the order the survivors were applied in.
       store
         ..enqueue([UpsertAccount(account('a1', 'first'))])
         ..enqueue([UpsertAccount(account('a2', 'second'))])
@@ -306,8 +286,6 @@ void main() {
 
       await debouncedSave();
 
-      // 'a1' lands last because a survivor sits at the index of its final
-      // occurrence, not its first.
       final order = await db
           .customSelect('SELECT id FROM accounts ORDER BY rowid')
           .get();
@@ -343,8 +321,6 @@ void main() {
       expect(reported, [SaveBannerState.retrying]);
       expect(flaky.transactionAttempts, 1);
 
-      // Both rows or neither. A partial commit would leave the account behind,
-      // since it is applied before the entry inside the one transaction.
       expect(await db.select(db.accounts).get(), isEmpty);
       expect(await db.select(db.entries).get(), isEmpty);
       expect(clock.armedDelays.single, const Duration(milliseconds: 200));
@@ -356,14 +332,10 @@ void main() {
       expect((await db.select(db.entries).getSingle()).amount, '10');
       expect(reported.last, SaveBannerState.clear);
 
-      // A flush over a store still holding the written batch would re-apply it
-      // and bump the row a second time.
       final attemptsAfterRetry = flaky.transactionAttempts;
       await store.flushNow();
       expect(flaky.transactionAttempts, attemptsAfterRetry);
 
-      // The rolled back attempt wrote no version, so the row that landed sits
-      // at one bump rather than two.
       final row = await db.select(db.accounts).getSingle();
       expect(versionFromRow(row.versionData).counters.values.single, 1);
     });
@@ -399,7 +371,6 @@ void main() {
       expect(reported.last, SaveBannerState.failedWillRetry);
       expect(await db.select(db.accounts).get(), isEmpty);
 
-      // The batch is still pending after this cycle gives up.
       expect(clock.armedDelays.single, const Duration(milliseconds: 200));
 
       clock.fire();
@@ -448,8 +419,6 @@ void main() {
       expect(reported.last, SaveBannerState.failedWillRetry);
       expect(await db.select(db.accounts).get(), isEmpty);
 
-      // The disk is healthy again and nothing new is enqueued, so the row can
-      // only land if every failed attempt left the batch pending.
       clock.fire();
       await settle();
 
@@ -462,15 +431,12 @@ void main() {
       store.enqueue([UpsertAccount(account('a1', 'v1'))]);
       await settle();
 
-      // Fired without awaiting, so the enqueue below lands mid-save.
       clock.fire();
       store.enqueue([UpsertAccount(account('a2', 'v2'))]);
 
       await settle();
       await debouncedSave();
 
-      // Clearing more than the save snapshotted would drop 'a2' before it was
-      // ever written.
       expect((await db.select(db.accounts).get()).length, 2);
     });
 
@@ -482,8 +448,6 @@ void main() {
 
       await debouncedSave();
 
-      // Three raw changes coalesce to one. Clearing only the coalesced count
-      // would leave two stale changes behind for this flush to write again.
       await store.flushNow();
 
       expect(flaky.transactionAttempts, 1);
@@ -494,8 +458,6 @@ void main() {
       store.enqueue([UpsertAccount(account('a1', 'v1'))]);
       await settle();
 
-      // Both calls enter their save loop over the same pending prefix in the same
-      // turn. Without the in-flight guard, the second would bump the row a second time.
       final first = store.flushNow();
       final second = store.flushNow();
       await Future.wait([first, second]);
@@ -508,8 +470,6 @@ void main() {
   });
 
   group('terminal save failure', () {
-    // Corrupts the stored version vector of [id] so its next write cannot be
-    // decoded.
     Future<void> corruptVersion(String id) => db.customUpdate(
       'UPDATE accounts SET version_data = ? WHERE id = ?',
       variables: [
@@ -530,12 +490,8 @@ void main() {
       store.enqueue([UpsertAccount(account('a1', 'changed name'))]);
       await debouncedSave();
 
-      // The terminal state arrives, never preceded by retrying or
-      // failedWillRetry.
       expect(reported, [SaveBannerState.permanentlyFailed]);
 
-      // No timed retry is armed, so firing every timer many times must emit no
-      // further reports and leave the banner at the terminal state.
       for (var i = 0; i < 10; i++) {
         expect(clock.armedCount, 0);
         clock.fire();
@@ -543,7 +499,6 @@ void main() {
       }
       expect(reported, [SaveBannerState.permanentlyFailed]);
 
-      // The failed write was rolled back, so the row is unchanged.
       expect((await db.select(db.accounts).getSingle()).name, 'wallet');
     });
 
@@ -555,8 +510,6 @@ void main() {
       reported.clear();
 
       store.enqueue([UpsertAccount(account('a1', 'changed name'))]);
-      // The barrier gives up by throwing, carrying the permanent failure as
-      // its cause, instead of returning silently with an unwritten queue.
       final flush = expectLater(
         store.flushNow(),
         throwsA(
@@ -574,8 +527,6 @@ void main() {
         ),
       );
 
-      // Ten passes outlast every retry a cycle could run; a loop that kept
-      // retrying the corrupt row would never return here.
       for (var i = 0; i < 10; i++) {
         await settle();
         clock.fire();
@@ -587,7 +538,6 @@ void main() {
       expect(reported.last, SaveBannerState.permanentlyFailed);
       expect(store.pendingCount, 1);
 
-      // The failed write was rolled back, so the row still holds its old value.
       expect((await db.select(db.accounts).getSingle()).name, 'wallet');
     });
   });
@@ -632,8 +582,6 @@ void main() {
     test('flushNowPersistsAnEnqueueMadeMomentsBefore', () async {
       store.enqueue([UpsertAccount(account('a1', 'v1'))]);
 
-      // No clock.fire, so the armed debounce never runs. Only the flush can
-      // put this on disk.
       await store.flushNow();
 
       expect((await db.select(db.accounts).getSingle()).name, 'v1');
@@ -675,16 +623,12 @@ void main() {
     });
 
     test('the barrier rides the ingest queue behind earlier batches', () async {
-      // Enqueued and flushed with no settle in between, so the batch is still
-      // sitting in the ingest queue when the flush is called.
       store.enqueue([UpsertAccount(account('a1', 'v1'))]);
       final flush = store.flushNow();
       store.enqueue([UpsertAccount(account('a2', 'after the barrier'))]);
 
       await flush;
 
-      // 'a1' was enqueued before the barrier, so the flush must have written
-      // it. 'a2' came after and is not covered by this flush's guarantee.
       final names = (await db.select(db.accounts).get())
           .map((row) => row.name)
           .toSet();
@@ -708,12 +652,8 @@ void main() {
       store.enqueue([UpsertAccount(account('a1', 'v1'))]);
       await settle();
 
-      // Fires the debounce without awaiting, so this save is in flight and has
-      // already snapshotted 'a1' when the flush below awaits it.
       clock.fire();
 
-      // Each batch lands mid-transaction, so the running save clears only its own
-      // snapshot, leaving flushNow to run more than one cycle after the save it awaited.
       flaky.onTransactionBegin = () {
         store.enqueue([UpsertAccount(account('a2', 'v2'))]);
         flaky.onTransactionBegin = () {
@@ -723,24 +663,15 @@ void main() {
 
       await store.flushNow();
 
-      // No clock.fire after those enqueues, so no debounce timer can write
-      // them. A single trailing save returns with 'a3' still buffered.
       expect((await db.select(db.accounts).get()).length, 3);
     });
 
     test(
       'flushNow stops looping when a cycle ends in failedWillRetry',
       () async {
-        // More failures than any number of cycles can consume, so a loop
-        // without the give-up exit never sees pending drain.
         flaky.failures = 99;
         store.enqueue([UpsertAccount(account('a1', 'v1'))]);
 
-        // The give-up exit throws the barrier failure instead of returning
-        // silently. The preserved cause is whatever the last failing cycle
-        // caught: with the rollback-then-throw test interceptor in the path,
-        // drift surfaces that as a rollback error rather than the raw disk
-        // failure, so only non-null preservation is asserted here.
         final flush = expectLater(
           store.flushNow(),
           throwsA(
@@ -754,8 +685,6 @@ void main() {
           ),
         );
 
-        // Ten passes far outlast the three attempts one retry cycle needs, so a
-        // flush that kept looping instead of giving up would still be unfinished here.
         for (var i = 0; i < 10; i++) {
           await settle();
           clock.fire();
@@ -1006,8 +935,6 @@ void main() {
       expect(state.entries, isEmpty);
       expect(state.moneySources.keys.toSet(), {'a1'});
 
-      // The row survives the delete, so load is filtering rather than the
-      // delete having removed it.
       final row = await db.select(db.entries).getSingle();
       expect(row.lifecycle, LifecycleState.tombstoned.code);
     });
@@ -1039,8 +966,6 @@ void main() {
           .getSingle();
       expect(row.read<int>('lifecycle'), LifecycleState.tombstoned.code);
 
-      // The delete bumps rather than clears, so a tombstone carries the causal
-      // history a future sync needs to see it as newer than the upsert.
       final counters = versionFromRow(row.read<Uint8List>('version_data'))
           .counters;
       expect(counters.values.fold(0, (sum, count) => sum + count), 2);
@@ -1133,8 +1058,6 @@ void main() {
         updates: {db.accounts},
       );
 
-      // Load reads only the domain columns, so damage to a vector surfaces on
-      // the next write to the row rather than here.
       final state = await store.load();
       expect(state.moneySources.keys.toSet(), {'a1'});
     });
@@ -1142,8 +1065,6 @@ void main() {
     test('a storage error propagates out of load', () async {
       await db.customStatement('DROP TABLE entries');
 
-      // Not `isA<Object>()`, which an UnimplementedError from an unbuilt load
-      // would satisfy just as well as the storage failure under test.
       await expectLater(
         store.load(),
         throwsA(
@@ -1163,8 +1084,6 @@ void main() {
       UpsertEntry(entry('e1', '12.34', source: 'a1')),
     ];
 
-    // An absent meta row reads as unseeded, which is what a seed that never
-    // reached its commit leaves behind.
     Future<bool> hasSeeded() async =>
         (await db.select(db.storeMeta).getSingleOrNull())?.hasSeeded ?? false;
 
@@ -1174,8 +1093,6 @@ void main() {
       expect(await hasSeeded(), isTrue);
       expect((await store.load()).entries.keys.toSet(), {'e1'});
 
-      // Wiping every row leaves the flag as the only thing that can gate the
-      // second call, so a store gating on emptiness would seed again here.
       await db.customStatement('DELETE FROM accounts');
       await db.customStatement('DELETE FROM entries');
 
@@ -1187,10 +1104,6 @@ void main() {
     });
 
     test('a failed seed save leaves has_seeded unset', () async {
-      // Outlasts every in-cycle retry, so the seed genuinely gives up rather
-      // than merely stumbling on the way to a commit. The give-up surfaces
-      // as a PersistenceBarrierFailure from the barrier inside
-      // seedIfFirstLaunch; the flag still stays unset.
       flaky.failures = 100;
 
       final seed = expectLater(
@@ -1244,7 +1157,6 @@ void main() {
 
         final row = await db.select(db.accounts).getSingle();
         expect(row.name, 'remote');
-        // Equality with the stamp proves no device bump was added.
         expect(versionFromRow(row.versionData), stamp);
       },
     );
@@ -1257,7 +1169,6 @@ void main() {
       store.enqueueStamped([first], stampsFor(first, firstStamp));
       store.enqueueStamped([second], stampsFor(second, secondStamp));
 
-      // No clock.fire, so only the flush's drain can put these on disk.
       await store.flushNow();
 
       expect(await accountVersion('a1'), firstStamp);
@@ -1275,9 +1186,6 @@ void main() {
 
       final row = await db.select(db.entries).getSingle();
       expect(row.amount, '42');
-      // The local survivor bumps max(carried, stored): the empty stored
-      // vector contributes nothing, so the result is the stamp plus exactly
-      // one device bump.
       expect(
         versionFromRow(row.versionData),
         VersionVector({'remote-a': 2, await deviceID(db): 1}),
@@ -1310,8 +1218,6 @@ void main() {
         store.enqueueStamped([
           second,
         ], stampsFor(second, VersionVector({'remote-b': 1})));
-        // Last arrival is unstamped, so it selects content while both remote
-        // stamps must still contribute to the carried maximum.
         store.enqueue([UpsertAccount(account('a1', 'local'))]);
 
         await debouncedSave();
@@ -1338,8 +1244,6 @@ void main() {
 
       final row = await db.select(db.accounts).getSingle();
       expect(row.name, 'remote-v2');
-      // The survivor's own stamp is written as-is even though the earlier
-      // concurrent stamp is not dominated by it.
       expect(versionFromRow(row.versionData), survivorStamp);
     });
 
@@ -1360,8 +1264,6 @@ void main() {
 
         final row = await db.select(db.accounts).getSingle();
         expect(row.name, 'remote');
-        // The retry recomputes from the pending pair, so the stamp is neither
-        // lost nor bumped by the failed attempt.
         expect(versionFromRow(row.versionData), stamp);
         expect(reported.last, SaveBannerState.clear);
       },
@@ -1375,9 +1277,6 @@ void main() {
         store.enqueueStamped([remote], stampsFor(remote, stamp));
         await settle();
 
-        // Fires as the first transaction begins, so the running save clears
-        // only its stamped prefix and the buffered edit lands in a later
-        // partial-prefix cycle.
         flaky.onTransactionBegin = () {
           store.enqueue([UpsertAccount(account('a1', 'local'))]);
         };
@@ -1386,8 +1285,6 @@ void main() {
 
         final row = await db.select(db.accounts).getSingle();
         expect(row.name, 'local');
-        // The later cycle carries no stamp of its own, so provenance flows
-        // through the stored verbatim stamp the first cycle wrote.
         expect(
           versionFromRow(row.versionData),
           VersionVector({'remote-a': 2, await deviceID(db): 1}),
@@ -1410,8 +1307,6 @@ void main() {
 
       await debouncedSave();
 
-      // The dropped upsert never wrote 'replacement' and never created an
-      // account row for the shared moneySources identity.
       expect(await db.select(db.accounts).get(), isEmpty);
       final pocket = await db.select(db.subPockets).getSingle();
       expect(pocket.lifecycle, LifecycleState.tombstoned.code);
@@ -1442,8 +1337,6 @@ void main() {
         final row = await db.select(db.subPockets).getSingle();
         expect(row.lifecycle, LifecycleState.tombstoned.code);
         expect(row.name, 'original');
-        // Only the deletion survives the shared moneySources keyspace, so its
-        // stamp is the one written verbatim.
         expect(versionFromRow(row.versionData), deleteStamp);
       },
     );
@@ -1463,7 +1356,6 @@ void main() {
 
       await debouncedSave();
 
-      // Same id, different SyncRowIDs: neither content nor stamp coalesces.
       expect((await db.select(db.accounts).getSingle()).name, 'wallet');
       expect((await db.select(db.entries).getSingle()).amount, '10');
       expect(await accountVersion('shared'), accountStamp);
@@ -1502,8 +1394,6 @@ void main() {
     test(
       'a stamped delete for an absent id persists an orphan tombstone',
       () async {
-        // Orphan tombstones carry a stamped delete for a never-stored row until
-        // real content absorbs it.
         const deletion = DeleteEntry('ghost');
         final stamp = VersionVector({'remote-a': 1});
         store.enqueueStamped([deletion], stampsFor(deletion, stamp));
@@ -1511,7 +1401,6 @@ void main() {
         await debouncedSave();
 
         expect(reported, isEmpty);
-        // No fabricated content row: the delete alone never creates one.
         expect(await db.select(db.entries).get(), isEmpty);
         expect(await orphanVectors(SyncCollection.entries), {'ghost': stamp});
       },
@@ -1638,8 +1527,6 @@ void main() {
 
     test('an uppercase-id stamped deletion stores its orphan under the '
         'lowercase key', () async {
-      // 'GHOST-ROW' contains letters, so lowercasing fires: a digits-only id
-      // would pass through unchanged and prove nothing about normalization.
       const deletion = DeleteEntry('GHOST-ROW');
       final stamp = VersionVector({'remote-a': 1});
       store.enqueueStamped([deletion], stampsFor(deletion, stamp));
@@ -1660,8 +1547,6 @@ void main() {
       store.enqueueStamped([upsert], stampsFor(upsert, stamp));
       await debouncedSave();
 
-      // The orphan merged with the survivor's own stamp, and the orphan row
-      // is gone: its ancestry lives on only inside the content row.
       expect(await orphanVectors(SyncCollection.entries), isEmpty);
       expect(
         await contentVersion('entries', 'e1'),
@@ -1709,9 +1594,6 @@ void main() {
 
       final row = await db.select(db.entries).getSingle();
       expect(row.amount, '99');
-      // Only the surviving stamp merges with the orphan. The discarded
-      // 'remote-a' stamp is carried through coalescing but must not leak
-      // into the stamped branch.
       expect(
         versionFromRow(row.versionData),
         VersionVector({'remote-o': 2, 'remote-b': 1}),
@@ -1737,8 +1619,6 @@ void main() {
 
         final row = await db.select(db.entries).getSingle();
         expect(row.amount, '42');
-        // The unstamped survivor bumps max(orphan, carried): both remote
-        // provenances survive under exactly one device bump.
         expect(
           versionFromRow(row.versionData),
           VersionVector({'remote-o': 3, 'remote-c': 1, await deviceID(db): 1}),
@@ -1801,12 +1681,8 @@ void main() {
       store.enqueue([UpsertEntry(entry('e1', '10'))]);
       await debouncedSave();
 
-      // The terminal state arrives, never preceded by retrying or
-      // failedWillRetry.
       expect(reported, [SaveBannerState.permanentlyFailed]);
 
-      // No timed retry is armed, so firing every timer many times must emit
-      // no further reports and leave the banner at the terminal state.
       for (var i = 0; i < 10; i++) {
         expect(clock.armedCount, 0);
         clock.fire();
@@ -1814,9 +1690,6 @@ void main() {
       }
       expect(reported, [SaveBannerState.permanentlyFailed]);
 
-      // The failed write was rolled back, so the orphan is still stored and
-      // no content row was fabricated. The row is counted, not decoded: its
-      // vector is corrupt by construction.
       final orphans = await db
           .customSelect(
             'SELECT row_id FROM sync_orphan_tombstones '

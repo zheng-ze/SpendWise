@@ -1,15 +1,5 @@
 import 'dart:async';
 
-/// Single-flight scheduler with one coalesced trailing pass.
-///
-/// [requestRun] starts a pass when idle, otherwise queues one trailing pass.
-/// [runNow] starts a pass when idle and resolves when it completes; while a
-/// pass is active it joins the same trailing slot, resolving when that
-/// trailing pass completes. Overlapping [runNow] calls share one trailing
-/// pass. [onStatusChanged] reports `true` while running and `false` once
-/// idle, with no idle report between a pass and its chained trailing pass.
-/// A [runPass] failure completes every pending [runNow] future with that
-/// error; no retry lives here.
 final class SyncRunScheduler {
   SyncRunScheduler({required this._runPass, required this._onStatusChanged});
 
@@ -21,8 +11,6 @@ final class SyncRunScheduler {
   final List<Completer<void>> _activeWaiters = <Completer<void>>[];
   final List<Completer<void>> _trailingWaiters = <Completer<void>>[];
 
-  /// Starts a pass immediately if idle, otherwise queues one coalesced
-  /// trailing pass; a no-op if a trailing pass is already queued.
   void requestRun() {
     if (_active) {
       _trailingQueued = true;
@@ -31,11 +19,6 @@ final class SyncRunScheduler {
     _launch();
   }
 
-  /// Starts a pass when idle, or joins the single trailing slot when active.
-  ///
-  /// The returned future resolves once the pass this call joined completes:
-  /// the freshly started pass when idle, or the coalesced trailing pass when
-  /// a pass is already active.
   Future<void> runNow() {
     final waiter = Completer<void>();
     if (!_active) {

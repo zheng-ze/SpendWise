@@ -12,13 +12,6 @@ import 'package:spendwise/sync/sync_metadata_store.dart';
 import 'package:spendwise/sync/sync_secret_keys.dart';
 import 'package:sync/sync.dart';
 
-/// Error thrown when a remote enrollment step fails.
-///
-/// The [step] names the enrollment step that failed (`beginEnrollment`,
-/// `completeEnrollment`, `reconcileBegin`, or `reconcileComplete`), [code] is
-/// the underlying [SyncFailure.code], and [message]/[retryAfter] carry the
-/// failure details through. The enrollment phase is left untouched so a later
-/// `enroll()` call resumes from the same durably recorded phase.
 final class SyncEnrollmentException implements Exception {
   const SyncEnrollmentException({
     required this.step,
@@ -37,13 +30,6 @@ final class SyncEnrollmentException implements Exception {
       'SyncEnrollmentException($step, $code${message != null ? ": $message" : ""})';
 }
 
-/// Drives enrollment through [SyncMetadataStore]'s durable phases.
-///
-/// Each step performs its underlying work first and records the durable phase
-/// only once that work completes, so a crash at any boundary resumes safely
-/// from the recorded phase on the next [enroll] call. Credential presence
-/// alone never enables writes; only the durable `reconciliationComplete`
-/// phase permits the write-gate flip.
 final class SyncEnrollmentService {
   SyncEnrollmentService({
     required this.authenticator,
@@ -69,10 +55,6 @@ final class SyncEnrollmentService {
   buildCompleteRequest;
   final Future<Uint8List> Function() resolveE2EKey;
 
-  /// Builds the attempt-scoped hasher that pages the `BeginReconcile`
-  /// snapshot under its returned device-bound reconciliation context
-  /// (reconciliation ID, fixed snapshot watermark, expiry) and hashes the
-  /// fetched envelopes, per `docs/sync-protocol.md` section 4.
   final ReconciliationSnapshotHasher Function(SyncCredential credential)
   buildSnapshotHasher;
 
@@ -93,8 +75,6 @@ final class SyncEnrollmentService {
         SyncEnrollmentPhase.gateEnabled => throw StateError('unreachable'),
       };
 
-  /// Acquires the device credential, reusing a valid stored one when the
-  /// previous run crashed after writing it but before recording the phase.
   Future<SyncEnrollmentPhase> _stepNotEnrolled() async {
     final stored = await secretStore.read(syncCredentialSecretKey);
     if (stored != null) {
@@ -142,10 +122,6 @@ final class SyncEnrollmentService {
     return restored.deviceID == await deviceID(database);
   }
 
-  /// Ensures a valid E2E key secret exists before snapshot work begins.
-  ///
-  /// A present-but-invalid key is a hard failure: it is never deleted or
-  /// overwritten here, and the phase stays at `credentialAcquired`.
   Future<SyncEnrollmentPhase> _stepCredentialAcquired() async {
     final stored = await secretStore.read(syncE2EKeySecretKey);
     if (stored != null) {
@@ -165,16 +141,6 @@ final class SyncEnrollmentService {
     return SyncEnrollmentPhase.snapshotInProgress;
   }
 
-  /// Runs the begin/complete reconcile round trip, then records completion.
-  ///
-  /// Pages the snapshot through the attempt hasher under `BeginReconcile`'s
-  /// context. A `snapshot_hash_mismatch` naming a collection re-pages only
-  /// that collection under the same context, replaces its digest, and retries
-  /// `CompleteReconcile` exactly once. A second mismatch, or one naming no
-  /// (or an unrecognized) collection, fails without advancing the phase, so
-  /// the write gate stays closed. Durably captures the single-use write-proof
-  /// `CompleteReconcile` returns before recording completion, so the first
-  /// post-reconciliation push can supply it.
   Future<SyncEnrollmentPhase> _stepSnapshotInProgress() async {
     final credential = await CredentialProvider(
       database: database,
@@ -239,7 +205,6 @@ final class SyncEnrollmentService {
     }
   }
 
-  /// Snapshot paging belongs to the begin half of the round trip.
   Future<Map<SyncCollection, String>> _hashAll(
     ReconciliationSnapshotHasher hasher,
     ReconciliationContext context,

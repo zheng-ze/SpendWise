@@ -16,7 +16,6 @@ mixin HolderReferencing {
 
   bool get isTransfer => destinationID != null;
 
-  /// Zero is income by this formula, but zero amounts never pass validation.
   EntryKind get kind {
     if (isTransfer) return EntryKind.transfer;
     return amount < Decimal.zero ? EntryKind.expense : EntryKind.income;
