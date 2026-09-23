@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:domain/domain.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,7 +9,9 @@ import 'package:http/http.dart' as http;
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/event_bus.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/persistence/ledger_database.dart';
+import 'package:spendwise/persistence/drift_ledger_store.dart';
+import 'package:spendwise/persistence/ledger_database.dart'
+    hide Account, SubPocket, Entry, Budget;
 import 'package:spendwise/persistence/persistence_processor.dart';
 import 'package:spendwise/sync/sync_backend_resolver.dart';
 import 'package:spendwise/sync/sync_enrollment_session.dart';
@@ -59,12 +62,15 @@ final class _ScriptedSyncHttpClient extends http.BaseClient {
       failCounts[request.url.path] = remaining - 1;
       return _response(500, <String, Object?>{'error': 'injected failure'});
     }
-    return _response(200, _stubBody(request.url.path));
+    return _response(200, _stubBody(request.url.path, body));
   }
 
-  Map<String, Object?> _stubBody(String path) {
+  Map<String, Object?> _stubBody(String path, Map<String, Object?> body) {
     if (path == '/auth/v1/verify') {
       return <String, Object?>{'access_token': 'stub-bearer'};
+    }
+    if (path == '/rest/v1/rpc/sync_push') {
+      return _appliedPushBody(body);
     }
     if (path == '/rest/v1/rpc/sync_begin_reconcile') {
       return <String, Object?>{
@@ -86,6 +92,31 @@ final class _ScriptedSyncHttpClient extends http.BaseClient {
       };
     }
     return const <String, Object?>{};
+  }
+
+  Map<String, Object?> _appliedPushBody(Map<String, Object?> body) {
+    final rows = <Object?>[];
+    final raw = body['envelopes'];
+    if (raw is List) {
+      for (final item in raw) {
+        if (item is! Map) continue;
+        final fields = <String, Object?>{};
+        item.forEach((key, value) => fields[key.toString()] = value);
+        final versionVector = fields['version_vector'];
+        rows.add(<String, Object?>{
+          'collection': fields['collection'],
+          'row_id': fields['row_id'],
+          'sibling_id': fields['sibling_id'],
+          'status': 'applied',
+          if (versionVector is Map)
+            'version_vector': {
+              for (final entry in versionVector.entries)
+                entry.key.toString(): entry.value,
+            },
+        });
+      }
+    }
+    return <String, Object?>{'rows': rows};
   }
 
   http.StreamedResponse _response(int status, Map<String, Object?> json) {
@@ -114,6 +145,7 @@ final class _HostedHarness {
     WidgetTester tester, {
     bool nullLedger = false,
     bool nullProcessor = false,
+    bool driftStore = false,
   }) async {
     db = LedgerDatabase(NativeDatabase.memory());
     addTearDown(db.close);
@@ -122,7 +154,11 @@ final class _HostedHarness {
     addTearDown(bus.dispose);
     ledger = Ledger(bus: bus);
     addTearDown(ledger.dispose);
-    processor = PersistenceProcessor(store: RecordingLedgerStore(), bus: bus);
+    processor = PersistenceProcessor(
+      store: driftStore ? DriftLedgerStore(db) : RecordingLedgerStore(),
+      bus: bus,
+    );
+    if (driftStore) await processor.start();
     httpClient = _ScriptedSyncHttpClient();
 
     late ProviderContainer built;
@@ -193,6 +229,25 @@ final class _HostedHarness {
   }
 
   SyncMetadataStore get metadataStore => SyncMetadataStore(db);
+
+  Future<void> seedLocalEntry() async {
+    const holderID = 'aaaaaaaa-0000-1111-2222-333333333333';
+    const rowID = '22222222-2222-2222-2222-222222222222';
+    ledger.addAccount(
+      Account(id: holderID, name: 'holder', type: AccountType.cash),
+    );
+    ledger.addEntry(
+      Entry(
+        id: rowID,
+        date: DateTime.utc(2024, 3, 15),
+        amount: Decimal.parse('-12.50'),
+        name: 'Local',
+        sourceID: holderID,
+        includeInAnalysis: true,
+      ),
+    );
+    await processor.flush();
+  }
 }
 
 void main() {
@@ -411,5 +466,92 @@ void main() {
     );
     expect(find.byKey(_identifierField), findsOneWidget);
     expect(harness.httpClient.requests, isEmpty);
+  });
+
+  testWidgets('a null persistence processor surfaces a not-ready error '
+      'before enrollment begins', (tester) async {
+    final harness = _HostedHarness();
+    await harness.pump(tester, nullProcessor: true);
+
+    await tester.tap(find.text('Continue'));
+    await harness.pumpFrames(tester);
+    await tester.enterText(find.byKey(_identifierField), 'user@example.com');
+    await tester.pump();
+    await tester.tap(find.byKey(_identifierContinue));
+    await harness.pumpFrames(tester);
+
+    final state = harness.container.read(syncEnrollmentViewModelProvider);
+    expect(state.errorMessage, isNotNull);
+    expect(state.inFlight, isFalse);
+    expect(find.byKey(_identifierField), findsOneWidget);
+    expect(harness.httpClient.requests, isEmpty);
+  });
+
+  testWidgets('a genuine push is fully acknowledged and consumes '
+      'the write proof', (tester) async {
+    final harness = _HostedHarness();
+    await harness.pump(tester, driftStore: true);
+    await harness.seedLocalEntry();
+
+    await harness.enrollThroughUi(tester);
+
+    expect(find.text('Sync enrollment complete'), findsOneWidget);
+    final pushes = harness.httpClient.callsTo('/rest/v1/rpc/sync_push');
+    final pushedCollections = {
+      for (final call in pushes)
+        for (final envelope in (call.body['envelopes'] as List))
+          ((envelope as Map)['collection'] as String),
+    };
+    expect(pushedCollections, containsAll(['money_sources', 'entries']));
+    expect(pushes.first.body['write_proof'], 'proof-1');
+    expect(
+      await harness.secrets.read(syncWriteProofSecretKey),
+      isNull,
+      reason: 'a genuine acknowledged push consumes the write proof',
+    );
+    expect(
+      await harness.metadataStore.acknowledgedVectors(),
+      isNotEmpty,
+      reason: 'applied rows retire their acknowledged vectors',
+    );
+    expect(
+      (await harness.metadataStore.snapshot()).phase,
+      SyncEnrollmentPhase.gateEnabled,
+    );
+  });
+
+  testWidgets('a genuine push failure surfaces a resume error and retry '
+      'succeeds without re-authenticating', (tester) async {
+    final harness = _HostedHarness();
+    await harness.pump(tester, driftStore: true);
+    await harness.seedLocalEntry();
+    harness.httpClient.failNext('/rest/v1/rpc/sync_push');
+
+    await harness.enrollThroughUi(tester);
+
+    expect(find.byKey(_resumeRetry), findsOneWidget);
+    final failed = harness.container.read(syncEnrollmentViewModelProvider);
+    expect(failed.errorMessage, isNotNull);
+    expect(failed.inFlight, isFalse);
+    final failedSnapshot = await harness.metadataStore.snapshot();
+    expect(failedSnapshot.phase, SyncEnrollmentPhase.gateEnabled);
+    expect(failedSnapshot.writeEnabled, isTrue);
+    expect(harness.httpClient.callsTo('/rest/v1/rpc/sync_push'), hasLength(1));
+
+    await tester.tap(find.byKey(_resumeRetry));
+    await harness.pumpFrames(tester);
+
+    expect(
+      harness.httpClient.callsTo('/auth/v1/otp'),
+      hasLength(1),
+      reason: 'publication retry never re-collects identifier or OTP',
+    );
+    expect(harness.httpClient.callsTo('/auth/v1/verify'), hasLength(1));
+    expect(
+      harness.httpClient.callsTo('/rest/v1/rpc/sync_push').length,
+      greaterThan(1),
+    );
+    expect(find.text('Sync enrollment complete'), findsOneWidget);
+    expect(await harness.secrets.read(syncWriteProofSecretKey), isNull);
   });
 }

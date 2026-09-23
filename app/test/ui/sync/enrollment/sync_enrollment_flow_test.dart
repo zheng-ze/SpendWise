@@ -12,8 +12,10 @@ import 'package:spendwise/sync/sync_coordinator.dart';
 import 'package:spendwise/sync/sync_enrollment_service.dart';
 import 'package:spendwise/sync/sync_enrollment_session.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
+import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_screen.dart';
 import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_view_model.dart';
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_flow.dart';
+import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_screens.dart';
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart';
 import 'package:sync/sync.dart';
 
@@ -89,7 +91,11 @@ Future<
     SyncMetadataStore metadataStore,
   })
 >
-pumpEnrollmentFlow(WidgetTester tester, {FakeSessionOpener? opener}) async {
+pumpEnrollmentFlow(
+  WidgetTester tester, {
+  FakeSessionOpener? opener,
+  VoidCallback? onEnded,
+}) async {
   final db = LedgerDatabase(NativeDatabase.memory());
   addTearDown(db.close);
   final writer = FakeBackendSelectionWriter();
@@ -111,7 +117,7 @@ pumpEnrollmentFlow(WidgetTester tester, {FakeSessionOpener? opener}) async {
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
-      child: const MaterialApp(home: SyncEnrollmentFlow()),
+      child: MaterialApp(home: SyncEnrollmentFlow(onEnded: onEnded)),
     ),
   );
   await pumpFlowFrames(tester);
@@ -129,7 +135,7 @@ Future<void> continueWithHosted(WidgetTester tester) async {
 }
 
 Future<void> pumpFlowFrames(WidgetTester tester) async {
-  for (var i = 0; i < 20; i++) {
+  for (var i = 0; i < 30; i++) {
     await tester.pump(const Duration(milliseconds: 100));
   }
 }
@@ -381,5 +387,93 @@ void main() {
     expect(find.text('Custom servers are not yet available.'), findsOneWidget);
     expect(find.byKey(_identifierField), findsNothing);
     expect(harness.opener.openCalls, 0);
+  });
+
+  testWidgets('a persistently pending publisher gives up bounded and '
+      'surfaces a retryable resume error', (tester) async {
+    final harness = await pumpEnrollmentFlow(tester);
+    await continueWithHosted(tester);
+    await harness.metadataStore.setEnrollmentPhase(
+      SyncEnrollmentPhase.credentialAcquired,
+    );
+    harness.opener.session.onEnroll = () async {};
+    harness.opener.session.onPublish = () async =>
+        const EnrollmentSnapshotPending(
+          collection: SyncCollection.entries,
+          result: PushDeferred(),
+        );
+
+    await submitIdentifier(tester, 'user@example.com');
+    await pumpFlowFrames(tester);
+
+    expect(
+      harness.opener.session.publishCalls,
+      SyncEnrollmentNotifier.maxPublishAttempts,
+    );
+    final state = harness.container.read(syncEnrollmentViewModelProvider);
+    expect(state.inFlight, isFalse);
+    expect(state.errorMessage, isNotNull);
+    expect(find.byKey(_resumeRetry), findsOneWidget);
+    expect(find.text('Sync enrollment complete'), findsNothing);
+
+    final callsAfterGivingUp = harness.opener.session.publishCalls;
+    await pumpFlowFrames(tester);
+    expect(harness.opener.session.publishCalls, callsAfterGivingUp);
+  });
+
+  testWidgets('repeated failures accumulate exactly one resume route', (
+    tester,
+  ) async {
+    final harness = await pumpEnrollmentFlow(tester);
+    await continueWithHosted(tester);
+    await harness.metadataStore.setEnrollmentPhase(
+      SyncEnrollmentPhase.credentialAcquired,
+    );
+    harness.opener.session.onEnroll = () async {
+      throw const SyncEnrollmentException(
+        step: 'reconcileBegin',
+        code: 'unavailable',
+      );
+    };
+
+    await submitIdentifier(tester, 'user@example.com');
+    await pumpFlowFrames(tester);
+    expect(find.byType(SyncEnrollmentResumeScreen), findsOneWidget);
+
+    await tester.tap(find.byKey(_resumeRetry));
+    await pumpFlowFrames(tester);
+
+    expect(find.byType(SyncEnrollmentResumeScreen), findsOneWidget);
+    expect(find.byKey(_identifierField), findsNothing);
+    expect(find.byKey(_otpField), findsNothing);
+    expect(
+      harness.container.read(syncEnrollmentViewModelProvider).errorMessage,
+      isNotNull,
+    );
+  });
+
+  testWidgets('back from completion ends the flow without stale screens', (
+    tester,
+  ) async {
+    var endedCalls = 0;
+    final harness = await pumpEnrollmentFlow(
+      tester,
+      onEnded: () => endedCalls++,
+    );
+    await continueWithHosted(tester);
+    harness.opener.session.onEnroll = () async {};
+    await submitIdentifier(tester, 'user@example.com');
+    await pumpFlowFrames(tester);
+
+    expect(find.text('Sync enrollment complete'), findsOneWidget);
+
+    await tester.binding.handlePopRoute();
+    await pumpFlowFrames(tester);
+
+    expect(endedCalls, 1);
+    expect(find.byKey(_identifierField), findsNothing);
+    expect(find.byKey(_otpField), findsNothing);
+    expect(find.byKey(_resumeRetry), findsNothing);
+    expect(find.byType(BackendPickerScreen), findsNothing);
   });
 }

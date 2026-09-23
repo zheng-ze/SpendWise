@@ -44,6 +44,7 @@ class _SyncEnrollmentFlowState
           ),
         );
       case ShowProgressResume():
+        navigator.popUntil((route) => route.isFirst);
         navigator.push(
           MaterialPageRoute<void>(
             settings: const RouteSettings(name: 'sync-resume'),
@@ -51,11 +52,12 @@ class _SyncEnrollmentFlowState
           ),
         );
       case ShowEnrollmentCompleted():
-        navigator.push(
+        navigator.pushAndRemoveUntil(
           MaterialPageRoute<void>(
             settings: const RouteSettings(name: 'sync-complete'),
             builder: (_) => const SyncEnrollmentCompletionScreen(),
           ),
+          (_) => false,
         );
     }
     ref.read(syncEnrollmentViewModelProvider.notifier).clearStep();

@@ -80,6 +80,9 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
   SyncEnrollmentNotifier({SyncEnrollmentSessionOpener? sessionOpener})
     : _sessionOpenerOverride = sessionOpener;
 
+  static const maxPublishAttempts = 3;
+  static const _publishRetryDelay = Duration(seconds: 1);
+
   final SyncEnrollmentSessionOpener? _sessionOpenerOverride;
   Completer<String>? _otpCompleter;
   SyncEnrollmentSession? _session;
@@ -256,6 +259,7 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
       );
 
   Future<void> _publishUntilPublished(SyncEnrollmentSession session) async {
+    var attempts = 0;
     try {
       while (true) {
         final outcome = await session.publishSnapshot();
@@ -265,7 +269,22 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
           emitStep(ShowEnrollmentCompleted());
           return;
         }
+        attempts += 1;
+        if (attempts >= maxPublishAttempts) {
+          await _failPhaseAware(
+            const SyncEnrollmentException(
+              step: 'publishSnapshot',
+              code: 'snapshotPending',
+              message: 'Snapshot publication is still pending. Please retry.',
+            ),
+          );
+          return;
+        }
+        await Future<void>.delayed(_publishRetryDelay);
+        if (!ref.mounted) return;
       }
+    } on StateError catch (error) {
+      await _failPhaseAware(error);
     } on Exception catch (error) {
       await _failPhaseAware(error);
     }
@@ -301,6 +320,9 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
       if (message != null && message.isNotEmpty) return message;
       return 'Enrollment failed during ${error.step} (${error.code}). '
           'Please try again.';
+    }
+    if (error is StateError) {
+      return error.message;
     }
     return 'Enrollment failed. Please try again.';
   }
