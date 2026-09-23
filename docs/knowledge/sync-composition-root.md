@@ -1,6 +1,6 @@
 # Sync: composition root
 
-Last reconciled: d005b8dd492b52e0ecb60e988ee5c46542d30f91
+Last reconciled: 4527938ac06f12b78062169abeddae664ee01b76
 
 ## Overview
 
@@ -14,10 +14,19 @@ acknowledgement recovery, and per-collection push-candidate submission. It does 
 and [persistence.md](persistence.md) for the assembled layers. Source:
 `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.create`, `SyncCoordinator.status`.
 
+`composeSyncEnrollment` composes the hosted enrollment graph around that root.
+It reads boot readiness and persisted backend selection, constructs Supabase-only
+enrollment collaborators, and returns typed readiness or configuration outcomes.
+It does not provide a lifecycle caller. Source:
+`app/lib/sync/sync_enrollment_composition.dart` - `composeSyncEnrollment`,
+`SyncEnrollmentComposition`.
+
 ## Key locations
 
 - `app/lib/sync/sync_coordinator.dart` - composition root, pull-page processing, acknowledgement
   recovery, push-candidate selection and acknowledgement, collaborators, and wiring validation.
+- `app/lib/sync/sync_enrollment_composition.dart` - hosted-enrollment graph
+  composition and typed readiness/configuration outcomes.
 - `app/lib/sync/sync_status.dart` - coordinator idle and running status variants.
 - `app/lib/sync/cached_collection_version_source.dart` - async collection reads exposed through
   the package version-source contract.
@@ -73,6 +82,12 @@ other status produces `BackendUnavailable`. The shared mapper assigns custom RPC
 HTTP 403 to `DeviceRetired`, which does not apply to the GoTrue exchange. Source:
 `packages/sync/lib/src/backends/supabase_authenticator.dart` - `_gotrueFailureFromHttp`;
 `packages/sync/lib/src/backends/http_support.dart` - `_failureFromHttp`.
+
+The hosted-enrollment factory resolves the persisted snapshot through the same
+`SyncBackendResolver` before creating a `SupabaseSyncAuthenticator` and passing
+the validated config to `SyncCoordinator.create`. It uses one `SecretStore` for
+the enrollment service, coordinator, and snapshot publisher. Source:
+`app/lib/sync/sync_enrollment_composition.dart` - `composeSyncEnrollment`.
 
 `CachedCollectionVersionSource` bridges bulk asynchronous reads to the `SyncVersionSource` used
 by the engine. A refresh reads every `SyncCollection`, publishes its new cache only after all
@@ -156,6 +171,13 @@ It leaves every other exception for `SyncRunScheduler`, whose failure behavior i
   `http.Client` and `SecretStore` support controlled composition; absent values use backend defaults
   and `SecureSecretStore`. Source: `app/lib/sync/sync_coordinator.dart` -
   `SyncCoordinator.create`.
+- `composeSyncEnrollment(...)` returns `SyncEnrollmentNotReady` when boot has
+  not provided the ledger or persistence processor. It returns
+  `SyncEnrollmentConfigurationError` for a non-Supabase selection or missing
+  or invalid Supabase config, and `SyncEnrollmentReady` only after constructing
+  the hosted graph. Source: `app/lib/sync/sync_enrollment_composition.dart` -
+  `composeSyncEnrollment`, `SyncEnrollmentReady`, `SyncEnrollmentNotReady`,
+  `SyncEnrollmentConfigurationError`.
 - `SyncCoordinator.forTesting(...)` synchronously mirrors the private constructor's collaborator
   list so tests can inject a `SyncBackend` and any `SyncVersionSource`. The production `create`
   path remains unchanged; its version-source field is interface-typed to support this test seam.
