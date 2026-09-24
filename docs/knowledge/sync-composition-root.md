@@ -1,6 +1,6 @@
 # Sync: composition root
 
-Last reconciled: eb968bbc7b012181c453c54afb1f74a7ef4e0b3c
+Last reconciled: 2b418c3134dfbaf1b86b7e8e608f214c91a9120e
 
 ## Overview
 
@@ -81,6 +81,16 @@ PostgREST RPC surface. Its project URL must use HTTPS. Custom endpoint enrollmen
 is out of scope. Source: `packages/sync/lib/src/backends/supabase_authenticator.dart` -
 `SupabaseSyncAuthenticator.beginEnrollment`, `SupabaseSyncAuthenticator.completeEnrollment`;
 `packages/sync/lib/src/backends/supabase_backend.dart` - `SupabaseSyncBackend._rpc`.
+
+Every `SupabaseSyncBackend` data RPC (`sync_push`, `sync_pull`, `sync_begin_reconcile`,
+`sync_complete_reconcile`, and `sync_acknowledge`) carries the caller's
+`DeviceCredential.deviceID` as the top-level `device_id` request field. `_rpc<T>` adds it once
+for all five calls. The GoTrue enrollment `/auth/v1/verify` request remains a separate fixed-schema
+call and carries no device identifier. Source:
+`packages/sync/lib/src/backends/supabase_backend.dart` - `SupabaseSyncBackend._rpc`;
+`packages/sync/test/backends/supabase_backend_test.dart` - device ID forwarding tests;
+`packages/sync/lib/src/backends/supabase_authenticator.dart` -
+`SupabaseSyncAuthenticator.completeEnrollment`.
 
 The authenticator uses its private `_gotrueFailureFromHttp` mapper rather than the shared RPC
 mapper: GoTrue HTTP 400 and 422 produce `InvalidRequest`, 429 produces `RateLimited`, and every
