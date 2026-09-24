@@ -1,6 +1,6 @@
 # Sync: enrollment
 
-Last reconciled: 4527938ac06f12b78062169abeddae664ee01b76
+Last reconciled: eb968bbc7b012181c453c54afb1f74a7ef4e0b3c
 
 ## Overview
 
@@ -9,10 +9,15 @@ or recovers a device credential, ensures an E2E key exists, completes the
 initial reconciliation handshake, and enables writes only after reconciliation
 is durably complete. `composeSyncEnrollment` is the hosted-enrollment factory:
 it creates the Supabase authenticator, service, coordinator, and publisher from
-ready boot providers and persisted Supabase selection. No UI or Flow calls the
-factory yet. Source:
+ready boot providers and persisted Supabase selection. `SyncEnrollmentFlow`
+opens that graph through `openSyncEnrollmentSession`, which exposes only
+`enroll()` and `publishSnapshot()` to the UI. Source:
 `app/lib/sync/sync_enrollment_composition.dart` - `composeSyncEnrollment`,
 `SyncEnrollmentComposition`;
+`app/lib/sync/sync_enrollment_session.dart` - `SyncEnrollmentSession`,
+`openSyncEnrollmentSession`;
+`app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart` -
+`SyncEnrollmentNotifier._opener`;
 `app/lib/sync/sync_enrollment_service.dart` - `SyncEnrollmentService`;
 `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.create`;
 `packages/sync/lib/src/backends/supabase_authenticator.dart` -
@@ -21,11 +26,12 @@ factory yet. Source:
 `EnrollmentSnapshotPublisher` is the next app-layer component after the phase
 machine reaches `gateEnabled`: it drives one ordered push across all
 collections and owns the enrollment write-proof lifecycle for that run. The
-hosted-enrollment factory constructs it, but no service, `AppBoot`, scheduler,
-Flow, or UI path calls the factory or publisher. Source:
+enrollment Flow invokes it through `SyncEnrollmentSession.publishSnapshot()`;
+the publisher itself remains independent of lifecycle scheduling. Source:
 `app/lib/sync/enrollment_snapshot_publisher.dart` -
 `EnrollmentSnapshotPublisher`; `app/lib/sync/sync_enrollment_service.dart` -
-`SyncEnrollmentService`; `app/lib/boot/app_boot.dart` - `AppBoot`.
+`SyncEnrollmentService`; `app/lib/sync/sync_enrollment_session.dart` -
+`SyncEnrollmentSession.publishSnapshot`.
 
 ## Key locations
 
@@ -41,6 +47,10 @@ Flow, or UI path calls the factory or publisher. Source:
   snapshot per collection and hashes it, per collection, for `CompleteReconcile`.
 - `app/lib/sync/enrollment_snapshot_publisher.dart` - ordered post-gate
   enrollment-snapshot push and write-proof consumption.
+- `app/lib/sync/sync_enrollment_session.dart` - narrow UI session adapter over
+  the ready hosted-enrollment composition.
+- `docs/knowledge/sync-enrollment-flow.md` - hosted-enrollment UI flow,
+  navigation, and retry ownership.
 - `app/test/sync/sync_enrollment_service_test.dart` - phase-machine recovery,
   key, reconciliation, and failure contracts.
 - `app/test/sync/reconciliation_snapshot_hasher_test.dart` - paging, hashing,
@@ -236,10 +246,9 @@ other statuses backend unavailable);
   future backend implementation must match this client-defined contract, not
   the other way around. Source: `packages/sync/lib/src/protocol/requests.dart`
   - `ReconciliationContext`, `PullRequest.reconciliation`.
-- The post-`gateEnabled` publisher is unconnected. The factory returns it, but
-  its result is not consumed by the enrollment service or an application
-  lifecycle, scheduler, Flow, or UI caller, so reaching `gateEnabled` does not
-  invoke it. Source:
-  `app/lib/sync/enrollment_snapshot_publisher.dart` -
-  `EnrollmentSnapshotPublisher`; `app/lib/sync/sync_enrollment_service.dart` -
-  `SyncEnrollmentService`; `app/lib/boot/app_boot.dart` - `AppBoot`.
+- `SyncEnrollmentService` itself still has no operation lock. The UI Flow
+  serializes its enroll-and-publish operation, but other callers must provide
+  equivalent serialization. Source:
+  `app/lib/sync/sync_enrollment_service.dart` - `SyncEnrollmentService.enroll`;
+  `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart` -
+  `SyncEnrollmentNotifier.submitIdentifier`, `SyncEnrollmentNotifier.retry`.

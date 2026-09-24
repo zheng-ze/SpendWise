@@ -1,6 +1,6 @@
 # Sync: composition root
 
-Last reconciled: 4527938ac06f12b78062169abeddae664ee01b76
+Last reconciled: eb968bbc7b012181c453c54afb1f74a7ef4e0b3c
 
 ## Overview
 
@@ -17,9 +17,13 @@ and [persistence.md](persistence.md) for the assembled layers. Source:
 `composeSyncEnrollment` composes the hosted enrollment graph around that root.
 It reads boot readiness and persisted backend selection, constructs Supabase-only
 enrollment collaborators, and returns typed readiness or configuration outcomes.
-It does not provide a lifecycle caller. Source:
+`SyncEnrollmentFlow` is its first production caller, through the narrow
+`SyncEnrollmentSession` adapter; it still has no `AppBoot` or lifecycle caller.
+Source:
 `app/lib/sync/sync_enrollment_composition.dart` - `composeSyncEnrollment`,
-`SyncEnrollmentComposition`.
+`SyncEnrollmentComposition`; `app/lib/sync/sync_enrollment_session.dart` -
+`openSyncEnrollmentSession`; `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart`
+- `SyncEnrollmentNotifier._opener`.
 
 ## Key locations
 
@@ -27,6 +31,8 @@ It does not provide a lifecycle caller. Source:
   recovery, push-candidate selection and acknowledgement, collaborators, and wiring validation.
 - `app/lib/sync/sync_enrollment_composition.dart` - hosted-enrollment graph
   composition and typed readiness/configuration outcomes.
+- `app/lib/sync/sync_enrollment_session.dart` - session adapter that prevents
+  the UI from depending on the composed service and publisher directly.
 - `app/lib/sync/sync_status.dart` - coordinator idle and running status variants.
 - `app/lib/sync/cached_collection_version_source.dart` - async collection reads exposed through
   the package version-source contract.
@@ -178,6 +184,13 @@ It leaves every other exception for `SyncRunScheduler`, whose failure behavior i
   the hosted graph. Source: `app/lib/sync/sync_enrollment_composition.dart` -
   `composeSyncEnrollment`, `SyncEnrollmentReady`, `SyncEnrollmentNotReady`,
   `SyncEnrollmentConfigurationError`.
+- `openSyncEnrollmentSession(...)` maps those composition outcomes to the same
+  ready, not-ready, and configuration-error shape while narrowing a ready graph
+  to `enroll()` and `publishSnapshot()`. `SyncEnrollmentNotifier` opens it for
+  submitted credentials and for durable-phase resume. Source:
+  `app/lib/sync/sync_enrollment_session.dart` - `SyncEnrollmentSessionResult`,
+  `openSyncEnrollmentSession`; `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart`
+  - `SyncEnrollmentNotifier._opener`, `SyncEnrollmentNotifier._reopenForResume`.
 - `SyncCoordinator.forTesting(...)` synchronously mirrors the private constructor's collaborator
   list so tests can inject a `SyncBackend` and any `SyncVersionSource`. The production `create`
   path remains unchanged; its version-source field is interface-typed to support this test seam.
