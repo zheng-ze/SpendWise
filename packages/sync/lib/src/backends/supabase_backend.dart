@@ -79,11 +79,13 @@ final class SupabaseSyncBackend implements SyncBackend {
     final deviceCredential = _requireDeviceCredential(credential);
     final headers = _authorizationHeaders(deviceCredential)
       ..['apikey'] = anonKey;
+    final outgoingBody = Map<String, Object?>.of(requestBody)
+      ..['device_id'] = deviceCredential.deviceID;
     try {
       final response = await _client.post(
         projectUrl.resolve('/rest/v1/rpc/$functionName'),
         headers: headers,
-        body: jsonEncode(requestBody),
+        body: jsonEncode(outgoingBody),
       );
       Map<String, Object?> body;
       try {
