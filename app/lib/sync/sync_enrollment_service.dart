@@ -60,13 +60,29 @@ final class SyncEnrollmentService {
 
   Future<void> enroll() async {
     final snapshot = await metadataStore.snapshot();
-    if (snapshot.phase == SyncEnrollmentPhase.bindingAuthorizationRequired ||
-        snapshot.phase == SyncEnrollmentPhase.sessionReauthRequired) {
-      return;
+    if (snapshot.phase == SyncEnrollmentPhase.bindingAuthorizationRequired) {
+      throw const SyncEnrollmentException(
+        step: 'enroll',
+        code: 'device_authorization_required',
+        message:
+            'This device needs binding authorization before sync can resume.',
+      );
+    }
+    if (snapshot.phase == SyncEnrollmentPhase.sessionReauthRequired) {
+      throw const SyncEnrollmentException(
+        step: 'enroll',
+        code: 'credential_expired',
+        message: 'This device needs to reauthenticate before sync can resume.',
+      );
     }
     if (snapshot.phase == SyncEnrollmentPhase.credentialAcquired &&
         snapshot.deviceBindingRequired) {
-      return;
+      throw const SyncEnrollmentException(
+        step: 'enroll',
+        code: 'device_authorization_required',
+        message:
+            'This device needs binding authorization before sync can resume.',
+      );
     }
     var phase = snapshot.phase;
     while (phase != SyncEnrollmentPhase.gateEnabled) {

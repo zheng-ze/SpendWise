@@ -376,7 +376,7 @@ void main() {
     expect(snapshot.writeEnabled, isTrue);
   });
 
-  test('binding or reauth phases are inert no-op terminals', () async {
+  test('binding or reauth phases signal a blocking typed error', () async {
     for (final phase in [
       SyncEnrollmentPhase.bindingAuthorizationRequired,
       SyncEnrollmentPhase.sessionReauthRequired,
@@ -384,7 +384,20 @@ void main() {
       await metadataStore.setEnrollmentPhase(phase);
       await configureHandshakeSuccess();
 
-      await service().enroll();
+      final error = await enrollError(service().enroll);
+
+      expect(
+        error,
+        isA<SyncEnrollmentException>()
+            .having((e) => e.step, 'step', 'enroll')
+            .having(
+              (e) => e.code,
+              'code',
+              phase == SyncEnrollmentPhase.bindingAuthorizationRequired
+                  ? 'device_authorization_required'
+                  : 'credential_expired',
+            ),
+      );
 
       expect(authenticator.beginCalls, 0, reason: '$phase');
       expect(authenticator.completeCalls, 0, reason: '$phase');
@@ -396,7 +409,7 @@ void main() {
   });
 
   test(
-    'credentialAcquired with binding required never reaches reconcile',
+    'credentialAcquired with binding required signals a blocking typed error',
     () async {
       await metadataStore.setEnrollmentPhase(
         SyncEnrollmentPhase.credentialAcquired,
@@ -406,11 +419,18 @@ void main() {
       );
       await configureHandshakeSuccess();
 
-      await service().enroll();
+      final error = await enrollError(service().enroll);
+
+      expect(
+        error,
+        isA<SyncEnrollmentException>()
+            .having((e) => e.step, 'step', 'enroll')
+            .having((e) => e.code, 'code', 'device_authorization_required'),
+      );
 
       expect(authenticator.beginCalls, 0);
       expect(authenticator.completeCalls, 0);
-      expect(backend.calls, isNot(contains('reconcile')));
+      expect(backend.calls, isEmpty);
       final snapshot = await metadataStore.snapshot();
       expect(snapshot.phase, SyncEnrollmentPhase.credentialAcquired);
       expect(snapshot.writeEnabled, isFalse);
