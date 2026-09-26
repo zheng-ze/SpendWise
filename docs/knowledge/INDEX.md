@@ -13,7 +13,7 @@ themselves. Feature entries fold in still-current legacy material when a feature
 | Domain models, `LedgerState`, lifecycle machine | [ledger-and-money-model.md](ledger-and-money-model.md) |
 | Runtime hub, event bus, analysis cache, boot, banners, seeding | [ledger-runtime.md](ledger-runtime.md) |
 | Persistence (Drift store, coalescing, version vectors, replay) | [persistence.md](persistence.md) |
-| Sync package engine, payload codec, encryption, reconciliation, staging | [sync-package-engine.md](sync-package-engine.md) |
+| Sync package engine, payload codec, encryption, reconciliation, staging, device-binding contract | [sync-package-engine.md](sync-package-engine.md) |
 | App-side durable sync stores (metadata, staging, migration) | [sync-durable-stores.md](sync-durable-stores.md) |
 | Sync composition roots, credential and key boundaries, backend selection | [sync-composition-root.md](sync-composition-root.md) |
 | Sync run scheduler, single-flight and request coalescing | [sync-run-scheduler.md](sync-run-scheduler.md) |

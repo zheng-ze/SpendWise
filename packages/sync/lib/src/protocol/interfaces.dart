@@ -35,3 +35,13 @@ abstract interface class SyncAuthenticator {
     DeviceCredential credential,
   );
 }
+
+abstract interface class DeviceBindingAuthorizer {
+  Future<SyncOutcome<StartDeviceBindingResponse>> startBinding(
+    StartDeviceBindingRequest request,
+  );
+
+  Future<SyncOutcome<VerifyDeviceBindingResponse>> verifyBinding(
+    VerifyDeviceBindingRequest request,
+  );
+}

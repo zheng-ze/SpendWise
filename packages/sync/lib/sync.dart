@@ -10,9 +10,11 @@ import 'package:http/http.dart' as http;
 
 part 'src/protocol/canonical_json.dart';
 part 'src/protocol/credential.dart';
+part 'src/protocol/binding.dart';
 part 'src/protocol/envelope.dart';
 part 'src/protocol/interfaces.dart';
 part 'src/protocol/outcome.dart';
+part 'src/protocol/failure_mapping.dart';
 part 'src/protocol/requests.dart';
 part 'src/protocol/version_vector.dart';
 part 'src/crypto/sync_cipher.dart';

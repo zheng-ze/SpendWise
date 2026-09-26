@@ -69,6 +69,18 @@ final class ProtocolUnsupported<T> extends SyncFailure<T> {
   String get code => 'protocol_unsupported';
 }
 
+final class DeviceAuthorizationRequired<T> extends SyncFailure<T> {
+  const DeviceAuthorizationRequired({super.message});
+  @override
+  String get code => 'device_authorization_required';
+}
+
+final class IncompatibleServer<T> extends SyncFailure<T> {
+  const IncompatibleServer({super.message});
+  @override
+  String get code => 'incompatible_server';
+}
+
 final class InvalidRequest<T> extends SyncFailure<T> {
   const InvalidRequest({super.message});
   @override
