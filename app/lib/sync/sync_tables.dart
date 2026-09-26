@@ -35,6 +35,12 @@ class SyncMeta extends Table {
   BoolColumn get writeEnabled =>
       boolean().named('write_enabled').withDefault(const Constant(false))();
 
+  IntColumn get deviceBindingState =>
+      integer().named('device_binding_state').withDefault(const Constant(0))();
+
+  IntColumn get reauthResumePhase =>
+      integer().named('reauth_resume_phase').nullable()();
+
   TextColumn get moneySourcesCursor =>
       text().named('money_sources_cursor').nullable()();
 

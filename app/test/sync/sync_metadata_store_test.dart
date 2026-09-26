@@ -116,6 +116,14 @@ void main() {
       }
     });
 
+    test('deviceBindingRequired follows device_binding_state', () async {
+      expect((await snapshot()).deviceBindingRequired, isFalse);
+      await (db.update(db.syncMeta)..where((t) => t.id.equals(0))).write(
+        const SyncMetaCompanion(deviceBindingState: Value(1)),
+      );
+      expect((await snapshot()).deviceBindingRequired, isTrue);
+    });
+
     test('flips the write gate both ways once reconciled', () async {
       await store.setEnrollmentPhase(
         SyncEnrollmentPhase.reconciliationComplete,
@@ -491,6 +499,8 @@ void main() {
         'endpoint',
         'enrollment_phase',
         'write_enabled',
+        'device_binding_state',
+        'reauth_resume_phase',
         'money_sources_cursor',
         'entries_cursor',
         'categories_cursor',

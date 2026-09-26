@@ -1,6 +1,6 @@
 # Sync: durable app stores
 
-Last reconciled: 1022150
+Last reconciled: fd4eb7e
 
 ## Layer overview
 
@@ -18,7 +18,7 @@ verifier. The composition root owns assembly, while run and scheduling remain a 
 
 ## Key files
 
-- `app/lib/sync/sync_tables.dart` - The five sync-coordination tables and their key shapes.
+- `app/lib/sync/sync_tables.dart` - The six sync-coordination tables and their key shapes.
 - `app/lib/sync/sync_metadata_store.dart` - `SyncMetadataStore`, `SyncEnrollmentPhase`,
   `SyncBackendKind`, and `SyncMetadataSnapshot`.
 - `app/lib/sync/drift_sync_staging_store.dart` - `DriftSyncStagingStore`, the Drift-backed
@@ -28,7 +28,7 @@ verifier. The composition root owns assembly, while run and scheduling remain a 
 - `app/lib/sync/post_flush_readback_verifier.dart` - `PostFlushReadbackVerifier`, which groups
   submitted stamps by collection and classifies durable readback.
 - `app/lib/sync/row_readback_outcome.dart` - The sealed readback outcome hierarchy.
-- `app/lib/persistence/ledger_database.dart` - Schema version 4 and the additive v3 to v4
+- `app/lib/persistence/ledger_database.dart` - Schema version 6 and the v4/v5 to v6 `sync_meta`
   migration.
 - `app/test/sync/sync_metadata_store_test.dart` - Metadata defaults, round-trips, atomicity and
   rollback, secret separation, and restart durability.
@@ -44,7 +44,8 @@ verifier. The composition root owns assembly, while run and scheduling remain a 
 ## Module interactions
 
 `SyncMetadataStore` wraps `LedgerDatabase`. Its singleton `sync_meta` row holds the nullable
-backend selection, the enrollment phase, the write gate, and the five pull watermarks; the
+backend selection, the enrollment phase, the write gate, device-binding and reauthentication
+fields, and the five pull watermarks; the
 `sync_acknowledged_vectors` table holds composite vectors keyed by `SyncRowID`, and the
 `sync_pending_acknowledgements` table holds one staged-but-unacknowledged checkpoint per
 collection. Every mutation runs in one Drift transaction, including the combined pulled-vector,
@@ -82,7 +83,10 @@ Source: `app/lib/sync/post_flush_readback_verifier.dart` -
 `a stored vector neither equal to nor dominating the stamp fails as incompatible`.
 
 The v3 to v4 migration creates the five tables with `CREATE TABLE IF NOT EXISTS`, so existing
-user rows are preserved. Source: `app/lib/persistence/ledger_database.dart` - `migration`;
+user rows are preserved. The v4/v5 to v6 migration adds `device_binding_state INTEGER NOT NULL
+DEFAULT 0` and nullable `reauth_resume_phase` to `sync_meta`. Binding-state codes are 0
+(`notApplicable`), 1 (`authorizationRequired`), and 2 (`bound`). Source:
+`app/lib/persistence/ledger_database.dart` - `migration`;
 `app/test/sync/sync_migration_test.dart` - test
 `the v3 to v4 migration preserves existing user rows`.
 
@@ -99,9 +103,13 @@ This layer has no routes or screens. Source: `app/lib/sync/sync_metadata_store.d
 - `SyncMetadataStore.setBackendSelection` and `clearBackendSelection` write the nullable
   backend profile and endpoint; both stay null until enrollment. Source:
   `app/lib/sync/sync_metadata_store.dart` - `SyncMetadataStore.setBackendSelection`.
-- `SyncMetadataStore.setEnrollmentPhase` records `notEnrolled`, `credentialAcquired`,
-  `snapshotInProgress`, `reconciliationComplete`, or `gateEnabled` under explicit integer
-  codes. Source: `app/lib/sync/sync_metadata_store.dart` - `SyncEnrollmentPhase`.
+- `SyncMetadataStore.setEnrollmentPhase` records `notEnrolled` (0), `credentialAcquired` (1),
+  `snapshotInProgress` (2), `reconciliationComplete` (3), `gateEnabled` (4),
+  `bindingAuthorizationRequired` (5), or `sessionReauthRequired` (6) under explicit integer
+  codes. The last two values have no enrollment transition logic yet. Source:
+  `app/lib/sync/sync_metadata_store.dart` - `SyncEnrollmentPhase`,
+  `SyncMetadataStore.setEnrollmentPhase`; `app/lib/sync/sync_enrollment_service.dart` -
+  `SyncEnrollmentService._advance`.
 - `SyncMetadataStore.setWriteEnabled` enables the write gate only from
   `reconciliationComplete`; a refused enable throws `SyncWriteGateException` and persists
   nothing, while disabling remains allowed. Source: `app/lib/sync/sync_metadata_store.dart` -
@@ -169,6 +177,22 @@ This layer has no routes or screens. Source: `app/lib/sync/sync_metadata_store.d
   `app/lib/sync/sync_metadata_store.dart` - `SyncEnrollmentPhase.fromCode`,
   `SyncBackendKind.fromCode`;
   `app/lib/sync/drift_sync_staging_store.dart` - `DriftSyncStagingStore._decodeSibling`.
+- The v4/v5 to v6 migration applies its updates in precedence order. A `custom` row always
+  resets to `notEnrolled` (0), `device_binding_state` 0, and writes disabled, regardless of its
+  prior phase, while retaining its backend and endpoint. A `supabase` row at
+  `credentialAcquired` (1) retains that phase, receives `device_binding_state` 1, and has writes
+  disabled. A `supabase` row at `snapshotInProgress` (2), `reconciliationComplete` (3), or
+  `gateEnabled` (4) becomes `bindingAuthorizationRequired` (5), receives
+  `device_binding_state` 1, and has writes disabled. Rows outside these matches retain their
+  existing fields and receive the two added-column defaults.
+  Source: `app/lib/persistence/ledger_database.dart` - `migration`;
+  `app/test/sync/sync_migration_test.dart` - v4/v5-to-v6 upgrade tests.
+- The migration never writes `reauth_resume_phase`, so it remains null, and it cannot produce
+  `device_binding_state` 2 (`bound`). The metadata store exposes neither typed reads nor writes
+  for the two new columns, and the two new phase codes have no transition logic. Source:
+  `app/lib/persistence/ledger_database.dart` - `migration`;
+  `app/lib/sync/sync_metadata_store.dart` - `SyncMetadataSnapshot`, `SyncMetadataStore`;
+  `app/lib/sync/sync_enrollment_service.dart` - `SyncEnrollmentService._advance`.
 - `CollectionVersionReader` is intentionally distinct from package `SyncVersionSource`.
   `SyncVersionSource` synchronously looks up one row for `SyncEngine.encode`; the app reader
   asynchronously reads one whole collection for push-candidate selection and readback. Do not

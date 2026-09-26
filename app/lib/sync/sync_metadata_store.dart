@@ -11,7 +11,10 @@ enum SyncEnrollmentPhase {
   snapshotInProgress(2),
 
   reconciliationComplete(3),
-  gateEnabled(4);
+  gateEnabled(4),
+
+  bindingAuthorizationRequired(5),
+  sessionReauthRequired(6);
 
   const SyncEnrollmentPhase(this.code);
 
@@ -56,6 +59,7 @@ final class SyncMetadataSnapshot {
     required this.endpoint,
     required this.phase,
     required this.writeEnabled,
+    this.deviceBindingRequired = false,
     required this.watermarks,
   });
 
@@ -65,6 +69,9 @@ final class SyncMetadataSnapshot {
 
   final SyncEnrollmentPhase phase;
   final bool writeEnabled;
+
+  // The row needs binding authorization before writes may resume.
+  final bool deviceBindingRequired;
 
   final Map<SyncCollection, String?> watermarks;
 }
@@ -84,6 +91,7 @@ final class SyncMetadataStore implements BackendSelectionWriter {
       endpoint: meta.endpoint,
       phase: SyncEnrollmentPhase.fromCode(meta.enrollmentPhase),
       writeEnabled: meta.writeEnabled,
+      deviceBindingRequired: meta.deviceBindingState != 0,
       watermarks: {
         for (final collection in SyncCollection.values)
           collection: _watermarkOf(meta, collection),
