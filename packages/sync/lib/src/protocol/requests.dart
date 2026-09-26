@@ -7,6 +7,12 @@ part of '../../sync.dart';
 /// document. This is the confirmed protocol major, not a provisional value.
 const int syncProtocolVersion = 1;
 
+/// Operation protocol major declared by every v2 request.
+///
+/// Deliberately separate from the envelope `protocol_version`: the envelope
+/// version stays 1 while bound operations declare major 2 with no downgrade.
+const int syncOperationMajor = 2;
+
 final class PushRequest {
   PushRequest({required Iterable<SyncEnvelope> envelopes, this.writeProof})
       : envelopes = List.unmodifiable(envelopes);
@@ -139,12 +145,21 @@ sealed class ReconcileRequest {
 }
 
 final class BeginReconcile extends ReconcileRequest {
-  const BeginReconcile();
+  const BeginReconcile({String? bindingAuthorization})
+      : _bindingAuthorization = bindingAuthorization;
+
+  final String? _bindingAuthorization;
 
   @override
-  Map<String, Object?> toWireJson() => const <String, Object?>{
+  Map<String, Object?> toWireJson() => <String, Object?>{
         'action': 'begin_reconcile',
+        if (_bindingAuthorization != null)
+          'binding_authorization': _bindingAuthorization,
       };
+
+  @override
+  String toString() => 'BeginReconcile(bindingAuthorization: '
+      '${_bindingAuthorization == null ? 'absent' : '<redacted>'})';
 }
 
 final class CompleteReconcile extends ReconcileRequest {
