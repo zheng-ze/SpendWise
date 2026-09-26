@@ -3,6 +3,7 @@ import 'package:spendwise/sync/secret_store.dart';
 final class InMemorySecretStore implements SecretStore {
   final _values = <String, String>{};
   final reads = <String>[];
+  final writes = <String>[];
   final deletes = <String>[];
   Object? readFailure;
   Object? deleteFailure;
@@ -15,7 +16,10 @@ final class InMemorySecretStore implements SecretStore {
   }
 
   @override
-  Future<void> write(String key, String value) async => _values[key] = value;
+  Future<void> write(String key, String value) async {
+    writes.add(key);
+    _values[key] = value;
+  }
 
   @override
   Future<void> delete(String key) async {

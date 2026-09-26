@@ -326,6 +326,7 @@ void main() {
     await secrets.write(syncDeviceSecretKey, 'test-device-secret');
 
     secrets.reads.clear();
+    secrets.writes.clear();
     await provider.withSessionCredential((_) => 'session');
     expect(secrets.reads, [syncCredentialSecretKey]);
 
@@ -333,6 +334,7 @@ void main() {
       syncCredentialSecretKey,
       const CredentialCodec().export(second),
     );
+    expect(secrets.writes, isNot(contains(syncDeviceSecretKey)));
     final rebound = await provider.withBoundCredential((bound) => bound);
     expect(
       rebound,
@@ -346,7 +348,9 @@ void main() {
     );
     expect(stillSession, second);
 
+    secrets.writes.clear();
     await secrets.write(syncDeviceSecretKey, 'test-device-secret');
+    expect(secrets.writes, isNot(contains(syncCredentialSecretKey)));
     await secrets.delete(syncCredentialSecretKey);
     expect(await secrets.read(syncDeviceSecretKey), 'test-device-secret');
     var called = false;
