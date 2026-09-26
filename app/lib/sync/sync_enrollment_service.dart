@@ -174,7 +174,7 @@ final class SyncEnrollmentService {
     final credential = await CredentialProvider(
       database: database,
       secretStore: secretStore,
-    ).withCredential((restored) => restored);
+    ).withSessionCredential((restored) => restored);
     final beginResponse = _requireSuccess(
       await backend.reconcile(credential, const BeginReconcile()),
       step: 'reconcileBegin',

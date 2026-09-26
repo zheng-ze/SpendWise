@@ -302,7 +302,7 @@ final class SyncCoordinator extends ChangeNotifier {
     final SyncMetadataSnapshot snapshot = await metadataStore.snapshot();
     final String? cursor = snapshot.watermarks[collection];
     final SyncOutcome<PullResponse> outcome = await _credentialProvider
-        .withCredential(
+        .withSessionCredential(
           (DeviceCredential credential) => backend.pull(
             credential,
             PullRequest(collection: collection, cursor: cursor),
@@ -649,7 +649,7 @@ final class SyncCoordinator extends ChangeNotifier {
       return;
     }
     final SyncOutcome<AcknowledgeResponse> outcome = await _credentialProvider
-        .withCredential(
+        .withSessionCredential(
           (DeviceCredential credential) => backend.acknowledge(
             credential,
             AcknowledgeRequest(collection: collection, checkpoint: checkpoint),
@@ -739,7 +739,7 @@ final class SyncCoordinator extends ChangeNotifier {
     );
 
     final SyncOutcome<PushResponse> outcome = await _credentialProvider
-        .withCredential(
+        .withSessionCredential(
           (DeviceCredential credential) => backend.push(
             credential,
             PushRequest(envelopes: envelopes, writeProof: writeProof),
