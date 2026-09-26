@@ -171,8 +171,9 @@ final class InMemorySyncBackend
     }
     final gate = _gate<ReconcileResponse>(credential);
     if (gate != null) return gate;
-    if (request is BeginReconcile) {
-      return SyncSuccess(_boundContext(_deviceIDOf(credential), null));
+    final deviceID = _deviceIDOf(credential);
+    if (request is BeginReconcile && _bindings.containsKey(deviceID)) {
+      return SyncSuccess(_boundContext(deviceID, null));
     }
     return _onReconcile?.call(credential, request) ??
         SyncSuccess(ReconcileResponse(const {}));
@@ -226,7 +227,10 @@ final class InMemorySyncBackend
         message: 'Binding requires operation major 2.',
       );
     }
-    final challenge = _challenges.remove(request.challengeID);
+    // Only peek at the challenge here: a device-ID, identifier, or OTP
+    // mismatch must leave a still-valid challenge available for a retry with
+    // the correct fields, exactly like a wrong-OTP attempt already does.
+    final challenge = _challenges[request.challengeID];
     if (challenge == null ||
         challenge.deviceID != request.deviceID ||
         challenge.identifier != request.identifier ||
@@ -236,16 +240,19 @@ final class InMemorySyncBackend
       );
     }
     if (request.otp != bindingOtp) {
-      _challenges[challenge.challengeID] = challenge;
       return const DeviceAuthorizationRequired<VerifyDeviceBindingResponse>(
         message: 'Binding challenge failed.',
       );
     }
-    // Verification alone rotates nothing durable: it stages the session
-    // bearer and mints an authorization carrying the pre-rotation generation
-    // as its CAS value. The secret, generation, and retirement changes all
-    // commit in the authorization-bearing Begin, so a lost verify response
-    // is safe to retry with a fresh OTP.
+    _challenges.remove(request.challengeID);
+    // Verification alone rotates nothing durable: an existing binding's
+    // bearer, secret, generation, and retirement all stay untouched here, so
+    // an abandoned or lost verify response never disturbs an already-working
+    // session. Only a brand-new device gets a binding row at all (lazily, per
+    // the plan), since there is no prior session for it to disturb. Both the
+    // eventual bearer commit and the secret/generation rotation happen only
+    // when a matching authorization is later redeemed by authorization-
+    // bearing Begin.
     final deviceID = normalizedID(request.deviceID);
     final bearerToken = _randomToken();
     final binding = _bindings[deviceID];
@@ -255,15 +262,11 @@ final class InMemorySyncBackend
         deviceSecret: null,
         generation: 0,
       );
-    } else {
-      binding
-        ..bearerToken = bearerToken
-        ..bearerExpired = false;
     }
     final grant = _EmulatedAuthorization(
       token: _randomToken(),
       deviceID: deviceID,
-      generation: _bindings[deviceID]!.generation,
+      generation: binding?.generation ?? 0,
       sessionBearer: bearerToken,
       expiresAt: _clock().add(_authorizationLifetime),
     );
@@ -308,12 +311,6 @@ final class InMemorySyncBackend
         message: 'Device binding is unknown.',
       );
     }
-    if (binding.bearerExpired ||
-        _bearerTokenOf(credential) != binding.bearerToken) {
-      return CredentialExpired<ReconcileResponse>(
-        message: 'Bearer for $deviceID is expired.',
-      );
-    }
     final grant = _authorizations[authorization];
     if (grant == null ||
         grant.consumed ||
@@ -328,6 +325,8 @@ final class InMemorySyncBackend
     grant.consumed = true;
     final deviceSecret = _randomToken();
     binding
+      ..bearerToken = grant.sessionBearer
+      ..bearerExpired = false
       ..deviceSecret = deviceSecret
       ..generation += 1
       ..retired = false;

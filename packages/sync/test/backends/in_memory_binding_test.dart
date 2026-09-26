@@ -265,6 +265,39 @@ void main() {
           isA<DeviceAuthorizationRequired<VerifyDeviceBindingResponse>>());
     });
 
+    test('a mismatched device id does not consume the challenge', () async {
+      final backend = provisioned();
+      final start = await backend.startBinding(
+        StartDeviceBindingRequest(
+          identifier: 'user@example.com',
+          deviceID: _deviceID,
+        ),
+      );
+      final challenge =
+          (start as SyncSuccess<StartDeviceBindingResponse>).value;
+
+      final mismatched = await backend.verifyBinding(
+        VerifyDeviceBindingRequest(
+          challengeID: challenge.challengeID,
+          identifier: 'user@example.com',
+          deviceID: 'some-other-device',
+          otp: InMemorySyncBackend.bindingOtp,
+        ),
+      );
+      expect(mismatched,
+          isA<DeviceAuthorizationRequired<VerifyDeviceBindingResponse>>());
+
+      final retried = await backend.verifyBinding(
+        VerifyDeviceBindingRequest(
+          challengeID: challenge.challengeID,
+          identifier: 'user@example.com',
+          deviceID: _deviceID,
+          otp: InMemorySyncBackend.bindingOtp,
+        ),
+      );
+      expect(retried, isA<SyncSuccess<VerifyDeviceBindingResponse>>());
+    });
+
     test('an expired challenge fails closed', () async {
       var now = DateTime.utc(2026, 9, 19, 12);
       final backend = provisioned(clock: () => now);
@@ -386,14 +419,10 @@ void main() {
 
     test('verification alone leaves the prior secret gating', () async {
       final backend = provisioned();
-      final response = await verifiedResponse(backend);
+      await verifiedResponse(backend);
 
-      final prior = BoundDeviceCredential.bind(
-        response.sessionCredential(_deviceID),
-        deviceSecret: _secret,
-      );
       final outcome = await backend.reconcile(
-        prior,
+        boundCredential(),
         const BeginReconcile(),
       );
 
@@ -402,26 +431,44 @@ void main() {
       expect(success.value.wire.containsKey('device_secret'), isFalse);
     });
 
-    test('a lost verify response retries without silent double rotation',
-        () async {
+    test('a lost verify response can be retried with a fresh OTP', () async {
       final backend = provisioned();
-      final first = await verifiedResponse(backend);
-      final second = await verifiedResponse(backend);
-
-      final superseded = await backend.reconcile(
-        first.sessionCredential(_deviceID),
-        first.authorizeBegin(),
-      );
-      expect(superseded, isNot(isA<SyncSuccess<ReconcileResponse>>()));
+      await verifiedResponse(
+          backend); // simulates a response that never arrives
+      final retried = await verifiedResponse(backend);
 
       final outcome = await backend.reconcile(
-        second.sessionCredential(_deviceID),
-        second.authorizeBegin(),
+        retried.sessionCredential(_deviceID),
+        retried.authorizeBegin(),
       );
+
       expect(
         (outcome as SyncSuccess<ReconcileResponse>).value.wire['generation'],
         2,
       );
+    });
+
+    test(
+        'only one of two outstanding grants for the same device can be '
+        'redeemed', () async {
+      final backend = provisioned();
+      final first = await verifiedResponse(backend);
+      final second = await verifiedResponse(backend);
+
+      final redeemed = await backend.reconcile(
+        first.sessionCredential(_deviceID),
+        first.authorizeBegin(),
+      );
+      expect(
+        (redeemed as SyncSuccess<ReconcileResponse>).value.wire['generation'],
+        2,
+      );
+
+      final superseded = await backend.reconcile(
+        second.sessionCredential(_deviceID),
+        second.authorizeBegin(),
+      );
+      expect(superseded, isNot(isA<SyncSuccess<ReconcileResponse>>()));
     });
   });
 
