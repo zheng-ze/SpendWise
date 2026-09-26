@@ -1,8 +1,8 @@
 # Sync: package engine
 
-Last reconciled: ad25ece
+Last reconciled: 16078f6
 
-## Layer overview
+## Overview
 
 The `packages/sync` engine layer converts local `LedgerChange` values into encrypted sync
 envelopes and converts pulled envelopes into conflict-free stamped changes or staged conflicts.
@@ -18,7 +18,20 @@ Source: `packages/sync/pubspec.yaml` - `dependencies`;
 `packages/sync/test/package_boundary_test.dart` - test
 `packages/sync has no Flutter, dart:ui, Supabase-Flutter, or app imports`.
 
-## Key files
+The same public library also owns the typed operation contract for device binding. It defines the
+binding request and response DTOs, credential distinction, typed failures, and the
+`DeviceBindingAuthorizer` seam; `InMemorySyncBackend` is its current in-package implementation. As
+of this contract, it is client-side only: neither `SupabaseSyncBackend` nor
+`SupabaseSyncAuthenticator` implements `DeviceBindingAuthorizer` or reads a `BeginReconcile`
+binding authorization, so `InMemorySyncBackend` is the only implementation that exercises the
+contract end to end. Source: `packages/sync/lib/src/protocol/binding.dart` - binding DTOs;
+`packages/sync/lib/src/protocol/credential.dart` - `BoundDeviceCredential`;
+`packages/sync/lib/src/protocol/interfaces.dart` - `DeviceBindingAuthorizer`;
+`packages/sync/lib/src/backends/in_memory_backend.dart` - `InMemorySyncBackend`;
+`packages/sync/lib/src/backends/supabase_backend.dart` - `SupabaseSyncBackend`;
+`packages/sync/lib/src/backends/supabase_authenticator.dart` - `SupabaseSyncAuthenticator`.
+
+## Key locations
 
 - `packages/sync/lib/sync.dart` - Public package library and export surface.
 - `packages/sync/lib/src/engine/sync_engine.dart` - Main encode and reconcile entry point, result
@@ -37,7 +50,17 @@ Source: `packages/sync/pubspec.yaml` - `dependencies`;
 - `packages/sync/lib/src/protocol/envelope.dart` - Envelope metadata, authenticated associated
   data, and sibling identity.
 - `packages/sync/lib/src/protocol/requests.dart` - Request wire encoders and typed pull-page and
-  push-response accessors.
+  push-response accessors, operation-major constant, and reconciliation authorization carrier.
+- `packages/sync/lib/src/protocol/binding.dart` - v2 device-binding request and response DTOs.
+- `packages/sync/lib/src/protocol/credential.dart` - Bearer-only and device-bound credential
+  types.
+- `packages/sync/lib/src/protocol/interfaces.dart` - `SyncBackend`, `SyncAuthenticator`, and
+  `DeviceBindingAuthorizer` seams.
+- `packages/sync/lib/src/protocol/failure_mapping.dart` - Shared HTTP-to-`SyncFailure` mapping.
+- `packages/sync/lib/src/protocol/outcome.dart` - Typed sync outcomes, including binding and
+  incompatibility failures.
+- `packages/sync/lib/src/backends/in_memory_backend.dart` - In-memory backend and its binding
+  state-machine emulation.
 - `packages/sync/lib/src/protocol/version_vector.dart` - Causal ordering and persistence and wire
   codecs for version vectors.
 - `packages/sync/pubspec.yaml` - Pure-Dart dependency boundary, including the pinned cryptography
@@ -45,7 +68,7 @@ Source: `packages/sync/pubspec.yaml` - `dependencies`;
 - `packages/sync/test/engine/sync_engine_test.dart` - Engine reconciliation, identity, encoding,
   mapping, and key-access contract tests.
 
-## Module interactions
+## Interactions
 
 For a push, a caller gives `SyncEngine.encode` local `LedgerChange` values and a
 `SyncVersionSource`. The engine maps every change to a `SyncCollection`, normalizes its row ID,
@@ -73,14 +96,21 @@ secret store and opaque credential payload outside the engine boundary. Source:
 `packages/sync/lib/src/engine/sync_engine.dart` - `SyncE2EKeyAccessor`, `SyncEngine`;
 `packages/sync/lib/src/credential/credential_codec.dart` - `CredentialCodec`.
 
-## Navigation
+`DeviceCredential` carries only a device ID and bearer. `BoundDeviceCredential.bind` creates a
+distinct `SyncCredential` that adds an in-memory device secret. Keeping the types separate lets
+routine bearer replacement leave the secret untouched, while a bearer-only credential cannot
+stand in for a bound credential. Both redact protected values from `toString()`. Source:
+`packages/sync/lib/src/protocol/credential.dart` - `DeviceCredential`,
+`BoundDeviceCredential`; `packages/sync/test/protocol/bound_credential_test.dart` - group
+`BoundDeviceCredential`.
 
-This package layer has no routes, screens, back-stack behavior, or deep links. App-layer
-orchestration and conflict-review UI remain outside `packages/sync`. Source:
-`packages/sync/test/package_boundary_test.dart` - test
-`packages/sync has no Flutter, dart:ui, Supabase-Flutter, or app imports`.
+`DeviceBindingAuthorizer.startBinding` and `.verifyBinding` exchange the typed binding DTOs.
+`VerifyDeviceBindingResponse` provides a fresh bearer as `sessionCredential(deviceID)` and creates
+the corresponding authorization-bearing `BeginReconcile` through `authorizeBegin()`. Source:
+`packages/sync/lib/src/protocol/interfaces.dart` - `DeviceBindingAuthorizer`;
+`packages/sync/lib/src/protocol/binding.dart` - `VerifyDeviceBindingResponse`.
 
-## APIs
+## Entry points and flows
 
 - `SyncEngine.reconcile(envelopes)` returns an immutable `ReconcileResult` containing
   conflict-free `changes`, their exact `stamps`, `stagedConflicts`, and `winningInputIndex`.
@@ -167,12 +197,21 @@ orchestration and conflict-review UI remain outside `packages/sync`. Source:
   the exported value, `DeviceCredential.toString()`, or malformed-input error text. Source:
   `packages/sync/lib/src/credential/credential_codec.dart` - `CredentialCodec`;
   `packages/sync/test/engine/credential_codec_test.dart` - groups `round-trip` and `bearer opacity`.
+- `syncOperationMajor` is 2. Each binding DTO sends and accepts only that
+  `protocol_major`; a legacy value is rejected during decoding. `syncFailureFromHttp` centralizes
+  HTTP and named-code failure mapping, including HTTP 428 to `DeviceAuthorizationRequired`.
+  `IncompatibleServer` represents terminal client-detected incompatibility and is distinct from
+  `ProtocolUnsupported`, which represents an explicit HTTP 426 or `protocol_unsupported` server
+  response. Source: `packages/sync/lib/src/protocol/requests.dart` - `syncOperationMajor`;
+  `packages/sync/lib/src/protocol/binding.dart` - `_expectOperationMajor`;
+  `packages/sync/lib/src/protocol/failure_mapping.dart` - `syncFailureFromHttp`;
+  `packages/sync/test/protocol/failure_mapping_test.dart` - group `syncFailureFromHttp`.
 - `collectionFor` and `deleteFor` are total across the 5 sync collections and all 11
   `LedgerChange` variants. Source: `packages/sync/lib/src/engine/sync_engine.dart` -
   `collectionFor`, `deleteFor`; `packages/sync/test/engine/sync_engine_test.dart` - group
   `LedgerChange-to-SyncCollection mapping`.
 
-## Gotchas and invariants
+## Contracts and invariants
 
 - Each encryption uses XChaCha20-Poly1305 with a 256-bit key and a fresh 24-byte nonce from
   `Random.secure()`. The wire ciphertext is unpadded base64url over nonce, ciphertext, and the
@@ -248,6 +287,37 @@ orchestration and conflict-review UI remain outside `packages/sync`. Source:
   `packages/sync/lib/src/engine/sync_engine.dart` - `SyncEngine._decodeRow`,
   `SyncEngine._nonDominatedFrontier`;
   `packages/sync/test/engine/sync_engine_test.dart` - group `reconcile: same-row grouping`.
+
+## Gotchas
+
+- Two distinct "version" fields exist in this package and must not be conflated. `syncProtocolVersion`
+  (1) is the envelope wire version that `SyncEnvelope` stamps and that `SyncCipher`-authenticated
+  associated data binds; it is unrelated to binding and has not changed. `syncOperationMajor` (2) is
+  a separate operation-level major that every v2 binding DTO declares and that a legacy value fails
+  decoding against. The envelope version stays 1 while the binding-adjacent operation surface uses
+  major 2; nothing in this diff moves the envelope to major 2. Source:
+  `packages/sync/lib/src/protocol/requests.dart` - `syncProtocolVersion`, `syncOperationMajor`;
+  `packages/sync/lib/src/protocol/envelope.dart` - `SyncEnvelope.protocolVersion`;
+  `packages/sync/test/protocol/operation_major_test.dart`.
+- `BeginReconcile._bindingAuthorization` never appears in `BeginReconcile.toWireJson()`; that body is
+  always the fixed `{'action': 'begin_reconcile'}`. The authorization is designed to travel as an
+  HTTP header at the real-backend layer instead, so a same-library backend adapter reads the private
+  field directly rather than decoding it from wire JSON, as `InMemorySyncBackend.reconcile` does.
+  Code that only inspects `toWireJson()` output will never observe a set authorization. Source:
+  `packages/sync/lib/src/protocol/requests.dart` - `BeginReconcile`;
+  `packages/sync/lib/src/backends/in_memory_backend.dart` - `InMemorySyncBackend.reconcile`.
+- `InMemorySyncBackend` is not a thin pass-through fake once a device has been provisioned for
+  binding. For any device ID given to `provisionBoundDevice`, it enforces a full binding state
+  machine: bearer-expiry and retirement gating on every call, OTP-backed challenge issuance with
+  single-use, expiring verification, and a two-phase commit where `verifyBinding` only stages a
+  session bearer while the device secret, generation bump, and un-retirement commit inside a
+  subsequent authorization-bearing `BeginReconcile`. A device ID never provisioned this way keeps the
+  unconditional pass-through the fake always had, so existing coordinator tests are unaffected; a
+  test that does provision a bound device must drive it through this state machine rather than
+  assume the fake always succeeds. Source:
+  `packages/sync/lib/src/backends/in_memory_backend.dart` - `InMemorySyncBackend`,
+  `_EmulatedBinding`, `_gate`, `_authorizedBegin`;
+  `packages/sync/test/backends/in_memory_binding_test.dart`.
 
 ## Requirements
 
