@@ -18,3 +18,14 @@ DeviceCredential restoreTestCredential({
     credentialPayload(deviceID: deviceID, bearerToken: bearerToken),
   );
 }
+
+BoundDeviceCredential bindTestCredential({
+  required String deviceID,
+  required String bearerToken,
+  required String deviceSecret,
+}) {
+  return BoundDeviceCredential.bind(
+    restoreTestCredential(deviceID: deviceID, bearerToken: bearerToken),
+    deviceSecret: deviceSecret,
+  );
+}

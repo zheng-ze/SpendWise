@@ -17,27 +17,120 @@ typedef AcknowledgeHandler = Future<SyncOutcome<AcknowledgeResponse>> Function(
   AcknowledgeRequest request,
 );
 
+final class _EmulatedBinding {
+  _EmulatedBinding({
+    required this.bearerToken,
+    required this.deviceSecret,
+    required this.generation,
+  });
+
+  String bearerToken;
+  String deviceSecret;
+  int generation;
+  bool retired = false;
+  bool bearerExpired = false;
+}
+
+final class _EmulatedChallenge {
+  _EmulatedChallenge({
+    required this.challengeID,
+    required this.identifier,
+    required this.deviceID,
+    required this.expiresAt,
+  });
+
+  final String challengeID;
+  final String identifier;
+  final String deviceID;
+  final DateTime expiresAt;
+}
+
+final class _EmulatedAuthorization {
+  _EmulatedAuthorization({
+    required this.token,
+    required this.deviceID,
+    required this.generation,
+    required this.expiresAt,
+  });
+
+  final String token;
+  final String deviceID;
+  final int generation;
+  final DateTime expiresAt;
+  bool consumed = false;
+}
+
 /// Lightweight fake for coordinator and adapter-contract tests.
 ///
 /// It deliberately does not simulate server causality, cursor, proof, or GC
 /// semantics; those belong in the real server/adapter contract test harness.
-final class InMemorySyncBackend implements SyncBackend {
+///
+/// Beyond the pass-through behavior, it emulates the v2 binding contract for
+/// provisioned devices: bearer expiry, retirement, secret verification,
+/// rotation through the start/verify/authorized-Begin chain, and
+/// single-use expiring authorizations. Device IDs with no provisioned binding
+/// keep the legacy pass-through so existing coordinator tests are unaffected.
+final class InMemorySyncBackend
+    implements SyncBackend, DeviceBindingAuthorizer {
   InMemorySyncBackend({
     PushHandler? onPush,
     PullHandler? onPull,
     ReconcileHandler? onReconcile,
     AcknowledgeHandler? onAcknowledge,
+    DateTime Function()? clock,
   })  : _onPush = onPush,
         _onPull = onPull,
         _onReconcile = onReconcile,
-        _onAcknowledge = onAcknowledge;
+        _onAcknowledge = onAcknowledge,
+        _clock = clock ?? (() => DateTime.now().toUtc());
+
+  /// The OTP this fake accepts; the real OTP arrives out-of-band.
+  static const String bindingOtp = '123456';
+
+  static const Duration _challengeLifetime = Duration(minutes: 10);
+  static const Duration _authorizationLifetime = Duration(minutes: 10);
 
   final PushHandler? _onPush;
   final PullHandler? _onPull;
   final ReconcileHandler? _onReconcile;
   final AcknowledgeHandler? _onAcknowledge;
+  final DateTime Function() _clock;
+
+  final Map<String, _EmulatedBinding> _bindings = {};
+  final Map<String, _EmulatedChallenge> _challenges = {};
+  final Map<String, _EmulatedAuthorization> _authorizations = {};
+  int _sequence = 0;
 
   final List<String> calls = <String>[];
+
+  void provisionBoundDevice({
+    required String deviceID,
+    required String bearerToken,
+    required String deviceSecret,
+    int generation = 1,
+  }) {
+    _bindings[normalizedID(deviceID)] = _EmulatedBinding(
+      bearerToken: bearerToken,
+      deviceSecret: deviceSecret,
+      generation: generation,
+    );
+  }
+
+  void expireBearer(String deviceID) {
+    _bindings[normalizedID(deviceID)]?.bearerExpired = true;
+  }
+
+  void updateBearer(String deviceID, String bearerToken) {
+    final binding = _bindings[normalizedID(deviceID)];
+    if (binding != null) {
+      binding.bearerToken = bearerToken;
+      binding.bearerExpired = false;
+    }
+  }
+
+  void retireDevice(String deviceID) {
+    _bindings[normalizedID(deviceID)]?.retired = true;
+  }
 
   @override
   Future<SyncOutcome<PushResponse>> push(
@@ -45,6 +138,8 @@ final class InMemorySyncBackend implements SyncBackend {
     PushRequest request,
   ) async {
     calls.add('push');
+    final gate = _gate<PushResponse>(credential);
+    if (gate != null) return gate;
     return _onPush?.call(credential, request) ??
         SyncSuccess(PushResponse(const {}));
   }
@@ -55,6 +150,8 @@ final class InMemorySyncBackend implements SyncBackend {
     PullRequest request,
   ) async {
     calls.add('pull');
+    final gate = _gate<PullResponse>(credential);
+    if (gate != null) return gate;
     return _onPull?.call(credential, request) ??
         SyncSuccess(PullResponse(const {}));
   }
@@ -65,6 +162,16 @@ final class InMemorySyncBackend implements SyncBackend {
     ReconcileRequest request,
   ) async {
     calls.add('reconcile');
+    final authorization =
+        request is BeginReconcile ? request._bindingAuthorization : null;
+    if (authorization != null) {
+      return _authorizedBegin(credential, authorization);
+    }
+    final gate = _gate<ReconcileResponse>(credential);
+    if (gate != null) return gate;
+    if (request is BeginReconcile) {
+      return SyncSuccess(_boundContext(credential, includeSecret: false));
+    }
     return _onReconcile?.call(credential, request) ??
         SyncSuccess(ReconcileResponse(const {}));
   }
@@ -75,7 +182,186 @@ final class InMemorySyncBackend implements SyncBackend {
     AcknowledgeRequest request,
   ) async {
     calls.add('acknowledge');
+    final gate = _gate<AcknowledgeResponse>(credential);
+    if (gate != null) return gate;
     return _onAcknowledge?.call(credential, request) ??
         SyncSuccess(AcknowledgeResponse(const {}));
+  }
+
+  @override
+  Future<SyncOutcome<StartDeviceBindingResponse>> startBinding(
+    StartDeviceBindingRequest request,
+  ) async {
+    calls.add('startBinding');
+    if (request.protocolMajor != syncOperationMajor) {
+      return const ProtocolUnsupported<StartDeviceBindingResponse>(
+        message: 'Binding requires operation major 2.',
+      );
+    }
+    final challengeID = 'challenge-${++_sequence}';
+    final expiresAt = _clock().add(_challengeLifetime);
+    _challenges[challengeID] = _EmulatedChallenge(
+      challengeID: challengeID,
+      identifier: request.identifier,
+      deviceID: request.deviceID,
+      expiresAt: expiresAt,
+    );
+    return SyncSuccess(
+      StartDeviceBindingResponse(
+        challengeID: challengeID,
+        expiresAt: expiresAt,
+      ),
+    );
+  }
+
+  @override
+  Future<SyncOutcome<VerifyDeviceBindingResponse>> verifyBinding(
+    VerifyDeviceBindingRequest request,
+  ) async {
+    calls.add('verifyBinding');
+    if (request.protocolMajor != syncOperationMajor) {
+      return const ProtocolUnsupported<VerifyDeviceBindingResponse>(
+        message: 'Binding requires operation major 2.',
+      );
+    }
+    final challenge = _challenges.remove(request.challengeID);
+    if (challenge == null ||
+        challenge.deviceID != request.deviceID ||
+        _clock().isAfter(challenge.expiresAt)) {
+      return const DeviceAuthorizationRequired<VerifyDeviceBindingResponse>(
+        message: 'Binding challenge is unknown or expired.',
+      );
+    }
+    if (request.otp != bindingOtp) {
+      _challenges[challenge.challengeID] = challenge;
+      return const DeviceAuthorizationRequired<VerifyDeviceBindingResponse>(
+        message: 'Binding challenge failed.',
+      );
+    }
+    final deviceID = normalizedID(request.deviceID);
+    final binding = _bindings[deviceID];
+    final bearerToken = _randomToken();
+    final deviceSecret = _randomToken();
+    if (binding == null) {
+      _bindings[deviceID] = _EmulatedBinding(
+        bearerToken: bearerToken,
+        deviceSecret: deviceSecret,
+        generation: 1,
+      );
+    } else {
+      binding
+        ..bearerToken = bearerToken
+        ..deviceSecret = deviceSecret
+        ..generation += 1
+        ..retired = false
+        ..bearerExpired = false;
+    }
+    final generation = _bindings[deviceID]!.generation;
+    final token = _randomToken();
+    _authorizations[token] = _EmulatedAuthorization(
+      token: token,
+      deviceID: deviceID,
+      generation: generation,
+      expiresAt: _clock().add(_authorizationLifetime),
+    );
+    return SyncSuccess(
+      VerifyDeviceBindingResponse(
+        accessToken: bearerToken,
+        bindingAuthorization: token,
+        authorizationExpiresAt: _clock().add(_authorizationLifetime),
+      ),
+    );
+  }
+
+  SyncFailure<T>? _gate<T>(SyncCredential credential) {
+    final deviceID = _deviceIDOf(credential);
+    final binding = _bindings[deviceID];
+    if (binding == null) return null;
+    if (binding.retired) {
+      return DeviceRetired<T>(message: 'Device $deviceID is retired.');
+    }
+    if (binding.bearerExpired ||
+        _bearerTokenOf(credential) != binding.bearerToken) {
+      return CredentialExpired<T>(message: 'Bearer for $deviceID is expired.');
+    }
+    if (credential is! BoundDeviceCredential ||
+        credential._deviceSecret != binding.deviceSecret) {
+      return DeviceAuthorizationRequired<T>(
+        message: 'Device $deviceID requires binding authorization.',
+      );
+    }
+    return null;
+  }
+
+  Future<SyncOutcome<ReconcileResponse>> _authorizedBegin(
+    SyncCredential credential,
+    String authorization,
+  ) async {
+    final deviceID = _deviceIDOf(credential);
+    final binding = _bindings[deviceID];
+    if (binding == null) {
+      return const DeviceAuthorizationRequired<ReconcileResponse>(
+        message: 'Device binding is unknown.',
+      );
+    }
+    if (binding.retired) {
+      return DeviceRetired<ReconcileResponse>(
+        message: 'Device $deviceID is retired.',
+      );
+    }
+    if (binding.bearerExpired ||
+        _bearerTokenOf(credential) != binding.bearerToken) {
+      return CredentialExpired<ReconcileResponse>(
+        message: 'Bearer for $deviceID is expired.',
+      );
+    }
+    final grant = _authorizations[authorization];
+    if (grant == null ||
+        grant.consumed ||
+        grant.deviceID != deviceID ||
+        grant.generation != binding.generation ||
+        _clock().isAfter(grant.expiresAt)) {
+      return const DeviceAuthorizationRequired<ReconcileResponse>(
+        message: 'Binding authorization is invalid or expired.',
+      );
+    }
+    grant.consumed = true;
+    return SyncSuccess(_boundContext(credential, includeSecret: true));
+  }
+
+  ReconcileResponse _boundContext(
+    SyncCredential credential, {
+    required bool includeSecret,
+  }) {
+    final deviceID = _deviceIDOf(credential);
+    final binding = _bindings[deviceID]!;
+    final context = ReconciliationContext(
+      reconciliationID: 'recon-${++_sequence}',
+      snapshotWatermark: 'watermark-$_sequence',
+      expiresAt: _clock().add(const Duration(hours: 1)),
+    );
+    return ReconcileResponse(<String, Object?>{
+      'protocol_major': syncOperationMajor,
+      'reconciliation': context.toWireJson(),
+      'generation': binding.generation,
+      if (includeSecret) 'device_secret': binding.deviceSecret,
+    });
+  }
+
+  String _deviceIDOf(SyncCredential credential) => switch (credential) {
+        DeviceCredential(deviceID: final deviceID) => normalizedID(deviceID),
+        BoundDeviceCredential(deviceID: final deviceID) =>
+          normalizedID(deviceID),
+      };
+
+  String _bearerTokenOf(SyncCredential credential) => switch (credential) {
+        DeviceCredential(:final _bearerToken) => _bearerToken,
+        BoundDeviceCredential(:final _bearerToken) => _bearerToken,
+      };
+
+  String _randomToken() {
+    final random = Random.secure();
+    final bytes = <int>[for (var i = 0; i < 32; i++) random.nextInt(256)];
+    return base64UrlEncode(bytes).replaceAll('=', '');
   }
 }
