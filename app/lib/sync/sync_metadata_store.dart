@@ -11,7 +11,10 @@ enum SyncEnrollmentPhase {
   snapshotInProgress(2),
 
   reconciliationComplete(3),
-  gateEnabled(4);
+  gateEnabled(4),
+
+  bindingAuthorizationRequired(5),
+  sessionReauthRequired(6);
 
   const SyncEnrollmentPhase(this.code);
 

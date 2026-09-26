@@ -72,7 +72,11 @@ final class SyncEnrollmentService {
         SyncEnrollmentPhase.snapshotInProgress => _stepSnapshotInProgress(),
         SyncEnrollmentPhase.reconciliationComplete =>
           _stepReconciliationComplete(),
-        SyncEnrollmentPhase.gateEnabled => throw StateError('unreachable'),
+        SyncEnrollmentPhase.gateEnabled ||
+        SyncEnrollmentPhase.bindingAuthorizationRequired ||
+        SyncEnrollmentPhase.sessionReauthRequired => throw StateError(
+          'unreachable',
+        ),
       };
 
   Future<SyncEnrollmentPhase> _stepNotEnrolled() async {

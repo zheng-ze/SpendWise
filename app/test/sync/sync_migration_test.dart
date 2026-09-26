@@ -49,6 +49,84 @@ CREATE TABLE store_meta (
 );
 ''';
 
+const _v5SyncMeta = '''
+CREATE TABLE sync_meta (
+  id INTEGER NOT NULL PRIMARY KEY,
+  backend TEXT NULL,
+  endpoint TEXT NULL,
+  enrollment_phase INTEGER NOT NULL DEFAULT 0,
+  write_enabled INTEGER NOT NULL DEFAULT 0
+    CHECK (write_enabled IN (0, 1)),
+  money_sources_cursor TEXT NULL,
+  entries_cursor TEXT NULL,
+  categories_cursor TEXT NULL,
+  plans_cursor TEXT NULL,
+  budgets_cursor TEXT NULL,
+  CHECK (id = 0)
+);
+''';
+
+LedgerDatabase _openUpgradedSyncMeta({
+  required int fromVersion,
+  String? backend,
+  String? endpoint,
+  int phase = 0,
+  bool writeEnabled = false,
+}) {
+  final executor = NativeDatabase.memory(
+    setup: (raw) {
+      raw.execute(_v5SyncMeta);
+      final backendSql = backend == null ? 'NULL' : "'$backend'";
+      final endpointSql = endpoint == null ? 'NULL' : "'$endpoint'";
+      raw.execute(
+        'INSERT INTO sync_meta (id, backend, endpoint, enrollment_phase, '
+        'write_enabled) VALUES (0, $backendSql, $endpointSql, $phase, '
+        '${writeEnabled ? 1 : 0})',
+      );
+      raw.execute('PRAGMA user_version = $fromVersion');
+    },
+  );
+  return LedgerDatabase(executor);
+}
+
+typedef _RemapCase = ({
+  String? backend,
+  String? endpoint,
+  int phase,
+  bool writeEnabled,
+  int expectedPhase,
+  int expectedBinding,
+});
+
+Future<void> _expectV6Columns(LedgerDatabase db) async {
+  final columns = await db.customSelect('PRAGMA table_info(sync_meta)').get();
+  final byName = {for (final row in columns) row.read<String>('name'): row};
+  expect(byName['device_binding_state']!.read<String>('type'), 'INTEGER');
+  expect(byName['device_binding_state']!.read<int>('notnull'), 1);
+  expect(byName['device_binding_state']!.read<String?>('dflt_value'), '0');
+  expect(byName['reauth_resume_phase']!.read<String>('type'), 'INTEGER');
+  expect(byName['reauth_resume_phase']!.read<int>('notnull'), 0);
+  expect(byName['reauth_resume_phase']!.read<String?>('dflt_value'), isNull);
+}
+
+Future<Map<String, Object?>> _readSyncMetaRow(LedgerDatabase db) async {
+  final row = await db
+      .customSelect(
+        'SELECT backend, endpoint, enrollment_phase, write_enabled, '
+        'device_binding_state, reauth_resume_phase FROM sync_meta '
+        'WHERE id = 0',
+      )
+      .getSingle();
+  return {
+    'backend': row.readNullable<String>('backend'),
+    'endpoint': row.readNullable<String>('endpoint'),
+    'phase': row.read<int>('enrollment_phase'),
+    'writeEnabled': row.read<bool>('write_enabled'),
+    'bindingState': row.read<int>('device_binding_state'),
+    'resumePhase': row.readNullable<int>('reauth_resume_phase'),
+  };
+}
+
 void main() {
   test('the v3 to v4 migration preserves existing user rows', () async {
     final executor = NativeDatabase.memory(
@@ -162,6 +240,7 @@ void main() {
         raw.execute(_v3Accounts);
         raw.execute(_v3Entries);
         raw.execute(_v3StoreMeta);
+        raw.execute(_v5SyncMeta);
         raw.execute(
           'CREATE TABLE sync_acknowledged_vectors ('
           'collection TEXT NOT NULL, '
@@ -242,5 +321,230 @@ void main() {
         'sync_orphan_tombstones',
       },
     );
+  });
+
+  test('SyncEnrollmentPhase decodes the v6 binding-repair codes', () {
+    expect(
+      SyncEnrollmentPhase.fromCode(5),
+      SyncEnrollmentPhase.bindingAuthorizationRequired,
+    );
+    expect(
+      SyncEnrollmentPhase.fromCode(6),
+      SyncEnrollmentPhase.sessionReauthRequired,
+    );
+  });
+
+  test('a 5-to-6 upgrade disables a custom-backend row but keeps its '
+      'selection', () async {
+    final db = _openUpgradedSyncMeta(
+      fromVersion: 5,
+      backend: 'custom',
+      endpoint: 'https://sync.example.com',
+      phase: 4,
+      writeEnabled: true,
+    );
+    addTearDown(db.close);
+
+    expect(await _readSyncMetaRow(db), {
+      'backend': 'custom',
+      'endpoint': 'https://sync.example.com',
+      'phase': 0,
+      'writeEnabled': false,
+      'bindingState': 0,
+      'resumePhase': isNull,
+    });
+  });
+
+  test(
+    'a 5-to-6 upgrade keeps credentialAcquired but closes the write gate',
+    () async {
+      final db = _openUpgradedSyncMeta(
+        fromVersion: 5,
+        backend: 'supabase',
+        phase: 1,
+        writeEnabled: true,
+      );
+      addTearDown(db.close);
+
+      expect(await _readSyncMetaRow(db), {
+        'backend': 'supabase',
+        'endpoint': isNull,
+        'phase': 1,
+        'writeEnabled': false,
+        'bindingState': 1,
+        'resumePhase': isNull,
+      });
+    },
+  );
+
+  test('a 5-to-6 upgrade remaps post-credential hosted phases to binding '
+      'repair', () async {
+    for (final phase in [2, 3, 4]) {
+      final db = _openUpgradedSyncMeta(
+        fromVersion: 5,
+        backend: 'supabase',
+        phase: phase,
+        writeEnabled: true,
+      );
+      addTearDown(db.close);
+
+      expect(await _readSyncMetaRow(db), {
+        'backend': 'supabase',
+        'endpoint': isNull,
+        'phase': 5,
+        'writeEnabled': false,
+        'bindingState': 1,
+        'resumePhase': isNull,
+      }, reason: 'phase $phase');
+    }
+  });
+
+  test('a 5-to-6 upgrade leaves unenrolled rows untouched', () async {
+    final withoutBackend = _openUpgradedSyncMeta(fromVersion: 5);
+    addTearDown(withoutBackend.close);
+    expect(await _readSyncMetaRow(withoutBackend), {
+      'backend': isNull,
+      'endpoint': isNull,
+      'phase': 0,
+      'writeEnabled': false,
+      'bindingState': 0,
+      'resumePhase': isNull,
+    });
+
+    final unenrolledHosted = _openUpgradedSyncMeta(
+      fromVersion: 5,
+      backend: 'supabase',
+    );
+    addTearDown(unenrolledHosted.close);
+    expect(await _readSyncMetaRow(unenrolledHosted), {
+      'backend': 'supabase',
+      'endpoint': isNull,
+      'phase': 0,
+      'writeEnabled': false,
+      'bindingState': 0,
+      'resumePhase': isNull,
+    });
+  });
+
+  test('a 5-to-6 upgrade carries the v6 columns with correct types and '
+      'defaults', () async {
+    final db = _openUpgradedSyncMeta(fromVersion: 5);
+    addTearDown(db.close);
+
+    await _expectV6Columns(db);
+  });
+
+  test(
+    'a 4-to-6 upgrade adds the v6 columns and remaps every row kind',
+    () async {
+      final probe = _openUpgradedSyncMeta(fromVersion: 4);
+      addTearDown(probe.close);
+      await _expectV6Columns(probe);
+
+      final cases = <_RemapCase>[
+        (
+          backend: 'custom',
+          endpoint: 'https://sync.example.com',
+          phase: 4,
+          writeEnabled: true,
+          expectedPhase: 0,
+          expectedBinding: 0,
+        ),
+        (
+          backend: 'supabase',
+          endpoint: null,
+          phase: 1,
+          writeEnabled: true,
+          expectedPhase: 1,
+          expectedBinding: 1,
+        ),
+        for (final phase in [2, 3, 4])
+          (
+            backend: 'supabase',
+            endpoint: null,
+            phase: phase,
+            writeEnabled: true,
+            expectedPhase: 5,
+            expectedBinding: 1,
+          ),
+        (
+          backend: null,
+          endpoint: null,
+          phase: 0,
+          writeEnabled: false,
+          expectedPhase: 0,
+          expectedBinding: 0,
+        ),
+        (
+          backend: 'supabase',
+          endpoint: null,
+          phase: 0,
+          writeEnabled: false,
+          expectedPhase: 0,
+          expectedBinding: 0,
+        ),
+      ];
+      for (final candidate in cases) {
+        final db = _openUpgradedSyncMeta(
+          fromVersion: 4,
+          backend: candidate.backend,
+          endpoint: candidate.endpoint,
+          phase: candidate.phase,
+          writeEnabled: candidate.writeEnabled,
+        );
+        addTearDown(db.close);
+
+        expect(await _readSyncMetaRow(db), {
+          'backend': candidate.backend,
+          'endpoint': candidate.endpoint,
+          'phase': candidate.expectedPhase,
+          'writeEnabled': false,
+          'bindingState': candidate.expectedBinding,
+          'resumePhase': isNull,
+        }, reason: '${candidate.backend} phase ${candidate.phase}');
+      }
+    },
+  );
+
+  test(
+    'a 3-to-6 upgrade creates sync_meta fresh with the v6 columns',
+    () async {
+      final executor = NativeDatabase.memory(
+        setup: (raw) {
+          raw.execute(_v3Accounts);
+          raw.execute(_v3Entries);
+          raw.execute(_v3StoreMeta);
+          raw.execute('PRAGMA user_version = 3');
+        },
+      );
+      final db = LedgerDatabase(executor);
+      addTearDown(db.close);
+
+      await _expectV6Columns(db);
+      final rows = await db.customSelect('SELECT id FROM sync_meta').get();
+      expect(rows, isEmpty);
+      expect(
+        (await SyncMetadataStore(db).snapshot()).phase,
+        SyncEnrollmentPhase.notEnrolled,
+      );
+    },
+  );
+
+  test('a fresh database has the v6 sync_meta columns with defaults', () async {
+    final db = LedgerDatabase(NativeDatabase.memory());
+    addTearDown(db.close);
+
+    await _expectV6Columns(db);
+
+    final store = SyncMetadataStore(db);
+    await store.snapshot();
+    final row = await db
+        .customSelect(
+          'SELECT device_binding_state, reauth_resume_phase FROM sync_meta '
+          'WHERE id = 0',
+        )
+        .getSingle();
+    expect(row.read<int>('device_binding_state'), 0);
+    expect(row.readNullable<int>('reauth_resume_phase'), isNull);
   });
 }

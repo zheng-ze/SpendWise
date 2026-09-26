@@ -3862,6 +3862,28 @@ class $SyncMetaTable extends SyncMeta
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _deviceBindingStateMeta =
+      const VerificationMeta('deviceBindingState');
+  @override
+  late final GeneratedColumn<int> deviceBindingState = GeneratedColumn<int>(
+    'device_binding_state',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _reauthResumePhaseMeta = const VerificationMeta(
+    'reauthResumePhase',
+  );
+  @override
+  late final GeneratedColumn<int> reauthResumePhase = GeneratedColumn<int>(
+    'reauth_resume_phase',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _moneySourcesCursorMeta =
       const VerificationMeta('moneySourcesCursor');
   @override
@@ -3924,6 +3946,8 @@ class $SyncMetaTable extends SyncMeta
     endpoint,
     enrollmentPhase,
     writeEnabled,
+    deviceBindingState,
+    reauthResumePhase,
     moneySourcesCursor,
     entriesCursor,
     categoriesCursor,
@@ -3972,6 +3996,24 @@ class $SyncMetaTable extends SyncMeta
         writeEnabled.isAcceptableOrUnknown(
           data['write_enabled']!,
           _writeEnabledMeta,
+        ),
+      );
+    }
+    if (data.containsKey('device_binding_state')) {
+      context.handle(
+        _deviceBindingStateMeta,
+        deviceBindingState.isAcceptableOrUnknown(
+          data['device_binding_state']!,
+          _deviceBindingStateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('reauth_resume_phase')) {
+      context.handle(
+        _reauthResumePhaseMeta,
+        reauthResumePhase.isAcceptableOrUnknown(
+          data['reauth_resume_phase']!,
+          _reauthResumePhaseMeta,
         ),
       );
     }
@@ -4049,6 +4091,14 @@ class $SyncMetaTable extends SyncMeta
         DriftSqlType.bool,
         data['${effectivePrefix}write_enabled'],
       )!,
+      deviceBindingState: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}device_binding_state'],
+      )!,
+      reauthResumePhase: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}reauth_resume_phase'],
+      ),
       moneySourcesCursor: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}money_sources_cursor'],
@@ -4084,6 +4134,8 @@ class SyncMetadataRow extends DataClass implements Insertable<SyncMetadataRow> {
   final String? endpoint;
   final int enrollmentPhase;
   final bool writeEnabled;
+  final int deviceBindingState;
+  final int? reauthResumePhase;
   final String? moneySourcesCursor;
   final String? entriesCursor;
   final String? categoriesCursor;
@@ -4095,6 +4147,8 @@ class SyncMetadataRow extends DataClass implements Insertable<SyncMetadataRow> {
     this.endpoint,
     required this.enrollmentPhase,
     required this.writeEnabled,
+    required this.deviceBindingState,
+    this.reauthResumePhase,
     this.moneySourcesCursor,
     this.entriesCursor,
     this.categoriesCursor,
@@ -4113,6 +4167,10 @@ class SyncMetadataRow extends DataClass implements Insertable<SyncMetadataRow> {
     }
     map['enrollment_phase'] = Variable<int>(enrollmentPhase);
     map['write_enabled'] = Variable<bool>(writeEnabled);
+    map['device_binding_state'] = Variable<int>(deviceBindingState);
+    if (!nullToAbsent || reauthResumePhase != null) {
+      map['reauth_resume_phase'] = Variable<int>(reauthResumePhase);
+    }
     if (!nullToAbsent || moneySourcesCursor != null) {
       map['money_sources_cursor'] = Variable<String>(moneySourcesCursor);
     }
@@ -4142,6 +4200,10 @@ class SyncMetadataRow extends DataClass implements Insertable<SyncMetadataRow> {
           : Value(endpoint),
       enrollmentPhase: Value(enrollmentPhase),
       writeEnabled: Value(writeEnabled),
+      deviceBindingState: Value(deviceBindingState),
+      reauthResumePhase: reauthResumePhase == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reauthResumePhase),
       moneySourcesCursor: moneySourcesCursor == null && nullToAbsent
           ? const Value.absent()
           : Value(moneySourcesCursor),
@@ -4171,6 +4233,8 @@ class SyncMetadataRow extends DataClass implements Insertable<SyncMetadataRow> {
       endpoint: serializer.fromJson<String?>(json['endpoint']),
       enrollmentPhase: serializer.fromJson<int>(json['enrollmentPhase']),
       writeEnabled: serializer.fromJson<bool>(json['writeEnabled']),
+      deviceBindingState: serializer.fromJson<int>(json['deviceBindingState']),
+      reauthResumePhase: serializer.fromJson<int?>(json['reauthResumePhase']),
       moneySourcesCursor: serializer.fromJson<String?>(
         json['moneySourcesCursor'],
       ),
@@ -4189,6 +4253,8 @@ class SyncMetadataRow extends DataClass implements Insertable<SyncMetadataRow> {
       'endpoint': serializer.toJson<String?>(endpoint),
       'enrollmentPhase': serializer.toJson<int>(enrollmentPhase),
       'writeEnabled': serializer.toJson<bool>(writeEnabled),
+      'deviceBindingState': serializer.toJson<int>(deviceBindingState),
+      'reauthResumePhase': serializer.toJson<int?>(reauthResumePhase),
       'moneySourcesCursor': serializer.toJson<String?>(moneySourcesCursor),
       'entriesCursor': serializer.toJson<String?>(entriesCursor),
       'categoriesCursor': serializer.toJson<String?>(categoriesCursor),
@@ -4203,6 +4269,8 @@ class SyncMetadataRow extends DataClass implements Insertable<SyncMetadataRow> {
     Value<String?> endpoint = const Value.absent(),
     int? enrollmentPhase,
     bool? writeEnabled,
+    int? deviceBindingState,
+    Value<int?> reauthResumePhase = const Value.absent(),
     Value<String?> moneySourcesCursor = const Value.absent(),
     Value<String?> entriesCursor = const Value.absent(),
     Value<String?> categoriesCursor = const Value.absent(),
@@ -4214,6 +4282,10 @@ class SyncMetadataRow extends DataClass implements Insertable<SyncMetadataRow> {
     endpoint: endpoint.present ? endpoint.value : this.endpoint,
     enrollmentPhase: enrollmentPhase ?? this.enrollmentPhase,
     writeEnabled: writeEnabled ?? this.writeEnabled,
+    deviceBindingState: deviceBindingState ?? this.deviceBindingState,
+    reauthResumePhase: reauthResumePhase.present
+        ? reauthResumePhase.value
+        : this.reauthResumePhase,
     moneySourcesCursor: moneySourcesCursor.present
         ? moneySourcesCursor.value
         : this.moneySourcesCursor,
@@ -4239,6 +4311,12 @@ class SyncMetadataRow extends DataClass implements Insertable<SyncMetadataRow> {
       writeEnabled: data.writeEnabled.present
           ? data.writeEnabled.value
           : this.writeEnabled,
+      deviceBindingState: data.deviceBindingState.present
+          ? data.deviceBindingState.value
+          : this.deviceBindingState,
+      reauthResumePhase: data.reauthResumePhase.present
+          ? data.reauthResumePhase.value
+          : this.reauthResumePhase,
       moneySourcesCursor: data.moneySourcesCursor.present
           ? data.moneySourcesCursor.value
           : this.moneySourcesCursor,
@@ -4265,6 +4343,8 @@ class SyncMetadataRow extends DataClass implements Insertable<SyncMetadataRow> {
           ..write('endpoint: $endpoint, ')
           ..write('enrollmentPhase: $enrollmentPhase, ')
           ..write('writeEnabled: $writeEnabled, ')
+          ..write('deviceBindingState: $deviceBindingState, ')
+          ..write('reauthResumePhase: $reauthResumePhase, ')
           ..write('moneySourcesCursor: $moneySourcesCursor, ')
           ..write('entriesCursor: $entriesCursor, ')
           ..write('categoriesCursor: $categoriesCursor, ')
@@ -4281,6 +4361,8 @@ class SyncMetadataRow extends DataClass implements Insertable<SyncMetadataRow> {
     endpoint,
     enrollmentPhase,
     writeEnabled,
+    deviceBindingState,
+    reauthResumePhase,
     moneySourcesCursor,
     entriesCursor,
     categoriesCursor,
@@ -4296,6 +4378,8 @@ class SyncMetadataRow extends DataClass implements Insertable<SyncMetadataRow> {
           other.endpoint == this.endpoint &&
           other.enrollmentPhase == this.enrollmentPhase &&
           other.writeEnabled == this.writeEnabled &&
+          other.deviceBindingState == this.deviceBindingState &&
+          other.reauthResumePhase == this.reauthResumePhase &&
           other.moneySourcesCursor == this.moneySourcesCursor &&
           other.entriesCursor == this.entriesCursor &&
           other.categoriesCursor == this.categoriesCursor &&
@@ -4309,6 +4393,8 @@ class SyncMetaCompanion extends UpdateCompanion<SyncMetadataRow> {
   final Value<String?> endpoint;
   final Value<int> enrollmentPhase;
   final Value<bool> writeEnabled;
+  final Value<int> deviceBindingState;
+  final Value<int?> reauthResumePhase;
   final Value<String?> moneySourcesCursor;
   final Value<String?> entriesCursor;
   final Value<String?> categoriesCursor;
@@ -4320,6 +4406,8 @@ class SyncMetaCompanion extends UpdateCompanion<SyncMetadataRow> {
     this.endpoint = const Value.absent(),
     this.enrollmentPhase = const Value.absent(),
     this.writeEnabled = const Value.absent(),
+    this.deviceBindingState = const Value.absent(),
+    this.reauthResumePhase = const Value.absent(),
     this.moneySourcesCursor = const Value.absent(),
     this.entriesCursor = const Value.absent(),
     this.categoriesCursor = const Value.absent(),
@@ -4332,6 +4420,8 @@ class SyncMetaCompanion extends UpdateCompanion<SyncMetadataRow> {
     this.endpoint = const Value.absent(),
     this.enrollmentPhase = const Value.absent(),
     this.writeEnabled = const Value.absent(),
+    this.deviceBindingState = const Value.absent(),
+    this.reauthResumePhase = const Value.absent(),
     this.moneySourcesCursor = const Value.absent(),
     this.entriesCursor = const Value.absent(),
     this.categoriesCursor = const Value.absent(),
@@ -4344,6 +4434,8 @@ class SyncMetaCompanion extends UpdateCompanion<SyncMetadataRow> {
     Expression<String>? endpoint,
     Expression<int>? enrollmentPhase,
     Expression<bool>? writeEnabled,
+    Expression<int>? deviceBindingState,
+    Expression<int>? reauthResumePhase,
     Expression<String>? moneySourcesCursor,
     Expression<String>? entriesCursor,
     Expression<String>? categoriesCursor,
@@ -4356,6 +4448,9 @@ class SyncMetaCompanion extends UpdateCompanion<SyncMetadataRow> {
       if (endpoint != null) 'endpoint': endpoint,
       if (enrollmentPhase != null) 'enrollment_phase': enrollmentPhase,
       if (writeEnabled != null) 'write_enabled': writeEnabled,
+      if (deviceBindingState != null)
+        'device_binding_state': deviceBindingState,
+      if (reauthResumePhase != null) 'reauth_resume_phase': reauthResumePhase,
       if (moneySourcesCursor != null)
         'money_sources_cursor': moneySourcesCursor,
       if (entriesCursor != null) 'entries_cursor': entriesCursor,
@@ -4371,6 +4466,8 @@ class SyncMetaCompanion extends UpdateCompanion<SyncMetadataRow> {
     Value<String?>? endpoint,
     Value<int>? enrollmentPhase,
     Value<bool>? writeEnabled,
+    Value<int>? deviceBindingState,
+    Value<int?>? reauthResumePhase,
     Value<String?>? moneySourcesCursor,
     Value<String?>? entriesCursor,
     Value<String?>? categoriesCursor,
@@ -4383,6 +4480,8 @@ class SyncMetaCompanion extends UpdateCompanion<SyncMetadataRow> {
       endpoint: endpoint ?? this.endpoint,
       enrollmentPhase: enrollmentPhase ?? this.enrollmentPhase,
       writeEnabled: writeEnabled ?? this.writeEnabled,
+      deviceBindingState: deviceBindingState ?? this.deviceBindingState,
+      reauthResumePhase: reauthResumePhase ?? this.reauthResumePhase,
       moneySourcesCursor: moneySourcesCursor ?? this.moneySourcesCursor,
       entriesCursor: entriesCursor ?? this.entriesCursor,
       categoriesCursor: categoriesCursor ?? this.categoriesCursor,
@@ -4408,6 +4507,12 @@ class SyncMetaCompanion extends UpdateCompanion<SyncMetadataRow> {
     }
     if (writeEnabled.present) {
       map['write_enabled'] = Variable<bool>(writeEnabled.value);
+    }
+    if (deviceBindingState.present) {
+      map['device_binding_state'] = Variable<int>(deviceBindingState.value);
+    }
+    if (reauthResumePhase.present) {
+      map['reauth_resume_phase'] = Variable<int>(reauthResumePhase.value);
     }
     if (moneySourcesCursor.present) {
       map['money_sources_cursor'] = Variable<String>(moneySourcesCursor.value);
@@ -4435,6 +4540,8 @@ class SyncMetaCompanion extends UpdateCompanion<SyncMetadataRow> {
           ..write('endpoint: $endpoint, ')
           ..write('enrollmentPhase: $enrollmentPhase, ')
           ..write('writeEnabled: $writeEnabled, ')
+          ..write('deviceBindingState: $deviceBindingState, ')
+          ..write('reauthResumePhase: $reauthResumePhase, ')
           ..write('moneySourcesCursor: $moneySourcesCursor, ')
           ..write('entriesCursor: $entriesCursor, ')
           ..write('categoriesCursor: $categoriesCursor, ')
@@ -7896,6 +8003,8 @@ typedef $$SyncMetaTableCreateCompanionBuilder = SyncMetaCompanion Function({
   Value<String?> endpoint,
   Value<int> enrollmentPhase,
   Value<bool> writeEnabled,
+  Value<int> deviceBindingState,
+  Value<int?> reauthResumePhase,
   Value<String?> moneySourcesCursor,
   Value<String?> entriesCursor,
   Value<String?> categoriesCursor,
@@ -7908,6 +8017,8 @@ typedef $$SyncMetaTableUpdateCompanionBuilder = SyncMetaCompanion Function({
   Value<String?> endpoint,
   Value<int> enrollmentPhase,
   Value<bool> writeEnabled,
+  Value<int> deviceBindingState,
+  Value<int?> reauthResumePhase,
   Value<String?> moneySourcesCursor,
   Value<String?> entriesCursor,
   Value<String?> categoriesCursor,
@@ -7946,6 +8057,16 @@ class $$SyncMetaTableFilterComposer
 
   ColumnFilters<bool> get writeEnabled => $composableBuilder(
     column: $table.writeEnabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get deviceBindingState => $composableBuilder(
+    column: $table.deviceBindingState,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get reauthResumePhase => $composableBuilder(
+    column: $table.reauthResumePhase,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -8009,6 +8130,16 @@ class $$SyncMetaTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get deviceBindingState => $composableBuilder(
+    column: $table.deviceBindingState,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get reauthResumePhase => $composableBuilder(
+    column: $table.reauthResumePhase,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get moneySourcesCursor => $composableBuilder(
     column: $table.moneySourcesCursor,
     builder: (column) => ColumnOrderings(column),
@@ -8060,6 +8191,16 @@ class $$SyncMetaTableAnnotationComposer
 
   GeneratedColumn<bool> get writeEnabled => $composableBuilder(
     column: $table.writeEnabled,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get deviceBindingState => $composableBuilder(
+    column: $table.deviceBindingState,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get reauthResumePhase => $composableBuilder(
+    column: $table.reauthResumePhase,
     builder: (column) => column,
   );
 
@@ -8125,6 +8266,8 @@ class $$SyncMetaTableTableManager
                 Value<String?> endpoint = const Value.absent(),
                 Value<int> enrollmentPhase = const Value.absent(),
                 Value<bool> writeEnabled = const Value.absent(),
+                Value<int> deviceBindingState = const Value.absent(),
+                Value<int?> reauthResumePhase = const Value.absent(),
                 Value<String?> moneySourcesCursor = const Value.absent(),
                 Value<String?> entriesCursor = const Value.absent(),
                 Value<String?> categoriesCursor = const Value.absent(),
@@ -8136,6 +8279,8 @@ class $$SyncMetaTableTableManager
                 endpoint: endpoint,
                 enrollmentPhase: enrollmentPhase,
                 writeEnabled: writeEnabled,
+                deviceBindingState: deviceBindingState,
+                reauthResumePhase: reauthResumePhase,
                 moneySourcesCursor: moneySourcesCursor,
                 entriesCursor: entriesCursor,
                 categoriesCursor: categoriesCursor,
@@ -8149,6 +8294,8 @@ class $$SyncMetaTableTableManager
                 Value<String?> endpoint = const Value.absent(),
                 Value<int> enrollmentPhase = const Value.absent(),
                 Value<bool> writeEnabled = const Value.absent(),
+                Value<int> deviceBindingState = const Value.absent(),
+                Value<int?> reauthResumePhase = const Value.absent(),
                 Value<String?> moneySourcesCursor = const Value.absent(),
                 Value<String?> entriesCursor = const Value.absent(),
                 Value<String?> categoriesCursor = const Value.absent(),
@@ -8160,6 +8307,8 @@ class $$SyncMetaTableTableManager
                 endpoint: endpoint,
                 enrollmentPhase: enrollmentPhase,
                 writeEnabled: writeEnabled,
+                deviceBindingState: deviceBindingState,
+                reauthResumePhase: reauthResumePhase,
                 moneySourcesCursor: moneySourcesCursor,
                 entriesCursor: entriesCursor,
                 categoriesCursor: categoriesCursor,

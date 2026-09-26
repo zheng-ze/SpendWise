@@ -491,6 +491,8 @@ void main() {
         'endpoint',
         'enrollment_phase',
         'write_enabled',
+        'device_binding_state',
+        'reauth_resume_phase',
         'money_sources_cursor',
         'entries_cursor',
         'categories_cursor',
