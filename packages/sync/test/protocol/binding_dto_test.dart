@@ -157,10 +157,12 @@ void main() {
 
     test('mints an authorization-bearing Begin without exposing the value', () {
       final begin = response().authorizeBegin();
-      final wire = begin.toWireJson();
 
-      expect(wire['binding_authorization'], 'binding-authorization-value');
       expect(begin.toString(), isNot(contains('binding-authorization-value')));
+      expect(
+        begin.toWireJson(),
+        const {'action': 'begin_reconcile'},
+      );
     });
 
     test('mints the session credential for the fresh bearer', () {
@@ -183,16 +185,17 @@ void main() {
       );
     });
 
-    test('only Begin carries the authorization, and redacts it', () {
+    test('the authorization never appears on the wire, set or not', () {
       const authorization = 'binding-authorization-value';
-      final wire = const BeginReconcile(
-        bindingAuthorization: authorization,
-      ).toWireJson();
 
-      expect(wire, {
-        'action': 'begin_reconcile',
-        'binding_authorization': authorization,
-      });
+      expect(
+        const BeginReconcile().toWireJson(),
+        const {'action': 'begin_reconcile'},
+      );
+      expect(
+        const BeginReconcile(bindingAuthorization: authorization).toWireJson(),
+        const {'action': 'begin_reconcile'},
+      );
       expect(
         const BeginReconcile(bindingAuthorization: authorization).toString(),
         isNot(contains(authorization)),

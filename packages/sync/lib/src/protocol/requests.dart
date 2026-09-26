@@ -148,13 +148,13 @@ final class BeginReconcile extends ReconcileRequest {
   const BeginReconcile({String? bindingAuthorization})
       : _bindingAuthorization = bindingAuthorization;
 
+  // Travels as the X-SpendWise-Binding-Authorization header, never in the
+  // JSON body, so same-library adapters read this field directly.
   final String? _bindingAuthorization;
 
   @override
-  Map<String, Object?> toWireJson() => <String, Object?>{
+  Map<String, Object?> toWireJson() => const <String, Object?>{
         'action': 'begin_reconcile',
-        if (_bindingAuthorization != null)
-          'binding_authorization': _bindingAuthorization,
       };
 
   @override
