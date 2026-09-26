@@ -509,6 +509,19 @@ void main() {
 
       expect(outcome, isA<DeviceAuthorizationRequired<ReconcileResponse>>());
     });
+
+    test('an authorization cannot revert a routine reauth', () async {
+      final backend = provisioned();
+      final response = await verifiedResponse(backend);
+      backend.updateBearer(_deviceID, 'bearer-2');
+
+      final outcome = await backend.reconcile(
+        response.sessionCredential(_deviceID),
+        response.authorizeBegin(),
+      );
+
+      expect(outcome, isA<DeviceAuthorizationRequired<ReconcileResponse>>());
+    });
   });
 
   group('expiry boundaries', () {

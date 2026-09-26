@@ -51,6 +51,7 @@ final class _EmulatedAuthorization {
     required this.deviceID,
     required this.generation,
     required this.sessionBearer,
+    required this.priorBearer,
     required this.expiresAt,
   });
 
@@ -58,6 +59,7 @@ final class _EmulatedAuthorization {
   final String deviceID;
   final int generation;
   final String sessionBearer;
+  final String? priorBearer;
   final DateTime expiresAt;
   bool consumed = false;
 }
@@ -268,6 +270,7 @@ final class InMemorySyncBackend
       deviceID: deviceID,
       generation: binding?.generation ?? 0,
       sessionBearer: bearerToken,
+      priorBearer: binding?.bearerToken,
       expiresAt: _clock().add(_authorizationLifetime),
     );
     _authorizations[grant.token] = grant;
@@ -317,6 +320,8 @@ final class InMemorySyncBackend
         grant.deviceID != deviceID ||
         grant.generation != binding.generation ||
         grant.sessionBearer != _bearerTokenOf(credential) ||
+        (grant.priorBearer != null &&
+            grant.priorBearer != binding.bearerToken) ||
         !_clock().isBefore(grant.expiresAt)) {
       return const DeviceAuthorizationRequired<ReconcileResponse>(
         message: 'Binding authorization is invalid or expired.',
