@@ -376,6 +376,47 @@ void main() {
     expect(snapshot.writeEnabled, isTrue);
   });
 
+  test('binding or reauth phases are inert no-op terminals', () async {
+    for (final phase in [
+      SyncEnrollmentPhase.bindingAuthorizationRequired,
+      SyncEnrollmentPhase.sessionReauthRequired,
+    ]) {
+      await metadataStore.setEnrollmentPhase(phase);
+      await configureHandshakeSuccess();
+
+      await service().enroll();
+
+      expect(authenticator.beginCalls, 0, reason: '$phase');
+      expect(authenticator.completeCalls, 0, reason: '$phase');
+      expect(backend.calls, isEmpty, reason: '$phase');
+      final snapshot = await metadataStore.snapshot();
+      expect(snapshot.phase, phase, reason: '$phase');
+      expect(snapshot.writeEnabled, isFalse, reason: '$phase');
+    }
+  });
+
+  test(
+    'credentialAcquired with binding required never reaches reconcile',
+    () async {
+      await metadataStore.setEnrollmentPhase(
+        SyncEnrollmentPhase.credentialAcquired,
+      );
+      await db.customStatement(
+        'UPDATE sync_meta SET device_binding_state = 1 WHERE id = 0',
+      );
+      await configureHandshakeSuccess();
+
+      await service().enroll();
+
+      expect(authenticator.beginCalls, 0);
+      expect(authenticator.completeCalls, 0);
+      expect(backend.calls, isNot(contains('reconcile')));
+      final snapshot = await metadataStore.snapshot();
+      expect(snapshot.phase, SyncEnrollmentPhase.credentialAcquired);
+      expect(snapshot.writeEnabled, isFalse);
+    },
+  );
+
   test('complete reconcile carries the hashed empty snapshot', () async {
     await configureHandshakeSuccess();
     Map<SyncCollection, String>? sentHashes;

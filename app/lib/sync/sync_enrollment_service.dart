@@ -59,7 +59,16 @@ final class SyncEnrollmentService {
   buildSnapshotHasher;
 
   Future<void> enroll() async {
-    var phase = (await metadataStore.snapshot()).phase;
+    final snapshot = await metadataStore.snapshot();
+    if (snapshot.phase == SyncEnrollmentPhase.bindingAuthorizationRequired ||
+        snapshot.phase == SyncEnrollmentPhase.sessionReauthRequired) {
+      return;
+    }
+    if (snapshot.phase == SyncEnrollmentPhase.credentialAcquired &&
+        snapshot.deviceBindingRequired) {
+      return;
+    }
+    var phase = snapshot.phase;
     while (phase != SyncEnrollmentPhase.gateEnabled) {
       phase = await _advance(phase);
     }
