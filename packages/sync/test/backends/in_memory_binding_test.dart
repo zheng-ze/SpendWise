@@ -369,7 +369,6 @@ void main() {
 
       expect(outcome, isA<DeviceAuthorizationRequired<ReconcileResponse>>());
     });
-
     test('an ordinary bound Begin never rotates or returns a secret', () async {
       final backend = provisioned();
 
@@ -383,6 +382,127 @@ void main() {
         await backend.pull(boundCredential(), pullAll()),
         isA<SyncSuccess<PullResponse>>(),
       );
+    });
+
+    test('verification alone leaves the prior secret gating', () async {
+      final backend = provisioned();
+      final response = await verifiedResponse(backend);
+
+      final prior = BoundDeviceCredential.bind(
+        response.sessionCredential(_deviceID),
+        deviceSecret: _secret,
+      );
+      final outcome = await backend.reconcile(
+        prior,
+        const BeginReconcile(),
+      );
+
+      final success = outcome as SyncSuccess<ReconcileResponse>;
+      expect(success.value.wire['generation'], 1);
+      expect(success.value.wire.containsKey('device_secret'), isFalse);
+    });
+
+    test('a lost verify response retries without silent double rotation',
+        () async {
+      final backend = provisioned();
+      final first = await verifiedResponse(backend);
+      final second = await verifiedResponse(backend);
+
+      final superseded = await backend.reconcile(
+        first.sessionCredential(_deviceID),
+        first.authorizeBegin(),
+      );
+      expect(superseded, isNot(isA<SyncSuccess<ReconcileResponse>>()));
+
+      final outcome = await backend.reconcile(
+        second.sessionCredential(_deviceID),
+        second.authorizeBegin(),
+      );
+      expect(
+        (outcome as SyncSuccess<ReconcileResponse>).value.wire['generation'],
+        2,
+      );
+    });
+  });
+
+  group('authorization scope', () {
+    test('verify rejects a mismatched identifier', () async {
+      final backend = provisioned();
+      final start = await backend.startBinding(
+        StartDeviceBindingRequest(
+          identifier: 'user@example.com',
+          deviceID: _deviceID,
+        ),
+      );
+      final challenge =
+          (start as SyncSuccess<StartDeviceBindingResponse>).value;
+
+      final outcome = await backend.verifyBinding(
+        VerifyDeviceBindingRequest(
+          challengeID: challenge.challengeID,
+          identifier: 'other@example.com',
+          deviceID: _deviceID,
+          otp: InMemorySyncBackend.bindingOtp,
+        ),
+      );
+
+      expect(outcome,
+          isA<DeviceAuthorizationRequired<VerifyDeviceBindingResponse>>());
+    });
+
+    test('an authorization does not survive routine reauth', () async {
+      final backend = provisioned();
+      final response = await verifiedResponse(backend);
+      backend.updateBearer(_deviceID, 'bearer-2');
+
+      final outcome = await backend.reconcile(
+        restoreTestCredential(deviceID: _deviceID, bearerToken: 'bearer-2'),
+        response.authorizeBegin(),
+      );
+
+      expect(outcome, isA<DeviceAuthorizationRequired<ReconcileResponse>>());
+    });
+  });
+
+  group('expiry boundaries', () {
+    test('a challenge at exactly its expiry is rejected', () async {
+      var now = DateTime.utc(2026, 9, 19, 12);
+      final backend = provisioned(clock: () => now);
+      final start = await backend.startBinding(
+        StartDeviceBindingRequest(
+          identifier: 'user@example.com',
+          deviceID: _deviceID,
+        ),
+      );
+      final challenge =
+          (start as SyncSuccess<StartDeviceBindingResponse>).value;
+      now = challenge.expiresAt;
+
+      final outcome = await backend.verifyBinding(
+        VerifyDeviceBindingRequest(
+          challengeID: challenge.challengeID,
+          identifier: 'user@example.com',
+          deviceID: _deviceID,
+          otp: InMemorySyncBackend.bindingOtp,
+        ),
+      );
+
+      expect(outcome,
+          isA<DeviceAuthorizationRequired<VerifyDeviceBindingResponse>>());
+    });
+
+    test('an authorization at exactly its expiry is rejected', () async {
+      var now = DateTime.utc(2026, 9, 19, 12);
+      final backend = provisioned(clock: () => now);
+      final response = await verifiedResponse(backend);
+      now = response.authorizationExpiresAt;
+
+      final outcome = await backend.reconcile(
+        response.sessionCredential(_deviceID),
+        response.authorizeBegin(),
+      );
+
+      expect(outcome, isA<DeviceAuthorizationRequired<ReconcileResponse>>());
     });
   });
 

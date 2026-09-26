@@ -25,7 +25,7 @@ final class _EmulatedBinding {
   });
 
   String bearerToken;
-  String deviceSecret;
+  String? deviceSecret;
   int generation;
   bool retired = false;
   bool bearerExpired = false;
@@ -50,12 +50,14 @@ final class _EmulatedAuthorization {
     required this.token,
     required this.deviceID,
     required this.generation,
+    required this.sessionBearer,
     required this.expiresAt,
   });
 
   final String token;
   final String deviceID;
   final int generation;
+  final String sessionBearer;
   final DateTime expiresAt;
   bool consumed = false;
 }
@@ -170,7 +172,7 @@ final class InMemorySyncBackend
     final gate = _gate<ReconcileResponse>(credential);
     if (gate != null) return gate;
     if (request is BeginReconcile) {
-      return SyncSuccess(_boundContext(credential, includeSecret: false));
+      return SyncSuccess(_boundContext(_deviceIDOf(credential), null));
     }
     return _onReconcile?.call(credential, request) ??
         SyncSuccess(ReconcileResponse(const {}));
@@ -227,7 +229,8 @@ final class InMemorySyncBackend
     final challenge = _challenges.remove(request.challengeID);
     if (challenge == null ||
         challenge.deviceID != request.deviceID ||
-        _clock().isAfter(challenge.expiresAt)) {
+        challenge.identifier != request.identifier ||
+        !_clock().isBefore(challenge.expiresAt)) {
       return const DeviceAuthorizationRequired<VerifyDeviceBindingResponse>(
         message: 'Binding challenge is unknown or expired.',
       );
@@ -238,37 +241,38 @@ final class InMemorySyncBackend
         message: 'Binding challenge failed.',
       );
     }
+    // Verification alone rotates nothing durable: it stages the session
+    // bearer and mints an authorization carrying the pre-rotation generation
+    // as its CAS value. The secret, generation, and retirement changes all
+    // commit in the authorization-bearing Begin, so a lost verify response
+    // is safe to retry with a fresh OTP.
     final deviceID = normalizedID(request.deviceID);
-    final binding = _bindings[deviceID];
     final bearerToken = _randomToken();
-    final deviceSecret = _randomToken();
+    final binding = _bindings[deviceID];
     if (binding == null) {
       _bindings[deviceID] = _EmulatedBinding(
         bearerToken: bearerToken,
-        deviceSecret: deviceSecret,
-        generation: 1,
+        deviceSecret: null,
+        generation: 0,
       );
     } else {
       binding
         ..bearerToken = bearerToken
-        ..deviceSecret = deviceSecret
-        ..generation += 1
-        ..retired = false
         ..bearerExpired = false;
     }
-    final generation = _bindings[deviceID]!.generation;
-    final token = _randomToken();
-    _authorizations[token] = _EmulatedAuthorization(
-      token: token,
+    final grant = _EmulatedAuthorization(
+      token: _randomToken(),
       deviceID: deviceID,
-      generation: generation,
+      generation: _bindings[deviceID]!.generation,
+      sessionBearer: bearerToken,
       expiresAt: _clock().add(_authorizationLifetime),
     );
+    _authorizations[grant.token] = grant;
     return SyncSuccess(
       VerifyDeviceBindingResponse(
         accessToken: bearerToken,
-        bindingAuthorization: token,
-        authorizationExpiresAt: _clock().add(_authorizationLifetime),
+        bindingAuthorization: grant.token,
+        authorizationExpiresAt: grant.expiresAt,
       ),
     );
   }
@@ -304,11 +308,6 @@ final class InMemorySyncBackend
         message: 'Device binding is unknown.',
       );
     }
-    if (binding.retired) {
-      return DeviceRetired<ReconcileResponse>(
-        message: 'Device $deviceID is retired.',
-      );
-    }
     if (binding.bearerExpired ||
         _bearerTokenOf(credential) != binding.bearerToken) {
       return CredentialExpired<ReconcileResponse>(
@@ -320,20 +319,22 @@ final class InMemorySyncBackend
         grant.consumed ||
         grant.deviceID != deviceID ||
         grant.generation != binding.generation ||
-        _clock().isAfter(grant.expiresAt)) {
+        grant.sessionBearer != _bearerTokenOf(credential) ||
+        !_clock().isBefore(grant.expiresAt)) {
       return const DeviceAuthorizationRequired<ReconcileResponse>(
         message: 'Binding authorization is invalid or expired.',
       );
     }
     grant.consumed = true;
-    return SyncSuccess(_boundContext(credential, includeSecret: true));
+    final deviceSecret = _randomToken();
+    binding
+      ..deviceSecret = deviceSecret
+      ..generation += 1
+      ..retired = false;
+    return SyncSuccess(_boundContext(deviceID, deviceSecret));
   }
 
-  ReconcileResponse _boundContext(
-    SyncCredential credential, {
-    required bool includeSecret,
-  }) {
-    final deviceID = _deviceIDOf(credential);
+  ReconcileResponse _boundContext(String deviceID, String? deviceSecret) {
     final binding = _bindings[deviceID]!;
     final context = ReconciliationContext(
       reconciliationID: 'recon-${++_sequence}',
@@ -344,7 +345,7 @@ final class InMemorySyncBackend
       'protocol_major': syncOperationMajor,
       'reconciliation': context.toWireJson(),
       'generation': binding.generation,
-      if (includeSecret) 'device_secret': binding.deviceSecret,
+      if (deviceSecret != null) 'device_secret': deviceSecret,
     });
   }
 
