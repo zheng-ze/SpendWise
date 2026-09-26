@@ -6,12 +6,15 @@ final class InMemorySecretStore implements SecretStore {
   final writes = <String>[];
   final deletes = <String>[];
   Object? readFailure;
+  String? readFailureKey;
   Object? deleteFailure;
 
   @override
   Future<String?> read(String key) async {
     reads.add(key);
-    if (readFailure case final failure?) throw failure;
+    if (readFailure case final failure?) {
+      if (readFailureKey == null || readFailureKey == key) throw failure;
+    }
     return _values[key];
   }
 

@@ -455,6 +455,38 @@ void main() {
     expect(thrown.toString(), isNot(contains('test-bearer')));
   });
 
+  test('bound device-secret storage failures stay redacted', () async {
+    final id = await deviceID(db);
+    final credential = const CredentialCodec().restore(
+      payload(id, 'test-bearer'),
+    );
+    await secrets.write(
+      syncCredentialSecretKey,
+      const CredentialCodec().export(credential),
+    );
+    const deviceSecret = 'test-device-secret-value';
+    await secrets.write(syncDeviceSecretKey, deviceSecret);
+    secrets.readFailure = StateError('test-bearer-secret opaque-payload');
+    secrets.readFailureKey = syncDeviceSecretKey;
+    var called = false;
+
+    CredentialUnavailableException? thrown;
+    try {
+      await provider.withBoundCredential((_) => called = true);
+    } on CredentialUnavailableException catch (error) {
+      thrown = error;
+    }
+
+    expect(called, isFalse);
+    expect(thrown, isNotNull);
+    expect(thrown!.reason, CredentialUnavailableReason.storageFailed);
+    expect(thrown.toString(), 'Sync credential unavailable (storageFailed).');
+    expect(thrown.toString(), isNot(contains('test-bearer-secret')));
+    expect(thrown.toString(), isNot(contains('opaque-payload')));
+    expect(thrown.toString(), isNot(contains(deviceSecret)));
+    expect(secrets.reads, [syncCredentialSecretKey, syncDeviceSecretKey]);
+  });
+
   test(
     'overlapping callbacks use independently restored credentials',
     () async {
