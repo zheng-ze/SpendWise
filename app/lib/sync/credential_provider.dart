@@ -13,9 +13,26 @@ final class CredentialProvider {
   final LedgerDatabase _database;
   final SecretStore _secretStore;
 
-  Future<T> withCredential<T>(
+  Future<T> withSessionCredential<T>(
     FutureOr<T> Function(DeviceCredential credential) use,
   ) async {
+    final credential = await _restoreSessionCredential();
+    return use(credential);
+  }
+
+  Future<T> withBoundCredential<T>(
+    FutureOr<T> Function(BoundDeviceCredential credential) use,
+  ) async {
+    final credential = await _restoreSessionCredential();
+    final deviceSecret = await _readDeviceSecret();
+    final bound = BoundDeviceCredential.bind(
+      credential,
+      deviceSecret: deviceSecret,
+    );
+    return use(bound);
+  }
+
+  Future<DeviceCredential> _restoreSessionCredential() async {
     final String? payload;
     try {
       payload = await _secretStore.read(syncCredentialSecretKey);
@@ -52,8 +69,24 @@ final class CredentialProvider {
         CredentialUnavailableReason.identityFailed,
       );
     }
+    return credential;
+  }
 
-    return use(credential);
+  Future<String> _readDeviceSecret() async {
+    final String? secret;
+    try {
+      secret = await _secretStore.read(syncDeviceSecretKey);
+    } catch (_) {
+      throw const CredentialUnavailableException(
+        CredentialUnavailableReason.storageFailed,
+      );
+    }
+    if (secret == null) {
+      throw const CredentialUnavailableException(
+        CredentialUnavailableReason.deviceSecretAbsent,
+      );
+    }
+    return secret;
   }
 }
 
@@ -62,6 +95,7 @@ enum CredentialUnavailableReason {
   malformed,
   storageFailed,
   identityFailed,
+  deviceSecretAbsent,
 }
 
 final class CredentialUnavailableException implements Exception {
