@@ -113,6 +113,11 @@ Future<SyncEnrollmentComposition> composeSyncEnrollment(
     anonKey: config.anonKey,
     client: httpClient,
   );
+  final bindingAuthorizer = SupabaseDeviceBindingAuthorizer(
+    projectUrl: config.projectUrl,
+    anonKey: config.anonKey,
+    client: httpClient,
+  );
   final enrollmentService = SyncEnrollmentService(
     authenticator: authenticator,
     backend: backend,
@@ -132,6 +137,9 @@ Future<SyncEnrollmentComposition> composeSyncEnrollment(
     resolveE2EKey: resolveE2EKey ?? resolveProductionSyncE2EKey,
     buildSnapshotHasher: (credential) =>
         ReconciliationSnapshotHasher(backend: backend, credential: credential),
+    bindingAuthorizer: bindingAuthorizer,
+    bindingIdentifier: identifier,
+    resolveBindingOtp: resolveOtp,
   );
   final SyncCoordinator coordinator;
   try {
