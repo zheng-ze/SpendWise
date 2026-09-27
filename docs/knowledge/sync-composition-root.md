@@ -161,8 +161,9 @@ It leaves every other exception for `SyncRunScheduler`, whose failure behavior i
   `SyncCoordinator` nor `SyncEnrollmentService` calls `withBoundCredential`; both use only
   `withSessionCredential`. Source: `app/lib/sync/credential_provider.dart` -
   `CredentialProvider.withSessionCredential`, `CredentialProvider.withBoundCredential`,
-  `_readDeviceSecret`, `_isWellFormedDeviceSecret`, `CredentialUnavailableReason`;
-  `app/lib/sync/sync_secret_keys.dart` - `syncCredentialSecretKey`, `syncDeviceSecretKey`;
+  `_readDeviceSecret`, `CredentialUnavailableReason`;
+  `app/lib/sync/sync_secret_keys.dart` - `syncCredentialSecretKey`, `syncDeviceSecretKey`,
+  `isValidSyncDeviceSecret`;
   `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.processPullPage`,
   `SyncCoordinator.recoverPendingAcknowledgements`, `SyncCoordinator.pushCollection`;
   `app/lib/sync/sync_enrollment_service.dart` - `SyncEnrollmentService._stepSnapshotInProgress`;
