@@ -40,6 +40,25 @@ void main() {
 
   Future<SyncMetadataSnapshot> snapshot() => store.snapshot();
 
+  Future<void> seedRow({
+    required SyncDeviceBindingState binding,
+    required SyncEnrollmentPhase phase,
+    required bool writes,
+    SyncEnrollmentPhase? resume,
+  }) async {
+    await snapshot();
+    await (db.update(db.syncMeta)..where((t) => t.id.equals(0))).write(
+      SyncMetaCompanion(
+        deviceBindingState: Value(binding.code),
+        enrollmentPhase: Value(phase.code),
+        writeEnabled: Value(writes),
+        reauthResumePhase: resume == null
+            ? const Value<int?>(null)
+            : Value(resume.code),
+      ),
+    );
+  }
+
   group('defaults', () {
     test('backend selection stays null until enrollment', () async {
       final state = await snapshot();
@@ -574,5 +593,447 @@ void main() {
         'checkpoint-5',
       );
     });
+  });
+
+  group('hosted operation legality', () {
+    SyncMetadataSnapshot fake({
+      required SyncDeviceBindingState binding,
+      required SyncEnrollmentPhase phase,
+      required bool writes,
+      SyncEnrollmentPhase? resume,
+    }) => SyncMetadataSnapshot(
+      backend: null,
+      endpoint: null,
+      phase: phase,
+      writeEnabled: writes,
+      deviceBindingState: binding,
+      reauthResumePhase: resume,
+      watermarks: {
+        for (final collection in SyncCollection.values) collection: null,
+      },
+    );
+
+    test('accepts every legal combination', () {
+      final legal = [
+        fake(
+          binding: SyncDeviceBindingState.notApplicable,
+          phase: SyncEnrollmentPhase.notEnrolled,
+          writes: false,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.authorizationRequired,
+          phase: SyncEnrollmentPhase.credentialAcquired,
+          writes: false,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.authorizationRequired,
+          phase: SyncEnrollmentPhase.bindingAuthorizationRequired,
+          writes: false,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.sessionReauthRequired,
+          writes: false,
+          resume: SyncEnrollmentPhase.snapshotInProgress,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.sessionReauthRequired,
+          writes: false,
+          resume: SyncEnrollmentPhase.reconciliationComplete,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.sessionReauthRequired,
+          writes: false,
+          resume: SyncEnrollmentPhase.gateEnabled,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.snapshotInProgress,
+          writes: false,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.reconciliationComplete,
+          writes: false,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.gateEnabled,
+          writes: true,
+        ),
+      ];
+      for (final state in legal) {
+        final outcome = store.validateHostedOperationState(state);
+        expect(outcome, isA<HostedOperationLegal>(), reason: '$state');
+        expect(outcome.isLegal, isTrue, reason: '$state');
+      }
+    });
+
+    test('rejects every illegal combination', () {
+      final illegal = [
+        fake(
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.sessionReauthRequired,
+          writes: false,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.notApplicable,
+          phase: SyncEnrollmentPhase.gateEnabled,
+          writes: true,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.notApplicable,
+          phase: SyncEnrollmentPhase.credentialAcquired,
+          writes: false,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.authorizationRequired,
+          phase: SyncEnrollmentPhase.notEnrolled,
+          writes: false,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.authorizationRequired,
+          phase: SyncEnrollmentPhase.snapshotInProgress,
+          writes: false,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.credentialAcquired,
+          writes: false,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.bindingAuthorizationRequired,
+          writes: false,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.notEnrolled,
+          writes: false,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.gateEnabled,
+          writes: false,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.snapshotInProgress,
+          writes: true,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.notApplicable,
+          phase: SyncEnrollmentPhase.notEnrolled,
+          writes: true,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.authorizationRequired,
+          phase: SyncEnrollmentPhase.credentialAcquired,
+          writes: true,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.authorizationRequired,
+          phase: SyncEnrollmentPhase.bindingAuthorizationRequired,
+          writes: true,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.sessionReauthRequired,
+          writes: true,
+          resume: SyncEnrollmentPhase.gateEnabled,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.sessionReauthRequired,
+          writes: false,
+          resume: SyncEnrollmentPhase.credentialAcquired,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.sessionReauthRequired,
+          writes: false,
+          resume: SyncEnrollmentPhase.sessionReauthRequired,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.gateEnabled,
+          writes: true,
+          resume: SyncEnrollmentPhase.snapshotInProgress,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.notApplicable,
+          phase: SyncEnrollmentPhase.notEnrolled,
+          writes: false,
+          resume: SyncEnrollmentPhase.snapshotInProgress,
+        ),
+      ];
+      for (final state in illegal) {
+        final outcome = store.validateHostedOperationState(state);
+        expect(outcome, isA<HostedOperationIllegal>(), reason: '$state');
+        expect(outcome.isLegal, isFalse, reason: '$state');
+      }
+    });
+
+    test(
+      'snapshot returns illegal rows as raw values without throwing',
+      () async {
+        await seedRow(
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.sessionReauthRequired,
+          writes: false,
+        );
+        final state = await snapshot();
+        expect(state.phase, SyncEnrollmentPhase.sessionReauthRequired);
+        expect(state.reauthResumePhase, isNull);
+        expect(store.validateHostedOperationState(state).isLegal, isFalse);
+      },
+    );
+  });
+
+  group('binding repair transitions', () {
+    test(
+      'enterBindingAuthorizationRequired disables writes and clears resume',
+      () async {
+        await store.enterSnapshotInProgress();
+        await store.enterBindingAuthorizationRequired();
+        final state = await snapshot();
+        expect(
+          state.deviceBindingState,
+          SyncDeviceBindingState.authorizationRequired,
+        );
+        expect(state.phase, SyncEnrollmentPhase.bindingAuthorizationRequired);
+        expect(state.writeEnabled, isFalse);
+        expect(state.reauthResumePhase, isNull);
+        expect(store.validateHostedOperationState(state).isLegal, isTrue);
+      },
+    );
+
+    test('binding repair overrides a prior session reauth', () async {
+      await seedRow(
+        binding: SyncDeviceBindingState.bound,
+        phase: SyncEnrollmentPhase.gateEnabled,
+        writes: true,
+      );
+      expect(
+        await store.enterSessionReauthRequired(),
+        SessionReauthEntry.applied,
+      );
+      await store.enterBindingAuthorizationRequired();
+      final state = await snapshot();
+      expect(
+        state.deviceBindingState,
+        SyncDeviceBindingState.authorizationRequired,
+      );
+      expect(state.phase, SyncEnrollmentPhase.bindingAuthorizationRequired);
+      expect(state.writeEnabled, isFalse);
+      expect(state.reauthResumePhase, isNull);
+    });
+
+    test('enterSnapshotInProgress binds with writes disabled', () async {
+      await store.enterBindingAuthorizationRequired();
+      await store.enterSnapshotInProgress();
+      final state = await snapshot();
+      expect(state.deviceBindingState, SyncDeviceBindingState.bound);
+      expect(state.phase, SyncEnrollmentPhase.snapshotInProgress);
+      expect(state.writeEnabled, isFalse);
+      expect(state.reauthResumePhase, isNull);
+      expect(store.validateHostedOperationState(state).isLegal, isTrue);
+    });
+
+    test(
+      'enterReconciliationComplete keeps the binding with writes disabled',
+      () async {
+        await store.enterSnapshotInProgress();
+        await store.enterReconciliationComplete();
+        final state = await snapshot();
+        expect(state.deviceBindingState, SyncDeviceBindingState.bound);
+        expect(state.phase, SyncEnrollmentPhase.reconciliationComplete);
+        expect(state.writeEnabled, isFalse);
+        expect(store.validateHostedOperationState(state).isLegal, isTrue);
+      },
+    );
+
+    test(
+      'enterGateEnabled enables writes from reconciliationComplete',
+      () async {
+        await store.enterReconciliationComplete();
+        await store.enterGateEnabled();
+        final state = await snapshot();
+        expect(state.deviceBindingState, SyncDeviceBindingState.bound);
+        expect(state.phase, SyncEnrollmentPhase.gateEnabled);
+        expect(state.writeEnabled, isTrue);
+        expect(state.reauthResumePhase, isNull);
+        expect(store.validateHostedOperationState(state).isLegal, isTrue);
+      },
+    );
+
+    test(
+      'enterGateEnabled is refused from any other phase and persists nothing',
+      () async {
+        await store.enterSnapshotInProgress();
+        await expectLater(
+          store.enterGateEnabled(),
+          throwsA(isA<SyncWriteGateException>()),
+        );
+        final state = await snapshot();
+        expect(state.phase, SyncEnrollmentPhase.snapshotInProgress);
+        expect(state.writeEnabled, isFalse);
+      },
+    );
+  });
+
+  group('session reauth compare-and-set', () {
+    test(
+      'applies from each allowed phase and records it as the resume target',
+      () async {
+        for (final resume in [
+          SyncEnrollmentPhase.snapshotInProgress,
+          SyncEnrollmentPhase.reconciliationComplete,
+          SyncEnrollmentPhase.gateEnabled,
+        ]) {
+          await seedRow(
+            binding: SyncDeviceBindingState.bound,
+            phase: resume,
+            writes: resume == SyncEnrollmentPhase.gateEnabled,
+          );
+          expect(
+            await store.enterSessionReauthRequired(),
+            SessionReauthEntry.applied,
+            reason: '$resume',
+          );
+          final state = await snapshot();
+          expect(
+            state.deviceBindingState,
+            SyncDeviceBindingState.bound,
+            reason: '$resume',
+          );
+          expect(
+            state.phase,
+            SyncEnrollmentPhase.sessionReauthRequired,
+            reason: '$resume',
+          );
+          expect(state.writeEnabled, isFalse, reason: '$resume');
+          expect(state.reauthResumePhase, resume, reason: '$resume');
+          expect(
+            store.validateHostedOperationState(state).isLegal,
+            isTrue,
+            reason: '$resume',
+          );
+        }
+      },
+    );
+
+    test(
+      'no-ops when already in session reauth and keeps the resume target',
+      () async {
+        await store.enterSnapshotInProgress();
+        await store.enterReconciliationComplete();
+        await store.enterGateEnabled();
+        expect(
+          await store.enterSessionReauthRequired(),
+          SessionReauthEntry.applied,
+        );
+        final before = await snapshot();
+        expect(
+          await store.enterSessionReauthRequired(),
+          SessionReauthEntry.alreadyInProgress,
+        );
+        final after = await snapshot();
+        expect(after.phase, before.phase);
+        expect(after.writeEnabled, before.writeEnabled);
+        expect(after.deviceBindingState, before.deviceBindingState);
+        expect(after.reauthResumePhase, before.reauthResumePhase);
+        expect(after.reauthResumePhase, isNot(isNull));
+      },
+    );
+
+    test('no-ops when binding repair is pending', () async {
+      await store.enterBindingAuthorizationRequired();
+      final before = await snapshot();
+      expect(
+        await store.enterSessionReauthRequired(),
+        SessionReauthEntry.rejectedIllegalState,
+      );
+      final after = await snapshot();
+      expect(after.phase, before.phase);
+      expect(after.writeEnabled, before.writeEnabled);
+      expect(after.deviceBindingState, before.deviceBindingState);
+      expect(after.reauthResumePhase, before.reauthResumePhase);
+    });
+
+    test('no-ops when never bound', () async {
+      final before = await snapshot();
+      expect(
+        await store.enterSessionReauthRequired(),
+        SessionReauthEntry.rejectedIllegalState,
+      );
+      final after = await snapshot();
+      expect(after.phase, before.phase);
+      expect(after.writeEnabled, before.writeEnabled);
+      expect(after.deviceBindingState, before.deviceBindingState);
+      expect(after.reauthResumePhase, before.reauthResumePhase);
+    });
+  });
+
+  group('session reauth restoration', () {
+    test(
+      'restores each resume phase and gates writes on gateEnabled',
+      () async {
+        for (final resume in [
+          SyncEnrollmentPhase.snapshotInProgress,
+          SyncEnrollmentPhase.reconciliationComplete,
+          SyncEnrollmentPhase.gateEnabled,
+        ]) {
+          await seedRow(
+            binding: SyncDeviceBindingState.bound,
+            phase: resume,
+            writes: resume == SyncEnrollmentPhase.gateEnabled,
+          );
+          expect(
+            await store.enterSessionReauthRequired(),
+            SessionReauthEntry.applied,
+            reason: '$resume',
+          );
+          final restored = await store.restoreFromSessionReauth();
+          expect(restored, resume, reason: '$resume');
+          final state = await snapshot();
+          expect(state.phase, resume, reason: '$resume');
+          expect(
+            state.deviceBindingState,
+            SyncDeviceBindingState.bound,
+            reason: '$resume',
+          );
+          expect(state.reauthResumePhase, isNull, reason: '$resume');
+          expect(
+            state.writeEnabled,
+            resume == SyncEnrollmentPhase.gateEnabled,
+            reason: '$resume',
+          );
+          expect(
+            store.validateHostedOperationState(state).isLegal,
+            isTrue,
+            reason: '$resume',
+          );
+        }
+      },
+    );
+
+    test(
+      'refuses restoration outside session reauth and persists nothing',
+      () async {
+        final before = await snapshot();
+        await expectLater(
+          store.restoreFromSessionReauth(),
+          throwsA(isA<SyncRepairTransitionException>()),
+        );
+        final after = await snapshot();
+        expect(after.phase, before.phase);
+        expect(after.writeEnabled, before.writeEnabled);
+        expect(after.deviceBindingState, before.deviceBindingState);
+        expect(after.reauthResumePhase, before.reauthResumePhase);
+      },
+    );
   });
 }

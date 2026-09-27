@@ -1,5 +1,5 @@
 import 'package:drift/drift.dart';
-import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter/foundation.dart' show immutable, visibleForTesting;
 import 'package:spendwise/persistence/ledger_database.dart';
 import 'package:spendwise/sync/backend_selection_writer.dart';
 import 'package:sync/sync.dart';
@@ -24,6 +24,22 @@ enum SyncEnrollmentPhase {
     (phase) => phase.code == code,
     orElse: () =>
         throw FormatException('Unknown sync enrollment phase code: $code.'),
+  );
+}
+
+enum SyncDeviceBindingState {
+  notApplicable(0),
+  authorizationRequired(1),
+  bound(2);
+
+  const SyncDeviceBindingState(this.code);
+
+  final int code;
+
+  static SyncDeviceBindingState fromCode(int code) => values.firstWhere(
+    (state) => state.code == code,
+    orElse: () =>
+        throw FormatException('Unknown sync device binding state: $code.'),
   );
 }
 
@@ -53,6 +69,55 @@ final class SyncWriteGateException implements Exception {
   String toString() => 'SyncWriteGateException: $message';
 }
 
+final class SyncRepairTransitionException implements Exception {
+  const SyncRepairTransitionException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => 'SyncRepairTransitionException: $message';
+}
+
+@immutable
+sealed class HostedOperationLegality {
+  const HostedOperationLegality();
+
+  bool get isLegal;
+}
+
+@immutable
+final class HostedOperationLegal extends HostedOperationLegality {
+  const HostedOperationLegal();
+
+  @override
+  bool get isLegal => true;
+
+  @override
+  bool operator ==(Object other) => other is HostedOperationLegal;
+
+  @override
+  int get hashCode => runtimeType.hashCode;
+}
+
+@immutable
+final class HostedOperationIllegal extends HostedOperationLegality {
+  const HostedOperationIllegal(this.reason);
+
+  final String reason;
+
+  @override
+  bool get isLegal => false;
+
+  @override
+  bool operator ==(Object other) =>
+      other is HostedOperationIllegal && other.reason == reason;
+
+  @override
+  int get hashCode => Object.hash(runtimeType, reason);
+}
+
+enum SessionReauthEntry { applied, alreadyInProgress, rejectedIllegalState }
+
 final class SyncMetadataSnapshot {
   const SyncMetadataSnapshot({
     required this.backend,
@@ -60,6 +125,8 @@ final class SyncMetadataSnapshot {
     required this.phase,
     required this.writeEnabled,
     this.deviceBindingRequired = false,
+    this.deviceBindingState = SyncDeviceBindingState.notApplicable,
+    this.reauthResumePhase,
     required this.watermarks,
   });
 
@@ -72,6 +139,10 @@ final class SyncMetadataSnapshot {
 
   // The row needs binding authorization before writes may resume.
   final bool deviceBindingRequired;
+
+  final SyncDeviceBindingState deviceBindingState;
+
+  final SyncEnrollmentPhase? reauthResumePhase;
 
   final Map<SyncCollection, String?> watermarks;
 }
@@ -92,6 +163,13 @@ final class SyncMetadataStore implements BackendSelectionWriter {
       phase: SyncEnrollmentPhase.fromCode(meta.enrollmentPhase),
       writeEnabled: meta.writeEnabled,
       deviceBindingRequired: meta.deviceBindingState != 0,
+      deviceBindingState: SyncDeviceBindingState.fromCode(
+        meta.deviceBindingState,
+      ),
+      reauthResumePhase: switch (meta.reauthResumePhase) {
+        null => null,
+        final code => SyncEnrollmentPhase.fromCode(code),
+      },
       watermarks: {
         for (final collection in SyncCollection.values)
           collection: _watermarkOf(meta, collection),
@@ -132,6 +210,196 @@ final class SyncMetadataStore implements BackendSelectionWriter {
     }
     await _writeMeta(SyncMetaCompanion(writeEnabled: Value(value)));
   });
+
+  HostedOperationLegality validateHostedOperationState(
+    SyncMetadataSnapshot snapshot,
+  ) {
+    final binding = snapshot.deviceBindingState;
+    final phase = snapshot.phase;
+    final writes = snapshot.writeEnabled;
+    final resume = snapshot.reauthResumePhase;
+    switch (binding) {
+      case SyncDeviceBindingState.notApplicable:
+        if (phase == SyncEnrollmentPhase.notEnrolled &&
+            !writes &&
+            resume == null) {
+          return const HostedOperationLegal();
+        }
+        break;
+      case SyncDeviceBindingState.authorizationRequired:
+        if (!writes &&
+            resume == null &&
+            (phase == SyncEnrollmentPhase.credentialAcquired ||
+                phase == SyncEnrollmentPhase.bindingAuthorizationRequired)) {
+          return const HostedOperationLegal();
+        }
+        break;
+      case SyncDeviceBindingState.bound:
+        switch (phase) {
+          case SyncEnrollmentPhase.snapshotInProgress:
+          case SyncEnrollmentPhase.reconciliationComplete:
+            if (!writes && resume == null) {
+              return const HostedOperationLegal();
+            }
+            break;
+          case SyncEnrollmentPhase.gateEnabled:
+            if (writes && resume == null) {
+              return const HostedOperationLegal();
+            }
+            break;
+          case SyncEnrollmentPhase.sessionReauthRequired:
+            if (!writes &&
+                (resume == SyncEnrollmentPhase.snapshotInProgress ||
+                    resume == SyncEnrollmentPhase.reconciliationComplete ||
+                    resume == SyncEnrollmentPhase.gateEnabled)) {
+              return const HostedOperationLegal();
+            }
+            break;
+          case SyncEnrollmentPhase.notEnrolled:
+          case SyncEnrollmentPhase.credentialAcquired:
+          case SyncEnrollmentPhase.bindingAuthorizationRequired:
+            break;
+        }
+        break;
+    }
+    return HostedOperationIllegal(
+      'Illegal hosted sync state: binding=${binding.name}, '
+      'phase=${phase.name}, writes=$writes, resume=${resume?.name}.',
+    );
+  }
+
+  Future<void> enterBindingAuthorizationRequired() => _db.transaction(() async {
+    await _ensureMetaRow();
+    // Binding repair unconditionally overrides a prior session reauth, so the
+    // stale resume target is cleared here rather than preserved.
+    await _writeMeta(
+      SyncMetaCompanion(
+        deviceBindingState: Value(
+          SyncDeviceBindingState.authorizationRequired.code,
+        ),
+        enrollmentPhase: Value(
+          SyncEnrollmentPhase.bindingAuthorizationRequired.code,
+        ),
+        writeEnabled: const Value(false),
+        reauthResumePhase: const Value<int?>(null),
+      ),
+    );
+  });
+
+  Future<void> enterSnapshotInProgress() => _db.transaction(() async {
+    await _ensureMetaRow();
+    await _writeMeta(
+      SyncMetaCompanion(
+        deviceBindingState: Value(SyncDeviceBindingState.bound.code),
+        enrollmentPhase: Value(SyncEnrollmentPhase.snapshotInProgress.code),
+        writeEnabled: const Value(false),
+        reauthResumePhase: const Value<int?>(null),
+      ),
+    );
+  });
+
+  Future<void> enterReconciliationComplete() => _db.transaction(() async {
+    await _ensureMetaRow();
+    await _writeMeta(
+      SyncMetaCompanion(
+        deviceBindingState: Value(SyncDeviceBindingState.bound.code),
+        enrollmentPhase: Value(SyncEnrollmentPhase.reconciliationComplete.code),
+        writeEnabled: const Value(false),
+        reauthResumePhase: const Value<int?>(null),
+      ),
+    );
+  });
+
+  Future<void> enterGateEnabled() => _db.transaction(() async {
+    await _ensureMetaRow();
+    final phase = SyncEnrollmentPhase.fromCode(
+      (await _metaRow()).enrollmentPhase,
+    );
+    if (phase != SyncEnrollmentPhase.reconciliationComplete) {
+      throw SyncWriteGateException(
+        'Cannot enter ${SyncEnrollmentPhase.gateEnabled.name} from phase '
+        '${phase.name}; reconciliation must complete first.',
+      );
+    }
+    await _writeMeta(
+      SyncMetaCompanion(
+        deviceBindingState: Value(SyncDeviceBindingState.bound.code),
+        enrollmentPhase: Value(SyncEnrollmentPhase.gateEnabled.code),
+        writeEnabled: const Value(true),
+        reauthResumePhase: const Value<int?>(null),
+      ),
+    );
+  });
+
+  Future<SessionReauthEntry> enterSessionReauthRequired() => _db.transaction(
+    () async {
+      final meta = await _metaRow();
+      final phase = SyncEnrollmentPhase.fromCode(meta.enrollmentPhase);
+      if (phase == SyncEnrollmentPhase.sessionReauthRequired) {
+        return SessionReauthEntry.alreadyInProgress;
+      }
+      final binding = SyncDeviceBindingState.fromCode(meta.deviceBindingState);
+      // One transaction: a concurrent second caller observes the already
+      // written sessionReauthRequired above and no-ops instead of clobbering
+      // the recorded resume phase. Binding repair always wins over a
+      // session-reauth attempt, never the reverse.
+      switch ((binding, phase)) {
+        case (
+          SyncDeviceBindingState.bound,
+          SyncEnrollmentPhase.snapshotInProgress,
+        ):
+        case (
+          SyncDeviceBindingState.bound,
+          SyncEnrollmentPhase.reconciliationComplete,
+        ):
+        case (SyncDeviceBindingState.bound, SyncEnrollmentPhase.gateEnabled):
+          await _writeMeta(
+            SyncMetaCompanion(
+              enrollmentPhase: Value(
+                SyncEnrollmentPhase.sessionReauthRequired.code,
+              ),
+              writeEnabled: const Value(false),
+              reauthResumePhase: Value(phase.code),
+            ),
+          );
+          return SessionReauthEntry.applied;
+        default:
+          return SessionReauthEntry.rejectedIllegalState;
+      }
+    },
+  );
+
+  Future<SyncEnrollmentPhase> restoreFromSessionReauth() => _db.transaction(
+    () async {
+      final meta = await _metaRow();
+      final binding = SyncDeviceBindingState.fromCode(meta.deviceBindingState);
+      final phase = SyncEnrollmentPhase.fromCode(meta.enrollmentPhase);
+      final resume = switch (meta.reauthResumePhase) {
+        null => null,
+        final code => SyncEnrollmentPhase.fromCode(code),
+      };
+      final canRestore =
+          binding == SyncDeviceBindingState.bound &&
+          phase == SyncEnrollmentPhase.sessionReauthRequired &&
+          (resume == SyncEnrollmentPhase.snapshotInProgress ||
+              resume == SyncEnrollmentPhase.reconciliationComplete ||
+              resume == SyncEnrollmentPhase.gateEnabled);
+      if (!canRestore || resume == null) {
+        throw SyncRepairTransitionException(
+          'Cannot restore from session reauth: binding=${binding.name}, '
+          'phase=${phase.name}, resume=${resume?.name}.',
+        );
+      }
+      await _writeMeta(
+        SyncMetaCompanion(
+          enrollmentPhase: Value(resume.code),
+          writeEnabled: Value(resume == SyncEnrollmentPhase.gateEnabled),
+          reauthResumePhase: const Value<int?>(null),
+        ),
+      );
+      return resume;
+    },
+  );
 
   Future<void> setPullWatermark(SyncCollection collection, String? cursor) =>
       _updateMeta(_watermarkCompanion(collection, cursor));
