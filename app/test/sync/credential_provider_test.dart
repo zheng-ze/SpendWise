@@ -317,6 +317,10 @@ void main() {
     expect(secrets.reads, [syncDeviceSecretKey]);
   });
 
+  test('device secret persists under the binding-secret key name', () {
+    expect(syncDeviceSecretKey, 'spendwise.sync.device-binding-secret');
+  });
+
   test('withBoundCredential rejects a malformed device secret', () async {
     final id = await deviceID(db);
     final credential = const CredentialCodec().restore(
@@ -326,12 +330,16 @@ void main() {
       syncCredentialSecretKey,
       const CredentialCodec().export(credential),
     );
+    final canonical = validDeviceSecret();
     final malformedSecrets = [
+      '',
       'short-secret',
       validDeviceSecret().substring(0, 20),
       '${validDeviceSecret()}=',
       '${validDeviceSecret()}!',
       base64Url.encode(List.filled(16, 1)).replaceAll('=', ''),
+      // Same 32 zero bytes with nonzero trailing bits in the final char.
+      '${canonical.substring(0, canonical.length - 1)}B',
     ];
 
     for (final malformed in malformedSecrets) {
