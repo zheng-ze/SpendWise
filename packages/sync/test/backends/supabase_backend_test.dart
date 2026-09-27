@@ -315,6 +315,19 @@ void main() {
       expect(outcome, isA<CredentialExpired<PushResponse>>());
     });
 
+    test('401 with a non-JSON body still maps to CredentialExpired', () async {
+      final client = MockClient((request) async {
+        return http.Response('Bad Gateway', 401);
+      });
+
+      final outcome = await _backend(client).push(
+        _boundCredential(),
+        PushRequest(envelopes: const <SyncEnvelope>[]),
+      );
+
+      expect(outcome, isA<CredentialExpired<PushResponse>>());
+    });
+
     test('428 maps to DeviceAuthorizationRequired', () async {
       final client = MockClient((request) async {
         return http.Response('{}', 428);

@@ -115,17 +115,22 @@ final class SupabaseSyncBackend implements SyncBackend {
         headers: headers,
         body: jsonEncode(outgoingBody),
       );
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        try {
+          final body = _decodeJsonObject(response.body);
+          return SyncSuccess<T>(decode(body));
+        } on FormatException {
+          return IncompatibleServer<T>(
+            message: 'Supabase RPC returned a response the client could not '
+                'parse as protocol major 2.',
+          );
+        }
+      }
       Map<String, Object?> body;
       try {
         body = _decodeJsonObject(response.body);
       } on FormatException {
-        return IncompatibleServer<T>(
-          message: 'Supabase RPC returned a response the client could not '
-              'parse as protocol major 2.',
-        );
-      }
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        return SyncSuccess<T>(decode(body));
+        body = const <String, Object?>{};
       }
       return syncFailureFromHttp<T>(
         response.statusCode,
