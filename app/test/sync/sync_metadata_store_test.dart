@@ -1057,6 +1057,26 @@ void main() {
       expect(after.deviceBindingState, before.deviceBindingState);
       expect(after.reauthResumePhase, before.reauthResumePhase);
     });
+
+    test('rejects an illegal unbound sessionReauthRequired row instead of '
+        'reporting it as already in progress', () async {
+      await seedRow(
+        binding: SyncDeviceBindingState.authorizationRequired,
+        phase: SyncEnrollmentPhase.sessionReauthRequired,
+        writes: false,
+        resume: SyncEnrollmentPhase.gateEnabled,
+      );
+      final before = await snapshot();
+      expect(
+        await store.enterSessionReauthRequired(),
+        SessionReauthEntry.rejectedIllegalState,
+      );
+      final after = await snapshot();
+      expect(after.phase, before.phase);
+      expect(after.writeEnabled, before.writeEnabled);
+      expect(after.deviceBindingState, before.deviceBindingState);
+      expect(after.reauthResumePhase, before.reauthResumePhase);
+    });
   });
 
   group('session reauth restoration', () {
@@ -1105,6 +1125,29 @@ void main() {
     test(
       'refuses restoration outside session reauth and persists nothing',
       () async {
+        final before = await snapshot();
+        await expectLater(
+          store.restoreFromSessionReauth(),
+          throwsA(isA<SyncRepairTransitionException>()),
+        );
+        final after = await snapshot();
+        expect(after.phase, before.phase);
+        expect(after.writeEnabled, before.writeEnabled);
+        expect(after.deviceBindingState, before.deviceBindingState);
+        expect(after.reauthResumePhase, before.reauthResumePhase);
+      },
+    );
+
+    test(
+      'refuses restoration of an illegal writes-enabled sessionReauthRequired '
+      'row and persists nothing',
+      () async {
+        await seedRow(
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.sessionReauthRequired,
+          writes: true,
+          resume: SyncEnrollmentPhase.gateEnabled,
+        );
         final before = await snapshot();
         await expectLater(
           store.restoreFromSessionReauth(),

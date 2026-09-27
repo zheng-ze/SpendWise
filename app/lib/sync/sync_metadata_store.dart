@@ -344,14 +344,22 @@ final class SyncMetadataStore implements BackendSelectionWriter {
     () async {
       final meta = await _metaRow();
       final phase = SyncEnrollmentPhase.fromCode(meta.enrollmentPhase);
-      if (phase == SyncEnrollmentPhase.sessionReauthRequired) {
-        return SessionReauthEntry.alreadyInProgress;
-      }
       final binding = SyncDeviceBindingState.fromCode(meta.deviceBindingState);
       final resume = switch (meta.reauthResumePhase) {
         null => null,
         final code => SyncEnrollmentPhase.fromCode(code),
       };
+      if (phase == SyncEnrollmentPhase.sessionReauthRequired) {
+        final isLegalReauth =
+            binding == SyncDeviceBindingState.bound &&
+            !meta.writeEnabled &&
+            (resume == SyncEnrollmentPhase.snapshotInProgress ||
+                resume == SyncEnrollmentPhase.reconciliationComplete ||
+                resume == SyncEnrollmentPhase.gateEnabled);
+        return isLegalReauth
+            ? SessionReauthEntry.alreadyInProgress
+            : SessionReauthEntry.rejectedIllegalState;
+      }
       // One transaction: a concurrent second caller observes the already
       // written sessionReauthRequired above and no-ops instead of clobbering
       // the recorded resume phase. Binding repair always wins over a
@@ -404,6 +412,7 @@ final class SyncMetadataStore implements BackendSelectionWriter {
       final canRestore =
           binding == SyncDeviceBindingState.bound &&
           phase == SyncEnrollmentPhase.sessionReauthRequired &&
+          !meta.writeEnabled &&
           (resume == SyncEnrollmentPhase.snapshotInProgress ||
               resume == SyncEnrollmentPhase.reconciliationComplete ||
               resume == SyncEnrollmentPhase.gateEnabled);
@@ -413,9 +422,9 @@ final class SyncMetadataStore implements BackendSelectionWriter {
           'phase=${phase.name}, resume=${resume?.name}.',
         );
       }
-      // Entry-side checks in enterSessionReauthRequired only accept rows
-      // matching the legal tuple, so a legally entered sessionReauthRequired
-      // row always has writes disabled; no writeEnabled check is needed here.
+      // Rows seeded outside enterSessionReauthRequired may carry an illegal
+      // writes-enabled sessionReauthRequired tuple, so writes must be checked
+      // here rather than trusted from entry.
       await _writeMeta(
         SyncMetaCompanion(
           enrollmentPhase: Value(resume.code),
