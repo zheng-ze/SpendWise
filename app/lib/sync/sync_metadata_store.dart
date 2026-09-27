@@ -312,13 +312,22 @@ final class SyncMetadataStore implements BackendSelectionWriter {
 
   Future<void> enterGateEnabled() => _db.transaction(() async {
     await _ensureMetaRow();
-    final phase = SyncEnrollmentPhase.fromCode(
-      (await _metaRow()).enrollmentPhase,
-    );
-    if (phase != SyncEnrollmentPhase.reconciliationComplete) {
+    final meta = await _metaRow();
+    final binding = SyncDeviceBindingState.fromCode(meta.deviceBindingState);
+    final phase = SyncEnrollmentPhase.fromCode(meta.enrollmentPhase);
+    final resume = switch (meta.reauthResumePhase) {
+      null => null,
+      final code => SyncEnrollmentPhase.fromCode(code),
+    };
+    if (binding != SyncDeviceBindingState.bound ||
+        phase != SyncEnrollmentPhase.reconciliationComplete ||
+        meta.writeEnabled ||
+        resume != null) {
       throw SyncWriteGateException(
-        'Cannot enter ${SyncEnrollmentPhase.gateEnabled.name} from phase '
-        '${phase.name}; reconciliation must complete first.',
+        'Cannot enter ${SyncEnrollmentPhase.gateEnabled.name} from '
+        'binding=${binding.name}, phase=${phase.name}, '
+        'writes=${meta.writeEnabled}, resume=${resume?.name}; '
+        'reconciliation must complete first.',
       );
     }
     await _writeMeta(
@@ -339,6 +348,10 @@ final class SyncMetadataStore implements BackendSelectionWriter {
         return SessionReauthEntry.alreadyInProgress;
       }
       final binding = SyncDeviceBindingState.fromCode(meta.deviceBindingState);
+      final resume = switch (meta.reauthResumePhase) {
+        null => null,
+        final code => SyncEnrollmentPhase.fromCode(code),
+      };
       // One transaction: a concurrent second caller observes the already
       // written sessionReauthRequired above and no-ops instead of clobbering
       // the recorded resume phase. Binding repair always wins over a
@@ -352,20 +365,30 @@ final class SyncMetadataStore implements BackendSelectionWriter {
           SyncDeviceBindingState.bound,
           SyncEnrollmentPhase.reconciliationComplete,
         ):
+          // These phases are only legal with writes disabled and no
+          // pending resume target; anything else is an illegal row.
+          if (meta.writeEnabled || resume != null) {
+            return SessionReauthEntry.rejectedIllegalState;
+          }
         case (SyncDeviceBindingState.bound, SyncEnrollmentPhase.gateEnabled):
-          await _writeMeta(
-            SyncMetaCompanion(
-              enrollmentPhase: Value(
-                SyncEnrollmentPhase.sessionReauthRequired.code,
-              ),
-              writeEnabled: const Value(false),
-              reauthResumePhase: Value(phase.code),
-            ),
-          );
-          return SessionReauthEntry.applied;
+          // gateEnabled is only legal with writes enabled and no pending
+          // resume target; anything else is an illegal row.
+          if (!meta.writeEnabled || resume != null) {
+            return SessionReauthEntry.rejectedIllegalState;
+          }
         default:
           return SessionReauthEntry.rejectedIllegalState;
       }
+      await _writeMeta(
+        SyncMetaCompanion(
+          enrollmentPhase: Value(
+            SyncEnrollmentPhase.sessionReauthRequired.code,
+          ),
+          writeEnabled: const Value(false),
+          reauthResumePhase: Value(phase.code),
+        ),
+      );
+      return SessionReauthEntry.applied;
     },
   );
 
@@ -390,6 +413,9 @@ final class SyncMetadataStore implements BackendSelectionWriter {
           'phase=${phase.name}, resume=${resume?.name}.',
         );
       }
+      // Entry-side checks in enterSessionReauthRequired only accept rows
+      // matching the legal tuple, so a legally entered sessionReauthRequired
+      // row always has writes disabled; no writeEnabled check is needed here.
       await _writeMeta(
         SyncMetaCompanion(
           enrollmentPhase: Value(resume.code),

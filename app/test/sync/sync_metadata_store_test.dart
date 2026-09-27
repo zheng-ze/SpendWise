@@ -882,6 +882,27 @@ void main() {
         expect(state.writeEnabled, isFalse);
       },
     );
+
+    test(
+      'enterGateEnabled rejects an illegal unbound reconciliationComplete row',
+      () async {
+        await seedRow(
+          binding: SyncDeviceBindingState.authorizationRequired,
+          phase: SyncEnrollmentPhase.reconciliationComplete,
+          writes: false,
+        );
+        final before = await snapshot();
+        await expectLater(
+          store.enterGateEnabled(),
+          throwsA(isA<SyncWriteGateException>()),
+        );
+        final after = await snapshot();
+        expect(after.deviceBindingState, before.deviceBindingState);
+        expect(after.phase, before.phase);
+        expect(after.writeEnabled, before.writeEnabled);
+        expect(after.reauthResumePhase, before.reauthResumePhase);
+      },
+    );
   });
 
   group('session reauth compare-and-set', () {
@@ -964,6 +985,67 @@ void main() {
     });
 
     test('no-ops when never bound', () async {
+      final before = await snapshot();
+      expect(
+        await store.enterSessionReauthRequired(),
+        SessionReauthEntry.rejectedIllegalState,
+      );
+      final after = await snapshot();
+      expect(after.phase, before.phase);
+      expect(after.writeEnabled, before.writeEnabled);
+      expect(after.deviceBindingState, before.deviceBindingState);
+      expect(after.reauthResumePhase, before.reauthResumePhase);
+    });
+
+    test(
+      'rejects an illegal bound gateEnabled row with writes disabled',
+      () async {
+        await seedRow(
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.gateEnabled,
+          writes: false,
+        );
+        final before = await snapshot();
+        expect(
+          await store.enterSessionReauthRequired(),
+          SessionReauthEntry.rejectedIllegalState,
+        );
+        final after = await snapshot();
+        expect(after.phase, before.phase);
+        expect(after.writeEnabled, before.writeEnabled);
+        expect(after.deviceBindingState, before.deviceBindingState);
+        expect(after.reauthResumePhase, before.reauthResumePhase);
+      },
+    );
+
+    test(
+      'rejects an illegal bound snapshotInProgress row with writes enabled',
+      () async {
+        await seedRow(
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.snapshotInProgress,
+          writes: true,
+        );
+        final before = await snapshot();
+        expect(
+          await store.enterSessionReauthRequired(),
+          SessionReauthEntry.rejectedIllegalState,
+        );
+        final after = await snapshot();
+        expect(after.phase, before.phase);
+        expect(after.writeEnabled, before.writeEnabled);
+        expect(after.deviceBindingState, before.deviceBindingState);
+        expect(after.reauthResumePhase, before.reauthResumePhase);
+      },
+    );
+
+    test('rejects a legal phase carrying a stale resume phase', () async {
+      await seedRow(
+        binding: SyncDeviceBindingState.bound,
+        phase: SyncEnrollmentPhase.reconciliationComplete,
+        writes: false,
+        resume: SyncEnrollmentPhase.snapshotInProgress,
+      );
       final before = await snapshot();
       expect(
         await store.enterSessionReauthRequired(),
