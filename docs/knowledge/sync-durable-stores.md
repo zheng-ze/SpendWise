@@ -1,6 +1,6 @@
 # Sync: durable app stores
 
-Last reconciled: fd4eb7e
+Last reconciled: 4873b23
 
 ## Layer overview
 
@@ -20,7 +20,8 @@ verifier. The composition root owns assembly, while run and scheduling remain a 
 
 - `app/lib/sync/sync_tables.dart` - The six sync-coordination tables and their key shapes.
 - `app/lib/sync/sync_metadata_store.dart` - `SyncMetadataStore`, `SyncEnrollmentPhase`,
-  `SyncBackendKind`, and `SyncMetadataSnapshot`.
+  `SyncDeviceBindingState`, `HostedOperationLegality`, `SyncBackendKind`, and
+  `SyncMetadataSnapshot`.
 - `app/lib/sync/drift_sync_staging_store.dart` - `DriftSyncStagingStore`, the Drift-backed
   `SyncStagingStore` with async durable core methods and synchronous engine-path overrides.
 - `app/lib/sync/collection_version_reader.dart` - `CollectionVersionReader`, its Drift-backed
@@ -98,18 +99,48 @@ This layer has no routes or screens. Source: `app/lib/sync/sync_metadata_store.d
 ## APIs
 
 - `SyncMetadataStore.snapshot()` reads the singleton row in one transaction for a consistent
-  startup-recovery view. Source: `app/lib/sync/sync_metadata_store.dart` -
-  `SyncMetadataStore.snapshot`.
+  startup-recovery view, including typed `deviceBindingState` and nullable `reauthResumePhase`.
+  It can return an illegal hosted-operation combination; validation is separate. Source:
+  `app/lib/sync/sync_metadata_store.dart` - `SyncMetadataStore.snapshot`;
+  `app/test/sync/sync_metadata_store_test.dart` - test
+  `snapshot returns illegal rows as raw values without throwing`.
 - `SyncMetadataStore.setBackendSelection` and `clearBackendSelection` write the nullable
   backend profile and endpoint; both stay null until enrollment. Source:
   `app/lib/sync/sync_metadata_store.dart` - `SyncMetadataStore.setBackendSelection`.
 - `SyncMetadataStore.setEnrollmentPhase` records `notEnrolled` (0), `credentialAcquired` (1),
   `snapshotInProgress` (2), `reconciliationComplete` (3), `gateEnabled` (4),
   `bindingAuthorizationRequired` (5), or `sessionReauthRequired` (6) under explicit integer
-  codes. The last two values have no enrollment transition logic yet. Source:
+  codes. Source:
   `app/lib/sync/sync_metadata_store.dart` - `SyncEnrollmentPhase`,
-  `SyncMetadataStore.setEnrollmentPhase`; `app/lib/sync/sync_enrollment_service.dart` -
-  `SyncEnrollmentService._advance`.
+  `SyncMetadataStore.setEnrollmentPhase`.
+- `SyncDeviceBindingState` stores `notApplicable` (0), `authorizationRequired` (1), or
+  `bound` (2) under explicit integer codes. Source: `app/lib/sync/sync_metadata_store.dart` -
+  `SyncDeviceBindingState`, `SyncMetadataStore.snapshot`.
+- `SyncMetadataStore.validateHostedOperationState(snapshot)` is a pure, non-throwing check of
+  binding state, enrollment phase, write gate, and resume phase. It returns
+  `HostedOperationLegal` or `HostedOperationIllegal(reason)`. Source:
+  `app/lib/sync/sync_metadata_store.dart` - `SyncMetadataStore.validateHostedOperationState`.
+- `enterBindingAuthorizationRequired` sets binding authorization required, disables writes,
+  and clears the resume phase, even during session reauthentication. Source:
+  `app/lib/sync/sync_metadata_store.dart` -
+  `SyncMetadataStore.enterBindingAuthorizationRequired`.
+- `enterSnapshotInProgress` and `enterReconciliationComplete` set the bound state and named
+  phase with writes disabled and no resume phase. Source:
+  `app/lib/sync/sync_metadata_store.dart` - `SyncMetadataStore.enterSnapshotInProgress`,
+  `SyncMetadataStore.enterReconciliationComplete`.
+- `enterGateEnabled` requires the complete bound/reconciliationComplete/writes-disabled/null
+  resume predecessor, then enables writes; otherwise it throws `SyncWriteGateException` without
+  writing. Source: `app/lib/sync/sync_metadata_store.dart` -
+  `SyncMetadataStore.enterGateEnabled`.
+- `enterSessionReauthRequired` atomically records the current bound phase as the resume target
+  and disables writes. It returns `SessionReauthEntry.applied`, `alreadyInProgress` for a legal
+  reauthentication row, or `rejectedIllegalState` for any illegal predecessor; the latter two
+  outcomes write nothing. Source: `app/lib/sync/sync_metadata_store.dart` -
+  `SyncMetadataStore.enterSessionReauthRequired`.
+- `restoreFromSessionReauth` requires a legal bound/sessionReauthRequired row, restores its
+  recorded phase, clears the resume target, and enables writes only when restoring to
+  `gateEnabled`; otherwise it throws `SyncRepairTransitionException` without writing. Source:
+  `app/lib/sync/sync_metadata_store.dart` - `SyncMetadataStore.restoreFromSessionReauth`.
 - `SyncMetadataStore.setWriteEnabled` enables the write gate only from
   `reconciliationComplete`; a refused enable throws `SyncWriteGateException` and persists
   nothing, while disabling remains allowed. Source: `app/lib/sync/sync_metadata_store.dart` -
@@ -156,6 +187,17 @@ This layer has no routes or screens. Source: `app/lib/sync/sync_metadata_store.d
   `enum.index`, so reordering an enum cannot corrupt rows. Source:
   `app/lib/sync/sync_metadata_store.dart` - `SyncEnrollmentPhase`;
   `app/lib/sync/drift_sync_staging_store.dart` - `_stagedLifecycleLive`.
+- Hosted-operation legality accepts only `notApplicable/notEnrolled/writes-disabled/null resume`;
+  `authorizationRequired` with `credentialAcquired` or `bindingAuthorizationRequired`, writes
+  disabled, and null resume; bound `snapshotInProgress` or `reconciliationComplete` with writes
+  disabled and null resume; bound `gateEnabled` with writes enabled and null resume; or bound
+  `sessionReauthRequired` with writes disabled and a resume target of `snapshotInProgress`,
+  `reconciliationComplete`, or `gateEnabled`. Source:
+  `app/lib/sync/sync_metadata_store.dart` - `SyncMetadataStore.validateHostedOperationState`.
+- Binding repair takes precedence over session reauthentication by clearing any old resume
+  target. Session reauthentication does not overwrite a pending binding repair or an existing
+  legal resume target. Source: `app/lib/sync/sync_metadata_store.dart` -
+  `SyncMetadataStore.enterBindingAuthorizationRequired`, `enterSessionReauthRequired`.
 - Identical UUIDs in different collections keep independent acknowledged vectors, matching the
   `SyncRowID` composite identity used by stamps and reconciliation. Source:
   `app/test/sync/sync_metadata_store_test.dart` - test
@@ -188,11 +230,8 @@ This layer has no routes or screens. Source: `app/lib/sync/sync_metadata_store.d
   Source: `app/lib/persistence/ledger_database.dart` - `migration`;
   `app/test/sync/sync_migration_test.dart` - v4/v5-to-v6 upgrade tests.
 - The migration never writes `reauth_resume_phase`, so it remains null, and it cannot produce
-  `device_binding_state` 2 (`bound`). The metadata store exposes neither typed reads nor writes
-  for the two new columns, and the two new phase codes have no transition logic. Source:
-  `app/lib/persistence/ledger_database.dart` - `migration`;
-  `app/lib/sync/sync_metadata_store.dart` - `SyncMetadataSnapshot`, `SyncMetadataStore`;
-  `app/lib/sync/sync_enrollment_service.dart` - `SyncEnrollmentService._advance`.
+  `device_binding_state` 2 (`bound`). Source: `app/lib/persistence/ledger_database.dart` -
+  `migration`.
 - `CollectionVersionReader` is intentionally distinct from package `SyncVersionSource`.
   `SyncVersionSource` synchronously looks up one row for `SyncEngine.encode`; the app reader
   asynchronously reads one whole collection for push-candidate selection and readback. Do not
