@@ -74,12 +74,14 @@ SyncCollection? _decodeMismatchedCollection(Map<String, Object?> body) {
   }
 }
 
-Map<String, String> _authorizationHeaders(DeviceCredential credential) =>
-    <String, String>{
-      'authorization': 'Bearer ${credential._bearerToken}',
+Map<String, String> _bearerHeaders(String bearerToken) => <String, String>{
+      'authorization': 'Bearer $bearerToken',
       'content-type': 'application/json',
       'accept': 'application/json',
     };
+
+Map<String, String> _authorizationHeaders(DeviceCredential credential) =>
+    _bearerHeaders(credential._bearerToken);
 
 DeviceCredential _requireDeviceCredential(SyncCredential credential) {
   if (credential is! DeviceCredential) {
