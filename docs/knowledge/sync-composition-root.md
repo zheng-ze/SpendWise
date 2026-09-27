@@ -1,6 +1,6 @@
 # Sync: composition root
 
-Last reconciled: 41847c7
+Last reconciled: c0c8b1430254e05cd2c32f5b76abf84a055116b0
 
 ## Overview
 
@@ -150,18 +150,24 @@ It leaves every other exception for `SyncRunScheduler`, whose failure behavior i
   `accessing the closure reads lazily on each invocation` and `failure messages never expose key
   bytes or stored values`.
 - `CredentialProvider` exposes `withSessionCredential` (bearer-only, reads `syncCredentialSecretKey`)
-  and `withBoundCredential` (bearer plus device-binding secret, additionally reads the separate
-  `syncDeviceSecretKey`, then returns a `BoundDeviceCredential` via `BoundDeviceCredential.bind`).
-  The two keys are independent: nothing that writes or replaces one touches the other, and each
-  accessor re-reads its key(s) fresh on every call rather than caching. `withBoundCredential` throws
-  `CredentialUnavailableException(CredentialUnavailableReason.deviceSecretAbsent)` when the device
-  secret is absent rather than silently no-op'ing. No production call site uses
-  `withBoundCredential` yet - `SyncCoordinator` and `SyncEnrollmentService` still call only
+  and `withBoundCredential` (bearer plus device-binding secret, returns a
+  `BoundDeviceCredential` via `BoundDeviceCredential.bind`). `withBoundCredential` reads and
+  validates `syncDeviceSecretKey` before restoring the bearer credential. A null secret raises
+  `CredentialUnavailableReason.deviceSecretAbsent`; a non-null secret raises
+  `CredentialUnavailableReason.deviceSecretMalformed` unless it is canonical unpadded base64url
+  that decodes to exactly 32 bytes. The stored device-binding secret uses the key
+  `spendwise.sync.device-binding-secret`. The credential and device-secret keys are independent,
+  and each accessor re-reads its key(s) on every call rather than caching. Neither
+  `SyncCoordinator` nor `SyncEnrollmentService` calls `withBoundCredential`; both use only
   `withSessionCredential`. Source: `app/lib/sync/credential_provider.dart` -
   `CredentialProvider.withSessionCredential`, `CredentialProvider.withBoundCredential`,
-  `CredentialUnavailableReason`; `app/lib/sync/sync_secret_keys.dart` - `syncCredentialSecretKey`,
-  `syncDeviceSecretKey`; `app/test/sync/credential_provider_test.dart` - test `session and bound
-  resolution stay independent of each key`.
+  `_readDeviceSecret`, `_isWellFormedDeviceSecret`, `CredentialUnavailableReason`;
+  `app/lib/sync/sync_secret_keys.dart` - `syncCredentialSecretKey`, `syncDeviceSecretKey`;
+  `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.processPullPage`,
+  `SyncCoordinator.recoverPendingAcknowledgements`, `SyncCoordinator.pushCollection`;
+  `app/lib/sync/sync_enrollment_service.dart` - `SyncEnrollmentService._stepSnapshotInProgress`;
+  `app/test/sync/credential_provider_test.dart` - test `session and bound resolution stay
+  independent of each key`.
 - The ledger and persistence processor must share the identical event bus. This is checked before
   any I/O; the caller remains responsible for backing the processor store with the supplied
   database. Source: `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.create`,

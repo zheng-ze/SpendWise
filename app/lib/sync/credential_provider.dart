@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:spendwise/persistence/device_identity.dart';
 import 'package:spendwise/persistence/ledger_database.dart';
@@ -23,8 +24,8 @@ final class CredentialProvider {
   Future<T> withBoundCredential<T>(
     FutureOr<T> Function(BoundDeviceCredential credential) use,
   ) async {
-    final credential = await _restoreSessionCredential();
     final deviceSecret = await _readDeviceSecret();
+    final credential = await _restoreSessionCredential();
     final bound = BoundDeviceCredential.bind(
       credential,
       deviceSecret: deviceSecret,
@@ -86,8 +87,29 @@ final class CredentialProvider {
         CredentialUnavailableReason.deviceSecretAbsent,
       );
     }
+    if (!_isWellFormedDeviceSecret(secret)) {
+      throw const CredentialUnavailableException(
+        CredentialUnavailableReason.deviceSecretMalformed,
+      );
+    }
     return secret;
   }
+}
+
+bool _isWellFormedDeviceSecret(String secret) {
+  if (secret.isEmpty || secret.contains('=')) {
+    return false;
+  }
+  final List<int> decoded;
+  try {
+    decoded = base64Url.decode(base64Url.normalize(secret));
+  } on FormatException {
+    return false;
+  }
+  if (decoded.length != 32) {
+    return false;
+  }
+  return base64Url.encode(decoded).replaceAll('=', '') == secret;
 }
 
 enum CredentialUnavailableReason {
@@ -96,6 +118,7 @@ enum CredentialUnavailableReason {
   storageFailed,
   identityFailed,
   deviceSecretAbsent,
+  deviceSecretMalformed,
 }
 
 final class CredentialUnavailableException implements Exception {

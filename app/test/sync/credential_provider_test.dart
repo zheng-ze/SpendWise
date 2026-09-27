@@ -21,6 +21,9 @@ String payload(String device, String bearer) => base64Url.encode(
   ),
 );
 
+String validDeviceSecret([int fill = 0]) =>
+    base64Url.encode(List.filled(32, fill)).replaceAll('=', '');
+
 void main() {
   late LedgerDatabase db;
   late InMemorySecretStore secrets;
@@ -265,7 +268,7 @@ void main() {
         syncCredentialSecretKey,
         const CredentialCodec().export(credential),
       );
-      const deviceSecret = 'test-device-secret';
+      final deviceSecret = validDeviceSecret();
       await secrets.write(syncDeviceSecretKey, deviceSecret);
 
       final result = await provider.withBoundCredential((bound) async {
@@ -278,7 +281,7 @@ void main() {
       });
 
       expect(result, 'called');
-      expect(secrets.reads, [syncCredentialSecretKey, syncDeviceSecretKey]);
+      expect(secrets.reads, [syncDeviceSecretKey, syncCredentialSecretKey]);
     },
   );
 
@@ -311,6 +314,71 @@ void main() {
     );
 
     expect(called, isFalse);
+    expect(secrets.reads, [syncDeviceSecretKey]);
+  });
+
+  test('device secret persists under the binding-secret key name', () {
+    expect(syncDeviceSecretKey, 'spendwise.sync.device-binding-secret');
+  });
+
+  test('withBoundCredential rejects a malformed device secret', () async {
+    final id = await deviceID(db);
+    final credential = const CredentialCodec().restore(
+      payload(id, 'test-bearer'),
+    );
+    await secrets.write(
+      syncCredentialSecretKey,
+      const CredentialCodec().export(credential),
+    );
+    final canonical = validDeviceSecret();
+    final malformedSecrets = [
+      '',
+      'short-secret',
+      validDeviceSecret().substring(0, 20),
+      '${validDeviceSecret()}=',
+      '${validDeviceSecret()}!',
+      base64Url.encode(List.filled(16, 1)).replaceAll('=', ''),
+      // Same 32 zero bytes with nonzero trailing bits in the final char.
+      '${canonical.substring(0, canonical.length - 1)}B',
+    ];
+
+    for (final malformed in malformedSecrets) {
+      await secrets.write(syncDeviceSecretKey, malformed);
+      secrets.reads.clear();
+      var called = false;
+
+      await expectLater(
+        provider.withBoundCredential((_) => called = true),
+        throwsA(
+          isA<CredentialUnavailableException>()
+              .having(
+                (error) => error.reason,
+                'reason',
+                CredentialUnavailableReason.deviceSecretMalformed,
+              )
+              .having(
+                (error) => error.toString(),
+                'message',
+                'Sync credential unavailable (deviceSecretMalformed).',
+              ),
+        ),
+      );
+
+      expect(called, isFalse);
+      expect(secrets.reads, [syncDeviceSecretKey]);
+    }
+
+    CredentialUnavailableException? thrown;
+    await secrets.write(syncDeviceSecretKey, 'leaked-malformed-secret');
+    try {
+      await provider.withBoundCredential((_) => 'unreachable');
+    } on CredentialUnavailableException catch (error) {
+      thrown = error;
+    }
+    expect(thrown, isNotNull);
+    expect(thrown!.reason, CredentialUnavailableReason.deviceSecretMalformed);
+    expect(thrown.toString(), isNot(contains('leaked-malformed-secret')));
+    expect(thrown.toString(), isNot(contains('test-bearer')));
   });
 
   test('session and bound resolution stay independent of each key', () async {
@@ -319,11 +387,12 @@ void main() {
     final second = const CredentialCodec().restore(
       payload(id, 'second-bearer'),
     );
+    final deviceSecret = validDeviceSecret();
     await secrets.write(
       syncCredentialSecretKey,
       const CredentialCodec().export(first),
     );
-    await secrets.write(syncDeviceSecretKey, 'test-device-secret');
+    await secrets.write(syncDeviceSecretKey, deviceSecret);
 
     secrets.reads.clear();
     secrets.writes.clear();
@@ -335,12 +404,14 @@ void main() {
       const CredentialCodec().export(second),
     );
     expect(secrets.writes, isNot(contains(syncDeviceSecretKey)));
+    secrets.reads.clear();
     final rebound = await provider.withBoundCredential((bound) => bound);
     expect(
       rebound,
-      BoundDeviceCredential.bind(second, deviceSecret: 'test-device-secret'),
+      BoundDeviceCredential.bind(second, deviceSecret: deviceSecret),
     );
-    expect(await secrets.read(syncDeviceSecretKey), 'test-device-secret');
+    expect(secrets.reads, [syncDeviceSecretKey, syncCredentialSecretKey]);
+    expect(await secrets.read(syncDeviceSecretKey), deviceSecret);
 
     await secrets.delete(syncDeviceSecretKey);
     final stillSession = await provider.withSessionCredential(
@@ -349,10 +420,10 @@ void main() {
     expect(stillSession, second);
 
     secrets.writes.clear();
-    await secrets.write(syncDeviceSecretKey, 'test-device-secret');
+    await secrets.write(syncDeviceSecretKey, deviceSecret);
     expect(secrets.writes, isNot(contains(syncCredentialSecretKey)));
     await secrets.delete(syncCredentialSecretKey);
-    expect(await secrets.read(syncDeviceSecretKey), 'test-device-secret');
+    expect(await secrets.read(syncDeviceSecretKey), deviceSecret);
     var called = false;
     await expectLater(
       provider.withBoundCredential((_) => called = true),
@@ -365,7 +436,7 @@ void main() {
       ),
     );
     expect(called, isFalse);
-    expect(await secrets.read(syncDeviceSecretKey), 'test-device-secret');
+    expect(await secrets.read(syncDeviceSecretKey), deviceSecret);
   });
 
   test(
@@ -379,23 +450,23 @@ void main() {
         syncCredentialSecretKey,
         const CredentialCodec().export(credential),
       );
-      await secrets.write(syncDeviceSecretKey, 'first-device-secret');
+      await secrets.write(syncDeviceSecretKey, validDeviceSecret(1));
       await provider.withBoundCredential((bound) {
         expect(
           bound,
           BoundDeviceCredential.bind(
             credential,
-            deviceSecret: 'first-device-secret',
+            deviceSecret: validDeviceSecret(1),
           ),
         );
       });
-      await secrets.write(syncDeviceSecretKey, 'second-device-secret');
+      await secrets.write(syncDeviceSecretKey, validDeviceSecret(2));
       await provider.withBoundCredential((bound) {
         expect(
           bound,
           BoundDeviceCredential.bind(
             credential,
-            deviceSecret: 'second-device-secret',
+            deviceSecret: validDeviceSecret(2),
           ),
         );
       });
@@ -413,7 +484,6 @@ void main() {
         ),
       );
       expect(secrets.reads, [
-        syncCredentialSecretKey,
         syncDeviceSecretKey,
         syncCredentialSecretKey,
         syncDeviceSecretKey,
@@ -424,7 +494,7 @@ void main() {
   );
 
   test('bound failures never expose the device secret value', () async {
-    const deviceSecret = 'test-device-secret-value';
+    final deviceSecret = validDeviceSecret();
     await secrets.write(
       syncCredentialSecretKey,
       payload('another-device', 'test-bearer'),
@@ -464,7 +534,7 @@ void main() {
       syncCredentialSecretKey,
       const CredentialCodec().export(credential),
     );
-    const deviceSecret = 'test-device-secret-value';
+    final deviceSecret = validDeviceSecret();
     await secrets.write(syncDeviceSecretKey, deviceSecret);
     secrets.readFailure = StateError('test-bearer-secret opaque-payload');
     secrets.readFailureKey = syncDeviceSecretKey;
@@ -484,7 +554,7 @@ void main() {
     expect(thrown.toString(), isNot(contains('test-bearer-secret')));
     expect(thrown.toString(), isNot(contains('opaque-payload')));
     expect(thrown.toString(), isNot(contains(deviceSecret)));
-    expect(secrets.reads, [syncCredentialSecretKey, syncDeviceSecretKey]);
+    expect(secrets.reads, [syncDeviceSecretKey]);
   });
 
   test(
