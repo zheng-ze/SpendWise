@@ -29,3 +29,4 @@ part 'src/backends/in_memory_backend.dart';
 part 'src/backends/custom_endpoint_backend.dart';
 part 'src/backends/supabase_backend.dart';
 part 'src/backends/supabase_authenticator.dart';
+part 'src/backends/supabase_device_binding_authorizer.dart';

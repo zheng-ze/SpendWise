@@ -1,6 +1,6 @@
 # Sync: package engine
 
-Last reconciled: 16078f6
+Last reconciled: 2c6a3cb
 
 ## Overview
 
@@ -20,14 +20,18 @@ Source: `packages/sync/pubspec.yaml` - `dependencies`;
 
 The same public library also owns the typed operation contract for device binding. It defines the
 binding request and response DTOs, credential distinction, typed failures, and the
-`DeviceBindingAuthorizer` seam; `InMemorySyncBackend` is its current in-package implementation. As
-of this contract, it is client-side only: neither `SupabaseSyncBackend` nor
-`SupabaseSyncAuthenticator` implements `DeviceBindingAuthorizer` or reads a `BeginReconcile`
-binding authorization, so `InMemorySyncBackend` is the only implementation that exercises the
-contract end to end. Source: `packages/sync/lib/src/protocol/binding.dart` - binding DTOs;
+`DeviceBindingAuthorizer` seam. `SupabaseDeviceBindingAuthorizer` is a separate Supabase Edge
+Function adapter that implements the seam: it posts to
+`/functions/v1/sync-device-binding/start` and `/verify` with anonymous-gateway `Authorization` and
+`apikey` headers. `SupabaseSyncBackend` and `SupabaseSyncAuthenticator` do not implement the seam
+or read a `BeginReconcile` binding authorization, and no app code constructs the Edge Function
+adapter. Production therefore does not exercise the binding contract end to end. Source:
+`packages/sync/lib/src/protocol/binding.dart` - binding DTOs;
 `packages/sync/lib/src/protocol/credential.dart` - `BoundDeviceCredential`;
 `packages/sync/lib/src/protocol/interfaces.dart` - `DeviceBindingAuthorizer`;
 `packages/sync/lib/src/backends/in_memory_backend.dart` - `InMemorySyncBackend`;
+`packages/sync/lib/src/backends/supabase_device_binding_authorizer.dart` -
+`SupabaseDeviceBindingAuthorizer`;
 `packages/sync/lib/src/backends/supabase_backend.dart` - `SupabaseSyncBackend`;
 `packages/sync/lib/src/backends/supabase_authenticator.dart` - `SupabaseSyncAuthenticator`.
 
@@ -61,6 +65,8 @@ contract end to end. Source: `packages/sync/lib/src/protocol/binding.dart` - bin
   incompatibility failures.
 - `packages/sync/lib/src/backends/in_memory_backend.dart` - In-memory backend and its binding
   state-machine emulation.
+- `packages/sync/lib/src/backends/supabase_device_binding_authorizer.dart` - Supabase Edge Function
+  adapter for device-binding start and verification.
 - `packages/sync/lib/src/protocol/version_vector.dart` - Causal ordering and persistence and wire
   codecs for version vectors.
 - `packages/sync/pubspec.yaml` - Pure-Dart dependency boundary, including the pinned cryptography
