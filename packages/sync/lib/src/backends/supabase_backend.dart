@@ -50,11 +50,14 @@ final class SupabaseSyncBackend implements SyncBackend {
     };
     final body = Map<String, Object?>.of(request.toWireJson())
       ..remove('action');
+    final bindingAuthorization =
+        request is BeginReconcile ? request._bindingAuthorization : null;
     return _rpc<ReconcileResponse>(
       credential,
       rpc,
       body,
       ReconcileResponse.new,
+      bindingAuthorization: bindingAuthorization,
     );
   }
 
@@ -74,29 +77,62 @@ final class SupabaseSyncBackend implements SyncBackend {
     SyncCredential credential,
     String functionName,
     Map<String, Object?> requestBody,
-    T Function(Map<String, Object?>) decode,
-  ) async {
-    final deviceCredential = _requireDeviceCredential(credential);
-    final headers = _authorizationHeaders(deviceCredential)
-      ..['apikey'] = anonKey;
+    T Function(Map<String, Object?>) decode, {
+    String? bindingAuthorization,
+  }) async {
+    final String deviceID;
+    final Map<String, String> headers;
+    switch (credential) {
+      case DeviceCredential(deviceID: final id, :final _bearerToken)
+          when bindingAuthorization != null:
+        deviceID = id;
+        headers = _bearerHeaders(_bearerToken)
+          ..['X-SpendWise-Binding-Authorization'] = bindingAuthorization
+          ..['apikey'] = anonKey;
+      case BoundDeviceCredential(
+            deviceID: final id,
+            :final _bearerToken,
+            :final _deviceSecret
+          )
+          when bindingAuthorization == null:
+        deviceID = id;
+        headers = _bearerHeaders(_bearerToken)
+          ..['X-SpendWise-Device-Secret'] = _deviceSecret
+          ..['apikey'] = anonKey;
+      case DeviceCredential():
+      case BoundDeviceCredential():
+        return InvalidRequest<T>(
+          message: 'Supabase backend received a credential that does not '
+              'match the requested operation mode.',
+        );
+    }
     final outgoingBody = Map<String, Object?>.of(requestBody)
-      ..['device_id'] = deviceCredential.deviceID;
+      ..['device_id'] = deviceID
+      ..['protocol_major'] = syncOperationMajor;
     try {
       final response = await _client.post(
         projectUrl.resolve('/rest/v1/rpc/$functionName'),
         headers: headers,
         body: jsonEncode(outgoingBody),
       );
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        try {
+          final body = _decodeJsonObject(response.body);
+          return SyncSuccess<T>(decode(body));
+        } on FormatException {
+          return IncompatibleServer<T>(
+            message: 'Supabase RPC returned a response the client could not '
+                'parse as protocol major 2.',
+          );
+        }
+      }
       Map<String, Object?> body;
       try {
         body = _decodeJsonObject(response.body);
-      } on FormatException catch (error) {
-        return BackendUnavailable<T>(message: error.message);
+      } on FormatException {
+        body = const <String, Object?>{};
       }
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        return SyncSuccess<T>(decode(body));
-      }
-      return _failureFromHttp<T>(
+      return syncFailureFromHttp<T>(
         response.statusCode,
         body,
         retryAfterHeader: response.headers['retry-after'],
