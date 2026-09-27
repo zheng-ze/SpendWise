@@ -1,6 +1,6 @@
 # Sync: package engine
 
-Last reconciled: 2c6a3cb
+Last reconciled: 5cdcf72
 
 ## Overview
 
@@ -20,12 +20,20 @@ Source: `packages/sync/pubspec.yaml` - `dependencies`;
 
 The same public library also owns the typed operation contract for device binding. It defines the
 binding request and response DTOs, credential distinction, typed failures, and the
-`DeviceBindingAuthorizer` seam. `SupabaseDeviceBindingAuthorizer` is a separate Supabase Edge
-Function adapter that implements the seam: it posts to
-`/functions/v1/sync-device-binding/start` and `/verify` with anonymous-gateway `Authorization` and
-`apikey` headers. `SupabaseSyncBackend` and `SupabaseSyncAuthenticator` do not implement the seam
-or read a `BeginReconcile` binding authorization, and no app code constructs the Edge Function
-adapter. Production therefore does not exercise the binding contract end to end. Source:
+`DeviceBindingAuthorizer` seam; `InMemorySyncBackend` is its current in-package implementation.
+`SupabaseDeviceBindingAuthorizer` is a separate Supabase Edge Function adapter that implements the
+seam: it posts to `/functions/v1/sync-device-binding/start` and `/verify` with anonymous-gateway
+`Authorization` and `apikey` headers. `SupabaseSyncBackend` does not implement the seam itself, but
+its RPC transport is binding-aware: it adds `device_id` and `protocol_major` 2 to every RPC body,
+and for an authorization-bearing `BeginReconcile` it reads the private binding authorization and
+sends it only with a `DeviceCredential` as `X-SpendWise-Binding-Authorization`; all other RPCs,
+including a bound `BeginReconcile`, require a `BoundDeviceCredential` and send only
+`X-SpendWise-Device-Secret`. Invalid credential/operation-mode combinations return typed
+`InvalidRequest` without HTTP dispatch. `SupabaseSyncAuthenticator` neither implements the seam nor
+participates in the RPC binding-header contract. The authorizer seam and the RPC transport's use of
+it therefore stay two separate adapters, and no app code constructs
+`SupabaseDeviceBindingAuthorizer` or supplies a binding authorization/bound credential to these
+Supabase RPCs yet - production does not exercise the binding contract end to end. Source:
 `packages/sync/lib/src/protocol/binding.dart` - binding DTOs;
 `packages/sync/lib/src/protocol/credential.dart` - `BoundDeviceCredential`;
 `packages/sync/lib/src/protocol/interfaces.dart` - `DeviceBindingAuthorizer`;
@@ -33,7 +41,9 @@ adapter. Production therefore does not exercise the binding contract end to end.
 `packages/sync/lib/src/backends/supabase_device_binding_authorizer.dart` -
 `SupabaseDeviceBindingAuthorizer`;
 `packages/sync/lib/src/backends/supabase_backend.dart` - `SupabaseSyncBackend`;
-`packages/sync/lib/src/backends/supabase_authenticator.dart` - `SupabaseSyncAuthenticator`.
+`packages/sync/lib/src/backends/supabase_authenticator.dart` - `SupabaseSyncAuthenticator`;
+`app/lib/sync/sync_coordinator.dart` - session-credential RPC calls;
+`app/lib/sync/sync_enrollment_service.dart` - session-credential reconciliation.
 
 ## Key locations
 
