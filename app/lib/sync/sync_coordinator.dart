@@ -183,9 +183,6 @@ final class SyncCoordinator extends ChangeNotifier {
 
   final CredentialProvider _credentialProvider;
 
-  /// Process-lifetime stop gate shared across every coordinator composed for
-  /// the same database. A latched gate refuses new bound RPCs until a durable
-  /// repair exit releases it.
   final SyncRepairGate repairGate;
 
   final SecretStore _secretStore;

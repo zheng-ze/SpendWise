@@ -5,15 +5,10 @@ import 'package:spendwise/sync/sync_metadata_store.dart';
 
 /// Process-lifetime stop gate for bound sync RPCs, one per [LedgerDatabase].
 ///
-/// Every coordinator composed for the same database shares one gate, so a
-/// repair triggered by any pair stops new bound work for every later pair
-/// until a durable repair exit. The gate is recreated from durable metadata
-/// on restart through [reseed]: repair-durable state latches it, a bound
-/// phase at an allowed resume point releases it.
-///
-/// Admission is separate from metadata legality: legal repair states never
-/// admit bound RPCs. Callers check
-/// [SyncMetadataStore.validateHostedOperationState] first, then [admit].
+/// A repair triggered by any composed pair stops new bound work for every
+/// later pair until a durable repair exit; [reseed] recreates this from
+/// durable metadata on restart. Admission is separate from metadata legality:
+/// legal repair states never admit bound RPCs.
 ///
 /// [withSecretMutationLock] serializes device-secret compare-and-delete
 /// sections so a late authorization failure for a rotated-away secret cannot

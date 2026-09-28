@@ -26,9 +26,8 @@ final class CredentialProvider {
     (BoundDeviceCredential credential, String _) => use(credential),
   );
 
-  /// Resolves a bound credential and also exposes the device secret that was
-  /// presented on it, so a later authorization failure can compare the
-  /// presented value against the stored one before rotating the binding.
+  /// Exposes the presented secret so a later authorization failure can be
+  /// checked for staleness before rotating the binding.
   Future<T> withBoundCredentialAndSecret<T>(
     FutureOr<T> Function(BoundDeviceCredential credential, String deviceSecret)
     use,

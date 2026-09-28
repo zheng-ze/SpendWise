@@ -3458,8 +3458,7 @@ void main() {
 
         expect(backend.pulls, hasLength(SyncCollection.values.length));
         // The pending acknowledge shares its collection lock with that
-        // collection's pull, so it may be refused after repair entry without
-        // ever sending; either way it must not create a second transition.
+        // collection's pull, so it may be refused post-repair without sending.
         final sentAcknowledges = backend.acknowledges.length;
         expect(sentAcknowledges, lessThanOrEqualTo(1));
         final snapshot = await coordinator.metadataStore.snapshot();
