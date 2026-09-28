@@ -1145,6 +1145,43 @@ void main() {
     expect(snapshot.writeEnabled, isFalse);
   });
 
+  test('metadata transition failure after a stored device secret sends no Pull or Complete', () async {
+    await metadataStore.enterBindingAuthorizationRequired();
+    await secrets.write(syncE2EKeySecretKey, base64Url.encode(validE2EKey()));
+    await db.customStatement(
+      'CREATE TRIGGER fail_snapshot_enter BEFORE UPDATE ON sync_meta '
+      'WHEN NEW.device_binding_state = 2 AND NEW.enrollment_phase = 2 '
+      'BEGIN SELECT RAISE(ABORT, \'boom\'); END',
+    );
+
+    Object? thrown;
+    try {
+      await service().enroll();
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown, isNotNull);
+    expect(await secrets.read(syncDeviceSecretKey), isNotNull);
+    expect(backend.calls.where((call) => call == 'pull'), isEmpty);
+    expect(backend.calls.where((call) => call == 'reconcile'), hasLength(1));
+    var snapshot = await metadataStore.snapshot();
+    expect(snapshot.phase, SyncEnrollmentPhase.bindingAuthorizationRequired);
+    expect(snapshot.writeEnabled, isFalse);
+
+    await db.customStatement('DROP TRIGGER fail_snapshot_enter');
+
+    await service().enroll();
+
+    expect(backend.calls.where((call) => call == 'startBinding'), hasLength(1));
+    expect(
+      backend.calls.where((call) => call == 'verifyBinding'),
+      hasLength(1),
+    );
+    snapshot = await metadataStore.snapshot();
+    expect(snapshot.phase, SyncEnrollmentPhase.gateEnabled);
+  });
+
   test(
     'snapshotInProgress precedes the first Pull on one bound credential',
     () async {
