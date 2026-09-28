@@ -1,17 +1,18 @@
 # Sync: composition root
 
-Last reconciled: e9f1db4
+Last reconciled: 38bf33c
 
 ## Overview
 
 `SyncCoordinator.create` is the app-side composition root for already-constructed ledger and
 persistence collaborators. It opens the durable staging store, resolves the selected backend from
-persisted metadata and caller-provided configuration, and creates a `SyncEngine` with a scoped
+persisted metadata and caller-provided configuration, seeds the per-database `SyncRepairGate`
+from the startup snapshot, and creates a `SyncEngine` with a scoped
 E2E-key accessor. It owns sync-pass scheduling, single-page pull processing, pending-
 acknowledgement recovery, and per-collection push-candidate submission. It does not yet have an
 `AppBoot` or other lifecycle caller, and it never starts the persistence processor. See
 [sync-durable-stores.md](sync-durable-stores.md), [sync-package-engine.md](sync-package-engine.md),
-and [persistence.md](persistence.md) for the assembled layers. Source:
+[sync-repair-gate.md](sync-repair-gate.md), and [persistence.md](persistence.md) for the assembled layers. Source:
 `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.create`, `SyncCoordinator.status`.
 
 `composeSyncEnrollment` composes the hosted enrollment graph around that root.
@@ -27,8 +28,10 @@ Source:
 
 ## Key locations
 
-- `app/lib/sync/sync_coordinator.dart` - composition root, pull-page processing, acknowledgement
+- `app/lib/sync/sync_coordinator.dart` - composition root, bound-RPC admission, pull-page processing, acknowledgement
   recovery, push-candidate selection and acknowledgement, collaborators, and wiring validation.
+- `app/lib/sync/sync_repair_gate.dart` - per-database repair gate, bound-RPC leases, and
+  the shared secret-mutation lock; see [sync-repair-gate.md](sync-repair-gate.md).
 - `app/lib/sync/sync_enrollment_composition.dart` - hosted-enrollment graph
   composition and typed readiness/configuration outcomes.
 - `app/lib/sync/sync_enrollment_session.dart` - session adapter that prevents
@@ -58,9 +61,14 @@ or starting either. Source: `app/lib/sync/sync_coordinator.dart` -
 
 The coordinator gives `SyncEngine` only `SyncE2EKeyProvider.accessor`, not a `SecretStore` or a
 device credential. It retains `CredentialProvider` privately for pull, acknowledgement, and push
-backend calls. Source: `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.create`,
-`SyncCoordinator.processPullPage`, `SyncCoordinator.recoverPendingAcknowledgements`,
-`SyncCoordinator.pushCollection`.
+backend calls, all of which now go through bound credentials via the `_sendBoundRpc` helper:
+admission through the `SyncRepairGate`, a separate metadata-legality check, credential
+resolution, and lease-guarded durable commits. Credential-unavailable and typed backend
+failures route into the repair-gate latch flow rather than collapsing to a generic error.
+Source: `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.create`,
+`SyncCoordinator._sendBoundRpc`, `SyncCoordinator.processPullPage`,
+`SyncCoordinator.recoverPendingAcknowledgements`, `SyncCoordinator.pushCollection`;
+[sync-repair-gate.md](sync-repair-gate.md).
 
 `SyncBackendResolver` maps the persisted selected backend to `CustomEndpointSyncBackend` or
 `SupabaseSyncBackend`, or returns null when no backend was selected. It delegates custom-endpoint
@@ -108,8 +116,12 @@ The hosted-enrollment factory resolves the persisted snapshot through the same
 `SupabaseDeviceBindingAuthorizer` with the same project URL, anonymous key, and
 HTTP client. It passes the submitted identifier and OTP resolver to both
 authentication paths, and passes the validated config to `SyncCoordinator.create`.
-It uses one `SecretStore` for the enrollment service, coordinator, and snapshot publisher. Source:
-`app/lib/sync/sync_enrollment_composition.dart` - `composeSyncEnrollment`.
+It uses one `SecretStore` for the enrollment service, coordinator, and snapshot publisher. It
+passes the shared `SyncRepairGate.forDatabase(database)` into the enrollment service, so the
+service and the coordinator serialize device-secret mutations and repair transitions through
+the same gate. Source:
+`app/lib/sync/sync_enrollment_composition.dart` - `composeSyncEnrollment`;
+[sync-repair-gate.md](sync-repair-gate.md).
 
 `CachedCollectionVersionSource` bridges bulk asynchronous reads to the `SyncVersionSource` used
 by the engine. A refresh reads every `SyncCollection`, publishes its new cache only after all
@@ -161,13 +173,15 @@ It leaves every other exception for `SyncRunScheduler`, whose failure behavior i
   validates `syncDeviceSecretKey` before restoring the bearer credential. A null secret raises
   `CredentialUnavailableReason.deviceSecretAbsent`; a non-null secret raises
   `CredentialUnavailableReason.deviceSecretMalformed` unless it is canonical unpadded base64url
-  that decodes to exactly 32 bytes. The stored device-binding secret uses the key
+  that decodes to exactly 32 bytes. `withBoundCredentialAndSecret` additionally exposes the
+  presented device secret so a later authorization failure can be checked for staleness. The stored device-binding secret uses the key
   `spendwise.sync.device-binding-secret`. The credential and device-secret keys are independent,
   and each accessor re-reads its key(s) on every call rather than caching.
-  `SyncEnrollmentService` uses `withBoundCredential` after binding, while
-  `SyncCoordinator` still uses `withSessionCredential` for pull, acknowledgement,
-  and push. Source: `app/lib/sync/credential_provider.dart` -
+  `SyncEnrollmentService` uses `withBoundCredential` after binding, and
+  `SyncCoordinator` uses `withBoundCredentialAndSecret` for pull, acknowledgement,
+  and push via `_sendBoundRpc`. Source: `app/lib/sync/credential_provider.dart` -
   `CredentialProvider.withSessionCredential`, `CredentialProvider.withBoundCredential`,
+  `CredentialProvider.withBoundCredentialAndSecret`,
   `_readDeviceSecret`, `CredentialUnavailableReason`;
   `app/lib/sync/sync_secret_keys.dart` - `syncCredentialSecretKey`, `syncDeviceSecretKey`,
   `isValidSyncDeviceSecret`;

@@ -1,6 +1,6 @@
 # Sync: enrollment
 
-Last reconciled: e9f1db4
+Last reconciled: 38bf33c
 
 ## Overview
 
@@ -8,7 +8,10 @@ Last reconciled: e9f1db4
 the E2E key before device-binding authorization, verifies one binding OTP,
 uses the returned bearer and authorization for Begin, stores the device secret,
 and completes reconciliation with bound credentials. It enables writes only
-after reconciliation is durably complete. `composeSyncEnrollment` is the
+after reconciliation is durably complete. Every device-secret mutation runs through the
+shared per-database `SyncRepairGate`, and repair exits release only the repair episode the
+run captured, so a superseded run cannot close a newer repair. See
+[sync-repair-gate.md](sync-repair-gate.md). `composeSyncEnrollment` is the
 hosted-enrollment factory: it creates the Supabase binding authorizer,
 authenticator, service, coordinator, and publisher from ready boot providers
 and persisted Supabase selection. `SyncEnrollmentFlow`
@@ -39,6 +42,8 @@ the publisher itself remains independent of lifecycle scheduling. Source:
 
 - `app/lib/sync/sync_enrollment_service.dart` - enrollment orchestration,
   crash recovery, and remote-failure translation.
+- `app/lib/sync/sync_repair_gate.dart` - shared repair-gate lock, episode-scoped repair
+  exits, and secret-mutation serialization; see [sync-repair-gate.md](sync-repair-gate.md).
 - `app/lib/sync/sync_enrollment_composition.dart` - hosted-enrollment factory,
   typed readiness/configuration outcomes, and production E2E-key source.
 - `app/lib/sync/sync_e2e_key_provider.dart` - shared stored-key decoder and
@@ -172,13 +177,26 @@ other statuses backend unavailable);
   `SyncMetadataStore.enterGateEnabled`.
 - Missing or malformed bound credentials and `credential_expired` or
   `device_authorization_required` reconciliation failures route to session
-  reauthentication or binding authorization as appropriate. Session
+  reauthentication or binding authorization as appropriate, serialized through the
+  repair gate's mutation lock with a re-read of the current failure before latching, so a
+  superseded credential latches nothing. Session
   reauthentication uses ordinary OTP, replaces only the bearer, and restores
   the recorded phase; an absent or malformed device secret routes back to
-  binding authorization. Source: `app/lib/sync/sync_enrollment_service.dart` -
+  binding authorization. Staleness is checked with `hasSameBearerAs` (bearer expiry) and
+  `hasSameDeviceSecretAs` (device authorization), so a rotation that landed after the
+  presented credential does not trigger a spurious repair. Repair exits commit the
+  metadata transition and the episode-scoped release atomically, throwing `StateError`
+  when a newer repair has since latched. All `syncCredentialSecretKey` and
+  `syncDeviceSecretKey` writes and deletes run under `withSecretMutationLock`, shared
+  with the coordinator. Source: `app/lib/sync/sync_enrollment_service.dart` -
   `SyncEnrollmentService._routeCredentialUnavailable`,
   `SyncEnrollmentService._routeBoundFailure`,
-  `SyncEnrollmentService._stepSessionReauthRequired`.
+  `SyncEnrollmentService._stepSessionReauthRequired`,
+  `SyncEnrollmentService._commitRepairExit`, `SyncEnrollmentService._enterBindingRepair`,
+  `SyncEnrollmentService._enterSessionRepair`;
+  `packages/sync/lib/src/protocol/credential.dart` - `BoundDeviceCredential.hasSameBearerAs`,
+  `BoundDeviceCredential.hasSameDeviceSecretAs`;
+  [sync-repair-gate.md](sync-repair-gate.md).
 - A `CompleteReconcile` outcome of `SnapshotHashMismatch` that names a
   collection (`mismatchedCollection`) re-pages and re-hashes only that
   collection under the same `ReconciliationContext`, then retries
@@ -252,8 +270,9 @@ other statuses backend unavailable);
 
 ## Gotchas
 
-- Do not call `enroll()` concurrently on one service instance. The service has
-  no operation lock, scheduler, or caller in the shipped composition root.
+- Do not call `enroll()` concurrently on one service instance. The repair gate serializes
+  individual transitions and secret mutations, but the `enroll()` loop itself has no
+  operation lock, scheduler, or caller in the shipped composition root.
   Source: `app/lib/sync/sync_enrollment_service.dart` -
   `SyncEnrollmentService.enroll`; `app/lib/sync/sync_coordinator.dart` -
   `SyncCoordinator.create`.
@@ -273,7 +292,8 @@ other statuses backend unavailable);
   future backend implementation must match this client-defined contract, not
   the other way around. Source: `packages/sync/lib/src/protocol/requests.dart`
   - `ReconciliationContext`, `PullRequest.reconciliation`.
-- `SyncEnrollmentService` itself still has no operation lock. The UI Flow
+- `SyncEnrollmentService.enroll()` itself still has no operation lock; the repair gate only
+  serializes its individual transitions and secret mutations. The UI Flow
   serializes its enroll-and-publish operation, but other callers must provide
   equivalent serialization. Source:
   `app/lib/sync/sync_enrollment_service.dart` - `SyncEnrollmentService.enroll`;
