@@ -70,6 +70,7 @@ final class SyncEnrollmentService {
   resolveBindingOtp;
 
   Future<void> enroll() async {
+    final int repairEpisode = await repairGate.repairEpisode();
     var snapshot = await metadataStore.snapshot();
     final legality = metadataStore.validateHostedOperationState(snapshot);
     if (legality is HostedOperationIllegal) {
@@ -80,12 +81,15 @@ final class SyncEnrollmentService {
       );
     }
     while (snapshot.phase != SyncEnrollmentPhase.gateEnabled) {
-      await _advance(snapshot);
+      await _advance(snapshot, repairEpisode);
       snapshot = await metadataStore.snapshot();
     }
   }
 
-  Future<SyncEnrollmentPhase> _advance(SyncMetadataSnapshot snapshot) {
+  Future<SyncEnrollmentPhase> _advance(
+    SyncMetadataSnapshot snapshot,
+    int repairEpisode,
+  ) {
     final binding = snapshot.deviceBindingState;
     final phase = snapshot.phase;
     if (binding == SyncDeviceBindingState.notApplicable &&
@@ -98,7 +102,7 @@ final class SyncEnrollmentService {
     }
     if (binding == SyncDeviceBindingState.authorizationRequired &&
         phase == SyncEnrollmentPhase.bindingAuthorizationRequired) {
-      return _stepBindingAuthorizationRequired();
+      return _stepBindingAuthorizationRequired(repairEpisode);
     }
     if (binding == SyncDeviceBindingState.bound &&
         phase == SyncEnrollmentPhase.snapshotInProgress) {
@@ -110,7 +114,7 @@ final class SyncEnrollmentService {
     }
     if (binding == SyncDeviceBindingState.bound &&
         phase == SyncEnrollmentPhase.sessionReauthRequired) {
-      return _stepSessionReauthRequired();
+      return _stepSessionReauthRequired(repairEpisode);
     }
     if (binding == SyncDeviceBindingState.bound &&
         phase == SyncEnrollmentPhase.gateEnabled) {
@@ -150,13 +154,17 @@ final class SyncEnrollmentService {
     return SyncEnrollmentPhase.bindingAuthorizationRequired;
   }
 
-  Future<SyncEnrollmentPhase> _stepBindingAuthorizationRequired() async {
+  Future<SyncEnrollmentPhase> _stepBindingAuthorizationRequired(
+    int repairEpisode,
+  ) async {
     await SyncE2EKeyProvider(secretStore: secretStore).accessor();
     final storedSecret = await secretStore.read(syncDeviceSecretKey);
     if (storedSecret != null) {
       if (isValidSyncDeviceSecret(storedSecret)) {
-        await metadataStore.enterSnapshotInProgress();
-        repairGate.release();
+        await _commitRepairExit(
+          repairEpisode,
+          metadataStore.enterSnapshotInProgress,
+        );
         return _stepSnapshotInProgress();
       }
       await repairGate.withSecretMutationLock(
@@ -192,9 +200,11 @@ final class SyncEnrollmentService {
       step: 'verifyBinding',
     );
     final sessionCredential = verifyResponse.sessionCredential(currentDeviceID);
-    await secretStore.write(
-      syncCredentialSecretKey,
-      const CredentialCodec().export(sessionCredential),
+    await repairGate.withSecretMutationLock(
+      () => secretStore.write(
+        syncCredentialSecretKey,
+        const CredentialCodec().export(sessionCredential),
+      ),
     );
     final beginOutcome = await backend.reconcile(
       sessionCredential,
@@ -228,8 +238,10 @@ final class SyncEnrollmentService {
     await repairGate.withSecretMutationLock(
       () => secretStore.write(syncDeviceSecretKey, rawSecret),
     );
-    await metadataStore.enterSnapshotInProgress();
-    repairGate.release();
+    await _commitRepairExit(
+      repairEpisode,
+      metadataStore.enterSnapshotInProgress,
+    );
     final bound = await CredentialProvider(
       database: database,
       secretStore: secretStore,
@@ -270,6 +282,7 @@ final class SyncEnrollmentService {
             code: code,
             message: message,
             retryAfter: retryAfter,
+            presented: bound,
           );
         }
         throw SyncEnrollmentException(
@@ -287,7 +300,7 @@ final class SyncEnrollmentService {
   ) async {
     final context = _decodeContext(beginResponse);
     final hasher = buildSnapshotHasher(credential);
-    var hashes = await _hashAll(hasher, context);
+    var hashes = await _hashAll(hasher, context, credential);
     var completeOutcome = await backend.reconcile(
       credential,
       CompleteReconcile(collectionHashes: hashes),
@@ -304,7 +317,7 @@ final class SyncEnrollmentService {
       hashes = Map<SyncCollection, String>.unmodifiable(
         <SyncCollection, String>{
           ...hashes,
-          mismatched: await _rehash(hasher, context, mismatched),
+          mismatched: await _rehash(hasher, context, mismatched, credential),
         },
       );
       completeOutcome = await backend.reconcile(
@@ -332,6 +345,7 @@ final class SyncEnrollmentService {
             code: code,
             message: message,
             retryAfter: retryAfter,
+            presented: credential,
           );
         }
         throw SyncEnrollmentException(
@@ -343,7 +357,9 @@ final class SyncEnrollmentService {
     }
   }
 
-  Future<SyncEnrollmentPhase> _stepSessionReauthRequired() async {
+  Future<SyncEnrollmentPhase> _stepSessionReauthRequired(
+    int repairEpisode,
+  ) async {
     final storedSecret = await secretStore.read(syncDeviceSecretKey);
     if (storedSecret == null) {
       await metadataStore.enterBindingAuthorizationRequired();
@@ -371,48 +387,90 @@ final class SyncEnrollmentService {
         CredentialUnavailableReason.identityFailed,
       );
     }
-    await secretStore.write(
-      syncCredentialSecretKey,
-      const CredentialCodec().export(credential),
+    await repairGate.withSecretMutationLock(
+      () => secretStore.write(
+        syncCredentialSecretKey,
+        const CredentialCodec().export(credential),
+      ),
     );
-    final restored = await metadataStore.restoreFromSessionReauth();
-    repairGate.release();
+    final restored = await _commitRepairExit(
+      repairEpisode,
+      metadataStore.restoreFromSessionReauth,
+    );
     return restored;
   }
+
+  Future<T> _commitRepairExit<T>(
+    int repairEpisode,
+    Future<T> Function() transition,
+  ) => repairGate.withMutation((turn) async {
+    if (!turn.isCurrentEpisode(repairEpisode)) {
+      throw StateError('Sync repair changed before the enrollment exit.');
+    }
+    final value = await transition();
+    turn.release(repairEpisode);
+    return value;
+  });
 
   Future<Never> _routeCredentialUnavailable(
     CredentialUnavailableException error, {
     required String step,
   }) async {
-    switch (error.reason) {
-      case CredentialUnavailableReason.deviceSecretAbsent:
-        await metadataStore.enterBindingAuthorizationRequired();
-        throw SyncEnrollmentException(
-          step: step,
-          code: 'device_authorization_required',
-          message: error.toString(),
-        );
-      case CredentialUnavailableReason.deviceSecretMalformed:
-        await repairGate.withSecretMutationLock(
-          () => secretStore.delete(syncDeviceSecretKey),
-        );
-        await metadataStore.enterBindingAuthorizationRequired();
-        throw SyncEnrollmentException(
-          step: step,
-          code: 'device_authorization_required',
-          message: error.toString(),
-        );
-      case CredentialUnavailableReason.absent:
-      case CredentialUnavailableReason.malformed:
-        await _enterSessionReauthOrThrow(
-          step: step,
-          code: 'credential_expired',
-          message: error.toString(),
-        );
-      case CredentialUnavailableReason.storageFailed:
-      case CredentialUnavailableReason.identityFailed:
-        throw error;
+    if (error.reason == CredentialUnavailableReason.storageFailed ||
+        error.reason == CredentialUnavailableReason.identityFailed) {
+      throw error;
     }
+    final ({CredentialUnavailableReason reason, String code})? route =
+        await repairGate.withMutation((turn) async {
+          final CredentialUnavailableReason currentReason;
+          try {
+            await CredentialProvider(
+              database: database,
+              secretStore: secretStore,
+            ).withBoundCredential((credential) => null);
+            return null;
+          } on CredentialUnavailableException catch (current) {
+            currentReason = current.reason;
+          }
+          final String code;
+          switch (currentReason) {
+            case CredentialUnavailableReason.deviceSecretAbsent:
+              await _enterBindingRepair(turn);
+              code = 'device_authorization_required';
+            case CredentialUnavailableReason.deviceSecretMalformed:
+              await _enterBindingRepair(turn, deleteSecret: true);
+              code = 'device_authorization_required';
+            case CredentialUnavailableReason.absent:
+            case CredentialUnavailableReason.malformed:
+              final entry = await _enterSessionRepair(turn);
+              if (entry == SessionReauthEntry.rejectedIllegalState) {
+                final snapshot = await metadataStore.snapshot();
+                code =
+                    snapshot.deviceBindingState ==
+                        SyncDeviceBindingState.authorizationRequired
+                    ? 'device_authorization_required'
+                    : 'invalid_request';
+              } else {
+                code = 'credential_expired';
+              }
+            case CredentialUnavailableReason.storageFailed:
+            case CredentialUnavailableReason.identityFailed:
+              throw CredentialUnavailableException(currentReason);
+          }
+          return (reason: currentReason, code: code);
+        });
+    if (route == null) {
+      throw SyncEnrollmentException(
+        step: step,
+        code: 'invalid_request',
+        message: 'The unavailable credential was superseded.',
+      );
+    }
+    throw SyncEnrollmentException(
+      step: step,
+      code: route.code,
+      message: CredentialUnavailableException(route.reason).toString(),
+    );
   }
 
   Future<Never> _routeBoundFailure({
@@ -420,6 +478,7 @@ final class SyncEnrollmentService {
     required String code,
     required String? message,
     required Duration? retryAfter,
+    required BoundDeviceCredential presented,
   }) async {
     if (code == 'credential_expired') {
       await _enterSessionReauthOrThrow(
@@ -427,13 +486,23 @@ final class SyncEnrollmentService {
         code: code,
         message: message,
         retryAfter: retryAfter,
+        presented: presented,
       );
     }
     if (code == 'device_authorization_required') {
-      await repairGate.withSecretMutationLock(
-        () => secretStore.delete(syncDeviceSecretKey),
-      );
-      await metadataStore.enterBindingAuthorizationRequired();
+      await repairGate.withMutation((turn) async {
+        final BoundDeviceCredential current;
+        try {
+          current = await CredentialProvider(
+            database: database,
+            secretStore: secretStore,
+          ).withBoundCredential((credential) => credential);
+        } on CredentialUnavailableException {
+          return;
+        }
+        if (!current.hasSameDeviceSecretAs(presented)) return;
+        await _enterBindingRepair(turn, deleteSecret: true);
+      });
     }
     throw SyncEnrollmentException(
       step: step,
@@ -448,8 +517,30 @@ final class SyncEnrollmentService {
     required String code,
     required String? message,
     Duration? retryAfter,
+    BoundDeviceCredential? presented,
   }) async {
-    final entry = await metadataStore.enterSessionReauthRequired();
+    final entry = await repairGate.withMutation((turn) async {
+      if (presented != null) {
+        final BoundDeviceCredential current;
+        try {
+          current = await CredentialProvider(
+            database: database,
+            secretStore: secretStore,
+          ).withBoundCredential((credential) => credential);
+        } on CredentialUnavailableException {
+          return null;
+        }
+        if (!current.hasSameBearerAs(presented)) return null;
+      }
+      return _enterSessionRepair(turn);
+    });
+    if (entry == null) {
+      throw SyncEnrollmentException(
+        step: step,
+        code: 'invalid_request',
+        message: 'The expired credential was superseded.',
+      );
+    }
     if (entry == SessionReauthEntry.rejectedIllegalState) {
       final current = await metadataStore.snapshot();
       if (current.deviceBindingState ==
@@ -476,6 +567,37 @@ final class SyncEnrollmentService {
     );
   }
 
+  Future<void> _enterBindingRepair(
+    GateMutation turn, {
+    bool deleteSecret = false,
+  }) async {
+    final snapshot = await metadataStore.snapshot();
+    final alreadyBinding =
+        snapshot.deviceBindingState ==
+            SyncDeviceBindingState.authorizationRequired &&
+        snapshot.phase == SyncEnrollmentPhase.bindingAuthorizationRequired;
+    if (!alreadyBinding || repairGate.isOpen) turn.latch();
+    if (deleteSecret) await secretStore.delete(syncDeviceSecretKey);
+    await metadataStore.enterBindingAuthorizationRequired();
+  }
+
+  Future<SessionReauthEntry> _enterSessionRepair(GateMutation turn) async {
+    final snapshot = await metadataStore.snapshot();
+    final alreadyReauth =
+        snapshot.deviceBindingState == SyncDeviceBindingState.bound &&
+        snapshot.phase == SyncEnrollmentPhase.sessionReauthRequired;
+    final bindingRepair =
+        snapshot.deviceBindingState ==
+            SyncDeviceBindingState.authorizationRequired &&
+        snapshot.phase == SyncEnrollmentPhase.bindingAuthorizationRequired;
+    if (bindingRepair) {
+      if (repairGate.isOpen) turn.latch();
+    } else if (!alreadyReauth || repairGate.isOpen) {
+      turn.latch();
+    }
+    return metadataStore.enterSessionReauthRequired();
+  }
+
   static const _writeProofWireKey = 'write_proof';
   static const _deviceSecretWireKey = 'device_secret';
 
@@ -494,6 +616,7 @@ final class SyncEnrollmentService {
   Future<Map<SyncCollection, String>> _hashAll(
     ReconciliationSnapshotHasher hasher,
     ReconciliationContext context,
+    BoundDeviceCredential credential,
   ) async {
     try {
       return await hasher.hashAll(context);
@@ -503,6 +626,7 @@ final class SyncEnrollmentService {
         code: error.code,
         message: error.message,
         retryAfter: error.retryAfter,
+        presented: credential,
       );
     }
   }
@@ -511,6 +635,7 @@ final class SyncEnrollmentService {
     ReconciliationSnapshotHasher hasher,
     ReconciliationContext context,
     SyncCollection collection,
+    BoundDeviceCredential credential,
   ) async {
     try {
       return await hasher.hashCollection(context, collection);
@@ -520,6 +645,7 @@ final class SyncEnrollmentService {
         code: error.code,
         message: error.message,
         retryAfter: error.retryAfter,
+        presented: credential,
       );
     }
   }

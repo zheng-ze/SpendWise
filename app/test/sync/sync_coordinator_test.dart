@@ -19,10 +19,12 @@ import 'package:spendwise/sync/collection_version_reader.dart';
 import 'package:spendwise/sync/credential_provider.dart';
 import 'package:spendwise/sync/drift_sync_staging_store.dart';
 import 'package:spendwise/sync/post_flush_readback_verifier.dart';
+import 'package:spendwise/sync/reconciliation_snapshot_hasher.dart';
 import 'package:spendwise/sync/secret_store.dart';
 import 'package:spendwise/sync/sync_backend_resolver.dart';
 import 'package:spendwise/sync/sync_coordinator.dart';
 import 'package:spendwise/sync/sync_e2e_key_provider.dart';
+import 'package:spendwise/sync/sync_enrollment_service.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
 import 'package:spendwise/sync/sync_repair_gate.dart';
 import 'package:spendwise/sync/sync_secret_keys.dart';
@@ -48,6 +50,34 @@ final class _RecordingHttpClient extends http.BaseClient {
   }
 }
 
+final class _UnusedEnrollmentCollaborators
+    implements SyncAuthenticator, DeviceBindingAuthorizer {
+  @override
+  Future<SyncOutcome<EnrollmentChallenge>> beginEnrollment(
+    BeginEnrollmentRequest request,
+  ) => throw StateError('Unexpected enrollment authentication.');
+
+  @override
+  Future<SyncOutcome<DeviceCredential>> completeEnrollment(
+    CompleteEnrollmentRequest request,
+  ) => throw StateError('Unexpected enrollment authentication.');
+
+  @override
+  Future<SyncOutcome<DeviceCredential>> refreshCredential(
+    DeviceCredential credential,
+  ) => throw StateError('Unexpected credential refresh.');
+
+  @override
+  Future<SyncOutcome<StartDeviceBindingResponse>> startBinding(
+    StartDeviceBindingRequest request,
+  ) => throw StateError('Unexpected binding start.');
+
+  @override
+  Future<SyncOutcome<VerifyDeviceBindingResponse>> verifyBinding(
+    VerifyDeviceBindingRequest request,
+  ) => throw StateError('Unexpected binding verification.');
+}
+
 final class _FakeSyncBackend implements SyncBackend {
   _FakeSyncBackend({
     Map<SyncCollection, PullResponse>? pages,
@@ -69,6 +99,13 @@ final class _FakeSyncBackend implements SyncBackend {
   final List<SyncCredential> pushCredentials = [];
 
   Future<SyncOutcome<PushResponse>> Function(PushRequest request)? onPush;
+  Future<SyncOutcome<ReconcileResponse>> Function(
+    SyncCredential credential,
+    ReconcileRequest request,
+  )?
+  onReconcile;
+  Future<SyncOutcome<AcknowledgeResponse>> Function(AcknowledgeRequest request)?
+  onAcknowledge;
   Future<SyncOutcome<PullResponse>> Function(PullRequest request)?
   onPullRequest;
 
@@ -108,9 +145,11 @@ final class _FakeSyncBackend implements SyncBackend {
   Future<SyncOutcome<ReconcileResponse>> reconcile(
     SyncCredential credential,
     ReconcileRequest request,
-  ) => throw UnimplementedError(
-    'Reconcile RPC is out of scope for coordinator tests.',
-  );
+  ) =>
+      onReconcile?.call(credential, request) ??
+      Future<SyncOutcome<ReconcileResponse>>.error(
+        UnimplementedError('No stubbed reconcile outcome.'),
+      );
 
   @override
   Future<SyncOutcome<AcknowledgeResponse>> acknowledge(
@@ -119,6 +158,8 @@ final class _FakeSyncBackend implements SyncBackend {
   ) async {
     acknowledges.add(request);
     acknowledgeCredentials.add(credential);
+    final handler = onAcknowledge;
+    if (handler != null) return handler(request);
     return acknowledgeOutcomes[request.collection] ??
         SyncSuccess<AcknowledgeResponse>(
           AcknowledgeResponse(<String, Object?>{}),
@@ -137,7 +178,56 @@ final class _LatchingSecretStore implements SecretStore {
   Future<String?> read(String key) async {
     if (!latched && key == syncDeviceSecretKey) {
       latched = true;
-      gate.latch();
+      await gate.latch();
+    }
+    return inner.read(key);
+  }
+
+  @override
+  Future<void> write(String key, String value) => inner.write(key, value);
+
+  @override
+  Future<void> delete(String key) => inner.delete(key);
+}
+
+final class _BlockingDeleteSecretStore implements SecretStore {
+  _BlockingDeleteSecretStore(this.inner);
+
+  final InMemorySecretStore inner;
+  final deleteStarted = Completer<void>();
+  final releaseDelete = Completer<void>();
+
+  @override
+  Future<String?> read(String key) => inner.read(key);
+
+  @override
+  Future<void> write(String key, String value) => inner.write(key, value);
+
+  @override
+  Future<void> delete(String key) async {
+    if (key == syncDeviceSecretKey) {
+      deleteStarted.complete();
+      await releaseDelete.future;
+    }
+    await inner.delete(key);
+  }
+}
+
+final class _RotatingMissingSecretStore implements SecretStore {
+  _RotatingMissingSecretStore(this.inner, this.gate);
+
+  final InMemorySecretStore inner;
+  final SyncRepairGate gate;
+  var replaced = false;
+
+  @override
+  Future<String?> read(String key) async {
+    if (key == syncDeviceSecretKey && !replaced) {
+      replaced = true;
+      await gate.withSecretMutationLock(
+        () => inner.write(syncDeviceSecretKey, _deviceSecret(9)),
+      );
+      return null;
     }
     return inner.read(key);
   }
@@ -283,7 +373,7 @@ void main() {
         secretStore: credentialSecrets ?? secrets,
       ),
       repairGate: SyncRepairGate.forDatabase(db),
-      secretStore: secrets,
+      secretStore: credentialSecrets ?? secrets,
       ledger: ledger,
       persistenceProcessor: processor,
       stagingStore: staging,
@@ -3690,6 +3780,12 @@ void main() {
         throwsA(isA<StateError>()),
       );
       expect(first.coordinator.repairGate.isOpen, isFalse);
+      final recomposed = await create();
+      expect(
+        identical(first.coordinator.repairGate, recomposed.repairGate),
+        isTrue,
+      );
+      expect(recomposed.repairGate.isOpen, isFalse);
 
       final secondBackend = _FakeSyncBackend(
         pages: {
@@ -3720,7 +3816,9 @@ void main() {
       await reopened.metadataStore.restoreFromSessionReauth();
       // The service releases the gate when it commits the exit; this test
       // drives the store directly, so it releases explicitly.
-      reopened.repairGate.release();
+      await reopened.repairGate.release(
+        await reopened.repairGate.repairEpisode(),
+      );
       await reopened.processPullPage(SyncCollection.entries);
       expect(secondBackend.pulls, hasLength(1));
       expect(reopened.repairGate.isOpen, isTrue);
@@ -3746,6 +3844,63 @@ void main() {
       expect(snapshot.phase, SyncEnrollmentPhase.bindingAuthorizationRequired);
       expect(snapshot.reauthResumePhase, isNull);
       expect(snapshot.writeEnabled, isFalse);
+    });
+
+    test('repair exit waits for malformed-secret transition', () async {
+      final backend = _FakeSyncBackend();
+      final heldSecrets = _BlockingDeleteSecretStore(secrets);
+      final coordinator = await pullCoordinator(
+        backend: backend,
+        versionSource: InMemorySyncVersionSource(),
+        staging: InMemorySyncStagingStore(),
+        e2eKey: _freshKey(),
+        credentialSecrets: heldSecrets,
+      );
+      await secrets.write(syncDeviceSecretKey, 'malformed');
+      final priorGeneration = await coordinator.repairGate.repairEpisode();
+      final repair = coordinator.processPullPage(SyncCollection.entries);
+      await heldSecrets.deleteStarted.future;
+      expect(await _settled(() => !coordinator.repairGate.isOpen), isTrue);
+
+      var exitCompleted = false;
+      final exit = coordinator.repairGate
+          .release(priorGeneration + 1)
+          .then((_) => exitCompleted = true);
+      await Future<void>.delayed(Duration.zero);
+      expect(exitCompleted, isFalse);
+      expect(coordinator.repairGate.isOpen, isFalse);
+
+      heldSecrets.releaseDelete.complete();
+      await expectLater(repair, throwsStateError);
+      await exit;
+      expect(exitCompleted, isTrue);
+      final snapshot = await coordinator.metadataStore.snapshot();
+      expect(snapshot.phase, SyncEnrollmentPhase.bindingAuthorizationRequired);
+    });
+
+    test('a superseded missing-secret read enters no repair', () async {
+      final backend = _FakeSyncBackend();
+      final rotating = _RotatingMissingSecretStore(
+        secrets,
+        SyncRepairGate.forDatabase(db),
+      );
+      final coordinator = await pullCoordinator(
+        backend: backend,
+        versionSource: InMemorySyncVersionSource(),
+        staging: InMemorySyncStagingStore(),
+        e2eKey: _freshKey(),
+        credentialSecrets: rotating,
+      );
+
+      await expectLater(
+        coordinator.processPullPage(SyncCollection.entries),
+        throwsStateError,
+      );
+      expect(rotating.replaced, isTrue);
+      expect(backend.pulls, isEmpty);
+      expect(coordinator.repairGate.isOpen, isTrue);
+      final snapshot = await coordinator.metadataStore.snapshot();
+      expect(snapshot.phase, SyncEnrollmentPhase.snapshotInProgress);
     });
 
     test(
@@ -3932,7 +4087,7 @@ void main() {
 
       final pending = coordinator.processPullPage(SyncCollection.entries);
       expect(await _settled(() => sent), isTrue);
-      coordinator.repairGate.latch();
+      await coordinator.repairGate.latch();
       await coordinator.metadataStore.enterSessionReauthRequired();
       responseGate.complete(
         SyncSuccess<PullResponse>(
@@ -3952,6 +4107,235 @@ void main() {
       expect(await coordinator.metadataStore.acknowledgedVectors(), isEmpty);
       expect(snapshot.phase, SyncEnrollmentPhase.sessionReauthRequired);
     });
+
+    test('pull closure during staging flush cannot record a page', () async {
+      final backend = _FakeSyncBackend(
+        pages: {
+          SyncCollection.entries: _pullPage(const <SyncEnvelope>[], 'late'),
+        },
+      );
+      final staging = _BlockingFlushStaging(InMemorySyncStagingStore());
+      final coordinator = await pullCoordinator(
+        backend: backend,
+        versionSource: InMemorySyncVersionSource(),
+        staging: staging,
+        e2eKey: _freshKey(),
+      );
+      final pending = coordinator.processPullPage(SyncCollection.entries);
+      await staging.firstFlushStarted.future;
+      await coordinator.repairGate.latch();
+      staging.releaseFirstFlush.complete();
+
+      await expectLater(pending, throwsStateError);
+      final snapshot = await coordinator.metadataStore.snapshot();
+      expect(snapshot.watermarks[SyncCollection.entries], isNull);
+      expect(
+        await coordinator.metadataStore.pendingAcknowledgement(
+          SyncCollection.entries,
+        ),
+        isNull,
+      );
+    });
+
+    test(
+      'enrollment repair closes a pull lease before page metadata',
+      () async {
+        final backend = _FakeSyncBackend(
+          pages: {
+            SyncCollection.entries: _pullPage(const <SyncEnvelope>[], 'late'),
+          },
+        );
+        backend.onReconcile = (credential, request) async =>
+            const CredentialExpired<ReconcileResponse>(message: 'expired');
+        final staging = _BlockingFlushStaging(InMemorySyncStagingStore());
+        final coordinator = await pullCoordinator(
+          backend: backend,
+          versionSource: InMemorySyncVersionSource(),
+          staging: staging,
+          e2eKey: _freshKey(),
+        );
+        final unused = _UnusedEnrollmentCollaborators();
+        final enrollment = SyncEnrollmentService(
+          authenticator: unused,
+          backend: backend,
+          metadataStore: coordinator.metadataStore,
+          secretStore: secrets,
+          database: db,
+          buildBeginRequest: () => BeginEnrollmentRequest(const {}),
+          buildCompleteRequest: (challenge) async =>
+              CompleteEnrollmentRequest(const {}),
+          resolveE2EKey: () async => _freshKey(),
+          buildSnapshotHasher: (credential) => ReconciliationSnapshotHasher(
+            backend: backend,
+            credential: credential,
+          ),
+          bindingAuthorizer: unused,
+          bindingIdentifier: 'user@example.com',
+          resolveBindingOtp: (challenge) async => 'unused',
+        );
+
+        final pendingPull = coordinator.processPullPage(SyncCollection.entries);
+        await staging.firstFlushStarted.future;
+        await expectLater(
+          enrollment.enroll(),
+          throwsA(isA<SyncEnrollmentException>()),
+        );
+        expect(coordinator.repairGate.isOpen, isFalse);
+        staging.releaseFirstFlush.complete();
+        await expectLater(pendingPull, throwsStateError);
+        final snapshot = await coordinator.metadataStore.snapshot();
+        expect(snapshot.phase, SyncEnrollmentPhase.sessionReauthRequired);
+        expect(snapshot.watermarks[SyncCollection.entries], isNull);
+      },
+    );
+
+    test(
+      'acknowledgement closure after response cannot clear checkpoint',
+      () async {
+        final backend = _FakeSyncBackend();
+        final setup = await pushSetup(backend: backend);
+        final coordinator = setup.coordinator;
+        await coordinator.metadataStore.setPendingAcknowledgement(
+          SyncCollection.entries,
+          'checkpoint',
+        );
+        final releaseQueue = Completer<void>();
+        final responded = Completer<void>();
+        backend.onAcknowledge = (request) async {
+          await _queueLatchBehindHeldGate(coordinator.repairGate, releaseQueue);
+          responded.complete();
+          return SyncSuccess<AcknowledgeResponse>(
+            AcknowledgeResponse(<String, Object?>{}),
+          );
+        };
+
+        final pending = coordinator.recoverPendingAcknowledgements();
+        await responded.future;
+        await Future<void>.delayed(Duration.zero);
+        releaseQueue.complete();
+        await expectLater(pending, throwsStateError);
+        expect(
+          await coordinator.metadataStore.pendingAcknowledgement(
+            SyncCollection.entries,
+          ),
+          'checkpoint',
+        );
+      },
+    );
+
+    test('push closure after response cannot acknowledge a row', () async {
+      final backend = _FakeSyncBackend();
+      final setup = await pushSetup(backend: backend);
+      const rowID = '79797979-7979-7979-7979-797979797979';
+      await setup.seedRow(rowID, VersionVector(<String, int>{'dev': 1}));
+      final releaseQueue = Completer<void>();
+      final responded = Completer<void>();
+      backend.onPush = (request) async {
+        await _queueLatchBehindHeldGate(
+          setup.coordinator.repairGate,
+          releaseQueue,
+        );
+        responded.complete();
+        return SyncSuccess<PushResponse>(_pushRowsResponse(request.envelopes));
+      };
+
+      final pending = setup.coordinator.pushCollection(SyncCollection.entries);
+      await responded.future;
+      await Future<void>.delayed(Duration.zero);
+      releaseQueue.complete();
+      await expectLater(pending, throwsStateError);
+      expect(
+        await setup.coordinator.metadataStore.acknowledgedVectors(),
+        isEmpty,
+      );
+    });
+
+    test('device-secret rotation preserves expired-bearer reauth', () async {
+      final backend = _FakeSyncBackend();
+      final setup = await pushSetup(backend: backend);
+      backend.onPullRequest = (request) async {
+        await setup.coordinator.repairGate.withSecretMutationLock(
+          () => secrets.write(syncDeviceSecretKey, _deviceSecret(9)),
+        );
+        return const CredentialExpired<PullResponse>(message: 'expired');
+      };
+
+      await expectLater(
+        setup.coordinator.processPullPage(SyncCollection.entries),
+        throwsStateError,
+      );
+      final snapshot = await setup.coordinator.metadataStore.snapshot();
+      expect(snapshot.phase, SyncEnrollmentPhase.sessionReauthRequired);
+      expect(setup.coordinator.repairGate.isOpen, isFalse);
+    });
+
+    test(
+      'duplicate expired-bearer responses share one repair episode',
+      () async {
+        final backend = _FakeSyncBackend();
+        final setup = await pushSetup(backend: backend);
+        final firstResponse = Completer<SyncOutcome<PullResponse>>();
+        final secondResponse = Completer<SyncOutcome<PullResponse>>();
+        backend.onPullRequest = (request) => switch (request.collection) {
+          SyncCollection.entries => firstResponse.future,
+          SyncCollection.categories => secondResponse.future,
+          _ => throw StateError('Unexpected collection.'),
+        };
+
+        final first = setup.coordinator.processPullPage(SyncCollection.entries);
+        final second = setup.coordinator.processPullPage(
+          SyncCollection.categories,
+        );
+        expect(await _settled(() => backend.pulls.length == 2), isTrue);
+        firstResponse.complete(
+          const CredentialExpired<PullResponse>(message: 'expired'),
+        );
+        await expectLater(first, throwsStateError);
+        final episode = await setup.coordinator.repairGate.repairEpisode();
+        secondResponse.complete(
+          const CredentialExpired<PullResponse>(message: 'expired'),
+        );
+        await expectLater(second, throwsStateError);
+        expect(await setup.coordinator.repairGate.repairEpisode(), episode);
+        await setup.coordinator.repairGate.release(episode);
+        expect(setup.coordinator.repairGate.isOpen, isTrue);
+      },
+    );
+
+    test(
+      'queued bearer replacement wins before expired-bearer comparison',
+      () async {
+        final backend = _FakeSyncBackend();
+        final setup = await pushSetup(backend: backend);
+        final coordinator = setup.coordinator;
+        final releaseQueue = Completer<void>();
+        final enteredQueue = Completer<void>();
+        backend.onPullRequest = (request) async {
+          unawaited(
+            coordinator.repairGate.withSecretMutationLock(() async {
+              enteredQueue.complete();
+              await releaseQueue.future;
+              final id = await deviceID(db);
+              await secrets.write(
+                syncCredentialSecretKey,
+                _credentialPayload(id, 'replacement'),
+              );
+            }),
+          );
+          await enteredQueue.future;
+          return const CredentialExpired<PullResponse>(message: 'expired');
+        };
+
+        final pending = coordinator.processPullPage(SyncCollection.entries);
+        expect(await _settled(() => backend.pulls.isNotEmpty), isTrue);
+        await Future<void>.delayed(Duration.zero);
+        releaseQueue.complete();
+        await expectLater(pending, throwsStateError);
+        final snapshot = await coordinator.metadataStore.snapshot();
+        expect(snapshot.phase, SyncEnrollmentPhase.gateEnabled);
+        expect(coordinator.repairGate.isOpen, isTrue);
+      },
+    );
 
     test('a 401 for a superseded bearer enters no repair', () async {
       final backend = _FakeSyncBackend();
@@ -4236,6 +4620,53 @@ final class _FailingFlushStaging implements SyncStagingStore {
 
   @override
   Future<void> flush() => throw StateError('staging flush failed');
+}
+
+final class _BlockingFlushStaging implements SyncStagingStore {
+  _BlockingFlushStaging(this._inner);
+
+  final SyncStagingStore _inner;
+  final firstFlushStarted = Completer<void>();
+  final releaseFirstFlush = Completer<void>();
+  var _first = true;
+
+  @override
+  void stage(StagedConflict conflict) => _inner.stage(conflict);
+
+  @override
+  List<StagedConflict> get pendingConflicts => _inner.pendingConflicts;
+
+  @override
+  void resolve(StagedConflict conflict) => _inner.resolve(conflict);
+
+  @override
+  Future<List<StagedConflict>> pendingConflictList() =>
+      _inner.pendingConflictList();
+
+  @override
+  Future<void> flush() async {
+    if (_first) {
+      _first = false;
+      firstFlushStarted.complete();
+      await releaseFirstFlush.future;
+    }
+    await _inner.flush();
+  }
+}
+
+Future<void> _queueLatchBehindHeldGate(
+  SyncRepairGate gate,
+  Completer<void> releaseQueue,
+) async {
+  final enteredQueue = Completer<void>();
+  unawaited(
+    gate.withSecretMutationLock(() async {
+      enteredQueue.complete();
+      await releaseQueue.future;
+    }),
+  );
+  await enteredQueue.future;
+  unawaited(gate.latch());
 }
 
 final class _ManualClock {
