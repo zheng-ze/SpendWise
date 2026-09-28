@@ -36,11 +36,28 @@ SupabaseConfig get _testConfig => SupabaseConfig(
 );
 
 final class _RecordedHttpRequest {
-  const _RecordedHttpRequest({required this.path, required this.body});
+  const _RecordedHttpRequest({
+    required this.path,
+    required this.body,
+    required this.headers,
+  });
 
   final String path;
   final Map<String, Object?> body;
+  final Map<String, String> headers;
 }
+
+String? _headerValue(Map<String, String> headers, String name) {
+  final wanted = name.toLowerCase();
+  for (final entry in headers.entries) {
+    if (entry.key.toLowerCase() == wanted) return entry.value;
+  }
+  return null;
+}
+
+// Canonical unpadded base64url encoding of 32 zero bytes, matching the
+// production device-secret format.
+const _stubDeviceSecret = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
 
 final class _ScriptedSyncHttpClient extends http.BaseClient {
   final List<_RecordedHttpRequest> requests = [];
@@ -56,18 +73,44 @@ final class _ScriptedSyncHttpClient extends http.BaseClient {
     final body = rawBody.isEmpty
         ? const <String, Object?>{}
         : (jsonDecode(rawBody) as Map<String, Object?>);
-    requests.add(_RecordedHttpRequest(path: request.url.path, body: body));
+    final headers = Map<String, String>.of(request.headers);
+    requests.add(
+      _RecordedHttpRequest(
+        path: request.url.path,
+        body: body,
+        headers: headers,
+      ),
+    );
     final remaining = failCounts[request.url.path] ?? 0;
     if (remaining > 0) {
       failCounts[request.url.path] = remaining - 1;
       return _response(500, <String, Object?>{'error': 'injected failure'});
     }
-    return _response(200, _stubBody(request.url.path, body));
+    return _response(200, _stubBody(request.url.path, body, headers));
   }
 
-  Map<String, Object?> _stubBody(String path, Map<String, Object?> body) {
+  Map<String, Object?> _stubBody(
+    String path,
+    Map<String, Object?> body,
+    Map<String, String> headers,
+  ) {
     if (path == '/auth/v1/verify') {
       return <String, Object?>{'access_token': 'stub-bearer'};
+    }
+    if (path == '/functions/v1/sync-device-binding/start') {
+      return <String, Object?>{
+        'protocol_major': syncOperationMajor,
+        'challenge_id': 'challenge-1',
+        'expires_at': '2026-09-19T12:00:00.000Z',
+      };
+    }
+    if (path == '/functions/v1/sync-device-binding/verify') {
+      return <String, Object?>{
+        'protocol_major': syncOperationMajor,
+        'access_token': 'stub-bearer',
+        'binding_authorization': 'stub-binding-authorization',
+        'authorization_expires_at': '2026-09-19T12:00:00.000Z',
+      };
     }
     if (path == '/rest/v1/rpc/sync_push') {
       return _appliedPushBody(body);
@@ -79,6 +122,8 @@ final class _ScriptedSyncHttpClient extends http.BaseClient {
           'snapshot_watermark': 'watermark-1',
           'expires_at': '2026-09-19T12:00:00.000Z',
         },
+        if (_headerValue(headers, 'X-SpendWise-Binding-Authorization') != null)
+          'device_secret': _stubDeviceSecret,
       };
     }
     if (path == '/rest/v1/rpc/sync_complete_reconcile') {

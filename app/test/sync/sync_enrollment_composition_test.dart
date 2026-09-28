@@ -36,6 +36,18 @@ String _credentialPayload(String device, String bearer) => base64Url.encode(
   ),
 );
 
+String? _headerValue(Map<String, String> headers, String name) {
+  final wanted = name.toLowerCase();
+  for (final entry in headers.entries) {
+    if (entry.key.toLowerCase() == wanted) return entry.value;
+  }
+  return null;
+}
+
+// Canonical unpadded base64url encoding of 32 zero bytes, matching the
+// production device-secret format.
+const _stubDeviceSecret = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+
 final class _RecordedHttpRequest {
   const _RecordedHttpRequest({
     required this.path,
@@ -58,19 +70,35 @@ final class _FakeSyncHttpClient extends http.BaseClient {
     final body = rawBody.isEmpty
         ? const <String, Object?>{}
         : (jsonDecode(rawBody) as Map<String, Object?>);
+    final headers = Map<String, String>.of(request.headers);
     requests.add(
       _RecordedHttpRequest(
         path: request.url.path,
         body: body,
-        headers: Map<String, String>.of(request.headers),
+        headers: headers,
       ),
     );
-    return _response(_stubBody(request.url.path));
+    return _response(_stubBody(request.url.path, headers));
   }
 
-  Map<String, Object?> _stubBody(String path) {
+  Map<String, Object?> _stubBody(String path, Map<String, String> headers) {
     if (path == '/auth/v1/verify') {
       return <String, Object?>{'access_token': bearer};
+    }
+    if (path == '/functions/v1/sync-device-binding/start') {
+      return <String, Object?>{
+        'protocol_major': syncOperationMajor,
+        'challenge_id': 'challenge-1',
+        'expires_at': '2026-09-19T12:00:00.000Z',
+      };
+    }
+    if (path == '/functions/v1/sync-device-binding/verify') {
+      return <String, Object?>{
+        'protocol_major': syncOperationMajor,
+        'access_token': bearer,
+        'binding_authorization': 'stub-binding-authorization',
+        'authorization_expires_at': '2026-09-19T12:00:00.000Z',
+      };
     }
     if (path == '/rest/v1/rpc/sync_begin_reconcile') {
       return <String, Object?>{
@@ -79,6 +107,8 @@ final class _FakeSyncHttpClient extends http.BaseClient {
           'snapshot_watermark': 'watermark-1',
           'expires_at': '2026-09-19T12:00:00.000Z',
         },
+        if (_headerValue(headers, 'X-SpendWise-Binding-Authorization') != null)
+          'device_secret': _stubDeviceSecret,
       };
     }
     if (path == '/rest/v1/rpc/sync_complete_reconcile') {
