@@ -295,9 +295,7 @@ void main() {
       'without re-collecting identifier or OTP', (tester) async {
     final harness = await pumpEnrollmentFlow(tester);
     await continueWithHosted(tester);
-    await harness.metadataStore.setEnrollmentPhase(
-      SyncEnrollmentPhase.credentialAcquired,
-    );
+    await harness.metadataStore.enterSnapshotInProgress();
     harness.opener.session.onEnroll = () async {
       throw const SyncEnrollmentException(
         step: 'reconcileBegin',
@@ -396,9 +394,7 @@ void main() {
       'surfaces a retryable resume error', (tester) async {
     final harness = await pumpEnrollmentFlow(tester);
     await continueWithHosted(tester);
-    await harness.metadataStore.setEnrollmentPhase(
-      SyncEnrollmentPhase.credentialAcquired,
-    );
+    await harness.metadataStore.enterSnapshotInProgress();
     harness.opener.session.onEnroll = () async {};
     harness.opener.session.onPublish = () async =>
         const EnrollmentSnapshotPending(
@@ -429,9 +425,7 @@ void main() {
   ) async {
     final harness = await pumpEnrollmentFlow(tester);
     await continueWithHosted(tester);
-    await harness.metadataStore.setEnrollmentPhase(
-      SyncEnrollmentPhase.credentialAcquired,
-    );
+    await harness.metadataStore.enterSnapshotInProgress();
     harness.opener.session.onEnroll = () async {
       throw const SyncEnrollmentException(
         step: 'reconcileBegin',
@@ -550,9 +544,7 @@ void main() {
       ..errorOnOpen = const SyncCoordinatorWiringException();
     final harness = await pumpEnrollmentFlow(tester, opener: opener);
     await continueWithHosted(tester);
-    await harness.metadataStore.setEnrollmentPhase(
-      SyncEnrollmentPhase.credentialAcquired,
-    );
+    await harness.metadataStore.enterSnapshotInProgress();
 
     await submitIdentifier(tester, 'user@example.com');
     await pumpFlowFrames(tester);

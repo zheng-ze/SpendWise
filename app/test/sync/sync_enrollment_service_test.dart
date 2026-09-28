@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:domain/domain.dart';
+import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/persistence/device_identity.dart';
@@ -440,11 +440,11 @@ void main() {
   );
 
   test('migrated credentialAcquired row does key work before Start', () async {
-    await metadataStore.setEnrollmentPhase(
-      SyncEnrollmentPhase.credentialAcquired,
-    );
-    await db.customStatement(
-      'UPDATE sync_meta SET device_binding_state = 1 WHERE id = 0',
+    await metadataStore.enterBindingAuthorizationRequired();
+    await (db.update(db.syncMeta)..where((t) => t.id.equals(0))).write(
+      SyncMetaCompanion(
+        enrollmentPhase: Value(SyncEnrollmentPhase.credentialAcquired.code),
+      ),
     );
     var resolveKeyCalls = 0;
 
@@ -1461,7 +1461,11 @@ void main() {
     await metadataStore.enterSnapshotInProgress();
     final wrapper = DelegatingBackend(backend);
     wrapper.onComplete = (credential, request) async {
-      await metadataStore.setEnrollmentPhase(SyncEnrollmentPhase.notEnrolled);
+      await (db.update(db.syncMeta)..where((t) => t.id.equals(0))).write(
+        SyncMetaCompanion(
+          enrollmentPhase: Value(SyncEnrollmentPhase.notEnrolled.code),
+        ),
+      );
       return const CredentialExpired<ReconcileResponse>(message: 'expired');
     };
 
@@ -1872,8 +1876,11 @@ void main() {
   });
 
   test('illegal hosted state is rejected before any backend call', () async {
-    await metadataStore.setEnrollmentPhase(
-      SyncEnrollmentPhase.snapshotInProgress,
+    await metadataStore.snapshot();
+    await (db.update(db.syncMeta)..where((t) => t.id.equals(0))).write(
+      SyncMetaCompanion(
+        enrollmentPhase: Value(SyncEnrollmentPhase.snapshotInProgress.code),
+      ),
     );
     await configureHandshakeSuccess();
 

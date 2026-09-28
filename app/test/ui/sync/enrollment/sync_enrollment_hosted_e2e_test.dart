@@ -36,11 +36,28 @@ SupabaseConfig get _testConfig => SupabaseConfig(
 );
 
 final class _RecordedHttpRequest {
-  const _RecordedHttpRequest({required this.path, required this.body});
+  const _RecordedHttpRequest({
+    required this.path,
+    required this.body,
+    required this.headers,
+  });
 
   final String path;
   final Map<String, Object?> body;
+  final Map<String, String> headers;
 }
+
+String? _headerValue(Map<String, String> headers, String name) {
+  final wanted = name.toLowerCase();
+  for (final entry in headers.entries) {
+    if (entry.key.toLowerCase() == wanted) return entry.value;
+  }
+  return null;
+}
+
+// Canonical unpadded base64url encoding of 32 zero bytes, matching the
+// production device-secret format.
+const _stubDeviceSecret = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
 
 final class _ScriptedSyncHttpClient extends http.BaseClient {
   final List<_RecordedHttpRequest> requests = [];
@@ -56,18 +73,44 @@ final class _ScriptedSyncHttpClient extends http.BaseClient {
     final body = rawBody.isEmpty
         ? const <String, Object?>{}
         : (jsonDecode(rawBody) as Map<String, Object?>);
-    requests.add(_RecordedHttpRequest(path: request.url.path, body: body));
+    final headers = Map<String, String>.of(request.headers);
+    requests.add(
+      _RecordedHttpRequest(
+        path: request.url.path,
+        body: body,
+        headers: headers,
+      ),
+    );
     final remaining = failCounts[request.url.path] ?? 0;
     if (remaining > 0) {
       failCounts[request.url.path] = remaining - 1;
       return _response(500, <String, Object?>{'error': 'injected failure'});
     }
-    return _response(200, _stubBody(request.url.path, body));
+    return _response(200, _stubBody(request.url.path, body, headers));
   }
 
-  Map<String, Object?> _stubBody(String path, Map<String, Object?> body) {
+  Map<String, Object?> _stubBody(
+    String path,
+    Map<String, Object?> body,
+    Map<String, String> headers,
+  ) {
     if (path == '/auth/v1/verify') {
       return <String, Object?>{'access_token': 'stub-bearer'};
+    }
+    if (path == '/functions/v1/sync-device-binding/start') {
+      return <String, Object?>{
+        'protocol_major': syncOperationMajor,
+        'challenge_id': 'challenge-1',
+        'expires_at': '2026-09-19T12:00:00.000Z',
+      };
+    }
+    if (path == '/functions/v1/sync-device-binding/verify') {
+      return <String, Object?>{
+        'protocol_major': syncOperationMajor,
+        'access_token': 'stub-bearer',
+        'binding_authorization': 'stub-binding-authorization',
+        'authorization_expires_at': '2026-09-19T12:00:00.000Z',
+      };
     }
     if (path == '/rest/v1/rpc/sync_push') {
       return _appliedPushBody(body);
@@ -79,6 +122,8 @@ final class _ScriptedSyncHttpClient extends http.BaseClient {
           'snapshot_watermark': 'watermark-1',
           'expires_at': '2026-09-19T12:00:00.000Z',
         },
+        if (_headerValue(headers, 'X-SpendWise-Binding-Authorization') != null)
+          'device_secret': _stubDeviceSecret,
       };
     }
     if (path == '/rest/v1/rpc/sync_complete_reconcile') {
@@ -271,11 +316,30 @@ void main() {
         'proof-1',
         reason: 'an all-noop terminal publication retains the write proof',
       );
-      final begins = harness.httpClient.callsTo('/auth/v1/otp');
-      expect(begins.single.body['email'], 'user@example.com');
-      final completes = harness.httpClient.callsTo('/auth/v1/verify');
-      expect(completes.single.body['email'], 'user@example.com');
-      expect(completes.single.body['token'], '482916');
+      expect(
+        await harness.secrets.read(syncDeviceSecretKey),
+        _stubDeviceSecret,
+        reason: 'the authorized Begin persists the bound device secret',
+      );
+      final starts = harness.httpClient.callsTo(
+        '/functions/v1/sync-device-binding/start',
+      );
+      expect(starts, hasLength(1));
+      expect(starts.single.body['protocol_major'], syncOperationMajor);
+      expect(starts.single.body['identifier'], 'user@example.com');
+      final verifies = harness.httpClient.callsTo(
+        '/functions/v1/sync-device-binding/verify',
+      );
+      expect(verifies, hasLength(1));
+      expect(verifies.single.body['protocol_major'], syncOperationMajor);
+      expect(verifies.single.body['identifier'], 'user@example.com');
+      expect(verifies.single.body['otp'], '482916');
+      expect(
+        harness.httpClient.callsTo('/auth/v1/otp'),
+        isEmpty,
+        reason: 'binding-OTP enrollment never touches GoTrue OTP',
+      );
+      expect(harness.httpClient.callsTo('/auth/v1/verify'), isEmpty);
       expect(
         harness.httpClient.callsTo('/rest/v1/rpc/sync_begin_reconcile'),
         hasLength(1),
@@ -296,191 +360,192 @@ void main() {
         'budgets',
       }, reason: 'reconciliation hashing covers all five collections');
     },
-    // blocked on #204 (T5): sync_coordinator.dart/sync_enrollment_service.dart
-    // still pass a bare session credential to SupabaseSyncBackend bound
-    // operations, which now return InvalidRequest until the app migrates to
-    // CredentialProvider.withBoundCredential.
-    skip: true,
   );
 
-  testWidgets(
-    'a failure before credential persistence retries from '
-    'identifier entry without resetting the flow',
-    (tester) async {
-      final harness = _HostedHarness();
-      await harness.pump(tester);
-      harness.httpClient.failNext('/auth/v1/otp');
+  testWidgets('a failure before credential persistence recovers via the resume '
+      'screen within the same flow', (tester) async {
+    final harness = _HostedHarness();
+    await harness.pump(tester);
+    harness.httpClient.failNext('/functions/v1/sync-device-binding/start');
 
-      await tester.tap(find.text('Continue'));
-      await harness.pumpFrames(tester);
-      await tester.enterText(find.byKey(_identifierField), 'user@example.com');
-      await tester.pump();
-      await tester.tap(find.byKey(_identifierContinue));
-      await harness.pumpFrames(tester);
+    await tester.tap(find.text('Continue'));
+    await harness.pumpFrames(tester);
+    await tester.enterText(find.byKey(_identifierField), 'user@example.com');
+    await tester.pump();
+    await tester.tap(find.byKey(_identifierContinue));
+    await harness.pumpFrames(tester);
 
-      expect(find.byKey(_identifierField), findsOneWidget);
-      expect(
-        harness.container.read(syncEnrollmentViewModelProvider).errorMessage,
-        isNotNull,
-      );
-      expect(
-        (await harness.metadataStore.snapshot()).phase,
-        SyncEnrollmentPhase.notEnrolled,
-      );
+    expect(find.byKey(_resumeRetry), findsOneWidget);
+    expect(
+      harness.container.read(syncEnrollmentViewModelProvider).errorMessage,
+      isNotNull,
+    );
+    final failed = await harness.metadataStore.snapshot();
+    expect(failed.phase, SyncEnrollmentPhase.bindingAuthorizationRequired);
+    expect(
+      failed.deviceBindingState,
+      SyncDeviceBindingState.authorizationRequired,
+    );
+    expect(failed.writeEnabled, isFalse);
+    expect(
+      await harness.secrets.read(syncDeviceSecretKey),
+      isNull,
+      reason: 'no credential was persisted before the challenge started',
+    );
 
-      await tester.tap(find.byKey(_identifierContinue));
-      await harness.pumpFrames(tester);
-      await tester.enterText(find.byKey(_otpField), '482916');
-      await tester.pump();
-      await tester.tap(find.byKey(_otpSubmit));
-      await harness.pumpFrames(tester);
+    await tester.tap(find.byKey(_resumeRetry));
+    await harness.pumpFrames(tester);
+    expect(
+      find.byKey(_otpField),
+      findsOneWidget,
+      reason: 'resuming re-emits the OTP entry step in the same flow',
+    );
+    await tester.enterText(find.byKey(_otpField), '482916');
+    await tester.pump();
+    await tester.tap(find.byKey(_otpSubmit));
+    await harness.pumpFrames(tester);
 
-      expect(
-        harness.httpClient.callsTo('/auth/v1/otp'),
-        hasLength(2),
-        reason:
-            'notEnrolled retries from identifier entry with a fresh challenge',
-      );
-      expect(harness.httpClient.callsTo('/auth/v1/verify'), hasLength(1));
-      expect(find.text('Sync enrollment complete'), findsOneWidget);
-      expect(
-        (await harness.metadataStore.snapshot()).phase,
-        SyncEnrollmentPhase.gateEnabled,
-      );
-    },
-    // blocked on #204 (T5): sync_coordinator.dart/sync_enrollment_service.dart
-    // still pass a bare session credential to SupabaseSyncBackend bound
-    // operations, which now return InvalidRequest until the app migrates to
-    // CredentialProvider.withBoundCredential.
-    skip: true,
-  );
+    expect(
+      harness.httpClient.callsTo('/functions/v1/sync-device-binding/start'),
+      hasLength(2),
+      reason: 'resume retries the failed challenge start in the same flow',
+    );
+    expect(
+      harness.httpClient.callsTo('/functions/v1/sync-device-binding/verify'),
+      hasLength(1),
+    );
+    expect(
+      harness.httpClient.callsTo('/auth/v1/otp'),
+      isEmpty,
+      reason: 'binding-OTP enrollment never touches GoTrue OTP',
+    );
+    expect(harness.httpClient.callsTo('/auth/v1/verify'), isEmpty);
+    expect(find.text('Sync enrollment complete'), findsOneWidget);
+    expect(
+      (await harness.metadataStore.snapshot()).phase,
+      SyncEnrollmentPhase.gateEnabled,
+    );
+  });
 
-  testWidgets(
-    'a failure after credential persistence resumes '
-    'without re-authenticating',
-    (tester) async {
-      final harness = _HostedHarness();
-      await harness.pump(tester);
+  testWidgets('a failure after credential persistence resumes '
+      'without re-authenticating', (tester) async {
+    final harness = _HostedHarness();
+    await harness.pump(tester);
 
-      await tester.tap(find.text('Continue'));
-      await harness.pumpFrames(tester);
-      await tester.enterText(find.byKey(_identifierField), 'user@example.com');
-      await tester.pump();
-      harness.httpClient.failNext('/rest/v1/rpc/sync_complete_reconcile');
-      await tester.tap(find.byKey(_identifierContinue));
-      await harness.pumpFrames(tester);
-      await tester.enterText(find.byKey(_otpField), '482916');
-      await tester.pump();
-      await tester.tap(find.byKey(_otpSubmit));
-      await harness.pumpFrames(tester);
+    await tester.tap(find.text('Continue'));
+    await harness.pumpFrames(tester);
+    await tester.enterText(find.byKey(_identifierField), 'user@example.com');
+    await tester.pump();
+    harness.httpClient.failNext('/rest/v1/rpc/sync_complete_reconcile');
+    await tester.tap(find.byKey(_identifierContinue));
+    await harness.pumpFrames(tester);
+    await tester.enterText(find.byKey(_otpField), '482916');
+    await tester.pump();
+    await tester.tap(find.byKey(_otpSubmit));
+    await harness.pumpFrames(tester);
 
-      expect(find.byKey(_resumeRetry), findsOneWidget);
-      expect(
-        (await harness.metadataStore.snapshot()).phase,
-        SyncEnrollmentPhase.snapshotInProgress,
-      );
+    expect(find.byKey(_resumeRetry), findsOneWidget);
+    expect(
+      (await harness.metadataStore.snapshot()).phase,
+      SyncEnrollmentPhase.snapshotInProgress,
+    );
 
-      await tester.tap(find.byKey(_resumeRetry));
-      await harness.pumpFrames(tester);
+    await tester.tap(find.byKey(_resumeRetry));
+    await harness.pumpFrames(tester);
 
-      expect(
-        harness.httpClient.callsTo('/auth/v1/otp'),
-        hasLength(1),
-        reason: 'resume never re-collects identifier or OTP',
-      );
-      expect(harness.httpClient.callsTo('/auth/v1/verify'), hasLength(1));
-      expect(find.text('Sync enrollment complete'), findsOneWidget);
-      expect(
-        (await harness.metadataStore.snapshot()).phase,
-        SyncEnrollmentPhase.gateEnabled,
-      );
-    },
-    // blocked on #204 (T5): sync_coordinator.dart/sync_enrollment_service.dart
-    // still pass a bare session credential to SupabaseSyncBackend bound
-    // operations, which now return InvalidRequest until the app migrates to
-    // CredentialProvider.withBoundCredential.
-    skip: true,
-  );
+    expect(
+      harness.httpClient.callsTo('/functions/v1/sync-device-binding/start'),
+      hasLength(1),
+      reason: 'resume never re-collects identifier or OTP',
+    );
+    expect(
+      harness.httpClient.callsTo('/functions/v1/sync-device-binding/verify'),
+      hasLength(1),
+    );
+    expect(
+      harness.httpClient.callsTo('/auth/v1/otp'),
+      isEmpty,
+      reason: 'binding-OTP enrollment never touches GoTrue OTP',
+    );
+    expect(harness.httpClient.callsTo('/auth/v1/verify'), isEmpty);
+    expect(find.text('Sync enrollment complete'), findsOneWidget);
+    expect(
+      (await harness.metadataStore.snapshot()).phase,
+      SyncEnrollmentPhase.gateEnabled,
+    );
+  });
 
-  testWidgets(
-    'credential and E2E key presence without reconciliation '
-    'never enables writes',
-    (tester) async {
-      final harness = _HostedHarness();
-      await harness.pump(tester);
+  testWidgets('credential and E2E key presence without reconciliation '
+      'never enables writes', (tester) async {
+    final harness = _HostedHarness();
+    await harness.pump(tester);
 
-      await tester.tap(find.text('Continue'));
-      await harness.pumpFrames(tester);
-      await tester.enterText(find.byKey(_identifierField), 'user@example.com');
-      await tester.pump();
-      harness.httpClient.failNext('/rest/v1/rpc/sync_begin_reconcile');
-      await tester.tap(find.byKey(_identifierContinue));
-      await harness.pumpFrames(tester);
-      await tester.enterText(find.byKey(_otpField), '482916');
-      await tester.pump();
-      await tester.tap(find.byKey(_otpSubmit));
-      await harness.pumpFrames(tester);
+    await tester.tap(find.text('Continue'));
+    await harness.pumpFrames(tester);
+    await tester.enterText(find.byKey(_identifierField), 'user@example.com');
+    await tester.pump();
+    harness.httpClient.failNext('/rest/v1/rpc/sync_pull');
+    await tester.tap(find.byKey(_identifierContinue));
+    await harness.pumpFrames(tester);
+    await tester.enterText(find.byKey(_otpField), '482916');
+    await tester.pump();
+    await tester.tap(find.byKey(_otpSubmit));
+    await harness.pumpFrames(tester);
 
-      expect(find.byKey(_resumeRetry), findsOneWidget);
-      expect(
-        await harness.secrets.read(syncCredentialSecretKey),
-        isNotNull,
-        reason: 'credential persistence completed before reconciliation ran',
-      );
-      expect(
-        await harness.secrets.read(syncE2EKeySecretKey),
-        isNotNull,
-        reason: 'E2E key resolution completed before reconciliation ran',
-      );
-      final snapshot = await harness.metadataStore.snapshot();
-      expect(snapshot.phase, SyncEnrollmentPhase.snapshotInProgress);
-      expect(snapshot.writeEnabled, isFalse);
+    expect(find.byKey(_resumeRetry), findsOneWidget);
+    expect(
+      await harness.secrets.read(syncCredentialSecretKey),
+      isNotNull,
+      reason: 'credential persistence completed before reconciliation ran',
+    );
+    expect(
+      await harness.secrets.read(syncE2EKeySecretKey),
+      isNotNull,
+      reason: 'E2E key resolution completed before reconciliation ran',
+    );
+    expect(
+      await harness.secrets.read(syncDeviceSecretKey),
+      _stubDeviceSecret,
+      reason: 'device secret persistence completed before reconciliation ran',
+    );
+    final snapshot = await harness.metadataStore.snapshot();
+    expect(snapshot.deviceBindingState, SyncDeviceBindingState.bound);
+    expect(snapshot.phase, SyncEnrollmentPhase.snapshotInProgress);
+    expect(snapshot.writeEnabled, isFalse);
 
-      await tester.tap(find.byKey(_resumeRetry));
-      await harness.pumpFrames(tester);
+    await tester.tap(find.byKey(_resumeRetry));
+    await harness.pumpFrames(tester);
 
-      expect(find.text('Sync enrollment complete'), findsOneWidget);
-      expect((await harness.metadataStore.snapshot()).writeEnabled, isTrue);
-    },
-    // blocked on #204 (T5): sync_coordinator.dart/sync_enrollment_service.dart
-    // still pass a bare session credential to SupabaseSyncBackend bound
-    // operations, which now return InvalidRequest until the app migrates to
-    // CredentialProvider.withBoundCredential.
-    skip: true,
-  );
+    expect(find.text('Sync enrollment complete'), findsOneWidget);
+    expect((await harness.metadataStore.snapshot()).writeEnabled, isTrue);
+  });
 
-  testWidgets(
-    'a deferred acknowledgement is re-polled until published',
-    (tester) async {
-      final harness = _HostedHarness();
-      await harness.pump(tester);
-      await harness.metadataStore.setPendingAcknowledgement(
+  testWidgets('a deferred acknowledgement is re-polled until published', (
+    tester,
+  ) async {
+    final harness = _HostedHarness();
+    await harness.pump(tester);
+    await harness.metadataStore.setPendingAcknowledgement(
+      SyncCollection.entries,
+      'cursor-1',
+    );
+    harness.httpClient.failNext('/rest/v1/rpc/sync_acknowledge');
+
+    await harness.enrollThroughUi(tester);
+
+    expect(
+      harness.httpClient.callsTo('/rest/v1/rpc/sync_acknowledge').length,
+      greaterThanOrEqualTo(2),
+      reason: 'EnrollmentSnapshotPending causes a later publisher invocation',
+    );
+    expect(find.text('Sync enrollment complete'), findsOneWidget);
+    expect(
+      await harness.metadataStore.pendingAcknowledgement(
         SyncCollection.entries,
-        'cursor-1',
-      );
-      harness.httpClient.failNext('/rest/v1/rpc/sync_acknowledge');
-
-      await harness.enrollThroughUi(tester);
-
-      expect(
-        harness.httpClient.callsTo('/rest/v1/rpc/sync_acknowledge').length,
-        greaterThanOrEqualTo(2),
-        reason: 'EnrollmentSnapshotPending causes a later publisher invocation',
-      );
-      expect(find.text('Sync enrollment complete'), findsOneWidget);
-      expect(
-        await harness.metadataStore.pendingAcknowledgement(
-          SyncCollection.entries,
-        ),
-        isNull,
-      );
-    },
-    // blocked on #204 (T5): sync_coordinator.dart/sync_enrollment_service.dart
-    // still pass a bare session credential to SupabaseSyncBackend bound
-    // operations, which now return InvalidRequest until the app migrates to
-    // CredentialProvider.withBoundCredential.
-    skip: true,
-  );
+      ),
+      isNull,
+    );
+  });
 
   testWidgets('a not-ready ledger surfaces an error before enrollment begins', (
     tester,
@@ -522,90 +587,80 @@ void main() {
     expect(harness.httpClient.requests, isEmpty);
   });
 
-  testWidgets(
-    'a genuine push is fully acknowledged and consumes '
-    'the write proof',
-    (tester) async {
-      final harness = _HostedHarness();
-      await harness.pump(tester, driftStore: true);
-      await harness.seedLocalEntry();
+  testWidgets('a genuine push is fully acknowledged and consumes '
+      'the write proof', (tester) async {
+    final harness = _HostedHarness();
+    await harness.pump(tester, driftStore: true);
+    await harness.seedLocalEntry();
 
-      await harness.enrollThroughUi(tester);
+    await harness.enrollThroughUi(tester);
 
-      expect(find.text('Sync enrollment complete'), findsOneWidget);
-      final pushes = harness.httpClient.callsTo('/rest/v1/rpc/sync_push');
-      final pushedCollections = {
-        for (final call in pushes)
-          for (final envelope in (call.body['envelopes'] as List))
-            ((envelope as Map)['collection'] as String),
-      };
-      expect(pushedCollections, containsAll(['money_sources', 'entries']));
-      expect(pushes.first.body['write_proof'], 'proof-1');
-      expect(
-        await harness.secrets.read(syncWriteProofSecretKey),
-        isNull,
-        reason: 'a genuine acknowledged push consumes the write proof',
-      );
-      expect(
-        await harness.metadataStore.acknowledgedVectors(),
-        isNotEmpty,
-        reason: 'applied rows retire their acknowledged vectors',
-      );
-      expect(
-        (await harness.metadataStore.snapshot()).phase,
-        SyncEnrollmentPhase.gateEnabled,
-      );
-    },
-    // blocked on #204 (T5): sync_coordinator.dart/sync_enrollment_service.dart
-    // still pass a bare session credential to SupabaseSyncBackend bound
-    // operations, which now return InvalidRequest until the app migrates to
-    // CredentialProvider.withBoundCredential.
-    skip: true,
-  );
+    expect(find.text('Sync enrollment complete'), findsOneWidget);
+    final pushes = harness.httpClient.callsTo('/rest/v1/rpc/sync_push');
+    final pushedCollections = {
+      for (final call in pushes)
+        for (final envelope in (call.body['envelopes'] as List))
+          ((envelope as Map)['collection'] as String),
+    };
+    expect(pushedCollections, containsAll(['money_sources', 'entries']));
+    expect(pushes.first.body['write_proof'], 'proof-1');
+    expect(
+      await harness.secrets.read(syncWriteProofSecretKey),
+      isNull,
+      reason: 'a genuine acknowledged push consumes the write proof',
+    );
+    expect(
+      await harness.metadataStore.acknowledgedVectors(),
+      isNotEmpty,
+      reason: 'applied rows retire their acknowledged vectors',
+    );
+    expect(
+      (await harness.metadataStore.snapshot()).phase,
+      SyncEnrollmentPhase.gateEnabled,
+    );
+  });
 
-  testWidgets(
-    'a genuine push failure surfaces a resume error and retry '
-    'succeeds without re-authenticating',
-    (tester) async {
-      final harness = _HostedHarness();
-      await harness.pump(tester, driftStore: true);
-      await harness.seedLocalEntry();
-      harness.httpClient.failNext('/rest/v1/rpc/sync_push');
+  testWidgets('a genuine push failure surfaces a resume error and retry '
+      'succeeds without re-authenticating', (tester) async {
+    final harness = _HostedHarness();
+    await harness.pump(tester, driftStore: true);
+    await harness.seedLocalEntry();
+    harness.httpClient.failNext('/rest/v1/rpc/sync_push');
 
-      await harness.enrollThroughUi(tester);
+    await harness.enrollThroughUi(tester);
 
-      expect(find.byKey(_resumeRetry), findsOneWidget);
-      final failed = harness.container.read(syncEnrollmentViewModelProvider);
-      expect(failed.errorMessage, isNotNull);
-      expect(failed.inFlight, isFalse);
-      final failedSnapshot = await harness.metadataStore.snapshot();
-      expect(failedSnapshot.phase, SyncEnrollmentPhase.gateEnabled);
-      expect(failedSnapshot.writeEnabled, isTrue);
-      expect(
-        harness.httpClient.callsTo('/rest/v1/rpc/sync_push'),
-        hasLength(1),
-      );
+    expect(find.byKey(_resumeRetry), findsOneWidget);
+    final failed = harness.container.read(syncEnrollmentViewModelProvider);
+    expect(failed.errorMessage, isNotNull);
+    expect(failed.inFlight, isFalse);
+    final failedSnapshot = await harness.metadataStore.snapshot();
+    expect(failedSnapshot.phase, SyncEnrollmentPhase.gateEnabled);
+    expect(failedSnapshot.writeEnabled, isTrue);
+    expect(harness.httpClient.callsTo('/rest/v1/rpc/sync_push'), hasLength(1));
 
-      await tester.tap(find.byKey(_resumeRetry));
-      await harness.pumpFrames(tester);
+    await tester.tap(find.byKey(_resumeRetry));
+    await harness.pumpFrames(tester);
 
-      expect(
-        harness.httpClient.callsTo('/auth/v1/otp'),
-        hasLength(1),
-        reason: 'publication retry never re-collects identifier or OTP',
-      );
-      expect(harness.httpClient.callsTo('/auth/v1/verify'), hasLength(1));
-      expect(
-        harness.httpClient.callsTo('/rest/v1/rpc/sync_push').length,
-        greaterThan(1),
-      );
-      expect(find.text('Sync enrollment complete'), findsOneWidget);
-      expect(await harness.secrets.read(syncWriteProofSecretKey), isNull);
-    },
-    // blocked on #204 (T5): sync_coordinator.dart/sync_enrollment_service.dart
-    // still pass a bare session credential to SupabaseSyncBackend bound
-    // operations, which now return InvalidRequest until the app migrates to
-    // CredentialProvider.withBoundCredential.
-    skip: true,
-  );
+    expect(
+      harness.httpClient.callsTo('/functions/v1/sync-device-binding/start'),
+      hasLength(1),
+      reason: 'publication retry never re-collects identifier or OTP',
+    );
+    expect(
+      harness.httpClient.callsTo('/functions/v1/sync-device-binding/verify'),
+      hasLength(1),
+    );
+    expect(
+      harness.httpClient.callsTo('/auth/v1/otp'),
+      isEmpty,
+      reason: 'binding-OTP enrollment never touches GoTrue OTP',
+    );
+    expect(harness.httpClient.callsTo('/auth/v1/verify'), isEmpty);
+    expect(
+      harness.httpClient.callsTo('/rest/v1/rpc/sync_push').length,
+      greaterThan(1),
+    );
+    expect(find.text('Sync enrollment complete'), findsOneWidget);
+    expect(await harness.secrets.read(syncWriteProofSecretKey), isNull);
+  });
 }
