@@ -376,10 +376,18 @@ void main() {
     recorder.onStart = () async {
       keyStoredAtStart = await secrets.read(syncE2EKeySecretKey) != null;
     };
+    var otpCalls = 0;
 
-    await service(bindingAuthorizer: recorder).enroll();
+    await service(
+      bindingAuthorizer: recorder,
+      resolveBindingOtp: (challenge) async {
+        otpCalls++;
+        return InMemorySyncBackend.bindingOtp;
+      },
+    ).enroll();
 
     expect(keyStoredAtStart, isTrue);
+    expect(otpCalls, 1);
     expect(recorder.starts, hasLength(1));
     expect(recorder.verifies, hasLength(1));
     expect(authenticator.beginCalls, 0);
@@ -465,15 +473,21 @@ void main() {
     await metadataStore.enterBindingAuthorizationRequired();
     await secrets.write(syncE2EKeySecretKey, base64Url.encode(validE2EKey()));
     var resolveKeyCalls = 0;
+    var otpCalls = 0;
 
     await service(
       resolveE2EKey: () async {
         resolveKeyCalls++;
         return validE2EKey();
       },
+      resolveBindingOtp: (challenge) async {
+        otpCalls++;
+        return InMemorySyncBackend.bindingOtp;
+      },
     ).enroll();
 
     expect(resolveKeyCalls, 0);
+    expect(otpCalls, 1);
     expect(backend.calls.where((call) => call == 'startBinding'), hasLength(1));
     expect(
       backend.calls.where((call) => call == 'verifyBinding'),
@@ -1252,6 +1266,22 @@ void main() {
   );
 
   test('bound Begin carrying device_secret is incompatible', () async {
+    const secretKeys = [
+      syncCredentialSecretKey,
+      syncDeviceSecretKey,
+      syncE2EKeySecretKey,
+      syncWriteProofSecretKey,
+    ];
+    Future<Map<String, String?>> readAllSecrets(
+      InMemorySecretStore store,
+    ) async {
+      final values = <String, String?>{};
+      for (final key in secretKeys) {
+        values[key] = await store.read(key);
+      }
+      return values;
+    }
+
     for (final secretValue in [validDeviceSecret(), null]) {
       final localDb = LedgerDatabase(NativeDatabase.memory());
       addTearDown(() => localDb.close());
@@ -1292,6 +1322,9 @@ void main() {
       );
 
       Object? thrown;
+      final secretsBefore = await readAllSecrets(localSecrets);
+      final writesBefore = List.of(localSecrets.writes);
+      final deletesBefore = List.of(localSecrets.deletes);
       try {
         await localService.enroll();
       } on SyncEnrollmentException catch (error) {
@@ -1306,6 +1339,26 @@ void main() {
         reason: 'device_secret=$secretValue',
       );
       expect(wrapper.pulls, isEmpty, reason: 'device_secret=$secretValue');
+      expect(
+        await readAllSecrets(localSecrets),
+        secretsBefore,
+        reason: 'device_secret=$secretValue',
+      );
+      expect(
+        localSecrets.writes,
+        writesBefore,
+        reason: 'device_secret=$secretValue',
+      );
+      expect(
+        localSecrets.deletes,
+        deletesBefore,
+        reason: 'device_secret=$secretValue',
+      );
+      expect(
+        localSecrets.writes.sublist(writesBefore.length),
+        isNot(contains(syncDeviceSecretKey)),
+        reason: 'device_secret=$secretValue',
+      );
       expect(
         localSecrets.writes,
         isNot(contains(syncWriteProofSecretKey)),
@@ -1338,6 +1391,52 @@ void main() {
     expect(snapshot.phase, SyncEnrollmentPhase.sessionReauthRequired);
     expect(snapshot.reauthResumePhase, SyncEnrollmentPhase.snapshotInProgress);
     expect(snapshot.writeEnabled, isFalse);
+  });
+
+  test('bound Pull CredentialExpired during binding repair surfaces device_authorization_required', () async {
+    await seedBoundDevice(database: db, store: secrets, target: backend);
+    await metadataStore.enterSnapshotInProgress();
+    final wrapper = DelegatingBackend(backend);
+    wrapper.onPullOverride = (credential, request) async {
+      await metadataStore.enterBindingAuthorizationRequired();
+      return const CredentialExpired<PullResponse>(message: 'expired');
+    };
+
+    final error = await enrollError(
+      () => service(backendOverride: wrapper).enroll(),
+    );
+
+    expect(error.step, 'reconcileBegin');
+    expect(error.code, 'device_authorization_required');
+    expect(error.message, 'expired');
+    final snapshot = await metadataStore.snapshot();
+    expect(snapshot.phase, SyncEnrollmentPhase.bindingAuthorizationRequired);
+    expect(
+      snapshot.deviceBindingState,
+      SyncDeviceBindingState.authorizationRequired,
+    );
+    expect(snapshot.writeEnabled, isFalse);
+  });
+
+  test('bound Complete CredentialExpired on a non-repair illegal row surfaces invalid_request', () async {
+    await seedBoundDevice(database: db, store: secrets, target: backend);
+    await metadataStore.enterSnapshotInProgress();
+    final wrapper = DelegatingBackend(backend);
+    wrapper.onComplete = (credential, request) async {
+      await metadataStore.setEnrollmentPhase(SyncEnrollmentPhase.notEnrolled);
+      return const CredentialExpired<ReconcileResponse>(message: 'expired');
+    };
+
+    final error = await enrollError(
+      () => service(backendOverride: wrapper).enroll(),
+    );
+
+    expect(error.step, 'reconcileComplete');
+    expect(error.code, 'invalid_request');
+    expect(error.message, 'expired');
+    final snapshot = await metadataStore.snapshot();
+    expect(snapshot.phase, SyncEnrollmentPhase.notEnrolled);
+    expect(snapshot.deviceBindingState, SyncDeviceBindingState.bound);
   });
 
   test('bound Begin DeviceAuthorizationRequired deletes the secret', () async {
