@@ -17,6 +17,7 @@ themselves. Feature entries fold in still-current legacy material when a feature
 | App-side durable sync stores (metadata, staging, migration) | [sync-durable-stores.md](sync-durable-stores.md) |
 | Sync composition roots, credential and key boundaries, backend selection | [sync-composition-root.md](sync-composition-root.md) |
 | Sync run scheduler, single-flight and request coalescing | [sync-run-scheduler.md](sync-run-scheduler.md) |
+| Sync repair gate, bound-RPC admission, leases, and episode-scoped repair | [sync-repair-gate.md](sync-repair-gate.md) |
 | Sync enrollment factory, phase machine, and crash recovery | [sync-enrollment.md](sync-enrollment.md) |
 | Hosted sync enrollment Flow, OTP interaction, and publication retry | [sync-enrollment-flow.md](sync-enrollment-flow.md) |
 | Sync enrollment backend picker | [sync-enrollment-backend-picker.md](sync-enrollment-backend-picker.md) |

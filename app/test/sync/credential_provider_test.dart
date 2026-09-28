@@ -285,6 +285,37 @@ void main() {
     },
   );
 
+  test(
+    'withBoundCredentialAndSecret exposes the exact secret it bound',
+    () async {
+      final id = await deviceID(db);
+      final credential = const CredentialCodec().restore(
+        payload(id, 'test-bearer'),
+      );
+      await secrets.write(
+        syncCredentialSecretKey,
+        const CredentialCodec().export(credential),
+      );
+      final deviceSecret = validDeviceSecret(7);
+      await secrets.write(syncDeviceSecretKey, deviceSecret);
+
+      final result = await provider.withBoundCredentialAndSecret((
+        bound,
+        secret,
+      ) async {
+        expect(secret, deviceSecret);
+        expect(
+          bound,
+          BoundDeviceCredential.bind(credential, deviceSecret: secret),
+        );
+        return 'called';
+      });
+
+      expect(result, 'called');
+      expect(secrets.reads, [syncDeviceSecretKey, syncCredentialSecretKey]);
+    },
+  );
+
   test('withBoundCredential throws when the device secret is absent', () async {
     final id = await deviceID(db);
     final credential = const CredentialCodec().restore(

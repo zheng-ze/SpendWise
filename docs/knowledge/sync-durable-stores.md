@@ -1,6 +1,6 @@
 # Sync: durable app stores
 
-Last reconciled: 4873b23
+Last reconciled: 38bf33c
 
 ## Layer overview
 
@@ -53,6 +53,19 @@ collection. Every mutation runs in one Drift transaction, including the combined
 page-watermark, and pending-acknowledgement commit in `recordPulledPage`. Source:
 `app/lib/sync/sync_metadata_store.dart` - `SyncMetadataStore.snapshot`,
 `SyncMetadataStore.recordPulledPage`.
+
+The store knows nothing of the `SyncRepairGate`; the gate calls into it. Gate admission
+reads one `snapshot()` inside the gate's mutation turn, and the coordinator checks
+`validateHostedOperationState` on that snapshot separately from admission. Repair
+transitions (`enterBindingAuthorizationRequired`, `enterSessionReauthRequired`,
+`restoreFromSessionReauth`, `enterSnapshotInProgress`) commit inside
+`repairGate.withMutation`, and durable commits downstream of RPC responses
+(`recordPulledPage`, `clearPendingAcknowledgementIfMatches`, `setAcknowledgedVector`) run
+inside `withCurrentLease`, so a late success arriving after the gate closes throws instead
+of writing. See [sync-repair-gate.md](sync-repair-gate.md). Source:
+`app/lib/sync/sync_repair_gate.dart` - `SyncRepairGate.admit`,
+`SyncRepairGate.withCurrentLease`; `app/lib/sync/sync_coordinator.dart` -
+`SyncCoordinator._sendBoundRpc`.
 
 `DriftSyncStagingStore` implements the `packages/sync` staging contract (`stage` replaces the
 group for the same collection and row, `pendingConflicts` returns oldest first, `resolve` is an

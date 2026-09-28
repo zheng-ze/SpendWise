@@ -18,9 +18,11 @@ import 'package:spendwise/sync/post_flush_readback_verifier.dart';
 import 'package:spendwise/sync/row_readback_outcome.dart';
 import 'package:spendwise/sync/secret_store.dart';
 import 'package:spendwise/sync/sync_backend_resolver.dart';
+import 'package:spendwise/sync/sync_repair_gate.dart';
 import 'package:spendwise/sync/sync_e2e_key_provider.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
 import 'package:spendwise/sync/sync_run_scheduler.dart';
+import 'package:spendwise/sync/sync_secret_keys.dart';
 import 'package:spendwise/sync/sync_status.dart';
 import 'package:sync/sync.dart';
 
@@ -70,6 +72,8 @@ final class SyncCoordinator extends ChangeNotifier {
     required this.metadataStore,
     required this.verifier,
     required this._credentialProvider,
+    required this.repairGate,
+    required this._secretStore,
     required this.ledger,
     required this.persistenceProcessor,
     required this.stagingStore,
@@ -117,6 +121,8 @@ final class SyncCoordinator extends ChangeNotifier {
       database: database,
       secretStore: effectiveSecrets,
     );
+    final SyncRepairGate repairGate = SyncRepairGate.forDatabase(database);
+    await repairGate.reseed(snapshot);
     final SyncEngine engine = SyncEngine(
       userID: userID,
       keyAccessor: keyProvider.accessor,
@@ -130,6 +136,8 @@ final class SyncCoordinator extends ChangeNotifier {
       metadataStore: metadataStore,
       verifier: PostFlushReadbackVerifier(reader),
       credentialProvider: credentialProvider,
+      repairGate: repairGate,
+      secretStore: effectiveSecrets,
       ledger: ledger,
       persistenceProcessor: persistenceProcessor,
       stagingStore: staging,
@@ -146,6 +154,8 @@ final class SyncCoordinator extends ChangeNotifier {
     required this.metadataStore,
     required this.verifier,
     required this._credentialProvider,
+    required this.repairGate,
+    required this._secretStore,
     required this.ledger,
     required this.persistenceProcessor,
     required this.stagingStore,
@@ -171,7 +181,11 @@ final class SyncCoordinator extends ChangeNotifier {
 
   final PostFlushReadbackVerifier verifier;
 
-  final CredentialProvider _credentialProvider; // ignore: unused_field
+  final CredentialProvider _credentialProvider;
+
+  final SyncRepairGate repairGate;
+
+  final SecretStore _secretStore;
 
   final Ledger ledger;
 
@@ -233,6 +247,214 @@ final class SyncCoordinator extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<_BoundRpcResult<T>> _sendBoundRpc<T>({
+    required String operation,
+    required Future<SyncOutcome<T>> Function(BoundDeviceCredential credential)
+    call,
+  }) async {
+    final BoundRpcAdmission admission = await repairGate.admit(
+      metadataStore.snapshot,
+    );
+    final SyncMetadataSnapshot snapshot = admission.snapshot;
+    final HostedOperationLegality legality = metadataStore
+        .validateHostedOperationState(snapshot);
+    if (legality is HostedOperationIllegal) {
+      throw StateError('Cannot $operation: ${legality.reason}');
+    }
+    final BoundRpcLease? lease = admission.lease;
+    if (lease == null) {
+      throw StateError(
+        'Cannot $operation while sync repair is required '
+        '(binding=${snapshot.deviceBindingState.name}, '
+        'phase=${snapshot.phase.name}).',
+      );
+    }
+    final _PresentedBound presented;
+    try {
+      presented = await _credentialProvider.withBoundCredentialAndSecret(
+        (BoundDeviceCredential credential, String deviceSecret) =>
+            _PresentedBound(credential: credential, deviceSecret: deviceSecret),
+      );
+    } on CredentialUnavailableException catch (error) {
+      await _routeCoordinatorCredentialUnavailable(operation, error);
+    }
+    if (!repairGate.isCurrent(lease)) {
+      throw StateError(
+        'Cannot $operation: sync repair began while the request was prepared.',
+      );
+    }
+    final SyncOutcome<T> outcome = await call(presented.credential);
+    switch (outcome) {
+      case SyncSuccess<T>():
+        if (!repairGate.isCurrent(lease)) {
+          throw StateError(
+            'Cannot $operation: sync repair began while the request was '
+            'in flight; its result is discarded.',
+          );
+        }
+        return _BoundRpcResult(outcome, lease);
+      case CredentialExpired<T>():
+        await _routeCoordinatorCredentialExpired(
+          operation,
+          presented.credential,
+        );
+      case DeviceAuthorizationRequired<T>():
+        await _routeCoordinatorDeviceAuthorizationRequired(
+          operation,
+          presented.deviceSecret,
+        );
+      case SyncFailure<T>():
+        return _BoundRpcResult(outcome, lease);
+    }
+  }
+
+  Future<Never> _routeCoordinatorCredentialUnavailable(
+    String operation,
+    CredentialUnavailableException error,
+  ) async {
+    if (error.reason == CredentialUnavailableReason.storageFailed ||
+        error.reason == CredentialUnavailableReason.identityFailed) {
+      throw error;
+    }
+    final CredentialUnavailableReason? reason = await repairGate.withMutation((
+      turn,
+    ) async {
+      final CredentialUnavailableReason currentReason;
+      try {
+        await _credentialProvider.withBoundCredential((credential) => null);
+        return null;
+      } on CredentialUnavailableException catch (current) {
+        currentReason = current.reason;
+      }
+      switch (currentReason) {
+        case CredentialUnavailableReason.deviceSecretAbsent:
+          await _latchForBindingRepair(turn);
+          await metadataStore.enterBindingAuthorizationRequired();
+        case CredentialUnavailableReason.deviceSecretMalformed:
+          await _latchForBindingRepair(turn);
+          await _secretStore.delete(syncDeviceSecretKey);
+          await metadataStore.enterBindingAuthorizationRequired();
+        case CredentialUnavailableReason.absent:
+        case CredentialUnavailableReason.malformed:
+          await _latchForSessionRepair(turn);
+          await metadataStore.enterSessionReauthRequired();
+        case CredentialUnavailableReason.storageFailed:
+        case CredentialUnavailableReason.identityFailed:
+          throw CredentialUnavailableException(currentReason);
+      }
+      return currentReason;
+    });
+    switch (reason) {
+      case null:
+        throw StateError(
+          'Cannot $operation: the unavailable credential was superseded.',
+        );
+      case CredentialUnavailableReason.deviceSecretAbsent:
+        throw StateError(
+          'Cannot $operation: the device binding is missing, '
+          'binding repair is required.',
+        );
+      case CredentialUnavailableReason.deviceSecretMalformed:
+        throw StateError(
+          'Cannot $operation: the device binding is malformed, '
+          'binding repair is required.',
+        );
+      case CredentialUnavailableReason.absent:
+      case CredentialUnavailableReason.malformed:
+        throw StateError(
+          'Cannot $operation: the session credential is unavailable, '
+          'session reauth is required.',
+        );
+      case CredentialUnavailableReason.storageFailed:
+      case CredentialUnavailableReason.identityFailed:
+        throw StateError('Cannot $operation: credential resolution failed.');
+    }
+  }
+
+  Future<Never> _routeCoordinatorCredentialExpired(
+    String operation,
+    BoundDeviceCredential presented,
+  ) async {
+    final SessionReauthEntry? entry = await repairGate.withMutation((
+      turn,
+    ) async {
+      final BoundDeviceCredential current;
+      try {
+        current = await _credentialProvider.withBoundCredential(
+          (credential) => credential,
+        );
+      } on CredentialUnavailableException {
+        return null;
+      }
+      if (!current.hasSameBearerAs(presented)) return null;
+      await _latchForSessionRepair(turn);
+      return metadataStore.enterSessionReauthRequired();
+    });
+    if (entry == null) {
+      throw StateError(
+        'Cannot $operation: the bearer expired for a superseded credential.',
+      );
+    }
+    if (entry == SessionReauthEntry.rejectedIllegalState) {
+      throw StateError(
+        'Cannot $operation: the bearer expired while binding repair is '
+        'required.',
+      );
+    }
+    throw StateError(
+      'Cannot $operation: the bearer expired, session reauth is required.',
+    );
+  }
+
+  Future<Never> _routeCoordinatorDeviceAuthorizationRequired(
+    String operation,
+    String presentedSecret,
+  ) async {
+    await repairGate.withMutation((turn) async {
+      final String? stored;
+      try {
+        stored = await _secretStore.read(syncDeviceSecretKey);
+      } catch (_) {
+        return;
+      }
+      if (stored != presentedSecret) {
+        return;
+      }
+      await _latchForBindingRepair(turn);
+      await _secretStore.delete(syncDeviceSecretKey);
+      await metadataStore.enterBindingAuthorizationRequired();
+    });
+    throw StateError(
+      'Cannot $operation: the device binding was rejected, '
+      'binding repair is required.',
+    );
+  }
+
+  Future<void> _latchForBindingRepair(GateMutation turn) async {
+    final snapshot = await metadataStore.snapshot();
+    final alreadyBinding =
+        snapshot.deviceBindingState ==
+            SyncDeviceBindingState.authorizationRequired &&
+        snapshot.phase == SyncEnrollmentPhase.bindingAuthorizationRequired;
+    if (!alreadyBinding || repairGate.isOpen) turn.latch();
+  }
+
+  Future<void> _latchForSessionRepair(GateMutation turn) async {
+    final snapshot = await metadataStore.snapshot();
+    final alreadyReauth =
+        snapshot.deviceBindingState == SyncDeviceBindingState.bound &&
+        snapshot.phase == SyncEnrollmentPhase.sessionReauthRequired;
+    final bindingRepair =
+        snapshot.deviceBindingState ==
+            SyncDeviceBindingState.authorizationRequired &&
+        snapshot.phase == SyncEnrollmentPhase.bindingAuthorizationRequired;
+    if (bindingRepair) {
+      if (repairGate.isOpen) turn.latch();
+      return;
+    }
+    if (!alreadyReauth || repairGate.isOpen) turn.latch();
+  }
+
   static bool _isDuplicateOrDominated(
     RowVersion? stored,
     VersionVector pulled,
@@ -259,6 +481,7 @@ final class SyncCoordinator extends ChangeNotifier {
       for (var attempt = 1; attempt <= _maxFoldInAttempts; attempt += 1) {
         final _AttemptOutcome outcome = await _runFoldInAttempt(
           collection: collection,
+          lease: page.lease,
           nextCursor: page.nextCursor,
           remoteResult: remoteResult,
           remoteWinner: provenance.remoteWinner,
@@ -279,6 +502,7 @@ final class SyncCoordinator extends ChangeNotifier {
         if (everyAttemptWasEmptyAttemptRows) {
           await _finalizeAndMaybeAcknowledge(
             collection,
+            lease: page.lease,
             stamps: const <SyncRowID, VersionVector>{},
             watermark: page.nextCursor,
             checkpoint: page.nextCursor,
@@ -301,15 +525,16 @@ final class SyncCoordinator extends ChangeNotifier {
     }
     final SyncMetadataSnapshot snapshot = await metadataStore.snapshot();
     final String? cursor = snapshot.watermarks[collection];
-    final SyncOutcome<PullResponse> outcome = await _credentialProvider
-        .withSessionCredential(
-          (DeviceCredential credential) => backend.pull(
+    final _BoundRpcResult<PullResponse> result =
+        await _sendBoundRpc<PullResponse>(
+          operation: 'pull $collection',
+          call: (BoundDeviceCredential credential) => backend.pull(
             credential,
             PullRequest(collection: collection, cursor: cursor),
           ),
         );
     final PullResponse response;
-    switch (outcome) {
+    switch (result.outcome) {
       case SyncSuccess<PullResponse>(value: final value):
         response = value;
       case SyncFailure<PullResponse>(code: final code, message: final message):
@@ -324,7 +549,11 @@ final class SyncCoordinator extends ChangeNotifier {
         );
       }
     }
-    return _PulledPage(envelopes: envelopes, nextCursor: response.cursor);
+    return _PulledPage(
+      envelopes: envelopes,
+      nextCursor: response.cursor,
+      lease: result.lease,
+    );
   }
 
   _RemoteProvenance _indexRemoteProvenance(
@@ -353,6 +582,7 @@ final class SyncCoordinator extends ChangeNotifier {
 
   Future<_AttemptOutcome> _runFoldInAttempt({
     required SyncCollection collection,
+    required BoundRpcLease lease,
     required String nextCursor,
     required ReconcileResult remoteResult,
     required Map<SyncRowID, SyncEnvelope> remoteWinner,
@@ -417,6 +647,7 @@ final class SyncCoordinator extends ChangeNotifier {
 
       await _finalizeAndMaybeAcknowledge(
         collection,
+        lease: lease,
         stamps: decision.stamps,
         watermark: nextCursor,
         checkpoint: nextCursor,
@@ -568,16 +799,20 @@ final class SyncCoordinator extends ChangeNotifier {
 
   Future<void> _finalizeAndMaybeAcknowledge(
     SyncCollection collection, {
+    required BoundRpcLease lease,
     required Map<SyncRowID, VersionVector> stamps,
     required String watermark,
     required String checkpoint,
   }) async {
     await stagingStore.flush();
-    await metadataStore.recordPulledPage(
-      collection: collection,
-      vectors: stamps,
-      watermark: watermark,
-      checkpoint: checkpoint,
+    await repairGate.withCurrentLease(
+      lease,
+      () => metadataStore.recordPulledPage(
+        collection: collection,
+        vectors: stamps,
+        watermark: watermark,
+        checkpoint: checkpoint,
+      ),
     );
   }
 
@@ -648,18 +883,22 @@ final class SyncCoordinator extends ChangeNotifier {
     )) {
       return;
     }
-    final SyncOutcome<AcknowledgeResponse> outcome = await _credentialProvider
-        .withSessionCredential(
-          (DeviceCredential credential) => backend.acknowledge(
+    final _BoundRpcResult<AcknowledgeResponse> result =
+        await _sendBoundRpc<AcknowledgeResponse>(
+          operation: 'acknowledge $collection',
+          call: (BoundDeviceCredential credential) => backend.acknowledge(
             credential,
             AcknowledgeRequest(collection: collection, checkpoint: checkpoint),
           ),
         );
-    switch (outcome) {
+    switch (result.outcome) {
       case SyncSuccess<AcknowledgeResponse>():
-        await metadataStore.clearPendingAcknowledgementIfMatches(
-          collection,
-          checkpoint,
+        await repairGate.withCurrentLease(
+          result.lease,
+          () => metadataStore.clearPendingAcknowledgementIfMatches(
+            collection,
+            checkpoint,
+          ),
         );
       case SyncFailure<AcknowledgeResponse>():
         break;
@@ -679,6 +918,11 @@ final class SyncCoordinator extends ChangeNotifier {
     String? writeProof,
   }) async {
     final SyncMetadataSnapshot gate = await metadataStore.snapshot();
+    final HostedOperationLegality legality = metadataStore
+        .validateHostedOperationState(gate);
+    if (legality is HostedOperationIllegal) {
+      throw StateError('Cannot push $collection: ${legality.reason}');
+    }
     if (!gate.writeEnabled) {
       throw StateError(
         'Cannot push $collection while sync writes are disabled.',
@@ -738,15 +982,16 @@ final class SyncCoordinator extends ChangeNotifier {
       },
     );
 
-    final SyncOutcome<PushResponse> outcome = await _credentialProvider
-        .withSessionCredential(
-          (DeviceCredential credential) => backend.push(
+    final _BoundRpcResult<PushResponse> result =
+        await _sendBoundRpc<PushResponse>(
+          operation: 'push $collection',
+          call: (BoundDeviceCredential credential) => backend.push(
             credential,
             PushRequest(envelopes: envelopes, writeProof: writeProof),
           ),
         );
     final PushResponse response;
-    switch (outcome) {
+    switch (result.outcome) {
       case SyncSuccess<PushResponse>(value: final value):
         response = value;
       case SyncFailure<PushResponse>(code: final code, message: final message):
@@ -768,9 +1013,12 @@ final class SyncCoordinator extends ChangeNotifier {
       switch (rowOutcome) {
         case PushApplied():
         case PushAlreadyPresent():
-          await metadataStore.setAcknowledgedVector(
-            entry.key,
-            entry.value.vector,
+          await repairGate.withCurrentLease(
+            result.lease,
+            () => metadataStore.setAcknowledgedVector(
+              entry.key,
+              entry.value.vector,
+            ),
           );
         case PushRejected():
           unresolved.add(entry.key);
@@ -784,6 +1032,20 @@ final class SyncCoordinator extends ChangeNotifier {
   }
 }
 
+final class _PresentedBound {
+  const _PresentedBound({required this.credential, required this.deviceSecret});
+
+  final BoundDeviceCredential credential;
+  final String deviceSecret;
+}
+
+final class _BoundRpcResult<T> {
+  const _BoundRpcResult(this.outcome, this.lease);
+
+  final SyncOutcome<T> outcome;
+  final BoundRpcLease lease;
+}
+
 final class _SubmittedPush {
   const _SubmittedPush({required this.vector, required this.siblingID});
 
@@ -792,10 +1054,15 @@ final class _SubmittedPush {
 }
 
 final class _PulledPage {
-  const _PulledPage({required this.envelopes, required this.nextCursor});
+  const _PulledPage({
+    required this.envelopes,
+    required this.nextCursor,
+    required this.lease,
+  });
 
   final List<SyncEnvelope> envelopes;
   final String nextCursor;
+  final BoundRpcLease lease;
 }
 
 final class _RemoteProvenance {

@@ -59,6 +59,12 @@ final class BoundDeviceCredential extends SyncCredential {
   final String _bearerToken;
   final String _deviceSecret;
 
+  bool hasSameBearerAs(BoundDeviceCredential other) =>
+      deviceID == other.deviceID && _bearerToken == other._bearerToken;
+
+  bool hasSameDeviceSecretAs(BoundDeviceCredential other) =>
+      deviceID == other.deviceID && _deviceSecret == other._deviceSecret;
+
   @override
   String toString() =>
       'BoundDeviceCredential(deviceID: $deviceID, token: <redacted>, '
