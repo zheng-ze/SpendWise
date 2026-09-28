@@ -18,9 +18,11 @@ import 'package:spendwise/sync/post_flush_readback_verifier.dart';
 import 'package:spendwise/sync/row_readback_outcome.dart';
 import 'package:spendwise/sync/secret_store.dart';
 import 'package:spendwise/sync/sync_backend_resolver.dart';
+import 'package:spendwise/sync/sync_repair_gate.dart';
 import 'package:spendwise/sync/sync_e2e_key_provider.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
 import 'package:spendwise/sync/sync_run_scheduler.dart';
+import 'package:spendwise/sync/sync_secret_keys.dart';
 import 'package:spendwise/sync/sync_status.dart';
 import 'package:sync/sync.dart';
 
@@ -70,6 +72,8 @@ final class SyncCoordinator extends ChangeNotifier {
     required this.metadataStore,
     required this.verifier,
     required this._credentialProvider,
+    required this.repairGate,
+    required this._secretStore,
     required this.ledger,
     required this.persistenceProcessor,
     required this.stagingStore,
@@ -117,6 +121,8 @@ final class SyncCoordinator extends ChangeNotifier {
       database: database,
       secretStore: effectiveSecrets,
     );
+    final SyncRepairGate repairGate = SyncRepairGate.forDatabase(database)
+      ..reseed(snapshot);
     final SyncEngine engine = SyncEngine(
       userID: userID,
       keyAccessor: keyProvider.accessor,
@@ -130,6 +136,8 @@ final class SyncCoordinator extends ChangeNotifier {
       metadataStore: metadataStore,
       verifier: PostFlushReadbackVerifier(reader),
       credentialProvider: credentialProvider,
+      repairGate: repairGate,
+      secretStore: effectiveSecrets,
       ledger: ledger,
       persistenceProcessor: persistenceProcessor,
       stagingStore: staging,
@@ -146,6 +154,8 @@ final class SyncCoordinator extends ChangeNotifier {
     required this.metadataStore,
     required this.verifier,
     required this._credentialProvider,
+    required this.repairGate,
+    required this._secretStore,
     required this.ledger,
     required this.persistenceProcessor,
     required this.stagingStore,
@@ -171,7 +181,14 @@ final class SyncCoordinator extends ChangeNotifier {
 
   final PostFlushReadbackVerifier verifier;
 
-  final CredentialProvider _credentialProvider; // ignore: unused_field
+  final CredentialProvider _credentialProvider;
+
+  /// Process-lifetime stop gate shared across every coordinator composed for
+  /// the same database. A latched gate refuses new bound RPCs until a durable
+  /// repair exit releases it.
+  final SyncRepairGate repairGate;
+
+  final SecretStore _secretStore;
 
   final Ledger ledger;
 
@@ -231,6 +248,124 @@ final class SyncCoordinator extends ChangeNotifier {
     if (_disposed) return;
     _status = running ? const SyncRunning() : const SyncIdle();
     notifyListeners();
+  }
+
+  Future<SyncOutcome<T>> _sendBoundRpc<T>({
+    required String operation,
+    required Future<SyncOutcome<T>> Function(BoundDeviceCredential credential)
+    call,
+  }) async {
+    final SyncMetadataSnapshot snapshot = await metadataStore.snapshot();
+    final HostedOperationLegality legality = metadataStore
+        .validateHostedOperationState(snapshot);
+    if (legality is HostedOperationIllegal) {
+      throw StateError('Cannot $operation: ${legality.reason}');
+    }
+    if (!repairGate.admit(snapshot)) {
+      throw StateError(
+        'Cannot $operation while sync repair is required '
+        '(binding=${snapshot.deviceBindingState.name}, '
+        'phase=${snapshot.phase.name}).',
+      );
+    }
+    final _PresentedBound presented;
+    try {
+      presented = await _credentialProvider.withBoundCredentialAndSecret(
+        (BoundDeviceCredential credential, String deviceSecret) =>
+            _PresentedBound(credential: credential, deviceSecret: deviceSecret),
+      );
+    } on CredentialUnavailableException catch (error) {
+      await _routeCoordinatorCredentialUnavailable(operation, error);
+    }
+    final SyncOutcome<T> outcome = await call(presented.credential);
+    switch (outcome) {
+      case SyncSuccess<T>():
+        return outcome;
+      case CredentialExpired<T>():
+        await _routeCoordinatorCredentialExpired(operation);
+      case DeviceAuthorizationRequired<T>():
+        await _routeCoordinatorDeviceAuthorizationRequired(
+          operation,
+          presented.deviceSecret,
+        );
+      case SyncFailure<T>():
+        return outcome;
+    }
+  }
+
+  Future<Never> _routeCoordinatorCredentialUnavailable(
+    String operation,
+    CredentialUnavailableException error,
+  ) async {
+    switch (error.reason) {
+      case CredentialUnavailableReason.deviceSecretAbsent:
+        repairGate.latch();
+        await metadataStore.enterBindingAuthorizationRequired();
+        throw StateError(
+          'Cannot $operation: the device binding is missing, '
+          'binding repair is required.',
+        );
+      case CredentialUnavailableReason.deviceSecretMalformed:
+        repairGate.latch();
+        await repairGate.withSecretMutationLock(
+          () => _secretStore.delete(syncDeviceSecretKey),
+        );
+        await metadataStore.enterBindingAuthorizationRequired();
+        throw StateError(
+          'Cannot $operation: the device binding is malformed, '
+          'binding repair is required.',
+        );
+      case CredentialUnavailableReason.absent:
+      case CredentialUnavailableReason.malformed:
+        repairGate.latch();
+        await metadataStore.enterSessionReauthRequired();
+        throw StateError(
+          'Cannot $operation: the session credential is unavailable, '
+          'session reauth is required.',
+        );
+      case CredentialUnavailableReason.storageFailed:
+      case CredentialUnavailableReason.identityFailed:
+        throw error;
+    }
+  }
+
+  Future<Never> _routeCoordinatorCredentialExpired(String operation) async {
+    repairGate.latch();
+    final SessionReauthEntry entry = await metadataStore
+        .enterSessionReauthRequired();
+    if (entry == SessionReauthEntry.rejectedIllegalState) {
+      throw StateError(
+        'Cannot $operation: the bearer expired while binding repair is '
+        'required.',
+      );
+    }
+    throw StateError(
+      'Cannot $operation: the bearer expired, session reauth is required.',
+    );
+  }
+
+  Future<Never> _routeCoordinatorDeviceAuthorizationRequired(
+    String operation,
+    String presentedSecret,
+  ) async {
+    await repairGate.withSecretMutationLock(() async {
+      final String? stored;
+      try {
+        stored = await _secretStore.read(syncDeviceSecretKey);
+      } catch (_) {
+        return;
+      }
+      if (stored != presentedSecret) {
+        return;
+      }
+      repairGate.latch();
+      await _secretStore.delete(syncDeviceSecretKey);
+      await metadataStore.enterBindingAuthorizationRequired();
+    });
+    throw StateError(
+      'Cannot $operation: the device binding was rejected, '
+      'binding repair is required.',
+    );
   }
 
   static bool _isDuplicateOrDominated(
@@ -301,13 +436,13 @@ final class SyncCoordinator extends ChangeNotifier {
     }
     final SyncMetadataSnapshot snapshot = await metadataStore.snapshot();
     final String? cursor = snapshot.watermarks[collection];
-    final SyncOutcome<PullResponse> outcome = await _credentialProvider
-        .withSessionCredential(
-          (DeviceCredential credential) => backend.pull(
-            credential,
-            PullRequest(collection: collection, cursor: cursor),
-          ),
-        );
+    final SyncOutcome<PullResponse> outcome = await _sendBoundRpc<PullResponse>(
+      operation: 'pull $collection',
+      call: (BoundDeviceCredential credential) => backend.pull(
+        credential,
+        PullRequest(collection: collection, cursor: cursor),
+      ),
+    );
     final PullResponse response;
     switch (outcome) {
       case SyncSuccess<PullResponse>(value: final value):
@@ -648,9 +783,10 @@ final class SyncCoordinator extends ChangeNotifier {
     )) {
       return;
     }
-    final SyncOutcome<AcknowledgeResponse> outcome = await _credentialProvider
-        .withSessionCredential(
-          (DeviceCredential credential) => backend.acknowledge(
+    final SyncOutcome<AcknowledgeResponse> outcome =
+        await _sendBoundRpc<AcknowledgeResponse>(
+          operation: 'acknowledge $collection',
+          call: (BoundDeviceCredential credential) => backend.acknowledge(
             credential,
             AcknowledgeRequest(collection: collection, checkpoint: checkpoint),
           ),
@@ -679,6 +815,11 @@ final class SyncCoordinator extends ChangeNotifier {
     String? writeProof,
   }) async {
     final SyncMetadataSnapshot gate = await metadataStore.snapshot();
+    final HostedOperationLegality legality = metadataStore
+        .validateHostedOperationState(gate);
+    if (legality is HostedOperationIllegal) {
+      throw StateError('Cannot push $collection: ${legality.reason}');
+    }
     if (!gate.writeEnabled) {
       throw StateError(
         'Cannot push $collection while sync writes are disabled.',
@@ -738,13 +879,13 @@ final class SyncCoordinator extends ChangeNotifier {
       },
     );
 
-    final SyncOutcome<PushResponse> outcome = await _credentialProvider
-        .withSessionCredential(
-          (DeviceCredential credential) => backend.push(
-            credential,
-            PushRequest(envelopes: envelopes, writeProof: writeProof),
-          ),
-        );
+    final SyncOutcome<PushResponse> outcome = await _sendBoundRpc<PushResponse>(
+      operation: 'push $collection',
+      call: (BoundDeviceCredential credential) => backend.push(
+        credential,
+        PushRequest(envelopes: envelopes, writeProof: writeProof),
+      ),
+    );
     final PushResponse response;
     switch (outcome) {
       case SyncSuccess<PushResponse>(value: final value):
@@ -782,6 +923,13 @@ final class SyncCoordinator extends ChangeNotifier {
     }
     return PushUnresolvedRows(unresolved);
   }
+}
+
+final class _PresentedBound {
+  const _PresentedBound({required this.credential, required this.deviceSecret});
+
+  final BoundDeviceCredential credential;
+  final String deviceSecret;
 }
 
 final class _SubmittedPush {

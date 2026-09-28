@@ -22,6 +22,16 @@ final class CredentialProvider {
 
   Future<T> withBoundCredential<T>(
     FutureOr<T> Function(BoundDeviceCredential credential) use,
+  ) => withBoundCredentialAndSecret(
+    (BoundDeviceCredential credential, String _) => use(credential),
+  );
+
+  /// Resolves a bound credential and also exposes the device secret that was
+  /// presented on it, so a later authorization failure can compare the
+  /// presented value against the stored one before rotating the binding.
+  Future<T> withBoundCredentialAndSecret<T>(
+    FutureOr<T> Function(BoundDeviceCredential credential, String deviceSecret)
+    use,
   ) async {
     final deviceSecret = await _readDeviceSecret();
     final credential = await _restoreSessionCredential();
@@ -29,7 +39,7 @@ final class CredentialProvider {
       credential,
       deviceSecret: deviceSecret,
     );
-    return use(bound);
+    return use(bound, deviceSecret);
   }
 
   Future<DeviceCredential> _restoreSessionCredential() async {
