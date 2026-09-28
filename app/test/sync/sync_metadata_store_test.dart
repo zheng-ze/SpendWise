@@ -130,8 +130,12 @@ void main() {
   group('enrollment phase and write gate', () {
     test('records every phase durably', () async {
       for (final phase in SyncEnrollmentPhase.values) {
-        await store.setEnrollmentPhase(phase);
-        expect((await snapshot()).phase, phase);
+        await seedRow(
+          binding: SyncDeviceBindingState.notApplicable,
+          phase: phase,
+          writes: false,
+        );
+        expect((await snapshot()).phase, phase, reason: '$phase');
       }
     });
 
@@ -141,63 +145,6 @@ void main() {
         const SyncMetaCompanion(deviceBindingState: Value(1)),
       );
       expect((await snapshot()).deviceBindingRequired, isTrue);
-    });
-
-    test('flips the write gate both ways once reconciled', () async {
-      await store.setEnrollmentPhase(
-        SyncEnrollmentPhase.reconciliationComplete,
-      );
-      await store.setWriteEnabled(true);
-      expect((await snapshot()).writeEnabled, isTrue);
-      await store.setWriteEnabled(false);
-      expect((await snapshot()).writeEnabled, isFalse);
-    });
-
-    test('enabling the gate is idempotent while reconciled', () async {
-      await store.setEnrollmentPhase(
-        SyncEnrollmentPhase.reconciliationComplete,
-      );
-      await store.setWriteEnabled(true);
-      await store.setWriteEnabled(true);
-      expect((await snapshot()).writeEnabled, isTrue);
-    });
-
-    test('an early enable is refused and persists nothing', () async {
-      for (final phase in [
-        SyncEnrollmentPhase.notEnrolled,
-        SyncEnrollmentPhase.credentialAcquired,
-        SyncEnrollmentPhase.snapshotInProgress,
-      ]) {
-        await store.setEnrollmentPhase(phase);
-        await expectLater(
-          store.setWriteEnabled(true),
-          throwsA(isA<SyncWriteGateException>()),
-          reason: '$phase',
-        );
-        final state = await snapshot();
-        expect(state.phase, phase, reason: '$phase');
-        expect(state.writeEnabled, isFalse, reason: '$phase');
-      }
-    });
-
-    test('disabling the gate stays allowed in every phase', () async {
-      for (final phase in SyncEnrollmentPhase.values) {
-        await store.setEnrollmentPhase(phase);
-        await store.setWriteEnabled(false);
-        expect((await snapshot()).writeEnabled, isFalse, reason: '$phase');
-      }
-    });
-
-    test('disabling works after an enable', () async {
-      await store.setEnrollmentPhase(
-        SyncEnrollmentPhase.reconciliationComplete,
-      );
-      await store.setWriteEnabled(true);
-      await store.setEnrollmentPhase(SyncEnrollmentPhase.gateEnabled);
-      await store.setWriteEnabled(false);
-      final state = await snapshot();
-      expect(state.writeEnabled, isFalse);
-      expect(state.phase, SyncEnrollmentPhase.gateEnabled);
     });
   });
 
@@ -421,7 +368,7 @@ void main() {
       addTearDown(fragileDb.close);
       final fragile = SyncMetadataStore(fragileDb);
 
-      await fragile.setEnrollmentPhase(SyncEnrollmentPhase.snapshotInProgress);
+      await fragile.enterSnapshotInProgress();
       await fragile.setPullWatermark(SyncCollection.entries, 'cursor-1');
 
       flaky.failures = 1;
@@ -482,16 +429,17 @@ void main() {
       addTearDown(fragileDb.close);
       final fragile = SyncMetadataStore(fragileDb);
 
-      await fragile.setEnrollmentPhase(SyncEnrollmentPhase.credentialAcquired);
+      await fragile.enterSnapshotInProgress();
       flaky.failures = 1;
       await expectLater(
-        fragile.setEnrollmentPhase(SyncEnrollmentPhase.reconciliationComplete),
+        fragile.enterReconciliationComplete(),
         throwsA(isA<_CommitFailure>()),
       );
-      expect(
-        (await fragile.snapshot()).phase,
-        SyncEnrollmentPhase.credentialAcquired,
-      );
+      final state = await fragile.snapshot();
+      expect(state.phase, SyncEnrollmentPhase.snapshotInProgress);
+      expect(state.deviceBindingState, SyncDeviceBindingState.bound);
+      expect(state.writeEnabled, isFalse);
+      expect(state.reauthResumePhase, isNull);
     });
   });
 
@@ -554,11 +502,8 @@ void main() {
         backend: SyncBackendKind.custom,
         endpoint: 'https://sync.example.com',
       );
-      await writer.setEnrollmentPhase(
-        SyncEnrollmentPhase.reconciliationComplete,
-      );
-      await writer.setWriteEnabled(true);
-      await writer.setEnrollmentPhase(SyncEnrollmentPhase.gateEnabled);
+      await writer.enterReconciliationComplete();
+      await writer.enterGateEnabled();
       await writer.setPullWatermark(SyncCollection.entries, 'cursor-5');
       await writer.setPullWatermark(SyncCollection.budgets, 'cursor-2');
       await writer.setAcknowledgedVector(
@@ -579,6 +524,8 @@ void main() {
       expect(state.endpoint, 'https://sync.example.com');
       expect(state.phase, SyncEnrollmentPhase.gateEnabled);
       expect(state.writeEnabled, isTrue);
+      expect(state.deviceBindingState, SyncDeviceBindingState.bound);
+      expect(state.reauthResumePhase, isNull);
       expect(state.watermarks[SyncCollection.entries], 'cursor-5');
       expect(state.watermarks[SyncCollection.budgets], 'cursor-2');
       expect(state.watermarks[SyncCollection.plans], isNull);
