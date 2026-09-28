@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:spendwise/persistence/device_identity.dart';
 import 'package:spendwise/persistence/ledger_database.dart';
@@ -87,29 +86,13 @@ final class CredentialProvider {
         CredentialUnavailableReason.deviceSecretAbsent,
       );
     }
-    if (!_isWellFormedDeviceSecret(secret)) {
+    if (!isValidSyncDeviceSecret(secret)) {
       throw const CredentialUnavailableException(
         CredentialUnavailableReason.deviceSecretMalformed,
       );
     }
     return secret;
   }
-}
-
-bool _isWellFormedDeviceSecret(String secret) {
-  if (secret.isEmpty || secret.contains('=')) {
-    return false;
-  }
-  final List<int> decoded;
-  try {
-    decoded = base64Url.decode(base64Url.normalize(secret));
-  } on FormatException {
-    return false;
-  }
-  if (decoded.length != 32) {
-    return false;
-  }
-  return base64Url.encode(decoded).replaceAll('=', '') == secret;
 }
 
 enum CredentialUnavailableReason {

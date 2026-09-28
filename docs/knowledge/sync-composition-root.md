@@ -1,6 +1,6 @@
 # Sync: composition root
 
-Last reconciled: c0c8b1430254e05cd2c32f5b76abf84a055116b0
+Last reconciled: e9f1db4
 
 ## Overview
 
@@ -75,11 +75,15 @@ is never persisted in `SyncMetadataSnapshot`. Source:
 `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.create`;
 `app/lib/sync/sync_metadata_store.dart` - `SyncMetadataSnapshot`.
 
-`SupabaseSyncAuthenticator` is a separate package adapter for Supabase-hosted email enrollment.
-It uses GoTrue Auth (`/auth/v1/otp` and `/auth/v1/verify`), while `SupabaseSyncBackend` uses the
-PostgREST RPC surface. Its project URL must use HTTPS. Custom endpoint enrollment authentication
-is out of scope. Source: `packages/sync/lib/src/backends/supabase_authenticator.dart` -
+`SupabaseSyncAuthenticator` is the package adapter for ordinary email OTP authentication used
+when a bound device needs a new session bearer. It uses GoTrue Auth (`/auth/v1/otp` and
+`/auth/v1/verify`). `SupabaseDeviceBindingAuthorizer` handles the fresh binding OTP through the
+separate `sync-device-binding` Edge Function; `SupabaseSyncBackend` uses the PostgREST RPC surface.
+The project URL must use HTTPS. Custom endpoint enrollment authentication is out of scope.
+Source: `packages/sync/lib/src/backends/supabase_authenticator.dart` -
 `SupabaseSyncAuthenticator.beginEnrollment`, `SupabaseSyncAuthenticator.completeEnrollment`;
+`packages/sync/lib/src/backends/supabase_device_binding_authorizer.dart` -
+`SupabaseDeviceBindingAuthorizer.startBinding`, `SupabaseDeviceBindingAuthorizer.verifyBinding`;
 `packages/sync/lib/src/backends/supabase_backend.dart` - `SupabaseSyncBackend._rpc`.
 
 Every `SupabaseSyncBackend` data RPC (`sync_push`, `sync_pull`, `sync_begin_reconcile`,
@@ -100,9 +104,11 @@ HTTP 403 to `DeviceRetired`, which does not apply to the GoTrue exchange. Source
 `packages/sync/lib/src/backends/http_support.dart` - `_failureFromHttp`.
 
 The hosted-enrollment factory resolves the persisted snapshot through the same
-`SyncBackendResolver` before creating a `SupabaseSyncAuthenticator` and passing
-the validated config to `SyncCoordinator.create`. It uses one `SecretStore` for
-the enrollment service, coordinator, and snapshot publisher. Source:
+`SyncBackendResolver` before creating a `SupabaseSyncAuthenticator` and
+`SupabaseDeviceBindingAuthorizer` with the same project URL, anonymous key, and
+HTTP client. It passes the submitted identifier and OTP resolver to both
+authentication paths, and passes the validated config to `SyncCoordinator.create`.
+It uses one `SecretStore` for the enrollment service, coordinator, and snapshot publisher. Source:
 `app/lib/sync/sync_enrollment_composition.dart` - `composeSyncEnrollment`.
 
 `CachedCollectionVersionSource` bridges bulk asynchronous reads to the `SyncVersionSource` used
@@ -157,15 +163,19 @@ It leaves every other exception for `SyncRunScheduler`, whose failure behavior i
   `CredentialUnavailableReason.deviceSecretMalformed` unless it is canonical unpadded base64url
   that decodes to exactly 32 bytes. The stored device-binding secret uses the key
   `spendwise.sync.device-binding-secret`. The credential and device-secret keys are independent,
-  and each accessor re-reads its key(s) on every call rather than caching. Neither
-  `SyncCoordinator` nor `SyncEnrollmentService` calls `withBoundCredential`; both use only
-  `withSessionCredential`. Source: `app/lib/sync/credential_provider.dart` -
+  and each accessor re-reads its key(s) on every call rather than caching.
+  `SyncEnrollmentService` uses `withBoundCredential` after binding, while
+  `SyncCoordinator` still uses `withSessionCredential` for pull, acknowledgement,
+  and push. Source: `app/lib/sync/credential_provider.dart` -
   `CredentialProvider.withSessionCredential`, `CredentialProvider.withBoundCredential`,
-  `_readDeviceSecret`, `_isWellFormedDeviceSecret`, `CredentialUnavailableReason`;
-  `app/lib/sync/sync_secret_keys.dart` - `syncCredentialSecretKey`, `syncDeviceSecretKey`;
+  `_readDeviceSecret`, `CredentialUnavailableReason`;
+  `app/lib/sync/sync_secret_keys.dart` - `syncCredentialSecretKey`, `syncDeviceSecretKey`,
+  `isValidSyncDeviceSecret`;
   `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.processPullPage`,
   `SyncCoordinator.recoverPendingAcknowledgements`, `SyncCoordinator.pushCollection`;
-  `app/lib/sync/sync_enrollment_service.dart` - `SyncEnrollmentService._stepSnapshotInProgress`;
+  `app/lib/sync/sync_enrollment_service.dart` -
+  `SyncEnrollmentService._stepBindingAuthorizationRequired`,
+  `SyncEnrollmentService._stepSnapshotInProgress`;
   `app/test/sync/credential_provider_test.dart` - test `session and bound resolution stay
   independent of each key`.
 - The ledger and persistence processor must share the identical event bus. This is checked before

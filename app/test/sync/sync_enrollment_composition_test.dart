@@ -263,6 +263,29 @@ void main() {
     },
   );
 
+  test('the binding authorizer carries the validated Supabase configuration and identifier', () async {
+    Future<String> resolver(EnrollmentChallenge challenge) async => '482916';
+    final ready = await composeReady(
+      identifier: 'user@example.com',
+      resolveOtp: resolver,
+    );
+
+    expect(
+      ready.enrollmentService.bindingAuthorizer,
+      isA<SupabaseDeviceBindingAuthorizer>(),
+    );
+    final authorizer =
+        ready.enrollmentService.bindingAuthorizer
+            as SupabaseDeviceBindingAuthorizer;
+    expect(authorizer.projectUrl, _testConfig.projectUrl);
+    expect(authorizer.anonKey, _testConfig.anonKey);
+    expect(ready.enrollmentService.bindingIdentifier, 'user@example.com');
+    expect(
+      identical(ready.enrollmentService.resolveBindingOtp, resolver),
+      isTrue,
+    );
+  });
+
   test(
     'service, coordinator, and publisher share one SecretStore',
     () async {

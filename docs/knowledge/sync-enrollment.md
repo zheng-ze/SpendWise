@@ -1,15 +1,17 @@
 # Sync: enrollment
 
-Last reconciled: eb968bbc7b012181c453c54afb1f74a7ef4e0b3c
+Last reconciled: e9f1db4
 
 ## Overview
 
-`SyncEnrollmentService` owns the app-layer enrollment phase machine. It acquires
-or recovers a device credential, ensures an E2E key exists, completes the
-initial reconciliation handshake, and enables writes only after reconciliation
-is durably complete. `composeSyncEnrollment` is the hosted-enrollment factory:
-it creates the Supabase authenticator, service, coordinator, and publisher from
-ready boot providers and persisted Supabase selection. `SyncEnrollmentFlow`
+`SyncEnrollmentService` owns the app-layer enrollment phase machine. It ensures
+the E2E key before device-binding authorization, verifies one binding OTP,
+uses the returned bearer and authorization for Begin, stores the device secret,
+and completes reconciliation with bound credentials. It enables writes only
+after reconciliation is durably complete. `composeSyncEnrollment` is the
+hosted-enrollment factory: it creates the Supabase binding authorizer,
+authenticator, service, coordinator, and publisher from ready boot providers
+and persisted Supabase selection. `SyncEnrollmentFlow`
 opens that graph through `openSyncEnrollmentSession`, which exposes only
 `enroll()` and `publishSnapshot()` to the UI. Source:
 `app/lib/sync/sync_enrollment_composition.dart` - `composeSyncEnrollment`,
@@ -60,21 +62,29 @@ the publisher itself remains independent of lifecycle scheduling. Source:
 
 ## Interactions
 
-Each `enroll()` invocation begins from the fresh durable phase returned by
-`SyncMetadataStore.snapshot()`. Its exhaustive phase switch advances
-`notEnrolled`, `credentialAcquired`, `snapshotInProgress`, and
-`reconciliationComplete` to `gateEnabled`; phase presence, rather than a
-credential or key alone, determines the next step. Source:
+Each `enroll()` invocation reads a fresh `SyncMetadataStore.snapshot()` and
+validates its binding, phase, write-gate, and reauth-resume tuple. The service
+advances only legal combinations through `notEnrolled` or legacy
+`credentialAcquired`, `bindingAuthorizationRequired`, `snapshotInProgress`,
+and `reconciliationComplete` to `gateEnabled`. A bound
+`sessionReauthRequired` row restores its recorded resume phase after ordinary
+OTP authentication. Source:
 `app/lib/sync/sync_enrollment_service.dart` - `SyncEnrollmentService.enroll`,
-`SyncEnrollmentService._advance`.
+`SyncEnrollmentService._advance`; `app/lib/sync/sync_metadata_store.dart` -
+`SyncMetadataStore.validateHostedOperationState`,
+`SyncMetadataStore.restoreFromSessionReauth`.
 
-The service restores credentials through `CredentialProvider`, validates stored
-keys through `decodeAndValidateSyncE2EKey`, and calls `SyncBackend.reconcile`
-directly for `BeginReconcile` and `CompleteReconcile`. It neither wraps that
-backend interaction nor waits for steady-state pull/apply machinery. Source:
+The service reads bound credentials through `CredentialProvider` after storing
+the device secret. It calls `SyncBackend.reconcile` directly for Begin and
+Complete. The authorization-bearing Begin uses the verified session bearer;
+subsequent Begin, snapshot Pull, and Complete use `BoundDeviceCredential`.
+This path does not wait for steady-state pull/apply machinery. Source:
 `app/lib/sync/sync_enrollment_service.dart` -
+`SyncEnrollmentService._stepBindingAuthorizationRequired`,
 `SyncEnrollmentService._stepSnapshotInProgress`,
-`SyncEnrollmentService._stepCredentialAcquired`.
+`SyncEnrollmentService._completeSnapshot`;
+`app/lib/sync/reconciliation_snapshot_hasher.dart` -
+`ReconciliationSnapshotHasher.hashCollection`.
 
 Between `BeginReconcile` and `CompleteReconcile`, the service builds a
 `ReconciliationSnapshotHasher` through its injected `buildSnapshotHasher`
@@ -85,16 +95,17 @@ factory and calls `hashAll` with the `ReconciliationContext` decoded from
 layer as the rest of enrollment orchestration. Source:
 `app/lib/sync/reconciliation_snapshot_hasher.dart` -
 `ReconciliationSnapshotHasher`; `app/lib/sync/sync_enrollment_service.dart` -
-`SyncEnrollmentService._stepSnapshotInProgress`.
+`SyncEnrollmentService._completeSnapshot`.
 
-`decodeAndValidateSyncE2EKey` is the shared unpadded-base64url decoder and
-32-byte validator used by both `SyncE2EKeyProvider` and the enrollment service.
-It reports malformed and wrong-length values through
+`SyncE2EKeyProvider.accessor` validates the stored E2E key before binding
+authorization. It uses the shared unpadded-base64url decoder and 32-byte
+validator, which report malformed and wrong-length values through
 `SyncE2EKeyUnavailableException`. Source:
 `app/lib/sync/sync_e2e_key_provider.dart` -
 `decodeAndValidateSyncE2EKey`, `SyncE2EKeyProvider._readKey`;
 `app/lib/sync/sync_enrollment_service.dart` -
-`SyncEnrollmentService._stepCredentialAcquired`.
+`SyncEnrollmentService._ensureE2EKey`,
+`SyncEnrollmentService._stepBindingAuthorizationRequired`.
 
 `EnrollmentSnapshotPublisher` depends on `SyncCoordinator.pushCollection`,
 which preserves the coordinator's write-gate and push-result semantics. Its
@@ -109,8 +120,10 @@ default store is `SecureSecretStore`. Source:
 configuration. It returns `SyncEnrollmentNotReady` with both readiness flags
 when either is absent. For a ready boot graph, it accepts only a persisted
 Supabase selection, resolves it through `SyncBackendResolver`, then creates the
-authenticator, enrollment service, coordinator, and publisher with one shared
-`SecretStore`. Source: `app/lib/sync/sync_enrollment_composition.dart` -
+binding authorizer, authenticator, enrollment service, coordinator, and
+publisher with one shared `SecretStore`. It passes the submitted identifier
+and OTP resolver to both the binding path and the ordinary reauth path. Source:
+`app/lib/sync/sync_enrollment_composition.dart` -
 `composeSyncEnrollment`, `SyncEnrollmentNotReady`,
 `SyncEnrollmentConfigurationError`.
 
@@ -129,31 +142,43 @@ other statuses backend unavailable);
 
 ## Contracts and invariants
 
-- If `notEnrolled` finds a stored credential that restores and matches
-  `deviceID(database)`, it records `credentialAcquired` without repeating the
-  handshake. This recovers a crash after credential write and before phase
-  persistence. A malformed or mismatched stored credential is deleted before a
-  fresh handshake. Source: `app/lib/sync/sync_enrollment_service.dart` -
-  `SyncEnrollmentService._stepNotEnrolled`,
-  `SyncEnrollmentService._storedCredentialMatchesDevice`.
-- At `credentialAcquired`, a stored E2E key must decode and have the required
-  length. A malformed or wrong-length stored key fails without deletion or
-  replacement. The service writes a resolved key only when the secret is
-  absent. Source: `app/lib/sync/sync_enrollment_service.dart` -
-  `SyncEnrollmentService._stepCredentialAcquired`.
-- `_requireSuccess` converts every remote `SyncFailure` into
-  `SyncEnrollmentException` with its step, code, message, and retry delay.
-  The affected step does not advance the durable phase or write gate after that
-  failure. Source: `app/lib/sync/sync_enrollment_service.dart` -
-  `SyncEnrollmentService._requireSuccess`,
-  `SyncEnrollmentService._stepNotEnrolled`,
-  `SyncEnrollmentService._stepSnapshotInProgress`.
-- The terminal step calls `SyncMetadataStore.setWriteEnabled(true)` while the
-  durable phase is `reconciliationComplete`, then records `gateEnabled`. The
-  metadata store retains ownership of refusing an early gate enable. Source:
+- Fresh enrollment creates a missing E2E key before entering
+  `bindingAuthorizationRequired`. A stored malformed or wrong-length key
+  fails without deletion or replacement. Once the binding phase is durable,
+  an absent key fails rather than generating a replacement. Source:
   `app/lib/sync/sync_enrollment_service.dart` -
-  `SyncEnrollmentService._stepReconciliationComplete`;
-  `app/lib/sync/sync_metadata_store.dart` - `SyncMetadataStore.setWriteEnabled`.
+  `SyncEnrollmentService._ensureE2EKey`,
+  `SyncEnrollmentService._stepPrepareFreshEnrollment`,
+  `SyncEnrollmentService._stepBindingAuthorizationRequired`.
+- At `bindingAuthorizationRequired`, `startBinding` supplies the challenge for
+  one OTP, and `verifyBinding` returns a session bearer and Begin authorization.
+  The service persists the bearer, sends authorization-bearing Begin, validates
+  and stores its `device_secret`, then enters `snapshotInProgress` before any
+  reconciliation Pull. A valid but unconfirmed stored secret at the binding
+  phase resumes with a bound Begin without another OTP. A response with code
+  `device_authorization_required` clears the secret and returns to binding
+  authorization. A malformed stored secret is deleted before a new binding
+  attempt. Source: `app/lib/sync/sync_enrollment_service.dart`
+  - `SyncEnrollmentService._stepBindingAuthorizationRequired`,
+  `SyncEnrollmentService._stepSnapshotInProgress`.
+- `SyncMetadataStore.enter*` transitions update related binding, phase, write
+  gate, and reauth-resume fields together in transactions.
+  `enterGateEnabled` requires bound `reconciliationComplete` and atomically
+  enables writes while entering `gateEnabled`. Source:
+  `app/lib/sync/sync_metadata_store.dart` -
+  `SyncMetadataStore.enterBindingAuthorizationRequired`,
+  `SyncMetadataStore.enterSnapshotInProgress`,
+  `SyncMetadataStore.enterReconciliationComplete`,
+  `SyncMetadataStore.enterGateEnabled`.
+- Missing or malformed bound credentials and `credential_expired` or
+  `device_authorization_required` reconciliation failures route to session
+  reauthentication or binding authorization as appropriate. Session
+  reauthentication uses ordinary OTP, replaces only the bearer, and restores
+  the recorded phase; an absent or malformed device secret routes back to
+  binding authorization. Source: `app/lib/sync/sync_enrollment_service.dart` -
+  `SyncEnrollmentService._routeCredentialUnavailable`,
+  `SyncEnrollmentService._routeBoundFailure`,
+  `SyncEnrollmentService._stepSessionReauthRequired`.
 - A `CompleteReconcile` outcome of `SnapshotHashMismatch` that names a
   collection (`mismatchedCollection`) re-pages and re-hashes only that
   collection under the same `ReconciliationContext`, then retries
@@ -161,7 +186,7 @@ other statuses backend unavailable);
   names no collection, or a second mismatch after the retry, fails the step
   without advancing the phase. Source:
   `app/lib/sync/sync_enrollment_service.dart` -
-  `SyncEnrollmentService._stepSnapshotInProgress`;
+  `SyncEnrollmentService._completeSnapshot`;
   `packages/sync/lib/src/protocol/outcome.dart` -
   `SnapshotHashMismatch.mismatchedCollection`.
 - `EnrollmentSnapshotPublisher.publish()` reads
@@ -202,15 +227,17 @@ other statuses backend unavailable);
 - `SyncEnrollmentService.enroll()` continues until `gateEnabled`. Re-entry
   after a failure or crash resumes from the recorded phase. Source:
   `app/lib/sync/sync_enrollment_service.dart` - `SyncEnrollmentService.enroll`.
-- The initial reconciliation obtains a restored credential, sends
-  `BeginReconcile`, decodes its `ReconciliationContext` via
-  `ReconcileResponse.reconciliationContext`, hashes all 5 collections through
-  `ReconciliationSnapshotHasher.hashAll`, then sends
+- The initial binding attempt sends authorization-bearing Begin with the
+  verified bearer. A resumed snapshot sends bound Begin. Both decode
+  `ReconciliationContext` via `ReconcileResponse.reconciliationContext`, hash
+  all 5 collections through `ReconciliationSnapshotHasher.hashAll`, then send
   `CompleteReconcile(collectionHashes: ...)`, retrying once on a
   collection-named `snapshot_hash_mismatch`. It records
   `reconciliationComplete` only after `CompleteReconcile` finally succeeds.
   Source: `app/lib/sync/sync_enrollment_service.dart` -
-  `SyncEnrollmentService._stepSnapshotInProgress`.
+  `SyncEnrollmentService._stepBindingAuthorizationRequired`,
+  `SyncEnrollmentService._stepSnapshotInProgress`,
+  `SyncEnrollmentService._completeSnapshot`.
 - `EnrollmentSnapshotPublisher.publish()` is one pass only. A caller must
   reinvoke it after `EnrollmentSnapshotPending`; it has no internal retry or
   scheduling loop. Source: `app/lib/sync/enrollment_snapshot_publisher.dart` -

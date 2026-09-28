@@ -1,6 +1,6 @@
 # Sync enrollment: hosted Flow
 
-Last reconciled: eb968bbc7b012181c453c54afb1f74a7ef4e0b3c
+Last reconciled: e9f1db4
 
 ## Overview
 
@@ -34,8 +34,10 @@ single in-flight enroll-and-publish operation. Source:
 `BackendPickerFlow` persists hosted selection, then invokes the enclosing
 Flow's callback. `SyncEnrollmentNotifier.hostedReady()` emits identifier entry.
 Identifier submission opens one `SyncEnrollmentSession` with a resolver that
-emits OTP entry and awaits its `Completer`; the session adapter delegates
-`enroll()` and `publishSnapshot()` to the composed service and publisher.
+emits OTP entry and awaits its `Completer`. Fresh enrollment invokes this
+resolver for the device-binding OTP after E2E-key preparation. The session
+adapter delegates `enroll()` and `publishSnapshot()` to the composed service
+and publisher.
 Source: `app/lib/ui/sync/enrollment/backend_picker/backend_picker_flow.dart` -
 `BackendPickerFlow`; `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_flow.dart`
 - `SyncEnrollmentFlow.buildRoot`; `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart`
@@ -45,14 +47,14 @@ Source: `app/lib/ui/sync/enrollment/backend_picker/backend_picker_flow.dart` -
 
 On retry, the notifier reads `SyncMetadataStore.snapshot().phase`. It returns
 to identifier entry only from `notEnrolled`; every later phase shows resume and
-calls `_resumeWithoutCredentials()`. That method reuses the held session or
-opens one with an OTP resolver that throws, because resumed enrollment must not
-request a new OTP. Source:
+calls `_resumeWithoutCredentials()`. That method reuses the held session when
+available. A reopened session uses an OTP resolver that throws. Source:
 `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart` -
 `SyncEnrollmentNotifier.retry`, `_resumeWithoutCredentials`,
 `_reopenForResume`, `_rejectUnexpectedOtp`;
 `app/lib/sync/sync_enrollment_service.dart` - `SyncEnrollmentService._advance`,
-`SyncEnrollmentService._stepNotEnrolled`.
+`SyncEnrollmentService._stepBindingAuthorizationRequired`,
+`SyncEnrollmentService._stepSessionReauthRequired`.
 
 ## Contracts and invariants
 
@@ -96,6 +98,18 @@ request a new OTP. Source:
 
 ## Gotchas
 
+- A same-process retry can collect another OTP through its held session. A
+  reopened session rejects OTP requests, while the service can request a
+  binding OTP from `bindingAuthorizationRequired` or an ordinary OTP from
+  `sessionReauthRequired`. Such a resume stops at the resolver rather than
+  completing authorization. Source:
+  `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart`
+  - `SyncEnrollmentNotifier._resumeWithoutCredentials`,
+  `SyncEnrollmentNotifier._reopenForResume`,
+  `SyncEnrollmentNotifier._rejectUnexpectedOtp`;
+  `app/lib/sync/sync_enrollment_service.dart` -
+  `SyncEnrollmentService._stepBindingAuthorizationRequired`,
+  `SyncEnrollmentService._stepSessionReauthRequired`.
 - `SyncEnrollmentFlow` is the first production caller of the hosted
   composition, but no `AppBoot`, lifecycle, scheduler, or shell path constructs
   the Flow. It remains unavailable in the installed application until a higher
