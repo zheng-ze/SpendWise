@@ -263,6 +263,21 @@ void main() {
     },
   );
 
+  test('the binding authorizer carries the validated Supabase configuration and identifier', () async {
+    final ready = await composeReady(identifier: 'user@example.com');
+
+    expect(
+      ready.enrollmentService.bindingAuthorizer,
+      isA<SupabaseDeviceBindingAuthorizer>(),
+    );
+    final authorizer =
+        ready.enrollmentService.bindingAuthorizer
+            as SupabaseDeviceBindingAuthorizer;
+    expect(authorizer.projectUrl, _testConfig.projectUrl);
+    expect(authorizer.anonKey, _testConfig.anonKey);
+    expect(ready.enrollmentService.bindingIdentifier, 'user@example.com');
+  });
+
   test(
     'service, coordinator, and publisher share one SecretStore',
     () async {
