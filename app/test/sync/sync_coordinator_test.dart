@@ -23,6 +23,7 @@ import 'package:spendwise/sync/sync_backend_resolver.dart';
 import 'package:spendwise/sync/sync_coordinator.dart';
 import 'package:spendwise/sync/sync_e2e_key_provider.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
+import 'package:spendwise/sync/sync_repair_gate.dart';
 import 'package:spendwise/sync/sync_secret_keys.dart';
 import 'package:spendwise/sync/sync_status.dart';
 import 'package:sync/sync.dart';
@@ -62,8 +63,13 @@ final class _FakeSyncBackend implements SyncBackend {
   final List<PullRequest> pulls = [];
   final List<AcknowledgeRequest> acknowledges = [];
   final List<PushRequest> pushes = [];
+  final List<SyncCredential> pullCredentials = [];
+  final List<SyncCredential> acknowledgeCredentials = [];
+  final List<SyncCredential> pushCredentials = [];
 
   Future<SyncOutcome<PushResponse>> Function(PushRequest request)? onPush;
+  Future<SyncOutcome<PullResponse>> Function(PullRequest request)?
+  onPullRequest;
 
   @override
   Future<SyncOutcome<PullResponse>> pull(
@@ -71,6 +77,9 @@ final class _FakeSyncBackend implements SyncBackend {
     PullRequest request,
   ) async {
     pulls.add(request);
+    pullCredentials.add(credential);
+    final hook = onPullRequest;
+    if (hook != null) return hook(request);
     final SyncOutcome<PullResponse>? failure = this.failure;
     if (failure != null) return failure;
     final page = pages[request.collection];
@@ -86,6 +95,7 @@ final class _FakeSyncBackend implements SyncBackend {
     PushRequest request,
   ) async {
     pushes.add(request);
+    pushCredentials.add(credential);
     final handler = onPush;
     if (handler == null) {
       throw StateError('No stubbed push outcome.');
@@ -107,6 +117,7 @@ final class _FakeSyncBackend implements SyncBackend {
     AcknowledgeRequest request,
   ) async {
     acknowledges.add(request);
+    acknowledgeCredentials.add(credential);
     return acknowledgeOutcomes[request.collection] ??
         SyncSuccess<AcknowledgeResponse>(
           AcknowledgeResponse(<String, Object?>{}),
@@ -174,6 +185,9 @@ String _credentialPayload(String deviceID, String bearer) => base64Url.encode(
   ),
 );
 
+String _deviceSecret([int fill = 0]) =>
+    base64Url.encode(List<int>.filled(32, fill)).replaceAll('=', '');
+
 void main() {
   late LedgerDatabase db;
   late InMemorySecretStore secrets;
@@ -224,6 +238,8 @@ void main() {
       _credentialPayload(id, 'test-bearer'),
     );
     await secrets.write(syncE2EKeySecretKey, _encodeKey(e2eKey));
+    await secrets.write(syncDeviceSecretKey, _deviceSecret());
+    await SyncMetadataStore(db).enterSnapshotInProgress();
     return SyncCoordinator.forTesting(
       engine: SyncEngine(
         userID: id,
@@ -241,6 +257,8 @@ void main() {
         database: db,
         secretStore: secrets,
       ),
+      repairGate: SyncRepairGate.forDatabase(db),
+      secretStore: secrets,
       ledger: ledger,
       persistenceProcessor: processor,
       stagingStore: staging,
@@ -302,6 +320,8 @@ void main() {
       _credentialPayload(id, 'test-bearer'),
     );
     await secrets.write(syncE2EKeySecretKey, _encodeKey(key));
+    await secrets.write(syncDeviceSecretKey, _deviceSecret());
+    await SyncMetadataStore(db).enterSnapshotInProgress();
     final clock = _ManualClock();
     final DriftLedgerStore driftStore = DriftLedgerStore(
       db,
@@ -348,6 +368,8 @@ void main() {
         database: db,
         secretStore: secrets,
       ),
+      repairGate: SyncRepairGate.forDatabase(db),
+      secretStore: secrets,
       ledger: ledger,
       persistenceProcessor: driftProcessor,
       stagingStore: driftStaging,
@@ -400,10 +422,8 @@ void main() {
       onPassFailure: onPassFailure,
     );
     if (enableWrites) {
-      await coordinator.metadataStore.setEnrollmentPhase(
-        SyncEnrollmentPhase.reconciliationComplete,
-      );
-      await coordinator.metadataStore.setWriteEnabled(true);
+      await coordinator.metadataStore.enterReconciliationComplete();
+      await coordinator.metadataStore.enterGateEnabled();
     }
     return _PushSetup(
       coordinator: coordinator,
@@ -2223,10 +2243,8 @@ void main() {
       await seedDriftHolder(holderID, coordinator.persistenceProcessor);
       ledger.addEntry(driftEntry(rowID, holderID, name: 'Original'));
       await coordinator.persistenceProcessor.flush();
-      await coordinator.metadataStore.setEnrollmentPhase(
-        SyncEnrollmentPhase.reconciliationComplete,
-      );
-      await coordinator.metadataStore.setWriteEnabled(true);
+      await coordinator.metadataStore.enterReconciliationComplete();
+      await coordinator.metadataStore.enterGateEnabled();
       ledger.updateEntry(driftEntry(rowID, holderID, name: 'Edited'));
 
       final result = await coordinator.pushCollection(SyncCollection.entries);
@@ -2307,10 +2325,8 @@ void main() {
         e2eKey: _freshKey(),
         versionReader: reader,
       );
-      await coordinator.metadataStore.setEnrollmentPhase(
-        SyncEnrollmentPhase.reconciliationComplete,
-      );
-      await coordinator.metadataStore.setWriteEnabled(true);
+      await coordinator.metadataStore.enterReconciliationComplete();
+      await coordinator.metadataStore.enterGateEnabled();
       const holderID = 'aaaaaaaa-0000-1111-2222-333333333333';
       const rowID = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
       ledger.addAccount(
@@ -3297,6 +3313,540 @@ void main() {
       coordinator.dispose();
 
       expect(coordinator.syncNow, throwsStateError);
+    });
+  });
+
+  group('bound RPCs and repair routing (TS6)', () {
+    test(
+      'pull, acknowledge, and push each present a BoundDeviceCredential',
+      () async {
+        final backend = _FakeSyncBackend(
+          pages: {
+            SyncCollection.entries: _pullPage(
+              const <SyncEnvelope>[],
+              'cursor-bound',
+            ),
+          },
+        );
+        final setup = await pushSetup(backend: backend);
+        backend.onPush = _appliedPush;
+        final coordinator = setup.coordinator;
+
+        await coordinator.processPullPage(SyncCollection.entries);
+        await coordinator.recoverPendingAcknowledgements();
+        await setup.seedRow(
+          '99990000-9999-9999-9999-999999999999',
+          VersionVector(<String, int>{'dev': 1}),
+        );
+        await coordinator.pushCollection(SyncCollection.entries);
+
+        expect(backend.pullCredentials, hasLength(1));
+        expect(backend.pullCredentials.single, isA<BoundDeviceCredential>());
+        expect(backend.acknowledgeCredentials, hasLength(1));
+        expect(
+          backend.acknowledgeCredentials.single,
+          isA<BoundDeviceCredential>(),
+        );
+        expect(backend.pushCredentials, hasLength(1));
+        expect(backend.pushCredentials.single, isA<BoundDeviceCredential>());
+      },
+    );
+
+    test(
+      'a 401 acknowledgement enters session reauth with its resume phase',
+      () async {
+        final backend = _FakeSyncBackend(
+          acknowledgeOutcomes: {
+            SyncCollection.entries:
+                const CredentialExpired<AcknowledgeResponse>(
+                  message: 'bearer expired',
+                ),
+          },
+        );
+        final setup = await pushSetup(backend: backend);
+        final coordinator = setup.coordinator;
+        await coordinator.metadataStore.setPendingAcknowledgement(
+          SyncCollection.entries,
+          'cursor-401',
+        );
+
+        await expectLater(
+          coordinator.recoverPendingAcknowledgements(),
+          throwsA(isA<StateError>()),
+        );
+
+        final snapshot = await coordinator.metadataStore.snapshot();
+        expect(snapshot.deviceBindingState, SyncDeviceBindingState.bound);
+        expect(snapshot.phase, SyncEnrollmentPhase.sessionReauthRequired);
+        expect(snapshot.reauthResumePhase, SyncEnrollmentPhase.gateEnabled);
+        expect(snapshot.writeEnabled, isFalse);
+        expect(
+          await coordinator.metadataStore.pendingAcknowledgement(
+            SyncCollection.entries,
+          ),
+          'cursor-401',
+        );
+      },
+    );
+
+    test(
+      'a matching 428 acknowledgement enters binding repair instead',
+      () async {
+        final backend = _FakeSyncBackend(
+          acknowledgeOutcomes: {
+            SyncCollection.entries:
+                const DeviceAuthorizationRequired<AcknowledgeResponse>(
+                  message: 'rebind required',
+                ),
+          },
+        );
+        final setup = await pushSetup(backend: backend);
+        final coordinator = setup.coordinator;
+        await coordinator.metadataStore.setPendingAcknowledgement(
+          SyncCollection.entries,
+          'cursor-428',
+        );
+
+        await expectLater(
+          coordinator.recoverPendingAcknowledgements(),
+          throwsA(isA<StateError>()),
+        );
+
+        final snapshot = await coordinator.metadataStore.snapshot();
+        expect(
+          snapshot.deviceBindingState,
+          SyncDeviceBindingState.authorizationRequired,
+        );
+        expect(
+          snapshot.phase,
+          SyncEnrollmentPhase.bindingAuthorizationRequired,
+        );
+        expect(snapshot.reauthResumePhase, isNull);
+        expect(snapshot.writeEnabled, isFalse);
+        expect(await secrets.read(syncDeviceSecretKey), isNull);
+      },
+    );
+
+    test(
+      'concurrent 401s from every collection plus a pending acknowledge '
+      'yield one session-reauth transition and stop further bound RPCs',
+      () async {
+        final backend = _FakeSyncBackend(
+          failure: const CredentialExpired<PullResponse>(message: 'expired'),
+          acknowledgeOutcomes: {
+            SyncCollection.entries:
+                const CredentialExpired<AcknowledgeResponse>(
+                  message: 'expired',
+                ),
+          },
+        );
+        final setup = await pushSetup(backend: backend);
+        final coordinator = setup.coordinator;
+        await coordinator.metadataStore.setPendingAcknowledgement(
+          SyncCollection.entries,
+          'cursor-pending',
+        );
+
+        await expectLater(
+          Future.wait(<Future<void>>[
+            for (final collection in SyncCollection.values)
+              coordinator.processPullPage(collection),
+            coordinator.recoverPendingAcknowledgements(),
+          ]),
+          throwsA(isA<StateError>()),
+        );
+
+        expect(backend.pulls, hasLength(SyncCollection.values.length));
+        // The pending acknowledge shares its collection lock with that
+        // collection's pull, so it may be refused after repair entry without
+        // ever sending; either way it must not create a second transition.
+        final sentAcknowledges = backend.acknowledges.length;
+        expect(sentAcknowledges, lessThanOrEqualTo(1));
+        final snapshot = await coordinator.metadataStore.snapshot();
+        expect(snapshot.deviceBindingState, SyncDeviceBindingState.bound);
+        expect(snapshot.phase, SyncEnrollmentPhase.sessionReauthRequired);
+        expect(snapshot.reauthResumePhase, SyncEnrollmentPhase.gateEnabled);
+        expect(snapshot.writeEnabled, isFalse);
+        expect(coordinator.repairGate.isOpen, isFalse);
+
+        await expectLater(
+          coordinator.processPullPage(SyncCollection.entries),
+          throwsA(isA<StateError>()),
+        );
+        await expectLater(
+          coordinator.recoverPendingAcknowledgements(),
+          throwsA(isA<StateError>()),
+        );
+        expect(backend.pulls, hasLength(SyncCollection.values.length));
+        expect(backend.acknowledges, hasLength(sentAcknowledges));
+      },
+    );
+
+    test(
+      'a 401 completing before a matching 428 still ends in binding repair',
+      () async {
+        final backend = _FakeSyncBackend();
+        final setup = await pushSetup(backend: backend);
+        final coordinator = setup.coordinator;
+        final arrivals = <SyncCollection>[];
+        final entriesGate = Completer<SyncOutcome<PullResponse>>();
+        final categoriesGate = Completer<SyncOutcome<PullResponse>>();
+        backend.onPullRequest = (PullRequest request) {
+          arrivals.add(request.collection);
+          if (request.collection == SyncCollection.entries) {
+            return entriesGate.future;
+          }
+          if (request.collection == SyncCollection.categories) {
+            return categoriesGate.future;
+          }
+          throw StateError(
+            'No gated outcome for pull of ${request.collection}.',
+          );
+        };
+        Future<Object?> capture(Future<void> work) async {
+          try {
+            await work;
+            return null;
+          } catch (error) {
+            return error;
+          }
+        }
+
+        final first = capture(
+          coordinator.processPullPage(SyncCollection.entries),
+        );
+        final second = capture(
+          coordinator.processPullPage(SyncCollection.categories),
+        );
+        expect(await _settled(() => arrivals.length == 2), isTrue);
+
+        entriesGate.complete(
+          const CredentialExpired<PullResponse>(message: 'expired'),
+        );
+        expect(await first, isA<StateError>());
+        var snapshot = await coordinator.metadataStore.snapshot();
+        expect(snapshot.phase, SyncEnrollmentPhase.sessionReauthRequired);
+        expect(snapshot.reauthResumePhase, SyncEnrollmentPhase.gateEnabled);
+
+        categoriesGate.complete(
+          const DeviceAuthorizationRequired<PullResponse>(
+            message: 'rebind required',
+          ),
+        );
+        expect(await second, isA<StateError>());
+        snapshot = await coordinator.metadataStore.snapshot();
+        expect(
+          snapshot.deviceBindingState,
+          SyncDeviceBindingState.authorizationRequired,
+        );
+        expect(
+          snapshot.phase,
+          SyncEnrollmentPhase.bindingAuthorizationRequired,
+        );
+        expect(snapshot.reauthResumePhase, isNull);
+        expect(snapshot.writeEnabled, isFalse);
+        expect(await secrets.read(syncDeviceSecretKey), isNull);
+      },
+    );
+
+    test(
+      'a matching 428 completing before a 401 still ends in binding repair',
+      () async {
+        final backend = _FakeSyncBackend();
+        final setup = await pushSetup(backend: backend);
+        final coordinator = setup.coordinator;
+        final arrivals = <SyncCollection>[];
+        final entriesGate = Completer<SyncOutcome<PullResponse>>();
+        final categoriesGate = Completer<SyncOutcome<PullResponse>>();
+        backend.onPullRequest = (PullRequest request) {
+          arrivals.add(request.collection);
+          if (request.collection == SyncCollection.entries) {
+            return entriesGate.future;
+          }
+          if (request.collection == SyncCollection.categories) {
+            return categoriesGate.future;
+          }
+          throw StateError(
+            'No gated outcome for pull of ${request.collection}.',
+          );
+        };
+        Future<Object?> capture(Future<void> work) async {
+          try {
+            await work;
+            return null;
+          } catch (error) {
+            return error;
+          }
+        }
+
+        final first = capture(
+          coordinator.processPullPage(SyncCollection.entries),
+        );
+        final second = capture(
+          coordinator.processPullPage(SyncCollection.categories),
+        );
+        expect(await _settled(() => arrivals.length == 2), isTrue);
+
+        entriesGate.complete(
+          const DeviceAuthorizationRequired<PullResponse>(
+            message: 'rebind required',
+          ),
+        );
+        expect(await first, isA<StateError>());
+        var snapshot = await coordinator.metadataStore.snapshot();
+        expect(
+          snapshot.deviceBindingState,
+          SyncDeviceBindingState.authorizationRequired,
+        );
+        expect(
+          snapshot.phase,
+          SyncEnrollmentPhase.bindingAuthorizationRequired,
+        );
+
+        categoriesGate.complete(
+          const CredentialExpired<PullResponse>(message: 'expired'),
+        );
+        expect(await second, isA<StateError>());
+        snapshot = await coordinator.metadataStore.snapshot();
+        expect(
+          snapshot.deviceBindingState,
+          SyncDeviceBindingState.authorizationRequired,
+        );
+        expect(
+          snapshot.phase,
+          SyncEnrollmentPhase.bindingAuthorizationRequired,
+        );
+        expect(snapshot.reauthResumePhase, isNull);
+        expect(snapshot.writeEnabled, isFalse);
+      },
+    );
+
+    test('a late 428 for an already-rotated secret deletes nothing and '
+        'repairs nothing', () async {
+      final backend = _FakeSyncBackend();
+      final setup = await pushSetup(backend: backend);
+      final coordinator = setup.coordinator;
+      final rotated = _deviceSecret(9);
+      backend.onPullRequest = (PullRequest request) async {
+        await secrets.write(syncDeviceSecretKey, rotated);
+        return const DeviceAuthorizationRequired<PullResponse>(
+          message: 'rebind required',
+        );
+      };
+
+      await expectLater(
+        coordinator.processPullPage(SyncCollection.entries),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(await secrets.read(syncDeviceSecretKey), rotated);
+      final snapshot = await coordinator.metadataStore.snapshot();
+      expect(snapshot.deviceBindingState, SyncDeviceBindingState.bound);
+      expect(snapshot.phase, SyncEnrollmentPhase.gateEnabled);
+      expect(snapshot.writeEnabled, isTrue);
+      expect(coordinator.repairGate.isOpen, isTrue);
+    });
+
+    test('a reopened coordinator shares the latched gate until a durable '
+        'repair exit', () async {
+      final firstBackend = _FakeSyncBackend(
+        failure: const CredentialExpired<PullResponse>(message: 'expired'),
+      );
+      final first = await pushSetup(backend: firstBackend);
+      await expectLater(
+        first.coordinator.processPullPage(SyncCollection.entries),
+        throwsA(isA<StateError>()),
+      );
+      expect(first.coordinator.repairGate.isOpen, isFalse);
+
+      final secondBackend = _FakeSyncBackend(
+        pages: {
+          SyncCollection.entries: _pullPage(
+            const <SyncEnvelope>[],
+            'cursor-reopen',
+          ),
+        },
+      );
+      final reopened = await pullCoordinator(
+        backend: secondBackend,
+        versionSource: InMemorySyncVersionSource(),
+        staging: InMemorySyncStagingStore(),
+        e2eKey: _freshKey(),
+      );
+      expect(
+        identical(first.coordinator.repairGate, reopened.repairGate),
+        isTrue,
+      );
+      expect(reopened.repairGate.isOpen, isFalse);
+      await reopened.metadataStore.enterSessionReauthRequired();
+      await expectLater(
+        reopened.processPullPage(SyncCollection.entries),
+        throwsA(isA<StateError>()),
+      );
+      expect(secondBackend.pulls, isEmpty);
+
+      await reopened.metadataStore.restoreFromSessionReauth();
+      await reopened.processPullPage(SyncCollection.entries);
+      expect(secondBackend.pulls, hasLength(1));
+      expect(reopened.repairGate.isOpen, isTrue);
+    });
+
+    test('a missing device secret routes pull into binding repair without '
+        'sending', () async {
+      final backend = _FakeSyncBackend();
+      final setup = await pushSetup(backend: backend);
+      await secrets.delete(syncDeviceSecretKey);
+
+      await expectLater(
+        setup.coordinator.processPullPage(SyncCollection.entries),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(backend.pulls, isEmpty);
+      final snapshot = await setup.coordinator.metadataStore.snapshot();
+      expect(
+        snapshot.deviceBindingState,
+        SyncDeviceBindingState.authorizationRequired,
+      );
+      expect(snapshot.phase, SyncEnrollmentPhase.bindingAuthorizationRequired);
+      expect(snapshot.reauthResumePhase, isNull);
+      expect(snapshot.writeEnabled, isFalse);
+    });
+
+    test(
+      'a malformed device secret is deleted before entering binding repair',
+      () async {
+        final backend = _FakeSyncBackend();
+        final setup = await pushSetup(backend: backend);
+        await secrets.write(syncDeviceSecretKey, 'not-a-secret');
+
+        await expectLater(
+          setup.coordinator.processPullPage(SyncCollection.entries),
+          throwsA(isA<StateError>()),
+        );
+
+        expect(backend.pulls, isEmpty);
+        expect(await secrets.read(syncDeviceSecretKey), isNull);
+        final snapshot = await setup.coordinator.metadataStore.snapshot();
+        expect(
+          snapshot.phase,
+          SyncEnrollmentPhase.bindingAuthorizationRequired,
+        );
+      },
+    );
+
+    test('a missing bearer with a valid secret routes pull into session '
+        'reauth without sending', () async {
+      final backend = _FakeSyncBackend();
+      final setup = await pushSetup(backend: backend);
+      await secrets.delete(syncCredentialSecretKey);
+
+      await expectLater(
+        setup.coordinator.processPullPage(SyncCollection.entries),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(backend.pulls, isEmpty);
+      final snapshot = await setup.coordinator.metadataStore.snapshot();
+      expect(snapshot.deviceBindingState, SyncDeviceBindingState.bound);
+      expect(snapshot.phase, SyncEnrollmentPhase.sessionReauthRequired);
+      expect(snapshot.reauthResumePhase, SyncEnrollmentPhase.gateEnabled);
+      expect(snapshot.writeEnabled, isFalse);
+    });
+
+    test('a storage failure stops the pull without entering repair', () async {
+      final backend = _FakeSyncBackend(
+        pages: {
+          SyncCollection.entries: _pullPage(
+            const <SyncEnvelope>[],
+            'cursor-storage',
+          ),
+        },
+      );
+      final setup = await pushSetup(backend: backend);
+      secrets.readFailure = StateError('secure storage unavailable');
+
+      await expectLater(
+        setup.coordinator.processPullPage(SyncCollection.entries),
+        throwsA(isA<CredentialUnavailableException>()),
+      );
+
+      expect(backend.pulls, isEmpty);
+      final snapshot = await setup.coordinator.metadataStore.snapshot();
+      expect(snapshot.deviceBindingState, SyncDeviceBindingState.bound);
+      expect(snapshot.phase, SyncEnrollmentPhase.gateEnabled);
+      expect(snapshot.writeEnabled, isTrue);
+      expect(setup.coordinator.repairGate.isOpen, isTrue);
+    });
+
+    test('a 401 push enters session reauth with its resume phase', () async {
+      final backend = _FakeSyncBackend();
+      backend.onPush = (PushRequest request) async =>
+          const CredentialExpired<PushResponse>(message: 'expired');
+      final setup = await pushSetup(backend: backend);
+      await setup.seedRow(
+        '12121212-1212-1212-1212-121212121212',
+        VersionVector(<String, int>{'dev': 1}),
+      );
+
+      await expectLater(
+        setup.coordinator.pushCollection(SyncCollection.entries),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(backend.pushCredentials.single, isA<BoundDeviceCredential>());
+      final snapshot = await setup.coordinator.metadataStore.snapshot();
+      expect(snapshot.deviceBindingState, SyncDeviceBindingState.bound);
+      expect(snapshot.phase, SyncEnrollmentPhase.sessionReauthRequired);
+      expect(snapshot.reauthResumePhase, SyncEnrollmentPhase.gateEnabled);
+      expect(snapshot.writeEnabled, isFalse);
+      expect(
+        await setup.coordinator.metadataStore.acknowledgedVectors(),
+        isEmpty,
+      );
+    });
+
+    test('a legal binding-repair state refuses new bound RPCs', () async {
+      final backend = _FakeSyncBackend(
+        pages: {
+          SyncCollection.entries: _pullPage(
+            const <SyncEnvelope>[],
+            'cursor-repair-refused',
+          ),
+        },
+      );
+      final setup = await pushSetup(backend: backend);
+      await setup.coordinator.metadataStore.enterBindingAuthorizationRequired();
+
+      await expectLater(
+        setup.coordinator.processPullPage(SyncCollection.entries),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(backend.pulls, isEmpty);
+      expect(setup.coordinator.repairGate.isOpen, isFalse);
+    });
+
+    test('an illegal hosted row refuses bound RPCs before any send', () async {
+      final backend = _FakeSyncBackend(
+        pages: {
+          SyncCollection.entries: _pullPage(
+            const <SyncEnvelope>[],
+            'cursor-illegal',
+          ),
+        },
+      );
+      final setup = await pushSetup(backend: backend);
+      await setup.coordinator.metadataStore.setEnrollmentPhase(
+        SyncEnrollmentPhase.sessionReauthRequired,
+      );
+
+      await expectLater(
+        setup.coordinator.processPullPage(SyncCollection.entries),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(backend.pulls, isEmpty);
     });
   });
 }

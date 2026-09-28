@@ -17,6 +17,7 @@ import 'package:spendwise/sync/secret_store.dart';
 import 'package:spendwise/sync/sync_coordinator.dart';
 import 'package:spendwise/sync/sync_e2e_key_provider.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
+import 'package:spendwise/sync/sync_repair_gate.dart';
 import 'package:spendwise/sync/sync_secret_keys.dart';
 import 'package:sync/sync.dart';
 
@@ -149,6 +150,9 @@ String _credentialPayload(String deviceID, String bearer) => base64Url.encode(
   ),
 );
 
+String _deviceSecret([int fill = 0]) =>
+    base64Url.encode(List<int>.filled(32, fill)).replaceAll('=', '');
+
 void main() {
   late LedgerDatabase db;
   late InMemorySecretStore coordinatorSecrets;
@@ -192,6 +196,8 @@ void main() {
       syncE2EKeySecretKey,
       base64Url.encode(List<int>.generate(32, (index) => index)),
     );
+    await coordinatorSecrets.write(syncDeviceSecretKey, _deviceSecret());
+    await SyncMetadataStore(db).enterSnapshotInProgress();
     final coordinator = SyncCoordinator.forTesting(
       engine: SyncEngine(
         userID: id,
@@ -208,15 +214,15 @@ void main() {
         database: db,
         secretStore: coordinatorSecrets,
       ),
+      repairGate: SyncRepairGate.forDatabase(db),
+      secretStore: coordinatorSecrets,
       ledger: ledger,
       persistenceProcessor: processor,
       stagingStore: staging,
     );
     if (enableWrites) {
-      await coordinator.metadataStore.setEnrollmentPhase(
-        SyncEnrollmentPhase.reconciliationComplete,
-      );
-      await coordinator.metadataStore.setWriteEnabled(true);
+      await coordinator.metadataStore.enterReconciliationComplete();
+      await coordinator.metadataStore.enterGateEnabled();
     }
     return (coordinator: coordinator, backend: effective);
   }

@@ -1,0 +1,203 @@
+import 'package:drift/native.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:spendwise/persistence/ledger_database.dart';
+import 'package:spendwise/sync/sync_metadata_store.dart';
+import 'package:spendwise/sync/sync_repair_gate.dart';
+import 'package:sync/sync.dart';
+
+SyncMetadataSnapshot _snapshot({
+  required SyncDeviceBindingState binding,
+  required SyncEnrollmentPhase phase,
+  required bool writes,
+  SyncEnrollmentPhase? resume,
+}) => SyncMetadataSnapshot(
+  backend: SyncBackendKind.supabase,
+  endpoint: null,
+  phase: phase,
+  writeEnabled: writes,
+  deviceBindingState: binding,
+  reauthResumePhase: resume,
+  watermarks: {
+    for (final collection in SyncCollection.values) collection: null,
+  },
+);
+
+void main() {
+  group('SyncRepairGate registry', () {
+    test('one gate per database, shared across lookups', () async {
+      final first = LedgerDatabase(NativeDatabase.memory());
+      final second = LedgerDatabase(NativeDatabase.memory());
+      addTearDown(first.close);
+      addTearDown(second.close);
+
+      expect(
+        identical(
+          SyncRepairGate.forDatabase(first),
+          SyncRepairGate.forDatabase(first),
+        ),
+        isTrue,
+      );
+      expect(
+        identical(
+          SyncRepairGate.forDatabase(first),
+          SyncRepairGate.forDatabase(second),
+        ),
+        isFalse,
+      );
+    });
+  });
+
+  group('SyncRepairGate admission', () {
+    test('a fresh gate admits bound phases with writes as enrolled', () async {
+      final db = LedgerDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      final gate = SyncRepairGate.forDatabase(db);
+
+      expect(gate.isOpen, isTrue);
+      expect(
+        gate.admit(
+          _snapshot(
+            binding: SyncDeviceBindingState.bound,
+            phase: SyncEnrollmentPhase.snapshotInProgress,
+            writes: false,
+          ),
+        ),
+        isTrue,
+      );
+      expect(
+        gate.admit(
+          _snapshot(
+            binding: SyncDeviceBindingState.bound,
+            phase: SyncEnrollmentPhase.gateEnabled,
+            writes: true,
+          ),
+        ),
+        isTrue,
+      );
+    });
+
+    test('a legal repair snapshot refuses and latches the gate', () async {
+      final db = LedgerDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      final gate = SyncRepairGate.forDatabase(db);
+
+      expect(
+        gate.admit(
+          _snapshot(
+            binding: SyncDeviceBindingState.bound,
+            phase: SyncEnrollmentPhase.sessionReauthRequired,
+            writes: false,
+            resume: SyncEnrollmentPhase.gateEnabled,
+          ),
+        ),
+        isFalse,
+      );
+      expect(gate.isOpen, isFalse);
+      expect(
+        gate.admit(
+          _snapshot(
+            binding: SyncDeviceBindingState.authorizationRequired,
+            phase: SyncEnrollmentPhase.bindingAuthorizationRequired,
+            writes: false,
+          ),
+        ),
+        isFalse,
+      );
+    });
+
+    test('a non-bound snapshot refuses admission', () async {
+      final db = LedgerDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      final gate = SyncRepairGate.forDatabase(db);
+
+      expect(
+        gate.admit(
+          _snapshot(
+            binding: SyncDeviceBindingState.notApplicable,
+            phase: SyncEnrollmentPhase.notEnrolled,
+            writes: false,
+          ),
+        ),
+        isFalse,
+      );
+    });
+
+    test(
+      'reseed closes on repair-durable state and opens on bound state',
+      () async {
+        final db = LedgerDatabase(NativeDatabase.memory());
+        addTearDown(db.close);
+        final gate = SyncRepairGate.forDatabase(db);
+
+        gate.reseed(
+          _snapshot(
+            binding: SyncDeviceBindingState.bound,
+            phase: SyncEnrollmentPhase.sessionReauthRequired,
+            writes: false,
+            resume: SyncEnrollmentPhase.gateEnabled,
+          ),
+        );
+        expect(gate.isOpen, isFalse);
+
+        gate.reseed(
+          _snapshot(
+            binding: SyncDeviceBindingState.bound,
+            phase: SyncEnrollmentPhase.gateEnabled,
+            writes: true,
+          ),
+        );
+        expect(gate.isOpen, isTrue);
+      },
+    );
+
+    test('an explicit latch stays latched until durable repair exit', () async {
+      final db = LedgerDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      final gate = SyncRepairGate.forDatabase(db);
+
+      gate.latch();
+      expect(gate.isOpen, isFalse);
+      expect(
+        gate.admit(
+          _snapshot(
+            binding: SyncDeviceBindingState.bound,
+            phase: SyncEnrollmentPhase.sessionReauthRequired,
+            writes: false,
+            resume: SyncEnrollmentPhase.snapshotInProgress,
+          ),
+        ),
+        isFalse,
+      );
+      expect(
+        gate.admit(
+          _snapshot(
+            binding: SyncDeviceBindingState.bound,
+            phase: SyncEnrollmentPhase.snapshotInProgress,
+            writes: false,
+          ),
+        ),
+        isTrue,
+      );
+      expect(gate.isOpen, isTrue);
+    });
+  });
+
+  group('SyncRepairGate secret mutation lock', () {
+    test('concurrent mutations run one at a time in arrival order', () async {
+      final db = LedgerDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      final gate = SyncRepairGate.forDatabase(db);
+      final events = <String>[];
+
+      Future<void> mutate(String name) => gate.withSecretMutationLock(() async {
+        events.add('start:$name');
+        await Future<void>.delayed(Duration.zero);
+        events.add('end:$name');
+      });
+
+      await Future.wait([mutate('a'), mutate('b')]);
+
+      expect(events, ['start:a', 'end:a', 'start:b', 'end:b']);
+    });
+  });
+}
