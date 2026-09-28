@@ -19,6 +19,7 @@ import 'package:spendwise/sync/collection_version_reader.dart';
 import 'package:spendwise/sync/credential_provider.dart';
 import 'package:spendwise/sync/drift_sync_staging_store.dart';
 import 'package:spendwise/sync/post_flush_readback_verifier.dart';
+import 'package:spendwise/sync/secret_store.dart';
 import 'package:spendwise/sync/sync_backend_resolver.dart';
 import 'package:spendwise/sync/sync_coordinator.dart';
 import 'package:spendwise/sync/sync_e2e_key_provider.dart';
@@ -123,6 +124,29 @@ final class _FakeSyncBackend implements SyncBackend {
           AcknowledgeResponse(<String, Object?>{}),
         );
   }
+}
+
+final class _LatchingSecretStore implements SecretStore {
+  _LatchingSecretStore(this.inner, this.gate);
+
+  final InMemorySecretStore inner;
+  final SyncRepairGate gate;
+  var latched = false;
+
+  @override
+  Future<String?> read(String key) async {
+    if (!latched && key == syncDeviceSecretKey) {
+      latched = true;
+      gate.latch();
+    }
+    return inner.read(key);
+  }
+
+  @override
+  Future<void> write(String key, String value) => inner.write(key, value);
+
+  @override
+  Future<void> delete(String key) => inner.delete(key);
 }
 
 Entry _pullTestEntry(String id) => Entry(
@@ -231,6 +255,7 @@ void main() {
     CollectionVersionReader? reader,
     CollectionVersionReader? versionReader,
     PassFailureHandler? onPassFailure,
+    SecretStore? credentialSecrets,
   }) async {
     final id = await deviceID(db);
     await secrets.write(
@@ -255,7 +280,7 @@ void main() {
       ),
       credentialProvider: CredentialProvider(
         database: db,
-        secretStore: secrets,
+        secretStore: credentialSecrets ?? secrets,
       ),
       repairGate: SyncRepairGate.forDatabase(db),
       secretStore: secrets,
@@ -3456,9 +3481,17 @@ void main() {
           throwsA(isA<StateError>()),
         );
 
-        expect(backend.pulls, hasLength(SyncCollection.values.length));
+        // Pulls admitted before a sibling's latch send and fail; ones still
+        // preparing when the gate closes are refused instead, so the count
+        // varies with scheduling while the durable outcome stays single.
+        expect(backend.pulls.length, greaterThanOrEqualTo(1));
+        expect(
+          backend.pulls.length,
+          lessThanOrEqualTo(SyncCollection.values.length),
+        );
         // The pending acknowledge shares its collection lock with that
         // collection's pull, so it may be refused post-repair without sending.
+        final sentPulls = backend.pulls.length;
         final sentAcknowledges = backend.acknowledges.length;
         expect(sentAcknowledges, lessThanOrEqualTo(1));
         final snapshot = await coordinator.metadataStore.snapshot();
@@ -3476,7 +3509,7 @@ void main() {
           coordinator.recoverPendingAcknowledgements(),
           throwsA(isA<StateError>()),
         );
-        expect(backend.pulls, hasLength(SyncCollection.values.length));
+        expect(backend.pulls, hasLength(sentPulls));
         expect(backend.acknowledges, hasLength(sentAcknowledges));
       },
     );
@@ -3685,6 +3718,9 @@ void main() {
       expect(secondBackend.pulls, isEmpty);
 
       await reopened.metadataStore.restoreFromSessionReauth();
+      // The service releases the gate when it commits the exit; this test
+      // drives the store directly, so it releases explicitly.
+      reopened.repairGate.release();
       await reopened.processPullPage(SyncCollection.entries);
       expect(secondBackend.pulls, hasLength(1));
       expect(reopened.repairGate.isOpen, isTrue);
@@ -3846,6 +3882,101 @@ void main() {
       );
 
       expect(backend.pulls, isEmpty);
+    });
+
+    test('a gate closed during credential resolution sends nothing and '
+        'enters no repair', () async {
+      final backend = _FakeSyncBackend(
+        pages: {
+          SyncCollection.entries: _pullPage(
+            const <SyncEnvelope>[],
+            'cursor-pre-send',
+          ),
+        },
+      );
+      final latching = _LatchingSecretStore(
+        secrets,
+        SyncRepairGate.forDatabase(db),
+      );
+      final coordinator = await pullCoordinator(
+        backend: backend,
+        versionSource: InMemorySyncVersionSource(),
+        staging: InMemorySyncStagingStore(),
+        e2eKey: _freshKey(),
+        credentialSecrets: latching,
+      );
+
+      await expectLater(
+        coordinator.processPullPage(SyncCollection.entries),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(latching.latched, isTrue);
+      expect(backend.pulls, isEmpty);
+      final snapshot = await coordinator.metadataStore.snapshot();
+      expect(snapshot.deviceBindingState, SyncDeviceBindingState.bound);
+      expect(snapshot.phase, SyncEnrollmentPhase.snapshotInProgress);
+      expect(coordinator.repairGate.isOpen, isFalse);
+    });
+
+    test('a success arriving after the gate closes commits nothing', () async {
+      final backend = _FakeSyncBackend();
+      final setup = await pushSetup(backend: backend);
+      final coordinator = setup.coordinator;
+      final responseGate = Completer<SyncOutcome<PullResponse>>();
+      var sent = false;
+      backend.onPullRequest = (PullRequest request) {
+        sent = true;
+        return responseGate.future;
+      };
+
+      final pending = coordinator.processPullPage(SyncCollection.entries);
+      expect(await _settled(() => sent), isTrue);
+      coordinator.repairGate.latch();
+      await coordinator.metadataStore.enterSessionReauthRequired();
+      responseGate.complete(
+        SyncSuccess<PullResponse>(
+          _pullPage(const <SyncEnvelope>[], 'cursor-late'),
+        ),
+      );
+
+      await expectLater(pending, throwsA(isA<StateError>()));
+      final snapshot = await coordinator.metadataStore.snapshot();
+      expect(snapshot.watermarks[SyncCollection.entries], isNull);
+      expect(
+        await coordinator.metadataStore.pendingAcknowledgement(
+          SyncCollection.entries,
+        ),
+        isNull,
+      );
+      expect(await coordinator.metadataStore.acknowledgedVectors(), isEmpty);
+      expect(snapshot.phase, SyncEnrollmentPhase.sessionReauthRequired);
+    });
+
+    test('a 401 for a superseded bearer enters no repair', () async {
+      final backend = _FakeSyncBackend();
+      final setup = await pushSetup(backend: backend);
+      final coordinator = setup.coordinator;
+      backend.onPullRequest = (PullRequest request) async {
+        final id = await deviceID(db);
+        await secrets.write(
+          syncCredentialSecretKey,
+          _credentialPayload(id, 'rotated-bearer'),
+        );
+        return const CredentialExpired<PullResponse>(message: 'expired');
+      };
+
+      await expectLater(
+        coordinator.processPullPage(SyncCollection.entries),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(backend.pulls, hasLength(1));
+      final snapshot = await coordinator.metadataStore.snapshot();
+      expect(snapshot.deviceBindingState, SyncDeviceBindingState.bound);
+      expect(snapshot.phase, SyncEnrollmentPhase.gateEnabled);
+      expect(snapshot.writeEnabled, isTrue);
+      expect(coordinator.repairGate.isOpen, isTrue);
     });
   });
 }

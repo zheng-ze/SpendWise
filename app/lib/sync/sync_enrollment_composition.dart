@@ -12,6 +12,7 @@ import 'package:spendwise/sync/sync_backend_resolver.dart';
 import 'package:spendwise/sync/sync_coordinator.dart';
 import 'package:spendwise/sync/sync_enrollment_service.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
+import 'package:spendwise/sync/sync_repair_gate.dart';
 import 'package:sync/sync.dart';
 
 sealed class SyncEnrollmentComposition {
@@ -124,6 +125,7 @@ Future<SyncEnrollmentComposition> composeSyncEnrollment(
     metadataStore: metadataStore,
     secretStore: sharedSecrets,
     database: database,
+    repairGate: SyncRepairGate.forDatabase(database),
     buildBeginRequest: () =>
         BeginEnrollmentRequest(<String, Object?>{'identifier': identifier}),
     buildCompleteRequest: (challenge) async {

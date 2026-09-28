@@ -258,7 +258,8 @@ final class SyncCoordinator extends ChangeNotifier {
     if (legality is HostedOperationIllegal) {
       throw StateError('Cannot $operation: ${legality.reason}');
     }
-    if (!repairGate.admit(snapshot)) {
+    final BoundRpcLease? admission = repairGate.admit(snapshot);
+    if (admission == null) {
       throw StateError(
         'Cannot $operation while sync repair is required '
         '(binding=${snapshot.deviceBindingState.name}, '
@@ -274,12 +275,26 @@ final class SyncCoordinator extends ChangeNotifier {
     } on CredentialUnavailableException catch (error) {
       await _routeCoordinatorCredentialUnavailable(operation, error);
     }
+    if (!repairGate.isCurrent(admission)) {
+      throw StateError(
+        'Cannot $operation: sync repair began while the request was prepared.',
+      );
+    }
     final SyncOutcome<T> outcome = await call(presented.credential);
     switch (outcome) {
       case SyncSuccess<T>():
+        if (!repairGate.isCurrent(admission)) {
+          throw StateError(
+            'Cannot $operation: sync repair began while the request was '
+            'in flight; its result is discarded.',
+          );
+        }
         return outcome;
       case CredentialExpired<T>():
-        await _routeCoordinatorCredentialExpired(operation);
+        await _routeCoordinatorCredentialExpired(
+          operation,
+          presented.credential,
+        );
       case DeviceAuthorizationRequired<T>():
         await _routeCoordinatorDeviceAuthorizationRequired(
           operation,
@@ -326,7 +341,28 @@ final class SyncCoordinator extends ChangeNotifier {
     }
   }
 
-  Future<Never> _routeCoordinatorCredentialExpired(String operation) async {
+  Future<Never> _routeCoordinatorCredentialExpired(
+    String operation,
+    BoundDeviceCredential presented,
+  ) async {
+    final bool presentedIsCurrent = await repairGate.withSecretMutationLock(
+      () async {
+        final BoundDeviceCredential current;
+        try {
+          current = await _credentialProvider.withBoundCredential(
+            (credential) => credential,
+          );
+        } on CredentialUnavailableException {
+          return false;
+        }
+        return current == presented;
+      },
+    );
+    if (!presentedIsCurrent) {
+      throw StateError(
+        'Cannot $operation: the bearer expired for a superseded credential.',
+      );
+    }
     repairGate.latch();
     final SessionReauthEntry entry = await metadataStore
         .enterSessionReauthRequired();

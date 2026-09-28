@@ -13,6 +13,7 @@ import 'package:spendwise/sync/secret_store.dart';
 import 'package:spendwise/sync/sync_e2e_key_provider.dart';
 import 'package:spendwise/sync/sync_enrollment_service.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
+import 'package:spendwise/sync/sync_repair_gate.dart';
 import 'package:spendwise/sync/sync_secret_keys.dart';
 import 'package:sync/sync.dart';
 
@@ -1976,5 +1977,43 @@ void main() {
     final snapshot = await metadataStore.snapshot();
     expect(snapshot.phase, SyncEnrollmentPhase.gateEnabled);
     expect(snapshot.writeEnabled, isTrue);
+  });
+
+  group('shared repair gate (IR4)', () {
+    test(
+      'the service uses the database gate shared with coordinators',
+      () async {
+        expect(
+          identical(service().repairGate, SyncRepairGate.forDatabase(db)),
+          isTrue,
+        );
+      },
+    );
+
+    test('device-secret mutations wait on the shared gate lock', () async {
+      await secrets.write(syncDeviceSecretKey, validDeviceSecret());
+      final gate = SyncRepairGate.forDatabase(db);
+      final release = Completer<void>();
+      var holderExited = false;
+      final held = gate.withSecretMutationLock(() async {
+        await release.future;
+        holderExited = true;
+      });
+
+      final enrollment = service().enroll();
+      for (var i = 0; i < 200; i++) {
+        await Future<void>.delayed(Duration.zero);
+      }
+      expect(holderExited, isFalse);
+      expect(await secrets.read(syncDeviceSecretKey), validDeviceSecret());
+
+      release.complete();
+      await enrollment;
+      await held;
+
+      expect(holderExited, isTrue);
+      final snapshot = await metadataStore.snapshot();
+      expect(snapshot.phase, SyncEnrollmentPhase.gateEnabled);
+    });
   });
 }

@@ -9,6 +9,7 @@ import 'package:spendwise/sync/reconciliation_snapshot_hasher.dart';
 import 'package:spendwise/sync/secret_store.dart';
 import 'package:spendwise/sync/sync_e2e_key_provider.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
+import 'package:spendwise/sync/sync_repair_gate.dart';
 import 'package:spendwise/sync/sync_secret_keys.dart';
 import 'package:sync/sync.dart';
 
@@ -44,13 +45,15 @@ final class SyncEnrollmentService {
     required this.bindingAuthorizer,
     required this.bindingIdentifier,
     required this.resolveBindingOtp,
-  });
+    SyncRepairGate? repairGate,
+  }) : repairGate = repairGate ?? SyncRepairGate.forDatabase(database);
 
   final SyncAuthenticator authenticator;
   final SyncBackend backend;
   final SyncMetadataStore metadataStore;
   final SecretStore secretStore;
   final LedgerDatabase database;
+  final SyncRepairGate repairGate;
   final BeginEnrollmentRequest Function() buildBeginRequest;
   final Future<CompleteEnrollmentRequest> Function(
     EnrollmentChallenge challenge,
@@ -140,7 +143,9 @@ final class SyncEnrollmentService {
 
   Future<SyncEnrollmentPhase> _stepPrepareFreshEnrollment() async {
     await _ensureE2EKey();
-    await secretStore.delete(syncDeviceSecretKey);
+    await repairGate.withSecretMutationLock(
+      () => secretStore.delete(syncDeviceSecretKey),
+    );
     await metadataStore.enterBindingAuthorizationRequired();
     return SyncEnrollmentPhase.bindingAuthorizationRequired;
   }
@@ -151,9 +156,12 @@ final class SyncEnrollmentService {
     if (storedSecret != null) {
       if (isValidSyncDeviceSecret(storedSecret)) {
         await metadataStore.enterSnapshotInProgress();
+        repairGate.release();
         return _stepSnapshotInProgress();
       }
-      await secretStore.delete(syncDeviceSecretKey);
+      await repairGate.withSecretMutationLock(
+        () => secretStore.delete(syncDeviceSecretKey),
+      );
     }
     final currentDeviceID = await deviceID(database);
     final startResponse = _requireSuccess(
@@ -217,8 +225,11 @@ final class SyncEnrollmentService {
             'Authorization-bearing Begin must carry a valid device_secret.',
       );
     }
-    await secretStore.write(syncDeviceSecretKey, rawSecret);
+    await repairGate.withSecretMutationLock(
+      () => secretStore.write(syncDeviceSecretKey, rawSecret),
+    );
     await metadataStore.enterSnapshotInProgress();
+    repairGate.release();
     final bound = await CredentialProvider(
       database: database,
       secretStore: secretStore,
@@ -339,7 +350,9 @@ final class SyncEnrollmentService {
       return SyncEnrollmentPhase.bindingAuthorizationRequired;
     }
     if (!isValidSyncDeviceSecret(storedSecret)) {
-      await secretStore.delete(syncDeviceSecretKey);
+      await repairGate.withSecretMutationLock(
+        () => secretStore.delete(syncDeviceSecretKey),
+      );
       await metadataStore.enterBindingAuthorizationRequired();
       return SyncEnrollmentPhase.bindingAuthorizationRequired;
     }
@@ -362,7 +375,9 @@ final class SyncEnrollmentService {
       syncCredentialSecretKey,
       const CredentialCodec().export(credential),
     );
-    return metadataStore.restoreFromSessionReauth();
+    final restored = await metadataStore.restoreFromSessionReauth();
+    repairGate.release();
+    return restored;
   }
 
   Future<Never> _routeCredentialUnavailable(
@@ -378,7 +393,9 @@ final class SyncEnrollmentService {
           message: error.toString(),
         );
       case CredentialUnavailableReason.deviceSecretMalformed:
-        await secretStore.delete(syncDeviceSecretKey);
+        await repairGate.withSecretMutationLock(
+          () => secretStore.delete(syncDeviceSecretKey),
+        );
         await metadataStore.enterBindingAuthorizationRequired();
         throw SyncEnrollmentException(
           step: step,
@@ -413,7 +430,9 @@ final class SyncEnrollmentService {
       );
     }
     if (code == 'device_authorization_required') {
-      await secretStore.delete(syncDeviceSecretKey);
+      await repairGate.withSecretMutationLock(
+        () => secretStore.delete(syncDeviceSecretKey),
+      );
       await metadataStore.enterBindingAuthorizationRequired();
     }
     throw SyncEnrollmentException(

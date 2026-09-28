@@ -62,18 +62,19 @@ void main() {
             writes: false,
           ),
         ),
-        isTrue,
+        isNotNull,
       );
-      expect(
-        gate.admit(
-          _snapshot(
-            binding: SyncDeviceBindingState.bound,
-            phase: SyncEnrollmentPhase.gateEnabled,
-            writes: true,
-          ),
+      final BoundRpcLease? lease = gate.admit(
+        _snapshot(
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.gateEnabled,
+          writes: true,
         ),
-        isTrue,
       );
+      if (lease == null) {
+        fail('Expected admission for bound/gateEnabled.');
+      }
+      expect(gate.isCurrent(lease), isTrue);
     });
 
     test('a legal repair snapshot refuses and latches the gate', () async {
@@ -90,7 +91,7 @@ void main() {
             resume: SyncEnrollmentPhase.gateEnabled,
           ),
         ),
-        isFalse,
+        isNull,
       );
       expect(gate.isOpen, isFalse);
       expect(
@@ -101,7 +102,7 @@ void main() {
             writes: false,
           ),
         ),
-        isFalse,
+        isNull,
       );
     });
 
@@ -118,7 +119,7 @@ void main() {
             writes: false,
           ),
         ),
-        isFalse,
+        isNull,
       );
     });
 
@@ -150,36 +151,109 @@ void main() {
       },
     );
 
-    test('an explicit latch stays latched until durable repair exit', () async {
-      final db = LedgerDatabase(NativeDatabase.memory());
-      addTearDown(db.close);
-      final gate = SyncRepairGate.forDatabase(db);
-
-      gate.latch();
-      expect(gate.isOpen, isFalse);
-      expect(
-        gate.admit(
+    test(
+      'a latched gate refuses even a bound snapshot until release',
+      () async {
+        final db = LedgerDatabase(NativeDatabase.memory());
+        addTearDown(db.close);
+        final gate = SyncRepairGate.forDatabase(db);
+        final BoundRpcLease? before = gate.admit(
           _snapshot(
             binding: SyncDeviceBindingState.bound,
-            phase: SyncEnrollmentPhase.sessionReauthRequired,
-            writes: false,
-            resume: SyncEnrollmentPhase.snapshotInProgress,
+            phase: SyncEnrollmentPhase.gateEnabled,
+            writes: true,
           ),
-        ),
-        isFalse,
-      );
-      expect(
-        gate.admit(
+        );
+        if (before == null) {
+          fail('Expected admission before the latch.');
+        }
+
+        gate.latch();
+        expect(gate.isOpen, isFalse);
+        expect(gate.isCurrent(before), isFalse);
+        expect(
+          gate.admit(
+            _snapshot(
+              binding: SyncDeviceBindingState.bound,
+              phase: SyncEnrollmentPhase.snapshotInProgress,
+              writes: false,
+            ),
+          ),
+          isNull,
+        );
+        expect(gate.isOpen, isFalse);
+
+        gate.release();
+        expect(gate.isOpen, isTrue);
+        final BoundRpcLease? after = gate.admit(
           _snapshot(
             binding: SyncDeviceBindingState.bound,
             phase: SyncEnrollmentPhase.snapshotInProgress,
             writes: false,
           ),
+        );
+        if (after == null) {
+          fail('Expected admission after release.');
+        }
+        expect(gate.isCurrent(after), isTrue);
+        expect(gate.isCurrent(before), isFalse);
+      },
+    );
+
+    test('release while open retires nothing', () async {
+      final db = LedgerDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      final gate = SyncRepairGate.forDatabase(db);
+      final BoundRpcLease? lease = gate.admit(
+        _snapshot(
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.gateEnabled,
+          writes: true,
         ),
-        isTrue,
       );
+      if (lease == null) {
+        fail('Expected admission.');
+      }
+
+      gate.release();
+
       expect(gate.isOpen, isTrue);
+      expect(gate.isCurrent(lease), isTrue);
     });
+
+    test(
+      'observing repair-durable state while open latches and retires',
+      () async {
+        final db = LedgerDatabase(NativeDatabase.memory());
+        addTearDown(db.close);
+        final gate = SyncRepairGate.forDatabase(db);
+        final BoundRpcLease? lease = gate.admit(
+          _snapshot(
+            binding: SyncDeviceBindingState.bound,
+            phase: SyncEnrollmentPhase.gateEnabled,
+            writes: true,
+          ),
+        );
+        if (lease == null) {
+          fail('Expected admission.');
+        }
+
+        expect(
+          gate.admit(
+            _snapshot(
+              binding: SyncDeviceBindingState.bound,
+              phase: SyncEnrollmentPhase.sessionReauthRequired,
+              writes: false,
+              resume: SyncEnrollmentPhase.gateEnabled,
+            ),
+          ),
+          isNull,
+        );
+
+        expect(gate.isOpen, isFalse);
+        expect(gate.isCurrent(lease), isFalse);
+      },
+    );
   });
 
   group('SyncRepairGate secret mutation lock', () {
