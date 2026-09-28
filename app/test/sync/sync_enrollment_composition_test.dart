@@ -64,6 +64,10 @@ final class _FakeSyncHttpClient extends http.BaseClient {
   final String bearer = 'stub-bearer';
   final List<_RecordedHttpRequest> requests = [];
 
+  /// Fires with the request path right before the stubbed response is
+  /// returned, so tests can snapshot store state at request time.
+  void Function(String path)? onSend;
+
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     final rawBody = request is http.Request ? request.body : '';
@@ -78,6 +82,7 @@ final class _FakeSyncHttpClient extends http.BaseClient {
         headers: headers,
       ),
     );
+    onSend?.call(request.url.path);
     return _response(_stubBody(request.url.path, headers));
   }
 
@@ -316,56 +321,57 @@ void main() {
     );
   });
 
-  test(
-    'service, coordinator, and publisher share one SecretStore',
-    () async {
-      final ready = await composeReady();
+  test('service, coordinator, and publisher share one SecretStore', () async {
+    final ready = await composeReady();
 
-      expect(
-        identical(ready.enrollmentService.secretStore, ready.secretStore),
-        isTrue,
-      );
+    expect(
+      identical(ready.enrollmentService.secretStore, ready.secretStore),
+      isTrue,
+    );
 
-      final metadataStore = SyncMetadataStore(db);
-      await metadataStore.setEnrollmentPhase(
-        SyncEnrollmentPhase.reconciliationComplete,
-      );
-      await metadataStore.setWriteEnabled(true);
-      await secrets.write(syncWriteProofSecretKey, 'proof-1');
+    final metadataStore = SyncMetadataStore(db);
+    await metadataStore.enterSnapshotInProgress();
+    await metadataStore.enterReconciliationComplete();
+    await metadataStore.enterGateEnabled();
+    // The enrollment service releases the gate when it commits the exit;
+    // this test drives the store directly, so it releases explicitly.
+    await ready.coordinator.repairGate.release(
+      await ready.coordinator.repairGate.repairEpisode(),
+    );
+    await secrets.write(syncWriteProofSecretKey, 'proof-1');
 
-      final publishResult = await ready.snapshotPublisher.publish();
+    final publishResult = await ready.snapshotPublisher.publish();
 
-      expect(publishResult, isA<EnrollmentSnapshotPublished>());
-      expect(secrets.reads, contains(syncWriteProofSecretKey));
+    expect(publishResult, isA<EnrollmentSnapshotPublished>());
+    expect(secrets.reads, contains(syncWriteProofSecretKey));
 
-      await secrets.write(
-        syncCredentialSecretKey,
-        _credentialPayload(await deviceID(db), 'stub-bearer'),
-      );
-      await metadataStore.setPendingAcknowledgement(
-        SyncCollection.entries,
-        'cursor-1',
-      );
+    await secrets.write(
+      syncCredentialSecretKey,
+      _credentialPayload(await deviceID(db), 'stub-bearer'),
+    );
+    await secrets.write(syncDeviceSecretKey, _stubDeviceSecret);
+    await metadataStore.setPendingAcknowledgement(
+      SyncCollection.entries,
+      'cursor-1',
+    );
 
-      await ready.coordinator.recoverPendingAcknowledgements();
+    await ready.coordinator.recoverPendingAcknowledgements();
 
-      final acknowledges = httpClient.callsTo('/rest/v1/rpc/sync_acknowledge');
-      expect(acknowledges, hasLength(1));
-      expect(
-        acknowledges.single.headers['authorization'],
-        'Bearer stub-bearer',
-      );
-      expect(
-        await metadataStore.pendingAcknowledgement(SyncCollection.entries),
-        isNull,
-      );
-    },
-    skip:
-        'blocked on #204 (T5): sync_coordinator.dart still passes a bare '
-        'session credential to SupabaseSyncBackend bound operations, which '
-        'now return InvalidRequest until the app migrates to '
-        'CredentialProvider.withBoundCredential',
-  );
+    final acknowledges = httpClient.callsTo('/rest/v1/rpc/sync_acknowledge');
+    expect(acknowledges, hasLength(1));
+    expect(
+      _headerValue(acknowledges.single.headers, 'authorization'),
+      'Bearer stub-bearer',
+    );
+    expect(
+      _headerValue(acknowledges.single.headers, 'X-SpendWise-Device-Secret'),
+      _stubDeviceSecret,
+    );
+    expect(
+      await metadataStore.pendingAcknowledgement(SyncCollection.entries),
+      isNull,
+    );
+  });
 
   test(
     'production E2E resolver produces SyncCipher.keyByteCount bytes',
@@ -376,38 +382,54 @@ void main() {
     },
   );
 
-  test(
-    'injected deterministic key is durably stored and validates',
-    () async {
-      final key = Uint8List.fromList(
-        List<int>.generate(SyncCipher.keyByteCount, (index) => 255 - index),
-      );
-      final ready = await composeReady(
-        identifier: 'user@example.com',
-        resolveE2EKey: () async => key,
-      );
+  test('injected deterministic key is durably stored and validates', () async {
+    final key = Uint8List.fromList(
+      List<int>.generate(SyncCipher.keyByteCount, (index) => 255 - index),
+    );
+    var e2eKeyStoredBeforeStart = false;
+    httpClient.onSend = (path) {
+      if (path == '/functions/v1/sync-device-binding/start') {
+        e2eKeyStoredBeforeStart = secrets.writes.contains(syncE2EKeySecretKey);
+      }
+    };
+    var otpResolutions = 0;
+    final ready = await composeReady(
+      identifier: 'user@example.com',
+      resolveOtp: (challenge) async {
+        otpResolutions++;
+        return '482916';
+      },
+      resolveE2EKey: () async => key,
+    );
 
-      await ready.enrollmentService.enroll();
+    await ready.enrollmentService.enroll();
 
-      final stored = await secrets.read(syncE2EKeySecretKey);
-      expect(stored, isNotNull);
-      expect(decodeAndValidateSyncE2EKey(stored!), key);
-      expect(
-        (await SyncMetadataStore(db).snapshot()).phase,
-        SyncEnrollmentPhase.gateEnabled,
-      );
-      final begins = httpClient.callsTo('/auth/v1/otp');
-      expect(begins.single.body['email'], 'user@example.com');
-      final completes = httpClient.callsTo('/auth/v1/verify');
-      expect(completes.single.body['email'], 'user@example.com');
-      expect(completes.single.body['token'], '482916');
-    },
-    skip:
-        'blocked on #204 (T5): sync_enrollment_service.dart still passes a '
-        'bare session credential to SupabaseSyncBackend.reconcile, which now '
-        'returns InvalidRequest until the app migrates to '
-        'CredentialProvider.withBoundCredential',
-  );
+    expect(e2eKeyStoredBeforeStart, isTrue);
+    final stored = await secrets.read(syncE2EKeySecretKey);
+    expect(stored, isNotNull);
+    expect(decodeAndValidateSyncE2EKey(stored!), key);
+    expect(
+      (await SyncMetadataStore(db).snapshot()).phase,
+      SyncEnrollmentPhase.gateEnabled,
+    );
+    final starts = httpClient.callsTo(
+      '/functions/v1/sync-device-binding/start',
+    );
+    expect(starts, hasLength(1));
+    expect(starts.single.body['identifier'], 'user@example.com');
+    expect(starts.single.body['device_id'], await deviceID(db));
+    final verifies = httpClient.callsTo(
+      '/functions/v1/sync-device-binding/verify',
+    );
+    expect(verifies, hasLength(1));
+    expect(verifies.single.body['identifier'], 'user@example.com');
+    expect(verifies.single.body['challenge_id'], 'challenge-1');
+    expect(verifies.single.body['device_id'], await deviceID(db));
+    expect(verifies.single.body['otp'], '482916');
+    expect(otpResolutions, 1);
+    expect(httpClient.callsTo('/auth/v1/otp'), isEmpty);
+    expect(httpClient.callsTo('/auth/v1/verify'), isEmpty);
+  });
 
   test('null ledger emits not-ready without touching the network', () async {
     await SyncMetadataStore(db)
