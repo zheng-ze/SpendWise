@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
+import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -4027,8 +4027,12 @@ void main() {
         },
       );
       final setup = await pushSetup(backend: backend);
-      await setup.coordinator.metadataStore.setEnrollmentPhase(
-        SyncEnrollmentPhase.sessionReauthRequired,
+      await (db.update(db.syncMeta)..where((t) => t.id.equals(0))).write(
+        SyncMetaCompanion(
+          enrollmentPhase: Value(
+            SyncEnrollmentPhase.sessionReauthRequired.code,
+          ),
+        ),
       );
 
       await expectLater(
