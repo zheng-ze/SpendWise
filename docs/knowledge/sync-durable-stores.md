@@ -1,6 +1,6 @@
 # Sync: durable app stores
 
-Last reconciled: 38bf33c
+Last reconciled: 1bed4e3
 
 ## Layer overview
 
@@ -120,12 +120,13 @@ This layer has no routes or screens. Source: `app/lib/sync/sync_metadata_store.d
 - `SyncMetadataStore.setBackendSelection` and `clearBackendSelection` write the nullable
   backend profile and endpoint; both stay null until enrollment. Source:
   `app/lib/sync/sync_metadata_store.dart` - `SyncMetadataStore.setBackendSelection`.
-- `SyncMetadataStore.setEnrollmentPhase` records `notEnrolled` (0), `credentialAcquired` (1),
+- `SyncEnrollmentPhase` persists `notEnrolled` (0), `credentialAcquired` (1),
   `snapshotInProgress` (2), `reconciliationComplete` (3), `gateEnabled` (4),
   `bindingAuthorizationRequired` (5), or `sessionReauthRequired` (6) under explicit integer
   codes. Source:
   `app/lib/sync/sync_metadata_store.dart` - `SyncEnrollmentPhase`,
-  `SyncMetadataStore.setEnrollmentPhase`.
+  `SyncMetadataStore.snapshot`; `app/test/sync/sync_metadata_store_test.dart` - test
+  `records every phase durably`.
 - `SyncDeviceBindingState` stores `notApplicable` (0), `authorizationRequired` (1), or
   `bound` (2) under explicit integer codes. Source: `app/lib/sync/sync_metadata_store.dart` -
   `SyncDeviceBindingState`, `SyncMetadataStore.snapshot`.
@@ -154,11 +155,6 @@ This layer has no routes or screens. Source: `app/lib/sync/sync_metadata_store.d
   recorded phase, clears the resume target, and enables writes only when restoring to
   `gateEnabled`; otherwise it throws `SyncRepairTransitionException` without writing. Source:
   `app/lib/sync/sync_metadata_store.dart` - `SyncMetadataStore.restoreFromSessionReauth`.
-- `SyncMetadataStore.setWriteEnabled` enables the write gate only from
-  `reconciliationComplete`; a refused enable throws `SyncWriteGateException` and persists
-  nothing, while disabling remains allowed. Source: `app/lib/sync/sync_metadata_store.dart` -
-  `SyncMetadataStore.setWriteEnabled`; `app/test/sync/sync_metadata_store_test.dart` - test
-  `an early enable is refused and persists nothing`.
 - `SyncMetadataStore.setPullWatermark` records one collection cursor; a null cursor clears it.
   Source: `app/lib/sync/sync_metadata_store.dart` - `SyncMetadataStore.setPullWatermark`.
 - `SyncMetadataStore.acknowledgedVector`, `acknowledgedVectors`, and `setAcknowledgedVector`

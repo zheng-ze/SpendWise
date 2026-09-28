@@ -192,25 +192,6 @@ final class SyncMetadataStore implements BackendSelectionWriter {
     ),
   );
 
-  Future<void> setEnrollmentPhase(SyncEnrollmentPhase phase) =>
-      _updateMeta(SyncMetaCompanion(enrollmentPhase: Value(phase.code)));
-
-  Future<void> setWriteEnabled(bool value) => _db.transaction(() async {
-    await _ensureMetaRow();
-    if (value) {
-      final phase = SyncEnrollmentPhase.fromCode(
-        (await _metaRow()).enrollmentPhase,
-      );
-      if (phase != SyncEnrollmentPhase.reconciliationComplete) {
-        throw SyncWriteGateException(
-          'Cannot enable sync writes from phase ${phase.name}; '
-          'reconciliation must complete first.',
-        );
-      }
-    }
-    await _writeMeta(SyncMetaCompanion(writeEnabled: Value(value)));
-  });
-
   HostedOperationLegality validateHostedOperationState(
     SyncMetadataSnapshot snapshot,
   ) {
