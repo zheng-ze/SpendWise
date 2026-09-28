@@ -1,6 +1,6 @@
 # Sync: durable app stores
 
-Last reconciled: 38bf33c
+Last reconciled: 1bed4e3
 
 ## Layer overview
 
