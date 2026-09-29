@@ -25,6 +25,8 @@ const _otpField = Key('syncOtpField');
 const _otpSubmit = Key('syncOtpSubmit');
 const _otpBack = Key('syncOtpBack');
 const _resumeRetry = Key('syncResumeRetry');
+const _pickerBack = Key('syncPickerBack');
+const _freshDone = Key('syncFreshDone');
 
 final class FakeBackendSelectionWriter implements BackendSelectionWriter {
   final List<({SyncBackendKind backend, String? endpoint})> calls = [];
@@ -479,6 +481,45 @@ void main() {
     expect(find.byKey(_otpField), findsNothing);
     expect(find.byKey(_resumeRetry), findsNothing);
     expect(find.byType(BackendPickerScreen), findsNothing);
+  });
+
+  testWidgets('system back at the picker root ends the flow', (tester) async {
+    var endedCalls = 0;
+    await pumpEnrollmentFlow(tester, onEnded: () => endedCalls++);
+
+    expect(find.byType(BackendPickerScreen), findsOneWidget);
+    await tester.binding.handlePopRoute();
+    await pumpFlowFrames(tester);
+
+    expect(endedCalls, 1);
+  });
+
+  testWidgets('picker Back button ends the flow', (tester) async {
+    var endedCalls = 0;
+    await pumpEnrollmentFlow(tester, onEnded: () => endedCalls++);
+
+    await tester.tap(find.byKey(_pickerBack));
+    await pumpFlowFrames(tester);
+
+    expect(endedCalls, 1);
+  });
+
+  testWidgets('fresh completion Done ends the flow', (tester) async {
+    var endedCalls = 0;
+    final harness = await pumpEnrollmentFlow(
+      tester,
+      onEnded: () => endedCalls++,
+    );
+    await continueWithHosted(tester);
+    harness.opener.session.onEnroll = () async {};
+    await submitIdentifier(tester, 'user@example.com');
+    await pumpFlowFrames(tester);
+
+    expect(find.text('Sync enrollment complete'), findsOneWidget);
+    await tester.tap(find.byKey(_freshDone));
+    await pumpFlowFrames(tester);
+
+    expect(endedCalls, 1);
   });
 
   testWidgets('back is blocked while identifier submission is in flight '

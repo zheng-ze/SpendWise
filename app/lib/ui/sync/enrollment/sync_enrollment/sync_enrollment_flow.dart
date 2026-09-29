@@ -100,7 +100,7 @@ class _SyncEnrollmentFlowState
           ),
           (_) => false,
         );
-      case DismissRepairFlow():
+      case DismissEnrollmentFlow():
         unawaited(goBack());
     }
     _viewModel.clearStep();
@@ -109,5 +109,8 @@ class _SyncEnrollmentFlowState
   @override
   Widget buildRoot(BuildContext context) => widget.repairMode
       ? const SyncIdentifierScreen()
-      : BackendPickerFlow(onHostedReady: _viewModel.hostedReady);
+      : BackendPickerFlow(
+          onEnded: widget.onEnded,
+          onHostedReady: _viewModel.hostedReady,
+        );
 }

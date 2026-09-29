@@ -307,9 +307,20 @@ class SyncEnrollmentCompletionScreen extends ConsumerWidget {
     if (!state.repairMode) {
       return Scaffold(
         appBar: AppBar(title: const Text('Sync enrolled')),
-        body: const Padding(
+        body: Padding(
           padding: EdgeInsets.all(16),
-          child: Text('Sync enrollment complete'),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Sync enrollment complete'),
+              const SizedBox(height: 16),
+              FilledButton(
+                key: const Key('syncFreshDone'),
+                onPressed: viewModel.dismissFlow,
+                child: const Text('Done'),
+              ),
+            ],
+          ),
         ),
       );
     }

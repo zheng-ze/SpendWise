@@ -46,5 +46,6 @@ class _BackendPickerFlowState
   }
 
   @override
-  Widget buildRoot(BuildContext context) => const BackendPickerScreen();
+  Widget buildRoot(BuildContext context) =>
+      BackendPickerScreen(onBack: showsOwnBackButton ? goBack : null);
 }

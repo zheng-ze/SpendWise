@@ -28,7 +28,9 @@ final class ShowProgressResume extends SyncEnrollmentStep {}
 
 final class ShowEnrollmentCompleted extends SyncEnrollmentStep {}
 
-final class DismissRepairFlow extends SyncEnrollmentStep {}
+class DismissEnrollmentFlow extends SyncEnrollmentStep {}
+
+final class DismissRepairFlow extends DismissEnrollmentFlow {}
 
 final class SyncEnrollmentState
     implements HasStep<SyncEnrollmentState, SyncEnrollmentStep> {
@@ -104,6 +106,7 @@ abstract class SyncEnrollmentViewModel {
   Future<void> requestNewCode();
   Duration? codeCooldownRemaining();
   void dismissRepairFlow();
+  void dismissFlow();
   void cancelPendingOperation();
   Future<void> retry();
   void clearStep();
@@ -295,6 +298,9 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
 
   @override
   void dismissRepairFlow() => emitStep(DismissRepairFlow());
+
+  @override
+  void dismissFlow() => emitStep(DismissEnrollmentFlow());
 
   @override
   void cancelPendingOperation() {
