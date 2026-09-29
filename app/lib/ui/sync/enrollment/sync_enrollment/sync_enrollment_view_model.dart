@@ -42,6 +42,7 @@ final class SyncEnrollmentState
     this.repairPhase,
     this.explainCodeReplacement = false,
     this.codeCooldownEndsAt,
+    this.otpWaiting = false,
   });
 
   final String identifier;
@@ -57,6 +58,11 @@ final class SyncEnrollmentState
   final bool explainCodeReplacement;
   final DateTime? codeCooldownEndsAt;
 
+  /// True while exactly one OTP resolver waits for input. The new-code
+  /// action is enabled only then; through session opening, verification
+  /// and publication no resolver waits.
+  final bool otpWaiting;
+
   SyncEnrollmentState copyWith({
     String? identifier,
     bool? inFlight,
@@ -67,6 +73,7 @@ final class SyncEnrollmentState
     SyncEnrollmentPhase? Function()? repairPhase,
     bool? explainCodeReplacement,
     DateTime? Function()? codeCooldownEndsAt,
+    bool? otpWaiting,
   }) {
     return SyncEnrollmentState(
       identifier: identifier ?? this.identifier,
@@ -81,6 +88,7 @@ final class SyncEnrollmentState
       codeCooldownEndsAt: codeCooldownEndsAt == null
           ? this.codeCooldownEndsAt
           : codeCooldownEndsAt(),
+      otpWaiting: otpWaiting ?? this.otpWaiting,
     );
   }
 
@@ -242,7 +250,7 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
       );
       return;
     }
-    state = state.copyWith(errorMessage: () => null);
+    state = state.copyWith(errorMessage: () => null, otpWaiting: false);
     _otpCompleter = null;
     final acceptedOperation = _currentOperation;
     if (_repairMode && acceptedOperation != null) {
@@ -260,11 +268,17 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
     final pending = _otpCompleter;
     if (pending == null || pending.isCompleted) return;
     _otpCompleter = null;
+    state = state.copyWith(otpWaiting: false);
     pending.completeError(const SyncEnrollmentOtpCancelled());
   }
 
   @override
   Future<void> requestNewCode() async {
+    // A replacement is accepted only while exactly one OTP resolver waits.
+    // Through session opening, verification and publication no resolver
+    // waits, so repeated taps cannot stack sessions or issue extra codes.
+    final waiting = _otpCompleter;
+    if (waiting == null || waiting.isCompleted) return;
     final cooldown = _codeCooldownRemaining();
     if (cooldown != null) {
       state = state.copyWith(errorMessage: () => _cooldownCopy(cooldown));
@@ -277,11 +291,12 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
       );
       return;
     }
-    // Retire the waiting OTP operation, then take the guard synchronously so
-    // the replacement submission is never blocked by the retired operation.
-    // The retired operation unwinds against a stale token and is ignored.
+    // Return to the identifier root before opening the replacement session
+    // so the next challenge pushes the only OTP route. The retired operation
+    // unwinds against a stale token and is ignored.
     cancelPendingOperation();
-    state = state.copyWith(inFlight: false);
+    emitStep(ShowIdentifierEntry());
+    state = state.copyWith(inFlight: false, otpWaiting: false);
     await submitIdentifier(identifier);
   }
 
@@ -318,7 +333,7 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
           // of stranding the next entry on the progress screen.
           emitStep(ShowOtpEntry());
         }
-        state = state.copyWith(inFlight: false);
+        state = state.copyWith(inFlight: false, otpWaiting: false);
       });
     }
   }
@@ -367,7 +382,9 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
       final otpCompleter = Completer<String>();
       _otpCompleter = otpCompleter;
       if (_repairMode) {
-        state = state.copyWith(explainCodeReplacement: true);
+        state = state.copyWith(explainCodeReplacement: true, otpWaiting: true);
+      } else {
+        state = state.copyWith(otpWaiting: true);
       }
       emitStep(ShowOtpEntry());
       return otpCompleter.future;
@@ -546,7 +563,11 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
     if (!identical(operation, _currentOperation)) return;
     _otpCompleter = null;
     _session = null;
-    state = state.copyWith(errorMessage: () => null, cancelled: true);
+    state = state.copyWith(
+      errorMessage: () => null,
+      cancelled: true,
+      otpWaiting: false,
+    );
     emitStep(ShowIdentifierEntry());
   }
 

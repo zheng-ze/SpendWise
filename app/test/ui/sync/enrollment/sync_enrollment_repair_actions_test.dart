@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -129,37 +131,64 @@ void main() {
   });
 
   group('new-code requests', () {
-    test(
-      'requestNewCode cancels the pending OTP and opens a new session',
-      () async {
-        final harness = _Harness()..build();
-        addTearDown(harness.dispose);
-        await harness.metadataStore.enterBindingAuthorizationRequired();
-        await harness.notifier.enterRepairMode();
-        final pending = await _driveToOtpEntry(harness);
-        expect(harness.opener.openCalls, 1);
+    test('requestNewCode while a resolver waits cancels it and opens '
+        'a new session', () async {
+      final harness = _Harness()..build();
+      addTearDown(harness.dispose);
+      await harness.metadataStore.enterBindingAuthorizationRequired();
+      await harness.notifier.enterRepairMode();
+      await _driveToOtpEntry(harness);
+      expect(harness.opener.openCalls, 1);
+      harness.notifier.clearStep();
 
-        harness.clock = harness.clock.add(const Duration(seconds: 61));
-        _collectOtpOnEnroll(harness);
-        harness.notifier.submitOtp('482916');
-        await pending;
-        harness.notifier.clearStep();
+      harness.clock = harness.clock.add(const Duration(seconds: 61));
+      _collectOtpOnEnroll(harness);
+      final resend = harness.notifier.requestNewCode();
+      for (var i = 0; i < 50; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        if (harness.state.step is ShowOtpEntry) break;
+      }
 
-        _collectOtpOnEnroll(harness);
-        final resend = harness.notifier.requestNewCode();
-        for (var i = 0; i < 50; i++) {
-          await Future<void>.delayed(const Duration(milliseconds: 10));
-          if (harness.state.step is ShowOtpEntry) break;
-        }
+      expect(harness.opener.openCalls, 2);
+      expect(harness.opener.identifiers.last, 'user@example.com');
+      expect(harness.state.step, isA<ShowOtpEntry>());
 
-        expect(harness.opener.openCalls, 2);
-        expect(harness.opener.identifiers.last, 'user@example.com');
-        expect(harness.state.step, isA<ShowOtpEntry>());
+      harness.notifier.submitOtp('000000');
+      await resend;
+      expect(harness.state.step, isA<ShowEnrollmentCompleted>());
+    });
 
-        harness.notifier.submitOtp('000000');
-        await resend;
-      },
-    );
+    test('repeated new-code taps while opening issue one request', () async {
+      final harness = _Harness()..build();
+      addTearDown(harness.dispose);
+      await harness.metadataStore.enterBindingAuthorizationRequired();
+      await harness.notifier.enterRepairMode();
+      await _driveToOtpEntry(harness);
+      harness.notifier.clearStep();
+
+      harness.clock = harness.clock.add(const Duration(seconds: 61));
+      final openGate = Completer<void>();
+      harness.opener.onOpen = () => openGate.future;
+      final first = harness.notifier.requestNewCode();
+      await harness.notifier.requestNewCode();
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      expect(harness.opener.openCalls, 2);
+      expect(harness.state.errorMessage, isNull);
+
+      harness.opener.onOpen = null;
+      openGate.complete();
+      for (var i = 0; i < 50; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        if (harness.state.step is ShowOtpEntry) break;
+      }
+      expect(harness.state.step, isA<ShowOtpEntry>());
+
+      harness.notifier.submitOtp('000000');
+      await first;
+      expect(harness.opener.openCalls, 2);
+      expect(harness.state.step, isA<ShowEnrollmentCompleted>());
+    });
 
     test('requestNewCode during the cooldown opens no new session', () async {
       final harness = _Harness()..build();

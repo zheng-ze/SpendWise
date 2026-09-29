@@ -42,6 +42,7 @@ final class _Harness {
   Future<void> pumpRepairFlow(
     WidgetTester tester, {
     SyncEnrollmentPhase? seedPhase,
+    Completer<void>? refreshGate,
   }) async {
     db = LedgerDatabase(NativeDatabase.memory());
     addTearDown(db.close);
@@ -55,13 +56,18 @@ final class _Harness {
     opener = FakeSessionOpener();
     secrets = InMemorySecretStore();
     final now = clock;
+    final gate = refreshGate;
     container = ProviderContainer(
       overrides: [
         appBootProvider.overrideWith(
           (ref) => AppBoot(
             createStore: () async => RecordingLedgerStore(),
             seedChanges: () => const [],
-            readSyncSnapshot: () => metadataStore.snapshot(),
+            readSyncSnapshot: () async {
+              final pendingGate = gate;
+              if (pendingGate != null) await pendingGate.future;
+              return metadataStore.snapshot();
+            },
           ),
         ),
         ledgerDatabaseProvider.overrideWithValue(db),
@@ -290,6 +296,104 @@ void main() {
       });
     }
 
+    testWidgets('requesting a new code replaces the OTP route instead '
+        'of stacking a second one', (tester) async {
+      final harness = _Harness();
+      await harness.pumpRepairFlow(
+        tester,
+        seedPhase: SyncEnrollmentPhase.bindingAuthorizationRequired,
+      );
+      await driveToOtpEntry(tester, harness.opener.session);
+      harness.clock = harness.clock.add(const Duration(seconds: 61));
+      // Let the cooldown ticker rebuild past expiry before requesting.
+      await tester.pump(const Duration(seconds: 2));
+      final openGate = Completer<void>();
+      harness.opener.onOpen = () => openGate.future;
+
+      await tester.tap(find.byKey(_otpNewCode));
+      await pumpRepairFrames(tester);
+
+      expect(find.byKey(_identifierField), findsOneWidget);
+      expect(
+        tester.widgetList(find.byType(SyncOtpScreen, skipOffstage: false)),
+        isEmpty,
+      );
+
+      harness.opener.onOpen = null;
+      openGate.complete();
+      await pumpRepairFrames(tester);
+
+      expect(find.byKey(_otpField), findsOneWidget);
+      expect(
+        tester.widgetList(find.byType(SyncOtpScreen, skipOffstage: false)),
+        hasLength(1),
+      );
+      expect(harness.opener.openCalls, 2);
+    });
+
+    testWidgets('back during a pending replacement exits the flow '
+        'and cancels the session open', (tester) async {
+      final harness = _Harness();
+      await harness.pumpRepairFlow(
+        tester,
+        seedPhase: SyncEnrollmentPhase.bindingAuthorizationRequired,
+      );
+      await driveToOtpEntry(tester, harness.opener.session);
+      harness.clock = harness.clock.add(const Duration(seconds: 61));
+      await tester.pump(const Duration(seconds: 2));
+      final openGate = Completer<void>();
+      harness.opener.onOpen = () => openGate.future;
+
+      await tester.tap(find.byKey(_otpNewCode));
+      await pumpRepairFrames(tester);
+      expect(find.byKey(_identifierField), findsOneWidget);
+
+      await tester.binding.handlePopRoute();
+      await pumpRepairFrames(tester);
+
+      expect(harness.endedCalls, 1);
+
+      // Production pops the repair route on ended; disposing the Flow
+      // cancels the pending session open.
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: harness.container,
+          child: const MaterialApp(home: Scaffold(body: Text('flow gone'))),
+        ),
+      );
+      await pumpRepairFrames(tester);
+
+      expect(
+        harness.container.read(syncEnrollmentViewModelProvider).inFlight,
+        isFalse,
+      );
+
+      openGate.complete();
+      await pumpRepairFrames(tester);
+
+      expect(harness.opener.openCalls, 2);
+      expect(harness.opener.session.enrollCalls, 1);
+      final snapshot = await harness.metadataStore.snapshot();
+      expect(snapshot.phase, SyncEnrollmentPhase.bindingAuthorizationRequired);
+      expect(snapshot.writeEnabled, isFalse);
+    });
+
+    testWidgets('back on the idle repair identifier root ends the flow '
+        'without popping the root', (tester) async {
+      final harness = _Harness();
+      await harness.pumpRepairFlow(
+        tester,
+        seedPhase: SyncEnrollmentPhase.bindingAuthorizationRequired,
+      );
+      expect(find.byKey(_identifierField), findsOneWidget);
+
+      await tester.binding.handlePopRoute();
+      await pumpRepairFrames(tester);
+
+      expect(harness.endedCalls, 1);
+      expect(find.byKey(_identifierField), findsOneWidget);
+    });
+
     testWidgets('disposing the flow while an OTP is pending releases '
         'the guard and preserves the durable phase', (tester) async {
       final harness = _Harness();
@@ -361,6 +465,28 @@ void main() {
         harness.container.read(hostedSyncStatusProvider),
         projectHostedSyncStatus(snapshot),
       );
+    });
+
+    testWidgets('backing out during the cleared-entry refresh does not '
+        'end a later route', (tester) async {
+      final harness = _Harness();
+      final refreshGate = Completer<void>();
+      await harness.pumpRepairFlow(tester, refreshGate: refreshGate);
+      // Entry found no repair phase and is awaiting the status refresh.
+      expect(harness.endedCalls, 0);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: harness.container,
+          child: const MaterialApp(home: Scaffold(body: Text('flow gone'))),
+        ),
+      );
+      await pumpRepairFrames(tester);
+
+      refreshGate.complete();
+      await pumpRepairFrames(tester);
+
+      expect(harness.endedCalls, 0);
     });
   });
 }

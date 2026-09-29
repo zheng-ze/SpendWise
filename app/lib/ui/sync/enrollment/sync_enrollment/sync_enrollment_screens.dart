@@ -73,7 +73,11 @@ class _SyncIdentifierScreenState extends ConsumerState<SyncIdentifierScreen> {
         : const Text('Continue');
 
     return PopScope(
-      canPop: !state.inFlight,
+      // The repair root is the identifier route itself and isFirst, so an
+      // allowed back bubbles out of the nested navigator to the Flow, which
+      // ends the repair and cancels via dispose. Vetoing here would report
+      // doNotPop (handled) and swallow the back press instead.
+      canPop: state.repairMode || !state.inFlight,
       child: Scaffold(
         appBar: AppBar(
           title: Text(
@@ -228,7 +232,7 @@ class _SyncOtpScreenState extends ConsumerState<SyncOtpScreen> {
             ),
             TextButton(
               key: const Key('syncOtpNewCode'),
-              onPressed: cooldown == null
+              onPressed: cooldown == null && state.otpWaiting
                   ? () => viewModel.requestNewCode()
                   : null,
               child: Text(
