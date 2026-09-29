@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -8,6 +10,7 @@ import 'package:spendwise/ui/settings/plan/plan_list_screen.dart';
 import 'package:spendwise/ui/settings/recycle_bin/recycle_bin_screen.dart';
 import 'package:spendwise/ui/settings/settings_root_screen.dart';
 import 'package:spendwise/ui/settings/settings_root_view_model.dart';
+import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_flow.dart';
 
 class SettingsFlow extends FlowBase<SettingsStep> {
@@ -19,6 +22,34 @@ class SettingsFlow extends FlowBase<SettingsStep> {
 
 class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
   bool _repairFlowOpen = false;
+  void Function()? _closeSelectionSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    // AppShell keeps every destination mounted in an IndexedStack, so a
+    // cached status would otherwise survive until the next repair return.
+    // Re-read durable metadata whenever the Settings tab becomes selected.
+    if (ref.read(selectedDestinationProvider) == ShellDestination.settings) {
+      unawaited(_refreshSyncStatus());
+    }
+    _closeSelectionSubscription = ref.listenManual(
+      selectedDestinationProvider,
+      (previous, next) {
+        if (previous != ShellDestination.settings &&
+            next == ShellDestination.settings) {
+          unawaited(_refreshSyncStatus());
+        }
+      },
+    ).close;
+  }
+
+  @override
+  void dispose() {
+    _closeSelectionSubscription?.call();
+    super.dispose();
+  }
+
   @override
   void Function() subscribeToStep(void Function(SettingsStep? step) handle) =>
       ref
@@ -64,10 +95,14 @@ class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
         .then((_) async {
           _repairFlowOpen = false;
           if (!mounted) return;
-          try {
-            await ref.read(appBootProvider).refreshSyncStatus();
-          } catch (_) {}
+          await _refreshSyncStatus();
         });
+  }
+
+  Future<void> _refreshSyncStatus() async {
+    try {
+      await ref.read(appBootProvider).refreshSyncStatus();
+    } catch (_) {}
   }
 
   @override

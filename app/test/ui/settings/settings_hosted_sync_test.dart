@@ -12,6 +12,7 @@ import 'package:spendwise/persistence/ledger_database.dart' show LedgerDatabase;
 import 'package:spendwise/sync/hosted_sync_status.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
 import 'package:spendwise/ui/settings/settings_flow.dart';
+import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_screen.dart';
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_screens.dart';
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart';
@@ -43,7 +44,7 @@ void main() {
       FakeSessionOpener opener,
     })
   >
-  pumpSettingsFlow(WidgetTester tester, HostedSyncStatus status) async {
+  pumpSettingsFlow(WidgetTester tester, HostedSyncStatus? status) async {
     final db = LedgerDatabase(NativeDatabase.memory());
     addTearDown(db.close);
     final metadataStore = SyncMetadataStore(db);
@@ -51,7 +52,7 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         ledgerProvider.overrideWithValue(buildLedger()),
-        hostedSyncStatusProvider.overrideWithValue(status),
+        if (status != null) hostedSyncStatusProvider.overrideWithValue(status),
         ledgerDatabaseProvider.overrideWithValue(db),
         syncMetadataStoreProvider.overrideWithValue(metadataStore),
         appBootProvider.overrideWith(
@@ -211,6 +212,32 @@ void main() {
 
     expect(find.byType(SyncIdentifierScreen), findsNothing);
     expect(find.text('Hosted sync'), findsOneWidget);
+    expect(find.text('Repair Device Access'), findsOneWidget);
+  });
+
+  testWidgets('selecting the Settings tab refreshes a changed durable phase', (
+    tester,
+  ) async {
+    final harness = await pumpSettingsFlow(tester, null);
+    expect(find.text('Status unavailable'), findsOneWidget);
+
+    harness.container.read(selectedDestinationProvider.notifier).state =
+        ShellDestination.settings;
+    await tester.pumpAndSettle();
+    expect(find.text('Not configured'), findsOneWidget);
+
+    await harness.metadataStore.setBackendSelection(
+      backend: SyncBackendKind.supabase,
+    );
+    await harness.metadataStore.enterBindingAuthorizationRequired();
+    harness.container.read(selectedDestinationProvider.notifier).state =
+        ShellDestination.transactions;
+    await tester.pumpAndSettle();
+    harness.container.read(selectedDestinationProvider.notifier).state =
+        ShellDestination.settings;
+    await tester.pumpAndSettle();
+
+    expect(find.text('Binding repair needed'), findsOneWidget);
     expect(find.text('Repair Device Access'), findsOneWidget);
   });
 }
