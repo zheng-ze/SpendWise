@@ -33,6 +33,16 @@ class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
     if (ref.read(selectedDestinationProvider) == ShellDestination.settings) {
       unawaited(_refreshSyncStatus());
     }
+    // The repair banner can emit its single-shot request before this Flow's
+    // navigator mounts, and FlowBase drops pre-mount steps. Re-check the
+    // pending step once mounted so the request is consumed exactly once.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final context = navigatorContext;
+      if (context == null) return;
+      final step = ref.read(settingsRootViewModelProvider).step;
+      if (step != null) handleStep(context, step);
+    });
     _closeSelectionSubscription = ref.listenManual(
       selectedDestinationProvider,
       (previous, next) {
