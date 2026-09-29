@@ -110,10 +110,10 @@ code; HTTP 426 maps to `protocol_unsupported`.
 
 | Dart member / parameter | Wire operation / field | Notes |
 |---|---|---|
-| `SyncBackend.push(...)` | `POST /v1/sync/push` | Body carries sibling envelopes plus optional top-level `write_proof` |
-| `SyncBackend.pull(...)` | `POST /v1/sync/pull` | One collection, one cursor or reconciliation context per call |
-| `SyncBackend.reconcile(...)` | `POST /v1/sync/reconcile` | Sealed `BeginReconcile` / `CompleteReconcile` |
-| `SyncBackend.acknowledge(...)` | `POST /v1/sync/acknowledge` | One collection checkpoint per call |
+| `SyncBackend.push(...)` | Supabase RPC `sync_push` (legacy custom prototype: `POST /v1/sync/push`) | Body carries sibling envelopes plus optional top-level `write_proof` |
+| `SyncBackend.pull(...)` | Supabase RPC `sync_pull` (legacy custom prototype: `POST /v1/sync/pull`) | One collection, one cursor or reconciliation context per call |
+| `SyncBackend.reconcile(...)` | Supabase RPCs `sync_begin_reconcile` / `sync_complete_reconcile` (legacy custom prototype: `POST /v1/sync/reconcile`) | Sealed `BeginReconcile` / `CompleteReconcile` |
+| `SyncBackend.acknowledge(...)` | Supabase RPC `sync_acknowledge` (legacy custom prototype: `POST /v1/sync/acknowledge`) | One collection checkpoint per call |
 | `beginEnrollment(identifier)` | enrollment wire step (backend-defined) | Returns opaque `AuthChallenge` |
 | `completeEnrollment(challenge, response)` | enrollment wire step (backend-defined) | Returns opaque `DeviceCredential` |
 | `refreshCredential(credential)` | refresh wire step (backend-defined) | Returns opaque `DeviceCredential` |
@@ -430,7 +430,7 @@ HTTP 200.
 | 409 | `stale_or_invalid_proof` or `snapshot_hash_mismatch` | supply/reuse proof correctly, or re-page the named collection |
 | 426 | `protocol_unsupported` | upgrade to major 2; never retry with v1 fields or without binding proof |
 | 428 | `device_authorization_required` | obtain a new binding authorization, then use authorization-bearing Begin and full reconciliation |
-| 429 | `rate_limited` | honor `retry_after_seconds` |
+| 429 | `rate_limited` | honor the HTTP `Retry-After` header |
 | 503 | `backend_unavailable` | retain local writes, retry on lifecycle or on demand |
 
 `incompatible_server` is a terminal client outcome for an unparseable v2 success response or an
@@ -479,11 +479,10 @@ and exactly one binding header appropriate to its mode.
 refreshCredential each expose DTO opacity, ownership, success types, challenge failures, rate
 limiting, backend unavailability, and separation from `SyncBackend`.
 
-**Package-boundary matrix.** Verify that the design assigns only `VersionVector` and
-`VersionVectorDecodeError` to future relocation, keeps `deviceID` and `_claimDeviceID` with Drift,
-specifies only the `domain` path dependency for `normalizedID`, exposes `VersionVector` through
-`package:sync/sync.dart`, excludes Flutter and `app/lib` imports, and defers all moves to
-follow-on implementation.
+**Package-boundary matrix.** Verify that `VersionVector` and `VersionVectorDecodeError` live in
+`packages/sync/lib/src/protocol/version_vector.dart`, that `deviceID` and `_claimDeviceID` stay with
+Drift, that the only `domain` path dependency is `normalizedID`, that `VersionVector` is exposed
+through `package:sync/sync.dart`, and that `packages/sync` imports neither Flutter nor `app/lib`.
 
 **Schema-coverage matrix.** Prove that every settled envelope field appears consistently in storage,
 JSON, AAD, sibling identity, collection hashes, operation inputs, and operation responses, and that
