@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:spendwise/boot/app_boot.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/persistence/ledger_database.dart';
 import 'package:spendwise/sync/sync_enrollment_service.dart';
@@ -11,6 +12,7 @@ import 'package:spendwise/sync/sync_secret_keys.dart';
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart';
 import 'package:sync/sync.dart';
 
+import '../../../support/recording_ledger_store.dart';
 import '../../../sync/in_memory_secret_store.dart';
 import 'sync_enrollment_flow_test.dart' show FakeSessionOpener;
 
@@ -21,14 +23,26 @@ final class _Harness {
   late InMemorySecretStore secrets;
   late ProviderContainer container;
   DateTime clock = DateTime.utc(2026, 1, 1);
+  int snapshotReads = 0;
 
-  void build({bool repairMode = true}) {
+  void build({bool repairMode = true, bool stubAppBoot = false}) {
     db = LedgerDatabase(NativeDatabase.memory());
     metadataStore = SyncMetadataStore(db);
     opener = FakeSessionOpener();
     secrets = InMemorySecretStore();
     container = ProviderContainer(
       overrides: [
+        if (stubAppBoot)
+          appBootProvider.overrideWith(
+            (ref) => AppBoot(
+              createStore: () async => RecordingLedgerStore(),
+              seedChanges: () => const [],
+              readSyncSnapshot: () {
+                snapshotReads++;
+                return metadataStore.snapshot();
+              },
+            ),
+          ),
         ledgerDatabaseProvider.overrideWithValue(db),
         syncMetadataStoreProvider.overrideWithValue(metadataStore),
         syncEnrollmentViewModelProvider.overrideWith(
@@ -257,6 +271,28 @@ void main() {
       },
     );
 
+    test('disposing while enroll is pending still refreshes the durable '
+        'status once the service settles', () async {
+      final harness = _Harness()..build(stubAppBoot: true);
+      addTearDown(harness.dispose);
+      await _seedRepair(
+        harness,
+        SyncEnrollmentPhase.bindingAuthorizationRequired,
+      );
+      final enrollGate = Completer<void>();
+      harness.opener.session.onEnroll = () => enrollGate.future;
+      final pending = harness.notifier.submitIdentifier('user@example.com');
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(harness.opener.session.enrollCalls, 1);
+      final readsBeforeCancel = harness.snapshotReads;
+
+      harness.notifier.cancelPendingOperation();
+      enrollGate.complete();
+      await pending;
+
+      expect(harness.snapshotReads, greaterThan(readsBeforeCancel));
+    });
+
     test('a late operation cannot overwrite a newer one', () async {
       final harness = _Harness()..build();
       addTearDown(harness.dispose);
@@ -380,6 +416,30 @@ void main() {
       expect(harness.opener.openCalls, 2);
       harness.notifier.submitOtp('482916');
       await pending;
+    });
+
+    test('a Retry-After beyond the display cap surfaces bounded copy on the '
+        'cooldown rejection too', () async {
+      final harness = _Harness()..build();
+      addTearDown(harness.dispose);
+      await _seedRepair(
+        harness,
+        SyncEnrollmentPhase.bindingAuthorizationRequired,
+      );
+      harness.opener.session.onEnroll = () async {
+        throw const SyncEnrollmentException(
+          step: 'completeEnrollment',
+          code: 'rate_limited',
+          retryAfter: Duration(seconds: 3600),
+        );
+      };
+      await harness.notifier.submitIdentifier('user@example.com');
+
+      await harness.notifier.submitIdentifier('user@example.com');
+
+      expect(harness.state.errorMessage, contains('wait'));
+      expect(harness.state.errorMessage, isNot(contains('3600')));
+      expect(harness.opener.openCalls, 1);
     });
   });
 

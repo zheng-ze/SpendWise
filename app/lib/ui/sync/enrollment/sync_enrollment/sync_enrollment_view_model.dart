@@ -186,9 +186,7 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
     }
     final cooldown = _codeCooldownRemaining();
     if (cooldown != null) {
-      state = state.copyWith(
-        errorMessage: () => 'Send a new code in ${_ceilSeconds(cooldown)}s.',
-      );
+      state = state.copyWith(errorMessage: () => _cooldownCopy(cooldown));
       return;
     }
     final operation = _EnrollmentOperation();
@@ -207,9 +205,7 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
         state = state.copyWith(inFlight: false);
       }
     }
-    if (ref.mounted && identical(operation, _currentOperation)) {
-      await _refreshSyncStatus();
-    }
+    if (ref.mounted) await _refreshSyncStatus();
   }
 
   @override
@@ -289,9 +285,7 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
         state = state.copyWith(inFlight: false);
       }
     }
-    if (ref.mounted && identical(operation, _currentOperation)) {
-      await _refreshSyncStatus();
-    }
+    if (ref.mounted) await _refreshSyncStatus();
   }
 
   Future<void> _enrollFromIdentifier(
@@ -376,6 +370,10 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
       return;
     }
     if (!ref.mounted || !identical(operation, _currentOperation)) return;
+    if (_repairMode) {
+      await _completeRepairIfProofPresent(session, operation);
+      return;
+    }
     await _publishUntilPublished(session, operation);
   }
 
@@ -603,6 +601,10 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
             : 'Enrollment failed. Please try again.';
     }
   }
+
+  static String _cooldownCopy(Duration remaining) => remaining > _maxWaitDisplay
+      ? _waitCopy(remaining)
+      : 'Send a new code in ${_ceilSeconds(remaining)}s.';
 
   static String _waitCopy(Duration retryAfter) {
     final seconds = retryAfter.inSeconds;
