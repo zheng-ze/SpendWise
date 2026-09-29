@@ -1,6 +1,6 @@
 # Sync: enrollment
 
-Last reconciled: 38bf33c
+Last reconciled: 63ea967
 
 ## Overview
 
@@ -30,13 +30,18 @@ opens that graph through `openSyncEnrollmentSession`, which exposes only
 
 `EnrollmentSnapshotPublisher` is the next app-layer component after the phase
 machine reaches `gateEnabled`: it drives one ordered push across all
-collections and owns the enrollment write-proof lifecycle for that run. The
-enrollment Flow invokes it through `SyncEnrollmentSession.publishSnapshot()`;
-the publisher itself remains independent of lifecycle scheduling. Source:
+collections and owns the enrollment write-proof lifecycle for that run. Fresh
+enrollment invokes it through `SyncEnrollmentSession.publishSnapshot()`. In
+repair mode, the notifier reads `syncWriteProofSecretKey` from the same
+`SecretStore` passed to the hosted session and invokes bounded publication
+only when a proof is present, including on a repair retry. The publisher
+itself remains independent of lifecycle scheduling. Source:
 `app/lib/sync/enrollment_snapshot_publisher.dart` -
 `EnrollmentSnapshotPublisher`; `app/lib/sync/sync_enrollment_service.dart` -
 `SyncEnrollmentService`; `app/lib/sync/sync_enrollment_session.dart` -
-`SyncEnrollmentSession.publishSnapshot`.
+`SyncEnrollmentSession.publishSnapshot`;
+`app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart` -
+`SyncEnrollmentNotifier._completeRepairIfProofPresent`.
 
 ## Key locations
 

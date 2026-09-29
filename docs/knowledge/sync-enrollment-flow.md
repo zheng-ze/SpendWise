@@ -1,14 +1,14 @@
 # Sync enrollment: hosted Flow
 
-Last reconciled: e9f1db4
+Last reconciled: 63ea967
 
 ## Overview
 
 `SyncEnrollmentFlow` owns first-device hosted-enrollment presentation. It nests
 `BackendPickerFlow` at its root, receives hosted selection, and maps
 `SyncEnrollmentNotifier` steps to identifier, OTP, resume, and completion
-routes. The notifier owns session opening, durable-phase-aware retry, and the
-single in-flight enroll-and-publish operation. Source:
+routes. The notifier owns session opening, durable-phase-aware retry, and
+the UI operation guard and cancellation. Source:
 `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_flow.dart` -
 `SyncEnrollmentFlow`, `_SyncEnrollmentFlowState`;
 `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart` -
@@ -45,24 +45,29 @@ Source: `app/lib/ui/sync/enrollment/backend_picker/backend_picker_flow.dart` -
 `app/lib/sync/sync_enrollment_session.dart` - `openSyncEnrollmentSession`,
 `_ComposedSyncEnrollmentSession`.
 
-On retry, the notifier reads `SyncMetadataStore.snapshot().phase`. It returns
-to identifier entry only from `notEnrolled`; every later phase shows resume and
-calls `_resumeWithoutCredentials()`. That method reuses the held session when
-available. A reopened session uses an OTP resolver that throws. Source:
+On retry, the notifier reads `SyncMetadataStore.snapshot().phase`.
+`notEnrolled`, `bindingAuthorizationRequired`, and `sessionReauthRequired`
+return to identifier entry. Submitting the identifier opens a session with a
+live OTP resolver, including after notifier recreation. Other durable phases
+show resume and call `_resumeWithoutCredentials()`, reusing the held session
+or reopening one with an OTP-rejecting resolver. Source:
 `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart` -
-`SyncEnrollmentNotifier.retry`, `_resumeWithoutCredentials`,
-`_reopenForResume`, `_rejectUnexpectedOtp`;
+`SyncEnrollmentNotifier.retry`, `_enrollFromIdentifier`,
+`_resumeWithoutCredentials`, `_reopenForResume`, `_rejectUnexpectedOtp`;
 `app/lib/sync/sync_enrollment_service.dart` - `SyncEnrollmentService._advance`,
 `SyncEnrollmentService._stepBindingAuthorizationRequired`,
 `SyncEnrollmentService._stepSessionReauthRequired`.
 
 ## Contracts and invariants
 
-- `state.inFlight` guards the whole enrollment and publication operation.
-  `submitIdentifier()` and `retry()` no-op while it is true and clear it in
-  `finally`. Source:
+- `state.inFlight` blocks duplicate submissions during an active Flow operation.
+  `submitIdentifier()` and `retry()` no-op while it is true. Flow disposal
+  cancels the current operation, releases the guard after widget finalization
+  even when no OTP resolver exists yet, and ignores late results from that
+  operation. Source:
   `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart`
-  - `SyncEnrollmentNotifier.submitIdentifier`, `SyncEnrollmentNotifier.retry`.
+  - `SyncEnrollmentNotifier.cancelPendingOperation`,
+  `SyncEnrollmentNotifier._openSession`.
 - OTP cancellation is typed. System back and the OTP app-bar back both call
   `cancelOtp()`, which completes the pending resolver with
   `SyncEnrollmentOtpCancelled`; enrollment returns to identifier entry with a
@@ -70,21 +75,33 @@ available. A reopened session uses an OTP resolver that throws. Source:
   `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_screens.dart` -
   `SyncOtpScreen`; `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart`
   - `SyncEnrollmentNotifier.cancelOtp`, `_enterCancelled`.
-- After `enroll()` returns at durable `gateEnabled`, publication retries a
-  pending outcome at most three times, with one-second delays. Exhaustion
-  routes a typed `SyncEnrollmentException(step: 'publishSnapshot',
+- For fresh enrollment, after `enroll()` returns at durable `gateEnabled`,
+  publication retries a pending outcome at most three times, with one-second
+  delays. Exhaustion routes a typed `SyncEnrollmentException(step: 'publishSnapshot',
   code: 'snapshotPending')` through phase-aware failure handling; it does not
   roll back the durable phase. Source:
   `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart`
   - `SyncEnrollmentNotifier._publishUntilPublished`, `_failPhaseAware`;
   `app/lib/sync/sync_enrollment_service.dart` -
   `SyncEnrollmentService._stepReconciliationComplete`.
-- `_publishUntilPublished()` handles both `StateError` and `Exception` so a
-  backend push failure from `SyncCoordinator.pushCollection` becomes a
+- `_publishUntilPublished()` catches publication failures, so a backend push
+  failure from `SyncCoordinator.pushCollection` becomes a
   phase-aware Flow error. Source:
   `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart`
   - `SyncEnrollmentNotifier._publishUntilPublished`;
   `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.pushCollection`.
+- Repair-mode completion checks `syncWriteProofSecretKey` in the same
+  `SecretStore` passed to the hosted session. It runs bounded snapshot
+  publication only when the proof is present, including on resume retries;
+  otherwise it completes after `enroll()`. Source:
+  `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart`
+  - `SyncEnrollmentNotifier._completeRepairIfProofPresent`,
+  `SyncEnrollmentNotifier._opener`.
+- After identifier submission or credential-less resume settles, the notifier
+  asks `AppBoot.refreshSyncStatus()` to re-read durable Hosted Sync status,
+  even when Flow disposal cancelled the operation. Source:
+  `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart`
+  - `SyncEnrollmentNotifier.submitIdentifier`, `SyncEnrollmentNotifier.retry`.
 
 ## Entry points and flows
 
@@ -98,21 +115,23 @@ available. A reopened session uses an OTP resolver that throws. Source:
 
 ## Gotchas
 
-- A same-process retry can collect another OTP through its held session. A
-  reopened session rejects OTP requests, while the service can request a
-  binding OTP from `bindingAuthorizationRequired` or an ordinary OTP from
-  `sessionReauthRequired`. Such a resume stops at the resolver rather than
-  completing authorization. Source:
+- The submitted email identifier and code-request cooldown live only in
+  notifier memory. After restart, repair asks for the identifier again.
+  A code challenge starts a 60-second cooldown on new requests; a longer
+  server `retryAfter` extends it. Wait copy is capped at 15 minutes, while
+  the longer cooldown remains enforced. Source:
   `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart`
-  - `SyncEnrollmentNotifier._resumeWithoutCredentials`,
-  `SyncEnrollmentNotifier._reopenForResume`,
-  `SyncEnrollmentNotifier._rejectUnexpectedOtp`;
-  `app/lib/sync/sync_enrollment_service.dart` -
-  `SyncEnrollmentService._stepBindingAuthorizationRequired`,
-  `SyncEnrollmentService._stepSessionReauthRequired`.
+  - `SyncEnrollmentNotifier.enterRepairMode`, `_noteCodeRequested`,
+  `_extendCooldownFrom`, `_cooldownCopy`.
+- Failure messages use fixed code-to-copy mapping and generic fallback copy;
+  they never display exception or server text. Source:
+  `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart`
+  - `SyncEnrollmentNotifier._failureCopy`, `_copyForCode`.
 - `SyncEnrollmentFlow` is the first production caller of the hosted
   composition, but no `AppBoot`, lifecycle, scheduler, or shell path constructs
   the Flow. It remains unavailable in the installed application until a higher
   composition layer mounts it. Source:
   `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart` -
   `SyncEnrollmentNotifier._opener`; `app/lib/boot/app_boot.dart` - `AppBoot`.
+- Repair-mode Flow routing, Settings entry, and banner are not mounted yet;
+  `enterRepairMode()` currently has no production caller.
