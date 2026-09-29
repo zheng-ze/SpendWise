@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
 import 'package:spendwise/boot/providers.dart';
+import 'package:spendwise/sync/hosted_sync_status.dart';
 import 'package:spendwise/ui/common/flow_base.dart';
 import 'package:spendwise/ui/settings/category/category_list_screen.dart';
 import 'package:spendwise/ui/settings/plan/plan_list_screen.dart';
@@ -23,6 +24,7 @@ class SettingsFlow extends FlowBase<SettingsStep> {
 
 class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
   late final StateController<bool> _repairFlowOpen;
+  late final ProviderContainer _container;
   bool _ownsRepairRoute = false;
   void Function()? _closeSelectionSubscription;
 
@@ -30,6 +32,7 @@ class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
   void initState() {
     super.initState();
     _repairFlowOpen = ref.read(repairFlowOpenProvider.notifier);
+    _container = ProviderScope.containerOf(context, listen: false);
     // AppShell keeps every destination mounted in an IndexedStack, so a
     // cached status would otherwise survive until the next repair return.
     // Re-read durable metadata whenever the Settings tab becomes selected.
@@ -60,7 +63,7 @@ class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
   @override
   void dispose() {
     _closeSelectionSubscription?.call();
-    _markRepairRouteClosed();
+    _handOverOpenRepairRoute();
     super.dispose();
   }
 
@@ -120,6 +123,28 @@ class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
     if (!_ownsRepairRoute) return;
     _ownsRepairRoute = false;
     if (_repairFlowOpen.mounted) _repairFlowOpen.state = false;
+  }
+
+  // The repair route lives on this Flow's own navigator, so disposing the Flow
+  // (for example the outgoing side of an AppShell layout switch) destroys the
+  // route. Release the shared flag and re-request repair so a surviving
+  // instance opens a fresh route. Provider writes are illegal while the tree
+  // is finalizing, hence the microtask.
+  void _handOverOpenRepairRoute() {
+    if (!_ownsRepairRoute) return;
+    _ownsRepairRoute = false;
+    final repairFlowOpen = _repairFlowOpen;
+    final container = _container;
+    scheduleMicrotask(() {
+      if (!repairFlowOpen.mounted) return;
+      repairFlowOpen.state = false;
+      final status = container.read(hostedSyncStatusProvider);
+      final needsRepair =
+          status is HostedSyncBindingRepair ||
+          status is HostedSyncSessionReauth;
+      if (!needsRepair) return;
+      container.read(settingsRootViewModelProvider.notifier).requestRepair();
+    });
   }
 
   Future<void> _refreshSyncStatus() async {

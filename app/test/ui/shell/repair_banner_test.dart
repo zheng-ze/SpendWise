@@ -321,6 +321,16 @@ void main() {
       find.byType(SyncIdentifierScreen, skipOffstage: false),
       findsOneWidget,
     );
+
+    await tester.pumpAndSettle();
+    expect(find.byType(SettingsFlow), findsOneWidget);
+    expect(find.byType(SyncIdentifierScreen), findsOneWidget);
+    expect(harness.container.read(repairFlowOpenProvider), isTrue);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.byType(SyncIdentifierScreen), findsNothing);
+    expect(harness.container.read(repairFlowOpenProvider), isFalse);
   });
 
   testWidgets('the banner clears the bottom safe-area inset in rail and '
