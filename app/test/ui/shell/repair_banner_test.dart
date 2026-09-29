@@ -246,11 +246,77 @@ void main() {
     );
 
     await tester.tap(find.text(_repairLabel));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text(_repairLabel));
+    await tester.tap(find.text(_repairLabel), warnIfMissed: false);
     await tester.pumpAndSettle();
 
     expect(find.byType(SyncIdentifierScreen), findsOneWidget);
+  });
+
+  testWidgets('the banner is hidden while the repair route is open and '
+      'returns after it closes', (tester) async {
+    final harness = await _pumpShell(
+      tester,
+      status: const HostedSyncBindingRepair(),
+      seedPhase: SyncEnrollmentPhase.bindingAuthorizationRequired,
+    );
+
+    await tester.tap(find.text(_repairLabel));
+    await tester.pumpAndSettle();
+
+    expect(harness.container.read(repairFlowOpenProvider), isTrue);
+    expect(find.text(_repairLabel), findsNothing);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(harness.container.read(repairFlowOpenProvider), isFalse);
+    expect(find.byType(SyncIdentifierScreen), findsNothing);
+    expect(find.text(_repairLabel), findsOneWidget);
+  });
+
+  testWidgets('with the keyboard up the repair form keeps Continue '
+      'tappable and the banner stays hidden', (tester) async {
+    await _pumpShell(
+      tester,
+      status: const HostedSyncBindingRepair(),
+      seedPhase: SyncEnrollmentPhase.bindingAuthorizationRequired,
+    );
+    await tester.tap(find.text(_repairLabel));
+    await tester.pumpAndSettle();
+
+    tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+    addTearDown(tester.view.resetViewInsets);
+    await tester.pumpAndSettle();
+
+    final continueButton = find.byKey(const Key('syncIdentifierContinue'));
+    expect(find.text(_repairLabel), findsNothing);
+    expect(continueButton.hitTestable(), findsOneWidget);
+  });
+
+  testWidgets('a banner tap during the rail breakpoint transition opens '
+      'exactly one repair route', (tester) async {
+    final harness = await _pumpShell(
+      tester,
+      status: const HostedSyncBindingRepair(),
+      seedPhase: SyncEnrollmentPhase.bindingAuthorizationRequired,
+    );
+    harness.container.read(selectedDestinationProvider.notifier).state =
+        ShellDestination.settings;
+    await tester.pumpAndSettle();
+    expect(find.byType(SettingsFlow), findsOneWidget);
+
+    tester.view.physicalSize = const Size(900, 800);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.byType(SettingsFlow, skipOffstage: false), findsNWidgets(2));
+
+    await tester.tap(find.text(_repairLabel).last);
+    await tester.pump();
+
+    expect(
+      find.byType(SyncIdentifierScreen, skipOffstage: false),
+      findsOneWidget,
+    );
   });
 
   testWidgets('the repair banner has no dismiss affordance', (tester) async {

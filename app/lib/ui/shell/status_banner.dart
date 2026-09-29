@@ -12,10 +12,10 @@ class StatusBanner extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final status = ref.watch(hostedSyncStatusProvider);
-    if (status is HostedSyncBindingRepair ||
-        status is HostedSyncSessionReauth) {
-      return const _RepairBanner();
-    }
+    final repairFlowOpen = ref.watch(repairFlowOpenProvider);
+    final needsRepair =
+        status is HostedSyncBindingRepair || status is HostedSyncSessionReauth;
+    if (needsRepair && !repairFlowOpen) return const _RepairBanner();
 
     final message = ref.watch(bannerStateProvider).message;
     if (message == null) return const SizedBox.shrink();
@@ -47,7 +47,8 @@ class StatusBanner extends ConsumerWidget {
 }
 
 // Persistent repair action. It takes precedence over BannerState's timed
-// messages, which stay in their state and return once repair clears.
+// messages, which stay in their state and return once repair clears. It steps
+// aside while the repair route is open so it cannot cover the form's controls.
 class _RepairBanner extends ConsumerWidget {
   const _RepairBanner();
 

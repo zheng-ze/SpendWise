@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/common/flow_base.dart';
@@ -21,12 +22,14 @@ class SettingsFlow extends FlowBase<SettingsStep> {
 }
 
 class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
-  bool _repairFlowOpen = false;
+  late final StateController<bool> _repairFlowOpen;
+  bool _ownsRepairRoute = false;
   void Function()? _closeSelectionSubscription;
 
   @override
   void initState() {
     super.initState();
+    _repairFlowOpen = ref.read(repairFlowOpenProvider.notifier);
     // AppShell keeps every destination mounted in an IndexedStack, so a
     // cached status would otherwise survive until the next repair return.
     // Re-read durable metadata whenever the Settings tab becomes selected.
@@ -57,6 +60,7 @@ class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
   @override
   void dispose() {
     _closeSelectionSubscription?.call();
+    _markRepairRouteClosed();
     super.dispose();
   }
 
@@ -91,8 +95,11 @@ class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
   }
 
   void _openRepairFlow(BuildContext context) {
-    if (_repairFlowOpen) return;
-    _repairFlowOpen = true;
+    // Two Flow instances coexist while AppShell switches layouts and both see
+    // the same request; the shared flag lets exactly one of them push.
+    if (_repairFlowOpen.state) return;
+    _repairFlowOpen.state = true;
+    _ownsRepairRoute = true;
     Navigator.of(context)
         .push(
           MaterialPageRoute<void>(
@@ -103,10 +110,16 @@ class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
           ),
         )
         .then((_) async {
-          _repairFlowOpen = false;
+          _markRepairRouteClosed();
           if (!mounted) return;
           await _refreshSyncStatus();
         });
+  }
+
+  void _markRepairRouteClosed() {
+    if (!_ownsRepairRoute) return;
+    _ownsRepairRoute = false;
+    if (_repairFlowOpen.mounted) _repairFlowOpen.state = false;
   }
 
   Future<void> _refreshSyncStatus() async {
