@@ -239,8 +239,38 @@ void main() {
       );
     });
 
+    test('disposing while enroll is pending skips completion and, with no proof, publication', () async {
+      final harness = _Harness()..build();
+      addTearDown(harness.dispose);
+      await _seedRepair(
+        harness,
+        SyncEnrollmentPhase.bindingAuthorizationRequired,
+      );
+      final enrollGate = Completer<void>();
+      harness.opener.session.onEnroll = () async {
+        await harness.opener.session.resolveOtp!(
+          EnrollmentChallenge(const {'identifier': 'user@example.com'}),
+        );
+        await enrollGate.future;
+      };
+      final pending = harness.notifier.submitIdentifier('user@example.com');
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(harness.state.step, isA<ShowOtpEntry>());
+      harness.notifier.submitOtp('482916');
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      harness.notifier.cancelPendingOperation();
+      enrollGate.complete();
+      await pending;
+
+      expect(harness.state.step, isA<ShowOtpEntry>());
+      expect(harness.opener.session.publishCalls, 0);
+      expect(harness.state.inFlight, isFalse);
+    });
+
     test(
-      'disposing while enroll is pending skips publication and completion',
+      'disposing while enroll is pending still publishes a stored write proof '
+      'without completing',
       () async {
         final harness = _Harness()..build();
         addTearDown(harness.dispose);
@@ -248,6 +278,7 @@ void main() {
           harness,
           SyncEnrollmentPhase.bindingAuthorizationRequired,
         );
+        await harness.secrets.write(syncWriteProofSecretKey, 'proof-1');
         final enrollGate = Completer<void>();
         harness.opener.session.onEnroll = () async {
           await harness.opener.session.resolveOtp!(
@@ -266,7 +297,7 @@ void main() {
         await pending;
 
         expect(harness.state.step, isA<ShowOtpEntry>());
-        expect(harness.opener.session.publishCalls, 0);
+        expect(harness.opener.session.publishCalls, 1);
         expect(harness.state.inFlight, isFalse);
       },
     );

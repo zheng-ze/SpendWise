@@ -429,12 +429,41 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
       await _failPhaseAware(error, operation);
       return;
     }
-    if (!ref.mounted || !identical(operation, _currentOperation)) return;
+    if (!ref.mounted) return;
+    if (!identical(operation, _currentOperation)) {
+      if (_repairMode && _currentOperation == null) {
+        await _publishAbandonedRepairProof(session);
+      }
+      return;
+    }
     if (_repairMode) {
       await _completeRepairIfProofPresent(session, operation);
       return;
     }
     await _publishUntilPublished(session, operation);
+  }
+
+  // The Flow can close after the OTP is accepted while the service still
+  // commits the repair and stores its write proof. Without the UI to retry,
+  // publish that proof here so the next push does not go out without it.
+  Future<void> _publishAbandonedRepairProof(
+    SyncEnrollmentSession session,
+  ) async {
+    try {
+      final proof = await _secretStore.read(syncWriteProofSecretKey);
+      if (proof != null && proof.isNotEmpty) {
+        for (var attempt = 1; attempt <= maxPublishAttempts; attempt++) {
+          final outcome = await session.publishSnapshot();
+          if (outcome is EnrollmentSnapshotPublished) break;
+          if (attempt == maxPublishAttempts || _currentOperation != null) break;
+          await Future<void>.delayed(_publishRetryDelay);
+        }
+      }
+    } on Object catch (_) {
+      // Nothing is left to surface the failure; the proof stays stored for the
+      // next repair or the coordinator that owns pushes.
+    }
+    if (ref.mounted) await _refreshSyncStatus();
   }
 
   Future<void> _resumeWithoutCredentials(_EnrollmentOperation operation) async {
