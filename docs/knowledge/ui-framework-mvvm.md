@@ -1,6 +1,6 @@
 # UI Framework (MVVM)
 
-Last reconciled: 2026-09-02
+Last reconciled: 3b2895d
 
 ## Feature overview
 
@@ -45,7 +45,10 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   Riverpod state (zero `ConsumerWidget`/`WidgetRef` usage).
 - **AppShell** gets no ViewModel: its only state is a flat width-to-bool layout computation, no
   async loading, no domain import. It mounts one Flow per destination, with no shell-level navigator.
-  (issue #39)
+  A responsive layout transition can temporarily keep both shell trees and Settings Flows alive;
+  shared shell state coordinates the repair route so only one Flow owns it, and the surviving Flow
+  reopens it if its owner is disposed. (`app/lib/ui/shell/app_shell.dart`,
+  `app/lib/ui/settings/settings_flow.dart`, `app/lib/ui/shell/shell_providers.dart`; issue #39)
 
 ## Notifier conventions
 

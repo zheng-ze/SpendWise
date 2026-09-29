@@ -1,6 +1,6 @@
 # Ledger Runtime
 
-Last reconciled: 8297a1f
+Last reconciled: 3b2895d
 
 ## Feature overview
 
@@ -134,13 +134,21 @@ non-empty, `onPlanError?.call(failures)` runs. `PlanFailure` carries `planID`, `
 
 ## Banners
 
-One banner slot at the bottom of the ready shell. Displayed message is `planError ?? saveStateMessage`,
-with plan error taking precedence. Save-state messages come from the store's error handler
+`StatusBanner` is bottom-anchored inside a `SafeArea` with a 16 dp minimum bottom inset. A hosted
+sync repair banner takes precedence whenever `hostedSyncStatusProvider` is
+`HostedSyncBindingRepair` or `HostedSyncSessionReauth`. It is persistent, tappable, and routes through
+`SettingsRootNotifier.requestRepair()`; it is non-dismissible and exposes button semantics. It hides
+only while the Settings repair route is open and Settings is selected. Its position uses the same
+bottom anchoring as the timed pill.
+
+When no repair banner is displayed, the single banner slot shows `planError ?? saveStateMessage`,
+with plan error taking precedence. These timed messages remain in `BannerState` while repair is active
+and show again after repair ends. Save-state messages come from the store's error handler
 (`persistence.md` §1): `retrying` → "Couldn't save changes, retrying"; `failedWillRetry` →
 "Couldn't save changes, will retry shortly"; `clear` → no banner. Plan-error message is
 count-aware over distinct plan IDs ("A recurring plan couldn't add its entry" / "N recurring plans
 couldn't add their entries"), auto-dismisses after 4 seconds, and a re-fire cancels the prior
-dismissal timer.
+dismissal timer. Source: `app/lib/ui/shell/status_banner.dart`, `app/lib/boot/banner_state.dart`.
 
 ## Seeding contract
 

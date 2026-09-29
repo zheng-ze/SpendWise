@@ -1,6 +1,6 @@
 # Settings UI
 
-Last reconciled: c81fd53
+Last reconciled: 3b2895d
 
 ## Feature overview
 
@@ -46,10 +46,17 @@ device access is kept. Only those two repair statuses show `Repair Device Access
 show the sync protocol v2 unsupported notice; unavailable status shows a read-only failure message.
 
 `SettingsRootNotifier.requestRepair()` emits the single-shot `RepairDeviceAccessRequested` navigation
-step. The Settings action uses this seam; no runtime banner is mounted. `SettingsFlow` opens
-`SyncEnrollmentFlow(repairMode: true)` for that step and prevents duplicate repair routes. It refreshes
-Hosted Sync status when the Settings tab becomes selected and when the repair Flow closes. See
-`sync-enrollment-flow.md` for repair behavior.
+step. The persistent shell repair banner also uses this seam; it appears for binding-repair and
+session-reauth status, takes precedence over the timed plan/save message, and selects Settings when
+tapped. `SettingsFlow` opens `SyncEnrollmentFlow(repairMode: true)` for the request and re-checks a
+pending step after its navigator mounts, so a request made before Settings is built is consumed once.
+The shared `repairFlowOpenProvider` tracks the route across coexisting Settings Flow instances during
+an AppShell layout transition. The banner hides only while that route is open and Settings is selected;
+on another tab it returns and tapping it selects Settings to expose the open route. If the owning Flow
+is disposed, it releases the flag and re-issues the request for the surviving Flow. The Flow refreshes
+Hosted Sync status when Settings becomes selected and when the repair route closes. See
+`sync-enrollment-flow.md` for repair behavior. Source: `app/lib/ui/settings/settings_flow.dart`,
+`app/lib/ui/shell/status_banner.dart`, `app/lib/ui/shell/shell_providers.dart`.
 
 ## Screens and flows
 
