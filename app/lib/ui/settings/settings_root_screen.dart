@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/settings/settings_providers.dart';
+import 'package:spendwise/sync/hosted_sync_status.dart';
 import 'package:spendwise/ui/settings/settings_root_view_model.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -27,6 +29,9 @@ class SettingsScreen extends ConsumerWidget {
             label: 'Recurring Plans',
             onTap: viewModel.requestPlans,
           ),
+          const Divider(height: 1),
+          const _SectionHeader('Hosted Sync'),
+          const _HostedSyncSection(),
           const Divider(height: 1),
           const _SectionHeader('Receipt Scanning'),
           SwitchListTile(
@@ -92,3 +97,67 @@ class _SettingsLink extends StatelessWidget {
     );
   }
 }
+
+class _HostedSyncSection extends ConsumerWidget {
+  const _HostedSyncSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final status = ref.watch(hostedSyncStatusProvider);
+    final viewModel = ref.watch(settingsRootViewModelProvider.notifier);
+    final explanation = _hostedSyncExplanation(status);
+    final statusLines = <Widget>[Text(_hostedSyncStatusText(status))];
+    if (explanation != null) statusLines.add(Text(explanation));
+
+    final tiles = <Widget>[
+      ListTile(
+        key: const Key('hostedSyncStatus'),
+        leading: const Icon(Icons.cloud_outlined),
+        title: const Text('Hosted sync'),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: statusLines,
+        ),
+      ),
+    ];
+    if (status is HostedSyncBindingRepair ||
+        status is HostedSyncSessionReauth) {
+      final primary = Theme.of(context).colorScheme.primary;
+      tiles.add(
+        ListTile(
+          key: const Key('repairDeviceAccess'),
+          leading: const Icon(Icons.refresh),
+          title: const Text('Repair Device Access'),
+          trailing: const Icon(Icons.chevron_right),
+          iconColor: primary,
+          textColor: primary,
+          onTap: viewModel.requestRepair,
+        ),
+      );
+    }
+    return Column(children: tiles);
+  }
+}
+
+String _hostedSyncStatusText(HostedSyncStatus status) => switch (status) {
+  HostedSyncNoSelection() => 'Not configured',
+  HostedSyncSetupPending() => 'Setup pending',
+  HostedSyncReady() => 'Ready',
+  HostedSyncBindingRepair() => 'Binding repair needed',
+  HostedSyncSessionReauth() => 'Sign-in expired',
+  HostedSyncUnsupportedV2() => 'Unsupported endpoint',
+  HostedSyncUnavailable() => 'Status unavailable',
+};
+
+String? _hostedSyncExplanation(HostedSyncStatus status) => switch (status) {
+  HostedSyncBindingRepair() =>
+    'Device access must be authorized again. '
+        'Reconciliation will run before sync writes resume.',
+  HostedSyncSessionReauth() =>
+    'Your sync sign-in expired. Existing device access will be kept.',
+  HostedSyncUnsupportedV2() =>
+    'Custom endpoints are not supported by sync protocol v2.',
+  HostedSyncUnavailable() => 'Sync status could not be read.',
+  _ => null,
+};

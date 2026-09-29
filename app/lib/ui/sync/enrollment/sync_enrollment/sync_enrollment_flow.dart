@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/ui/common/flow_base.dart';
@@ -6,7 +8,9 @@ import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_scr
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart';
 
 class SyncEnrollmentFlow extends FlowBase<SyncEnrollmentStep> {
-  const SyncEnrollmentFlow({super.key, super.onEnded});
+  const SyncEnrollmentFlow({super.key, super.onEnded, this.repairMode = false});
+
+  final bool repairMode;
 
   @override
   ConsumerState<SyncEnrollmentFlow> createState() => _SyncEnrollmentFlowState();
@@ -20,6 +24,14 @@ class _SyncEnrollmentFlowState
   void initState() {
     super.initState();
     _viewModel = ref.read(syncEnrollmentViewModelProvider.notifier);
+    if (widget.repairMode) {
+      // Deferred past mounting: enterRepairMode writes provider state, which
+      // is not allowed synchronously inside initState.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        unawaited(_viewModel.enterRepairMode());
+      });
+    }
   }
 
   @override
@@ -43,13 +55,17 @@ class _SyncEnrollmentFlowState
     final navigator = Navigator.of(context);
     switch (step) {
       case ShowIdentifierEntry():
+        // The repair root already is identifier entry, so repeated repair
+        // retries return to it without stacking a second identifier route.
         navigator.popUntil((route) => route.isFirst);
-        navigator.push(
-          MaterialPageRoute<void>(
-            settings: const RouteSettings(name: 'sync-identifier'),
-            builder: (_) => const SyncIdentifierScreen(),
-          ),
-        );
+        if (!widget.repairMode) {
+          navigator.push(
+            MaterialPageRoute<void>(
+              settings: const RouteSettings(name: 'sync-identifier'),
+              builder: (_) => const SyncIdentifierScreen(),
+            ),
+          );
+        }
       case ShowOtpEntry():
         navigator.push(
           MaterialPageRoute<void>(
@@ -78,6 +94,7 @@ class _SyncEnrollmentFlowState
   }
 
   @override
-  Widget buildRoot(BuildContext context) =>
-      BackendPickerFlow(onHostedReady: _viewModel.hostedReady);
+  Widget buildRoot(BuildContext context) => widget.repairMode
+      ? const SyncIdentifierScreen()
+      : BackendPickerFlow(onHostedReady: _viewModel.hostedReady);
 }

@@ -10,6 +10,10 @@ class PlansRequested extends SettingsStep {}
 
 class RecycleBinRequested extends SettingsStep {}
 
+// Single-shot navigation request that opens the repair-mode enrollment flow.
+// The Settings action emits it; #233's banner will reuse the same request.
+class RepairDeviceAccessRequested extends SettingsStep {}
+
 class SettingsRootViewState
     implements HasStep<SettingsRootViewState, SettingsStep> {
   const SettingsRootViewState({this.step});
@@ -30,6 +34,7 @@ abstract class SettingsRootViewModel {
   void requestCategories();
   void requestPlans();
   void requestRecycleBin();
+  void requestRepair();
   void clearStep();
 }
 
@@ -52,6 +57,9 @@ class SettingsRootNotifier extends Notifier<SettingsRootViewState>
 
   @override
   void requestRecycleBin() => emitStep(RecycleBinRequested());
+
+  @override
+  void requestRepair() => emitStep(RepairDeviceAccessRequested());
 }
 
 final settingsRootViewModelProvider =
