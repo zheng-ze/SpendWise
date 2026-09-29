@@ -35,6 +35,10 @@ final _statusStateProvider = StateProvider<HostedSyncStatus>(
   (ref) => const HostedSyncNoSelection(),
 );
 
+Finder _bannerSurface() => find
+    .ancestor(of: find.text(_repairLabel), matching: find.byType(Material))
+    .first;
+
 Ledger _buildLedger() {
   final account = Account(name: 'Checking', type: AccountType.checking);
   return Ledger(
@@ -317,6 +321,25 @@ void main() {
       find.byType(SyncIdentifierScreen, skipOffstage: false),
       findsOneWidget,
     );
+  });
+
+  testWidgets('the banner clears the bottom safe-area inset in rail and '
+      'bottom-nav layouts', (tester) async {
+    tester.view.padding = const FakeViewPadding(bottom: 34);
+    tester.view.viewPadding = const FakeViewPadding(bottom: 34);
+    addTearDown(tester.view.resetPadding);
+    addTearDown(tester.view.resetViewPadding);
+
+    await _pumpShell(tester, status: const HostedSyncBindingRepair());
+    final bottomNavBanner = tester.getRect(_bannerSurface());
+    final navBar = tester.getRect(find.byType(NavigationBar));
+    expect(bottomNavBanner.bottom, lessThanOrEqualTo(navBar.top));
+
+    tester.view.physicalSize = const Size(900, 800);
+    await tester.pumpAndSettle();
+    expect(find.byType(NavigationRail), findsOneWidget);
+    final railBanner = tester.getRect(_bannerSurface());
+    expect(railBanner.bottom, lessThanOrEqualTo(800 - 34));
   });
 
   testWidgets('the repair banner has no dismiss affordance', (tester) async {

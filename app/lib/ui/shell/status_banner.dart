@@ -22,10 +22,8 @@ class StatusBanner extends ConsumerWidget {
 
     final theme = Theme.of(context);
 
-    return Positioned(
-      left: 0,
-      right: 0,
-      bottom: 16,
+    return _BottomAnchored(
+      horizontalInset: 0,
       child: Center(
         child: Material(
           color: theme.colorScheme.inverseSurface.withValues(alpha: 0.92),
@@ -41,6 +39,31 @@ class StatusBanner extends ConsumerWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+// Rail layout has no bottom bar to consume the system inset, so the banner
+// sits above it with a 16 dp minimum gap.
+class _BottomAnchored extends StatelessWidget {
+  const _BottomAnchored({required this.horizontalInset, required this.child});
+
+  final double horizontalInset;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      left: horizontalInset,
+      right: horizontalInset,
+      bottom: 0,
+      child: SafeArea(
+        top: false,
+        left: false,
+        right: false,
+        minimum: const EdgeInsets.only(bottom: 16),
+        child: child,
       ),
     );
   }
@@ -91,10 +114,8 @@ class _RepairBanner extends ConsumerWidget {
       ),
     );
 
-    return Positioned(
-      left: 16,
-      right: 16,
-      bottom: 16,
+    return _BottomAnchored(
+      horizontalInset: 16,
       child: MergeSemantics(child: Semantics(button: true, child: banner)),
     );
   }
