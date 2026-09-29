@@ -10,8 +10,6 @@ class PlansRequested extends SettingsStep {}
 
 class RecycleBinRequested extends SettingsStep {}
 
-// Single-shot navigation request that opens the repair-mode enrollment flow.
-// The Settings action emits it; #233's banner will reuse the same request.
 class RepairDeviceAccessRequested extends SettingsStep {}
 
 class SettingsRootViewState

@@ -162,9 +162,8 @@ HostedSyncStatus projectHostedSyncStatus(SyncMetadataSnapshot snapshot) {
   return const HostedSyncUnavailable();
 }
 
-// Mirrors the non-repair legal tuples of
-// SyncMetadataStore.validateHostedOperationState. Anything outside the legal
-// set projects to unavailable so corrupt metadata never reads as healthy.
+// Mirrors the non-repair tuples of SyncMetadataStore.validateHostedOperationState
+// so corrupt metadata projects to unavailable instead of healthy.
 bool _isLegalSetupPending({
   required SyncDeviceBindingState binding,
   required SyncEnrollmentPhase phase,

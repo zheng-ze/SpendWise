@@ -58,9 +58,7 @@ final class SyncEnrollmentState
   final bool explainCodeReplacement;
   final DateTime? codeCooldownEndsAt;
 
-  /// True while exactly one OTP resolver waits for input. The new-code
-  /// action is enabled only then; through session opening, verification
-  /// and publication no resolver waits.
+  /// True while exactly one OTP resolver waits for input.
   final bool otpWaiting;
 
   SyncEnrollmentState copyWith({
@@ -103,8 +101,6 @@ abstract class SyncEnrollmentViewModel {
   void submitOtp(String otp);
   void cancelOtp();
 
-  /// Cancels the waiting OTP, if any, and submits the stored identifier
-  /// again, which opens a new session and challenge.
   Future<void> requestNewCode();
   Duration? codeCooldownRemaining();
   void dismissRepairFlow();
@@ -169,9 +165,7 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
     emitStep(ShowIdentifierEntry());
   }
 
-  /// True while repair is still needed, false when the durable phase
-  /// already cleared, null when this read was superseded by a newer
-  /// operation (which owns the outcome, so the caller must do nothing).
+  /// Null when a newer operation superseded this read and owns the outcome.
   Future<bool?> enterRepairMode() async {
     if (state.inFlight) return state.repairPhase != null;
     _repairMode = true;
@@ -254,9 +248,6 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
     _otpCompleter = null;
     final acceptedOperation = _currentOperation;
     if (_repairMode && acceptedOperation != null) {
-      // The OTP is accepted: leave entry for the progress screen while
-      // reconciliation and publication run. A retired operation owns no
-      // completer, so it can never reach this branch.
       acceptedOperation.otpAccepted = true;
       emitStep(ShowProgressResume());
     }
@@ -274,9 +265,7 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
 
   @override
   Future<void> requestNewCode() async {
-    // A replacement is accepted only while exactly one OTP resolver waits.
-    // Through session opening, verification and publication no resolver
-    // waits, so repeated taps cannot stack sessions or issue extra codes.
+    // Only one OTP resolver waiting means repeated taps cannot stack sessions.
     final waiting = _otpCompleter;
     if (waiting == null || waiting.isCompleted) return;
     final cooldown = _codeCooldownRemaining();
@@ -291,9 +280,7 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
       );
       return;
     }
-    // Return to the identifier root before opening the replacement session
-    // so the next challenge pushes the only OTP route. The retired operation
-    // unwinds against a stale token and is ignored.
+    // The next challenge must push the only OTP route.
     cancelPendingOperation();
     emitStep(ShowIdentifierEntry());
     state = state.copyWith(inFlight: false, otpWaiting: false);
@@ -317,20 +304,14 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
     _otpCompleter = null;
     _session = null;
     if (pending != null && !pending.isCompleted) {
-      // Dispose-safe: completing the completer schedules no synchronous
-      // provider writes. The suspended operation then unwinds through the
-      // cancellation path, which ignores the stale operation.
       pending.completeError(const SyncEnrollmentOtpCancelled());
     }
-    // Never modify provider state synchronously from dispose: the Flow calls
-    // this while the widget tree is finalizing. Defer the guard release past
-    // the current build; a newer operation started later owns its own guard.
+    // The Flow calls this while the tree finalizes, so provider writes must be
+    // deferred.
     if (ref.mounted) {
       scheduleMicrotask(() {
         if (!ref.mounted || _currentOperation != null) return;
         if (cancelsAcceptedOtp && _repairMode) {
-          // Verification was showing progress: return to OTP entry instead
-          // of stranding the next entry on the progress screen.
           emitStep(ShowOtpEntry());
         }
         state = state.copyWith(inFlight: false, otpWaiting: false);
@@ -376,8 +357,7 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
       if (!identical(operation, _currentOperation) || operation.cancelled) {
         throw const SyncEnrollmentOtpCancelled();
       }
-      // The challenge issues the code, so the request cooldown starts here
-      // rather than at session open.
+      // The challenge issues the code, so the cooldown starts here.
       _noteCodeRequested();
       final otpCompleter = Completer<String>();
       _otpCompleter = otpCompleter;
@@ -443,9 +423,8 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
     await _publishUntilPublished(session, operation);
   }
 
-  // The Flow can close after the OTP is accepted while the service still
-  // commits the repair and stores its write proof. Without the UI to retry,
-  // publish that proof here so the next push does not go out without it.
+  // The Flow can close after OTP acceptance while the service still stores its
+  // write proof; publish it here since no UI remains to retry.
   Future<void> _publishAbandonedRepairProof(
     SyncEnrollmentSession session,
   ) async {
@@ -460,8 +439,7 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
         }
       }
     } on Object catch (_) {
-      // Nothing is left to surface the failure; the proof stays stored for the
-      // next repair or the coordinator that owns pushes.
+      // No UI remains to surface the failure; the proof stays stored.
     }
     if (ref.mounted) await _refreshSyncStatus();
   }

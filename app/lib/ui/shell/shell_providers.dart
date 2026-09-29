@@ -12,6 +12,5 @@ final selectedMonthProvider = StateProvider<DateTime>(
   (ref) => startOfMonthUtc(DateTime.now()),
 );
 
-// True while a repair route opened from Settings is on the stack, so the
-// repair banner does not cover the already-open repair form.
+// Hides the repair banner while the repair form is open.
 final repairFlowOpenProvider = StateProvider<bool>((ref) => false);

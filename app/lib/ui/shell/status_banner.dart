@@ -46,8 +46,7 @@ class StatusBanner extends ConsumerWidget {
   }
 }
 
-// Rail layout has no bottom bar to consume the system inset, so the banner
-// sits above it with a 16 dp minimum gap.
+// The rail layout has no bottom bar to consume the system inset.
 class _BottomAnchored extends StatelessWidget {
   const _BottomAnchored({required this.horizontalInset, required this.child});
 
@@ -71,9 +70,8 @@ class _BottomAnchored extends StatelessWidget {
   }
 }
 
-// Persistent repair action. It takes precedence over BannerState's timed
-// messages, which stay in their state and return once repair clears. It steps
-// aside while the repair route is open so it cannot cover the form's controls.
+// Takes precedence over BannerState's timed messages, which return once repair
+// clears.
 class _RepairBanner extends ConsumerWidget {
   const _RepairBanner();
 

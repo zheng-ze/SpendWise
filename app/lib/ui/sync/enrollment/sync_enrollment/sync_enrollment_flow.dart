@@ -26,8 +26,7 @@ class _SyncEnrollmentFlowState
     super.initState();
     _viewModel = ref.read(syncEnrollmentViewModelProvider.notifier);
     if (widget.repairMode) {
-      // Deferred past mounting: enterRepairMode writes provider state, which
-      // is not allowed synchronously inside initState.
+      // enterRepairMode writes provider state, illegal inside initState.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         unawaited(_enterRepair());
@@ -35,9 +34,6 @@ class _SyncEnrollmentFlowState
     }
   }
 
-  // Re-reads durable metadata on entry. A repair phase that already cleared
-  // (or unreadable) refreshes Settings status and leaves without opening OTP.
-  // A superseded read (null) owns nothing, so the Flow does nothing.
   Future<void> _enterRepair() async {
     final repairNeeded = await _viewModel.enterRepairMode();
     if (!mounted) return;
@@ -71,8 +67,7 @@ class _SyncEnrollmentFlowState
     final navigator = Navigator.of(context);
     switch (step) {
       case ShowIdentifierEntry():
-        // The repair root already is identifier entry, so repeated repair
-        // retries return to it without stacking a second identifier route.
+        // The repair root already is identifier entry.
         navigator.popUntil((route) => route.isFirst);
         if (!widget.repairMode) {
           navigator.push(

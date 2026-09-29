@@ -33,15 +33,13 @@ class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
     super.initState();
     _repairFlowOpen = ref.read(repairFlowOpenProvider.notifier);
     _container = ProviderScope.containerOf(context, listen: false);
-    // AppShell keeps every destination mounted in an IndexedStack, so a
-    // cached status would otherwise survive until the next repair return.
-    // Re-read durable metadata whenever the Settings tab becomes selected.
+    // AppShell keeps every destination mounted, so the cached status must be
+    // re-read when the Settings tab is selected.
     if (ref.read(selectedDestinationProvider) == ShellDestination.settings) {
       unawaited(_refreshSyncStatus());
     }
-    // The repair banner can emit its single-shot request before this Flow's
-    // navigator mounts, and FlowBase drops pre-mount steps. Re-check the
-    // pending step once mounted so the request is consumed exactly once.
+    // FlowBase drops steps emitted before the navigator mounts, so re-check
+    // the pending step once mounted.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final context = navigatorContext;
@@ -98,8 +96,8 @@ class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
   }
 
   void _openRepairFlow(BuildContext context) {
-    // Two Flow instances coexist while AppShell switches layouts and both see
-    // the same request; the shared flag lets exactly one of them push.
+    // Two Flows coexist during an AppShell layout switch; the shared flag lets
+    // only one push.
     if (_repairFlowOpen.state) return;
     _repairFlowOpen.state = true;
     _ownsRepairRoute = true;
@@ -125,11 +123,9 @@ class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
     if (_repairFlowOpen.mounted) _repairFlowOpen.state = false;
   }
 
-  // The repair route lives on this Flow's own navigator, so disposing the Flow
-  // (for example the outgoing side of an AppShell layout switch) destroys the
-  // route. Release the shared flag and re-request repair so a surviving
-  // instance opens a fresh route. Provider writes are illegal while the tree
-  // is finalizing, hence the microtask.
+  // Disposing the Flow destroys its repair route, so a surviving Flow must
+  // reopen it. Provider writes are illegal while the tree finalizes, hence the
+  // microtask.
   void _handOverOpenRepairRoute() {
     if (!_ownsRepairRoute) return;
     _ownsRepairRoute = false;

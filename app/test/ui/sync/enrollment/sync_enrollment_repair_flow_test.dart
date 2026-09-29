@@ -268,7 +268,6 @@ void main() {
         );
 
         harness.clock = harness.clock.add(const Duration(seconds: 61));
-        // Let the cooldown ticker rebuild past expiry before submitting.
         await tester.pump(const Duration(seconds: 2));
         harness.opener.session.onEnroll = () async {
           throw const SyncEnrollmentException(
@@ -305,7 +304,6 @@ void main() {
       );
       await driveToOtpEntry(tester, harness.opener.session);
       harness.clock = harness.clock.add(const Duration(seconds: 61));
-      // Let the cooldown ticker rebuild past expiry before requesting.
       await tester.pump(const Duration(seconds: 2));
       final openGate = Completer<void>();
       harness.opener.onOpen = () => openGate.future;
@@ -353,8 +351,6 @@ void main() {
 
       expect(harness.endedCalls, 1);
 
-      // Production pops the repair route on ended; disposing the Flow
-      // cancels the pending session open.
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: harness.container,
@@ -444,7 +440,6 @@ void main() {
 
       expect(find.byKey(_identifierField), findsOneWidget);
       harness.clock = harness.clock.add(const Duration(seconds: 61));
-      // Let the cooldown ticker rebuild past expiry before submitting.
       await tester.pump(const Duration(seconds: 2));
       harness.opener.session.onEnroll = () async {};
       await submitIdentifier(tester, 'fresh@example.com');
@@ -472,7 +467,6 @@ void main() {
       final harness = _Harness();
       final refreshGate = Completer<void>();
       await harness.pumpRepairFlow(tester, refreshGate: refreshGate);
-      // Entry found no repair phase and is awaiting the status refresh.
       expect(harness.endedCalls, 0);
 
       await tester.pumpWidget(

@@ -222,7 +222,6 @@ void main() {
       harness.notifier.clearStep();
 
       harness.notifier.cancelPendingOperation();
-      // The guard release is deferred past disposal finalization.
       await Future<void>.delayed(const Duration(milliseconds: 10));
       expect(harness.state.inFlight, isFalse);
 
@@ -337,8 +336,6 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 10));
 
       harness.notifier.cancelPendingOperation();
-      // The guard release is deferred past disposal finalization, so a
-      // replacement operation starts only after a later event.
       await Future<void>.delayed(const Duration(milliseconds: 10));
       harness.opener.onOpen = null;
       _collectOtpOnEnroll(harness);

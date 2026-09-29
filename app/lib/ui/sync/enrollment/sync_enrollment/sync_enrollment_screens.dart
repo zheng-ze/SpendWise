@@ -36,9 +36,6 @@ class _SyncIdentifierScreenState extends ConsumerState<SyncIdentifierScreen> {
     super.dispose();
   }
 
-  // Ticks only while a code-request cooldown is active so the countdown text
-  // stays live; with no cooldown no timer exists and frame settling is
-  // unaffected.
   void _syncCooldownTimer(Duration? remaining) {
     if (remaining == null) {
       _cooldownTimer?.cancel();
@@ -73,10 +70,8 @@ class _SyncIdentifierScreenState extends ConsumerState<SyncIdentifierScreen> {
         : const Text('Continue');
 
     return PopScope(
-      // The repair root is the identifier route itself and isFirst, so an
-      // allowed back bubbles out of the nested navigator to the Flow, which
-      // ends the repair and cancels via dispose. Vetoing here would report
-      // doNotPop (handled) and swallow the back press instead.
+      // The repair root is isFirst; back must bubble to the Flow, which ends
+      // the repair. Vetoing here would swallow the back press.
       canPop: state.repairMode || !state.inFlight,
       child: Scaffold(
         appBar: AppBar(
@@ -154,9 +149,6 @@ class _SyncOtpScreenState extends ConsumerState<SyncOtpScreen> {
     super.dispose();
   }
 
-  // Ticks only while a code-request cooldown is active so the countdown text
-  // stays live; with no cooldown no timer exists and frame settling is
-  // unaffected.
   void _syncCooldownTimer(Duration? remaining) {
     if (remaining == null) {
       _cooldownTimer?.cancel();
@@ -274,8 +266,7 @@ class SyncEnrollmentResumeScreen extends ConsumerWidget {
         : const Text('Retry');
 
     return PopScope(
-      // Repair publishing must not be popped mid-flight; entry screens gate
-      // back the same way. Fresh enrollment keeps its existing behavior.
+      // Repair publishing must not be popped mid-flight.
       canPop: !state.repairMode || !state.inFlight,
       child: Scaffold(
         appBar: AppBar(

@@ -55,8 +55,7 @@ String? _headerValue(Map<String, String> headers, String name) {
   return null;
 }
 
-// Canonical unpadded base64url encoding of 32 zero bytes, matching the
-// production device-secret format.
+// Unpadded base64url of 32 zero bytes, the device-secret format.
 const _stubDeviceSecret = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
 
 final class _ScriptedSyncHttpClient extends http.BaseClient {
