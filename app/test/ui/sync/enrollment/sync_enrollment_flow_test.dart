@@ -257,8 +257,10 @@ void main() {
     expect(harness.opener.session.enrollCalls, 1);
 
     // The shown code counts as a request, so a fresh submission waits out
-    // the client cooldown first.
+    // the client cooldown first. The extra pump lets the cooldown ticker
+    // rebuild past expiry and re-enable Continue.
     now = now.add(const Duration(seconds: 61));
+    await tester.pump(const Duration(seconds: 2));
     harness.opener.session.onEnroll = () async {};
     await submitIdentifier(tester, 'fresh@example.com');
     await pumpFlowFrames(tester);
@@ -602,6 +604,8 @@ void main() {
     harness.opener.session.onEnroll = () async {};
     await continueWithHosted(tester);
     now = now.add(const Duration(seconds: 61));
+    // Let the cooldown ticker rebuild past expiry and re-enable Continue.
+    await tester.pump(const Duration(seconds: 2));
     await submitIdentifier(tester, 'fresh@example.com');
     await pumpFlowFrames(tester);
 

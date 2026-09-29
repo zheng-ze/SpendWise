@@ -256,7 +256,12 @@ class SyncEnrollmentResumeScreen extends ConsumerWidget {
       syncEnrollmentViewModelProvider,
     );
     final errorMessage = state.errorMessage;
-    final status = errorMessage ?? 'Finishing hosted sync enrollment.';
+    final status =
+        errorMessage ??
+        (state.repairMode
+            ? 'Restoring device access. '
+                  'Reconciling and publishing this device. Keep the app open.'
+            : 'Finishing hosted sync enrollment.');
     final action = state.inFlight
         ? const SizedBox.square(
             dimension: 20,
@@ -264,34 +269,69 @@ class SyncEnrollmentResumeScreen extends ConsumerWidget {
           )
         : const Text('Retry');
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Finishing sync enrollment')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Text(status),
-          const SizedBox(height: 16),
-          FilledButton(
-            key: const Key('syncResumeRetry'),
-            onPressed: state.inFlight ? null : viewModel.retry,
-            child: action,
+    return PopScope(
+      // Repair publishing must not be popped mid-flight; entry screens gate
+      // back the same way. Fresh enrollment keeps its existing behavior.
+      canPop: !state.repairMode || !state.inFlight,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(
+            state.repairMode
+                ? 'Repair Device Access'
+                : 'Finishing sync enrollment',
           ),
-        ],
+        ),
+        body: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Text(status),
+            const SizedBox(height: 16),
+            FilledButton(
+              key: const Key('syncResumeRetry'),
+              onPressed: state.inFlight ? null : viewModel.retry,
+              child: action,
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class SyncEnrollmentCompletionScreen extends StatelessWidget {
+class SyncEnrollmentCompletionScreen extends ConsumerWidget {
   const SyncEnrollmentCompletionScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final SyncEnrollmentViewModel viewModel = ref.watch(
+      syncEnrollmentViewModelProvider.notifier,
+    );
+    final SyncEnrollmentState state = ref.watch(
+      syncEnrollmentViewModelProvider,
+    );
+    if (!state.repairMode) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Sync enrolled')),
+        body: const Padding(
+          padding: EdgeInsets.all(16),
+          child: Text('Sync enrollment complete'),
+        ),
+      );
+    }
     return Scaffold(
-      appBar: AppBar(title: const Text('Sync enrolled')),
-      body: const Padding(
-        padding: EdgeInsets.all(16),
-        child: Text('Sync enrollment complete'),
+      appBar: AppBar(title: const Text('Repair Device Access')),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          const Text('Device access restored'),
+          const Text('Sync writes have resumed.'),
+          const SizedBox(height: 16),
+          FilledButton(
+            key: const Key('syncRepairDone'),
+            onPressed: viewModel.dismissRepairFlow,
+            child: const Text('Done'),
+          ),
+        ],
       ),
     );
   }

@@ -14,8 +14,13 @@ import 'package:spendwise/sync/sync_metadata_store.dart';
 import 'package:spendwise/ui/settings/settings_flow.dart';
 import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_screen.dart';
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_screens.dart';
+import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart';
+import 'package:sync/sync.dart';
 
 import '../../support/recording_ledger_store.dart';
+import '../../sync/in_memory_secret_store.dart';
+import '../sync/enrollment/sync_enrollment_flow_test.dart'
+    show FakeSessionOpener;
 
 void main() {
   setUp(() {
@@ -31,13 +36,18 @@ void main() {
     );
   }
 
-  Future<ProviderContainer> pumpSettingsFlow(
-    WidgetTester tester,
-    HostedSyncStatus status,
-  ) async {
+  Future<
+    ({
+      ProviderContainer container,
+      SyncMetadataStore metadataStore,
+      FakeSessionOpener opener,
+    })
+  >
+  pumpSettingsFlow(WidgetTester tester, HostedSyncStatus status) async {
     final db = LedgerDatabase(NativeDatabase.memory());
     addTearDown(db.close);
     final metadataStore = SyncMetadataStore(db);
+    final opener = FakeSessionOpener();
     final container = ProviderContainer(
       overrides: [
         ledgerProvider.overrideWithValue(buildLedger()),
@@ -51,6 +61,12 @@ void main() {
             readSyncSnapshot: () => metadataStore.snapshot(),
           ),
         ),
+        syncEnrollmentViewModelProvider.overrideWith(
+          () => SyncEnrollmentNotifier(
+            sessionOpener: opener.call,
+            secretStore: InMemorySecretStore(),
+          ),
+        ),
       ],
     );
     addTearDown(container.dispose);
@@ -62,7 +78,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    return container;
+    return (container: container, metadataStore: metadataStore, opener: opener);
   }
 
   testWidgets('binding repair shows its explanation and one repair action', (
@@ -137,13 +153,12 @@ void main() {
 
   testWidgets('tapping Repair Device Access opens the repair flow, '
       'not the backend picker', (tester) async {
-    final container = await pumpSettingsFlow(
+    final harness = await pumpSettingsFlow(
       tester,
       const HostedSyncBindingRepair(),
     );
-    final metadataStore = container.read(syncMetadataStoreProvider);
-    await metadataStore.enterBindingAuthorizationRequired();
-    await container.read(appBootProvider).refreshSyncStatus();
+    await harness.metadataStore.enterBindingAuthorizationRequired();
+    await harness.container.read(appBootProvider).refreshSyncStatus();
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Repair Device Access'));
@@ -151,5 +166,51 @@ void main() {
 
     expect(find.byType(SyncIdentifierScreen), findsOneWidget);
     expect(find.byType(BackendPickerScreen), findsNothing);
+  });
+
+  testWidgets('completing repair returns to refreshed Settings', (
+    tester,
+  ) async {
+    final harness = await pumpSettingsFlow(
+      tester,
+      const HostedSyncBindingRepair(),
+    );
+    await harness.metadataStore.enterBindingAuthorizationRequired();
+
+    await tester.tap(find.text('Repair Device Access'));
+    await tester.pumpAndSettle();
+    expect(find.byType(SyncIdentifierScreen), findsOneWidget);
+
+    harness.opener.session.onEnroll = () async {
+      await harness.opener.session.resolveOtp!(
+        EnrollmentChallenge(const {'identifier': 'user@example.com'}),
+      );
+    };
+    await tester.enterText(
+      find.byKey(const Key('syncIdentifierField')),
+      'user@example.com',
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('syncIdentifierContinue')));
+    await tester.pump();
+    for (var i = 0; i < 30; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.byKey(const Key('syncOtpField')), findsOneWidget);
+
+    await tester.enterText(find.byKey(const Key('syncOtpField')), '482916');
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('syncOtpSubmit')));
+    for (var i = 0; i < 30; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.text('Device access restored'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('syncRepairDone')));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SyncIdentifierScreen), findsNothing);
+    expect(find.text('Hosted sync'), findsOneWidget);
+    expect(find.text('Repair Device Access'), findsOneWidget);
   });
 }
