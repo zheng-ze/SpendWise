@@ -12,10 +12,12 @@ class StatusBanner extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final status = ref.watch(hostedSyncStatusProvider);
-    final repairFlowOpen = ref.watch(repairFlowOpenProvider);
+    final repairFlowVisible =
+        ref.watch(repairFlowOpenProvider) &&
+        ref.watch(selectedDestinationProvider) == ShellDestination.settings;
     final needsRepair =
         status is HostedSyncBindingRepair || status is HostedSyncSessionReauth;
-    if (needsRepair && !repairFlowOpen) return const _RepairBanner();
+    if (needsRepair && !repairFlowVisible) return const _RepairBanner();
 
     final message = ref.watch(bannerStateProvider).message;
     if (message == null) return const SizedBox.shrink();

@@ -278,6 +278,35 @@ void main() {
     expect(find.text(_repairLabel), findsOneWidget);
   });
 
+  testWidgets('the banner returns on other tabs while the repair route stays '
+      'open and leads back to it', (tester) async {
+    final harness = await _pumpShell(
+      tester,
+      status: const HostedSyncBindingRepair(),
+      seedPhase: SyncEnrollmentPhase.bindingAuthorizationRequired,
+    );
+    await tester.tap(find.text(_repairLabel));
+    await tester.pumpAndSettle();
+    expect(find.text(_repairLabel), findsNothing);
+
+    harness.container.read(selectedDestinationProvider.notifier).state =
+        ShellDestination.transactions;
+    await tester.pumpAndSettle();
+
+    expect(harness.container.read(repairFlowOpenProvider), isTrue);
+    expect(find.text(_repairLabel), findsOneWidget);
+
+    await tester.tap(find.text(_repairLabel));
+    await tester.pumpAndSettle();
+
+    expect(
+      harness.container.read(selectedDestinationProvider),
+      ShellDestination.settings,
+    );
+    expect(find.byType(SyncIdentifierScreen), findsOneWidget);
+    expect(find.text(_repairLabel), findsNothing);
+  });
+
   testWidgets('with the keyboard up the repair form keeps Continue '
       'tappable and the banner stays hidden', (tester) async {
     await _pumpShell(
