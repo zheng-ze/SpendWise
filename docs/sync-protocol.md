@@ -3,24 +3,22 @@
 This document specifies the engine-agnostic, pure-Dart data-sync contract for SpendWise. It defines
 the `SyncBackend` and `SyncAuthenticator` interfaces, one uniform encrypted sibling envelope, the
 push/pull/reconcile/acknowledge operations, the canonical sibling-ID and snapshot-hash algorithms,
-the HTTP mapping and error bodies, and the test contract a future implementation must satisfy.
+the HTTP mapping and error bodies, and the verification contract for those behaviors.
 
-This is a design contract only. It produces no executable code, no `packages/sync` package, no
-backend adapter, no server endpoint, and no database change. Those belong to follow-on
-implementation work. The contract makes a Supabase adapter and a custom-endpoint adapter
-behaviorally interchangeable while leaving plaintext handling, encryption, conflict resolution, and
-application-state integration outside the backend boundary.
+The pure-Dart `packages/sync` package and its Supabase RPC adapter implement the operation-major-2
+transport described here. Device binding for protocol v2 is Supabase-only. The custom-endpoint
+adapter retains a legacy bearer-only prototype transport and has no v2 binding support, so custom
+endpoints are unsupported for v2 sync. Plaintext handling, encryption, conflict resolution, and
+application-state integration remain outside the backend boundary.
 
 Supported targets remain desktop and mobile. Web is not restored. Users who never opt into sync see
 unchanged behavior. Device-local settings are never synced.
 
 ## 1. Package boundary and dependencies
 
-This section records, for follow-on implementation work, exactly which package owns what and which
-dependencies are permitted. The settled destinations are documented here even though no move happens
-in ticket #85; the ticket records the contract only.
+This section records which package owns the sync protocol and which dependencies are permitted.
 
-The new package `packages/sync` is pure Dart with no Flutter dependency. A `pubspec.yaml` that
+The `packages/sync` package is pure Dart with no Flutter dependency. A `pubspec.yaml` that
 refuses a `flutter` import, like the domain package, enforces this boundary at compile time rather
 than by convention. `packages/sync` declares exactly one intra-repository dependency: `domain`,
 referenced by path, and uses it only for `normalizedID`. It never imports `app/lib` or any app-layer
@@ -30,14 +28,14 @@ code, and it never imports Flutter. The following matrices make these boundaries
 
 | Concern | Settled assignment | Notes |
 |---|---|---|
-| `VersionVector` and `VersionVectorDecodeError` | Relocate unchanged to `packages/sync/lib/src/version_vector.dart` | Move is follow-on work, not performed by this ticket |
+| `VersionVector` and `VersionVectorDecodeError` | `packages/sync/lib/src/protocol/version_vector.dart` | Pure-Dart protocol ownership |
 | `VersionVector` members relocated | `bump`, `dominates`, `isConcurrent`, `encode`, `decode`, `equality`, `hashCode`, `unchanged` | `merge` is not added and not relocated |
 | `deviceID` / `_claimDeviceID` | Remain in `app/lib/persistence/` | Drift-bound device-identity claiming, not protocol |
 | `normalizedID` | Imported from `domain` by path | Only intra-repository dependency |
 | Public export surface | `VersionVector` and the sync interfaces re-exported through `package:sync/sync.dart` | App imports via `package:sync/sync.dart` |
 | Flutter dependency | Excluded | Compile-enforced, no `flutter` import |
 | `app/lib` dependency | Excluded | No app-layer import |
-| All relocations | Deferred to follow-on implementation | Ticket #85 records this only |
+| Package boundary | Implemented in `packages/sync` | The current source and package boundary tests define the executable boundary |
 
 **Why `VersionVector` moves but `deviceID` does not.** `VersionVector` carries causal-frontier
 semantics (`dominates`, `isConcurrent`) that the sync contract consumes at its seam, so it belongs
@@ -46,11 +44,10 @@ protocol, so they stay in the app persistence layer. No `merge` method is added 
 `merge` stays scoped to a separately-owned client-side resolution-write step, which remains out of
 scope here.
 
-The design also records, for follow-on work, the two required adapter implementations and a possible
-third. A Supabase adapter maps the abstract operations to managed Postgres and PostgREST behavior.
-A custom-endpoint adapter implements the same operation contract against explicit endpoints. A
-future self-hosted server is a plausible third implementation behind the same interface, consuming
-the same `SyncBackend` data contract without being designed here.
+The Supabase adapter maps abstract operations to PostgREST RPCs. The custom-endpoint adapter
+implements prototype calls against explicit endpoints, but has no v2 device-binding transport. A
+future self-hosted server could implement the same `SyncBackend` interface after defining its own
+binding contract.
 
 ## 2. SyncBackend and SyncAuthenticator Dart interfaces
 
@@ -71,10 +68,9 @@ cursor, and retry logic separately, so it is load-bearing, not a pass-through. F
 `SyncAuthenticator` into `SyncBackend` would leak Supabase OTP mechanics into the engine-agnostic
 data contract, so the two are deliberately separate interfaces.
 
-**Adapter variation.** A Supabase adapter and a custom-endpoint adapter are both required, and a
-possible future self-hosted server is a plausible third implementation behind the same interface.
-`SyncAuthenticator` exposes a real confirmed variation: Supabase's OTP flow versus a custom
-endpoint's own auth mechanism (API key, none, or something else).
+**Adapter variation.** `SyncBackend` permits multiple adapters, but only the Supabase RPC adapter
+has a v2 binding transport. The custom-endpoint adapter remains a bearer-only prototype.
+`SyncAuthenticator` separates Supabase's OTP flow from any future custom authentication mechanism.
 
 **SyncBackend members.** `SyncBackend` exposes exactly four operations: `push`, `pull`,
 `reconcile`, and `acknowledge`. Each returns a `Future<SyncOutcome<T>>` and each takes an opaque,
@@ -89,12 +85,13 @@ and exposes three provider-neutral Dart methods: `beginEnrollment(identifier)` r
 `SyncOutcome<DeviceCredential>`. `AuthChallenge` and `response` are backend-defined opaque
 payloads. `DeviceCredential` is opaque to `SyncBackend` callers and may be constructed or inspected
 only by `SyncAuthenticator` implementations. Supabase represents an email OTP through its opaque
-challenge; a custom backend may represent an API-key exchange or no challenge at all without
-altering `SyncBackend`.
+challenge. Its `refreshCredential` method currently returns `backend_unavailable`; routine bearer
+reauthentication uses the ordinary begin and complete OTP methods. A future custom backend may
+represent another authentication mechanism without altering `SyncBackend`.
 
 **Naming rules.** Dart members and parameters use lowerCamelCase. Dart types use UpperCamelCase.
 snake_case is confined to the wire format. This convention is enforced across the API and the wire
-boundary, and future analyzer checks verify it (see the deferred test specification).
+boundary, and analyzer checks verify it (see the verification specification).
 
 **Sealed reconcile request.** `SyncBackend.reconcile` takes a sealed request type represented by the
 `BeginReconcile` and `CompleteReconcile` variants, or an equivalent sealed representation, while
@@ -104,7 +101,10 @@ retaining one public `reconcile` method.
 retryable transport and rate-limit failures, credential failures, and protocol/conformance
 failures. The settled failure names are `credential_expired`, `rate_limited`, `device_retired`,
 `reconciliation_required`, `stale_or_invalid_proof`, `snapshot_hash_mismatch`, `protocol_unsupported`,
-and `invalid_request`. Machine-readable wire codes use snake_case and match these names.
+`device_authorization_required`, `incompatible_server`, `invalid_request`, `network_unavailable`,
+and `backend_unavailable`. Machine-readable wire codes use snake_case and match these names.
+`incompatible_server` is terminal when the client cannot parse a v2 response or receives that named
+code; HTTP 426 maps to `protocol_unsupported`.
 
 **Dart-to-wire mapping matrix.**
 
@@ -117,7 +117,8 @@ and `invalid_request`. Machine-readable wire codes use snake_case and match thes
 | `beginEnrollment(identifier)` | enrollment wire step (backend-defined) | Returns opaque `AuthChallenge` |
 | `completeEnrollment(challenge, response)` | enrollment wire step (backend-defined) | Returns opaque `DeviceCredential` |
 | `refreshCredential(credential)` | refresh wire step (backend-defined) | Returns opaque `DeviceCredential` |
-| opaque `SyncCredential` | HTTPS `Authorization: Bearer` header only | Never sent as body field; never replaced by `write_proof` |
+| `DeviceCredential` or `BoundDeviceCredential` | HTTPS `Authorization: Bearer` plus one binding header for Supabase v2 | Authorization-bearing Begin uses `X-SpendWise-Binding-Authorization`; bound operations use `X-SpendWise-Device-Secret` |
+| `protocol_major` / `device_id` | Top-level RPC body fields | Supabase v2 sends numeric `protocol_major: 2` and the device ID on every RPC |
 | `write_proof` (top-level, optional) | push body top-level string | Reconciliation proof, separate from the credential |
 | `BeginReconcile` / `CompleteReconcile` | begin_reconcile / complete_reconcile messages | Sealed Dart variants of one `reconcile` method |
 | `collection_hashes` | complete_reconcile field | Five digests, no combined digest |
@@ -178,7 +179,7 @@ responses, and lifecycle must permit only `live` and `tombstone`.
 | `sibling_id` | present | stored, server-visible metadata | present | the digest | object field | response input | n/a |
 | `version_vector` | present | stored, server-visible metadata | present | input | object field | present | n/a |
 | `lifecycle` | present | stored, server-visible metadata | present | not hashed | object field | present | `live`, `tombstone` |
-| `ciphertext` | present | opaque | n/a — authenticated by AEAD tag integrity, not AAD | not hashed | object field | present | n/a |
+| `ciphertext` | present | opaque | n/a - authenticated by AEAD tag integrity, not AAD | not hashed | object field | present | n/a |
 | server change position/timestamp | response only | server-assigned | n/a | n/a | n/a | response only | n/a |
 
 **Collection hash field set.** Each collection-digest object contains only the AAD-bound metadata
@@ -219,9 +220,9 @@ reconciliation context and one optional lower page limit.
 variants through one public method. `begin_reconcile` is device-scoped and returns a device-bound
 reconciliation ID, a fixed snapshot watermark, an expiry, and context for ordinary per-collection
 `pull` calls to page the full snapshot without normal cursors. After paging every collection,
-`complete_reconcile` submits `collection_hashes` — an object containing exactly `money_sources`,
+`complete_reconcile` submits `collection_hashes` - an object containing exactly `money_sources`,
 `entries`, `categories`, `plans`, and `budgets`, each mapped to its individual unpadded base64url
-SHA-256 digest — and receives a single-use write-proof token only when all five match. The operation
+SHA-256 digest - and receives a single-use write-proof token only when all five match. The operation
 supports the full-snapshot pull path, fixed watermark behavior, and the reconciliation gate shared
 by a new device's first write and a retired device's reactivation.
 
@@ -243,9 +244,9 @@ independent cursor.
 | Dart request type | `Future<SyncOutcome<PushResult>> push(SyncCredential, List<Envelope>, {writeProof?})` |
 | Wire fields | sibling envelope array; optional top-level `write_proof` string |
 | Success fields | per-row `applied` / `already_present` / `rejected`, and resulting causal frontier per row |
-| Applicable typed failures | `stale_or_invalid_proof`, `invalid_request` |
+| Applicable typed failures | `credential_expired`, `device_authorization_required`, `protocol_unsupported`, `incompatible_server`, `device_retired`, `reconciliation_required`, `stale_or_invalid_proof`, `rate_limited`, `network_unavailable`, `backend_unavailable`, `invalid_request` |
 | Recovery action | supply `write_proof` on the first post-reconciliation push; retry only rejected rows |
-| Authorization transport | HTTPS `Authorization: Bearer` header |
+| Authorization transport | Supabase v2: HTTPS `Authorization: Bearer` and `X-SpendWise-Device-Secret` headers |
 | Call granularity | batch of siblings; atomicity per logical row |
 | Atomicity boundary | one logical row per submitted row |
 
@@ -256,9 +257,9 @@ independent cursor.
 | Dart request type | `Future<SyncOutcome<PullResult>> pull(SyncCredential, collection, {cursor, pageLimit?})` |
 | Wire fields | one collection, one cursor or reconciliation context, one optional lower page limit |
 | Success fields | page of envelopes, one server-assigned cursor advance, optional end-of-snapshot marker |
-| Applicable typed failures | `reconciliation_required`, `credential_expired`, `rate_limited`, `network_unavailable`, `backend_unavailable`, `invalid_request` |
+| Applicable typed failures | `credential_expired`, `device_authorization_required`, `protocol_unsupported`, `incompatible_server`, `device_retired`, `reconciliation_required`, `rate_limited`, `network_unavailable`, `backend_unavailable`, `invalid_request` |
 | Recovery action | retry from the last acknowledged durable checkpoint, never a received-but-unstaged page; stage without pruning frontier; the returned cursor only becomes durable once staged and acknowledged |
-| Authorization transport | HTTPS `Authorization: Bearer` header |
+| Authorization transport | Supabase v2: HTTPS `Authorization: Bearer` and `X-SpendWise-Device-Secret` headers |
 | Call granularity | exactly one named collection per call |
 | Atomicity boundary | none per call; page boundary only; default maximum 500 envelopes |
 
@@ -269,9 +270,9 @@ independent cursor.
 | Dart request type | `BeginReconcile` variant through `reconcile(SyncCredential, BeginReconcile)` |
 | Wire fields | device-scoped reconciliation request |
 | Success fields | device-bound reconciliation ID, fixed snapshot watermark, expiry, context |
-| Applicable typed failures | `credential_expired`, `device_retired`, `rate_limited`, `network_unavailable`, `backend_unavailable` |
+| Applicable typed failures | `credential_expired`, `device_authorization_required`, `protocol_unsupported`, `incompatible_server`, `device_retired`, `rate_limited`, `network_unavailable`, `backend_unavailable`, `invalid_request` |
 | Recovery action | page every collection under the context; retry on transport/backend failures |
-| Authorization transport | HTTPS `Authorization: Bearer` header |
+| Authorization transport | Supabase v2: HTTPS `Authorization: Bearer` and either `X-SpendWise-Binding-Authorization` or `X-SpendWise-Device-Secret` |
 | Call granularity | device-scoped, before per-collection pulls |
 | Atomicity boundary | none; establishes device-bound context |
 
@@ -282,9 +283,9 @@ independent cursor.
 | Dart request type | `CompleteReconcile` variant through `reconcile(SyncCredential, CompleteReconcile)` |
 | Wire fields | `collection_hashes` with exactly five digests, no combined digest |
 | Success fields | single-use write-proof token (only when all five match) |
-| Applicable typed failures | `snapshot_hash_mismatch`, `stale_or_invalid_proof`, `credential_expired`, `device_retired`, `rate_limited`, `network_unavailable`, `backend_unavailable` |
+| Applicable typed failures | `credential_expired`, `device_authorization_required`, `protocol_unsupported`, `incompatible_server`, `device_retired`, `reconciliation_required`, `snapshot_hash_mismatch`, `stale_or_invalid_proof`, `rate_limited`, `network_unavailable`, `backend_unavailable`, `invalid_request` |
 | Recovery action | on mismatch, re-page the named collection, recompute its digest, retry; supply `write_proof` on first post-reconcile push |
-| Authorization transport | HTTPS `Authorization: Bearer` header |
+| Authorization transport | Supabase v2: HTTPS `Authorization: Bearer` and `X-SpendWise-Device-Secret` headers |
 | Call granularity | after all five collection snapshots paged |
 | Atomicity boundary | none; gates single-use proof consumption |
 
@@ -295,9 +296,9 @@ independent cursor.
 | Dart request type | `Future<SyncOutcome<AckResult>> acknowledge(SyncCredential, collection, checkpoint)` |
 | Wire fields | one collection, one durable checkpoint |
 | Success fields | durable checkpoint record |
-| Applicable typed failures | `credential_expired`, `device_retired`, `rate_limited`, `network_unavailable`, `backend_unavailable`, `invalid_request` |
+| Applicable typed failures | `credential_expired`, `device_authorization_required`, `protocol_unsupported`, `incompatible_server`, `device_retired`, `reconciliation_required`, `rate_limited`, `network_unavailable`, `backend_unavailable`, `invalid_request` |
 | Recovery action | re-stage through the checkpoint, then re-acknowledge |
-| Authorization transport | HTTPS `Authorization: Bearer` header |
+| Authorization transport | Supabase v2: HTTPS `Authorization: Bearer` and `X-SpendWise-Device-Secret` headers |
 | Call granularity | exactly one named collection per call |
 | Atomicity boundary | none; durability boundary only |
 
@@ -375,31 +376,43 @@ is `[]` and the digest is `T1PNoYwrqgwDVLtfmj7L5e0Sq02OEbqHPC8RFhICuUU` for ever
 exactly `money_sources`, `entries`, `categories`, `plans`, and `budgets`, each mapped to its
 individual unpadded base64url SHA-256 digest. No combined digest is calculated. The per-collection
 golden vectors (including the empty-collection vector that covers a new device's all-empty first
-sync) are enumerated as part of the deferred test specification, and all five follow this identical
+sync) are enumerated as part of the verification specification, and all five follow this identical
 algorithm in ascending fixed order.
 
 ## 6. HTTP mapping and error bodies
 
-This section specifies the four fixed endpoint paths, protocol-major behavior, wire naming, Bearer
-authorization, the exact success and failure status mapping, the generic error-body fields, lifecycle
+This section specifies the Supabase v2 RPC transport, the legacy custom-endpoint paths,
+protocol-major behavior, wire naming, authorization, status mapping, error bodies, lifecycle
 rejection, and the separation of `write_proof` from credentials.
 
-**Endpoints.** The custom endpoint exposes exactly four paths, all `POST`: `/v1/sync/push`,
+**Endpoints.** The custom-endpoint prototype exposes four `POST` paths: `/v1/sync/push`,
 `/v1/sync/pull`, `/v1/sync/reconcile`, and `/v1/sync/acknowledge`. These operations define behavior
-directly rather than exposing PostgREST table resources. The Supabase adapter maps the same abstract
-operations to managed Postgres and PostgREST behavior behind the same interface.
+directly rather than exposing PostgREST table resources. The Supabase v2 adapter calls
+`sync_push`, `sync_pull`, `sync_begin_reconcile`, `sync_complete_reconcile`, and `sync_acknowledge`
+through `/rest/v1/rpc/`. The custom-endpoint prototype has no v2 binding contract; custom
+endpoint v2 sync is unsupported.
 
-**Protocol major.** Every request declares exactly one protocol major. An unsupported major returns
-HTTP 426 with the typed `protocol_unsupported` failure naming the supported majors. There is no
-range negotiation, no downgrade, and no reinterpretation.
+**Protocol major.** Every Supabase RPC request body carries numeric `protocol_major: 2` and
+`device_id`. Binding start and verify request and response bodies also carry numeric
+`protocol_major: 2`; their response decoders reject missing or other values. The Supabase v2 RPC
+success contract includes `protocol_major: 2`, but the current generic RPC response wrappers do not
+validate that field. The operation major is separate from the encrypted envelope's AAD-bound
+`protocol_version: 1`. A missing or unsupported operation major receives HTTP 426
+`protocol_unsupported`. Clients do not negotiate, downgrade, omit binding proof, or retry with v1
+fields. HTTP 426 remains `protocol_unsupported`; an unparseable v2 response or an explicit
+`incompatible_server` code maps to terminal `incompatible_server`.
 
 **Wire naming.** Wire documents use snake_case field names, base64url ciphertext, RFC 3339 UTC
 timestamps, string version-vector counters, and exactly one declared protocol major version.
 
-**Authorization.** Every data call sends the credential only as an HTTPS `Authorization: Bearer`
-header. Enrollment and refresh never occur inside `SyncBackend`. The optional top-level `write_proof`
-string is a reconciliation proof, separate from the opaque credential, and never replaces the
-`Bearer` header.
+**Authorization.** Every Supabase v2 RPC sends `Authorization: Bearer <jwt>` and exactly one
+binding header. Authorization-bearing `sync_begin_reconcile` sends
+`X-SpendWise-Binding-Authorization` with a `DeviceCredential`; bound Begin and all other RPCs send
+`X-SpendWise-Device-Secret` with a `BoundDeviceCredential`. The adapter rejects mismatched
+credential and operation modes before HTTP dispatch. `SupabaseDeviceBindingAuthorizer` uses the
+anonymous gateway bearer and `apikey` for its start and verify calls, before a user bearer or
+device secret exists. Enrollment and refresh stay outside `SyncBackend`. The optional top-level
+`write_proof` is a separate reconciliation proof and never replaces either credential header.
 
 **Lifecycle rejection.** Any lifecycle value other than `live` or `tombstone` produces
 `invalid_request`.
@@ -412,20 +425,31 @@ HTTP 200.
 | Code | Failure | Recovery |
 |---|---|---|
 | 400 | `invalid_request` | fix the malformed document or lifecycle value |
-| 401 | `credential_expired` | call `SyncAuthenticator.refreshCredential`, then retry |
+| 401 | `credential_expired` | obtain a new bearer through routine session reauthentication; retain the device secret |
 | 403 | `device_retired` or `reconciliation_required` | retire/reactivate flow, or begin reconciliation first |
 | 409 | `stale_or_invalid_proof` or `snapshot_hash_mismatch` | supply/reuse proof correctly, or re-page the named collection |
-| 426 | `protocol_unsupported` | upgrade to a supported major; no negotiation |
+| 426 | `protocol_unsupported` | upgrade to major 2; never retry with v1 fields or without binding proof |
+| 428 | `device_authorization_required` | obtain a new binding authorization, then use authorization-bearing Begin and full reconciliation |
 | 429 | `rate_limited` | honor `retry_after_seconds` |
-| 503 | `network_unavailable` or `backend_unavailable` | retain local writes, retry on lifecycle or on demand |
+| 503 | `backend_unavailable` | retain local writes, retry on lifecycle or on demand |
 
-**Error-body fields.** Every error body contains `code` and `message`, plus `retry_after_seconds`,
-`credential_action`, or `mismatched_collection` where applicable. `credential_expired` directs
-`SyncAuthenticator.refreshCredential`. `rate_limited` carries `retry_after_seconds`.
+`incompatible_server` is a terminal client outcome for an unparseable v2 success response or an
+explicit named error code. It has no dedicated HTTP status row. `network_unavailable` is a client
+transport outcome from a caught request exception, not the HTTP 503 mapping.
+
+**Error-body fields.** The client reads `failure_code` first and falls back to `code`; it also reads
+`message` where present. The public RPC failure contract uses a machine-readable failure code and
+message. The client parses rate-limit delay from the HTTP `Retry-After` header.
 `snapshot_hash_mismatch` includes `mismatched_collection`, selected as the first differing
 collection in fixed order `money_sources`, `entries`, `categories`, `plans`, `budgets`.
 `network_unavailable` and `backend_unavailable` are retryable and leave unsynced local writes
 intact.
+
+**Retired-device reactivation.** A retired device cannot resume ordinary bound operations.
+Authorization-bearing Begin with a fresh binding authorization can reactivate it and issue a new
+device secret. The device must complete full reconciliation before writes resume. The in-memory
+binding emulator rejects ordinary bound Begin on a retired device and clears retirement only in
+authorization-bearing Begin.
 
 **Reconciliation mismatch recovery.** The server compares `collection_hashes` in fixed order
 `money_sources`, `entries`, `categories`, `plans`, `budgets`. The first difference returns HTTP 409
@@ -433,14 +457,12 @@ intact.
 digest exists. The client then re-pages the named mismatched collection under the same
 reconciliation context, recomputes its digest, and retries `CompleteReconcile`.
 
-## 7. Deferred test specification
+## 7. Verification specification
 
 This section names the pure-Dart, adapter-contract, server, analyzer, canonicalization, causality,
 cursor, authentication, reconciliation, lifecycle, proof, snapshot-mismatch, and failure cases
-follow-on implementation must cover. It makes no claim of runtime coverage for ticket #85;
-completion is checked against this committed design document, the architecture cross-reference, the
-contract matrices, state tables, mappings, and golden vectors. Runtime tests are deferred because
-this ticket produces no executable implementation.
+the implementation must cover. This protocol v2 documentation update is reviewed against the
+shipped package and adapter code; it does not run runtime tests.
 
 **Document-level verification.** Review each of the seven required sections for completeness and
 cross-section consistency. Verify that `docs/ARCHITECTURE.md` carries one layer or roadmap
@@ -450,6 +472,8 @@ cross-reference to `docs/sync-protocol.md`, that the design is reachable through
 **Operation-contract matrices.** Verify that push, pull, begin_reconcile, complete_reconcile, and
 acknowledge each enumerate Dart request types, wire fields, success fields, applicable typed
 failures, recovery action, authorization transport, call granularity, and atomicity boundary.
+Check that every Supabase v2 operation sends the bearer, numeric `protocol_major: 2`, `device_id`,
+and exactly one binding header appropriate to its mode.
 
 **Authentication-contract matrix.** Verify that beginEnrollment, completeEnrollment, and
 refreshCredential each expose DTO opacity, ownership, success types, challenge failures, rate
@@ -484,8 +508,11 @@ collection, and successful retry.
 
 **Wire-codec golden cases.** At the pure-Dart package test layer, verify wire naming, base64url
 ciphertext and digests, RFC 3339 UTC timestamps, string counters, the five exact collection strings,
-exact protocol-major handling, `live` and `tombstone` lifecycle acceptance, and rejection of
-malformed documents or any other lifecycle value.
+numeric operation `protocol_major: 2` in request and binding response bodies, envelope
+`protocol_version: 1`, `live` and `tombstone` lifecycle acceptance, and rejection of malformed
+documents or any other lifecycle value. Check that an unparseable Supabase RPC success becomes
+terminal `incompatible_server`; the current generic RPC wrappers do not inspect the returned
+`protocol_major` field.
 
 **Dart API and analyzer checks.** Verify the settled member, parameter, and type naming
 conventions, sealed reconcile variants, public export through `package:sync/sync.dart`, absence of
@@ -494,10 +521,10 @@ Flutter or `app` imports, and compatibility with the repository's zero-issue ana
 **Dart-to-wire mapping tests.** Map each Dart API element to its wire operation and field so naming
 conventions do not leak across the interface boundary.
 
-**Adapter contract cases.** At the highest shared behavioral seam, identical requests must produce
-equivalent typed outcomes, per-row frontiers, per-collection cursor progression, checkpoint
-acknowledgement, reconciliation gates, and authentication boundaries for the Supabase and
-custom-endpoint implementations.
+**Adapter contract cases.** Verify Supabase v2 binding mode selection, per-row frontiers,
+per-collection cursor progression, checkpoint acknowledgement, reconciliation gates, and
+authentication boundaries. Custom endpoint v2 remains unsupported until it has a binding
+contract; do not assert v2 parity with the bearer-only prototype.
 
 **Causal-frontier cases.** Non-dominated insertion, dominated retry, domination-based deletion,
 concurrent retention, stable retry identity, `applied`, `already_present`, `rejected`, partial batch
@@ -505,7 +532,7 @@ rejection, and independent-row progress.
 
 **Push-proof cases.** Omission on ordinary pushes, required presence on the first post-reconciliation
 push, success and consumption, absence, expiry, reuse, device mismatch, intervening-write
-invalidation, and continued independent Bearer authorization.
+invalidation, and continued independent bearer and device-secret authorization.
 
 **Pull and acknowledgement boundary cases.** One collection per call, empty pages, fewer-than-limit
 pages, the 500-envelope default maximum, lower requested limits, independent collection cursors,
@@ -513,16 +540,19 @@ repeated pages, staging-before-acknowledgement, and server-only cursor assignmen
 
 **Reconciliation state-table cases.** BeginReconcile, snapshot context, all five per-collection
 snapshot pulls, fixed watermark behavior, collection_hashes completion, single-use proof consumption,
-a new device before and after reconciliation, retirement after 90 or more days, reactivation, the
-24-hour expiry, invalidation by an intervening write, snapshot_hash_mismatch recovery, preservation
-of unsynced local writes, and prevention of garbage-collected-row resurrection.
+a new device before and after reconciliation, retirement after 90 or more days, reactivation through
+authorization-bearing Begin and full reconciliation, the 24-hour expiry, invalidation by an
+intervening write, snapshot_hash_mismatch recovery, preservation of unsynced local writes, and
+prevention of garbage-collected-row resurrection.
 
-**HTTP mapping cases.** HTTP 200 for completed calls, 400 `invalid_request`, 401 `credential_expired`
-with refresh action, 403 `device_retired` and `reconciliation_required`, 409 `stale_or_invalid_proof`
-and `snapshot_hash_mismatch` with `mismatched_collection`, 426 `protocol_unsupported` with supported
-majors, 429 `rate_limited` with `retry_after_seconds`, and retryable 503 `network_unavailable` or
-`backend_unavailable`.
+**HTTP mapping cases.** HTTP 200 for completed calls, 400 `invalid_request`, 401
+`credential_expired` with bearer-only reauthentication, 403 `device_retired` and
+`reconciliation_required`, 409 `stale_or_invalid_proof` and `snapshot_hash_mismatch` with
+`mismatched_collection`, 426 `protocol_unsupported` without downgrade, 428
+`device_authorization_required` with binding repair, 429 `rate_limited` with `Retry-After`, and
+retryable 503 `backend_unavailable`. Check transport-exception `network_unavailable` and terminal
+`incompatible_server` separately because neither has a dedicated HTTP status.
 
-**Failure-body coverage.** Require `code` and `message` in every error plus `retry_after_seconds`,
-`credential_action`, or `mismatched_collection` only where applicable. Every method must document
-which failures apply and the caller's required recovery action.
+**Failure-body coverage.** Verify `failure_code` or `code` and `message` on server errors,
+`mismatched_collection` on snapshot mismatch, and `Retry-After` on rate limiting. Every method must
+document which failures apply and the caller's required recovery action.
