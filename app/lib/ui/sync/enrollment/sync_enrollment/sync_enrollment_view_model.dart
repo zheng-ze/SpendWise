@@ -3,9 +3,11 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/sync/enrollment_snapshot_publisher.dart';
+import 'package:spendwise/sync/secret_store.dart';
 import 'package:spendwise/sync/sync_enrollment_service.dart';
 import 'package:spendwise/sync/sync_enrollment_session.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
+import 'package:spendwise/sync/sync_secret_keys.dart';
 import 'package:spendwise/ui/common/step_emitting.dart';
 import 'package:sync/sync.dart';
 
@@ -34,6 +36,10 @@ final class SyncEnrollmentState
     this.errorMessage,
     this.cancelled = false,
     this.step,
+    this.repairMode = false,
+    this.repairPhase,
+    this.explainCodeReplacement = false,
+    this.codeCooldownEndsAt,
   });
 
   final String identifier;
@@ -44,12 +50,21 @@ final class SyncEnrollmentState
   @override
   final SyncEnrollmentStep? step;
 
+  final bool repairMode;
+  final SyncEnrollmentPhase? repairPhase;
+  final bool explainCodeReplacement;
+  final DateTime? codeCooldownEndsAt;
+
   SyncEnrollmentState copyWith({
     String? identifier,
     bool? inFlight,
     String? Function()? errorMessage,
     bool? cancelled,
     SyncEnrollmentStep? Function()? step,
+    bool? repairMode,
+    SyncEnrollmentPhase? Function()? repairPhase,
+    bool? explainCodeReplacement,
+    DateTime? Function()? codeCooldownEndsAt,
   }) {
     return SyncEnrollmentState(
       identifier: identifier ?? this.identifier,
@@ -57,6 +72,13 @@ final class SyncEnrollmentState
       errorMessage: errorMessage == null ? this.errorMessage : errorMessage(),
       cancelled: cancelled ?? this.cancelled,
       step: step == null ? this.step : step(),
+      repairMode: repairMode ?? this.repairMode,
+      repairPhase: repairPhase == null ? this.repairPhase : repairPhase(),
+      explainCodeReplacement:
+          explainCodeReplacement ?? this.explainCodeReplacement,
+      codeCooldownEndsAt: codeCooldownEndsAt == null
+          ? this.codeCooldownEndsAt
+          : codeCooldownEndsAt(),
     );
   }
 
@@ -75,21 +97,39 @@ abstract class SyncEnrollmentViewModel {
   void clearStep();
 }
 
+final class _EnrollmentOperation {
+  bool cancelled = false;
+
+  void cancel() => cancelled = true;
+}
+
 class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
     with StepEmitting<SyncEnrollmentState, SyncEnrollmentStep>
     implements SyncEnrollmentViewModel {
-  SyncEnrollmentNotifier({SyncEnrollmentSessionOpener? sessionOpener})
-    : _sessionOpenerOverride = sessionOpener;
+  SyncEnrollmentNotifier({
+    SyncEnrollmentSessionOpener? sessionOpener,
+    SecretStore? secretStore,
+    this._repairMode = false,
+    DateTime Function()? now,
+  }) : _sessionOpenerOverride = sessionOpener,
+       _secretStore = secretStore ?? SecureSecretStore(),
+       _now = now ?? DateTime.now;
 
   static const maxPublishAttempts = 3;
   static const _publishRetryDelay = Duration(seconds: 1);
+  static const codeRequestCooldown = Duration(seconds: 60);
+  static const _maxWaitDisplay = Duration(minutes: 15);
 
   final SyncEnrollmentSessionOpener? _sessionOpenerOverride;
+  final SecretStore _secretStore;
+  bool _repairMode;
+  final DateTime Function() _now;
   Completer<String>? _otpCompleter;
   SyncEnrollmentSession? _session;
+  _EnrollmentOperation? _currentOperation;
 
   @override
-  SyncEnrollmentState build() => const SyncEnrollmentState();
+  SyncEnrollmentState build() => SyncEnrollmentState(repairMode: _repairMode);
 
   @override
   void updateState(
@@ -102,12 +142,35 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
         ref,
         identifier: identifier,
         resolveOtp: resolveOtp,
+        secretStore: _secretStore,
       );
 
   @override
   void hostedReady() {
     if (state.inFlight) return;
     state = state.copyWith(errorMessage: () => null, cancelled: false);
+    emitStep(ShowIdentifierEntry());
+  }
+
+  Future<void> enterRepairMode() async {
+    if (state.inFlight) return;
+    _repairMode = true;
+    final operation = _EnrollmentOperation();
+    _currentOperation = operation;
+    _session = null;
+    state = state.copyWith(
+      identifier: '',
+      errorMessage: () => null,
+      cancelled: false,
+      repairMode: true,
+      explainCodeReplacement: true,
+      step: () => null,
+    );
+    final phase = await _currentPhase();
+    if (!ref.mounted || !identical(operation, _currentOperation)) return;
+    if (_isRepairPhase(phase)) {
+      state = state.copyWith(repairPhase: () => phase);
+    }
     emitStep(ShowIdentifierEntry());
   }
 
@@ -121,6 +184,16 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
       );
       return;
     }
+    final cooldown = _codeCooldownRemaining();
+    if (cooldown != null) {
+      state = state.copyWith(
+        errorMessage: () => 'Send a new code in ${_ceilSeconds(cooldown)}s.',
+      );
+      return;
+    }
+    final operation = _EnrollmentOperation();
+    _currentOperation = operation;
+    _session = null;
     state = state.copyWith(
       identifier: trimmed,
       inFlight: true,
@@ -128,9 +201,14 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
       cancelled: false,
     );
     try {
-      await _enrollFromIdentifier(trimmed);
+      await _enrollFromIdentifier(trimmed, operation);
     } finally {
-      if (ref.mounted) state = state.copyWith(inFlight: false);
+      if (identical(operation, _currentOperation) && ref.mounted) {
+        state = state.copyWith(inFlight: false);
+      }
+    }
+    if (ref.mounted && identical(operation, _currentOperation)) {
+      await _refreshSyncStatus();
     }
   }
 
@@ -160,19 +238,35 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
 
   @override
   void cancelPendingOperation() {
-    // Dispose-safe: completing the completer schedules no synchronous
-    // provider writes. The suspended operation then unwinds through the
-    // cancellation path, which clears the in-flight guard in `finally`.
+    final operation = _currentOperation;
+    operation?.cancel();
+    _currentOperation = null;
     final pending = _otpCompleter;
-    if (pending == null || pending.isCompleted) return;
     _otpCompleter = null;
     _session = null;
-    pending.completeError(const SyncEnrollmentOtpCancelled());
+    if (pending != null && !pending.isCompleted) {
+      // Dispose-safe: completing the completer schedules no synchronous
+      // provider writes. The suspended operation then unwinds through the
+      // cancellation path, which ignores the stale operation.
+      pending.completeError(const SyncEnrollmentOtpCancelled());
+    }
+    // Never modify provider state synchronously from dispose: the Flow calls
+    // this while the widget tree is finalizing. Defer the guard release past
+    // the current build; a newer operation started later owns its own guard.
+    if (ref.mounted) {
+      scheduleMicrotask(() {
+        if (ref.mounted && _currentOperation == null) {
+          state = state.copyWith(inFlight: false);
+        }
+      });
+    }
   }
 
   @override
   Future<void> retry() async {
     if (state.inFlight) return;
+    final operation = _EnrollmentOperation();
+    _currentOperation = operation;
     state = state.copyWith(
       inFlight: true,
       errorMessage: () => null,
@@ -180,31 +274,56 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
     );
     try {
       final phase = await _currentPhase();
-      if (!ref.mounted) return;
-      if (phase == SyncEnrollmentPhase.notEnrolled) {
+      if (!ref.mounted || !identical(operation, _currentOperation)) return;
+      if (phase == SyncEnrollmentPhase.notEnrolled || _isRepairPhase(phase)) {
+        if (_repairMode && _isRepairPhase(phase)) {
+          state = state.copyWith(repairPhase: () => phase);
+        }
         emitStep(ShowIdentifierEntry());
         return;
       }
       emitStep(ShowProgressResume());
-      await _resumeWithoutCredentials();
+      await _resumeWithoutCredentials(operation);
     } finally {
-      if (ref.mounted) state = state.copyWith(inFlight: false);
+      if (identical(operation, _currentOperation) && ref.mounted) {
+        state = state.copyWith(inFlight: false);
+      }
+    }
+    if (ref.mounted && identical(operation, _currentOperation)) {
+      await _refreshSyncStatus();
     }
   }
 
-  Future<void> _enrollFromIdentifier(String identifier) async {
+  Future<void> _enrollFromIdentifier(
+    String identifier,
+    _EnrollmentOperation operation,
+  ) async {
     Future<String> resolveOtp(EnrollmentChallenge challenge) {
+      if (!identical(operation, _currentOperation) || operation.cancelled) {
+        throw const SyncEnrollmentOtpCancelled();
+      }
+      // The challenge issues the code, so the request cooldown starts here
+      // rather than at session open.
+      _noteCodeRequested();
       final otpCompleter = Completer<String>();
       _otpCompleter = otpCompleter;
+      if (_repairMode) {
+        state = state.copyWith(explainCodeReplacement: true);
+      }
       emitStep(ShowOtpEntry());
       return otpCompleter.future;
     }
 
-    SyncEnrollmentSessionResult? result = await _openSession(
+    final SyncEnrollmentSessionResult? result = await _openSession(
       identifier: identifier,
       resolveOtp: resolveOtp,
+      operation: operation,
     );
-    if (!ref.mounted || result == null) return;
+    if (!ref.mounted ||
+        !identical(operation, _currentOperation) ||
+        result == null) {
+      return;
+    }
     if (result is SyncEnrollmentSessionNotReady) {
       state = state.copyWith(
         errorMessage: () =>
@@ -213,44 +332,66 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
       return;
     }
     if (result is SyncEnrollmentSessionConfigurationError) {
-      state = state.copyWith(errorMessage: () => result.message);
+      state = state.copyWith(
+        errorMessage: () =>
+            'Hosted sync is not available right now. Please try again later.',
+      );
       return;
     }
     final session = (result as SyncEnrollmentSessionReady).session;
     _session = session;
+    if (_repairMode) {
+      await _refreshRepairPhase(operation);
+      if (!ref.mounted || !identical(operation, _currentOperation)) return;
+    }
     try {
       await session.enroll();
     } on SyncEnrollmentOtpCancelled {
-      _enterCancelled();
+      _enterCancelled(operation);
       return;
-    } on Exception catch (error) {
-      await _failPhaseAware(error);
+    } on Object catch (error) {
+      await _failPhaseAware(error, operation);
       return;
     }
-    if (!ref.mounted) return;
-    await _publishUntilPublished(session);
+    if (!ref.mounted || !identical(operation, _currentOperation)) return;
+    if (_repairMode) {
+      await _completeRepairIfProofPresent(session, operation);
+      return;
+    }
+    await _publishUntilPublished(session, operation);
   }
 
-  Future<void> _resumeWithoutCredentials() async {
-    final session = _session ?? await _reopenForResume();
-    if (!ref.mounted || session == null) return;
+  Future<void> _resumeWithoutCredentials(_EnrollmentOperation operation) async {
+    final session = _session ?? await _reopenForResume(operation);
+    if (!ref.mounted ||
+        !identical(operation, _currentOperation) ||
+        session == null) {
+      return;
+    }
     _session = session;
     try {
       await session.enroll();
-    } on Exception catch (error) {
-      await _failPhaseAware(error);
+    } on Object catch (error) {
+      await _failPhaseAware(error, operation);
       return;
     }
-    if (!ref.mounted) return;
-    await _publishUntilPublished(session);
+    if (!ref.mounted || !identical(operation, _currentOperation)) return;
+    await _publishUntilPublished(session, operation);
   }
 
-  Future<SyncEnrollmentSession?> _reopenForResume() async {
+  Future<SyncEnrollmentSession?> _reopenForResume(
+    _EnrollmentOperation operation,
+  ) async {
     final result = await _openSession(
       identifier: state.identifier,
       resolveOtp: _rejectUnexpectedOtp,
+      operation: operation,
     );
-    if (!ref.mounted || result == null) return null;
+    if (!ref.mounted ||
+        !identical(operation, _currentOperation) ||
+        result == null) {
+      return null;
+    }
     if (result is SyncEnrollmentSessionReady) return result.session;
     if (result is SyncEnrollmentSessionNotReady) {
       state = state.copyWith(
@@ -261,7 +402,7 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
     }
     state = state.copyWith(
       errorMessage: () =>
-          (result as SyncEnrollmentSessionConfigurationError).message,
+          'Hosted sync is not available right now. Please try again later.',
     );
     return null;
   }
@@ -274,24 +415,45 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
   Future<SyncEnrollmentSessionResult?> _openSession({
     required String identifier,
     required Future<String> Function(EnrollmentChallenge challenge) resolveOtp,
+    required _EnrollmentOperation operation,
   }) async {
     try {
       return await _opener(identifier: identifier, resolveOtp: resolveOtp);
-    } on StateError catch (error) {
-      await _failPhaseAware(error);
-      return null;
-    } on Exception catch (error) {
-      await _failPhaseAware(error);
+    } on Object catch (error) {
+      await _failPhaseAware(error, operation);
       return null;
     }
   }
 
-  Future<void> _publishUntilPublished(SyncEnrollmentSession session) async {
+  Future<void> _completeRepairIfProofPresent(
+    SyncEnrollmentSession session,
+    _EnrollmentOperation operation,
+  ) async {
+    final String? proof;
+    try {
+      proof = await _secretStore.read(syncWriteProofSecretKey);
+    } on Object catch (error) {
+      await _failPhaseAware(error, operation);
+      return;
+    }
+    if (!ref.mounted || !identical(operation, _currentOperation)) return;
+    if (proof == null || proof.isEmpty) {
+      state = state.copyWith(errorMessage: () => null);
+      emitStep(ShowEnrollmentCompleted());
+      return;
+    }
+    await _publishUntilPublished(session, operation);
+  }
+
+  Future<void> _publishUntilPublished(
+    SyncEnrollmentSession session,
+    _EnrollmentOperation operation,
+  ) async {
     var attempts = 0;
     try {
       while (true) {
         final outcome = await session.publishSnapshot();
-        if (!ref.mounted) return;
+        if (!ref.mounted || !identical(operation, _currentOperation)) return;
         if (outcome is EnrollmentSnapshotPublished) {
           state = state.copyWith(errorMessage: () => null);
           emitStep(ShowEnrollmentCompleted());
@@ -305,36 +467,58 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
               code: 'snapshotPending',
               message: 'Snapshot publication is still pending. Please retry.',
             ),
+            operation,
           );
           return;
         }
         await Future<void>.delayed(_publishRetryDelay);
-        if (!ref.mounted) return;
+        if (!ref.mounted || !identical(operation, _currentOperation)) return;
       }
-    } on StateError catch (error) {
-      await _failPhaseAware(error);
-    } on Exception catch (error) {
-      await _failPhaseAware(error);
+    } on Object catch (error) {
+      await _failPhaseAware(error, operation);
     }
   }
 
-  void _enterCancelled() {
+  void _enterCancelled(_EnrollmentOperation operation) {
+    if (!identical(operation, _currentOperation)) return;
     _otpCompleter = null;
     _session = null;
     state = state.copyWith(errorMessage: () => null, cancelled: true);
     emitStep(ShowIdentifierEntry());
   }
 
-  Future<void> _failPhaseAware(Object error) async {
-    final message = _describeFailure(error);
+  Future<void> _failPhaseAware(
+    Object error,
+    _EnrollmentOperation operation,
+  ) async {
+    if (!identical(operation, _currentOperation)) return;
+    final message = _failureCopy(error);
+    _extendCooldownFrom(error, operation);
     final phase = await _currentPhase();
-    if (!ref.mounted) return;
-    state = state.copyWith(errorMessage: () => message);
-    if (phase == SyncEnrollmentPhase.notEnrolled) {
+    if (!ref.mounted || !identical(operation, _currentOperation)) return;
+    state = state.copyWith(
+      errorMessage: () => message,
+      repairPhase: _repairMode && _isRepairPhase(phase) ? () => phase : null,
+    );
+    if (phase == SyncEnrollmentPhase.notEnrolled || _isRepairPhase(phase)) {
       emitStep(ShowIdentifierEntry());
     } else {
       emitStep(ShowProgressResume());
     }
+  }
+
+  Future<void> _refreshRepairPhase(_EnrollmentOperation operation) async {
+    final phase = await _currentPhase();
+    if (!ref.mounted || !identical(operation, _currentOperation)) return;
+    if (_isRepairPhase(phase)) {
+      state = state.copyWith(repairPhase: () => phase);
+    }
+  }
+
+  Future<void> _refreshSyncStatus() async {
+    try {
+      await ref.read(appBootProvider).refreshSyncStatus();
+    } catch (_) {}
   }
 
   Future<SyncEnrollmentPhase> _currentPhase() async {
@@ -342,17 +526,100 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
     return snapshot.phase;
   }
 
-  static String _describeFailure(Object error) {
+  static bool _isRepairPhase(SyncEnrollmentPhase phase) =>
+      phase == SyncEnrollmentPhase.bindingAuthorizationRequired ||
+      phase == SyncEnrollmentPhase.sessionReauthRequired;
+
+  Duration? _codeCooldownRemaining() {
+    final endsAt = state.codeCooldownEndsAt;
+    if (endsAt == null) return null;
+    final remaining = endsAt.difference(_now());
+    return remaining.isNegative ? null : remaining;
+  }
+
+  void _noteCodeRequested() {
+    if (!ref.mounted) return;
+    state = state.copyWith(
+      codeCooldownEndsAt: () => _now().add(codeRequestCooldown),
+    );
+  }
+
+  void _extendCooldownFrom(Object error, _EnrollmentOperation operation) {
+    if (!identical(operation, _currentOperation)) return;
+    final retryAfter = error is SyncEnrollmentException
+        ? error.retryAfter
+        : null;
+    if (retryAfter == null) return;
+    final candidate = _now().add(retryAfter);
+    final current = state.codeCooldownEndsAt;
+    if (current == null || candidate.isAfter(current)) {
+      state = state.copyWith(codeCooldownEndsAt: () => candidate);
+    }
+  }
+
+  static int _ceilSeconds(Duration remaining) {
+    final seconds = (remaining.inMilliseconds / 1000).ceil();
+    return seconds < 1 ? 1 : seconds;
+  }
+
+  String _failureCopy(Object error) {
     if (error is SyncEnrollmentException) {
-      final message = error.message;
-      if (message != null && message.isNotEmpty) return message;
-      return 'Enrollment failed during ${error.step} (${error.code}). '
-          'Please try again.';
+      final base = _copyForCode(error.code);
+      final retryAfter = error.retryAfter;
+      if (retryAfter == null) return base;
+      return '$base ${_waitCopy(retryAfter)}';
     }
-    if (error is StateError) {
-      return error.message;
+    return _repairMode
+        ? 'Repair failed. Please try again.'
+        : 'Enrollment failed. Please try again.';
+  }
+
+  String _copyForCode(String code) {
+    switch (code) {
+      case 'rate_limited':
+        return 'Too many codes were requested.';
+      case 'invalid_request':
+        return _repairMode
+            ? 'The code was not accepted. Enter the latest code from your email.'
+            : 'The request was not accepted. Please try again.';
+      case 'credential_expired':
+        return 'The sign-in expired. Enter your email to get a new code.';
+      case 'device_authorization_required':
+        return 'This device needs authorization again. '
+            'Enter your email to get a new code.';
+      case 'network_unavailable':
+      case 'backend_unavailable':
+        return 'The sync service is unreachable. '
+            'Check your connection and try again.';
+      case 'incompatible_server':
+      case 'protocol_unsupported':
+        return 'Hosted sync is temporarily unavailable. '
+            'Please try again later.';
+      case 'snapshotPending':
+        return 'Snapshot publication is still pending. Please retry.';
+      default:
+        return _repairMode
+            ? 'Repair failed. Please try again.'
+            : 'Enrollment failed. Please try again.';
     }
-    return 'Enrollment failed. Please try again.';
+  }
+
+  static String _waitCopy(Duration retryAfter) {
+    final seconds = retryAfter.inSeconds;
+    final capped = seconds > _maxWaitDisplay.inSeconds
+        ? _maxWaitDisplay.inSeconds
+        : seconds;
+    if (capped <= 0) {
+      return 'Please wait a moment before trying again.';
+    }
+    if (capped < 60) {
+      return 'Please wait $capped seconds before trying again.';
+    }
+    final minutes = capped ~/ 60;
+    if (minutes <= 1) {
+      return 'Please wait about a minute before trying again.';
+    }
+    return 'Please wait about $minutes minutes before trying again.';
   }
 }
 

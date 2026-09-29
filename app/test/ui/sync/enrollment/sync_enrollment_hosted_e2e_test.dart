@@ -362,8 +362,8 @@ void main() {
     },
   );
 
-  testWidgets('a failure before credential persistence recovers via the resume '
-      'screen within the same flow', (tester) async {
+  testWidgets('a failure before credential persistence returns to '
+      'identifier entry and recovers with a fresh session', (tester) async {
     final harness = _HostedHarness();
     await harness.pump(tester);
     harness.httpClient.failNext('/functions/v1/sync-device-binding/start');
@@ -375,7 +375,8 @@ void main() {
     await tester.tap(find.byKey(_identifierContinue));
     await harness.pumpFrames(tester);
 
-    expect(find.byKey(_resumeRetry), findsOneWidget);
+    expect(find.byKey(_identifierField), findsOneWidget);
+    expect(find.byKey(_resumeRetry), findsNothing);
     expect(
       harness.container.read(syncEnrollmentViewModelProvider).errorMessage,
       isNotNull,
@@ -393,12 +394,14 @@ void main() {
       reason: 'no credential was persisted before the challenge started',
     );
 
-    await tester.tap(find.byKey(_resumeRetry));
+    await tester.enterText(find.byKey(_identifierField), 'user@example.com');
+    await tester.pump();
+    await tester.tap(find.byKey(_identifierContinue));
     await harness.pumpFrames(tester);
     expect(
       find.byKey(_otpField),
       findsOneWidget,
-      reason: 'resuming re-emits the OTP entry step in the same flow',
+      reason: 'retry begins at email entry with a fresh session',
     );
     await tester.enterText(find.byKey(_otpField), '482916');
     await tester.pump();
@@ -408,7 +411,7 @@ void main() {
     expect(
       harness.httpClient.callsTo('/functions/v1/sync-device-binding/start'),
       hasLength(2),
-      reason: 'resume retries the failed challenge start in the same flow',
+      reason: 'retry starts a new challenge from identifier entry',
     );
     expect(
       harness.httpClient.callsTo('/functions/v1/sync-device-binding/verify'),
