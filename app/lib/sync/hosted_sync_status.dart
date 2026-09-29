@@ -117,7 +117,15 @@ HostedSyncStatus projectHostedSyncStatus(SyncMetadataSnapshot snapshot) {
     return const HostedSyncUnsupportedV2();
   }
   if (snapshot.backend == null) {
-    return const HostedSyncNoSelection();
+    final binding = snapshot.deviceBindingState;
+    final phase = snapshot.phase;
+    if (!snapshot.writeEnabled &&
+        snapshot.reauthResumePhase == null &&
+        binding == SyncDeviceBindingState.notApplicable &&
+        phase == SyncEnrollmentPhase.notEnrolled) {
+      return const HostedSyncNoSelection();
+    }
+    return const HostedSyncUnavailable();
   }
   final binding = snapshot.deviceBindingState;
   final phase = snapshot.phase;

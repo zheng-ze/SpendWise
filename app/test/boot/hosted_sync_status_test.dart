@@ -106,6 +106,65 @@ void main() {
       expect(status, const HostedSyncNoSelection());
     });
 
+    test('absentBackendWithAnyOtherTupleProjectsToUnavailable', () {
+      final resumes = [null, ...SyncEnrollmentPhase.values];
+      for (final binding in SyncDeviceBindingState.values) {
+        for (final phase in SyncEnrollmentPhase.values) {
+          for (final writes in [false, true]) {
+            for (final resume in resumes) {
+              final isLegalDefault =
+                  !writes &&
+                  resume == null &&
+                  binding == SyncDeviceBindingState.notApplicable &&
+                  phase == SyncEnrollmentPhase.notEnrolled;
+              if (isLegalDefault) continue;
+              expect(
+                projectHostedSyncStatus(
+                  _snapshot(
+                    backend: null,
+                    binding: binding,
+                    phase: phase,
+                    writes: writes,
+                    resume: resume,
+                  ),
+                ),
+                const HostedSyncUnavailable(),
+                reason:
+                    'binding=${binding.name} phase=${phase.name} '
+                    'writes=$writes resume=${resume?.name}',
+              );
+            }
+          }
+        }
+      }
+    });
+
+    test('absentBackendWithRepairPhaseProjectsToUnavailable', () {
+      expect(
+        projectHostedSyncStatus(
+          _snapshot(
+            backend: null,
+            binding: SyncDeviceBindingState.authorizationRequired,
+            phase: SyncEnrollmentPhase.bindingAuthorizationRequired,
+            writes: false,
+          ),
+        ),
+        const HostedSyncUnavailable(),
+      );
+      expect(
+        projectHostedSyncStatus(
+          _snapshot(
+            backend: null,
+            binding: SyncDeviceBindingState.bound,
+            phase: SyncEnrollmentPhase.sessionReauthRequired,
+            writes: false,
+            resume: SyncEnrollmentPhase.gateEnabled,
+          ),
+        ),
+        const HostedSyncUnavailable(),
+      );
+    });
+
     test('legalBindingTupleProjectsToBindingRepair', () {
       expect(
         projectHostedSyncStatus(_bindingRepairSnapshot),
