@@ -140,6 +140,7 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
   Completer<String>? _otpCompleter;
   SyncEnrollmentSession? _session;
   _EnrollmentOperation? _currentOperation;
+  Future<void>? _abandonedPublication;
 
   @override
   SyncEnrollmentState build() => SyncEnrollmentState(repairMode: _repairMode);
@@ -224,6 +225,8 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
       cancelled: false,
     );
     try {
+      await _abandonedPublication;
+      if (!identical(operation, _currentOperation)) return;
       await _enrollFromIdentifier(trimmed, operation);
     } finally {
       if (identical(operation, _currentOperation) && ref.mounted) {
@@ -330,6 +333,7 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
       cancelled: false,
     );
     try {
+      await _abandonedPublication;
       final phase = await _currentPhase();
       if (!ref.mounted || !identical(operation, _currentOperation)) return;
       if (phase == SyncEnrollmentPhase.notEnrolled || _isRepairPhase(phase)) {
@@ -424,17 +428,26 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
   }
 
   // The Flow can close after OTP acceptance while the service still stores its
-  // write proof; publish it here since no UI remains to retry.
-  Future<void> _publishAbandonedRepairProof(
-    SyncEnrollmentSession session,
-  ) async {
+  // write proof; publish it here since no UI remains to retry. New operations
+  // wait for it because sessions share one proof key.
+  Future<void> _publishAbandonedRepairProof(SyncEnrollmentSession session) {
+    final publication = _runAbandonedPublication(session);
+    _abandonedPublication = publication;
+    return publication.whenComplete(() {
+      if (identical(_abandonedPublication, publication)) {
+        _abandonedPublication = null;
+      }
+    });
+  }
+
+  Future<void> _runAbandonedPublication(SyncEnrollmentSession session) async {
     try {
       final proof = await _secretStore.read(syncWriteProofSecretKey);
       if (proof != null && proof.isNotEmpty) {
         for (var attempt = 1; attempt <= maxPublishAttempts; attempt++) {
           final outcome = await session.publishSnapshot();
           if (outcome is EnrollmentSnapshotPublished) break;
-          if (attempt == maxPublishAttempts || _currentOperation != null) break;
+          if (attempt == maxPublishAttempts) break;
           await Future<void>.delayed(_publishRetryDelay);
         }
       }

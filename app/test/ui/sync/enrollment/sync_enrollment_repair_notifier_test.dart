@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/app_boot.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/persistence/ledger_database.dart';
+import 'package:spendwise/sync/enrollment_snapshot_publisher.dart';
 import 'package:spendwise/sync/sync_enrollment_service.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
 import 'package:spendwise/sync/sync_secret_keys.dart';
@@ -300,6 +301,48 @@ void main() {
         expect(harness.state.inFlight, isFalse);
       },
     );
+
+    test('a new repair waits for an abandoned publication to finish', () async {
+      final harness = _Harness()..build();
+      addTearDown(harness.dispose);
+      await _seedRepair(
+        harness,
+        SyncEnrollmentPhase.bindingAuthorizationRequired,
+      );
+      await harness.secrets.write(syncWriteProofSecretKey, 'proof-1');
+      final enrollGate = Completer<void>();
+      final publishGate = Completer<void>();
+      harness.opener.session.onEnroll = () async {
+        await harness.opener.session.resolveOtp!(
+          EnrollmentChallenge(const {'identifier': 'user@example.com'}),
+        );
+        await enrollGate.future;
+      };
+      harness.opener.session.onPublish = () async {
+        await publishGate.future;
+        return const EnrollmentSnapshotPublished();
+      };
+      final first = harness.notifier.submitIdentifier('user@example.com');
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      harness.notifier.submitOtp('482916');
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      harness.notifier.cancelPendingOperation();
+      enrollGate.complete();
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(harness.opener.session.publishCalls, 1);
+
+      harness.clock = harness.clock.add(const Duration(seconds: 61));
+      final second = harness.notifier.submitIdentifier('user@example.com');
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(harness.opener.openCalls, 1);
+
+      publishGate.complete();
+      await first;
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(harness.opener.openCalls, 2);
+      harness.notifier.cancelPendingOperation();
+      await second;
+    });
 
     test('disposing while enroll is pending still refreshes the durable '
         'status once the service settles', () async {

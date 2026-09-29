@@ -71,7 +71,8 @@ or reopening one with an OTP-rejecting resolver. Source:
   even when no OTP resolver exists yet, and ignores late results from that
   operation, except that a repair whose `enroll()` completes after disposal
   still publishes a stored write proof without emitting steps
-  (`_publishAbandonedRepairProof`). Source:
+  (`_publishAbandonedRepairProof`); a new submit or retry waits for it because
+  sessions share one proof key. Source:
   `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart`
   - `SyncEnrollmentNotifier.cancelPendingOperation`,
   `SyncEnrollmentNotifier._openSession`.
