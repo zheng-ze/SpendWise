@@ -107,6 +107,7 @@ abstract class SyncEnrollmentViewModel {
 
 final class _EnrollmentOperation {
   bool cancelled = false;
+  bool otpAccepted = false;
 
   void cancel() => cancelled = true;
 }
@@ -243,6 +244,14 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
     }
     state = state.copyWith(errorMessage: () => null);
     _otpCompleter = null;
+    final acceptedOperation = _currentOperation;
+    if (_repairMode && acceptedOperation != null) {
+      // The OTP is accepted: leave entry for the progress screen while
+      // reconciliation and publication run. A retired operation owns no
+      // completer, so it can never reach this branch.
+      acceptedOperation.otpAccepted = true;
+      emitStep(ShowProgressResume());
+    }
     pending.complete(trimmed);
   }
 
@@ -285,6 +294,8 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
   @override
   void cancelPendingOperation() {
     final operation = _currentOperation;
+    final cancelsAcceptedOtp =
+        operation != null && operation.otpAccepted && state.inFlight;
     operation?.cancel();
     _currentOperation = null;
     final pending = _otpCompleter;
@@ -301,9 +312,13 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
     // the current build; a newer operation started later owns its own guard.
     if (ref.mounted) {
       scheduleMicrotask(() {
-        if (ref.mounted && _currentOperation == null) {
-          state = state.copyWith(inFlight: false);
+        if (!ref.mounted || _currentOperation != null) return;
+        if (cancelsAcceptedOtp && _repairMode) {
+          // Verification was showing progress: return to OTP entry instead
+          // of stranding the next entry on the progress screen.
+          emitStep(ShowOtpEntry());
         }
+        state = state.copyWith(inFlight: false);
       });
     }
   }

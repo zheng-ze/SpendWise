@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,6 +28,7 @@ const _otpSubmit = Key('syncOtpSubmit');
 const _otpBack = Key('syncOtpBack');
 const _otpNewCode = Key('syncOtpNewCode');
 const _repairDone = Key('syncRepairDone');
+const _resumeRetry = Key('syncResumeRetry');
 
 final class _Harness {
   late LedgerDatabase db;
@@ -167,6 +170,47 @@ void main() {
   });
 
   group('repair completion', () {
+    testWidgets('repair shows progress once the OTP is accepted, with '
+        'no entry action enabled', (tester) async {
+      final harness = _Harness();
+      await harness.pumpRepairFlow(
+        tester,
+        seedPhase: SyncEnrollmentPhase.bindingAuthorizationRequired,
+      );
+      final enrollGate = Completer<void>();
+      harness.opener.session.onEnroll = () async {
+        await harness.opener.session.resolveOtp!(
+          EnrollmentChallenge(const {'identifier': 'user@example.com'}),
+        );
+        await enrollGate.future;
+      };
+      await submitIdentifier(tester, 'user@example.com');
+      await pumpRepairFrames(tester);
+      expect(find.byKey(_otpField), findsOneWidget);
+
+      await tester.enterText(find.byKey(_otpField), '482916');
+      await tester.pump();
+      await tester.tap(find.byKey(_otpSubmit));
+      await pumpRepairFrames(tester);
+
+      expect(
+        find.text(
+          'Restoring device access. '
+          'Reconciling and publishing this device. Keep the app open.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.byKey(_otpField), findsNothing);
+      expect(find.byKey(_identifierField), findsNothing);
+      final retry = tester.widget<FilledButton>(find.byKey(_resumeRetry));
+      expect(retry.onPressed, isNull);
+
+      enrollGate.complete();
+      await pumpRepairFrames(tester);
+
+      expect(find.text('Device access restored'), findsOneWidget);
+    });
+
     testWidgets('identifier to OTP ends in device-access-restored '
         'completion, and Done ends the flow', (tester) async {
       final harness = _Harness();
