@@ -37,13 +37,15 @@ class _SyncEnrollmentFlowState
 
   // Re-reads durable metadata on entry. A repair phase that already cleared
   // (or unreadable) refreshes Settings status and leaves without opening OTP.
+  // A superseded read (null) owns nothing, so the Flow does nothing.
   Future<void> _enterRepair() async {
     final repairNeeded = await _viewModel.enterRepairMode();
     if (!mounted) return;
-    if (!repairNeeded) {
+    if (repairNeeded == false) {
       try {
         await ref.read(appBootProvider).refreshSyncStatus();
       } catch (_) {}
+      if (!mounted) return;
       widget.onEnded?.call();
     }
   }

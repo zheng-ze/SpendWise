@@ -101,6 +101,31 @@ void main() {
         expect(await harness.notifier.enterRepairMode(), isFalse);
       },
     );
+
+    test('submitting during the entry read is ignored', () async {
+      final harness = _Harness()..build();
+      addTearDown(harness.dispose);
+      await harness.metadataStore.enterBindingAuthorizationRequired();
+
+      final entry = harness.notifier.enterRepairMode();
+      await harness.notifier.submitIdentifier('user@example.com');
+
+      expect(harness.opener.openCalls, 0);
+      expect(harness.state.errorMessage, isNull);
+      expect(await entry, isTrue);
+      expect(harness.state.inFlight, isFalse);
+    });
+
+    test('a superseded entry read reports stale instead of cleared', () async {
+      final harness = _Harness()..build();
+      addTearDown(harness.dispose);
+      await harness.metadataStore.enterBindingAuthorizationRequired();
+
+      final entry = harness.notifier.enterRepairMode();
+      harness.notifier.cancelPendingOperation();
+
+      expect(await entry, isNull);
+    });
   });
 
   group('new-code requests', () {

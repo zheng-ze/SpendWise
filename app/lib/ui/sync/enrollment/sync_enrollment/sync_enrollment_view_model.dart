@@ -160,7 +160,10 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
     emitStep(ShowIdentifierEntry());
   }
 
-  Future<bool> enterRepairMode() async {
+  /// True while repair is still needed, false when the durable phase
+  /// already cleared, null when this read was superseded by a newer
+  /// operation (which owns the outcome, so the caller must do nothing).
+  Future<bool?> enterRepairMode() async {
     if (state.inFlight) return state.repairPhase != null;
     _repairMode = true;
     final operation = _EnrollmentOperation();
@@ -172,15 +175,20 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
       cancelled: false,
       repairMode: true,
       explainCodeReplacement: true,
+      inFlight: true,
       step: () => null,
     );
     final SyncEnrollmentPhase phase;
     try {
       phase = await _currentPhase();
     } catch (_) {
+      if (identical(operation, _currentOperation) && ref.mounted) {
+        state = state.copyWith(inFlight: false);
+      }
       return false;
     }
-    if (!ref.mounted || !identical(operation, _currentOperation)) return false;
+    if (!ref.mounted || !identical(operation, _currentOperation)) return null;
+    state = state.copyWith(inFlight: false);
     if (_isRepairPhase(phase)) {
       state = state.copyWith(repairPhase: () => phase);
     }
