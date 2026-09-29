@@ -1,6 +1,6 @@
 # Sync enrollment: backend picker
 
-Last reconciled: eb968bbc7b012181c453c54afb1f74a7ef4e0b3c
+Last reconciled: c81fd53
 
 ## Overview
 
@@ -14,7 +14,7 @@ service, resolver, coordinator, backend, or authenticator. Source:
 `BackendPickerScreen`; `app/lib/ui/sync/enrollment/backend_picker/backend_picker_view_model.dart`
 - `BackendPickerViewModel`, `BackendPickerNotifier`.
 
-`BackendPickerFlow` owns the picker as a `FlowBase` root and consumes its
+`BackendPickerFlow` owns the picker as the fresh-enrollment `FlowBase` root and consumes its
 one-shot steps. Its required `onHostedReady` callback transfers hosted
 continuation ownership to `SyncEnrollmentFlow`, which opens the hosted session;
 the picker itself adds no enrollment route or call to `composeSyncEnrollment`.
@@ -50,10 +50,10 @@ Source:
 
 ## Gotchas
 
-- `SyncEnrollmentFlow` constructs `BackendPickerFlow` as its root, but neither
-  Flow has an `AppBoot`, lifecycle, scheduler, or shell entry point yet.
-  `HostedReady` invokes its callback without the picker composing enrollment,
-  while `CustomEndpointUnavailable` leaves the picker visible with an
+- Fresh `SyncEnrollmentFlow` constructs `BackendPickerFlow` as its root. The installed Settings
+  entry opens repair mode at identifier entry and bypasses the picker; fresh enrollment has no
+  installed-app entry point. `HostedReady` invokes its callback without the picker composing
+  enrollment, while `CustomEndpointUnavailable` leaves the picker visible with an
   unavailable affordance. Both steps are cleared after handling.
   Source: `app/lib/ui/sync/enrollment/backend_picker/backend_picker_flow.dart`
   - `BackendPickerFlow`, `_BackendPickerFlowState.handleStep`;

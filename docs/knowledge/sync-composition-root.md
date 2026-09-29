@@ -1,6 +1,6 @@
 # Sync: composition root
 
-Last reconciled: 38bf33c
+Last reconciled: 8297a1f
 
 ## Overview
 
@@ -9,9 +9,10 @@ persistence collaborators. It opens the durable staging store, resolves the sele
 persisted metadata and caller-provided configuration, seeds the per-database `SyncRepairGate`
 from the startup snapshot, and creates a `SyncEngine` with a scoped
 E2E-key accessor. It owns sync-pass scheduling, single-page pull processing, pending-
-acknowledgement recovery, and per-collection push-candidate submission. It does not yet have an
-`AppBoot` or other lifecycle caller, and it never starts the persistence processor. See
-[sync-durable-stores.md](sync-durable-stores.md), [sync-package-engine.md](sync-package-engine.md),
+acknowledgement recovery, and per-collection push-candidate submission. `AppBoot` reads sync
+metadata for hosted status, but does not construct `SyncCoordinator` or invoke lifecycle sync;
+issue #135 owns that remaining wiring. The coordinator never starts the persistence processor.
+See [sync-durable-stores.md](sync-durable-stores.md), [sync-package-engine.md](sync-package-engine.md),
 [sync-repair-gate.md](sync-repair-gate.md), and [persistence.md](persistence.md) for the assembled layers. Source:
 `app/lib/sync/sync_coordinator.dart` - `SyncCoordinator.create`, `SyncCoordinator.status`.
 
@@ -37,6 +38,8 @@ Source:
 - `app/lib/sync/sync_enrollment_session.dart` - session adapter that prevents
   the UI from depending on the composed service and publisher directly.
 - `app/lib/sync/sync_status.dart` - coordinator idle and running status variants.
+- `app/lib/sync/hosted_sync_status.dart` - read-only hosted status projection from durable
+  metadata, separate from coordinator run status.
 - `app/lib/sync/cached_collection_version_source.dart` - async collection reads exposed through
   the package version-source contract.
 - `app/lib/sync/collection_version_reader.dart` - bulk per-collection version reads for durable
@@ -50,6 +53,20 @@ Source:
   and typed failures.
 
 ## Interactions
+
+`projectHostedSyncStatus` maps a `SyncMetadataSnapshot` into the hosted status exposed by
+`hostedSyncStatusProvider`. For Supabase selection, it mirrors the legal
+`SyncMetadataStore.validateHostedOperationState` tuples: `notEnrolled` with no binding,
+`credentialAcquired` awaiting binding, and bound `snapshotInProgress` or
+`reconciliationComplete` are setup pending; `bindingAuthorizationRequired` is binding repair;
+bound `sessionReauthRequired` with a legal resume phase is session reauthentication; and bound
+`gateEnabled` with writes enabled is ready. Illegal tuples are unavailable. A null backend is
+`HostedSyncNoSelection` only for the legal default tuple; custom selection is
+`HostedSyncUnsupportedV2` before phase checks.
+This projection reports persisted setup state, not coordinator activity. Source:
+`app/lib/sync/hosted_sync_status.dart` - `projectHostedSyncStatus`, `_isLegalSetupPending`;
+`app/lib/sync/sync_metadata_store.dart` - `SyncMetadataStore.validateHostedOperationState`;
+`app/test/boot/hosted_sync_status_test.dart` - projection tests.
 
 `SyncCoordinator.create` requires a `LedgerDatabase`, a `Ledger`, and a
 `PersistenceProcessor`. It rejects different event-bus instances before I/O, then derives the

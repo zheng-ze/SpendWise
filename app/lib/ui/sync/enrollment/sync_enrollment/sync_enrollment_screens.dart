@@ -1,6 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart';
+
+int _ceilCooldownSeconds(Duration remaining) {
+  final seconds = (remaining.inMilliseconds / 1000).ceil();
+  return seconds < 1 ? 1 : seconds;
+}
 
 class SyncIdentifierScreen extends ConsumerStatefulWidget {
   const SyncIdentifierScreen({super.key});
@@ -12,6 +19,7 @@ class SyncIdentifierScreen extends ConsumerStatefulWidget {
 
 class _SyncIdentifierScreenState extends ConsumerState<SyncIdentifierScreen> {
   late final TextEditingController _identifierController;
+  Timer? _cooldownTimer;
 
   @override
   void initState() {
@@ -23,8 +31,21 @@ class _SyncIdentifierScreenState extends ConsumerState<SyncIdentifierScreen> {
 
   @override
   void dispose() {
+    _cooldownTimer?.cancel();
     _identifierController.dispose();
     super.dispose();
+  }
+
+  void _syncCooldownTimer(Duration? remaining) {
+    if (remaining == null) {
+      _cooldownTimer?.cancel();
+      _cooldownTimer = null;
+      return;
+    }
+    _cooldownTimer ??= Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      setState(() {});
+    });
   }
 
   @override
@@ -36,6 +57,11 @@ class _SyncIdentifierScreenState extends ConsumerState<SyncIdentifierScreen> {
       syncEnrollmentViewModelProvider,
     );
     final errorMessage = state.errorMessage;
+    final cooldown = viewModel.codeCooldownRemaining();
+    _syncCooldownTimer(cooldown);
+    final countdown = cooldown == null
+        ? null
+        : 'Send a new code in ${_ceilCooldownSeconds(cooldown)}s';
     final action = state.inFlight
         ? const SizedBox.square(
             dimension: 20,
@@ -44,9 +70,15 @@ class _SyncIdentifierScreenState extends ConsumerState<SyncIdentifierScreen> {
         : const Text('Continue');
 
     return PopScope(
-      canPop: !state.inFlight,
+      // The repair root is isFirst; back must bubble to the Flow, which ends
+      // the repair. Vetoing here would swallow the back press.
+      canPop: state.repairMode || !state.inFlight,
       child: Scaffold(
-        appBar: AppBar(title: const Text('Hosted sync sign-in')),
+        appBar: AppBar(
+          title: Text(
+            state.repairMode ? 'Repair Device Access' : 'Hosted sync sign-in',
+          ),
+        ),
         body: ListView(
           padding: const EdgeInsets.all(16),
           children: [
@@ -68,17 +100,30 @@ class _SyncIdentifierScreenState extends ConsumerState<SyncIdentifierScreen> {
               onSubmitted: (_) =>
                   viewModel.submitIdentifier(_identifierController.text),
             ),
+            if (state.explainCodeReplacement)
+              const Padding(
+                padding: EdgeInsets.only(top: 12),
+                child: Text(
+                  'Requesting a new code replaces the previous one. '
+                  'Only the newest code will work.',
+                ),
+              ),
             if (errorMessage != null)
               SyncEnrollmentErrorText(message: errorMessage),
             const SizedBox(height: 16),
             FilledButton(
               key: const Key('syncIdentifierContinue'),
-              onPressed: state.inFlight
+              onPressed: state.inFlight || cooldown != null
                   ? null
                   : () =>
                         viewModel.submitIdentifier(_identifierController.text),
               child: action,
             ),
+            if (countdown != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Text(countdown),
+              ),
           ],
         ),
       ),
@@ -95,11 +140,25 @@ class SyncOtpScreen extends ConsumerStatefulWidget {
 
 class _SyncOtpScreenState extends ConsumerState<SyncOtpScreen> {
   late final TextEditingController _otpController = TextEditingController();
+  Timer? _cooldownTimer;
 
   @override
   void dispose() {
+    _cooldownTimer?.cancel();
     _otpController.dispose();
     super.dispose();
+  }
+
+  void _syncCooldownTimer(Duration? remaining) {
+    if (remaining == null) {
+      _cooldownTimer?.cancel();
+      _cooldownTimer = null;
+      return;
+    }
+    _cooldownTimer ??= Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      setState(() {});
+    });
   }
 
   @override
@@ -111,6 +170,8 @@ class _SyncOtpScreenState extends ConsumerState<SyncOtpScreen> {
       syncEnrollmentViewModelProvider,
     );
     final errorMessage = state.errorMessage;
+    final cooldown = viewModel.codeCooldownRemaining();
+    _syncCooldownTimer(cooldown);
     final action = state.inFlight
         ? const SizedBox.square(
             dimension: 20,
@@ -148,6 +209,11 @@ class _SyncOtpScreenState extends ConsumerState<SyncOtpScreen> {
               autocorrect: false,
               onSubmitted: viewModel.submitOtp,
             ),
+            if (state.explainCodeReplacement)
+              const Padding(
+                padding: EdgeInsets.only(top: 12),
+                child: Text('Requesting a new code replaces the previous one.'),
+              ),
             if (errorMessage != null)
               SyncEnrollmentErrorText(message: errorMessage),
             const SizedBox(height: 16),
@@ -155,6 +221,17 @@ class _SyncOtpScreenState extends ConsumerState<SyncOtpScreen> {
               key: const Key('syncOtpSubmit'),
               onPressed: () => viewModel.submitOtp(_otpController.text),
               child: action,
+            ),
+            TextButton(
+              key: const Key('syncOtpNewCode'),
+              onPressed: cooldown == null && state.otpWaiting
+                  ? () => viewModel.requestNewCode()
+                  : null,
+              child: Text(
+                cooldown == null
+                    ? 'Send a new code'
+                    : 'Send a new code in ${_ceilCooldownSeconds(cooldown)}s',
+              ),
             ),
           ],
         ),
@@ -175,7 +252,12 @@ class SyncEnrollmentResumeScreen extends ConsumerWidget {
       syncEnrollmentViewModelProvider,
     );
     final errorMessage = state.errorMessage;
-    final status = errorMessage ?? 'Finishing hosted sync enrollment.';
+    final status =
+        errorMessage ??
+        (state.repairMode
+            ? 'Restoring device access. '
+                  'Reconciling and publishing this device. Keep the app open.'
+            : 'Finishing hosted sync enrollment.');
     final action = state.inFlight
         ? const SizedBox.square(
             dimension: 20,
@@ -183,34 +265,68 @@ class SyncEnrollmentResumeScreen extends ConsumerWidget {
           )
         : const Text('Retry');
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Finishing sync enrollment')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Text(status),
-          const SizedBox(height: 16),
-          FilledButton(
-            key: const Key('syncResumeRetry'),
-            onPressed: state.inFlight ? null : viewModel.retry,
-            child: action,
+    return PopScope(
+      // Repair publishing must not be popped mid-flight.
+      canPop: !state.repairMode || !state.inFlight,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(
+            state.repairMode
+                ? 'Repair Device Access'
+                : 'Finishing sync enrollment',
           ),
-        ],
+        ),
+        body: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Text(status),
+            const SizedBox(height: 16),
+            FilledButton(
+              key: const Key('syncResumeRetry'),
+              onPressed: state.inFlight ? null : viewModel.retry,
+              child: action,
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class SyncEnrollmentCompletionScreen extends StatelessWidget {
+class SyncEnrollmentCompletionScreen extends ConsumerWidget {
   const SyncEnrollmentCompletionScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final SyncEnrollmentViewModel viewModel = ref.watch(
+      syncEnrollmentViewModelProvider.notifier,
+    );
+    final SyncEnrollmentState state = ref.watch(
+      syncEnrollmentViewModelProvider,
+    );
+    if (!state.repairMode) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Sync enrolled')),
+        body: const Padding(
+          padding: EdgeInsets.all(16),
+          child: Text('Sync enrollment complete'),
+        ),
+      );
+    }
     return Scaffold(
-      appBar: AppBar(title: const Text('Sync enrolled')),
-      body: const Padding(
-        padding: EdgeInsets.all(16),
-        child: Text('Sync enrollment complete'),
+      appBar: AppBar(title: const Text('Repair Device Access')),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          const Text('Device access restored'),
+          const Text('Sync writes have resumed.'),
+          const SizedBox(height: 16),
+          FilledButton(
+            key: const Key('syncRepairDone'),
+            onPressed: viewModel.dismissRepairFlow,
+            child: const Text('Done'),
+          ),
+        ],
       ),
     );
   }

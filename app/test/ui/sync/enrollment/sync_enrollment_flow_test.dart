@@ -66,6 +66,7 @@ final class FakeSessionOpener {
   FakeSyncEnrollmentSession session = FakeSyncEnrollmentSession();
   SyncEnrollmentSessionResult? nextResult;
   Object? errorOnOpen;
+  Future<void> Function()? onOpen;
 
   int openCalls = 0;
   final List<String> identifiers = [];
@@ -78,6 +79,7 @@ final class FakeSessionOpener {
     identifiers.add(identifier);
     final error = errorOnOpen;
     if (error != null) throw error;
+    await onOpen?.call();
     session.resolveOtp = (challenge) {
       session.resolveOtpCalls++;
       return resolveOtp(challenge);
@@ -98,6 +100,7 @@ pumpEnrollmentFlow(
   WidgetTester tester, {
   FakeSessionOpener? opener,
   VoidCallback? onEnded,
+  DateTime Function()? now,
 }) async {
   final db = LedgerDatabase(NativeDatabase.memory());
   addTearDown(db.close);
@@ -111,7 +114,8 @@ pumpEnrollmentFlow(
         () => BackendPickerNotifier(writer: writer),
       ),
       syncEnrollmentViewModelProvider.overrideWith(
-        () => SyncEnrollmentNotifier(sessionOpener: sessionOpener.call),
+        () =>
+            SyncEnrollmentNotifier(sessionOpener: sessionOpener.call, now: now),
       ),
     ],
   );
@@ -234,7 +238,8 @@ void main() {
 
   testWidgets('backing out of OTP cancels, clears the guard, '
       'and accepts a fresh submission', (tester) async {
-    final harness = await pumpEnrollmentFlow(tester);
+    var now = DateTime.utc(2026, 1, 1);
+    final harness = await pumpEnrollmentFlow(tester, now: () => now);
     await continueWithHosted(tester);
     await driveToOtpEntry(tester, harness.opener.session);
     expect(find.byKey(_otpField), findsOneWidget);
@@ -251,6 +256,8 @@ void main() {
     expect(find.byKey(_identifierField), findsOneWidget);
     expect(harness.opener.session.enrollCalls, 1);
 
+    now = now.add(const Duration(seconds: 61));
+    await tester.pump(const Duration(seconds: 2));
     harness.opener.session.onEnroll = () async {};
     await submitIdentifier(tester, 'fresh@example.com');
     await pumpFlowFrames(tester);
@@ -562,7 +569,8 @@ void main() {
 
   testWidgets('disposing the flow while an OTP is pending unlocks '
       'the notifier for a fresh submission', (tester) async {
-    final harness = await pumpEnrollmentFlow(tester);
+    var now = DateTime.utc(2026, 1, 1);
+    final harness = await pumpEnrollmentFlow(tester, now: () => now);
     await continueWithHosted(tester);
     await driveToOtpEntry(tester, harness.opener.session);
     expect(
@@ -592,6 +600,8 @@ void main() {
 
     harness.opener.session.onEnroll = () async {};
     await continueWithHosted(tester);
+    now = now.add(const Duration(seconds: 61));
+    await tester.pump(const Duration(seconds: 2));
     await submitIdentifier(tester, 'fresh@example.com');
     await pumpFlowFrames(tester);
 

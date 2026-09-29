@@ -11,3 +11,6 @@ DateTime startOfMonthUtc(DateTime date) => DateTime.utc(date.year, date.month);
 final selectedMonthProvider = StateProvider<DateTime>(
   (ref) => startOfMonthUtc(DateTime.now()),
 );
+
+// Hides the repair banner while the repair form is open.
+final repairFlowOpenProvider = StateProvider<bool>((ref) => false);

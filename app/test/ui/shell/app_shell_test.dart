@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:spendwise/boot/providers.dart';
+import 'package:spendwise/sync/hosted_sync_status.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/layout_breakpoints.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
@@ -19,6 +21,9 @@ Future<void> _pumpShell(
 
   await tester.pumpWidget(
     ProviderScope(
+      overrides: [
+        hostedSyncStatusProvider.overrideWithValue(const HostedSyncReady()),
+      ],
       child: MaterialApp(home: AppShell(bodies: bodies)),
     ),
   );
@@ -117,7 +122,11 @@ void main() {
   testWidgets('a shell rebuild keeps a non-current selected month', (
     tester,
   ) async {
-    final container = ProviderContainer();
+    final container = ProviderContainer(
+      overrides: [
+        hostedSyncStatusProvider.overrideWithValue(const HostedSyncReady()),
+      ],
+    );
     addTearDown(container.dispose);
 
     tester.view.physicalSize = _compact;

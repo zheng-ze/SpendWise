@@ -10,6 +10,8 @@ class PlansRequested extends SettingsStep {}
 
 class RecycleBinRequested extends SettingsStep {}
 
+class RepairDeviceAccessRequested extends SettingsStep {}
+
 class SettingsRootViewState
     implements HasStep<SettingsRootViewState, SettingsStep> {
   const SettingsRootViewState({this.step});
@@ -30,6 +32,7 @@ abstract class SettingsRootViewModel {
   void requestCategories();
   void requestPlans();
   void requestRecycleBin();
+  void requestRepair();
   void clearStep();
 }
 
@@ -52,6 +55,9 @@ class SettingsRootNotifier extends Notifier<SettingsRootViewState>
 
   @override
   void requestRecycleBin() => emitStep(RecycleBinRequested());
+
+  @override
+  void requestRepair() => emitStep(RepairDeviceAccessRequested());
 }
 
 final settingsRootViewModelProvider =

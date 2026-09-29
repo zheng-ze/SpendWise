@@ -1,6 +1,6 @@
 # Ledger Runtime
 
-Last reconciled: 70a8665
+Last reconciled: 3b2895d
 
 ## Feature overview
 
@@ -73,21 +73,32 @@ Exact and verified against `app_boot.dart`:
    banner.
 3. `store.seedIfFirstLaunch(sampleSeedChanges)`.
 4. `state = await store.load()`; throw → `failed`.
-5. Create the `EventBus`.
-6. Create `PersistenceProcessor(store, bus)` and call `processor.start()`.
-7. Create `Ledger(state, bus)`.
-8. Wire `ledger.onPlanError = showPlanError`.
-9. Phase → `ready(ledger, processor)`.
+5. Read and project the sync metadata snapshot; a read or decode failure yields
+   `HostedSyncUnavailable` without blocking ledger readiness.
+6. Create the `EventBus`.
+7. Create `PersistenceProcessor(store, bus)` and call `processor.start()`.
+8. Create `Ledger(state, bus)`.
+9. Wire `ledger.onPlanError = showPlanError`.
+10. Phase → `ready(ledger, processor)`.
 
-Any throwing step lands in `failed(error)`; there is no partial-ready state. Provider dependency
-direction is `appPhase → (ledger, persistence, analysisCache, banners)`; nothing below `appPhase`
-outlives a retry, so a failed→ready cycle rebuilds the whole graph. `ledgerDatabaseProvider` is
+Any uncaught boot error lands in `failed(error)`; there is no partial-ready state. Provider
+dependency direction is `appPhase → (ledger, persistence, analysisCache, banners)`; nothing below
+`appPhase` outlives a retry, so a failed→ready cycle rebuilds the whole graph. `ledgerDatabaseProvider` is
 the sole boot owner of the shared `LedgerDatabase`; `storeProvider` builds `DriftLedgerStore`
 from it, and `syncMetadataStoreProvider` builds `SyncMetadataStore` from that same instance.
 `AppBoot.onRetry` invalidates `ledgerDatabaseProvider` and `syncMetadataStoreProvider` alongside
 `storeProvider` and `databaseConnectionProvider`, ensuring a retry can reopen the database after
 a failed lazy connection. Source: `app/lib/boot/providers.dart` - provider definitions and
 `appBootProvider`'s `onRetry`.
+
+`appBootProvider` supplies `AppBoot.readSyncSnapshot` from the shared `SyncMetadataStore`.
+`AppBoot.syncStatus` starts as `HostedSyncUnavailable`, and each restart resets it to that value
+before reading a new snapshot after ledger load and before creating the event bus.
+`hostedSyncStatusProvider` exposes the projected value. `refreshSyncStatus()` rereads metadata
+after later changes. Each start or refresh advances a generation so an older read cannot overwrite
+a newer status. Source:
+`app/lib/boot/app_boot.dart` - `AppBoot.start`, `_loadSyncStatus`, `refreshSyncStatus`;
+`app/lib/boot/providers.dart` - `appBootProvider`, `hostedSyncStatusProvider`.
 
 ## Boot phase machine
 
@@ -123,13 +134,21 @@ non-empty, `onPlanError?.call(failures)` runs. `PlanFailure` carries `planID`, `
 
 ## Banners
 
-One banner slot at the bottom of the ready shell. Displayed message is `planError ?? saveStateMessage`,
-with plan error taking precedence. Save-state messages come from the store's error handler
+`StatusBanner` is bottom-anchored inside a `SafeArea` with a 16 dp minimum bottom inset. A hosted
+sync repair banner takes precedence whenever `hostedSyncStatusProvider` is
+`HostedSyncBindingRepair` or `HostedSyncSessionReauth`. It is persistent, tappable, and routes through
+`SettingsRootNotifier.requestRepair()`; it is non-dismissible and exposes button semantics. It hides
+only while the Settings repair route is open and Settings is selected. Its position uses the same
+bottom anchoring as the timed pill.
+
+When no repair banner is displayed, the single banner slot shows `planError ?? saveStateMessage`,
+with plan error taking precedence. These timed messages remain in `BannerState` while repair is active
+and show again after repair ends. Save-state messages come from the store's error handler
 (`persistence.md` §1): `retrying` → "Couldn't save changes, retrying"; `failedWillRetry` →
 "Couldn't save changes, will retry shortly"; `clear` → no banner. Plan-error message is
 count-aware over distinct plan IDs ("A recurring plan couldn't add its entry" / "N recurring plans
 couldn't add their entries"), auto-dismisses after 4 seconds, and a re-fire cancels the prior
-dismissal timer.
+dismissal timer. Source: `app/lib/ui/shell/status_banner.dart`, `app/lib/boot/banner_state.dart`.
 
 ## Seeding contract
 

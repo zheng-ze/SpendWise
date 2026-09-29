@@ -1,3 +1,4 @@
+import 'package:drift/native.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -12,7 +13,12 @@ void main() {
     (tester) async {
       final store = RecordingLedgerStore(hasSeeded: true);
       final container = ProviderContainer(
-        overrides: [storeProvider.overrideWithValue(store)],
+        overrides: [
+          storeProvider.overrideWithValue(store),
+          databaseConnectionProvider.overrideWith(
+            (ref) async => NativeDatabase.memory(),
+          ),
+        ],
       );
       addTearDown(container.dispose);
 
