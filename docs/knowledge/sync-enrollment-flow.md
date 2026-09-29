@@ -69,7 +69,9 @@ or reopening one with an OTP-rejecting resolver. Source:
   `submitIdentifier()` and `retry()` no-op while it is true. Flow disposal
   cancels the current operation, releases the guard after widget finalization
   even when no OTP resolver exists yet, and ignores late results from that
-  operation. Source:
+  operation, except that a repair whose `enroll()` completes after disposal
+  still publishes a stored write proof without emitting steps
+  (`_publishAbandonedRepairProof`). Source:
   `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart`
   - `SyncEnrollmentNotifier.cancelPendingOperation`,
   `SyncEnrollmentNotifier._openSession`.
