@@ -8,15 +8,20 @@ import 'package:spendwise/ledger/event_bus.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/persistence/ledger_store.dart';
 import 'package:spendwise/persistence/persistence_processor.dart';
+import 'package:spendwise/sync/hosted_sync_status.dart';
+import 'package:spendwise/sync/sync_metadata_store.dart';
 
 typedef StoreFactory = Future<LedgerStore> Function();
 
 typedef SeedBuilder = List<LedgerChange> Function();
 
+typedef SyncSnapshotReader = Future<SyncMetadataSnapshot> Function();
+
 class AppBoot extends ChangeNotifier with WidgetsBindingObserver {
   AppBoot({
     required this.createStore,
     required this.seedChanges,
+    this.readSyncSnapshot,
     this.onSaveState,
     this.onPlanError,
     this.onRetry,
@@ -33,6 +38,8 @@ class AppBoot extends ChangeNotifier with WidgetsBindingObserver {
   final StoreFactory createStore;
 
   final SeedBuilder seedChanges;
+
+  final SyncSnapshotReader? readSyncSnapshot;
 
   final SaveErrorHandler? onSaveState;
 
@@ -51,8 +58,16 @@ class AppBoot extends ChangeNotifier with WidgetsBindingObserver {
 
   Ledger? _ledger;
 
+  HostedSyncStatus _syncStatus = const HostedSyncUnavailable();
+
+  HostedSyncStatus get syncStatus => _syncStatus;
+
+  int _statusGeneration = 0;
+
   Future<void> start() async {
+    final generation = ++_statusGeneration;
     await _teardown();
+    _syncStatus = const HostedSyncUnavailable();
     _setPhase(const Loading());
 
     try {
@@ -61,6 +76,7 @@ class AppBoot extends ChangeNotifier with WidgetsBindingObserver {
       await store.seedIfFirstLaunch(seedChanges());
 
       final state = await store.load();
+      await _loadSyncStatus(generation);
 
       final bus = _bus = EventBus();
       final persistence = _persistence = PersistenceProcessor(
@@ -84,6 +100,27 @@ class AppBoot extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> retry() {
     onRetry?.call();
     return start();
+  }
+
+  Future<void> refreshSyncStatus() {
+    final generation = ++_statusGeneration;
+    return _loadSyncStatus(generation);
+  }
+
+  // A status-read failure must never block ledger readiness, so decode and
+  // read errors project to unavailable instead of throwing.
+  Future<void> _loadSyncStatus(int generation) async {
+    final reader = readSyncSnapshot;
+    if (reader == null) return;
+    HostedSyncStatus projected;
+    try {
+      projected = projectHostedSyncStatus(await reader());
+    } catch (_) {
+      projected = const HostedSyncUnavailable();
+    }
+    if (generation != _statusGeneration) return;
+    _syncStatus = projected;
+    notifyListeners();
   }
 
   @override

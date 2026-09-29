@@ -1,4 +1,5 @@
 import 'package:domain/domain.dart';
+import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/app_phase.dart';
@@ -13,7 +14,12 @@ Account _account({String name = 'acc'}) =>
 ProviderContainer _containerFor(InMemoryLedgerStore store) {
   TestWidgetsFlutterBinding.ensureInitialized();
   final container = ProviderContainer(
-    overrides: [storeProvider.overrideWithValue(store)],
+    overrides: [
+      storeProvider.overrideWithValue(store),
+      databaseConnectionProvider.overrideWith(
+        (ref) async => NativeDatabase.memory(),
+      ),
+    ],
   );
   addTearDown(container.dispose);
   return container;
