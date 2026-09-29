@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/common/flow_base.dart';
 import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_flow.dart';
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_screens.dart';
@@ -29,8 +30,21 @@ class _SyncEnrollmentFlowState
       // is not allowed synchronously inside initState.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        unawaited(_viewModel.enterRepairMode());
+        unawaited(_enterRepair());
       });
+    }
+  }
+
+  // Re-reads durable metadata on entry. A repair phase that already cleared
+  // (or unreadable) refreshes Settings status and leaves without opening OTP.
+  Future<void> _enterRepair() async {
+    final repairNeeded = await _viewModel.enterRepairMode();
+    if (!mounted) return;
+    if (!repairNeeded) {
+      try {
+        await ref.read(appBootProvider).refreshSyncStatus();
+      } catch (_) {}
+      widget.onEnded?.call();
     }
   }
 
@@ -89,6 +103,8 @@ class _SyncEnrollmentFlowState
           ),
           (_) => false,
         );
+      case DismissRepairFlow():
+        unawaited(goBack());
     }
     _viewModel.clearStep();
   }

@@ -28,6 +28,8 @@ final class ShowProgressResume extends SyncEnrollmentStep {}
 
 final class ShowEnrollmentCompleted extends SyncEnrollmentStep {}
 
+final class DismissRepairFlow extends SyncEnrollmentStep {}
+
 final class SyncEnrollmentState
     implements HasStep<SyncEnrollmentState, SyncEnrollmentStep> {
   const SyncEnrollmentState({
@@ -92,6 +94,12 @@ abstract class SyncEnrollmentViewModel {
   Future<void> submitIdentifier(String identifier);
   void submitOtp(String otp);
   void cancelOtp();
+
+  /// Cancels the waiting OTP, if any, and submits the stored identifier
+  /// again, which opens a new session and challenge.
+  Future<void> requestNewCode();
+  Duration? codeCooldownRemaining();
+  void dismissRepairFlow();
   void cancelPendingOperation();
   Future<void> retry();
   void clearStep();
@@ -152,8 +160,8 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
     emitStep(ShowIdentifierEntry());
   }
 
-  Future<void> enterRepairMode() async {
-    if (state.inFlight) return;
+  Future<bool> enterRepairMode() async {
+    if (state.inFlight) return state.repairPhase != null;
     _repairMode = true;
     final operation = _EnrollmentOperation();
     _currentOperation = operation;
@@ -166,12 +174,18 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
       explainCodeReplacement: true,
       step: () => null,
     );
-    final phase = await _currentPhase();
-    if (!ref.mounted || !identical(operation, _currentOperation)) return;
+    final SyncEnrollmentPhase phase;
+    try {
+      phase = await _currentPhase();
+    } catch (_) {
+      return false;
+    }
+    if (!ref.mounted || !identical(operation, _currentOperation)) return false;
     if (_isRepairPhase(phase)) {
       state = state.copyWith(repairPhase: () => phase);
     }
     emitStep(ShowIdentifierEntry());
+    return _isRepairPhase(phase);
   }
 
   @override
@@ -231,6 +245,34 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
     _otpCompleter = null;
     pending.completeError(const SyncEnrollmentOtpCancelled());
   }
+
+  @override
+  Future<void> requestNewCode() async {
+    final cooldown = _codeCooldownRemaining();
+    if (cooldown != null) {
+      state = state.copyWith(errorMessage: () => _cooldownCopy(cooldown));
+      return;
+    }
+    final identifier = state.identifier.trim();
+    if (identifier.isEmpty) {
+      state = state.copyWith(
+        errorMessage: () => 'Enter the email address used for hosted sync.',
+      );
+      return;
+    }
+    // Retire the waiting OTP operation, then take the guard synchronously so
+    // the replacement submission is never blocked by the retired operation.
+    // The retired operation unwinds against a stale token and is ignored.
+    cancelPendingOperation();
+    state = state.copyWith(inFlight: false);
+    await submitIdentifier(identifier);
+  }
+
+  @override
+  Duration? codeCooldownRemaining() => _codeCooldownRemaining();
+
+  @override
+  void dismissRepairFlow() => emitStep(DismissRepairFlow());
 
   @override
   void cancelPendingOperation() {
