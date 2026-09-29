@@ -1,12 +1,12 @@
 # Settings UI
 
-Last reconciled: 2026-09-02
+Last reconciled: c81fd53
 
 ## Feature overview
 
-The Settings tab: category management (list, form, symbol picker), recurring-plan management (list,
-form), and the Recycle Bin for restoring or purging archived rows. These are mostly stateless
-facades over `Ledger`, with per-sheet `autoDispose` controllers for the forms.
+The Settings tab contains category management (list, form, symbol picker), recurring-plan management
+(list, form), the Recycle Bin for archived rows, and Hosted Sync status and device-access repair. The
+ledger screens are mostly stateless facades over `Ledger`, with per-sheet `autoDispose` form controllers.
 
 ## Key files
 
@@ -15,6 +15,10 @@ facades over `Ledger`, with per-sheet `autoDispose` controllers for the forms.
 - `app/lib/ui/settings/category/` — category list, form, and the symbol picker.
 - `app/lib/ui/settings/plan/` — plan list and form.
 - `app/lib/ui/settings/recycle_bin/` — the recycle bin.
+- `app/lib/boot/providers.dart`, `app/lib/sync/hosted_sync_status.dart` - the Hosted Sync status
+  provider and durable-metadata projection.
+- `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_flow.dart` - the repair presentation
+  opened from Settings; see `sync-enrollment-flow.md`.
 - `packages/domain/lib/src/ledger_state/ledger_state_categories.dart`, `ledger_state_plans.dart`
   — the domain mutators (see `ledger-and-money-model.md`, `recurring-plans-and-accounting.md`).
 
@@ -31,6 +35,21 @@ counts.
 The Settings Flow owns this tab's nested navigator. Rows push the category/plan edit sheets and the
 symbol picker; forms open as sheets via `FormScaffold`. The recycle bin lists archived items in
 three sections (Accounts, Subpockets, Categories), each hidden when empty.
+
+## Hosted Sync
+
+The Hosted Sync section watches `hostedSyncStatusProvider` and displays read-only status text for
+every `HostedSyncStatus`: not configured, setup pending, ready, binding repair needed, sign-in expired,
+unsupported endpoint, or status unavailable. Binding repair explains that device access needs
+authorization and reconciliation precedes resumed writes. Session reauth explains that the existing
+device access is kept. Only those two repair statuses show `Repair Device Access`. Custom endpoints
+show the sync protocol v2 unsupported notice; unavailable status shows a read-only failure message.
+
+`SettingsRootNotifier.requestRepair()` emits the single-shot `RepairDeviceAccessRequested` navigation
+step. The Settings action uses this seam; no runtime banner is mounted. `SettingsFlow` opens
+`SyncEnrollmentFlow(repairMode: true)` for that step and prevents duplicate repair routes. It refreshes
+Hosted Sync status when the Settings tab becomes selected and when the repair Flow closes. See
+`sync-enrollment-flow.md` for repair behavior.
 
 ## Screens and flows
 

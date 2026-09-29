@@ -1,11 +1,11 @@
 # Sync enrollment: hosted Flow
 
-Last reconciled: 63ea967
+Last reconciled: c81fd53
 
 ## Overview
 
-`SyncEnrollmentFlow` owns first-device hosted-enrollment presentation. It nests
-`BackendPickerFlow` at its root, receives hosted selection, and maps
+`SyncEnrollmentFlow` owns hosted-enrollment and device-access repair presentation. Fresh enrollment
+nests `BackendPickerFlow` at its root; repair mode starts at identifier entry. The Flow maps
 `SyncEnrollmentNotifier` steps to identifier, OTP, resume, and completion
 routes. The notifier owns session opening, durable-phase-aware retry, and
 the UI operation guard and cancellation. Source:
@@ -17,7 +17,8 @@ the UI operation guard and cancellation. Source:
 ## Key locations
 
 - `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_flow.dart` -
-  nested navigator, picker root, and step-to-route mapping.
+  nested navigator, mode-specific root, and step-to-route mapping.
+- `app/lib/ui/settings/settings_flow.dart` - Settings repair entry and status refresh on return.
 - `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart`
   - Flow state, session operation, OTP resolver, and retry policy.
 - `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_screens.dart` -
@@ -33,6 +34,10 @@ the UI operation guard and cancellation. Source:
 
 `BackendPickerFlow` persists hosted selection, then invokes the enclosing
 Flow's callback. `SyncEnrollmentNotifier.hostedReady()` emits identifier entry.
+Settings mounts the Flow in explicit repair mode, bypassing the picker. On entry, the notifier
+re-reads the durable enrollment phase; if repair has cleared or metadata cannot be read, the Flow
+refreshes Hosted Sync status and returns to Settings without opening OTP.
+
 Identifier submission opens one `SyncEnrollmentSession` with a resolver that
 emits OTP entry and awaits its `Completer`. Fresh enrollment invokes this
 resolver for the device-binding OTP after E2E-key preparation. The session
@@ -105,6 +110,16 @@ or reopening one with an OTP-rejecting resolver. Source:
 
 ## Entry points and flows
 
+- Settings opens `SyncEnrollmentFlow(repairMode: true)` only for binding repair and session reauth.
+  Identifier and OTP screens explain that requesting a new code replaces the previous one. Both
+  display the live cooldown countdown; the OTP screen enables a new request only while one resolver
+  awaits input and the cooldown has expired. After OTP acceptance, repair moves to the resume screen
+  while reconciliation and any required publication run. Completion shows `Device access restored`;
+  Done returns to Settings, which refreshes Hosted Sync status. Source:
+  `app/lib/ui/settings/settings_root_screen.dart` - `_HostedSyncSection`;
+  `app/lib/ui/settings/settings_flow.dart` - `_SettingsFlowState._openRepairFlow`;
+  `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart` -
+  `SyncEnrollmentNotifier.enterRepairMode`, `submitOtp`, `requestNewCode`.
 - `ShowProgressResume` first pops to the Flow root, then pushes resume. Repeated
   failures therefore keep one resume route. `ShowEnrollmentCompleted` removes
   every earlier route, so Back delegates to `FlowBase.goBack()` and then
@@ -127,11 +142,7 @@ or reopening one with an OTP-rejecting resolver. Source:
   they never display exception or server text. Source:
   `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart`
   - `SyncEnrollmentNotifier._failureCopy`, `_copyForCode`.
-- `SyncEnrollmentFlow` is the first production caller of the hosted
-  composition, but no `AppBoot`, lifecycle, scheduler, or shell path constructs
-  the Flow. It remains unavailable in the installed application until a higher
-  composition layer mounts it. Source:
-  `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart` -
-  `SyncEnrollmentNotifier._opener`; `app/lib/boot/app_boot.dart` - `AppBoot`.
-- Repair-mode Flow routing, Settings entry, and banner are not mounted yet;
-  `enterRepairMode()` currently has no production caller.
+- Settings mounts only repair mode. The picker-root fresh-enrollment path still has no installed-app
+  entry point. Source: `app/lib/ui/settings/settings_flow.dart` - `_SettingsFlowState._openRepairFlow`;
+  `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_flow.dart` -
+  `_SyncEnrollmentFlowState.buildRoot`.
