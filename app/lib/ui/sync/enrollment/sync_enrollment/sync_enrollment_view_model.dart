@@ -99,7 +99,7 @@ final class SyncEnrollmentState
 
 abstract class SyncEnrollmentViewModel {
   void hostedReady();
-  void enterFreshMode();
+  Future<void> enterFreshMode();
   Future<void> submitIdentifier(String identifier);
   void submitOtp(String otp);
   void cancelOtp();
@@ -146,6 +146,7 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
   _EnrollmentOperation? _currentOperation;
   Future<void>? _abandonedPublication;
   int _pendingEnrolls = 0;
+  final List<Future<void>> _pendingSettlements = [];
 
   @override
   SyncEnrollmentState build() => SyncEnrollmentState(repairMode: _repairMode);
@@ -172,7 +173,14 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
   }
 
   /// Null when a newer operation superseded this read and owns the outcome.
-  Future<bool?> enterRepairMode() async {
+  Future<bool?> enterRepairMode() {
+    final settlement = _enterRepairMode();
+    final tracked = settlement.then<void>((_) {}, onError: (_) {});
+    _pendingSettlements.add(tracked);
+    return settlement.whenComplete(() => _pendingSettlements.remove(tracked));
+  }
+
+  Future<bool?> _enterRepairMode() async {
     if (state.inFlight) return state.repairPhase != null;
     _repairMode = true;
     final operation = _EnrollmentOperation();
@@ -206,13 +214,26 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
   }
 
   @override
-  void enterFreshMode() {
-    // A pending enroll or publication still owns the repair state; entry
-    // waits for it elsewhere.
-    if (state.inFlight ||
+  Future<void> enterFreshMode() async {
+    // A prior operation still owns shared enrollment state; the reset below
+    // waits for its enrollment, publication, and status refresh to settle.
+    // Cancellation already detached those operations from the UI, so their
+    // late results cannot navigate or write state for the abandoned route.
+    while (state.inFlight ||
         _pendingEnrolls > 0 ||
-        _abandonedPublication != null) {
-      return;
+        _abandonedPublication != null ||
+        _pendingSettlements.isNotEmpty) {
+      final abandoned = _abandonedPublication;
+      final waiting = <Future<void>>[..._pendingSettlements, ?abandoned];
+      if (waiting.isEmpty) {
+        await Future<void>.delayed(Duration.zero);
+        continue;
+      }
+      for (final pending in waiting) {
+        try {
+          await pending;
+        } catch (_) {}
+      }
     }
     _repairMode = false;
     _currentOperation = null;
@@ -252,10 +273,23 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
       errorMessage: () => null,
       cancelled: false,
     );
+    final settlement = _submitAfterIdentifier(trimmed, operation);
+    _pendingSettlements.add(settlement);
+    try {
+      await settlement;
+    } finally {
+      _pendingSettlements.remove(settlement);
+    }
+  }
+
+  Future<void> _submitAfterIdentifier(
+    String identifier,
+    _EnrollmentOperation operation,
+  ) async {
     try {
       await _abandonedPublication;
       if (!identical(operation, _currentOperation)) return;
-      await _enrollFromIdentifier(trimmed, operation);
+      await _enrollFromIdentifier(identifier, operation);
     } finally {
       if (identical(operation, _currentOperation) && ref.mounted) {
         state = state.copyWith(inFlight: false);
@@ -363,6 +397,16 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
       errorMessage: () => null,
       cancelled: false,
     );
+    final settlement = _retryAfterStart(operation);
+    _pendingSettlements.add(settlement);
+    try {
+      await settlement;
+    } finally {
+      _pendingSettlements.remove(settlement);
+    }
+  }
+
+  Future<void> _retryAfterStart(_EnrollmentOperation operation) async {
     try {
       await _abandonedPublication;
       final phase = await _currentPhase();

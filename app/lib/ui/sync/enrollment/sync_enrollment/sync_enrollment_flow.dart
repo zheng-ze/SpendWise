@@ -52,7 +52,8 @@ class _SyncEnrollmentFlowState
   }
 
   Future<void> _enterFresh() async {
-    _viewModel.enterFreshMode();
+    await _viewModel.enterFreshMode();
+    if (!mounted) return;
     final picker = ref.read(backendPickerViewModelProvider.notifier);
     await picker.resetForFreshEntry();
     if (!mounted) return;
@@ -128,14 +129,32 @@ class _SyncEnrollmentFlowState
         onHostedReady: _viewModel.hostedReady,
       );
     }
-    // The picker stays inert until the reset clears any settling save and
-    // its step, so a stale HostedReady cannot advance this route.
+    // The picker stays behind this loading root until the prior operation
+    // settles and the reset clears any settling save and its step, so a
+    // stale HostedReady cannot advance this route.
     return Scaffold(
       appBar: AppBar(
         title: const Text('Choose sync backend'),
         leading: showsOwnBackButton
             ? BackButton(key: const Key('syncPickerBack'), onPressed: goBack)
             : null,
+      ),
+      body: const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 24),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24),
+              child: Text(
+                'Finishing the previous attempt. '
+                'This usually takes a few seconds.',
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
