@@ -267,13 +267,13 @@ void main() {
     await tester.tap(find.text(_repairLabel));
     await tester.pumpAndSettle();
 
-    expect(harness.container.read(repairFlowOpenProvider), isTrue);
+    expect(harness.container.read(enrollmentFlowOpenProvider), isTrue);
     expect(find.text(_repairLabel), findsNothing);
 
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
 
-    expect(harness.container.read(repairFlowOpenProvider), isFalse);
+    expect(harness.container.read(enrollmentFlowOpenProvider), isFalse);
     expect(find.byType(SyncIdentifierScreen), findsNothing);
     expect(find.text(_repairLabel), findsOneWidget);
   });
@@ -293,7 +293,7 @@ void main() {
         ShellDestination.transactions;
     await tester.pumpAndSettle();
 
-    expect(harness.container.read(repairFlowOpenProvider), isTrue);
+    expect(harness.container.read(enrollmentFlowOpenProvider), isTrue);
     expect(find.text(_repairLabel), findsOneWidget);
 
     await tester.tap(find.text(_repairLabel));
@@ -354,12 +354,12 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(SettingsFlow), findsOneWidget);
     expect(find.byType(SyncIdentifierScreen), findsOneWidget);
-    expect(harness.container.read(repairFlowOpenProvider), isTrue);
+    expect(harness.container.read(enrollmentFlowOpenProvider), isTrue);
 
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
     expect(find.byType(SyncIdentifierScreen), findsNothing);
-    expect(harness.container.read(repairFlowOpenProvider), isFalse);
+    expect(harness.container.read(enrollmentFlowOpenProvider), isFalse);
   });
 
   testWidgets('the banner clears the bottom safe-area inset in rail and '

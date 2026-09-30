@@ -23,15 +23,16 @@ class SettingsFlow extends FlowBase<SettingsStep> {
 }
 
 class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
-  late final StateController<bool> _repairFlowOpen;
+  late final StateController<bool> _enrollmentFlowOpen;
   late final ProviderContainer _container;
-  bool _ownsRepairRoute = false;
+  bool _ownsEnrollmentRoute = false;
+  bool _ownedRepairRoute = false;
   void Function()? _closeSelectionSubscription;
 
   @override
   void initState() {
     super.initState();
-    _repairFlowOpen = ref.read(repairFlowOpenProvider.notifier);
+    _enrollmentFlowOpen = ref.read(enrollmentFlowOpenProvider.notifier);
     _container = ProviderScope.containerOf(context, listen: false);
     // AppShell keeps every destination mounted, so the cached status must be
     // re-read when the Settings tab is selected.
@@ -91,49 +92,75 @@ class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
         );
       case RepairDeviceAccessRequested():
         _openRepairFlow(context);
+      case StartHostedEnrollmentRequested():
+        _openFreshFlow(context);
     }
     ref.read(settingsRootViewModelProvider.notifier).clearStep();
   }
 
   void _openRepairFlow(BuildContext context) {
+    _pushEnrollmentRoute(context, repairMode: true);
+  }
+
+  void _openFreshFlow(BuildContext context) {
+    final status = _container.read(hostedSyncStatusProvider);
+    if (status is! HostedSyncNoSelection && status is! HostedSyncSetupPending) {
+      return;
+    }
+    _pushEnrollmentRoute(context, repairMode: false);
+  }
+
+  void _pushEnrollmentRoute(BuildContext context, {required bool repairMode}) {
     // Two Flows coexist during an AppShell layout switch; the shared flag lets
     // only one push.
-    if (_repairFlowOpen.state) return;
-    _repairFlowOpen.state = true;
-    _ownsRepairRoute = true;
+    if (_enrollmentFlowOpen.state) return;
+    _enrollmentFlowOpen.state = true;
+    _ownsEnrollmentRoute = true;
+    _ownedRepairRoute = repairMode;
     Navigator.of(context)
         .push(
           MaterialPageRoute<void>(
             builder: (_) => SyncEnrollmentFlow(
-              repairMode: true,
+              repairMode: repairMode,
               onEnded: () => Navigator.of(context).pop(),
             ),
           ),
         )
         .then((_) async {
-          _markRepairRouteClosed();
+          _markEnrollmentRouteClosed();
           if (!mounted) return;
           await _refreshSyncStatus();
         });
   }
 
-  void _markRepairRouteClosed() {
-    if (!_ownsRepairRoute) return;
-    _ownsRepairRoute = false;
-    if (_repairFlowOpen.mounted) _repairFlowOpen.state = false;
+  void _markEnrollmentRouteClosed() {
+    if (!_ownsEnrollmentRoute) return;
+    _ownsEnrollmentRoute = false;
+    _ownedRepairRoute = false;
+    if (_enrollmentFlowOpen.mounted) _enrollmentFlowOpen.state = false;
   }
 
-  // Disposing the Flow destroys its repair route, so a surviving Flow must
-  // reopen it. Provider writes are illegal while the tree finalizes, hence the
-  // microtask.
+  // Disposing the Flow destroys its enrollment route. A surviving repair
+  // Flow must reopen its route, while a fresh route is only released.
+  // Provider writes are illegal while the tree finalizes, hence the microtask.
   void _handOverOpenRepairRoute() {
-    if (!_ownsRepairRoute) return;
-    _ownsRepairRoute = false;
-    final repairFlowOpen = _repairFlowOpen;
+    if (!_ownsEnrollmentRoute) return;
+    final ownedRepairRoute = _ownedRepairRoute;
+    _ownsEnrollmentRoute = false;
+    _ownedRepairRoute = false;
+    if (!ownedRepairRoute) {
+      final enrollmentFlowOpen = _enrollmentFlowOpen;
+      scheduleMicrotask(() {
+        if (!enrollmentFlowOpen.mounted) return;
+        enrollmentFlowOpen.state = false;
+      });
+      return;
+    }
+    final enrollmentFlowOpen = _enrollmentFlowOpen;
     final container = _container;
     scheduleMicrotask(() {
-      if (!repairFlowOpen.mounted) return;
-      repairFlowOpen.state = false;
+      if (!enrollmentFlowOpen.mounted) return;
+      enrollmentFlowOpen.state = false;
       final status = container.read(hostedSyncStatusProvider);
       final needsRepair =
           status is HostedSyncBindingRepair ||

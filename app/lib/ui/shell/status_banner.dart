@@ -13,7 +13,7 @@ class StatusBanner extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final status = ref.watch(hostedSyncStatusProvider);
     final repairFlowVisible =
-        ref.watch(repairFlowOpenProvider) &&
+        ref.watch(enrollmentFlowOpenProvider) &&
         ref.watch(selectedDestinationProvider) == ShellDestination.settings;
     final needsRepair =
         status is HostedSyncBindingRepair || status is HostedSyncSessionReauth;
