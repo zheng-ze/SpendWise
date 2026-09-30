@@ -5,7 +5,9 @@ import 'package:spendwise/sync/sync_metadata_store.dart';
 import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_view_model.dart';
 
 class BackendPickerScreen extends ConsumerStatefulWidget {
-  const BackendPickerScreen({super.key});
+  const BackendPickerScreen({super.key, this.onBack});
+
+  final VoidCallback? onBack;
 
   @override
   ConsumerState<BackendPickerScreen> createState() =>
@@ -41,7 +43,19 @@ class _BackendPickerScreenState extends ConsumerState<BackendPickerScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Choose sync backend')),
+      appBar: AppBar(
+        title: const Text('Choose sync backend'),
+        // BackButton cannot be disabled (a null onPressed falls back to
+        // maybePop), so use an IconButton to hold the disabled state.
+        leading: widget.onBack == null
+            ? null
+            : IconButton(
+                key: const Key('syncPickerBack'),
+                icon: const BackButtonIcon(),
+                tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                onPressed: state.saving ? null : widget.onBack,
+              ),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [

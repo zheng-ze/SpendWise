@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/common/flow_base.dart';
 import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_flow.dart';
+import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_view_model.dart';
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_screens.dart';
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart';
 
@@ -20,18 +21,23 @@ class SyncEnrollmentFlow extends FlowBase<SyncEnrollmentStep> {
 class _SyncEnrollmentFlowState
     extends FlowBaseState<SyncEnrollmentStep, SyncEnrollmentFlow> {
   late final SyncEnrollmentNotifier _viewModel;
+  bool _pickerReady = false;
+  bool _waitTimedOut = false;
 
   @override
   void initState() {
     super.initState();
     _viewModel = ref.read(syncEnrollmentViewModelProvider.notifier);
-    if (widget.repairMode) {
-      // enterRepairMode writes provider state, illegal inside initState.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
+    // Provider writes are illegal inside initState, so mode entry runs
+    // post-frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (widget.repairMode) {
         unawaited(_enterRepair());
-      });
-    }
+      } else {
+        unawaited(_enterFresh());
+      }
+    });
   }
 
   Future<void> _enterRepair() async {
@@ -46,10 +52,39 @@ class _SyncEnrollmentFlowState
     }
   }
 
+  Future<void> _enterFresh() async {
+    final outcome = await _viewModel.enterFreshMode();
+    if (!mounted) return;
+    if (outcome == FreshEntryResult.superseded) return;
+    if (outcome == FreshEntryResult.timedOut) {
+      setState(() => _waitTimedOut = true);
+      return;
+    }
+    final picker = ref.read(backendPickerViewModelProvider.notifier);
+    await picker.resetForFreshEntry();
+    if (!mounted) return;
+    setState(() => _pickerReady = true);
+  }
+
+  // A retry starts a new wait attempt with a new entry id; the timed-out
+  // attempt stays superseded and applies nothing when it wakes.
+  Future<void> _retryFreshWait() async {
+    setState(() => _waitTimedOut = false);
+    await _enterFresh();
+  }
+
   @override
   void dispose() {
     _viewModel.cancelPendingOperation();
     super.dispose();
+  }
+
+  // System back at the picker root routes through this Flow, so it must
+  // also wait out the picker's save, which cannot be cancelled.
+  @override
+  Future<void> goBack() async {
+    if (ref.read(backendPickerViewModelProvider).saving) return;
+    await super.goBack();
   }
 
   @override
@@ -100,14 +135,79 @@ class _SyncEnrollmentFlowState
           ),
           (_) => false,
         );
-      case DismissRepairFlow():
+      case DismissEnrollmentFlow():
         unawaited(goBack());
     }
     _viewModel.clearStep();
   }
 
   @override
-  Widget buildRoot(BuildContext context) => widget.repairMode
-      ? const SyncIdentifierScreen()
-      : BackendPickerFlow(onHostedReady: _viewModel.hostedReady);
+  Widget buildRoot(BuildContext context) {
+    if (widget.repairMode) return const SyncIdentifierScreen();
+    if (_pickerReady) {
+      return BackendPickerFlow(
+        onEnded: widget.onEnded,
+        onHostedReady: _viewModel.hostedReady,
+      );
+    }
+    if (_waitTimedOut) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Choose sync backend'),
+          leading: showsOwnBackButton
+              ? BackButton(key: const Key('syncPickerBack'), onPressed: goBack)
+              : null,
+        ),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  'Still finishing the previous attempt. '
+                  'You can keep waiting or go back.',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 24),
+              FilledButton(
+                key: const Key('syncFreshRetryWait'),
+                onPressed: _retryFreshWait,
+                child: const Text('Try again'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    // The picker stays behind this loading root until the prior operation
+    // settles and the reset clears any settling save and its step, so a
+    // stale HostedReady cannot advance this route.
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Choose sync backend'),
+        leading: showsOwnBackButton
+            ? BackButton(key: const Key('syncPickerBack'), onPressed: goBack)
+            : null,
+      ),
+      body: const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 24),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24),
+              child: Text(
+                'Finishing the previous attempt. '
+                'This usually takes a few seconds.',
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

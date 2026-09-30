@@ -50,6 +50,7 @@ void main() {
 
     expect(find.byType(BackendPickerFlow), findsOneWidget);
     expect(find.byType(BackendPickerScreen), findsOneWidget);
+    expect(find.byType(BackButton), findsNothing);
   });
 
   testWidgets('hosted-ready invokes the hosted callback and clears the step', (
