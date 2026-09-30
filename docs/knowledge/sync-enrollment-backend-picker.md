@@ -1,6 +1,6 @@
 # Sync enrollment: backend picker
 
-Last reconciled: b8a8363
+Last reconciled: 81f247a
 
 ## Overview
 
@@ -40,8 +40,13 @@ Source:
 
 ## Contracts and invariants
 
-- Fresh `SyncEnrollmentFlow` awaits `BackendPickerViewModel.resetForFreshEntry()`
-  before mounting `BackendPickerFlow`. The reset waits for an active selection
+- Fresh `SyncEnrollmentFlow` first awaits `SyncEnrollmentNotifier.enterFreshMode()`
+  to settle prior enrollment work, then awaits
+  `BackendPickerViewModel.resetForFreshEntry()` before mounting `BackendPickerFlow`.
+  During both waits, the root shows a progress indicator and "Finishing the
+  previous attempt. This usually takes a few seconds." Back remains active
+  when `onEnded` is supplied. The Flow checks that it is still mounted after
+  each wait. The picker reset waits for an active selection
   save to settle, then restores the default hosted choice, empty endpoint,
   and no pending step. This prevents a late step from advancing a newly
   mounted picker. Source:

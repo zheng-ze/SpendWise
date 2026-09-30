@@ -1,6 +1,6 @@
 # Sync enrollment: hosted Flow
 
-Last reconciled: b8a8363
+Last reconciled: 81f247a
 
 ## Overview
 
@@ -38,11 +38,12 @@ Flow's callback. `SyncEnrollmentNotifier.hostedReady()` emits identifier entry.
 Fresh enrollment passes its `onEnded` callback to the nested picker Flow, so
 back at the picker root can end the enclosing enrollment Flow.
 
-On fresh entry, the Flow calls `SyncEnrollmentNotifier.enterFreshMode()` and
-awaits `BackendPickerViewModel.resetForFreshEntry()`. Until the picker reset
-settles, the root is an inert placeholder scaffold with a Back control when
-`onEnded` is supplied; it cannot consume a step left by
-an earlier picker route. Source:
+On fresh entry, the Flow awaits `SyncEnrollmentNotifier.enterFreshMode()`, then
+awaits `BackendPickerViewModel.resetForFreshEntry()`. Until both settle, the
+root shows a progress indicator and "Finishing the previous attempt. This
+usually takes a few seconds." Its Back control remains active when `onEnded`
+is supplied. The picker mounts only after both waits complete and the Flow
+is still mounted, preventing a stale picker step from advancing the route. Source:
 `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_flow.dart` -
 `_SyncEnrollmentFlowState._enterFresh`, `_SyncEnrollmentFlowState.buildRoot`.
 
@@ -77,15 +78,28 @@ or reopening one with an OTP-rejecting resolver. Source:
 
 ## Contracts and invariants
 
-- Fresh entry clears repair phase, repair copy, errors, cancellation, OTP wait,
-  and pending steps, while preserving the entered identifier and code-request
-  cooldown. It leaves repair state intact while an operation is in flight, an
-  `enroll()` call remains pending after cancellation, or abandoned repair-proof
-  publication remains pending. This preserves repair ownership so a late
-  repair enrollment can publish its proof. Source:
+- `enterFreshMode()` returns a `Future<void>` and waits for in-flight operations,
+  pending `enroll()` calls, tracked `submitIdentifier()`, `retry()`, and
+  `enterRepairMode()` settlements, and abandoned repair-proof publication.
+  These settlements include any trailing Hosted Sync status refresh, so clearing
+  `state.inFlight` alone does not permit the reset. Repair ownership remains
+  intact during the wait so a late repair enrollment can publish its proof.
+  After settlement, fresh entry clears repair phase, repair copy, errors,
+  cancellation, OTP wait, and pending steps, while preserving the entered
+  identifier and code-request cooldown. Source:
   `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart`
-  - `SyncEnrollmentNotifier.enterFreshMode`, `_enrollFromIdentifier`,
+  - `SyncEnrollmentNotifier.enterFreshMode`, `_pendingSettlements`,
+  `_submitAfterIdentifier`, `_retryAfterStart`, `_enrollFromIdentifier`,
   `_publishAbandonedRepairProof`.
+- Every fresh or repair mode entry claims a new `_modeSequence` id;
+  `cancelPendingOperation()` also advances it when the Flow is disposed. A
+  waiting fresh entry skips its reset if the notifier is unmounted or its id
+  has been superseded by cancellation or a newer fresh or repair entry. Its
+  future completing therefore does not guarantee that it applied a reset.
+  Source:
+  `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart`
+  - `SyncEnrollmentNotifier.enterFreshMode`, `_enterRepairMode`,
+  `cancelPendingOperation`, `_modeSequence`.
 - `state.inFlight` blocks duplicate submissions during an active Flow operation.
   `submitIdentifier()` and `retry()` no-op while it is true. Flow disposal
   cancels the current operation, releases the guard after widget finalization
