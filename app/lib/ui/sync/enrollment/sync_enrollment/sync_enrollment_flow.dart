@@ -22,6 +22,7 @@ class _SyncEnrollmentFlowState
     extends FlowBaseState<SyncEnrollmentStep, SyncEnrollmentFlow> {
   late final SyncEnrollmentNotifier _viewModel;
   bool _pickerReady = false;
+  bool _waitTimedOut = false;
 
   @override
   void initState() {
@@ -55,10 +56,21 @@ class _SyncEnrollmentFlowState
     final outcome = await _viewModel.enterFreshMode();
     if (!mounted) return;
     if (outcome == FreshEntryResult.superseded) return;
+    if (outcome == FreshEntryResult.timedOut) {
+      setState(() => _waitTimedOut = true);
+      return;
+    }
     final picker = ref.read(backendPickerViewModelProvider.notifier);
     await picker.resetForFreshEntry();
     if (!mounted) return;
     setState(() => _pickerReady = true);
+  }
+
+  // A retry starts a new wait attempt with a new entry id; the timed-out
+  // attempt stays superseded and applies nothing when it wakes.
+  Future<void> _retryFreshWait() async {
+    setState(() => _waitTimedOut = false);
+    await _enterFresh();
   }
 
   @override
@@ -136,6 +148,37 @@ class _SyncEnrollmentFlowState
       return BackendPickerFlow(
         onEnded: widget.onEnded,
         onHostedReady: _viewModel.hostedReady,
+      );
+    }
+    if (_waitTimedOut) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Choose sync backend'),
+          leading: showsOwnBackButton
+              ? BackButton(key: const Key('syncPickerBack'), onPressed: goBack)
+              : null,
+        ),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  'Still finishing the previous attempt. '
+                  'You can keep waiting or go back.',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 24),
+              FilledButton(
+                key: const Key('syncFreshRetryWait'),
+                onPressed: _retryFreshWait,
+                child: const Text('Try again'),
+              ),
+            ],
+          ),
+        ),
       );
     }
     // The picker stays behind this loading root until the prior operation

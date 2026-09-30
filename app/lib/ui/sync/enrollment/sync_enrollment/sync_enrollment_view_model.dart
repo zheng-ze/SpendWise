@@ -32,7 +32,7 @@ class DismissEnrollmentFlow extends SyncEnrollmentStep {}
 
 final class DismissRepairFlow extends DismissEnrollmentFlow {}
 
-enum FreshEntryResult { applied, superseded }
+enum FreshEntryResult { applied, superseded, timedOut }
 
 final class SyncEnrollmentState
     implements HasStep<SyncEnrollmentState, SyncEnrollmentStep> {
@@ -135,6 +135,7 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
        _now = now ?? DateTime.now;
 
   static const maxPublishAttempts = 3;
+  static const freshWaitTimeout = Duration(seconds: 30);
   static const _publishRetryDelay = Duration(seconds: 1);
   static const codeRequestCooldown = Duration(seconds: 60);
   static const _maxWaitDisplay = Duration(minutes: 15);
@@ -228,20 +229,16 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
     // Cancellation already detached those operations from the UI, so their
     // late results cannot navigate or write state for the abandoned route.
     final entryId = ++_modeSequence;
-    while (state.inFlight ||
-        _pendingEnrolls > 0 ||
-        _abandonedPublication != null ||
-        _pendingSettlements.isNotEmpty) {
-      final abandoned = _abandonedPublication;
-      final waiting = <Future<void>>[..._pendingSettlements, ?abandoned];
-      if (waiting.isEmpty) {
-        await Future<void>.delayed(Duration.zero);
-        continue;
-      }
-      for (final pending in waiting) {
-        try {
-          await pending;
-        } catch (_) {}
+    if (_priorOperationPending) {
+      // The wait never cancels or abandons the pending operation; a timeout
+      // only releases this entry so the route can offer a retry.
+      try {
+        await _settlePriorOperation().timeout(freshWaitTimeout);
+      } on TimeoutException {
+        if (!ref.mounted || entryId != _modeSequence) {
+          return FreshEntryResult.superseded;
+        }
+        return FreshEntryResult.timedOut;
       }
     }
     // A newer mode entry or route closure superseded this entry while it
@@ -262,6 +259,28 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
       otpWaiting: false,
     );
     return FreshEntryResult.applied;
+  }
+
+  bool get _priorOperationPending =>
+      state.inFlight ||
+      _pendingEnrolls > 0 ||
+      _abandonedPublication != null ||
+      _pendingSettlements.isNotEmpty;
+
+  Future<void> _settlePriorOperation() async {
+    while (_priorOperationPending) {
+      final abandoned = _abandonedPublication;
+      final waiting = <Future<void>>[..._pendingSettlements, ?abandoned];
+      if (waiting.isEmpty) {
+        await Future<void>.delayed(Duration.zero);
+        continue;
+      }
+      for (final pending in waiting) {
+        try {
+          await pending;
+        } catch (_) {}
+      }
+    }
   }
 
   @override
