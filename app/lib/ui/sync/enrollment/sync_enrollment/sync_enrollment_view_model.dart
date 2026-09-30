@@ -32,6 +32,8 @@ class DismissEnrollmentFlow extends SyncEnrollmentStep {}
 
 final class DismissRepairFlow extends DismissEnrollmentFlow {}
 
+enum FreshEntryResult { applied, superseded }
+
 final class SyncEnrollmentState
     implements HasStep<SyncEnrollmentState, SyncEnrollmentStep> {
   const SyncEnrollmentState({
@@ -99,7 +101,7 @@ final class SyncEnrollmentState
 
 abstract class SyncEnrollmentViewModel {
   void hostedReady();
-  Future<void> enterFreshMode();
+  Future<FreshEntryResult> enterFreshMode();
   Future<void> submitIdentifier(String identifier);
   void submitOtp(String otp);
   void cancelOtp();
@@ -220,7 +222,7 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
   }
 
   @override
-  Future<void> enterFreshMode() async {
+  Future<FreshEntryResult> enterFreshMode() async {
     // A prior operation still owns shared enrollment state; the reset below
     // waits for its enrollment, publication, and status refresh to settle.
     // Cancellation already detached those operations from the UI, so their
@@ -244,7 +246,9 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
     }
     // A newer mode entry or route closure superseded this entry while it
     // waited; its reset must not touch the state the newer entry owns.
-    if (!ref.mounted || entryId != _modeSequence) return;
+    if (!ref.mounted || entryId != _modeSequence) {
+      return FreshEntryResult.superseded;
+    }
     _repairMode = false;
     _currentOperation = null;
     _session = null;
@@ -257,6 +261,7 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
       explainCodeReplacement: false,
       otpWaiting: false,
     );
+    return FreshEntryResult.applied;
   }
 
   @override

@@ -52,8 +52,9 @@ class _SyncEnrollmentFlowState
   }
 
   Future<void> _enterFresh() async {
-    await _viewModel.enterFreshMode();
+    final outcome = await _viewModel.enterFreshMode();
     if (!mounted) return;
+    if (outcome == FreshEntryResult.superseded) return;
     final picker = ref.read(backendPickerViewModelProvider.notifier);
     await picker.resetForFreshEntry();
     if (!mounted) return;

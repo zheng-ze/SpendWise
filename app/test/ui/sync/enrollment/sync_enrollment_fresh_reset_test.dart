@@ -12,6 +12,7 @@ import 'package:spendwise/sync/enrollment_snapshot_publisher.dart';
 import 'package:spendwise/sync/sync_coordinator.dart';
 import 'package:spendwise/sync/sync_secret_keys.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
+import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_screen.dart';
 import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_view_model.dart';
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_flow.dart';
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart';
@@ -867,6 +868,103 @@ void main() {
       expect(find.text('Repair Device Access'), findsOneWidget);
       expect(find.text('Choose sync backend'), findsNothing);
       expect(opener.session.publishCalls, 0);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('a superseded fresh entry does not reset or mount the picker', (
+      tester,
+    ) async {
+      final db = LedgerDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      final metadataStore = SyncMetadataStore(db);
+      final opener = FakeSessionOpener();
+      final secrets = InMemorySecretStore();
+      final writer = _RecordingWriter();
+      final container = ProviderContainer(
+        overrides: [
+          appBootProvider.overrideWith(
+            (ref) => AppBoot(
+              createStore: () async => RecordingLedgerStore(),
+              seedChanges: () => const [],
+              readSyncSnapshot: () => metadataStore.snapshot(),
+            ),
+          ),
+          ledgerDatabaseProvider.overrideWithValue(db),
+          syncMetadataStoreProvider.overrideWithValue(metadataStore),
+          backendPickerViewModelProvider.overrideWith(
+            () => BackendPickerNotifier(writer: writer),
+          ),
+          syncEnrollmentViewModelProvider.overrideWith(
+            () => SyncEnrollmentNotifier(
+              sessionOpener: opener.call,
+              secretStore: secrets,
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      Future<void> pumpHostGone() => tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            home: Scaffold(body: Text('flow host gone')),
+          ),
+        ),
+      );
+
+      await pumpFreshFlow(tester, container, onEnded: () {});
+      await tester.tap(find.text('Continue'));
+      await pumpFlowFrames(tester);
+
+      final enrollGate = Completer<void>();
+      opener.session.onEnroll = () => enrollGate.future;
+      await _submitIdentifier(tester, 'user@example.com');
+      expect(container.read(syncEnrollmentViewModelProvider).inFlight, isTrue);
+
+      await pumpHostGone();
+      await pumpFlowFrames(tester);
+
+      var endedCalls = 0;
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: SyncEnrollmentFlow(onEnded: () => endedCalls++),
+          ),
+        ),
+      );
+      await pumpFlowFrames(tester);
+      expect(
+        find.text(
+          'Finishing the previous attempt. This usually takes a few seconds.',
+        ),
+        findsOneWidget,
+      );
+
+      container
+          .read(backendPickerViewModelProvider.notifier)
+          .selectBackend(SyncBackendKind.custom);
+      container
+          .read(backendPickerViewModelProvider.notifier)
+          .updateEndpoint('https://sync.example.com/sync');
+
+      await container
+          .read(syncEnrollmentViewModelProvider.notifier)
+          .enterRepairMode();
+      expect(
+        container.read(syncEnrollmentViewModelProvider).repairMode,
+        isTrue,
+      );
+
+      enrollGate.complete();
+      await pumpFlowFrames(tester);
+
+      final pickerState = container.read(backendPickerViewModelProvider);
+      expect(pickerState.selectedBackend, SyncBackendKind.custom);
+      expect(pickerState.endpoint, 'https://sync.example.com/sync');
+      expect(find.byType(BackendPickerScreen), findsNothing);
+      expect(endedCalls, 0);
       expect(tester.takeException(), isNull);
     });
   });
