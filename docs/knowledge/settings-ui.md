@@ -1,26 +1,27 @@
 # Settings UI
 
-Last reconciled: 3b2895d
+Last reconciled: 1193e8c
 
 ## Feature overview
 
 The Settings tab contains category management (list, form, symbol picker), recurring-plan management
-(list, form), the Recycle Bin for archived rows, and Hosted Sync status and device-access repair. The
-ledger screens are mostly stateless facades over `Ledger`, with per-sheet `autoDispose` form controllers.
+(list, form), the Recycle Bin for archived rows, and Hosted Sync status, enrollment, and device-access
+repair. The ledger screens are mostly stateless facades over `Ledger`, with per-sheet `autoDispose`
+form controllers.
 
 ## Key files
 
 - `app/lib/ui/settings/settings_root_view_model.dart`, `settings_root_screen.dart`,
-  `settings_flow.dart` — the root list of navigation links.
-- `app/lib/ui/settings/category/` — category list, form, and the symbol picker.
-- `app/lib/ui/settings/plan/` — plan list and form.
-- `app/lib/ui/settings/recycle_bin/` — the recycle bin.
+  `settings_flow.dart` - the root list of navigation links.
+- `app/lib/ui/settings/category/` - category list, form, and the symbol picker.
+- `app/lib/ui/settings/plan/` - plan list and form.
+- `app/lib/ui/settings/recycle_bin/` - the recycle bin.
 - `app/lib/boot/providers.dart`, `app/lib/sync/hosted_sync_status.dart` - the Hosted Sync status
   provider and durable-metadata projection.
-- `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_flow.dart` - the repair presentation
-  opened from Settings; see `sync-enrollment-flow.md`.
+- `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_flow.dart` - fresh enrollment and
+  repair presentation opened from Settings; see `sync-enrollment-flow.md`.
 - `packages/domain/lib/src/ledger_state/ledger_state_categories.dart`, `ledger_state_plans.dart`
-  — the domain mutators (see `ledger-and-money-model.md`, `recurring-plans-and-accounting.md`).
+  - the domain mutators (see `ledger-and-money-model.md`, `recurring-plans-and-accounting.md`).
 
 
 ## Module interactions
@@ -38,55 +39,66 @@ three sections (Accounts, Subpockets, Categories), each hidden when empty.
 
 ## Hosted Sync
 
-The Hosted Sync section watches `hostedSyncStatusProvider` and displays read-only status text for
+The Hosted Sync section watches `hostedSyncStatusProvider` and displays status text for
 every `HostedSyncStatus`: not configured, setup pending, ready, binding repair needed, sign-in expired,
 unsupported endpoint, or status unavailable. Binding repair explains that device access needs
 authorization and reconciliation precedes resumed writes. Session reauth explains that the existing
 device access is kept. Only those two repair statuses show `Repair Device Access`. Custom endpoints
 show the sync protocol v2 unsupported notice; unavailable status shows a read-only failure message.
 
+The `hostedSyncStatus` tile is tappable and shows a chevron only for `HostedSyncNoSelection` and
+`HostedSyncSetupPending`. `SettingsRootNotifier.requestStartHostedEnrollment()` emits
+`StartHostedEnrollmentRequested`; `_SettingsFlowState._openFreshFlow()` rechecks those statuses before
+opening `SyncEnrollmentFlow(repairMode: false)`, whose root is the backend picker. Other statuses
+keep the tile passive. Fresh and repair routes share `enrollmentFlowOpenProvider` to prevent
+duplicate pushes across Settings Flow instances; only the instance that owns the route releases
+the guard. Hosted Sync status refreshes when Settings becomes selected and after either route closes.
+Source: `app/lib/ui/settings/settings_root_screen.dart` - `_HostedSyncSection`;
+`app/lib/ui/settings/settings_root_view_model.dart` - `StartHostedEnrollmentRequested`;
+`app/lib/ui/settings/settings_flow.dart` - `_openFreshFlow`, `_pushEnrollmentRoute`,
+`_markEnrollmentRouteClosed`; `app/lib/ui/shell/shell_providers.dart`.
+
 `SettingsRootNotifier.requestRepair()` emits the single-shot `RepairDeviceAccessRequested` navigation
 step. The persistent shell repair banner also uses this seam; it appears for binding-repair and
 session-reauth status, takes precedence over the timed plan/save message, and selects Settings when
 tapped. `SettingsFlow` opens `SyncEnrollmentFlow(repairMode: true)` for the request and re-checks a
 pending step after its navigator mounts, so a request made before Settings is built is consumed once.
-The shared `repairFlowOpenProvider` tracks the route across coexisting Settings Flow instances during
-an AppShell layout transition. The banner hides only while that route is open and Settings is selected;
+The shared guard tracks the repair route across coexisting Settings Flow instances during
+an AppShell layout transition. The banner hides while that repair route is open and Settings is selected;
 on another tab it returns and tapping it selects Settings to expose the open route. If the owning Flow
-is disposed, it releases the flag and re-issues the request for the surviving Flow. The Flow refreshes
-Hosted Sync status when Settings becomes selected and when the repair route closes. See
+is disposed, it releases the flag and re-issues the repair request for the surviving Flow. See
 `sync-enrollment-flow.md` for repair behavior. Source: `app/lib/ui/settings/settings_flow.dart`,
 `app/lib/ui/shell/status_banner.dart`, `app/lib/ui/shell/shell_providers.dart`.
 
 ## Screens and flows
 
-- **Category list** — two sections (Income, then Expense), rows pre-ordered roots-then-children
+- **Category list** - two sections (Income, then Expense), rows pre-ordered roots-then-children
   A–Z, child rows indented. Edit/Done toggle shows red delete buttons; an add button opens "New
   Category" (default expense); parent rows show a `plus.circle` that opens "New Subcategory" with the
   parent preset (inherits kind + color). Tap → edit sheet. Delete message: "N transaction(s) will
   become Uncategorized." (singular/plural) when referenced, else "This category will be removed." →
   archive to bin.
-- **Category form** — name, kind segmented (locked when a parent is preset or when a category any
+- **Category form** - name, kind segmented (locked when a parent is preset or when a category any
   entry references, with a caption), icon row pushing the symbol picker, color picker, include-in-
   analysis toggle, parent picker (None + same-kind roots, excluding self). Defaults: symbol `tag`,
   blue color, include on. Save → add/update (color persisted as `#RRGGBB`). Editing only: a full-
   width destructive Delete Category → archive + dismiss, no confirmation (the list path is the
   confirmed one).
-- **Symbol picker** — searchable sectioned grid (6 columns) of the `CategorySymbols` catalog,
+- **Symbol picker** - searchable sectioned grid (6 columns) of the `CategorySymbols` catalog,
   rendered as `CategoryIcon`s in the form's color; search filters names by substring, empty sections
   drop out, section headers are sticky.
-- **Plan list** — rows sorted by next occurrence ascending, ended plans (nil next) last, with name
+- **Plan list** - rows sorted by next occurrence ascending, ended plans (nil next) last, with name
   as the deterministic tiebreak (including between two ended plans). Amount is green when the
-  template amount is income, primary when expense. No add button — plans are created from the entry
+  template amount is income, primary when expense. No add button - plans are created from the entry
   form's recurrence flow only. Delete message: "Already generated transactions are kept." →
   `deletePlan`.
-- **Plan form** — name, amount magnitude (template's original sign preserved on save), read-only
-  source line, Repeat row (`RecurrencePickerSheet` with non-optional binding — "One time" is ignored
+- **Plan form** - name, amount magnitude (template's original sign preserved on save), read-only
+  source line, Repeat row (`RecurrencePickerSheet` with non-optional binding - "One time" is ignored
   because a plan cannot become one-shot), first-date picker, end-date toggle + picker. Editing the
   anchor/frequency does not retro-generate or delete existing entries.
-- **Recycle bin** — archived items in three sections; rows show name (pockets qualified as
+- **Recycle bin** - archived items in three sections; rows show name (pockets qualified as
   "Parent/Pocket") and a "N references" badge, sorted by name ascending. Leading swipe → Restore
-  (silent no-op if the parent account is still binned — restore the account first); trailing swipe →
+  (silent no-op if the parent account is still binned - restore the account first); trailing swipe →
   purge confirmation ("\<name\> leaves the bin for good..."). Purge routing: money source →
   `purgeAccount`/`purgePocket`, category → `purgeCategory`.
 

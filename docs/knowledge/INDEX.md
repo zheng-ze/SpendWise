@@ -27,7 +27,7 @@ themselves. Feature entries fold in still-current legacy material when a feature
 | Transactions tab and entry form | [transactions-ui.md](transactions-ui.md) |
 | Stats tab and category drill-down | [stats-and-analysis-ui.md](stats-and-analysis-ui.md) |
 | Accounts tab and account/pocket forms | [accounts-ui.md](accounts-ui.md) |
-| Settings: categories, recurring plans, recycle bin | [settings-ui.md](settings-ui.md) |
+| Settings: categories, recurring plans, recycle bin, Hosted Sync enrollment and repair | [settings-ui.md](settings-ui.md) |
 | Receipt OCR entry | [ocr-receipt-entry.md](ocr-receipt-entry.md) |
 | UI framework (MVVM, Flow, Step, notifiers) | [ui-framework-mvvm.md](ui-framework-mvvm.md) |
 
