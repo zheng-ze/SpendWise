@@ -12,5 +12,4 @@ final selectedMonthProvider = StateProvider<DateTime>(
   (ref) => startOfMonthUtc(DateTime.now()),
 );
 
-// Hides the repair banner while a settings enrollment route is open.
 final enrollmentFlowOpenProvider = StateProvider<bool>((ref) => false);

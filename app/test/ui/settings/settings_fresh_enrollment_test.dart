@@ -17,6 +17,7 @@ import 'package:spendwise/ui/settings/settings_root_view_model.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_screen.dart';
 import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_view_model.dart';
+import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_flow.dart';
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_screens.dart';
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart';
 import 'package:sync/sync.dart';
@@ -113,11 +114,26 @@ void main() {
 
     await tester.tap(find.byKey(_hostedTile));
     await tester.tap(find.byKey(_hostedTile), warnIfMissed: false);
+    harness.container
+        .read(settingsRootViewModelProvider.notifier)
+        .requestStartHostedEnrollment();
     await _pumpFrames(tester);
 
+    expect(
+      find.byType(SyncEnrollmentFlow, skipOffstage: false),
+      findsOneWidget,
+    );
     expect(find.byType(BackendPickerScreen), findsOneWidget);
     expect(harness.container.read(enrollmentFlowOpenProvider), isTrue);
     expect(harness.container.read(settingsRootViewModelProvider).step, isNull);
+
+    await tester.binding.handlePopRoute();
+    await _pumpFrames(tester);
+
+    expect(find.byType(SyncEnrollmentFlow, skipOffstage: false), findsNothing);
+    expect(find.byType(BackendPickerScreen), findsNothing);
+    expect(find.text('Not configured'), findsOneWidget);
+    expect(harness.container.read(enrollmentFlowOpenProvider), isFalse);
   });
 
   testWidgets('hosted is preselected and continuing reaches identifier entry', (
