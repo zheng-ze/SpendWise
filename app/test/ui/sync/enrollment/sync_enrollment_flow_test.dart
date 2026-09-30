@@ -30,6 +30,7 @@ const _freshDone = Key('syncFreshDone');
 
 final class FakeBackendSelectionWriter implements BackendSelectionWriter {
   final List<({SyncBackendKind backend, String? endpoint})> calls = [];
+  Future<void> Function()? onWrite;
 
   @override
   Future<void> setBackendSelection({
@@ -37,6 +38,7 @@ final class FakeBackendSelectionWriter implements BackendSelectionWriter {
     String? endpoint,
   }) async {
     calls.add((backend: backend, endpoint: endpoint));
+    await onWrite?.call();
   }
 }
 
@@ -497,6 +499,102 @@ void main() {
   testWidgets('picker Back button ends the flow', (tester) async {
     var endedCalls = 0;
     await pumpEnrollmentFlow(tester, onEnded: () => endedCalls++);
+
+    await tester.tap(find.byKey(_pickerBack));
+    await pumpFlowFrames(tester);
+
+    expect(endedCalls, 1);
+  });
+
+  testWidgets('picker Back is inert while a backend selection save is '
+      'in flight', (tester) async {
+    var endedCalls = 0;
+    final harness = await pumpEnrollmentFlow(
+      tester,
+      onEnded: () => endedCalls++,
+    );
+    final gate = Completer<void>();
+    harness.writer.onWrite = () => gate.future;
+
+    await tester.tap(find.text('Continue'));
+    await tester.pump();
+    expect(
+      harness.container.read(backendPickerViewModelProvider).saving,
+      isTrue,
+    );
+
+    await tester.tap(find.byKey(_pickerBack));
+    await tester.pump();
+
+    expect(endedCalls, 0);
+    expect(find.byType(BackendPickerScreen), findsOneWidget);
+
+    gate.complete();
+    await pumpFlowFrames(tester);
+    expect(endedCalls, 0);
+    expect(find.byKey(_identifierField), findsOneWidget);
+  });
+
+  testWidgets('system back at the picker root is ignored while a backend '
+      'selection save is in flight', (tester) async {
+    var endedCalls = 0;
+    final harness = await pumpEnrollmentFlow(
+      tester,
+      onEnded: () => endedCalls++,
+    );
+    final gate = Completer<void>();
+    harness.writer.onWrite = () => gate.future;
+
+    await tester.tap(find.text('Continue'));
+    await tester.pump();
+    expect(
+      harness.container.read(backendPickerViewModelProvider).saving,
+      isTrue,
+    );
+
+    await tester.binding.handlePopRoute();
+    await tester.pump();
+
+    expect(endedCalls, 0);
+    expect(find.byType(BackendPickerScreen), findsOneWidget);
+
+    gate.complete();
+    await pumpFlowFrames(tester);
+    expect(endedCalls, 0);
+    expect(find.byKey(_identifierField), findsOneWidget);
+  });
+
+  testWidgets('picker Back ends the flow again after a save failure', (
+    tester,
+  ) async {
+    var endedCalls = 0;
+    final harness = await pumpEnrollmentFlow(
+      tester,
+      onEnded: () => endedCalls++,
+    );
+    final gate = Completer<void>();
+    harness.writer.onWrite = () async {
+      await gate.future;
+      throw Exception('write failed');
+    };
+
+    await tester.tap(find.text('Continue'));
+    await tester.pump();
+    expect(
+      harness.container.read(backendPickerViewModelProvider).saving,
+      isTrue,
+    );
+
+    gate.complete();
+    await pumpFlowFrames(tester);
+    expect(
+      harness.container.read(backendPickerViewModelProvider).saving,
+      isFalse,
+    );
+    expect(
+      find.text('Could not save the backend selection. Please try again.'),
+      findsOneWidget,
+    );
 
     await tester.tap(find.byKey(_pickerBack));
     await pumpFlowFrames(tester);
