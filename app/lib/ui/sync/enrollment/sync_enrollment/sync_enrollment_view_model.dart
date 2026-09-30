@@ -207,8 +207,6 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
 
   @override
   void enterFreshMode() {
-    // A pending enroll or publication still owns the repair state; entry
-    // waits for it elsewhere.
     if (state.inFlight ||
         _pendingEnrolls > 0 ||
         _abandonedPublication != null) {
