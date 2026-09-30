@@ -20,6 +20,14 @@ class BackendPickerFlow extends FlowBase<BackendPickerStep> {
 
 class _BackendPickerFlowState
     extends FlowBaseState<BackendPickerStep, BackendPickerFlow> {
+  // The save cannot be cancelled, so exiting mid-save would persist a
+  // backend choice from an abandoned enrollment.
+  @override
+  Future<void> goBack() async {
+    if (ref.read(backendPickerViewModelProvider).saving) return;
+    await super.goBack();
+  }
+
   @override
   void Function() subscribeToStep(
     void Function(BackendPickerStep? step) handle,

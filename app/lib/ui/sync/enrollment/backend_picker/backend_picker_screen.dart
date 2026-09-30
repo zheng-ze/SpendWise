@@ -45,11 +45,15 @@ class _BackendPickerScreenState extends ConsumerState<BackendPickerScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Choose sync backend'),
+        // BackButton cannot be disabled (a null onPressed falls back to
+        // maybePop), so use an IconButton to hold the disabled state.
         leading: widget.onBack == null
             ? null
-            : BackButton(
+            : IconButton(
                 key: const Key('syncPickerBack'),
-                onPressed: widget.onBack,
+                icon: const BackButtonIcon(),
+                tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                onPressed: state.saving ? null : widget.onBack,
               ),
       ),
       body: ListView(
