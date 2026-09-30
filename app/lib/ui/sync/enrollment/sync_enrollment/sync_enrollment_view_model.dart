@@ -145,6 +145,7 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
   SyncEnrollmentSession? _session;
   _EnrollmentOperation? _currentOperation;
   Future<void>? _abandonedPublication;
+  bool _enrollPending = false;
 
   @override
   SyncEnrollmentState build() => SyncEnrollmentState(repairMode: _repairMode);
@@ -206,8 +207,11 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
 
   @override
   void enterFreshMode() {
-    // A live operation still owns the state; entry waits for it elsewhere.
-    if (state.inFlight) return;
+    // A pending enroll or publication still owns the repair state; entry
+    // waits for it elsewhere.
+    if (state.inFlight || _enrollPending || _abandonedPublication != null) {
+      return;
+    }
     _repairMode = false;
     _currentOperation = null;
     _session = null;
@@ -430,6 +434,7 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
       if (!ref.mounted || !identical(operation, _currentOperation)) return;
     }
     try {
+      _enrollPending = true;
       await session.enroll();
     } on SyncEnrollmentOtpCancelled {
       _enterCancelled(operation);
@@ -437,6 +442,8 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
     } on Object catch (error) {
       await _failPhaseAware(error, operation);
       return;
+    } finally {
+      _enrollPending = false;
     }
     if (!ref.mounted) return;
     if (!identical(operation, _currentOperation)) {

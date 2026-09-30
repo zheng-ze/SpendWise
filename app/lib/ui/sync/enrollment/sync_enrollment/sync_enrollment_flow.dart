@@ -21,6 +21,7 @@ class SyncEnrollmentFlow extends FlowBase<SyncEnrollmentStep> {
 class _SyncEnrollmentFlowState
     extends FlowBaseState<SyncEnrollmentStep, SyncEnrollmentFlow> {
   late final SyncEnrollmentNotifier _viewModel;
+  bool _pickerReady = false;
 
   @override
   void initState() {
@@ -54,6 +55,8 @@ class _SyncEnrollmentFlowState
     _viewModel.enterFreshMode();
     final picker = ref.read(backendPickerViewModelProvider.notifier);
     await picker.resetForFreshEntry();
+    if (!mounted) return;
+    setState(() => _pickerReady = true);
   }
 
   @override
@@ -117,10 +120,23 @@ class _SyncEnrollmentFlowState
   }
 
   @override
-  Widget buildRoot(BuildContext context) => widget.repairMode
-      ? const SyncIdentifierScreen()
-      : BackendPickerFlow(
-          onEnded: widget.onEnded,
-          onHostedReady: _viewModel.hostedReady,
-        );
+  Widget buildRoot(BuildContext context) {
+    if (widget.repairMode) return const SyncIdentifierScreen();
+    if (_pickerReady) {
+      return BackendPickerFlow(
+        onEnded: widget.onEnded,
+        onHostedReady: _viewModel.hostedReady,
+      );
+    }
+    // The picker stays inert until the reset clears any settling save and
+    // its step, so a stale HostedReady cannot advance this route.
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Choose sync backend'),
+        leading: showsOwnBackButton
+            ? BackButton(key: const Key('syncPickerBack'), onPressed: goBack)
+            : null,
+      ),
+    );
+  }
 }

@@ -25,6 +25,7 @@ const _identifierField = Key('syncIdentifierField');
 const _otpField = Key('syncOtpField');
 const _otpSubmit = Key('syncOtpSubmit');
 const _freshDone = Key('syncFreshDone');
+const _pickerBack = Key('syncPickerBack');
 
 final class _Harness {
   late LedgerDatabase db;
@@ -74,6 +75,7 @@ final class _Harness {
 }
 
 final class _RecordingWriter implements BackendSelectionWriter {
+  Completer<void>? gate;
   final List<({SyncBackendKind backend, String? endpoint})> calls = [];
 
   @override
@@ -82,6 +84,8 @@ final class _RecordingWriter implements BackendSelectionWriter {
     String? endpoint,
   }) async {
     calls.add((backend: backend, endpoint: endpoint));
+    final pending = gate;
+    if (pending != null) await pending.future;
   }
 }
 
@@ -308,6 +312,179 @@ void main() {
       await tester.tap(find.byKey(_freshDone));
       await pumpFlowFrames(tester);
       expect(endedCalls, 1);
+    });
+
+    testWidgets('a gated repair enroll still publishes its proof', (
+      tester,
+    ) async {
+      final db = LedgerDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      final metadataStore = SyncMetadataStore(db);
+      await metadataStore.enterBindingAuthorizationRequired();
+      final opener = FakeSessionOpener();
+      final secrets = InMemorySecretStore();
+      final writer = _RecordingWriter();
+      var clock = DateTime.utc(2026, 1, 1);
+      final container = ProviderContainer(
+        overrides: [
+          appBootProvider.overrideWith(
+            (ref) => AppBoot(
+              createStore: () async => RecordingLedgerStore(),
+              seedChanges: () => const [],
+              readSyncSnapshot: () => metadataStore.snapshot(),
+            ),
+          ),
+          ledgerDatabaseProvider.overrideWithValue(db),
+          syncMetadataStoreProvider.overrideWithValue(metadataStore),
+          backendPickerViewModelProvider.overrideWith(
+            () => BackendPickerNotifier(writer: writer),
+          ),
+          syncEnrollmentViewModelProvider.overrideWith(
+            () => SyncEnrollmentNotifier(
+              sessionOpener: opener.call,
+              secretStore: secrets,
+              now: () => clock,
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: SyncEnrollmentFlow(repairMode: true)),
+        ),
+      );
+      await pumpFlowFrames(tester);
+
+      await secrets.write(syncWriteProofSecretKey, 'proof-1');
+      final enrollGate = Completer<void>();
+      opener.session.onEnroll = () async {
+        await opener.session.resolveOtp!(
+          EnrollmentChallenge(const {'identifier': 'user@example.com'}),
+        );
+        await enrollGate.future;
+      };
+      await _submitIdentifier(tester, 'user@example.com');
+      await pumpFlowFrames(tester);
+      expect(find.byKey(_otpField), findsOneWidget);
+
+      await tester.enterText(find.byKey(_otpField), '482916');
+      await tester.pump();
+      await tester.tap(find.byKey(_otpSubmit));
+      await pumpFlowFrames(tester);
+      expect(find.textContaining('Restoring device access'), findsOneWidget);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            home: Scaffold(body: Text('flow host gone')),
+          ),
+        ),
+      );
+      await pumpFlowFrames(tester);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: SyncEnrollmentFlow()),
+        ),
+      );
+      await pumpFlowFrames(tester);
+      expect(
+        container.read(syncEnrollmentViewModelProvider).repairMode,
+        isTrue,
+      );
+
+      enrollGate.complete();
+      await pumpFlowFrames(tester);
+
+      expect(opener.session.publishCalls, 1);
+    });
+
+    testWidgets('a settling prior save never advances the new picker', (
+      tester,
+    ) async {
+      final db = LedgerDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      final metadataStore = SyncMetadataStore(db);
+      final opener = FakeSessionOpener();
+      final secrets = InMemorySecretStore();
+      final writer = _RecordingWriter()..gate = Completer<void>();
+      final container = ProviderContainer(
+        overrides: [
+          appBootProvider.overrideWith(
+            (ref) => AppBoot(
+              createStore: () async => RecordingLedgerStore(),
+              seedChanges: () => const [],
+              readSyncSnapshot: () => metadataStore.snapshot(),
+            ),
+          ),
+          ledgerDatabaseProvider.overrideWithValue(db),
+          syncMetadataStoreProvider.overrideWithValue(metadataStore),
+          backendPickerViewModelProvider.overrideWith(
+            () => BackendPickerNotifier(writer: writer),
+          ),
+          syncEnrollmentViewModelProvider.overrideWith(
+            () => SyncEnrollmentNotifier(
+              sessionOpener: opener.call,
+              secretStore: secrets,
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(home: SyncEnrollmentFlow(onEnded: () {})),
+        ),
+      );
+      await pumpFlowFrames(tester);
+      expect(find.text('Choose sync backend'), findsOneWidget);
+
+      await tester.tap(find.text('Continue'));
+      await tester.pump();
+      expect(container.read(backendPickerViewModelProvider).saving, isTrue);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            home: Scaffold(body: Text('flow host gone')),
+          ),
+        ),
+      );
+      await pumpFlowFrames(tester);
+
+      var endedCalls = 0;
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: SyncEnrollmentFlow(onEnded: () => endedCalls++),
+          ),
+        ),
+      );
+      await pumpFlowFrames(tester);
+
+      expect(find.text('Choose sync backend'), findsOneWidget);
+      expect(find.byKey(_pickerBack), findsOneWidget);
+      expect(find.text('Hosted sync'), findsNothing);
+
+      writer.gate!.complete();
+      await pumpFlowFrames(tester);
+
+      expect(find.byKey(_identifierField), findsNothing);
+      expect(find.text('Choose sync backend'), findsOneWidget);
+      expect(endedCalls, 0);
+      final pickerState = container.read(backendPickerViewModelProvider);
+      expect(pickerState.selectedBackend, SyncBackendKind.supabase);
+      expect(pickerState.step, isNull);
+      expect(writer.calls, hasLength(1));
     });
   });
 }
