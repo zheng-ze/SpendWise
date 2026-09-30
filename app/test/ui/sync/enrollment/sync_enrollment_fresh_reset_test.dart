@@ -1077,8 +1077,6 @@ void main() {
       expect(pickerState.selectedBackend, SyncBackendKind.custom);
       expect(pickerState.endpoint, 'https://sync.example.com/sync');
 
-      // The timeout releases only the waiting entry; the pending operation
-      // still runs to completion and applies nothing late.
       waiting.enrollGate.complete();
       await pumpFlowFrames(tester);
 

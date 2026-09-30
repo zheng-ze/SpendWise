@@ -224,14 +224,8 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
 
   @override
   Future<FreshEntryResult> enterFreshMode() async {
-    // A prior operation still owns shared enrollment state; the reset below
-    // waits for its enrollment, publication, and status refresh to settle.
-    // Cancellation already detached those operations from the UI, so their
-    // late results cannot navigate or write state for the abandoned route.
     final entryId = ++_modeSequence;
     if (_priorOperationPending) {
-      // The wait never cancels or abandons the pending operation; a timeout
-      // only releases this entry so the route can offer a retry.
       try {
         await _settlePriorOperation().timeout(freshWaitTimeout);
       } on TimeoutException {
@@ -241,8 +235,6 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
         return FreshEntryResult.timedOut;
       }
     }
-    // A newer mode entry or route closure superseded this entry while it
-    // waited; its reset must not touch the state the newer entry owns.
     if (!ref.mounted || entryId != _modeSequence) {
       return FreshEntryResult.superseded;
     }

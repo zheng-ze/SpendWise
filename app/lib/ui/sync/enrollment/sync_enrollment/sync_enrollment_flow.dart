@@ -66,8 +66,6 @@ class _SyncEnrollmentFlowState
     setState(() => _pickerReady = true);
   }
 
-  // A retry starts a new wait attempt with a new entry id; the timed-out
-  // attempt stays superseded and applies nothing when it wakes.
   Future<void> _retryFreshWait() async {
     setState(() => _waitTimedOut = false);
     await _enterFresh();
