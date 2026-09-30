@@ -1,6 +1,6 @@
 # Settings UI
 
-Last reconciled: 1193e8c
+Last reconciled: 0d906b7
 
 ## Feature overview
 
@@ -60,15 +60,24 @@ Source: `app/lib/ui/settings/settings_root_screen.dart` - `_HostedSyncSection`;
 
 `SettingsRootNotifier.requestRepair()` emits the single-shot `RepairDeviceAccessRequested` navigation
 step. The persistent shell repair banner also uses this seam; it appears for binding-repair and
-session-reauth status, takes precedence over the timed plan/save message, and selects Settings when
-tapped. `SettingsFlow` opens `SyncEnrollmentFlow(repairMode: true)` for the request and re-checks a
-pending step after its navigator mounts, so a request made before Settings is built is consumed once.
-The shared guard tracks the repair route across coexisting Settings Flow instances during
-an AppShell layout transition. The banner hides while that repair route is open and Settings is selected;
-on another tab it returns and tapping it selects Settings to expose the open route. If the owning Flow
-is disposed, it releases the flag and re-issues the repair request for the surviving Flow. See
-`sync-enrollment-flow.md` for repair behavior. Source: `app/lib/ui/settings/settings_flow.dart`,
-`app/lib/ui/shell/status_banner.dart`, `app/lib/ui/shell/shell_providers.dart`.
+session-reauth status and takes precedence over the timed plan/save message. Tapping it selects
+Settings and requests repair only when `enrollmentFlowOpenProvider` is false. `SettingsFlow` opens
+`SyncEnrollmentFlow(repairMode: true)` for the request and re-checks a pending step after its navigator
+mounts, so a request made before Settings is built is consumed once. The banner hides while either
+fresh enrollment or repair is open and Settings is selected. On another tab it returns; tapping it
+exposes the existing route, preserving a fresh route awaiting binding authorization. Source:
+`app/lib/ui/settings/settings_flow.dart`, `app/lib/ui/shell/status_banner.dart`,
+`app/lib/ui/shell/shell_providers.dart`.
+
+Across coexisting Settings Flows during an AppShell layout transition, the shared guard admits one
+enrollment route. If its owning Flow is disposed, a microtask releases the guard and reads the cached
+`hostedSyncStatusProvider`. For a fresh route, it emits `ResumeFreshEnrollmentRequested` unless the
+status is `HostedSyncReady`; the surviving Flow pushes `SyncEnrollmentFlow(repairMode: false)` through
+`_pushEnrollmentRoute`, bypassing the tile eligibility check. For a repair route, it requests repair
+again only while the cached status is binding repair or session reauth. See `sync-enrollment-flow.md`
+for enrollment behavior. Source: `app/lib/ui/settings/settings_flow.dart` -
+`_handOverOpenEnrollmentRoute`, `handleStep`; `app/lib/ui/settings/settings_root_view_model.dart` -
+`SettingsRootNotifier.requestResumeFreshEnrollment`.
 
 ## Screens and flows
 
