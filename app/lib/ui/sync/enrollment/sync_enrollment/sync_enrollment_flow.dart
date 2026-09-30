@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/common/flow_base.dart';
 import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_flow.dart';
+import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_view_model.dart';
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_screens.dart';
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart';
 
@@ -50,6 +51,14 @@ class _SyncEnrollmentFlowState
   void dispose() {
     _viewModel.cancelPendingOperation();
     super.dispose();
+  }
+
+  // System back at the picker root routes through this Flow, so it must
+  // also wait out the picker's save, which cannot be cancelled.
+  @override
+  Future<void> goBack() async {
+    if (ref.read(backendPickerViewModelProvider).saving) return;
+    await super.goBack();
   }
 
   @override
