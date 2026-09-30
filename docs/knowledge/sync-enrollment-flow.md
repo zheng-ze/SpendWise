@@ -1,6 +1,6 @@
 # Sync enrollment: hosted Flow
 
-Last reconciled: 81f247a
+Last reconciled: 5a5e6c6
 
 ## Overview
 
@@ -38,14 +38,21 @@ Flow's callback. `SyncEnrollmentNotifier.hostedReady()` emits identifier entry.
 Fresh enrollment passes its `onEnded` callback to the nested picker Flow, so
 back at the picker root can end the enclosing enrollment Flow.
 
-On fresh entry, the Flow awaits `SyncEnrollmentNotifier.enterFreshMode()`, then
-awaits `BackendPickerViewModel.resetForFreshEntry()`. Until both settle, the
+On fresh entry, the Flow awaits `SyncEnrollmentNotifier.enterFreshMode()` and
+only for `FreshEntryResult.applied` awaits `BackendPickerViewModel.resetForFreshEntry()`.
+Until both settle, the
 root shows a progress indicator and "Finishing the previous attempt. This
-usually takes a few seconds." Its Back control remains active when `onEnded`
-is supplied. The picker mounts only after both waits complete and the Flow
-is still mounted, preventing a stale picker step from advancing the route. Source:
+usually takes a few seconds." Back can end the Flow when `onEnded` is supplied
+and no backend selection save is in flight. A `superseded` result skips picker
+reset and mounting. A `timedOut` result replaces the loading root with
+"Still finishing the previous attempt. You can keep waiting or go back."
+and a `Try again` button (`syncFreshRetryWait`), retaining the Back arrow
+(`syncPickerBack`) when `onEnded` is supplied. Retry restores the loading root
+and starts a new fresh-entry wait. The picker mounts only after an applied
+entry and picker reset complete and the Flow is still mounted, preventing a
+stale picker step from advancing the route. Source:
 `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_flow.dart` -
-`_SyncEnrollmentFlowState._enterFresh`, `_SyncEnrollmentFlowState.buildRoot`.
+`_SyncEnrollmentFlowState._enterFresh`, `_retryFreshWait`, `buildRoot`, `goBack`.
 
 Settings mounts the Flow in explicit repair mode, bypassing the picker. On entry, the notifier
 re-reads the durable enrollment phase; if repair has cleared or metadata cannot be read, the Flow
@@ -78,28 +85,50 @@ or reopening one with an OTP-rejecting resolver. Source:
 
 ## Contracts and invariants
 
-- `enterFreshMode()` returns a `Future<void>` and waits for in-flight operations,
+- `enterFreshMode()` returns `Future<FreshEntryResult>` and waits for in-flight operations,
   pending `enroll()` calls, tracked `submitIdentifier()`, `retry()`, and
   `enterRepairMode()` settlements, and abandoned repair-proof publication.
   These settlements include any trailing Hosted Sync status refresh, so clearing
   `state.inFlight` alone does not permit the reset. Repair ownership remains
   intact during the wait so a late repair enrollment can publish its proof.
-  After settlement, fresh entry clears repair phase, repair copy, errors,
+  An applied entry clears repair phase, repair copy, errors,
   cancellation, OTP wait, and pending steps, while preserving the entered
   identifier and code-request cooldown. Source:
   `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart`
-  - `SyncEnrollmentNotifier.enterFreshMode`, `_pendingSettlements`,
+  - `FreshEntryResult`, `SyncEnrollmentNotifier.enterFreshMode`, `_pendingSettlements`,
   `_submitAfterIdentifier`, `_retryAfterStart`, `_enrollFromIdentifier`,
   `_publishAbandonedRepairProof`.
 - Every fresh or repair mode entry claims a new `_modeSequence` id;
   `cancelPendingOperation()` also advances it when the Flow is disposed. A
-  waiting fresh entry skips its reset if the notifier is unmounted or its id
-  has been superseded by cancellation or a newer fresh or repair entry. Its
-  future completing therefore does not guarantee that it applied a reset.
+  waiting fresh entry returns `FreshEntryResult.superseded` without resetting
+  if the notifier is unmounted or its id has been superseded by cancellation
+  or a newer fresh or repair entry. The Flow also skips picker reset and mounting
+  for this result.
   Source:
   `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart`
   - `SyncEnrollmentNotifier.enterFreshMode`, `_enterRepairMode`,
-  `cancelPendingOperation`, `_modeSequence`.
+  `cancelPendingOperation`, `_modeSequence`;
+  `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_flow.dart` -
+  `_SyncEnrollmentFlowState._enterFresh`.
+- The prior-enrollment settlement wait is bounded by `freshWaitTimeout`
+  (30 seconds). Timeout returns `FreshEntryResult.timedOut` without resetting
+  enrollment or picker state or cancelling the pending operation. Its eventual
+  settlement does not automatically reset or mount the picker. `Try again`
+  calls `enterFreshMode()` under a new entry id and can time out again; only an
+  applied retry permits the picker reset and mount. The timeout does not bound
+  the subsequent picker-save settlement in `resetForFreshEntry()`. Source:
+  `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart` -
+  `SyncEnrollmentNotifier.enterFreshMode`, `_settlePriorOperation`, `freshWaitTimeout`;
+  `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_flow.dart` -
+  `_SyncEnrollmentFlowState._enterFresh`, `_retryFreshWait`.
+- Picker Back and system back cannot end the Flow while a backend selection
+  save is in flight. The save cannot be cancelled; leaving early could persist
+  a choice from an abandoned enrollment. Both the nested picker and enclosing
+  enrollment Flow guard `goBack()` using picker `saving` state. Source:
+  `app/lib/ui/sync/enrollment/backend_picker/backend_picker_flow.dart` -
+  `_BackendPickerFlowState.goBack`;
+  `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_flow.dart` -
+  `_SyncEnrollmentFlowState.goBack`.
 - `state.inFlight` blocks duplicate submissions during an active Flow operation.
   `submitIdentifier()` and `retry()` no-op while it is true. Flow disposal
   cancels the current operation, releases the guard after widget finalization
