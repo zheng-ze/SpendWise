@@ -12,5 +12,4 @@ final selectedMonthProvider = StateProvider<DateTime>(
   (ref) => startOfMonthUtc(DateTime.now()),
 );
 
-// Hides the repair banner while the repair form is open.
-final repairFlowOpenProvider = StateProvider<bool>((ref) => false);
+final enrollmentFlowOpenProvider = StateProvider<bool>((ref) => false);

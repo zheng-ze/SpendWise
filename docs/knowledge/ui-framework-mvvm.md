@@ -1,6 +1,6 @@
 # UI Framework (MVVM)
 
-Last reconciled: 3b2895d
+Last reconciled: 0d906b7
 
 ## Feature overview
 
@@ -46,9 +46,12 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
 - **AppShell** gets no ViewModel: its only state is a flat width-to-bool layout computation, no
   async loading, no domain import. It mounts one Flow per destination, with no shell-level navigator.
   A responsive layout transition can temporarily keep both shell trees and Settings Flows alive;
-  shared shell state coordinates the repair route so only one Flow owns it, and the surviving Flow
-  reopens it if its owner is disposed. (`app/lib/ui/shell/app_shell.dart`,
-  `app/lib/ui/settings/settings_flow.dart`, `app/lib/ui/shell/shell_providers.dart`; issue #39)
+  `enrollmentFlowOpenProvider` admits one fresh enrollment or repair route across those Flows.
+  When the owner is disposed, a microtask releases the guard and reads cached Hosted Sync status.
+  The surviving Flow reopens fresh enrollment unless the status is `HostedSyncReady`, bypassing tile
+  eligibility through `ResumeFreshEnrollmentRequested`; repair reopens only for binding repair or
+  session reauth. (`app/lib/ui/shell/app_shell.dart`, `app/lib/ui/settings/settings_flow.dart` -
+  `_handOverOpenEnrollmentRoute`, `handleStep`; `app/lib/ui/shell/shell_providers.dart`)
 
 ## Notifier conventions
 

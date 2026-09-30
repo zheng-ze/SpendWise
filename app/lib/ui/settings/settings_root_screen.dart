@@ -108,6 +108,8 @@ class _HostedSyncSection extends ConsumerWidget {
     final explanation = _hostedSyncExplanation(status);
     final statusLines = <Widget>[Text(_hostedSyncStatusText(status))];
     if (explanation != null) statusLines.add(Text(explanation));
+    final canStartEnrollment =
+        status is HostedSyncNoSelection || status is HostedSyncSetupPending;
 
     final tiles = <Widget>[
       ListTile(
@@ -119,6 +121,10 @@ class _HostedSyncSection extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: statusLines,
         ),
+        trailing: canStartEnrollment ? const Icon(Icons.chevron_right) : null,
+        onTap: canStartEnrollment
+            ? viewModel.requestStartHostedEnrollment
+            : null,
       ),
     ];
     if (status is HostedSyncBindingRepair ||

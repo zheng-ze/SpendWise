@@ -1,6 +1,6 @@
 # Sync enrollment: hosted Flow
 
-Last reconciled: 5a5e6c6
+Last reconciled: 0d906b7
 
 ## Overview
 
@@ -19,7 +19,8 @@ the UI operation guard and cancellation. Source:
 
 - `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_flow.dart` -
   nested navigator, mode-specific root, and step-to-route mapping.
-- `app/lib/ui/settings/settings_flow.dart` - Settings repair entry and status refresh on return.
+- `app/lib/ui/settings/settings_flow.dart` - Settings fresh and repair entries and status refresh
+  on return.
 - `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart`
   - Flow state, session operation, OTP resolver, and retry policy.
 - `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_screens.dart` -
@@ -54,7 +55,9 @@ stale picker step from advancing the route. Source:
 `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_flow.dart` -
 `_SyncEnrollmentFlowState._enterFresh`, `_retryFreshWait`, `buildRoot`, `goBack`.
 
-Settings mounts the Flow in explicit repair mode, bypassing the picker. On entry, the notifier
+Settings opens fresh mode from its Hosted Sync tile for no selection or setup pending; see
+`settings-ui.md` for entry eligibility and route ownership. Device-access repair opens explicit
+repair mode, bypassing the picker. On repair entry, the notifier
 re-reads the durable enrollment phase; if repair has cleared or metadata cannot be read, the Flow
 refreshes Hosted Sync status and returns to Settings without opening OTP.
 
@@ -177,6 +180,12 @@ or reopening one with an OTP-rejecting resolver. Source:
 
 ## Entry points and flows
 
+- Settings opens `SyncEnrollmentFlow(repairMode: false)` from the Hosted Sync tile for
+  `HostedSyncNoSelection` and `HostedSyncSetupPending`. The picker-root Back control, system back,
+  and completion Done can end the Flow; Settings refreshes Hosted Sync status after it closes.
+  Source: `app/lib/ui/settings/settings_flow.dart` - `_openFreshFlow`, `_pushEnrollmentRoute`;
+  `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_flow.dart` -
+  `_SyncEnrollmentFlowState.goBack`.
 - Settings opens `SyncEnrollmentFlow(repairMode: true)` only for binding repair and session reauth.
   Identifier and OTP screens explain that requesting a new code replaces the previous one. Both
   display the live cooldown countdown; the OTP screen enables a new request only while one resolver
@@ -217,7 +226,16 @@ or reopening one with an OTP-rejecting resolver. Source:
   they never display exception or server text. Source:
   `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart`
   - `SyncEnrollmentNotifier._failureCopy`, `_copyForCode`.
-- Settings mounts only repair mode. The picker-root fresh-enrollment path still has no installed-app
-  entry point. Source: `app/lib/ui/settings/settings_flow.dart` - `_SettingsFlowState._openRepairFlow`;
-  `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_flow.dart` -
-  `_SyncEnrollmentFlowState.buildRoot`.
+- Settings rechecks tile eligibility for `StartHostedEnrollmentRequested`; an ineligible request
+  is consumed without opening the Flow. If an AppShell layout switch disposes the Settings Flow
+  owning a fresh route, a microtask releases `enrollmentFlowOpenProvider` and emits
+  `ResumeFreshEnrollmentRequested` unless the cached Hosted Sync status is `HostedSyncReady`.
+  The surviving Settings Flow opens a fresh route through the shared guard without rechecking tile
+  eligibility, including when enrollment has reached binding authorization. Repair handover requests
+  repair again only for binding-repair or session-reauth status. Source: `app/lib/ui/settings/settings_flow.dart` -
+  `_SettingsFlowState._openFreshFlow`, `_handOverOpenEnrollmentRoute`, `handleStep`,
+  `_pushEnrollmentRoute`.
+- A repair banner tap selects Settings and requests repair only when `enrollmentFlowOpenProvider`
+  is false. An open fresh route awaiting binding authorization therefore remains the single route
+  when the banner is tapped from another tab. Source: `app/lib/ui/shell/status_banner.dart` -
+  `_RepairBanner.build`; `app/lib/ui/settings/settings_flow.dart` - `_pushEnrollmentRoute`.

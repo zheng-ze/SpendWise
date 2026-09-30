@@ -1,6 +1,6 @@
 # Ledger Runtime
 
-Last reconciled: 3b2895d
+Last reconciled: 0d906b7
 
 ## Feature overview
 
@@ -136,10 +136,12 @@ non-empty, `onPlanError?.call(failures)` runs. `PlanFailure` carries `planID`, `
 
 `StatusBanner` is bottom-anchored inside a `SafeArea` with a 16 dp minimum bottom inset. A hosted
 sync repair banner takes precedence whenever `hostedSyncStatusProvider` is
-`HostedSyncBindingRepair` or `HostedSyncSessionReauth`. It is persistent, tappable, and routes through
-`SettingsRootNotifier.requestRepair()`; it is non-dismissible and exposes button semantics. It hides
-only while the Settings repair route is open and Settings is selected. Its position uses the same
-bottom anchoring as the timed pill.
+`HostedSyncBindingRepair` or `HostedSyncSessionReauth`. It is persistent, tappable, non-dismissible,
+and exposes button semantics. A tap selects Settings and calls `SettingsRootNotifier.requestRepair()`
+only when `enrollmentFlowOpenProvider` is false, so an open fresh route awaiting binding authorization
+remains the single route. It hides while either a fresh enrollment or repair route is open and
+Settings is selected. Its position uses the same bottom anchoring as the timed pill. Source:
+`app/lib/ui/shell/status_banner.dart` - `StatusBanner.build`, `_RepairBanner.build`.
 
 When no repair banner is displayed, the single banner slot shows `planError ?? saveStateMessage`,
 with plan error taking precedence. These timed messages remain in `BannerState` while repair is active

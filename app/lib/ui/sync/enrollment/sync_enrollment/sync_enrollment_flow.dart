@@ -66,8 +66,6 @@ class _SyncEnrollmentFlowState
     setState(() => _pickerReady = true);
   }
 
-  // A retry starts a new wait attempt with a new entry id; the timed-out
-  // attempt stays superseded and applies nothing when it wakes.
   Future<void> _retryFreshWait() async {
     setState(() => _waitTimedOut = false);
     await _enterFresh();
@@ -79,8 +77,6 @@ class _SyncEnrollmentFlowState
     super.dispose();
   }
 
-  // System back at the picker root routes through this Flow, so it must
-  // also wait out the picker's save, which cannot be cancelled.
   @override
   Future<void> goBack() async {
     if (ref.read(backendPickerViewModelProvider).saving) return;

@@ -1,6 +1,6 @@
 # Sync enrollment: backend picker
 
-Last reconciled: 5a5e6c6
+Last reconciled: 0d906b7
 
 ## Overview
 
@@ -100,15 +100,29 @@ Source:
 
 ## Gotchas
 
-- Fresh `SyncEnrollmentFlow` constructs `BackendPickerFlow` as its root. The installed Settings
-  entry opens repair mode at identifier entry and bypasses the picker; fresh enrollment has no
-  installed-app entry point. `HostedReady` invokes its callback without the picker composing
-  enrollment, while `CustomEndpointUnavailable` leaves the picker visible with an
-  unavailable affordance. Both steps are cleared after handling.
+- The Settings Hosted sync tile opens fresh `SyncEnrollmentFlow(repairMode: false)` with
+  `BackendPickerFlow` as its root only for `HostedSyncNoSelection` and
+  `HostedSyncSetupPending`. Each fresh route, including a resumed fresh-enrollment route,
+  enters fresh mode and resets the keep-alive picker view model to its default hosted choice,
+  empty endpoint, and no pending step after prior enrollment work settles. In
+  `HostedSyncSetupPending`, continuing with Hosted persists the same Supabase backend
+  selection before opening identifier entry; this write updates backend selection fields and
+  leaves enrollment phase and device-binding state intact. Device-access repair still opens
+  repair mode at identifier entry and bypasses the picker. `HostedReady` invokes its callback
+  without the picker composing enrollment, while `CustomEndpointUnavailable` leaves the
+  picker visible with an unavailable affordance. Both steps are cleared after handling.
   Source: `app/lib/ui/sync/enrollment/backend_picker/backend_picker_flow.dart`
   - `BackendPickerFlow`, `_BackendPickerFlowState.handleStep`;
   `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_flow.dart` -
-  `SyncEnrollmentFlow.buildRoot`; `app/lib/boot/app_boot.dart` - `AppBoot`;
+  `_SyncEnrollmentFlowState._enterFresh`, `SyncEnrollmentFlow.buildRoot`;
+  `app/lib/ui/sync/enrollment/backend_picker/backend_picker_view_model.dart` -
+  `BackendPickerNotifier.resetForFreshEntry`, `_persistHosted`;
+  `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart` -
+  `SyncEnrollmentNotifier.enterFreshMode`, `hostedReady`;
+  `app/lib/ui/settings/settings_root_screen.dart` - `_HostedSyncSection`;
+  `app/lib/ui/settings/settings_flow.dart` - `_openFreshFlow`, `_openRepairFlow`,
+  `_pushEnrollmentRoute`; `app/lib/sync/sync_metadata_store.dart` -
+  `SyncMetadataStore.setBackendSelection`;
   `app/test/ui/sync/enrollment/backend_picker_flow_test.dart` -
   `hosted-ready invokes the hosted callback and clears the step`,
   `custom-unavailable shows the affordance, clears the step, and never invokes

@@ -13,7 +13,7 @@ class StatusBanner extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final status = ref.watch(hostedSyncStatusProvider);
     final repairFlowVisible =
-        ref.watch(repairFlowOpenProvider) &&
+        ref.watch(enrollmentFlowOpenProvider) &&
         ref.watch(selectedDestinationProvider) == ShellDestination.settings;
     final needsRepair =
         status is HostedSyncBindingRepair || status is HostedSyncSessionReauth;
@@ -83,7 +83,9 @@ class _RepairBanner extends ConsumerWidget {
     void openRepair() {
       ref.read(selectedDestinationProvider.notifier).state =
           ShellDestination.settings;
-      ref.read(settingsRootViewModelProvider.notifier).requestRepair();
+      if (!ref.read(enrollmentFlowOpenProvider)) {
+        ref.read(settingsRootViewModelProvider.notifier).requestRepair();
+      }
     }
 
     final banner = Material(
