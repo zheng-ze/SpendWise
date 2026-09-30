@@ -79,8 +79,6 @@ class _SyncEnrollmentFlowState
     super.dispose();
   }
 
-  // System back at the picker root routes through this Flow, so it must
-  // also wait out the picker's save, which cannot be cancelled.
   @override
   Future<void> goBack() async {
     if (ref.read(backendPickerViewModelProvider).saving) return;
