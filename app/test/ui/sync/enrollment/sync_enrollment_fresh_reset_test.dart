@@ -767,5 +767,107 @@ void main() {
       expect(opener.session.publishCalls, 0);
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets('a late fresh entry does not reset a repair route opened '
+        'while the prior enrollment was pending', (tester) async {
+      final db = LedgerDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      final metadataStore = SyncMetadataStore(db);
+      await metadataStore.enterBindingAuthorizationRequired();
+      final opener = FakeSessionOpener();
+      final secrets = InMemorySecretStore();
+      final writer = _RecordingWriter();
+      final container = ProviderContainer(
+        overrides: [
+          appBootProvider.overrideWith(
+            (ref) => AppBoot(
+              createStore: () async => RecordingLedgerStore(),
+              seedChanges: () => const [],
+              readSyncSnapshot: () => metadataStore.snapshot(),
+            ),
+          ),
+          ledgerDatabaseProvider.overrideWithValue(db),
+          syncMetadataStoreProvider.overrideWithValue(metadataStore),
+          backendPickerViewModelProvider.overrideWith(
+            () => BackendPickerNotifier(writer: writer),
+          ),
+          syncEnrollmentViewModelProvider.overrideWith(
+            () => SyncEnrollmentNotifier(
+              sessionOpener: opener.call,
+              secretStore: secrets,
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      Future<void> pumpHostGone() => tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            home: Scaffold(body: Text('flow host gone')),
+          ),
+        ),
+      );
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: SyncEnrollmentFlow(repairMode: true)),
+        ),
+      );
+      await pumpFlowFrames(tester);
+      expect(find.text('Repair Device Access'), findsOneWidget);
+
+      final enrollGate = Completer<void>();
+      opener.session.onEnroll = () => enrollGate.future;
+      await _submitIdentifier(tester, 'user@example.com');
+      expect(container.read(syncEnrollmentViewModelProvider).inFlight, isTrue);
+
+      await pumpHostGone();
+      await pumpFlowFrames(tester);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(home: SyncEnrollmentFlow(onEnded: () {})),
+        ),
+      );
+      await pumpFlowFrames(tester);
+      expect(
+        find.text(
+          'Finishing the previous attempt. This usually takes a few seconds.',
+        ),
+        findsOneWidget,
+      );
+
+      await pumpHostGone();
+      await pumpFlowFrames(tester);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: SyncEnrollmentFlow(repairMode: true)),
+        ),
+      );
+      await pumpFlowFrames(tester);
+      expect(find.text('Repair Device Access'), findsOneWidget);
+      expect(
+        container.read(syncEnrollmentViewModelProvider).repairPhase,
+        isNotNull,
+      );
+
+      enrollGate.complete();
+      await pumpFlowFrames(tester);
+
+      final state = container.read(syncEnrollmentViewModelProvider);
+      expect(state.repairMode, isTrue);
+      expect(state.repairPhase, isNotNull);
+      expect(state.explainCodeReplacement, isTrue);
+      expect(find.text('Repair Device Access'), findsOneWidget);
+      expect(find.text('Choose sync backend'), findsNothing);
+      expect(opener.session.publishCalls, 0);
+      expect(tester.takeException(), isNull);
+    });
   });
 }

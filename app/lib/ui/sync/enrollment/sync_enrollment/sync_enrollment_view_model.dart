@@ -148,6 +148,11 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
   int _pendingEnrolls = 0;
   final List<Future<void>> _pendingSettlements = [];
 
+  /// Latest mode entry. Each fresh or repair entry claims a new id; a fresh
+  /// entry whose wait ends under an older id belongs to a closed route and
+  /// must not reset the state owned by the newer entry.
+  int _modeSequence = 0;
+
   @override
   SyncEnrollmentState build() => SyncEnrollmentState(repairMode: _repairMode);
 
@@ -181,6 +186,7 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
   }
 
   Future<bool?> _enterRepairMode() async {
+    _modeSequence++;
     if (state.inFlight) return state.repairPhase != null;
     _repairMode = true;
     final operation = _EnrollmentOperation();
@@ -219,6 +225,7 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
     // waits for its enrollment, publication, and status refresh to settle.
     // Cancellation already detached those operations from the UI, so their
     // late results cannot navigate or write state for the abandoned route.
+    final entryId = ++_modeSequence;
     while (state.inFlight ||
         _pendingEnrolls > 0 ||
         _abandonedPublication != null ||
@@ -235,6 +242,9 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
         } catch (_) {}
       }
     }
+    // A newer mode entry or route closure superseded this entry while it
+    // waited; its reset must not touch the state the newer entry owns.
+    if (!ref.mounted || entryId != _modeSequence) return;
     _repairMode = false;
     _currentOperation = null;
     _session = null;
@@ -368,6 +378,9 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
         operation != null && operation.otpAccepted && state.inFlight;
     operation?.cancel();
     _currentOperation = null;
+    // A disposed route no longer owns its pending fresh entry; a newer mode
+    // entry already superseded it or will claim the next id.
+    _modeSequence++;
     final pending = _otpCompleter;
     _otpCompleter = null;
     _session = null;
