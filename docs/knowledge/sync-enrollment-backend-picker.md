@@ -1,6 +1,6 @@
 # Sync enrollment: backend picker
 
-Last reconciled: 1d19e85
+Last reconciled: b8a8363
 
 ## Overview
 
@@ -40,6 +40,15 @@ Source:
 
 ## Contracts and invariants
 
+- Fresh `SyncEnrollmentFlow` awaits `BackendPickerViewModel.resetForFreshEntry()`
+  before mounting `BackendPickerFlow`. The reset waits for an active selection
+  save to settle, then restores the default hosted choice, empty endpoint,
+  and no pending step. This prevents a late step from advancing a newly
+  mounted picker. Source:
+  `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_flow.dart` -
+  `_SyncEnrollmentFlowState._enterFresh`, `_SyncEnrollmentFlowState.buildRoot`;
+  `app/lib/ui/sync/enrollment/backend_picker/backend_picker_view_model.dart` -
+  `BackendPickerNotifier.resetForFreshEntry`.
 - `BackendPickerFlow` passes `goBack` to the picker's leading Back button only
   when it has an `onEnded` callback. Fresh `SyncEnrollmentFlow` forwards its
   `onEnded` callback to the nested picker, so Back at the picker root invokes

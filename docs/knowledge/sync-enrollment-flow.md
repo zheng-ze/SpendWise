@@ -1,11 +1,12 @@
 # Sync enrollment: hosted Flow
 
-Last reconciled: 1d19e85
+Last reconciled: b8a8363
 
 ## Overview
 
 `SyncEnrollmentFlow` owns hosted-enrollment and device-access repair presentation. Fresh enrollment
-nests `BackendPickerFlow` at its root; repair mode starts at identifier entry. The Flow maps
+enters fresh mode and resets the retained picker state before showing `BackendPickerFlow` at its root;
+repair mode starts at identifier entry. The Flow maps
 `SyncEnrollmentNotifier` steps to identifier, OTP, resume, and completion
 routes. The notifier owns session opening, durable-phase-aware retry, and
 the UI operation guard and cancellation. Source:
@@ -36,6 +37,14 @@ the UI operation guard and cancellation. Source:
 Flow's callback. `SyncEnrollmentNotifier.hostedReady()` emits identifier entry.
 Fresh enrollment passes its `onEnded` callback to the nested picker Flow, so
 back at the picker root can end the enclosing enrollment Flow.
+
+On fresh entry, the Flow calls `SyncEnrollmentNotifier.enterFreshMode()` and
+awaits `BackendPickerViewModel.resetForFreshEntry()`. Until the picker reset
+settles, the root is an inert placeholder scaffold with a Back control when
+`onEnded` is supplied; it cannot consume a step left by
+an earlier picker route. Source:
+`app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_flow.dart` -
+`_SyncEnrollmentFlowState._enterFresh`, `_SyncEnrollmentFlowState.buildRoot`.
 
 Settings mounts the Flow in explicit repair mode, bypassing the picker. On entry, the notifier
 re-reads the durable enrollment phase; if repair has cleared or metadata cannot be read, the Flow
@@ -68,6 +77,15 @@ or reopening one with an OTP-rejecting resolver. Source:
 
 ## Contracts and invariants
 
+- Fresh entry clears repair phase, repair copy, errors, cancellation, OTP wait,
+  and pending steps, while preserving the entered identifier and code-request
+  cooldown. It leaves repair state intact while an operation is in flight, an
+  `enroll()` call remains pending after cancellation, or abandoned repair-proof
+  publication remains pending. This preserves repair ownership so a late
+  repair enrollment can publish its proof. Source:
+  `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart`
+  - `SyncEnrollmentNotifier.enterFreshMode`, `_enrollFromIdentifier`,
+  `_publishAbandonedRepairProof`.
 - `state.inFlight` blocks duplicate submissions during an active Flow operation.
   `submitIdentifier()` and `retry()` no-op while it is true. Flow disposal
   cancels the current operation, releases the guard after widget finalization
