@@ -14,6 +14,8 @@ class RepairDeviceAccessRequested extends SettingsStep {}
 
 class StartHostedEnrollmentRequested extends SettingsStep {}
 
+class ResumeFreshEnrollmentRequested extends SettingsStep {}
+
 class SettingsRootViewState
     implements HasStep<SettingsRootViewState, SettingsStep> {
   const SettingsRootViewState({this.step});
@@ -36,6 +38,7 @@ abstract class SettingsRootViewModel {
   void requestRecycleBin();
   void requestRepair();
   void requestStartHostedEnrollment();
+  void requestResumeFreshEnrollment();
   void clearStep();
 }
 
@@ -65,6 +68,10 @@ class SettingsRootNotifier extends Notifier<SettingsRootViewState>
   @override
   void requestStartHostedEnrollment() =>
       emitStep(StartHostedEnrollmentRequested());
+
+  @override
+  void requestResumeFreshEnrollment() =>
+      emitStep(ResumeFreshEnrollmentRequested());
 }
 
 final settingsRootViewModelProvider =

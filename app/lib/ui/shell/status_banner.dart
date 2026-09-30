@@ -83,7 +83,9 @@ class _RepairBanner extends ConsumerWidget {
     void openRepair() {
       ref.read(selectedDestinationProvider.notifier).state =
           ShellDestination.settings;
-      ref.read(settingsRootViewModelProvider.notifier).requestRepair();
+      if (!ref.read(enrollmentFlowOpenProvider)) {
+        ref.read(settingsRootViewModelProvider.notifier).requestRepair();
+      }
     }
 
     final banner = Material(

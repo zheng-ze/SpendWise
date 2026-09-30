@@ -62,7 +62,7 @@ class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
   @override
   void dispose() {
     _closeSelectionSubscription?.call();
-    _handOverOpenRepairRoute();
+    _handOverOpenEnrollmentRoute();
     super.dispose();
   }
 
@@ -94,6 +94,8 @@ class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
         _openRepairFlow(context);
       case StartHostedEnrollmentRequested():
         _openFreshFlow(context);
+      case ResumeFreshEnrollmentRequested():
+        _pushEnrollmentRoute(context, repairMode: false);
     }
     ref.read(settingsRootViewModelProvider.notifier).clearStep();
   }
@@ -140,28 +142,25 @@ class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
     if (_enrollmentFlowOpen.mounted) _enrollmentFlowOpen.state = false;
   }
 
-  // Disposing the Flow destroys its enrollment route. A surviving repair
-  // Flow must reopen its route, while a fresh route is only released.
   // Provider writes are illegal while the tree finalizes, hence the microtask.
-  void _handOverOpenRepairRoute() {
+  void _handOverOpenEnrollmentRoute() {
     if (!_ownsEnrollmentRoute) return;
     final ownedRepairRoute = _ownedRepairRoute;
     _ownsEnrollmentRoute = false;
     _ownedRepairRoute = false;
-    if (!ownedRepairRoute) {
-      final enrollmentFlowOpen = _enrollmentFlowOpen;
-      scheduleMicrotask(() {
-        if (!enrollmentFlowOpen.mounted) return;
-        enrollmentFlowOpen.state = false;
-      });
-      return;
-    }
     final enrollmentFlowOpen = _enrollmentFlowOpen;
     final container = _container;
     scheduleMicrotask(() {
       if (!enrollmentFlowOpen.mounted) return;
       enrollmentFlowOpen.state = false;
       final status = container.read(hostedSyncStatusProvider);
+      if (!ownedRepairRoute) {
+        if (status is HostedSyncReady) return;
+        container
+            .read(settingsRootViewModelProvider.notifier)
+            .requestResumeFreshEnrollment();
+        return;
+      }
       final needsRepair =
           status is HostedSyncBindingRepair ||
           status is HostedSyncSessionReauth;
