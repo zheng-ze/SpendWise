@@ -162,6 +162,62 @@ void main() {
       expect(harness.state.inFlight, isFalse);
       expect(harness.state.step, isA<ShowEnrollmentCompleted>());
     });
+
+    test('an older completion cannot release a newer pending enroll', () async {
+      final harness = _Harness();
+      harness.build();
+      addTearDown(harness.dispose);
+      await harness.metadataStore.enterBindingAuthorizationRequired();
+      await harness.notifier.enterRepairMode();
+      await harness.secrets.write(syncWriteProofSecretKey, 'proof-1');
+      var enrollCalls = 0;
+      final gateA = Completer<void>();
+      final gateB = Completer<void>();
+      harness.opener.session.onEnroll = () async {
+        enrollCalls++;
+        if (enrollCalls == 1) {
+          await gateA.future;
+        } else {
+          await gateB.future;
+        }
+      };
+
+      final pendingA = harness.notifier.submitIdentifier('user@example.com');
+      for (var i = 0; i < 100 && enrollCalls < 1; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      expect(enrollCalls, 1);
+
+      harness.notifier.cancelPendingOperation();
+      for (var i = 0; i < 100 && harness.state.inFlight; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      final pendingB = harness.notifier.submitIdentifier('user@example.com');
+      for (var i = 0; i < 100 && enrollCalls < 2; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      expect(enrollCalls, 2);
+      expect(harness.state.inFlight, isTrue);
+
+      gateA.complete();
+      await pendingA;
+      expect(harness.opener.session.publishCalls, 0);
+
+      harness.notifier.cancelPendingOperation();
+      for (var i = 0; i < 100 && harness.state.inFlight; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+
+      harness.notifier.enterFreshMode();
+
+      expect(harness.state.repairMode, isTrue);
+      expect(harness.state.repairPhase, isNotNull);
+      expect(harness.state.explainCodeReplacement, isTrue);
+
+      gateB.complete();
+      await pendingB;
+      expect(harness.opener.session.publishCalls, 1);
+    });
   });
 
   group('repair then fresh in one container', () {
