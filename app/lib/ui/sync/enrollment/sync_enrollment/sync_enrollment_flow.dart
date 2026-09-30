@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/common/flow_base.dart';
 import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_flow.dart';
+import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_view_model.dart';
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_screens.dart';
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart';
 
@@ -25,13 +26,16 @@ class _SyncEnrollmentFlowState
   void initState() {
     super.initState();
     _viewModel = ref.read(syncEnrollmentViewModelProvider.notifier);
-    if (widget.repairMode) {
-      // enterRepairMode writes provider state, illegal inside initState.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
+    // Provider writes are illegal inside initState, so mode entry runs
+    // post-frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (widget.repairMode) {
         unawaited(_enterRepair());
-      });
-    }
+      } else {
+        unawaited(_enterFresh());
+      }
+    });
   }
 
   Future<void> _enterRepair() async {
@@ -44,6 +48,12 @@ class _SyncEnrollmentFlowState
       if (!mounted) return;
       widget.onEnded?.call();
     }
+  }
+
+  Future<void> _enterFresh() async {
+    _viewModel.enterFreshMode();
+    final picker = ref.read(backendPickerViewModelProvider.notifier);
+    await picker.resetForFreshEntry();
   }
 
   @override

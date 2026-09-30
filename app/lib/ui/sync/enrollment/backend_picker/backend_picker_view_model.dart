@@ -67,6 +67,7 @@ abstract class BackendPickerViewModel {
   void selectBackend(SyncBackendKind backend);
   void updateEndpoint(String endpoint);
   Future<void> continueWithSelection();
+  Future<void> resetForFreshEntry();
   void clearStep();
 }
 
@@ -81,6 +82,7 @@ class BackendPickerNotifier extends Notifier<BackendPickerState>
   final BackendSelectionWriter? _writerOverride;
   final CustomEndpointValidator _validator;
   late BackendSelectionWriter _writer;
+  Future<void>? _activeSave;
 
   @override
   BackendPickerState build() {
@@ -113,11 +115,23 @@ class BackendPickerNotifier extends Notifier<BackendPickerState>
   Future<void> continueWithSelection() async {
     if (state.saving) return;
     final selected = state.selectedBackend;
-    if (selected == SyncBackendKind.supabase) {
-      await _persistHosted();
-      return;
+    final save = selected == SyncBackendKind.supabase
+        ? _persistHosted()
+        : _persistCustom();
+    _activeSave = save;
+    try {
+      await save;
+    } finally {
+      if (identical(_activeSave, save)) _activeSave = null;
     }
-    await _persistCustom();
+  }
+
+  @override
+  Future<void> resetForFreshEntry() async {
+    final save = _activeSave;
+    if (save != null) await save;
+    if (!ref.mounted || state.saving) return;
+    state = const BackendPickerState();
   }
 
   Future<void> _persistHosted() async {

@@ -99,6 +99,7 @@ final class SyncEnrollmentState
 
 abstract class SyncEnrollmentViewModel {
   void hostedReady();
+  void enterFreshMode();
   Future<void> submitIdentifier(String identifier);
   void submitOtp(String otp);
   void cancelOtp();
@@ -201,6 +202,24 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
     }
     emitStep(ShowIdentifierEntry());
     return _isRepairPhase(phase);
+  }
+
+  @override
+  void enterFreshMode() {
+    // A live operation still owns the state; entry waits for it elsewhere.
+    if (state.inFlight) return;
+    _repairMode = false;
+    _currentOperation = null;
+    _session = null;
+    state = state.copyWith(
+      errorMessage: () => null,
+      cancelled: false,
+      step: () => null,
+      repairMode: false,
+      repairPhase: () => null,
+      explainCodeReplacement: false,
+      otpWaiting: false,
+    );
   }
 
   @override

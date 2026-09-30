@@ -300,6 +300,84 @@ void main() {
     }
   });
 
+  group('BackendPickerNotifier fresh-entry reset', () {
+    test(
+      'an unsaved custom selection resets to hosted with cleared state',
+      () async {
+        final writer = RecordingBackendSelectionWriter();
+        final container = containerWith(writer: writer);
+        final viewModel = container.read(
+          backendPickerViewModelProvider.notifier,
+        );
+
+        viewModel.selectBackend(SyncBackendKind.custom);
+        viewModel.updateEndpoint('https://sync.example.com/sync');
+        await viewModel.resetForFreshEntry();
+
+        final state = container.read(backendPickerViewModelProvider);
+        expect(writer.calls, isEmpty);
+        expect(state.selectedBackend, SyncBackendKind.supabase);
+        expect(state.endpoint, isEmpty);
+        expect(state.endpointError, isNull);
+        expect(state.saveError, isNull);
+        expect(state.step, isNull);
+        expect(state.saving, isFalse);
+      },
+    );
+
+    test('a failed save resets to hosted with cleared errors', () async {
+      final writer = RecordingBackendSelectionWriter()
+        ..failure = Exception('disk full');
+      final container = containerWith(writer: writer);
+      final viewModel = container.read(backendPickerViewModelProvider.notifier);
+
+      viewModel.selectBackend(SyncBackendKind.custom);
+      viewModel.updateEndpoint('https://sync.example.com/sync');
+      await viewModel.continueWithSelection();
+      expect(
+        container.read(backendPickerViewModelProvider).saveError,
+        isNotNull,
+      );
+
+      await viewModel.resetForFreshEntry();
+
+      final state = container.read(backendPickerViewModelProvider);
+      expect(state.selectedBackend, SyncBackendKind.supabase);
+      expect(state.endpoint, isEmpty);
+      expect(state.saveError, isNull);
+      expect(state.step, isNull);
+      expect(state.saving, isFalse);
+    });
+
+    test('an in-flight save completes before the reset applies', () async {
+      final writer = RecordingBackendSelectionWriter()
+        ..gate = Completer<void>();
+      final container = containerWith(writer: writer);
+      final viewModel = container.read(backendPickerViewModelProvider.notifier);
+
+      final save = viewModel.continueWithSelection();
+      expect(container.read(backendPickerViewModelProvider).saving, isTrue);
+      final reset = viewModel.resetForFreshEntry();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(
+        container.read(backendPickerViewModelProvider).saving,
+        isTrue,
+        reason: 'the reset must not clear saving state mid-write',
+      );
+
+      writer.gate!.complete();
+      await save;
+      await reset;
+
+      final state = container.read(backendPickerViewModelProvider);
+      expect(writer.calls, hasLength(1));
+      expect(state.selectedBackend, SyncBackendKind.supabase);
+      expect(state.step, isNull);
+      expect(state.saving, isFalse);
+    });
+  });
+
   group('BackendPickerNotifier constructor surface', () {
     test('depends only on the writer and the validator', () {
       final source = File(
