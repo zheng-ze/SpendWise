@@ -1,6 +1,6 @@
 # Sync enrollment: hosted Flow
 
-Last reconciled: c81fd53
+Last reconciled: 1d19e85
 
 ## Overview
 
@@ -34,6 +34,9 @@ the UI operation guard and cancellation. Source:
 
 `BackendPickerFlow` persists hosted selection, then invokes the enclosing
 Flow's callback. `SyncEnrollmentNotifier.hostedReady()` emits identifier entry.
+Fresh enrollment passes its `onEnded` callback to the nested picker Flow, so
+back at the picker root can end the enclosing enrollment Flow.
+
 Settings mounts the Flow in explicit repair mode, bypassing the picker. On entry, the notifier
 re-reads the durable enrollment phase; if repair has cleared or metadata cannot be read, the Flow
 refreshes Hosted Sync status and returns to Settings without opening OTP.
@@ -125,10 +128,18 @@ or reopening one with an OTP-rejecting resolver. Source:
   `SyncEnrollmentNotifier.enterRepairMode`, `submitOtp`, `requestNewCode`.
 - `ShowProgressResume` first pops to the Flow root, then pushes resume. Repeated
   failures therefore keep one resume route. `ShowEnrollmentCompleted` removes
-  every earlier route, so Back delegates to `FlowBase.goBack()` and then
-  `onEnded` instead of returning to stale enrollment screens. Source:
+  every earlier route, so Back delegates to `FlowBaseState.goBack()` and then
+  `onEnded` instead of returning to stale enrollment screens. Fresh completion's
+  Done button emits `DismissEnrollmentFlow`; repair Done emits its subtype
+  `DismissRepairFlow`. Both use the enclosing Flow's `goBack()` to end it.
+  Source:
   `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_flow.dart` -
-  `_SyncEnrollmentFlowState.handleStep`; `app/lib/ui/common/flow_base.dart` -
+  `_SyncEnrollmentFlowState.handleStep`;
+  `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_screens.dart` -
+  `SyncEnrollmentCompletionScreen`;
+  `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart` -
+  `SyncEnrollmentNotifier.dismissFlow`, `DismissRepairFlow`;
+  `app/lib/ui/common/flow_base.dart` -
   `FlowBaseState.goBack`.
 
 ## Gotchas

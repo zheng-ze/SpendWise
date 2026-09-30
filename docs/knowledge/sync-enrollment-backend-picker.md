@@ -1,6 +1,6 @@
 # Sync enrollment: backend picker
 
-Last reconciled: c81fd53
+Last reconciled: 1d19e85
 
 ## Overview
 
@@ -40,6 +40,18 @@ Source:
 
 ## Contracts and invariants
 
+- `BackendPickerFlow` passes `goBack` to the picker's leading Back button only
+  when it has an `onEnded` callback. Fresh `SyncEnrollmentFlow` forwards its
+  `onEnded` callback to the nested picker, so Back at the picker root invokes
+  that callback. A standalone picker without `onEnded` has no Back button.
+  Source: `app/lib/ui/sync/enrollment/backend_picker/backend_picker_flow.dart` -
+  `_BackendPickerFlowState.buildRoot`;
+  `app/lib/ui/sync/enrollment/backend_picker/backend_picker_screen.dart` -
+  `_BackendPickerScreenState.build`;
+  `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_flow.dart` -
+  `_SyncEnrollmentFlowState.buildRoot`;
+  `app/lib/ui/common/flow_base.dart` - `FlowBaseState.showsOwnBackButton`,
+  `FlowBaseState.goBack`.
 - `BackendPickerViewModel.continueWithSelection()` persists the hosted choice
   through `BackendSelectionWriter.setBackendSelection` before emitting
   `HostedReady`. For a valid custom endpoint, it persists the validated URI
