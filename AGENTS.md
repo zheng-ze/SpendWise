@@ -36,9 +36,11 @@ SpendWise is a personal finance app built in Flutter.
 
 - Write self-documenting code: name variables, functions, and types so the code explains itself
   without narration.
-- Comment only what the code cannot say on its own — a non-obvious constraint, invariant, or the
-  reason behind a workaround. Skip a comment or docstring that just restates what the following
-  line or signature already shows.
+- Comments and docstrings are maintenance debt. The default is none. Add one only when it is
+  strictly necessary: a maintainer would make a wrong change without it (a non-obvious constraint,
+  invariant, or the reason behind a workaround). Never restate the code, reference other files,
+  tickets, or sibling work, or duplicate a nearby comment. Full rule:
+  `/Users/macbook/dev-tooling/claude/COMMENTS.md`.
 
 ## Checks
 
