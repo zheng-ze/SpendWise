@@ -17,7 +17,11 @@ class DayTicker with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (_disposed) return;
-    if (state == AppLifecycleState.resumed) onDayChanged();
+    if (state == AppLifecycleState.resumed) {
+      _timer?.cancel();
+      onDayChanged();
+      _schedule();
+    }
   }
 
   void _schedule() {
