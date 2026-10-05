@@ -1,6 +1,6 @@
 # Ledger Runtime
 
-Last reconciled: 0d906b7
+Last reconciled: 28d81bd
 
 ## Feature overview
 
@@ -135,9 +135,10 @@ store's pending batch to disk before the OS can kill the process.
 at each local midnight through a re-arming one-shot timer, cancelled on
 dispose. `selectedMonthProvider` is a nullable user override and
 `effectiveMonthProvider` falls back to the month of today, so an unset month
-follows a day rollover into a new month while a chosen month stays. ViewModels
-still on `DateTime.now()` move onto these providers when their screens are
-rebuilt. Source: `app/lib/boot/providers.dart` - `clockProvider`,
+follows a day rollover into a new month while a chosen month stays. Many
+ViewModels (transactions, accounts, budgets, plans, the entry form) still read
+`DateTime.now()` directly and do not follow the clock seam or a pinned
+`clockProvider` in tests. Source: `app/lib/boot/providers.dart` - `clockProvider`,
 `todayProvider`; `app/lib/ui/shell/day_ticker.dart` - `DayTicker`;
 `app/lib/ui/shell/shell_providers.dart` - `selectedMonthProvider`,
 `effectiveMonthProvider`; `app/lib/ui/shell/app_shell.dart` -
