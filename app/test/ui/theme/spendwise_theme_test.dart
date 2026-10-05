@@ -79,6 +79,15 @@ void main() {
     });
   });
 
+  group('foregroundOn', () {
+    test('picks the higher-contrast foreground for a saved fill', () {
+      expect(foregroundOn(const Color(0xFFFFCC00)), const Color(0xFF101112));
+      expect(foregroundOn(const Color(0xFF5AC8FA)), const Color(0xFF101112));
+      expect(foregroundOn(const Color(0xFF1A1A40)), const Color(0xFFFFFFFF));
+      expect(foregroundOn(const Color(0xFF205F83)), const Color(0xFFFFFFFF));
+    });
+  });
+
   group('buildSpendWiseTheme', () {
     test('maps the tokens onto the material scheme', () {
       final theme = buildSpendWiseTheme(Brightness.light);

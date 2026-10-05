@@ -5,7 +5,7 @@ import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/budgets/helpers/budget_spend.dart';
-import 'package:spendwise/ui/theme/spendwise_text.dart';
+import 'package:spendwise/ui/theme/spendwise_colors.dart';
 
 const _barHeight = 22.0;
 
@@ -134,6 +134,14 @@ class _BudgetCardBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final fraction = percentOfLimit.clamp(0.0, 1.0);
+    final trackLabel = _BudgetCardBarLabel(
+      percentOfLimit: percentOfLimit,
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+    final fillLabel = _BudgetCardBarLabel(
+      percentOfLimit: percentOfLimit,
+      color: foregroundOn(color),
+    );
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(_barHeight / 2),
@@ -147,10 +155,11 @@ class _BudgetCardBar extends StatelessWidget {
             widthFactor: fraction,
             child: Container(height: _barHeight, color: color),
           ),
+          Positioned.fill(child: trackLabel),
           Positioned.fill(
-            child: _BudgetCardBarLabel(
-              percentOfLimit: percentOfLimit,
-              fraction: fraction,
+            child: ClipRect(
+              clipper: _LeadingFractionClipper(fraction),
+              child: fillLabel,
             ),
           ),
         ],
@@ -159,14 +168,28 @@ class _BudgetCardBar extends StatelessWidget {
   }
 }
 
+class _LeadingFractionClipper extends CustomClipper<Rect> {
+  const _LeadingFractionClipper(this.fraction);
+
+  final double fraction;
+
+  @override
+  Rect getClip(Size size) =>
+      Rect.fromLTWH(0, 0, size.width * fraction, size.height);
+
+  @override
+  bool shouldReclip(_LeadingFractionClipper oldClipper) =>
+      oldClipper.fraction != fraction;
+}
+
 class _BudgetCardBarLabel extends StatelessWidget {
   const _BudgetCardBarLabel({
     required this.percentOfLimit,
-    required this.fraction,
+    required this.color,
   });
 
   final double percentOfLimit;
-  final double fraction;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
@@ -180,9 +203,7 @@ class _BudgetCardBarLabel extends StatelessWidget {
           formatPercent(percentOfLimit),
           style: theme.textTheme.labelMedium?.copyWith(
             fontWeight: FontWeight.w700,
-            color: fraction >= 0.5
-                ? context.colors.onAction
-                : theme.colorScheme.onSurfaceVariant,
+            color: color,
           ),
         ),
       ),

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 class SpendWiseColors extends ThemeExtension<SpendWiseColors> {
@@ -242,4 +244,20 @@ class SpendWiseColors extends ThemeExtension<SpendWiseColors> {
       housing: lerpColor(housing, other.housing),
     );
   }
+}
+
+const Color _lightForeground = Color(0xFFFFFFFF);
+const Color _darkForeground = Color(0xFF101112);
+
+Color foregroundOn(Color fill) {
+  final fillLuminance = fill.computeLuminance();
+  double contrastWith(Color foreground) {
+    final foregroundLuminance = foreground.computeLuminance();
+    return (math.max(fillLuminance, foregroundLuminance) + 0.05) /
+        (math.min(fillLuminance, foregroundLuminance) + 0.05);
+  }
+
+  return contrastWith(_lightForeground) >= contrastWith(_darkForeground)
+      ? _lightForeground
+      : _darkForeground;
 }
