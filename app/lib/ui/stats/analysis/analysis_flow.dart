@@ -143,17 +143,18 @@ class _AnalysisBodyContent extends StatelessWidget {
         ? 'Total income'
         : 'Total expenses';
     final totalColor = style.color;
+    final header = Padding(
+      padding: const EdgeInsets.all(16),
+      child: AmountHeader(
+        caption: label,
+        amount: total,
+        amountColor: totalColor,
+      ),
+    );
 
     return ListView(
       children: [
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: AmountHeader(
-            caption: label,
-            amount: total,
-            amountColor: totalColor,
-          ),
-        ),
+        header,
         if (categorySlices.isEmpty)
           _EmptyState(kind: kind)
         else ...[

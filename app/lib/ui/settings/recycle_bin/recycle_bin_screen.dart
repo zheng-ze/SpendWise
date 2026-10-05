@@ -205,50 +205,50 @@ class _BinRowTile extends StatelessWidget {
         ? '1 reference'
         : '${row.referenceCount} references';
 
+    final leading = row.symbolName != null
+        ? CategoryIcon(
+            symbolName: row.symbolName!,
+            color: row.color ?? colorHexFallback,
+            size: 28,
+          )
+        : Icon(sectionIcon, color: theme.colorScheme.onSurfaceVariant);
+    final title = Expanded(
+      child: Text(row.name, style: theme.textTheme.bodyLarge),
+    );
+    final references = Text(
+      referenceLabel,
+      style: theme.textTheme.bodySmall?.copyWith(
+        color: theme.colorScheme.onSurfaceVariant,
+      ),
+    );
+    final content = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        children: [leading, const SizedBox(width: 12), title, references],
+      ),
+    );
+    final tile = Dismissible(
+      key: ValueKey('bin-${row.kind}-${row.id}'),
+      direction: DismissDirection.horizontal,
+      background: const _RestoreBackground(),
+      secondaryBackground: const _PurgeBackground(),
+      confirmDismiss: (direction) async {
+        if (direction == DismissDirection.startToEnd) {
+          onRestore();
+        } else {
+          onRequestPurge();
+        }
+        return false;
+      },
+      child: content,
+    );
+
     return Semantics(
       customSemanticsActions: {
         CustomSemanticsAction(label: 'Restore ${row.name}'): onRestore,
         CustomSemanticsAction(label: 'Purge ${row.name}'): onRequestPurge,
       },
-      child: Dismissible(
-        key: ValueKey('bin-${row.kind}-${row.id}'),
-        direction: DismissDirection.horizontal,
-        background: const _RestoreBackground(),
-        secondaryBackground: const _PurgeBackground(),
-        confirmDismiss: (direction) async {
-          if (direction == DismissDirection.startToEnd) {
-            onRestore();
-          } else {
-            onRequestPurge();
-          }
-          return false;
-        },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Row(
-            children: [
-              row.symbolName != null
-                  ? CategoryIcon(
-                      symbolName: row.symbolName!,
-                      color: row.color ?? colorHexFallback,
-                      size: 28,
-                    )
-                  : Icon(
-                      sectionIcon,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-              const SizedBox(width: 12),
-              Expanded(child: Text(row.name, style: theme.textTheme.bodyLarge)),
-              Text(
-                referenceLabel,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      child: tile,
     );
   }
 }

@@ -86,62 +86,128 @@ class _AppShellState extends ConsumerState<AppShell> {
       ],
     );
 
-    final body = !_useRail
-        ? Scaffold(
-            key: const ValueKey('bottom-nav'),
-            body: content,
-            bottomNavigationBar: SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-                child: MediaQuery.removePadding(
-                  context: context,
-                  removeTop: true,
-                  removeBottom: true,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: NavigationBar(
-                      selectedIndex: selected.index,
-                      onDestinationSelected: select,
-                      destinations: [
-                        for (final destination in ShellDestination.values)
-                          NavigationDestination(
-                            icon: Icon(_destinationIcons[destination]),
-                            label: _destinationLabels[destination]!,
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          )
-        : Scaffold(
+    final body = _useRail
+        ? _RailLayout(
             key: const ValueKey('rail'),
-            body: Row(
-              children: [
-                NavigationRail(
-                  selectedIndex: selected.index,
-                  onDestinationSelected: select,
-                  labelType: _extended
-                      ? NavigationRailLabelType.none
-                      : NavigationRailLabelType.all,
-                  extended: _extended,
-                  destinations: [
-                    for (final destination in ShellDestination.values)
-                      NavigationRailDestination(
-                        icon: Icon(_destinationIcons[destination]),
-                        label: Text(_destinationLabels[destination]!),
-                      ),
-                  ],
-                ),
-                const VerticalDivider(width: 1),
-                Expanded(child: content),
-              ],
-            ),
+            content: content,
+            selectedIndex: selected.index,
+            onDestinationSelected: select,
+            extended: _extended,
+          )
+        : _BottomBarLayout(
+            key: const ValueKey('bottom-nav'),
+            content: content,
+            selectedIndex: selected.index,
+            onDestinationSelected: select,
           );
 
     return AnimatedSwitcher(duration: _layoutTransitionDuration, child: body);
+  }
+}
+
+class _BottomBarLayout extends StatelessWidget {
+  const _BottomBarLayout({
+    super.key,
+    required this.content,
+    required this.selectedIndex,
+    required this.onDestinationSelected,
+  });
+
+  final Widget content;
+  final int selectedIndex;
+  final ValueChanged<int> onDestinationSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      key: const ValueKey('bottom-nav'),
+      body: content,
+      bottomNavigationBar: _InsetNavigationBar(
+        selectedIndex: selectedIndex,
+        onDestinationSelected: onDestinationSelected,
+      ),
+    );
+  }
+}
+
+class _InsetNavigationBar extends StatelessWidget {
+  const _InsetNavigationBar({
+    required this.selectedIndex,
+    required this.onDestinationSelected,
+  });
+
+  final int selectedIndex;
+  final ValueChanged<int> onDestinationSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final destinations = [
+      for (final destination in ShellDestination.values)
+        NavigationDestination(
+          icon: Icon(_destinationIcons[destination]),
+          label: _destinationLabels[destination]!,
+        ),
+    ];
+    final bar = NavigationBar(
+      selectedIndex: selectedIndex,
+      onDestinationSelected: onDestinationSelected,
+      destinations: destinations,
+    );
+    final clipped = ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: bar,
+    );
+    final unpadded = MediaQuery.removePadding(
+      context: context,
+      removeTop: true,
+      removeBottom: true,
+      child: clipped,
+    );
+    final padded = Padding(
+      padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+      child: unpadded,
+    );
+
+    return SafeArea(top: false, child: padded);
+  }
+}
+
+class _RailLayout extends StatelessWidget {
+  const _RailLayout({
+    super.key,
+    required this.content,
+    required this.selectedIndex,
+    required this.onDestinationSelected,
+    required this.extended,
+  });
+
+  final Widget content;
+  final int selectedIndex;
+  final ValueChanged<int> onDestinationSelected;
+  final bool extended;
+
+  @override
+  Widget build(BuildContext context) {
+    final destinations = [
+      for (final destination in ShellDestination.values)
+        NavigationRailDestination(
+          icon: Icon(_destinationIcons[destination]),
+          label: Text(_destinationLabels[destination]!),
+        ),
+    ];
+    final rail = NavigationRail(
+      selectedIndex: selectedIndex,
+      onDestinationSelected: onDestinationSelected,
+      labelType: extended
+          ? NavigationRailLabelType.none
+          : NavigationRailLabelType.all,
+      extended: extended,
+      destinations: destinations,
+    );
+    final pane = Expanded(child: content);
+    final row = Row(children: [rail, const VerticalDivider(width: 1), pane]);
+
+    return Scaffold(key: const ValueKey('rail'), body: row);
   }
 }
 

@@ -172,6 +172,75 @@ class _CategoryFormBody extends StatelessWidget {
       nameController.text = formState.name;
     }
 
+    final theme = Theme.of(context);
+    final nameField = TextField(
+      controller: nameController,
+      decoration: const InputDecoration(hintText: 'Name'),
+      onChanged: viewModel.setName,
+    );
+    final kindSelector = IgnorePointer(
+      ignoring: formState.kindLocked,
+      child: Opacity(
+        opacity: formState.kindLocked ? 0.5 : 1,
+        child: SegmentedButton<CategoryKind>(
+          segments: const [
+            ButtonSegment(value: CategoryKind.income, label: Text('Income')),
+            ButtonSegment(value: CategoryKind.expense, label: Text('Expense')),
+          ],
+          selected: {formState.kind},
+          onSelectionChanged: formState.kindLocked
+              ? null
+              : (selection) => viewModel.setKind(selection.first),
+        ),
+      ),
+    );
+    final symbolTile = ListTile(
+      contentPadding: EdgeInsets.zero,
+      title: const Text('Symbol'),
+      leading: CategoryIcon(
+        symbolName: formState.symbol,
+        color: formState.color,
+      ),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: viewModel.requestPickSymbol,
+    );
+    final colorLabel = Text('Color', style: theme.textTheme.labelLarge);
+    final colorPicker = Wrap(
+      spacing: 12,
+      children: [
+        for (final swatch in _swatches)
+          InkWell(
+            customBorder: const CircleBorder(),
+            onTap: () => viewModel.setColor(swatch),
+            child: Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: swatch,
+                border: swatch == formState.color
+                    ? Border.all(color: context.colors.text, width: 2)
+                    : null,
+              ),
+            ),
+          ),
+      ],
+    );
+    final analysisSwitch = SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      title: const Text('Include in analysis'),
+      value: formState.includeInAnalysis,
+      onChanged: viewModel.setIncludeInAnalysis,
+    );
+    final deleteButton = SizedBox(
+      width: double.infinity,
+      child: FilledButton(
+        style: FilledButton.styleFrom(backgroundColor: theme.colorScheme.error),
+        onPressed: viewModel.requestDelete,
+        child: const Text('Delete Category'),
+      ),
+    );
+
     return FormScaffold(
       title: formState.title,
       canSave: formState.canSave,
@@ -180,86 +249,27 @@ class _CategoryFormBody extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          TextField(
-            controller: nameController,
-            decoration: const InputDecoration(hintText: 'Name'),
-            onChanged: viewModel.setName,
-          ),
+          nameField,
           const SizedBox(height: 16),
-          IgnorePointer(
-            ignoring: formState.kindLocked,
-            child: Opacity(
-              opacity: formState.kindLocked ? 0.5 : 1,
-              child: SegmentedButton<CategoryKind>(
-                segments: const [
-                  ButtonSegment(
-                    value: CategoryKind.income,
-                    label: Text('Income'),
-                  ),
-                  ButtonSegment(
-                    value: CategoryKind.expense,
-                    label: Text('Expense'),
-                  ),
-                ],
-                selected: {formState.kind},
-                onSelectionChanged: formState.kindLocked
-                    ? null
-                    : (selection) => viewModel.setKind(selection.first),
-              ),
-            ),
-          ),
+          kindSelector,
           if (formState.kindLocked)
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Text(
                 'Type is locked while transactions use this category.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
           const SizedBox(height: 16),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Symbol'),
-            leading: CategoryIcon(
-              symbolName: formState.symbol,
-              color: formState.color,
-            ),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: viewModel.requestPickSymbol,
-          ),
+          symbolTile,
           const SizedBox(height: 16),
-          Text('Color', style: Theme.of(context).textTheme.labelLarge),
+          colorLabel,
           const SizedBox(height: 8),
-          Wrap(
-            spacing: 12,
-            children: [
-              for (final swatch in _swatches)
-                InkWell(
-                  customBorder: const CircleBorder(),
-                  onTap: () => viewModel.setColor(swatch),
-                  child: Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: swatch,
-                      border: swatch == formState.color
-                          ? Border.all(color: context.colors.text, width: 2)
-                          : null,
-                    ),
-                  ),
-                ),
-            ],
-          ),
+          colorPicker,
           const SizedBox(height: 16),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Include in analysis'),
-            value: formState.includeInAnalysis,
-            onChanged: viewModel.setIncludeInAnalysis,
-          ),
+          analysisSwitch,
           if (formState.showParentPicker)
             ListTile(
               contentPadding: EdgeInsets.zero,
@@ -269,16 +279,7 @@ class _CategoryFormBody extends StatelessWidget {
             ),
           if (formState.isEditing) ...[
             const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.error,
-                ),
-                onPressed: viewModel.requestDelete,
-                child: const Text('Delete Category'),
-              ),
-            ),
+            deleteButton,
           ],
         ],
       ),

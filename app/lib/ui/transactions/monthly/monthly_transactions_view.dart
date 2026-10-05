@@ -155,27 +155,27 @@ class _TransactionSummaryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: background,
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          decoration: border == null ? null : BoxDecoration(border: border),
-          padding: padding,
-          child: Row(
-            children: [
-              if (leading != null) ...[leading!, const SizedBox(width: 8)],
-              Expanded(child: Text(label, style: labelStyle)),
-              Text(
-                formatMoney(net, symbol: false),
-                style: netStyle?.copyWith(
-                  color: AmountStyle.of(context, signedValue: net).color,
-                ),
-              ),
-            ],
-          ),
-        ),
+    final labelText = Expanded(child: Text(label, style: labelStyle));
+    final netText = Text(
+      formatMoney(net, symbol: false),
+      style: netStyle?.copyWith(
+        color: AmountStyle.of(context, signedValue: net).color,
       ),
     );
+    final rowContent = Row(
+      children: [
+        if (leading != null) ...[leading!, const SizedBox(width: 8)],
+        labelText,
+        netText,
+      ],
+    );
+    final container = Container(
+      decoration: border == null ? null : BoxDecoration(border: border),
+      padding: padding,
+      child: rowContent,
+    );
+    final ink = InkWell(onTap: onTap, child: container);
+
+    return Material(color: background, child: ink);
   }
 }

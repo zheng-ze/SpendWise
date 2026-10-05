@@ -166,50 +166,47 @@ class _BudgetLimitEditSheetState extends State<BudgetLimitEditSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final title = Text(widget.title, style: theme.textTheme.titleMedium);
+    final subtitle = widget.subtitle == null
+        ? null
+        : Text(widget.subtitle!, style: theme.textTheme.bodySmall);
+    final field = AmountField(
+      controller: _controller,
+      allowsNegative: false,
+      hintText: 'Limit',
+      autofocus: true,
+    );
+    final save = SizedBox(
+      width: double.infinity,
+      child: FilledButton(
+        onPressed: () {
+          final amount = parseAmountInput(_controller.text);
+          Navigator.of(context).pop(amount);
+        },
+        child: const Text('Save'),
+      ),
+    );
+    final column = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        title,
+        if (subtitle != null) ...[const SizedBox(height: 4), subtitle],
+        const SizedBox(height: 12),
+        field,
+        const SizedBox(height: 16),
+        save,
+      ],
+    );
+    final padded = Padding(padding: const EdgeInsets.all(16), child: column);
+    final safe = SafeArea(child: padded);
+
     return Padding(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                widget.title,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              if (widget.subtitle != null) ...[
-                const SizedBox(height: 4),
-                Text(
-                  widget.subtitle!,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-              const SizedBox(height: 12),
-              AmountField(
-                controller: _controller,
-                allowsNegative: false,
-                hintText: 'Limit',
-                autofocus: true,
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: () {
-                    final amount = parseAmountInput(_controller.text);
-                    Navigator.of(context).pop(amount);
-                  },
-                  child: const Text('Save'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      child: safe,
     );
   }
 }

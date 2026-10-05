@@ -70,6 +70,23 @@ class _CategoryDetailBody extends StatelessWidget {
         : MonthYearStep.month;
 
     final scopeColor = style.color;
+    final headline = Padding(
+      padding: const EdgeInsets.all(16),
+      child: AmountHeader(
+        caption: scopeCaption(title, viewState.scope, viewState.ledgerState),
+        amount: totals.scopeTotal,
+        amountColor: scopeColor,
+      ),
+    );
+    final entriesLabel = Padding(
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+      child: Text(
+        'ENTRIES',
+        style: theme.textTheme.labelMedium?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+      ),
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -85,18 +102,7 @@ class _CategoryDetailBody extends StatelessWidget {
       body: SafeArea(
         child: ListView(
           children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: AmountHeader(
-                caption: scopeCaption(
-                  title,
-                  viewState.scope,
-                  viewState.ledgerState,
-                ),
-                amount: totals.scopeTotal,
-                amountColor: scopeColor,
-              ),
-            ),
+            headline,
             if (viewState.children.isNotEmpty)
               SubcategoryTable(
                 mainCategory: mainCategory,
@@ -117,15 +123,7 @@ class _CategoryDetailBody extends StatelessWidget {
               amounts: viewState.trendAmounts,
               color: scopeColor,
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
-              child: Text(
-                'ENTRIES',
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
+            entriesLabel,
             DaySectionedEntryList(
               ledger: ledger,
               state: viewState.ledgerState,

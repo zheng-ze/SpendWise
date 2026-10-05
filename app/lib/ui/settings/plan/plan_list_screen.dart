@@ -153,35 +153,39 @@ class _PlanRow extends StatelessWidget {
     final sourceName = state.sourceName(plan.template.sourceID) ?? 'Unknown';
     final next = plan.nextOccurrence(onOrAfter: DateTime.now());
 
+    final leading = editing
+        ? IconButton(
+            icon: Icon(
+              Icons.remove_circle,
+              color: Theme.of(context).colorScheme.error,
+            ),
+            onPressed: onDelete,
+          )
+        : null;
+    final subtitle = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('${_frequencyLabels[plan.frequency]} · $sourceName'),
+        Text(next == null ? 'Ended' : 'Next: ${formatEntryDate(next)}'),
+      ],
+    );
+    final trailing = Text(
+      formatMoney(amount.abs(), symbol: false),
+      style: TextStyle(
+        color: AmountStyle.of(
+          context,
+          kind: isIncome ? AmountKind.income : AmountKind.expense,
+        ).color,
+        fontWeight: FontWeight.w600,
+      ),
+    );
+
     return ListTile(
-      leading: editing
-          ? IconButton(
-              icon: Icon(
-                Icons.remove_circle,
-                color: Theme.of(context).colorScheme.error,
-              ),
-              onPressed: onDelete,
-            )
-          : null,
+      leading: leading,
       title: Text(plan.template.name),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('${_frequencyLabels[plan.frequency]} · $sourceName'),
-          Text(next == null ? 'Ended' : 'Next: ${formatEntryDate(next)}'),
-        ],
-      ),
+      subtitle: subtitle,
       isThreeLine: true,
-      trailing: Text(
-        formatMoney(amount.abs(), symbol: false),
-        style: TextStyle(
-          color: AmountStyle.of(
-            context,
-            kind: isIncome ? AmountKind.income : AmountKind.expense,
-          ).color,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
+      trailing: trailing,
       onTap: onTap,
     );
   }

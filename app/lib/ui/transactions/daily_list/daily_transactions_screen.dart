@@ -58,18 +58,19 @@ class _TransactionsScreenBody extends StatelessWidget {
   final TransactionsViewModel viewModel;
   final VoidCallback? onBackPressed;
 
-  Widget _content(BuildContext context) {
-    if (state.mode == TransactionsScreenMode.daily) {
-      return _DailyContent(state: state, viewModel: viewModel);
-    }
-    return MonthlyTransactionsView(
-      summaries: state.monthSummaries,
-      onWeekTap: viewModel.switchToDaily,
-    );
-  }
+  @override
+  Widget build(BuildContext context) {
+    final step = state.mode == TransactionsScreenMode.daily
+        ? MonthYearStep.month
+        : MonthYearStep.year;
 
-  Widget _fab(BuildContext context) {
-    return ExpandingFab(
+    final content = state.mode == TransactionsScreenMode.daily
+        ? _DailyContent(state: state, viewModel: viewModel)
+        : MonthlyTransactionsView(
+            summaries: state.monthSummaries,
+            onWeekTap: viewModel.switchToDaily,
+          );
+    final fab = ExpandingFab(
       primary: FabAction(
         label: 'Add Transaction',
         icon: Icons.add,
@@ -83,13 +84,21 @@ class _TransactionsScreenBody extends StatelessWidget {
               onTap: viewModel.requestEditSource,
             ),
     );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final step = state.mode == TransactionsScreenMode.daily
-        ? MonthYearStep.month
-        : MonthYearStep.year;
+    final tabs = TopTabBar(
+      titles: _tabTitles,
+      selectedIndex: state.mode.index,
+      onSelected: (index) =>
+          viewModel.setMode(TransactionsScreenMode.values[index]),
+    );
+    final column = Column(
+      children: [
+        tabs,
+        const Divider(height: 1),
+        _TotalsBar(state: state),
+        const Divider(height: 1),
+        Expanded(child: content),
+      ],
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -106,25 +115,7 @@ class _TransactionsScreenBody extends StatelessWidget {
         ],
         centerTitle: false,
       ),
-      body: Stack(
-        children: [
-          Column(
-            children: [
-              TopTabBar(
-                titles: _tabTitles,
-                selectedIndex: state.mode.index,
-                onSelected: (index) =>
-                    viewModel.setMode(TransactionsScreenMode.values[index]),
-              ),
-              const Divider(height: 1),
-              _TotalsBar(state: state),
-              const Divider(height: 1),
-              Expanded(child: _content(context)),
-            ],
-          ),
-          _fab(context),
-        ],
-      ),
+      body: Stack(children: [column, fab]),
     );
   }
 }
@@ -136,27 +127,27 @@ class _TotalsBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final items = [
+      ColumnTextItem(
+        caption: 'Income',
+        value: formatMoney(state.income),
+        valueColor: AmountStyle.of(context, kind: AmountKind.income).color,
+      ),
+      ColumnTextItem(
+        caption: 'Expenses',
+        value: formatMoney(state.expenses),
+        valueColor: AmountStyle.of(context, kind: AmountKind.expense).color,
+      ),
+      ColumnTextItem(
+        caption: 'Total',
+        value: formatMoney(state.total),
+        valueColor: AmountStyle.of(context, signedValue: state.total).color,
+      ),
+    ];
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
-      child: ColumnText(
-        items: [
-          ColumnTextItem(
-            caption: 'Income',
-            value: formatMoney(state.income),
-            valueColor: AmountStyle.of(context, kind: AmountKind.income).color,
-          ),
-          ColumnTextItem(
-            caption: 'Expenses',
-            value: formatMoney(state.expenses),
-            valueColor: AmountStyle.of(context, kind: AmountKind.expense).color,
-          ),
-          ColumnTextItem(
-            caption: 'Total',
-            value: formatMoney(state.total),
-            valueColor: AmountStyle.of(context, signedValue: state.total).color,
-          ),
-        ],
-      ),
+      child: ColumnText(items: items),
     );
   }
 }

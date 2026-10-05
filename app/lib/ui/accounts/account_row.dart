@@ -83,56 +83,50 @@ class _AccountRowBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 40,
-              child: onToggleExpanded == null
-                  ? null
-                  : IconButton(
-                      icon: Icon(
-                        expanded ? Icons.expand_more : Icons.chevron_right,
-                      ),
-                      onPressed: onToggleExpanded,
-                    ),
+    final expandControl = SizedBox(
+      width: 40,
+      child: onToggleExpanded == null
+          ? null
+          : IconButton(
+              icon: Icon(expanded ? Icons.expand_more : Icons.chevron_right),
+              onPressed: onToggleExpanded,
             ),
-            Expanded(child: Text(row.name, style: theme.textTheme.bodyLarge)),
-            switch (row.amount) {
-              SingleTotal(:final total) => Text(
-                formatMoney(total, symbol: false),
-                style: theme.textTheme.titleSmall?.copyWith(
-                  color: AmountStyle.of(context, signedValue: total).color,
-                ),
-              ),
-              CardAmounts(:final payable, :final outstanding) => Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    formatMoney(payable, symbol: false),
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      color: AmountStyle.of(
-                        context,
-                        kind: AmountKind.expense,
-                      ).color,
-                    ),
-                  ),
-                  Text(
-                    formatMoney(outstanding, symbol: false),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            },
-          ],
+    );
+    final title = Expanded(
+      child: Text(row.name, style: theme.textTheme.bodyLarge),
+    );
+    final amount = switch (row.amount) {
+      SingleTotal(:final total) => Text(
+        formatMoney(total, symbol: false),
+        style: theme.textTheme.titleSmall?.copyWith(
+          color: AmountStyle.of(context, signedValue: total).color,
         ),
       ),
+      CardAmounts(:final payable, :final outstanding) => Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Text(
+            formatMoney(payable, symbol: false),
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: AmountStyle.of(context, kind: AmountKind.expense).color,
+            ),
+          ),
+          Text(
+            formatMoney(outstanding, symbol: false),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    };
+    final rowContent = Row(children: [expandControl, title, amount]);
+    final padded = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+      child: rowContent,
     );
+
+    return InkWell(onTap: onTap, child: padded);
   }
 }
 

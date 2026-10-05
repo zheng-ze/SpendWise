@@ -297,18 +297,17 @@ class _BudgetDetailSpendBars extends StatelessWidget {
           ],
         ),
     ];
-
-    return BarChart(
-      BarChartData(
-        minY: 0,
-        maxY: maxY,
-        gridData: const FlGridData(show: false),
-        borderData: FlBorderData(show: false),
-        titlesData: titlesData,
-        barTouchData: BarTouchData(enabled: false),
-        barGroups: barGroups,
-      ),
+    final data = BarChartData(
+      minY: 0,
+      maxY: maxY,
+      gridData: const FlGridData(show: false),
+      borderData: FlBorderData(show: false),
+      titlesData: titlesData,
+      barTouchData: BarTouchData(enabled: false),
+      barGroups: barGroups,
     );
+
+    return BarChart(data);
   }
 }
 
