@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/common/category_icon.dart';
-import 'package:spendwise/ui/format/amount_color.dart';
+import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/stats/helpers/slices.dart';
 
@@ -45,7 +45,7 @@ class _LegendRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colors = AmountColors.of(theme);
+    final style = AmountStyle.of(context);
     final percent = formatPercent(slice.fraction.toDouble());
 
     return InkWell(
@@ -75,11 +75,11 @@ class _LegendRow extends StatelessWidget {
               ),
             ),
             Text(
-              formatCurrency(slice.amount),
+              formatMoney(slice.amount, symbol: false),
               style: theme.textTheme.bodyLarge?.copyWith(
                 fontWeight: FontWeight.w600,
                 fontFeatures: const [FontFeature.tabularFigures()],
-                color: colors.neutral,
+                color: style.color,
               ),
             ),
             SizedBox(

@@ -126,7 +126,7 @@ class _SubcategoryRow extends StatelessWidget {
     final theme = Theme.of(context);
     final background = selected
         ? theme.colorScheme.primaryContainer.withValues(alpha: 0.4)
-        : Colors.transparent;
+        : const Color(0x00000000);
 
     return Material(
       color: background,
@@ -190,7 +190,7 @@ class _SubcategoryRowContent extends StatelessWidget {
         ),
         const SizedBox(width: 12),
         Text(
-          formatCurrency(amount),
+          formatMoney(amount, symbol: false),
           style: theme.textTheme.bodyLarge?.copyWith(
             fontWeight: FontWeight.w600,
           ),

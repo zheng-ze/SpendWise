@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/accounts/account_sections.dart';
 import 'package:spendwise/ui/common/swipe_to_delete_row.dart';
-import 'package:spendwise/ui/format/amount_color.dart';
+import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 
 class AccountRowTile extends StatelessWidget {
@@ -82,7 +82,6 @@ class _AccountRowBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colors = AmountColors.of(theme);
 
     return InkWell(
       onTap: onTap,
@@ -104,22 +103,25 @@ class _AccountRowBody extends StatelessWidget {
             Expanded(child: Text(row.name, style: theme.textTheme.bodyLarge)),
             switch (row.amount) {
               SingleTotal(:final total) => Text(
-                formatCurrency(total),
+                formatMoney(total),
                 style: theme.textTheme.titleSmall?.copyWith(
-                  color: colors.netAmountColor(total),
+                  color: AmountStyle.of(context, signedValue: total).color,
                 ),
               ),
               CardAmounts(:final payable, :final outstanding) => Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    formatCurrency(payable),
+                    formatMoney(payable),
                     style: theme.textTheme.titleSmall?.copyWith(
-                      color: colors.loss,
+                      color: AmountStyle.of(
+                        context,
+                        kind: AmountKind.expense,
+                      ).color,
                     ),
                   ),
                   Text(
-                    formatCurrency(outstanding),
+                    formatMoney(outstanding),
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -148,7 +150,6 @@ class _SubRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colors = AmountColors.of(theme);
 
     return Material(
       color: theme.colorScheme.surfaceContainerHighest,
@@ -160,9 +161,9 @@ class _SubRow extends StatelessWidget {
             children: [
               Expanded(child: Text(title, style: theme.textTheme.bodyMedium)),
               Text(
-                formatCurrency(amount),
+                formatMoney(amount),
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: colors.netAmountColor(amount),
+                  color: AmountStyle.of(context, signedValue: amount).color,
                 ),
               ),
             ],

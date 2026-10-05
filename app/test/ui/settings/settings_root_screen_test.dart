@@ -39,6 +39,24 @@ void main() {
     expect(tile.value, isTrue);
   });
 
+  testWidgets('shows the fixed SGD currency row', (tester) async {
+    await pumpSettings(tester);
+
+    final row = find.widgetWithText(ListTile, 'Currency');
+    expect(row, findsOneWidget);
+    expect(
+      find.descendant(of: row, matching: find.text('SGD')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: row,
+        matching: find.text('Amounts display in Singapore dollars'),
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('tapping the toggle persists the new value via AppSettings', (
     tester,
   ) async {

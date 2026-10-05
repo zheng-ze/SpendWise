@@ -44,7 +44,7 @@ String _summaryLabel(List<Slice> slices) {
   return slices
       .map(
         (slice) =>
-            '${slice.name}, ${formatCurrency(slice.amount)}, '
+            '${slice.name}, ${formatMoney(slice.amount)}, '
             '${formatPercent(slice.fraction.toDouble())}',
       )
       .join('. ');

@@ -7,7 +7,7 @@ import 'package:spendwise/ui/common/expanding_fab.dart';
 import 'package:spendwise/ui/common/month_year_selector.dart';
 import 'package:spendwise/ui/common/swipe_to_delete_row.dart';
 import 'package:spendwise/ui/common/top_tab_bar.dart';
-import 'package:spendwise/ui/format/amount_color.dart';
+import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/transactions/daily_list/day_header.dart';
 import 'package:spendwise/ui/transactions/daily_list/day_sections.dart';
@@ -136,26 +136,24 @@ class _TotalsBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = AmountColors.of(Theme.of(context));
-
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: ColumnText(
         items: [
           ColumnTextItem(
             caption: 'Income',
-            value: formatCurrency(state.income),
-            valueColor: colors.gain,
+            value: formatMoney(state.income),
+            valueColor: AmountStyle.of(context, kind: AmountKind.income).color,
           ),
           ColumnTextItem(
             caption: 'Expenses',
-            value: formatCurrency(state.expenses),
-            valueColor: colors.loss,
+            value: formatMoney(state.expenses),
+            valueColor: AmountStyle.of(context, kind: AmountKind.expense).color,
           ),
           ColumnTextItem(
             caption: 'Total',
-            value: formatCurrency(state.total),
-            valueColor: colors.netAmountColor(state.total),
+            value: formatMoney(state.total),
+            valueColor: AmountStyle.of(context, signedValue: state.total).color,
           ),
         ],
       ),

@@ -1,10 +1,11 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 
-import 'package:spendwise/ui/format/amount_color.dart';
+import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/budgets/helpers/budget_spend.dart';
+import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 const _barHeight = 22.0;
 
@@ -38,8 +39,6 @@ class BudgetCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = AmountColors.of(theme);
     final (name, color) = _categoryDisplay(state);
 
     final limit = effectiveLimit(budget, month);
@@ -57,7 +56,9 @@ class BudgetCard extends StatelessWidget {
     );
     final bar = _BudgetCardBar(
       percentOfLimit: percentOfLimit,
-      color: overLimit ? colors.loss : color,
+      color: overLimit
+          ? AmountStyle.of(context, kind: AmountKind.expense).color
+          : color,
     );
     final footer = _BudgetCardFooter(
       spend: spend,
@@ -112,7 +113,7 @@ class _BudgetCardHeader extends StatelessWidget {
           ),
         ),
         Text(
-          formatCurrency(limit),
+          formatMoney(limit),
           style: theme.textTheme.bodyMedium?.copyWith(
             fontWeight: FontWeight.w600,
             fontFeatures: const [FontFeature.tabularFigures()],
@@ -180,7 +181,7 @@ class _BudgetCardBarLabel extends StatelessWidget {
           style: theme.textTheme.labelMedium?.copyWith(
             fontWeight: FontWeight.w700,
             color: fraction >= 0.5
-                ? Colors.white
+                ? context.colors.onAction
                 : theme.colorScheme.onSurfaceVariant,
           ),
         ),
@@ -203,33 +204,30 @@ class _BudgetCardFooter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colors = AmountColors.of(theme);
+    final expense = AmountStyle.of(context, kind: AmountKind.expense).color;
+    final neutral = AmountStyle.of(context).color;
 
     return Row(
       children: [
         if (overLimit)
           Padding(
             padding: const EdgeInsets.only(right: 4),
-            child: Icon(
-              Icons.warning_amber_rounded,
-              size: 14,
-              color: colors.loss,
-            ),
+            child: Icon(Icons.warning_amber_rounded, size: 14, color: expense),
           ),
         Text(
-          formatCurrency(spend),
+          formatMoney(spend, symbol: false),
           style: theme.textTheme.bodySmall?.copyWith(
-            color: overLimit ? colors.loss : colors.neutral,
+            color: overLimit ? expense : neutral,
             fontFeatures: const [FontFeature.tabularFigures()],
           ),
         ),
         const Spacer(),
         Text(
           remaining < Decimal.zero
-              ? '-${formatCurrency(remaining.abs())}'
-              : formatCurrency(remaining),
+              ? '-${formatMoney(remaining.abs(), symbol: false)}'
+              : formatMoney(remaining, symbol: false),
           style: theme.textTheme.bodySmall?.copyWith(
-            color: overLimit ? colors.loss : theme.colorScheme.onSurfaceVariant,
+            color: overLimit ? expense : theme.colorScheme.onSurfaceVariant,
             fontFeatures: const [FontFeature.tabularFigures()],
           ),
         ),

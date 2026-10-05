@@ -44,6 +44,14 @@ class SettingsScreen extends ConsumerWidget {
             },
           ),
           const Divider(height: 1),
+          const _SectionHeader('Currency'),
+          const ListTile(
+            leading: Icon(Icons.attach_money),
+            title: Text('Currency'),
+            subtitle: Text('Amounts display in Singapore dollars'),
+            trailing: Text('SGD'),
+          ),
+          const Divider(height: 1),
           const _SectionHeader('Data'),
           _SettingsLink(
             icon: Icons.delete_outline,

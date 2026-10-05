@@ -104,14 +104,13 @@ void main() {
 
     expect(find.text('Monthly · Wallet'), findsNWidgets(2));
 
-    final expenseAmount = tester.widget<Text>(find.text(r'$25.00'));
-    final incomeAmount = tester.widget<Text>(find.text(r'$500.00'));
-    final theme = Theme.of(tester.element(find.byType(PlanListScreen)));
+    final expenseAmount = tester.widget<Text>(find.text('25.00'));
+    final incomeAmount = tester.widget<Text>(find.text('500.00'));
     final expenseColor = expenseAmount.style?.color;
     final incomeColor = incomeAmount.style?.color;
 
     expect(incomeColor, isNot(expenseColor));
-    expect(expenseColor, theme.colorScheme.onSurfaceVariant);
+    expect(expenseColor, const Color(0xFF964B44));
   });
 
   testWidgets('swiping a plan and confirming removes it from plans', (

@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -6,8 +8,15 @@ import 'package:spendwise/settings/display_preferences.dart';
 import 'package:spendwise/settings/display_preferences_providers.dart';
 import 'package:spendwise/settings/display_preferences_store.dart';
 import 'package:spendwise/ui/shell/boot_chrome.dart';
+import 'package:spendwise/ui/theme/spendwise_theme.dart';
 
 Future<void> main() async {
+  LicenseRegistry.addLicense(() async* {
+    final license = await rootBundle.loadString(
+      'assets/fonts/instrument_sans/OFL.txt',
+    );
+    yield LicenseEntryWithLineBreaks(const ['InstrumentSans'], license);
+  });
   WidgetsFlutterBinding.ensureInitialized();
   final initial = await loadInitialDisplayPreferences();
   runApp(
@@ -49,11 +58,8 @@ class SpendWiseApp extends ConsumerWidget {
     );
     return MaterialApp(
       title: 'SpendWise',
-      theme: ThemeData(colorSchemeSeed: Colors.teal),
-      darkTheme: ThemeData(
-        colorSchemeSeed: Colors.teal,
-        brightness: Brightness.dark,
-      ),
+      theme: buildSpendWiseTheme(Brightness.light),
+      darkTheme: buildSpendWiseTheme(Brightness.dark),
       themeMode: themeModeFor(appearance),
       home: const BootChrome(),
     );

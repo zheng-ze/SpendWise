@@ -6,6 +6,7 @@ import 'package:spendwise/ui/common/category_icon.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
 import 'package:spendwise/ui/settings/recycle_bin/recycle_bin_view_model.dart';
 import 'package:spendwise/ui/symbol_map.dart';
+import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 class RecycleBinScreen extends ConsumerStatefulWidget {
   const RecycleBinScreen({super.key});
@@ -57,7 +58,11 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
             onPressed: () => Navigator.of(context).pop(false),
             child: const Text('Cancel'),
           ),
-          TextButton(
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: context.colors.onAction,
+            ),
             onPressed: () => Navigator.of(context).pop(true),
             child: const Text('Delete'),
           ),
@@ -254,10 +259,10 @@ class _RestoreBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.blue,
+      color: context.colors.action,
       alignment: Alignment.centerLeft,
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Icon(symbolIcon('undo'), color: Colors.white),
+      child: Icon(symbolIcon('undo'), color: context.colors.onAction),
     );
   }
 }
@@ -271,7 +276,7 @@ class _PurgeBackground extends StatelessWidget {
       color: Theme.of(context).colorScheme.error,
       alignment: Alignment.centerRight,
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: const Icon(Icons.delete_outline, color: Colors.white),
+      child: Icon(Icons.delete_outline, color: context.colors.onAction),
     );
   }
 }

@@ -1,7 +1,7 @@
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 
-import 'package:spendwise/ui/format/amount_color.dart';
+import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 
@@ -17,7 +17,6 @@ class DayHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final label = formatDayHeader(day);
-    final colors = AmountColors.of(theme);
 
     return Container(
       height: dayHeaderHeight,
@@ -40,9 +39,9 @@ class DayHeader extends StatelessWidget {
           ),
           const Spacer(),
           Text(
-            formatCurrency(net),
+            formatMoney(net, symbol: false),
             style: theme.textTheme.titleSmall?.copyWith(
-              color: colors.netAmountColor(net),
+              color: AmountStyle.of(context, signedValue: net).color,
               fontWeight: FontWeight.w600,
             ),
           ),

@@ -3,24 +3,75 @@ import 'package:intl/intl.dart';
 
 enum AmountKind { income, expense, transfer }
 
-final NumberFormat _currency = NumberFormat.currency(symbol: r'$');
-
-final NumberFormat _plain = NumberFormat('0.00');
-
 final NumberFormat _percent = NumberFormat.percentPattern()
   ..maximumFractionDigits = 0;
 
-String formatCurrency(Decimal amount) => _currency.format(amount.toDouble());
-
-String formatSignedAmount(Decimal amount, AmountKind kind) {
-  final magnitude = formatCurrency(amount.abs());
-  return switch (kind) {
-    AmountKind.income => '+$magnitude',
-    AmountKind.expense => '-$magnitude',
-    AmountKind.transfer => magnitude,
-  };
+String _groupedInteger(String digits) {
+  final buffer = StringBuffer();
+  final offset = digits.length % 3;
+  if (offset > 0) buffer.write(digits.substring(0, offset));
+  for (var i = offset; i < digits.length; i += 3) {
+    if (buffer.isNotEmpty) buffer.write(',');
+    buffer.write(digits.substring(i, i + 3));
+  }
+  if (buffer.isEmpty) buffer.write('0');
+  return buffer.toString();
 }
 
-String formatPlainAmount(Decimal amount) => _plain.format(amount.toDouble());
+String _roundedTwoPlaces(Decimal magnitude, {required bool grouped}) {
+  final parts = magnitude.toString().split('.');
+  final intPart = parts[0];
+  final fraction = (parts.length > 1 ? parts[1] : '').padRight(3, '0');
+  var kept = int.parse(fraction.substring(0, 2));
+  final rest = fraction.substring(2);
+  final first = rest[0];
+  final tail = rest.substring(1);
+  final roundUp =
+      first.compareTo('5') > 0 ||
+      (first == '5' && (tail.contains(RegExp('[1-9]')) || kept.isOdd));
+  var integer = BigInt.parse(intPart.isEmpty ? '0' : intPart);
+  if (roundUp) {
+    kept += 1;
+    if (kept == 100) {
+      kept = 0;
+      integer += BigInt.one;
+    }
+  }
+  final integerText = integer.toString();
+  final body = grouped ? _groupedInteger(integerText) : integerText;
+  return '$body.${kept.toString().padLeft(2, '0')}';
+}
+
+String formatMoney(Decimal amount, {bool symbol = true}) {
+  final negative = amount < Decimal.zero;
+  final body = _roundedTwoPlaces(amount.abs(), grouped: true);
+  return '${negative ? '-' : ''}${symbol ? r'S$' : ''}$body';
+}
+
+String formatSignedMoney(
+  Decimal amount, {
+  AmountKind? kind,
+  bool symbol = true,
+}) {
+  final prefix = switch (kind) {
+    AmountKind.income => '+',
+    AmountKind.expense => '-',
+    AmountKind.transfer => '',
+    null =>
+      amount > Decimal.zero
+          ? '+'
+          : amount < Decimal.zero
+          ? '-'
+          : '',
+  };
+  final body = _roundedTwoPlaces(amount.abs(), grouped: true);
+  return '$prefix${symbol ? r'S$' : ''}$body';
+}
+
+String formatPlainAmount(Decimal amount) {
+  final negative = amount < Decimal.zero;
+  final body = _roundedTwoPlaces(amount.abs(), grouped: false);
+  return '${negative ? '-' : ''}$body';
+}
 
 String formatPercent(double fraction) => _percent.format(fraction);

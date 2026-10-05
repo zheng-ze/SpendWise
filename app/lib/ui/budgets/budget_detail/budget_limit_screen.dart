@@ -94,7 +94,7 @@ class _BudgetLimitScreenBody extends StatelessWidget {
       ),
       subtitle: const Text('Applies to months with no override'),
       trailing: Text(
-        defaultLimit == null ? '—' : formatCurrency(defaultLimit),
+        defaultLimit == null ? '—' : formatMoney(defaultLimit, symbol: false),
         style: const TextStyle(fontWeight: FontWeight.bold),
       ),
       onTap: viewModel.requestEditDefault,
@@ -113,7 +113,9 @@ class _BudgetLimitScreenBody extends StatelessWidget {
       for (final month in viewState.months)
         ListTile(
           title: Text(formatMonthLabel(DateTime.utc(month.year, month.month))),
-          trailing: Text(formatCurrency(effectiveLimit(budget, month))),
+          trailing: Text(
+            formatMoney(effectiveLimit(budget, month), symbol: false),
+          ),
           onTap: () => viewModel.requestEditMonth(month),
         ),
     ];

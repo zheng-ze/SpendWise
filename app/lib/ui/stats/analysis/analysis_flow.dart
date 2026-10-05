@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/common/flow_base.dart';
-import 'package:spendwise/ui/format/amount_color.dart';
+import 'package:spendwise/ui/format/amount_style.dart';
+import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/stats/analysis/analysis_view_model.dart';
 import 'package:spendwise/ui/stats/category_detail/category_detail_screen.dart';
 import 'package:spendwise/ui/stats/category_detail/category_detail_view_model.dart';
@@ -124,8 +125,12 @@ class _AnalysisBodyContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = AmountColors.of(theme);
+    final style = AmountStyle.of(
+      context,
+      kind: kind == CategoryKind.income
+          ? AmountKind.income
+          : AmountKind.expense,
+    );
 
     final categorySlices = analysisSlices(viewState, window);
 
@@ -137,7 +142,7 @@ class _AnalysisBodyContent extends StatelessWidget {
     final label = kind == CategoryKind.income
         ? 'Total income'
         : 'Total expenses';
-    final totalColor = kind == CategoryKind.income ? colors.gain : colors.loss;
+    final totalColor = style.color;
 
     return ListView(
       children: [

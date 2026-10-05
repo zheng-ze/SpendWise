@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/common/form_scaffold.dart';
-import 'package:spendwise/ui/format/amount_color.dart';
+import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_logic.dart';
@@ -56,7 +56,6 @@ class ViewEntryForm extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final colors = AmountColors.of(theme);
     final ledgerState = ref.watch(ledgerProvider)?.state;
     final amount = state.parsedAmount ?? Decimal.zero;
     final kind = state.kind;
@@ -81,11 +80,11 @@ class ViewEntryForm extends ConsumerWidget {
         Text(state.nameText, style: theme.textTheme.titleMedium),
         const SizedBox(height: 4),
         Text(
-          formatSignedAmount(signedAmount, _amountKind),
+          formatSignedMoney(signedAmount, kind: _amountKind),
           style: theme.textTheme.headlineSmall?.copyWith(
             fontWeight: FontWeight.bold,
             fontFeatures: const [FontFeature.tabularFigures()],
-            color: colors.kindColor(_amountKind),
+            color: AmountStyle.of(context, kind: _amountKind).color,
           ),
         ),
         const SizedBox(height: 16),

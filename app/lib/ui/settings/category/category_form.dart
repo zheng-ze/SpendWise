@@ -8,6 +8,7 @@ import 'package:spendwise/ui/common/error_section.dart';
 import 'package:spendwise/ui/common/form_scaffold.dart';
 import 'package:spendwise/ui/common/pickers/symbol_picker.dart';
 import 'package:spendwise/ui/settings/category/category_form_view_model.dart';
+import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 const _swatches = [
   defaultCategoryColor,
@@ -245,7 +246,7 @@ class _CategoryFormBody extends StatelessWidget {
                       shape: BoxShape.circle,
                       color: swatch,
                       border: swatch == formState.color
-                          ? Border.all(color: Colors.black, width: 2)
+                          ? Border.all(color: context.colors.text, width: 2)
                           : null,
                     ),
                   ),

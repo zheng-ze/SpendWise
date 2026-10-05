@@ -6,7 +6,8 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/day_sectioned_entry_list.dart';
 import 'package:spendwise/ui/common/month_year_selector.dart';
-import 'package:spendwise/ui/format/amount_color.dart';
+import 'package:spendwise/ui/format/amount_style.dart';
+import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/stats/category_detail/category_detail_view_model.dart';
 import 'package:spendwise/ui/stats/category_detail/category_trend_card.dart';
 import 'package:spendwise/ui/stats/helpers/stats_window.dart';
@@ -53,7 +54,12 @@ class _CategoryDetailBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colors = AmountColors.of(theme);
+    final style = AmountStyle.of(
+      context,
+      kind: viewState.kind == CategoryKind.income
+          ? AmountKind.income
+          : AmountKind.expense,
+    );
 
     final mainCategory = viewState.mainCategory;
     final title = mainCategory?.name ?? '';
@@ -63,9 +69,7 @@ class _CategoryDetailBody extends StatelessWidget {
         ? MonthYearStep.year
         : MonthYearStep.month;
 
-    final scopeColor = viewState.kind == CategoryKind.income
-        ? colors.gain
-        : colors.loss;
+    final scopeColor = style.color;
 
     return Scaffold(
       appBar: AppBar(

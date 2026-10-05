@@ -180,7 +180,7 @@ void main() {
       await pumpDetail(tester, ledger, withOverride);
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('of \$250.00'), findsOneWidget);
+      expect(find.textContaining('of S\$250.00'), findsOneWidget);
     },
   );
 
@@ -371,5 +371,26 @@ void main() {
       ),
       findsOneWidget,
     );
+  });
+
+  testWidgets('the selected chart mark uses the selected-mark fill', (
+    tester,
+  ) async {
+    final overallBudget = budget(categoryID: null, id: 'b11');
+    final ledger = buildLedger(forBudget: overallBudget);
+
+    await pumpDetail(tester, ledger, overallBudget);
+    await tester.pumpAndSettle();
+
+    final chart = tester.widget<BarChart>(find.byType(BarChart));
+    final rods = [
+      for (final group in chart.data.barGroups)
+        for (final rod in group.barRods) rod,
+    ];
+    final selected = rods
+        .where((rod) => rod.color == const Color(0xFF8B48A0))
+        .toList();
+    expect(selected, hasLength(1));
+    expect(selected.single.borderSide.width, 0);
   });
 }

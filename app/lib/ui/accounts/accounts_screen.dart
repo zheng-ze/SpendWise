@@ -7,7 +7,7 @@ import 'package:spendwise/ui/accounts/account_sections.dart';
 import 'package:spendwise/ui/accounts/accounts_view_model.dart';
 import 'package:spendwise/ui/common/column_text.dart';
 import 'package:spendwise/ui/format/account_type_format.dart';
-import 'package:spendwise/ui/format/amount_color.dart';
+import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 
 class AccountsScreen extends ConsumerWidget {
@@ -40,7 +40,6 @@ class _AccountsBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = AmountColors.of(Theme.of(context));
     final netWorth = viewState.netWorth;
 
     return Column(
@@ -68,20 +67,27 @@ class _AccountsBody extends StatelessWidget {
             items: [
               ColumnTextItem(
                 caption: 'Assets',
-                value: formatCurrency(netWorth.asset),
-                valueColor: colors.gain,
+                value: formatMoney(netWorth.asset),
+                valueColor: AmountStyle.of(
+                  context,
+                  kind: AmountKind.income,
+                ).color,
               ),
               ColumnTextItem(
                 caption: 'Liabilities',
-                value: formatCurrency(netWorth.liability),
-                valueColor: colors.loss,
+                value: formatMoney(netWorth.liability),
+                valueColor: AmountStyle.of(
+                  context,
+                  kind: AmountKind.expense,
+                ).color,
               ),
               ColumnTextItem(
                 caption: 'Total',
-                value: formatCurrency(netWorth.asset - netWorth.liability),
-                valueColor: colors.netAmountColor(
-                  netWorth.asset - netWorth.liability,
-                ),
+                value: formatMoney(netWorth.asset - netWorth.liability),
+                valueColor: AmountStyle.of(
+                  context,
+                  signedValue: netWorth.asset - netWorth.liability,
+                ).color,
               ),
             ],
           ),
@@ -151,7 +157,6 @@ class _SectionHeaderRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colors = AmountColors.of(theme);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
@@ -167,23 +172,26 @@ class _SectionHeaderRow extends StatelessWidget {
           ),
           switch (header) {
             SubtotalHeader(:final subtotal) => Text(
-              formatCurrency(subtotal),
+              formatMoney(subtotal),
               style: theme.textTheme.labelLarge?.copyWith(
-                color: colors.netAmountColor(subtotal),
+                color: AmountStyle.of(context, signedValue: subtotal).color,
               ),
             ),
             CardHeader(:final payable, :final outstanding) => Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Payable ${formatCurrency(payable)}',
+                  'Payable ${formatMoney(payable)}',
                   style: theme.textTheme.labelLarge?.copyWith(
-                    color: colors.loss,
+                    color: AmountStyle.of(
+                      context,
+                      kind: AmountKind.expense,
+                    ).color,
                   ),
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  'Outstanding ${formatCurrency(outstanding)}',
+                  'Outstanding ${formatMoney(outstanding)}',
                   style: theme.textTheme.labelLarge?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),

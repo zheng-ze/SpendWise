@@ -70,7 +70,7 @@ class _AmountFieldState extends State<AmountField> {
       decoration: InputDecoration(
         hintText: widget.hintText,
         border: InputBorder.none,
-        prefixText: _hasText ? r'$' : null,
+        prefixText: _hasText ? 'S\$' : null,
       ),
     );
   }

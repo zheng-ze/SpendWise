@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/symbol_map.dart';
+import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 const double _glyphFraction = 0.44;
 const double _ringThickness = 2;
@@ -38,7 +39,7 @@ class CategoryIcon extends StatelessWidget {
       child: Icon(
         symbolIcon(symbolName),
         size: size * _glyphFraction,
-        color: selected ? Colors.white : color,
+        color: selected ? context.colors.onCategory : color,
       ),
     );
   }

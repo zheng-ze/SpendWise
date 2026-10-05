@@ -1,7 +1,7 @@
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 
-import 'package:spendwise/ui/format/amount_color.dart';
+import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/transactions/daily_list/empty_state.dart';
@@ -118,7 +118,7 @@ class _WeekRow extends StatelessWidget {
           width: 3,
           color: summary.isCurrentWeek
               ? theme.colorScheme.primary
-              : Colors.transparent,
+              : const Color(0x00000000),
         ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -155,8 +155,6 @@ class _TransactionSummaryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = AmountColors.of(Theme.of(context));
-
     return Material(
       color: background,
       child: InkWell(
@@ -169,8 +167,10 @@ class _TransactionSummaryRow extends StatelessWidget {
               if (leading != null) ...[leading!, const SizedBox(width: 8)],
               Expanded(child: Text(label, style: labelStyle)),
               Text(
-                formatCurrency(net),
-                style: netStyle?.copyWith(color: colors.netAmountColor(net)),
+                formatMoney(net, symbol: false),
+                style: netStyle?.copyWith(
+                  color: AmountStyle.of(context, signedValue: net).color,
+                ),
               ),
             ],
           ),
