@@ -108,6 +108,18 @@ void main() {
       expect(theme.extension<SpendWiseText>(), isNotNull);
     });
 
+    test('seats the primary and secondary containers on the tint token', () {
+      for (final brightness in Brightness.values) {
+        final theme = buildSpendWiseTheme(brightness);
+        final tokens = theme.extension<SpendWiseColors>()!;
+        final scheme = theme.colorScheme;
+        expect(scheme.primaryContainer, tokens.tint);
+        expect(scheme.onPrimaryContainer, tokens.text);
+        expect(scheme.secondaryContainer, tokens.tint);
+        expect(scheme.onSecondaryContainer, tokens.text);
+      }
+    });
+
     test('seats the highest container on the tint token in dark mode', () {
       final scheme = buildSpendWiseTheme(Brightness.dark).colorScheme;
       expect(scheme.surfaceContainerHighest, const Color(0xFF242629));

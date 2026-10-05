@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ui/common/expanding_fab.dart';
+import 'package:spendwise/ui/theme/spendwise_colors.dart';
+import 'package:spendwise/ui/theme/spendwise_theme.dart';
 
 void main() {
   Widget wrap(Widget child) => MaterialApp(
@@ -218,4 +220,51 @@ void main() {
 
     handle.dispose();
   });
+
+  for (final brightness in Brightness.values) {
+    testWidgets('capsules pair the action fill with its foreground in '
+        '${brightness.name} mode', (tester) async {
+      final theme = buildSpendWiseTheme(brightness);
+      final tokens = theme.extension<SpendWiseColors>()!;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: theme,
+          home: Scaffold(
+            body: Stack(
+              children: [
+                ExpandingFab(
+                  primary: FabAction(
+                    label: 'Add Transaction',
+                    icon: Icons.add,
+                    onTap: () {},
+                  ),
+                  secondary: FabAction(
+                    label: 'Edit Checking',
+                    icon: Icons.edit,
+                    onTap: () {},
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.byIcon(Icons.add));
+      await tester.pumpAndSettle();
+
+      final label = find.text('Edit Checking');
+      final capsule = tester.widget<Material>(
+        find.ancestor(of: label, matching: find.byType(Material)).first,
+      );
+      expect(capsule.color, tokens.action);
+      expect(
+        DefaultTextStyle.of(tester.element(label)).style.color,
+        tokens.onAction,
+      );
+      expect(
+        tester.widget<Icon>(find.byIcon(Icons.edit)).color,
+        tokens.onAction,
+      );
+    });
+  }
 }

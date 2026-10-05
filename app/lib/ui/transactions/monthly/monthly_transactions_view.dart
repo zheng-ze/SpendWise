@@ -6,6 +6,7 @@ import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/transactions/daily_list/empty_state.dart';
 import 'package:spendwise/ui/transactions/monthly/month_summaries.dart';
+import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 class MonthlyTransactionsView extends StatefulWidget {
   const MonthlyTransactionsView({
@@ -86,9 +87,7 @@ class _MonthRow extends StatelessWidget {
     );
 
     return _TransactionSummaryRow(
-      background: summary.isCurrentMonth
-          ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
-          : null,
+      background: summary.isCurrentMonth ? context.colors.tint : null,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       onTap: onTap,
       leading: Icon(expanded ? Icons.expand_more : Icons.chevron_right),

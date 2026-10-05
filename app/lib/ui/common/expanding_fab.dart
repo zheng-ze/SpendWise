@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:spendwise/ui/theme/spendwise_text.dart';
+
 class FabAction {
   const FabAction({
     required this.label,
@@ -111,12 +113,13 @@ class _ActionCapsule extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final colors = context.colors;
     return Semantics(
       button: true,
       label: action.label,
       child: Material(
-        color: theme.colorScheme.secondaryContainer,
+        color: colors.action,
+        textStyle: TextStyle(color: colors.onAction),
         borderRadius: BorderRadius.circular(24),
         child: InkWell(
           borderRadius: BorderRadius.circular(24),
@@ -128,7 +131,7 @@ class _ActionCapsule extends StatelessWidget {
               children: [
                 ExcludeSemantics(child: Text(action.label)),
                 const SizedBox(width: 8),
-                Icon(action.icon, size: 20),
+                Icon(action.icon, size: 20, color: colors.onAction),
               ],
             ),
           ),
