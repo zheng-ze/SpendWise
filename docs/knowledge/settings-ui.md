@@ -1,6 +1,6 @@
 # Settings UI
 
-Last reconciled: 0d906b7
+Last reconciled: 28d81bd
 
 ## Feature overview
 
@@ -22,6 +22,12 @@ form controllers.
   repair presentation opened from Settings; see `sync-enrollment-flow.md`.
 - `packages/domain/lib/src/ledger_state/ledger_state_categories.dart`, `ledger_state_plans.dart`
   - the domain mutators (see `ledger-and-money-model.md`, `recurring-plans-and-accounting.md`).
+- `app/lib/settings/display_preferences.dart`,
+  `app/lib/settings/display_preferences_store.dart`,
+  `app/lib/settings/display_preferences_providers.dart` - the device-local
+  display preferences model, store and providers.
+- `app/lib/main.dart` - `main`, `loadInitialDisplayPreferences`, `SpendWiseApp`,
+  `themeModeFor`.
 
 
 ## Module interactions
@@ -79,6 +85,28 @@ for enrollment behavior. Source: `app/lib/ui/settings/settings_flow.dart` -
 `_handOverOpenEnrollmentRoute`, `handleStep`; `app/lib/ui/settings/settings_root_view_model.dart` -
 `SettingsRootNotifier.requestResumeFreshEnrollment`.
 
+## Display preferences
+
+Appearance, the Overview widget order, the Trends breakdown choices, chart
+colours, the insight switches, dismissed insights and the savings pocket id
+persist device-locally in SharedPreferences under the `display.v1.*` keys and
+never sync. `DisplayPreferences` is immutable with stable string codes, and
+decoding is total: an unknown code falls back to its default, and unknown or
+duplicate widget codes are dropped. An absent widget key loads the default
+Today, Recent entries and Coming up set, while an empty value loads an empty
+set. The snapshot loads before the first frame through
+`initialDisplayPreferencesProvider`; a failed read boots with defaults.
+`displayPreferencesProvider` updates state first and writes through, keeping
+the in-memory value when a write fails. `MaterialApp.themeMode` follows the
+stored appearance, so Dark overrides a light platform and System follows the
+platform. The receipt scan-strip switch stays in `AppSettings`. Source:
+`app/lib/settings/display_preferences.dart`,
+`app/lib/settings/display_preferences_store.dart`,
+`app/lib/settings/display_preferences_providers.dart`; `app/lib/main.dart` -
+`main`, `loadInitialDisplayPreferences`, `SpendWiseApp`, `themeModeFor`;
+`app/test/settings/display_preferences_store_test.dart`,
+`app/test/settings/display_preferences_provider_test.dart`.
+
 ## Screens and flows
 
 - **Category list** - two sections (Income, then Expense), rows pre-ordered roots-then-children
@@ -123,6 +151,9 @@ for enrollment behavior. Source: `app/lib/ui/settings/settings_flow.dart` -
 
 ## Requirements
 
+- Display preferences persist under `display.v1.*` with stable codes and total
+  decoding; a failed preload boots with defaults and a failed write keeps the
+  in-memory value.
 - Category list ordering is roots-then-children A–Z per kind.
 - Plan list sorts by next occurrence ascending with ended plans last and name as tiebreak.
 - Plan save preserves the template's original sign.

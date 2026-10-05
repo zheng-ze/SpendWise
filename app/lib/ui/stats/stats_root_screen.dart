@@ -19,7 +19,7 @@ class StatsRootScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final viewState = ref.watch(statsRootViewModelProvider);
     final viewModel = ref.watch(statsRootViewModelProvider.notifier);
-    final selectedDate = ref.watch(selectedMonthProvider);
+    final selectedDate = ref.watch(effectiveMonthProvider);
 
     return _StatsRootBody(
       viewState: viewState,

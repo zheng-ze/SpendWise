@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'package:domain/domain.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
@@ -94,4 +95,10 @@ final ledgerProvider = Provider<Ledger?>((ref) {
 final persistenceProcessorProvider = Provider<PersistenceProcessor?>((ref) {
   final phase = ref.watch(appPhaseProvider);
   return phase is Ready ? phase.persistence : null;
+});
+
+final clockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
+
+final todayProvider = Provider<DateTime>((ref) {
+  return startOfDayUtc(ref.watch(clockProvider)());
 });
