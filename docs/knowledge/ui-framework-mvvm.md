@@ -1,6 +1,6 @@
 # UI Framework (MVVM)
 
-Last reconciled: 12f4774
+Last reconciled: 88e6baf
 
 ## Feature overview
 
@@ -74,7 +74,9 @@ value, which then overwrites it. (issue #38)
   scheme (primary action, surface, raised surfaces, text, subtext, control/edge outlines, error),
   sets the bundled InstrumentSans family, a filled-button theme for primary actions with text and
   outline themes for secondary actions, underline-only inputs in the focus colour, and sheets on the
-  raised token. Widgets read tokens through `context.colors` and amount roles through `context.text`.
+  raised token. `surfaceContainerHighest` maps to the tint token, so neutral tracks and inset rows
+  stay visible on white light-mode surfaces. Widgets read tokens through `context.colors` and amount
+  roles through `context.text`.
   (`app/lib/ui/theme/spendwise_theme.dart`)
 - **Font** - Instrument Sans static TTFs (Regular 400, Medium 500, SemiBold 600, Bold 700) are bundled
   under `app/assets/fonts/instrument_sans/` with the OFL text; the licence is registered through
@@ -88,8 +90,9 @@ value, which then overwrites it. (issue #38)
 - **Amount sign and colour** - `AmountStyle.of(context, {kind, signedValue})` replaces the removed
   `AmountColors`. Colour follows kind or sign only: income or positive uses the income token, expense
   or negative uses the expense token, transfer or zero uses the text token. There is no category or
-  colour parameter, so an amount is never coloured by its category and a negative is never shown in
-  the income colour. (`app/lib/ui/format/amount_style.dart`)
+  colour parameter, so an amount is never coloured by its category. A negative `signedValue` takes
+  the expense token even when `kind` is income, so a negative is never shown in the income colour.
+  (`app/lib/ui/format/amount_style.dart`)
 - **Amount input** - sanitizer strips to digits and one `.`, max 2 fraction digits, dropped not
   rounded; only the balance field allows a leading `-`.
 - **colorHex** — parses `#RRGGBB` or `RRGGBB`; malformed falls back to gray; writing back emits
