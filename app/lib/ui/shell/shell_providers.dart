@@ -1,4 +1,7 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
+
+import 'package:spendwise/boot/providers.dart';
 
 enum ShellDestination { transactions, stats, accounts, settings }
 
@@ -8,8 +11,12 @@ final selectedDestinationProvider = StateProvider<ShellDestination>(
 
 DateTime startOfMonthUtc(DateTime date) => DateTime.utc(date.year, date.month);
 
-final selectedMonthProvider = StateProvider<DateTime>(
-  (ref) => startOfMonthUtc(DateTime.now()),
-);
+final selectedMonthProvider = StateProvider<DateTime?>((ref) => null);
+
+final effectiveMonthProvider = Provider<DateTime>((ref) {
+  final override = ref.watch(selectedMonthProvider);
+  if (override != null) return startOfMonthUtc(override);
+  return startOfMonthUtc(ref.watch(todayProvider));
+});
 
 final enrollmentFlowOpenProvider = StateProvider<bool>((ref) => false);

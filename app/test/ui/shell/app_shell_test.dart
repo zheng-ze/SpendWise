@@ -142,7 +142,7 @@ void main() {
             bodies: {
               ShellDestination.transactions: (context) => Consumer(
                 builder: (context, ref, _) {
-                  final month = ref.watch(selectedMonthProvider);
+                  final month = ref.watch(effectiveMonthProvider);
                   return Text('month ${month.year}-${month.month}');
                 },
               ),

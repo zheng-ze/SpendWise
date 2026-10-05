@@ -172,7 +172,7 @@ class _BudgetsRoot extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final asyncState = ref.watch(budgetsListViewModelProvider);
     final viewModel = ref.watch(budgetsListViewModelProvider.notifier);
-    final month = YearMonth.fromUtc(ref.watch(selectedMonthProvider));
+    final month = YearMonth.fromUtc(ref.watch(effectiveMonthProvider));
 
     return asyncState.when(
       data: (viewState) => _BudgetsRootBody(

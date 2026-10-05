@@ -22,6 +22,9 @@ banners, and first-launch seeding. These live in `app/lib/ledger/` and `app/lib/
   publication to `enqueue` (unstamped) or `enqueueStamped` (stamped).
 - `app/lib/boot/app_boot.dart`, `app_phase.dart`, `banner_state.dart`, `providers.dart`,
   `seed_data.dart` — boot state machine, banner state, Riverpod wiring, and the sample dataset.
+  `providers.dart` also holds `clockProvider` and `todayProvider`; the day
+  rollover ticker lives in `app/lib/ui/shell/day_ticker.dart`, and the month
+  override in `app/lib/ui/shell/shell_providers.dart`.
 - `app/lib/ui/shell/status_banner.dart` — the bottom status banner overlay. The browser-storage
   durability warning (`storage_warning.dart`, `storageIsDurableProvider`) was removed in commit
   `4d465f0` alongside the dropped web platform target; `status_banner.dart` is now the only banner
@@ -124,6 +127,22 @@ since the real system clock's offset cannot be controlled deterministically in t
 suite. Backgrounding `flush()` is the load-bearing durability moment: it pushes the debounced
 store's pending batch to disk before the OS can kill the process.
 
+## Clock seam
+
+`clockProvider` (defaulting to `DateTime.now`) and `todayProvider`
+(`startOfDayUtc` of the clock) give every screen one notion of today. A
+`DayTicker` owned by `AppShell` invalidates `todayProvider` on app resume and
+at each local midnight through a re-arming one-shot timer, cancelled on
+dispose. `selectedMonthProvider` is a nullable user override and
+`effectiveMonthProvider` falls back to the month of today, so an unset month
+follows a day rollover into a new month while a chosen month stays. ViewModels
+still on `DateTime.now()` move onto these providers when their screens are
+rebuilt. Source: `app/lib/boot/providers.dart` - `clockProvider`,
+`todayProvider`; `app/lib/ui/shell/day_ticker.dart` - `DayTicker`;
+`app/lib/ui/shell/shell_providers.dart` - `selectedMonthProvider`,
+`effectiveMonthProvider`; `app/lib/ui/shell/app_shell.dart` -
+`_AppShellState`; `app/test/boot/clock_test.dart`.
+
 ## `resolvePlans` + `onPlanError`
 
 `resolvePlans(now)` runs `state.resolvePlans(now)` inside `mutate`; the materialized entries,
@@ -182,6 +201,9 @@ spread, card-vs-checking sourcing, and two live plans (`seed_data.dart`, `ledger
 
 ## Requirements
 
+- `todayProvider` advances on resume and at local midnight; an unset month
+  follows today into a new month while a chosen month stays.
+  (`app/test/boot/clock_test.dart`)
 - `Ledger` is the only object allowed to touch `LedgerState`; views never hold a `LedgerState`
   reference. (`ledger.dart`)
 - Every mutation runs the four-step `mutate` pipeline; a throwing mutator publishes nothing.

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:spendwise/boot/providers.dart';
+import 'package:spendwise/ui/shell/day_ticker.dart';
 import 'package:spendwise/ui/shell/layout_breakpoints.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/shell/status_banner.dart';
@@ -33,6 +35,23 @@ class AppShell extends ConsumerStatefulWidget {
 class _AppShellState extends ConsumerState<AppShell> {
   bool _useRail = false;
   bool _extended = false;
+  DayTicker? _ticker;
+
+  @override
+  void dispose() {
+    _ticker?.dispose();
+    _ticker = null;
+    super.dispose();
+  }
+
+  void _ensureTicker(DateTime Function() clock) {
+    if (_ticker?.clock == clock) return;
+    _ticker?.dispose();
+    _ticker = DayTicker(
+      clock: clock,
+      onDayChanged: () => ref.invalidate(todayProvider),
+    );
+  }
 
   void _updateLayoutMode(double width) {
     final useRail = _useRail
@@ -53,6 +72,7 @@ class _AppShellState extends ConsumerState<AppShell> {
   @override
   Widget build(BuildContext context) {
     final selected = ref.watch(selectedDestinationProvider);
+    _ensureTicker(ref.watch(clockProvider));
     _updateLayoutMode(MediaQuery.sizeOf(context).width);
 
     void select(int index) =>
