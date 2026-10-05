@@ -96,6 +96,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                 padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
                 child: MediaQuery.removePadding(
                   context: context,
+                  removeTop: true,
                   removeBottom: true,
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(20),

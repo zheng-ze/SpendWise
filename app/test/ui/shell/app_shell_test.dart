@@ -50,15 +50,13 @@ void main() {
     expect(labels, ['Transactions', 'Stats', 'Accounts', 'Settings']);
   });
 
-  testWidgets('a bottom system inset stays outside the bar pill', (
-    tester,
-  ) async {
+  testWidgets('system insets stay outside the bar pill', (tester) async {
     await _pumpShell(tester, size: _compact);
 
     final plain = tester.getSize(find.byType(NavigationBar)).height;
 
-    tester.view.viewPadding = const FakeViewPadding(bottom: 34);
-    tester.view.padding = const FakeViewPadding(bottom: 34);
+    tester.view.viewPadding = const FakeViewPadding(top: 62, bottom: 34);
+    tester.view.padding = const FakeViewPadding(top: 62, bottom: 34);
     await tester.pumpAndSettle();
 
     expect(find.byType(NavigationBar), findsOneWidget);
