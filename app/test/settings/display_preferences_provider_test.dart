@@ -12,7 +12,7 @@ import 'package:spendwise/settings/display_preferences.dart';
 import 'package:spendwise/settings/display_preferences_providers.dart';
 import 'package:spendwise/settings/display_preferences_store.dart';
 
-const _darkCustom = DisplayPreferences(
+final _darkCustom = DisplayPreferences(
   appearance: Appearance.dark,
   overviewWidgets: [
     OverviewWidgetKind.comingUp,
@@ -102,7 +102,7 @@ void main() {
   testWidgets('a stored Dark overrides a light platform', (tester) async {
     await _pumpApp(
       tester,
-      initial: const DisplayPreferences(appearance: Appearance.dark),
+      initial: DisplayPreferences(appearance: Appearance.dark),
       platform: Brightness.light,
     );
 
@@ -130,7 +130,7 @@ void main() {
   testWidgets('a stored Light overrides a dark platform', (tester) async {
     await _pumpApp(
       tester,
-      initial: const DisplayPreferences(appearance: Appearance.light),
+      initial: DisplayPreferences(appearance: Appearance.light),
       platform: Brightness.dark,
     );
 

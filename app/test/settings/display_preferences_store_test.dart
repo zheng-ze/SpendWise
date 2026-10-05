@@ -20,7 +20,7 @@ void main() {
 
     test('every field round-trips, including the savings pocket', () async {
       final prefs = await SharedPreferences.getInstance();
-      const saved = DisplayPreferences(
+      final saved = DisplayPreferences(
         appearance: Appearance.dark,
         overviewWidgets: [
           OverviewWidgetKind.comingUp,

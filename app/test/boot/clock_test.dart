@@ -44,29 +44,48 @@ void main() {
     expect(container.read(todayProvider), DateTime.utc(2026, 10, 4));
   });
 
-  test('the midnight timer moves todayProvider to the new day', () {
-    TestWidgetsFlutterBinding.ensureInitialized();
-    FakeAsync().run((fake) {
-      var now = DateTime(2026, 10, 3, 23, 59);
-      final container = ProviderContainer(
-        overrides: [clockProvider.overrideWithValue(() => now)],
-      );
-      final ticker = DayTicker(
-        clock: container.read(clockProvider),
-        onDayChanged: () => container.invalidate(todayProvider),
-      );
+  test(
+    'the midnight timer re-arms across midnights and stops after dispose',
+    () {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      FakeAsync().run((fake) {
+        var now = DateTime(2026, 10, 3, 23, 59);
+        var calls = 0;
+        final container = ProviderContainer(
+          overrides: [clockProvider.overrideWithValue(() => now)],
+        );
+        final ticker = DayTicker(
+          clock: container.read(clockProvider),
+          onDayChanged: () {
+            calls++;
+            container.invalidate(todayProvider);
+          },
+        );
 
-      expect(container.read(todayProvider), DateTime.utc(2026, 10, 3));
+        expect(container.read(todayProvider), DateTime.utc(2026, 10, 3));
 
-      now = DateTime(2026, 10, 4, 0, 1);
-      fake.elapse(const Duration(minutes: 2));
+        now = DateTime(2026, 10, 4, 0, 1);
+        fake.elapse(const Duration(minutes: 2));
 
-      expect(container.read(todayProvider), DateTime.utc(2026, 10, 4));
+        expect(calls, 1);
+        expect(container.read(todayProvider), DateTime.utc(2026, 10, 4));
 
-      ticker.dispose();
-      container.dispose();
-    });
-  });
+        now = DateTime(2026, 10, 5, 0, 1);
+        fake.elapse(const Duration(days: 1));
+
+        expect(calls, 2);
+        expect(container.read(todayProvider), DateTime.utc(2026, 10, 5));
+
+        ticker.dispose();
+        now = DateTime(2026, 10, 6, 0, 1);
+        fake.elapse(const Duration(days: 2));
+
+        expect(calls, 2);
+
+        container.dispose();
+      });
+    },
+  );
 
   test('an unset month follows today into a new month', () {
     TestWidgetsFlutterBinding.ensureInitialized();

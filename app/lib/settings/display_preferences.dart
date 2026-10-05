@@ -84,9 +84,9 @@ enum ChartColours {
 }
 
 class DisplayPreferences {
-  const DisplayPreferences({
+  DisplayPreferences({
     this.appearance = Appearance.system,
-    this.overviewWidgets = const [
+    List<OverviewWidgetKind> overviewWidgets = const [
       OverviewWidgetKind.today,
       OverviewWidgetKind.recentEntries,
       OverviewWidgetKind.comingUp,
@@ -96,11 +96,12 @@ class DisplayPreferences {
     this.chartColours = ChartColours.categoryColours,
     this.insightCategoryChanges = true,
     this.insightUsualPace = true,
-    this.dismissedInsights = const {},
+    Set<String> dismissedInsights = const {},
     this.savingsPocketID,
-  });
+  }) : overviewWidgets = List.unmodifiable(overviewWidgets),
+       dismissedInsights = Set.unmodifiable(dismissedInsights);
 
-  static const defaults = DisplayPreferences();
+  static final defaults = DisplayPreferences();
 
   final Appearance appearance;
   final List<OverviewWidgetKind> overviewWidgets;
