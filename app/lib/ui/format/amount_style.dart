@@ -14,6 +14,9 @@ class AmountStyle {
     Decimal? signedValue,
   }) {
     final colors = context.colors;
+    if (signedValue != null && signedValue < Decimal.zero) {
+      return AmountStyle(color: colors.expense);
+    }
     if (kind != null) {
       return AmountStyle(
         color: switch (kind) {
@@ -23,9 +26,8 @@ class AmountStyle {
         },
       );
     }
-    if (signedValue != null) {
-      if (signedValue > Decimal.zero) return AmountStyle(color: colors.income);
-      if (signedValue < Decimal.zero) return AmountStyle(color: colors.expense);
+    if (signedValue != null && signedValue > Decimal.zero) {
+      return AmountStyle(color: colors.income);
     }
     return AmountStyle(color: colors.text);
   }

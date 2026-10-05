@@ -116,4 +116,33 @@ void main() {
     expect(negative, isNot(const Color(0xFF28684F)));
     expect(negative, const Color(0xFF964B44));
   });
+
+  testWidgets('a negative value never takes the income colour, whatever '
+      'the kind', (tester) async {
+    late Color negativeIncome;
+    late Color negativeTransfer;
+    await tester.pumpWidget(
+      _host(
+        Builder(
+          builder: (context) {
+            negativeIncome = AmountStyle.of(
+              context,
+              kind: AmountKind.income,
+              signedValue: dec('-167.40'),
+            ).color;
+            negativeTransfer = AmountStyle.of(
+              context,
+              kind: AmountKind.transfer,
+              signedValue: dec('-167.40'),
+            ).color;
+            return const SizedBox.shrink();
+          },
+        ),
+      ),
+    );
+
+    expect(negativeIncome, isNot(const Color(0xFF28684F)));
+    expect(negativeIncome, const Color(0xFF964B44));
+    expect(negativeTransfer, const Color(0xFF964B44));
+  });
 }

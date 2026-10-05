@@ -103,7 +103,7 @@ class _AccountRowBody extends StatelessWidget {
             Expanded(child: Text(row.name, style: theme.textTheme.bodyLarge)),
             switch (row.amount) {
               SingleTotal(:final total) => Text(
-                formatMoney(total),
+                formatMoney(total, symbol: false),
                 style: theme.textTheme.titleSmall?.copyWith(
                   color: AmountStyle.of(context, signedValue: total).color,
                 ),
@@ -112,7 +112,7 @@ class _AccountRowBody extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    formatMoney(payable),
+                    formatMoney(payable, symbol: false),
                     style: theme.textTheme.titleSmall?.copyWith(
                       color: AmountStyle.of(
                         context,
@@ -121,7 +121,7 @@ class _AccountRowBody extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    formatMoney(outstanding),
+                    formatMoney(outstanding, symbol: false),
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -161,7 +161,7 @@ class _SubRow extends StatelessWidget {
             children: [
               Expanded(child: Text(title, style: theme.textTheme.bodyMedium)),
               Text(
-                formatMoney(amount),
+                formatMoney(amount, symbol: false),
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: AmountStyle.of(context, signedValue: amount).color,
                 ),

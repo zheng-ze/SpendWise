@@ -88,6 +88,7 @@ void main() {
       expect(scheme.onPrimary, const Color(0xFFFFFFFF));
       expect(scheme.surface, const Color(0xFFFFFFFF));
       expect(scheme.surfaceContainerHigh, const Color(0xFFFFFFFF));
+      expect(scheme.surfaceContainerHighest, const Color(0xFFF0F1F2));
       expect(scheme.onSurface, const Color(0xFF25272A));
       expect(scheme.onSurfaceVariant, const Color(0xFF5B5F66));
       expect(scheme.outline, const Color(0xFF73777F));
@@ -96,6 +97,11 @@ void main() {
       expect(theme.textTheme.bodyMedium?.fontFamily, 'InstrumentSans');
       expect(theme.extension<SpendWiseColors>(), isNotNull);
       expect(theme.extension<SpendWiseText>(), isNotNull);
+    });
+
+    test('seats the highest container on the tint token in dark mode', () {
+      final scheme = buildSpendWiseTheme(Brightness.dark).colorScheme;
+      expect(scheme.surfaceContainerHighest, const Color(0xFF242629));
     });
 
     test('uses underline inputs in the focus colour', () {

@@ -24,7 +24,7 @@ ThemeData buildSpendWiseTheme(Brightness brightness) {
     surfaceContainerLow: tokens.tint,
     surfaceContainer: tokens.tint,
     surfaceContainerHigh: tokens.raised,
-    surfaceContainerHighest: tokens.raised,
+    surfaceContainerHighest: tokens.tint,
     outline: tokens.control,
     outlineVariant: tokens.edge,
     error: tokens.error,

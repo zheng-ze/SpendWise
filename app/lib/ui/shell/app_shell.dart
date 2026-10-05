@@ -90,20 +90,27 @@ class _AppShellState extends ConsumerState<AppShell> {
         ? Scaffold(
             key: const ValueKey('bottom-nav'),
             body: content,
-            bottomNavigationBar: Padding(
-              padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: NavigationBar(
-                  selectedIndex: selected.index,
-                  onDestinationSelected: select,
-                  destinations: [
-                    for (final destination in ShellDestination.values)
-                      NavigationDestination(
-                        icon: Icon(_destinationIcons[destination]),
-                        label: _destinationLabels[destination]!,
-                      ),
-                  ],
+            bottomNavigationBar: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                child: MediaQuery.removePadding(
+                  context: context,
+                  removeBottom: true,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: NavigationBar(
+                      selectedIndex: selected.index,
+                      onDestinationSelected: select,
+                      destinations: [
+                        for (final destination in ShellDestination.values)
+                          NavigationDestination(
+                            icon: Icon(_destinationIcons[destination]),
+                            label: _destinationLabels[destination]!,
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),

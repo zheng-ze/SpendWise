@@ -172,7 +172,7 @@ class _SectionHeaderRow extends StatelessWidget {
           ),
           switch (header) {
             SubtotalHeader(:final subtotal) => Text(
-              formatMoney(subtotal),
+              formatMoney(subtotal, symbol: false),
               style: theme.textTheme.labelLarge?.copyWith(
                 color: AmountStyle.of(context, signedValue: subtotal).color,
               ),
@@ -181,7 +181,7 @@ class _SectionHeaderRow extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Payable ${formatMoney(payable)}',
+                  'Payable ${formatMoney(payable, symbol: false)}',
                   style: theme.textTheme.labelLarge?.copyWith(
                     color: AmountStyle.of(
                       context,
@@ -191,7 +191,7 @@ class _SectionHeaderRow extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  'Outstanding ${formatMoney(outstanding)}',
+                  'Outstanding ${formatMoney(outstanding, symbol: false)}',
                   style: theme.textTheme.labelLarge?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),

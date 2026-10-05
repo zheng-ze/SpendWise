@@ -155,6 +155,20 @@ class _TrendCardState extends State<TrendCard> {
         getTooltipColor: (_) => const Color(0x00000000),
         getTooltipItems: (spots) => [for (final _ in spots) null],
       ),
+      getTouchedSpotIndicator: (bar, indicators) => [
+        for (final _ in indicators)
+          TouchedSpotIndicatorData(
+            FlLine(color: const Color(0x00000000)),
+            FlDotData(
+              getDotPainter: (spot, percent, touchedBar, touchedIndex) =>
+                  FlDotCirclePainter(
+                    radius: 5,
+                    color: selectedMark,
+                    strokeWidth: 0,
+                  ),
+            ),
+          ),
+      ],
       touchCallback: _onTrendTouch,
     );
 
