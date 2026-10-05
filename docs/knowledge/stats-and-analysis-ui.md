@@ -1,6 +1,6 @@
 # Stats & Analysis UI
 
-Last reconciled: 2026-09-02
+Last reconciled: 12f4774
 
 ## Feature overview
 
@@ -40,17 +40,18 @@ row in the legend is not navigable.
 
 ## Screens and flows
 
-- **Stats tab** — `TopTabBar` (Income | Expense, default Expense), a total line (30 pt bold, blue
-  income / red expense = Σ analysis items of the active kind in the window), a donut, and a category
+- **Stats tab** - `TopTabBar` (Income | Expense, default Expense), a total line (Instrument Sans
+  headline, income token / expense token = Σ analysis items of the active kind in the window), a donut, and a category
   legend. App bar: `MonthYearSelector` leading and a range menu dropdown (Monthly | Annually)
   trailing that renders on every platform, desktop and web included. Slices: filter, roll up, sort
   descending; donut ring starts at 12 o'clock clockwise with a 1.5° gap and leader-line labels
   (`Name  NN%`). Empty state: `chart.pie` glyph + "No income/expense in this period", replacing the
-  donut and list while the total still shows `$0.00`.
-- **Category Detail** — a `TransactionsTableView` whose header stack is scope total, subcategory
+  donut and list while the total still shows `S$0.00`.
+- **Category Detail** - a `TransactionsTableView` whose header stack is scope total, subcategory
   table (only when the category has children), trend card, and "ENTRIES"; then the day-sectioned
   entry list (full tap-to-view + swipe-delete). Scope selection is `all` | `sub(id)` | `direct`:
-  caption over the total ("Food" / "Food › Hawker" / "Food › Direct"), amount colored by kind. The
+  caption over the total ("Food" / "Food › Hawker" / "Food › Direct"), amount in the kind's
+  `AmountStyle` colour (the expense token for expense categories, never a category colour). The
   subcategory table's first row is "All \<Main\>" (100%); then child slices and the "Direct" slice
   (id nil, parent color) sorted together by amount, the Direct row existing only when
   main-total − Σ children > 0. Fractions are of the main-category total. The trend card shows a

@@ -1,6 +1,6 @@
 # Transactions UI
 
-Last reconciled: 2026-09-02
+Last reconciled: 12f4774
 
 ## Feature overview
 
@@ -44,7 +44,7 @@ destination keeps its own navigator.
   resolve each to a `TransactionRow`, filter to the half-open interval, group by `startOfDay(date)`,
   sort days descending and rows by timestamp descending. Section aggregates count income and
   negated expenses of entries with `includeInAnalysis == true`. Day headers are sticky and show a
-  net colored by the net-amount rule. Empty state: tray icon + "No transactions". Tap a row opens a
+  bare net in the `AmountStyle` sign colour. Empty state: tray icon + "No transactions". Tap a row opens a
   read-only entry sheet; swipe leading-to-trailing opens a "Delete this transaction?" confirmation.
 - **Monthly view** — `monthSummaries` is a pure function: months up to and including the current
   month, newest first, each with weeks kept at full week range even when spilling into neighboring
