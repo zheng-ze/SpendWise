@@ -6,6 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ui/common/app_sheet.dart';
 import 'package:spendwise/ui/common/sheet_alert.dart';
 
+import '../../support/sheet_contract.dart' as contract;
+
 const _phone = Size(320, 760);
 const _compact = Size(320, 560);
 const _desktop = Size(1200, 800);
@@ -73,6 +75,161 @@ void main() {
 
   for (final size in [_phone, _compact]) {
     testWidgets(
+      'phone sheets span the full width at ${size.height.toInt()}px',
+      (tester) async {
+        _useSize(tester, size);
+        await _openSheet(tester, _sheet(body: const Text('short body')));
+
+        final rect = tester.getRect(find.byType(AppSheet));
+        expect(rect.left, 0);
+        expect(rect.right, size.width);
+      },
+    );
+  }
+
+  testWidgets('footer and input surface stay above the bottom safe inset', (
+    tester,
+  ) async {
+    _useSize(tester, _phone);
+    tester.view.padding = const FakeViewPadding(bottom: 34);
+    addTearDown(tester.view.reset);
+    await _openSheet(
+      tester,
+      _sheet(
+        footer: const Text('Save'),
+        inputSurface: const Text('number pad'),
+        body: const Text('short body'),
+      ),
+    );
+
+    expect(
+      tester.getRect(find.text('Save')).bottom,
+      lessThanOrEqualTo(_phone.height - 34),
+    );
+    expect(
+      tester.getRect(find.text('number pad')).bottom,
+      lessThanOrEqualTo(_phone.height - 34),
+    );
+    expect(find.text('Save').hitTestable(), findsOneWidget);
+    expect(find.text('number pad').hitTestable(), findsOneWidget);
+    final background = tester.getRect(
+      find
+          .descendant(
+            of: find.byType(AppSheet),
+            matching: find.byType(Material),
+          )
+          .first,
+    );
+    expect(background.bottom, _phone.height);
+  });
+
+  group('root navigator', () {
+    Future<void> openFromNested(WidgetTester tester, Size size) async {
+      _useSize(tester, size);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: [
+                const Text('outer'),
+                SizedBox(
+                  width: 200,
+                  height: 200,
+                  child: Navigator(
+                    onGenerateRoute: (_) => MaterialPageRoute(
+                      builder: (context) => TextButton(
+                        onPressed: () => showAppSheet<void>(
+                          context,
+                          builder: (_) =>
+                              _sheet(body: const Text('nested body')),
+                        ),
+                        child: const Text('open nested'),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open nested'));
+      await tester.pumpAndSettle();
+    }
+
+    bool barrierCovers(WidgetTester tester, Size window) {
+      for (final element in find.byType(ModalBarrier).evaluate()) {
+        final box = element.renderObject;
+        if (box is! RenderBox || !box.hasSize) continue;
+        final rect = box.localToGlobal(Offset.zero) & box.size;
+        if (rect == Offset.zero & window) return true;
+      }
+      return false;
+    }
+
+    testWidgets('the barrier and sheet cover the window, not the pane', (
+      tester,
+    ) async {
+      await openFromNested(tester, _phone);
+
+      expect(tester.getRect(find.byType(AppSheet)).width, _phone.width);
+      expect(barrierCovers(tester, _phone), isTrue);
+    });
+
+    testWidgets('the desktop dialog centres in the window, not the pane', (
+      tester,
+    ) async {
+      await openFromNested(tester, _desktop);
+
+      expect(
+        tester.getRect(find.byType(AppSheet)).center,
+        Offset(_desktop.width / 2, _desktop.height / 2),
+      );
+      expect(barrierCovers(tester, _desktop), isTrue);
+    });
+  });
+
+  testWidgets('the contract helper checks every drawn sheet', (tester) async {
+    contract.useSheetSize(tester, _phone);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () => showAppSheet<void>(
+              context,
+              builder: (_) => AppSheet(
+                header: const Text('first'),
+                body: Builder(
+                  builder: (sheetContext) => TextButton(
+                    onPressed: () => showAppSheet<void>(
+                      sheetContext,
+                      builder: (_) => const AppSheet(
+                        header: Text('second'),
+                        body: Text('second body'),
+                      ),
+                    ),
+                    child: const Text('layer'),
+                  ),
+                ),
+              ),
+            ),
+            child: const Text('open'),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('layer'));
+    await tester.pumpAndSettle();
+
+    contract.expectAllSheetsCapped(tester, _phone);
+    expect(contract.appSheetHeight(tester, 0), greaterThan(0));
+    expect(contract.appSheetHeight(tester, 1), greaterThan(0));
+  });
+
+  for (final size in [_phone, _compact]) {
+    testWidgets(
       'long content at ${size.height.toInt()}px stops at the cap and scrolls',
       (tester) async {
         _useSize(tester, size);
@@ -91,19 +248,21 @@ void main() {
         final cap = 0.66 * size.height;
         expect(_sheetHeight(tester), lessThanOrEqualTo(cap + 1));
 
-        expect(find.text('Sheet title'), findsOneWidget);
-        expect(find.text('Save'), findsOneWidget);
-        expect(find.text('number pad'), findsOneWidget);
+        expect(find.text('Sheet title').hitTestable(), findsOneWidget);
+        expect(find.text('Save').hitTestable(), findsOneWidget);
+        expect(find.text('number pad').hitTestable(), findsOneWidget);
 
-        await tester.drag(
+        await tester.fling(
           find.byType(SingleChildScrollView),
-          const Offset(0, -400),
+          const Offset(0, -500),
+          2000,
         );
         await tester.pumpAndSettle();
 
-        expect(find.text('Sheet title'), findsOneWidget);
-        expect(find.text('Save'), findsOneWidget);
-        expect(find.text('number pad'), findsOneWidget);
+        expect(find.text('Sheet title').hitTestable(), findsOneWidget);
+        expect(find.text('Save').hitTestable(), findsOneWidget);
+        expect(find.text('number pad').hitTestable(), findsOneWidget);
+        expect(find.text('row 39').hitTestable(), findsOneWidget);
         expect(_sheetHeight(tester), lessThanOrEqualTo(cap + 1));
       },
     );

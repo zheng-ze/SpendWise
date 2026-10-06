@@ -8,7 +8,12 @@ Future<bool> showDeleteConfirmation(
 }) async {
   final confirmed = await showDialog<bool>(
     context: context,
-    builder: (dialogContext) => _DeleteDialog(itemName: itemName),
+    builder: (dialogContext) => Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 440),
+        child: _DeleteDialog(itemName: itemName),
+      ),
+    ),
   );
 
   return confirmed ?? false;
@@ -28,21 +33,34 @@ class _DeleteDialog extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(color: colors.control),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Delete $itemName?',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 14),
-            const _DeleteActions(),
-          ],
+      child: IntrinsicWidth(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _DeleteTitle(itemName: itemName),
+              const SizedBox(height: 14),
+              const _DeleteActions(),
+            ],
+          ),
         ),
       ),
+    );
+  }
+}
+
+class _DeleteTitle extends StatelessWidget {
+  const _DeleteTitle({required this.itemName});
+
+  final String itemName;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      'Delete $itemName?',
+      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
     );
   }
 }
@@ -53,14 +71,15 @@ class _DeleteActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.end,
+    return OverflowBar(
+      alignment: MainAxisAlignment.end,
+      spacing: 18,
+      overflowSpacing: 8,
       children: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(false),
           child: const Text('Cancel'),
         ),
-        const SizedBox(width: 18),
         FilledButton(
           style: FilledButton.styleFrom(
             backgroundColor: colors.error,

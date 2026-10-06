@@ -75,4 +75,53 @@ void main() {
     await tester.tap(find.text('Delete'));
     await future;
   });
+
+  testWidgets('the dialog stays a small dialog on wide windows', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildSpendWiseTheme(Brightness.light),
+        home: const Scaffold(body: Builder(builder: _openButton)),
+      ),
+    );
+    final context = tester.element(find.byType(TextButton));
+
+    final future = showDeleteConfirmation(context, itemName: 'Item');
+    await tester.pumpAndSettle();
+
+    expect(tester.getRect(find.byType(Dialog)).width, lessThanOrEqualTo(440));
+
+    await tester.tap(find.text('Delete'));
+    await future;
+  });
+
+  testWidgets('both actions stay usable at large text scale', (tester) async {
+    tester.view.physicalSize = const Size(320, 760);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildSpendWiseTheme(Brightness.light),
+        home: MediaQuery(
+          data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+          child: const Scaffold(body: Builder(builder: _openButton)),
+        ),
+      ),
+    );
+    final context = tester.element(find.byType(TextButton));
+
+    final future = showDeleteConfirmation(context, itemName: 'Groceries');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Cancel').hitTestable(), findsOneWidget);
+    expect(find.text('Delete').hitTestable(), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.text('Cancel'));
+    expect(await future, isFalse);
+  });
 }

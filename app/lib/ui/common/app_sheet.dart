@@ -8,7 +8,10 @@ Future<T?> showAppSheet<T>(
   BuildContext context, {
   required WidgetBuilder builder,
 }) {
-  return Navigator.of(context).push<T>(AppSheetRoute<T>(builder: builder));
+  return Navigator.of(
+    context,
+    rootNavigator: true,
+  ).push<T>(AppSheetRoute<T>(builder: builder));
 }
 
 class AppSheetAlertSlot extends InheritedWidget {
@@ -121,10 +124,9 @@ class _AppSheetState extends State<AppSheet> {
     final sheetBody = Column(mainAxisSize: MainAxisSize.min, children: content);
 
     return ConstrainedBox(
-      constraints: BoxConstraints(
-        maxHeight: cap,
-        maxWidth: desktop ? 440 : double.infinity,
-      ),
+      constraints: desktop
+          ? BoxConstraints(maxHeight: cap, maxWidth: 440)
+          : BoxConstraints(maxHeight: cap, minWidth: double.infinity),
       child: Material(
         color: colors.raised,
         borderRadius: desktop
@@ -139,7 +141,7 @@ class _AppSheetState extends State<AppSheet> {
                 ? BorderRadius.circular(16)
                 : const BorderRadius.vertical(top: Radius.circular(22)),
           ),
-          padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
+          padding: EdgeInsets.fromLTRB(14, 8, 14, 14 + media.padding.bottom),
           child: sheetBody,
         ),
       ),

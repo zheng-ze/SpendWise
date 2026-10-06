@@ -30,11 +30,22 @@ Future<void> pumpAppSheet(
   await tester.pumpAndSettle();
 }
 
-double appSheetHeight(WidgetTester tester) =>
-    tester.getSize(find.byType(AppSheet)).height;
+double appSheetHeight(WidgetTester tester, [int index = 0]) =>
+    tester.getSize(find.byType(AppSheet).at(index)).height;
 
-void expectSheetCapped(WidgetTester tester, Size size) {
-  expect(appSheetHeight(tester), lessThanOrEqualTo(0.66 * size.height + 1));
+void expectSheetCapped(WidgetTester tester, Size size, [int index = 0]) {
+  expect(
+    appSheetHeight(tester, index),
+    lessThanOrEqualTo(0.66 * size.height + 1),
+  );
+}
+
+void expectAllSheetsCapped(WidgetTester tester, Size size) {
+  final count = find.byType(AppSheet).evaluate().length;
+  expect(count, greaterThan(0));
+  for (var i = 0; i < count; i++) {
+    expectSheetCapped(tester, size, i);
+  }
 }
 
 void expectAlertOutsideSheet(WidgetTester tester) {
