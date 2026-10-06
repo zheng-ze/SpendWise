@@ -222,7 +222,7 @@ def w_insights(state="history"):
 def w_week():
     return tray("Week so far", (
         '<div class="lab" style="color:var(--text);font-weight:600">More daily history needed.</div>'
-        '<div class="lab" style="margin-top:3px">Add entries across three complete weeks to compare this week fairly.</div>'))
+        '<div class="lab" style="margin-top:3px">Record more entries over the last three weeks to compare this week fairly.</div>'))
 
 
 ALL_WIDGETS = [w_today, w_month, w_recent, w_top, w_card, w_coming, w_balances, w_overtime, w_pocket, w_budgetwatch, w_insights, w_week]

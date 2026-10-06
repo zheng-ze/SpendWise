@@ -158,7 +158,7 @@ def catalogue():
         "Spending over time": "Last 12 months from revision 2 sample history, with a gap stub and a pale incomplete bar.",
         "Insights": "At most two changes with evidence. Normal state uses round 4 sample windows.",
         "Savings pocket": "A target is new; Holiday has none yet, so it asks for one.",
-        "Week so far": "Needs three complete weeks; states that instead of guessing.",
+        "Week so far": "Compares with the previous three weeks; says when there is too little history instead of guessing.",
     }
     cells = []
     for name in normal:

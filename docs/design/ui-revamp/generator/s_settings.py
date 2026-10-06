@@ -93,7 +93,7 @@ def build_settings():
         ROOT)
 
     ins = (header("Overview insights", back="Settings", gear=False)
-           + tray("", toggle_fld("Category changes", True, "Compare the same days in earlier months") + toggle_fld("Usual pace", True, "Use eligible complete months only"))
+           + tray("", toggle_fld("Category changes", True, "Compare the same days in earlier months") + toggle_fld("Usual pace", True, "Compare with the previous 3 weeks"))
            + '<div class="lab">Insights need the three previous months to be complete. They report a difference and never forecast. Dismissing one hides it for that month.</div>')
     reg("st-insights", S, "Settings", "Overview insights",
         settings_phone(ins, False),
