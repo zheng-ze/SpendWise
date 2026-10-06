@@ -23,22 +23,21 @@ def build():
     ins = overview_head() + w_today() + w_insights("shown") + w_recent()
     reg("ov-insights", A, "Home", "Overview, insights with enough history",
         phone(ins, "Overview", "long"),
-        "Sample history (round 4 matched windows): with three complete eligible months, at most two category changes appear, each dismissible for the month. Groceries 73.50 against a usual 45.00; Dining 83.90 against 58.00. Transport is unchanged and stays out. Seed-only history shows the More daily history needed state instead.",
+        "Sample history (round 4 matched windows): with the three previous months complete, at most two category changes appear, each dismissible for the month. Groceries 73.50 against a usual 45.00; Dining 83.90 against 58.00. Transport is unchanged and stays out. Seed-only history shows the More daily history needed state instead.",
         NEW8)
 
     ev = (header("Groceries compared", "1-3 October / Usual start", back="Overview", gear=False)
           + tray("", '<div class="split"><div><span class="lab">Recorded</span><b>S$73.50</b></div><div><span class="lab">Usual 1-3</span><b>S$45.00</b></div></div>'
                      '<div class="guide" style="margin-top:8px">S$28.50 higher / 63.3%</div><div class="lab">Same elapsed days, not whole months.</div>')
-          + tray("Usual start", '<div class="kv"><span>1-3 May</span><b>40.00</b></div><div class="kv"><span>1-3 June</span><b>50.00</b></div>'
-                 '<div class="kv"><span>1-3 July</span><b>45.00</b></div><div class="kv"><span>(40.00 + 50.00 + 45.00) / 3</span><b>45.00</b></div>'
-                 '<div class="lab" style="margin-top:6px">August and September have no records on 1-3, so both stay out.</div>', aside="<small>Complete months</small>")
+          + tray("Usual start", '<div class="kv"><span>1-3 July</span><b>40.00</b></div><div class="kv"><span>1-3 August</span><b>50.00</b></div>'
+                 '<div class="kv"><span>1-3 September</span><b>45.00</b></div><div class="kv"><span>(40.00 + 50.00 + 45.00) / 3</span><b>45.00</b></div>', aside="<small>Previous 3 months</small>")
           + tray("1-3 October", row("FairPrice groceries", "3 Oct / Supermarket / Amex Card", -42.50, "Supermarket")
                  + row("Tekka wet market", "2 Oct / Fresh Market / DBS Checking", -18.60, "Fresh Market")
                  + row("Cold Storage", "2 Oct / Groceries / DBS Checking", -12.40, "Groceries"), aside="<small>3 entries</small>")
           + btn("Open in Trends") + btn("Dismiss for October", "quiet"))
     reg("ov-evidence", A, "Home", "Insight evidence",
         phone(ev, "Overview", "long"),
-        "Opened from See comparison. Sample baseline windows from round 4: May 40.00, June 50.00, July 45.00. Current entries 42.50 + 18.60 + 12.40 = 73.50; 73.50 - 45.00 = 28.50; 28.50 / 45.00 = 63.3%. Dismiss hides it for October only.",
+        "Opened from See comparison. Sample baseline windows: July 40.00, August 50.00, September 45.00, the three months before October. Current entries 42.50 + 18.60 + 12.40 = 73.50; 73.50 - 45.00 = 28.50; 28.50 / 45.00 = 63.3%. Dismiss hides it for October only.",
         NEW8)
 
     sync = notice("Sync is paused", "Reconnect to send your latest entries. Your entries are saved on this device.", ["Reconnect sync"])

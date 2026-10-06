@@ -213,9 +213,9 @@ def w_insights(state="history"):
     else:
         body = (
             f'<div class="ins"><div class="t"><b>Groceries are S$28.50 higher than your usual start.</b><span class="x">{ic("close","s")}</span></div>'
-            '<small>1-3 Oct against the same days in May, June and July</small><div class="link" style="margin-top:4px">See comparison</div></div>'
+            '<small>1-3 Oct against the same days in July, August and September</small><div class="link" style="margin-top:4px">See comparison</div></div>'
             f'<div class="ins"><div class="t"><b>Dining is S$25.90 higher than your usual start.</b><span class="x">{ic("close","s")}</span></div>'
-            '<small>1-3 Oct against the same days in May, June and July</small><div class="link" style="margin-top:4px">See comparison</div></div>')
+            '<small>1-3 Oct against the same days in July, August and September</small><div class="link" style="margin-top:4px">See comparison</div></div>')
     return tray("Insights", body)
 
 

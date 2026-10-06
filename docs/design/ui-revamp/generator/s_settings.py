@@ -94,7 +94,7 @@ def build_settings():
 
     ins = (header("Overview insights", back="Settings", gear=False)
            + tray("", toggle_fld("Category changes", True, "Compare the same days in earlier months") + toggle_fld("Usual pace", True, "Use eligible complete months only"))
-           + '<div class="lab">Insights need three complete months with records on the same days. They report a difference and never forecast. Dismissing one hides it for that month.</div>')
+           + '<div class="lab">Insights need the three previous months to be complete. They report a difference and never forecast. Dismissing one hides it for that month.</div>')
     reg("st-insights", S, "Settings", "Overview insights",
         settings_phone(ins, False),
         "Proposed preferences from round 4. Switching both off removes insights from the Insights widget.",
