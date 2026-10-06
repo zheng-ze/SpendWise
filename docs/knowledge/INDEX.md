@@ -29,7 +29,7 @@ themselves. Feature entries fold in still-current legacy material when a feature
 | Accounts tab and account/pocket forms | [accounts-ui.md](accounts-ui.md) |
 | Settings: categories, recurring plans, recycle bin, Hosted Sync enrollment and repair, device-local display preferences | [settings-ui.md](settings-ui.md) |
 | Receipt OCR entry | [ocr-receipt-entry.md](ocr-receipt-entry.md) |
-| UI framework (MVVM, Flow, Step, notifiers) | [ui-framework-mvvm.md](ui-framework-mvvm.md) |
+| UI framework (MVVM, Flow, Step, notifiers, theme, shared sheets and component kit) | [ui-framework-mvvm.md](ui-framework-mvvm.md) |
 
 ## Conventions
 
