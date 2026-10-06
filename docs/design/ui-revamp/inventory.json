@@ -1,0 +1,887 @@
+[
+[
+"Transactions, daily",
+"app/lib/ui/transactions/daily_list/daily_transactions_screen.dart",
+"Transactions / Drawn"
+],
+[
+"Transactions, monthly",
+"app/lib/ui/transactions/monthly/monthly_transactions_view.dart",
+"Transactions / Drawn"
+],
+[
+"Transactions, expanded month",
+"app/lib/ui/transactions/monthly/monthly_transactions_view.dart",
+"Transactions / Drawn"
+],
+[
+"Add entry, expense",
+"app/lib/ui/transactions/entry/new_entry_form.dart",
+"Transactions / Drawn"
+],
+[
+"Add entry, note focus",
+"app/lib/ui/transactions/entry/entry_fields.dart",
+"Transactions / Drawn"
+],
+[
+"Edit entry",
+"app/lib/ui/transactions/entry/edit_entry_form.dart",
+"Transactions / Drawn"
+],
+[
+"Month and year picker",
+"app/lib/ui/common/month_year_selector.dart",
+"Transactions / Drawn"
+],
+[
+"Add entry, income",
+"app/lib/ui/transactions/entry/new_entry_form.dart",
+"Transactions / Drawn"
+],
+[
+"Add entry, transfer",
+"app/lib/ui/transactions/entry/entry_fields.dart",
+"Transactions / Drawn"
+],
+[
+"Add entry, recurring",
+"app/lib/ui/transactions/entry/new_entry_form.dart",
+"Transactions / Drawn"
+],
+[
+"Edit system entry",
+"app/lib/ui/transactions/entry/entry_fields.dart",
+"Transactions / Drawn"
+],
+[
+"After deleting an entry",
+"app/lib/ui/transactions/entry/edit_entry_form.dart + ui-redesign.html Decisions",
+"Transactions / Drawn"
+],
+[
+"Entry save failure",
+"app/lib/ui/common/error_section.dart",
+"Transactions / Drawn"
+],
+[
+"Entry category picker",
+"app/lib/ui/common/pickers/category_picker.dart",
+"Transactions / Drawn"
+],
+[
+"Account and pocket picker",
+"app/lib/ui/common/pickers/source_picker.dart",
+"Transactions / Drawn"
+],
+[
+"Recurrence picker",
+"app/lib/ui/common/pickers/recurrence_picker.dart",
+"Transactions / Drawn"
+],
+[
+"Entry and plan date picker",
+"app/lib/ui/transactions/transactions_flow.dart; app/lib/ui/settings/plan/plan_form.dart",
+"Transactions / Drawn"
+],
+[
+"Receipt recognition in progress",
+"app/lib/ui/transactions/receipt_scan/receipt_scan_strip.dart",
+"Transactions / Drawn"
+],
+[
+"Receipt access denied",
+"app/lib/ui/transactions/receipt_scan/receipt_scan_strip.dart",
+"Transactions / Drawn"
+],
+[
+"Receipt returns no text",
+"app/lib/ui/transactions/receipt_scan/receipt_scan_flow.dart",
+"Transactions / Drawn"
+],
+[
+"Crop receipt",
+"app/lib/ui/transactions/document_crop/document_crop_screen.dart",
+"Transactions / Drawn"
+],
+[
+"Crop receipt, loading",
+"app/lib/ui/transactions/document_crop/document_crop_screen.dart",
+"Transactions / Drawn"
+],
+[
+"Stats, expenses",
+"app/lib/ui/stats/stats_root_screen.dart",
+"Stats / Drawn"
+],
+[
+"Stats, category map",
+"app/lib/ui/stats/analysis/analysis_flow.dart + ui-redesign.html Decisions",
+"Stats / Drawn"
+],
+[
+"Stats, income",
+"app/lib/ui/stats/analysis/analysis_flow.dart",
+"Stats / Drawn"
+],
+[
+"Stats, subcategory donut",
+"app/lib/ui/stats/analysis/analysis_flow.dart + ui-redesign.html Decisions",
+"Stats / Drawn"
+],
+[
+"Stats, subcategory map",
+"app/lib/ui/stats/analysis/analysis_flow.dart + ui-redesign.html Decisions",
+"Stats / Drawn"
+],
+[
+"Stats, annual expenses",
+"app/lib/ui/stats/stats_root_screen.dart",
+"Stats / Drawn"
+],
+[
+"Stats period range menu",
+"app/lib/ui/stats/stats_root_screen.dart",
+"Stats / Drawn"
+],
+[
+"Groceries, category detail",
+"app/lib/ui/stats/category_detail/category_detail_screen.dart",
+"Stats / Drawn"
+],
+[
+"Groceries, subcategory detail",
+"app/lib/ui/stats/category_detail/category_detail_screen.dart",
+"Stats / Drawn"
+],
+[
+"Groceries, direct entries",
+"app/lib/ui/stats/category_detail/category_detail_screen.dart",
+"Stats / Drawn"
+],
+[
+"Category trend, selected month",
+"app/lib/ui/stats/category_detail/category_trend_card.dart",
+"Stats / Drawn"
+],
+[
+"Stats, budgets",
+"app/lib/ui/budgets/budget_list/budgets_flow.dart",
+"Budgets / Drawn"
+],
+[
+"Add budget",
+"app/lib/ui/budgets/budget_list/budget_form.dart",
+"Budgets / Drawn"
+],
+[
+"Budget category picker",
+"app/lib/ui/budgets/budget_list/budget_form.dart",
+"Budgets / Drawn"
+],
+[
+"Dining budget detail",
+"app/lib/ui/budgets/budget_detail/budget_detail_screen.dart",
+"Budgets / Drawn"
+],
+[
+"Budget limit history",
+"app/lib/ui/budgets/budget_detail/budget_limit_screen.dart",
+"Budgets / Drawn"
+],
+[
+"Edit default budget limit",
+"app/lib/ui/budgets/budget_detail/budget_limit_screen.dart",
+"Budgets / Drawn"
+],
+[
+"Edit September budget limit",
+"app/lib/ui/budgets/budget_detail/budget_limit_screen.dart",
+"Budgets / Drawn"
+],
+[
+"Delete budget confirmation",
+"app/lib/ui/common/delete_confirmation.dart",
+"Budgets / Drawn"
+],
+[
+"Budget deleted",
+"app/lib/ui/budgets/budget_detail/budget_detail_screen.dart; app/lib/ui/budgets/budget_detail/budget_limit_screen.dart",
+"Budgets / Drawn"
+],
+[
+"Accounts",
+"app/lib/ui/accounts/accounts_screen.dart",
+"Accounts / Drawn"
+],
+[
+"Accounts, expanded pockets",
+"app/lib/ui/accounts/account_row.dart",
+"Accounts / Drawn"
+],
+[
+"DBS Checking",
+"app/lib/ui/accounts/accounts_flow.dart; app/lib/ui/transactions/daily_list/daily_transactions_screen.dart",
+"Accounts / Drawn"
+],
+[
+"OCBC Savings",
+"app/lib/ui/accounts/accounts_flow.dart; app/lib/ui/transactions/daily_list/daily_transactions_screen.dart",
+"Accounts / Drawn"
+],
+[
+"OCBC Savings, excluding subpockets",
+"app/lib/ui/accounts/accounts_flow.dart; app/lib/ui/transactions/daily_list/daily_transactions_screen.dart",
+"Accounts / Drawn"
+],
+[
+"Emergency Fund",
+"app/lib/ui/accounts/accounts_flow.dart; app/lib/ui/transactions/daily_list/daily_transactions_screen.dart",
+"Accounts / Drawn"
+],
+[
+"Add account",
+"app/lib/ui/accounts/account_form/account_form.dart",
+"Accounts / Drawn"
+],
+[
+"Add card account",
+"app/lib/ui/accounts/account_form/account_form.dart",
+"Accounts / Drawn"
+],
+[
+"Add subpocket",
+"app/lib/ui/accounts/account_form/account_form.dart",
+"Accounts / Drawn"
+],
+[
+"Edit account",
+"app/lib/ui/accounts/source_edit/source_edit_form.dart",
+"Accounts / Drawn"
+],
+[
+"Edit card account",
+"app/lib/ui/accounts/source_edit/source_edit_form.dart",
+"Accounts / Drawn"
+],
+[
+"Edit subpocket",
+"app/lib/ui/accounts/source_edit/source_edit_form.dart",
+"Accounts / Drawn"
+],
+[
+"Add account, no pocketable parents",
+"app/lib/ui/accounts/account_form/account_form.dart",
+"Accounts / Drawn"
+],
+[
+"Account type picker",
+"app/lib/ui/common/pickers/account_type_picker.dart",
+"Accounts / Drawn"
+],
+[
+"Card statement day picker",
+"app/lib/ui/common/statement_day_picker.dart",
+"Accounts / Drawn"
+],
+[
+"Subpocket parent picker",
+"app/lib/ui/accounts/account_form/account_form.dart",
+"Accounts / Drawn"
+],
+[
+"Delete account confirmation",
+"app/lib/ui/common/delete_confirmation.dart",
+"Accounts / Drawn"
+],
+[
+"Delete subpocket confirmation",
+"app/lib/ui/common/delete_confirmation.dart",
+"Accounts / Drawn"
+],
+[
+"Settings",
+"app/lib/ui/settings/settings_root_screen.dart",
+"Settings / Drawn"
+],
+[
+"Stats chart settings",
+"app/lib/ui/settings/settings_root_screen.dart + ui-redesign.html Decisions",
+"Settings / Drawn"
+],
+[
+"Appearance settings",
+"app/lib/ui/settings/settings_root_screen.dart + ui-redesign.html Decisions",
+"Settings / Drawn"
+],
+[
+"Categories",
+"app/lib/ui/settings/category/category_list_screen.dart",
+"Settings / Drawn"
+],
+[
+"Add category",
+"app/lib/ui/settings/category/category_form.dart",
+"Settings / Drawn"
+],
+[
+"Edit category",
+"app/lib/ui/settings/category/category_form.dart",
+"Settings / Drawn"
+],
+[
+"Add subcategory",
+"app/lib/ui/settings/category/category_form.dart",
+"Settings / Drawn"
+],
+[
+"Edit subcategory",
+"app/lib/ui/settings/category/category_form.dart",
+"Settings / Drawn"
+],
+[
+"Category parent picker",
+"app/lib/ui/settings/category/category_form.dart",
+"Settings / Drawn"
+],
+[
+"Category symbol picker",
+"app/lib/ui/common/pickers/symbol_picker.dart",
+"Settings / Drawn"
+],
+[
+"Delete category confirmation",
+"app/lib/ui/common/delete_confirmation.dart",
+"Settings / Drawn"
+],
+[
+"Recurring plans",
+"app/lib/ui/settings/plan/plan_list_screen.dart",
+"Settings / Drawn"
+],
+[
+"Recurring plans, delete controls",
+"app/lib/ui/settings/plan/plan_list_screen.dart",
+"Settings / Drawn"
+],
+[
+"Edit recurring plan",
+"app/lib/ui/settings/plan/plan_form.dart",
+"Settings / Drawn"
+],
+[
+"Edit plan, end date",
+"app/lib/ui/settings/plan/plan_form.dart",
+"Settings / Drawn"
+],
+[
+"Delete recurring plan",
+"app/lib/ui/common/delete_confirmation.dart",
+"Settings / Drawn"
+],
+[
+"Recycle bin",
+"app/lib/ui/settings/recycle_bin/recycle_bin_screen.dart",
+"Settings / Drawn"
+],
+[
+"Recycle bin, restore gesture",
+"app/lib/ui/settings/recycle_bin/recycle_bin_screen.dart",
+"Settings / Drawn"
+],
+[
+"Recycle bin, purge gesture",
+"app/lib/ui/settings/recycle_bin/recycle_bin_screen.dart",
+"Settings / Drawn"
+],
+[
+"Permanent deletion confirmation",
+"app/lib/ui/settings/recycle_bin/recycle_bin_screen.dart",
+"Settings / Drawn"
+],
+[
+"Recycle bin, entry restoration",
+"app/lib/ui/settings/recycle_bin/recycle_bin_screen.dart + ui-redesign.html Decisions",
+"Settings / Drawn"
+],
+[
+"Settings, hosted sync setup pending",
+"app/lib/ui/settings/settings_root_screen.dart",
+"Sync / Drawn"
+],
+[
+"Settings, hosted sync ready",
+"app/lib/ui/settings/settings_root_screen.dart",
+"Sync / Drawn"
+],
+[
+"Settings, hosted sync binding repair needed",
+"app/lib/ui/settings/settings_root_screen.dart",
+"Sync / Drawn"
+],
+[
+"Settings, hosted sync sign-in expired",
+"app/lib/ui/settings/settings_root_screen.dart",
+"Sync / Drawn"
+],
+[
+"Settings, hosted sync unsupported endpoint",
+"app/lib/ui/settings/settings_root_screen.dart",
+"Sync / Drawn"
+],
+[
+"Settings, hosted sync status unavailable",
+"app/lib/ui/settings/settings_root_screen.dart",
+"Sync / Drawn"
+],
+[
+"Choose sync backend",
+"app/lib/ui/sync/enrollment/backend_picker/backend_picker_screen.dart",
+"Sync / Drawn"
+],
+[
+"Custom sync backend",
+"app/lib/ui/sync/enrollment/backend_picker/backend_picker_screen.dart",
+"Sync / Drawn"
+],
+[
+"Custom endpoint validation",
+"app/lib/ui/sync/enrollment/backend_picker/backend_picker_screen.dart",
+"Sync / Drawn"
+],
+[
+"Custom server unavailable",
+"app/lib/ui/sync/enrollment/backend_picker/backend_picker_flow.dart",
+"Sync / Drawn"
+],
+[
+"Backend selection saving",
+"app/lib/ui/sync/enrollment/backend_picker/backend_picker_screen.dart",
+"Sync / Drawn"
+],
+[
+"Backend selection save failure",
+"app/lib/ui/sync/enrollment/backend_picker/backend_picker_screen.dart",
+"Sync / Drawn"
+],
+[
+"Finishing previous enrollment attempt",
+"app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_flow.dart",
+"Sync / Drawn"
+],
+[
+"Previous attempt wait timed out",
+"app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_flow.dart",
+"Sync / Drawn"
+],
+[
+"Hosted sync sign-in",
+"app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_screens.dart",
+"Sync / Drawn"
+],
+[
+"Enter verification code",
+"app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_screens.dart",
+"Sync / Drawn"
+],
+[
+"Verification code failure",
+"app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_screens.dart",
+"Sync / Drawn"
+],
+[
+"Finishing sync enrollment",
+"app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_screens.dart",
+"Sync / Drawn"
+],
+[
+"Sync enrollment failure",
+"app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_screens.dart",
+"Sync / Drawn"
+],
+[
+"Sync enrolled",
+"app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_screens.dart",
+"Sync / Drawn"
+],
+[
+"Repair device access",
+"app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_screens.dart",
+"Sync / Drawn"
+],
+[
+"Renew expired sign-in",
+"app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_screens.dart",
+"Sync / Drawn"
+],
+[
+"Repair device access, verification code",
+"app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_screens.dart",
+"Sync / Drawn"
+],
+[
+"Repair device access, progress",
+"app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_screens.dart",
+"Sync / Drawn"
+],
+[
+"Device access restored",
+"app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_screens.dart",
+"Sync / Drawn"
+],
+[
+"Sign-in request cooldown",
+"app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_screens.dart",
+"Sync / Drawn"
+],
+[
+"Sign-in after code cancellation",
+"app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_screens.dart",
+"Sync / Drawn"
+],
+[
+"Transactions, fresh install",
+"app/lib/ui/transactions/daily_list/empty_state.dart",
+"Transactions / Drawn"
+],
+[
+"Monthly transactions, empty",
+"app/lib/ui/transactions/monthly/monthly_transactions_view.dart",
+"Transactions / Drawn"
+],
+[
+"Stats, no expenses",
+"app/lib/ui/stats/analysis/analysis_flow.dart",
+"Stats / Drawn"
+],
+[
+"Stats, no income",
+"app/lib/ui/stats/analysis/analysis_flow.dart",
+"Stats / Drawn"
+],
+[
+"Budgets, fresh install",
+"app/lib/ui/budgets/budget_list/budgets_flow.dart",
+"Budgets / Drawn"
+],
+[
+"Accounts, fresh install",
+"app/lib/ui/accounts/accounts_screen.dart",
+"Accounts / Drawn"
+],
+[
+"Categories, fresh install",
+"app/lib/ui/settings/category/category_list_screen.dart",
+"Settings / Drawn"
+],
+[
+"Recurring plans, fresh install",
+"app/lib/ui/settings/plan/plan_list_screen.dart",
+"Settings / Drawn"
+],
+[
+"Recycle bin, empty",
+"app/lib/ui/settings/recycle_bin/recycle_bin_screen.dart",
+"Settings / Drawn"
+],
+[
+"Category detail, no entries",
+"app/lib/ui/common/day_sectioned_entry_list.dart",
+"Stats / Drawn"
+],
+[
+"Budget detail, no entries",
+"app/lib/ui/budgets/budget_detail/budget_detail_screen.dart",
+"Budgets / Drawn"
+],
+[
+"Transactions, loading",
+"app/lib/ui/transactions/daily_list/daily_transactions_screen.dart",
+"Transactions / Drawn"
+],
+[
+"Transactions, load error",
+"app/lib/ui/transactions/daily_list/daily_transactions_screen.dart",
+"Transactions / Drawn"
+],
+[
+"Add entry, loading",
+"app/lib/ui/transactions/entry/entry_form.dart",
+"Transactions / Drawn"
+],
+[
+"Add entry, load error",
+"app/lib/ui/transactions/entry/entry_form.dart",
+"Transactions / Drawn"
+],
+[
+"Stats, loading",
+"app/lib/ui/stats/analysis/analysis_flow.dart",
+"Stats / Drawn"
+],
+[
+"Stats, load error",
+"app/lib/ui/stats/analysis/analysis_flow.dart",
+"Stats / Drawn"
+],
+[
+"Groceries, loading",
+"app/lib/ui/stats/category_detail/category_detail_screen.dart",
+"Stats / Drawn"
+],
+[
+"Groceries, load error",
+"app/lib/ui/stats/category_detail/category_detail_screen.dart",
+"Stats / Drawn"
+],
+[
+"Budgets, loading",
+"app/lib/ui/budgets/budget_list/budgets_flow.dart",
+"Budgets / Drawn"
+],
+[
+"Budgets, load error",
+"app/lib/ui/budgets/budget_list/budgets_flow.dart",
+"Budgets / Drawn"
+],
+[
+"Add budget, loading",
+"app/lib/ui/budgets/budget_list/budget_form.dart",
+"Budgets / Drawn"
+],
+[
+"Add budget, load error",
+"app/lib/ui/budgets/budget_list/budget_form.dart",
+"Budgets / Drawn"
+],
+[
+"Dining, loading",
+"app/lib/ui/budgets/budget_detail/budget_detail_screen.dart",
+"Budgets / Drawn"
+],
+[
+"Dining, load error",
+"app/lib/ui/budgets/budget_detail/budget_detail_screen.dart",
+"Budgets / Drawn"
+],
+[
+"Budget limit, loading",
+"app/lib/ui/budgets/budget_detail/budget_limit_screen.dart",
+"Budgets / Drawn"
+],
+[
+"Budget limit, load error",
+"app/lib/ui/budgets/budget_detail/budget_limit_screen.dart",
+"Budgets / Drawn"
+],
+[
+"Accounts, loading",
+"app/lib/ui/accounts/accounts_screen.dart",
+"Accounts / Drawn"
+],
+[
+"Accounts, load error",
+"app/lib/ui/accounts/accounts_screen.dart",
+"Accounts / Drawn"
+],
+[
+"Add account, loading",
+"app/lib/ui/accounts/account_form/account_form.dart",
+"Accounts / Drawn"
+],
+[
+"Add account, load error",
+"app/lib/ui/accounts/account_form/account_form.dart",
+"Accounts / Drawn"
+],
+[
+"Edit account, loading",
+"app/lib/ui/accounts/source_edit/source_edit_form.dart",
+"Accounts / Drawn"
+],
+[
+"Edit account, load error",
+"app/lib/ui/accounts/source_edit/source_edit_form.dart",
+"Accounts / Drawn"
+],
+[
+"Categories, loading",
+"app/lib/ui/settings/category/category_list_screen.dart",
+"Settings / Drawn"
+],
+[
+"Categories, load error",
+"app/lib/ui/settings/category/category_list_screen.dart",
+"Settings / Drawn"
+],
+[
+"Add category, loading",
+"app/lib/ui/settings/category/category_form.dart",
+"Settings / Drawn"
+],
+[
+"Add category, load error",
+"app/lib/ui/settings/category/category_form.dart",
+"Settings / Drawn"
+],
+[
+"Recurring plans, loading",
+"app/lib/ui/settings/plan/plan_list_screen.dart",
+"Settings / Drawn"
+],
+[
+"Recurring plans, load error",
+"app/lib/ui/settings/plan/plan_list_screen.dart",
+"Settings / Drawn"
+],
+[
+"Edit plan, loading",
+"app/lib/ui/settings/plan/plan_form.dart",
+"Settings / Drawn"
+],
+[
+"Edit plan, load error",
+"app/lib/ui/settings/plan/plan_form.dart",
+"Settings / Drawn"
+],
+[
+"Recycle bin, loading",
+"app/lib/ui/settings/recycle_bin/recycle_bin_screen.dart",
+"Settings / Drawn"
+],
+[
+"Recycle bin, load error",
+"app/lib/ui/settings/recycle_bin/recycle_bin_screen.dart",
+"Settings / Drawn"
+],
+[
+"Add account, save failure",
+"app/lib/ui/accounts/account_form/account_form.dart",
+"Save failures / Drawn"
+],
+[
+"Edit account, save failure",
+"app/lib/ui/accounts/source_edit/source_edit_form.dart",
+"Save failures / Drawn"
+],
+[
+"Edit category, save failure",
+"app/lib/ui/settings/category/category_form.dart",
+"Save failures / Drawn"
+],
+[
+"Edit plan, save failure",
+"app/lib/ui/settings/plan/plan_form.dart",
+"Save failures / Drawn"
+],
+[
+"Add budget, save failure",
+"app/lib/ui/budgets/budget_list/budget_form.dart",
+"Save failures / Drawn"
+],
+[
+"Budget limit, save failure",
+"app/lib/ui/budgets/budget_detail/budget_limit_screen.dart",
+"Save failures / Drawn"
+],
+[
+"App loading",
+"app/lib/ui/shell/boot_chrome.dart",
+"Shell / Drawn"
+],
+[
+"App load failure",
+"app/lib/ui/shell/boot_chrome.dart",
+"Shell / Drawn"
+],
+[
+"Sync status banner",
+"app/lib/ui/shell/status_banner.dart",
+"Shell / Drawn"
+],
+[
+"Device access attention banner",
+"app/lib/ui/shell/status_banner.dart",
+"Shell / Drawn"
+],
+[
+"Transactions, daily, Evergreen dark",
+"app/lib/ui/transactions/daily_list/daily_transactions_screen.dart",
+"Evergreen dark / Drawn"
+],
+[
+"Stats, expenses, Evergreen dark",
+"app/lib/ui/stats/stats_root_screen.dart",
+"Evergreen dark / Drawn"
+],
+[
+"Accounts, Evergreen dark",
+"app/lib/ui/accounts/accounts_screen.dart",
+"Evergreen dark / Drawn"
+],
+[
+"Settings, Evergreen dark",
+"app/lib/ui/settings/settings_root_screen.dart",
+"Evergreen dark / Drawn"
+],
+[
+"Transactions, daily, macOS",
+"app/lib/ui/shell/app_shell.dart; app/lib/ui/shell/layout_breakpoints.dart",
+"macOS / Drawn"
+],
+[
+"Stats, expenses, macOS",
+"app/lib/ui/shell/app_shell.dart; app/lib/ui/shell/layout_breakpoints.dart",
+"macOS / Drawn"
+],
+[
+"Accounts, macOS",
+"app/lib/ui/shell/app_shell.dart; app/lib/ui/shell/layout_breakpoints.dart",
+"macOS / Drawn"
+],
+[
+"Settings, macOS",
+"app/lib/ui/shell/app_shell.dart; app/lib/ui/shell/layout_breakpoints.dart",
+"macOS / Drawn"
+],
+[
+"Legacy read-only entry view",
+"app/lib/ui/transactions/entry/view_entry_form.dart",
+"Not drawn: Superseded by the approved tap-to-edit decision; Edit entry draws the replacement."
+],
+[
+"Swipe-to-delete entry confirmation",
+"app/lib/ui/common/day_sectioned_entry_list.dart; app/lib/ui/transactions/daily_list/entry_row.dart",
+"Not drawn: Superseded by the approved Delete entry action in the edit sheet; no entry swipe deletion is drawn."
+],
+[
+"Native receipt capture / camera",
+"app/lib/ui/transactions/receipt_scan/receipt_scan_flow.dart",
+"Not drawn: Platform capture UI owns the camera; the app provides the scan action and return draft."
+],
+[
+"Native photo / file picker",
+"app/lib/ui/transactions/receipt_scan/receipt_scan_flow.dart",
+"Not drawn: Platform picker UI owns photo and file selection; the app provides Upload photo."
+],
+[
+"Camera / photo permission prompt",
+"app/lib/ui/transactions/receipt_scan/receipt_scan_flow.dart",
+"Not drawn: Platform system dialog; the app-owned permission-denied snackbar is drawn."
+],
+[
+"Conflict review",
+"app/lib/ui/sync/; app/lib/sync/drift_sync_staging_store.dart",
+"Not drawn: No current screen or route exists, and Decisions approves no conflict-review feature."
+],
+[
+"Recycle bin filter",
+"app/lib/ui/settings/recycle_bin/recycle_bin_screen.dart",
+"Not drawn: The current bin has section groups and no filter control; Decisions approves no filter."
+],
+[
+"Dedicated hosted sync status page",
+"app/lib/ui/settings/settings_root_screen.dart",
+"Not drawn: Status lives inline in Settings; all seven inline states are drawn there."
+]
+]
