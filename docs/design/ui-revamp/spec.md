@@ -1,3 +1,5 @@
+> Historical brief. The paths below point at the `.lavish/` working copy the reference was first generated in. The tracked source of truth is this directory; build it with `generator/build.py` as described in `README.md`.
+
 Build the final comprehensive reference draft of every SpendWise screen in the approved design. This page becomes the visual reference for implementation, so completeness, consistency and accuracy matter more than novelty. Do not invent new directions; apply what has been approved.
 
 Write one new file, `/Users/macbook/Desktop/SpendWise/.lavish/spendwise-reference.html`. You may keep generator scripts and screenshots in `/private/tmp/claude-501/-Users-macbook-Desktop-SpendWise/d86a5735-4117-4054-9661-1a4bbb541019/scratchpad/reference/`. Change no other repository file. Run no git commands.

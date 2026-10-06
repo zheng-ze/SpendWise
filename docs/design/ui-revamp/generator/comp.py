@@ -1,4 +1,3 @@
-"""Shared drawing components for the SpendWise reference page."""
 import math
 from html import escape
 from html.parser import HTMLParser
@@ -168,7 +167,6 @@ def header(title, date=None, acts="", gear=True, back=None):
 
 
 def phone(body, tab=None, cls="", force="", extra="", body_cls=""):
-    """A phone frame. tab=None hides the tab bar (sheets, pushed pages keep it by passing tab)."""
     tb = tabbar(tab) if tab else ""
     fc = f" force-{force}" if force else ""
     return (
