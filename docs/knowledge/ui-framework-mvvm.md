@@ -1,6 +1,6 @@
 # UI Framework (MVVM)
 
-Last reconciled: 88e6baf
+Last reconciled: 66453e9
 
 ## Feature overview
 
@@ -103,6 +103,28 @@ value, which then overwrites it. (issue #38)
   income, expense and text tokens through `AmountStyle`, never fixed hex or `Colors.*`.
 - **Destructive confirmations** - the confirm action is a filled button in the error token with the
   on-action label colour; cancel stays text. (`app/lib/ui/common/delete_confirmation.dart`)
+
+## Sheet and component kit
+
+- **AppSheet** (`app/lib/ui/common/app_sheet.dart`) is the only sheet surface.
+  `showAppSheet<T>(context, builder:)` pushes an `AppSheetRoute`; the builder returns
+  `AppSheet(header:, body:, footer:, inputSurface:, alert:, onAlertAction:)`. A sheet sizes
+  to its content up to 0.66 of the phone height (a centred dialog no wider than 440 on
+  desktop); longer bodies scroll with the header, footer and input surface pinned. The kit
+  is Riverpod-free: the route owns a `ValueNotifier<SheetAlertData?>` exposed through
+  `AppSheetAlertSlot`, each `AppSheet` publishes its alert post-frame and clears it on
+  dispose, and the route renders `SheetAlert` outside the sheet, so an error or warning
+  never changes sheet height. A screen View watches its ViewModel and passes `alert:` down.
+- **Actions** (`app_buttons.dart`): `PrimaryButton` is filled, `SecondaryButton` is text or
+  outline, and destructive confirmations fill with the error token.
+- **Surfaces**: `Tray`, `MedallionRow`, `SummaryBand` (signed amounts coloured through
+  `AmountStyle`), `SegmentedControl`, `CompactLabelledFab` with `FabReserveSpace`,
+  `NoticeCard`, `EmptyState`, `LoadingTrays` and `ErrorSection` with an optional filled retry.
+- **Charts** (`app/lib/ui/common/charts/`): `MonthBars` (blank, gap, incomplete and selected
+  slots; selection is a `selectedMark` fill with no stroke), `DonutChart`, `CategoryMap`
+  (pure squarified layout through `layoutCategoryMap`, adjacent labels for small blocks, never
+  a bare number) and `WeekStrip`. The reusable sheet contract helper lives in
+  `app/test/support/sheet_contract.dart`.
 
 ## Gotchas and invariants
 
