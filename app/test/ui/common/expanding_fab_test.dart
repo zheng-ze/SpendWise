@@ -221,6 +221,35 @@ void main() {
     handle.dispose();
   });
 
+  testWidgets('capsules use the compact rounded treatment', (tester) async {
+    await tester.pumpWidget(
+      wrap(
+        ExpandingFab(
+          primary: FabAction(
+            label: 'Add Transaction',
+            icon: Icons.add,
+            onTap: () {},
+          ),
+          secondary: FabAction(
+            label: 'Edit Checking',
+            icon: Icons.edit,
+            onTap: () {},
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byIcon(Icons.add));
+    await tester.pumpAndSettle();
+
+    final label = find.text('Edit Checking');
+    final capsule = tester.widget<Material>(
+      find.ancestor(of: label, matching: find.byType(Material)).first,
+    );
+    expect(capsule.borderRadius, BorderRadius.circular(14));
+    expect(tester.widget<Icon>(find.byIcon(Icons.edit)).size, 16);
+  });
+
   for (final brightness in Brightness.values) {
     testWidgets('capsules pair the action fill with its foreground in '
         '${brightness.name} mode', (tester) async {

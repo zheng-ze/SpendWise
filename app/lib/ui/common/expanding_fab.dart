@@ -120,18 +120,20 @@ class _ActionCapsule extends StatelessWidget {
       child: Material(
         color: colors.action,
         textStyle: TextStyle(color: colors.onAction),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(14),
         child: InkWell(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(14),
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.fromLTRB(11, 10, 14, 10),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                ExcludeSemantics(
+                  child: Icon(action.icon, size: 16, color: colors.onAction),
+                ),
+                const SizedBox(width: 6),
                 ExcludeSemantics(child: Text(action.label)),
-                const SizedBox(width: 8),
-                Icon(action.icon, size: 20, color: colors.onAction),
               ],
             ),
           ),
