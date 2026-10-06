@@ -64,7 +64,7 @@ def spread(end_year, end_month, selected=None, letters=True, fn=None, maxv=1000.
             continue
         if fn:
             v = fn(y, m, v)
-        kind = "p" if key in ((2026, 8), (2026, 9)) else "c"
+        kind = "p" if key == (2026, 9) else "c"
         items.append((lab, v * 1000.0 / maxv, kind, key == selected))
     return items
 

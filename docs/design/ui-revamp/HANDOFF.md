@@ -10,10 +10,11 @@ The reference page is rebuilt from the current generator. The light theme now us
 
 This directory supersedes `.lavish/` as the source of truth: `spec.md` is the brief from `.lavish/briefs/spendwise-reference.md`, the generator sources live under `generator/`, and `spendwise-reference.html` is rebuilt from them. The older sections below describe the `.lavish/` working copy; paths and commands there still point at `.lavish/`.
 
-Two changes against the `.lavish/` working copy, then rebuilt:
+Three changes against the `.lavish/` working copy, then rebuilt:
 
 1. `generator/build.py` resolves its input and output relative to its own directory, so the build works from any working directory and writes `docs/design/ui-revamp/spendwise-reference.html`. `inventory.json` is read from the same parent directory. The build also emits `frames.json`, one entry per registered frame with its area, covered inventory rows and phone or desktop form factor.
-2. D8 completeness captions: seed September now draws as complete. Every qualifier or caption string that called seed September incomplete now names only October: `August has no records; October is incomplete.` (in `data.py`, `s_history_trends.py` and `s_money.py`), `October is incomplete.` (standalone qualifier in `s_history_trends.py`), and `Only September and October have recorded income. October is incomplete.` (in `s_history_trends.py`). The `ov-evidence` lab note about the sample baseline still names September; it is drawn frame content about baseline eligibility, not a qualifier or caption, and stays unchanged.
+2. D8 completeness captions: seed September now draws as complete. Every qualifier or caption string that called seed September incomplete now names only October: `August has no records; October is incomplete.` (in `data.py`, `s_history_trends.py` and `s_money.py`), `October is incomplete.` (standalone qualifier in `s_history_trends.py`), and `Only September and October have recorded income. October is incomplete.` (in `s_history_trends.py`). Every chart draws September as a complete bar; only October keeps the pale incomplete style. The `ov-evidence` baseline note now excludes August and September because neither has records on 1-3, not because September is incomplete.
+3. `build.py` no longer maps the `Emergency Fund` inventory row to `mo-pocket` a second time, so `frames.json` lists each covered row once.
 
 Build from the repository root:
 

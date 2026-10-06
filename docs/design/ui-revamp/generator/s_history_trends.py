@@ -108,7 +108,7 @@ def rank_split(total):
 def scoped_seed_trend(october, september=None):
     months = ["N", "D", "J", "F", "M", "A", "M", "J", "J", "A", "S", "O"]
     items = [(label, None, "x", False) for label in months[:-2]]
-    items += [("S", None if september is None else september * 10, "x" if september is None else "p", False), ("O", october * 10, "p", True)]
+    items += [("S", None if september is None else september * 10, "x" if september is None else "c", False), ("O", october * 10, "p", True)]
     return tray("Monthly trend", seg(["Month by month", "Year by year"], "Month by month", "sm")
                 + period("Nov 2025 - Oct 2026", prev_off=True, next_off=True) + month_bars(items, "mini")
                 + '<div class="qual">October is incomplete.</div>')
@@ -143,7 +143,7 @@ def income_chart(selected=(2026, 9)):
         month %= 12
         value = income.get((year, month))
         items.append((MSHORT[month][0], None if value is None else value / 3.2,
-                      "x" if value is None else "p", (year, month) == selected))
+                      "x" if value is None else ("p" if (year, month) == (2026, 9) else "c"), (year, month) == selected))
     detail = ('<div class="selp"><span class="lab">October 2026<small>Recorded so far, 1-3 October</small></span>'
               '<span class="big inc">+S$3,200.00</span></div>') if selected == (2026, 9) else '<div class="selp"><span class="lab">July 2026<small>No income recorded</small></span></div>'
     return (seg(["Month by month", "Year by year"], "Month by month")

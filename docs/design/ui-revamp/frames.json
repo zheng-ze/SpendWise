@@ -509,7 +509,6 @@
     "id": "mo-pocket",
     "area": "money",
     "inventory_rows": [
-      "Emergency Fund",
       "Emergency Fund"
     ],
     "form_factor": "phone"

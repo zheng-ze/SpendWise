@@ -51,7 +51,6 @@ EXTRA_MAP = {
     "Transactions, daily, Evergreen dark": "hi-oct",
     "Stats, expenses, Evergreen dark": "tr-july",
     "Accounts, Evergreen dark": "mo-accounts",
-    "Emergency Fund": "mo-pocket",
 }
 
 # ---------- coverage check against the earlier 177-row inventory ----------

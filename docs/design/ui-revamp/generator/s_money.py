@@ -102,7 +102,7 @@ def build():
         vals.append(v)
     bars, axis = [], []
     for m, v in enumerate(vals):
-        kind = "x" if m > 9 else ("g" if v is None else ("p" if m in (8, 9) else "c"))
+        kind = "x" if m > 9 else ("g" if v is None else ("p" if m == 9 else "c"))
         h = "" if kind in ("x", "g") else f' style="height:{v / 500 * 100:.1f}%"'
         limit = f'<s style="position:absolute;left:8%;right:8%;bottom:{350 / 500 * 100:.0f}%;border-top:1.5px dashed var(--text)"></s>' if m >= 8 else ""
         bars.append(f'<div class="b {kind}{" sel" if m == 9 else ""}" style="position:relative"><i{h}></i>{limit}</div>')

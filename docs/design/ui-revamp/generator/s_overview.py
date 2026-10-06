@@ -31,7 +31,7 @@ def build():
                      '<div class="guide" style="margin-top:8px">S$28.50 higher / 63.3%</div><div class="lab">Same elapsed days, not whole months.</div>')
           + tray("Usual start", '<div class="kv"><span>1-3 May</span><b>40.00</b></div><div class="kv"><span>1-3 June</span><b>50.00</b></div>'
                  '<div class="kv"><span>1-3 July</span><b>45.00</b></div><div class="kv"><span>(40.00 + 50.00 + 45.00) / 3</span><b>45.00</b></div>'
-                 '<div class="lab" style="margin-top:6px">August has no records and September is incomplete, so both stay out.</div>', aside="<small>Complete months</small>")
+                 '<div class="lab" style="margin-top:6px">August and September have no records on 1-3, so both stay out.</div>', aside="<small>Complete months</small>")
           + tray("1-3 October", row("FairPrice groceries", "3 Oct / Supermarket / Amex Card", -42.50, "Supermarket")
                  + row("Tekka wet market", "2 Oct / Fresh Market / DBS Checking", -18.60, "Fresh Market")
                  + row("Cold Storage", "2 Oct / Groceries / DBS Checking", -12.40, "Groceries"), aside="<small>3 entries</small>")
@@ -156,7 +156,7 @@ def catalogue():
         "Top categories": "Three largest categories this month.",
         "Account balances": "Chosen accounts; pockets counted once.",
         "Card statement": "Payable, this cycle and days to the cut. Not a due date.",
-        "Spending over time": "Last 12 months from revision 2 sample history, with a gap stub and pale incomplete bars.",
+        "Spending over time": "Last 12 months from revision 2 sample history, with a gap stub and a pale incomplete bar.",
         "Insights": "At most two changes with evidence. Normal state uses round 4 sample windows.",
         "Savings pocket": "A target is new; Holiday has none yet, so it asks for one.",
         "Week so far": "Needs three complete weeks; states that instead of guessing.",
