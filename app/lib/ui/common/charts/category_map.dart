@@ -48,7 +48,7 @@ List<Rect> layoutCategoryMap(List<double> values, Size size) {
 
   void layoutRow() {
     if (row.isEmpty) return;
-    if (remaining.width >= remaining.height) {
+    if (remaining.width < remaining.height) {
       final stripHeight = rowArea / remaining.width;
       var x = remaining.left;
       for (final i in row) {
@@ -105,6 +105,42 @@ List<Rect> layoutCategoryMap(List<double> values, Size size) {
 
 String _shareText(double share) => '${(share * 100).toStringAsFixed(1)}%';
 
+bool _labelFits(Rect rect, String name, String share, TextScaler scaler) {
+  final available = Size(rect.width - 20, rect.height - 20);
+  if (available.width <= 0 || available.height <= 0) return false;
+  const style = TextStyle(fontSize: 12, fontWeight: FontWeight.w600);
+  final namePainter = TextPainter(
+    text: TextSpan(text: name, style: style),
+    textDirection: TextDirection.ltr,
+    textScaler: scaler,
+    maxLines: 2,
+    ellipsis: '...',
+  )..layout(maxWidth: available.width);
+  if (namePainter.didExceedMaxLines) return false;
+  final sharePainter = TextPainter(
+    text: TextSpan(text: share, style: style),
+    textDirection: TextDirection.ltr,
+    textScaler: scaler,
+    maxLines: 1,
+  )..layout(maxWidth: available.width);
+  if (sharePainter.didExceedMaxLines) return false;
+  return namePainter.height + 2 + sharePainter.height <= available.height;
+}
+
+Rect _paddedBlock(Rect rect) {
+  if (rect.width <= 4 || rect.height <= 4) return rect;
+  return rect.deflate(2);
+}
+
+@immutable
+class _AdjacentLabel {
+  const _AdjacentLabel({required this.tile, required this.index});
+
+  final CategoryMapTile tile;
+
+  final int index;
+}
+
 class CategoryMap extends StatelessWidget {
   const CategoryMap({
     super.key,
@@ -129,6 +165,7 @@ class CategoryMap extends StatelessWidget {
         final width = constraints.maxWidth.isFinite
             ? constraints.maxWidth
             : MediaQuery.of(context).size.width;
+        final scaler = MediaQuery.textScalerOf(context);
         final rects = layoutCategoryMap([
           for (final tile in tiles) tile.share,
         ], Size(width, height));
@@ -137,11 +174,12 @@ class CategoryMap extends StatelessWidget {
         for (var i = 0; i < tiles.length; i++) {
           final rect = rects[i];
           if (rect.isEmpty) continue;
-          final fits = rect.width >= 64 && rect.height >= 44;
+          final share = _shareText(tiles[i].share);
+          final fits = _labelFits(rect, tiles[i].label, share, scaler);
           if (fits) labelled.add(i);
           blocks.add(
             Positioned.fromRect(
-              rect: rect.deflate(2),
+              rect: _paddedBlock(rect),
               child: _MapBlock(
                 tile: tiles[i],
                 labelInside: fits,
@@ -153,9 +191,17 @@ class CategoryMap extends StatelessWidget {
         }
         final outside = [
           for (var i = 0; i < tiles.length; i++)
-            if (!rects[i].isEmpty && !labelled.contains(i)) tiles[i],
+            if (!rects[i].isEmpty && !labelled.contains(i))
+              _AdjacentLabel(tile: tiles[i], index: i),
         ];
-        final legend = outside.isEmpty ? null : _AdjacentLabels(tiles: outside);
+        final legend = outside.isEmpty
+            ? null
+            : _AdjacentLabels(
+                labels: outside,
+                selectedIndex: selectedIndex,
+                onSelect: onSelect,
+                maxWidth: width,
+              );
         final content = <Widget>[
           SizedBox(
             width: width,
@@ -221,40 +267,87 @@ class _MapBlock extends StatelessWidget {
 }
 
 class _AdjacentLabels extends StatelessWidget {
-  const _AdjacentLabels({required this.tiles});
+  const _AdjacentLabels({
+    required this.labels,
+    required this.selectedIndex,
+    required this.onSelect,
+    required this.maxWidth,
+  });
 
-  final List<CategoryMapTile> tiles;
+  final List<_AdjacentLabel> labels;
+
+  final int? selectedIndex;
+
+  final ValueChanged<int>? onSelect;
+
+  final double maxWidth;
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
     return Padding(
       padding: const EdgeInsets.only(top: 4, bottom: 6),
       child: Wrap(
         spacing: 12,
         runSpacing: 4,
         children: [
-          for (final tile in tiles)
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: tile.color,
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                ),
-                const SizedBox(width: 5),
-                Text(
-                  '${tile.label} ${_shareText(tile.share)}',
-                  style: TextStyle(fontSize: 10, color: colors.subtext),
-                ),
-              ],
+          for (final label in labels)
+            _AdjacentLabelRow(
+              label: label,
+              selected: label.index == selectedIndex,
+              onTap: onSelect == null ? null : () => onSelect!(label.index),
+              maxWidth: maxWidth,
             ),
         ],
       ),
     );
+  }
+}
+
+class _AdjacentLabelRow extends StatelessWidget {
+  const _AdjacentLabelRow({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    required this.maxWidth,
+  });
+
+  final _AdjacentLabel label;
+
+  final bool selected;
+
+  final VoidCallback? onTap;
+
+  final double maxWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final labelText = Text(
+      '${label.tile.label} ${_shareText(label.tile.share)}',
+      style: TextStyle(fontSize: 10, color: colors.subtext),
+      maxLines: 3,
+      overflow: TextOverflow.ellipsis,
+    );
+    final row = ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: maxWidth),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(
+              color: selected ? colors.selectedMark : label.tile.color,
+              borderRadius: BorderRadius.circular(3),
+            ),
+          ),
+          const SizedBox(width: 5),
+          Flexible(child: labelText),
+        ],
+      ),
+    );
+    final onTap = this.onTap;
+    if (onTap == null) return row;
+    return GestureDetector(onTap: onTap, child: row);
   }
 }

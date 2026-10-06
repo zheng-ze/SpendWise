@@ -71,6 +71,36 @@ void main() {
       expect(chart.data.barGroups[3].barRods[0].toY, 0);
     });
 
+    testWidgets('a selected blank slot stays at zero height', (tester) async {
+      await tester.pumpWidget(
+        _host(
+          MonthBars(
+            slots: const [
+              MonthBarSlot(value: 120, status: MonthBarStatus.value),
+              MonthBarSlot(status: MonthBarStatus.blank),
+            ],
+            selectedIndex: 1,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final chart = tester.widget<BarChart>(find.byType(BarChart));
+      expect(chart.data.barGroups[1].barRods[0].toY, 0);
+    });
+
+    testWidgets('a gap slot draws a dashed stub', (tester) async {
+      await tester.pumpWidget(
+        _host(
+          const MonthBars(slots: [MonthBarSlot(status: MonthBarStatus.gap)]),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final chart = tester.widget<BarChart>(find.byType(BarChart));
+      expect(chart.data.barGroups[0].barRods[0].borderDashArray, isNotNull);
+    });
+
     testWidgets('tapping a bar reports its index', (tester) async {
       var selected = -1;
       await tester.pumpWidget(
@@ -128,6 +158,18 @@ void main() {
   });
 
   group('layoutCategoryMap', () {
+    double maxAspect(List<Rect> rects) {
+      var worst = 0.0;
+      for (final rect in rects) {
+        if (rect.isEmpty) continue;
+        final ratio = rect.width > rect.height
+            ? rect.width / rect.height
+            : rect.height / rect.width;
+        if (ratio > worst) worst = ratio;
+      }
+      return worst;
+    }
+
     test('areas follow values and tile the box', () {
       const size = Size(280, 136);
       final rects = layoutCategoryMap([60, 30, 10], size);
@@ -143,6 +185,14 @@ void main() {
           expect(rects[i].overlaps(rects[j]), isFalse);
         }
       }
+    });
+
+    test('rows follow the shorter side in landscape and portrait', () {
+      final landscape = layoutCategoryMap([60, 30, 10], const Size(280, 136));
+      final portrait = layoutCategoryMap([60, 30, 10], const Size(136, 280));
+
+      expect(maxAspect(landscape), lessThanOrEqualTo(3.5));
+      expect(maxAspect(portrait), lessThanOrEqualTo(3.5));
     });
 
     test('empty and zero inputs tile to nothing', () {
@@ -213,6 +263,88 @@ void main() {
       expect(find.textContaining('Tiny'), findsWidgets);
     });
 
+    testWidgets('labels that do not fit move beside the map', (tester) async {
+      Widget mapWithScale(double scale) {
+        return MaterialApp(
+          theme: buildSpendWiseTheme(Brightness.light),
+          home: Scaffold(
+            body: MediaQuery(
+              data: MediaQueryData(textScaler: TextScaler.linear(scale)),
+              child: const SizedBox(
+                width: 300,
+                child: CategoryMap(
+                  tiles: [
+                    CategoryMapTile(
+                      label: 'Healthcare',
+                      share: 0.34,
+                      color: Color(0xFF29755E),
+                    ),
+                    CategoryMapTile(
+                      label: 'Transport',
+                      share: 0.33,
+                      color: Color(0xFF6861A4),
+                    ),
+                    CategoryMapTile(
+                      label: 'Dining',
+                      share: 0.33,
+                      color: Color(0xFF8A4F7D),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+
+      await tester.pumpWidget(mapWithScale(1));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Healthcare\n'), findsOneWidget);
+      expect(find.text('Healthcare 34.0%'), findsNothing);
+      expect(tester.takeException(), isNull);
+
+      await tester.pumpWidget(mapWithScale(2));
+      await tester.pumpAndSettle();
+      expect(find.text('Healthcare 34.0%'), findsOneWidget);
+      expect(find.text('Transport 33.0%'), findsOneWidget);
+      expect(find.text('Dining 33.0%'), findsOneWidget);
+      expect(find.textContaining('Healthcare\n'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('tapping an adjacent label selects its original index', (
+      tester,
+    ) async {
+      var selected = -1;
+      await tester.pumpWidget(
+        _host(
+          SizedBox(
+            width: 280,
+            child: CategoryMap(
+              tiles: const [
+                CategoryMapTile(
+                  label: 'Big',
+                  share: 0.999,
+                  color: Color(0xFF986421),
+                ),
+                CategoryMapTile(
+                  label: 'Tiny',
+                  share: 0.001,
+                  color: Color(0xFF6861A4),
+                ),
+              ],
+              onSelect: (i) => selected = i,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Tiny 0.1%'));
+      expect(selected, 1);
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('tapping a block reports its index', (tester) async {
       var selected = -1;
       await tester.pumpWidget(
@@ -245,6 +377,24 @@ void main() {
   });
 
   group('WeekStrip', () {
+    testWidgets('future days draw no bar and past empty days draw the stub', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          const WeekStrip(
+            days: [
+              WeekStripDay(label: 'M', caption: 'S\$12', fraction: 0.5),
+              WeekStripDay(label: 'T', caption: 'None'),
+              WeekStripDay(label: 'W', caption: 'Ahead', future: true),
+            ],
+          ),
+        ),
+      );
+
+      expect(find.byKey(const ValueKey('weekStripGapStub')), findsOneWidget);
+    });
+
     testWidgets('draws each day with its caption', (tester) async {
       await tester.pumpWidget(
         _host(

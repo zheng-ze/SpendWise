@@ -95,9 +95,17 @@ class MonthBars extends StatelessWidget {
     const radius = BorderRadius.vertical(top: Radius.circular(3));
     const noStroke = BorderSide(width: 0, color: Color(0x00000000));
     if (selected) {
-      final value = slot.status == MonthBarStatus.blank ? 0.0 : slot.value;
+      if (slot.status == MonthBarStatus.blank) {
+        return BarChartRodData(
+          toY: 0,
+          width: 16,
+          color: colors.selectedMark,
+          borderRadius: radius,
+          borderSide: noStroke,
+        );
+      }
       return BarChartRodData(
-        toY: value == 0 ? top * 0.09 : value,
+        toY: slot.status == MonthBarStatus.gap ? top * 0.09 : slot.value,
         width: 16,
         color: colors.selectedMark,
         borderRadius: radius,
@@ -124,6 +132,7 @@ class MonthBars extends StatelessWidget {
         color: const Color(0x00000000),
         borderRadius: radius,
         borderSide: BorderSide(color: colors.gap, width: 1),
+        borderDashArray: const [4, 3],
       ),
       MonthBarStatus.blank => BarChartRodData(toY: 0, width: 16),
     };

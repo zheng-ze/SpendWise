@@ -42,13 +42,7 @@ class _DayColumn extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final bar = day.future
-        ? Container(
-            height: 8,
-            decoration: BoxDecoration(
-              border: Border.all(color: colors.gap, width: 1.5),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          )
+        ? const SizedBox(height: 40)
         : day.fraction > 0
         ? Container(
             height: (40 * day.fraction).clamp(3.0, 40.0),
@@ -59,7 +53,14 @@ class _DayColumn extends StatelessWidget {
               ),
             ),
           )
-        : const SizedBox(height: 3);
+        : Container(
+            key: const ValueKey('weekStripGapStub'),
+            height: 8,
+            decoration: BoxDecoration(
+              border: Border.all(color: colors.gap, width: 1.5),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          );
 
     return Column(
       mainAxisSize: MainAxisSize.min,
