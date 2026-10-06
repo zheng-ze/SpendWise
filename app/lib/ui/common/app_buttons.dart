@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
-ButtonStyle _geometry() {
-  return FilledButton.styleFrom(
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-    textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-  );
+final _shape = RoundedRectangleBorder(borderRadius: BorderRadius.circular(10));
+
+const _padding = EdgeInsets.symmetric(horizontal: 12, vertical: 10);
+
+TextStyle _labelStyle(BuildContext context) {
+  final base = Theme.of(context).textTheme.labelLarge
+      ?.copyWith(fontSize: 12, fontWeight: FontWeight.w600);
+  return base ?? const TextStyle(fontSize: 12, fontWeight: FontWeight.w600);
 }
 
 class PrimaryButton extends StatelessWidget {
@@ -27,15 +29,17 @@ class PrimaryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final style = _geometry().copyWith(
-      backgroundColor: destructive
-          ? WidgetStatePropertyAll(colors.error)
-          : null,
-      foregroundColor: destructive
-          ? WidgetStatePropertyAll(colors.onAction)
-          : null,
+    return FilledButton(
+      style: FilledButton.styleFrom(
+        shape: _shape,
+        padding: _padding,
+        textStyle: _labelStyle(context),
+        backgroundColor: destructive ? colors.error : null,
+        foregroundColor: destructive ? colors.onAction : null,
+      ),
+      onPressed: onPressed,
+      child: Text(label),
     );
-    return FilledButton(style: style, onPressed: onPressed, child: Text(label));
   }
 }
 
@@ -60,11 +64,9 @@ class SecondaryButton extends StatelessWidget {
       return OutlinedButton(
         style: OutlinedButton.styleFrom(
           side: BorderSide(color: colors.control),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          shape: _shape,
+          padding: _padding,
+          textStyle: _labelStyle(context),
         ),
         onPressed: onPressed,
         child: Text(label),
@@ -72,9 +74,9 @@ class SecondaryButton extends StatelessWidget {
     }
     return TextButton(
       style: TextButton.styleFrom(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+        shape: _shape,
+        padding: _padding,
+        textStyle: _labelStyle(context),
       ),
       onPressed: onPressed,
       child: Text(label),

@@ -69,6 +69,12 @@ void main() {
         find.widgetWithText(FilledButton, 'Delete'),
       );
       expect(button.style?.backgroundColor?.resolve({}), _tokens(tester).error);
+      expect(
+        DefaultTextStyle.of(tester.element(find.text('Delete')))
+            .style
+            .fontFamily,
+        'InstrumentSans',
+      );
     });
 
     testWidgets('uses the reference button geometry and label', (tester) async {
@@ -86,6 +92,7 @@ void main() {
       ).style;
       expect(labelStyle.fontSize, 12);
       expect(labelStyle.fontWeight, FontWeight.w600);
+      expect(labelStyle.fontFamily, 'InstrumentSans');
     });
   });
 
@@ -99,6 +106,12 @@ void main() {
       expect(find.widgetWithText(TextButton, 'Cancel'), findsOneWidget);
       await tester.tap(find.text('Cancel'));
       expect(fired, isTrue);
+      expect(
+        DefaultTextStyle.of(tester.element(find.text('Cancel')))
+            .style
+            .fontFamily,
+        'InstrumentSans',
+      );
     });
 
     testWidgets('renders as outline when asked', (tester) async {
@@ -127,6 +140,7 @@ void main() {
           .style;
       expect(labelStyle.fontSize, 12);
       expect(labelStyle.fontWeight, FontWeight.w600);
+      expect(labelStyle.fontFamily, 'InstrumentSans');
     });
   });
 
