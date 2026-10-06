@@ -39,13 +39,10 @@ class SheetAlert extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final severity = data.severity;
-    final background = severity == SheetAlertSeverity.error
-        ? colors.errorBg
-        : colors.noticeBg;
-    final foreground = severity == SheetAlertSeverity.error
-        ? colors.error
-        : colors.notice;
+    final (background, foreground) = switch (data.severity) {
+      SheetAlertSeverity.error => (colors.errorBg, colors.error),
+      SheetAlertSeverity.warning => (colors.noticeBg, colors.notice),
+    };
     final actionLabel = data.actionLabel;
     final onAction = this.onAction;
     final message = Text(
@@ -55,31 +52,33 @@ class SheetAlert extends StatelessWidget {
     final action = actionLabel != null && onAction != null
         ? _BannerAction(label: actionLabel, onPressed: onAction)
         : null;
+    final content = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        message,
+        if (action != null) ...[const SizedBox(height: 8), action],
+      ],
+    );
+    final decoration = BoxDecoration(
+      color: background,
+      border: Border.all(color: foreground),
+      borderRadius: BorderRadius.circular(10),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x1F000000),
+          blurRadius: 14,
+          offset: Offset(0, 4),
+        ),
+      ],
+    );
 
     return Semantics(
       liveRegion: true,
       child: Container(
-        decoration: BoxDecoration(
-          color: background,
-          border: Border.all(color: foreground),
-          borderRadius: BorderRadius.circular(10),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x1F000000),
-              blurRadius: 14,
-              offset: Offset(0, 4),
-            ),
-          ],
-        ),
+        decoration: decoration,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            message,
-            if (action != null) ...[const SizedBox(height: 8), action],
-          ],
-        ),
+        child: content,
       ),
     );
   }

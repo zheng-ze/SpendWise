@@ -374,29 +374,21 @@ void main() {
       tester.view.physicalSize = const Size(320, 760);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: buildSpendWiseTheme(Brightness.light),
-          home: MediaQuery(
-            data: const MediaQueryData(textScaler: TextScaler.linear(2)),
-            child: Scaffold(
-              body: Center(
-                child: NoticeCard(
-                  title: 'Spending is up',
-                  body: 'Groceries rose 20% this week.',
-                  primaryAction: NoticeCardAction(
-                    label: 'Open in Trends',
-                    onPressed: () {},
-                  ),
-                  secondaryAction: NoticeCardAction(
-                    label: 'Dismiss',
-                    onPressed: () {},
-                  ),
-                ),
-              ),
-            ),
-          ),
+      final card = NoticeCard(
+        title: 'Spending is up',
+        body: 'Groceries rose 20% this week.',
+        primaryAction: NoticeCardAction(
+          label: 'Open in Trends',
+          onPressed: () {},
         ),
+        secondaryAction: NoticeCardAction(label: 'Dismiss', onPressed: () {}),
+      );
+      final scaled = MediaQuery(
+        data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+        child: Scaffold(body: Center(child: card)),
+      );
+      await tester.pumpWidget(
+        MaterialApp(theme: buildSpendWiseTheme(Brightness.light), home: scaled),
       );
 
       expect(find.text('Open in Trends').hitTestable(), findsOneWidget);

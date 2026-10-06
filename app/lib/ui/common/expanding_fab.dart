@@ -42,65 +42,71 @@ class _ExpandingFabState extends State<ExpandingFab> {
   Widget build(BuildContext context) {
     final secondary = widget.secondary;
     if (secondary == null) {
-      return Align(
-        alignment: Alignment.bottomRight,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: FloatingActionButton(
-            onPressed: widget.primary.onTap,
-            tooltip: widget.primary.label,
-            child: Icon(widget.primary.icon),
+      return _SingleFab(action: widget.primary);
+    }
+
+    Widget? backdrop;
+    if (_expanded) {
+      backdrop = Positioned.fill(
+        child: ExcludeSemantics(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _collapse,
+            child: const SizedBox.expand(),
           ),
         ),
       );
     }
-
-    return Stack(
-      children: [
-        if (_expanded)
-          Positioned.fill(
-            child: ExcludeSemantics(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: _collapse,
-                child: const SizedBox.expand(),
-              ),
-            ),
-          ),
-        Align(
-          alignment: Alignment.bottomRight,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                if (_expanded) ...[
-                  _ActionCapsule(
-                    action: secondary,
-                    onTap: () => _fire(secondary.onTap),
-                  ),
-                  const SizedBox(height: 12),
-                  _ActionCapsule(
-                    action: widget.primary,
-                    onTap: () => _fire(widget.primary.onTap),
-                  ),
-                  const SizedBox(height: 12),
-                ],
-                FloatingActionButton(
-                  onPressed: _toggle,
-                  tooltip: _expanded ? 'Close menu' : widget.primary.label,
-                  child: AnimatedRotation(
-                    turns: _expanded ? 0.125 : 0,
-                    duration: const Duration(milliseconds: 200),
-                    child: Icon(_expanded ? Icons.close : widget.primary.icon),
-                  ),
-                ),
-              ],
-            ),
-          ),
+    final expandedActions = <Widget>[
+      _ActionCapsule(action: secondary, onTap: () => _fire(secondary.onTap)),
+      const SizedBox(height: 12),
+      _ActionCapsule(
+        action: widget.primary,
+        onTap: () => _fire(widget.primary.onTap),
+      ),
+      const SizedBox(height: 12),
+    ];
+    final toggle = FloatingActionButton(
+      onPressed: _toggle,
+      tooltip: _expanded ? 'Close menu' : widget.primary.label,
+      child: AnimatedRotation(
+        turns: _expanded ? 0.125 : 0,
+        duration: const Duration(milliseconds: 200),
+        child: Icon(_expanded ? Icons.close : widget.primary.icon),
+      ),
+    );
+    final menu = Align(
+      alignment: Alignment.bottomRight,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [if (_expanded) ...expandedActions, toggle],
         ),
-      ],
+      ),
+    );
+    return Stack(children: [?backdrop, menu]);
+  }
+}
+
+class _SingleFab extends StatelessWidget {
+  const _SingleFab({required this.action});
+
+  final FabAction action;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.bottomRight,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: FloatingActionButton(
+          onPressed: action.onTap,
+          tooltip: action.label,
+          child: Icon(action.icon),
+        ),
+      ),
     );
   }
 }
@@ -114,30 +120,30 @@ class _ActionCapsule extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final radius = BorderRadius.circular(14);
+    final glyph = ExcludeSemantics(
+      child: Icon(action.icon, size: 16, color: colors.onAction),
+    );
+    final row = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        glyph,
+        const SizedBox(width: 6),
+        ExcludeSemantics(child: Text(action.label)),
+      ],
+    );
+    final body = Padding(
+      padding: const EdgeInsets.fromLTRB(11, 10, 14, 10),
+      child: row,
+    );
     return Semantics(
       button: true,
       label: action.label,
       child: Material(
         color: colors.action,
         textStyle: TextStyle(color: colors.onAction),
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(11, 10, 14, 10),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ExcludeSemantics(
-                  child: Icon(action.icon, size: 16, color: colors.onAction),
-                ),
-                const SizedBox(width: 6),
-                ExcludeSemantics(child: Text(action.label)),
-              ],
-            ),
-          ),
-        ),
+        borderRadius: radius,
+        child: InkWell(borderRadius: radius, onTap: onTap, child: body),
       ),
     );
   }

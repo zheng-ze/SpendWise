@@ -40,14 +40,22 @@ class GapStubPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    final outline = _outline(size);
+    final dashed = _dashed(outline);
     final paint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
-    final outline = Path()
-      ..addRRect(
-        RRect.fromRectAndRadius(Offset.zero & size, const Radius.circular(2)),
-      );
+    canvas.drawPath(dashed, paint);
+  }
+
+  Path _outline(Size size) {
+    return Path()..addRRect(
+      RRect.fromRectAndRadius(Offset.zero & size, const Radius.circular(2)),
+    );
+  }
+
+  Path _dashed(Path outline) {
     final dashed = Path();
     for (final metric in outline.computeMetrics()) {
       var distance = 0.0;
@@ -57,7 +65,7 @@ class GapStubPainter extends CustomPainter {
         distance += 7;
       }
     }
-    canvas.drawPath(dashed, paint);
+    return dashed;
   }
 
   @override
@@ -73,50 +81,80 @@ class _DayColumn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final bar = day.future
-        ? const SizedBox(height: 40)
-        : day.fraction > 0
-        ? Container(
-            height: (40 * day.fraction).clamp(3.0, 40.0),
-            decoration: BoxDecoration(
-              color: colors.action,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(2),
-              ),
-            ),
-          )
-        : SizedBox(
-            height: 8,
-            width: double.infinity,
-            child: CustomPaint(
-              key: const ValueKey('weekStripGapStub'),
-              painter: GapStubPainter(color: colors.gap),
-            ),
-          );
+    final bar = _DayBar(day: day);
+    final barArea = SizedBox(
+      height: 40,
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: FractionallySizedBox(widthFactor: 0.48, child: bar),
+      ),
+    );
+    final title = Text(
+      day.label,
+      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+    final caption = Text(
+      day.caption,
+      style: TextStyle(fontSize: 10, color: colors.subtext),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
 
     return Column(
       mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          height: 40,
-          child: Align(
-            alignment: Alignment.bottomCenter,
-            child: FractionallySizedBox(widthFactor: 0.48, child: bar),
-          ),
-        ),
-        Text(
-          day.label,
-          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        Text(
-          day.caption,
-          style: TextStyle(fontSize: 10, color: colors.subtext),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ],
+      children: [barArea, title, caption],
+    );
+  }
+}
+
+class _DayBar extends StatelessWidget {
+  const _DayBar({required this.day});
+
+  final WeekStripDay day;
+
+  @override
+  Widget build(BuildContext context) {
+    final bar = switch (day) {
+      WeekStripDay(future: true) => const SizedBox(height: 40),
+      WeekStripDay(fraction: <= 0) => const _GapStub(),
+      _ => _ValueBar(fraction: day.fraction),
+    };
+
+    return bar;
+  }
+}
+
+class _ValueBar extends StatelessWidget {
+  const _ValueBar({required this.fraction});
+
+  final double fraction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: (40 * fraction).clamp(3.0, 40.0),
+      decoration: BoxDecoration(
+        color: context.colors.action,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(2)),
+      ),
+    );
+  }
+}
+
+class _GapStub extends StatelessWidget {
+  const _GapStub();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 8,
+      width: double.infinity,
+      child: CustomPaint(
+        key: const ValueKey('weekStripGapStub'),
+        painter: GapStubPainter(color: context.colors.gap),
+      ),
     );
   }
 }

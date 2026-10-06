@@ -22,12 +22,13 @@ class Tray extends StatelessWidget {
     if (header != null) content.add(header);
     content.add(child);
 
+    final decoration = BoxDecoration(
+      color: colors.surface,
+      border: Border.all(color: colors.edge),
+      borderRadius: BorderRadius.circular(14),
+    );
     return Container(
-      decoration: BoxDecoration(
-        color: colors.surface,
-        border: Border.all(color: colors.edge),
-        borderRadius: BorderRadius.circular(14),
-      ),
+      decoration: decoration,
       padding: const EdgeInsets.all(12),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -56,15 +57,9 @@ class _TrayHeader extends StatelessWidget {
       ),
     );
     final trailing = this.trailing;
-    if (trailing == null) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 6),
-        child: titleText,
-      );
-    }
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
+    Widget content = titleText;
+    if (trailing != null) {
+      content = Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.baseline,
         textBaseline: TextBaseline.alphabetic,
@@ -72,7 +67,8 @@ class _TrayHeader extends StatelessWidget {
           Expanded(child: titleText),
           trailing,
         ],
-      ),
-    );
+      );
+    }
+    return Padding(padding: const EdgeInsets.only(bottom: 6), child: content);
   }
 }

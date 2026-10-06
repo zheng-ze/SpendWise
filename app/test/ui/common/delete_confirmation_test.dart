@@ -12,6 +12,11 @@ Widget _host() => const MaterialApp(
 Widget _openButton(BuildContext context) =>
     TextButton(onPressed: () {}, child: const Text('open'));
 
+Widget _themedHost() => MaterialApp(
+  theme: buildSpendWiseTheme(Brightness.light),
+  home: const Scaffold(body: Builder(builder: _openButton)),
+);
+
 void main() {
   testWidgets('shows the item name in the dialog title', (tester) async {
     await tester.pumpWidget(_host());
@@ -50,12 +55,7 @@ void main() {
   testWidgets('the dialog uses tokens with an error-filled confirm', (
     tester,
   ) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: buildSpendWiseTheme(Brightness.light),
-        home: const Scaffold(body: Builder(builder: _openButton)),
-      ),
-    );
+    await tester.pumpWidget(_themedHost());
     final context = tester.element(find.byType(TextButton));
     final tokens = Theme.of(context).extension<SpendWiseColors>()!;
 
@@ -82,12 +82,7 @@ void main() {
     tester.view.physicalSize = const Size(1280, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: buildSpendWiseTheme(Brightness.light),
-        home: const Scaffold(body: Builder(builder: _openButton)),
-      ),
-    );
+    await tester.pumpWidget(_themedHost());
     final context = tester.element(find.byType(TextButton));
 
     final future = showDeleteConfirmation(context, itemName: 'Item');

@@ -48,26 +48,26 @@ class NoticeCard extends StatelessWidget {
             body,
             style: TextStyle(fontSize: 12, color: colors.notice, height: 1.45),
           );
-    final content = <Widget>[
-      Text(
-        title,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: colors.notice,
-          height: 1.45,
-        ),
+    final titleText = Text(
+      title,
+      style: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        color: colors.notice,
+        height: 1.45,
       ),
-    ];
+    );
+    final content = <Widget>[titleText];
     if (bodyText != null) content.add(bodyText);
     if (actions != null) content.add(actions);
 
+    final decoration = BoxDecoration(
+      color: colors.noticeBg,
+      border: Border.all(color: colors.notice),
+      borderRadius: BorderRadius.circular(10),
+    );
     return Container(
-      decoration: BoxDecoration(
-        color: colors.noticeBg,
-        border: Border.all(color: colors.notice),
-        borderRadius: BorderRadius.circular(10),
-      ),
+      decoration: decoration,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -94,29 +94,25 @@ class _NoticeActions extends StatelessWidget {
     final secondaryAction = this.secondaryAction;
     final buttons = <Widget>[];
     if (primaryAction != null) {
-      buttons.add(
-        PrimaryButton(
-          label: primaryAction.label,
-          onPressed: primaryAction.onPressed,
-        ),
+      final primary = PrimaryButton(
+        label: primaryAction.label,
+        onPressed: primaryAction.onPressed,
       );
+      buttons.add(primary);
     }
     if (secondaryAction != null) {
-      buttons.add(
-        SecondaryButton(
-          label: secondaryAction.label,
-          onPressed: secondaryAction.onPressed,
-        ),
+      final secondary = SecondaryButton(
+        label: secondaryAction.label,
+        onPressed: secondaryAction.onPressed,
       );
+      buttons.add(secondary);
     }
-    return Padding(
-      padding: const EdgeInsets.only(top: 6),
-      child: OverflowBar(
-        alignment: MainAxisAlignment.start,
-        spacing: 14,
-        overflowSpacing: 8,
-        children: buttons,
-      ),
+    final bar = OverflowBar(
+      alignment: MainAxisAlignment.start,
+      spacing: 14,
+      overflowSpacing: 8,
+      children: buttons,
     );
+    return Padding(padding: const EdgeInsets.only(top: 6), child: bar);
   }
 }

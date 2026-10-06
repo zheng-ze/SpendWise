@@ -19,10 +19,26 @@ class CompactLabelledFab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final radius = BorderRadius.circular(14);
     final labelStyle = Theme.of(context).textTheme.labelLarge?.copyWith(
       fontSize: 12,
       fontWeight: FontWeight.w600,
       color: colors.onAction,
+    );
+    final glyph = ExcludeSemantics(
+      child: Icon(icon, size: 16, color: colors.onAction),
+    );
+    final row = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        glyph,
+        const SizedBox(width: 6),
+        ExcludeSemantics(child: Text(label)),
+      ],
+    );
+    final body = Padding(
+      padding: const EdgeInsets.fromLTRB(11, 10, 14, 10),
+      child: row,
     );
     return Semantics(
       button: true,
@@ -30,24 +46,8 @@ class CompactLabelledFab extends StatelessWidget {
       child: Material(
         color: colors.action,
         textStyle: labelStyle ?? TextStyle(color: colors.onAction),
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: onPressed,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(11, 10, 14, 10),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ExcludeSemantics(
-                  child: Icon(icon, size: 16, color: colors.onAction),
-                ),
-                const SizedBox(width: 6),
-                ExcludeSemantics(child: Text(label)),
-              ],
-            ),
-          ),
-        ),
+        borderRadius: radius,
+        child: InkWell(borderRadius: radius, onTap: onPressed, child: body),
       ),
     );
   }

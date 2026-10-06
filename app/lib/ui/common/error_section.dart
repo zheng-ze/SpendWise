@@ -24,20 +24,20 @@ class ErrorSection extends StatelessWidget {
 
     final colors = context.colors;
     final onRetry = this.onRetry;
-    final content = <Widget>[
-      Text(
-        'Could not save $subject: ${friendlyLedgerErrorMessage(error)}',
-        style: TextStyle(color: colors.error, fontSize: 12, height: 1.45),
-      ),
-    ];
+    final message = Text(
+      'Could not save $subject: ${friendlyLedgerErrorMessage(error)}',
+      style: TextStyle(color: colors.error, fontSize: 12, height: 1.45),
+    );
+    final content = <Widget>[message];
     if (onRetry != null) content.add(_RetryButton(onPressed: onRetry));
 
+    final decoration = BoxDecoration(
+      color: colors.errorBg,
+      border: Border.all(color: colors.error),
+      borderRadius: BorderRadius.circular(10),
+    );
     return Container(
-      decoration: BoxDecoration(
-        color: colors.errorBg,
-        border: Border.all(color: colors.error),
-        borderRadius: BorderRadius.circular(10),
-      ),
+      decoration: decoration,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       margin: const EdgeInsets.symmetric(vertical: 8),
       child: Column(

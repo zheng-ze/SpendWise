@@ -35,23 +35,21 @@ class MedallionRow extends StatelessWidget {
       child: Icon(icon, size: 17, color: iconColor ?? colors.action),
     );
     final subtitle = this.subtitle;
-    final labelLines = <Widget>[
-      Text(
-        title,
-        style: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          height: 1.25,
-        ),
+    final titleText = Text(
+      title,
+      style: const TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        height: 1.25,
       ),
-    ];
+    );
+    final labelLines = <Widget>[titleText];
     if (subtitle != null) {
-      labelLines.add(
-        Text(
-          subtitle,
-          style: TextStyle(fontSize: 10, color: colors.subtext, height: 1.3),
-        ),
+      final subtitleText = Text(
+        subtitle,
+        style: TextStyle(fontSize: 10, color: colors.subtext, height: 1.3),
       );
+      labelLines.add(subtitleText);
     }
     final labels = Column(
       mainAxisSize: MainAxisSize.min,

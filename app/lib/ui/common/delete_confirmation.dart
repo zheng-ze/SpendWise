@@ -27,26 +27,24 @@ class _DeleteDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(16),
+      side: BorderSide(color: colors.control),
+    );
+    final content = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _DeleteTitle(itemName: itemName),
+        const SizedBox(height: 14),
+        const _DeleteActions(),
+      ],
+    );
+    final body = Padding(padding: const EdgeInsets.all(16), child: content);
     return Dialog(
       backgroundColor: colors.raised,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: colors.control),
-      ),
-      child: IntrinsicWidth(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _DeleteTitle(itemName: itemName),
-              const SizedBox(height: 14),
-              const _DeleteActions(),
-            ],
-          ),
-        ),
-      ),
+      shape: shape,
+      child: IntrinsicWidth(child: body),
     );
   }
 }
@@ -71,24 +69,24 @@ class _DeleteActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final cancel = TextButton(
+      onPressed: () => Navigator.of(context).pop(false),
+      child: const Text('Cancel'),
+    );
+    final confirmStyle = FilledButton.styleFrom(
+      backgroundColor: colors.error,
+      foregroundColor: colors.onAction,
+    );
+    final confirm = FilledButton(
+      style: confirmStyle,
+      onPressed: () => Navigator.of(context).pop(true),
+      child: const Text('Delete'),
+    );
     return OverflowBar(
       alignment: MainAxisAlignment.end,
       spacing: 18,
       overflowSpacing: 8,
-      children: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          style: FilledButton.styleFrom(
-            backgroundColor: colors.error,
-            foregroundColor: colors.onAction,
-          ),
-          onPressed: () => Navigator.of(context).pop(true),
-          child: const Text('Delete'),
-        ),
-      ],
+      children: [cancel, confirm],
     );
   }
 }

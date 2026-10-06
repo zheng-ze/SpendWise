@@ -30,22 +30,21 @@ class _Bar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final fill = Container(
+      height: 12,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(7),
+      ),
+    );
+    final fraction = FractionallySizedBox(
+      alignment: Alignment.centerLeft,
+      widthFactor: wide ? 0.6 : 0.4,
+      child: fill,
+    );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 7),
-      child: SizedBox(
-        width: double.infinity,
-        child: FractionallySizedBox(
-          alignment: Alignment.centerLeft,
-          widthFactor: wide ? 0.6 : 0.4,
-          child: Container(
-            height: 12,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(7),
-            ),
-          ),
-        ),
-      ),
+      child: SizedBox(width: double.infinity, child: fraction),
     );
   }
 }

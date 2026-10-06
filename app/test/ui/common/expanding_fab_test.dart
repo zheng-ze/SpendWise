@@ -9,21 +9,35 @@ void main() {
     home: Scaffold(body: Stack(children: [child])),
   );
 
+  ExpandingFab singleAction({VoidCallback? onTap}) => ExpandingFab(
+    primary: FabAction(
+      label: 'Add Transaction',
+      icon: Icons.add,
+      onTap: onTap ?? () {},
+    ),
+  );
+
+  ExpandingFab twoActions({
+    VoidCallback? onPrimary,
+    VoidCallback? onSecondary,
+  }) => ExpandingFab(
+    primary: FabAction(
+      label: 'Add Transaction',
+      icon: Icons.add,
+      onTap: onPrimary ?? () {},
+    ),
+    secondary: FabAction(
+      label: 'Edit Checking',
+      icon: Icons.edit,
+      onTap: onSecondary ?? () {},
+    ),
+  );
+
   testWidgets('a single action fires directly with no expansion', (
     tester,
   ) async {
     var fired = false;
-    await tester.pumpWidget(
-      wrap(
-        ExpandingFab(
-          primary: FabAction(
-            label: 'Add Transaction',
-            icon: Icons.add,
-            onTap: () => fired = true,
-          ),
-        ),
-      ),
-    );
+    await tester.pumpWidget(wrap(singleAction(onTap: () => fired = true)));
 
     await tester.tap(find.byIcon(Icons.add));
     await tester.pumpAndSettle();
@@ -35,22 +49,7 @@ void main() {
   testWidgets('two actions expand into labelled capsules on tap', (
     tester,
   ) async {
-    await tester.pumpWidget(
-      wrap(
-        ExpandingFab(
-          primary: FabAction(
-            label: 'Add Transaction',
-            icon: Icons.add,
-            onTap: () {},
-          ),
-          secondary: FabAction(
-            label: 'Edit Checking',
-            icon: Icons.edit,
-            onTap: () {},
-          ),
-        ),
-      ),
-    );
+    await tester.pumpWidget(wrap(twoActions()));
 
     expect(find.text('Add Transaction'), findsNothing);
 
@@ -64,22 +63,7 @@ void main() {
 
   testWidgets('choosing an action collapses first, then fires', (tester) async {
     var fired = false;
-    await tester.pumpWidget(
-      wrap(
-        ExpandingFab(
-          primary: FabAction(
-            label: 'Add Transaction',
-            icon: Icons.add,
-            onTap: () => fired = true,
-          ),
-          secondary: FabAction(
-            label: 'Edit Checking',
-            icon: Icons.edit,
-            onTap: () {},
-          ),
-        ),
-      ),
-    );
+    await tester.pumpWidget(wrap(twoActions(onPrimary: () => fired = true)));
 
     await tester.tap(find.byIcon(Icons.add));
     await tester.pumpAndSettle();
@@ -99,17 +83,9 @@ void main() {
     var secondaryFired = false;
     await tester.pumpWidget(
       wrap(
-        ExpandingFab(
-          primary: FabAction(
-            label: 'Add Transaction',
-            icon: Icons.add,
-            onTap: () => primaryFired = true,
-          ),
-          secondary: FabAction(
-            label: 'Edit Checking',
-            icon: Icons.edit,
-            onTap: () => secondaryFired = true,
-          ),
+        twoActions(
+          onPrimary: () => primaryFired = true,
+          onSecondary: () => secondaryFired = true,
         ),
       ),
     );
@@ -131,17 +107,7 @@ void main() {
   ) async {
     final handle = tester.ensureSemantics();
 
-    await tester.pumpWidget(
-      wrap(
-        ExpandingFab(
-          primary: FabAction(
-            label: 'Add Transaction',
-            icon: Icons.add,
-            onTap: () {},
-          ),
-        ),
-      ),
-    );
+    await tester.pumpWidget(wrap(singleAction()));
 
     final node = tester.getSemantics(find.byType(FloatingActionButton));
     expect(node.tooltip, 'Add Transaction');
@@ -154,22 +120,7 @@ void main() {
   ) async {
     final handle = tester.ensureSemantics();
 
-    await tester.pumpWidget(
-      wrap(
-        ExpandingFab(
-          primary: FabAction(
-            label: 'Add Transaction',
-            icon: Icons.add,
-            onTap: () {},
-          ),
-          secondary: FabAction(
-            label: 'Edit Checking',
-            icon: Icons.edit,
-            onTap: () {},
-          ),
-        ),
-      ),
-    );
+    await tester.pumpWidget(wrap(twoActions()));
 
     await tester.tap(find.byIcon(Icons.add));
     await tester.pumpAndSettle();
@@ -190,22 +141,7 @@ void main() {
   ) async {
     final handle = tester.ensureSemantics();
 
-    await tester.pumpWidget(
-      wrap(
-        ExpandingFab(
-          primary: FabAction(
-            label: 'Add Transaction',
-            icon: Icons.add,
-            onTap: () {},
-          ),
-          secondary: FabAction(
-            label: 'Edit Checking',
-            icon: Icons.edit,
-            onTap: () {},
-          ),
-        ),
-      ),
-    );
+    await tester.pumpWidget(wrap(twoActions()));
 
     final collapsedNode = tester.getSemantics(
       find.byType(FloatingActionButton),
@@ -222,22 +158,7 @@ void main() {
   });
 
   testWidgets('capsules use the compact rounded treatment', (tester) async {
-    await tester.pumpWidget(
-      wrap(
-        ExpandingFab(
-          primary: FabAction(
-            label: 'Add Transaction',
-            icon: Icons.add,
-            onTap: () {},
-          ),
-          secondary: FabAction(
-            label: 'Edit Checking',
-            icon: Icons.edit,
-            onTap: () {},
-          ),
-        ),
-      ),
-    );
+    await tester.pumpWidget(wrap(twoActions()));
 
     await tester.tap(find.byIcon(Icons.add));
     await tester.pumpAndSettle();
@@ -255,27 +176,11 @@ void main() {
         '${brightness.name} mode', (tester) async {
       final theme = buildSpendWiseTheme(brightness);
       final tokens = theme.extension<SpendWiseColors>()!;
+      final fab = twoActions();
       await tester.pumpWidget(
         MaterialApp(
           theme: theme,
-          home: Scaffold(
-            body: Stack(
-              children: [
-                ExpandingFab(
-                  primary: FabAction(
-                    label: 'Add Transaction',
-                    icon: Icons.add,
-                    onTap: () {},
-                  ),
-                  secondary: FabAction(
-                    label: 'Edit Checking',
-                    icon: Icons.edit,
-                    onTap: () {},
-                  ),
-                ),
-              ],
-            ),
-          ),
+          home: Scaffold(body: Stack(children: [fab])),
         ),
       );
       await tester.tap(find.byIcon(Icons.add));

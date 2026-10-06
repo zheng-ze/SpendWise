@@ -34,18 +34,53 @@ AppSheet _sheet({
 }
 
 Future<void> _openSheet(WidgetTester tester, AppSheet sheet) async {
-  await tester.pumpWidget(
-    MaterialApp(
-      home: Builder(
-        builder: (context) => TextButton(
-          onPressed: () => showAppSheet<void>(context, builder: (_) => sheet),
-          child: const Text('open'),
-        ),
-      ),
-    ),
+  final app = MaterialApp(
+    home: _SheetLauncher(sheet: sheet, label: 'open'),
   );
+  await tester.pumpWidget(app);
   await tester.tap(find.text('open'));
   await tester.pumpAndSettle();
+}
+
+class _SheetLauncher extends StatelessWidget {
+  const _SheetLauncher({required this.sheet, required this.label});
+
+  final AppSheet sheet;
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton(
+      onPressed: () => showAppSheet<void>(context, builder: (_) => sheet),
+      child: Text(label),
+    );
+  }
+}
+
+class _LayerButton extends StatelessWidget {
+  const _LayerButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton(
+      onPressed: () => showAppSheet<void>(
+        context,
+        builder: (_) =>
+            const AppSheet(header: Text('second'), body: Text('second body')),
+      ),
+      child: const Text('layer'),
+    );
+  }
+}
+
+Widget _layeredSheetApp() {
+  return MaterialApp(
+    home: _SheetLauncher(
+      label: 'open',
+      sheet: AppSheet(header: const Text('first'), body: const _LayerButton()),
+    ),
+  );
 }
 
 double _sheetHeight(WidgetTester tester) =>
@@ -126,33 +161,8 @@ void main() {
   group('root navigator', () {
     Future<void> openFromNested(WidgetTester tester, Size size) async {
       _useSize(tester, size);
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: Column(
-              children: [
-                const Text('outer'),
-                SizedBox(
-                  width: 200,
-                  height: 200,
-                  child: Navigator(
-                    onGenerateRoute: (_) => MaterialPageRoute(
-                      builder: (context) => TextButton(
-                        onPressed: () => showAppSheet<void>(
-                          context,
-                          builder: (_) =>
-                              _sheet(body: const Text('nested body')),
-                        ),
-                        child: const Text('open nested'),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
+      const app = MaterialApp(home: _NestedSheetHost());
+      await tester.pumpWidget(app);
       await tester.tap(find.text('open nested'));
       await tester.pumpAndSettle();
     }
@@ -191,33 +201,7 @@ void main() {
 
   testWidgets('the contract helper checks every drawn sheet', (tester) async {
     contract.useSheetSize(tester, _phone);
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Builder(
-          builder: (context) => TextButton(
-            onPressed: () => showAppSheet<void>(
-              context,
-              builder: (_) => AppSheet(
-                header: const Text('first'),
-                body: Builder(
-                  builder: (sheetContext) => TextButton(
-                    onPressed: () => showAppSheet<void>(
-                      sheetContext,
-                      builder: (_) => const AppSheet(
-                        header: Text('second'),
-                        body: Text('second body'),
-                      ),
-                    ),
-                    child: const Text('layer'),
-                  ),
-                ),
-              ),
-            ),
-            child: const Text('open'),
-          ),
-        ),
-      ),
-    );
+    await tester.pumpWidget(_layeredSheetApp());
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('layer'));
@@ -252,16 +236,13 @@ void main() {
         expect(find.text('Save').hitTestable(), findsOneWidget);
         expect(find.text('number pad').hitTestable(), findsOneWidget);
 
-        await tester.fling(
-          find
-              .ancestor(
-                of: find.text('row 0'),
-                matching: find.byType(SingleChildScrollView),
-              )
-              .first,
-          const Offset(0, -500),
-          2000,
-        );
+        final rowScroller = find
+            .ancestor(
+              of: find.text('row 0'),
+              matching: find.byType(SingleChildScrollView),
+            )
+            .first;
+        await tester.fling(rowScroller, const Offset(0, -500), 2000);
         await tester.pumpAndSettle();
 
         expect(find.text('Sheet title').hitTestable(), findsOneWidget);
@@ -333,16 +314,17 @@ void main() {
       expect(tester.takeException(), isNull);
       final cap = 0.66 * (size.height - keyboard);
       expect(_sheetHeight(tester), lessThanOrEqualTo(cap + 1));
+      final outerScrollable = find
+          .descendant(
+            of: find.byType(AppSheet),
+            matching: find.byType(Scrollable),
+          )
+          .first;
 
       await tester.scrollUntilVisible(
         find.text('key 0'),
         100,
-        scrollable: find
-            .descendant(
-              of: find.byType(AppSheet),
-              matching: find.byType(Scrollable),
-            )
-            .first,
+        scrollable: outerScrollable,
       );
       await tester.tap(find.text('key 0'));
       await tester.ensureVisible(find.text('Save'));
@@ -356,33 +338,7 @@ void main() {
 
   testWidgets('layered sheets push a second route', (tester) async {
     _useSize(tester, _phone);
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Builder(
-          builder: (context) => TextButton(
-            onPressed: () => showAppSheet<void>(
-              context,
-              builder: (_) => AppSheet(
-                header: const Text('first'),
-                body: Builder(
-                  builder: (sheetContext) => TextButton(
-                    onPressed: () => showAppSheet<void>(
-                      sheetContext,
-                      builder: (_) => const AppSheet(
-                        header: Text('second'),
-                        body: Text('second body'),
-                      ),
-                    ),
-                    child: const Text('layer'),
-                  ),
-                ),
-              ),
-            ),
-            child: const Text('open'),
-          ),
-        ),
-      ),
-    );
+    await tester.pumpWidget(_layeredSheetApp());
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
     expect(find.text('first'), findsOneWidget);
@@ -400,21 +356,12 @@ void main() {
     final alertProvider = StateProvider<SheetAlertData?>((ref) => null);
 
     Future<void> openWatchedSheet(WidgetTester tester) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp(
-            home: Builder(
-              builder: (context) => TextButton(
-                onPressed: () => showAppSheet<void>(
-                  context,
-                  builder: (_) => _WatchedSheet(provider: alertProvider),
-                ),
-                child: const Text('open'),
-              ),
-            ),
-          ),
+      final app = ProviderScope(
+        child: MaterialApp(
+          home: _WatchedSheetLauncher(provider: alertProvider),
         ),
       );
+      await tester.pumpWidget(app);
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
     }
@@ -452,14 +399,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byType(SheetAlert), findsOneWidget);
-      expect(
-        find.ancestor(
-          of: find.byType(SheetAlert),
-          matching: find.byType(AppSheet),
-        ),
-        findsNothing,
-      );
+      contract.expectAlertOutsideSheet(tester);
     });
 
     testWidgets('clearing the alert removes the banner', (tester) async {
@@ -494,21 +434,12 @@ void main() {
       tester,
     ) async {
       _useSize(tester, _desktop);
-      await tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp(
-            home: Builder(
-              builder: (context) => TextButton(
-                onPressed: () => showAppSheet<void>(
-                  context,
-                  builder: (_) => _WatchedSheet(provider: alertProvider),
-                ),
-                child: const Text('open'),
-              ),
-            ),
-          ),
+      final app = ProviderScope(
+        child: MaterialApp(
+          home: _WatchedSheetLauncher(provider: alertProvider),
         ),
       );
+      await tester.pumpWidget(app);
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
       final before = _sheetHeight(tester);
@@ -521,17 +452,57 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byType(SheetAlert), findsOneWidget);
-      expect(
-        find.ancestor(
-          of: find.byType(SheetAlert),
-          matching: find.byType(AppSheet),
-        ),
-        findsNothing,
-      );
+      contract.expectAlertOutsideSheet(tester);
       expect(_sheetHeight(tester), before);
     });
   });
+}
+
+class _NestedSheetHost extends StatelessWidget {
+  const _NestedSheetHost();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Column(
+        children: [
+          const Text('outer'),
+          SizedBox(
+            width: 200,
+            height: 200,
+            child: Navigator(
+              onGenerateRoute: (_) => MaterialPageRoute(
+                builder: (context) => TextButton(
+                  onPressed: () => showAppSheet<void>(
+                    context,
+                    builder: (_) => _sheet(body: const Text('nested body')),
+                  ),
+                  child: const Text('open nested'),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WatchedSheetLauncher extends StatelessWidget {
+  const _WatchedSheetLauncher({required this.provider});
+
+  final StateProvider<SheetAlertData?> provider;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton(
+      onPressed: () => showAppSheet<void>(
+        context,
+        builder: (_) => _WatchedSheet(provider: provider),
+      ),
+      child: const Text('open'),
+    );
+  }
 }
 
 class _WatchedSheet extends ConsumerWidget {

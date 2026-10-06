@@ -32,12 +32,10 @@ void main() {
     testWidgets('a selected mark fills with selectedMark and no stroke', (
       tester,
     ) async {
-      await tester.pumpWidget(
-        _host(const MonthBars(slots: [], selectedIndex: 0)),
-      );
-      await tester.pumpWidget(
-        _host(MonthBars(slots: _twelveMonths(), selectedIndex: 9)),
-      );
+      const emptyBars = MonthBars(slots: [], selectedIndex: 0);
+      final selectedBars = MonthBars(slots: _twelveMonths(), selectedIndex: 9);
+      await tester.pumpWidget(_host(emptyBars));
+      await tester.pumpWidget(_host(selectedBars));
       await tester.pumpAndSettle();
 
       final chart = tester.widget<BarChart>(find.byType(BarChart));
@@ -47,18 +45,14 @@ void main() {
     });
 
     testWidgets('unselected bars keep their state colours', (tester) async {
-      await tester.pumpWidget(
-        _host(
-          MonthBars(
-            slots: const [
-              MonthBarSlot(value: 120, status: MonthBarStatus.value),
-              MonthBarSlot(value: 80, status: MonthBarStatus.incomplete),
-              MonthBarSlot(status: MonthBarStatus.gap),
-              MonthBarSlot(status: MonthBarStatus.blank),
-            ],
-          ),
-        ),
-      );
+      const slots = [
+        MonthBarSlot(value: 120, status: MonthBarStatus.value),
+        MonthBarSlot(value: 80, status: MonthBarStatus.incomplete),
+        MonthBarSlot(status: MonthBarStatus.gap),
+        MonthBarSlot(status: MonthBarStatus.blank),
+      ];
+      const bars = MonthBars(slots: slots);
+      await tester.pumpWidget(_host(bars));
       await tester.pumpAndSettle();
 
       final chart = tester.widget<BarChart>(find.byType(BarChart));
@@ -74,17 +68,12 @@ void main() {
     });
 
     testWidgets('a selected blank slot stays at zero height', (tester) async {
-      await tester.pumpWidget(
-        _host(
-          MonthBars(
-            slots: const [
-              MonthBarSlot(value: 120, status: MonthBarStatus.value),
-              MonthBarSlot(status: MonthBarStatus.blank),
-            ],
-            selectedIndex: 1,
-          ),
-        ),
-      );
+      const slots = [
+        MonthBarSlot(value: 120, status: MonthBarStatus.value),
+        MonthBarSlot(status: MonthBarStatus.blank),
+      ];
+      const bars = MonthBars(slots: slots, selectedIndex: 1);
+      await tester.pumpWidget(_host(bars));
       await tester.pumpAndSettle();
 
       final chart = tester.widget<BarChart>(find.byType(BarChart));
@@ -92,11 +81,8 @@ void main() {
     });
 
     testWidgets('a gap slot draws a dashed stub', (tester) async {
-      await tester.pumpWidget(
-        _host(
-          const MonthBars(slots: [MonthBarSlot(status: MonthBarStatus.gap)]),
-        ),
-      );
+      const bars = MonthBars(slots: [MonthBarSlot(status: MonthBarStatus.gap)]);
+      await tester.pumpWidget(_host(bars));
       await tester.pumpAndSettle();
 
       final chart = tester.widget<BarChart>(find.byType(BarChart));
@@ -105,9 +91,11 @@ void main() {
 
     testWidgets('tapping a bar reports its index', (tester) async {
       var selected = -1;
-      await tester.pumpWidget(
-        _host(MonthBars(slots: _twelveMonths(), onSelect: (i) => selected = i)),
+      final bars = MonthBars(
+        slots: _twelveMonths(),
+        onSelect: (i) => selected = i,
       );
+      await tester.pumpWidget(_host(bars));
       await tester.pumpAndSettle();
 
       final chartRect = tester.getRect(find.byType(BarChart));
@@ -126,9 +114,8 @@ void main() {
       tester,
     ) async {
       final selections = <int>[];
-      await tester.pumpWidget(
-        _host(MonthBars(slots: _twelveMonths(), onSelect: selections.add)),
-      );
+      final bars = MonthBars(slots: _twelveMonths(), onSelect: selections.add);
+      await tester.pumpWidget(_host(bars));
       await tester.pumpAndSettle();
 
       final chartRect = tester.getRect(find.byType(BarChart));
@@ -156,27 +143,17 @@ void main() {
     testWidgets('a selected section fills with selectedMark and no stroke', (
       tester,
     ) async {
-      await tester.pumpWidget(
-        _host(
-          DonutChart(
-            segments: const [
-              DonutSegment(
-                label: 'Groceries',
-                value: 73.5,
-                color: Color(0xFF29755E),
-              ),
-              DonutSegment(
-                label: 'Dining',
-                value: 83.9,
-                color: Color(0xFF986421),
-              ),
-            ],
-            centerLabel: 'October',
-            centerValue: 'S\$167.40',
-            selectedIndex: 0,
-          ),
-        ),
+      const segments = [
+        DonutSegment(label: 'Groceries', value: 73.5, color: Color(0xFF29755E)),
+        DonutSegment(label: 'Dining', value: 83.9, color: Color(0xFF986421)),
+      ];
+      const donut = DonutChart(
+        segments: segments,
+        centerLabel: 'October',
+        centerValue: 'S\$167.40',
+        selectedIndex: 0,
       );
+      await tester.pumpWidget(_host(donut));
       await tester.pumpAndSettle();
 
       final chart = tester.widget<PieChart>(find.byType(PieChart));
@@ -191,27 +168,18 @@ void main() {
       'a tap selects once and a drag around the ring selects nothing',
       (tester) async {
         final selections = <int>[];
-        await tester.pumpWidget(
-          _host(
-            Center(
-              child: DonutChart(
-                segments: const [
-                  DonutSegment(
-                    label: 'Groceries',
-                    value: 1,
-                    color: Color(0xFF29755E),
-                  ),
-                  DonutSegment(
-                    label: 'Dining',
-                    value: 1,
-                    color: Color(0xFF986421),
-                  ),
-                ],
-                onSelect: selections.add,
-              ),
+        final donut = DonutChart(
+          segments: const [
+            DonutSegment(
+              label: 'Groceries',
+              value: 1,
+              color: Color(0xFF29755E),
             ),
-          ),
+            DonutSegment(label: 'Dining', value: 1, color: Color(0xFF986421)),
+          ],
+          onSelect: selections.add,
         );
+        await tester.pumpWidget(_host(Center(child: donut)));
         await tester.pumpAndSettle();
 
         final centre = tester.getCenter(find.byType(PieChart));
@@ -244,9 +212,9 @@ void main() {
       var worst = 0.0;
       for (final rect in rects) {
         if (rect.isEmpty) continue;
-        final ratio = rect.width > rect.height
-            ? rect.width / rect.height
-            : rect.height / rect.width;
+        final ratio =
+            math.max(rect.width, rect.height) /
+            math.min(rect.width, rect.height);
         if (ratio > worst) worst = ratio;
       }
       return worst;
@@ -286,29 +254,17 @@ void main() {
 
   group('CategoryMap', () {
     testWidgets('no block shows a bare number', (tester) async {
-      await tester.pumpWidget(
-        _host(
-          const CategoryMap(
-            tiles: [
-              CategoryMapTile(
-                label: 'Groceries',
-                share: 0.44,
-                color: Color(0xFF29755E),
-              ),
-              CategoryMapTile(
-                label: 'Dining',
-                share: 0.5,
-                color: Color(0xFF986421),
-              ),
-              CategoryMapTile(
-                label: 'Tiny',
-                share: 0.06,
-                color: Color(0xFF6861A4),
-              ),
-            ],
-          ),
+      const tiles = [
+        CategoryMapTile(
+          label: 'Groceries',
+          share: 0.44,
+          color: Color(0xFF29755E),
         ),
-      );
+        CategoryMapTile(label: 'Dining', share: 0.5, color: Color(0xFF986421)),
+        CategoryMapTile(label: 'Tiny', share: 0.06, color: Color(0xFF6861A4)),
+      ];
+      const map = CategoryMap(tiles: tiles);
+      await tester.pumpWidget(_host(map));
       await tester.pumpAndSettle();
 
       final bareNumber = RegExp(r'^[\d.,% ]+$');
@@ -319,61 +275,51 @@ void main() {
     });
 
     testWidgets('small blocks name their share beside the map', (tester) async {
-      await tester.pumpWidget(
-        _host(
-          const SizedBox(
-            width: 300,
-            child: CategoryMap(
-              tiles: [
-                CategoryMapTile(
-                  label: 'Dining',
-                  share: 0.97,
-                  color: Color(0xFF986421),
-                ),
-                CategoryMapTile(
-                  label: 'Tiny',
-                  share: 0.03,
-                  color: Color(0xFF6861A4),
-                ),
-              ],
+      const map = SizedBox(
+        width: 300,
+        child: CategoryMap(
+          tiles: [
+            CategoryMapTile(
+              label: 'Dining',
+              share: 0.97,
+              color: Color(0xFF986421),
             ),
-          ),
+            CategoryMapTile(
+              label: 'Tiny',
+              share: 0.03,
+              color: Color(0xFF6861A4),
+            ),
+          ],
         ),
       );
+      await tester.pumpWidget(_host(map));
       await tester.pumpAndSettle();
 
       expect(find.textContaining('Tiny'), findsWidgets);
     });
 
     testWidgets('labels that do not fit move beside the map', (tester) async {
+      const tiles = [
+        CategoryMapTile(
+          label: 'Healthcare',
+          share: 0.34,
+          color: Color(0xFF29755E),
+        ),
+        CategoryMapTile(
+          label: 'Transport',
+          share: 0.33,
+          color: Color(0xFF6861A4),
+        ),
+        CategoryMapTile(label: 'Dining', share: 0.33, color: Color(0xFF8A4F7D)),
+      ];
+      const map = SizedBox(width: 300, child: CategoryMap(tiles: tiles));
       Widget mapWithScale(double scale) {
         return MaterialApp(
           theme: buildSpendWiseTheme(Brightness.light),
           home: Scaffold(
             body: MediaQuery(
               data: MediaQueryData(textScaler: TextScaler.linear(scale)),
-              child: const SizedBox(
-                width: 300,
-                child: CategoryMap(
-                  tiles: [
-                    CategoryMapTile(
-                      label: 'Healthcare',
-                      share: 0.34,
-                      color: Color(0xFF29755E),
-                    ),
-                    CategoryMapTile(
-                      label: 'Transport',
-                      share: 0.33,
-                      color: Color(0xFF6861A4),
-                    ),
-                    CategoryMapTile(
-                      label: 'Dining',
-                      share: 0.33,
-                      color: Color(0xFF8A4F7D),
-                    ),
-                  ],
-                ),
-              ),
+              child: map,
             ),
           ),
         );
@@ -398,28 +344,25 @@ void main() {
       tester,
     ) async {
       var selected = -1;
-      await tester.pumpWidget(
-        _host(
-          SizedBox(
-            width: 280,
-            child: CategoryMap(
-              tiles: const [
-                CategoryMapTile(
-                  label: 'Big',
-                  share: 0.999,
-                  color: Color(0xFF986421),
-                ),
-                CategoryMapTile(
-                  label: 'Tiny',
-                  share: 0.001,
-                  color: Color(0xFF6861A4),
-                ),
-              ],
-              onSelect: (i) => selected = i,
+      final map = SizedBox(
+        width: 280,
+        child: CategoryMap(
+          tiles: const [
+            CategoryMapTile(
+              label: 'Big',
+              share: 0.999,
+              color: Color(0xFF986421),
             ),
-          ),
+            CategoryMapTile(
+              label: 'Tiny',
+              share: 0.001,
+              color: Color(0xFF6861A4),
+            ),
+          ],
+          onSelect: (i) => selected = i,
         ),
       );
+      await tester.pumpWidget(_host(map));
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Tiny 0.1%'));
@@ -429,28 +372,25 @@ void main() {
 
     testWidgets('tapping a block reports its index', (tester) async {
       var selected = -1;
-      await tester.pumpWidget(
-        _host(
-          SizedBox(
-            width: 300,
-            child: CategoryMap(
-              tiles: const [
-                CategoryMapTile(
-                  label: 'Dining',
-                  share: 0.6,
-                  color: Color(0xFF986421),
-                ),
-                CategoryMapTile(
-                  label: 'Groceries',
-                  share: 0.4,
-                  color: Color(0xFF29755E),
-                ),
-              ],
-              onSelect: (i) => selected = i,
+      final map = SizedBox(
+        width: 300,
+        child: CategoryMap(
+          tiles: const [
+            CategoryMapTile(
+              label: 'Dining',
+              share: 0.6,
+              color: Color(0xFF986421),
             ),
-          ),
+            CategoryMapTile(
+              label: 'Groceries',
+              share: 0.4,
+              color: Color(0xFF29755E),
+            ),
+          ],
+          onSelect: (i) => selected = i,
         ),
       );
+      await tester.pumpWidget(_host(map));
       await tester.pumpAndSettle();
 
       await tester.tap(find.textContaining('Groceries').first);
@@ -462,17 +402,14 @@ void main() {
     testWidgets('future days draw no bar and past empty days draw the stub', (
       tester,
     ) async {
-      await tester.pumpWidget(
-        _host(
-          const WeekStrip(
-            days: [
-              WeekStripDay(label: 'M', caption: 'S\$12', fraction: 0.5),
-              WeekStripDay(label: 'T', caption: 'None'),
-              WeekStripDay(label: 'W', caption: 'Ahead', future: true),
-            ],
-          ),
-        ),
+      const strip = WeekStrip(
+        days: [
+          WeekStripDay(label: 'M', caption: 'S\$12', fraction: 0.5),
+          WeekStripDay(label: 'T', caption: 'None'),
+          WeekStripDay(label: 'W', caption: 'Ahead', future: true),
+        ],
       );
+      await tester.pumpWidget(_host(strip));
 
       expect(find.byKey(const ValueKey('weekStripGapStub')), findsOneWidget);
       final stub = tester.widget<CustomPaint>(
@@ -483,19 +420,16 @@ void main() {
     });
 
     testWidgets('draws each day with its caption', (tester) async {
-      await tester.pumpWidget(
-        _host(
-          const WeekStrip(
-            days: [
-              WeekStripDay(label: 'M', caption: 'S\$12', fraction: 0.5),
-              WeekStripDay(label: 'T', caption: 'S\$8', fraction: 0.3),
-              WeekStripDay(label: 'W', caption: '-', future: true),
-              WeekStripDay(label: 'T', caption: '-', future: true),
-              WeekStripDay(label: 'F', caption: '-', future: true),
-            ],
-          ),
-        ),
+      const strip = WeekStrip(
+        days: [
+          WeekStripDay(label: 'M', caption: 'S\$12', fraction: 0.5),
+          WeekStripDay(label: 'T', caption: 'S\$8', fraction: 0.3),
+          WeekStripDay(label: 'W', caption: '-', future: true),
+          WeekStripDay(label: 'T', caption: '-', future: true),
+          WeekStripDay(label: 'F', caption: '-', future: true),
+        ],
       );
+      await tester.pumpWidget(_host(strip));
 
       for (final label in ['M', 'T', 'W', 'F']) {
         expect(find.text(label), findsWidgets);

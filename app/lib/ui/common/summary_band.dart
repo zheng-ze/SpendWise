@@ -70,12 +70,13 @@ class SummaryBand extends StatelessWidget {
     if (lead != null) content.add(lead);
     if (cellRow != null) content.add(cellRow);
 
+    final decoration = BoxDecoration(
+      color: colors.surface,
+      border: Border.all(color: colors.edge),
+      borderRadius: BorderRadius.circular(14),
+    );
     return Container(
-      decoration: BoxDecoration(
-        color: colors.surface,
-        border: Border.all(color: colors.edge),
-        borderRadius: BorderRadius.circular(14),
-      ),
+      decoration: decoration,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -84,6 +85,10 @@ class SummaryBand extends StatelessWidget {
       ),
     );
   }
+}
+
+Color _amountColor(BuildContext context, AmountKind? kind, Decimal value) {
+  return AmountStyle.of(context, kind: kind, signedValue: value).color;
 }
 
 class _LeadAmount extends StatelessWidget {
@@ -105,25 +110,23 @@ class _LeadAmount extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final labelText = Text(
+      label,
+      style: TextStyle(fontSize: 10, color: colors.subtext),
+    );
+    final amountText = Text(
+      formatSignedMoney(amount, kind: kind, symbol: symbol),
+      style: TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.w500,
+        letterSpacing: -0.3,
+        color: _amountColor(context, kind, amount),
+      ),
+    );
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: TextStyle(fontSize: 10, color: colors.subtext)),
-        Text(
-          formatSignedMoney(amount, kind: kind, symbol: symbol),
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w500,
-            letterSpacing: -0.3,
-            color: AmountStyle.of(
-              context,
-              kind: kind,
-              signedValue: amount,
-            ).color,
-          ),
-        ),
-      ],
+      children: [labelText, amountText],
     );
   }
 }
@@ -136,25 +139,22 @@ class _CellAmount extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final labelText = Text(
+      cell.label,
+      style: TextStyle(fontSize: 10, color: colors.subtext),
+    );
+    final amountText = Text(
+      formatSignedMoney(cell.amount, kind: cell.kind, symbol: cell.symbol),
+      style: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        color: _amountColor(context, cell.kind, cell.amount),
+      ),
+    );
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(cell.label, style: TextStyle(fontSize: 10, color: colors.subtext)),
-        const SizedBox(height: 2),
-        Text(
-          formatSignedMoney(cell.amount, kind: cell.kind, symbol: cell.symbol),
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: AmountStyle.of(
-              context,
-              kind: cell.kind,
-              signedValue: cell.amount,
-            ).color,
-          ),
-        ),
-      ],
+      children: [labelText, const SizedBox(height: 2), amountText],
     );
   }
 }

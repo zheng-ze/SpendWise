@@ -29,17 +29,14 @@ class PrimaryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return FilledButton(
-      style: FilledButton.styleFrom(
-        shape: _shape,
-        padding: _padding,
-        textStyle: _labelStyle(context),
-        backgroundColor: destructive ? colors.error : null,
-        foregroundColor: destructive ? colors.onAction : null,
-      ),
-      onPressed: onPressed,
-      child: Text(label),
+    final style = FilledButton.styleFrom(
+      shape: _shape,
+      padding: _padding,
+      textStyle: _labelStyle(context),
+      backgroundColor: destructive ? colors.error : null,
+      foregroundColor: destructive ? colors.onAction : null,
     );
+    return FilledButton(style: style, onPressed: onPressed, child: Text(label));
   }
 }
 
@@ -60,26 +57,25 @@ class SecondaryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final textStyle = _labelStyle(context);
     if (outlined) {
+      final style = OutlinedButton.styleFrom(
+        side: BorderSide(color: colors.control),
+        shape: _shape,
+        padding: _padding,
+        textStyle: textStyle,
+      );
       return OutlinedButton(
-        style: OutlinedButton.styleFrom(
-          side: BorderSide(color: colors.control),
-          shape: _shape,
-          padding: _padding,
-          textStyle: _labelStyle(context),
-        ),
+        style: style,
         onPressed: onPressed,
         child: Text(label),
       );
     }
-    return TextButton(
-      style: TextButton.styleFrom(
-        shape: _shape,
-        padding: _padding,
-        textStyle: _labelStyle(context),
-      ),
-      onPressed: onPressed,
-      child: Text(label),
+    final style = TextButton.styleFrom(
+      shape: _shape,
+      padding: _padding,
+      textStyle: textStyle,
     );
+    return TextButton(style: style, onPressed: onPressed, child: Text(label));
   }
 }

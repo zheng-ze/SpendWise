@@ -105,24 +105,39 @@ List<Rect> layoutCategoryMap(List<double> values, Size size) {
 
 String _shareText(double share) => '${(share * 100).toStringAsFixed(1)}%';
 
+Color _selectionFill(bool selected, Color mark, Color fallback) =>
+    selected ? mark : fallback;
+
+Widget _tappable(Widget child, VoidCallback? onTap) {
+  if (onTap == null) return child;
+  return GestureDetector(onTap: onTap, child: child);
+}
+
+TextPainter _measure(
+  String text,
+  TextStyle style,
+  TextScaler scaler,
+  double maxWidth,
+  int maxLines,
+  String? ellipsis,
+) {
+  final painter = TextPainter(
+    text: TextSpan(text: text, style: style),
+    textDirection: TextDirection.ltr,
+    textScaler: scaler,
+    maxLines: maxLines,
+    ellipsis: ellipsis,
+  )..layout(maxWidth: maxWidth);
+  return painter;
+}
+
 bool _labelFits(Rect rect, String name, String share, TextScaler scaler) {
   final available = Size(rect.width - 20, rect.height - 20);
   if (available.width <= 0 || available.height <= 0) return false;
   const style = TextStyle(fontSize: 12, fontWeight: FontWeight.w600);
-  final namePainter = TextPainter(
-    text: TextSpan(text: name, style: style),
-    textDirection: TextDirection.ltr,
-    textScaler: scaler,
-    maxLines: 2,
-    ellipsis: '...',
-  )..layout(maxWidth: available.width);
+  final namePainter = _measure(name, style, scaler, available.width, 2, '...');
   if (namePainter.didExceedMaxLines) return false;
-  final sharePainter = TextPainter(
-    text: TextSpan(text: share, style: style),
-    textDirection: TextDirection.ltr,
-    textScaler: scaler,
-    maxLines: 1,
-  )..layout(maxWidth: available.width);
+  final sharePainter = _measure(share, style, scaler, available.width, 1, null);
   if (sharePainter.didExceedMaxLines) return false;
   return namePainter.height + 2 + sharePainter.height <= available.height;
 }
@@ -166,34 +181,41 @@ class CategoryMap extends StatelessWidget {
             ? constraints.maxWidth
             : MediaQuery.of(context).size.width;
         final scaler = MediaQuery.textScalerOf(context);
-        final rects = layoutCategoryMap([
-          for (final tile in tiles) tile.share,
-        ], Size(width, height));
-        final labelled = <int>{};
-        final blocks = <Widget>[];
-        for (var i = 0; i < tiles.length; i++) {
-          final rect = rects[i];
-          if (rect.isEmpty) continue;
-          final share = _shareText(tiles[i].share);
-          final fits = _labelFits(rect, tiles[i].label, share, scaler);
-          if (fits) labelled.add(i);
-          blocks.add(
-            Positioned.fromRect(
-              rect: _paddedBlock(rect),
-              child: _MapBlock(
-                tile: tiles[i],
-                labelInside: fits,
-                selected: i == selectedIndex,
-                onTap: onSelect == null ? null : () => onSelect!(i),
+        final shares = [for (final tile in tiles) tile.share];
+        final rects = layoutCategoryMap(shares, Size(width, height));
+        final fits = [
+          for (var i = 0; i < tiles.length; i++)
+            !rects[i].isEmpty &&
+                _labelFits(
+                  rects[i],
+                  tiles[i].label,
+                  _shareText(tiles[i].share),
+                  scaler,
+                ),
+        ];
+        final blocks = [
+          for (var i = 0; i < tiles.length; i++)
+            if (!rects[i].isEmpty)
+              Positioned.fromRect(
+                rect: _paddedBlock(rects[i]),
+                child: _MapBlock(
+                  tile: tiles[i],
+                  labelInside: fits[i],
+                  selected: i == selectedIndex,
+                  onTap: onSelect == null ? null : () => onSelect!(i),
+                ),
               ),
-            ),
-          );
-        }
+        ];
         final outside = [
           for (var i = 0; i < tiles.length; i++)
-            if (!rects[i].isEmpty && !labelled.contains(i))
+            if (!rects[i].isEmpty && !fits[i])
               _AdjacentLabel(tile: tiles[i], index: i),
         ];
+        final mapView = SizedBox(
+          width: width,
+          height: height,
+          child: Stack(children: blocks),
+        );
         final legend = outside.isEmpty
             ? null
             : _AdjacentLabels(
@@ -202,14 +224,7 @@ class CategoryMap extends StatelessWidget {
                 onSelect: onSelect,
                 maxWidth: width,
               );
-        final content = <Widget>[
-          SizedBox(
-            width: width,
-            height: height,
-            child: Stack(children: blocks),
-          ),
-        ];
-        if (legend != null) content.add(legend);
+        final content = [mapView, ?legend];
 
         return Column(
           mainAxisSize: MainAxisSize.min,
@@ -240,29 +255,38 @@ class _MapBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final label = labelInside ? _MapLabel(tile: tile) : null;
     final body = Container(
       decoration: BoxDecoration(
-        color: selected ? colors.selectedMark : tile.color,
+        color: _selectionFill(selected, colors.selectedMark, tile.color),
         borderRadius: BorderRadius.circular(8),
       ),
       padding: const EdgeInsets.all(8),
-      child: labelInside
-          ? Text(
-              '${tile.label}\n${_shareText(tile.share)}',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: colors.onCategory,
-                height: 1.2,
-              ),
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-            )
-          : null,
+      child: label,
     );
-    final onTap = this.onTap;
-    if (onTap == null) return body;
-    return GestureDetector(onTap: onTap, child: body);
+
+    return _tappable(body, onTap);
+  }
+}
+
+class _MapLabel extends StatelessWidget {
+  const _MapLabel({required this.tile});
+
+  final CategoryMapTile tile;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      '${tile.label}\n${_shareText(tile.share)}',
+      style: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        color: context.colors.onCategory,
+        height: 1.2,
+      ),
+      maxLines: 3,
+      overflow: TextOverflow.ellipsis,
+    );
   }
 }
 
@@ -322,6 +346,14 @@ class _AdjacentLabelRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final swatch = Container(
+      width: 10,
+      height: 10,
+      decoration: BoxDecoration(
+        color: _selectionFill(selected, colors.selectedMark, label.tile.color),
+        borderRadius: BorderRadius.circular(3),
+      ),
+    );
     final labelText = Text(
       '${label.tile.label} ${_shareText(label.tile.share)}',
       style: TextStyle(fontSize: 10, color: colors.subtext),
@@ -333,21 +365,13 @@ class _AdjacentLabelRow extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 10,
-            height: 10,
-            decoration: BoxDecoration(
-              color: selected ? colors.selectedMark : label.tile.color,
-              borderRadius: BorderRadius.circular(3),
-            ),
-          ),
+          swatch,
           const SizedBox(width: 5),
           Flexible(child: labelText),
         ],
       ),
     );
-    final onTap = this.onTap;
-    if (onTap == null) return row;
-    return GestureDetector(onTap: onTap, child: row);
+
+    return _tappable(row, onTap);
   }
 }

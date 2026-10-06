@@ -112,52 +112,116 @@ class _AppSheetState extends State<AppSheet> {
     final cap =
         0.66 *
         (media.size.height - media.padding.top - media.viewInsets.bottom);
-    final colors = context.colors;
-    final footer = widget.footer;
-    final inputSurface = widget.inputSurface;
-    final top = Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [const _SheetHandle(), widget.header],
+    final hasBottom = widget.footer != null || widget.inputSurface != null;
+    final top = _SheetTop(header: widget.header);
+    final bottom = hasBottom
+        ? _SheetBottom(footer: widget.footer, inputSurface: widget.inputSurface)
+        : null;
+    final scrollBody = _SheetScrollBody(
+      top: top,
+      body: widget.body,
+      bottom: bottom,
     );
-    final bottom = footer == null && inputSurface == null
-        ? null
-        : Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [?footer, ?inputSurface],
-          );
-    final sheetBody = LayoutBuilder(
+    final constraints = desktop
+        ? BoxConstraints(maxHeight: cap, maxWidth: 440)
+        : BoxConstraints(maxHeight: cap, minWidth: double.infinity);
+    final chrome = _SheetChrome(
+      desktop: desktop,
+      bottomInset: media.padding.bottom,
+      child: scrollBody,
+    );
+
+    return ConstrainedBox(constraints: constraints, child: chrome);
+  }
+}
+
+class _SheetTop extends StatelessWidget {
+  const _SheetTop({required this.header});
+
+  final Widget header;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [const _SheetHandle(), header],
+    );
+  }
+}
+
+class _SheetBottom extends StatelessWidget {
+  const _SheetBottom({required this.footer, required this.inputSurface});
+
+  final Widget? footer;
+
+  final Widget? inputSurface;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [?footer, ?inputSurface],
+    );
+  }
+}
+
+class _SheetScrollBody extends StatelessWidget {
+  const _SheetScrollBody({
+    required this.top,
+    required this.body,
+    required this.bottom,
+  });
+
+  final Widget top;
+
+  final Widget body;
+
+  final Widget? bottom;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
       builder: (context, constraints) => SingleChildScrollView(
         child: _SheetLayout(
           maxHeight: constraints.maxHeight,
           top: top,
-          body: SingleChildScrollView(child: widget.body),
+          body: SingleChildScrollView(child: body),
           bottom: bottom,
         ),
       ),
     );
+  }
+}
 
-    return ConstrainedBox(
-      constraints: desktop
-          ? BoxConstraints(maxHeight: cap, maxWidth: 440)
-          : BoxConstraints(maxHeight: cap, minWidth: double.infinity),
-      child: Material(
-        color: colors.raised,
-        borderRadius: desktop
-            ? BorderRadius.circular(16)
-            : const BorderRadius.vertical(top: Radius.circular(22)),
-        child: Container(
-          decoration: BoxDecoration(
-            border: desktop
-                ? Border.all(color: colors.control)
-                : Border(top: BorderSide(color: colors.control, width: 2)),
-            borderRadius: desktop
-                ? BorderRadius.circular(16)
-                : const BorderRadius.vertical(top: Radius.circular(22)),
-          ),
-          padding: EdgeInsets.fromLTRB(14, 8, 14, 14 + media.padding.bottom),
-          child: sheetBody,
-        ),
-      ),
+class _SheetChrome extends StatelessWidget {
+  const _SheetChrome({
+    required this.desktop,
+    required this.bottomInset,
+    required this.child,
+  });
+
+  final bool desktop;
+
+  final double bottomInset;
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final radius = desktop
+        ? BorderRadius.circular(16)
+        : const BorderRadius.vertical(top: Radius.circular(22));
+    final border = desktop
+        ? Border.all(color: colors.control)
+        : Border(top: BorderSide(color: colors.control, width: 2));
+    final decoration = BoxDecoration(border: border, borderRadius: radius);
+    final padding = EdgeInsets.fromLTRB(14, 8, 14, 14 + bottomInset);
+
+    return Material(
+      color: colors.raised,
+      borderRadius: radius,
+      child: Container(decoration: decoration, padding: padding, child: child),
     );
   }
 }
@@ -227,9 +291,29 @@ class _RenderSheetLayout extends RenderBox
     final body = childForSlot(_SheetSlot.body)!;
     final bottom = childForSlot(_SheetSlot.bottom);
 
+    final pinnedHeight = _layoutPinned(childConstraints, top, bottom);
+    _layoutBody(childConstraints, body, pinnedHeight);
+    final ordered = [top, body, ?bottom];
+    final width = constraints.constrainWidth(_widestChild(ordered));
+    final height = _positionChildren(ordered, width);
+    size = constraints.constrain(Size(width, height));
+  }
+
+  double _layoutPinned(
+    BoxConstraints childConstraints,
+    RenderBox top,
+    RenderBox? bottom,
+  ) {
     top.layout(childConstraints, parentUsesSize: true);
     bottom?.layout(childConstraints, parentUsesSize: true);
-    final pinnedHeight = top.size.height + (bottom?.size.height ?? 0);
+    return top.size.height + (bottom?.size.height ?? 0);
+  }
+
+  void _layoutBody(
+    BoxConstraints childConstraints,
+    RenderBox body,
+    double pinnedHeight,
+  ) {
     final bodyMaxHeight = pinnedHeight <= _maxHeight
         ? _maxHeight - pinnedHeight
         : double.infinity;
@@ -237,13 +321,17 @@ class _RenderSheetLayout extends RenderBox
       childConstraints.copyWith(maxHeight: bodyMaxHeight),
       parentUsesSize: true,
     );
+  }
 
-    final ordered = [top, body, ?bottom];
+  double _widestChild(List<RenderBox> ordered) {
     var widest = 0.0;
     for (final child in ordered) {
       if (child.size.width > widest) widest = child.size.width;
     }
-    final width = constraints.constrainWidth(widest);
+    return widest;
+  }
+
+  double _positionChildren(List<RenderBox> ordered, double width) {
     var y = 0.0;
     for (final child in ordered) {
       (child.parentData! as BoxParentData).offset = Offset(
@@ -252,7 +340,7 @@ class _RenderSheetLayout extends RenderBox
       );
       y += child.size.height;
     }
-    size = constraints.constrain(Size(width, y));
+    return y;
   }
 
   @override
@@ -383,32 +471,64 @@ class _AppSheetPage extends StatelessWidget {
     final slot = AppSheetAlertSlot.maybeOf(context);
     if (slot == null) return positionedSheet;
     final alertTop = media.padding.top + (desktop ? 16 : 12);
+    final overlay = _SheetAlertOverlay(slot: slot, alertTop: alertTop);
 
-    return Stack(
-      children: [
-        positionedSheet,
-        Positioned(
-          top: alertTop,
-          left: 12,
-          right: 12,
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 440),
-              child: ValueListenableBuilder<SheetAlertData?>(
-                valueListenable: slot.alerts,
-                builder: (context, data, _) {
-                  if (data == null) return const SizedBox.shrink();
-                  return ValueListenableBuilder<VoidCallback?>(
-                    valueListenable: slot.alertAction,
-                    builder: (context, action, _) =>
-                        SheetAlert(data: data, onAction: action),
-                  );
-                },
-              ),
-            ),
-          ),
-        ),
-      ],
+    return Stack(children: [positionedSheet, overlay]);
+  }
+}
+
+class _SheetAlertOverlay extends StatelessWidget {
+  const _SheetAlertOverlay({required this.slot, required this.alertTop});
+
+  final AppSheetAlertSlot slot;
+
+  final double alertTop;
+
+  @override
+  Widget build(BuildContext context) {
+    final banner = ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 440),
+      child: _SheetAlertListener(slot: slot),
+    );
+
+    return Positioned(
+      top: alertTop,
+      left: 12,
+      right: 12,
+      child: Center(child: banner),
+    );
+  }
+}
+
+class _SheetAlertListener extends StatelessWidget {
+  const _SheetAlertListener({required this.slot});
+
+  final AppSheetAlertSlot slot;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<SheetAlertData?>(
+      valueListenable: slot.alerts,
+      builder: (context, data, _) {
+        if (data == null) return const SizedBox.shrink();
+        return _SheetAlertActionListener(slot: slot, data: data);
+      },
+    );
+  }
+}
+
+class _SheetAlertActionListener extends StatelessWidget {
+  const _SheetAlertActionListener({required this.slot, required this.data});
+
+  final AppSheetAlertSlot slot;
+
+  final SheetAlertData data;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<VoidCallback?>(
+      valueListenable: slot.alertAction,
+      builder: (context, action, _) => SheetAlert(data: data, onAction: action),
     );
   }
 }

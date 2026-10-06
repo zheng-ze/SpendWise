@@ -16,18 +16,28 @@ Future<void> pumpAppSheet(
   Size size = const Size(320, 760),
 }) async {
   useSheetSize(tester, size);
-  await tester.pumpWidget(
-    MaterialApp(
-      home: Builder(
-        builder: (context) => TextButton(
-          onPressed: () => showAppSheet<void>(context, builder: (_) => sheet),
-          child: const Text('open sheet'),
-        ),
-      ),
-    ),
+  final app = MaterialApp(
+    home: _ContractSheetOpener(sheet: sheet, label: 'open sheet'),
   );
+  await tester.pumpWidget(app);
   await tester.tap(find.text('open sheet'));
   await tester.pumpAndSettle();
+}
+
+class _ContractSheetOpener extends StatelessWidget {
+  const _ContractSheetOpener({required this.sheet, required this.label});
+
+  final AppSheet sheet;
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton(
+      onPressed: () => showAppSheet<void>(context, builder: (_) => sheet),
+      child: Text(label),
+    );
+  }
 }
 
 double appSheetHeight(WidgetTester tester, [int index = 0]) =>
@@ -49,9 +59,11 @@ void expectAllSheetsCapped(WidgetTester tester, Size size) {
 }
 
 void expectAlertOutsideSheet(WidgetTester tester) {
-  expect(find.byType(SheetAlert), findsOneWidget);
-  expect(
-    find.ancestor(of: find.byType(SheetAlert), matching: find.byType(AppSheet)),
-    findsNothing,
+  final banner = find.byType(SheetAlert);
+  final insideSheet = find.ancestor(
+    of: banner,
+    matching: find.byType(AppSheet),
   );
+  expect(banner, findsOneWidget);
+  expect(insideSheet, findsNothing);
 }
