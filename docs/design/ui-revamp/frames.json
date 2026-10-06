@@ -1,0 +1,1432 @@
+[
+  {
+    "id": "ov-default",
+    "area": "overview",
+    "inventory_rows": [],
+    "form_factor": "phone"
+  },
+  {
+    "id": "ov-custom",
+    "area": "overview",
+    "inventory_rows": [],
+    "form_factor": "phone"
+  },
+  {
+    "id": "ov-insights",
+    "area": "overview",
+    "inventory_rows": [],
+    "form_factor": "phone"
+  },
+  {
+    "id": "ov-evidence",
+    "area": "overview",
+    "inventory_rows": [],
+    "form_factor": "phone"
+  },
+  {
+    "id": "ov-sync-paused",
+    "area": "overview",
+    "inventory_rows": [
+      "Device access attention banner"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "ov-save-retry",
+    "area": "overview",
+    "inventory_rows": [],
+    "form_factor": "phone"
+  },
+  {
+    "id": "ov-plan-attention",
+    "area": "overview",
+    "inventory_rows": [],
+    "form_factor": "phone"
+  },
+  {
+    "id": "ov-syncing",
+    "area": "overview",
+    "inventory_rows": [
+      "Sync status banner"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "ov-edit",
+    "area": "overview",
+    "inventory_rows": [],
+    "form_factor": "phone"
+  },
+  {
+    "id": "ov-addwidgets",
+    "area": "overview",
+    "inventory_rows": [],
+    "form_factor": "phone"
+  },
+  {
+    "id": "ov-desk",
+    "area": "overview",
+    "inventory_rows": [],
+    "form_factor": "desktop"
+  },
+  {
+    "id": "ov-desk-edit",
+    "area": "overview",
+    "inventory_rows": [],
+    "form_factor": "desktop"
+  },
+  {
+    "id": "hi-oct",
+    "area": "history",
+    "inventory_rows": [
+      "Transactions, daily",
+      "Transactions, daily, Evergreen dark"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "hi-sep",
+    "area": "history",
+    "inventory_rows": [
+      "Transactions, expanded month"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "hi-cal",
+    "area": "history",
+    "inventory_rows": [],
+    "form_factor": "phone"
+  },
+  {
+    "id": "hi-search",
+    "area": "history",
+    "inventory_rows": [],
+    "form_factor": "phone"
+  },
+  {
+    "id": "hi-period",
+    "area": "history",
+    "inventory_rows": [
+      "Month and year picker"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "tr-july",
+    "area": "trends",
+    "inventory_rows": [
+      "Stats, expenses",
+      "Transactions, monthly",
+      "Stats, expenses, Evergreen dark"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "tr-oct-map",
+    "area": "trends",
+    "inventory_rows": [
+      "Stats, category map"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "tr-oct-sub-donut",
+    "area": "trends",
+    "inventory_rows": [
+      "Stats, subcategory donut"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "tr-oct-sub-map",
+    "area": "trends",
+    "inventory_rows": [
+      "Stats, subcategory map"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "tr-year",
+    "area": "trends",
+    "inventory_rows": [
+      "Stats, annual expenses",
+      "Stats period range menu"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "tr-first",
+    "area": "trends",
+    "inventory_rows": [],
+    "form_factor": "phone"
+  },
+  {
+    "id": "tr-income",
+    "area": "trends",
+    "inventory_rows": [
+      "Stats, income"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "tr-no-income",
+    "area": "trends",
+    "inventory_rows": [
+      "Stats, no income"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "tr-cat",
+    "area": "trends",
+    "inventory_rows": [
+      "Groceries, category detail"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "tr-cat-sub",
+    "area": "trends",
+    "inventory_rows": [
+      "Groceries, subcategory detail"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "tr-cat-direct",
+    "area": "trends",
+    "inventory_rows": [
+      "Groceries, direct entries"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "tr-cat-trend",
+    "area": "trends",
+    "inventory_rows": [
+      "Category trend, selected month"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "tr-desk",
+    "area": "trends",
+    "inventory_rows": [
+      "Stats, expenses, macOS"
+    ],
+    "form_factor": "desktop"
+  },
+  {
+    "id": "tr-desk-income",
+    "area": "trends",
+    "inventory_rows": [],
+    "form_factor": "desktop"
+  },
+  {
+    "id": "tr-desk-cat",
+    "area": "trends",
+    "inventory_rows": [],
+    "form_factor": "desktop"
+  },
+  {
+    "id": "add-expense",
+    "area": "add",
+    "inventory_rows": [
+      "Add entry, expense"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "add-note",
+    "area": "add",
+    "inventory_rows": [
+      "Add entry, note focus"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "add-income",
+    "area": "add",
+    "inventory_rows": [
+      "Add entry, income"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "add-transfer",
+    "area": "add",
+    "inventory_rows": [
+      "Add entry, transfer"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "add-repeat",
+    "area": "add",
+    "inventory_rows": [
+      "Add entry, recurring"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "pick-category",
+    "area": "add",
+    "inventory_rows": [
+      "Entry category picker"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "pick-account",
+    "area": "add",
+    "inventory_rows": [
+      "Account and pocket picker"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "pick-repeat",
+    "area": "add",
+    "inventory_rows": [
+      "Recurrence picker"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "pick-date",
+    "area": "add",
+    "inventory_rows": [
+      "Entry and plan date picker"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "rc-choose",
+    "area": "add",
+    "inventory_rows": [],
+    "form_factor": "phone"
+  },
+  {
+    "id": "rc-reading",
+    "area": "add",
+    "inventory_rows": [
+      "Receipt recognition in progress"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "rc-denied",
+    "area": "add",
+    "inventory_rows": [
+      "Receipt access denied"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "rc-notext",
+    "area": "add",
+    "inventory_rows": [
+      "Receipt returns no text"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "rc-draft",
+    "area": "add",
+    "inventory_rows": [],
+    "form_factor": "phone"
+  },
+  {
+    "id": "rc-crop",
+    "area": "add",
+    "inventory_rows": [
+      "Crop receipt"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "rc-crop-loading",
+    "area": "add",
+    "inventory_rows": [
+      "Crop receipt, loading"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "edit-entry",
+    "area": "add",
+    "inventory_rows": [
+      "Edit entry"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "edit-system",
+    "area": "add",
+    "inventory_rows": [
+      "Edit system entry"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "edit-deleted",
+    "area": "add",
+    "inventory_rows": [
+      "After deleting an entry"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "add-save-failure",
+    "area": "add",
+    "inventory_rows": [
+      "Entry save failure"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "add-desk",
+    "area": "add",
+    "inventory_rows": [],
+    "form_factor": "desktop"
+  },
+  {
+    "id": "hi-desk",
+    "area": "history",
+    "inventory_rows": [
+      "Transactions, daily, macOS"
+    ],
+    "form_factor": "desktop"
+  },
+  {
+    "id": "mo-budgets",
+    "area": "money",
+    "inventory_rows": [
+      "Stats, budgets"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "mo-budget-add",
+    "area": "money",
+    "inventory_rows": [
+      "Add budget"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "mo-budget-pick",
+    "area": "money",
+    "inventory_rows": [
+      "Budget category picker"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "mo-budget-detail",
+    "area": "money",
+    "inventory_rows": [
+      "Dining budget detail"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "mo-budget-limits",
+    "area": "money",
+    "inventory_rows": [
+      "Budget limit history"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "mo-budget-edit-default",
+    "area": "money",
+    "inventory_rows": [
+      "Edit default budget limit"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "mo-budget-edit-month",
+    "area": "money",
+    "inventory_rows": [
+      "Edit September budget limit"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "mo-budget-delete",
+    "area": "money",
+    "inventory_rows": [
+      "Delete budget confirmation"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "mo-budget-deleted",
+    "area": "money",
+    "inventory_rows": [
+      "Budget deleted"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "mo-accounts",
+    "area": "money",
+    "inventory_rows": [
+      "Accounts",
+      "Accounts, expanded pockets",
+      "Accounts, Evergreen dark"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "mo-dbs",
+    "area": "money",
+    "inventory_rows": [
+      "DBS Checking"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "mo-ocbc",
+    "area": "money",
+    "inventory_rows": [
+      "OCBC Savings"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "mo-ocbc-own",
+    "area": "money",
+    "inventory_rows": [
+      "OCBC Savings, excluding subpockets"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "mo-pocket",
+    "area": "money",
+    "inventory_rows": [
+      "Emergency Fund",
+      "Emergency Fund"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "mo-amex",
+    "area": "money",
+    "inventory_rows": [],
+    "form_factor": "phone"
+  },
+  {
+    "id": "mo-acct-menu",
+    "area": "money",
+    "inventory_rows": [],
+    "form_factor": "phone"
+  },
+  {
+    "id": "mo-fix-balance",
+    "area": "money",
+    "inventory_rows": [],
+    "form_factor": "phone"
+  },
+  {
+    "id": "mo-add-account",
+    "area": "money",
+    "inventory_rows": [
+      "Add account"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "mo-add-card",
+    "area": "money",
+    "inventory_rows": [
+      "Add card account"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "mo-type-pick",
+    "area": "money",
+    "inventory_rows": [
+      "Account type picker"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "mo-statement-pick",
+    "area": "money",
+    "inventory_rows": [
+      "Card statement day picker"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "mo-add-pocket",
+    "area": "money",
+    "inventory_rows": [
+      "Add subpocket"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "mo-pocket-parent",
+    "area": "money",
+    "inventory_rows": [
+      "Subpocket parent picker"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "mo-edit-account",
+    "area": "money",
+    "inventory_rows": [
+      "Edit account"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "mo-edit-card",
+    "area": "money",
+    "inventory_rows": [
+      "Edit card account"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "mo-edit-pocket",
+    "area": "money",
+    "inventory_rows": [
+      "Edit subpocket"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "mo-delete-account",
+    "area": "money",
+    "inventory_rows": [
+      "Delete account confirmation"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "mo-delete-pocket",
+    "area": "money",
+    "inventory_rows": [
+      "Delete subpocket confirmation"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "mo-plans",
+    "area": "money",
+    "inventory_rows": [
+      "Recurring plans"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "mo-plans-attention",
+    "area": "money",
+    "inventory_rows": [],
+    "form_factor": "phone"
+  },
+  {
+    "id": "mo-plan-detail",
+    "area": "money",
+    "inventory_rows": [
+      "Recurring plans, delete controls"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "mo-plan-edit",
+    "area": "money",
+    "inventory_rows": [
+      "Edit recurring plan"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "mo-plan-end",
+    "area": "money",
+    "inventory_rows": [
+      "Edit plan, end date"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "mo-plan-delete",
+    "area": "money",
+    "inventory_rows": [
+      "Delete recurring plan"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "mo-desk-budgets",
+    "area": "money",
+    "inventory_rows": [],
+    "form_factor": "desktop"
+  },
+  {
+    "id": "mo-desk-accounts",
+    "area": "money",
+    "inventory_rows": [
+      "Accounts, macOS"
+    ],
+    "form_factor": "desktop"
+  },
+  {
+    "id": "mo-desk-plans",
+    "area": "money",
+    "inventory_rows": [],
+    "form_factor": "desktop"
+  },
+  {
+    "id": "st-root",
+    "area": "settings",
+    "inventory_rows": [
+      "Settings",
+      "Appearance settings",
+      "Settings, Evergreen dark"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "st-trends",
+    "area": "settings",
+    "inventory_rows": [
+      "Stats chart settings"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "st-trends-alt",
+    "area": "settings",
+    "inventory_rows": [],
+    "form_factor": "phone"
+  },
+  {
+    "id": "st-insights",
+    "area": "settings",
+    "inventory_rows": [],
+    "form_factor": "phone"
+  },
+  {
+    "id": "st-categories",
+    "area": "settings",
+    "inventory_rows": [
+      "Categories"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "st-cat-edit",
+    "area": "settings",
+    "inventory_rows": [
+      "Edit category"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "st-cat-add",
+    "area": "settings",
+    "inventory_rows": [
+      "Add category"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "st-sub-add",
+    "area": "settings",
+    "inventory_rows": [
+      "Add subcategory"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "st-sub-edit",
+    "area": "settings",
+    "inventory_rows": [
+      "Edit subcategory"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "st-parent-pick",
+    "area": "settings",
+    "inventory_rows": [
+      "Category parent picker"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "st-symbol",
+    "area": "settings",
+    "inventory_rows": [
+      "Category symbol picker"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "st-cat-delete",
+    "area": "settings",
+    "inventory_rows": [
+      "Delete category confirmation"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "st-bin",
+    "area": "settings",
+    "inventory_rows": [
+      "Recycle bin",
+      "Recycle bin, entry restoration"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "st-bin-restore",
+    "area": "settings",
+    "inventory_rows": [
+      "Recycle bin, restore gesture"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "st-bin-purge",
+    "area": "settings",
+    "inventory_rows": [
+      "Recycle bin, purge gesture"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "st-bin-confirm",
+    "area": "settings",
+    "inventory_rows": [
+      "Permanent deletion confirmation"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "st-sync-pending",
+    "area": "sync",
+    "inventory_rows": [
+      "Settings, hosted sync setup pending"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "st-sync-ready",
+    "area": "sync",
+    "inventory_rows": [
+      "Settings, hosted sync ready"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "st-sync-repair",
+    "area": "sync",
+    "inventory_rows": [
+      "Settings, hosted sync binding repair needed"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "st-sync-expired",
+    "area": "sync",
+    "inventory_rows": [
+      "Settings, hosted sync sign-in expired"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "st-sync-unsupported",
+    "area": "sync",
+    "inventory_rows": [
+      "Settings, hosted sync unsupported endpoint"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "st-sync-unavailable",
+    "area": "sync",
+    "inventory_rows": [
+      "Settings, hosted sync status unavailable"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "st-desk",
+    "area": "settings",
+    "inventory_rows": [
+      "Settings, macOS"
+    ],
+    "form_factor": "desktop"
+  },
+  {
+    "id": "sy-setup",
+    "area": "sync",
+    "inventory_rows": [
+      "Hosted sync sign-in",
+      "Choose sync backend"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "sy-cancelled",
+    "area": "sync",
+    "inventory_rows": [
+      "Sign-in after code cancellation"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "sy-cooldown",
+    "area": "sync",
+    "inventory_rows": [
+      "Sign-in request cooldown"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "sy-code",
+    "area": "sync",
+    "inventory_rows": [
+      "Enter verification code"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "sy-code-failure",
+    "area": "sync",
+    "inventory_rows": [
+      "Verification code failure"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "sy-finishing",
+    "area": "sync",
+    "inventory_rows": [
+      "Finishing sync enrollment"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "sy-failure",
+    "area": "sync",
+    "inventory_rows": [
+      "Sync enrollment failure"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "sy-enrolled",
+    "area": "sync",
+    "inventory_rows": [
+      "Sync enrolled"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "sy-prev-finishing",
+    "area": "sync",
+    "inventory_rows": [
+      "Finishing previous enrollment attempt"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "sy-prev-timeout",
+    "area": "sync",
+    "inventory_rows": [
+      "Previous attempt wait timed out"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "sy-custom",
+    "area": "sync",
+    "inventory_rows": [
+      "Custom sync backend"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "sy-custom-invalid",
+    "area": "sync",
+    "inventory_rows": [
+      "Custom endpoint validation"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "sy-custom-unavailable",
+    "area": "sync",
+    "inventory_rows": [
+      "Custom server unavailable"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "sy-saving",
+    "area": "sync",
+    "inventory_rows": [
+      "Backend selection saving"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "sy-save-failure",
+    "area": "sync",
+    "inventory_rows": [
+      "Backend selection save failure"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "sy-repair",
+    "area": "sync",
+    "inventory_rows": [
+      "Repair device access"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "sy-renew",
+    "area": "sync",
+    "inventory_rows": [
+      "Renew expired sign-in"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "sy-repair-code",
+    "area": "sync",
+    "inventory_rows": [
+      "Repair device access, verification code"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "sy-repair-progress",
+    "area": "sync",
+    "inventory_rows": [
+      "Repair device access, progress"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "sy-restored",
+    "area": "sync",
+    "inventory_rows": [
+      "Device access restored"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "fr-overview",
+    "area": "fresh",
+    "inventory_rows": [],
+    "form_factor": "phone"
+  },
+  {
+    "id": "fr-history",
+    "area": "fresh",
+    "inventory_rows": [
+      "Transactions, fresh install"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "fr-trends",
+    "area": "fresh",
+    "inventory_rows": [
+      "Stats, no expenses",
+      "Monthly transactions, empty"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "fr-category",
+    "area": "fresh",
+    "inventory_rows": [
+      "Category detail, no entries"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "fr-budgets",
+    "area": "fresh",
+    "inventory_rows": [
+      "Budgets, fresh install"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "fr-budget-detail",
+    "area": "fresh",
+    "inventory_rows": [
+      "Budget detail, no entries"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "fr-accounts",
+    "area": "fresh",
+    "inventory_rows": [
+      "Accounts, fresh install"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "fr-plans",
+    "area": "fresh",
+    "inventory_rows": [
+      "Recurring plans, fresh install"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "fr-categories",
+    "area": "fresh",
+    "inventory_rows": [
+      "Categories, fresh install"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "fr-bin",
+    "area": "fresh",
+    "inventory_rows": [
+      "Recycle bin, empty"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "sh-loading",
+    "area": "states",
+    "inventory_rows": [
+      "App loading"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "sh-failure",
+    "area": "states",
+    "inventory_rows": [
+      "App load failure"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "le-history-load",
+    "area": "states",
+    "inventory_rows": [
+      "Transactions, loading"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "le-history-err",
+    "area": "states",
+    "inventory_rows": [
+      "Transactions, load error"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "le-add-load",
+    "area": "states",
+    "inventory_rows": [
+      "Add entry, loading"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "le-add-err",
+    "area": "states",
+    "inventory_rows": [
+      "Add entry, load error"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "le-trends-load",
+    "area": "states",
+    "inventory_rows": [
+      "Stats, loading"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "le-trends-err",
+    "area": "states",
+    "inventory_rows": [
+      "Stats, load error"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "le-category-load",
+    "area": "states",
+    "inventory_rows": [
+      "Groceries, loading"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "le-category-err",
+    "area": "states",
+    "inventory_rows": [
+      "Groceries, load error"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "le-budgets-load",
+    "area": "states",
+    "inventory_rows": [
+      "Budgets, loading"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "le-budgets-err",
+    "area": "states",
+    "inventory_rows": [
+      "Budgets, load error"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "le-budget-add-load",
+    "area": "states",
+    "inventory_rows": [
+      "Add budget, loading"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "le-budget-add-err",
+    "area": "states",
+    "inventory_rows": [
+      "Add budget, load error"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "le-budget-detail-load",
+    "area": "states",
+    "inventory_rows": [
+      "Dining, loading"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "le-budget-detail-err",
+    "area": "states",
+    "inventory_rows": [
+      "Dining, load error"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "le-budget-limit-load",
+    "area": "states",
+    "inventory_rows": [
+      "Budget limit, loading"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "le-budget-limit-err",
+    "area": "states",
+    "inventory_rows": [
+      "Budget limit, load error"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "le-accounts-load",
+    "area": "states",
+    "inventory_rows": [
+      "Accounts, loading"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "le-accounts-err",
+    "area": "states",
+    "inventory_rows": [
+      "Accounts, load error"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "le-account-add-load",
+    "area": "states",
+    "inventory_rows": [
+      "Add account, loading"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "le-account-add-err",
+    "area": "states",
+    "inventory_rows": [
+      "Add account, load error"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "le-account-edit-load",
+    "area": "states",
+    "inventory_rows": [
+      "Edit account, loading"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "le-account-edit-err",
+    "area": "states",
+    "inventory_rows": [
+      "Edit account, load error"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "le-categories-load",
+    "area": "states",
+    "inventory_rows": [
+      "Categories, loading"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "le-categories-err",
+    "area": "states",
+    "inventory_rows": [
+      "Categories, load error"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "le-category-add-load",
+    "area": "states",
+    "inventory_rows": [
+      "Add category, loading"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "le-category-add-err",
+    "area": "states",
+    "inventory_rows": [
+      "Add category, load error"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "le-plans-load",
+    "area": "states",
+    "inventory_rows": [
+      "Recurring plans, loading"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "le-plans-err",
+    "area": "states",
+    "inventory_rows": [
+      "Recurring plans, load error"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "le-plan-edit-load",
+    "area": "states",
+    "inventory_rows": [
+      "Edit plan, loading"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "le-plan-edit-err",
+    "area": "states",
+    "inventory_rows": [
+      "Edit plan, load error"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "le-bin-load",
+    "area": "states",
+    "inventory_rows": [
+      "Recycle bin, loading"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "le-bin-err",
+    "area": "states",
+    "inventory_rows": [
+      "Recycle bin, load error"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "sf-account-add",
+    "area": "states",
+    "inventory_rows": [
+      "Add account, save failure"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "sf-account-edit",
+    "area": "states",
+    "inventory_rows": [
+      "Edit account, save failure"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "sf-category",
+    "area": "states",
+    "inventory_rows": [
+      "Edit category, save failure"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "sf-plan",
+    "area": "states",
+    "inventory_rows": [
+      "Edit plan, save failure"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "sf-budget",
+    "area": "states",
+    "inventory_rows": [
+      "Add budget, save failure"
+    ],
+    "form_factor": "phone"
+  },
+  {
+    "id": "sf-limit",
+    "area": "states",
+    "inventory_rows": [
+      "Budget limit, save failure"
+    ],
+    "form_factor": "phone"
+  }
+]
