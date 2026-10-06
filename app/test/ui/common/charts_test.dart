@@ -393,6 +393,11 @@ void main() {
       );
 
       expect(find.byKey(const ValueKey('weekStripGapStub')), findsOneWidget);
+      final stub = tester.widget<CustomPaint>(
+        find.byKey(const ValueKey('weekStripGapStub')),
+      );
+      expect(stub.painter, isA<GapStubPainter>());
+      expect((stub.painter! as GapStubPainter).color, _tokens(tester).gap);
     });
 
     testWidgets('draws each day with its caption', (tester) async {

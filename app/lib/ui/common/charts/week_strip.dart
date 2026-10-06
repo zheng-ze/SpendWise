@@ -33,6 +33,38 @@ class WeekStrip extends StatelessWidget {
   }
 }
 
+class GapStubPainter extends CustomPainter {
+  const GapStubPainter({required this.color});
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    final outline = Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(Offset.zero & size, const Radius.circular(2)),
+      );
+    final dashed = Path();
+    for (final metric in outline.computeMetrics()) {
+      var distance = 0.0;
+      while (distance < metric.length) {
+        final end = (distance + 4).clamp(0.0, metric.length);
+        dashed.addPath(metric.extractPath(distance, end), Offset.zero);
+        distance += 7;
+      }
+    }
+    canvas.drawPath(dashed, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant GapStubPainter oldDelegate) =>
+      oldDelegate.color != color;
+}
+
 class _DayColumn extends StatelessWidget {
   const _DayColumn({required this.day});
 
@@ -53,12 +85,12 @@ class _DayColumn extends StatelessWidget {
               ),
             ),
           )
-        : Container(
-            key: const ValueKey('weekStripGapStub'),
+        : SizedBox(
             height: 8,
-            decoration: BoxDecoration(
-              border: Border.all(color: colors.gap, width: 1.5),
-              borderRadius: BorderRadius.circular(2),
+            width: double.infinity,
+            child: CustomPaint(
+              key: const ValueKey('weekStripGapStub'),
+              painter: GapStubPainter(color: colors.gap),
             ),
           );
 
