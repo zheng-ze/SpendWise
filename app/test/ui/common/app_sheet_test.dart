@@ -253,7 +253,12 @@ void main() {
         expect(find.text('number pad').hitTestable(), findsOneWidget);
 
         await tester.fling(
-          find.byType(SingleChildScrollView),
+          find
+              .ancestor(
+                of: find.text('row 0'),
+                matching: find.byType(SingleChildScrollView),
+              )
+              .first,
           const Offset(0, -500),
           2000,
         );
@@ -289,6 +294,65 @@ void main() {
       lessThanOrEqualTo(_phone.height - 300 + 1),
     );
   });
+
+  for (final (label, size, keyboard) in [
+    ('a landscape phone', const Size(640, 360), 0.0),
+    ('a compact phone with the keyboard up', _compact, 260.0),
+  ]) {
+    testWidgets('on $label oversized pinned parts scroll into reach', (
+      tester,
+    ) async {
+      _useSize(tester, size);
+      tester.view.viewInsets = FakeViewPadding(bottom: keyboard);
+      var saved = false;
+      var keyPressed = false;
+      await _openSheet(
+        tester,
+        _sheet(
+          footer: TextButton(
+            onPressed: () => saved = true,
+            child: const Text('Save'),
+          ),
+          inputSurface: SizedBox(
+            height: 220,
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: TextButton(
+                onPressed: () => keyPressed = true,
+                child: const Text('key 0'),
+              ),
+            ),
+          ),
+          body: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [for (var i = 0; i < 10; i++) Text('row $i')],
+          ),
+        ),
+      );
+
+      expect(tester.takeException(), isNull);
+      final cap = 0.66 * (size.height - keyboard);
+      expect(_sheetHeight(tester), lessThanOrEqualTo(cap + 1));
+
+      await tester.scrollUntilVisible(
+        find.text('key 0'),
+        100,
+        scrollable: find
+            .descendant(
+              of: find.byType(AppSheet),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      await tester.tap(find.text('key 0'));
+      await tester.ensureVisible(find.text('Save'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save'));
+
+      expect(keyPressed, isTrue);
+      expect(saved, isTrue);
+    });
+  }
 
   testWidgets('layered sheets push a second route', (tester) async {
     _useSize(tester, _phone);

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import 'package:spendwise/ui/common/sheet_alert.dart';
 import 'package:spendwise/ui/shell/layout_breakpoints.dart';
@@ -114,14 +115,26 @@ class _AppSheetState extends State<AppSheet> {
     final colors = context.colors;
     final footer = widget.footer;
     final inputSurface = widget.inputSurface;
-    final content = <Widget>[
-      const _SheetHandle(),
-      widget.header,
-      Flexible(child: SingleChildScrollView(child: widget.body)),
-    ];
-    if (footer != null) content.add(footer);
-    if (inputSurface != null) content.add(inputSurface);
-    final sheetBody = Column(mainAxisSize: MainAxisSize.min, children: content);
+    final top = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [const _SheetHandle(), widget.header],
+    );
+    final bottom = footer == null && inputSurface == null
+        ? null
+        : Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [?footer, ?inputSurface],
+          );
+    final sheetBody = LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        child: _SheetLayout(
+          maxHeight: constraints.maxHeight,
+          top: top,
+          body: SingleChildScrollView(child: widget.body),
+          bottom: bottom,
+        ),
+      ),
+    );
 
     return ConstrainedBox(
       constraints: desktop
@@ -146,6 +159,124 @@ class _AppSheetState extends State<AppSheet> {
         ),
       ),
     );
+  }
+}
+
+enum _SheetSlot { top, body, bottom }
+
+// Keeps top and bottom pinned while only the body scrolls. When top and
+// bottom alone exceed maxHeight, the body takes its natural height so the
+// enclosing scroll view scrolls the whole sheet and every control stays
+// reachable.
+class _SheetLayout
+    extends SlottedMultiChildRenderObjectWidget<_SheetSlot, RenderBox> {
+  const _SheetLayout({
+    required this.maxHeight,
+    required this.top,
+    required this.body,
+    required this.bottom,
+  });
+
+  final double maxHeight;
+
+  final Widget top;
+
+  final Widget body;
+
+  final Widget? bottom;
+
+  @override
+  Iterable<_SheetSlot> get slots => _SheetSlot.values;
+
+  @override
+  Widget? childForSlot(_SheetSlot slot) => switch (slot) {
+    _SheetSlot.top => top,
+    _SheetSlot.body => body,
+    _SheetSlot.bottom => bottom,
+  };
+
+  @override
+  _RenderSheetLayout createRenderObject(BuildContext context) =>
+      _RenderSheetLayout(maxHeight);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderSheetLayout renderObject,
+  ) {
+    renderObject.maxHeight = maxHeight;
+  }
+}
+
+class _RenderSheetLayout extends RenderBox
+    with SlottedContainerRenderObjectMixin<_SheetSlot, RenderBox> {
+  _RenderSheetLayout(this._maxHeight);
+
+  double _maxHeight;
+
+  set maxHeight(double value) {
+    if (value == _maxHeight) return;
+    _maxHeight = value;
+    markNeedsLayout();
+  }
+
+  @override
+  void performLayout() {
+    final childConstraints = BoxConstraints(maxWidth: constraints.maxWidth);
+    final top = childForSlot(_SheetSlot.top)!;
+    final body = childForSlot(_SheetSlot.body)!;
+    final bottom = childForSlot(_SheetSlot.bottom);
+
+    top.layout(childConstraints, parentUsesSize: true);
+    bottom?.layout(childConstraints, parentUsesSize: true);
+    final pinnedHeight = top.size.height + (bottom?.size.height ?? 0);
+    final bodyMaxHeight = pinnedHeight <= _maxHeight
+        ? _maxHeight - pinnedHeight
+        : double.infinity;
+    body.layout(
+      childConstraints.copyWith(maxHeight: bodyMaxHeight),
+      parentUsesSize: true,
+    );
+
+    final ordered = [top, body, ?bottom];
+    var widest = 0.0;
+    for (final child in ordered) {
+      if (child.size.width > widest) widest = child.size.width;
+    }
+    final width = constraints.constrainWidth(widest);
+    var y = 0.0;
+    for (final child in ordered) {
+      (child.parentData! as BoxParentData).offset = Offset(
+        (width - child.size.width) / 2,
+        y,
+      );
+      y += child.size.height;
+    }
+    size = constraints.constrain(Size(width, y));
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    for (final child in children) {
+      context.paintChild(
+        child,
+        offset + (child.parentData! as BoxParentData).offset,
+      );
+    }
+  }
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
+    for (final child in children) {
+      final hit = result.addWithPaintOffset(
+        offset: (child.parentData! as BoxParentData).offset,
+        position: position,
+        hitTest: (result, transformed) =>
+            child.hitTest(result, position: transformed),
+      );
+      if (hit) return true;
+    }
+    return false;
   }
 }
 
