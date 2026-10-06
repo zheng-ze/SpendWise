@@ -157,7 +157,7 @@ void main() {
       effectiveLimit(ledger.state.budgets[overall.id]!, currentMonth),
       dec('100'),
     );
-    expect(find.text(r'$200.00'), findsWidgets);
+    expect(find.text('200.00'), findsWidgets);
   });
 
   testWidgets('PickCategoryRequested opens the category picker and applies '

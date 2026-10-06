@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/common/form_scaffold.dart';
-import 'package:spendwise/ui/format/amount_color.dart';
+import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_logic.dart';
@@ -35,28 +35,9 @@ class ViewEntryForm extends ConsumerWidget {
     };
   }
 
-  Widget _row(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          Text(label),
-          Expanded(
-            child: Text(
-              value,
-              textAlign: TextAlign.end,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final colors = AmountColors.of(theme);
     final ledgerState = ref.watch(ledgerProvider)?.state;
     final amount = state.parsedAmount ?? Decimal.zero;
     final kind = state.kind;
@@ -66,6 +47,25 @@ class ViewEntryForm extends ConsumerWidget {
         ledgerState?.sourceName(state.destinationId) ?? 'Select';
     final categoryLabel =
         _categoryLabel(ledgerState, state.categoryId) ?? 'None';
+    final amountStyle = theme.textTheme.headlineSmall?.copyWith(
+      fontWeight: FontWeight.bold,
+      fontFeatures: const [FontFeature.tabularFigures()],
+      color: AmountStyle.of(context, kind: _amountKind).color,
+    );
+    final detailRows = [
+      _DetailRow(label: 'Date', value: formatEntryDate(state.date)),
+      if (kind == EntryFormKind.transfer) ...[
+        _DetailRow(label: 'From', value: sourceLabel),
+        _DetailRow(label: 'To', value: destinationLabel),
+      ] else ...[
+        _DetailRow(label: 'Account', value: sourceLabel),
+        _DetailRow(label: 'Category', value: categoryLabel),
+      ],
+      _DetailRow(
+        label: 'Include in Analysis',
+        value: state.includeInAnalysis ? 'Yes' : 'No',
+      ),
+    ];
 
     return SheetShell(
       children: [
@@ -81,33 +81,12 @@ class ViewEntryForm extends ConsumerWidget {
         Text(state.nameText, style: theme.textTheme.titleMedium),
         const SizedBox(height: 4),
         Text(
-          formatSignedAmount(signedAmount, _amountKind),
-          style: theme.textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.bold,
-            fontFeatures: const [FontFeature.tabularFigures()],
-            color: colors.kindColor(_amountKind),
-          ),
+          formatSignedMoney(signedAmount, kind: _amountKind),
+          style: amountStyle,
         ),
         const SizedBox(height: 16),
         Flexible(
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
-                _row('Date', formatEntryDate(state.date)),
-                if (kind == EntryFormKind.transfer) ...[
-                  _row('From', sourceLabel),
-                  _row('To', destinationLabel),
-                ] else ...[
-                  _row('Account', sourceLabel),
-                  _row('Category', categoryLabel),
-                ],
-                _row(
-                  'Include in Analysis',
-                  state.includeInAnalysis ? 'Yes' : 'No',
-                ),
-              ],
-            ),
-          ),
+          child: SingleChildScrollView(child: Column(children: detailRows)),
         ),
         const SizedBox(height: 16),
         SizedBox(
@@ -129,5 +108,31 @@ class ViewEntryForm extends ConsumerWidget {
     if (parentID == null) return category.name;
     final parent = ledgerState.categories[parentID];
     return parent == null ? category.name : '${parent.name}/${category.name}';
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  const _DetailRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Text(label),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

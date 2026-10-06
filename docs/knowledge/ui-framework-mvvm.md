@@ -1,6 +1,6 @@
 # UI Framework (MVVM)
 
-Last reconciled: 0d906b7
+Last reconciled: 88e6baf
 
 ## Feature overview
 
@@ -21,7 +21,11 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
 - `app/lib/ui/shell/app_shell.dart` — the responsive shell: no ViewModel, only layout bookkeeping
   (`_useRail`, `_extended`), mounting one Flow per destination.
 - `app/lib/ui/symbol_map.dart` — symbol-to-IconData mapping.
-- `app/lib/ui/format/` — `money_format.dart`, `amount_color.dart`, `amount_input.dart`,
+- `app/lib/ui/theme/` - `spendwise_colors.dart` (`SpendWiseColors` ThemeExtension with the
+  Harbour glass light/dark tokens), `spendwise_text.dart` (`SpendWiseText` amount roles plus the
+  `context.colors` / `context.text` accessors), `spendwise_theme.dart`
+  (`buildSpendWiseTheme(Brightness)`).
+- `app/lib/ui/format/` - `money_format.dart`, `amount_style.dart`, `amount_input.dart`,
   `color_hex.dart`, `date_format.dart`, `amount_parse.dart`, `account_type_format.dart`.
 - Per-screen: `transactions/transactions_view_model.dart`, `stats/`, `accounts/`, `budgets/`,
   `settings/`.
@@ -66,18 +70,39 @@ value, which then overwrites it. (issue #38)
 
 ## Formatting rules
 
-- **Currency** — one shared `formatCurrency(Decimal)` helper renders `$3,200.00`; the single-currency
-  assumption is deliberate, so a future multi-currency change is one edit.
-- **Amount sign** — magnitude absolute; income `+$X` blue, expense `-$X` red, transfer `$X` unsigned
-  gray. Net-amount color: `> 0` blue, `< 0` red, `== 0` gray.
-- **Amount input** — sanitizer strips to digits and one `.`, max 2 fraction digits, dropped not
+- **Theme** - `buildSpendWiseTheme(Brightness)` maps the Harbour glass tokens onto the material
+  scheme (primary action, surface, raised surfaces, text, subtext, control/edge outlines, error),
+  sets the bundled InstrumentSans family, a filled-button theme for primary actions with text and
+  outline themes for secondary actions, underline-only inputs in the focus colour, and sheets on the
+  raised token. `surfaceContainerHighest` maps to the tint token, so neutral tracks and inset rows
+  stay visible on white light-mode surfaces. Widgets read tokens through `context.colors` and amount
+  roles through `context.text`.
+  (`app/lib/ui/theme/spendwise_theme.dart`)
+- **Font** - Instrument Sans static TTFs (Regular 400, Medium 500, SemiBold 600, Bold 700) are bundled
+  under `app/assets/fonts/instrument_sans/` with the OFL text; the licence is registered through
+  `LicenseRegistry.addLicense` in `main()`. There is no font network fetch.
+  (`app/pubspec.yaml`, `app/lib/main.dart`)
+- **Currency** - `formatMoney(Decimal, {symbol})` renders `S$3,200.00` with comma grouping and
+  Decimal half-even rounding, never converting through `double`; `symbol: false` renders the bare
+  `3,200.00`. `formatSignedMoney` adds an explicit sign (`+S$3,032.60`, `-167.40` bare). Headline,
+  hero, band and widget amounts show the symbol; list rows and per-row breakdown amounts are bare.
+  The single-currency assumption is deliberate, so a future multi-currency change is one edit.
+- **Amount sign and colour** - `AmountStyle.of(context, {kind, signedValue})` replaces the removed
+  `AmountColors`. Colour follows kind or sign only: income or positive uses the income token, expense
+  or negative uses the expense token, transfer or zero uses the text token. There is no category or
+  colour parameter, so an amount is never coloured by its category. A negative `signedValue` takes
+  the expense token even when `kind` is income, so a negative is never shown in the income colour.
+  (`app/lib/ui/format/amount_style.dart`)
+- **Amount input** - sanitizer strips to digits and one `.`, max 2 fraction digits, dropped not
   rounded; only the balance field allows a leading `-`.
 - **colorHex** — parses `#RRGGBB` or `RRGGBB`; malformed falls back to gray; writing back emits
   `#RRGGBB` uppercase, components clamped 0–255.
 - **Dates** — day header, month/year label, week range (exclusive end → subtract a day), and plan
   next-occurrence formats; percentages via `.percent`.
-- **Neutral vs semantic color** — neutral label text uses theme `onSurface`; semantic blue/red/gray
-  use theme-aware shades, never fixed hex.
+- **Neutral vs semantic color** - neutral label text uses theme `onSurface`; amount roles use the
+  income, expense and text tokens through `AmountStyle`, never fixed hex or `Colors.*`.
+- **Destructive confirmations** - the confirm action is a filled button in the error token with the
+  on-action label colour; cancel stays text. (`app/lib/ui/common/delete_confirmation.dart`)
 
 ## Gotchas and invariants
 

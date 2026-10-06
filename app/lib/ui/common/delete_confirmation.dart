@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:spendwise/ui/theme/spendwise_text.dart';
+
 Future<bool> showDeleteConfirmation(
   BuildContext context, {
   required String itemName,
@@ -13,7 +15,11 @@ Future<bool> showDeleteConfirmation(
           onPressed: () => Navigator.of(context).pop(false),
           child: const Text('Cancel'),
         ),
-        TextButton(
+        FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: context.colors.error,
+            foregroundColor: context.colors.onAction,
+          ),
           onPressed: () => Navigator.of(context).pop(true),
           child: const Text('Delete'),
         ),

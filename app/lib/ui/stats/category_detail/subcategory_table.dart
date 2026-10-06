@@ -6,6 +6,7 @@ import 'package:spendwise/ui/common/category_icon.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/stats/category_detail/category_scope.dart';
+import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 const _directSymbol = 'radio_button_checked';
 
@@ -124,9 +125,7 @@ class _SubcategoryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final background = selected
-        ? theme.colorScheme.primaryContainer.withValues(alpha: 0.4)
-        : Colors.transparent;
+    final background = selected ? context.colors.tint : const Color(0x00000000);
 
     return Material(
       color: background,
@@ -190,7 +189,7 @@ class _SubcategoryRowContent extends StatelessWidget {
         ),
         const SizedBox(width: 12),
         Text(
-          formatCurrency(amount),
+          formatMoney(amount, symbol: false),
           style: theme.textTheme.bodyLarge?.copyWith(
             fontWeight: FontWeight.w600,
           ),

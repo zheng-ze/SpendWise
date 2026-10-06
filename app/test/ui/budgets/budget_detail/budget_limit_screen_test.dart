@@ -45,7 +45,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Default Budget'), findsOneWidget);
-      expect(find.text(r'$100.00'), findsWidgets);
+      expect(find.text('100.00'), findsWidgets);
       expect(
         find.text(formatMonthLabel(DateTime.utc(now.year, 12))),
         findsOneWidget,

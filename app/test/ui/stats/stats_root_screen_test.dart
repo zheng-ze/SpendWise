@@ -139,7 +139,7 @@ void main() {
 
     await pumpScreen(tester, ledger, selectedDate: DateTime.utc(2026, 3));
 
-    expect(totalAmountText('\$25.00'), findsOneWidget);
+    expect(totalAmountText('S\$25.00'), findsOneWidget);
   });
 
   testWidgets('switching to Annually widens the window to the whole year', (
@@ -170,14 +170,14 @@ void main() {
     );
 
     await pumpScreen(tester, ledger, selectedDate: DateTime.utc(2026, 3));
-    expect(totalAmountText('\$10.00'), findsOneWidget);
+    expect(totalAmountText('S\$10.00'), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.more_vert));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Annually'));
     await tester.pumpAndSettle();
 
-    expect(totalAmountText('\$25.00'), findsOneWidget);
+    expect(totalAmountText('S\$25.00'), findsOneWidget);
   });
 
   testWidgets('an empty window shows the empty state', (tester) async {

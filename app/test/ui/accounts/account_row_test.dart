@@ -150,4 +150,30 @@ void main() {
       handle.dispose();
     },
   );
+
+  testWidgets('row and pocket amounts render bare without the symbol', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: AccountRowTile(
+            row: rowWithPocket,
+            expanded: true,
+            onToggleExpanded: () {},
+            onTap: () {},
+            onAccountDeleted: () {},
+            onOpenAccountAlone: () {},
+            onOpenPocket: (_) {},
+            onPocketDeleted: (_) {},
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('300.00'), findsOneWidget);
+    expect(find.text('S\$300.00'), findsNothing);
+    expect(find.text('50.00'), findsOneWidget);
+    expect(find.text('S\$50.00'), findsNothing);
+  });
 }

@@ -7,7 +7,7 @@ import 'package:spendwise/ui/accounts/account_sections.dart';
 import 'package:spendwise/ui/accounts/accounts_view_model.dart';
 import 'package:spendwise/ui/common/column_text.dart';
 import 'package:spendwise/ui/format/account_type_format.dart';
-import 'package:spendwise/ui/format/amount_color.dart';
+import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 
 class AccountsScreen extends ConsumerWidget {
@@ -40,68 +40,72 @@ class _AccountsBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = AmountColors.of(Theme.of(context));
     final netWorth = viewState.netWorth;
+
+    final header = Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              'Accounts',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: viewModel.requestNewAccount,
+          ),
+        ],
+      ),
+    );
+    final summary = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: ColumnText(
+        items: [
+          ColumnTextItem(
+            caption: 'Assets',
+            value: formatMoney(netWorth.asset),
+            valueColor: AmountStyle.of(context, kind: AmountKind.income).color,
+          ),
+          ColumnTextItem(
+            caption: 'Liabilities',
+            value: formatMoney(netWorth.liability),
+            valueColor: AmountStyle.of(context, kind: AmountKind.expense).color,
+          ),
+          ColumnTextItem(
+            caption: 'Total',
+            value: formatMoney(netWorth.asset - netWorth.liability),
+            valueColor: AmountStyle.of(
+              context,
+              signedValue: netWorth.asset - netWorth.liability,
+            ).color,
+          ),
+        ],
+      ),
+    );
+    final sections = Expanded(
+      child: viewState.sections.isEmpty
+          ? const _EmptyState()
+          : ListView(
+              children: [
+                for (final section in viewState.sections)
+                  _AccountSection(
+                    section: section,
+                    expandedAccountID: viewState.expandedAccountId,
+                    viewModel: viewModel,
+                  ),
+              ],
+            ),
+    );
 
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Accounts',
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.add),
-                onPressed: viewModel.requestNewAccount,
-              ),
-            ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: ColumnText(
-            items: [
-              ColumnTextItem(
-                caption: 'Assets',
-                value: formatCurrency(netWorth.asset),
-                valueColor: colors.gain,
-              ),
-              ColumnTextItem(
-                caption: 'Liabilities',
-                value: formatCurrency(netWorth.liability),
-                valueColor: colors.loss,
-              ),
-              ColumnTextItem(
-                caption: 'Total',
-                value: formatCurrency(netWorth.asset - netWorth.liability),
-                valueColor: colors.netAmountColor(
-                  netWorth.asset - netWorth.liability,
-                ),
-              ),
-            ],
-          ),
-        ),
+        header,
+        summary,
         const SizedBox(height: 8),
         const Divider(height: 1),
-        Expanded(
-          child: viewState.sections.isEmpty
-              ? const _EmptyState()
-              : ListView(
-                  children: [
-                    for (final section in viewState.sections)
-                      _AccountSection(
-                        section: section,
-                        expandedAccountID: viewState.expandedAccountId,
-                        viewModel: viewModel,
-                      ),
-                  ],
-                ),
-        ),
+        sections,
       ],
     );
   }
@@ -151,48 +155,45 @@ class _SectionHeaderRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colors = AmountColors.of(theme);
+    final title = Expanded(
+      child: Text(
+        accountTypeLabel(type),
+        style: theme.textTheme.labelLarge?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+      ),
+    );
+    final trailing = switch (header) {
+      SubtotalHeader(:final subtotal) => Text(
+        formatMoney(subtotal, symbol: false),
+        style: theme.textTheme.labelLarge?.copyWith(
+          color: AmountStyle.of(context, signedValue: subtotal).color,
+        ),
+      ),
+      CardHeader(:final payable, :final outstanding) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Payable ${formatMoney(payable, symbol: false)}',
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: AmountStyle.of(context, kind: AmountKind.expense).color,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Outstanding ${formatMoney(outstanding, symbol: false)}',
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    };
+    final row = Row(children: [title, trailing]);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              accountTypeLabel(type),
-              style: theme.textTheme.labelLarge?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-          switch (header) {
-            SubtotalHeader(:final subtotal) => Text(
-              formatCurrency(subtotal),
-              style: theme.textTheme.labelLarge?.copyWith(
-                color: colors.netAmountColor(subtotal),
-              ),
-            ),
-            CardHeader(:final payable, :final outstanding) => Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Payable ${formatCurrency(payable)}',
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: colors.loss,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Outstanding ${formatCurrency(outstanding)}',
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          },
-        ],
-      ),
+      child: row,
     );
   }
 }
@@ -202,12 +203,11 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Text(
-        'No accounts yet',
-        style: Theme.of(context).textTheme.bodyMedium
-            ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-      ),
+    final theme = Theme.of(context);
+    final style = theme.textTheme.bodyMedium?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
     );
+
+    return Center(child: Text('No accounts yet', style: style));
   }
 }

@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'document_crop_execution.dart';
 import 'document_crop_geometry.dart';
 
+import 'package:spendwise/ui/theme/spendwise_text.dart';
+
 enum _Corner {
   topLeft,
   topRight,
@@ -121,31 +123,35 @@ class _CropCanvas extends StatelessWidget {
       builder: (context, constraints) {
         final displaySize = _fitInto(imageSize, constraints.biggest);
         final scale = displaySize.width / imageSize.width;
-        return Center(
-          child: SizedBox(
-            width: displaySize.width,
-            height: displaySize.height,
-            child: Stack(
-              children: [
-                RawImage(
-                  image: image,
-                  width: displaySize.width,
-                  height: displaySize.height,
-                ),
-                CustomPaint(
-                  size: displaySize,
-                  painter: _CropOverlayPainter(corners: corners, scale: scale),
-                ),
-                for (final corner in _Corner.values)
-                  _CornerHandle(
-                    position: corner.read(corners) * scale,
-                    onDrag: (delta) => onDragCorner(corner, delta),
-                    scale: scale,
-                  ),
-              ],
-            ),
+        final picture = RawImage(
+          image: image,
+          width: displaySize.width,
+          height: displaySize.height,
+        );
+        final overlay = CustomPaint(
+          size: displaySize,
+          painter: _CropOverlayPainter(
+            corners: corners,
+            scale: scale,
+            color: context.colors.action,
           ),
         );
+        final handles = [
+          for (final corner in _Corner.values)
+            _CornerHandle(
+              position: corner.read(corners) * scale,
+              onDrag: (delta) => onDragCorner(corner, delta),
+              scale: scale,
+            ),
+        ];
+        final stack = Stack(children: [picture, overlay, ...handles]);
+        final sized = SizedBox(
+          width: displaySize.width,
+          height: displaySize.height,
+          child: stack,
+        );
+
+        return Center(child: sized);
       },
     );
   }
@@ -160,10 +166,15 @@ class _CropCanvas extends StatelessWidget {
 }
 
 class _CropOverlayPainter extends CustomPainter {
-  const _CropOverlayPainter({required this.corners, required this.scale});
+  const _CropOverlayPainter({
+    required this.corners,
+    required this.scale,
+    required this.color,
+  });
 
   final DocumentCorners corners;
   final double scale;
+  final Color color;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -172,7 +183,7 @@ class _CropOverlayPainter extends CustomPainter {
     canvas.drawPath(
       path,
       Paint()
-        ..color = Colors.greenAccent
+        ..color = color
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2,
     );
@@ -180,7 +191,7 @@ class _CropOverlayPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _CropOverlayPainter oldDelegate) =>
-      oldDelegate.corners != corners;
+      oldDelegate.corners != corners || oldDelegate.color != color;
 }
 
 class _CornerHandle extends StatelessWidget {
@@ -208,8 +219,8 @@ class _CornerHandle extends StatelessWidget {
           height: _handleSize,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: Colors.greenAccent.withValues(alpha: 0.8),
-            border: Border.all(color: Colors.white, width: 2),
+            color: context.colors.action.withValues(alpha: 0.8),
+            border: Border.all(color: context.colors.onAction, width: 2),
           ),
         ),
       ),

@@ -124,6 +124,31 @@ void main() {
     expect(find.text('Food'), findsWidgets);
   });
 
+  testWidgets('the headline uses the expense token', (tester) async {
+    final hawkerEntry = Entry(
+      amount: dec('-10'),
+      name: 'Lunch',
+      sourceID: account.id,
+      categoryID: hawkerID,
+      date: day(1),
+    );
+    final cafeEntry = Entry(
+      amount: dec('-5'),
+      name: 'Coffee',
+      sourceID: account.id,
+      categoryID: cafeID,
+      date: day(2),
+    );
+    final ledger = buildLedger(
+      entries: {hawkerEntry.id: hawkerEntry, cafeEntry.id: cafeEntry},
+    );
+    await pumpDetail(tester, ledger);
+    await tester.pumpAndSettle();
+
+    final headline = tester.widget<Text>(find.text('S\$15.00'));
+    expect(headline.style?.color, const Color(0xFF964B44));
+  });
+
   testWidgets('range is inherited fixed: no range control is rendered', (
     tester,
   ) async {
@@ -315,13 +340,15 @@ void main() {
       await pumpDetail(tester, ledger);
       await tester.pumpAndSettle();
 
-      expect(find.text('\$15.00'), findsNWidgets(2));
+      expect(find.text('S\$15.00'), findsOneWidget);
+      expect(find.text('15.00'), findsOneWidget);
 
       await tester.tap(find.text('Hawker'));
       await tester.pumpAndSettle();
 
       expect(find.text('Food › Hawker'), findsOneWidget);
-      expect(find.text('\$10.00'), findsWidgets);
+      expect(find.text('S\$10.00'), findsOneWidget);
+      expect(find.text('10.00'), findsOneWidget);
     });
   });
 

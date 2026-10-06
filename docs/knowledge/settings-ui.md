@@ -1,6 +1,6 @@
 # Settings UI
 
-Last reconciled: 28d81bd
+Last reconciled: 12f4774
 
 ## Feature overview
 
@@ -109,6 +109,9 @@ platform. The receipt scan-strip switch stays in `AppSettings`. Source:
 
 ## Screens and flows
 
+- **Currency** - a fixed row reading "Amounts display in Singapore dollars / SGD". There is no
+  multi-currency support. (`app/lib/ui/settings/settings_root_screen.dart`)
+
 - **Category list** - two sections (Income, then Expense), rows pre-ordered roots-then-children
   A–Z, child rows indented. Edit/Done toggle shows red delete buttons; an add button opens "New
   Category" (default expense); parent rows show a `plus.circle` that opens "New Subcategory" with the
@@ -125,8 +128,9 @@ platform. The receipt scan-strip switch stays in `AppSettings`. Source:
   rendered as `CategoryIcon`s in the form's color; search filters names by substring, empty sections
   drop out, section headers are sticky.
 - **Plan list** - rows sorted by next occurrence ascending, ended plans (nil next) last, with name
-  as the deterministic tiebreak (including between two ended plans). Amount is green when the
-  template amount is income, primary when expense. No add button - plans are created from the entry
+  as the deterministic tiebreak (including between two ended plans). Amount is bare (no symbol) in
+  the income token when the template amount is income and in the expense token when it is an
+  expense. No add button - plans are created from the entry
   form's recurrence flow only. Delete message: "Already generated transactions are kept." →
   `deletePlan`.
 - **Plan form** - name, amount magnitude (template's original sign preserved on save), read-only

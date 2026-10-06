@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 
 import 'package:spendwise/ui/common/delete_confirmation.dart';
+import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 class SwipeToDeleteRow extends StatelessWidget {
   const SwipeToDeleteRow({
@@ -37,7 +38,7 @@ class SwipeToDeleteRow extends StatelessWidget {
           color: Theme.of(context).colorScheme.error,
           alignment: Alignment.centerRight,
           padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: const Icon(Icons.delete_outline, color: Colors.white),
+          child: Icon(Icons.delete_outline, color: context.colors.onAction),
         ),
         confirmDismiss: (_) => _confirmAndDelete(context),
         child: child,

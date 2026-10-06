@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/common/delete_confirmation.dart';
 import 'package:spendwise/ui/common/swipe_to_delete_row.dart';
-import 'package:spendwise/ui/format/amount_color.dart';
+import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/settings/plan/plan_form.dart';
@@ -148,35 +148,44 @@ class _PlanRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = AmountColors.of(Theme.of(context));
     final amount = plan.template.amount;
     final isIncome = amount >= Decimal.zero;
     final sourceName = state.sourceName(plan.template.sourceID) ?? 'Unknown';
     final next = plan.nextOccurrence(onOrAfter: DateTime.now());
 
+    final leading = editing
+        ? IconButton(
+            icon: Icon(
+              Icons.remove_circle,
+              color: Theme.of(context).colorScheme.error,
+            ),
+            onPressed: onDelete,
+          )
+        : null;
+    final subtitle = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('${_frequencyLabels[plan.frequency]} · $sourceName'),
+        Text(next == null ? 'Ended' : 'Next: ${formatEntryDate(next)}'),
+      ],
+    );
+    final trailing = Text(
+      formatMoney(amount.abs(), symbol: false),
+      style: TextStyle(
+        color: AmountStyle.of(
+          context,
+          kind: isIncome ? AmountKind.income : AmountKind.expense,
+        ).color,
+        fontWeight: FontWeight.w600,
+      ),
+    );
+
     return ListTile(
-      leading: editing
-          ? IconButton(
-              icon: const Icon(Icons.remove_circle, color: Colors.red),
-              onPressed: onDelete,
-            )
-          : null,
+      leading: leading,
       title: Text(plan.template.name),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('${_frequencyLabels[plan.frequency]} · $sourceName'),
-          Text(next == null ? 'Ended' : 'Next: ${formatEntryDate(next)}'),
-        ],
-      ),
+      subtitle: subtitle,
       isThreeLine: true,
-      trailing: Text(
-        formatCurrency(amount.abs()),
-        style: TextStyle(
-          color: isIncome ? colors.gain : colors.neutral,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
+      trailing: trailing,
       onTap: onTap,
     );
   }

@@ -1,11 +1,12 @@
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 
-import 'package:spendwise/ui/format/amount_color.dart';
+import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/transactions/daily_list/empty_state.dart';
 import 'package:spendwise/ui/transactions/monthly/month_summaries.dart';
+import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 class MonthlyTransactionsView extends StatefulWidget {
   const MonthlyTransactionsView({
@@ -86,9 +87,7 @@ class _MonthRow extends StatelessWidget {
     );
 
     return _TransactionSummaryRow(
-      background: summary.isCurrentMonth
-          ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
-          : null,
+      background: summary.isCurrentMonth ? context.colors.tint : null,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       onTap: onTap,
       leading: Icon(expanded ? Icons.expand_more : Icons.chevron_right),
@@ -118,7 +117,7 @@ class _WeekRow extends StatelessWidget {
           width: 3,
           color: summary.isCurrentWeek
               ? theme.colorScheme.primary
-              : Colors.transparent,
+              : const Color(0x00000000),
         ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -155,27 +154,27 @@ class _TransactionSummaryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = AmountColors.of(Theme.of(context));
-
-    return Material(
-      color: background,
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          decoration: border == null ? null : BoxDecoration(border: border),
-          padding: padding,
-          child: Row(
-            children: [
-              if (leading != null) ...[leading!, const SizedBox(width: 8)],
-              Expanded(child: Text(label, style: labelStyle)),
-              Text(
-                formatCurrency(net),
-                style: netStyle?.copyWith(color: colors.netAmountColor(net)),
-              ),
-            ],
-          ),
-        ),
+    final labelText = Expanded(child: Text(label, style: labelStyle));
+    final netText = Text(
+      formatMoney(net, symbol: false),
+      style: netStyle?.copyWith(
+        color: AmountStyle.of(context, signedValue: net).color,
       ),
     );
+    final rowContent = Row(
+      children: [
+        if (leading != null) ...[leading!, const SizedBox(width: 8)],
+        labelText,
+        netText,
+      ],
+    );
+    final container = Container(
+      decoration: border == null ? null : BoxDecoration(border: border),
+      padding: padding,
+      child: rowContent,
+    );
+    final ink = InkWell(onTap: onTap, child: container);
+
+    return Material(color: background, child: ink);
   }
 }

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/accounts/account_sections.dart';
 import 'package:spendwise/ui/common/swipe_to_delete_row.dart';
-import 'package:spendwise/ui/format/amount_color.dart';
+import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 
 class AccountRowTile extends StatelessWidget {
@@ -82,55 +82,51 @@ class _AccountRowBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colors = AmountColors.of(theme);
 
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 40,
-              child: onToggleExpanded == null
-                  ? null
-                  : IconButton(
-                      icon: Icon(
-                        expanded ? Icons.expand_more : Icons.chevron_right,
-                      ),
-                      onPressed: onToggleExpanded,
-                    ),
+    final expandControl = SizedBox(
+      width: 40,
+      child: onToggleExpanded == null
+          ? null
+          : IconButton(
+              icon: Icon(expanded ? Icons.expand_more : Icons.chevron_right),
+              onPressed: onToggleExpanded,
             ),
-            Expanded(child: Text(row.name, style: theme.textTheme.bodyLarge)),
-            switch (row.amount) {
-              SingleTotal(:final total) => Text(
-                formatCurrency(total),
-                style: theme.textTheme.titleSmall?.copyWith(
-                  color: colors.netAmountColor(total),
-                ),
-              ),
-              CardAmounts(:final payable, :final outstanding) => Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    formatCurrency(payable),
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      color: colors.loss,
-                    ),
-                  ),
-                  Text(
-                    formatCurrency(outstanding),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            },
-          ],
+    );
+    final title = Expanded(
+      child: Text(row.name, style: theme.textTheme.bodyLarge),
+    );
+    final amount = switch (row.amount) {
+      SingleTotal(:final total) => Text(
+        formatMoney(total, symbol: false),
+        style: theme.textTheme.titleSmall?.copyWith(
+          color: AmountStyle.of(context, signedValue: total).color,
         ),
       ),
+      CardAmounts(:final payable, :final outstanding) => Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Text(
+            formatMoney(payable, symbol: false),
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: AmountStyle.of(context, kind: AmountKind.expense).color,
+            ),
+          ),
+          Text(
+            formatMoney(outstanding, symbol: false),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    };
+    final rowContent = Row(children: [expandControl, title, amount]);
+    final padded = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+      child: rowContent,
     );
+
+    return InkWell(onTap: onTap, child: padded);
   }
 }
 
@@ -148,7 +144,6 @@ class _SubRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colors = AmountColors.of(theme);
 
     return Material(
       color: theme.colorScheme.surfaceContainerHighest,
@@ -160,9 +155,9 @@ class _SubRow extends StatelessWidget {
             children: [
               Expanded(child: Text(title, style: theme.textTheme.bodyMedium)),
               Text(
-                formatCurrency(amount),
+                formatMoney(amount, symbol: false),
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: colors.netAmountColor(amount),
+                  color: AmountStyle.of(context, signedValue: amount).color,
                 ),
               ),
             ],

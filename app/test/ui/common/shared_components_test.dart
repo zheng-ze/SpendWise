@@ -22,7 +22,7 @@ void main() {
         ),
       );
 
-      expect(find.text(r'$'), findsNothing);
+      expect(find.text('S\$'), findsNothing);
     });
 
     testWidgets('appears once text is typed and goes away when cleared', (
@@ -35,11 +35,11 @@ void main() {
 
       await tester.enterText(find.byType(TextField), '12');
       await tester.pump();
-      expect(find.text(r'$'), findsOneWidget);
+      expect(find.text('S\$'), findsOneWidget);
 
       await tester.enterText(find.byType(TextField), '');
       await tester.pump();
-      expect(find.text(r'$'), findsNothing);
+      expect(find.text('S\$'), findsNothing);
     });
 
     testWidgets('drops a minus sign when negatives are not allowed', (

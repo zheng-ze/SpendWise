@@ -6,6 +6,7 @@ import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/stats/category_detail/category_scope.dart';
 import 'package:spendwise/ui/stats/helpers/chart_helpers.dart';
+import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 String _scopeShortName(
   String mainName,
@@ -79,7 +80,32 @@ class _TrendCardState extends State<TrendCard> {
     final hint = widget.isYearRange ? 'this year' : 'last 6 months';
     final headerRight = selected == null
         ? hint
-        : '${formatMonthLabel(months[selected])} · ${formatCurrency(amounts[selected])}';
+        : '${formatMonthLabel(months[selected])} · ${formatMoney(amounts[selected])}';
+    final header = Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text('$titleName trend', style: theme.textTheme.titleSmall),
+        Text(
+          headerRight,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+    final chart = SizedBox(
+      key: const ValueKey('categoryDetailTrendChart'),
+      height: 160,
+      child: _TrendLineChart(
+        months: months,
+        amounts: amounts,
+        maxY: maxY,
+        lineColor: widget.color,
+        selectedMark: context.colors.selectedMark,
+        selected: selected,
+        onTouch: _onTrendTouch,
+      ),
+    );
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
@@ -89,26 +115,7 @@ class _TrendCardState extends State<TrendCard> {
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('$titleName trend', style: theme.textTheme.titleSmall),
-                  Text(
-                    headerRight,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                key: const ValueKey('categoryDetailTrendChart'),
-                height: 160,
-                child: _buildTrendLineChart(theme, months, amounts, maxY),
-              ),
-            ],
+            children: [header, const SizedBox(height: 12), chart],
           ),
         ),
       ),
@@ -123,13 +130,30 @@ class _TrendCardState extends State<TrendCard> {
     }
     setState(() => _selectedIndex = spots.first.x.round());
   }
+}
 
-  LineChart _buildTrendLineChart(
-    ThemeData theme,
-    List<DateTime> months,
-    List<Decimal> amounts,
-    double maxY,
-  ) {
+class _TrendLineChart extends StatelessWidget {
+  const _TrendLineChart({
+    required this.months,
+    required this.amounts,
+    required this.maxY,
+    required this.lineColor,
+    required this.selectedMark,
+    required this.selected,
+    required this.onTouch,
+  });
+
+  final List<DateTime> months;
+  final List<Decimal> amounts;
+  final double maxY;
+  final Color lineColor;
+  final Color selectedMark;
+  final int? selected;
+  final void Function(FlTouchEvent, LineTouchResponse?) onTouch;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final bottomTitles = AxisTitles(
       sideTitles: SideTitles(
         showTitles: true,
@@ -142,10 +166,24 @@ class _TrendCardState extends State<TrendCard> {
     final lineTouchData = LineTouchData(
       touchSpotThreshold: double.infinity,
       touchTooltipData: LineTouchTooltipData(
-        getTooltipColor: (_) => Colors.transparent,
+        getTooltipColor: (_) => const Color(0x00000000),
         getTooltipItems: (spots) => [for (final _ in spots) null],
       ),
-      touchCallback: _onTrendTouch,
+      getTouchedSpotIndicator: (bar, indicators) => [
+        for (final _ in indicators)
+          TouchedSpotIndicatorData(
+            FlLine(color: const Color(0x00000000)),
+            FlDotData(
+              getDotPainter: (spot, percent, touchedBar, touchedIndex) =>
+                  FlDotCirclePainter(
+                    radius: 5,
+                    color: selectedMark,
+                    strokeWidth: 0,
+                  ),
+            ),
+          ),
+      ],
+      touchCallback: onTouch,
     );
 
     final lineBarsData = [
@@ -156,9 +194,16 @@ class _TrendCardState extends State<TrendCard> {
         ],
         isCurved: true,
         preventCurveOverShooting: true,
-        color: widget.color,
+        color: lineColor,
         barWidth: 2,
-        dotData: const FlDotData(show: true),
+        dotData: FlDotData(
+          show: true,
+          getDotPainter: (spot, percent, bar, index) => FlDotCirclePainter(
+            radius: index == selected ? 5 : 3,
+            color: index == selected ? selectedMark : lineColor,
+            strokeWidth: 0,
+          ),
+        ),
         belowBarData: BarAreaData(show: false),
       ),
     ];

@@ -8,12 +8,13 @@ import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
 import 'package:spendwise/ui/common/day_sectioned_entry_list.dart';
 import 'package:spendwise/ui/common/month_year_selector.dart';
-import 'package:spendwise/ui/format/amount_color.dart';
+import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/budgets/helpers/budget_spend.dart';
 import 'package:spendwise/ui/stats/helpers/chart_helpers.dart';
 import 'package:spendwise/ui/stats/helpers/stats_window.dart';
+import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 class BudgetDetailScreen extends ConsumerWidget {
   const BudgetDetailScreen({super.key, required this.budgetID});
@@ -78,7 +79,7 @@ class _BudgetDetailBody extends StatelessWidget {
         maxY: viewState.chartMaxYValue,
         selectedMonth: viewState.selectedMonth,
         onSelectMonth: viewModel.selectMonth,
-        barColor: AmountColors.of(Theme.of(context)).loss,
+        barColor: AmountStyle.of(context, kind: AmountKind.expense).color,
       ),
     );
     final entriesLabel = _BudgetDetailEntriesLabel(
@@ -146,7 +147,6 @@ class _BudgetDetailHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colors = AmountColors.of(theme);
 
     final selectedMonth = viewState.selectedYearMonth;
     final limit = effectiveLimit(budget, selectedMonth);
@@ -161,9 +161,11 @@ class _BudgetDetailHeader extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: AmountHeader(
-        caption: '${formatCurrency(spend)} of ${formatCurrency(limit)}',
+        caption: '${formatMoney(spend)} of ${formatMoney(limit)}',
         amount: limit - spend,
-        amountColor: overLimit ? colors.loss : theme.colorScheme.onSurface,
+        amountColor: overLimit
+            ? AmountStyle.of(context, kind: AmountKind.expense).color
+            : theme.colorScheme.onSurface,
       ),
     );
   }
@@ -252,6 +254,7 @@ class _BudgetDetailSpendBars extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final selectedMark = context.colors.selectedMark;
     final selectedIndex = months.indexWhere(
       (month) =>
           month.year == selectedMonth.year &&
@@ -283,26 +286,28 @@ class _BudgetDetailSpendBars extends StatelessWidget {
             BarChartRodData(
               toY: spend[i].toDouble(),
               color: i == selectedIndex
-                  ? barColor
+                  ? selectedMark
                   : barColor.withValues(alpha: 0.5),
               width: 18,
               borderRadius: BorderRadius.circular(4),
+              borderSide: i == selectedIndex
+                  ? const BorderSide(width: 0, color: Color(0x00000000))
+                  : BorderSide.none,
             ),
           ],
         ),
     ];
-
-    return BarChart(
-      BarChartData(
-        minY: 0,
-        maxY: maxY,
-        gridData: const FlGridData(show: false),
-        borderData: FlBorderData(show: false),
-        titlesData: titlesData,
-        barTouchData: BarTouchData(enabled: false),
-        barGroups: barGroups,
-      ),
+    final data = BarChartData(
+      minY: 0,
+      maxY: maxY,
+      gridData: const FlGridData(show: false),
+      borderData: FlBorderData(show: false),
+      titlesData: titlesData,
+      barTouchData: BarTouchData(enabled: false),
+      barGroups: barGroups,
     );
+
+    return BarChart(data);
   }
 }
 

@@ -2,6 +2,7 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/format/money_format.dart';
+import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 DateRange monthWindow(DateTime month) {
   final start = DateTime.utc(month.year, month.month);
@@ -40,12 +41,8 @@ class AmountHeader extends StatelessWidget {
           ),
         ),
         Text(
-          formatCurrency(amount),
-          style: theme.textTheme.headlineMedium?.copyWith(
-            fontSize: 30,
-            fontWeight: FontWeight.bold,
-            color: amountColor,
-          ),
+          formatMoney(amount),
+          style: context.text.headline.copyWith(color: amountColor),
         ),
       ],
     );

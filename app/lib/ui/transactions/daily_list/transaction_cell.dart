@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/common/category_icon.dart';
-import 'package:spendwise/ui/format/amount_color.dart';
+import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/transactions/daily_list/transaction_row.dart';
 
@@ -17,7 +17,6 @@ class TransactionCell extends StatelessWidget {
     final captionStyle = theme.textTheme.bodySmall?.copyWith(
       color: theme.colorScheme.onSurfaceVariant,
     );
-    final colors = AmountColors.of(theme);
 
     return InkWell(
       onTap: onTap,
@@ -39,9 +38,13 @@ class TransactionCell extends StatelessWidget {
             ),
             const SizedBox(width: 12),
             Text(
-              formatSignedAmount(row.amount, row.amountKind),
+              formatSignedMoney(
+                row.amount,
+                kind: row.amountKind,
+                symbol: false,
+              ),
               style: theme.textTheme.titleSmall?.copyWith(
-                color: colors.kindColor(row.amountKind),
+                color: AmountStyle.of(context, kind: row.amountKind).color,
                 fontWeight: FontWeight.w600,
               ),
             ),

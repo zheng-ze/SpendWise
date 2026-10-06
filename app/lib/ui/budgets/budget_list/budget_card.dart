@@ -1,10 +1,11 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 
-import 'package:spendwise/ui/format/amount_color.dart';
+import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/budgets/helpers/budget_spend.dart';
+import 'package:spendwise/ui/theme/spendwise_colors.dart';
 
 const _barHeight = 22.0;
 
@@ -38,8 +39,6 @@ class BudgetCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = AmountColors.of(theme);
     final (name, color) = _categoryDisplay(state);
 
     final limit = effectiveLimit(budget, month);
@@ -57,7 +56,9 @@ class BudgetCard extends StatelessWidget {
     );
     final bar = _BudgetCardBar(
       percentOfLimit: percentOfLimit,
-      color: overLimit ? colors.loss : color,
+      color: overLimit
+          ? AmountStyle.of(context, kind: AmountKind.expense).color
+          : color,
     );
     final footer = _BudgetCardFooter(
       spend: spend,
@@ -112,7 +113,7 @@ class _BudgetCardHeader extends StatelessWidget {
           ),
         ),
         Text(
-          formatCurrency(limit),
+          formatMoney(limit),
           style: theme.textTheme.bodyMedium?.copyWith(
             fontWeight: FontWeight.w600,
             fontFeatures: const [FontFeature.tabularFigures()],
@@ -133,6 +134,14 @@ class _BudgetCardBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final fraction = percentOfLimit.clamp(0.0, 1.0);
+    final trackLabel = _BudgetCardBarLabel(
+      percentOfLimit: percentOfLimit,
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+    final fillLabel = _BudgetCardBarLabel(
+      percentOfLimit: percentOfLimit,
+      color: foregroundOn(color),
+    );
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(_barHeight / 2),
@@ -146,10 +155,11 @@ class _BudgetCardBar extends StatelessWidget {
             widthFactor: fraction,
             child: Container(height: _barHeight, color: color),
           ),
+          Positioned.fill(child: trackLabel),
           Positioned.fill(
-            child: _BudgetCardBarLabel(
-              percentOfLimit: percentOfLimit,
-              fraction: fraction,
+            child: ClipRect(
+              clipper: _LeadingFractionClipper(fraction),
+              child: fillLabel,
             ),
           ),
         ],
@@ -158,14 +168,28 @@ class _BudgetCardBar extends StatelessWidget {
   }
 }
 
+class _LeadingFractionClipper extends CustomClipper<Rect> {
+  const _LeadingFractionClipper(this.fraction);
+
+  final double fraction;
+
+  @override
+  Rect getClip(Size size) =>
+      Rect.fromLTWH(0, 0, size.width * fraction, size.height);
+
+  @override
+  bool shouldReclip(_LeadingFractionClipper oldClipper) =>
+      oldClipper.fraction != fraction;
+}
+
 class _BudgetCardBarLabel extends StatelessWidget {
   const _BudgetCardBarLabel({
     required this.percentOfLimit,
-    required this.fraction,
+    required this.color,
   });
 
   final double percentOfLimit;
-  final double fraction;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
@@ -179,9 +203,7 @@ class _BudgetCardBarLabel extends StatelessWidget {
           formatPercent(percentOfLimit),
           style: theme.textTheme.labelMedium?.copyWith(
             fontWeight: FontWeight.w700,
-            color: fraction >= 0.5
-                ? Colors.white
-                : theme.colorScheme.onSurfaceVariant,
+            color: color,
           ),
         ),
       ),
@@ -203,33 +225,30 @@ class _BudgetCardFooter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colors = AmountColors.of(theme);
+    final expense = AmountStyle.of(context, kind: AmountKind.expense).color;
+    final neutral = AmountStyle.of(context).color;
 
     return Row(
       children: [
         if (overLimit)
           Padding(
             padding: const EdgeInsets.only(right: 4),
-            child: Icon(
-              Icons.warning_amber_rounded,
-              size: 14,
-              color: colors.loss,
-            ),
+            child: Icon(Icons.warning_amber_rounded, size: 14, color: expense),
           ),
         Text(
-          formatCurrency(spend),
+          formatMoney(spend, symbol: false),
           style: theme.textTheme.bodySmall?.copyWith(
-            color: overLimit ? colors.loss : colors.neutral,
+            color: overLimit ? expense : neutral,
             fontFeatures: const [FontFeature.tabularFigures()],
           ),
         ),
         const Spacer(),
         Text(
           remaining < Decimal.zero
-              ? '-${formatCurrency(remaining.abs())}'
-              : formatCurrency(remaining),
+              ? '-${formatMoney(remaining.abs(), symbol: false)}'
+              : formatMoney(remaining, symbol: false),
           style: theme.textTheme.bodySmall?.copyWith(
-            color: overLimit ? colors.loss : theme.colorScheme.onSurfaceVariant,
+            color: overLimit ? expense : theme.colorScheme.onSurfaceVariant,
             fontFeatures: const [FontFeature.tabularFigures()],
           ),
         ),

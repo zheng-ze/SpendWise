@@ -1,6 +1,6 @@
 # Accounts UI
 
-Last reconciled: 2026-09-02
+Last reconciled: 12f4774
 
 ## Feature overview
 
@@ -39,7 +39,7 @@ forms and the entry form open as sheets.
 ## Screens and flows
 
 - **Accounts root** — custom header row ("Accounts" headline + trailing `+` opening the account
-  form), a summary bar (Assets blue / Liabilities red / Total = assets − liabilities from
+  form), a summary bar (Assets income token / Liabilities expense token / Total = assets − liabilities from
   `netWorth`), and a grouped list. Sections group active accounts by `AccountType` in the fixed enum
   order Cash, Checking, Savings, Cards, Prepaid, Investment, Insurance, Other, skipping empty types.
   Non-card rows show `accountTotal`; card rows show payable (`max(0, −accountTotal)`) and outstanding
