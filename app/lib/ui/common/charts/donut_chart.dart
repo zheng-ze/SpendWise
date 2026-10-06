@@ -70,7 +70,7 @@ class DonutChart extends StatelessWidget {
               pieTouchData: PieTouchData(
                 enabled: onSelect != null,
                 touchCallback: (event, response) {
-                  if (!event.isInterestedForInteractions) return;
+                  if (event is! FlTapUpEvent) return;
                   final index = response?.touchedSection?.touchedSectionIndex;
                   if (index != null && index >= 0) onSelect!(index);
                 },

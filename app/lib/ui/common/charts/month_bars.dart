@@ -64,7 +64,7 @@ class MonthBars extends StatelessWidget {
               getTooltipItem: (_, _, _, _) => null,
             ),
             touchCallback: (event, response) {
-              if (!event.isInterestedForInteractions) return;
+              if (event is! FlTapUpEvent) return;
               final index = response?.spot?.touchedBarGroupIndex;
               if (index != null) onSelect!(index);
             },

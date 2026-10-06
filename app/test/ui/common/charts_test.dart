@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -119,6 +121,35 @@ void main() {
 
       expect(selected, 3);
     });
+
+    testWidgets('a tap selects once and a drag across bars selects nothing', (
+      tester,
+    ) async {
+      final selections = <int>[];
+      await tester.pumpWidget(
+        _host(MonthBars(slots: _twelveMonths(), onSelect: selections.add)),
+      );
+      await tester.pumpAndSettle();
+
+      final chartRect = tester.getRect(find.byType(BarChart));
+      Offset barCentre(int index) => Offset(
+        chartRect.left + chartRect.width * (index + 0.5) / 12,
+        chartRect.bottom - 20,
+      );
+      await tester.tapAt(barCentre(3));
+      await tester.pumpAndSettle();
+      expect(selections, [3]);
+
+      final gesture = await tester.startGesture(barCentre(1));
+      for (var index = 2; index <= 8; index++) {
+        await gesture.moveTo(barCentre(index));
+        await tester.pump();
+      }
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(selections, [3]);
+    });
   });
 
   group('DonutChart', () {
@@ -155,6 +186,57 @@ void main() {
       expect(find.text('October'), findsOneWidget);
       expect(find.text('S\$167.40'), findsOneWidget);
     });
+
+    testWidgets(
+      'a tap selects once and a drag around the ring selects nothing',
+      (tester) async {
+        final selections = <int>[];
+        await tester.pumpWidget(
+          _host(
+            Center(
+              child: DonutChart(
+                segments: const [
+                  DonutSegment(
+                    label: 'Groceries',
+                    value: 1,
+                    color: Color(0xFF29755E),
+                  ),
+                  DonutSegment(
+                    label: 'Dining',
+                    value: 1,
+                    color: Color(0xFF986421),
+                  ),
+                ],
+                onSelect: selections.add,
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final centre = tester.getCenter(find.byType(PieChart));
+        const ringRadius = 132 * 0.34 + 132 * 0.17 / 2;
+        Offset onRing(double degrees) {
+          final radians = degrees * math.pi / 180;
+          return centre +
+              Offset(math.cos(radians), math.sin(radians)) * ringRadius;
+        }
+
+        await tester.tapAt(onRing(90));
+        await tester.pumpAndSettle();
+        expect(selections, [0]);
+
+        final gesture = await tester.startGesture(onRing(30));
+        for (var degrees = 60.0; degrees <= 330; degrees += 30) {
+          await gesture.moveTo(onRing(degrees));
+          await tester.pump();
+        }
+        await gesture.up();
+        await tester.pumpAndSettle();
+
+        expect(selections, [0]);
+      },
+    );
   });
 
   group('layoutCategoryMap', () {
