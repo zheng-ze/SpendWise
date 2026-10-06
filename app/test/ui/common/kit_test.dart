@@ -28,6 +28,8 @@ SpendWiseColors _tokens(WidgetTester tester) =>
     Theme.of(tester.element(find.byType(Scaffold)))
         .extension<SpendWiseColors>()!;
 
+void _ignoreSegment(String value) {}
+
 void main() {
   group('PrimaryButton', () {
     testWidgets('renders filled and fires its action', (tester) async {
@@ -68,6 +70,23 @@ void main() {
       );
       expect(button.style?.backgroundColor?.resolve({}), _tokens(tester).error);
     });
+
+    testWidgets('uses the reference button geometry and label', (tester) async {
+      await tester.pumpWidget(
+        _host(PrimaryButton(label: 'Save entry', onPressed: () {})),
+      );
+
+      final button = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Save entry'),
+      );
+      final shape = button.style?.shape?.resolve({})! as RoundedRectangleBorder;
+      expect(shape.borderRadius, BorderRadius.circular(10));
+      final labelStyle = DefaultTextStyle.of(
+        tester.element(find.text('Save entry')),
+      ).style;
+      expect(labelStyle.fontSize, 12);
+      expect(labelStyle.fontWeight, FontWeight.w600);
+    });
   });
 
   group('SecondaryButton', () {
@@ -91,6 +110,23 @@ void main() {
 
       expect(find.widgetWithText(OutlinedButton, 'Today'), findsOneWidget);
       expect(find.widgetWithText(TextButton, 'Today'), findsNothing);
+    });
+
+    testWidgets('the outline uses the control border', (tester) async {
+      await tester.pumpWidget(
+        _host(
+          SecondaryButton(label: 'Today', onPressed: () {}, outlined: true),
+        ),
+      );
+
+      final button = tester.widget<OutlinedButton>(
+        find.widgetWithText(OutlinedButton, 'Today'),
+      );
+      expect(button.style?.side?.resolve({})?.color, _tokens(tester).control);
+      final labelStyle = DefaultTextStyle.of(tester.element(find.text('Today')))
+          .style;
+      expect(labelStyle.fontSize, 12);
+      expect(labelStyle.fontWeight, FontWeight.w600);
     });
   });
 
@@ -182,6 +218,42 @@ void main() {
       await tester.tap(find.text('Year by year'));
       expect(chosen, 'year');
     });
+
+    for (final brightness in Brightness.values) {
+      testWidgets('uses the ${brightness.name} track and selected label', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          _host(
+            const SegmentedControl<String>(
+              options: [
+                SegmentedOption(value: 'month', label: 'Month by month'),
+                SegmentedOption(value: 'year', label: 'Year by year'),
+              ],
+              value: 'month',
+              onChanged: _ignoreSegment,
+            ),
+            brightness: brightness,
+          ),
+        );
+
+        final tokens = _tokens(tester);
+        final track = tester.widget<Container>(find.byType(Container).first);
+        final decoration = track.decoration! as BoxDecoration;
+        final selectedStyle = tester
+            .widget<Text>(find.text('Month by month'))
+            .style!;
+        if (brightness == Brightness.light) {
+          expect(decoration.color, tokens.surface);
+          expect(decoration.border?.top.color, tokens.edge);
+          expect(selectedStyle.color, tokens.action);
+        } else {
+          expect(decoration.color, tokens.tint);
+          expect(decoration.border?.top.color, tokens.control);
+          expect(selectedStyle.color, tokens.text);
+        }
+      });
+    }
   });
 
   group('CompactLabelledFab', () {
@@ -225,6 +297,27 @@ void main() {
 
       expect(tester.getSize(find.byType(FabReserveSpace)).height, 58);
     });
+
+    testWidgets('the label keeps the theme family at 12 semibold', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          CompactLabelledFab(
+            label: 'Add budget',
+            icon: Icons.add,
+            onPressed: () {},
+          ),
+        ),
+      );
+
+      final style = DefaultTextStyle.of(tester.element(find.text('Add budget')))
+          .style;
+      expect(style.fontFamily, 'InstrumentSans');
+      expect(style.fontSize, 12);
+      expect(style.fontWeight, FontWeight.w600);
+      expect(style.color, _tokens(tester).onAction);
+    });
   });
 
   group('NoticeCard', () {
@@ -262,6 +355,40 @@ void main() {
       await tester.tap(find.text('Dismiss'));
       expect(dismissed, isTrue);
     });
+
+    testWidgets('actions stay usable at large text scale', (tester) async {
+      tester.view.physicalSize = const Size(320, 760);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildSpendWiseTheme(Brightness.light),
+          home: MediaQuery(
+            data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+            child: Scaffold(
+              body: Center(
+                child: NoticeCard(
+                  title: 'Spending is up',
+                  body: 'Groceries rose 20% this week.',
+                  primaryAction: NoticeCardAction(
+                    label: 'Open in Trends',
+                    onPressed: () {},
+                  ),
+                  secondaryAction: NoticeCardAction(
+                    label: 'Dismiss',
+                    onPressed: () {},
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Open in Trends').hitTestable(), findsOneWidget);
+      expect(find.text('Dismiss').hitTestable(), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
   });
 
   group('EmptyState', () {
@@ -284,6 +411,41 @@ void main() {
       await tester.tap(find.text('Add entry'));
       expect(fired, isTrue);
     });
+
+    for (final brightness in Brightness.values) {
+      testWidgets('uses the ${brightness.name} surface treatment', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          _host(
+            const EmptyState(icon: Icons.receipt_long, title: 'No entries yet'),
+            brightness: brightness,
+          ),
+        );
+
+        final cards = find
+            .descendant(
+              of: find.byType(EmptyState),
+              matching: find.byType(Container),
+            )
+            .evaluate()
+            .where((element) {
+              final container = element.widget as Container;
+              final decoration = container.decoration;
+              return decoration is BoxDecoration &&
+                  decoration.color == _tokens(tester).surface;
+            });
+        if (brightness == Brightness.light) {
+          expect(cards, hasLength(1));
+          final decoration =
+              (cards.single.widget as Container).decoration! as BoxDecoration;
+          expect(decoration.borderRadius, BorderRadius.circular(14));
+          expect(decoration.border?.top.color, _tokens(tester).edge);
+        } else {
+          expect(cards, isEmpty);
+        }
+      });
+    }
   });
 
   group('LoadingSkeleton', () {

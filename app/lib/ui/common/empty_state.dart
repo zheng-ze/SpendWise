@@ -67,14 +67,26 @@ class EmptyState extends StatelessWidget {
     ];
     if (bodyText != null) content.add(bodyText);
     if (action != null) content.add(action);
+    final column = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: content,
+    );
+    if (Theme.of(context).brightness != Brightness.light) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 22),
+        child: column,
+      );
+    }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 22),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: content,
+    return Container(
+      decoration: BoxDecoration(
+        color: colors.surface,
+        border: Border.all(color: colors.edge),
+        borderRadius: BorderRadius.circular(14),
       ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 22),
+      child: column,
     );
   }
 }

@@ -31,10 +31,11 @@ class SegmentedControl<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final light = Theme.of(context).brightness == Brightness.light;
     return Container(
       decoration: BoxDecoration(
-        color: colors.tint,
-        border: Border.all(color: colors.control),
+        color: light ? colors.surface : colors.tint,
+        border: Border.all(color: light ? colors.edge : colors.control),
         borderRadius: BorderRadius.circular(10),
       ),
       padding: const EdgeInsets.all(2),
@@ -74,6 +75,9 @@ class _Segment extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final selectedColor = Theme.of(context).brightness == Brightness.light
+        ? colors.action
+        : colors.text;
     return InkWell(
       borderRadius: BorderRadius.circular(8),
       onTap: onTap,
@@ -93,7 +97,7 @@ class _Segment extends StatelessWidget {
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: small ? 10 : 12,
-            color: selected ? colors.text : colors.subtext,
+            color: selected ? selectedColor : colors.subtext,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
           ),
         ),

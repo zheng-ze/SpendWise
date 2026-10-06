@@ -111,7 +111,12 @@ class _NoticeActions extends StatelessWidget {
     }
     return Padding(
       padding: const EdgeInsets.only(top: 6),
-      child: Row(children: buttons),
+      child: OverflowBar(
+        alignment: MainAxisAlignment.start,
+        spacing: 14,
+        overflowSpacing: 8,
+        children: buttons,
+      ),
     );
   }
 }

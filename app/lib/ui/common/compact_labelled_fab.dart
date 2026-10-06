@@ -19,12 +19,17 @@ class CompactLabelledFab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final labelStyle = Theme.of(context).textTheme.labelLarge?.copyWith(
+      fontSize: 12,
+      fontWeight: FontWeight.w600,
+      color: colors.onAction,
+    );
     return Semantics(
       button: true,
       label: label,
       child: Material(
         color: colors.action,
-        textStyle: TextStyle(color: colors.onAction),
+        textStyle: labelStyle ?? TextStyle(color: colors.onAction),
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
           borderRadius: BorderRadius.circular(14),
