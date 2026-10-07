@@ -1,27 +1,85 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 
+import 'package:spendwise/ui/theme/spendwise_text.dart';
+
 class ErrorSection extends StatelessWidget {
-  const ErrorSection({super.key, required this.subject, required this.error});
+  const ErrorSection({
+    super.key,
+    required this.subject,
+    required this.error,
+    this.onRetry,
+  });
 
   final String subject;
 
   final LedgerError? error;
+
+  final VoidCallback? onRetry;
+
+  static const _messageFontSize = 12.0;
+
+  static const _messageLineHeight = 1.45;
+
+  static const _cornerRadius = 10.0;
+
+  static const _horizontalPadding = 12.0;
+
+  static const _verticalPadding = 10.0;
+
+  static const _verticalMargin = 8.0;
 
   @override
   Widget build(BuildContext context) {
     final error = this.error;
     if (error == null) return const SizedBox.shrink();
 
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Text(
-        'Could not save $subject: ${friendlyLedgerErrorMessage(error)}',
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: theme.colorScheme.error,
-        ),
+    final colors = context.colors;
+    final onRetry = this.onRetry;
+    final message = Text(
+      'Could not save $subject: ${friendlyLedgerErrorMessage(error)}',
+      style: TextStyle(
+        color: colors.error,
+        fontSize: _messageFontSize,
+        height: _messageLineHeight,
       ),
+    );
+    final content = <Widget>[message];
+    if (onRetry != null) content.add(_RetryButton(onPressed: onRetry));
+
+    final decoration = BoxDecoration(
+      color: colors.errorBg,
+      border: Border.all(color: colors.error),
+      borderRadius: BorderRadius.circular(_cornerRadius),
+    );
+    return Container(
+      decoration: decoration,
+      padding: const EdgeInsets.symmetric(
+        horizontal: _horizontalPadding,
+        vertical: _verticalPadding,
+      ),
+      margin: const EdgeInsets.symmetric(vertical: _verticalMargin),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: content,
+      ),
+    );
+  }
+}
+
+class _RetryButton extends StatelessWidget {
+  const _RetryButton({required this.onPressed});
+
+  static const _retryTopPadding = 8.0;
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: _retryTopPadding),
+      child: FilledButton(onPressed: onPressed, child: const Text('Retry')),
     );
   }
 }

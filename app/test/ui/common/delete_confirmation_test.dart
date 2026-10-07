@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/ui/common/delete_confirmation.dart';
+import 'package:spendwise/ui/theme/spendwise_colors.dart';
+import 'package:spendwise/ui/theme/spendwise_theme.dart';
 
 Widget _host() => const MaterialApp(
   home: Scaffold(body: Builder(builder: _openButton)),
@@ -9,6 +11,11 @@ Widget _host() => const MaterialApp(
 
 Widget _openButton(BuildContext context) =>
     TextButton(onPressed: () {}, child: const Text('open'));
+
+Widget _themedHost() => MaterialApp(
+  theme: buildSpendWiseTheme(Brightness.light),
+  home: const Scaffold(body: Builder(builder: _openButton)),
+);
 
 void main() {
   testWidgets('shows the item name in the dialog title', (tester) async {
@@ -43,5 +50,73 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(await cancelled, isFalse);
+  });
+
+  testWidgets('the dialog uses tokens with an error-filled confirm', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_themedHost());
+    final context = tester.element(find.byType(TextButton));
+    final tokens = Theme.of(context).extension<SpendWiseColors>()!;
+
+    final future = showDeleteConfirmation(context, itemName: 'Item');
+    await tester.pumpAndSettle();
+
+    final dialog = tester.widget<Dialog>(find.byType(Dialog));
+    expect(dialog.backgroundColor, tokens.raised);
+    final shape = dialog.shape! as RoundedRectangleBorder;
+    expect(shape.side.color, tokens.control);
+    final confirm = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Delete'),
+    );
+    expect(confirm.style?.backgroundColor?.resolve({}), tokens.error);
+    expect(confirm.style?.foregroundColor?.resolve({}), tokens.onAction);
+
+    await tester.tap(find.text('Delete'));
+    await future;
+  });
+
+  testWidgets('the dialog stays a small dialog on wide windows', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(_themedHost());
+    final context = tester.element(find.byType(TextButton));
+
+    final future = showDeleteConfirmation(context, itemName: 'Item');
+    await tester.pumpAndSettle();
+
+    expect(tester.getRect(find.byType(Dialog)).width, lessThanOrEqualTo(440));
+
+    await tester.tap(find.text('Delete'));
+    await future;
+  });
+
+  testWidgets('both actions stay usable at large text scale', (tester) async {
+    tester.view.physicalSize = const Size(320, 760);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildSpendWiseTheme(Brightness.light),
+        home: MediaQuery(
+          data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+          child: const Scaffold(body: Builder(builder: _openButton)),
+        ),
+      ),
+    );
+    final context = tester.element(find.byType(TextButton));
+
+    final future = showDeleteConfirmation(context, itemName: 'Groceries');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Cancel').hitTestable(), findsOneWidget);
+    expect(find.text('Delete').hitTestable(), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.text('Cancel'));
+    expect(await future, isFalse);
   });
 }

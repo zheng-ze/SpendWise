@@ -1,6 +1,6 @@
 # UI Framework (MVVM)
 
-Last reconciled: 88e6baf
+Last reconciled: 0cc77d5
 
 ## Feature overview
 
@@ -104,8 +104,54 @@ value, which then overwrites it. (issue #38)
 - **Destructive confirmations** - the confirm action is a filled button in the error token with the
   on-action label colour; cancel stays text. (`app/lib/ui/common/delete_confirmation.dart`)
 
+## Sheet and component kit
+
+- **AppSheet** (`app/lib/ui/common/app_sheet.dart`) is the shared kit sheet surface.
+  `showAppSheet<T>(context, builder:)` pushes an `AppSheetRoute` on the root navigator, so
+  its barrier covers the window even when opened from a nested Flow. The builder returns
+  `AppSheet(header:, body:, footer:, inputSurface:, alert:, onAlertAction:)`. Below
+  `LayoutBreakpoints.railEnter` (720), it spans the phone width at the bottom; at or above
+  that width, it centres a dialog no wider than 440. Both size to content up to
+  `0.66 * (window height - top safe padding - bottom keyboard inset)`. Only the body
+  scrolls; the header, footer and input surface stay pinned. The route lifts the sheet above
+  the keyboard, and the surface keeps its footer/input above the bottom safe inset while
+  the phone background fills that inset. (`app/lib/ui/shell/layout_breakpoints.dart`)
+- **Sheet alerts** - the presentation kit owns no Riverpod state. `AppSheetRoute` owns
+  alert and action `ValueNotifier`s exposed through `AppSheetAlertSlot`; `AppSheet` publishes
+  them post-frame and clears them on dispose. The route renders `SheetAlert` outside the
+  sheet, so errors and warnings never change sheet height. A View passes its ViewModel's
+  alert and callback down. A standalone `AppSheet` needs the route slot to display alerts.
+  The banner is a live region; its action appears only with both a label and callback.
+  (`app/lib/ui/common/app_sheet.dart`, `app/lib/ui/common/sheet_alert.dart`)
+- **Actions** (`app/lib/ui/common/app_buttons.dart`): `PrimaryButton` is filled, with
+  `destructive: true` using error/on-action tokens; `SecondaryButton` defaults to text and
+  uses the control outline when `outlined: true`. A null callback disables either button.
+- **Surfaces** (`app/lib/ui/common/`): `Tray`, `MedallionRow`, `SummaryBand` (signed amounts
+  coloured through `AmountStyle`), `SegmentedControl`, `CompactLabelledFab` with `FabReserveSpace`,
+  `NoticeCard`, `EmptyState`, `LoadingTrays` and `ErrorSection` with an optional filled retry.
+- **Selection** - `SegmentedControl` and the selectable charts report choices through
+  callbacks; the caller supplies the selected value/index on rebuild. `MonthBars` and
+  `DonutChart` use `selectedMark` fill with no selection stroke. Month blanks stay zero-height
+  even when selected; unselected gaps are dashed stubs and incomplete bars retain their
+  distinct fill/outline. (`app/lib/ui/common/segmented_control.dart`,
+  `app/lib/ui/common/charts/month_bars.dart`, `app/lib/ui/common/charts/donut_chart.dart`)
+- **CategoryMap** (`app/lib/ui/common/charts/category_map.dart`) uses pure squarified
+  `layoutCategoryMap`; returned rectangles and selection callbacks preserve input indices
+  despite sorting for layout. Labels pair the category name with its share, never a bare
+  number; labels that fail the text-scaled fit check move beside the map and select the
+  category when `onSelect` is supplied.
+  `WeekStrip` leaves future days blank and draws dashed stubs for past empty days.
+  (`app/lib/ui/common/charts/week_strip.dart`)
+- **Sheet checks** - `app/test/support/sheet_contract.dart` provides route pumping, cap checks
+  for every drawn sheet, and an assertion that the alert sits outside the sheet subtree.
+
 ## Gotchas and invariants
 
+- Legacy pickers still call `showModalBottomSheet`; using the kit does not imply that all
+  sheets have migrated. (`app/lib/ui/common/statement_day_picker.dart`,
+  `app/lib/ui/common/pickers/two_column_picker_sheet.dart`,
+  `app/lib/ui/common/pickers/recurrence_picker.dart`,
+  `app/lib/ui/common/pickers/account_type_picker.dart`)
 - "The View never decides what an input means" is a documented convention reviewed like any other
   convention violation, not tool-enforced.
 - The `updateState()` dispose guard is what a picker callback needs when its result arrives after the
