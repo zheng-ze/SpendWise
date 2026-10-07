@@ -9,6 +9,8 @@ import 'package:spendwise/ui/settings/settings_root_view_model.dart';
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
+  static const _dividerHeight = 1.0;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final viewModel = ref.watch(settingsRootViewModelProvider.notifier);
@@ -29,10 +31,10 @@ class SettingsScreen extends ConsumerWidget {
             label: 'Recurring Plans',
             onTap: viewModel.requestPlans,
           ),
-          const Divider(height: 1),
+          const Divider(height: _dividerHeight),
           const _SectionHeader('Hosted Sync'),
           const _HostedSyncSection(),
-          const Divider(height: 1),
+          const Divider(height: _dividerHeight),
           const _SectionHeader('Receipt Scanning'),
           SwitchListTile(
             secondary: const Icon(Icons.document_scanner_outlined),
@@ -43,7 +45,7 @@ class SettingsScreen extends ConsumerWidget {
               ref.invalidate(scanStripEnabledProvider);
             },
           ),
-          const Divider(height: 1),
+          const Divider(height: _dividerHeight),
           const _SectionHeader('Currency'),
           const ListTile(
             leading: Icon(Icons.attach_money),
@@ -51,7 +53,7 @@ class SettingsScreen extends ConsumerWidget {
             subtitle: Text('Amounts display in Singapore dollars'),
             trailing: Text('SGD'),
           ),
-          const Divider(height: 1),
+          const Divider(height: _dividerHeight),
           const _SectionHeader('Data'),
           _SettingsLink(
             icon: Icons.delete_outline,
@@ -69,11 +71,13 @@ class _SectionHeader extends StatelessWidget {
 
   final String title;
 
+  static const _headerPadding = EdgeInsets.fromLTRB(16, 16, 16, 4);
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+      padding: _headerPadding,
       child: Text(
         title,
         style: theme.textTheme.labelLarge?.copyWith(

@@ -10,6 +10,10 @@ class StatementDayPicker extends StatelessWidget {
   final int? selected;
   final ValueChanged<int> onSelected;
 
+  static const _sheetHeightFactor = 0.7;
+
+  static const _lastDay = 28;
+
   @override
   Widget build(BuildContext context) {
     return ListTile(
@@ -25,11 +29,11 @@ class StatementDayPicker extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       builder: (_) => FractionallySizedBox(
-        heightFactor: 0.7,
+        heightFactor: _sheetHeightFactor,
         child: SafeArea(
           child: ListView(
             children: [
-              for (var day = 1; day <= 28; day++)
+              for (var day = 1; day <= _lastDay; day++)
                 ListTile(
                   title: Text('$day'),
                   trailing: day == selected ? const Icon(Icons.check) : null,

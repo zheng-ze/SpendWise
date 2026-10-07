@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+const _sheetPadding = 16.0;
+
 class SheetShell extends StatelessWidget {
   const SheetShell({super.key, required this.children});
 
@@ -13,7 +15,7 @@ class SheetShell extends StatelessWidget {
       ),
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(_sheetPadding),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -41,15 +43,17 @@ class FormScaffold extends StatelessWidget {
   final Widget error;
   final Widget child;
 
+  static const _titleContentGap = 12.0;
+
   @override
   Widget build(BuildContext context) {
     return SheetShell(
       children: [
         Text(title, style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 12),
+        const SizedBox(height: _titleContentGap),
         Flexible(child: SingleChildScrollView(child: child)),
         error,
-        const SizedBox(height: 16),
+        const SizedBox(height: _sheetPadding),
         SizedBox(
           width: double.infinity,
           child: FilledButton(

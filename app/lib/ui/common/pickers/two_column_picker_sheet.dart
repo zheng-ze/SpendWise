@@ -30,6 +30,8 @@ class PickerCleared extends PickerOutcome {
   const PickerCleared();
 }
 
+const _sheetHeightFactor = 0.7;
+
 Future<PickerOutcome?> showTwoColumnPickerSheet({
   required BuildContext context,
   required String title,
@@ -41,7 +43,7 @@ Future<PickerOutcome?> showTwoColumnPickerSheet({
     context: context,
     isScrollControlled: true,
     builder: (_) => FractionallySizedBox(
-      heightFactor: 0.7,
+      heightFactor: _sheetHeightFactor,
       child: TwoColumnPickerSheet(
         title: title,
         groups: groups,
@@ -73,6 +75,10 @@ class TwoColumnPickerSheet extends StatefulWidget {
 class _TwoColumnPickerSheetState extends State<TwoColumnPickerSheet> {
   String? _expandedId;
 
+  static const _cancelButtonWidth = 88.0;
+
+  static const _columnDividerWidth = 1.0;
+
   void _tapParent(PickerOption parent) {
     if (parent.children.isEmpty || _expandedId == parent.id) {
       Navigator.of(context).pop(PickerChose(parent.id));
@@ -98,7 +104,7 @@ class _TwoColumnPickerSheetState extends State<TwoColumnPickerSheet> {
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('Cancel'),
           ),
-          leadingWidth: 88,
+          leadingWidth: _cancelButtonWidth,
           actions: [
             if (widget.allowsNone)
               TextButton(
@@ -125,7 +131,10 @@ class _TwoColumnPickerSheetState extends State<TwoColumnPickerSheet> {
                   ],
                 ),
               ),
-              VerticalDivider(width: 1, color: theme.dividerColor),
+              VerticalDivider(
+                width: _columnDividerWidth,
+                color: theme.dividerColor,
+              ),
               Expanded(
                 child: ListView(
                   children: [
@@ -162,11 +171,15 @@ class _PickerRow extends StatelessWidget {
   final bool active;
   final VoidCallback onTap;
 
+  static const _selectedFillOpacity = 0.15;
+
+  static const _drillInIconSize = 18.0;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final background = selected
-        ? theme.colorScheme.primary.withValues(alpha: 0.15)
+        ? theme.colorScheme.primary.withValues(alpha: _selectedFillOpacity)
         : active
         ? theme.colorScheme.surfaceContainerHighest
         : null;
@@ -182,7 +195,7 @@ class _PickerRow extends StatelessWidget {
       ),
       trailing: option.children.isEmpty
           ? null
-          : const Icon(Icons.chevron_right, size: 18),
+          : const Icon(Icons.chevron_right, size: _drillInIconSize),
     );
   }
 }

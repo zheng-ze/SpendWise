@@ -1,5 +1,8 @@
 part of '../../sync.dart';
 
+const _byteValueCount = 256;
+const _base64GroupLength = 4;
+
 /// Package-owned error for AEAD authentication failure during envelope
 /// decryption.
 ///
@@ -94,7 +97,7 @@ final class SyncCipher {
     final nonce = Uint8List(nonceByteCount);
     final random = Random.secure();
     for (var index = 0; index < nonceByteCount; index += 1) {
-      nonce[index] = random.nextInt(256);
+      nonce[index] = random.nextInt(_byteValueCount);
     }
     return nonce;
   }
@@ -105,9 +108,9 @@ final class SyncCipher {
   }
 
   static String _base64Padding(String value) {
-    final remainder = value.length % 4;
+    final remainder = value.length % _base64GroupLength;
     if (remainder == 0) return value;
-    return value + '=' * (4 - remainder);
+    return value + '=' * (_base64GroupLength - remainder);
   }
 
   static void _assertKeyLength(Uint8List key) {

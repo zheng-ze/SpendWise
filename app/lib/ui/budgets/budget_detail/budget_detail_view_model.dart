@@ -60,8 +60,13 @@ double chartMaxY(List<Decimal> spend, List<Decimal> limit) {
     ...spend,
     ...limit,
   ].fold(Decimal.zero, (max, amount) => amount > max ? amount : max);
-  return maxAmount > Decimal.one ? maxAmount.toDouble() * 1.15 : 1.0;
+  return maxAmount > Decimal.one
+      ? maxAmount.toDouble() * _chartHeadroomFactor
+      : _emptyChartMaxY;
 }
+
+const _chartHeadroomFactor = 1.15;
+const _emptyChartMaxY = 1.0;
 
 class BudgetDetailViewState
     implements HasStep<BudgetDetailViewState, BudgetsStep> {

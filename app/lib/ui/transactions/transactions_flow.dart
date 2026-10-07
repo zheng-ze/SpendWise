@@ -56,6 +56,9 @@ class _TransactionsFlowState
   String? _openFormKey;
   bool _formKeyIsSet = false;
 
+  static const _datePickerFirstYear = 2000;
+  static const _datePickerLastYear = 2100;
+
   @override
   void dispose() {
     _formSubscription?.close();
@@ -218,8 +221,8 @@ class _TransactionsFlowState
     final picked = await showDatePicker(
       context: context,
       initialDate: formState?.date ?? DateTime.now(),
-      firstDate: DateTime.utc(2000),
-      lastDate: DateTime.utc(2100),
+      firstDate: DateTime.utc(_datePickerFirstYear),
+      lastDate: DateTime.utc(_datePickerLastYear),
     );
     if (!context.mounted) return;
     if (picked == null) return;
@@ -233,8 +236,8 @@ class _TransactionsFlowState
     final picked = await showDatePicker(
       context: context,
       initialDate: initial,
-      firstDate: formState?.date ?? DateTime.utc(2000),
-      lastDate: DateTime.utc(2100),
+      firstDate: formState?.date ?? DateTime.utc(_datePickerFirstYear),
+      lastDate: DateTime.utc(_datePickerLastYear),
     );
     if (!context.mounted) return;
     if (picked == null) return;

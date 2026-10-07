@@ -139,6 +139,10 @@ class _InsetNavigationBar extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onDestinationSelected;
 
+  static const _barCornerRadius = 20.0;
+
+  static const _barInsets = EdgeInsets.fromLTRB(8, 0, 8, 8);
+
   @override
   Widget build(BuildContext context) {
     final destinations = [
@@ -154,7 +158,7 @@ class _InsetNavigationBar extends StatelessWidget {
       destinations: destinations,
     );
     final clipped = ClipRRect(
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(_barCornerRadius),
       child: bar,
     );
     final unpadded = MediaQuery.removePadding(
@@ -163,10 +167,7 @@ class _InsetNavigationBar extends StatelessWidget {
       removeBottom: true,
       child: clipped,
     );
-    final padded = Padding(
-      padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-      child: unpadded,
-    );
+    final padded = Padding(padding: _barInsets, child: unpadded);
 
     return SafeArea(top: false, child: padded);
   }
@@ -185,6 +186,8 @@ class _RailLayout extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onDestinationSelected;
   final bool extended;
+
+  static const _railDividerWidth = 1.0;
 
   @override
   Widget build(BuildContext context) {
@@ -205,7 +208,13 @@ class _RailLayout extends StatelessWidget {
       destinations: destinations,
     );
     final pane = Expanded(child: content);
-    final row = Row(children: [rail, const VerticalDivider(width: 1), pane]);
+    final row = Row(
+      children: [
+        rail,
+        const VerticalDivider(width: _railDividerWidth),
+        pane,
+      ],
+    );
 
     return Scaffold(key: const ValueKey('rail'), body: row);
   }

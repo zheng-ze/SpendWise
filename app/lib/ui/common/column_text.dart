@@ -16,6 +16,8 @@ class ColumnTextItem {
 class ColumnText extends StatelessWidget {
   const ColumnText({super.key, required this.items});
 
+  static const _captionValueGap = 2.0;
+
   final List<ColumnTextItem> items;
 
   @override
@@ -34,7 +36,7 @@ class ColumnText extends StatelessWidget {
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: _captionValueGap),
                 Text(
                   item.value,
                   style: theme.textTheme.titleSmall?.copyWith(

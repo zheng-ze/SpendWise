@@ -44,6 +44,8 @@ class _StatsRootBody extends StatelessWidget {
   final DateTime selectedDate;
   final ValueChanged<DateTime> onDateChanged;
 
+  static const _dividerHeight = 1.0;
+
   void _setTab(int tabIndex) {
     viewModel.setTab(switch (tabIndex) {
       0 => StatsTab.income,
@@ -92,7 +94,7 @@ class _StatsRootBody extends StatelessWidget {
               selectedIndex: tab.index,
               onSelected: _setTab,
             ),
-            const Divider(height: 1),
+            const Divider(height: _dividerHeight),
             Expanded(
               child: _StatsTabContent(
                 tab: tab,

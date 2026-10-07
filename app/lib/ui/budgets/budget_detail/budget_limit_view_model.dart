@@ -31,8 +31,11 @@ class BudgetLimitViewState
   }
 
   List<YearMonth> get months => [
-    for (var i = 11; i >= 0; i--) YearMonth(displayedYear.year, i + 1),
+    for (var i = _lastMonthIndex; i >= 0; i--)
+      YearMonth(displayedYear.year, i + 1),
   ];
+
+  static const _lastMonthIndex = 11;
 
   BudgetLimitViewState copyWith({
     Budget? Function()? budget,

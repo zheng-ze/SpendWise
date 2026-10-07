@@ -1,5 +1,23 @@
 part of 'ledger_state.dart';
 
+const _clauseKeysMatchIDs = 1;
+const _clausePocketLinks = 2;
+const _clauseNoOrphanPocket = 3;
+const _clauseEntryReferences = 4;
+const _clauseCategoryNesting = 5;
+const _clauseEntryCategory = 6;
+const _clausePlanReferences = 7;
+const _clausePlanNotExhausted = 8;
+const _clauseEntriesActive = 9;
+const _clauseNoStoredTombstone = 10;
+const _clauseReferenceOnlyReferenced = 11;
+const _clauseLifecycleMonotonic = 12;
+const _clauseStatementDay = 13;
+const _clausePlansReferenceActive = 14;
+const _clausePocketLiveness = 15;
+const _clauseBudgetCategory = 16;
+const _clauseBudgetLimitEvents = 17;
+
 extension LedgerStateInvariants on LedgerState {
   void _assertChecked() {
     assertInvariants();
@@ -25,7 +43,7 @@ extension LedgerStateInvariants on LedgerState {
       if (now.isAtLeastAsAliveAs(then) &&
           !(then == LifecycleState.archived && now == LifecycleState.active)) {
         throw _violation(
-          12,
+          _clauseLifecycleMonotonic,
           'row $key moved from ${then.name} back to ${now.name}',
         );
       }
@@ -54,15 +72,23 @@ extension LedgerStateInvariants on LedgerState {
   void _assertKeysMatchIDs() {
     for (final MapEntry(:key, :value) in _moneySources.entries) {
       if (key != value.id) {
-        throw _violation(1, 'money source $key holds ${value.id}');
+        throw _violation(
+          _clauseKeysMatchIDs,
+          'money source $key holds ${value.id}',
+        );
       }
     }
     for (final MapEntry(:key, :value) in _entries.entries) {
-      if (key != value.id) throw _violation(1, 'entry $key holds ${value.id}');
+      if (key != value.id) {
+        throw _violation(_clauseKeysMatchIDs, 'entry $key holds ${value.id}');
+      }
     }
     for (final MapEntry(:key, :value) in _categories.entries) {
       if (key != value.id) {
-        throw _violation(1, 'category $key holds ${value.id}');
+        throw _violation(
+          _clauseKeysMatchIDs,
+          'category $key holds ${value.id}',
+        );
       }
     }
   }
@@ -73,7 +99,7 @@ extension LedgerStateInvariants on LedgerState {
       for (final pocketID in account.subPocketIDs) {
         if (_moneySources[pocketID]?.asPocket == null) {
           throw _violation(
-            2,
+            _clausePocketLinks,
             'account ${account.id} links unresolved $pocketID',
           );
         }
@@ -81,7 +107,7 @@ extension LedgerStateInvariants on LedgerState {
         final other = claimedBy[pocketID];
         if (other != null) {
           throw _violation(
-            2,
+            _clausePocketLinks,
             'pocket $pocketID linked by $other and ${account.id}',
           );
         }
@@ -96,7 +122,10 @@ extension LedgerStateInvariants on LedgerState {
       if (pocket == null) continue;
 
       if (_owningAccount(pocket.id) == null) {
-        throw _violation(3, 'pocket ${pocket.id} has no owning account');
+        throw _violation(
+          _clauseNoOrphanPocket,
+          'pocket ${pocket.id} has no owning account',
+        );
       }
     }
   }
@@ -105,7 +134,10 @@ extension LedgerStateInvariants on LedgerState {
     for (final entry in _entries.values) {
       for (final holderID in entry.holderIDs) {
         if (!_moneySources.containsKey(holderID)) {
-          throw _violation(4, 'entry ${entry.id} references unknown $holderID');
+          throw _violation(
+            _clauseEntryReferences,
+            'entry ${entry.id} references unknown $holderID',
+          );
         }
       }
     }
@@ -118,19 +150,28 @@ extension LedgerStateInvariants on LedgerState {
 
       final parent = _categories[parentID];
       if (parent == null) {
-        throw _violation(5, 'category ${category.id} has unknown parent');
+        throw _violation(
+          _clauseCategoryNesting,
+          'category ${category.id} has unknown parent',
+        );
       }
       if (parent.parentID != null) {
-        throw _violation(5, 'category ${category.id} nests below depth 2');
+        throw _violation(
+          _clauseCategoryNesting,
+          'category ${category.id} nests below depth 2',
+        );
       }
       if (parent.kind != category.kind) {
-        throw _violation(5, 'category ${category.id} kind differs from parent');
+        throw _violation(
+          _clauseCategoryNesting,
+          'category ${category.id} kind differs from parent',
+        );
       }
 
       if (!parent.lifecycle.isAtLeastAsAliveAs(category.lifecycle) &&
           !parent.lifecycle.isAtLeastAsAliveAs(LifecycleState.archived)) {
         throw _violation(
-          5,
+          _clauseCategoryNesting,
           'category ${category.id} sits under ${parent.lifecycle.name} parent',
         );
       }
@@ -147,10 +188,16 @@ extension LedgerStateInvariants on LedgerState {
 
       final expected = entry.expectedCategoryKind;
       if (expected == null) {
-        throw _violation(6, 'transfer ${entry.id} carries a category');
+        throw _violation(
+          _clauseEntryCategory,
+          'transfer ${entry.id} carries a category',
+        );
       }
       if (category.kind != expected) {
-        throw _violation(6, 'entry ${entry.id} kind differs from its category');
+        throw _violation(
+          _clauseEntryCategory,
+          'entry ${entry.id} kind differs from its category',
+        );
       }
     }
   }
@@ -159,13 +206,19 @@ extension LedgerStateInvariants on LedgerState {
     for (final plan in _plans.values) {
       for (final holderID in plan.template.holderIDs) {
         if (!_moneySources.containsKey(holderID)) {
-          throw _violation(7, 'plan ${plan.id} references unknown $holderID');
+          throw _violation(
+            _clausePlanReferences,
+            'plan ${plan.id} references unknown $holderID',
+          );
         }
       }
 
       final categoryID = plan.template.categoryID;
       if (categoryID != null && !_categories.containsKey(categoryID)) {
-        throw _violation(7, 'plan ${plan.id} references unknown $categoryID');
+        throw _violation(
+          _clausePlanReferences,
+          'plan ${plan.id} references unknown $categoryID',
+        );
       }
     }
   }
@@ -176,7 +229,10 @@ extension LedgerStateInvariants on LedgerState {
       if (endDate == null) continue;
 
       if (!plan.lastResolvedDate.isBefore(endDate)) {
-        throw _violation(8, 'plan ${plan.id} is stored exhausted');
+        throw _violation(
+          _clausePlanNotExhausted,
+          'plan ${plan.id} is stored exhausted',
+        );
       }
     }
   }
@@ -184,7 +240,10 @@ extension LedgerStateInvariants on LedgerState {
   void _assertEntriesActive() {
     for (final entry in _entries.values) {
       if (!entry.lifecycle.isActive) {
-        throw _violation(9, 'entry ${entry.id} is ${entry.lifecycle.name}');
+        throw _violation(
+          _clauseEntriesActive,
+          'entry ${entry.id} is ${entry.lifecycle.name}',
+        );
       }
     }
   }
@@ -192,12 +251,18 @@ extension LedgerStateInvariants on LedgerState {
   void _assertNoStoredTombstone() {
     for (final source in _moneySources.values) {
       if (source.lifecycle == LifecycleState.tombstoned) {
-        throw _violation(10, 'money source ${source.id} is stored tombstoned');
+        throw _violation(
+          _clauseNoStoredTombstone,
+          'money source ${source.id} is stored tombstoned',
+        );
       }
     }
     for (final category in _categories.values) {
       if (category.lifecycle == LifecycleState.tombstoned) {
-        throw _violation(10, 'category ${category.id} is stored tombstoned');
+        throw _violation(
+          _clauseNoStoredTombstone,
+          'category ${category.id} is stored tombstoned',
+        );
       }
     }
   }
@@ -209,7 +274,7 @@ extension LedgerStateInvariants on LedgerState {
       if (_isCategoryReferenced(category.id)) continue;
 
       throw _violation(
-        11,
+        _clauseReferenceOnlyReferenced,
         'referenceOnly category ${category.id} unreferenced',
       );
     }
@@ -218,7 +283,10 @@ extension LedgerStateInvariants on LedgerState {
       if (source.lifecycle != LifecycleState.referenceOnly) continue;
       if (_isHolderReferenced(source.id)) continue;
 
-      throw _violation(11, 'referenceOnly ${source.id} has no reference');
+      throw _violation(
+        _clauseReferenceOnlyReferenced,
+        'referenceOnly ${source.id} has no reference',
+      );
     }
   }
 
@@ -228,16 +296,18 @@ extension LedgerStateInvariants on LedgerState {
       if (account.type != AccountType.card) {
         if (statementDay != null) {
           throw _violation(
-            13,
+            _clauseStatementDay,
             '${account.type.name} account ${account.id} carries a statement day',
           );
         }
         continue;
       }
 
-      if (statementDay != null && (statementDay < 1 || statementDay > 28)) {
+      if (statementDay != null &&
+          (statementDay < Account.minStatementDay ||
+              statementDay > Account.maxStatementDay)) {
         throw _violation(
-          13,
+          _clauseStatementDay,
           'card ${account.id} has statement day $statementDay',
         );
       }
@@ -255,7 +325,7 @@ extension LedgerStateInvariants on LedgerState {
         if (holder == null || !isLeaving(holder.lifecycle)) continue;
 
         throw _violation(
-          14,
+          _clausePlansReferenceActive,
           'plan ${plan.id} references ${holder.lifecycle.name} $holderID',
         );
       }
@@ -267,7 +337,7 @@ extension LedgerStateInvariants on LedgerState {
       if (category == null || !isLeaving(category.lifecycle)) continue;
 
       throw _violation(
-        14,
+        _clausePlansReferenceActive,
         'plan ${plan.id} references ${category.lifecycle.name} $categoryID',
       );
     }
@@ -281,7 +351,7 @@ extension LedgerStateInvariants on LedgerState {
 
         if (!account.lifecycle.isAtLeastAsAliveAs(pocket.lifecycle)) {
           throw _violation(
-            15,
+            _clausePocketLiveness,
             '${account.lifecycle.name} account ${account.id} holds '
             '${pocket.lifecycle.name} pocket $pocketID',
           );
@@ -297,7 +367,7 @@ extension LedgerStateInvariants on LedgerState {
 
       if (!_categories.containsKey(categoryID)) {
         throw _violation(
-          16,
+          _clauseBudgetCategory,
           'budget ${budget.id} references unknown $categoryID',
         );
       }
@@ -308,16 +378,22 @@ extension LedgerStateInvariants on LedgerState {
     for (final budget in _budgets.values) {
       final events = budget.limitEvents;
       if (events.isEmpty) {
-        throw _violation(17, 'budget ${budget.id} has no limit events');
+        throw _violation(
+          _clauseBudgetLimitEvents,
+          'budget ${budget.id} has no limit events',
+        );
       }
 
       final first = events.first;
       if (first.effectiveFromMonth != null) {
-        throw _violation(17, 'budget ${budget.id} first event names a month');
+        throw _violation(
+          _clauseBudgetLimitEvents,
+          'budget ${budget.id} first event names a month',
+        );
       }
       if (first.kind != LimitEventKind.defaultLimit) {
         throw _violation(
-          17,
+          _clauseBudgetLimitEvents,
           'budget ${budget.id} first event is not a default',
         );
       }
@@ -325,7 +401,7 @@ extension LedgerStateInvariants on LedgerState {
       for (final event in events.skip(1)) {
         if (event.effectiveFromMonth == null) {
           throw _violation(
-            17,
+            _clauseBudgetLimitEvents,
             'budget ${budget.id} has a later event with no month',
           );
         }

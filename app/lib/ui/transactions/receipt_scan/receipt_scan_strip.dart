@@ -10,6 +10,10 @@ class ReceiptScanStrip extends ConsumerWidget {
 
   final String? formKey;
 
+  static const _stripBottomPadding = 16.0;
+  static const _buttonSpacing = 12.0;
+  static const _progressSpacing = 12.0;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final enabled = ref.watch(scanStripEnabledProvider).value ?? true;
@@ -29,7 +33,7 @@ class ReceiptScanStrip extends ConsumerWidget {
     );
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: _stripBottomPadding),
       child: Column(
         children: [
           Row(
@@ -41,7 +45,7 @@ class ReceiptScanStrip extends ConsumerWidget {
                   label: const Text('Scan receipt'),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: _buttonSpacing),
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: scanning ? null : () => _uploadPhoto(ref),
@@ -52,7 +56,7 @@ class ReceiptScanStrip extends ConsumerWidget {
             ],
           ),
           if (scanning) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: _progressSpacing),
             const CircularProgressIndicator(),
           ],
         ],

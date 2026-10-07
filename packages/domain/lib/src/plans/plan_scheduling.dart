@@ -26,21 +26,28 @@ enum RecurrenceFrequency {
 
   DateTime stepFrom(DateTime anchor, int stepCount) {
     return switch (this) {
-      weekly => anchor.add(Duration(days: 7 * stepCount)),
-      biweekly => anchor.add(Duration(days: 14 * stepCount)),
+      weekly => anchor.add(Duration(days: _daysPerWeek * stepCount)),
+      biweekly => anchor.add(Duration(days: 2 * _daysPerWeek * stepCount)),
       monthly => _addMonths(anchor, stepCount),
-      quarterly => _addMonths(anchor, 3 * stepCount),
-      yearly => _addMonths(anchor, 12 * stepCount),
+      quarterly => _addMonths(anchor, _monthsPerQuarter * stepCount),
+      yearly => _addMonths(anchor, _monthsPerYear * stepCount),
     };
   }
 }
+
+const _daysPerWeek = 7;
+const _monthsPerQuarter = 3;
+const _monthsPerYear = 12;
 
 DateTime _addMonths(DateTime anchor, int months) {
   final rawMonth = anchor.month - 1 + months;
   // Euclidean division; ~/ rounds toward zero.
   final year =
-      anchor.year + (rawMonth >= 0 ? rawMonth ~/ 12 : (rawMonth - 11) ~/ 12);
-  final month = rawMonth % 12 + 1;
+      anchor.year +
+      (rawMonth >= 0
+          ? rawMonth ~/ _monthsPerYear
+          : (rawMonth - _monthsPerYear + 1) ~/ _monthsPerYear);
+  final month = rawMonth % _monthsPerYear + 1;
 
   // DateTime overflows into the next month; clamp the day.
   final lastDay = DateTime.utc(year, month + 1, 0).day;

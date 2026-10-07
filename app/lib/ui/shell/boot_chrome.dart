@@ -45,6 +45,12 @@ class _LoadFailure extends ConsumerWidget {
 
   final Object error;
 
+  static const _pagePadding = EdgeInsets.all(24);
+
+  static const _messageGap = 8.0;
+
+  static const _retryGap = 24.0;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
@@ -54,7 +60,7 @@ class _LoadFailure extends ConsumerWidget {
     return Scaffold(
       body: Center(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: _pagePadding,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -63,7 +69,7 @@ class _LoadFailure extends ConsumerWidget {
                 style: theme.textTheme.headlineSmall,
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: _messageGap),
               Text(
                 'Something went wrong loading your data. Please try again.',
                 style: theme.textTheme.bodyMedium?.copyWith(
@@ -71,7 +77,7 @@ class _LoadFailure extends ConsumerWidget {
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: _retryGap),
               FilledButton(
                 onPressed: () => ref.read(appBootProvider).retry(),
                 child: const Text('Retry'),

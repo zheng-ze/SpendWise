@@ -75,6 +75,9 @@ class _BudgetLimitScreenBody extends StatelessWidget {
   final BudgetLimitViewState viewState;
   final BudgetLimitViewModel viewModel;
 
+  static const _yearSelectorVerticalPadding = 4.0;
+  static const _dividerHeight = 1.0;
+
   @override
   Widget build(BuildContext context) {
     final budget = viewState.budget;
@@ -100,7 +103,9 @@ class _BudgetLimitScreenBody extends StatelessWidget {
       onTap: viewModel.requestEditDefault,
     );
     final yearSelector = Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(
+        vertical: _yearSelectorVerticalPadding,
+      ),
       child: Center(
         child: MonthYearSelector(
           value: viewState.displayedYear,
@@ -127,7 +132,7 @@ class _BudgetLimitScreenBody extends StatelessWidget {
           children: [
             errorSection,
             defaultRow,
-            const Divider(height: 1),
+            const Divider(height: _dividerHeight),
             yearSelector,
             ...monthRows,
           ],
@@ -154,6 +159,11 @@ class BudgetLimitEditSheet extends StatefulWidget {
 }
 
 class _BudgetLimitEditSheetState extends State<BudgetLimitEditSheet> {
+  static const _subtitleGap = 4.0;
+  static const _fieldGap = 12.0;
+  static const _saveGap = 16.0;
+  static const _sheetPadding = EdgeInsets.all(16);
+
   late final TextEditingController _controller = TextEditingController(
     text: formatPlainAmount(widget.current),
   );
@@ -192,14 +202,17 @@ class _BudgetLimitEditSheetState extends State<BudgetLimitEditSheet> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         title,
-        if (subtitle != null) ...[const SizedBox(height: 4), subtitle],
-        const SizedBox(height: 12),
+        if (subtitle != null) ...[
+          const SizedBox(height: _subtitleGap),
+          subtitle,
+        ],
+        const SizedBox(height: _fieldGap),
         field,
-        const SizedBox(height: 16),
+        const SizedBox(height: _saveGap),
         save,
       ],
     );
-    final padded = Padding(padding: const EdgeInsets.all(16), child: column);
+    final padded = Padding(padding: _sheetPadding, child: column);
     final safe = SafeArea(child: padded);
 
     return Padding(

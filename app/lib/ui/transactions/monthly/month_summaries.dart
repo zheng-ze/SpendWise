@@ -1,6 +1,8 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/foundation.dart';
 
+const _daysPerWeek = 7;
+
 @immutable
 class WeekSummary {
   const WeekSummary({
@@ -92,7 +94,7 @@ List<WeekSummary> _weeks({
   var cursor = _weekStart(monthRange.start);
 
   while (cursor.isBefore(monthRange.end)) {
-    final weekEnd = cursor.add(const Duration(days: 7));
+    final weekEnd = cursor.add(const Duration(days: _daysPerWeek));
     final weekRange = DateRange(cursor, weekEnd);
 
     final weekEntries = entries

@@ -48,10 +48,12 @@ Uint8List decodeAndValidateSyncE2EKey(String encoded) {
   return bytes;
 }
 
+const _base64Quantum = 4;
+
 String _addPadding(String value) {
-  final remainder = value.length % 4;
+  final remainder = value.length % _base64Quantum;
   if (remainder == 0) return value;
-  return value + '=' * (4 - remainder);
+  return value + '=' * (_base64Quantum - remainder);
 }
 
 enum SyncE2EKeyUnavailableReason {

@@ -34,6 +34,9 @@ class _PlanFormState extends ConsumerState<PlanForm> {
   late final TextEditingController _nameController = TextEditingController();
   late final TextEditingController _amountController = TextEditingController();
 
+  static const _pickerFirstYear = 2000;
+  static const _pickerLastYear = 2100;
+
   ProviderSubscription<AsyncValue<PlanFormViewState>>? _subscription;
 
   @override
@@ -88,8 +91,8 @@ class _PlanFormState extends ConsumerState<PlanForm> {
     final picked = await showDatePicker(
       context: context,
       initialDate: formState.anchor,
-      firstDate: DateTime.utc(2000),
-      lastDate: DateTime.utc(2100),
+      firstDate: DateTime.utc(_pickerFirstYear),
+      lastDate: DateTime.utc(_pickerLastYear),
     );
     if (!context.mounted) return;
     _viewModel.applyPickedAnchor(picked);
@@ -101,8 +104,8 @@ class _PlanFormState extends ConsumerState<PlanForm> {
     final picked = await showDatePicker(
       context: context,
       initialDate: formState.endDate ?? formState.anchor,
-      firstDate: DateTime.utc(2000),
-      lastDate: DateTime.utc(2100),
+      firstDate: DateTime.utc(_pickerFirstYear),
+      lastDate: DateTime.utc(_pickerLastYear),
     );
     if (!context.mounted) return;
     _viewModel.applyPickedEndDate(picked);
@@ -138,6 +141,8 @@ class _PlanFormBody extends StatelessWidget {
   final TextEditingController nameController;
   final TextEditingController amountController;
 
+  static const _fieldGap = 16.0;
+
   @override
   Widget build(BuildContext context) {
     if (nameController.text != formState.name) {
@@ -160,15 +165,15 @@ class _PlanFormBody extends StatelessWidget {
             decoration: const InputDecoration(hintText: 'Name'),
             onChanged: viewModel.setName,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: _fieldGap),
           AmountField(
             controller: amountController,
             allowsNegative: false,
             onChanged: viewModel.setAmount,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: _fieldGap),
           Text('Source: ${formState.sourceName}'),
-          const SizedBox(height: 16),
+          const SizedBox(height: _fieldGap),
           ListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Repeat'),

@@ -34,7 +34,8 @@ final class SupabaseSyncAuthenticator implements SyncAuthenticator {
         headers: _anonHeaders,
         body: jsonEncode(<String, Object?>{'email': identifier}),
       );
-      if (response.statusCode >= 200 && response.statusCode < 300) {
+      if (response.statusCode >= _httpSuccessMin &&
+          response.statusCode < _httpSuccessExclusiveMax) {
         return SyncSuccess<EnrollmentChallenge>(
           EnrollmentChallenge(<String, Object?>{'identifier': identifier}),
         );
@@ -90,7 +91,8 @@ final class SupabaseSyncAuthenticator implements SyncAuthenticator {
           'type': 'email',
         }),
       );
-      final isSuccess = response.statusCode >= 200 && response.statusCode < 300;
+      final isSuccess = response.statusCode >= _httpSuccessMin &&
+          response.statusCode < _httpSuccessExclusiveMax;
       Map<String, Object?> body;
       try {
         body = _decodeJsonObject(response.body);

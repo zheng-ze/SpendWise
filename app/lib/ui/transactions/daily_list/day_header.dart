@@ -13,6 +13,9 @@ class DayHeader extends StatelessWidget {
   final DateTime day;
   final Decimal net;
 
+  static const _horizontalPadding = 16.0;
+  static const _labelGap = 8.0;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -21,7 +24,7 @@ class DayHeader extends StatelessWidget {
     return Container(
       height: dayHeaderHeight,
       color: theme.colorScheme.surfaceContainerHighest,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: _horizontalPadding),
       child: Row(
         children: [
           Text(
@@ -30,7 +33,7 @@ class DayHeader extends StatelessWidget {
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: _labelGap),
           Text(
             label.caption,
             style: theme.textTheme.bodySmall?.copyWith(

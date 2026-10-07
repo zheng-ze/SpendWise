@@ -3,16 +3,22 @@ import 'package:intl/intl.dart';
 
 enum AmountKind { income, expense, transfer }
 
+const _groupSize = 3;
+
+const _keptFractionDigits = 2;
+
+const _inspectedFractionDigits = 3;
+
 final NumberFormat _percent = NumberFormat.percentPattern()
   ..maximumFractionDigits = 0;
 
 String _groupedInteger(String digits) {
   final buffer = StringBuffer();
-  final offset = digits.length % 3;
+  final offset = digits.length % _groupSize;
   if (offset > 0) buffer.write(digits.substring(0, offset));
-  for (var i = offset; i < digits.length; i += 3) {
+  for (var i = offset; i < digits.length; i += _groupSize) {
     if (buffer.isNotEmpty) buffer.write(',');
-    buffer.write(digits.substring(i, i + 3));
+    buffer.write(digits.substring(i, i + _groupSize));
   }
   if (buffer.isEmpty) buffer.write('0');
   return buffer.toString();
@@ -21,9 +27,12 @@ String _groupedInteger(String digits) {
 String _roundedTwoPlaces(Decimal magnitude, {required bool grouped}) {
   final parts = magnitude.toString().split('.');
   final intPart = parts[0];
-  final fraction = (parts.length > 1 ? parts[1] : '').padRight(3, '0');
-  var kept = int.parse(fraction.substring(0, 2));
-  final rest = fraction.substring(2);
+  final fraction = (parts.length > 1 ? parts[1] : '').padRight(
+    _inspectedFractionDigits,
+    '0',
+  );
+  var kept = int.parse(fraction.substring(0, _keptFractionDigits));
+  final rest = fraction.substring(_keptFractionDigits);
   final first = rest[0];
   final tail = rest.substring(1);
   final roundUp =
@@ -39,7 +48,7 @@ String _roundedTwoPlaces(Decimal magnitude, {required bool grouped}) {
   }
   final integerText = integer.toString();
   final body = grouped ? _groupedInteger(integerText) : integerText;
-  return '$body.${kept.toString().padLeft(2, '0')}';
+  return '$body.${kept.toString().padLeft(_keptFractionDigits, '0')}';
 }
 
 String formatMoney(Decimal amount, {bool symbol = true}) {

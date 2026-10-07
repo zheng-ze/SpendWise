@@ -235,6 +235,9 @@ class _BudgetsList extends StatelessWidget {
   final BudgetsListViewModel viewModel;
   final YearMonth month;
 
+  static const _listVerticalPadding = 8.0;
+  static const _separatorHeight = 1.0;
+
   @override
   Widget build(BuildContext context) {
     final budgets = viewState.budgets;
@@ -242,9 +245,9 @@ class _BudgetsList extends StatelessWidget {
     if (budgets.isEmpty) return const BudgetsEmptyState();
 
     return ListView.separated(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: _listVerticalPadding),
       itemCount: budgets.length,
-      separatorBuilder: (_, _) => const Divider(height: 1),
+      separatorBuilder: (_, _) => const Divider(height: _separatorHeight),
       itemBuilder: (context, index) {
         final budget = budgets[index];
         return SwipeToDeleteRow(

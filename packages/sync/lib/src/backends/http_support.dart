@@ -1,5 +1,8 @@
 part of '../../sync.dart';
 
+const _httpSuccessMin = 200;
+const _httpSuccessExclusiveMax = 300;
+
 Map<String, Object?> _decodeJsonObject(String body) {
   if (body.trim().isEmpty) return const <String, Object?>{};
   final decoded = jsonDecode(body);

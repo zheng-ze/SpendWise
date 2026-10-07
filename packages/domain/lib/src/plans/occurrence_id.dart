@@ -7,9 +7,11 @@ const _uuid = Uuid();
 const _namespace = '8b9e0c42-5f3a-4d71-9c2e-1a6b7f0d3e85';
 
 abstract final class OccurrenceID {
+  static const int _epochYear = 2001;
+
   static String make(String planID, DateTime occurrenceDay) {
     final day = startOfDayUtc(occurrenceDay);
-    final seconds = day.difference(DateTime.utc(2001)).inSeconds;
+    final seconds = day.difference(DateTime.utc(_epochYear)).inSeconds;
     final name = '${normalizedID(planID)}|$seconds';
     return normalizedID(_uuid.v5(_namespace, name));
   }

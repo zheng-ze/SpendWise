@@ -79,12 +79,16 @@ class _AccountRowBody extends StatelessWidget {
   final VoidCallback? onToggleExpanded;
   final VoidCallback onTap;
 
+  static const _expandControlWidth = 40.0;
+  static const _rowHorizontalPadding = 8.0;
+  static const _rowVerticalPadding = 10.0;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     final expandControl = SizedBox(
-      width: 40,
+      width: _expandControlWidth,
       child: onToggleExpanded == null
           ? null
           : IconButton(
@@ -122,7 +126,10 @@ class _AccountRowBody extends StatelessWidget {
     };
     final rowContent = Row(children: [expandControl, title, amount]);
     final padded = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+      padding: const EdgeInsets.symmetric(
+        horizontal: _rowHorizontalPadding,
+        vertical: _rowVerticalPadding,
+      ),
       child: rowContent,
     );
 
@@ -141,6 +148,9 @@ class _SubRow extends StatelessWidget {
   final Decimal amount;
   final VoidCallback onTap;
 
+  static const _subRowLeftInset = 48.0;
+  static const _subRowEdgePadding = 8.0;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -150,7 +160,12 @@ class _SubRow extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(48, 8, 8, 8),
+          padding: const EdgeInsets.fromLTRB(
+            _subRowLeftInset,
+            _subRowEdgePadding,
+            _subRowEdgePadding,
+            _subRowEdgePadding,
+          ),
           child: Row(
             children: [
               Expanded(child: Text(title, style: theme.textTheme.bodyMedium)),

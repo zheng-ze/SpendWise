@@ -5,6 +5,10 @@ import 'package:spendwise/ui/common/category_icon.dart';
 import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
 
+const _rootIconSize = 28.0;
+
+const _childIconSize = 24.0;
+
 Future<PickerOutcome?> showCategoryPickerSheet({
   required BuildContext context,
   required LedgerState state,
@@ -34,7 +38,7 @@ Future<PickerOutcome?> showCategoryPickerSheet({
         leading: CategoryIcon(
           symbolName: root.symbol,
           color: parseColorHex(root.colorHex),
-          size: 28,
+          size: _rootIconSize,
         ),
         children: [
           for (final child
@@ -45,7 +49,7 @@ Future<PickerOutcome?> showCategoryPickerSheet({
               leading: CategoryIcon(
                 symbolName: child.symbol,
                 color: parseColorHex(child.colorHex),
-                size: 24,
+                size: _childIconSize,
               ),
             ),
         ],

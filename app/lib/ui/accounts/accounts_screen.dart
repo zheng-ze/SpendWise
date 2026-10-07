@@ -38,12 +38,23 @@ class _AccountsBody extends StatelessWidget {
   final AccountsViewState viewState;
   final AccountsViewModel viewModel;
 
+  static const _headerLeftInset = 16.0;
+  static const _headerEdgePadding = 8.0;
+  static const _summaryHorizontalPadding = 16.0;
+  static const _summarySectionsGap = 8.0;
+  static const _dividerHeight = 1.0;
+
   @override
   Widget build(BuildContext context) {
     final netWorth = viewState.netWorth;
 
     final header = Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+      padding: const EdgeInsets.fromLTRB(
+        _headerLeftInset,
+        _headerEdgePadding,
+        _headerEdgePadding,
+        _headerEdgePadding,
+      ),
       child: Row(
         children: [
           Expanded(
@@ -60,7 +71,9 @@ class _AccountsBody extends StatelessWidget {
       ),
     );
     final summary = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(
+        horizontal: _summaryHorizontalPadding,
+      ),
       child: ColumnText(
         items: [
           ColumnTextItem(
@@ -103,8 +116,8 @@ class _AccountsBody extends StatelessWidget {
       children: [
         header,
         summary,
-        const SizedBox(height: 8),
-        const Divider(height: 1),
+        const SizedBox(height: _summarySectionsGap),
+        const Divider(height: _dividerHeight),
         sections,
       ],
     );
@@ -152,6 +165,11 @@ class _SectionHeaderRow extends StatelessWidget {
   final AccountType type;
   final SectionHeader header;
 
+  static const _sectionHorizontalPadding = 16.0;
+  static const _sectionTopPadding = 16.0;
+  static const _sectionBottomPadding = 4.0;
+  static const _headerAmountGap = 8.0;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -179,7 +197,7 @@ class _SectionHeaderRow extends StatelessWidget {
               color: AmountStyle.of(context, kind: AmountKind.expense).color,
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: _headerAmountGap),
           Text(
             'Outstanding ${formatMoney(outstanding, symbol: false)}',
             style: theme.textTheme.labelLarge?.copyWith(
@@ -192,7 +210,12 @@ class _SectionHeaderRow extends StatelessWidget {
     final row = Row(children: [title, trailing]);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+      padding: const EdgeInsets.fromLTRB(
+        _sectionHorizontalPadding,
+        _sectionTopPadding,
+        _sectionHorizontalPadding,
+        _sectionBottomPadding,
+      ),
       child: row,
     );
   }

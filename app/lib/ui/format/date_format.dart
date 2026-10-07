@@ -8,6 +8,8 @@ final DateFormat _yearLabel = DateFormat('yyyy');
 final DateFormat _fullDay = DateFormat('d MMM yyyy');
 final DateFormat _rangeDay = DateFormat('d MMM');
 
+const _exclusiveEndStepBack = Duration(days: 1);
+
 @immutable
 class DayHeaderLabel {
   const DayHeaderLabel({required this.dayNumber, required this.caption});
@@ -32,6 +34,6 @@ String formatNextOccurrence(DateTime day) => 'Next: ${_fullDay.format(day)}';
 String formatEntryDate(DateTime day) => _fullDay.format(day);
 
 String formatWeekRange(DateRange window) {
-  final lastIncluded = window.end.subtract(const Duration(days: 1));
+  final lastIncluded = window.end.subtract(_exclusiveEndStepBack);
   return '${_rangeDay.format(window.start)} - ${_rangeDay.format(lastIncluded)}';
 }

@@ -129,10 +129,16 @@ class _CategorySection extends StatelessWidget {
   final void Function(TransactionCategory category) onDeleted;
   final void Function(TransactionCategory parent) onAddSubcategory;
 
+  static const _titlePadding = EdgeInsets.fromLTRB(16, 16, 16, 4);
+  static const _emptyPadding = EdgeInsets.symmetric(
+    horizontal: 16,
+    vertical: 8,
+  );
+
   Widget _title(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+      padding: _titlePadding,
       child: Text(
         title,
         style: theme.textTheme.labelLarge?.copyWith(
@@ -145,7 +151,7 @@ class _CategorySection extends StatelessWidget {
   Widget _emptyState(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: _emptyPadding,
       child: Text(
         'No categories yet',
         style: theme.textTheme.bodyMedium?.copyWith(
@@ -195,18 +201,27 @@ class _CategoryRow extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback? onAddSubcategory;
 
+  static const _childIndent = 24.0;
+  static const _rowLeftPadding = 16.0;
+  static const _rowRightPadding = 8.0;
+  static const _iconSize = 30.0;
+  static const _badgeRightPadding = 8.0;
+
   @override
   Widget build(BuildContext context) {
-    final indent = category.parentID != null ? 24.0 : 0.0;
+    final indent = category.parentID != null ? _childIndent : 0.0;
     final color = parseColorHex(category.colorHex);
 
     return ListTile(
       onTap: onTap,
-      contentPadding: EdgeInsets.only(left: 16 + indent, right: 8),
+      contentPadding: EdgeInsets.only(
+        left: _rowLeftPadding + indent,
+        right: _rowRightPadding,
+      ),
       leading: CategoryIcon(
         symbolName: category.symbol,
         color: color,
-        size: 30,
+        size: _iconSize,
       ),
       title: Text(category.name),
       trailing: Row(
@@ -214,7 +229,7 @@ class _CategoryRow extends StatelessWidget {
         children: [
           if (!category.includeInAnalysis)
             const Padding(
-              padding: EdgeInsets.only(right: 8),
+              padding: EdgeInsets.only(right: _badgeRightPadding),
               child: Icon(Icons.bar_chart),
             ),
           if (onAddSubcategory != null)

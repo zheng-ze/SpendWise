@@ -166,6 +166,15 @@ class _CategoryFormBody extends StatelessWidget {
   final CategoryFormViewModel viewModel;
   final TextEditingController nameController;
 
+  static const _fieldGap = 16.0;
+  static const _colorLabelGap = 8.0;
+  static const _deleteSectionGap = 24.0;
+  static const _lockedNoteTopPadding = 4.0;
+  static const _swatchSpacing = 12.0;
+  static const _swatchSize = 32.0;
+  static const _selectedSwatchBorderWidth = 2.0;
+  static const _disabledKindOpacity = 0.5;
+
   @override
   Widget build(BuildContext context) {
     if (nameController.text != formState.name) {
@@ -181,7 +190,7 @@ class _CategoryFormBody extends StatelessWidget {
     final kindSelector = IgnorePointer(
       ignoring: formState.kindLocked,
       child: Opacity(
-        opacity: formState.kindLocked ? 0.5 : 1,
+        opacity: formState.kindLocked ? _disabledKindOpacity : 1,
         child: SegmentedButton<CategoryKind>(
           segments: const [
             ButtonSegment(value: CategoryKind.income, label: Text('Income')),
@@ -206,20 +215,23 @@ class _CategoryFormBody extends StatelessWidget {
     );
     final colorLabel = Text('Color', style: theme.textTheme.labelLarge);
     final colorPicker = Wrap(
-      spacing: 12,
+      spacing: _swatchSpacing,
       children: [
         for (final swatch in _swatches)
           InkWell(
             customBorder: const CircleBorder(),
             onTap: () => viewModel.setColor(swatch),
             child: Container(
-              width: 32,
-              height: 32,
+              width: _swatchSize,
+              height: _swatchSize,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: swatch,
                 border: swatch == formState.color
-                    ? Border.all(color: context.colors.text, width: 2)
+                    ? Border.all(
+                        color: context.colors.text,
+                        width: _selectedSwatchBorderWidth,
+                      )
                     : null,
               ),
             ),
@@ -250,11 +262,11 @@ class _CategoryFormBody extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           nameField,
-          const SizedBox(height: 16),
+          const SizedBox(height: _fieldGap),
           kindSelector,
           if (formState.kindLocked)
             Padding(
-              padding: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.only(top: _lockedNoteTopPadding),
               child: Text(
                 'Type is locked while transactions use this category.',
                 style: theme.textTheme.bodySmall?.copyWith(
@@ -262,13 +274,13 @@ class _CategoryFormBody extends StatelessWidget {
                 ),
               ),
             ),
-          const SizedBox(height: 16),
+          const SizedBox(height: _fieldGap),
           symbolTile,
-          const SizedBox(height: 16),
+          const SizedBox(height: _fieldGap),
           colorLabel,
-          const SizedBox(height: 8),
+          const SizedBox(height: _colorLabelGap),
           colorPicker,
-          const SizedBox(height: 16),
+          const SizedBox(height: _fieldGap),
           analysisSwitch,
           if (formState.showParentPicker)
             ListTile(
@@ -278,7 +290,7 @@ class _CategoryFormBody extends StatelessWidget {
               onTap: viewModel.requestPickParent,
             ),
           if (formState.isEditing) ...[
-            const SizedBox(height: 24),
+            const SizedBox(height: _deleteSectionGap),
             deleteButton,
           ],
         ],

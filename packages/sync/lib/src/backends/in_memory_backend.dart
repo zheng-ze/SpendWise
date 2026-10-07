@@ -93,6 +93,8 @@ final class InMemorySyncBackend
 
   static const Duration _challengeLifetime = Duration(minutes: 10);
   static const Duration _authorizationLifetime = Duration(minutes: 10);
+  static const Duration _boundContextLifetime = Duration(hours: 1);
+  static const int _tokenByteCount = 32;
 
   final PushHandler? _onPush;
   final PullHandler? _onPull;
@@ -343,7 +345,7 @@ final class InMemorySyncBackend
     final context = ReconciliationContext(
       reconciliationID: 'recon-${++_sequence}',
       snapshotWatermark: 'watermark-$_sequence',
-      expiresAt: _clock().add(const Duration(hours: 1)),
+      expiresAt: _clock().add(_boundContextLifetime),
     );
     return ReconcileResponse(<String, Object?>{
       'protocol_major': syncOperationMajor,
@@ -366,7 +368,9 @@ final class InMemorySyncBackend
 
   String _randomToken() {
     final random = Random.secure();
-    final bytes = <int>[for (var i = 0; i < 32; i++) random.nextInt(256)];
+    final bytes = <int>[
+      for (var i = 0; i < _tokenByteCount; i++) random.nextInt(_byteValueCount),
+    ];
     return base64UrlEncode(bytes).replaceAll('=', '');
   }
 }

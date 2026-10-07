@@ -48,6 +48,8 @@ class _SymbolPickerState extends State<SymbolPicker> {
   final _searchController = TextEditingController();
   String _query = '';
 
+  static const _searchPadding = EdgeInsets.all(16);
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -63,7 +65,7 @@ class _SymbolPickerState extends State<SymbolPicker> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: _searchPadding,
             child: TextField(
               controller: _searchController,
               decoration: const InputDecoration(
@@ -109,13 +111,19 @@ class _SymbolSection extends StatelessWidget {
   final Color color;
   final void Function(String name) onChosen;
 
+  static const _headerPadding = EdgeInsets.fromLTRB(16, 16, 16, 8);
+
+  static const _gridPadding = EdgeInsets.symmetric(horizontal: 16);
+
+  static const _cellPadding = EdgeInsets.all(4);
+
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          padding: _headerPadding,
           child: Text(
             title,
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
@@ -126,7 +134,7 @@ class _SymbolSection extends StatelessWidget {
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: _gridPadding,
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: _gridColumns,
           ),
@@ -136,7 +144,7 @@ class _SymbolSection extends StatelessWidget {
             return InkWell(
               onTap: () => onChosen(name),
               child: Padding(
-                padding: const EdgeInsets.all(4),
+                padding: _cellPadding,
                 child: CategoryIcon(
                   symbolName: name,
                   color: color,

@@ -14,6 +14,8 @@ class DayTicker with WidgetsBindingObserver {
   Timer? _timer;
   bool _disposed = false;
 
+  static const _nonPositiveDelayFallback = Duration(seconds: 1);
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (_disposed) return;
@@ -29,7 +31,7 @@ class DayTicker with WidgetsBindingObserver {
     final now = clock();
     final nextMidnight = DateTime(now.year, now.month, now.day + 1);
     var delay = nextMidnight.difference(now);
-    if (delay <= Duration.zero) delay = const Duration(seconds: 1);
+    if (delay <= Duration.zero) delay = _nonPositiveDelayFallback;
     _timer = Timer(delay, () {
       if (_disposed) return;
       onDayChanged();

@@ -24,6 +24,9 @@ class _SyncEnrollmentFlowState
   bool _pickerReady = false;
   bool _waitTimedOut = false;
 
+  static const _noticePadding = EdgeInsets.symmetric(horizontal: 24);
+  static const _noticeGap = 24.0;
+
   @override
   void initState() {
     super.initState();
@@ -159,14 +162,14 @@ class _SyncEnrollmentFlowState
             mainAxisSize: MainAxisSize.min,
             children: [
               const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24),
+                padding: _noticePadding,
                 child: Text(
                   'Still finishing the previous attempt. '
                   'You can keep waiting or go back.',
                   textAlign: TextAlign.center,
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: _noticeGap),
               FilledButton(
                 key: const Key('syncFreshRetryWait'),
                 onPressed: _retryFreshWait,
@@ -192,9 +195,9 @@ class _SyncEnrollmentFlowState
           mainAxisSize: MainAxisSize.min,
           children: [
             CircularProgressIndicator(),
-            SizedBox(height: 24),
+            SizedBox(height: _noticeGap),
             Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24),
+              padding: _noticePadding,
               child: Text(
                 'Finishing the previous attempt. '
                 'This usually takes a few seconds.',

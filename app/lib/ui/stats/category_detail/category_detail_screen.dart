@@ -51,6 +51,9 @@ class _CategoryDetailBody extends StatelessWidget {
   final CategoryDetailViewModel viewModel;
   final Ledger ledger;
 
+  static const _headlinePadding = EdgeInsets.all(16);
+  static const _entriesLabelPadding = EdgeInsets.fromLTRB(16, 24, 16, 8);
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -71,7 +74,7 @@ class _CategoryDetailBody extends StatelessWidget {
 
     final scopeColor = style.color;
     final headline = Padding(
-      padding: const EdgeInsets.all(16),
+      padding: _headlinePadding,
       child: AmountHeader(
         caption: scopeCaption(title, viewState.scope, viewState.ledgerState),
         amount: totals.scopeTotal,
@@ -79,7 +82,7 @@ class _CategoryDetailBody extends StatelessWidget {
       ),
     );
     final entriesLabel = Padding(
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+      padding: _entriesLabelPadding,
       child: Text(
         'ENTRIES',
         style: theme.textTheme.labelMedium?.copyWith(

@@ -17,8 +17,12 @@ class MonthYearSelector extends StatelessWidget {
   final MonthYearStep step;
   final ValueChanged<DateTime> onChanged;
 
+  static const _monthsPerYear = 12;
+
   DateTime _shifted(int direction) {
-    final months = step == MonthYearStep.month ? direction : direction * 12;
+    final months = step == MonthYearStep.month
+        ? direction
+        : direction * _monthsPerYear;
     return shiftMonthThenClampDayUtc(value, months, day: 1);
   }
 
