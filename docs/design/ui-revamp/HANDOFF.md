@@ -6,6 +6,78 @@ Generator: `/Users/macbook/Desktop/SpendWise/.lavish/reference-src/`.
 
 The reference page is rebuilt from the current generator. The light theme now uses a light blue canvas with white content cards, neutral separation and blue accents. The owner reviews the generated result; browser and screenshot verification are excluded from this revision. Earlier layout evidence below remains historical static evidence.
 
+## 2026-10-08: shared tiles and the foldables page
+
+The 14 foldables tiles now live in `generator/tiles.py`, and both pages draw them from one dataset in `generator/data.py`. The foldables page moved here as `generator/build_foldables.py` and `generator/foldable_frames.py`, and writes `spendwise-foldables.html`. The `.lavish/` copy of the foldables generator is superseded.
+
+### Tile integration
+
+- `tiles.py` holds Safe to spend, Pace vs usual, Subscriptions, Needs attention, Biggest entries, By account, Category movers, Day-of-week pattern, Fixed vs flexible, Savings rate, Net worth trend, Card utilisation, Plans cash flow and the budget forecast row (fill is spent, a vertical line is the month-end forecast, a chip says On pace or Over by the amount at this pace), plus `TILE_CSS`. `data.py` no longer defines `w_budgetwatch` or `ALL_WIDGETS`; `tiles.ALL_WIDGETS` is the 16-widget order and `tiles.w_budgetwatch` is the one Budget watch.
+- One September. `data.SEP` is the four seed entries (`SEP_SEED`) plus the three sample entries (`SEP_SAMPLE`), and `MONTHS` carries the same September total (263.20, asserted). Every September figure on both pages comes from it: the History September band, list and By week, every 12-month chart and spread, the Dining and Groceries category views, search, and the Amex card page. Because the sample entries are on Amex Card, the card figures derive from the entries too: owed 399.60, this cycle 285.10, net worth 20,819.40 (`AMEX_OWED`, `AMEX_CYCLE`, `NET_WORTH_NOW` in `data.py`).
+- Every figure is computed from `data.py`: the seed entries `OCT` and `SEP`, the three sample entries `SEP_SAMPLE`, the monthly history `MONTHS`, `COMPLETE_MONTHS` and the sample values below. `tiles.py` asserts the ties between tiles: the October spend equals the seed figure and the Money and Top categories text, the account split adds to the October spend, the category averages add to the usual month, Fixed vs flexible and Day-of-week take the same period total as the whole-period breakdown, and the three-week usual windows end before the current week. `build_foldables.py` asserts that its phone Budgets, Accounts and Plans frames equal the reference frames `mo-budgets`, `mo-accounts` and `mo-plans-attention`.
+- Reference placement (frame ids). Overview: the four new widgets close `ov-custom` (now "all 16 widgets") and `ov-desk`, fill the widget catalogue (16 cells, each with a usual and a sparse state), and join the Edit Overview lists in `ov-edit`, `ov-addwidgets` and `ov-desk-edit`. History: Biggest entries and By account follow By week in `hi-oct` (and under `hi-period` and the three Edit entry sheets) and sit below the register in `hi-desk`. Trends: the four tiles follow the breakdown in `tr-july`, `tr-oct-map`, `tr-oct-sub-donut`, `tr-oct-sub-map` and `tr-desk`. Money: the forecast line and chip are on every Category budgets row in `mo-budgets` (and under `mo-budget-add`, `mo-budget-pick`, `mo-desk-budgets`), with the legend in All spending; Net worth trend follows the summary band and Card utilisation follows Credit cards in `mo-accounts`, `mo-desk-accounts` and the account sheets drawn over it; Plans cash flow follows Next up in `mo-plans`, `mo-plans-attention` and `mo-desk-plans`. No frame id was added or removed; `frames.json` is unchanged.
+- Sparse specimens stay sparse: Week so far and Insights keep the history-needed state in `ov-custom` and the catalogue. The four new widgets have sparse catalogue states (choose accounts, more complete months needed, no recurring plans, nothing needs attention).
+
+### Recomputed figures
+
+With seed September complete, the July, August and September insight baseline and the three-week Week so far baseline, these figures changed against the approved `.lavish/` foldables page:
+
+| Figure | Old | New |
+| --- | --- | --- |
+| Complete months (average, Fixed vs flexible, Savings rate) | 9 (Nov 2025 - Jul 2026) | 10 (adds Sep 2026) |
+| Usual month | 905.56 | 841.32 |
+| Pace vs usual, gap on 3 October | 79.77 ahead (usual by then 87.63) | 85.98 ahead (usual by then 81.42) |
+| Category monthly averages: Dining, Groceries, Transport | 434.67, 326.00, 144.89 | 403.28, 304.00, 134.04 |
+| Dining forecast chip | Over by 126.51 | Over by 98.15 |
+| Groceries forecast chip | On pace | On pace |
+| Transport forecast chip | Over by 20.87 | Over by 11.07 |
+| Week so far usual | 62.90 (96.50, 18.00, 74.20) | 30.73 (18.00, 74.20, 0.00) |
+| Week so far gap | 179.00 more | 211.17 more |
+| Fixed vs flexible | 1,061.82 (12.4%) and 7,518.78 (87.6%) | 1,179.80 (13.7%) and 7,400.80 (86.3%) |
+| Savings rate average | 71.7% over 9 months | 73.7% over 10 months |
+| Savings rate caption | September 91.8% and October 94.8% incomplete | October 94.8% incomplete |
+| Amex owed, Card statement payable, Statement payable | 325.10 | 399.60 |
+| Amex this cycle | 210.60 | 285.10 |
+| Card utilisation | 6.5% used, 4,674.90 available | 8.0% used, 4,600.40 available |
+| Net worth now | 20,893.90 | 20,819.40 |
+| Net worth over 12 months | +12,653.90, +153.6% | +12,579.40, +152.7% |
+| Safe to spend | 12,223.92 | 12,149.42 |
+
+Unchanged after recomputing: the whole-period totals (Dining 4,116.70, Groceries 3,113.50, Transport 1,350.40, total 8,580.60) and shares, the highest month (December 2025, 1,000.00), Day-of-week pattern (Saturday highest, 42.90), By week on the foldables page (28 Sep week 241.90), Plans cash flow, Category movers (Groceries +28.50, +63.3%; Dining +25.90, +44.7%) and the Budget watch count (2 budgets on course to go over). Caption and qualifier text changed with the rules: September is no longer called incomplete, the insight baseline reads July, August and September, and the July detail average reads "over the 10 complete months, Nov 2025 - Jul 2026 and Sep 2026".
+
+Week so far: usual is the mean of the same Monday to Saturday windows of the three weeks immediately before the current week (7, 14 and 21 September). A week with no expense counts as 0.00. The populated tile on the foldables page is a labelled sample state; the reference keeps the history-needed state the seed draws.
+
+Reference figures that changed with the single September (old to new): the `hi-sep` band and register (spent 188.70 to 263.20, net +3,011.30 to +2,936.80, three more entries, 28 Sep week 167.40 to 241.90); By week for the 28 Sep week in `hi-oct`, `hi-period` and the Edit entry sheets (167.40 to 241.90); the September bar in Spending over time, every Trends spread and the Dining and Groceries category charts (Dining 96.50 to 120.80, Groceries 74.20 to 106.00); the search results (4 matches, 147.70 to 5 matches, 179.50); the Amex card page, Accounts band, Card statement widget, Coming up and account picker (owed 325.10 to 399.60, this cycle 210.60 to 285.10, net worth 20,893.90 to 20,819.40). No drawn figure reads 188.70.
+
+### Sample values and sources
+
+All in `generator/data.py` unless stated.
+
+- Seed (asserted against the drawn text): October entries `OCT` (167.40 spent, 3,200.00 income); September seed entries `SEP_SEED` (96.50, 18.00, 74.20 spent, 3,200.00 income); balances DBS Checking 10,869.00, OCBC Savings 10,350.00 with own balance 1,700.00; Amex owed, this cycle and net worth are derived from the entries (see One September); plans `SEED_PLANS` derived from `COMING` (Netflix -19.98 on 20 Oct, Monthly salary +3,200.00 on 25 Oct); Amex statement day 15.
+- `SEP_SAMPLE`: 28 Sep Lunch near the office 24.30 Dining, 29 Sep Grocery top-up 31.80 Groceries, 30 Sep Grab to meeting 18.40 Transport, all on Amex Card, 74.50 together. Source: the approved foldables page. They are part of `SEP`: September is 263.20 (Dining 120.80, Groceries 106.00, Transport 36.40) and the 28 Sep week is 241.90.
+- `MONTHS` (monthly history from Harbour glass dark revision 2) and `SAMPLE_COMPLETE_MONTHS`: Nov 2025 to Jul 2026 are the nine sample complete months; `COMPLETE_MONTHS` adds September 2026. The 48 / 36 / 16 split (`split48`) gives their category totals.
+- `SAMPLE_MONTHLY_SALARY` 3,200.00 (equals the seed salary): the income side of Savings rate.
+- `BUDGET_LIMITS` Dining 350, Groceries 450, Transport 120: the reference's sample limits.
+- `INSIGHT_USUAL_START` Groceries 45.00 and Dining 58.00, with `GROCERIES_INSIGHT_WINDOWS` 40.00, 50.00, 45.00 (1-3 July, August, September): the reference's round 4 matched windows, a separate sample from the monthly history.
+- `WEEKDAY_SHARES` 10, 11, 12, 13, 16, 22, 16 percent: sample split of the period total across weekdays for Day-of-week pattern.
+- `AMEX_LIMIT` 5,000.00 and `AMEX_DUE_DAY` 5 November: Card utilisation (the statement day is seed).
+- `NETFLIX_PREVIOUS_PRICE` 17.98: the price-change flag in Subscriptions.
+- `GYM_MONTHLY_PLAN` 1 Nov, Gym membership, -98.00, Needs attention, with `GYM_PLAN_ACCOUNT` DBS Checking: the reference's Plans attention sample, counted in Subscriptions and Plans cash flow.
+- `NET_WORTH_SAMPLE_NOV_TO_JUL`: 8,240.00, 9,150.00, 10,380.00, 11,020.00, 11,960.00, 12,610.00, 13,240.00, 13,780.00, 14,300.00. August and September follow from the entries (14,850.00 and 17,786.80).
+- `HELD_IMPORT` NTUC FP 0210, 14.30, 2 Oct; `SYNC_PAUSED_ACCOUNT` OCBC Savings and `SYNC_LAST_DAY` 1 Oct: Needs attention.
+- `tiles.py` constants: today 3 October 2026, 3 of 31 days elapsed, current week from 28 September, a 30-day cash flow window, a 500 axis step.
+
+### Builds
+
+From the repository root:
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 python3 docs/design/ui-revamp/generator/build.py
+PYTHONDONTWRITEBYTECODE=1 python3 docs/design/ui-revamp/generator/build_foldables.py
+```
+
+The reference reports 184 frames and 168 of 177 inventory rows (173 phone, 11 desktop). The foldables page reports 22 frames (7 folded, 15 open).
+
 ## 2026-10-06: tracked copy with D8 captions and relative paths
 
 This directory supersedes `.lavish/` as the source of truth: `spec.md` is the brief from `.lavish/briefs/spendwise-reference.md`, the generator sources live under `generator/`, and `spendwise-reference.html` is rebuilt from them. The older sections below describe the `.lavish/` working copy; paths and commands there still point at `.lavish/`.
