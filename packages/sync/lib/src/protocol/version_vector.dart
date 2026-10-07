@@ -34,8 +34,6 @@ final class VersionVector {
 
   static const VersionVector empty = VersionVector._(<String, int>{});
 
-  static const int _pairStride = 2;
-
   final Map<String, int> _counters;
 
   Map<String, int> get counters => _counters;
@@ -116,7 +114,7 @@ final class VersionVector {
     }
 
     final counters = <String, int>{};
-    for (var index = 0; index < values.length; index += _pairStride) {
+    for (var index = 0; index < values.length; index += 2) {
       final rawDeviceID = values[index];
       final rawCounter = values[index + 1];
       if (rawDeviceID is! String || rawCounter is! int) {

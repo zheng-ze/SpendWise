@@ -139,9 +139,6 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
   static const _publishRetryDelay = Duration(seconds: 1);
   static const codeRequestCooldown = Duration(seconds: 60);
   static const _maxWaitDisplay = Duration(minutes: 15);
-  static const _millisPerSecond = 1000;
-  static const _minDisplaySeconds = 1;
-  static const _secondsPerMinute = 60;
 
   final SyncEnrollmentSessionOpener? _sessionOpenerOverride;
   final SecretStore _secretStore;
@@ -772,8 +769,8 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
   }
 
   static int _ceilSeconds(Duration remaining) {
-    final seconds = (remaining.inMilliseconds / _millisPerSecond).ceil();
-    return seconds < _minDisplaySeconds ? _minDisplaySeconds : seconds;
+    final seconds = (remaining.inMilliseconds / 1000).ceil();
+    return seconds < 1 ? 1 : seconds;
   }
 
   String _failureCopy(Object error) {
@@ -830,10 +827,10 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
     if (capped <= 0) {
       return 'Please wait a moment before trying again.';
     }
-    if (capped < _secondsPerMinute) {
+    if (capped < 60) {
       return 'Please wait $capped seconds before trying again.';
     }
-    final minutes = capped ~/ _secondsPerMinute;
+    final minutes = capped ~/ 60;
     if (minutes <= 1) {
       return 'Please wait about a minute before trying again.';
     }

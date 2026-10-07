@@ -40,9 +40,6 @@ RecurrenceFrequency _frequency(int code) => switch (code) {
 
 VersionVector versionFromRow(Uint8List blob) => VersionVector.decode(blob);
 
-const _yearPadWidth = 4;
-const _monthPadWidth = 2;
-
 Uint8List _versionToBlob(VersionVector version) =>
     Uint8List.fromList(version.encode());
 
@@ -178,8 +175,8 @@ YearMonth _yearMonthFromString(String value) {
 }
 
 String _yearMonthToString(YearMonth month) =>
-    '${month.year.toString().padLeft(_yearPadWidth, '0')}-'
-    '${month.month.toString().padLeft(_monthPadWidth, '0')}';
+    '${month.year.toString().padLeft(4, '0')}-'
+    '${month.month.toString().padLeft(2, '0')}';
 
 LimitEvent _limitEventFromJson(Map<String, dynamic> map) => LimitEvent(
   effectiveFromMonth: map['effectiveFromMonth'] == null

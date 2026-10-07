@@ -5,12 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart';
 
 int _ceilCooldownSeconds(Duration remaining) {
-  final seconds = (remaining.inMilliseconds / _millisPerSecond).ceil();
-  return seconds < _minDisplaySeconds ? _minDisplaySeconds : seconds;
+  final seconds = (remaining.inMilliseconds / 1000).ceil();
+  return seconds < 1 ? 1 : seconds;
 }
 
-const _millisPerSecond = 1000;
-const _minDisplaySeconds = 1;
 const _cooldownTick = Duration(seconds: 1);
 const _progressIndicatorSize = 20.0;
 const _progressStrokeWidth = 2.0;
@@ -314,7 +312,7 @@ class SyncEnrollmentCompletionScreen extends ConsumerWidget {
       return Scaffold(
         appBar: AppBar(title: const Text('Sync enrolled')),
         body: Padding(
-          padding: _screenPadding,
+          padding: EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

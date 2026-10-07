@@ -5,10 +5,6 @@ import 'package:ocr/ocr.dart';
 const _monthFirstRegions = {'US', 'PH', 'PW', 'FM', 'CA'};
 
 const _monthsInYear = 12;
-const _firstDateComponentGroup = 1;
-const _secondDateComponentGroup = 2;
-const _yearComponentGroup = 3;
-const _fourDigitYearLength = 4;
 const _twoDigitYearCenturyBase = 2000;
 
 final _dateShapedPattern = RegExp(
@@ -33,9 +29,9 @@ DateTime _today(DateTime? now) {
 }
 
 DateTime? _resolveDate(RegExpMatch match, String? locale) {
-  final first = int.parse(match.group(_firstDateComponentGroup)!);
-  final second = int.parse(match.group(_secondDateComponentGroup)!);
-  final year = _fullYear(match.group(_yearComponentGroup)!);
+  final first = int.parse(match.group(1)!);
+  final second = int.parse(match.group(2)!);
+  final year = _fullYear(match.group(3)!);
 
   int day;
   int month;
@@ -59,7 +55,7 @@ DateTime? _resolveDate(RegExpMatch match, String? locale) {
 }
 
 int _fullYear(String yearText) {
-  if (yearText.length == _fourDigitYearLength) return int.parse(yearText);
+  if (yearText.length == 4) return int.parse(yearText);
   return _twoDigitYearCenturyBase + int.parse(yearText);
 }
 

@@ -9,8 +9,6 @@ const _keptFractionDigits = 2;
 
 const _inspectedFractionDigits = 3;
 
-const _centsPerUnit = 100;
-
 final NumberFormat _percent = NumberFormat.percentPattern()
   ..maximumFractionDigits = 0;
 
@@ -43,7 +41,7 @@ String _roundedTwoPlaces(Decimal magnitude, {required bool grouped}) {
   var integer = BigInt.parse(intPart.isEmpty ? '0' : intPart);
   if (roundUp) {
     kept += 1;
-    if (kept == _centsPerUnit) {
+    if (kept == 100) {
       kept = 0;
       integer += BigInt.one;
     }

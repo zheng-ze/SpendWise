@@ -12,8 +12,6 @@ class StatementDayPicker extends StatelessWidget {
 
   static const _sheetHeightFactor = 0.7;
 
-  static const _firstDay = 1;
-
   static const _lastDay = 28;
 
   @override
@@ -35,7 +33,7 @@ class StatementDayPicker extends StatelessWidget {
         child: SafeArea(
           child: ListView(
             children: [
-              for (var day = _firstDay; day <= _lastDay; day++)
+              for (var day = 1; day <= _lastDay; day++)
                 ListTile(
                   title: Text('$day'),
                   trailing: day == selected ? const Icon(Icons.check) : null,
