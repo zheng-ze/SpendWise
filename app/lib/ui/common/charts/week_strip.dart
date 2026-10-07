@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
+const _barHeight = 40.0;
+
+const _barRadius = 2.0;
+
 @immutable
 class WeekStripDay {
   const WeekStripDay({
@@ -36,6 +40,12 @@ class WeekStrip extends StatelessWidget {
 class GapStubPainter extends CustomPainter {
   const GapStubPainter({required this.color});
 
+  static const _strokeWidth = 1.5;
+
+  static const _dashLength = 4.0;
+
+  static const _dashStep = 7.0;
+
   final Color color;
 
   @override
@@ -45,13 +55,16 @@ class GapStubPainter extends CustomPainter {
     final paint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
+      ..strokeWidth = _strokeWidth;
     canvas.drawPath(dashed, paint);
   }
 
   Path _outline(Size size) {
     return Path()..addRRect(
-      RRect.fromRectAndRadius(Offset.zero & size, const Radius.circular(2)),
+      RRect.fromRectAndRadius(
+        Offset.zero & size,
+        const Radius.circular(_barRadius),
+      ),
     );
   }
 
@@ -60,9 +73,9 @@ class GapStubPainter extends CustomPainter {
     for (final metric in outline.computeMetrics()) {
       var distance = 0.0;
       while (distance < metric.length) {
-        final end = (distance + 4).clamp(0.0, metric.length);
+        final end = (distance + _dashLength).clamp(0.0, metric.length);
         dashed.addPath(metric.extractPath(distance, end), Offset.zero);
-        distance += 7;
+        distance += _dashStep;
       }
     }
     return dashed;
@@ -76,6 +89,10 @@ class GapStubPainter extends CustomPainter {
 class _DayColumn extends StatelessWidget {
   const _DayColumn({required this.day});
 
+  static const _barWidthFactor = 0.48;
+
+  static const _captionFontSize = 10.0;
+
   final WeekStripDay day;
 
   @override
@@ -83,21 +100,24 @@ class _DayColumn extends StatelessWidget {
     final colors = context.colors;
     final bar = _DayBar(day: day);
     final barArea = SizedBox(
-      height: 40,
+      height: _barHeight,
       child: Align(
         alignment: Alignment.bottomCenter,
-        child: FractionallySizedBox(widthFactor: 0.48, child: bar),
+        child: FractionallySizedBox(widthFactor: _barWidthFactor, child: bar),
       ),
     );
     final title = Text(
       day.label,
-      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
+      style: const TextStyle(
+        fontSize: _captionFontSize,
+        fontWeight: FontWeight.w600,
+      ),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
     );
     final caption = Text(
       day.caption,
-      style: TextStyle(fontSize: 10, color: colors.subtext),
+      style: TextStyle(fontSize: _captionFontSize, color: colors.subtext),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
     );
@@ -117,7 +137,7 @@ class _DayBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bar = switch (day) {
-      WeekStripDay(future: true) => const SizedBox(height: 40),
+      WeekStripDay(future: true) => const SizedBox(height: _barHeight),
       WeekStripDay(fraction: <= 0) => const _GapStub(),
       _ => _ValueBar(fraction: day.fraction),
     };
@@ -129,15 +149,19 @@ class _DayBar extends StatelessWidget {
 class _ValueBar extends StatelessWidget {
   const _ValueBar({required this.fraction});
 
+  static const _minHeight = 3.0;
+
   final double fraction;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: (40 * fraction).clamp(3.0, 40.0),
+      height: (_barHeight * fraction).clamp(_minHeight, _barHeight),
       decoration: BoxDecoration(
         color: context.colors.action,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(2)),
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(_barRadius),
+        ),
       ),
     );
   }
@@ -146,10 +170,12 @@ class _ValueBar extends StatelessWidget {
 class _GapStub extends StatelessWidget {
   const _GapStub();
 
+  static const _stubHeight = 8.0;
+
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 8,
+      height: _stubHeight,
       width: double.infinity,
       child: CustomPaint(
         key: const ValueKey('weekStripGapStub'),

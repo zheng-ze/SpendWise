@@ -36,6 +36,24 @@ class SheetAlert extends StatelessWidget {
 
   final VoidCallback? onAction;
 
+  static const _messageFontSize = 12.0;
+
+  static const _messageLineHeight = 1.45;
+
+  static const _actionGap = 8.0;
+
+  static const _cornerRadius = 10.0;
+
+  static const _shadowColor = Color(0x1F000000);
+
+  static const _shadowBlur = 14.0;
+
+  static const _shadowOffset = Offset(0, 4);
+
+  static const _horizontalPadding = 12.0;
+
+  static const _verticalPadding = 10.0;
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
@@ -47,7 +65,11 @@ class SheetAlert extends StatelessWidget {
     final onAction = this.onAction;
     final message = Text(
       data.message,
-      style: TextStyle(color: foreground, fontSize: 12, height: 1.45),
+      style: TextStyle(
+        color: foreground,
+        fontSize: _messageFontSize,
+        height: _messageLineHeight,
+      ),
     );
     final action = actionLabel != null && onAction != null
         ? _BannerAction(label: actionLabel, onPressed: onAction)
@@ -57,18 +79,18 @@ class SheetAlert extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         message,
-        if (action != null) ...[const SizedBox(height: 8), action],
+        if (action != null) ...[const SizedBox(height: _actionGap), action],
       ],
     );
     final decoration = BoxDecoration(
       color: background,
       border: Border.all(color: foreground),
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(_cornerRadius),
       boxShadow: const [
         BoxShadow(
-          color: Color(0x1F000000),
-          blurRadius: 14,
-          offset: Offset(0, 4),
+          color: _shadowColor,
+          blurRadius: _shadowBlur,
+          offset: _shadowOffset,
         ),
       ],
     );
@@ -77,7 +99,10 @@ class SheetAlert extends StatelessWidget {
       liveRegion: true,
       child: Container(
         decoration: decoration,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(
+          horizontal: _horizontalPadding,
+          vertical: _verticalPadding,
+        ),
         child: content,
       ),
     );

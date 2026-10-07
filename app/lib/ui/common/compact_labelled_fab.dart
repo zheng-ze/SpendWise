@@ -16,28 +16,47 @@ class CompactLabelledFab extends StatelessWidget {
 
   final VoidCallback onPressed;
 
+  static const _cornerRadius = 14.0;
+
+  static const _labelFontSize = 12.0;
+
+  static const _iconSize = 16.0;
+
+  static const _iconLabelGap = 6.0;
+
+  static const _leftPadding = 11.0;
+
+  static const _verticalPadding = 10.0;
+
+  static const _rightPadding = 14.0;
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final radius = BorderRadius.circular(14);
+    final radius = BorderRadius.circular(_cornerRadius);
     final labelStyle = Theme.of(context).textTheme.labelLarge?.copyWith(
-      fontSize: 12,
+      fontSize: _labelFontSize,
       fontWeight: FontWeight.w600,
       color: colors.onAction,
     );
     final glyph = ExcludeSemantics(
-      child: Icon(icon, size: 16, color: colors.onAction),
+      child: Icon(icon, size: _iconSize, color: colors.onAction),
     );
     final row = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         glyph,
-        const SizedBox(width: 6),
+        const SizedBox(width: _iconLabelGap),
         ExcludeSemantics(child: Text(label)),
       ],
     );
     final body = Padding(
-      padding: const EdgeInsets.fromLTRB(11, 10, 14, 10),
+      padding: const EdgeInsets.fromLTRB(
+        _leftPadding,
+        _verticalPadding,
+        _rightPadding,
+        _verticalPadding,
+      ),
       child: row,
     );
     return Semantics(
@@ -56,8 +75,10 @@ class CompactLabelledFab extends StatelessWidget {
 class FabReserveSpace extends StatelessWidget {
   const FabReserveSpace({super.key});
 
+  static const _reserveHeight = 58.0;
+
   @override
   Widget build(BuildContext context) {
-    return const SizedBox(height: 58);
+    return const SizedBox(height: _reserveHeight);
   }
 }

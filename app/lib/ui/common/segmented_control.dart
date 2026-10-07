@@ -28,6 +28,10 @@ class SegmentedControl<T> extends StatelessWidget {
 
   final bool small;
 
+  static const _trackRadius = 10.0;
+
+  static const _trackPadding = 2.0;
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
@@ -35,7 +39,7 @@ class SegmentedControl<T> extends StatelessWidget {
     final decoration = BoxDecoration(
       color: light ? colors.surface : colors.tint,
       border: Border.all(color: light ? colors.edge : colors.control),
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(_trackRadius),
     );
     final segments = [
       for (final option in options)
@@ -50,7 +54,7 @@ class SegmentedControl<T> extends StatelessWidget {
     ];
     return Container(
       decoration: decoration,
-      padding: const EdgeInsets.all(2),
+      padding: const EdgeInsets.all(_trackPadding),
       child: Row(children: segments),
     );
   }
@@ -72,6 +76,18 @@ class _Segment extends StatelessWidget {
 
   final VoidCallback onTap;
 
+  static const _segmentRadius = 8.0;
+
+  static const _selectedUnderlineWidth = 2.0;
+
+  static const _regularFontSize = 12.0;
+
+  static const _smallFontSize = 10.0;
+
+  static const _regularVerticalPadding = 6.0;
+
+  static const _smallVerticalPadding = 5.0;
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
@@ -82,25 +98,32 @@ class _Segment extends StatelessWidget {
     if (selected) {
       decoration = BoxDecoration(
         color: colors.raised,
-        borderRadius: BorderRadius.circular(8),
-        border: Border(bottom: BorderSide(color: colors.action, width: 2)),
+        borderRadius: BorderRadius.circular(_segmentRadius),
+        border: Border(
+          bottom: BorderSide(
+            color: colors.action,
+            width: _selectedUnderlineWidth,
+          ),
+        ),
       );
     }
     final labelText = Text(
       label,
       textAlign: TextAlign.center,
       style: TextStyle(
-        fontSize: small ? 10 : 12,
+        fontSize: small ? _smallFontSize : _regularFontSize,
         color: selected ? selectedColor : colors.subtext,
         fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
       ),
     );
     return InkWell(
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(_segmentRadius),
       onTap: onTap,
       child: Container(
         decoration: decoration,
-        padding: EdgeInsets.symmetric(vertical: small ? 5 : 6),
+        padding: EdgeInsets.symmetric(
+          vertical: small ? _smallVerticalPadding : _regularVerticalPadding,
+        ),
         child: labelText,
       ),
     );

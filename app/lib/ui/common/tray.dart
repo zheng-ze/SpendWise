@@ -11,6 +11,10 @@ class Tray extends StatelessWidget {
 
   final Widget child;
 
+  static const _cornerRadius = 14.0;
+
+  static const _contentPadding = 12.0;
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
@@ -25,11 +29,11 @@ class Tray extends StatelessWidget {
     final decoration = BoxDecoration(
       color: colors.surface,
       border: Border.all(color: colors.edge),
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(_cornerRadius),
     );
     return Container(
       decoration: decoration,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(_contentPadding),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -46,14 +50,20 @@ class _TrayHeader extends StatelessWidget {
 
   final Widget? trailing;
 
+  static const _titleFontSize = 14.0;
+
+  static const _titleLineHeight = 1.25;
+
+  static const _headerBottomPadding = 6.0;
+
   @override
   Widget build(BuildContext context) {
     final titleText = Text(
       title,
       style: const TextStyle(
-        fontSize: 14,
+        fontSize: _titleFontSize,
         fontWeight: FontWeight.w600,
-        height: 1.25,
+        height: _titleLineHeight,
       ),
     );
     final trailing = this.trailing;
@@ -69,6 +79,9 @@ class _TrayHeader extends StatelessWidget {
         ],
       );
     }
-    return Padding(padding: const EdgeInsets.only(bottom: 6), child: content);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: _headerBottomPadding),
+      child: content,
+    );
   }
 }

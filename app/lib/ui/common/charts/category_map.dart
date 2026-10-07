@@ -2,6 +2,24 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
+const _percentFactor = 100.0;
+
+const _shareFractionDigits = 1;
+
+const _labelInset = 20.0;
+
+const _labelFontSize = 12.0;
+
+const _nameMaxLines = 2;
+
+const _shareMaxLines = 1;
+
+const _nameShareGap = 2.0;
+
+const _minBlockSize = 4.0;
+
+const _blockInset = 2.0;
+
 @immutable
 class CategoryMapTile {
   const CategoryMapTile({
@@ -103,7 +121,8 @@ List<Rect> layoutCategoryMap(List<double> values, Size size) {
   return rects;
 }
 
-String _shareText(double share) => '${(share * 100).toStringAsFixed(1)}%';
+String _shareText(double share) =>
+    '${(share * _percentFactor).toStringAsFixed(_shareFractionDigits)}%';
 
 Color _selectionFill(bool selected, Color mark, Color fallback) =>
     selected ? mark : fallback;
@@ -132,19 +151,37 @@ TextPainter _measure(
 }
 
 bool _labelFits(Rect rect, String name, String share, TextScaler scaler) {
-  final available = Size(rect.width - 20, rect.height - 20);
+  final available = Size(rect.width - _labelInset, rect.height - _labelInset);
   if (available.width <= 0 || available.height <= 0) return false;
-  const style = TextStyle(fontSize: 12, fontWeight: FontWeight.w600);
-  final namePainter = _measure(name, style, scaler, available.width, 2, '...');
+  const style = TextStyle(
+    fontSize: _labelFontSize,
+    fontWeight: FontWeight.w600,
+  );
+  final namePainter = _measure(
+    name,
+    style,
+    scaler,
+    available.width,
+    _nameMaxLines,
+    '...',
+  );
   if (namePainter.didExceedMaxLines) return false;
-  final sharePainter = _measure(share, style, scaler, available.width, 1, null);
+  final sharePainter = _measure(
+    share,
+    style,
+    scaler,
+    available.width,
+    _shareMaxLines,
+    null,
+  );
   if (sharePainter.didExceedMaxLines) return false;
-  return namePainter.height + 2 + sharePainter.height <= available.height;
+  return namePainter.height + _nameShareGap + sharePainter.height <=
+      available.height;
 }
 
 Rect _paddedBlock(Rect rect) {
-  if (rect.width <= 4 || rect.height <= 4) return rect;
-  return rect.deflate(2);
+  if (rect.width <= _minBlockSize || rect.height <= _minBlockSize) return rect;
+  return rect.deflate(_blockInset);
 }
 
 @immutable
@@ -162,8 +199,10 @@ class CategoryMap extends StatelessWidget {
     required this.tiles,
     this.selectedIndex,
     this.onSelect,
-    this.height = 136,
+    this.height = _defaultHeight,
   });
+
+  static const _defaultHeight = 136.0;
 
   final List<CategoryMapTile> tiles;
 
@@ -252,6 +291,10 @@ class _MapBlock extends StatelessWidget {
 
   final VoidCallback? onTap;
 
+  static const _blockRadius = 8.0;
+
+  static const _blockPadding = 8.0;
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
@@ -259,9 +302,9 @@ class _MapBlock extends StatelessWidget {
     final body = Container(
       decoration: BoxDecoration(
         color: _selectionFill(selected, colors.selectedMark, tile.color),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(_blockRadius),
       ),
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(_blockPadding),
       child: label,
     );
 
@@ -272,6 +315,10 @@ class _MapBlock extends StatelessWidget {
 class _MapLabel extends StatelessWidget {
   const _MapLabel({required this.tile});
 
+  static const _labelMaxLines = 3;
+
+  static const _labelLineHeight = 1.2;
+
   final CategoryMapTile tile;
 
   @override
@@ -279,12 +326,12 @@ class _MapLabel extends StatelessWidget {
     return Text(
       '${tile.label}\n${_shareText(tile.share)}',
       style: TextStyle(
-        fontSize: 12,
+        fontSize: _labelFontSize,
         fontWeight: FontWeight.w600,
         color: context.colors.onCategory,
-        height: 1.2,
+        height: _labelLineHeight,
       ),
-      maxLines: 3,
+      maxLines: _labelMaxLines,
       overflow: TextOverflow.ellipsis,
     );
   }
@@ -298,6 +345,14 @@ class _AdjacentLabels extends StatelessWidget {
     required this.maxWidth,
   });
 
+  static const _topPadding = 4.0;
+
+  static const _bottomPadding = 6.0;
+
+  static const _labelSpacing = 12.0;
+
+  static const _labelRunSpacing = 4.0;
+
   final List<_AdjacentLabel> labels;
 
   final int? selectedIndex;
@@ -309,10 +364,10 @@ class _AdjacentLabels extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 4, bottom: 6),
+      padding: const EdgeInsets.only(top: _topPadding, bottom: _bottomPadding),
       child: Wrap(
-        spacing: 12,
-        runSpacing: 4,
+        spacing: _labelSpacing,
+        runSpacing: _labelRunSpacing,
         children: [
           for (final label in labels)
             _AdjacentLabelRow(
@@ -343,21 +398,31 @@ class _AdjacentLabelRow extends StatelessWidget {
 
   final double maxWidth;
 
+  static const _swatchSize = 10.0;
+
+  static const _swatchRadius = 3.0;
+
+  static const _captionFontSize = 10.0;
+
+  static const _captionMaxLines = 3;
+
+  static const _swatchLabelGap = 5.0;
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     final swatch = Container(
-      width: 10,
-      height: 10,
+      width: _swatchSize,
+      height: _swatchSize,
       decoration: BoxDecoration(
         color: _selectionFill(selected, colors.selectedMark, label.tile.color),
-        borderRadius: BorderRadius.circular(3),
+        borderRadius: BorderRadius.circular(_swatchRadius),
       ),
     );
     final labelText = Text(
       '${label.tile.label} ${_shareText(label.tile.share)}',
-      style: TextStyle(fontSize: 10, color: colors.subtext),
-      maxLines: 3,
+      style: TextStyle(fontSize: _captionFontSize, color: colors.subtext),
+      maxLines: _captionMaxLines,
       overflow: TextOverflow.ellipsis,
     );
     final row = ConstrainedBox(
@@ -366,7 +431,7 @@ class _AdjacentLabelRow extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           swatch,
-          const SizedBox(width: 5),
+          const SizedBox(width: _swatchLabelGap),
           Flexible(child: labelText),
         ],
       ),

@@ -43,6 +43,12 @@ class SummaryBand extends StatelessWidget {
 
   final List<SummaryBandCell> cells;
 
+  static const _cornerRadius = 14.0;
+
+  static const _horizontalPadding = 12.0;
+
+  static const _verticalPadding = 10.0;
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
@@ -73,11 +79,14 @@ class SummaryBand extends StatelessWidget {
     final decoration = BoxDecoration(
       color: colors.surface,
       border: Border.all(color: colors.edge),
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(_cornerRadius),
     );
     return Container(
       decoration: decoration,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(
+        horizontal: _horizontalPadding,
+        vertical: _verticalPadding,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -107,19 +116,25 @@ class _LeadAmount extends StatelessWidget {
 
   final bool symbol;
 
+  static const _labelFontSize = 10.0;
+
+  static const _amountFontSize = 18.0;
+
+  static const _amountLetterSpacing = -0.3;
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     final labelText = Text(
       label,
-      style: TextStyle(fontSize: 10, color: colors.subtext),
+      style: TextStyle(fontSize: _labelFontSize, color: colors.subtext),
     );
     final amountText = Text(
       formatSignedMoney(amount, kind: kind, symbol: symbol),
       style: TextStyle(
-        fontSize: 18,
+        fontSize: _amountFontSize,
         fontWeight: FontWeight.w500,
-        letterSpacing: -0.3,
+        letterSpacing: _amountLetterSpacing,
         color: _amountColor(context, kind, amount),
       ),
     );
@@ -134,6 +149,12 @@ class _LeadAmount extends StatelessWidget {
 class _CellAmount extends StatelessWidget {
   const _CellAmount({required this.cell});
 
+  static const _labelFontSize = 10.0;
+
+  static const _amountFontSize = 12.0;
+
+  static const _labelAmountGap = 2.0;
+
   final SummaryBandCell cell;
 
   @override
@@ -141,12 +162,12 @@ class _CellAmount extends StatelessWidget {
     final colors = context.colors;
     final labelText = Text(
       cell.label,
-      style: TextStyle(fontSize: 10, color: colors.subtext),
+      style: TextStyle(fontSize: _labelFontSize, color: colors.subtext),
     );
     final amountText = Text(
       formatSignedMoney(cell.amount, kind: cell.kind, symbol: cell.symbol),
       style: TextStyle(
-        fontSize: 12,
+        fontSize: _amountFontSize,
         fontWeight: FontWeight.w600,
         color: _amountColor(context, cell.kind, cell.amount),
       ),
@@ -154,7 +175,11 @@ class _CellAmount extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [labelText, const SizedBox(height: 2), amountText],
+      children: [
+        labelText,
+        const SizedBox(height: _labelAmountGap),
+        amountText,
+      ],
     );
   }
 }

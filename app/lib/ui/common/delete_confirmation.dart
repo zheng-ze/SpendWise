@@ -10,7 +10,7 @@ Future<bool> showDeleteConfirmation(
     context: context,
     builder: (dialogContext) => Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 440),
+        constraints: const BoxConstraints(maxWidth: _dialogMaxWidth),
         child: _DeleteDialog(itemName: itemName),
       ),
     ),
@@ -19,8 +19,16 @@ Future<bool> showDeleteConfirmation(
   return confirmed ?? false;
 }
 
+const _dialogMaxWidth = 440.0;
+
 class _DeleteDialog extends StatelessWidget {
   const _DeleteDialog({required this.itemName});
+
+  static const _cornerRadius = 16.0;
+
+  static const _contentGap = 14.0;
+
+  static const _contentPadding = 16.0;
 
   final String itemName;
 
@@ -28,7 +36,7 @@ class _DeleteDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(_cornerRadius),
       side: BorderSide(color: colors.control),
     );
     final content = Column(
@@ -36,11 +44,14 @@ class _DeleteDialog extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _DeleteTitle(itemName: itemName),
-        const SizedBox(height: 14),
+        const SizedBox(height: _contentGap),
         const _DeleteActions(),
       ],
     );
-    final body = Padding(padding: const EdgeInsets.all(16), child: content);
+    final body = Padding(
+      padding: const EdgeInsets.all(_contentPadding),
+      child: content,
+    );
     return Dialog(
       backgroundColor: colors.raised,
       shape: shape,
@@ -52,19 +63,28 @@ class _DeleteDialog extends StatelessWidget {
 class _DeleteTitle extends StatelessWidget {
   const _DeleteTitle({required this.itemName});
 
+  static const _titleFontSize = 18.0;
+
   final String itemName;
 
   @override
   Widget build(BuildContext context) {
     return Text(
       'Delete $itemName?',
-      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+      style: const TextStyle(
+        fontSize: _titleFontSize,
+        fontWeight: FontWeight.w600,
+      ),
     );
   }
 }
 
 class _DeleteActions extends StatelessWidget {
   const _DeleteActions();
+
+  static const _actionSpacing = 18.0;
+
+  static const _actionOverflowSpacing = 8.0;
 
   @override
   Widget build(BuildContext context) {
@@ -84,8 +104,8 @@ class _DeleteActions extends StatelessWidget {
     );
     return OverflowBar(
       alignment: MainAxisAlignment.end,
-      spacing: 18,
-      overflowSpacing: 8,
+      spacing: _actionSpacing,
+      overflowSpacing: _actionOverflowSpacing,
       children: [cancel, confirm],
     );
   }

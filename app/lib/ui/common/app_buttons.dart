@@ -2,14 +2,28 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
-final _shape = RoundedRectangleBorder(borderRadius: BorderRadius.circular(10));
+final _shape = RoundedRectangleBorder(
+  borderRadius: BorderRadius.circular(_cornerRadius),
+);
 
-const _padding = EdgeInsets.symmetric(horizontal: 12, vertical: 10);
+const _padding = EdgeInsets.symmetric(
+  horizontal: _horizontalPadding,
+  vertical: _verticalPadding,
+);
+
+const _cornerRadius = 10.0;
+
+const _horizontalPadding = 12.0;
+
+const _verticalPadding = 10.0;
+
+const _labelFontSize = 12.0;
 
 TextStyle _labelStyle(BuildContext context) {
   final base = Theme.of(context).textTheme.labelLarge
-      ?.copyWith(fontSize: 12, fontWeight: FontWeight.w600);
-  return base ?? const TextStyle(fontSize: 12, fontWeight: FontWeight.w600);
+      ?.copyWith(fontSize: _labelFontSize, fontWeight: FontWeight.w600);
+  return base ??
+      const TextStyle(fontSize: _labelFontSize, fontWeight: FontWeight.w600);
 }
 
 class PrimaryButton extends StatelessWidget {

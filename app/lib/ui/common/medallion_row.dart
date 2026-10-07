@@ -22,32 +22,56 @@ class MedallionRow extends StatelessWidget {
 
   final Widget? trailing;
 
+  static const _medallionSize = 30.0;
+
+  static const _medallionRadius = 9.0;
+
+  static const _medallionIconSize = 17.0;
+
+  static const _titleFontSize = 12.0;
+
+  static const _titleLineHeight = 1.25;
+
+  static const _subtitleFontSize = 10.0;
+
+  static const _subtitleLineHeight = 1.3;
+
+  static const _medallionLabelGap = 9.0;
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     final medallion = Container(
-      width: 30,
-      height: 30,
+      width: _medallionSize,
+      height: _medallionSize,
       decoration: BoxDecoration(
         color: colors.tint,
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: BorderRadius.circular(_medallionRadius),
       ),
-      child: Icon(icon, size: 17, color: iconColor ?? colors.action),
+      child: Icon(
+        icon,
+        size: _medallionIconSize,
+        color: iconColor ?? colors.action,
+      ),
     );
     final subtitle = this.subtitle;
     final titleText = Text(
       title,
       style: const TextStyle(
-        fontSize: 12,
+        fontSize: _titleFontSize,
         fontWeight: FontWeight.w600,
-        height: 1.25,
+        height: _titleLineHeight,
       ),
     );
     final labelLines = <Widget>[titleText];
     if (subtitle != null) {
       final subtitleText = Text(
         subtitle,
-        style: TextStyle(fontSize: 10, color: colors.subtext, height: 1.3),
+        style: TextStyle(
+          fontSize: _subtitleFontSize,
+          color: colors.subtext,
+          height: _subtitleLineHeight,
+        ),
       );
       labelLines.add(subtitleText);
     }
@@ -59,7 +83,7 @@ class MedallionRow extends StatelessWidget {
     final trailing = this.trailing;
     final row = <Widget>[
       medallion,
-      const SizedBox(width: 9),
+      const SizedBox(width: _medallionLabelGap),
       Expanded(child: labels),
     ];
     if (trailing != null) row.add(trailing);

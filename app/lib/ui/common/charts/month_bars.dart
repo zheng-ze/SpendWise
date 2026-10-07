@@ -22,8 +22,36 @@ class MonthBars extends StatelessWidget {
     this.selectedIndex,
     this.onSelect,
     this.maxValue,
-    this.height = 92,
+    this.height = _defaultHeight,
   });
+
+  static const _defaultHeight = 92.0;
+
+  static const _minTop = 1.0;
+
+  static const _topRadius = 3.0;
+
+  static const _barWidth = 16.0;
+
+  static const _stubFraction = 0.09;
+
+  static const _outlineWidth = 1.0;
+
+  static const _dashLength = 4;
+
+  static const _dashGap = 3;
+
+  static const _transparent = Color(0x00000000);
+
+  static const _noStroke = BorderSide(width: 0, color: _transparent);
+
+  static const _barRadius = BorderRadius.vertical(
+    top: Radius.circular(_topRadius),
+  );
+
+  static const _dashPattern = [_dashLength, _dashGap];
+
+  static const _tooltipTransparent = Color(0x00000000);
 
   final List<MonthBarSlot> slots;
 
@@ -49,7 +77,7 @@ class MonthBars extends StatelessWidget {
     final touchData = BarTouchData(
       enabled: onSelect != null,
       touchTooltipData: BarTouchTooltipData(
-        getTooltipColor: (_) => const Color(0x00000000),
+        getTooltipColor: (_) => _tooltipTransparent,
         getTooltipItem: (_, _, _, _) => null,
       ),
       touchCallback: (event, response) {
@@ -73,7 +101,7 @@ class MonthBars extends StatelessWidget {
   }
 
   double get _dataTop {
-    var top = 1.0;
+    var top = _minTop;
     for (final slot in slots) {
       final contributes = switch (slot.status) {
         MonthBarStatus.value || MonthBarStatus.incomplete => true,
@@ -91,10 +119,10 @@ class MonthBars extends StatelessWidget {
     bool selected,
     double top,
   ) {
-    const radius = BorderRadius.vertical(top: Radius.circular(3));
-    const noStroke = BorderSide(width: 0, color: Color(0x00000000));
-    const barWidth = 16.0;
-    final stubHeight = top * 0.09;
+    const radius = _barRadius;
+    const noStroke = _noStroke;
+    const barWidth = _barWidth;
+    final stubHeight = top * _stubFraction;
     if (selected) {
       final selectedHeight = switch (slot.status) {
         MonthBarStatus.blank => 0.0,
@@ -121,15 +149,15 @@ class MonthBars extends StatelessWidget {
         width: barWidth,
         color: colors.incomplete,
         borderRadius: radius,
-        borderSide: BorderSide(color: colors.action, width: 1),
+        borderSide: BorderSide(color: colors.action, width: _outlineWidth),
       ),
       MonthBarStatus.gap => BarChartRodData(
         toY: stubHeight,
         width: barWidth,
-        color: const Color(0x00000000),
+        color: _transparent,
         borderRadius: radius,
-        borderSide: BorderSide(color: colors.gap, width: 1),
-        borderDashArray: const [4, 3],
+        borderSide: BorderSide(color: colors.gap, width: _outlineWidth),
+        borderDashArray: _dashPattern,
       ),
       MonthBarStatus.blank => BarChartRodData(toY: 0, width: barWidth),
     };

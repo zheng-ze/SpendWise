@@ -29,6 +29,16 @@ class NoticeCard extends StatelessWidget {
 
   final NoticeCardAction? secondaryAction;
 
+  static const _bodyFontSize = 12.0;
+
+  static const _bodyLineHeight = 1.45;
+
+  static const _cornerRadius = 10.0;
+
+  static const _horizontalPadding = 12.0;
+
+  static const _verticalPadding = 10.0;
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
@@ -46,15 +56,19 @@ class NoticeCard extends StatelessWidget {
         ? null
         : Text(
             body,
-            style: TextStyle(fontSize: 12, color: colors.notice, height: 1.45),
+            style: TextStyle(
+              fontSize: _bodyFontSize,
+              color: colors.notice,
+              height: _bodyLineHeight,
+            ),
           );
     final titleText = Text(
       title,
       style: TextStyle(
-        fontSize: 12,
+        fontSize: _bodyFontSize,
         fontWeight: FontWeight.w600,
         color: colors.notice,
-        height: 1.45,
+        height: _bodyLineHeight,
       ),
     );
     final content = <Widget>[titleText];
@@ -64,11 +78,14 @@ class NoticeCard extends StatelessWidget {
     final decoration = BoxDecoration(
       color: colors.noticeBg,
       border: Border.all(color: colors.notice),
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(_cornerRadius),
     );
     return Container(
       decoration: decoration,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(
+        horizontal: _horizontalPadding,
+        vertical: _verticalPadding,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -87,6 +104,12 @@ class _NoticeActions extends StatelessWidget {
   final NoticeCardAction? primaryAction;
 
   final NoticeCardAction? secondaryAction;
+
+  static const _actionSpacing = 14.0;
+
+  static const _actionOverflowSpacing = 8.0;
+
+  static const _actionsTopPadding = 6.0;
 
   @override
   Widget build(BuildContext context) {
@@ -109,10 +132,13 @@ class _NoticeActions extends StatelessWidget {
     }
     final bar = OverflowBar(
       alignment: MainAxisAlignment.start,
-      spacing: 14,
-      overflowSpacing: 8,
+      spacing: _actionSpacing,
+      overflowSpacing: _actionOverflowSpacing,
       children: buttons,
     );
-    return Padding(padding: const EdgeInsets.only(top: 6), child: bar);
+    return Padding(
+      padding: const EdgeInsets.only(top: _actionsTopPadding),
+      child: bar,
+    );
   }
 }

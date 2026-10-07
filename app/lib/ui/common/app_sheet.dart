@@ -5,6 +5,8 @@ import 'package:spendwise/ui/common/sheet_alert.dart';
 import 'package:spendwise/ui/shell/layout_breakpoints.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
+const _sheetMaxWidth = 440.0;
+
 Future<T?> showAppSheet<T>(
   BuildContext context, {
   required WidgetBuilder builder,
@@ -63,6 +65,8 @@ class AppSheet extends StatefulWidget {
 }
 
 class _AppSheetState extends State<AppSheet> {
+  static const _maxHeightFraction = 0.66;
+
   ValueNotifier<SheetAlertData?>? _alerts;
 
   ValueNotifier<VoidCallback?>? _alertAction;
@@ -110,7 +114,7 @@ class _AppSheetState extends State<AppSheet> {
     final media = MediaQuery.of(context);
     final desktop = media.size.width >= LayoutBreakpoints.railEnter;
     final cap =
-        0.66 *
+        _maxHeightFraction *
         (media.size.height - media.padding.top - media.viewInsets.bottom);
     final hasBottom = widget.footer != null || widget.inputSurface != null;
     final top = _SheetTop(header: widget.header);
@@ -123,7 +127,7 @@ class _AppSheetState extends State<AppSheet> {
       bottom: bottom,
     );
     final constraints = desktop
-        ? BoxConstraints(maxHeight: cap, maxWidth: 440)
+        ? BoxConstraints(maxHeight: cap, maxWidth: _sheetMaxWidth)
         : BoxConstraints(maxHeight: cap, minWidth: double.infinity);
     final chrome = _SheetChrome(
       desktop: desktop,
@@ -200,6 +204,18 @@ class _SheetChrome extends StatelessWidget {
     required this.child,
   });
 
+  static const _desktopRadius = 16.0;
+
+  static const _sheetTopRadius = 22.0;
+
+  static const _topBorderWidth = 2.0;
+
+  static const _horizontalPadding = 14.0;
+
+  static const _topPadding = 8.0;
+
+  static const _bottomPadding = 14.0;
+
   final bool desktop;
 
   final double bottomInset;
@@ -210,13 +226,20 @@ class _SheetChrome extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final radius = desktop
-        ? BorderRadius.circular(16)
-        : const BorderRadius.vertical(top: Radius.circular(22));
+        ? BorderRadius.circular(_desktopRadius)
+        : const BorderRadius.vertical(top: Radius.circular(_sheetTopRadius));
     final border = desktop
         ? Border.all(color: colors.control)
-        : Border(top: BorderSide(color: colors.control, width: 2));
+        : Border(
+            top: BorderSide(color: colors.control, width: _topBorderWidth),
+          );
     final decoration = BoxDecoration(border: border, borderRadius: radius);
-    final padding = EdgeInsets.fromLTRB(14, 8, 14, 14 + bottomInset);
+    final padding = EdgeInsets.fromLTRB(
+      _horizontalPadding,
+      _topPadding,
+      _horizontalPadding,
+      _bottomPadding + bottomInset,
+    );
 
     return Material(
       color: colors.raised,
@@ -371,15 +394,23 @@ class _RenderSheetLayout extends RenderBox
 class _SheetHandle extends StatelessWidget {
   const _SheetHandle();
 
+  static const _handleWidth = 34.0;
+
+  static const _handleHeight = 4.0;
+
+  static const _handleBottomMargin = 8.0;
+
+  static const _handleRadius = 3.0;
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 34,
-      height: 4,
-      margin: const EdgeInsets.only(bottom: 8),
+      width: _handleWidth,
+      height: _handleHeight,
+      margin: const EdgeInsets.only(bottom: _handleBottomMargin),
       decoration: BoxDecoration(
         color: context.colors.control,
-        borderRadius: BorderRadius.circular(3),
+        borderRadius: BorderRadius.circular(_handleRadius),
       ),
     );
   }
@@ -387,6 +418,14 @@ class _SheetHandle extends StatelessWidget {
 
 class AppSheetRoute<T> extends ModalRoute<T> {
   AppSheetRoute({required this.builder});
+
+  static const _transitionMillis = 220;
+
+  static const _transitionDuration = Duration(milliseconds: _transitionMillis);
+
+  static const _barrierColor = Color(0x52101212);
+
+  static const _slideBeginDy = 0.06;
 
   final WidgetBuilder builder;
 
@@ -397,7 +436,7 @@ class AppSheetRoute<T> extends ModalRoute<T> {
       ValueNotifier<VoidCallback?>(null);
 
   @override
-  Duration get transitionDuration => const Duration(milliseconds: 220);
+  Duration get transitionDuration => _transitionDuration;
 
   @override
   bool get opaque => false;
@@ -406,7 +445,7 @@ class AppSheetRoute<T> extends ModalRoute<T> {
   bool get barrierDismissible => true;
 
   @override
-  Color? get barrierColor => const Color(0x52101212);
+  Color? get barrierColor => _barrierColor;
 
   @override
   String? get barrierLabel => 'Dismiss';
@@ -435,7 +474,7 @@ class AppSheetRoute<T> extends ModalRoute<T> {
     Widget child,
   ) {
     final slide = Tween<Offset>(
-      begin: const Offset(0, 0.06),
+      begin: const Offset(0, _slideBeginDy),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut));
     return FadeTransition(
@@ -455,6 +494,10 @@ class AppSheetRoute<T> extends ModalRoute<T> {
 class _AppSheetPage extends StatelessWidget {
   const _AppSheetPage({required this.builder});
 
+  static const _desktopAlertTop = 16.0;
+
+  static const _compactAlertTop = 12.0;
+
   final WidgetBuilder builder;
 
   @override
@@ -470,7 +513,8 @@ class _AppSheetPage extends StatelessWidget {
         : Align(alignment: Alignment.bottomCenter, child: sheet);
     final slot = AppSheetAlertSlot.maybeOf(context);
     if (slot == null) return positionedSheet;
-    final alertTop = media.padding.top + (desktop ? 16 : 12);
+    final alertTop =
+        media.padding.top + (desktop ? _desktopAlertTop : _compactAlertTop);
     final overlay = _SheetAlertOverlay(slot: slot, alertTop: alertTop);
 
     return Stack(children: [positionedSheet, overlay]);
@@ -480,6 +524,8 @@ class _AppSheetPage extends StatelessWidget {
 class _SheetAlertOverlay extends StatelessWidget {
   const _SheetAlertOverlay({required this.slot, required this.alertTop});
 
+  static const _overlayHorizontalInset = 12.0;
+
   final AppSheetAlertSlot slot;
 
   final double alertTop;
@@ -487,14 +533,14 @@ class _SheetAlertOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final banner = ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 440),
+      constraints: const BoxConstraints(maxWidth: _sheetMaxWidth),
       child: _SheetAlertListener(slot: slot),
     );
 
     return Positioned(
       top: alertTop,
-      left: 12,
-      right: 12,
+      left: _overlayHorizontalInset,
+      right: _overlayHorizontalInset,
       child: Center(child: banner),
     );
   }
