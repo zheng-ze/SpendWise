@@ -21,18 +21,50 @@ OCT = [
     (1, "Grab home", "Transport", "Amex Card", -6.80, False),
     (1, "Lunch at Maxwell", "Dining", "Amex Card", -55.00, False),
 ]
-SEP = [
+SEP_SEED = [
     (25, "Monthly salary", "Salary", "DBS Checking", 3200.00, False),
     (18, "Weekly groceries", "Groceries", "Amex Card", -74.20, False),
     (12, "Grab to airport", "Transport", "Amex Card", -18.00, False),
     (5, "Birthday dinner", "Dining", "Amex Card", -96.50, False),
 ]
-DOW = {3: "Saturday", 2: "Friday", 1: "Thursday", 25: "Friday", 18: "Friday", 12: "Saturday", 5: "Saturday"}
+SEP_SAMPLE = [
+    (28, "Lunch near the office", "Dining", "Amex Card", -24.30, False),
+    (29, "Grocery top-up", "Groceries", "Amex Card", -31.80, False),
+    (30, "Grab to meeting", "Transport", "Amex Card", -18.40, False),
+]
+SEP = sorted(SEP_SEED + SEP_SAMPLE, key=lambda entry: -entry[0])
+DOW = {3: "Saturday", 2: "Friday", 1: "Thursday", 30: "Wednesday", 29: "Tuesday", 28: "Monday", 25: "Friday", 18: "Friday", 12: "Saturday", 5: "Saturday"}
 
 # Sample monthly spending history carried from Harbour glass dark revision 2 (rounds 6-8).
 MONTHS = [760, 890, 735, 760, 790, 835, 780, 805, 765, 795, 820, 940,
           815, 945, 800, 820, 835, 895, 845, 865, 830, 850, 880, 1000,
-          855, 995, 845, 875, 860, 940, 900, None, 188.70, 167.40]
+          855, 995, 845, 875, 860, 940, 900, None, 263.20, 167.40]
+SAMPLE_MONTHLY_SALARY = 3200.00
+SAMPLE_COMPLETE_MONTHS = [(2025, 10), (2025, 11)] + [(2026, month) for month in range(7)]
+COMPLETE_MONTHS = SAMPLE_COMPLETE_MONTHS + [(2026, 8)]
+BUDGET_LIMITS = {"Dining": 350, "Groceries": 450, "Transport": 120}
+PARENT_CATEGORY = {"Supermarket": "Groceries", "Fresh Market": "Groceries"}
+INSIGHT_USUAL_START = {"Groceries": 45.00, "Dining": 58.00}
+GROCERIES_INSIGHT_WINDOWS = (40.00, 50.00, 45.00)
+assert sum(GROCERIES_INSIGHT_WINDOWS) / 3 == INSIGHT_USUAL_START["Groceries"]
+WEEKDAY_SHARES = [10, 11, 12, 13, 16, 22, 16]
+assert sum(WEEKDAY_SHARES) == 100
+
+DBS_CHECKING = 10869.00
+OCBC_OWN_BALANCE = 1700.00
+OCBC_SAVINGS = 10350.00
+AMEX_LIMIT = 5000.00
+AMEX_DUE_DAY = "5 November"
+AMEX_CLOSE_DAY = 15
+SPENDABLE_ACCOUNTS = {"DBS Checking", "OCBC Savings"}
+
+NETFLIX_PREVIOUS_PRICE = 17.98
+GYM_MONTHLY_PLAN = ("1", "Nov", "Gym membership", "Every month / Needs attention", -98.00)
+NET_WORTH_SAMPLE_NOV_TO_JUL = [8240.00, 9150.00, 10380.00, 11020.00, 11960.00, 12610.00, 13240.00, 13780.00, 14300.00]
+HELD_IMPORT = ("NTUC FP 0210", 14.30, "2 Oct")
+SYNC_PAUSED_ACCOUNT = "OCBC Savings"
+SYNC_LAST_DAY = "1 Oct"
+
 MSHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 MLONG = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
 
@@ -74,6 +106,39 @@ def split48(total):
     d = round(cents * 0.48)
     g = round(cents * 0.36)
     return d / 100, g / 100, (cents - d - g) / 100
+
+
+def expense_entries(entries):
+    return [(day, name, category, account, -value) for day, name, category, account, value, moved in entries if value < 0 and not moved]
+
+
+def category_spend(entries):
+    totals = {name: 0.0 for name in BUDGET_LIMITS}
+    for _, _, category, _, value in expense_entries(entries):
+        totals[PARENT_CATEGORY.get(category, category)] += value
+    return {name: round(value, 2) for name, value in totals.items()}
+
+
+OCTOBER_CATEGORY_SPENT = category_spend(OCT)
+SEPTEMBER_CATEGORY_SPENT = category_spend(SEP)
+OCTOBER_SPENT = round(sum(OCTOBER_CATEGORY_SPENT.values()), 2)
+SEPTEMBER_SPENT = round(sum(SEPTEMBER_CATEGORY_SPENT.values()), 2)
+assert OCTOBER_SPENT == MONTHS[-1] == 167.40
+assert round(-sum(entry[4] for entry in SEP_SAMPLE), 2) == 74.50
+assert SEPTEMBER_SPENT == 263.20
+
+
+assert MONTHS[-2] == SEPTEMBER_SPENT
+
+
+def amex_expenses(entries):
+    return [entry for entry in expense_entries(entries) if entry[3] == "Amex Card"]
+
+
+AMEX_OWED = round(sum(entry[4] for entry in amex_expenses(SEP + OCT)), 2)
+AMEX_CYCLE = round(sum(entry[4] for entry in amex_expenses(OCT) + [e for e in amex_expenses(SEP) if e[0] >= AMEX_CLOSE_DAY]), 2)
+ASSETS = round(DBS_CHECKING + OCBC_SAVINGS, 2)
+NET_WORTH_NOW = round(ASSETS - AMEX_OWED, 2)
 
 
 # ---------- shared rows ----------
@@ -137,12 +202,16 @@ def w_recent(n=4):
 
 
 COMING = [
-    ("15", "Oct", "Amex statement closes", "This cycle so far: S$210.60", None),
+    ("15", "Oct", "Amex statement closes", f"This cycle so far: S${f2(AMEX_CYCLE)}", None),
     ("20", "Oct", "Netflix", "Plan / Amex Card", -19.98),
     ("25", "Oct", "Monthly salary", "Plan / DBS Checking", 3200.00),
     ("3", "Nov", "Rent", "Dated ahead / DBS Checking", -1200.00),
     ("8", "Nov", "Cold Storage", "Dated ahead / Amex Card", -33.40),
 ]
+SEED_PLANS = [(day, month, name, meta.replace("Plan / ", "Every month / "), value)
+              for day, month, name, meta, value in COMING if meta.startswith("Plan / ")]
+GYM_PLAN_ACCOUNT = "DBS Checking"
+PLAN_ACCOUNT = {"Netflix": "Amex Card", "Monthly salary": "DBS Checking", "Gym membership": GYM_PLAN_ACCOUNT}
 
 
 def coming_rows(rows=COMING):
@@ -170,8 +239,8 @@ def w_top():
 
 def w_card():
     return tray("Card statement", (
-        '<div class="split"><div><span class="lab">Payable</span><b>S$325.10</b></div><div><span class="lab">To statement cut</span><b>12 days</b></div></div>'
-        '<div class="lab" style="margin-top:8px">Amex Card / closes 15 October</div><div class="kv"><span>This cycle</span><b>S$210.60</b></div>'))
+        f'<div class="split"><div><span class="lab">Payable</span><b>S${f2(AMEX_OWED)}</b></div><div><span class="lab">To statement cut</span><b>12 days</b></div></div>'
+        f'<div class="lab" style="margin-top:8px">Amex Card / closes 15 October</div><div class="kv"><span>This cycle</span><b>S${f2(AMEX_CYCLE)}</b></div>'))
 
 
 def w_balances():
@@ -197,13 +266,13 @@ def w_pocket():
         '<div class="lab" style="margin-top:6px">Set a target to see your progress.</div><div class="link">Set target</div>'))
 
 
-def w_budgetwatch():
-    return tray("Budget watch", (
-        '<div class="lab">No budgets close to their limit.</div>'
-        '<div class="lab" style="margin:8px 0 2px">October recorded so far</div>'
-        '<div class="kv"><span>Dining</span><b>83.90 / 350</b></div>'
-        '<div class="kv"><span>Groceries</span><b>73.50 / 450</b></div>'
-        '<div class="kv"><span>Transport</span><b>10.00 / 120</b></div>'))
+def insight_gap(category):
+    return round(OCTOBER_CATEGORY_SPENT[category] - INSIGHT_USUAL_START[category], 2)
+
+
+def insight_card(subject, category):
+    return (f'<div class="ins"><div class="t"><b>{subject} S${f2(insight_gap(category))} higher than your usual start.</b><span class="x">{ic("close","s")}</span></div>'
+            '<small>1-3 Oct against the same days in July, August and September</small><div class="link" style="margin-top:4px">See comparison</div></div>')
 
 
 def w_insights(state="history"):
@@ -211,11 +280,7 @@ def w_insights(state="history"):
         body = ('<div class="lab" style="color:var(--text);font-weight:600">More daily history needed.</div>'
                 '<div class="lab" style="margin-top:3px">Keep adding entries to compare the same days in earlier months.</div>')
     else:
-        body = (
-            f'<div class="ins"><div class="t"><b>Groceries are S$28.50 higher than your usual start.</b><span class="x">{ic("close","s")}</span></div>'
-            '<small>1-3 Oct against the same days in July, August and September</small><div class="link" style="margin-top:4px">See comparison</div></div>'
-            f'<div class="ins"><div class="t"><b>Dining is S$25.90 higher than your usual start.</b><span class="x">{ic("close","s")}</span></div>'
-            '<small>1-3 Oct against the same days in July, August and September</small><div class="link" style="margin-top:4px">See comparison</div></div>')
+        body = insight_card("Groceries are", "Groceries") + insight_card("Dining is", "Dining")
     return tray("Insights", body)
 
 
@@ -223,9 +288,6 @@ def w_week():
     return tray("Week so far", (
         '<div class="lab" style="color:var(--text);font-weight:600">More daily history needed.</div>'
         '<div class="lab" style="margin-top:3px">Record more entries over the last three weeks to compare this week fairly.</div>'))
-
-
-ALL_WIDGETS = [w_today, w_month, w_recent, w_top, w_card, w_coming, w_balances, w_overtime, w_pocket, w_budgetwatch, w_insights, w_week]
 
 
 def overview_head(edit=True):

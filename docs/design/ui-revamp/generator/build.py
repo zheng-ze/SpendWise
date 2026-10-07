@@ -7,6 +7,7 @@ from styles import PAGE_CSS, APP_CSS
 from tokens import TOKENS
 from comp import *
 import data
+import tiles
 import s_overview, s_history_trends, s_add, s_money, s_settings, s_states
 
 BASE = Path(__file__).resolve().parent
@@ -23,6 +24,7 @@ s_settings.build_sync()
 s_states.build_fresh()
 s_states.build_states()
 FR = data.FRAMES
+tiles.assert_seed_figures(s_money.accounts_body())
 
 AREAS = [
     ("overview", "Overview", "Today, recent entries and what is coming up. Notices sit above the widgets; Edit Overview chooses the rest."),
@@ -98,7 +100,7 @@ def render_area(key, title, intro):
             out.append(f'<div class="frames">{phones}</div>')
         out.append(desks + "</div>")
         if key == "overview" and g == "Edit Overview":
-            out.append('<div class="group" id="widget-catalogue"><h3>Widget catalogue</h3><p>All twelve widgets in their usual and sparse states, drawn at phone width. Usual states use seed values and the labelled samples named under each.</p>'
+            out.append('<div class="group" id="widget-catalogue"><h3>Widget catalogue</h3><p>All sixteen widgets in their usual and sparse states, drawn at phone width. Usual states use seed values and the labelled samples named under each.</p>'
                        + s_overview.catalogue() + "</div>")
     out.append("</section>")
     return "".join(out)
@@ -242,17 +244,17 @@ def page():
     toc = "".join(f'<a href="#area-{k}">{t}</a>' for k, t, _ in AREAS)
     head = f"""<!doctype html><html lang="en" data-page="light" data-app="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SpendWise reference</title><meta name="description" content="Final reference draft of every SpendWise screen in Harbour glass, light and dark, phone and desktop.">
-<style>{PAGE_CSS}{APP_CSS}{EXTRA_CSS}</style></head><body>{sprite()}<main>"""
+<style>{PAGE_CSS}{APP_CSS}{EXTRA_CSS}{tiles.TILE_CSS}</style></head><body>{sprite()}<main>"""
     mast = f"""<header class="masthead"><div><h1>Every SpendWise screen.<span>Harbour glass, light and dark.</span></h1>
 <p>The implementation reference for the approved Daylight structure: Overview, History, Trends and Money, with Add in the tab bar and Settings behind the gear. Every frame below is drawn from one token table and follows the app theme switch.</p></div>
 <div class="controlbox"><div class="ctl"><b>App theme<small>Switches every drawn app frame. The side-by-side pairs stay fixed.</small></b><span class="toggle-group" role="group" aria-label="App theme"><button type="button" data-set-app="light" aria-pressed="true">Light</button><button type="button" data-set-app="dark" aria-pressed="false">Dark</button></span></div>
 <div class="ctl"><b>Page background<small>Changes only this page around the frames.</small></b><span class="toggle-group" role="group" aria-label="Page background"><button type="button" data-set-page="light" aria-pressed="true">Light</button><button type="button" data-set-page="dark" aria-pressed="false">Dark</button></span></div></div></header>
 <nav class="toc" aria-label="Sections"><a href="#inventory">Screen inventory</a><a href="#side-by-side">Light and dark side by side</a>{toc}<a href="#appendix">Design tokens</a><a href="#feedback">Flag a correction</a></nav>
 <div class="snapshot"><div><b>Seed snapshot</b>Saturday 3 October 2026, SGD, from app/lib/boot/seed_data.dart. October 1-3 spending: Dining 83.90, Groceries 73.50, Transport 10.00, total 167.40. Income +3,200.00, net +3,032.60. Balances run through today; the two November entries are dated ahead.</div>
-<div><b>Labelled samples</b>Monthly history January 2024 to July 2026 (August missing, September sparse seed), the 48 / 36 / 16 category split for sample months, matched-day windows for insights (1-3 July, August and September, a separate sample from the monthly history), the S$1,200 cap and the 450 / 350 / 120 budget limits. Captions name every sample.</div>
+<div><b>Labelled samples</b>Monthly history January 2024 to July 2026 (August missing; September is the four seed entries plus three sample entries on 28-30 September), the 48 / 36 / 16 category split for sample months, matched-day windows for insights (1-3 July, August and September, a separate sample from the monthly history), the S$1,200 cap, the 450 / 350 / 120 budget limits and the three sample September entries (S$74.50, Amex Card). Captions name every sample.</div>
 <div><b>How to read</b>Phone frames show the whole scroll where a caption says so. Desktop windows share one neutral macOS and Windows frame. Captions carry the arithmetic and the code location; nothing inside a drawn screen is an annotation.</div></div>"""
     inv_sec = f"""<section class="area" id="inventory"><header><h2>Screen inventory</h2><p>Every drawn screen, its section, its code location from the earlier atlas inventory and the earlier rows it covers. New Daylight screens have no current code route.</p></header>
-<div class="counts"><span><b>{len(FR)}</b>screens drawn ({phones} phone, {desks} desktop)</span><span><b>{len(FR) + nd}</b>listed, including {nd} not drawn</span><span><b>{earlier_cov}</b>of 177 earlier rows covered</span><span><b>12</b>widgets in the catalogue</span></div>
+<div class="counts"><span><b>{len(FR)}</b>screens drawn ({phones} phone, {desks} desktop)</span><span><b>{len(FR) + nd}</b>listed, including {nd} not drawn</span><span><b>{earlier_cov}</b>of 177 earlier rows covered</span><span><b>{len(tiles.ALL_WIDGETS)}</b>widgets in the catalogue</span></div>
 {inventory_table()}</section>"""
     sbs = f"""<section class="area" id="side-by-side"><header><h2>Light and dark side by side</h2><p>The main screens with both appearances fixed, for direct comparison. These frames do not follow the app theme switch.</p></header>{side_by_side()}</section>"""
     areas = "".join(render_area(*a) for a in AREAS)
