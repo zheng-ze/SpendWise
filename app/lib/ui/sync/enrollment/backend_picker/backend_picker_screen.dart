@@ -15,6 +15,11 @@ class BackendPickerScreen extends ConsumerStatefulWidget {
 }
 
 class _BackendPickerScreenState extends ConsumerState<BackendPickerScreen> {
+  static const _screenPadding = EdgeInsets.all(16);
+  static const _continueGap = 16.0;
+  static const _progressIndicatorSize = 20.0;
+  static const _progressStrokeWidth = 2.0;
+
   late final TextEditingController _endpointController =
       TextEditingController();
 
@@ -34,8 +39,8 @@ class _BackendPickerScreenState extends ConsumerState<BackendPickerScreen> {
     final isCustom = state.selectedBackend == SyncBackendKind.custom;
     final continueButton = state.saving
         ? const SizedBox.square(
-            dimension: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
+            dimension: _progressIndicatorSize,
+            child: CircularProgressIndicator(strokeWidth: _progressStrokeWidth),
           )
         : const Text('Continue');
     void selectBackend(SyncBackendKind? backend) {
@@ -57,7 +62,7 @@ class _BackendPickerScreenState extends ConsumerState<BackendPickerScreen> {
               ),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: _screenPadding,
         children: [
           RadioGroup<SyncBackendKind>(
             groupValue: state.selectedBackend,
@@ -87,7 +92,7 @@ class _BackendPickerScreenState extends ConsumerState<BackendPickerScreen> {
               enabled: !state.saving,
             ),
           if (saveError != null) _PickerSaveError(message: saveError),
-          const SizedBox(height: 16),
+          const SizedBox(height: _continueGap),
           FilledButton(
             onPressed: state.saving ? null : viewModel.continueWithSelection,
             child: continueButton,
@@ -135,10 +140,12 @@ class _CustomEndpointField extends StatelessWidget {
   final ValueChanged<String> onChanged;
   final bool enabled;
 
+  static const _fieldPadding = EdgeInsets.fromLTRB(16, 0, 16, 8);
+
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: _fieldPadding,
       child: TextField(
         controller: controller,
         enabled: enabled,
@@ -160,11 +167,13 @@ class _PickerSaveError extends StatelessWidget {
 
   final String message;
 
+  static const _errorPadding = EdgeInsets.fromLTRB(16, 8, 16, 0);
+
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      padding: _errorPadding,
       child: Text(message, style: TextStyle(color: colors.error)),
     );
   }

@@ -5,9 +5,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart';
 
 int _ceilCooldownSeconds(Duration remaining) {
-  final seconds = (remaining.inMilliseconds / 1000).ceil();
-  return seconds < 1 ? 1 : seconds;
+  final seconds = (remaining.inMilliseconds / _millisPerSecond).ceil();
+  return seconds < _minDisplaySeconds ? _minDisplaySeconds : seconds;
 }
+
+const _millisPerSecond = 1000;
+const _minDisplaySeconds = 1;
+const _cooldownTick = Duration(seconds: 1);
+const _progressIndicatorSize = 20.0;
+const _progressStrokeWidth = 2.0;
+const _screenPadding = EdgeInsets.all(16);
+const _sectionSpacing = 16.0;
+const _notePadding = EdgeInsets.only(top: 12);
 
 class SyncIdentifierScreen extends ConsumerStatefulWidget {
   const SyncIdentifierScreen({super.key});
@@ -42,7 +51,7 @@ class _SyncIdentifierScreenState extends ConsumerState<SyncIdentifierScreen> {
       _cooldownTimer = null;
       return;
     }
-    _cooldownTimer ??= Timer.periodic(const Duration(seconds: 1), (_) {
+    _cooldownTimer ??= Timer.periodic(_cooldownTick, (_) {
       if (!mounted) return;
       setState(() {});
     });
@@ -64,8 +73,8 @@ class _SyncIdentifierScreenState extends ConsumerState<SyncIdentifierScreen> {
         : 'Send a new code in ${_ceilCooldownSeconds(cooldown)}s';
     final action = state.inFlight
         ? const SizedBox.square(
-            dimension: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
+            dimension: _progressIndicatorSize,
+            child: CircularProgressIndicator(strokeWidth: _progressStrokeWidth),
           )
         : const Text('Continue');
 
@@ -80,13 +89,13 @@ class _SyncIdentifierScreenState extends ConsumerState<SyncIdentifierScreen> {
           ),
         ),
         body: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: _screenPadding,
           children: [
             const Text(
               'Enter the email address used for hosted sync. '
               'A one-time code will be sent to it.',
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: _sectionSpacing),
             TextField(
               key: const Key('syncIdentifierField'),
               controller: _identifierController,
@@ -102,7 +111,7 @@ class _SyncIdentifierScreenState extends ConsumerState<SyncIdentifierScreen> {
             ),
             if (state.explainCodeReplacement)
               const Padding(
-                padding: EdgeInsets.only(top: 12),
+                padding: _notePadding,
                 child: Text(
                   'Requesting a new code replaces the previous one. '
                   'Only the newest code will work.',
@@ -110,7 +119,7 @@ class _SyncIdentifierScreenState extends ConsumerState<SyncIdentifierScreen> {
               ),
             if (errorMessage != null)
               SyncEnrollmentErrorText(message: errorMessage),
-            const SizedBox(height: 16),
+            const SizedBox(height: _sectionSpacing),
             FilledButton(
               key: const Key('syncIdentifierContinue'),
               onPressed: state.inFlight || cooldown != null
@@ -120,10 +129,7 @@ class _SyncIdentifierScreenState extends ConsumerState<SyncIdentifierScreen> {
               child: action,
             ),
             if (countdown != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: Text(countdown),
-              ),
+              Padding(padding: _notePadding, child: Text(countdown)),
           ],
         ),
       ),
@@ -155,7 +161,7 @@ class _SyncOtpScreenState extends ConsumerState<SyncOtpScreen> {
       _cooldownTimer = null;
       return;
     }
-    _cooldownTimer ??= Timer.periodic(const Duration(seconds: 1), (_) {
+    _cooldownTimer ??= Timer.periodic(_cooldownTick, (_) {
       if (!mounted) return;
       setState(() {});
     });
@@ -174,8 +180,8 @@ class _SyncOtpScreenState extends ConsumerState<SyncOtpScreen> {
     _syncCooldownTimer(cooldown);
     final action = state.inFlight
         ? const SizedBox.square(
-            dimension: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
+            dimension: _progressIndicatorSize,
+            child: CircularProgressIndicator(strokeWidth: _progressStrokeWidth),
           )
         : const Text('Verify code');
 
@@ -194,10 +200,10 @@ class _SyncOtpScreenState extends ConsumerState<SyncOtpScreen> {
           ),
         ),
         body: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: _screenPadding,
           children: [
             Text('A six-digit code was sent to ${state.identifier}.'),
-            const SizedBox(height: 16),
+            const SizedBox(height: _sectionSpacing),
             TextField(
               key: const Key('syncOtpField'),
               controller: _otpController,
@@ -211,12 +217,12 @@ class _SyncOtpScreenState extends ConsumerState<SyncOtpScreen> {
             ),
             if (state.explainCodeReplacement)
               const Padding(
-                padding: EdgeInsets.only(top: 12),
+                padding: _notePadding,
                 child: Text('Requesting a new code replaces the previous one.'),
               ),
             if (errorMessage != null)
               SyncEnrollmentErrorText(message: errorMessage),
-            const SizedBox(height: 16),
+            const SizedBox(height: _sectionSpacing),
             FilledButton(
               key: const Key('syncOtpSubmit'),
               onPressed: () => viewModel.submitOtp(_otpController.text),
@@ -260,8 +266,8 @@ class SyncEnrollmentResumeScreen extends ConsumerWidget {
             : 'Finishing hosted sync enrollment.');
     final action = state.inFlight
         ? const SizedBox.square(
-            dimension: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
+            dimension: _progressIndicatorSize,
+            child: CircularProgressIndicator(strokeWidth: _progressStrokeWidth),
           )
         : const Text('Retry');
 
@@ -277,10 +283,10 @@ class SyncEnrollmentResumeScreen extends ConsumerWidget {
           ),
         ),
         body: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: _screenPadding,
           children: [
             Text(status),
-            const SizedBox(height: 16),
+            const SizedBox(height: _sectionSpacing),
             FilledButton(
               key: const Key('syncResumeRetry'),
               onPressed: state.inFlight ? null : viewModel.retry,
@@ -308,12 +314,12 @@ class SyncEnrollmentCompletionScreen extends ConsumerWidget {
       return Scaffold(
         appBar: AppBar(title: const Text('Sync enrolled')),
         body: Padding(
-          padding: EdgeInsets.all(16),
+          padding: _screenPadding,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text('Sync enrollment complete'),
-              const SizedBox(height: 16),
+              const SizedBox(height: _sectionSpacing),
               FilledButton(
                 key: const Key('syncFreshDone'),
                 onPressed: viewModel.dismissFlow,
@@ -327,11 +333,11 @@ class SyncEnrollmentCompletionScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Repair Device Access')),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: _screenPadding,
         children: [
           const Text('Device access restored'),
           const Text('Sync writes have resumed.'),
-          const SizedBox(height: 16),
+          const SizedBox(height: _sectionSpacing),
           FilledButton(
             key: const Key('syncRepairDone'),
             onPressed: viewModel.dismissRepairFlow,
@@ -348,11 +354,13 @@ class SyncEnrollmentErrorText extends StatelessWidget {
 
   final String message;
 
+  static const _errorPadding = EdgeInsets.fromLTRB(16, 8, 16, 0);
+
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      padding: _errorPadding,
       child: Text(message, style: TextStyle(color: colors.error)),
     );
   }

@@ -20,13 +20,15 @@ class DaySectionedEntryList extends StatelessWidget {
   final DateRange window;
   final Iterable<Entry> Function() matching;
 
+  static const _emptyVerticalPadding = 32.0;
+
   @override
   Widget build(BuildContext context) {
     final sections = daySections(matching(), state, interval: window);
 
     if (sections.isEmpty) {
       return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 32),
+        padding: EdgeInsets.symmetric(vertical: _emptyVerticalPadding),
         child: Center(child: Text('No entries in this period')),
       );
     }

@@ -18,6 +18,8 @@ class SwipeToDeleteRow extends StatelessWidget {
   final VoidCallback onDeleted;
   final Widget child;
 
+  static const _deleteBackgroundPadding = 20.0;
+
   Future<bool> _confirmAndDelete(BuildContext context) async {
     final confirmed = await showDeleteConfirmation(context, itemName: itemName);
     if (confirmed) onDeleted();
@@ -37,7 +39,9 @@ class SwipeToDeleteRow extends StatelessWidget {
         background: Container(
           color: Theme.of(context).colorScheme.error,
           alignment: Alignment.centerRight,
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.symmetric(
+            horizontal: _deleteBackgroundPadding,
+          ),
           child: Icon(Icons.delete_outline, color: context.colors.onAction),
         ),
         confirmDismiss: (_) => _confirmAndDelete(context),

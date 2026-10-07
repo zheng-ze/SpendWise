@@ -20,6 +20,8 @@ class AnalysisCache extends ChangeNotifier {
   AnalysisCache({ComputeRunner? runner})
     : _runner = runner ?? isolateComputeRunner;
 
+  static const _uncomputedRevision = -1;
+
   final ComputeRunner _runner;
 
   StreamSubscription<LedgerPublication>? _subscription;
@@ -32,7 +34,7 @@ class AnalysisCache extends ChangeNotifier {
 
   int _itemsRevision = 0;
 
-  int _lastComputed = -1;
+  int _lastComputed = _uncomputedRevision;
 
   List<AnalysisItem> get items => _items;
 
@@ -65,7 +67,7 @@ class AnalysisCache extends ChangeNotifier {
       _itemsRevision += 1;
       notifyListeners();
     } catch (error, stackTrace) {
-      if (target == _lastComputed) _lastComputed = -1;
+      if (target == _lastComputed) _lastComputed = _uncomputedRevision;
       debugPrint('AnalysisCache refresh failed: $error\n$stackTrace');
     }
   }

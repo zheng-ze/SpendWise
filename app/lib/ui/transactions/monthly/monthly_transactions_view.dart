@@ -76,6 +76,9 @@ class _MonthRow extends StatelessWidget {
   final bool expanded;
   final VoidCallback onTap;
 
+  static const _monthHorizontalPadding = 16.0;
+  static const _monthVerticalPadding = 12.0;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -88,7 +91,10 @@ class _MonthRow extends StatelessWidget {
 
     return _TransactionSummaryRow(
       background: summary.isCurrentMonth ? context.colors.tint : null,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(
+        horizontal: _monthHorizontalPadding,
+        vertical: _monthVerticalPadding,
+      ),
       onTap: onTap,
       leading: Icon(expanded ? Icons.expand_more : Icons.chevron_right),
       label: formatMonthLabel(summary.month),
@@ -105,6 +111,11 @@ class _WeekRow extends StatelessWidget {
   final WeekSummary summary;
   final VoidCallback onTap;
 
+  static const _weekHorizontalPadding = 16.0;
+  static const _weekVerticalPadding = 10.0;
+  static const _currentWeekBorderWidth = 3.0;
+  static const _inactiveBorderColor = Color(0x00000000);
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -114,13 +125,16 @@ class _WeekRow extends StatelessWidget {
       background: theme.colorScheme.surfaceContainerHighest,
       border: Border(
         left: BorderSide(
-          width: 3,
+          width: _currentWeekBorderWidth,
           color: summary.isCurrentWeek
               ? theme.colorScheme.primary
-              : const Color(0x00000000),
+              : _inactiveBorderColor,
         ),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(
+        horizontal: _weekHorizontalPadding,
+        vertical: _weekVerticalPadding,
+      ),
       onTap: onTap,
       label: formatWeekRange(summary.range),
       net: net,
@@ -152,6 +166,8 @@ class _TransactionSummaryRow extends StatelessWidget {
   final EdgeInsetsGeometry padding;
   final VoidCallback onTap;
 
+  static const _leadingGap = 8.0;
+
   @override
   Widget build(BuildContext context) {
     final labelText = Expanded(child: Text(label, style: labelStyle));
@@ -163,7 +179,7 @@ class _TransactionSummaryRow extends StatelessWidget {
     );
     final rowContent = Row(
       children: [
-        if (leading != null) ...[leading!, const SizedBox(width: 8)],
+        if (leading != null) ...[leading!, const SizedBox(width: _leadingGap)],
         labelText,
         netText,
       ],

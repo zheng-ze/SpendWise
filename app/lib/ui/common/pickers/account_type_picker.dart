@@ -13,6 +13,8 @@ class AccountTypePicker extends StatelessWidget {
   final AccountType selected;
   final ValueChanged<AccountType> onSelected;
 
+  static const _sheetHeightFactor = 0.7;
+
   @override
   Widget build(BuildContext context) {
     return ListTile(
@@ -28,7 +30,7 @@ class AccountTypePicker extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       builder: (_) => FractionallySizedBox(
-        heightFactor: 0.7,
+        heightFactor: _sheetHeightFactor,
         child: SafeArea(
           child: ListView(
             children: [

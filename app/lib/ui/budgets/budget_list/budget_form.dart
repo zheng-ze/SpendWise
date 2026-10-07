@@ -19,6 +19,10 @@ Future<void> showBudgetFormSheet({required BuildContext context}) {
 
 const budgetFormOverallSentinel = '__overall__';
 
+const _rootCategoryIconSize = 24.0;
+const _childCategoryIconSize = 20.0;
+const _childRowIndent = 32.0;
+
 Future<String?> showBudgetCategoryPickerSheet({
   required BuildContext context,
   required BudgetFormViewState formState,
@@ -36,7 +40,7 @@ Future<String?> showBudgetCategoryPickerSheet({
         leading: CategoryIcon(
           symbolName: root.symbol,
           color: parseColorHex(root.colorHex),
-          size: 24,
+          size: _rootCategoryIconSize,
         ),
         title: Text(
           root.name,
@@ -47,12 +51,12 @@ Future<String?> showBudgetCategoryPickerSheet({
       ),
       for (final child in children)
         Padding(
-          padding: const EdgeInsets.only(left: 32),
+          padding: const EdgeInsets.only(left: _childRowIndent),
           child: ListTile(
             leading: CategoryIcon(
               symbolName: child.symbol,
               color: parseColorHex(child.colorHex),
-              size: 20,
+              size: _childCategoryIconSize,
             ),
             title: Text(
               child.name,
@@ -118,6 +122,8 @@ class _BudgetFormBody extends StatelessWidget {
   final BudgetFormViewModel viewModel;
   final TextEditingController amountController;
 
+  static const _fieldGap = 16.0;
+
   @override
   Widget build(BuildContext context) {
     if (amountController.text != formState.amountText) {
@@ -145,7 +151,11 @@ class _BudgetFormBody extends StatelessWidget {
       error: ErrorSection(subject: 'budget', error: formState.error),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [categoryTile, const SizedBox(height: 16), amountField],
+        children: [
+          categoryTile,
+          const SizedBox(height: _fieldGap),
+          amountField,
+        ],
       ),
     );
   }

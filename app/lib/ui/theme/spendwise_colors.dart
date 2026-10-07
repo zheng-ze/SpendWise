@@ -249,12 +249,14 @@ class SpendWiseColors extends ThemeExtension<SpendWiseColors> {
 const Color _lightForeground = Color(0xFFFFFFFF);
 const Color _darkForeground = Color(0xFF101112);
 
+const _contrastOffset = 0.05;
+
 Color foregroundOn(Color fill) {
   final fillLuminance = fill.computeLuminance();
   double contrastWith(Color foreground) {
     final foregroundLuminance = foreground.computeLuminance();
-    return (math.max(fillLuminance, foregroundLuminance) + 0.05) /
-        (math.min(fillLuminance, foregroundLuminance) + 0.05);
+    return (math.max(fillLuminance, foregroundLuminance) + _contrastOffset) /
+        (math.min(fillLuminance, foregroundLuminance) + _contrastOffset);
   }
 
   return contrastWith(_lightForeground) >= contrastWith(_darkForeground)

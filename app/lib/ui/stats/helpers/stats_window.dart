@@ -4,9 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
+const _monthWindowSpanMonths = 1;
+const _firstDayOfMonth = 1;
+
 DateRange monthWindow(DateTime month) {
   final start = DateTime.utc(month.year, month.month);
-  final end = shiftMonthThenClampDayUtc(start, 1, day: 1);
+  final end = shiftMonthThenClampDayUtc(
+    start,
+    _monthWindowSpanMonths,
+    day: _firstDayOfMonth,
+  );
   return DateRange(start, end);
 }
 

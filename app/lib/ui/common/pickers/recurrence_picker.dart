@@ -35,9 +35,11 @@ class _RecurrencePickerSheet extends StatelessWidget {
 
   final RecurrenceFrequency? selected;
 
+  static const _titlePadding = EdgeInsets.fromLTRB(16, 16, 16, 8);
+
   Widget _title(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      padding: _titlePadding,
       child: Align(
         alignment: Alignment.centerLeft,
         child: Text('Repeat', style: Theme.of(context).textTheme.titleMedium),

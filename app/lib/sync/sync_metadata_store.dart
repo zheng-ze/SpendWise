@@ -162,7 +162,8 @@ final class SyncMetadataStore implements BackendSelectionWriter {
       endpoint: meta.endpoint,
       phase: SyncEnrollmentPhase.fromCode(meta.enrollmentPhase),
       writeEnabled: meta.writeEnabled,
-      deviceBindingRequired: meta.deviceBindingState != 0,
+      deviceBindingRequired:
+          meta.deviceBindingState != SyncDeviceBindingState.notApplicable.code,
       deviceBindingState: SyncDeviceBindingState.fromCode(
         meta.deviceBindingState,
       ),

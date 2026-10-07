@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:spendwise/ui/theme/spendwise_colors.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
+const _focusedBorderWidth = 2.0;
+
+const _sheetCornerRadius = 22.0;
+
 ThemeData buildSpendWiseTheme(Brightness brightness) {
   final tokens = brightness == Brightness.dark
       ? SpendWiseColors.dark
@@ -62,13 +66,13 @@ ThemeData buildSpendWiseTheme(Brightness brightness) {
         borderSide: BorderSide(color: tokens.edge),
       ),
       focusedBorder: UnderlineInputBorder(
-        borderSide: BorderSide(color: tokens.focus, width: 2),
+        borderSide: BorderSide(color: tokens.focus, width: _focusedBorderWidth),
       ),
       errorBorder: UnderlineInputBorder(
         borderSide: BorderSide(color: tokens.error),
       ),
       focusedErrorBorder: UnderlineInputBorder(
-        borderSide: BorderSide(color: tokens.error, width: 2),
+        borderSide: BorderSide(color: tokens.error, width: _focusedBorderWidth),
       ),
     ),
     navigationBarTheme: NavigationBarThemeData(
@@ -79,7 +83,9 @@ ThemeData buildSpendWiseTheme(Brightness brightness) {
       backgroundColor: tokens.raised,
       showDragHandle: false,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(_sheetCornerRadius),
+        ),
       ),
     ),
   );

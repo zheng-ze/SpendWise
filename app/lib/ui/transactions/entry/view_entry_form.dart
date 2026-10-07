@@ -21,6 +21,13 @@ class ViewEntryForm extends ConsumerWidget {
   final EntryFormViewModel viewModel;
   final EntryFormViewState state;
 
+  static const _chipHorizontalPadding = 10.0;
+  static const _chipVerticalPadding = 4.0;
+  static const _chipBorderRadius = 999.0;
+  static const _headerNameGap = 8.0;
+  static const _nameAmountGap = 4.0;
+  static const _contentGap = 16.0;
+
   AmountKind get _amountKind => switch (state.kind) {
     EntryFormKind.expense => AmountKind.expense,
     EntryFormKind.income => AmountKind.income,
@@ -70,25 +77,28 @@ class ViewEntryForm extends ConsumerWidget {
     return SheetShell(
       children: [
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          padding: const EdgeInsets.symmetric(
+            horizontal: _chipHorizontalPadding,
+            vertical: _chipVerticalPadding,
+          ),
           decoration: BoxDecoration(
             color: theme.colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(999),
+            borderRadius: BorderRadius.circular(_chipBorderRadius),
           ),
           child: Text(_kindLabel(kind), style: theme.textTheme.labelSmall),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: _headerNameGap),
         Text(state.nameText, style: theme.textTheme.titleMedium),
-        const SizedBox(height: 4),
+        const SizedBox(height: _nameAmountGap),
         Text(
           formatSignedMoney(signedAmount, kind: _amountKind),
           style: amountStyle,
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: _contentGap),
         Flexible(
           child: SingleChildScrollView(child: Column(children: detailRows)),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: _contentGap),
         SizedBox(
           width: double.infinity,
           child: TextButton(
@@ -117,10 +127,12 @@ class _DetailRow extends StatelessWidget {
   final String label;
   final String value;
 
+  static const _rowVerticalPadding = 8.0;
+
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: _rowVerticalPadding),
       child: Row(
         children: [
           Text(label),

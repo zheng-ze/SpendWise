@@ -6,8 +6,17 @@ import 'package:spendwise/sync/hosted_sync_status.dart';
 import 'package:spendwise/ui/settings/settings_root_view_model.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
+const _bannerElevation = 3.0;
+
 class StatusBanner extends ConsumerWidget {
   const StatusBanner({super.key});
+
+  static const _messageBackgroundOpacity = 0.92;
+
+  static const _messagePadding = EdgeInsets.symmetric(
+    horizontal: 16,
+    vertical: 8,
+  );
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -28,11 +37,13 @@ class StatusBanner extends ConsumerWidget {
       horizontalInset: 0,
       child: Center(
         child: Material(
-          color: theme.colorScheme.inverseSurface.withValues(alpha: 0.92),
+          color: theme.colorScheme.inverseSurface.withValues(
+            alpha: _messageBackgroundOpacity,
+          ),
           shape: const StadiumBorder(),
-          elevation: 3,
+          elevation: _bannerElevation,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: _messagePadding,
             child: Text(
               message,
               style: theme.textTheme.labelSmall?.copyWith(
@@ -53,6 +64,8 @@ class _BottomAnchored extends StatelessWidget {
   final double horizontalInset;
   final Widget child;
 
+  static const _safeAreaBottomMargin = EdgeInsets.only(bottom: 16);
+
   @override
   Widget build(BuildContext context) {
     return Positioned(
@@ -63,7 +76,7 @@ class _BottomAnchored extends StatelessWidget {
         top: false,
         left: false,
         right: false,
-        minimum: const EdgeInsets.only(bottom: 16),
+        minimum: _safeAreaBottomMargin,
         child: child,
       ),
     );
@@ -74,6 +87,17 @@ class _BottomAnchored extends StatelessWidget {
 // clears.
 class _RepairBanner extends ConsumerWidget {
   const _RepairBanner();
+
+  static const _cornerRadius = 16.0;
+
+  static const _contentPadding = EdgeInsets.symmetric(
+    horizontal: 16,
+    vertical: 12,
+  );
+
+  static const _iconTextGap = 12.0;
+
+  static const _horizontalInset = 16.0;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -90,17 +114,17 @@ class _RepairBanner extends ConsumerWidget {
 
     final banner = Material(
       color: theme.colorScheme.errorContainer,
-      borderRadius: BorderRadius.circular(16),
-      elevation: 3,
+      borderRadius: BorderRadius.circular(_cornerRadius),
+      elevation: _bannerElevation,
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(_cornerRadius),
         onTap: openRepair,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: _contentPadding,
           child: Row(
             children: [
               Icon(Icons.warning_outlined, color: foreground),
-              const SizedBox(width: 12),
+              const SizedBox(width: _iconTextGap),
               Expanded(
                 child: Text(
                   'Sync needs attention - Repair Device Access',
@@ -117,7 +141,7 @@ class _RepairBanner extends ConsumerWidget {
     );
 
     return _BottomAnchored(
-      horizontalInset: 16,
+      horizontalInset: _horizontalInset,
       child: MergeSemantics(child: Semantics(button: true, child: banner)),
     );
   }

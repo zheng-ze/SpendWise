@@ -17,6 +17,8 @@ final class StagedConflictValidationError implements Exception {
 /// cannot be resolved without user review.
 @immutable
 final class StagedConflict {
+  static const int _minSiblingCount = 2;
+
   StagedConflict._(
     this.collection,
     this.rowID,
@@ -30,7 +32,7 @@ final class StagedConflict {
   ) {
     final normalizedRowID = normalizedID(rowID);
     final owned = List<DecodedSibling>.unmodifiable(siblings);
-    if (owned.length < 2) {
+    if (owned.length < _minSiblingCount) {
       throw StagedConflictValidationError(
         'A conflict group needs at least two siblings; received '
         '${owned.length}.',

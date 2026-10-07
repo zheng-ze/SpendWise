@@ -115,7 +115,8 @@ final class SupabaseSyncBackend implements SyncBackend {
         headers: headers,
         body: jsonEncode(outgoingBody),
       );
-      if (response.statusCode >= 200 && response.statusCode < 300) {
+      if (response.statusCode >= _httpSuccessMin &&
+          response.statusCode < _httpSuccessExclusiveMax) {
         try {
           final body = _decodeJsonObject(response.body);
           return SyncSuccess<T>(decode(body));

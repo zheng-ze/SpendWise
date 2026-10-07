@@ -123,6 +123,8 @@ class _AccountFormBody extends StatelessWidget {
   final TextEditingController nameController;
   final TextEditingController balanceController;
 
+  static const _fieldGap = 16.0;
+
   @override
   Widget build(BuildContext context) {
     if (nameController.text != formState.name) {
@@ -161,26 +163,26 @@ class _AccountFormBody extends StatelessWidget {
                   : (selection) => viewModel.setKind(selection.first),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: _fieldGap),
           TextField(
             controller: nameController,
             decoration: const InputDecoration(hintText: 'Name'),
             onChanged: viewModel.setName,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: _fieldGap),
           if (formState.effectiveKind == AccountFormKind.account) ...[
             AccountTypePicker(
               selected: formState.type,
               onSelected: viewModel.setType,
             ),
             if (formState.type == AccountType.card) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: _fieldGap),
               StatementDayPicker(
                 selected: formState.statementDay,
                 onSelected: viewModel.setStatementDay,
               ),
             ],
-            const SizedBox(height: 16),
+            const SizedBox(height: _fieldGap),
             AmountField(
               controller: balanceController,
               allowsNegative: true,

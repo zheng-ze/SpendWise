@@ -80,7 +80,8 @@ final class CustomEndpointSyncBackend implements SyncBackend {
       } on FormatException catch (error) {
         return BackendUnavailable<T>(message: error.message);
       }
-      if (response.statusCode >= 200 && response.statusCode < 300) {
+      if (response.statusCode >= _httpSuccessMin &&
+          response.statusCode < _httpSuccessExclusiveMax) {
         return SyncSuccess<T>(decode(body));
       }
       return _failureFromHttp<T>(

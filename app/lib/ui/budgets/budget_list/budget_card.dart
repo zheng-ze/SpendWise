@@ -28,6 +28,12 @@ class BudgetCard extends StatelessWidget {
   final bool isSubcategory;
   final VoidCallback? onTap;
 
+  static const _subcategoryIndent = 32.0;
+  static const _horizontalPadding = 16.0;
+  static const _verticalPadding = 12.0;
+  static const _headerGap = 6.0;
+  static const _footerGap = 4.0;
+
   (String, Color) _categoryDisplay(LedgerState state) {
     final categoryID = budget.categoryID;
     if (categoryID == null) return ('Overall', colorHexFallback);
@@ -69,14 +75,19 @@ class BudgetCard extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: EdgeInsets.fromLTRB(isSubcategory ? 32 : 16, 12, 16, 12),
+        padding: EdgeInsets.fromLTRB(
+          isSubcategory ? _subcategoryIndent : _horizontalPadding,
+          _verticalPadding,
+          _horizontalPadding,
+          _verticalPadding,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             header,
-            const SizedBox(height: 6),
+            const SizedBox(height: _headerGap),
             bar,
-            const SizedBox(height: 4),
+            const SizedBox(height: _footerGap),
             footer,
           ],
         ),
@@ -191,6 +202,8 @@ class _BudgetCardBarLabel extends StatelessWidget {
   final double percentOfLimit;
   final Color color;
 
+  static const _labelRightPadding = 8.0;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -198,7 +211,7 @@ class _BudgetCardBarLabel extends StatelessWidget {
     return Align(
       alignment: Alignment.centerRight,
       child: Padding(
-        padding: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.only(right: _labelRightPadding),
         child: Text(
           formatPercent(percentOfLimit),
           style: theme.textTheme.labelMedium?.copyWith(
@@ -222,6 +235,9 @@ class _BudgetCardFooter extends StatelessWidget {
   final Decimal remaining;
   final bool overLimit;
 
+  static const _warningIconSize = 14.0;
+  static const _warningIconGap = 4.0;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -232,8 +248,12 @@ class _BudgetCardFooter extends StatelessWidget {
       children: [
         if (overLimit)
           Padding(
-            padding: const EdgeInsets.only(right: 4),
-            child: Icon(Icons.warning_amber_rounded, size: 14, color: expense),
+            padding: const EdgeInsets.only(right: _warningIconGap),
+            child: Icon(
+              Icons.warning_amber_rounded,
+              size: _warningIconSize,
+              color: expense,
+            ),
           ),
         Text(
           formatMoney(spend, symbol: false),
@@ -260,22 +280,26 @@ class _BudgetCardFooter extends StatelessWidget {
 class BudgetsEmptyState extends StatelessWidget {
   const BudgetsEmptyState({super.key});
 
+  static const _verticalPadding = 48.0;
+  static const _iconSize = 48.0;
+  static const _contentGap = 12.0;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 48),
+        padding: const EdgeInsets.symmetric(vertical: _verticalPadding),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               Icons.savings_outlined,
-              size: 48,
+              size: _iconSize,
               color: theme.colorScheme.onSurfaceVariant,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: _contentGap),
             Text(
               'No budgets yet. Tap + to create one.',
               style: theme.textTheme.bodyMedium?.copyWith(

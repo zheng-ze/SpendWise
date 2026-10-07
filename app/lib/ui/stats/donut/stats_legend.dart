@@ -18,12 +18,15 @@ class StatsLegend extends StatelessWidget {
   final List<Slice> slices;
   final void Function(String mainID) onTapCategory;
 
+  static const _dividerHeight = 1.0;
+
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
         for (var index = 0; index < slices.length; index++) ...[
-          if (index > 0) const Divider(height: 1, indent: _dividerIndent),
+          if (index > 0)
+            const Divider(height: _dividerHeight, indent: _dividerIndent),
           _LegendRow(
             slice: slices[index],
             onTap: slices[index].isNavigable
@@ -42,6 +45,11 @@ class _LegendRow extends StatelessWidget {
   final Slice slice;
   final VoidCallback? onTap;
 
+  static const _rowPadding = EdgeInsets.symmetric(horizontal: 16, vertical: 8);
+  static const _iconGap = 12.0;
+  static const _chevronBoxWidth = 24.0;
+  static const _chevronSize = 20.0;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -51,7 +59,7 @@ class _LegendRow extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: _rowPadding,
         child: Row(
           children: [
             CategoryIcon(
@@ -59,7 +67,7 @@ class _LegendRow extends StatelessWidget {
               color: slice.color,
               size: _iconSize,
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: _iconGap),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -83,10 +91,10 @@ class _LegendRow extends StatelessWidget {
               ),
             ),
             SizedBox(
-              width: 24,
+              width: _chevronBoxWidth,
               child: onTap == null
                   ? null
-                  : const Icon(Icons.chevron_right, size: 20),
+                  : const Icon(Icons.chevron_right, size: _chevronSize),
             ),
           ],
         ),

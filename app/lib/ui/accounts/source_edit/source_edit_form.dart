@@ -106,6 +106,8 @@ class _SourceEditFormBody extends StatelessWidget {
   final TextEditingController nameController;
   final TextEditingController balanceController;
 
+  static const _fieldGap = 16.0;
+
   @override
   Widget build(BuildContext context) {
     if (nameController.text != formState.name) {
@@ -129,20 +131,20 @@ class _SourceEditFormBody extends StatelessWidget {
             onChanged: viewModel.setName,
           ),
           if (formState.isAccount) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: _fieldGap),
             AccountTypePicker(
               selected: formState.type,
               onSelected: viewModel.setType,
             ),
             if (formState.type == AccountType.card) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: _fieldGap),
               StatementDayPicker(
                 selected: formState.statementDay,
                 onSelected: viewModel.setStatementDay,
               ),
             ],
           ],
-          const SizedBox(height: 16),
+          const SizedBox(height: _fieldGap),
           AmountField(
             controller: balanceController,
             allowsNegative: true,
@@ -150,7 +152,7 @@ class _SourceEditFormBody extends StatelessWidget {
             onChanged: viewModel.setBalance,
           ),
           if (formState.showsTransferToggle) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: _fieldGap),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('Transfers in count as expenses'),

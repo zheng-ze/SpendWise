@@ -4,17 +4,32 @@ const Color colorHexFallback = Color(0xFF8E8E93);
 
 final RegExp _sixDigitHex = RegExp(r'^#?([0-9a-fA-F]{6})$');
 
+const _opaqueAlphaBits = 0xFF000000;
+
+const _hexRadix = 16;
+
+const _hexChannelBits = 8;
+
+const _redChannelShift = 16;
+
+const _hexDigitCount = 6;
+
+const _channelMax = 255;
+
 Color parseColorHex(String hex) {
   final match = _sixDigitHex.firstMatch(hex.trim());
   if (match == null) return colorHexFallback;
 
-  return Color(0xFF000000 | int.parse(match.group(1)!, radix: 16));
+  return Color(_opaqueAlphaBits | int.parse(match.group(1)!, radix: _hexRadix));
 }
 
 String toColorHex(Color color) {
-  int channel(double value) => (value * 255).round().clamp(0, 255);
+  int channel(double value) =>
+      (value * _channelMax).round().clamp(0, _channelMax);
 
   final rgb =
-      (channel(color.r) << 16) | (channel(color.g) << 8) | channel(color.b);
-  return '#${rgb.toRadixString(16).toUpperCase().padLeft(6, '0')}';
+      (channel(color.r) << _redChannelShift) |
+      (channel(color.g) << _hexChannelBits) |
+      channel(color.b);
+  return '#${rgb.toRadixString(_hexRadix).toUpperCase().padLeft(_hexDigitCount, '0')}';
 }

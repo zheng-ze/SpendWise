@@ -52,8 +52,9 @@ final class CredentialCodec {
   }
 
   Uint8List _decodeBase64Url(String value) {
-    final remainder = value.length % 4;
-    final padded = remainder == 0 ? value : value + '=' * (4 - remainder);
+    final remainder = value.length % _base64GroupLength;
+    final padded =
+        remainder == 0 ? value : value + '=' * (_base64GroupLength - remainder);
     return Uint8List.fromList(base64Url.decode(padded));
   }
 }

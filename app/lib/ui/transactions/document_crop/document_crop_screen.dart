@@ -176,6 +176,8 @@ class _CropOverlayPainter extends CustomPainter {
   final double scale;
   final Color color;
 
+  static const _outlineStrokeWidth = 2.0;
+
   @override
   void paint(Canvas canvas, Size size) {
     final path = Path()
@@ -185,7 +187,7 @@ class _CropOverlayPainter extends CustomPainter {
       Paint()
         ..color = color
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2,
+        ..strokeWidth = _outlineStrokeWidth,
     );
   }
 
@@ -206,6 +208,8 @@ class _CornerHandle extends StatelessWidget {
   final double scale;
 
   static const _handleSize = 28.0;
+  static const _handleFillOpacity = 0.8;
+  static const _handleBorderWidth = 2.0;
 
   @override
   Widget build(BuildContext context) {
@@ -219,8 +223,11 @@ class _CornerHandle extends StatelessWidget {
           height: _handleSize,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: context.colors.action.withValues(alpha: 0.8),
-            border: Border.all(color: context.colors.onAction, width: 2),
+            color: context.colors.action.withValues(alpha: _handleFillOpacity),
+            border: Border.all(
+              color: context.colors.onAction,
+              width: _handleBorderWidth,
+            ),
           ),
         ),
       ),

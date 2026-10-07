@@ -54,10 +54,15 @@ final class SyncEnrollmentConfigurationError extends SyncEnrollmentComposition {
   final Object? cause;
 }
 
+const _byteValueCount = 256;
+
 Future<Uint8List> resolveProductionSyncE2EKey() async {
   final random = Random.secure();
   return Uint8List.fromList(
-    List<int>.generate(SyncCipher.keyByteCount, (_) => random.nextInt(256)),
+    List<int>.generate(
+      SyncCipher.keyByteCount,
+      (_) => random.nextInt(_byteValueCount),
+    ),
   );
 }
 

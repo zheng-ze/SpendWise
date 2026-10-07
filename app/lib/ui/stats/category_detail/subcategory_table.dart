@@ -46,6 +46,8 @@ class SubcategoryTable extends StatelessWidget {
   final CategoryScope scope;
   final void Function(CategoryScope scope) onSelectScope;
 
+  static const _fractionScale = 4;
+
   @override
   Widget build(BuildContext context) {
     final rows = [
@@ -93,7 +95,7 @@ class SubcategoryTable extends StatelessWidget {
             fraction: mainTotal == Decimal.zero
                 ? Decimal.zero
                 : (row.amount / mainTotal).toDecimal(
-                    scaleOnInfinitePrecision: 4,
+                    scaleOnInfinitePrecision: _fractionScale,
                   ),
             selected: row.scope == scope,
             onTap: () => onSelectScope(row.scope),
@@ -122,17 +124,20 @@ class _SubcategoryRow extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
+  static const _transparentBackground = Color(0x00000000);
+  static const _rowPadding = EdgeInsets.symmetric(horizontal: 16, vertical: 8);
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final background = selected ? context.colors.tint : const Color(0x00000000);
+    final background = selected ? context.colors.tint : _transparentBackground;
 
     return Material(
       color: background,
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: _rowPadding,
           child: _SubcategoryRowContent(
             name: name,
             symbolName: symbolName,
@@ -167,12 +172,15 @@ class _SubcategoryRowContent extends StatelessWidget {
   final bool selected;
   final ThemeData theme;
 
+  static const _iconSize = 34.0;
+  static const _elementGap = 12.0;
+
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        CategoryIcon(symbolName: symbolName, color: color, size: 34),
-        const SizedBox(width: 12),
+        CategoryIcon(symbolName: symbolName, color: color, size: _iconSize),
+        const SizedBox(width: _elementGap),
         Expanded(
           child: Text(
             name,
@@ -187,7 +195,7 @@ class _SubcategoryRowContent extends StatelessWidget {
             color: theme.colorScheme.onSurfaceVariant,
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: _elementGap),
         Text(
           formatMoney(amount, symbol: false),
           style: theme.textTheme.bodyLarge?.copyWith(

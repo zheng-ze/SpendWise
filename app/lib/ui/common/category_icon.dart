@@ -12,9 +12,11 @@ class CategoryIcon extends StatelessWidget {
     super.key,
     required this.symbolName,
     required this.color,
-    this.size = 32,
+    this.size = _defaultSize,
     this.selected = false,
   });
+
+  static const _defaultSize = 32.0;
 
   final String symbolName;
   final Color color;

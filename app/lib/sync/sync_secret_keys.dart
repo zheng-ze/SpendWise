@@ -5,6 +5,8 @@ const syncDeviceSecretKey = 'spendwise.sync.device-binding-secret';
 const syncE2EKeySecretKey = 'spendwise.sync.e2e-key';
 const syncWriteProofSecretKey = 'spendwise.sync.write-proof';
 
+const _deviceSecretByteCount = 32;
+
 bool isValidSyncDeviceSecret(String secret) {
   if (secret.isEmpty || secret.contains('=')) {
     return false;
@@ -15,7 +17,7 @@ bool isValidSyncDeviceSecret(String secret) {
   } on FormatException {
     return false;
   }
-  if (decoded.length != 32) {
+  if (decoded.length != _deviceSecretByteCount) {
     return false;
   }
   return base64Url.encode(decoded).replaceAll('=', '') == secret;

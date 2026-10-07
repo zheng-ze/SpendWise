@@ -11,6 +11,13 @@ const _sliceGapDegrees = 1.5;
 const _elbowDistance = 14.0;
 const _labelLegLength = 12.0;
 const _labelFontSize = 10.0;
+const _donutHeight = 260.0;
+const _startAngleDegrees = -90.0;
+const _fullCircleDegrees = 360.0;
+const _degreesInHalfCircle = 180;
+const _rightSideSign = 1.0;
+const _leftSideSign = -1.0;
+const _connectorLineWidth = 1.0;
 
 class StatsDonut extends StatelessWidget {
   const StatsDonut({super.key, required this.slices});
@@ -25,7 +32,7 @@ class StatsDonut extends StatelessWidget {
     return Semantics(
       label: _summaryLabel(positive),
       child: SizedBox(
-        height: 260,
+        height: _donutHeight,
         child: ExcludeSemantics(
           child: CustomPaint(
             painter: _DonutPainter(
@@ -66,11 +73,11 @@ class _DonutPainter extends CustomPainter {
     final innerRadius = outerRadius * _innerRadiusFraction;
     final gap = slices.length == 1 ? 0.0 : _sliceGapDegrees;
 
-    var startDegrees = -90.0;
+    var startDegrees = _startAngleDegrees;
     final midAngles = <double>[];
 
     for (final slice in slices) {
-      final sweep = slice.fraction.toDouble() * 360.0;
+      final sweep = slice.fraction.toDouble() * _fullCircleDegrees;
       final drawSweep = math.max(sweep - gap, 0.0);
 
       final paint = Paint()
@@ -109,13 +116,13 @@ class _DonutPainter extends CustomPainter {
 
     final ringPoint = center + direction * outerRadius;
     final elbow = center + direction * (outerRadius + _elbowDistance);
-    final awayFromCenter = direction.dx >= 0 ? 1.0 : -1.0;
+    final awayFromCenter = direction.dx >= 0 ? _rightSideSign : _leftSideSign;
     final labelAnchor = elbow + Offset(awayFromCenter * _labelLegLength, 0);
 
     final linePaint = Paint()
       ..color = slice.color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
+      ..strokeWidth = _connectorLineWidth;
     canvas.drawLine(ringPoint, elbow, linePaint);
     canvas.drawLine(elbow, labelAnchor, linePaint);
 
@@ -161,4 +168,4 @@ class _DonutPainter extends CustomPainter {
   }
 }
 
-double _toRadians(double degrees) => degrees * math.pi / 180;
+double _toRadians(double degrees) => degrees * math.pi / _degreesInHalfCircle;

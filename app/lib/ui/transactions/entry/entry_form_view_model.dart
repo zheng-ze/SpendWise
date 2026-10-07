@@ -169,6 +169,8 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
 
   final String? entryId;
 
+  static const _planLookbackDays = 1;
+
   ReceiptEntryCoordinator? _coordinator;
 
   Entry? get _persisted =>
@@ -397,7 +399,9 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
       frequency: frequency,
       anchor: current.date,
       endDate: current.hasEndDate ? current.endDate : null,
-      lastResolvedDate: current.date.subtract(const Duration(days: 1)),
+      lastResolvedDate: current.date.subtract(
+        const Duration(days: _planLookbackDays),
+      ),
     );
   }
 

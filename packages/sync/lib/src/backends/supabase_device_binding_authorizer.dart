@@ -29,7 +29,8 @@ final class SupabaseDeviceBindingAuthorizer implements DeviceBindingAuthorizer {
         headers: _anonHeaders,
         body: jsonEncode(request.toWireJson()),
       );
-      if (response.statusCode >= 200 && response.statusCode < 300) {
+      if (response.statusCode >= _httpSuccessMin &&
+          response.statusCode < _httpSuccessExclusiveMax) {
         try {
           final body = _decodeJsonObject(response.body);
           return SyncSuccess<StartDeviceBindingResponse>(
@@ -62,7 +63,8 @@ final class SupabaseDeviceBindingAuthorizer implements DeviceBindingAuthorizer {
         headers: _anonHeaders,
         body: jsonEncode(request.toWireJson()),
       );
-      if (response.statusCode >= 200 && response.statusCode < 300) {
+      if (response.statusCode >= _httpSuccessMin &&
+          response.statusCode < _httpSuccessExclusiveMax) {
         try {
           final body = _decodeJsonObject(response.body);
           return SyncSuccess<VerifyDeviceBindingResponse>(

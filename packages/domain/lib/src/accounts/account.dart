@@ -8,6 +8,9 @@ const _idEquality = SetEquality<String>();
 
 @immutable
 class Account {
+  static const int minStatementDay = 1;
+  static const int maxStatementDay = 28;
+
   Account({
     String? id,
     required this.name,
@@ -51,7 +54,7 @@ class Account {
 
   Account withNormalizedStatementDay() {
     final normalized = type == AccountType.card && statementDay != null
-        ? statementDay!.clamp(1, 28)
+        ? statementDay!.clamp(minStatementDay, maxStatementDay)
         : null;
     return normalized == statementDay
         ? this

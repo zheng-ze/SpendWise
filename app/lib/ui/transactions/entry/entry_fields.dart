@@ -31,6 +31,10 @@ class EntryFields extends ConsumerStatefulWidget {
 }
 
 class _EntryFieldsState extends ConsumerState<EntryFields> {
+  static const _categoryIconSize = 24.0;
+  static const _sectionSpacing = 16.0;
+  static const _deleteSpacing = 8.0;
+
   late final _amountController = TextEditingController(
     text: widget.state.amountText,
   );
@@ -153,7 +157,7 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
       return CategoryIcon(
         symbolName: category.symbol,
         color: parseColorHex(category.colorHex),
-        size: 24,
+        size: _categoryIconSize,
       );
     }
 
@@ -188,7 +192,7 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _kindSelector(),
-        const SizedBox(height: 16),
+        const SizedBox(height: _sectionSpacing),
         IgnorePointer(
           ignoring: readOnly,
           child: AmountField(
@@ -197,7 +201,7 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
             onChanged: viewModel.setAmount,
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: _sectionSpacing),
         IgnorePointer(
           ignoring: readOnly || state.isSystemEntry,
           child: TextField(
@@ -206,7 +210,7 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
             onChanged: viewModel.setName,
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: _sectionSpacing),
         _dateRow(isNew: isNew),
         if (isNew && state.recurrence != null) ..._recurrenceSection(),
         ...sourceDestinationRows,
@@ -219,7 +223,7 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
               : viewModel.setIncludeInAnalysis,
         ),
         if (widget.showDelete) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: _deleteSpacing),
           SizedBox(
             width: double.infinity,
             child: TextButton(

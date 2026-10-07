@@ -58,6 +58,8 @@ class _TransactionsScreenBody extends StatelessWidget {
   final TransactionsViewModel viewModel;
   final VoidCallback? onBackPressed;
 
+  static const _dividerHeight = 1.0;
+
   @override
   Widget build(BuildContext context) {
     final step = state.mode == TransactionsScreenMode.daily
@@ -93,9 +95,9 @@ class _TransactionsScreenBody extends StatelessWidget {
     final column = Column(
       children: [
         tabs,
-        const Divider(height: 1),
+        const Divider(height: _dividerHeight),
         _TotalsBar(state: state),
-        const Divider(height: 1),
+        const Divider(height: _dividerHeight),
         Expanded(child: content),
       ],
     );
@@ -125,6 +127,8 @@ class _TotalsBar extends StatelessWidget {
 
   final TransactionsViewState state;
 
+  static const _totalsVerticalPadding = 8.0;
+
   @override
   Widget build(BuildContext context) {
     final items = [
@@ -146,7 +150,7 @@ class _TotalsBar extends StatelessWidget {
     ];
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: _totalsVerticalPadding),
       child: ColumnText(items: items),
     );
   }

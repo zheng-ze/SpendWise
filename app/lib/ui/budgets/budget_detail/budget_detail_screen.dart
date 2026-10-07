@@ -55,6 +55,8 @@ class _BudgetDetailBody extends StatelessWidget {
   final BudgetDetailViewModel viewModel;
   final Ledger ledger;
 
+  static const _chartHeight = 220.0;
+
   @override
   Widget build(BuildContext context) {
     final budget = viewState.budget;
@@ -71,7 +73,7 @@ class _BudgetDetailBody extends StatelessWidget {
       ),
     );
     final chart = SizedBox(
-      height: 220,
+      height: _chartHeight,
       child: _BudgetChart(
         months: viewState.months,
         spend: viewState.spendSeries,
@@ -144,6 +146,8 @@ class _BudgetDetailHeader extends StatelessWidget {
   final Budget budget;
   final BudgetDetailViewState viewState;
 
+  static const _headerPadding = EdgeInsets.all(16);
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -159,7 +163,7 @@ class _BudgetDetailHeader extends StatelessWidget {
     final overLimit = spend > limit;
 
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: _headerPadding,
       child: AmountHeader(
         caption: '${formatMoney(spend)} of ${formatMoney(limit)}',
         amount: limit - spend,
@@ -176,12 +180,14 @@ class _BudgetDetailEntriesLabel extends StatelessWidget {
 
   final DateTime selectedMonth;
 
+  static const _labelPadding = EdgeInsets.fromLTRB(16, 24, 16, 8);
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+      padding: _labelPadding,
       child: Text(
         '${formatMonthLabel(selectedMonth).toUpperCase()} ENTRIES',
         style: theme.textTheme.labelMedium?.copyWith(
@@ -211,6 +217,8 @@ class _BudgetChart extends StatelessWidget {
   final void Function(DateTime month) onSelectMonth;
   final Color barColor;
 
+  static const _chartPadding = EdgeInsets.fromLTRB(16, 0, 16, 0);
+
   @override
   Widget build(BuildContext context) {
     final spendBars = _BudgetDetailSpendBars(
@@ -231,7 +239,7 @@ class _BudgetChart extends StatelessWidget {
     );
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+      padding: _chartPadding,
       child: Stack(children: [spendBars, limitLine, tapOverlay]),
     );
   }
@@ -252,6 +260,12 @@ class _BudgetDetailSpendBars extends StatelessWidget {
   final DateTime selectedMonth;
   final Color barColor;
 
+  static const _titleInterval = 1.0;
+  static const _unselectedBarAlpha = 0.5;
+  static const _barWidth = 18.0;
+  static const _barCornerRadius = 4.0;
+  static const _selectedBorderColor = Color(0x00000000);
+
   @override
   Widget build(BuildContext context) {
     final selectedMark = context.colors.selectedMark;
@@ -268,7 +282,7 @@ class _BudgetDetailSpendBars extends StatelessWidget {
       bottomTitles: AxisTitles(
         sideTitles: SideTitles(
           showTitles: true,
-          interval: 1,
+          interval: _titleInterval,
           getTitlesWidget: (value, meta) => monthAxisTick(
             Theme.of(context).textTheme.labelSmall,
             months,
@@ -287,11 +301,11 @@ class _BudgetDetailSpendBars extends StatelessWidget {
               toY: spend[i].toDouble(),
               color: i == selectedIndex
                   ? selectedMark
-                  : barColor.withValues(alpha: 0.5),
-              width: 18,
-              borderRadius: BorderRadius.circular(4),
+                  : barColor.withValues(alpha: _unselectedBarAlpha),
+              width: _barWidth,
+              borderRadius: BorderRadius.circular(_barCornerRadius),
               borderSide: i == selectedIndex
-                  ? const BorderSide(width: 0, color: Color(0x00000000))
+                  ? const BorderSide(width: 0, color: _selectedBorderColor)
                   : BorderSide.none,
             ),
           ],
@@ -322,6 +336,10 @@ class _BudgetDetailLimitLine extends StatelessWidget {
   final List<Decimal> limit;
   final double maxY;
 
+  static const _lineWidth = 2.0;
+  static const _dotRadius = 3.0;
+  static const _edgeInset = 0.5;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -334,10 +352,10 @@ class _BudgetDetailLimitLine extends StatelessWidget {
         ],
         isCurved: false,
         color: theme.colorScheme.onSurface,
-        barWidth: 2,
+        barWidth: _lineWidth,
         dotData: FlDotData(
           getDotPainter: (spot, percent, bar, index) => FlDotCirclePainter(
-            radius: 3,
+            radius: _dotRadius,
             color: theme.colorScheme.onSurface,
             strokeWidth: 0,
           ),
@@ -349,8 +367,8 @@ class _BudgetDetailLimitLine extends StatelessWidget {
     return IgnorePointer(
       child: LineChart(
         LineChartData(
-          minX: -0.5,
-          maxX: months.length - 0.5,
+          minX: -_edgeInset,
+          maxX: months.length - _edgeInset,
           minY: 0,
           maxY: maxY,
           gridData: const FlGridData(show: false),

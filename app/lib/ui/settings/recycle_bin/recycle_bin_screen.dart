@@ -158,6 +158,8 @@ class _BinSection extends StatelessWidget {
   final void Function(BinRow row) onRestore;
   final void Function(BinRow row) onRequestPurge;
 
+  static const _titlePadding = EdgeInsets.fromLTRB(16, 16, 16, 4);
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -165,7 +167,7 @@ class _BinSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+          padding: _titlePadding,
           child: Text(
             title,
             style: theme.textTheme.labelLarge?.copyWith(
@@ -198,6 +200,13 @@ class _BinRowTile extends StatelessWidget {
   final VoidCallback onRestore;
   final VoidCallback onRequestPurge;
 
+  static const _iconSize = 28.0;
+  static const _contentPadding = EdgeInsets.symmetric(
+    horizontal: 16,
+    vertical: 10,
+  );
+  static const _leadingGap = 12.0;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -209,7 +218,7 @@ class _BinRowTile extends StatelessWidget {
         ? CategoryIcon(
             symbolName: row.symbolName!,
             color: row.color ?? colorHexFallback,
-            size: 28,
+            size: _iconSize,
           )
         : Icon(sectionIcon, color: theme.colorScheme.onSurfaceVariant);
     final title = Expanded(
@@ -222,9 +231,14 @@ class _BinRowTile extends StatelessWidget {
       ),
     );
     final content = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: _contentPadding,
       child: Row(
-        children: [leading, const SizedBox(width: 12), title, references],
+        children: [
+          leading,
+          const SizedBox(width: _leadingGap),
+          title,
+          references,
+        ],
       ),
     );
     final tile = Dismissible(
@@ -256,12 +270,14 @@ class _BinRowTile extends StatelessWidget {
 class _RestoreBackground extends StatelessWidget {
   const _RestoreBackground();
 
+  static const _backgroundPadding = EdgeInsets.symmetric(horizontal: 20);
+
   @override
   Widget build(BuildContext context) {
     return Container(
       color: context.colors.action,
       alignment: Alignment.centerLeft,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: _backgroundPadding,
       child: Icon(symbolIcon('undo'), color: context.colors.onAction),
     );
   }
@@ -270,12 +286,14 @@ class _RestoreBackground extends StatelessWidget {
 class _PurgeBackground extends StatelessWidget {
   const _PurgeBackground();
 
+  static const _backgroundPadding = EdgeInsets.symmetric(horizontal: 20);
+
   @override
   Widget build(BuildContext context) {
     return Container(
       color: Theme.of(context).colorScheme.error,
       alignment: Alignment.centerRight,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: _backgroundPadding,
       child: Icon(Icons.delete_outline, color: context.colors.onAction),
     );
   }

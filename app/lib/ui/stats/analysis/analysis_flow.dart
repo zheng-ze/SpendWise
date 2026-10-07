@@ -123,6 +123,9 @@ class _AnalysisBodyContent extends StatelessWidget {
   final bool isYearRange;
   final DateTime selectedDate;
 
+  static const _headerPadding = EdgeInsets.all(16);
+  static const _dividerHeight = 1.0;
+
   @override
   Widget build(BuildContext context) {
     final style = AmountStyle.of(
@@ -144,7 +147,7 @@ class _AnalysisBodyContent extends StatelessWidget {
         : 'Total expenses';
     final totalColor = style.color;
     final header = Padding(
-      padding: const EdgeInsets.all(16),
+      padding: _headerPadding,
       child: AmountHeader(
         caption: label,
         amount: total,
@@ -159,7 +162,7 @@ class _AnalysisBodyContent extends StatelessWidget {
           _EmptyState(kind: kind)
         else ...[
           StatsDonut(slices: categorySlices),
-          const Divider(height: 1),
+          const Divider(height: _dividerHeight),
           StatsLegend(
             slices: categorySlices,
             onTapCategory: (mainID) => viewModel.requestCategoryDetail(
@@ -179,6 +182,10 @@ class _EmptyState extends StatelessWidget {
 
   final CategoryKind kind;
 
+  static const _emptyPadding = EdgeInsets.symmetric(vertical: 48);
+  static const _emptyIconSize = 48.0;
+  static const _messageGap = 12.0;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -187,15 +194,15 @@ class _EmptyState extends StatelessWidget {
         : 'No expense in this period';
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 48),
+      padding: _emptyPadding,
       child: Column(
         children: [
           Icon(
             Icons.pie_chart_outline,
-            size: 48,
+            size: _emptyIconSize,
             color: theme.colorScheme.onSurfaceVariant,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: _messageGap),
           Text(
             message,
             style: theme.textTheme.bodyMedium?.copyWith(

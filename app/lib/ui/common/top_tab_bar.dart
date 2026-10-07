@@ -14,6 +14,10 @@ class TopTabBar extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onSelected;
 
+  static const _barHeight = 44.0;
+
+  static const _indicatorAnimation = Duration(milliseconds: 200);
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -21,7 +25,7 @@ class TopTabBar extends StatelessWidget {
       builder: (context, constraints) {
         final tabWidth = constraints.maxWidth / titles.length;
         return SizedBox(
-          height: 44,
+          height: _barHeight,
           child: Stack(
             children: [
               Row(
@@ -48,7 +52,7 @@ class TopTabBar extends StatelessWidget {
                 ],
               ),
               AnimatedPositioned(
-                duration: const Duration(milliseconds: 200),
+                duration: _indicatorAnimation,
                 curve: Curves.easeOut,
                 left: tabWidth * selectedIndex,
                 bottom: 0,

@@ -4,6 +4,13 @@ import 'package:ocr/ocr.dart';
 
 const _monthFirstRegions = {'US', 'PH', 'PW', 'FM', 'CA'};
 
+const _monthsInYear = 12;
+const _firstDateComponentGroup = 1;
+const _secondDateComponentGroup = 2;
+const _yearComponentGroup = 3;
+const _fourDigitYearLength = 4;
+const _twoDigitYearCenturyBase = 2000;
+
 final _dateShapedPattern = RegExp(
   r'\b(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2}|\d{4})\b',
 );
@@ -26,19 +33,19 @@ DateTime _today(DateTime? now) {
 }
 
 DateTime? _resolveDate(RegExpMatch match, String? locale) {
-  final first = int.parse(match.group(1)!);
-  final second = int.parse(match.group(2)!);
-  final year = _fullYear(match.group(3)!);
+  final first = int.parse(match.group(_firstDateComponentGroup)!);
+  final second = int.parse(match.group(_secondDateComponentGroup)!);
+  final year = _fullYear(match.group(_yearComponentGroup)!);
 
   int day;
   int month;
-  if (first > 12 && second <= 12) {
+  if (first > _monthsInYear && second <= _monthsInYear) {
     day = first;
     month = second;
-  } else if (second > 12 && first <= 12) {
+  } else if (second > _monthsInYear && first <= _monthsInYear) {
     day = second;
     month = first;
-  } else if (first > 12 && second > 12) {
+  } else if (first > _monthsInYear && second > _monthsInYear) {
     return null;
   } else if (_localeIsDayFirst(locale)) {
     day = first;
@@ -52,8 +59,8 @@ DateTime? _resolveDate(RegExpMatch match, String? locale) {
 }
 
 int _fullYear(String yearText) {
-  if (yearText.length == 4) return int.parse(yearText);
-  return 2000 + int.parse(yearText);
+  if (yearText.length == _fourDigitYearLength) return int.parse(yearText);
+  return _twoDigitYearCenturyBase + int.parse(yearText);
 }
 
 bool _localeIsDayFirst(String? locale) {

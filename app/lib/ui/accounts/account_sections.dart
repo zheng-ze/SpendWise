@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart' show immutable;
 
 import 'package:spendwise/ui/accounts/helpers/card_math.dart';
 
+const _defaultStatementDay = 1;
+
 const _sectionOrder = [
   AccountType.cash,
   AccountType.checking,
@@ -173,7 +175,7 @@ AccountRow _row(
           outstanding: outstanding(
             entries,
             account.id,
-            statementCut(account.statementDay ?? 1, now),
+            statementCut(account.statementDay ?? _defaultStatementDay, now),
             now,
           ),
         )

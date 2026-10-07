@@ -1,6 +1,10 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/foundation.dart';
 
+const _nextMonthOffset = 1;
+const _firstDayOfMonth = 1;
+const _daysPerWeek = 7;
+
 @immutable
 class WeekSummary {
   const WeekSummary({
@@ -43,7 +47,11 @@ List<MonthSummary> monthSummaries(
   final currentWeekStart = _weekStart(today);
 
   final yearStart = DateTime.utc(year.year);
-  final cutoff = shiftMonthThenClampDayUtc(currentMonthStart, 1, day: 1);
+  final cutoff = shiftMonthThenClampDayUtc(
+    currentMonthStart,
+    _nextMonthOffset,
+    day: _firstDayOfMonth,
+  );
   final upperBound = cutoff.isBefore(DateTime.utc(year.year + 1))
       ? cutoff
       : DateTime.utc(year.year + 1);
@@ -53,7 +61,11 @@ List<MonthSummary> monthSummaries(
   final months = <MonthSummary>[];
   var cursor = yearStart;
   while (cursor.isBefore(upperBound)) {
-    final monthEnd = shiftMonthThenClampDayUtc(cursor, 1, day: 1);
+    final monthEnd = shiftMonthThenClampDayUtc(
+      cursor,
+      _nextMonthOffset,
+      day: _firstDayOfMonth,
+    );
     final monthRange = DateRange(cursor, monthEnd);
 
     final monthEntries = entries
@@ -92,7 +104,7 @@ List<WeekSummary> _weeks({
   var cursor = _weekStart(monthRange.start);
 
   while (cursor.isBefore(monthRange.end)) {
-    final weekEnd = cursor.add(const Duration(days: 7));
+    final weekEnd = cursor.add(const Duration(days: _daysPerWeek));
     final weekRange = DateRange(cursor, weekEnd);
 
     final weekEntries = entries
