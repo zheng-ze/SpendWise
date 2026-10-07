@@ -1,7 +1,12 @@
 from data import *
+import tiles
 
 H = "history"
 T = "trends"
+SEPTEMBER_WEEK_SPENT = round(-sum(entry[4] for entry in SEP_SAMPLE), 2)
+BIGGEST_ENTRIES_NOTE = ", ".join(f2(entry[4]) for entry in sorted(tiles.october_expenses(), key=lambda entry: entry[4], reverse=True)[:3])
+TREND_TILES_NOTE = (" Category movers, Day-of-week pattern, Fixed vs flexible and Savings rate follow the breakdown and cover Nov 2025 - Oct 2026 whichever month is selected."
+                    + tiles.sample_note(week=False))
 
 
 def week_strip(weeks, maxv):
@@ -20,27 +25,27 @@ def week_strip(weeks, maxv):
 
 def history_oct(skip=(), band_override=None):
     b = band_override or band(3032.60, 167.40, 3200.00, 500.00)
-    spent = -sum(v for _, name, _, _, v, moved in OCT if name not in skip and v < 0 and not moved)
-    wk = tray("By week", week_strip([("28 Sep", spent, ""), ("5 Oct", None, "ahead"), ("12 Oct", None, "ahead"), ("19 Oct", None, "ahead"), ("26 Oct", None, "ahead")], 167.40),
+    spent = -sum(v for _, name, _, _, v, moved in OCT if name not in skip and v < 0 and not moved) + SEPTEMBER_WEEK_SPENT
+    wk = tray("By week", week_strip([("28 Sep", spent, ""), ("5 Oct", None, "ahead"), ("12 Oct", None, "ahead"), ("19 Oct", None, "ahead"), ("26 Oct", None, "ahead")], SEPTEMBER_WEEK_SPENT + OCTOBER_SPENT),
               aside="<small>Spending, weeks start Monday</small>")
     return (header("History", "All accounts") + period("October 2026") + seg(["List", "Calendar"], "List")
-            + f'<div class="search">{ic("search","s")}Search entries</div>' + b + wk + day_groups(OCT, skip=skip))
+            + f'<div class="search">{ic("search","s")}Search entries</div>' + b + wk + tiles.biggest_entries() + tiles.by_account() + day_groups(OCT, skip=skip))
 
 
 def build_history():
     reg("hi-oct", H, "Register", "History, October list",
         phone(history_oct(), "History", "long"),
-        "All nine seeded October entries, newest first, with signed day totals: 3 Oct +3,154.30 (the 500.00 transfer is Moved and stays neutral), 2 Oct -59.90, 1 Oct -61.80. The band leads with the signed net +S$3,032.60 = 3,200.00 - 167.40. The 28 September week counts 1-3 October; later weeks say Ahead. Full scroll shown.",
+        "All nine seeded October entries, newest first, with signed day totals: 3 Oct +3,154.30 (the 500.00 transfer is Moved and stays neutral), 2 Oct -59.90, 1 Oct -61.80. The band leads with the signed net +S$3,032.60 = 3,200.00 - 167.40. The 28 September week counts the sample entries of 28-30 September (74.50) and 1-3 October (167.40), 241.90 together; later weeks say Ahead. Biggest entries lists October's three largest expenses (" + BIGGEST_ENTRIES_NOTE + "); By account splits the 167.40 across DBS Checking, OCBC Savings and Amex Card with each share of spending. Full scroll shown.",
         "app/lib/ui/transactions/daily_list/daily_transactions_screen.dart", ["Transactions, daily"])
 
-    sep_band = band(3011.30, 188.70, 3200.00, 0.00)
-    wk = tray("By week", week_strip([("31 Aug", 96.50, ""), ("7 Sep", 18.00, ""), ("14 Sep", 74.20, ""), ("21 Sep", None, ""), ("28 Sep", 167.40, "")], 167.40),
+    sep_band = band(SAMPLE_MONTHLY_SALARY - SEPTEMBER_SPENT, SEPTEMBER_SPENT, SAMPLE_MONTHLY_SALARY, 0.00)
+    wk = tray("By week", week_strip([("31 Aug", 96.50, ""), ("7 Sep", 18.00, ""), ("14 Sep", 74.20, ""), ("21 Sep", None, ""), ("28 Sep", SEPTEMBER_WEEK_SPENT + OCTOBER_SPENT, "")], SEPTEMBER_WEEK_SPENT + OCTOBER_SPENT),
               aside="<small>Spending, weeks start Monday</small>")
     body = (header("History", "All accounts") + period("September 2026") + seg(["List", "Calendar"], "List")
             + f'<div class="search">{ic("search","s")}Search entries</div>' + sep_band + wk + day_groups(SEP, mon="September"))
     reg("hi-sep", H, "Register", "History, September with week totals",
         phone(body, "History", "long"),
-        "Seed September: spent 96.50 + 18.00 + 74.20 = 188.70, income +3,200.00, net +3,011.30. Weeks keep their full range, so the 28 September week also counts 1-3 October (167.40). A week with no records says None. Tapping a week scrolls the list to it.",
+        "September: spent 96.50 + 18.00 + 74.20 + 24.30 + 31.80 + 18.40 = 263.20, income +3,200.00, net +2,936.80; the last three entries (28-30 September, 74.50) are samples. Weeks keep their full range, so the 28 September week also counts 1-3 October: 74.50 + 167.40 = 241.90. A week with no records says None. Tapping a week scrolls the list to it.",
         "app/lib/ui/transactions/monthly/monthly_transactions_view.dart", ["Transactions, expanded month"])
 
     cal = ['<div class="cal">'] + [f'<span class="h">{d}</span>' for d in "MTWTFSS"] + ["<span></span>"] * 3
@@ -61,14 +66,14 @@ def build_history():
                        + row("FairPrice groceries", "3 Oct / Supermarket / Amex Card", -42.50, "Supermarket")
                        + row("Tekka wet market", "2 Oct / Fresh Market / DBS Checking", -18.60, "Fresh Market")
                        + row("Cold Storage", "2 Oct / Groceries / DBS Checking", -12.40, "Groceries"))
-    september_matches = '<div class="dayh"><b>September</b></div>' + row("Weekly groceries", "18 Sep / Groceries / Amex Card", -74.20, "Groceries")
+    september_matches = '<div class="dayh"><b>September</b></div>' + row("Grocery top-up", "29 Sep / Groceries / Amex Card", -31.80, "Groceries") + row("Weekly groceries", "18 Sep / Groceries / Amex Card", -74.20, "Groceries")
     body = (header("History", "Search") + f'<div class="search focus">{ic("search","s")}Groceries<span class="caret"></span></div>'
             + chips(["Sep - Oct 2026", "All accounts", "Expense"], "") +
-            '<div class="selp" style="margin:2px 0 6px"><span class="lab">4 matches<small>Groceries includes its subcategories</small></span><span class="mid exp">-S$147.70</span></div>'
+            '<div class="selp" style="margin:2px 0 6px"><span class="lab">5 matches<small>Groceries includes its subcategories</small></span><span class="mid exp">-S$179.50</span></div>'
             + light_sections('<div class="light-card day-card">' + october_matches + '</div><div class="light-card day-card">' + september_matches + '</div>' + keyboard(), october_matches + september_matches + keyboard()))
     reg("hi-search", H, "Register", "History, search",
         phone(body, None, "long"),
-        "Search combines names, categories, accounts and dates; chips narrow the range, account and type. Seed matches: 42.50 + 18.60 + 12.40 + 74.20 = 147.70. The 8 November Cold Storage entry is outside the chosen range. Full scroll shown.",
+        "Search combines names, categories, accounts and dates; chips narrow the range, account and type. Seed matches: 42.50 + 18.60 + 12.40 + 31.80 + 74.20 = 179.50. The 8 November Cold Storage entry is outside the chosen range. Full scroll shown.",
         "New view (round 4); app/lib/ui/common/day_sectioned_entry_list.dart")
 
     grid = '<div class="mgrid">' + "".join(f'<span class="{"on" if m == "Oct" else ""}">{m}</span>' for m in MSHORT) + "</div>"
@@ -130,7 +135,7 @@ def trends_month(selected, sel_label, sel_sub, amount, usual_b, usual_s, chart, 
                   + month_bars(spread(end[0], end[1], selected)) + q
                   + f'<div class="selp"><span class="lab">{sel_label}<small>{sel_sub}</small></span><span class="big exp">{sm(-amount, True)}</span></div>' + us)
     breakdown = f'<div class="bkh"><h5>Expense breakdown</h5><small>{level}</small></div>' + chart
-    return trends_body(chart_body, breakdown)
+    return trends_body(chart_body, breakdown) + "".join(tiles.trend_tiles())
 
 
 def income_chart(selected=(2026, 9)):
@@ -164,28 +169,28 @@ def build_trends():
                         donut(SPLIT, "Dining", "48.0%") + rank_split(900.00))
     reg("tr-july", T, "Month by month", "Trends, month by month, July",
         phone(july, "Trends", "long"),
-        "Sample history (revision 2). July 2026 S$900.00 against usual (875 + 860 + 940) / 3 = 891.67, so 0.9% higher. The breakdown uses the Settings choices, here Donut and Categories; breakdown choices stay in Settings. Sample split: 432.00 + 324.00 + 144.00 = 900.00. Tapping a row opens its category.",
+        "Sample history (revision 2). July 2026 S$900.00 against usual (875 + 860 + 940) / 3 = 891.67, so 0.9% higher. The breakdown uses the Settings choices, here Donut and Categories; breakdown choices stay in Settings. Sample split: 432.00 + 324.00 + 144.00 = 900.00. Tapping a row opens its category." + TREND_TILES_NOTE,
         "app/lib/ui/stats/stats_root_screen.dart", ["Stats, expenses", "Transactions, monthly"])
 
     octm = trends_month((2026, 9), "October 2026", "Recorded so far, 1-3 October", 167.40, "Compared with usual", "More complete months needed.",
                         cmap(oct_cats()) + rank_oct_cats())
     reg("tr-oct-map", T, "Month by month", "Trends, October, category map",
         phone(octm, "Trends", "long"),
-        "Monthly bars use revision 2 sample history. Seed October: Dining 83.90 + Groceries 73.50 + Transport 10.00 = 167.40. Settings chart is Category map. Transport is too small for its name, so it gets an adjacent colour-linked label instead of a bare number. The selected purple bar marks October, and the caption identifies it as incomplete; usual needs three complete preceding months, and August is missing.",
+        "Monthly bars use revision 2 sample history. Seed October: Dining 83.90 + Groceries 73.50 + Transport 10.00 = 167.40. Settings chart is Category map. Transport is too small for its name, so it gets an adjacent colour-linked label instead of a bare number. The selected purple bar marks October, and the caption identifies it as incomplete; usual needs three complete preceding months, and August is missing." + TREND_TILES_NOTE,
         "app/lib/ui/stats/analysis/analysis_flow.dart", ["Stats, category map"])
 
     octs = trends_month((2026, 9), "October 2026", "Recorded so far, 1-3 October", 167.40, "Compared with usual", "More complete months needed.",
                         donut(oct_subs(), "Dining", "50.1%") + rank_oct_subs(), level="By subcategory")
     reg("tr-oct-sub-donut", T, "Month by month", "Trends, October, subcategories, donut",
         phone(octs, "Trends", "long"),
-        "Monthly bars use revision 2 sample history. Settings level is Subcategories. Groceries splits into Supermarket 42.50, Fresh Market 18.60 and Direct to Groceries 12.40 (73.50 together); rounded displayed shares of 167.40 add to 100.0%.",
+        "Monthly bars use revision 2 sample history. Settings level is Subcategories. Groceries splits into Supermarket 42.50, Fresh Market 18.60 and Direct to Groceries 12.40 (73.50 together); rounded displayed shares of 167.40 add to 100.0%." + TREND_TILES_NOTE,
         "app/lib/ui/stats/analysis/analysis_flow.dart", ["Stats, subcategory donut"])
 
     octsm = trends_month((2026, 9), "October 2026", "Recorded so far, 1-3 October", 167.40, "Compared with usual", "More complete months needed.",
                          cmap(oct_subs()) + rank_oct_subs(), level="By subcategory")
     reg("tr-oct-sub-map", T, "Month by month", "Trends, October, subcategories, category map",
         phone(octsm, "Trends", "long"),
-        "Monthly bars use revision 2 sample history; the October breakdown uses seed amounts. Subcategories with Category map. Blocks that cannot hold a name and share carry adjacent labels; the ranked list keeps every name, share and amount.",
+        "Monthly bars use revision 2 sample history; the October breakdown uses seed amounts. Subcategories with Category map. Blocks that cannot hold a name and share carry adjacent labels; the ranked list keeps every name, share and amount." + TREND_TILES_NOTE,
         "app/lib/ui/stats/analysis/analysis_flow.dart", ["Stats, subcategory map"])
 
     yr_chart = (seg(["Month by month", "Year by year"], "Year by year") + period("2024 - 2026", "January to July in each year", True, True)
@@ -221,7 +226,7 @@ def build_trends():
         "app/lib/ui/stats/stats_root_screen.dart", ["Stats, no income"])
 
     # Category detail
-    gro_fn = lambda y, m, v: 74.20 if (y, m) == (2026, 8) else (73.50 if (y, m) == (2026, 9) else split48(v)[1])
+    gro_fn = lambda y, m, v: SEPTEMBER_CATEGORY_SPENT["Groceries"] if (y, m) == (2026, 8) else (73.50 if (y, m) == (2026, 9) else split48(v)[1])
     trend = tray("Monthly trend", seg(["Month by month", "Year by year"], "Month by month", "sm") + period("Nov 2025 - Oct 2026", next_off=True)
                  + month_bars(spread(2026, 9, (2026, 9), fn=gro_fn, maxv=400.0), "mini")
                  + '<div class="qual">August has no records; October is incomplete.</div>')
@@ -236,7 +241,7 @@ def build_trends():
     body = head + chips(["All Groceries", "Supermarket", "Fresh Market", "Direct to Groceries"], "All Groceries") + subs + ents + trend
     reg("tr-cat", T, "Category detail", "Category detail, Groceries",
         phone(body, "Trends", "long"),
-        "Opened from the Groceries row or block, keeping the period. Seed: 42.50 + 18.60 + 12.40 = 73.50 (57.8%, 25.3%, 16.9%). Directly assigned spending is named Direct to Groceries. The trend card uses the same modes and spreads as Trends; sample months use the 36% Groceries share, September and October are seed values.",
+        "Opened from the Groceries row or block, keeping the period. Seed: 42.50 + 18.60 + 12.40 = 73.50 (57.8%, 25.3%, 16.9%). Directly assigned spending is named Direct to Groceries. The trend card uses the same modes and spreads as Trends; sample months use the 36% Groceries share; September (106.00 = 74.20 + 31.80) and October are entry values.",
         "app/lib/ui/stats/category_detail/category_detail_screen.dart", ["Groceries, category detail"])
 
     body = (head.replace("-S$73.50", "-S$42.50") + chips(["All Groceries", "Supermarket", "Fresh Market", "Direct to Groceries"], "Supermarket")
@@ -247,22 +252,22 @@ def build_trends():
         "app/lib/ui/stats/category_detail/category_detail_screen.dart", ["Groceries, subcategory detail"])
 
     body = (head.replace("-S$73.50", "-S$12.40") + chips(["All Groceries", "Supermarket", "Fresh Market", "Direct to Groceries"], "Direct to Groceries")
-            + tray("Entries", '<div class="dayh"><b>2 October</b></div>' + row("Cold Storage", "Direct to Groceries / DBS Checking", -12.40, "Groceries")) + scoped_seed_trend(12.40, 74.20))
+            + tray("Entries", '<div class="dayh"><b>2 October</b></div>' + row("Cold Storage", "Direct to Groceries / DBS Checking", -12.40, "Groceries")) + scoped_seed_trend(12.40, SEPTEMBER_CATEGORY_SPENT["Groceries"]))
     reg("tr-cat-direct", T, "Category detail", "Category detail, Direct to Groceries",
         phone(body, "Trends", "long"),
-        "Spending assigned to Groceries itself: Cold Storage 12.40. Its monthly trend uses seed records only: September Weekly groceries 74.20 and October Cold Storage 12.40. Earlier slots before the first record stay blank; no sample subdivision is assumed. Full scroll shown.",
+        "Spending assigned to Groceries itself: Cold Storage 12.40. Its monthly trend uses seed records only: September Weekly groceries 74.20 plus Grocery top-up 31.80 (106.00, both assigned to Groceries itself) and October Cold Storage 12.40. Earlier slots before the first record stay blank; no sample subdivision is assumed. Full scroll shown.",
         "app/lib/ui/stats/category_detail/category_detail_screen.dart", ["Groceries, direct entries"])
 
     trend_sep = tray("Monthly trend", seg(["Month by month", "Year by year"], "Month by month", "sm") + period("Nov 2025 - Oct 2026", next_off=True)
                      + month_bars(spread(2026, 9, (2026, 8), fn=gro_fn, maxv=400.0), "mini")
                      + '<div class="qual">August has no records; October is incomplete.</div>'
-                     + '<div class="selp"><span class="lab">September 2026<small>Groceries</small></span><span class="mid exp">-S$74.20</span></div>'
-                     + row("Weekly groceries", "18 Sep / Groceries / Amex Card", -74.20, "Groceries"))
+                     + '<div class="selp"><span class="lab">September 2026<small>Groceries</small></span><span class="mid exp">-S$106.00</span></div>'
+                     + row("Grocery top-up", "29 Sep / Groceries / Amex Card", -31.80, "Groceries") + row("Weekly groceries", "18 Sep / Groceries / Amex Card", -74.20, "Groceries"))
     body = (f'<div class="back">{ic("left")}Trends</div><div style="font-size:18px;font-weight:600;margin-bottom:10px">Groceries</div>'
             + trend_sep)
     reg("tr-cat-trend", T, "Category detail", "Category trend, month selected",
         phone(body, "Trends"),
-        "Selecting a bar in the trend card shows that month's Groceries amount and entries: September 2026, Weekly groceries 74.20 on 18 September (seed). Other monthly bars use revision 2 sample totals at the 36% Groceries share.",
+        "Selecting a bar in the trend card shows that month's Groceries amount and entries: September 2026, Grocery top-up 31.80 on 29 September and Weekly groceries 74.20 on 18 September (106.00). Other monthly bars use revision 2 sample totals at the 36% Groceries share.",
         "app/lib/ui/stats/category_detail/category_trend_card.dart", ["Category trend, selected month"])
 
     # Desktop Trends
@@ -272,9 +277,11 @@ def build_trends():
             '<div class="usual"><b>Compared with usual: 0.9% higher</b><small>Usual is S$891.67, the April to June average.</small></div></div>')
     right = (f'<div class="pane"><div class="bkh" style="margin-top:0"><h5>Expense breakdown</h5><small>July 2026 / By category</small></div>'
              f'{donut(SPLIT, "Dining", "48.0%")}{rank_split(900.00)}</div>')
+    trend_tiles = tiles.trend_tiles()
+    lower = f'<div class="dg2e" style="margin-top:18px"><div class="dcol">{trend_tiles[0]}{trend_tiles[2]}</div><div class="dcol">{trend_tiles[1]}{trend_tiles[3]}</div></div>'
     reg("tr-desk", T, "Desktop", "Trends with breakdown, desktop",
-        desktop("Trends", f'<div class="dg2">{left}{right}</div>', "Trends", "All accounts / Spending"),
-        "The period chart and the selected breakdown sit side by side; selecting a bar updates the breakdown without leaving the page. Same sample July values and Settings choices as the phone. Left and right arrow keys move one spread.",
+        desktop("Trends", f'<div class="dg2">{left}{right}</div>' + lower, "Trends", "All accounts / Spending"),
+        "The period chart and the selected breakdown sit side by side; selecting a bar updates the breakdown without leaving the page. Same sample July values and Settings choices as the phone. Left and right arrow keys move one spread. Category movers and Fixed vs flexible fill the left column below, Day-of-week pattern and Savings rate the right." + tiles.sample_note(week=False),
         "app/lib/ui/shell/app_shell.dart; app/lib/ui/stats/stats_root_screen.dart", ["Stats, expenses, macOS"], kind="desktop")
 
     left_income = '<div class="pane">' + seg(["Expense", "Income"], "Income") + income_chart() + '</div>'
@@ -292,5 +299,5 @@ def build_trends():
     reg("tr-desk-cat", T, "Desktop", "Category detail, desktop",
         desktop("Trends", f'<div class="dg2e">{left}<div>{right}</div></div>', "Groceries", "Trends / October 2026",
                 acts=f'<span>{ic("left","s")}Back to Trends</span><span class="pbtn">{ic("plus","s")}Add entry</span>'),
-        "Desktop category detail: scope, subcategory map and entries together. The map labels every block that fits; the chips name every scope. The Groceries trend uses revision 2 sample monthly totals at the 36% share, with seed September 74.20 and October 73.50.",
+        "Desktop category detail: scope, subcategory map and entries together. The map labels every block that fits; the chips name every scope. The Groceries trend uses revision 2 sample monthly totals at the 36% share, with September 106.00 (74.20 + 31.80) and October 73.50.",
         "app/lib/ui/stats/category_detail/category_detail_screen.dart", kind="desktop")

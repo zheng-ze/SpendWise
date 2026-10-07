@@ -1,5 +1,6 @@
 from data import *
 from s_add import amount_field
+import tiles
 
 M = "money"
 
@@ -8,20 +9,11 @@ def money_head(tab):
     return header("Money") + seg(["Budgets", "Accounts", "Plans"], tab)
 
 
-def budget_row(name, spent, limit, color):
-    pct = spent / limit * 100
-    left = limit - spent
-    return (f'<div class="catrow"><b>{name}</b><span class="amt" style="font-weight:500">S${f2(spent)} of S${f2(limit)}</span>'
-            f'<div class="ctrack" style="--c:var(--{color})"><i style="width:{pct:.1f}%"></i></div>'
-            f'<small class="sub">S${f2(left)} left / {pct:.1f}% used</small></div>')
-
-
 def budgets_body():
     allsp = tray("All spending", '<div class="big">S$1,032.60</div><div class="lab">left of S$1,200.00 this month</div>'
                  '<div class="ctrack"><i style="width:13.95%"></i></div><div class="kv" style="margin-top:4px"><span>Spent so far</span><b>S$167.40</b></div>'
-                 '<div class="lab">From 4 October: about S$36.88 a day.</div>')
-    cats = tray("Category budgets", budget_row("Dining", 83.90, 350, "dining") + budget_row("Groceries", 73.50, 450, "groceries")
-                + budget_row("Transport", 10.00, 120, "transport"), aside="<small>Most used first</small>")
+                 '<div class="lab">From 4 October: about S$36.88 a day.</div>' + tiles.forecast_legend())
+    cats = tray("Category budgets", tiles.category_budget_rows(), aside="<small>Most used first</small>")
     return money_head("Budgets") + period("October 2026") + allsp + cats + '<div class="reserve"></div>' + fab("Add budget")
 
 
@@ -31,24 +23,28 @@ def acct_row(name, meta, value, icon, cat="Transfer", owed=False):
             f'<span class="amt {cls}">{value}</span></div>')
 
 
-def accounts_body():
-    b = ('<div class="band three"><div class="lead"><small>Net worth</small><b class="inc">+S$20,893.90</b></div>'
-         '<div><small>Assets</small><b>S$21,219.00</b></div><div><small>Owed</small><b class="exp">S$325.10</b></div></div>')
+def accounts_body(with_tiles=True):
+    b = (f'<div class="band three"><div class="lead"><small>Net worth</small><b class="inc">+S${f2(NET_WORTH_NOW)}</b></div>'
+         f'<div><small>Assets</small><b>S${f2(ASSETS)}</b></div><div><small>Owed</small><b class="exp">S${f2(AMEX_OWED)}</b></div></div>')
     every = tray("Everyday money", acct_row("DBS Checking", "Checking", "10,869.00", "bank")
                  + acct_row("OCBC Savings", "Savings / includes 2 pockets", "10,350.00", "jar")
                  + '<div class="pocket"><span>Own balance</span><b>1,700.00</b></div><div class="pocket"><span>Emergency Fund</span><b>8,000.00</b></div><div class="pocket"><span>Holiday</span><b>650.00</b></div>')
-    cards = tray("Credit cards", acct_row("Amex Card", "Statement day 15 / this cycle S$210.60", "-325.10", "card", owed=True))
-    return money_head("Accounts") + b + every + cards + '<div class="reserve"></div>' + fab("Add account")
+    cards = tray("Credit cards", acct_row("Amex Card", f"Statement day 15 / this cycle S${f2(AMEX_CYCLE)}", f"-{f2(AMEX_OWED)}", "card", owed=True))
+    net_worth = tiles.net_worth_trend() if with_tiles else ""
+    utilisation = tiles.card_utilisation() if with_tiles else ""
+    return money_head("Accounts") + b + net_worth + every + cards + utilisation + '<div class="reserve"></div>' + fab("Add account")
 
 
-def plans_body(attention=False):
-    att = ""
-    rows = [("20", "Oct", "Netflix", "Every month / Amex Card", -19.98), ("25", "Oct", "Monthly salary", "Every month / DBS Checking", 3200.00)]
-    if attention:
-        att = notice("Gym membership missed 1 October", "Its category, Fitness, is in the recycle bin.", ["Restore Fitness", "Change category"])
-        rows.append(("1", "Nov", "Gym membership", "Every month / Needs attention", -98.00))
+def plan_rows(attention=False):
+    return SEED_PLANS + [GYM_MONTHLY_PLAN] if attention else list(SEED_PLANS)
+
+
+def plans_body(attention=False, with_tile=True):
+    att = notice("Gym membership missed 1 October", "Its category, Fitness, is in the recycle bin.", ["Restore Fitness", "Change category"]) if attention else ""
+    rows = plan_rows(attention)
     t = tray("Next up", "".join(daterow(*r) for r in rows), aside=f"<small>{len(rows)} plans</small>")
-    return money_head("Plans") + att + t + '<div class="lab" style="margin-top:4px">To add a plan, add an entry and choose how often it repeats.</div>'
+    cash_flow = tiles.plans_cash_flow(rows) if with_tile else ""
+    return money_head("Plans") + att + t + cash_flow + '<div class="lab" style="margin-top:4px">To add a plan, add an entry and choose how often it repeats.</div>'
 
 
 def acct_page(title, sub, balance, bal_label, entries, extra="", chips_html="", back="Money", menu=True):
@@ -70,7 +66,7 @@ DBS_ENTRIES = (
 def build():
     reg("mo-budgets", M, "Budgets", "Money, budgets",
         phone(budgets_body(), "Money", "long"),
-        "Sample limits: all spending S$1,200.00, Dining 350, Groceries 450, Transport 120. Spending is seed October: 1,200.00 - 167.40 = 1,032.60 left, over 28 days from 4 October about 36.88 a day. Category caps sit inside the overall cap and are not added to it. The compact labelled button keeps end space reserved below the last row.",
+        "Sample limits: all spending S$1,200.00, Dining 350, Groceries 450, Transport 120. Spending is seed October: 1,200.00 - 167.40 = 1,032.60 left, over 28 days from 4 October about 36.88 a day. Category caps sit inside the overall cap and are not added to it. Each category bar fills with what is spent; a vertical line marks the month-end forecast (spent so far plus the category's monthly average over the remaining 28 of 31 days, pinned to the right end in the expense colour when over the limit) and a chip says On pace or Over by the amount at this pace. The legend sits in All spending. The compact labelled button keeps end space reserved below the last row." + tiles.sample_note(week=False),
         "app/lib/ui/budgets/budget_list/budgets_flow.dart", ["Stats, budgets"])
 
     sh = (sheet_head("Add budget", "Cancel", "") + fld("Category", "Supermarket", chevron=True) + amount_field("60.00", True, "Monthly limit / SGD")
@@ -94,7 +90,7 @@ def build():
     for m in range(12):
         v = month_value(2026, m)
         if m == 8:
-            v = 96.50
+            v = SEPTEMBER_CATEGORY_SPENT["Dining"]
         elif m == 9:
             v = 83.90
         elif v not in (None, "x") and m < 8:
@@ -116,7 +112,7 @@ def build():
                      + '<div class="dayh"><b>1 October</b></div>' + row("Lunch at Maxwell", "Amex Card", -55.00, "Dining")))
     reg("mo-budget-detail", M, "Budgets", "Budget detail, Dining",
         phone(detail, "Money", "long"),
-        "This month first, then the year at a glance. Seed October Dining: 28.90 + 55.00 = 83.90 of the sample 350.00 limit. Earlier 2026 bars use the sample 48% Dining share; September is seed 96.50. The limit started in September (sample).",
+        "This month first, then the year at a glance. Seed October Dining: 28.90 + 55.00 = 83.90 of the sample 350.00 limit. Earlier 2026 bars use the sample 48% Dining share; September is 120.80 = 96.50 + 24.30. The limit started in September (sample).",
         "app/lib/ui/budgets/budget_detail/budget_detail_screen.dart", ["Dining budget detail"])
 
     months = "".join(
@@ -146,7 +142,7 @@ def build():
 
     reg("mo-budget-delete", M, "Budgets", "Delete budget",
         phone(detail + dialog("Delete the Dining budget?", "Your entries stay as they are. Only the limit is removed.", [("Cancel", ""), ("Delete", "d")]), "Money"),
-        "Delete budget is reached from Edit on the budget page. Shared confirmation pattern. The underlying detail uses the sample S$350 limit and revision 2 monthly history with seed September and October Dining amounts.",
+        "Delete budget is reached from Edit on the budget page. Shared confirmation pattern. The underlying detail uses the sample S$350 limit and revision 2 monthly history with September (120.80) and October Dining amounts.",
         "app/lib/ui/common/delete_confirmation.dart", ["Delete budget confirmation"])
 
     body = header("Dining", "", gear=False, back="Budgets") + empty("gauge", "This budget was deleted", "It was removed on another screen or device.", "Back to Budgets")
@@ -158,7 +154,8 @@ def build():
     # Accounts
     reg("mo-accounts", M, "Accounts", "Money, accounts",
         phone(accounts_body(), "Money", "long"),
-        "Balances through 3 October. Assets 10,869.00 + 10,350.00 = 21,219.00; owed 325.10 on the card; net worth +20,893.90. OCBC Savings already includes its own 1,700.00 and both pockets, counted once. Entries dated ahead (Rent, 8 Nov Cold Storage) are not in today's balances.",
+        "Balances through 3 October. Assets 10,869.00 + 10,350.00 = 21,219.00; owed 399.60 on the card; net worth +20,819.40. OCBC Savings already includes its own 1,700.00 and both pockets, counted once. Entries dated ahead (Rent, 8 Nov Cold Storage) are not in today's balances. "
+        f"Net worth trend follows the summary band and Card utilisation follows Credit cards: Amex Card {f2(AMEX_OWED)} of a {f2(AMEX_LIMIT)} limit (sample), statement payable {f2(AMEX_OWED)} by {AMEX_DUE_DAY} (sample), closing {AMEX_CLOSE_DAY} October." + tiles.sample_note(week=False),
         "app/lib/ui/accounts/accounts_screen.dart", ["Accounts", "Accounts, expanded pockets"])
 
     ahead = tray("Dated ahead", daterow("3", "Nov", "Rent", "No category", -1200.00))
@@ -198,15 +195,16 @@ def build():
     amex_entries = tray("This cycle, since 15 September", '<div class="dayh"><b>3 October</b></div>' + row("FairPrice groceries", "Supermarket", -42.50, "Supermarket") + row("MRT to work", "Transport", -3.20, "Transport")
                         + '<div class="dayh"><b>2 October</b></div>' + row("Dinner with friends", "Dining", -28.90, "Dining")
                         + '<div class="dayh"><b>1 October</b></div>' + row("Grab home", "Transport", -6.80, "Transport") + row("Lunch at Maxwell", "Dining", -55.00, "Dining")
+                        + "".join(f'<div class="dayh"><b>{day} September</b></div>' + row(name, category, value, category) for day, name, category, _, value, _ in SEP_SAMPLE[::-1])
                         + '<div class="dayh"><b>18 September</b></div>' + row("Weekly groceries", "Groceries", -74.20, "Groceries"))
     before = tray("Before 15 September", row("Grab to airport", "12 Sep / Transport", -18.00, "Transport") + row("Birthday dinner", "5 Sep / Dining", -96.50, "Dining"))
-    card_extra = ('<div class="split" style="margin-top:6px"><div><span class="lab">This cycle</span><b>S$210.60</b></div><div><span class="lab">Statement closes</span><b>15 Oct</b></div></div>'
+    card_extra = (f'<div class="split" style="margin-top:6px"><div><span class="lab">This cycle</span><b>S${f2(AMEX_CYCLE)}</b></div><div><span class="lab">Statement closes</span><b>15 Oct</b></div></div>'
                   '<div class="lab" style="margin-top:6px">Statement day 15 is when the cycle closes, not a payment due date.</div>')
-    amex = acct_page("Amex Card", "Credit card", "S$325.10", "Owed", amex_entries + before + tray("Dated ahead", daterow("8", "Nov", "Cold Storage", "Groceries", -33.40)), extra=card_extra)
-    amex = amex.replace('<div class="hero" style="font-size:30px">S$325.10', '<div class="hero exp" style="font-size:30px">S$325.10')
+    amex = acct_page("Amex Card", "Credit card", f"S${f2(AMEX_OWED)}", "Owed", amex_entries + before + tray("Dated ahead", daterow("8", "Nov", "Cold Storage", "Groceries", -33.40)), extra=card_extra)
+    amex = amex.replace(f'<div class="hero" style="font-size:30px">S${f2(AMEX_OWED)}', f'<div class="hero exp" style="font-size:30px">S${f2(AMEX_OWED)}')
     reg("mo-amex", M, "Accounts", "Card, Amex",
         phone(amex, "Money", "long"),
-        "Card statement day only appears for cards. This cycle since 15 September: 74.20 + 136.40 = 210.60. Owed is every card expense to date: 210.60 + 18.00 + 96.50 = 325.10. 12 days to the cut.",
+        "Card statement day only appears for cards. This cycle since 15 September: 74.20 + 74.50 (the 28-30 September sample entries) + 136.40 = 285.10. Owed is every card expense to date: 285.10 + 18.00 + 96.50 = 399.60. 12 days to the cut.",
         "app/lib/ui/accounts/accounts_flow.dart", [])
 
     menu = ('<div class="menu"><span>' + ic("pencil", "s") + 'Fix balance</span><span>' + ic("gear", "s") + 'Edit account</span><span class="d">' + ic("trash", "s") + "Move to recycle bin</span></div>")
@@ -312,12 +310,12 @@ def build():
     # Plans
     reg("mo-plans", M, "Plans", "Money, plans",
         phone(plans_body(), "Money"),
-        "Seeded plans sorted by next date: Netflix -19.98 on 20 October (Amex Card) and Monthly salary +3,200.00 on 25 October (DBS Checking). Plans are created only through Repeat in Add entry.",
+        "Seeded plans sorted by next date: Netflix -19.98 on 20 October (Amex Card) and Monthly salary +3,200.00 on 25 October (DBS Checking). Plans are created only through Repeat in Add entry. Plans cash flow follows Next up: the spendable balance of " + f2(DBS_CHECKING + OCBC_OWN_BALANCE) + " (DBS Checking plus OCBC Savings own balance) plus Monthly salary on 25 October; Netflix is charged to Amex and does not move it.",
         "app/lib/ui/settings/plan/plan_list_screen.dart", ["Recurring plans"])
 
     reg("mo-plans-attention", M, "Plans", "Plans, a plan needs attention",
         phone(plans_body(True), "Money"),
-        "Sample: Gym membership (-98.00, Fitness) could not add its 1 October entry because Fitness is in the recycle bin. The notice states the reason and one fix, and stays until fixed.",
+        "Sample: Gym membership (-98.00, Fitness) could not add its 1 October entry because Fitness is in the recycle bin. The notice states the reason and one fix, and stays until fixed. Plans cash flow follows Next up and counts the Gym membership plan on 1 November (" + sm(GYM_MONTHLY_PLAN[4]) + ", charged to " + GYM_PLAN_ACCOUNT + ", sample) alongside Monthly salary; Netflix is charged to Amex and does not move it.",
         "app/lib/ui/settings/plan/plan_list_screen.dart; app/lib/ui/shell/banner_state.dart")
 
     pdet = (header("Netflix", "Plan", gear=False, back="Plans", acts="")
@@ -358,7 +356,7 @@ def build():
     reg("mo-desk-budgets", M, "Desktop", "Budgets, desktop",
         desktop("Budgets", f'<div class="dg2e"><div>{bl}</div><div class="pane raised">{right}</div></div>', "Budgets", "October 2026",
                 acts=f'<span class="sbtn">{ic("plus","s")}Add budget</span><span class="pbtn">{ic("plus","s")}Add entry</span>'),
-        "Budgets, Accounts and Plans each have a sidebar place on desktop. The selected budget opens beside the list. Same sample limits and seed spending.",
+        "Budgets, Accounts and Plans each have a sidebar place on desktop. The selected budget opens beside the list. Same sample limits and seed spending; the category bars carry the month-end forecast line and chip as on the phone.",
         "app/lib/ui/budgets/budget_list/budgets_flow.dart", kind="desktop")
 
     al = accounts_body().replace(fab("Add account"), "").replace(money_head("Accounts"), "")
@@ -367,12 +365,12 @@ def build():
     reg("mo-desk-accounts", M, "Desktop", "Accounts with card page, desktop",
         desktop("Accounts", f'<div class="dg2e"><div>{al}</div><div class="pane raised">{amex_side}</div></div>', "Accounts", "Balances through 3 October 2026",
                 acts=f'<span class="sbtn">{ic("plus","s")}Add account</span><span class="pbtn">{ic("plus","s")}Add entry</span>'),
-        "The account page opens beside the list. Parent totals include pockets once; the card shows payable, this cycle and its statement cut separately.",
+        "The account page opens beside the list. Parent totals include pockets once; the card shows payable, this cycle and its statement cut separately. Net worth trend and Card utilisation sit in the list column, as on the phone.",
         "app/lib/ui/accounts/accounts_screen.dart; app/lib/ui/shell/app_shell.dart", ["Accounts, macOS"], kind="desktop")
 
     pl = plans_body().replace(money_head("Plans"), "")
     pd = pdet.replace(header("Netflix", "Plan", gear=False, back="Plans", acts=""), '<div class="th" style="font-size:18px;font-weight:600;margin-bottom:8px">Netflix</div>')
     reg("mo-desk-plans", M, "Desktop", "Plans, desktop",
         desktop("Plans", f'<div class="dg2e"><div>{pl}</div><div class="pane raised">{pd}</div></div>', "Plans", "Sorted by next date"),
-        "The plan list with the selected plan beside it. Seeded plans only.",
+        "The plan list with the selected plan beside it. Seeded plans only; Plans cash flow below the list follows them.",
         "app/lib/ui/settings/plan/plan_list_screen.dart", kind="desktop")

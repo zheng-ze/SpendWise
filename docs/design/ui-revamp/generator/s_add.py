@@ -1,4 +1,5 @@
 from data import *
+import tiles
 from s_history_trends import history_oct, band
 from s_overview import default_body
 
@@ -91,10 +92,10 @@ def build():
           + '<div class="pick"><span>OCBC Savings<small>Own balance</small></span><span class="sub">1,700.00</span></div>'
           + '<div class="pick ind"><span>Emergency Fund</span><span class="sub">8,000.00</span></div>'
           + '<div class="pick ind"><span>Holiday</span><span class="sub">650.00</span></div>'
-          + '<div class="grouph">Credit cards</div><div class="pick" style="font-weight:600"><span>Amex Card<small>Owed 325.10</small></span><span class="ck">' + ic("check", "s") + "</span></div>")
+          + '<div class="grouph">Credit cards</div><div class="pick" style="font-weight:600"><span>Amex Card<small>Owed ' + f2(AMEX_OWED) + '</small></span><span class="ck">' + ic("check", "s") + "</span></div>")
     reg("pick-account", A, "Pickers", "Account and pocket picker",
         sheet_phone(under_overview(), ap, under_cls="short", sheet_cls="content"),
-        "Pockets are selectable under their account. Balances through 3 October: 10,869.00 + 1,700.00 + 8,000.00 + 650.00 in assets, 325.10 owed on the card.",
+        "Pockets are selectable under their account. Balances through 3 October: 10,869.00 + 1,700.00 + 8,000.00 + 650.00 in assets, 399.60 owed on the card.",
         "app/lib/ui/common/pickers/source_picker.dart", ["Account and pocket picker"])
 
     rp = sheet_head("Repeat", "Cancel", "") + "".join(
@@ -219,6 +220,6 @@ def build():
     right = ('<div class="pane raised">' + '<div class="th" style="font-size:14px;font-weight:600;display:flex;justify-content:space-between"><span>Edit entry</span><span class="sub">3 October</span></div>'
              + seg(["Expense", "Income", "Transfer"], "Expense") + amount_field("-42.50", False) + light_card(expense_fields(), "form-card") + btn("Update entry") + btn("Delete entry", "danger") + "</div>")
     reg("hi-desk", "history", "Desktop", "History with selected entry, desktop",
-        desktop("History", f'<div class="dg2">{left}{right}</div>', "History", "All accounts"),
-        "A dense register with the selected entry open for editing beside it; the register and filters stay in place. Arrow keys move the selection. All nine seeded October entries; net +3,032.60.",
+        desktop("History", f'<div class="dg2">{left}{right}</div><div class="dg2e" style="margin-top:18px">{tiles.biggest_entries()}{tiles.by_account()}</div>', "History", "All accounts"),
+        "A dense register with the selected entry open for editing beside it; the register and filters stay in place. Arrow keys move the selection. All nine seeded October entries; net +3,032.60. Biggest entries and By account sit below, side by side.",
         "app/lib/ui/shell/app_shell.dart; app/lib/ui/transactions/daily_list/daily_transactions_screen.dart", ["Transactions, daily, macOS"], kind="desktop")

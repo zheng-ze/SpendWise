@@ -1,6 +1,9 @@
 from data import *
+import tiles
 
 A = "overview"
+NEW_WIDGET_CHOICES = [("Safe to spend", "How much can I spend safely?"), ("Pace vs usual", "Am I ahead of or behind a usual month?"),
+                      ("Subscriptions", "What recurring charges are coming?"), ("Needs attention", "What needs fixing?")]
 NEW8 = "New screen: Overview (round 8); no current app route"
 
 
@@ -11,13 +14,21 @@ def default_body(notices=""):
 def build():
     reg("ov-default", A, "Home", "Overview, default widgets",
         phone(default_body(), "Overview", "long"),
-        "The default set: Today, Recent entries and Coming up. Seed: today is 42.50 + 3.20 = S$45.70; the transfer is Moved, not spending. Coming up lists the Amex cut (15 Oct, this cycle S$210.60), the seeded Netflix and salary plans, and the two seeded entries dated ahead (Rent 3 Nov, Cold Storage 8 Nov). The S$1,200 cap is a labelled sample; the guide is the cap over 31 days. Full scroll shown.",
+        f"The default set: Today, Recent entries and Coming up. Seed: today is 42.50 + 3.20 = S$45.70; the transfer is Moved, not spending. Coming up lists the Amex cut (15 Oct, this cycle S${f2(AMEX_CYCLE)}), the seeded Netflix and salary plans, and the two seeded entries dated ahead (Rent 3 Nov, Cold Storage 8 Nov). The S$1,200 cap is a labelled sample; the guide is the cap over 31 days. Full scroll shown.",
         NEW8)
 
-    full = overview_head() + "".join(w() for w in ALL_WIDGETS)
-    reg("ov-custom", A, "Home", "Overview, all 12 widgets",
+    payday, spendable, owed, planned, safe = tiles.safe_to_spend_figures()
+    actual, usual, gap = tiles.pace_figures()
+    subscriptions, monthly = tiles.subscription_figures()
+    full = overview_head() + "".join(w() for w in tiles.ALL_WIDGETS)
+    reg("ov-custom", A, "Home", "Overview, all 16 widgets",
         phone(full, "Overview", "long"),
-        "Every widget added, in one order. This month: -167.40 spent, +3,200.00 income, net +3,032.60, transfer excluded. OCBC Savings 10,350.00 already includes its pockets. Insights and Week so far state the history they need. Sample: cap, budget limits 450/350/120. Full scroll shown.",
+        "Every widget added, in one order. This month: -167.40 spent, +3,200.00 income, net +3,032.60, transfer excluded. OCBC Savings 10,350.00 already includes its pockets. Insights and Week so far state the history they need. "
+        f"The four newest close the page. Safe to spend {tiles.money(spendable)} - {f2(owed)} card owed - {f2(planned)} plans before the {payday} October salary = {tiles.money(safe)}. "
+        f"Pace vs usual: {tiles.money(actual[-1])} spent by 3 October against {tiles.money(usual[tiles.DAYS_ELAPSED - 1][1])} for a usual month by then. "
+        f"Subscriptions: Netflix {f2(subscriptions[0][4])} + Gym membership {f2(subscriptions[1][4])} = {tiles.money(monthly)} a month. "
+        "Sample: cap, budget limits 450/350/120, the Netflix previous price, the Gym plan, a held import and a paused sync; Budget watch draws each limit with its month-end forecast." + tiles.sample_note(week=False)
+        + " Full scroll shown.",
         NEW8)
 
     ins = overview_head() + w_today() + w_insights("shown") + w_recent()
@@ -76,31 +87,31 @@ def build():
     shown = erow("Today", "Spending and daily guide", first=True) + erow("Recent entries", "Your latest entries") + erow("Coming up", "Plans, entries dated ahead and statement cuts", last=True)
     add_rows = "".join(
         f'<div class="chooser"><div><b>{n}</b><small>{d}</small></div><span class="ad">+ Add</span></div>'
-        for n, d in [("This month", "Spent, income and net so far"), ("Budget watch", "Limits close to their cap"), ("Spending over time", "Last 12 months")])
+        for n, d in [("This month", "Spent, income and net so far"), ("Budget watch", "Limits close to their cap"), ("Spending over time", "Last 12 months")] + NEW_WIDGET_CHOICES)
     ed = (sheet_head("Edit Overview", "Cancel", "Done")
           + '<div class="lab" style="margin:4px 0 2px">Choose what belongs on your home. Notices stay visible when needed.</div>'
           + shown + '<div class="setlab">Add widgets</div>' + add_rows
           + '<div class="link">See all widgets' + ic("right", "s") + "</div>" + btn("Restore default", "sec"))
     reg("ov-edit", A, "Edit Overview", "Edit Overview",
         phone(ed, "Overview", "long"),
-        "Opened from Edit Overview in the header. Grips drag; the up and down controls do the same without dragging and disable at the edges. Hide changes the home only, never entries. Done saves; Cancel restores the previous layout; Restore default brings back the three starting widgets. Full scroll shown.",
+        "Opened from Edit Overview in the header. Grips drag; the up and down controls do the same without dragging and disable at the edges. Hide changes the home only, never entries. Done saves; Cancel restores the previous layout; Restore default brings back the three starting widgets. The Add widgets list offers the four newest widgets after the three examples. Full scroll shown.",
         NEW8)
 
     cat = [("Today and daily guide", "What have I spent today?"), ("Recent entries", "Did I record the right things?"), ("Coming up", "What money dates are ahead?"),
            ("This month", "How does this month add up?"), ("Budget watch", "Which limits should I check?"), ("Top categories", "Where is my spending going?"),
            ("Account balances", "What money do I have?"), ("Card statement", "When does my card statement close?"), ("Spending over time", "What does a longer pattern look like?"),
-           ("Insights", "Has something meaningfully changed?"), ("Savings pocket", "How close am I to this goal?"), ("Week so far", "How does this week compare with usual?")]
+           ("Insights", "Has something meaningfully changed?"), ("Savings pocket", "How close am I to this goal?"), ("Week so far", "How does this week compare with usual?")] + NEW_WIDGET_CHOICES
     lst = "".join(
         f'<div class="chooser"><div><b>{n}</b><small>{d}</small></div><span class="ad {"done" if i < 3 else ""}">{"Added" if i < 3 else "+ Add"}</span></div>'
         for i, (n, d) in enumerate(cat))
     under = overview_head()
     reg("ov-addwidgets", A, "Edit Overview", "Add widgets, full list",
         sheet_phone(under, sheet_head("Add widgets", "Back", "") + lst, cls="long", under_cls="none"),
-        "The widget catalogue as the app shows it: twelve widgets, each named by the question it answers. Widgets already on the home say Added; Add appends a widget once, at the end. The catalogue scrolls inside the capped sheet.",
+        "The widget catalogue as the app shows it: sixteen widgets, each named by the question it answers. Widgets already on the home say Added; Add appends a widget once, at the end. The catalogue scrolls inside the capped sheet.",
         NEW8)
 
     # Desktop Overview
-    order = [w_today, w_month, w_recent, w_top, w_card, w_coming, w_balances, w_overtime, w_pocket, w_budgetwatch, w_insights, w_week]
+    order = tiles.ALL_WIDGETS
     cols = [[], [], []]
     for i, w in enumerate(order):
         cols[i % 3].append(w())
@@ -108,7 +119,7 @@ def build():
     reg("ov-desk", A, "Desktop", "Overview, desktop",
         desktop("Overview", content, "Overview", "Saturday, 3 October 2026",
                 acts=f'<span>Edit Overview</span><span class="sbtn">{ic("search","s")}Search</span><span class="pbtn">{ic("plus","s")}Add entry</span>'),
-        "One shared macOS and Windows window. The same widget order fills three columns at wide sizes and two below 1250 px. Same seed values and samples as the phone.",
+        "One shared macOS and Windows window. The same sixteen-widget order fills three columns at wide sizes and two below 1250 px, with Safe to spend, Pace vs usual, Subscriptions and Needs attention last. Same seed values and samples as the phone." + tiles.sample_note(week=False),
         "app/lib/ui/shell/app_shell.dart; app/lib/ui/shell/layout_breakpoints.dart", kind="desktop")
 
     shown_d = erow("Today", "Spending and daily guide", first=True) + erow("Recent entries", "Your latest entries") + erow("Coming up", "Plans, entries dated ahead and statement cuts", last=True)
@@ -120,7 +131,7 @@ def build():
     reg("ov-desk-edit", A, "Desktop", "Edit Overview, desktop",
         desktop("Overview", content, "Edit Overview", "Saturday, 3 October 2026",
                 acts='<span class="sbtn">Cancel</span><span class="pbtn">Save changes</span>'),
-        "Shown and available widgets side by side. Mouse dragging and keyboard Move up and Move down share one order. Saving is per device.",
+        "Shown and available widgets side by side; the available list holds all thirteen widgets not yet shown, the four newest last. Mouse dragging and keyboard Move up and Move down share one order. Saving is per device.",
         NEW8, kind="desktop")
 
 
@@ -137,6 +148,10 @@ def catalogue():
         "Spending over time": tray("Spending over time", '<div class="lab">Your monthly totals appear here once you record spending.</div>'),
         "Savings pocket": tray("Savings pocket", '<div class="lab">Choose a pocket and set a target to see progress.</div><div class="link">Choose a pocket</div>'),
         "Budget watch": tray("Budget watch", '<div class="lab">No budgets yet.</div><div class="link">Add a budget</div>'),
+        "Safe to spend": tray("Safe to spend", '<div class="lab">Choose the accounts you spend from to see what is safe to spend.</div><div class="link">Choose accounts</div>'),
+        "Pace vs usual": tray("Pace vs usual", '<div class="lab" style="color:var(--text);font-weight:600">More complete months needed.</div><div class="lab" style="margin-top:3px">Record spending across complete months to compare this month with a usual one.</div>'),
+        "Subscriptions": tray("Subscriptions", '<div class="lab">No recurring plans yet.</div><div class="link">Add a plan</div>'),
+        "Needs attention": tray("Needs attention", '<div class="lab">Nothing needs attention.</div>', aside="<small>0 items</small>"),
         "Insights": w_insights("history"),
         "Week so far": w_week(),
     }
@@ -144,14 +159,15 @@ def catalogue():
         "Today and daily guide": w_today(), "This month": w_month(), "Recent entries": w_recent(),
         "Top categories": w_top(), "Card statement": w_card(), "Coming up": w_coming(),
         "Account balances": w_balances(), "Spending over time": w_overtime(), "Savings pocket": w_pocket(),
-        "Budget watch": w_budgetwatch(), "Insights": w_insights("shown"), "Week so far": w_week(),
+        "Budget watch": tiles.w_budgetwatch(), "Insights": w_insights("shown"), "Week so far": w_week(),
+        "Safe to spend": tiles.w_safe(), "Pace vs usual": tiles.w_pace(), "Subscriptions": tiles.w_subs(), "Needs attention": tiles.w_attention(),
     }
     notes = {
         "Today and daily guide": "Default. Sample monthly cap: S$1,200. Without a cap it offers Set a monthly cap.",
         "Recent entries": "Default. Signs, categories and accounts, then View History.",
         "Coming up": "Default. Plans, entries dated ahead and card cuts in the next six weeks.",
         "This month": "Spent, income and net, transfers excluded.",
-        "Budget watch": "Budgets at 80% or more of their limit. Sample limits: Groceries 450, Dining 350, Transport 120. None reach it in October.",
+        "Budget watch": "Every budget with its spending, limit and a month-end forecast line: the spent so far plus the category's monthly average over the remaining 28 of 31 days. The chip says On pace or Over by the amount at this pace. Sample limits: Groceries 450, Dining 350, Transport 120.",
         "Top categories": "Three largest categories this month.",
         "Account balances": "Chosen accounts; pockets counted once.",
         "Card statement": "Payable, this cycle and days to the cut. Not a due date.",
@@ -159,6 +175,10 @@ def catalogue():
         "Insights": "At most two changes with evidence. Normal state uses round 4 sample windows.",
         "Savings pocket": "A target is new; Holiday has none yet, so it asks for one.",
         "Week so far": "Compares with the previous three weeks; says when there is too little history instead of guessing.",
+        "Safe to spend": "Spendable balances less card balances owed and plans before the next salary. Savings pockets stay out. Needs the accounts you spend from.",
+        "Pace vs usual": "October so far against a usual month, the average of the complete months, across the whole month. Sample history; September counts as complete.",
+        "Subscriptions": "Monthly total of recurring plans, the next two charges and a price-change flag. Sample: Netflix previous price and the Gym membership plan.",
+        "Needs attention": "Items that block a correct record, each with one fix. Sample: a held import, a missing receipt and a paused OCBC Savings sync.",
     }
     cells = []
     for name in normal:
