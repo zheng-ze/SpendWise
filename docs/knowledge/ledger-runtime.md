@@ -1,40 +1,44 @@
 # Ledger Runtime
 
-Last reconciled: 28d81bd
+Last reconciled: 03903fe
 
 ## Feature overview
 
 The app-layer runtime that wraps the domain: `Ledger` (the sole mutation hub), `EventBus`
-(synchronous broadcast of `LedgerPublication` batches), `AnalysisCache` (a generation-guarded cache of analysis
+(synchronous broadcast of `LedgerPublication` batches), `AnalysisCache` (a source-revision-stamped cache of analysis
 items), `PersistenceProcessor` (the pipe from bus to store), the boot phase machine, the save/plan
 banners, and first-launch seeding. These live in `app/lib/ledger/` and `app/lib/boot/`.
 
 ## Key files
 
-- `app/lib/ledger/ledger.dart` — the only object permitted to touch `LedgerState`; every local
+- `app/lib/ledger/ledger.dart` - the only object permitted to touch `LedgerState`; every local
   mutation forwards to a domain mutator through `mutate` (`applySyncBatch` below is the sync
   boundary, not a local mutation).
-- `app/lib/ledger/event_bus.dart` — one `StreamController<LedgerPublication>.broadcast(sync: true)`.
-- `app/lib/ledger/ledger_publication.dart` — the `LedgerPublication` batch (`changes` plus optional sync `stamps`).
-- `app/lib/ledger/analysis_cache.dart` — bus-driven cache of `Accounting.analysisItems`, with a
-  revision counter and a generation guard.
-- `app/lib/persistence/persistence_processor.dart` — subscribes to the bus and forwards each
+- `app/lib/ledger/event_bus.dart` - one `StreamController<LedgerPublication>.broadcast(sync: true)`.
+- `app/lib/ledger/ledger_publication.dart` - the `LedgerPublication` batch (`changes` plus optional sync `stamps`).
+- `app/lib/ledger/analysis_cache.dart` - bus-driven cache of `Accounting.analysisItems`, with a
+  publication counter and accepted source revision.
+- `app/lib/persistence/persistence_processor.dart` - subscribes to the bus and forwards each
   publication to `enqueue` (unstamped) or `enqueueStamped` (stamped).
 - `app/lib/boot/app_boot.dart`, `app_phase.dart`, `banner_state.dart`, `providers.dart`,
-  `seed_data.dart` — boot state machine, banner state, Riverpod wiring, and the sample dataset.
+  `seed_data.dart` - boot state machine, banner state, Riverpod wiring, and the sample dataset.
   `providers.dart` also holds `clockProvider` and `todayProvider`; the day
   rollover ticker lives in `app/lib/ui/shell/day_ticker.dart`, and the month
   override in `app/lib/ui/shell/shell_providers.dart`.
-- `app/lib/ui/shell/status_banner.dart` — the bottom status banner overlay. The browser-storage
+- `app/lib/ui/shell/status_banner.dart` - the bottom status banner overlay. The browser-storage
   durability warning (`storage_warning.dart`, `storageIsDurableProvider`) was removed in commit
   `4d465f0` alongside the dropped web platform target; `status_banner.dart` is now the only banner
   in the shell.
 
 ## Module interactions
 
-`Ledger.mutate` runs, in order: the domain mutator (throws `LedgerError` on rejection), the debug
-invariant sweep, `bus.publish(changes)` as one atomic batch, then Riverpod listener notification
-(`ledger.dart`). Local `Ledger` mutations publish unstamped `LedgerPublication` values (no stamps).
+`Ledger._mutate` runs, in order: the domain mutator (throws `LedgerError` on rejection), the debug
+invariant sweep, then `_commit`: for a non-empty batch it increments `Ledger.revision`,
+publishes one atomic batch, and notifies listeners (`ledger.dart`). `revision` starts at zero and
+counts committed batches, including sync batches, rather than individual changes. Empty commits
+leave the revision unchanged and publish and notify nothing
+(`app/test/ledger/ledger_revision_test.dart`). Local `Ledger` mutations publish unstamped
+`LedgerPublication` values (no stamps).
 A cascade such as `addPocket` publishes the pocket upsert and the updated parent
 account as one batch. A throwing mutator publishes nothing. An empty change list publishes
 nothing, even with stamps present (`event_bus.dart:publish`). Delivered publications wrap
@@ -46,26 +50,52 @@ path (`ledger_publication.dart`, `persistence_processor.dart:_forward`).
 `Ledger.applySyncBatch(changes, stamps)` (`ledger.dart`) is the sync apply boundary for an
 already-decided remote batch; no caller uses it yet. It copies the five live tables into a
 candidate `LedgerState`, applies the batch there, and calls `candidate.assertInvariants` directly
-outside `assert` — structural clauses only, no mutator clause 12 monotonicity, so a legitimate
+outside `assert` - structural clauses only, no mutator clause 12 monotonicity, so a legitimate
 remote lifecycle transition this device never observed still passes. Only then it adopts the
-candidate into the live object (`LedgerState.adopt`), publishes one stamped `LedgerPublication`,
-and notifies once. A validation failure throws before any of those, so the live tables, the bus,
-and the listeners are untouched.
+candidate into the live object (`LedgerState.adopt`) and calls `_commit`. A non-empty sync batch
+advances the revision, publishes one stamped `LedgerPublication`, and notifies once; an empty
+batch still adopts the candidate but leaves the revision unchanged and publishes and notifies
+nothing (`ledger.dart:applySyncBatch`, `_commit`). A validation failure throws before adoption or
+commit, so the live tables, the bus, and the listeners are untouched.
 
-The bus is internal wiring subscribed by exactly two consumers: `PersistenceProcessor` and
-`AnalysisCache`. UI never touches the bus; it reacts to Riverpod notifications. Every subscriber
-must `listen` before the first `mutate` is possible — during boot, before the `Ledger` is handed to
-the UI — because a sync broadcast stream delivers only to attached listeners (`persistence.md` §4).
+The bus connects `PersistenceProcessor` and `AnalysisCache`; UI reacts through Ledger and cache
+listeners. `PersistenceProcessor.start` attaches during boot before the Ledger reaches the UI.
+`analysisCacheProvider` attaches the cache when it is first acquired for a ready Ledger; its
+source-revision getter reads `Ledger.revision`, so the first refresh includes commits made before
+subscription (`app/lib/boot/app_boot.dart`, `app/lib/boot/providers.dart:analysisCacheProvider`).
 
-`AnalysisCache.start(bus)` subscribes and bumps `revision` by one per delivered batch, reading
-only the publication's `changes` and ignoring `stamps`;
-`refresh(state)` computes off the main isolate via `isolateComputeRunner` on every platform under a
-generation guard so a stale result is discarded when a newer refresh has already claimed a higher
-revision. `AnalysisCache` no longer branches on `kIsWeb`: commit `7403a01` dropped the web-only
-`syncComputeRunner` default now that web is not a supported platform. `syncComputeRunner`
-(`analysis_cache.dart`) itself is retained purely as a test seam — 13 test call sites construct
-`AnalysisCache(runner: syncComputeRunner)` so a widget pump sees the result without waiting on a
-real isolate; it is never selected in production.
+`analysisCacheProvider` watches `ledgerProvider` and returns null while the Ledger is unavailable.
+It creates one cache per Ledger identity and starts it on that Ledger's bus before returning it.
+A replacement Ledger yields a replacement cache; Riverpod disposes the old cache. Boot does not
+acquire or start the cache (`app/lib/boot/providers.dart`; provider identity and retry coverage in
+`app/test/boot/analysis_cache_provider_test.dart`). `AnalysisCache.start` is idempotent for its
+current bus and rejects rebinding to a different bus (`analysis_cache.dart:AnalysisCache.start`).
+`AnalysisNotifier.build`, `CategoryDetailNotifier.build`, `BudgetsListNotifier.build`, and
+`BudgetDetailNotifier.build` obtain the ready Ledger before reading the cache value with
+`ref.read(analysisCacheProvider)!` (`app/lib/ui/stats/analysis/analysis_view_model.dart`,
+`app/lib/ui/stats/category_detail/category_detail_view_model.dart`,
+`app/lib/ui/budgets/budget_list/budgets_list_view_model.dart`,
+`app/lib/ui/budgets/budget_detail/budget_detail_view_model.dart`).
+
+`AnalysisCache.revision` counts received publications, ignoring stamps. `refresh(state,
+sourceRevision: ...)` chooses the explicit source revision, then the bound Ledger getter, then the
+publication counter. It captures the five LedgerState tables before running
+`Accounting.analysisItems` through `isolateComputeRunner`; `syncComputeRunner` is an injectable
+test seam (`app/lib/ledger/analysis_cache.dart:refresh`, `isolateComputeRunner`,
+`syncComputeRunner`). Requests for the same pending source revision share one Future, and a request
+for the accepted source revision does no work. A completion replaces `items` only when its source
+revision exceeds `itemsSourceRevision`; acceptance stores an unmodifiable item list, stamps the
+source revision, increments `itemsRevision`, and notifies once. Older work may be accepted while
+newer work remains pending, but cannot overwrite a newer accepted result
+(`analysis_cache.dart:_run`; `app/test/ledger/analysis_cache_source_revision_test.dart`).
+
+A failed computation preserves accepted items and records `lastFailure` as an
+`AnalysisCacheFailure` containing the error, stack trace, and source revision. It emits no listener
+notification and permits retry at the same revision. Failures at or below the accepted source
+revision are inert; acceptance clears a failure at or below its revision
+(`analysis_cache.dart:_run`). `dispose` synchronously disables bus handling and late computation
+acceptance before awaiting subscription cancellation
+(`analysis_cache.dart:dispose`; `app/test/ledger/analysis_cache_source_revision_test.dart`).
 
 ## Boot order
 
@@ -85,8 +115,10 @@ Exact and verified against `app_boot.dart`:
 10. Phase → `ready(ledger, processor)`.
 
 Any uncaught boot error lands in `failed(error)`; there is no partial-ready state. Provider
-dependency direction is `appPhase → (ledger, persistence, analysisCache, banners)`; nothing below
-`appPhase` outlives a retry, so a failed→ready cycle rebuilds the whole graph. `ledgerDatabaseProvider` is
+dependency direction is `appBootProvider → appPhaseProvider → ledgerProvider →
+analysisCacheProvider`; `persistenceProcessorProvider` also derives from the phase. The cache
+follows Ledger identity across retries, while `bannerStateProvider` is read by boot independently
+(`app/lib/boot/providers.dart`). `ledgerDatabaseProvider` is
 the sole boot owner of the shared `LedgerDatabase`; `storeProvider` builds `DriftLedgerStore`
 from it, and `syncMetadataStoreProvider` builds `SyncMetadataStore` from that same instance.
 `AppBoot.onRetry` invalidates `ledgerDatabaseProvider` and `syncMetadataStoreProvider` alongside
@@ -117,7 +149,7 @@ it calls `persistence.flush()` (fire-and-forget). `resolvePlans` is called once 
 `start()` when entering `ready`, and again on each lifecycle resume
 (`AppBoot.start`, `AppBoot.didChangeAppLifecycleState`). `now` is `AppBoot`'s injectable
 `DateTime Function()` field, defaulting to the `@visibleForTesting` static
-`AppBoot.utcNowFor([DateTime? localNow]) => startOfDayUtc(localNow ?? DateTime.now())` — UTC midnight of the *local*
+`AppBoot.utcNowFor([DateTime? localNow]) => startOfDayUtc(localNow ?? DateTime.now())` - UTC midnight of the *local*
 calendar day, not merely "a UTC instant." Before commit `26f6cd4`, the default was
 `DateTime.now().toUtc()`, which preserves the wall-clock instant rather than the calendar day: for
 any device with a positive UTC offset, this shifted the resolved day back by one for part of each
@@ -148,7 +180,7 @@ ViewModels (transactions, accounts, budgets, plans, the entry form) still read
 
 `resolvePlans(now)` runs `state.resolvePlans(now)` inside `mutate`; the materialized entries,
 updated plan cursors, and retired-plan changes land as one batch. Failures do not abort the
-mutation — successful occurrences still commit. After `mutate` completes, if failures are
+mutation - successful occurrences still commit. After `mutate` completes, if failures are
 non-empty, `onPlanError?.call(failures)` runs. `PlanFailure` carries `planID`, `occurrence`, and
 `error` (an entry-validation failure, distinct from a plan silently reaching its `endDate`).
 
@@ -175,11 +207,11 @@ dismissal timer. Source: `app/lib/ui/shell/status_banner.dart`, `app/lib/boot/ba
 ## Seeding contract
 
 `store.seedIfFirstLaunch(changes)` is gated on the store-meta `hasSeeded` flag, never on database
-emptiness — a user who deletes everything is not re-seeded. On first launch it sets `hasSeeded =
+emptiness - a user who deletes everything is not re-seeded. On first launch it sets `hasSeeded =
 true` first, then `enqueue(changes)`, then `await flushNow()`, so the seed is on disk before
 `load()` runs and a crash mid-seed does not double-seed. The seed changes are produced by building
 the sample dataset through the real Ledger mutation APIs into a fresh `LedgerState`, then taking
-`seedChanges` — every money source, category, entry, and plan as an upsert, in the order
+`seedChanges` - every money source, category, entry, and plan as an upsert, in the order
 moneySources, categories, entries, plans. The Dart seed builder asserts/throws in debug, unlike
 Swift's `try?`, so a validation tightening thins the seed loudly. The sample dataset covers a
 transfer without category, an uncategorized expense, subcategory entries, a prev/current/next-month
@@ -187,13 +219,15 @@ spread, card-vs-checking sourcing, and two live plans (`seed_data.dart`, `ledger
 
 ## Gotchas and invariants
 
-- The initial `AnalysisCache.revision (0) != lastComputed (-1)` gap is deliberate: the first
-  `refresh` always computes so the boot-loaded state gets its first analysis pass.
+- `AnalysisCache.itemsSourceRevision` starts at -1, so the first refresh computes even when
+  `Ledger.revision` is zero. Cache publication counts can lag Ledger revisions when acquisition
+  follows earlier commits; use the bound source revision for snapshot identity
+  (`app/lib/ledger/analysis_cache.dart`, `app/lib/boot/providers.dart:analysisCacheProvider`).
 - `resolvePlans` has no calendar parameter; `ledger_state_plans.dart` works in fixed UTC, so the
   caller must pass UTC midnight of the correct *calendar day* at boot, on resume, and after plan
-  creation — not merely any UTC-zoned instant. `.toUtc()` alone is the wrong normalizer here: it
+  creation - not merely any UTC-zoned instant. `.toUtc()` alone is the wrong normalizer here: it
   preserves the wall-clock instant, which shifts the day for a positive UTC offset. Use
-  `startOfDayUtc(localDateTime)` (`calendar_day.dart`) on a local, non-UTC `DateTime` instead —
+  `startOfDayUtc(localDateTime)` (`calendar_day.dart`) on a local, non-UTC `DateTime` instead -
   `AppBoot.utcNowFor` is the boot-layer's instance of this pattern (see Lifecycle hooks above); the
   same pattern is applied at `EntryFormViewModel.save` and three budget ViewModels (#38).
 - With `sync: true`, a subscriber callback runs inside `mutate`; subscribers must never call back
@@ -207,9 +241,12 @@ spread, card-vs-checking sourcing, and two live plans (`seed_data.dart`, `ledger
   (`app/test/boot/clock_test.dart`)
 - `Ledger` is the only object allowed to touch `LedgerState`; views never hold a `LedgerState`
   reference. (`ledger.dart`)
-- Every mutation runs the four-step `mutate` pipeline; a throwing mutator publishes nothing.
-  (`ledger.dart`, test `rejectedMutationPublishesNothing`)
-- Every runtime subscriber subscribes to the bus before the first `mutate`. (`app_boot.dart` §5.2)
+- Every successful non-empty commit increments `Ledger.revision` before publication and listener
+  notification; rejected and empty commits leave all three unchanged
+  (`app/lib/ledger/ledger.dart:_commit`, `app/test/ledger/ledger_revision_test.dart`).
+- Persistence attaches during boot; the nullable cache provider attaches on acquisition for its
+  ready Ledger and obtains source revisions from that Ledger
+  (`app/lib/boot/app_boot.dart`, `app/lib/boot/providers.dart:analysisCacheProvider`).
 - Seeding is gated on `hasSeeded`, not emptiness, and the flag commits atomically with the seed
   data. (`persistence.md` §7)
 - `resolvePlans` is called on entering `ready` and on resume, always with UTC midnight of the
