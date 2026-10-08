@@ -52,9 +52,7 @@ class AnalysisQueries extends ChangeNotifier {
     if (day == _today) return;
     _today = day;
     if (_disposed) return;
-    if (_cache.itemsSourceRevision == _ledger.revision) {
-      notifyListeners();
-    }
+    notifyListeners();
   }
 
   Future<void> retry() {
@@ -332,6 +330,7 @@ class AnalysisQueries extends ChangeNotifier {
   void _onLedgerChanged() {
     if (_disposed) return;
     unawaited(_requestRefresh());
+    notifyListeners();
   }
 
   void _onCacheChanged() {

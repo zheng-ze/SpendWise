@@ -314,7 +314,7 @@ void main() {
     runner.pending.last.complete(Accounting.analysisItems(ledger.state));
     await pumpEventQueue();
 
-    expect(notifications, 2);
+    expect(notifications, 4);
     final updatedToday = queries.readToday();
     expect(updatedToday.state, AnalysisQueryState.ready);
     expect(updatedToday.value?.day, DateTime.utc(2027, 4, 8));
