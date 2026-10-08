@@ -16,16 +16,19 @@ void main() {
 
   test('reuses the cached filtered list when the revision is unchanged', () {
     final scan = AnalysisScan();
+    final source = Object();
     final first = [item(dec('10'))];
     final second = [item(dec('99'))];
 
     final firstResult = scan.scan(
+      source: source,
       items: first,
       itemsRevision: 1,
       kind: CategoryKind.expense,
       buckets: {foodID},
     );
     final secondResult = scan.scan(
+      source: source,
       items: second,
       itemsRevision: 1,
       kind: CategoryKind.expense,
@@ -38,16 +41,19 @@ void main() {
 
   test('recomputes and reflects new items when the revision bumps', () {
     final scan = AnalysisScan();
+    final source = Object();
     final first = [item(dec('10'))];
     final second = [item(dec('99'))];
 
     scan.scan(
+      source: source,
       items: first,
       itemsRevision: 1,
       kind: CategoryKind.expense,
       buckets: {foodID},
     );
     final secondResult = scan.scan(
+      source: source,
       items: second,
       itemsRevision: 2,
       kind: CategoryKind.expense,
@@ -59,6 +65,7 @@ void main() {
 
   test('recomputes when the kind changes even with the same revision', () {
     final scan = AnalysisScan();
+    final source = Object();
     final items = [
       item(dec('10')),
       AnalysisItem(
@@ -70,12 +77,14 @@ void main() {
     ];
 
     final expenseResult = scan.scan(
+      source: source,
       items: items,
       itemsRevision: 1,
       kind: CategoryKind.expense,
       buckets: {foodID},
     );
     final incomeResult = scan.scan(
+      source: source,
       items: items,
       itemsRevision: 1,
       kind: CategoryKind.income,
@@ -90,16 +99,19 @@ void main() {
     'recomputes when the bucket filter changes even with the same revision',
     () {
       final scan = AnalysisScan();
+      final source = Object();
       const otherID = 'a0000000-0000-0000-0000-000000000002';
       final items = [item(dec('10')), item(dec('30'), bucketID: otherID)];
 
       final foodResult = scan.scan(
+        source: source,
         items: items,
         itemsRevision: 1,
         kind: CategoryKind.expense,
         buckets: {foodID},
       );
       final otherResult = scan.scan(
+        source: source,
         items: items,
         itemsRevision: 1,
         kind: CategoryKind.expense,
@@ -110,4 +122,28 @@ void main() {
       expect(otherResult.single.amount, dec('30'));
     },
   );
+
+  test('recomputes when the source changes even with the same revision', () {
+    final scan = AnalysisScan();
+    final first = [item(dec('10'))];
+    final second = [item(dec('25'))];
+
+    final firstResult = scan.scan(
+      source: Object(),
+      items: first,
+      itemsRevision: 1,
+      kind: CategoryKind.expense,
+      buckets: {foodID},
+    );
+    final secondResult = scan.scan(
+      source: Object(),
+      items: second,
+      itemsRevision: 1,
+      kind: CategoryKind.expense,
+      buckets: {foodID},
+    );
+
+    expect(identical(secondResult, firstResult), false);
+    expect(secondResult.single.amount, dec('25'));
+  });
 }

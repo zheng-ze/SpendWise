@@ -10,6 +10,7 @@ import 'package:spendwise/boot/banner_state.dart';
 import 'package:spendwise/boot/seed_data.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ledger/ledger_session.dart';
 import 'package:spendwise/persistence/database_connection.dart';
 import 'package:spendwise/persistence/drift_ledger_store.dart';
 import 'package:spendwise/persistence/ledger_database.dart';
@@ -42,13 +43,21 @@ final bannerStateProvider = ChangeNotifierProvider<BannerState>((ref) {
   return BannerState();
 });
 
-final analysisCacheProvider = ChangeNotifierProvider<AnalysisCache>((ref) {
-  return AnalysisCache();
+final analysisComputeRunnerProvider = Provider<ComputeRunner>(
+  (ref) => isolateComputeRunner,
+);
+
+final ledgerSessionProvider = Provider<LedgerSession?>((ref) {
+  final ledger = ref.watch(ledgerProvider);
+  if (ledger == null) return null;
+  final cache = AnalysisCache(runner: ref.watch(analysisComputeRunnerProvider));
+  cache.start(ledger.bus, sourceRevision: () => ledger.revision);
+  ref.onDispose(cache.dispose);
+  return LedgerSession(ledger: ledger, analysisCache: cache);
 });
 
 final appBootProvider = ChangeNotifierProvider<AppBoot>((ref) {
   final banner = ref.read(bannerStateProvider.notifier);
-  final cache = ref.read(analysisCacheProvider.notifier);
 
   final boot = AppBoot(
     createStore: () async => ref.read(storeProvider),
@@ -63,14 +72,6 @@ final appBootProvider = ChangeNotifierProvider<AppBoot>((ref) {
       ref.invalidate(databaseConnectionProvider);
     },
   );
-
-  void joinCacheOnceReady() {
-    final phase = boot.phase;
-    if (phase is Ready) cache.start(phase.ledger.bus);
-  }
-
-  boot.addListener(joinCacheOnceReady);
-  ref.onDispose(() => boot.removeListener(joinCacheOnceReady));
 
   WidgetsBinding.instance.addObserver(boot);
   ref.onDispose(() => WidgetsBinding.instance.removeObserver(boot));

@@ -88,9 +88,7 @@ void main() {
 
   overridesFor(Ledger ledger) => [
     ledgerProvider.overrideWithValue(ledger),
-    analysisCacheProvider.overrideWith(
-      (ref) => AnalysisCache(runner: syncComputeRunner),
-    ),
+    analysisComputeRunnerProvider.overrideWithValue(syncComputeRunner),
   ];
 
   Future<void> pumpDetail(

@@ -47,9 +47,7 @@ void main() {
               AppBoot(createStore: factory.call, seedChanges: seedChanges)
                 ..start(),
         ),
-        analysisCacheProvider.overrideWith(
-          (ref) => AnalysisCache(runner: syncComputeRunner),
-        ),
+        analysisComputeRunnerProvider.overrideWithValue(syncComputeRunner),
       ],
     );
     addTearDown(container.dispose);

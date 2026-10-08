@@ -1,41 +1,60 @@
 # Stats & Analysis UI
 
-Last reconciled: 12f4774
+Last reconciled: c06d3fb
 
 ## Feature overview
 
 The Stats tab and its category drill-down. Stats renders analysis items (post-analysis-gate:
 category include-gates and treat-as-expense transfer reclassification) as a donut with leader-line
 labels and a category legend, and Category Detail drills into a main category with a subcategory
-table, a trend card, and a scoped entry list. Data comes from `AnalysisCache`; the screen calls
-`refresh()` on appear and re-renders when the cache revision changes.
+table, a trend card, and a scoped entry list. Data comes from the ready Ledger's `AnalysisCache`;
+`AnalysisNotifier` and `CategoryDetailNotifier` refresh during build and on Ledger or cache
+notifications (`app/lib/ui/stats/analysis/analysis_view_model.dart`,
+`app/lib/ui/stats/category_detail/category_detail_view_model.dart`).
 
 ## Key files
 
-- `app/lib/ui/stats/stats_root_view_model.dart`, `stats_flow.dart` — the tab view model and Flow.
-- `app/lib/ui/stats/donut/` — the donut chart (leader-line labels).
-- `app/lib/ui/stats/analysis/` — slice/roll-up helpers.
-- `app/lib/ui/stats/category_detail/` — the drill-down screen and view model.
-- `app/lib/ui/common/day_sectioned_entry_list.dart` — reused entry list with tap-to-view and
+- `app/lib/ui/stats/stats_root_view_model.dart`, `stats_flow.dart` - the tab view model and Flow.
+- `app/lib/ui/stats/donut/` - the donut chart (leader-line labels).
+- `app/lib/ui/stats/analysis/` - slice/roll-up helpers.
+- `app/lib/ui/stats/category_detail/` - the drill-down screen and view model.
+- `app/lib/ui/common/day_sectioned_entry_list.dart` - reused entry list with tap-to-view and
   swipe-delete.
-- `packages/domain/lib/src/accounting.dart` — `rollUp`, `fraction`, filtering (see
+- `packages/domain/lib/src/accounting.dart` - `rollUp`, `fraction`, filtering (see
   `recurring-plans-and-accounting.md`).
-- `app/lib/ledger/analysis_cache.dart` — the generation-guarded cache.
+- `app/lib/ledger/analysis_cache.dart` - the source-revision-stamped cache; ownership and acceptance
+  contracts are in [ledger-runtime.md](ledger-runtime.md).
 
 ## Module interactions
 
-Stats watches `AnalysisCache.revision` to trigger `refresh(state)` and `items`/`itemsRevision` for
-results. Slices filter cache items by kind + window, `Accounting.rollUp` to main-category buckets,
-and sort by amount descending; slice color is the category `colorHex`, Uncategorized is gray. The
-Uncategorized bucket includes treat-as-expense transfers. Category Detail memoizes its
-kind+bucket-filtered item scan keyed on the cache's `itemsRevision`, recomputing only when the cache
-bumps its revision.
+`AnalysisNotifier.build` and `CategoryDetailNotifier.build` obtain the ready Ledger and its
+non-null cache through `LedgerBackedNotifier`, which watches `ledgerSessionProvider` and throws
+`StateError` while the session is unavailable (`app/lib/ui/common/ledger_backed_notifier.dart`).
+Each build captures the Ledger and cache in `_ledger` and `_cache`, attaches listeners, registers
+listener removal against those captured instances, and awaits `cache.refresh(ledger.state)`.
+Subsequent notifications refresh the captured `_cache`. The session provider owns cache
+disposal, and replacement Ledger identity rebuilds the session and its consumers
+(`app/lib/boot/providers.dart:ledgerSessionProvider`, `app/lib/ledger/ledger_session.dart`,
+`app/test/boot/ledger_session_provider_test.dart`,
+`app/lib/ui/stats/analysis/analysis_view_model.dart`,
+`app/lib/ui/stats/category_detail/category_detail_view_model.dart`).
+
+Slices filter cache items by kind and window, roll up to main-category buckets with
+`Accounting.rollUp`, and sort by amount descending. Slice color comes from the category's
+`colorHex`; Uncategorized is gray and includes treat-as-expense transfers
+(`app/lib/ui/stats/helpers/slices.dart`). Category Detail's `AnalysisScan` memoizes filtering by
+cache identity, `itemsRevision`, kind, and bucket set. Cache identity is essential because a
+replacement Ledger's cache restarts `itemsRevision`, which can equal the previous cache's revision
+(`app/lib/ui/stats/analysis/analysis_scan.dart:AnalysisScan.scan`,
+`app/lib/ui/stats/category_detail/category_detail_view_model.dart:_buildState`;
+`app/test/ui/stats/analysis/analysis_scan_test.dart`,
+`app/test/boot/category_detail_cache_retry_test.dart`).
 
 ## Navigation
 
 The Stats Flow owns this tab's nested navigator. Category Detail is pushed with
 `(mainID, kind, mode, initialDate)`; it has its own date state (seeded from Stats' date) but
-inherits mode fixed — the toolbar has the `MonthYearSelector` only, no range menu. The Uncategorized
+inherits mode fixed - the toolbar has the `MonthYearSelector` only, no range menu. The Uncategorized
 row in the legend is not navigable.
 
 ## Screens and flows
@@ -72,7 +91,9 @@ row in the legend is not navigable.
 
 ## Requirements
 
-- Data source is `AnalysisCache`; the screen refreshes on appear and on revision change.
+- Analysis ViewModels capture the ready session's Ledger and cache during build, use that cache
+  for listener removal and later refreshes, and scope memoized scans to cache identity
+  (`AnalysisNotifier.build`, `CategoryDetailNotifier.build`, `AnalysisScan.scan`).
 - Slices roll up to main buckets; Uncategorized includes treat-as-expense transfers; sorted by amount
   descending.
 - Category Detail scope selection, subcategory Direct-bucket threshold (`> 0`), trend windows both

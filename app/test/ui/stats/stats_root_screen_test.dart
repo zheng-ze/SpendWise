@@ -65,9 +65,7 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         ledgerProvider.overrideWithValue(ledger),
-        analysisCacheProvider.overrideWith(
-          (ref) => AnalysisCache(runner: syncComputeRunner),
-        ),
+        analysisComputeRunnerProvider.overrideWithValue(syncComputeRunner),
         if (selectedDate != null)
           selectedMonthProvider.overrideWith((ref) => selectedDate),
       ],

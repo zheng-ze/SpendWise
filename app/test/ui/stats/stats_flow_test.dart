@@ -57,9 +57,7 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         ledgerProvider.overrideWithValue(buildLedger()),
-        analysisCacheProvider.overrideWith(
-          (ref) => AnalysisCache(runner: syncComputeRunner),
-        ),
+        analysisComputeRunnerProvider.overrideWithValue(syncComputeRunner),
       ],
     );
     addTearDown(container.dispose);

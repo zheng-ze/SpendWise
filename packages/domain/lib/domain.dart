@@ -8,6 +8,7 @@ export 'src/accounts/account_type.dart';
 export 'src/accounts/money_source.dart';
 export 'src/accounts/sub_pocket.dart';
 export 'src/analysis/analysis_item.dart';
+export 'src/analysis/card_statement.dart';
 export 'src/analysis/net_worth.dart';
 export 'src/analysis/synthetic_buckets.dart';
 export 'src/budgets/budget.dart';

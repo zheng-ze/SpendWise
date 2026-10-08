@@ -1,6 +1,6 @@
 # Ledger & Money Model
 
-Last reconciled: 2026-09-02
+Last reconciled: 2026-10-08
 
 ## Feature overview
 
@@ -74,6 +74,11 @@ local mutation judges clause 12 against the post-sync baseline.
 `Accounting` reads `LedgerState` as pure functions — balances, net
 worth, and analysis classification — and never mutates it.
 
+`cardStatement` is a separate pure-domain read over `LedgerState`, exported with `CardStatement`
+from `packages/domain/lib/domain.dart`. Statement-cycle and payable contracts live in
+[recurring-plans-and-accounting.md](recurring-plans-and-accounting.md#card-statements)
+(`packages/domain/lib/src/analysis/card_statement.dart`).
+
 ## Lifecycle machine
 
 The state machine, with the rule behind each edge (`ledger_state_purge.dart`,
@@ -128,8 +133,9 @@ is a no-op returning `[]`.
 - **`updateAccount` pocket-demotion cascade.** Moving an account to a less-alive lifecycle demotes
   any pocket that would otherwise outlive it (`_demotePocketsBelow`), appended after the account
   upsert, so a pocket is never more alive than its account.
-- **`statementDay`** is forced to `null` for non-card types on `updateAccount`; `addAccount` stores
-  what it is given (then clamped).
+- **`statementDay`** is normalized on both `addAccount` and `updateAccount`: cards retain `null`
+  or a value clamped to 1-28; other account types store `null`
+  (`ledger_state_holders.dart`, `accounts/account.dart`: `withNormalizedStatementDay`).
 
 ## Invariants
 

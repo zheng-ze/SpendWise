@@ -87,18 +87,21 @@ void main() {
     expect(cache.revision, 1);
   });
 
-  test('startOnANewBusMovesTheSubscription', () {
+  test('eachLedgerBusGetsItsOwnCacheInstance', () {
     final first = EventBus();
     final second = EventBus();
-    final cache = AnalysisCache()
-      ..start(first)
-      ..start(second);
+    final firstCache = AnalysisCache()..start(first);
+    final secondCache = AnalysisCache()..start(second);
+
+    expect(() => firstCache.start(second), throwsStateError);
 
     second.publish([UpsertAccount(_account(name: 'b'))]);
-    expect(cache.revision, 1);
+    expect(secondCache.revision, 1);
+    expect(firstCache.revision, 0);
 
     first.publish([UpsertAccount(_account(name: 'a'))]);
-    expect(cache.revision, 1, reason: 'the discarded bus is no longer counted');
+    expect(firstCache.revision, 1);
+    expect(secondCache.revision, 1);
   });
 
   test('disposeStopsCountingBusEvents', () async {
