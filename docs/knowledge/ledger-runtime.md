@@ -1,12 +1,13 @@
 # Ledger Runtime
 
-Last reconciled: c06d3fb
+Last reconciled: f2a45d3
 
 ## Feature overview
 
 The app-layer runtime that wraps the domain: `Ledger` (the sole mutation hub), `EventBus`
 (synchronous broadcast of `LedgerPublication` batches), `AnalysisCache` (a source-revision-stamped cache of analysis
-items), `PersistenceProcessor` (the pipe from bus to store), the boot phase machine, the save/plan
+items), `AnalysisQueries` (revision-coherent today and period summaries), `PersistenceProcessor`
+(the pipe from bus to store), the boot phase machine, the save/plan
 banners, and first-launch seeding. These live in `app/lib/ledger/` and `app/lib/boot/`.
 
 ## Key files
@@ -19,6 +20,10 @@ banners, and first-launch seeding. These live in `app/lib/ledger/` and `app/lib/
 - `app/lib/ledger/analysis_cache.dart` - bus-driven cache of `Accounting.analysisItems`, with a
   publication counter and accepted source revision.
 - `app/lib/ledger/ledger_session.dart` - pairs a ready Ledger with its non-null analysis cache.
+- `app/lib/ledger/analysis_queries.dart` - observable query results, refresh ownership, retry,
+  and per-query memoization.
+- `app/lib/ledger/analysis/` - `AnalysisQueryResult`, `TodaySummary`, `PeriodSummary`, and their
+  pure summary calculations.
 - `app/lib/ui/common/ledger_backed_notifier.dart` - watches the ready session and exposes its
   Ledger and cache to ViewModels.
 - `app/lib/persistence/persistence_processor.dart` - subscribes to the bus and forwards each
@@ -106,10 +111,61 @@ newer work remains pending, but cannot overwrite a newer accepted result
 A failed computation preserves accepted items and records `lastFailure` as an
 `AnalysisCacheFailure` containing the error, stack trace, and source revision. It emits no listener
 notification and permits retry at the same revision. Failures at or below the accepted source
-revision are inert; acceptance clears a failure at or below its revision
-(`analysis_cache.dart:_run`). `dispose` synchronously disables bus handling and late computation
+revision are inert; an older failure cannot replace a newer retained failure. Acceptance clears
+a failure at or below its revision (`analysis_cache.dart:_run`;
+`app/test/ledger/analysis_queries_test.dart:olderFailureAfterNewerFailureKeepsTheNewerFailure`).
+`dispose` synchronously disables bus handling and late computation
 acceptance before awaiting subscription cancellation
 (`analysis_cache.dart:dispose`; `app/test/ledger/analysis_cache_source_revision_test.dart`).
+
+## Analysis queries
+
+`AnalysisQueries` is a `ChangeNotifier` bound to one Ledger and its cache. It requests refresh on
+construction and every Ledger notification, independently of ViewModels. `retry()` clears failed
+query evaluations and requests refresh at the current revision; a later Ledger notification also
+recovers from a cache failure. Reads and failed refreshes start no recursive work. Disposal removes
+its Ledger/cache listeners and suppresses late notifications; cache ownership remains with the
+session (`app/lib/ledger/analysis_queries.dart`; `app/test/ledger/analysis_queries_test.dart`).
+
+`analysisQueriesProvider` is a nullable, non-autoDispose `ChangeNotifierProvider` that watches
+`ledgerSessionProvider`. It returns null until a ready session exists, creates queries from that
+session, and owns their disposal. Session replacement replaces queries with the new Ledger/cache
+pair. It reads `todayProvider` initially and listens for changes through `setToday`, so day rollover
+updates the existing query object without a cache computation
+(`app/lib/boot/providers.dart:analysisQueriesProvider`;
+`app/test/boot/analysis_queries_provider_test.dart`).
+
+`readToday()` and `readPeriod(window:, sourceIDs:)` return `AnalysisQueryResult<T>` with nullable
+`value`, `ready`/`loading`/`failed` state, and nullable `sourceRevision`. Both mix Ledger state with
+analysis items and evaluate only when `cache.itemsSourceRevision == ledger.revision`. While
+pending or failed, a previously read query retains its last successful value and that value's
+revision; a query without a successful value returns null for both. A calculation exception fails
+only that query. Query notifications announce acceptance at the current Ledger revision or its
+refresh failure. Interim publications and older completions emit no query notification
+(`app/lib/ledger/analysis_queries.dart:_readMixed`, `_onCacheChanged`, `_requestRefresh`;
+`app/test/ledger/analysis_queries_test.dart`, `app/test/ledger/analysis_queries_memo_test.dart`).
+
+Successful results are memoized by query identity, normalized today, Ledger revision, and accepted
+cache source revision. Period identity uses normalized window endpoints and a normalized,
+deduplicated, sorted source-ID set; null scope and empty scope are distinct. `setToday` normalizes
+the calendar day, ignores same-day changes, and notifies only when the cache is current. A day
+change during pending work retains the old value until coherent evaluation can resume
+(`app/lib/ledger/analysis_queries.dart`; `app/test/ledger/analysis_queries_memo_test.dart`).
+
+`TodaySummary` contains the normalized day, that day's analysis-gated expense total, and an
+optional daily guide. The guide uses the applicable unscoped budget's effective monthly limit,
+including overrides, divided by calendar days in the month and rounded half-up to whole dollars.
+It is null without an applicable budget; multiple applicable unscoped budgets fail evaluation
+(`app/lib/ledger/analysis/today_summary.dart`; `app/test/ledger/analysis_today_period_test.dart`).
+
+`PeriodSummary` contains the normalized requested `[start, end)` window, an effective window capped
+at tomorrow's UTC midnight, expense/income totals, `net = income - spent`, and absolute transfer
+volume `moved`. A wholly future or empty window has zero totals; reversed endpoints fail evaluation.
+Without a source scope, totals use cached analysis items. A scope selects active entries touching
+any selected source and classifies them against the complete Ledger source set; an empty scope
+selects nothing. `moved` counts each qualifying active transfer once, regardless of analysis gates;
+treat-as-expense transfers can contribute to both spending and moved volume
+(`app/lib/ledger/analysis/period_summary.dart`; `app/test/ledger/analysis_today_period_test.dart`).
 
 ## Boot order
 
