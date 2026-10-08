@@ -1,6 +1,6 @@
 # Ledger Runtime
 
-Last reconciled: 03903fe
+Last reconciled: c06d3fb
 
 ## Feature overview
 
@@ -18,6 +18,9 @@ banners, and first-launch seeding. These live in `app/lib/ledger/` and `app/lib/
 - `app/lib/ledger/ledger_publication.dart` - the `LedgerPublication` batch (`changes` plus optional sync `stamps`).
 - `app/lib/ledger/analysis_cache.dart` - bus-driven cache of `Accounting.analysisItems`, with a
   publication counter and accepted source revision.
+- `app/lib/ledger/ledger_session.dart` - pairs a ready Ledger with its non-null analysis cache.
+- `app/lib/ui/common/ledger_backed_notifier.dart` - watches the ready session and exposes its
+  Ledger and cache to ViewModels.
 - `app/lib/persistence/persistence_processor.dart` - subscribes to the bus and forwards each
   publication to `enqueue` (unstamped) or `enqueueStamped` (stamped).
 - `app/lib/boot/app_boot.dart`, `app_phase.dart`, `banner_state.dart`, `providers.dart`,
@@ -60,19 +63,30 @@ commit, so the live tables, the bus, and the listeners are untouched.
 
 The bus connects `PersistenceProcessor` and `AnalysisCache`; UI reacts through Ledger and cache
 listeners. `PersistenceProcessor.start` attaches during boot before the Ledger reaches the UI.
-`analysisCacheProvider` attaches the cache when it is first acquired for a ready Ledger; its
-source-revision getter reads `Ledger.revision`, so the first refresh includes commits made before
-subscription (`app/lib/boot/app_boot.dart`, `app/lib/boot/providers.dart:analysisCacheProvider`).
+`ledgerSessionProvider` attaches the cache when the session is first acquired for a ready Ledger.
+Its source-revision getter reads `Ledger.revision`, so the first refresh includes commits made before
+subscription (`app/lib/boot/app_boot.dart`, `app/lib/boot/providers.dart:ledgerSessionProvider`).
 
-`analysisCacheProvider` watches `ledgerProvider` and returns null while the Ledger is unavailable.
-It creates one cache per Ledger identity and starts it on that Ledger's bus before returning it.
-A replacement Ledger yields a replacement cache; Riverpod disposes the old cache. Boot does not
-acquire or start the cache (`app/lib/boot/providers.dart`; provider identity and retry coverage in
-`app/test/boot/analysis_cache_provider_test.dart`). `AnalysisCache.start` is idempotent for its
+`ledgerSessionProvider` is a `Provider<LedgerSession?>` that watches `ledgerProvider` and returns
+null while the Ledger is unavailable. A ready session pairs that Ledger with a non-null
+`AnalysisCache`, started on its bus before the session returns. The provider owns the cache and
+registers `ref.onDispose(cache.dispose)`; a replacement Ledger rebuilds the session and disposes
+the outgoing cache. Boot does not acquire or start the cache (`app/lib/boot/providers.dart`,
+`app/lib/ledger/ledger_session.dart`; provider identity and retry coverage in
+`app/test/boot/ledger_session_provider_test.dart`). `analysisComputeRunnerProvider` supplies the
+watched `ComputeRunner`, defaults to `isolateComputeRunner`, and supports a `syncComputeRunner`
+override while preserving session lifecycle wiring (`app/lib/boot/providers.dart`,
+`app/test/boot/ledger_session_provider_test.dart`). `AnalysisCache.start` is idempotent for its
 current bus and rejects rebinding to a different bus (`analysis_cache.dart:AnalysisCache.start`).
+
+`LedgerBackedNotifier` watches `ledgerSessionProvider`, throws `StateError` when the session is
+null, and exposes the Ledger and cache from that same session
+(`app/lib/ui/common/ledger_backed_notifier.dart`).
 `AnalysisNotifier.build`, `CategoryDetailNotifier.build`, `BudgetsListNotifier.build`, and
-`BudgetDetailNotifier.build` obtain the ready Ledger before reading the cache value with
-`ref.read(analysisCacheProvider)!` (`app/lib/ui/stats/analysis/analysis_view_model.dart`,
+`BudgetDetailNotifier.build` capture that Ledger and cache in `_ledger` and `_cache`. Each build
+attaches listeners, registers removal against the captured instances, and awaits the initial
+cache refresh. Later notifications refresh the captured `_cache`; session replacement rebuilds
+the consumers through their watched dependency (`app/lib/ui/stats/analysis/analysis_view_model.dart`,
 `app/lib/ui/stats/category_detail/category_detail_view_model.dart`,
 `app/lib/ui/budgets/budget_list/budgets_list_view_model.dart`,
 `app/lib/ui/budgets/budget_detail/budget_detail_view_model.dart`).
@@ -116,7 +130,7 @@ Exact and verified against `app_boot.dart`:
 
 Any uncaught boot error lands in `failed(error)`; there is no partial-ready state. Provider
 dependency direction is `appBootProvider → appPhaseProvider → ledgerProvider →
-analysisCacheProvider`; `persistenceProcessorProvider` also derives from the phase. The cache
+ledgerSessionProvider`; `persistenceProcessorProvider` also derives from the phase. The cache
 follows Ledger identity across retries, while `bannerStateProvider` is read by boot independently
 (`app/lib/boot/providers.dart`). `ledgerDatabaseProvider` is
 the sole boot owner of the shared `LedgerDatabase`; `storeProvider` builds `DriftLedgerStore`
@@ -222,7 +236,7 @@ spread, card-vs-checking sourcing, and two live plans (`seed_data.dart`, `ledger
 - `AnalysisCache.itemsSourceRevision` starts at -1, so the first refresh computes even when
   `Ledger.revision` is zero. Cache publication counts can lag Ledger revisions when acquisition
   follows earlier commits; use the bound source revision for snapshot identity
-  (`app/lib/ledger/analysis_cache.dart`, `app/lib/boot/providers.dart:analysisCacheProvider`).
+  (`app/lib/ledger/analysis_cache.dart`, `app/lib/boot/providers.dart:ledgerSessionProvider`).
 - `resolvePlans` has no calendar parameter; `ledger_state_plans.dart` works in fixed UTC, so the
   caller must pass UTC midnight of the correct *calendar day* at boot, on resume, and after plan
   creation - not merely any UTC-zoned instant. `.toUtc()` alone is the wrong normalizer here: it
@@ -244,9 +258,9 @@ spread, card-vs-checking sourcing, and two live plans (`seed_data.dart`, `ledger
 - Every successful non-empty commit increments `Ledger.revision` before publication and listener
   notification; rejected and empty commits leave all three unchanged
   (`app/lib/ledger/ledger.dart:_commit`, `app/test/ledger/ledger_revision_test.dart`).
-- Persistence attaches during boot; the nullable cache provider attaches on acquisition for its
-  ready Ledger and obtains source revisions from that Ledger
-  (`app/lib/boot/app_boot.dart`, `app/lib/boot/providers.dart:analysisCacheProvider`).
+- Persistence attaches during boot; the nullable session provider owns and attaches the cache
+  on acquisition for its ready Ledger and obtains source revisions from that Ledger
+  (`app/lib/boot/app_boot.dart`, `app/lib/boot/providers.dart:ledgerSessionProvider`).
 - Seeding is gated on `hasSeeded`, not emptiness, and the flag commits atomically with the seed
   data. (`persistence.md` §7)
 - `resolvePlans` is called on entering `ready` and on resume, always with UTC midnight of the

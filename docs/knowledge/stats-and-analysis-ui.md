@@ -1,6 +1,6 @@
 # Stats & Analysis UI
 
-Last reconciled: 03903fe
+Last reconciled: c06d3fb
 
 ## Feature overview
 
@@ -27,12 +27,16 @@ notifications (`app/lib/ui/stats/analysis/analysis_view_model.dart`,
 
 ## Module interactions
 
-`AnalysisNotifier.build` and `CategoryDetailNotifier.build` obtain the ready Ledger before
-reading `analysisCacheProvider` as non-null. Each attaches Ledger and cache listeners, awaits the
-initial `cache.refresh(ledger.state)`, and refreshes on subsequent notifications. Cache ownership
-follows Ledger identity through `app/lib/boot/providers.dart:analysisCacheProvider`; the ViewModels
-read the cache value with `ref.read(analysisCacheProvider)!`, rather than its provider notifier
-(`app/lib/ui/stats/analysis/analysis_view_model.dart`,
+`AnalysisNotifier.build` and `CategoryDetailNotifier.build` obtain the ready Ledger and its
+non-null cache through `LedgerBackedNotifier`, which watches `ledgerSessionProvider` and throws
+`StateError` while the session is unavailable (`app/lib/ui/common/ledger_backed_notifier.dart`).
+Each build captures the Ledger and cache in `_ledger` and `_cache`, attaches listeners, registers
+listener removal against those captured instances, and awaits `cache.refresh(ledger.state)`.
+Subsequent notifications refresh the captured `_cache`. The session provider owns cache
+disposal, and replacement Ledger identity rebuilds the session and its consumers
+(`app/lib/boot/providers.dart:ledgerSessionProvider`, `app/lib/ledger/ledger_session.dart`,
+`app/test/boot/ledger_session_provider_test.dart`,
+`app/lib/ui/stats/analysis/analysis_view_model.dart`,
 `app/lib/ui/stats/category_detail/category_detail_view_model.dart`).
 
 Slices filter cache items by kind and window, roll up to main-category buckets with
@@ -87,8 +91,8 @@ row in the legend is not navigable.
 
 ## Requirements
 
-- Analysis ViewModels acquire the cache after obtaining a ready Ledger, refresh during build and
-  on Ledger/cache notifications, and scope memoized scans to cache identity
+- Analysis ViewModels capture the ready session's Ledger and cache during build, use that cache
+  for listener removal and later refreshes, and scope memoized scans to cache identity
   (`AnalysisNotifier.build`, `CategoryDetailNotifier.build`, `AnalysisScan.scan`).
 - Slices roll up to main buckets; Uncategorized includes treat-as-expense transfers; sorted by amount
   descending.
