@@ -1,12 +1,12 @@
 # Ledger Runtime
 
-Last reconciled: f2a45d3
+Last reconciled: 9fc9e82
 
 ## Feature overview
 
 The app-layer runtime that wraps the domain: `Ledger` (the sole mutation hub), `EventBus`
 (synchronous broadcast of `LedgerPublication` batches), `AnalysisCache` (a source-revision-stamped cache of analysis
-items), `AnalysisQueries` (revision-coherent today and period summaries), `PersistenceProcessor`
+items), `AnalysisQueries` (the shared app-layer read service), `PersistenceProcessor`
 (the pipe from bus to store), the boot phase machine, the save/plan
 banners, and first-launch seeding. These live in `app/lib/ledger/` and `app/lib/boot/`.
 
@@ -22,8 +22,9 @@ banners, and first-launch seeding. These live in `app/lib/ledger/` and `app/lib/
 - `app/lib/ledger/ledger_session.dart` - pairs a ready Ledger with its non-null analysis cache.
 - `app/lib/ledger/analysis_queries.dart` - observable query results, refresh ownership, retry,
   and per-query memoization.
-- `app/lib/ledger/analysis/` - `AnalysisQueryResult`, `TodaySummary`, `PeriodSummary`, and their
-  pure summary calculations.
+- `app/lib/ledger/analysis/` - app-owned query result types and pure helpers for summaries,
+  entry metadata, register days, recent entries, upcoming items, weeks, search, and calendar days.
+  The pure-domain card query lives in `packages/domain/lib/src/analysis/card_statement.dart`.
 - `app/lib/ui/common/ledger_backed_notifier.dart` - watches the ready session and exposes its
   Ledger and cache to ViewModels.
 - `app/lib/persistence/persistence_processor.dart` - subscribes to the bus and forwards each
@@ -56,8 +57,9 @@ as unstamped: `LedgerPublication.hasStamps` is false and the processor keeps the
 path (`ledger_publication.dart`, `persistence_processor.dart:_forward`).
 
 `Ledger.applySyncBatch(changes, stamps)` (`ledger.dart`) is the sync apply boundary for an
-already-decided remote batch; no caller uses it yet. It copies the five live tables into a
-candidate `LedgerState`, applies the batch there, and calls `candidate.assertInvariants` directly
+already-decided remote batch. `SyncCoordinator` calls it after synchronous finalization accepts
+the remote changes and stamps (`app/lib/sync/sync_coordinator.dart`). It copies the five live
+tables into a candidate `LedgerState`, applies the batch there, and calls `candidate.assertInvariants` directly
 outside `assert` - structural clauses only, no mutator clause 12 monotonicity, so a legitimate
 remote lifecycle transition this device never observed still passes. Only then it adopts the
 candidate into the live object (`LedgerState.adopt`) and calls `_commit`. A non-empty sync batch
@@ -120,7 +122,10 @@ acceptance before awaiting subscription cancellation
 
 ## Analysis queries
 
-`AnalysisQueries` is a `ChangeNotifier` bound to one Ledger and its cache. It requests refresh on
+`AnalysisQueries` is the single shared app-layer read service, exposed by
+`analysisQueriesProvider` and bound to one Ledger and its cache. Its pure helpers and result types
+live under `app/lib/ledger/analysis/`; `CardStatement` and `cardStatement` are domain-owned
+(`packages/domain/lib/src/analysis/card_statement.dart`). It requests refresh on
 construction and every Ledger notification, independently of ViewModels. `retry()` clears failed
 query evaluations and requests refresh at the current revision; a later Ledger notification also
 recovers from a cache failure. Reads and failed refreshes start no recursive work. Disposal removes
@@ -135,8 +140,9 @@ updates the existing query object without a cache computation
 (`app/lib/boot/providers.dart:analysisQueriesProvider`;
 `app/test/boot/analysis_queries_provider_test.dart`).
 
-`readToday()` and `readPeriod(window:, sourceIDs:)` return `AnalysisQueryResult<T>` with nullable
-`value`, `ready`/`loading`/`failed` state, and nullable `sourceRevision`. Both mix Ledger state with
+`readToday()`, `readPeriod(window:, sourceIDs:)`, and `readWeeks(window:, sourceIDs:)` return
+`AnalysisQueryResult<T>` with nullable `value`, `ready`/`loading`/`failed` state, and nullable
+`sourceRevision`. These reads mix Ledger state with
 analysis items and evaluate only when `cache.itemsSourceRevision == ledger.revision`. While
 pending or failed, a previously read query retains its last successful value and that value's
 revision; a query without a successful value returns null for both. A calculation exception fails
@@ -145,10 +151,10 @@ refresh failure. Interim publications and older completions emit no query notifi
 (`app/lib/ledger/analysis_queries.dart:_readMixed`, `_onCacheChanged`, `_requestRefresh`;
 `app/test/ledger/analysis_queries_test.dart`, `app/test/ledger/analysis_queries_memo_test.dart`).
 
-Successful results are memoized by query identity, normalized today, Ledger revision, and accepted
-cache source revision. Period identity uses normalized window endpoints and a normalized,
+Successful mixed results are memoized by query identity, normalized today, Ledger revision, and
+accepted cache source revision. Period identity uses normalized window endpoints and a normalized,
 deduplicated, sorted source-ID set; null scope and empty scope are distinct. `setToday` normalizes
-the calendar day, ignores same-day changes, and notifies only when the cache is current. A day
+the calendar day, ignores same-day changes, and notifies only when the cache is current. For mixed reads, a day
 change during pending work retains the old value until coherent evaluation can resume
 (`app/lib/ledger/analysis_queries.dart`; `app/test/ledger/analysis_queries_memo_test.dart`).
 
@@ -166,6 +172,44 @@ any selected source and classifies them against the complete Ledger source set; 
 selects nothing. `moved` counts each qualifying active transfer once, regardless of analysis gates;
 treat-as-expense transfers can contribute to both spending and moved volume
 (`app/lib/ledger/analysis/period_summary.dart`; `app/test/ledger/analysis_today_period_test.dart`).
+
+`readRegisterDays`, `readRecent`, `readUpcoming`, `readSearch`, `readCalendarDays`, and
+`readCardStatement` evaluate against the current Ledger without waiting for analysis items.
+Successful results carry `Ledger.revision`; memo keys include normalized query parameters and
+revision, plus today for day-dependent reads. Exceptions fail only the affected query and retain
+its previous successful value if present (`analysis_queries.dart:_readLedgerOnly`;
+`app/test/ledger/analysis_service_test.dart`: `ledgerOnlyReadsComputeWhileMixedReadsStayPending`,
+`equivalentReadsReuseAcrossNormalizedScopes`, `queryFailuresAreIsolatedAndRetryRecovers`).
+
+- `readRegisterDays(window:, sourceIDs:, kind:)` returns newest-first populated days, with
+  entries in reverse Ledger insertion order within each day. `registerDays` is the shared seam
+  for History day groups and calendar selected-day totals. Its `Accounting.totals` semantics
+  intentionally include excluded-category entries that analysis totals omit; entry-level
+  `includeInAnalysis` still gates totals. Rows remain visible regardless of those flags
+  (`app/lib/ledger/analysis/register.dart`: `registerDays`, `registerTotals`;
+  `app/test/ledger/analysis_service_test.dart`: `registerPreservesDaySectionsAccounting`,
+  `registerTotalsMatchPeriodFixtureAndHistoryEqualsSelectedDay`).
+- `readRecent(limit: 4, sourceIDs:)` excludes dates after today and sorts by date descending,
+  breaking ties by reverse insertion order. `readSearch(query:, window:, sourceIDs:, kind:)`
+  searches trimmed, case-insensitive entry, category, parent-category, source, and destination
+  names and returns newest-first month groups with register totals (`app/lib/ledger/analysis/register.dart`,
+  `app/lib/ledger/analysis/search.dart`; `analysis_service_test.dart`).
+- `readUpcoming(window:, sourceIDs:)` defaults to `[today, today + 42 days)` and merges future
+  recorded entries, projected plan occurrences, and the next card statement. Same-day ties sort
+  statement, plan, entry, then by stable ID. `readCalendarDays(window:, sourceIDs:)` returns
+  oldest-first populated days containing recorded entries and projected plans. Both use the same
+  cursor-aware projection without mutating Ledger state; see
+  [recurring-plans-and-accounting.md](recurring-plans-and-accounting.md)
+  (`app/lib/ledger/analysis/upcoming.dart`, `app/lib/ledger/analysis/calendar.dart`; `analysis_service_test.dart`).
+- `readWeeks(window:, sourceIDs:)` returns Monday-based full weeks intersecting the requested
+  window, including days outside its endpoints. Each effective window ends at tomorrow or the
+  week end, with future weeks empty. Spending and counts use expense analysis items; scoped
+  reads classify touching active entries against all source IDs. Every scope uses the same
+  cache-revision gate (`app/lib/ledger/analysis/weeks.dart`, `analysis_queries.dart:readWeeks`;
+  `analysis_service_test.dart`: `weeksTotalAcrossMonthBoundaryWithCounts`).
+- `readCardStatement(accountID:)` wraps the domain query at today. An ineligible account returns
+  a ready result with null value and the current Ledger revision (`analysis_queries.dart`;
+  `analysis_service_test.dart`: `ineligibleCardIsReadyNullWithRevision`).
 
 ## Boot order
 
@@ -285,7 +329,12 @@ the sample dataset through the real Ledger mutation APIs into a fresh `LedgerSta
 moneySources, categories, entries, plans. The Dart seed builder asserts/throws in debug, unlike
 Swift's `try?`, so a validation tightening thins the seed loudly. The sample dataset covers a
 transfer without category, an uncategorized expense, subcategory entries, a prev/current/next-month
-spread, card-vs-checking sourcing, and two live plans (`seed_data.dart`, `ledger_runtime.md` §6).
+spread, card-vs-checking sourcing, and two live plans (`app/lib/boot/seed_data.dart`).
+
+Seed data is unchanged by these reads and remains independent of query presentation. Query contracts use controlled test
+fixtures; mockup and sample-seed figures are not calculation targets
+(`app/lib/boot/seed_data.dart`, `app/test/ledger/analysis_service_test.dart`,
+`app/test/ledger/analysis_today_period_test.dart`).
 
 ## Gotchas and invariants
 
