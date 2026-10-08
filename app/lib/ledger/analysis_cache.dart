@@ -123,11 +123,14 @@ class AnalysisCache extends ChangeNotifier {
       _pending.remove(request);
       if (_disposed || request <= _itemsSourceRevision) return;
 
-      _lastFailure = AnalysisCacheFailure(
-        error: error,
-        stackTrace: stackTrace,
-        sourceRevision: request,
-      );
+      final previous = _lastFailure;
+      if (previous == null || request >= previous.sourceRevision) {
+        _lastFailure = AnalysisCacheFailure(
+          error: error,
+          stackTrace: stackTrace,
+          sourceRevision: request,
+        );
+      }
       debugPrint(
         'AnalysisCache refresh failed for source revision '
         '$request: $error\n$stackTrace',

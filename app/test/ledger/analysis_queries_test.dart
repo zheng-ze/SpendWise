@@ -237,6 +237,100 @@ void main() {
     expect(notifications, 2);
   });
 
+  test('olderFailureAfterNewerFailureKeepsTheNewerFailure', () async {
+    final setup = _setup();
+    final ledger = setup.ledger;
+    final queries = setup.queries;
+    final runner = setup.runner;
+    var notifications = 0;
+    queries.addListener(() => notifications++);
+
+    runner.pending[0].complete(const []);
+    await pumpEventQueue();
+    expect(notifications, 1);
+    final settledToday = queries.readToday();
+    final settledPeriod = queries.readPeriod(window: _april());
+    expect(settledToday.state, AnalysisQueryState.ready);
+    expect(settledPeriod.state, AnalysisQueryState.ready);
+
+    _addExpense(ledger, 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '-13.50');
+    _addExpense(ledger, 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', '-7.00');
+    expect(runner.calls, 3);
+
+    runner.pending[2].completeError(StateError('newer'));
+    await pumpEventQueue();
+
+    expect(notifications, 2);
+    final failedToday = queries.readToday();
+    expect(failedToday.state, AnalysisQueryState.failed);
+    expect(failedToday.value, settledToday.value);
+    expect(failedToday.sourceRevision, settledToday.sourceRevision);
+    final failedPeriod = queries.readPeriod(window: _april());
+    expect(failedPeriod.state, AnalysisQueryState.failed);
+    expect(failedPeriod.value, settledPeriod.value);
+    expect(failedPeriod.sourceRevision, settledPeriod.sourceRevision);
+
+    runner.pending[1].completeError(StateError('older'));
+    await pumpEventQueue();
+
+    expect(notifications, 2);
+    expect(queries.readToday().state, AnalysisQueryState.failed);
+    expect(
+      queries.readPeriod(window: _april()).state,
+      AnalysisQueryState.failed,
+    );
+
+    final retrying = queries.retry();
+    expect(runner.calls, 4);
+    runner.pending[3].complete(Accounting.analysisItems(ledger.state));
+    await retrying;
+    await pumpEventQueue();
+
+    expect(notifications, 3);
+    expect(
+      queries.readPeriod(window: _april()).value?.spent,
+      Decimal.parse('20.50'),
+    );
+  });
+
+  test('bothFailingBeforeDrainingPublishesTheFailureOnce', () async {
+    final setup = _setup();
+    final ledger = setup.ledger;
+    final queries = setup.queries;
+    final runner = setup.runner;
+    var notifications = 0;
+    queries.addListener(() => notifications++);
+
+    runner.pending[0].complete(const []);
+    await pumpEventQueue();
+    expect(notifications, 1);
+    final settledPeriod = queries.readPeriod(window: _april());
+
+    _addExpense(ledger, 'cccccccc-cccc-cccc-cccc-cccccccccccc', '-13.50');
+    _addExpense(ledger, 'dddddddd-dddd-dddd-dddd-dddddddddddd', '-7.00');
+
+    runner.pending[2].completeError(StateError('newer'));
+    runner.pending[1].completeError(StateError('older'));
+    await pumpEventQueue();
+
+    expect(notifications, 2);
+    final failed = queries.readPeriod(window: _april());
+    expect(failed.state, AnalysisQueryState.failed);
+    expect(failed.value, settledPeriod.value);
+    expect(failed.sourceRevision, settledPeriod.sourceRevision);
+    expect(queries.readToday().state, AnalysisQueryState.failed);
+
+    final retrying = queries.retry();
+    runner.pending[3].complete(Accounting.analysisItems(ledger.state));
+    await retrying;
+    await pumpEventQueue();
+
+    expect(
+      queries.readPeriod(window: _april()).state,
+      AnalysisQueryState.ready,
+    );
+  });
+
   test('initialFailureHasNullValueAndRecoversOnRetry', () async {
     final setup = _setup();
     final ledger = setup.ledger;

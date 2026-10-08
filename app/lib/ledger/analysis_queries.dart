@@ -76,7 +76,7 @@ class AnalysisQueries extends ChangeNotifier {
     final end = startOfDayUtc(window.end);
     final scope = sourceIDs == null
         ? 'all'
-        : 'scope:${(sourceIDs.map(normalizedID).toList()..sort()).join(',')}';
+        : 'scope:${(sourceIDs.map(normalizedID).toSet().toList()..sort()).join(',')}';
     return _readMixed<PeriodSummary>(
       'period|${start.toIso8601String()}|${end.toIso8601String()}|$scope',
       () => periodSummary(

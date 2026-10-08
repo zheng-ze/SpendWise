@@ -67,6 +67,71 @@ _setup({DateTime? today}) {
 }
 
 void main() {
+  test('duplicateScopeIDsShareOneMemoIdentity', () async {
+    const holderID = 'ab12cd34-ef56-ab78-cd90-ef1234567890';
+    final ledger = Ledger();
+    ledger.addAccount(
+      Account(id: holderID, name: 'Checking', type: AccountType.checking),
+    );
+    ledger.addCategory(
+      TransactionCategory(
+        id: _foodID,
+        name: 'Food',
+        kind: CategoryKind.expense,
+        colorHex: '#000000',
+        includeInAnalysis: true,
+        parentID: null,
+        symbol: 'tag',
+      ),
+    );
+    final runner = _ManualRunner();
+    final cache = AnalysisCache(runner: runner.call)
+      ..start(ledger.bus, sourceRevision: () => ledger.revision);
+    final queries = AnalysisQueries(
+      ledger: ledger,
+      cache: cache,
+      today: _today,
+    );
+    addTearDown(() async {
+      queries.dispose();
+      await cache.dispose();
+    });
+
+    runner.pending.last.complete(const []);
+    await pumpEventQueue();
+
+    final window = DateRange(
+      DateTime.utc(2027, 4, 1),
+      DateTime.utc(2027, 5, 1),
+    );
+    final first = queries.readPeriod(window: window, sourceIDs: {holderID});
+    expect(first.state, AnalysisQueryState.ready);
+    final duplicate = queries.readPeriod(
+      window: window,
+      sourceIDs: {holderID, holderID.toUpperCase()},
+    );
+    expect(identical(duplicate, first), isTrue);
+
+    ledger.addEntry(
+      Entry(
+        id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        amount: Decimal.parse('-13.50'),
+        name: 'lunch',
+        sourceID: holderID,
+        categoryID: _foodID,
+        date: _today,
+      ),
+    );
+
+    final retained = queries.readPeriod(
+      window: window,
+      sourceIDs: {holderID, holderID.toUpperCase()},
+    );
+    expect(retained.value, first.value);
+    expect(retained.sourceRevision, first.sourceRevision);
+    expect(retained.state, AnalysisQueryState.loading);
+  });
+
   test('equivalentRangesAndNormalizedScopesReuseResults', () async {
     final setup = _setup();
     final queries = setup.queries;
