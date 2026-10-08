@@ -87,9 +87,12 @@ void main() {
 
   overridesFor(Ledger ledger) => [
     ledgerProvider.overrideWithValue(ledger),
-    analysisCacheProvider.overrideWith(
-      (ref) => AnalysisCache(runner: syncComputeRunner),
-    ),
+    analysisCacheProvider.overrideWith((ref) {
+      final ledger = ref.watch(ledgerProvider);
+      if (ledger == null) return null;
+      return AnalysisCache(runner: syncComputeRunner)
+        ..start(ledger.bus, sourceRevision: () => ledger.revision);
+    }),
   ];
 
   Future<void> pumpDetail(WidgetTester tester, Ledger ledger, Budget b) {

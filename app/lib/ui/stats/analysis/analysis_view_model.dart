@@ -74,7 +74,7 @@ class AnalysisNotifier extends AsyncNotifier<AnalysisViewState>
 
   final CategoryKind _kind;
 
-  AnalysisCache get _cache => ref.read(analysisCacheProvider);
+  AnalysisCache get _cache => ref.read(analysisCacheProvider)!;
 
   late Ledger _ledger;
 

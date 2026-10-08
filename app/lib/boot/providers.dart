@@ -42,13 +42,16 @@ final bannerStateProvider = ChangeNotifierProvider<BannerState>((ref) {
   return BannerState();
 });
 
-final analysisCacheProvider = ChangeNotifierProvider<AnalysisCache>((ref) {
-  return AnalysisCache();
+final analysisCacheProvider = ChangeNotifierProvider<AnalysisCache?>((ref) {
+  final ledger = ref.watch(ledgerProvider);
+  if (ledger == null) return null;
+  final cache = AnalysisCache();
+  cache.start(ledger.bus, sourceRevision: () => ledger.revision);
+  return cache;
 });
 
 final appBootProvider = ChangeNotifierProvider<AppBoot>((ref) {
   final banner = ref.read(bannerStateProvider.notifier);
-  final cache = ref.read(analysisCacheProvider.notifier);
 
   final boot = AppBoot(
     createStore: () async => ref.read(storeProvider),
@@ -63,14 +66,6 @@ final appBootProvider = ChangeNotifierProvider<AppBoot>((ref) {
       ref.invalidate(databaseConnectionProvider);
     },
   );
-
-  void joinCacheOnceReady() {
-    final phase = boot.phase;
-    if (phase is Ready) cache.start(phase.ledger.bus);
-  }
-
-  boot.addListener(joinCacheOnceReady);
-  ref.onDispose(() => boot.removeListener(joinCacheOnceReady));
 
   WidgetsBinding.instance.addObserver(boot);
   ref.onDispose(() => WidgetsBinding.instance.removeObserver(boot));

@@ -89,7 +89,7 @@ class BudgetsListNotifier extends AsyncNotifier<BudgetsListViewState>
         LedgerBackedNotifier<BudgetsListViewState>,
         StepEmitting<BudgetsListViewState, BudgetsStep>
     implements BudgetsListViewModel {
-  AnalysisCache get _cache => ref.read(analysisCacheProvider);
+  AnalysisCache get _cache => ref.read(analysisCacheProvider)!;
 
   BudgetsStep? _step;
 

@@ -49,17 +49,28 @@ void main() {
     expect(ready, isA<Ready>());
   });
 
+  test('analysisCacheIsNullUntilTheLedgerIsReachable', () async {
+    final container = _containerFor(InMemoryLedgerStore(hasSeeded: true));
+
+    expect(container.read(ledgerProvider), isNull);
+    expect(container.read(analysisCacheProvider), isNull);
+
+    await _readyPhase(container);
+
+    expect(container.read(analysisCacheProvider), isNotNull);
+  });
+
   test('analysisCacheHasJoinedTheBusByTheTimeLedgerIsFirstReachable', () async {
     final container = _containerFor(InMemoryLedgerStore(hasSeeded: true));
 
     final ready = await _readyPhase(container);
-    final cache = container.read(analysisCacheProvider);
+    final cache = container.read(analysisCacheProvider)!;
     final revisionBeforeMutate = cache.revision;
 
     ready.ledger.addAccount(_account());
 
     expect(
-      container.read(analysisCacheProvider).revision,
+      container.read(analysisCacheProvider)!.revision,
       revisionBeforeMutate + 1,
     );
   });
@@ -68,9 +79,11 @@ void main() {
     final container = _containerFor(InMemoryLedgerStore(hasSeeded: true));
     final boot = container.read(appBootProvider);
     await _readyPhase(container);
+    final oldCache = container.read(analysisCacheProvider)!;
 
     await boot.retry();
-    final cache = container.read(analysisCacheProvider);
+    final cache = container.read(analysisCacheProvider)!;
+    expect(identical(cache, oldCache), isFalse);
     final revisionBeforeMutate = cache.revision;
 
     (boot.phase as Ready).ledger.addAccount(_account());
@@ -113,7 +126,7 @@ void main() {
     final container = _containerFor(InMemoryLedgerStore(hasSeeded: true));
     final ready = await _readyPhase(container);
     final banner = container.read(bannerStateProvider);
-    final cache = container.read(analysisCacheProvider);
+    final cache = container.read(analysisCacheProvider)!;
 
     container.dispose();
     await Future<void>.delayed(Duration.zero);

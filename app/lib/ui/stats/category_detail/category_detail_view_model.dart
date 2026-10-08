@@ -147,7 +147,7 @@ class CategoryDetailNotifier extends AsyncNotifier<CategoryDetailViewState>
 
   final CategoryDetailArgs _args;
 
-  AnalysisCache get _cache => ref.read(analysisCacheProvider);
+  AnalysisCache get _cache => ref.read(analysisCacheProvider)!;
 
   final AnalysisScan _scan = AnalysisScan();
 

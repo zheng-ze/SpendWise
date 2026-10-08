@@ -19,6 +19,10 @@ class Ledger extends ChangeNotifier {
 
   LedgerState get state => _state;
 
+  int _revision = 0;
+
+  int get revision => _revision;
+
   List<LedgerChange> _mutate(List<LedgerChange> Function(LedgerState) mutator) {
     assert(ChangeNotifier.debugAssertNotDisposed(this));
 
@@ -34,6 +38,8 @@ class Ledger extends ChangeNotifier {
     List<LedgerChange> changes, {
     Map<SyncRowID, VersionVector>? stamps,
   }) {
+    if (changes.isEmpty) return changes;
+    _revision += 1;
     bus.publish(changes, stamps: stamps);
     notifyListeners();
     return changes;

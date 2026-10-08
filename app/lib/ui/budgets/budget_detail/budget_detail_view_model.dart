@@ -164,7 +164,7 @@ class BudgetDetailNotifier extends AsyncNotifier<BudgetDetailViewState>
 
   final String _budgetID;
 
-  AnalysisCache get _cache => ref.read(analysisCacheProvider);
+  AnalysisCache get _cache => ref.read(analysisCacheProvider)!;
 
   late DateTime _displayedYear;
   late DateTime _selectedMonth;
