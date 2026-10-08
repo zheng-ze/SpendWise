@@ -146,15 +146,18 @@ updates the existing query object without a cache computation
 analysis items and evaluate only when `cache.itemsSourceRevision == ledger.revision`. While
 pending or failed, a previously read query retains its last successful value and that value's
 revision; a query without a successful value returns null for both. A calculation exception fails
-only that query. Query notifications announce acceptance at the current Ledger revision or its
-refresh failure. Interim publications and older completions emit no query notification
-(`app/lib/ledger/analysis_queries.dart:_readMixed`, `_onCacheChanged`, `_requestRefresh`;
+only that query. The service notifies on every Ledger notification and day change, so reads that
+do not wait for the cache update at once, and notifies again when the cache accepts the current
+Ledger revision or that revision's refresh fails. Interim publications and older completions emit
+no query notification
+(`app/lib/ledger/analysis_queries.dart:_readMixed`, `_onLedgerChanged`, `_onCacheChanged`,
+`_requestRefresh`;
 `app/test/ledger/analysis_queries_test.dart`, `app/test/ledger/analysis_queries_memo_test.dart`).
 
 Successful mixed results are memoized by query identity, normalized today, Ledger revision, and
 accepted cache source revision. Period identity uses normalized window endpoints and a normalized,
 deduplicated, sorted source-ID set; null scope and empty scope are distinct. `setToday` normalizes
-the calendar day, ignores same-day changes, and notifies only when the cache is current. For mixed reads, a day
+the calendar day, ignores same-day changes, and notifies on every day change. For mixed reads, a day
 change during pending work retains the old value until coherent evaluation can resume
 (`app/lib/ledger/analysis_queries.dart`; `app/test/ledger/analysis_queries_memo_test.dart`).
 
