@@ -1,6 +1,6 @@
 # Accounts UI
 
-Last reconciled: 12f4774
+Last reconciled: 2026-10-08
 
 ## Feature overview
 
@@ -28,6 +28,15 @@ including posting a balance-adjustment delta entry.
 The view model derives sections and net-worth as pure functions of `LedgerState`. Card math
 (payable, outstanding, statement cut) is pure with an injected `now`, so it is testable without the
 system clock. Delete = archive to the recycle bin; the dialog shows the referencing-entry count.
+
+`accountSections` still calls the app-side `statementCut`, `payable`, and `outstanding` functions
+in `app/lib/ui/accounts/helpers/card_math.dart` through `_row` in
+`app/lib/ui/accounts/account_sections.dart`. UI payable uses the full account total; UI outstanding
+includes direct-card negative non-transfer entries from the cut through `now`, inclusively.
+The separate domain `cardStatement` query bounds payable strictly before `nextCut` and observes
+cycle charges through the named day. Its contracts live in
+[recurring-plans-and-accounting.md](recurring-plans-and-accounting.md#card-statements)
+(`packages/domain/lib/src/analysis/card_statement.dart`).
 
 ## Navigation
 

@@ -1,9 +1,6 @@
 # Recurring Plans & Accounting
 
-Last reconciled: 2026-09-02
-
-_(Reconciled against `ledger_state_plans.dart`, `occurrence_id.dart`, `plan_resolution.dart` on the
-date below; see Known gaps item 1.)_
+Last reconciled: 2026-10-08
 
 The pure-domain plan and accounting logic in `packages/domain/lib/src/plans/` and
 `packages/domain/lib/src/accounting.dart`, plus the plan mutators on `LedgerState`. Plans expand
@@ -110,6 +107,36 @@ Swift's inclusive interval, which could double-count an entry on a month boundar
 **Treat-as-expense gap** — a transfer into a flagged holder classifies as an expense item with
 `bucketID: null` (the Uncategorized bucket). Bucketing by destination account type is a recorded
 Phase 6 decision, never slipped into the port.
+
+## Card statements
+
+`cardStatement(ledger:, accountID:, today:)` is a pure domain query exported with `CardStatement`
+by `packages/domain/lib/domain.dart`. It reads `LedgerState` without mutation and returns
+`accountID`, `currentCycle`, `nextCut`, `cycleAmount`, and `payable`
+(`packages/domain/lib/src/analysis/card_statement.dart`).
+
+- The query normalizes the account ID and the named calendar day with `normalizedID` and
+  `startOfDayUtc`. It returns `null` for a missing account, an inactive account, a non-card account,
+  or a missing `statementDay` (`cardStatement`).
+- `currentCycle` is `[cycleStart, nextCut)`. Monthly cuts use `shiftMonthThenClampDayUtc`, including
+  short months and year rollover; the cut day starts the new cycle (`cardStatement`,
+  `packages/domain/lib/src/time/calendar_day.dart`).
+- `cycleAmount` sums negated negative, active, direct-card entries excluding transfers in
+  `[cycleStart, min(nextCut, today + 1 day))`. Repayments and pocket activity contribute zero;
+  analysis exclusion flags do not filter charges (`cardStatement`).
+- `payable` is `max(0, -Accounting.accountTotal)` over active entries strictly before `nextCut`,
+  with all existing source IDs and active pockets. There is no lower date bound or today cutoff:
+  older unpaid debt, opening balances, and future entries before the cut participate. Repayments
+  reduce the total debt; entries on or after the cut are excluded (`cardStatement`,
+  `packages/domain/lib/src/accounting.dart`: `accountTotal`, `balance`, `applies`).
+
+The Accounts surface uses `app/lib/ui/accounts/account_sections.dart` and its app-side
+`helpers/card_math.dart` functions. Its payable uses the full account total without the domain
+query's cut cutoff; its outstanding uses direct-card negative non-transfer entries from
+`statementCut` through the injected `now`, inclusively. These are separate calculation paths
+(`accountSections`, `_row`, `statementCut`, `payable`, `outstanding`); see
+[accounts-ui.md](accounts-ui.md). Contract examples live in
+`packages/domain/test/analysis/card_statement_test.dart`.
 
 ## Gotchas and invariants
 
