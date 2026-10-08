@@ -199,6 +199,7 @@ class CategoryDetailNotifier extends AsyncNotifier<CategoryDetailViewState>
     };
 
     final scanned = _scan.scan(
+      source: _cache,
       items: _cache.items,
       itemsRevision: _cache.itemsRevision,
       kind: _args.kind,

@@ -1,23 +1,27 @@
 import 'package:domain/domain.dart';
 
 class AnalysisScan {
+  Object? _cachedSource;
   int? _cachedRevision;
   CategoryKind? _cachedKind;
   Set<String?>? _cachedBuckets;
   List<AnalysisItem> _cachedFiltered = const [];
 
   List<AnalysisItem> scan({
+    required Object source,
     required List<AnalysisItem> items,
     required int itemsRevision,
     required CategoryKind kind,
     required Set<String?> buckets,
   }) {
     final isFresh =
+        identical(_cachedSource, source) &&
         _cachedRevision == itemsRevision &&
         _cachedKind == kind &&
         _setEquals(_cachedBuckets, buckets);
     if (isFresh) return _cachedFiltered;
 
+    _cachedSource = source;
     _cachedRevision = itemsRevision;
     _cachedKind = kind;
     _cachedBuckets = buckets;

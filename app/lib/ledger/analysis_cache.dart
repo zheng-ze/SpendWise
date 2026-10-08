@@ -99,9 +99,10 @@ class AnalysisCache extends ChangeNotifier {
       plans: state.plans,
       budgets: state.budgets,
     );
-    final future = _run(request, captured);
-    _pending[request] = future;
-    return future;
+    final completed = Completer<void>();
+    _pending[request] = completed.future;
+    unawaited(_run(request, captured).then(completed.complete));
+    return completed.future;
   }
 
   Future<void> _run(int request, LedgerState captured) async {

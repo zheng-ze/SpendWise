@@ -279,4 +279,25 @@ void main() {
 
     expect(() => cache.start(EventBus()), throwsStateError);
   });
+
+  test('synchronousRunnerThrowDoesNotBlockRetryAtTheSameRevision', () async {
+    var calls = 0;
+    Future<List<AnalysisItem>> flaky(LedgerState state) {
+      calls++;
+      if (calls == 1) throw StateError('sync boom');
+      return Future.value(_items(10));
+    }
+
+    final cache = AnalysisCache(runner: flaky);
+    final state = _fullState();
+
+    await cache.refresh(state);
+    expect(calls, 1);
+    expect(cache.lastFailure, isNotNull);
+
+    await cache.refresh(state);
+    expect(calls, 2);
+    expect(cache.items.single.amount, Decimal.fromInt(10));
+    expect(cache.itemsSourceRevision, 0);
+  });
 }
