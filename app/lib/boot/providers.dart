@@ -9,6 +9,7 @@ import 'package:spendwise/boot/app_phase.dart';
 import 'package:spendwise/boot/banner_state.dart';
 import 'package:spendwise/boot/seed_data.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
+import 'package:spendwise/ledger/analysis_queries.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ledger/ledger_session.dart';
 import 'package:spendwise/persistence/database_connection.dart';
@@ -54,6 +55,18 @@ final ledgerSessionProvider = Provider<LedgerSession?>((ref) {
   cache.start(ledger.bus, sourceRevision: () => ledger.revision);
   ref.onDispose(cache.dispose);
   return LedgerSession(ledger: ledger, analysisCache: cache);
+});
+
+final analysisQueriesProvider = ChangeNotifierProvider<AnalysisQueries?>((ref) {
+  final session = ref.watch(ledgerSessionProvider);
+  if (session == null) return null;
+  final queries = AnalysisQueries(
+    ledger: session.ledger,
+    cache: session.analysisCache,
+    today: ref.read(todayProvider),
+  );
+  ref.listen(todayProvider, (_, today) => queries.setToday(today));
+  return queries;
 });
 
 final appBootProvider = ChangeNotifierProvider<AppBoot>((ref) {
