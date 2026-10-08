@@ -240,7 +240,7 @@ void main() {
     runner.pending.last.complete(const []);
     await pumpEventQueue();
 
-    expect(notifications, 1);
+    expect(notifications, 2);
     expect(() => queries.addListener(() {}), throwsFlutterError);
     expect(() => subscription.close(), returnsNormally);
   });

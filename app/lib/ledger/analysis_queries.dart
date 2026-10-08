@@ -4,8 +4,14 @@ import 'package:domain/domain.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
+import 'package:spendwise/ledger/analysis/calendar.dart';
+import 'package:spendwise/ledger/analysis/entry_record.dart';
 import 'package:spendwise/ledger/analysis/period_summary.dart';
+import 'package:spendwise/ledger/analysis/register.dart';
+import 'package:spendwise/ledger/analysis/search.dart';
 import 'package:spendwise/ledger/analysis/today_summary.dart';
+import 'package:spendwise/ledger/analysis/upcoming.dart';
+import 'package:spendwise/ledger/analysis/weeks.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
 
@@ -46,9 +52,7 @@ class AnalysisQueries extends ChangeNotifier {
     if (day == _today) return;
     _today = day;
     if (_disposed) return;
-    if (_cache.itemsSourceRevision == _ledger.revision) {
-      notifyListeners();
-    }
+    notifyListeners();
   }
 
   Future<void> retry() {
@@ -86,6 +90,192 @@ class AnalysisQueries extends ChangeNotifier {
         window: window,
         sourceIDs: sourceIDs,
       ),
+    );
+  }
+
+  AnalysisQueryResult<List<RegisterDay>> readRegisterDays({
+    required DateRange window,
+    Set<String>? sourceIDs,
+    EntryKind? kind,
+  }) {
+    final start = startOfDayUtc(window.start);
+    final end = startOfDayUtc(window.end);
+    final identity =
+        'register|${start.toIso8601String()}|${end.toIso8601String()}|'
+        '${_scopeIdentity(sourceIDs)}|${kind?.name ?? 'any'}';
+    return _readLedgerOnly<List<RegisterDay>>(
+      identity,
+      '$identity|${_ledger.revision}',
+      () => registerDays(
+        ledger: _ledger.state,
+        window: window,
+        sourceIDs: sourceIDs,
+        kind: kind,
+      ),
+    );
+  }
+
+  AnalysisQueryResult<List<EntryRecord>> readRecent({
+    int limit = 4,
+    Set<String>? sourceIDs,
+  }) {
+    final identity = 'recent|$limit|${_scopeIdentity(sourceIDs)}';
+    return _readLedgerOnly<List<EntryRecord>>(
+      identity,
+      '$identity|${_today.toIso8601String()}|${_ledger.revision}',
+      () => recentEntries(
+        ledger: _ledger.state,
+        today: _today,
+        limit: limit,
+        sourceIDs: sourceIDs,
+      ),
+    );
+  }
+
+  AnalysisQueryResult<List<UpcomingItem>> readUpcoming({
+    DateRange? window,
+    Set<String>? sourceIDs,
+  }) {
+    final resolved =
+        window ?? DateRange(_today, _today.add(const Duration(days: 42)));
+    final start = startOfDayUtc(resolved.start);
+    final end = startOfDayUtc(resolved.end);
+    final identity =
+        'upcoming|${start.toIso8601String()}|${end.toIso8601String()}|'
+        '${_scopeIdentity(sourceIDs)}';
+    return _readLedgerOnly<List<UpcomingItem>>(
+      identity,
+      '$identity|${_today.toIso8601String()}|${_ledger.revision}',
+      () => upcomingItems(
+        ledger: _ledger.state,
+        today: _today,
+        window: resolved,
+        sourceIDs: sourceIDs,
+      ),
+    );
+  }
+
+  AnalysisQueryResult<List<WeekTotal>> readWeeks({
+    required DateRange window,
+    Set<String>? sourceIDs,
+  }) {
+    final start = startOfDayUtc(window.start);
+    final end = startOfDayUtc(window.end);
+    final scope = sourceIDs == null
+        ? 'all'
+        : 'scope:${(sourceIDs.map(normalizedID).toSet().toList()..sort()).join(',')}';
+    return _readMixed<List<WeekTotal>>(
+      'weeks|${start.toIso8601String()}|${end.toIso8601String()}|$scope',
+      () => weekTotals(
+        ledger: _ledger.state,
+        items: _cache.items,
+        today: _today,
+        window: window,
+        sourceIDs: sourceIDs,
+      ),
+    );
+  }
+
+  AnalysisQueryResult<List<SearchMonth>> readSearch({
+    required String query,
+    DateRange? window,
+    Set<String>? sourceIDs,
+    EntryKind? kind,
+  }) {
+    final needle = query.trim().toLowerCase();
+    final range = window == null
+        ? 'any'
+        : '${startOfDayUtc(window.start).toIso8601String()}|'
+              '${startOfDayUtc(window.end).toIso8601String()}';
+    final identity =
+        'search|$needle|$range|${_scopeIdentity(sourceIDs)}|'
+        '${kind?.name ?? 'any'}';
+    return _readLedgerOnly<List<SearchMonth>>(
+      identity,
+      '$identity|${_ledger.revision}',
+      () => searchEntries(
+        ledger: _ledger.state,
+        query: query,
+        window: window,
+        sourceIDs: sourceIDs,
+        kind: kind,
+      ),
+    );
+  }
+
+  AnalysisQueryResult<List<CalendarDay>> readCalendarDays({
+    required DateRange window,
+    Set<String>? sourceIDs,
+  }) {
+    final start = startOfDayUtc(window.start);
+    final end = startOfDayUtc(window.end);
+    final identity =
+        'calendar|${start.toIso8601String()}|${end.toIso8601String()}|'
+        '${_scopeIdentity(sourceIDs)}';
+    return _readLedgerOnly<List<CalendarDay>>(
+      identity,
+      '$identity|${_today.toIso8601String()}|${_ledger.revision}',
+      () => calendarDays(
+        ledger: _ledger.state,
+        today: _today,
+        window: window,
+        sourceIDs: sourceIDs,
+      ),
+    );
+  }
+
+  AnalysisQueryResult<CardStatement?> readCardStatement({
+    required String accountID,
+  }) {
+    final id = normalizedID(accountID);
+    final identity = 'card|$id';
+    return _readLedgerOnly<CardStatement?>(
+      identity,
+      '$identity|${_today.toIso8601String()}|${_ledger.revision}',
+      () => cardStatement(ledger: _ledger.state, accountID: id, today: _today),
+    );
+  }
+
+  String _scopeIdentity(Set<String>? sourceIDs) {
+    if (sourceIDs == null) return 'all';
+    final ids = sourceIDs.map(normalizedID).toSet().toList()..sort();
+    return 'scope:${ids.join(',')}';
+  }
+
+  AnalysisQueryResult<T> _readLedgerOnly<T>(
+    String identity,
+    String key,
+    T Function() evaluate,
+  ) {
+    final stored = _stored[identity];
+    if (stored != null && stored.key == key) {
+      return stored.result as AnalysisQueryResult<T>;
+    }
+    if (!_failedEvaluations.contains(key)) {
+      try {
+        final result = AnalysisQueryResult<T>(
+          value: evaluate(),
+          state: AnalysisQueryState.ready,
+          sourceRevision: _ledger.revision,
+        );
+        _stored[identity] = _Stored(key, result);
+        return result;
+      } catch (_) {
+        _failedEvaluations.add(key);
+      }
+    }
+    final previous = stored?.result as AnalysisQueryResult<T>?;
+    if (previous != null) {
+      return AnalysisQueryResult<T>(
+        value: previous.value,
+        state: AnalysisQueryState.failed,
+        sourceRevision: previous.sourceRevision,
+      );
+    }
+    return AnalysisQueryResult<T>(
+      value: null,
+      state: AnalysisQueryState.failed,
+      sourceRevision: null,
     );
   }
 
@@ -140,6 +330,7 @@ class AnalysisQueries extends ChangeNotifier {
   void _onLedgerChanged() {
     if (_disposed) return;
     unawaited(_requestRefresh());
+    notifyListeners();
   }
 
   void _onCacheChanged() {
