@@ -10,6 +10,7 @@ import 'package:spendwise/boot/banner_state.dart';
 import 'package:spendwise/boot/seed_data.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ledger/ledger_session.dart';
 import 'package:spendwise/persistence/database_connection.dart';
 import 'package:spendwise/persistence/drift_ledger_store.dart';
 import 'package:spendwise/persistence/ledger_database.dart';
@@ -42,12 +43,17 @@ final bannerStateProvider = ChangeNotifierProvider<BannerState>((ref) {
   return BannerState();
 });
 
-final analysisCacheProvider = ChangeNotifierProvider<AnalysisCache?>((ref) {
+final analysisComputeRunnerProvider = Provider<ComputeRunner>(
+  (ref) => isolateComputeRunner,
+);
+
+final ledgerSessionProvider = Provider<LedgerSession?>((ref) {
   final ledger = ref.watch(ledgerProvider);
   if (ledger == null) return null;
-  final cache = AnalysisCache();
+  final cache = AnalysisCache(runner: ref.watch(analysisComputeRunnerProvider));
   cache.start(ledger.bus, sourceRevision: () => ledger.revision);
-  return cache;
+  ref.onDispose(cache.dispose);
+  return LedgerSession(ledger: ledger, analysisCache: cache);
 });
 
 final appBootProvider = ChangeNotifierProvider<AppBoot>((ref) {

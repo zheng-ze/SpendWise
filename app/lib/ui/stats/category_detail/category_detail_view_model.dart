@@ -4,7 +4,6 @@ import 'package:domain/domain.dart';
 import 'package:flutter/foundation.dart' show immutable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
@@ -147,20 +146,20 @@ class CategoryDetailNotifier extends AsyncNotifier<CategoryDetailViewState>
 
   final CategoryDetailArgs _args;
 
-  AnalysisCache get _cache => ref.read(analysisCacheProvider)!;
-
   final AnalysisScan _scan = AnalysisScan();
 
   late DateTime _detailDate;
   late CategoryScope _scope;
 
   late Ledger _ledger;
+  late AnalysisCache _cache;
 
   @override
   Future<CategoryDetailViewState> build() async {
     final currentLedger = ledger;
-    final cache = _cache;
+    final cache = analysisCache;
     _ledger = currentLedger;
+    _cache = cache;
     currentLedger.addListener(_onChanged);
     cache.addListener(_onChanged);
     ref.onDispose(() => currentLedger.removeListener(_onChanged));

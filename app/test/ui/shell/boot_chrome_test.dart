@@ -47,12 +47,7 @@ void main() {
               AppBoot(createStore: factory.call, seedChanges: seedChanges)
                 ..start(),
         ),
-        analysisCacheProvider.overrideWith((ref) {
-          final ledger = ref.watch(ledgerProvider);
-          if (ledger == null) return null;
-          return AnalysisCache(runner: syncComputeRunner)
-            ..start(ledger.bus, sourceRevision: () => ledger.revision);
-        }),
+        analysisComputeRunnerProvider.overrideWithValue(syncComputeRunner),
       ],
     );
     addTearDown(container.dispose);

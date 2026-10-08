@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/app_phase.dart';
 import 'package:spendwise/boot/providers.dart';
+import 'package:spendwise/ledger/ledger_session.dart';
 import 'package:spendwise/persistence/ledger_store.dart';
 
 import '../support/in_memory_ledger_store.dart';
@@ -33,6 +34,15 @@ Future<Ready> _readyPhase(ProviderContainer container) async {
   return boot.phase as Ready;
 }
 
+LedgerSession _readySession(ProviderContainer container) {
+  final session = container.read(ledgerSessionProvider);
+  expect(session, isNotNull);
+  if (session == null) {
+    throw StateError('Expected a ready ledger session.');
+  }
+  return session;
+}
+
 void main() {
   test('anOverrideStillWinsOverTheRealStore', () {
     final store = InMemoryLedgerStore(hasSeeded: true);
@@ -53,24 +63,24 @@ void main() {
     final container = _containerFor(InMemoryLedgerStore(hasSeeded: true));
 
     expect(container.read(ledgerProvider), isNull);
-    expect(container.read(analysisCacheProvider), isNull);
+    expect(container.read(ledgerSessionProvider), isNull);
 
     await _readyPhase(container);
 
-    expect(container.read(analysisCacheProvider), isNotNull);
+    expect(container.read(ledgerSessionProvider), isNotNull);
   });
 
   test('analysisCacheHasJoinedTheBusByTheTimeLedgerIsFirstReachable', () async {
     final container = _containerFor(InMemoryLedgerStore(hasSeeded: true));
 
     final ready = await _readyPhase(container);
-    final cache = container.read(analysisCacheProvider)!;
+    final cache = _readySession(container).analysisCache;
     final revisionBeforeMutate = cache.revision;
 
     ready.ledger.addAccount(_account());
 
     expect(
-      container.read(analysisCacheProvider)!.revision,
+      _readySession(container).analysisCache.revision,
       revisionBeforeMutate + 1,
     );
   });
@@ -79,10 +89,10 @@ void main() {
     final container = _containerFor(InMemoryLedgerStore(hasSeeded: true));
     final boot = container.read(appBootProvider);
     await _readyPhase(container);
-    final oldCache = container.read(analysisCacheProvider)!;
+    final oldCache = _readySession(container).analysisCache;
 
     await boot.retry();
-    final cache = container.read(analysisCacheProvider)!;
+    final cache = _readySession(container).analysisCache;
     expect(identical(cache, oldCache), isFalse);
     final revisionBeforeMutate = cache.revision;
 
@@ -126,7 +136,7 @@ void main() {
     final container = _containerFor(InMemoryLedgerStore(hasSeeded: true));
     final ready = await _readyPhase(container);
     final banner = container.read(bannerStateProvider);
-    final cache = container.read(analysisCacheProvider)!;
+    final cache = _readySession(container).analysisCache;
 
     container.dispose();
     await Future<void>.delayed(Duration.zero);

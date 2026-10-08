@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/app_phase.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
+import 'package:spendwise/ledger/ledger_session.dart';
 import 'package:spendwise/ui/stats/analysis/analysis_view_model.dart';
 
 import '../support/in_memory_ledger_store.dart';
@@ -50,14 +51,6 @@ class _ManualRunner {
   }
 }
 
-AnalysisCache? _boundCache(Ref ref, ComputeRunner runner) {
-  final ledger = ref.watch(ledgerProvider);
-  if (ledger == null) return null;
-  final cache = AnalysisCache(runner: runner);
-  cache.start(ledger.bus, sourceRevision: () => ledger.revision);
-  return cache;
-}
-
 ProviderContainer _containerFor(
   InMemoryLedgerStore store,
   ComputeRunner runner,
@@ -69,7 +62,7 @@ ProviderContainer _containerFor(
       databaseConnectionProvider.overrideWith(
         (ref) async => NativeDatabase.memory(),
       ),
-      analysisCacheProvider.overrideWith((ref) => _boundCache(ref, runner)),
+      analysisComputeRunnerProvider.overrideWithValue(runner),
     ],
   );
   addTearDown(container.dispose);
@@ -84,19 +77,28 @@ Future<Ready> _readyPhase(ProviderContainer container) async {
   return boot.phase as Ready;
 }
 
+LedgerSession _readySession(ProviderContainer container) {
+  final session = container.read(ledgerSessionProvider);
+  expect(session, isNotNull);
+  if (session == null) {
+    throw StateError('Expected a ready ledger session.');
+  }
+  return session;
+}
+
 void main() {
-  test('cacheProviderIsNullBeforeReady', () async {
+  test('ledgerSessionProviderIsNullBeforeReady', () async {
     final container = _containerFor(
       InMemoryLedgerStore(hasSeeded: true),
       syncComputeRunner,
     );
 
     expect(container.read(ledgerProvider), isNull);
-    expect(container.read(analysisCacheProvider), isNull);
+    expect(container.read(ledgerSessionProvider), isNull);
 
     await _readyPhase(container);
 
-    expect(container.read(analysisCacheProvider), isNotNull);
+    expect(container.read(ledgerSessionProvider), isNotNull);
   });
 
   test('cacheSubscribesToItsLedgerBusBeforeConstructionReturns', () async {
@@ -106,7 +108,10 @@ void main() {
     );
     final ready = await _readyPhase(container);
 
-    final cache = container.read(analysisCacheProvider)!;
+    final session = _readySession(container);
+    final cache = session.analysisCache;
+
+    expect(session.ledger, same(ready.ledger));
 
     ready.ledger.addAccount(_account());
 
@@ -120,8 +125,8 @@ void main() {
     );
     await _readyPhase(container);
 
-    final first = container.read(analysisCacheProvider)!;
-    final second = container.read(analysisCacheProvider)!;
+    final first = _readySession(container).analysisCache;
+    final second = _readySession(container).analysisCache;
 
     expect(identical(first, second), isTrue);
   });
@@ -134,7 +139,7 @@ void main() {
     );
     final boot = container.read(appBootProvider);
     final firstReady = await _readyPhase(container);
-    final oldCache = container.read(analysisCacheProvider)!;
+    final oldCache = _readySession(container).analysisCache;
     var newNotifications = 0;
 
     oldCache.refresh(firstReady.ledger.state);
@@ -142,7 +147,7 @@ void main() {
 
     await boot.retry();
     await _readyPhase(container);
-    final newCache = container.read(analysisCacheProvider)!;
+    final newCache = _readySession(container).analysisCache;
     newCache.addListener(() => newNotifications++);
 
     expect(identical(newCache, oldCache), isFalse);
@@ -175,11 +180,11 @@ void main() {
       analysisViewModelProvider(CategoryKind.expense).future,
     );
     expect(before.items, hasLength(1));
-    final oldCache = container.read(analysisCacheProvider)!;
+    final oldCache = _readySession(container).analysisCache;
 
     await boot.retry();
     final secondReady = await _readyPhase(container);
-    final newCache = container.read(analysisCacheProvider)!;
+    final newCache = _readySession(container).analysisCache;
 
     expect(identical(newCache, oldCache), isFalse);
     expect(() => oldCache.addListener(() {}), throwsFlutterError);

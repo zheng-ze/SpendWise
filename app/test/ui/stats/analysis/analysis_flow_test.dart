@@ -45,12 +45,7 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         ledgerProvider.overrideWithValue(ledger),
-        analysisCacheProvider.overrideWith((ref) {
-          final watched = ref.watch(ledgerProvider);
-          if (watched == null) return null;
-          return AnalysisCache(runner: syncComputeRunner)
-            ..start(watched.bus, sourceRevision: () => watched.revision);
-        }),
+        analysisComputeRunnerProvider.overrideWithValue(syncComputeRunner),
       ],
     );
     addTearDown(container.dispose);
@@ -132,12 +127,7 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           ledgerProvider.overrideWithValue(ledger),
-          analysisCacheProvider.overrideWith((ref) {
-            final ledger = ref.watch(ledgerProvider);
-            if (ledger == null) return null;
-            return AnalysisCache(runner: syncComputeRunner)
-              ..start(ledger.bus, sourceRevision: () => ledger.revision);
-          }),
+          analysisComputeRunnerProvider.overrideWithValue(syncComputeRunner),
         ],
       );
       addTearDown(container.dispose);

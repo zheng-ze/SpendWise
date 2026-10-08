@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:domain/domain.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
@@ -164,19 +163,19 @@ class BudgetDetailNotifier extends AsyncNotifier<BudgetDetailViewState>
 
   final String _budgetID;
 
-  AnalysisCache get _cache => ref.read(analysisCacheProvider)!;
-
   late DateTime _displayedYear;
   late DateTime _selectedMonth;
   BudgetsStep? _step;
 
   late Ledger _ledger;
+  late AnalysisCache _cache;
 
   @override
   Future<BudgetDetailViewState> build() async {
     final currentLedger = ledger;
-    final cache = _cache;
+    final cache = analysisCache;
     _ledger = currentLedger;
+    _cache = cache;
     currentLedger.addListener(_onChanged);
     cache.addListener(_onChanged);
     ref.onDispose(() => currentLedger.removeListener(_onChanged));
