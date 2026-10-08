@@ -99,6 +99,23 @@ void main() {
   final checking = uuid(2);
 
   group('cardStatement', () {
+    test('normalizes the account id at construction', () {
+      const raw = 'ABCDEFAB-0000-4000-8000-000000000001';
+
+      final statement = CardStatement(
+        accountID: raw,
+        currentCycle: DateRange(
+          DateTime.utc(2027, 3, 10),
+          DateTime.utc(2027, 4, 10),
+        ),
+        nextCut: DateTime.utc(2027, 4, 10),
+        cycleAmount: Decimal.zero,
+        payable: Decimal.zero,
+      );
+
+      expect(statement.accountID, raw.toLowerCase());
+    });
+
     test('reports the current cycle, next cut, cycle amount and payable', () {
       final state = mainLedger(card, checking);
 
@@ -479,12 +496,18 @@ void main() {
       final state = ledger(
         sources: [cardSource(card)],
         entries: [
-          entry(
-            id: uuid(39),
+          charge(
+            39,
+            source: card,
             date: DateTime.utc(2027, 3, 12),
+            amount: '-100',
+          ),
+          entry(
+            id: uuid(40),
+            date: DateTime.utc(2027, 3, 13),
             amount: Decimal.parse('50'),
             name: 'orphan transfer',
-            sourceID: uuid(40),
+            sourceID: uuid(43),
             destinationID: card,
           ),
         ],
@@ -496,7 +519,7 @@ void main() {
         today: DateTime.utc(2027, 4, 7),
       )!;
 
-      expect(statement.payable, Decimal.zero);
+      expect(statement.payable, Decimal.parse('100'));
     });
 
     test('returns null for ineligible cards', () {
@@ -585,17 +608,42 @@ void main() {
     });
 
     test('normalizes the account id and the day', () {
-      final state = mainLedger(card, checking);
+      const rawCard = 'ABCDEFAB-0000-4000-8000-000000000001';
+      const rawChecking = 'ABCDEFAB-0000-4000-8000-000000000002';
+      final cardID = rawCard.toLowerCase();
+      final state = ledger(
+        sources: [cardSource(cardID), checkingSource(rawChecking)],
+        entries: [
+          charge(
+            51,
+            source: cardID,
+            date: DateTime.utc(2027, 3, 12),
+            amount: '-24',
+          ),
+          charge(
+            52,
+            source: cardID,
+            date: DateTime.utc(2027, 4, 7),
+            amount: '-11',
+          ),
+          charge(
+            53,
+            source: cardID,
+            date: DateTime.utc(2027, 4, 8),
+            amount: '-6',
+          ),
+        ],
+      );
 
       final statement = cardStatement(
         ledger: state,
-        accountID: card.toUpperCase(),
+        accountID: rawCard,
         today: DateTime.utc(2027, 4, 7, 15, 30),
       )!;
 
-      expect(statement.accountID, card);
+      expect(statement.accountID, cardID);
       expect(statement.nextCut, DateTime.utc(2027, 4, 10));
-      expect(statement.payable, Decimal.parse('106'));
+      expect(statement.payable, Decimal.parse('41'));
       expect(statement.cycleAmount, Decimal.parse('35'));
     });
   });

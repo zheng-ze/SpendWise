@@ -9,13 +9,13 @@ import 'package:meta/meta.dart';
 
 @immutable
 class CardStatement {
-  const CardStatement({
-    required this.accountID,
+  CardStatement({
+    required String accountID,
     required this.currentCycle,
     required this.nextCut,
     required this.cycleAmount,
     required this.payable,
-  });
+  }) : accountID = normalizedID(accountID);
 
   final String accountID;
   final DateRange currentCycle;
