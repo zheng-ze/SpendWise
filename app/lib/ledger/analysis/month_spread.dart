@@ -38,7 +38,6 @@ class MonthSpread {
   const MonthSpread({
     required this.endMonth,
     required this.kind,
-    required this.firstRecordMonth,
     required this.currentMonth,
     required this.earliestSpreadEndMonth,
     required this.slots,
@@ -48,8 +47,6 @@ class MonthSpread {
 
   final CategoryKind kind;
 
-  final DateTime? firstRecordMonth;
-
   final DateTime currentMonth;
 
   final DateTime earliestSpreadEndMonth;
@@ -58,26 +55,18 @@ class MonthSpread {
 
   @override
   bool operator ==(Object other) {
-    if (other is! MonthSpread) return false;
-    if (other.endMonth != endMonth ||
-        other.kind != kind ||
-        other.firstRecordMonth != firstRecordMonth ||
-        other.currentMonth != currentMonth ||
-        other.earliestSpreadEndMonth != earliestSpreadEndMonth ||
-        other.slots.length != slots.length) {
-      return false;
-    }
-    for (var i = 0; i < slots.length; i++) {
-      if (other.slots[i] != slots[i]) return false;
-    }
-    return true;
+    return other is MonthSpread &&
+        other.endMonth == endMonth &&
+        other.kind == kind &&
+        other.currentMonth == currentMonth &&
+        other.earliestSpreadEndMonth == earliestSpreadEndMonth &&
+        listEquals(other.slots, slots);
   }
 
   @override
   int get hashCode => Object.hash(
     endMonth,
     kind,
-    firstRecordMonth,
     currentMonth,
     earliestSpreadEndMonth,
     Object.hashAll(slots),
@@ -120,7 +109,6 @@ MonthSpread monthSpread({
   return MonthSpread(
     endMonth: end,
     kind: kind,
-    firstRecordMonth: first,
     currentMonth: currentMonth,
     earliestSpreadEndMonth: earliestSpreadEndMonth,
     slots: List.unmodifiable(slots),

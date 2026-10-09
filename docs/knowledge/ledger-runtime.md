@@ -233,9 +233,10 @@ its previous successful value if present (`analysis_queries.dart:_readLedgerOnly
   whole-month total and item count; the current-month slot equals `readPeriod` for that month.
   Slots carry no display state: an empty month, before or after the first record, is a zero total
   with item count 0, and the spread has no qualifier text. Completeness is used only by usual and
-  insight comparisons. firstRecordMonth is computed inside the gated evaluation, so it and the
-  totals share one revision. `earliestSpreadEndMonth` bounds backward navigation in 12-month pages
-  anchored at the current month; an end month after the current month fails the read.
+  insight comparisons. `earliestSpreadEndMonth` bounds backward navigation in 12-month pages
+  anchored at the current month. It is computed from firstRecordMonth inside the gated
+  evaluation, so it and the totals share one revision. An end month after the current month fails
+  the read.
   `MonthSpread` compares its slots element-wise (`app/lib/ledger/analysis/month_spread.dart`;
   `analysis_month_spread_test.dart`).
 - `readCardStatement(accountID:)` wraps the domain query at today. An ineligible account returns

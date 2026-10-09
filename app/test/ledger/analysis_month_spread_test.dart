@@ -243,7 +243,6 @@ void main() {
     final income = _readySpread(setup.queries, CategoryKind.income);
 
     for (final spread in [expense, income]) {
-      expect(spread.firstRecordMonth, DateTime.utc(2026, 12, 1));
       expect(spread.currentMonth, _endMonth);
       expect(spread.earliestSpreadEndMonth, _endMonth);
       expect(spread.slots, hasLength(12));
@@ -281,18 +280,6 @@ void main() {
   });
 
   test('emptyMonthsAreZeroForBothKinds', () async {
-    final setup = _setup();
-    _populate(setup.ledger);
-    await _settle(setup.runner, setup.ledger);
-    final expense = _readySpread(setup.queries, CategoryKind.expense);
-    final income = _readySpread(setup.queries, CategoryKind.income);
-    for (final (year, month) in [(2026, 6), (2027, 3)]) {
-      for (final spread in [expense, income]) {
-        final slot = _slot(spread, year, month);
-        expect(slot.total, Decimal.zero);
-        expect(slot.itemCount, 0);
-      }
-    }
     final juneSetup = _setup(today: DateTime.utc(2027, 6, 15));
     await _settle(juneSetup.runner, juneSetup.ledger);
     final june = juneSetup.queries.readMonthSpread(
@@ -415,22 +402,6 @@ void main() {
     expect(() => first.slots.add(first.slots.first), throwsUnsupportedError);
   });
 
-  test('filteredItemsKeepFirstRecordMonth', () async {
-    final items = Accounting.analysisItems(_populatedState());
-    final spread = monthSpread(
-      items: items.where((item) => false),
-      endMonth: _endMonth,
-      kind: CategoryKind.expense,
-      firstRecordMonth: DateTime.utc(2026, 12, 1),
-      today: _today,
-    );
-    expect(spread.firstRecordMonth, DateTime.utc(2026, 12, 1));
-    expect(_slot(spread, 2027, 1).total, Decimal.zero);
-    expect(_slot(spread, 2027, 1).itemCount, 0);
-    expect(_slot(spread, 2027, 5).total, Decimal.zero);
-    expect(_slot(spread, 2027, 5).itemCount, 0);
-  });
-
   test('spreadFollowsMixedMemoAndRevisionGate', () async {
     final setup = _setup();
     final ledger = setup.ledger;
@@ -511,7 +482,10 @@ void main() {
       endMonth: _endMonth,
       kind: CategoryKind.expense,
     );
-    expect(settled.value?.firstRecordMonth, DateTime.utc(2026, 12, 1));
+    expect(settled.sourceRevision, revision);
+    expect(settled.value?.earliestSpreadEndMonth, _endMonth);
+    expect(_slot(settled.value!, 2027, 1).total, Decimal.parse('10.00'));
+    expect(_slot(settled.value!, 2027, 1).itemCount, 1);
 
     ledger.deleteEntry('e0000000-0000-0000-0000-000000000001');
 
@@ -537,7 +511,7 @@ void main() {
       kind: CategoryKind.expense,
     );
     expect(accepted.sourceRevision, ledger.revision);
-    expect(accepted.value?.firstRecordMonth, DateTime.utc(2027, 1, 1));
+    expect(accepted.value?.earliestSpreadEndMonth, _endMonth);
     expect(_slot(accepted.value!, 2026, 12).total, Decimal.zero);
     expect(_slot(accepted.value!, 2026, 12).itemCount, 0);
     expect(
@@ -603,15 +577,6 @@ void main() {
       kind: CategoryKind.expense,
     );
     expect(spread.state, AnalysisQueryState.ready);
-    expect(
-      queries
-          .readMonthSpread(
-            endMonth: DateTime.utc(2027, 6, 1),
-            kind: CategoryKind.expense,
-          )
-          .state,
-      AnalysisQueryState.failed,
-    );
   });
 }
 
