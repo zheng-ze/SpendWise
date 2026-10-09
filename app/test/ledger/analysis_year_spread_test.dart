@@ -33,27 +33,17 @@ class _ManualRunner {
   }
 }
 
-({
-  Ledger ledger,
-  AnalysisCache cache,
-  AnalysisQueries queries,
-  _ManualRunner runner,
-})
-_setup({DateTime? today}) {
+({Ledger ledger, AnalysisQueries queries, _ManualRunner runner}) _setup() {
   final ledger = Ledger();
   final runner = _ManualRunner();
   final cache = AnalysisCache(runner: runner.call)
     ..start(ledger.bus, sourceRevision: () => ledger.revision);
-  final queries = AnalysisQueries(
-    ledger: ledger,
-    cache: cache,
-    today: today ?? _today,
-  );
+  final queries = AnalysisQueries(ledger: ledger, cache: cache, today: _today);
   addTearDown(() async {
     queries.dispose();
     await cache.dispose();
   });
-  return (ledger: ledger, cache: cache, queries: queries, runner: runner);
+  return (ledger: ledger, queries: queries, runner: runner);
 }
 
 void _populate(Ledger ledger) {
@@ -215,12 +205,8 @@ void _populate(Ledger ledger) {
   );
 }
 
-Future<void> _settle(
-  _ManualRunner runner,
-  Ledger ledger, {
-  List<AnalysisItem>? items,
-}) async {
-  runner.pending.last.complete(items ?? Accounting.analysisItems(ledger.state));
+Future<void> _settle(_ManualRunner runner, Ledger ledger) async {
+  runner.pending.last.complete(Accounting.analysisItems(ledger.state));
   await pumpEventQueue();
 }
 
