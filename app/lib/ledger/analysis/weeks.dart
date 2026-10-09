@@ -34,23 +34,18 @@ class WeekTotal {
 List<WeekTotal> weekTotals({
   required LedgerState ledger,
   required List<AnalysisItem> items,
-  required DateTime today,
   required DateRange window,
   Set<String>? sourceIDs,
 }) {
-  final day = startOfDayUtc(today);
   final range = normalizedWindow(window);
   if (range.end == range.start) return const [];
   final scope = normalizedScope(sourceIDs);
   final complete = ledger.moneySources.keys.toSet();
-  final horizon = day.add(const Duration(days: 1));
   final totals = <WeekTotal>[];
   var weekStart = _mondayOf(range.start);
   while (weekStart.isBefore(range.end)) {
     final weekEnd = weekStart.add(const Duration(days: 7));
-    var observedEnd = weekEnd.isBefore(horizon) ? weekEnd : horizon;
-    if (observedEnd.isBefore(weekStart)) observedEnd = weekStart;
-    final effective = DateRange(weekStart, observedEnd);
+    final effective = DateRange(weekStart, weekEnd);
     var spent = Decimal.zero;
     var count = 0;
     if (scope == null) {
