@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
 import 'package:spendwise/ledger/analysis/calendar.dart';
+import 'package:spendwise/ledger/analysis/compared_with_usual.dart';
 import 'package:spendwise/ledger/analysis/completeness.dart';
 import 'package:spendwise/ledger/analysis/entry_record.dart';
 import 'package:spendwise/ledger/analysis/month_spread.dart';
@@ -313,6 +314,28 @@ class AnalysisQueries extends ChangeNotifier {
         today: _today,
       );
     });
+  }
+
+  AnalysisQueryResult<ComparedWithUsual> readComparedWithUsual({
+    required DateTime month,
+    required CategoryKind kind,
+  }) {
+    final anchor = monthWindow(month).start;
+    return _readMixed<ComparedWithUsual>(
+      'compared-with-usual|${anchor.toIso8601String()}|${kind.name}',
+      () {
+        if (anchor.isAfter(monthWindow(_today).start)) {
+          throw ArgumentError.value(month, 'month', 'Month is in the future.');
+        }
+        return comparedWithUsual(
+          items: _cache.items,
+          selectedMonth: anchor,
+          kind: kind,
+          firstRecordMonth: firstRecordMonth(_ledger.state),
+          today: _today,
+        );
+      },
+    );
   }
 
   PeriodCompletenessResult _completeness(DateRange window) {
