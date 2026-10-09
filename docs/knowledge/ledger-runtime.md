@@ -1,6 +1,6 @@
 # Ledger Runtime
 
-Last reconciled: a7298e1
+Last reconciled: a75e35d
 
 ## Feature overview
 
@@ -24,7 +24,7 @@ banners, and first-launch seeding. These live in `app/lib/ledger/` and `app/lib/
   and per-query memoization.
 - `app/lib/ledger/analysis/` - app-owned query result types and pure helpers for summaries,
   entry metadata, register days, recent entries, upcoming items, weeks, search, calendar days,
-  firstRecordMonth, period completeness, and month and year spreads.
+  firstRecordMonth, period completeness, month and year spreads, and compared with usual.
   The pure-domain card query lives in `packages/domain/lib/src/analysis/card_statement.dart`.
 - `app/lib/ui/common/ledger_backed_notifier.dart` - watches the ready session and exposes its
   Ledger and cache to ViewModels.
@@ -246,6 +246,17 @@ its previous successful value if present (`analysis_queries.dart:_readLedgerOnly
   backward navigation in 3-year pages anchored at the current year and is computed from
   firstRecordMonth inside the gated evaluation. An end year after the current year fails the read
   (`app/lib/ledger/analysis/year_spread.dart`; `analysis_year_spread_test.dart`).
+- `readComparedWithUsual(month:, kind:)` is a mixed read for a pace comparison. The observed
+  total covers the selected month up to today for the current month, or the whole month for a past
+  month. The usual is the mean of the same elapsed days in exactly the three calendar months before
+  it, each clipped to its own length; it is `available` only when all three months are complete
+  under D8, otherwise `notEnoughData`, which screens show as 'Not enough data'. `baselineTotal` is
+  exact and `usualMean` is its third at scale 12, so comparisons should use
+  `observedTotal * 3` against `baselineTotal`. The headline figure stays the committed
+  whole-month total. A selected month after the current month fails the read. The pure
+  `previousCompleteMonthWindows` helper is shared with insights and does not reject future
+  selections (`app/lib/ledger/analysis/compared_with_usual.dart`;
+  `analysis_compared_with_usual_test.dart`).
 - `readCardStatement(accountID:)` wraps the domain query at today. An ineligible account returns
   a ready result with null value and the current Ledger revision (`analysis_queries.dart`;
   `analysis_service_test.dart`: `ineligibleCardIsReadyNullWithRevision`).
