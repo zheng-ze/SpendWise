@@ -131,6 +131,16 @@ void main() {
     expect(firstRecordMonth(_stateWithHistory()), DateTime.utc(2027, 1, 1));
   });
 
+  test('firstRecordMonthCountsSystemEntries', () {
+    final state = _stateWithHistory();
+    state.setOpeningBalance(
+      Decimal.parse('100'),
+      _accountID,
+      date: DateTime.utc(2026, 11, 3),
+    );
+    expect(firstRecordMonth(state), DateTime.utc(2026, 11, 1));
+  });
+
   test('firstRecordMonthIsNullForAnEmptyLedger', () {
     expect(firstRecordMonth(LedgerState()), isNull);
   });
