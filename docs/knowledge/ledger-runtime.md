@@ -1,6 +1,6 @@
 # Ledger Runtime
 
-Last reconciled: d777ed9
+Last reconciled: a7298e1
 
 ## Feature overview
 
@@ -24,7 +24,7 @@ banners, and first-launch seeding. These live in `app/lib/ledger/` and `app/lib/
   and per-query memoization.
 - `app/lib/ledger/analysis/` - app-owned query result types and pure helpers for summaries,
   entry metadata, register days, recent entries, upcoming items, weeks, search, calendar days,
-  firstRecordMonth, period completeness, and month spreads.
+  firstRecordMonth, period completeness, and month and year spreads.
   The pure-domain card query lives in `packages/domain/lib/src/analysis/card_statement.dart`.
 - `app/lib/ui/common/ledger_backed_notifier.dart` - watches the ready session and exposes its
   Ledger and cache to ViewModels.
@@ -239,6 +239,13 @@ its previous successful value if present (`analysis_queries.dart:_readLedgerOnly
   the read.
   `MonthSpread` compares its slots element-wise (`app/lib/ledger/analysis/month_spread.dart`;
   `analysis_month_spread_test.dart`).
+- `readYearSpread(endYear:, kind:)` is a mixed read returning three chronological calendar-year
+  slots ending at `endYear`. Each slot holds its year, `[1 January, next 1 January)` window,
+  committed total and item count, including entries dated after today, with no matched-month
+  filtering and no display state; an empty year is a zero total. `earliestSpreadEndYear` bounds
+  backward navigation in 3-year pages anchored at the current year and is computed from
+  firstRecordMonth inside the gated evaluation. An end year after the current year fails the read
+  (`app/lib/ledger/analysis/year_spread.dart`; `analysis_year_spread_test.dart`).
 - `readCardStatement(accountID:)` wraps the domain query at today. An ineligible account returns
   a ready result with null value and the current Ledger revision (`analysis_queries.dart`;
   `analysis_service_test.dart`: `ineligibleCardIsReadyNullWithRevision`).
