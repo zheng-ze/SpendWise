@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
 import 'package:spendwise/ledger/analysis/calendar.dart';
+import 'package:spendwise/ledger/analysis/completeness.dart';
 import 'package:spendwise/ledger/analysis/entry_record.dart';
 import 'package:spendwise/ledger/analysis/period_summary.dart';
 import 'package:spendwise/ledger/analysis/register.dart';
@@ -231,6 +232,53 @@ class AnalysisQueries extends ChangeNotifier {
       identity,
       '$identity|${_today.toIso8601String()}|${_ledger.revision}',
       () => cardStatement(ledger: _ledger.state, accountID: id, today: _today),
+    );
+  }
+
+  AnalysisQueryResult<DateTime?> readFirstRecordMonth() {
+    const identity = 'first-record-month';
+    return _readLedgerOnly<DateTime?>(
+      identity,
+      '$identity|${_ledger.revision}',
+      () => firstRecordMonth(_ledger.state),
+    );
+  }
+
+  AnalysisQueryResult<PeriodCompletenessResult> readMonthCompleteness({
+    required DateTime month,
+  }) {
+    final window = monthWindow(month);
+    final identity = 'month-completeness|${window.start.toIso8601String()}';
+    return _readLedgerOnly<PeriodCompletenessResult>(
+      identity,
+      '$identity|${_today.toIso8601String()}|${_ledger.revision}',
+      () => _completeness(window),
+    );
+  }
+
+  AnalysisQueryResult<PeriodCompletenessResult> readWeekCompleteness({
+    required DateTime containingDay,
+  }) {
+    final window = weekWindow(containingDay);
+    final identity = 'week-completeness|${window.start.toIso8601String()}';
+    return _readLedgerOnly<PeriodCompletenessResult>(
+      identity,
+      '$identity|${_today.toIso8601String()}|${_ledger.revision}',
+      () => _completeness(window),
+    );
+  }
+
+  PeriodCompletenessResult _completeness(DateRange window) {
+    final first = firstRecordMonth(_ledger.state);
+    return PeriodCompletenessResult(
+      window: window,
+      firstRecordMonth: first,
+      today: _today,
+      state: classifyPeriod(
+        window: window,
+        firstRecordMonth: first,
+        today: _today,
+      ),
     );
   }
 
