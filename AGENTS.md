@@ -31,6 +31,14 @@ SpendWise is a personal finance app built in Flutter.
 - Use half-open `[start, end)` windows.
 - A domain date is UTC midnight for its named calendar day. Normalize it with `startOfDayUtc`, never
   `.toUtc()`.
+- `packages/domain/` holds money-world logic only. Screen, layout, and presentation calculations
+  belong in `app/`.
+- Mockup data is reference only and never acceptance criteria.
+
+## App UI code
+
+- Name every visual value as an easy-to-find constant, including self-explanatory values such as a
+  1px divider, transparent color, spacing, radius, and chart axis.
 
 ## Comments
 
