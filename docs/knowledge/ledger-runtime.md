@@ -1,6 +1,6 @@
 # Ledger Runtime
 
-Last reconciled: 437e13a
+Last reconciled: a8d6ab8
 
 ## Feature overview
 
@@ -23,7 +23,7 @@ banners, and first-launch seeding. These live in `app/lib/ledger/` and `app/lib/
 - `app/lib/ledger/analysis_queries.dart` - observable query results, refresh ownership, retry,
   and per-query memoization.
 - `app/lib/ledger/analysis/` - app-owned query result types and pure helpers for summaries,
-  entry metadata, register days, recent entries, upcoming items, weeks, search, and calendar days.
+  entry metadata, register days, recent entries, upcoming items, weeks, search, calendar days, firstRecordMonth, and period completeness.
   The pure-domain card query lives in `packages/domain/lib/src/analysis/card_statement.dart`.
 - `app/lib/ui/common/ledger_backed_notifier.dart` - watches the ready session and exposes its
   Ledger and cache to ViewModels.
@@ -178,8 +178,9 @@ selects nothing. `moved` counts each qualifying active transfer once, regardless
 treat-as-expense transfers can contribute to both spending and moved volume
 (`app/lib/ledger/analysis/period_summary.dart`; `app/test/ledger/analysis_today_period_test.dart`).
 
-`readRegisterDays`, `readRecent`, `readUpcoming`, `readSearch`, `readCalendarDays`, and
-`readCardStatement` evaluate against the current Ledger without waiting for analysis items.
+`readRegisterDays`, `readRecent`, `readUpcoming`, `readSearch`, `readCalendarDays`,
+`readCardStatement`, `readFirstRecordMonth`, `readMonthCompleteness`, and `readWeekCompleteness`
+evaluate against the current Ledger without waiting for analysis items.
 Successful results carry `Ledger.revision`; memo keys include normalized query parameters and
 revision, plus today for day-dependent reads. Exceptions fail only the affected query and retain
 its previous successful value if present (`analysis_queries.dart:_readLedgerOnly`;
@@ -214,6 +215,18 @@ its previous successful value if present (`analysis_queries.dart:_readLedgerOnly
   analysis items; scoped reads classify touching active entries against all source IDs. Every
   scope uses the same cache-revision gate (`app/lib/ledger/analysis/weeks.dart`, `analysis_queries.dart:readWeeks`;
   `analysis_service_test.dart`: `weeksTotalAcrossMonthBoundaryWithCounts`).
+- `readFirstRecordMonth()` returns the UTC first day of the month holding the earliest active
+  entry of any kind, including system entries and entries excluded from analysis, or null for an
+  empty ledger. `readMonthCompleteness(month:)` and `readWeekCompleteness(containingDay:)`
+  normalize to the month or Monday-start week and classify it with `classifyPeriod`: preRecord
+  before firstRecordMonth (always on an empty ledger), complete once the window ends on or before
+  today, otherwise incomplete. Their memo keys include today, so day rollover reclassifies without
+  runner work (`app/lib/ledger/analysis/completeness.dart`; `analysis_completeness_test.dart`).
+- Completeness reads publish the current Ledger revision while `readWeeks` and `readPeriod` keep
+  their previous value during a pending cache refresh. A consumer that combines them treats the
+  pair as coherent only when both `sourceRevision` values are non-null and equal, and shows
+  loading otherwise (`analysis_completeness_test.dart`:
+  `deletingEarliestEntryDuringPendingRefreshSplitsCompletenessFromTotalsUntilAcceptance`).
 - `readCardStatement(accountID:)` wraps the domain query at today. An ineligible account returns
   a ready result with null value and the current Ledger revision (`analysis_queries.dart`;
   `analysis_service_test.dart`: `ineligibleCardIsReadyNullWithRevision`).
