@@ -1,6 +1,6 @@
 # Ledger Runtime
 
-Last reconciled: 9fc9e82
+Last reconciled: 437e13a
 
 ## Feature overview
 
@@ -167,9 +167,11 @@ including overrides, divided by calendar days in the month and rounded half-up t
 It is null without an applicable budget; multiple applicable unscoped budgets fail evaluation
 (`app/lib/ledger/analysis/today_summary.dart`; `app/test/ledger/analysis_today_period_test.dart`).
 
-`PeriodSummary` contains the normalized requested `[start, end)` window, an effective window capped
-at tomorrow's UTC midnight, expense/income totals, `net = income - spent`, and absolute transfer
-volume `moved`. A wholly future or empty window has zero totals; reversed endpoints fail evaluation.
+`PeriodSummary` contains the normalized requested `[start, end)` window, an effective window equal
+to it, expense/income totals, `net = income - spent`, and absolute transfer volume `moved`. Totals
+are committed amounts: every entry dated in the window counts, including entries dated after today,
+so the current month's figure includes bills already logged for later days. An empty window has
+zero totals; reversed endpoints fail evaluation.
 Without a source scope, totals use cached analysis items. A scope selects active entries touching
 any selected source and classifies them against the complete Ledger source set; an empty scope
 selects nothing. `moved` counts each qualifying active transfer once, regardless of analysis gates;
@@ -205,10 +207,12 @@ its previous successful value if present (`analysis_queries.dart:_readLedgerOnly
   [recurring-plans-and-accounting.md](recurring-plans-and-accounting.md)
   (`app/lib/ledger/analysis/upcoming.dart`, `app/lib/ledger/analysis/calendar.dart`; `analysis_service_test.dart`).
 - `readWeeks(window:, sourceIDs:)` returns Monday-based full weeks intersecting the requested
-  window, including days outside its endpoints. Each effective window ends at tomorrow or the
-  week end, with future weeks empty. Spending and counts use expense analysis items; scoped
-  reads classify touching active entries against all source IDs. Every scope uses the same
-  cache-revision gate (`app/lib/ledger/analysis/weeks.dart`, `analysis_queries.dart:readWeeks`;
+  window, including days outside its endpoints. Each effective window is the full week, and totals
+  are committed: entries dated after today count, so future weeks can hold spending. A week that
+  crosses a month boundary has the same range and amount when read through either month, so a
+  month's week rows can add up to more than its period total. Spending and counts use expense
+  analysis items; scoped reads classify touching active entries against all source IDs. Every
+  scope uses the same cache-revision gate (`app/lib/ledger/analysis/weeks.dart`, `analysis_queries.dart:readWeeks`;
   `analysis_service_test.dart`: `weeksTotalAcrossMonthBoundaryWithCounts`).
 - `readCardStatement(accountID:)` wraps the domain query at today. An ineligible account returns
   a ready result with null value and the current Ledger revision (`analysis_queries.dart`;

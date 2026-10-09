@@ -183,7 +183,7 @@ void main() {
     expect(result.value?.spent, Decimal.parse('13.50'));
   });
 
-  test('windowBoundariesAreHalfOpenAndObservedThroughToday', () async {
+  test('windowBoundariesAreHalfOpenAndCountTheWholeWindow', () async {
     final state = _state();
     _expense(
       state,
@@ -215,11 +215,88 @@ void main() {
 
     final result = ready.queries.readPeriod(window: _april());
 
-    expect(result.value?.spent, Decimal.parse('38.75'));
+    expect(result.value?.spent, Decimal.parse('41.75'));
     expect(
       result.value?.effectiveWindow,
-      DateRange(DateTime.utc(2027, 4, 1), DateTime.utc(2027, 4, 8)),
+      DateRange(DateTime.utc(2027, 4, 1), DateTime.utc(2027, 5, 1)),
     );
+  });
+
+  test('entriesAfterTodayCountTowardIncomeNetAndMoved', () async {
+    final state = _state();
+    _expense(
+      state,
+      '10000000-0000-0000-0000-000000000001',
+      '-25.25',
+      DateTime.utc(2027, 4, 1),
+    );
+    state.addEntry(
+      Entry(
+        id: '10000000-0000-0000-0000-000000000002',
+        amount: Decimal.parse('70.00'),
+        name: 'pay',
+        sourceID: _checkingID,
+        categoryID: _payID,
+        date: DateTime.utc(2027, 4, 8),
+      ),
+    );
+    state.addEntry(
+      Entry(
+        id: '10000000-0000-0000-0000-000000000003',
+        amount: Decimal.parse('22.00'),
+        name: 'save',
+        sourceID: _checkingID,
+        destinationID: _savingsID,
+        date: DateTime.utc(2027, 4, 8),
+      ),
+    );
+    final ledger = Ledger(state: state);
+    final ready = _readyQueries(ledger);
+    await _accept(ready.cache, ledger);
+
+    final result = ready.queries.readPeriod(window: _april());
+    expect(result.value?.spent, Decimal.parse('25.25'));
+    expect(result.value?.income, Decimal.parse('70.00'));
+    expect(result.value?.net, Decimal.parse('44.75'));
+    expect(result.value?.moved, Decimal.parse('22.00'));
+
+    final scoped = ready.queries.readPeriod(
+      window: _april(),
+      sourceIDs: {_checkingID},
+    );
+    expect(scoped.value?.income, Decimal.parse('70.00'));
+    expect(scoped.value?.net, Decimal.parse('44.75'));
+    expect(scoped.value?.moved, Decimal.parse('22.00'));
+
+    final destinationOnly = ready.queries.readPeriod(
+      window: _april(),
+      sourceIDs: {_savingsID},
+    );
+    expect(destinationOnly.value?.income, Decimal.zero);
+    expect(destinationOnly.value?.moved, Decimal.parse('22.00'));
+  });
+
+  test('whollyFutureWindowCountsCommittedEntries', () async {
+    final state = _state();
+    _expense(
+      state,
+      '20000000-0000-0000-0000-000000000001',
+      '-12.00',
+      DateTime.utc(2027, 6, 5),
+    );
+    final ledger = Ledger(state: state);
+    final ready = _readyQueries(ledger);
+    await _accept(ready.cache, ledger);
+
+    final window = DateRange(
+      DateTime.utc(2027, 6, 1),
+      DateTime.utc(2027, 7, 1),
+    );
+    final result = ready.queries.readPeriod(window: window);
+    expect(result.state, AnalysisQueryState.ready);
+    expect(result.value?.window, window);
+    expect(result.value?.effectiveWindow, window);
+    expect(result.value?.spent, Decimal.parse('12.00'));
   });
 
   test('emptyWindowTotalsZeroAndReversedWindowThrows', () async {
@@ -252,7 +329,6 @@ void main() {
       () => periodSummary(
         ledger: ledger.state,
         items: const [],
-        today: _today,
         window: reversed,
       ),
       throwsArgumentError,

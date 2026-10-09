@@ -86,7 +86,6 @@ class AnalysisQueries extends ChangeNotifier {
       () => periodSummary(
         ledger: _ledger.state,
         items: _cache.items,
-        today: _today,
         window: window,
         sourceIDs: sourceIDs,
       ),
@@ -169,7 +168,6 @@ class AnalysisQueries extends ChangeNotifier {
       () => weekTotals(
         ledger: _ledger.state,
         items: _cache.items,
-        today: _today,
         window: window,
         sourceIDs: sourceIDs,
       ),

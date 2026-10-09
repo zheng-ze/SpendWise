@@ -844,6 +844,18 @@ void main() {
       '-3.00',
       DateTime.utc(2027, 4, 10),
     );
+    _expense(
+      state,
+      'g0000000-0000-0000-0000-000000000007',
+      '-6.00',
+      DateTime.utc(2027, 4, 15),
+    );
+    _expense(
+      state,
+      'g0000000-0000-0000-0000-000000000008',
+      '-8.00',
+      DateTime.utc(2027, 5, 1),
+    );
     final setup = _ready(state);
     await _accept(setup.cache, setup.ledger);
     final queries = setup.queries;
@@ -868,20 +880,32 @@ void main() {
     );
 
     final second = weeks.value![1];
-    expect(second.spent, Decimal.parse('20.50'));
-    expect(second.expenseItemCount, 2);
+    expect(second.spent, Decimal.parse('23.50'));
+    expect(second.expenseItemCount, 3);
     expect(
       second.effectiveWindow,
-      DateRange(DateTime.utc(2027, 4, 5), DateTime.utc(2027, 4, 8)),
+      DateRange(DateTime.utc(2027, 4, 5), DateTime.utc(2027, 4, 12)),
     );
 
     final future = weeks.value![2];
-    expect(future.spent, Decimal.zero);
-    expect(future.expenseItemCount, 0);
+    expect(future.spent, Decimal.parse('6.00'));
+    expect(future.expenseItemCount, 1);
     expect(
       future.effectiveWindow,
-      DateRange(DateTime.utc(2027, 4, 12), DateTime.utc(2027, 4, 12)),
+      DateRange(DateTime.utc(2027, 4, 12), DateTime.utc(2027, 4, 19)),
     );
+
+    final closing = weeks.value![4];
+    expect(closing.spent, Decimal.parse('8.00'));
+    expect(closing.expenseItemCount, 1);
+    expect(
+      closing.effectiveWindow,
+      DateRange(DateTime.utc(2027, 4, 26), DateTime.utc(2027, 5, 3)),
+    );
+
+    final period = queries.readPeriod(window: _april());
+    expect(period.state, AnalysisQueryState.ready);
+    expect(period.value!.spent, Decimal.parse('64.50'));
 
     final scoped = queries.readWeeks(window: _april(), sourceIDs: {_savingsID});
     expect(scoped.value![0].spent, Decimal.zero);
@@ -897,6 +921,70 @@ void main() {
       DateRange(DateTime.utc(2026, 12, 28), DateTime.utc(2027, 1, 4)),
       DateRange(DateTime.utc(2027, 1, 4), DateTime.utc(2027, 1, 11)),
     ]);
+  });
+
+  test('boundaryWeeksMatchAcrossAdjacentMonthReads', () async {
+    final state = _baseState();
+    _expense(
+      state,
+      'b0000000-0000-0000-0000-000000000001',
+      '-4.50',
+      DateTime.utc(2027, 3, 31),
+    );
+    _expense(
+      state,
+      'b0000000-0000-0000-0000-000000000002',
+      '-5.00',
+      DateTime.utc(2027, 4, 2),
+    );
+    _expense(
+      state,
+      'b0000000-0000-0000-0000-000000000003',
+      '-11.00',
+      DateTime.utc(2027, 4, 28),
+    );
+    _expense(
+      state,
+      'b0000000-0000-0000-0000-000000000004',
+      '-8.00',
+      DateTime.utc(2027, 5, 1),
+    );
+    final setup = _ready(state);
+    await _accept(setup.cache, setup.ledger);
+    final queries = setup.queries;
+
+    final april = queries.readWeeks(window: _april());
+    expect(april.state, AnalysisQueryState.ready);
+    final opening = april.value!.firstWhere(
+      (week) => week.range.start == DateTime.utc(2027, 3, 29),
+    );
+    expect(opening.spent, Decimal.parse('9.50'));
+    expect(opening.expenseItemCount, 2);
+    final closing = april.value!.firstWhere(
+      (week) => week.range.start == DateTime.utc(2027, 4, 26),
+    );
+    expect(closing.spent, Decimal.parse('19.00'));
+    expect(closing.expenseItemCount, 2);
+
+    final march = queries.readWeeks(
+      window: DateRange(DateTime.utc(2027, 3, 1), DateTime.utc(2027, 4, 1)),
+    );
+    expect(march.state, AnalysisQueryState.ready);
+    final marchClosing = march.value!.last;
+    expect(marchClosing.range, opening.range);
+    expect(marchClosing.effectiveWindow, opening.effectiveWindow);
+    expect(marchClosing.spent, opening.spent);
+    expect(marchClosing.expenseItemCount, opening.expenseItemCount);
+
+    final may = queries.readWeeks(
+      window: DateRange(DateTime.utc(2027, 5, 1), DateTime.utc(2027, 6, 1)),
+    );
+    expect(may.state, AnalysisQueryState.ready);
+    final mayOpening = may.value!.first;
+    expect(mayOpening.range, closing.range);
+    expect(mayOpening.effectiveWindow, closing.effectiveWindow);
+    expect(mayOpening.spent, closing.spent);
+    expect(mayOpening.expenseItemCount, closing.expenseItemCount);
   });
 
   test('calendarMarksRecordedAndPlannedDays', () async {
@@ -1259,8 +1347,10 @@ void main() {
     );
     expect(
       focusBefore.effectiveWindow,
-      DateRange(DateTime.utc(2027, 4, 5), DateTime.utc(2027, 4, 8)),
+      DateRange(DateTime.utc(2027, 4, 5), DateTime.utc(2027, 4, 12)),
     );
+    expect(focusBefore.spent, Decimal.parse('18.50'));
+    expect(focusBefore.expenseItemCount, 2);
 
     queries.setToday(DateTime.utc(2027, 4, 8));
     expect(runner.calls, 1);
@@ -1299,8 +1389,10 @@ void main() {
     );
     expect(
       focusAfter.effectiveWindow,
-      DateRange(DateTime.utc(2027, 4, 5), DateTime.utc(2027, 4, 9)),
+      DateRange(DateTime.utc(2027, 4, 5), DateTime.utc(2027, 4, 12)),
     );
+    expect(focusAfter.spent, focusBefore.spent);
+    expect(focusAfter.expenseItemCount, focusBefore.expenseItemCount);
 
     final register = queries.readRegisterDays(window: _april());
     expect(
