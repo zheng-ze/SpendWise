@@ -7,6 +7,7 @@ import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
 import 'package:spendwise/ledger/analysis/calendar.dart';
 import 'package:spendwise/ledger/analysis/completeness.dart';
 import 'package:spendwise/ledger/analysis/entry_record.dart';
+import 'package:spendwise/ledger/analysis/month_spread.dart';
 import 'package:spendwise/ledger/analysis/period_summary.dart';
 import 'package:spendwise/ledger/analysis/register.dart';
 import 'package:spendwise/ledger/analysis/search.dart';
@@ -265,6 +266,32 @@ class AnalysisQueries extends ChangeNotifier {
       identity,
       '$identity|${_today.toIso8601String()}|${_ledger.revision}',
       () => _completeness(window),
+    );
+  }
+
+  AnalysisQueryResult<MonthSpread> readMonthSpread({
+    required DateTime endMonth,
+    required CategoryKind kind,
+  }) {
+    final anchor = monthWindow(endMonth).start;
+    return _readMixed<MonthSpread>(
+      'month-spread|${anchor.toIso8601String()}|${kind.name}',
+      () {
+        if (anchor.isAfter(monthWindow(_today).start)) {
+          throw ArgumentError.value(
+            endMonth,
+            'endMonth',
+            'Month is in the future.',
+          );
+        }
+        return monthSpread(
+          items: _cache.items,
+          endMonth: anchor,
+          kind: kind,
+          firstRecordMonth: firstRecordMonth(_ledger.state),
+          today: _today,
+        );
+      },
     );
   }
 
