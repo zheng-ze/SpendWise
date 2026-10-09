@@ -1,6 +1,6 @@
 # Ledger Runtime
 
-Last reconciled: b2e3b1a
+Last reconciled: d777ed9
 
 ## Feature overview
 
@@ -229,14 +229,14 @@ its previous successful value if present (`analysis_queries.dart:_readLedgerOnly
   loading otherwise (`analysis_completeness_test.dart`:
   `deletingEarliestEntryDuringPendingRefreshSplitsCompletenessFromTotalsUntilAcceptance`).
 - `readMonthSpread(endMonth:, kind:)` is a mixed read returning twelve chronological month slots
-  ending at `endMonth` for expense or income. Slot totals are committed whole-month sums of the
-  kind's analysis items, so the current-month slot equals `readPeriod` for that month. A slot
-  before firstRecordMonth is blank; an empty complete month is a gap for expense and blank for
-  income; otherwise it is complete or incomplete. firstRecordMonth is computed inside the gated
-  evaluation, so slots and totals always share one revision. `earliestSpreadEndMonth` bounds
-  backward navigation in 12-month pages anchored at the current month; an end month after the
-  current month fails the read. `qualifier` is null until qualifier text exists. `MonthSpread`
-  compares its slots element-wise (`app/lib/ledger/analysis/month_spread.dart`;
+  ending at `endMonth` for expense or income. Each slot holds only its month, window, committed
+  whole-month total and item count; the current-month slot equals `readPeriod` for that month.
+  Slots carry no display state: an empty month, before or after the first record, is a zero total
+  with item count 0, and the spread has no qualifier text. Completeness is used only by usual and
+  insight comparisons. firstRecordMonth is computed inside the gated evaluation, so it and the
+  totals share one revision. `earliestSpreadEndMonth` bounds backward navigation in 12-month pages
+  anchored at the current month; an end month after the current month fails the read.
+  `MonthSpread` compares its slots element-wise (`app/lib/ledger/analysis/month_spread.dart`;
   `analysis_month_spread_test.dart`).
 - `readCardStatement(accountID:)` wraps the domain query at today. An ineligible account returns
   a ready result with null value and the current Ledger revision (`analysis_queries.dart`;
