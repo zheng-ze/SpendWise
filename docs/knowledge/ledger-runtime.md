@@ -1,6 +1,6 @@
 # Ledger Runtime
 
-Last reconciled: a8d6ab8
+Last reconciled: b2e3b1a
 
 ## Feature overview
 
@@ -23,7 +23,8 @@ banners, and first-launch seeding. These live in `app/lib/ledger/` and `app/lib/
 - `app/lib/ledger/analysis_queries.dart` - observable query results, refresh ownership, retry,
   and per-query memoization.
 - `app/lib/ledger/analysis/` - app-owned query result types and pure helpers for summaries,
-  entry metadata, register days, recent entries, upcoming items, weeks, search, calendar days, firstRecordMonth, and period completeness.
+  entry metadata, register days, recent entries, upcoming items, weeks, search, calendar days,
+  firstRecordMonth, period completeness, and month spreads.
   The pure-domain card query lives in `packages/domain/lib/src/analysis/card_statement.dart`.
 - `app/lib/ui/common/ledger_backed_notifier.dart` - watches the ready session and exposes its
   Ledger and cache to ViewModels.
@@ -227,6 +228,16 @@ its previous successful value if present (`analysis_queries.dart:_readLedgerOnly
   pair as coherent only when both `sourceRevision` values are non-null and equal, and shows
   loading otherwise (`analysis_completeness_test.dart`:
   `deletingEarliestEntryDuringPendingRefreshSplitsCompletenessFromTotalsUntilAcceptance`).
+- `readMonthSpread(endMonth:, kind:)` is a mixed read returning twelve chronological month slots
+  ending at `endMonth` for expense or income. Slot totals are committed whole-month sums of the
+  kind's analysis items, so the current-month slot equals `readPeriod` for that month. A slot
+  before firstRecordMonth is blank; an empty complete month is a gap for expense and blank for
+  income; otherwise it is complete or incomplete. firstRecordMonth is computed inside the gated
+  evaluation, so slots and totals always share one revision. `earliestSpreadEndMonth` bounds
+  backward navigation in 12-month pages anchored at the current month; an end month after the
+  current month fails the read. `qualifier` is null until qualifier text exists. `MonthSpread`
+  compares its slots element-wise (`app/lib/ledger/analysis/month_spread.dart`;
+  `analysis_month_spread_test.dart`).
 - `readCardStatement(accountID:)` wraps the domain query at today. An ineligible account returns
   a ready result with null value and the current Ledger revision (`analysis_queries.dart`;
   `analysis_service_test.dart`: `ineligibleCardIsReadyNullWithRevision`).
