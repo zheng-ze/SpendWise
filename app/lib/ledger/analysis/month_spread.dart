@@ -3,8 +3,6 @@ import 'package:flutter/foundation.dart';
 
 import 'package:spendwise/ledger/analysis/completeness.dart';
 
-enum MonthSlotState { blank, gap, complete, incomplete }
-
 @immutable
 class MonthSlot {
   const MonthSlot({
@@ -12,8 +10,6 @@ class MonthSlot {
     required this.window,
     required this.total,
     required this.itemCount,
-    required this.completeness,
-    required this.state,
   });
 
   final DateTime month;
@@ -24,24 +20,17 @@ class MonthSlot {
 
   final int itemCount;
 
-  final PeriodCompleteness completeness;
-
-  final MonthSlotState state;
-
   @override
   bool operator ==(Object other) {
     return other is MonthSlot &&
         other.month == month &&
         other.window == window &&
         other.total == total &&
-        other.itemCount == itemCount &&
-        other.completeness == completeness &&
-        other.state == state;
+        other.itemCount == itemCount;
   }
 
   @override
-  int get hashCode =>
-      Object.hash(month, window, total, itemCount, completeness, state);
+  int get hashCode => Object.hash(month, window, total, itemCount);
 }
 
 @immutable
@@ -53,7 +42,6 @@ class MonthSpread {
     required this.currentMonth,
     required this.earliestSpreadEndMonth,
     required this.slots,
-    required this.qualifier,
   });
 
   final DateTime endMonth;
@@ -68,8 +56,6 @@ class MonthSpread {
 
   final List<MonthSlot> slots;
 
-  final String? qualifier;
-
   @override
   bool operator ==(Object other) {
     if (other is! MonthSpread) return false;
@@ -78,7 +64,6 @@ class MonthSpread {
         other.firstRecordMonth != firstRecordMonth ||
         other.currentMonth != currentMonth ||
         other.earliestSpreadEndMonth != earliestSpreadEndMonth ||
-        other.qualifier != qualifier ||
         other.slots.length != slots.length) {
       return false;
     }
@@ -96,7 +81,6 @@ class MonthSpread {
     currentMonth,
     earliestSpreadEndMonth,
     Object.hashAll(slots),
-    qualifier,
   );
 }
 
@@ -129,32 +113,8 @@ MonthSpread monthSpread({
       total += item.amount;
       count++;
     }
-    final completeness = classifyPeriod(
-      window: window,
-      firstRecordMonth: first,
-      today: day,
-    );
-    final MonthSlotState state;
-    if (completeness == PeriodCompleteness.preRecord) {
-      state = MonthSlotState.blank;
-    } else if (count == 0) {
-      state = kind == CategoryKind.expense
-          ? MonthSlotState.gap
-          : MonthSlotState.blank;
-    } else {
-      state = completeness == PeriodCompleteness.complete
-          ? MonthSlotState.complete
-          : MonthSlotState.incomplete;
-    }
     slots.add(
-      MonthSlot(
-        month: month,
-        window: window,
-        total: total,
-        itemCount: count,
-        completeness: completeness,
-        state: state,
-      ),
+      MonthSlot(month: month, window: window, total: total, itemCount: count),
     );
   }
   return MonthSpread(
@@ -164,7 +124,6 @@ MonthSpread monthSpread({
     currentMonth: currentMonth,
     earliestSpreadEndMonth: earliestSpreadEndMonth,
     slots: List.unmodifiable(slots),
-    qualifier: null,
   );
 }
 

@@ -235,7 +235,7 @@ MonthSlot _slot(MonthSpread spread, int year, int month) {
 }
 
 void main() {
-  test('spreadsCoverTwelveMonthsWithStatesAndCommittedTotals', () async {
+  test('spreadsCoverTwelveMonthsWithCommittedTotals', () async {
     final setup = _setup();
     _populate(setup.ledger);
     await _settle(setup.runner, setup.ledger);
@@ -246,7 +246,6 @@ void main() {
       expect(spread.firstRecordMonth, DateTime.utc(2026, 12, 1));
       expect(spread.currentMonth, _endMonth);
       expect(spread.earliestSpreadEndMonth, _endMonth);
-      expect(spread.qualifier, isNull);
       expect(spread.slots, hasLength(12));
       for (var i = 0; i < 12; i++) {
         final want = DateTime.utc(2026, 6 + i, 1);
@@ -257,95 +256,54 @@ void main() {
     expect(expense.endMonth, _endMonth);
     expect(expense.kind, CategoryKind.expense);
     expect(income.kind, CategoryKind.income);
-    for (var month = 6; month <= 11; month++) {
-      for (final spread in [expense, income]) {
-        final slot = _slot(spread, 2026, month);
-        expect(slot.total, Decimal.zero);
-        expect(slot.itemCount, 0);
-        expect(slot.state, MonthSlotState.blank);
-        expect(slot.completeness, PeriodCompleteness.preRecord);
-      }
-    }
     final table = <List<Object>>[
-      [
-        2026,
-        12,
-        '0',
-        0,
-        MonthSlotState.gap,
-        '0',
-        0,
-        MonthSlotState.blank,
-        PeriodCompleteness.complete,
-      ],
-      [
-        2027,
-        1,
-        '10.00',
-        1,
-        MonthSlotState.complete,
-        '40.00',
-        1,
-        MonthSlotState.complete,
-        PeriodCompleteness.complete,
-      ],
-      [
-        2027,
-        2,
-        '5.00',
-        1,
-        MonthSlotState.complete,
-        '0',
-        0,
-        MonthSlotState.blank,
-        PeriodCompleteness.complete,
-      ],
-      [
-        2027,
-        3,
-        '0',
-        0,
-        MonthSlotState.gap,
-        '0',
-        0,
-        MonthSlotState.blank,
-        PeriodCompleteness.complete,
-      ],
-      [
-        2027,
-        4,
-        '47.00',
-        2,
-        MonthSlotState.complete,
-        '15.00',
-        1,
-        MonthSlotState.complete,
-        PeriodCompleteness.complete,
-      ],
-      [
-        2027,
-        5,
-        '12.00',
-        2,
-        MonthSlotState.incomplete,
-        '50.00',
-        1,
-        MonthSlotState.incomplete,
-        PeriodCompleteness.incomplete,
-      ],
+      [2026, 6, '0', 0, '0', 0],
+      [2026, 7, '0', 0, '0', 0],
+      [2026, 8, '0', 0, '0', 0],
+      [2026, 9, '0', 0, '0', 0],
+      [2026, 10, '0', 0, '0', 0],
+      [2026, 11, '0', 0, '0', 0],
+      [2026, 12, '0', 0, '0', 0],
+      [2027, 1, '10.00', 1, '40.00', 1],
+      [2027, 2, '5.00', 1, '0', 0],
+      [2027, 3, '0', 0, '0', 0],
+      [2027, 4, '47.00', 2, '15.00', 1],
+      [2027, 5, '12.00', 2, '50.00', 1],
     ];
     for (final row in table) {
       final expenseSlot = _slot(expense, row[0] as int, row[1] as int);
       expect(expenseSlot.total, Decimal.parse(row[2] as String));
       expect(expenseSlot.itemCount, row[3]);
-      expect(expenseSlot.state, row[4]);
-      expect(expenseSlot.completeness, row[8]);
       final incomeSlot = _slot(income, row[0] as int, row[1] as int);
-      expect(incomeSlot.total, Decimal.parse(row[5] as String));
-      expect(incomeSlot.itemCount, row[6]);
-      expect(incomeSlot.state, row[7]);
-      expect(incomeSlot.completeness, row[8]);
+      expect(incomeSlot.total, Decimal.parse(row[4] as String));
+      expect(incomeSlot.itemCount, row[5]);
     }
+  });
+
+  test('emptyMonthsAreZeroForBothKinds', () async {
+    final setup = _setup();
+    _populate(setup.ledger);
+    await _settle(setup.runner, setup.ledger);
+    final expense = _readySpread(setup.queries, CategoryKind.expense);
+    final income = _readySpread(setup.queries, CategoryKind.income);
+    for (final (year, month) in [(2026, 6), (2027, 3)]) {
+      for (final spread in [expense, income]) {
+        final slot = _slot(spread, year, month);
+        expect(slot.total, Decimal.zero);
+        expect(slot.itemCount, 0);
+      }
+    }
+    final juneSetup = _setup(today: DateTime.utc(2027, 6, 15));
+    await _settle(juneSetup.runner, juneSetup.ledger);
+    final june = juneSetup.queries.readMonthSpread(
+      endMonth: DateTime.utc(2027, 6, 1),
+      kind: CategoryKind.expense,
+    );
+    expect(june.state, AnalysisQueryState.ready);
+    final current = june.value!.slots.last;
+    expect(current.month, DateTime.utc(2027, 6, 1));
+    expect(current.total, Decimal.zero);
+    expect(current.itemCount, 0);
   });
 
   test('currentSlotMatchesReadPeriodForBothKinds', () async {
@@ -364,7 +322,7 @@ void main() {
     expect(_slot(income, 2027, 5).total, period.value?.income);
   });
 
-  test('outOfRecordEndsStayBlankAndFutureEndsFail', () async {
+  test('outOfRecordEndsStayEmptyAndFutureEndsFail', () async {
     final setup = _setup();
     _populate(setup.ledger);
     await _settle(setup.runner, setup.ledger);
@@ -375,11 +333,9 @@ void main() {
     );
     expect(historical.state, AnalysisQueryState.ready);
     for (final slot in historical.value!.slots) {
-      expect(slot.state, MonthSlotState.blank);
       expect(slot.total, Decimal.zero);
-      expect(slot.completeness, PeriodCompleteness.preRecord);
+      expect(slot.itemCount, 0);
     }
-    expect(historical.value!.qualifier, isNull);
     expect(historical.value!.earliestSpreadEndMonth, _endMonth);
 
     final futureOnly = monthSpread(
@@ -390,8 +346,8 @@ void main() {
       today: _today,
     );
     for (final slot in futureOnly.slots) {
-      expect(slot.state, MonthSlotState.blank);
-      expect(slot.completeness, PeriodCompleteness.preRecord);
+      expect(slot.total, Decimal.zero);
+      expect(slot.itemCount, 0);
     }
     expect(futureOnly.earliestSpreadEndMonth, _endMonth);
 
@@ -459,7 +415,7 @@ void main() {
     expect(() => first.slots.add(first.slots.first), throwsUnsupportedError);
   });
 
-  test('filteredItemsKeepGlobalCompleteness', () async {
+  test('filteredItemsKeepFirstRecordMonth', () async {
     final items = Accounting.analysisItems(_populatedState());
     final spread = monthSpread(
       items: items.where((item) => false),
@@ -468,9 +424,11 @@ void main() {
       firstRecordMonth: DateTime.utc(2026, 12, 1),
       today: _today,
     );
-    expect(_slot(spread, 2027, 1).state, MonthSlotState.gap);
-    expect(_slot(spread, 2027, 1).completeness, PeriodCompleteness.complete);
-    expect(_slot(spread, 2027, 5).completeness, PeriodCompleteness.incomplete);
+    expect(spread.firstRecordMonth, DateTime.utc(2026, 12, 1));
+    expect(_slot(spread, 2027, 1).total, Decimal.zero);
+    expect(_slot(spread, 2027, 1).itemCount, 0);
+    expect(_slot(spread, 2027, 5).total, Decimal.zero);
+    expect(_slot(spread, 2027, 5).itemCount, 0);
   });
 
   test('spreadFollowsMixedMemoAndRevisionGate', () async {
@@ -580,7 +538,8 @@ void main() {
     );
     expect(accepted.sourceRevision, ledger.revision);
     expect(accepted.value?.firstRecordMonth, DateTime.utc(2027, 1, 1));
-    expect(_slot(accepted.value!, 2026, 12).state, MonthSlotState.blank);
+    expect(_slot(accepted.value!, 2026, 12).total, Decimal.zero);
+    expect(_slot(accepted.value!, 2026, 12).itemCount, 0);
     expect(
       queries
           .readMonthCompleteness(month: DateTime.utc(2026, 12, 15))
@@ -607,14 +566,17 @@ void main() {
       kind: CategoryKind.expense,
     );
     expect(spread.state, AnalysisQueryState.ready);
-    expect(_slot(spread.value!, 2027, 5).state, MonthSlotState.complete);
+    expect(spread.value?.currentMonth, DateTime.utc(2027, 6, 1));
+    expect(_slot(spread.value!, 2027, 5).total, Decimal.parse('12.00'));
+    expect(_slot(spread.value!, 2027, 5).itemCount, 2);
 
     final june = queries.readMonthSpread(
       endMonth: DateTime.utc(2027, 6, 1),
       kind: CategoryKind.income,
     );
     expect(june.state, AnalysisQueryState.ready);
-    expect(_slot(june.value!, 2027, 6).state, MonthSlotState.blank);
+    expect(_slot(june.value!, 2027, 6).total, Decimal.zero);
+    expect(_slot(june.value!, 2027, 6).itemCount, 0);
   });
 
   test('spreadFailureIsIsolated', () async {
