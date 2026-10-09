@@ -43,20 +43,15 @@ class PeriodSummary {
 PeriodSummary periodSummary({
   required LedgerState ledger,
   required List<AnalysisItem> items,
-  required DateTime today,
   required DateRange window,
   Set<String>? sourceIDs,
 }) {
-  final day = startOfDayUtc(today);
   final start = startOfDayUtc(window.start);
   final end = startOfDayUtc(window.end);
   if (end.isBefore(start)) {
     throw ArgumentError.value(window, 'window', 'End is before start.');
   }
-  final horizon = day.add(const Duration(days: 1));
-  var observedEnd = end.isBefore(horizon) ? end : horizon;
-  if (observedEnd.isBefore(start)) observedEnd = start;
-  final effectiveWindow = DateRange(start, observedEnd);
+  final effectiveWindow = DateRange(start, end);
 
   final scope = sourceIDs?.map(normalizedID).toSet();
   final complete = ledger.moneySources.keys.toSet();
