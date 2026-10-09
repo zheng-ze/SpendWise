@@ -1,6 +1,6 @@
 # Ledger Runtime
 
-Last reconciled: 9fc9e82
+Last reconciled: a069853
 
 ## Feature overview
 
@@ -167,9 +167,11 @@ including overrides, divided by calendar days in the month and rounded half-up t
 It is null without an applicable budget; multiple applicable unscoped budgets fail evaluation
 (`app/lib/ledger/analysis/today_summary.dart`; `app/test/ledger/analysis_today_period_test.dart`).
 
-`PeriodSummary` contains the normalized requested `[start, end)` window, an effective window capped
-at tomorrow's UTC midnight, expense/income totals, `net = income - spent`, and absolute transfer
-volume `moved`. A wholly future or empty window has zero totals; reversed endpoints fail evaluation.
+`PeriodSummary` contains the normalized requested `[start, end)` window, an effective window equal
+to it, expense/income totals, `net = income - spent`, and absolute transfer volume `moved`. Totals
+are committed amounts: every entry dated in the window counts, including entries dated after today,
+so the current month's figure includes bills already logged for later days. An empty window has
+zero totals; reversed endpoints fail evaluation.
 Without a source scope, totals use cached analysis items. A scope selects active entries touching
 any selected source and classifies them against the complete Ledger source set; an empty scope
 selects nothing. `moved` counts each qualifying active transfer once, regardless of analysis gates;
