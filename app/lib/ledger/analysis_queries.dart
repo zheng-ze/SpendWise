@@ -14,6 +14,7 @@ import 'package:spendwise/ledger/analysis/search.dart';
 import 'package:spendwise/ledger/analysis/today_summary.dart';
 import 'package:spendwise/ledger/analysis/upcoming.dart';
 import 'package:spendwise/ledger/analysis/weeks.dart';
+import 'package:spendwise/ledger/analysis/year_spread.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
 
@@ -293,6 +294,25 @@ class AnalysisQueries extends ChangeNotifier {
         );
       },
     );
+  }
+
+  AnalysisQueryResult<YearSpread> readYearSpread({
+    required int endYear,
+    required CategoryKind kind,
+  }) {
+    return _readMixed<YearSpread>('year-spread|$endYear|${kind.name}', () {
+      final currentYear = startOfDayUtc(_today).year;
+      if (endYear > currentYear) {
+        throw ArgumentError.value(endYear, 'endYear', 'Year is in the future.');
+      }
+      return yearSpread(
+        items: _cache.items,
+        endYear: endYear,
+        kind: kind,
+        firstRecordMonth: firstRecordMonth(_ledger.state),
+        today: _today,
+      );
+    });
   }
 
   PeriodCompletenessResult _completeness(DateRange window) {
