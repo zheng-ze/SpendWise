@@ -1,6 +1,6 @@
 # Ledger Runtime
 
-Last reconciled: a75e35d
+Last reconciled: 5cc373c
 
 ## Feature overview
 
@@ -24,7 +24,8 @@ banners, and first-launch seeding. These live in `app/lib/ledger/` and `app/lib/
   and per-query memoization.
 - `app/lib/ledger/analysis/` - app-owned query result types and pure helpers for summaries,
   entry metadata, register days, recent entries, upcoming items, weeks, search, calendar days,
-  firstRecordMonth, period completeness, month and year spreads, and compared with usual.
+  firstRecordMonth, period completeness, month and year spreads, category breakdowns, and compared
+  with usual.
   The pure-domain card query lives in `packages/domain/lib/src/analysis/card_statement.dart`.
 - `app/lib/ui/common/ledger_backed_notifier.dart` - watches the ready session and exposes its
   Ledger and cache to ViewModels.
@@ -246,6 +247,16 @@ its previous successful value if present (`analysis_queries.dart:_readLedgerOnly
   backward navigation in 3-year pages anchored at the current year and is computed from
   firstRecordMonth inside the gated evaluation. An end year after the current year fails the read
   (`app/lib/ledger/analysis/year_spread.dart`; `analysis_year_spread_test.dart`).
+- `categoryBreakdown` is a pure helper, with no `AnalysisQueries` read. It groups `AnalysisItem`s
+  of one kind within one window into a `PeriodBreakdown` of ranked `BreakdownRow`s.
+  `BreakdownLevel.categories` uses `Accounting.rollUp`; `subcategories` keeps leaf rows and marks
+  a main's directly booked items as an `isDirect` 'Direct to <Main>' row when any child exists in
+  `state.categories`, regardless of that child's lifecycle or `includeInAnalysis` flag. A childless
+  main remains an ordinary row, as do synthetic transfer, uncategorized and unresolved buckets.
+  Only positive-amount rows remain, ranked by amount descending, then normalized `bucketID` with
+  null last, then non-direct before direct. `total` sums the items filtered by kind and window;
+  rows carry no share (`app/lib/ledger/analysis/category_breakdown.dart`;
+  `analysis_category_breakdown_test.dart`).
 - `readComparedWithUsual(month:, kind:)` is a mixed read for a pace comparison. The observed
   total covers the selected month up to today for the current month, or the whole month for a past
   month. The usual is the mean of the same elapsed days in exactly the three calendar months before
