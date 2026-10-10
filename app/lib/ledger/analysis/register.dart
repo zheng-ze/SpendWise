@@ -132,22 +132,19 @@ List<EntryRecord> recentEntries({
   if (limit == 0) return const [];
   final horizon = startOfDayUtc(today).add(const Duration(days: 1));
   final scope = normalizedScope(sourceIDs);
-  final indexed = <({int index, Entry entry})>[];
-  var index = 0;
-  for (final entry in ledger.entries.values) {
-    if (entry.lifecycle.isActive &&
-        inScope(entry, scope) &&
-        entry.date.isBefore(horizon)) {
-      indexed.add((index: index, entry: entry));
-    }
-    index++;
-  }
-  indexed.sort((a, b) {
-    final byDate = b.entry.date.compareTo(a.entry.date);
+  final candidates = [
+    for (final entry in ledger.entries.values)
+      if (entry.lifecycle.isActive &&
+          inScope(entry, scope) &&
+          entry.date.isBefore(horizon))
+        entry,
+  ];
+  candidates.sort((a, b) {
+    final byDate = b.date.compareTo(a.date);
     if (byDate != 0) return byDate;
-    return b.index.compareTo(a.index);
+    return b.id.compareTo(a.id);
   });
   return List.unmodifiable([
-    for (final item in indexed.take(limit)) entryRecord(ledger, item.entry),
+    for (final entry in candidates.take(limit)) entryRecord(ledger, entry),
   ]);
 }

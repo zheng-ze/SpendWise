@@ -216,7 +216,8 @@ its previous successful value if it is still retained (`analysis_queries.dart:_r
   `app/test/ledger/analysis_service_test.dart`: `registerPreservesDaySectionsAccounting`,
   `registerTotalsMatchPeriodFixtureAndHistoryEqualsSelectedDay`).
 - `readRecent(limit: 4, sourceIDs:)` excludes dates after today and sorts by date descending,
-  breaking ties by reverse insertion order. `readSearch(query:, window:, sourceIDs:, kind:)`
+  breaking ties by entry id descending, so archiving and restoring an entry keeps its place
+  (`app/test/ledger/analysis_service_test.dart:recentKeepsSameDayOrderAfterArchiveAndRestore`). `readSearch(query:, window:, sourceIDs:, kind:)`
   searches trimmed, case-insensitive entry, category, parent-category, source, and destination
   names and returns newest-first month groups with register totals. `registerDays` and
   `searchEntries` build the complete source set once per read and pass it as `complete` to
