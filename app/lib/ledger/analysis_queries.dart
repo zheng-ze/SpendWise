@@ -52,8 +52,6 @@ class AnalysisQueries extends ChangeNotifier {
 
   final Set<String> _failedEvaluations = {};
 
-  int? _failedRevision;
-
   final Set<Future<void>> _observed = {};
 
   final Set<int> _inflight = {};
@@ -518,14 +516,7 @@ class AnalysisQueries extends ChangeNotifier {
     }
   }
 
-  void _recordFailure(String key) {
-    final revision = _ledger.revision;
-    if (_failedRevision != revision) {
-      _failedEvaluations.clear();
-      _failedRevision = revision;
-    }
-    _failedEvaluations.add(key);
-  }
+  void _recordFailure(String key) => _failedEvaluations.add(key);
 
   AnalysisQueryState _pendingState(int revision) {
     if (_inflight.contains(revision)) return AnalysisQueryState.loading;
@@ -538,6 +529,7 @@ class AnalysisQueries extends ChangeNotifier {
 
   void _onLedgerChanged() {
     if (_disposed) return;
+    _failedEvaluations.clear();
     unawaited(_requestRefresh());
     notifyListeners();
   }

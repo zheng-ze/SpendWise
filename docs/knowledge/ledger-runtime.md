@@ -129,8 +129,8 @@ acceptance before awaiting subscription cancellation
 live under `app/lib/ledger/analysis/`; `CardStatement` and `cardStatement` are domain-owned
 (`packages/domain/lib/src/analysis/card_statement.dart`). It requests refresh on
 construction and every Ledger notification, independently of ViewModels. Failed evaluations are a
-set of memo keys tagged with the single Ledger revision they failed at; recording a failure at a
-different revision drops the earlier keys (`_recordFailure`). `retry()` clears the failed
+set of memo keys that each embed the Ledger revision they failed at; every Ledger notification
+clears the set (`_onLedgerChanged`), so it only ever holds keys of the current revision. `retry()` clears the failed
 evaluations, requests refresh at the current revision, and notifies listeners once when that
 request starts new work. That includes an already current cache, where `AnalysisCache.refresh`
 returns a completed future without invoking the runner. It does not notify when a refresh for the
