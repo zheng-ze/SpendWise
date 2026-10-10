@@ -1,6 +1,6 @@
 # Ledger Runtime
 
-Last reconciled: 5cc373c
+Last reconciled: ea59916
 
 ## Feature overview
 
@@ -255,7 +255,11 @@ its previous successful value if present (`analysis_queries.dart:_readLedgerOnly
   main remains an ordinary row, as do synthetic transfer, uncategorized and unresolved buckets.
   Only positive-amount rows remain, ranked by amount descending, then normalized `bucketID` with
   null last, then non-direct before direct. `total` sums the items filtered by kind and window;
-  rows carry no share (`app/lib/ledger/analysis/category_breakdown.dart`;
+  each row carries a Decimal `sharePercent` of the whole period total, not its parent total,
+  to 1 decimal place. Exact-Decimal largest-remainder allocation distributes 1000 tenths so
+  a nonempty breakdown's shares sum to exactly 100.0. Equal remainders break by the same bucket
+  identity order used for ranking, independent of amount rank. A positive row can have a 0.0 share
+  and remains present; an empty breakdown has no rows (`app/lib/ledger/analysis/category_breakdown.dart`;
   `analysis_category_breakdown_test.dart`).
 - `readComparedWithUsual(month:, kind:)` is a mixed read for a pace comparison. The observed
   total covers the selected month up to today for the current month, or the whole month for a past
