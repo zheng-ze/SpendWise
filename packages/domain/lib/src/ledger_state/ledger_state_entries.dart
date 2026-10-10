@@ -102,19 +102,6 @@ extension LedgerStateEntries on LedgerState {
       throw InactiveReference(destinationID);
     }
 
-    if (entry.amount >= Decimal.zero) return entry;
-
-    return Entry(
-      id: entry.id,
-      date: entry.date,
-      amount: -entry.amount,
-      name: entry.name,
-      categoryID: entry.categoryID,
-      sourceID: destinationID,
-      destinationID: entry.sourceID,
-      includeInAnalysis: entry.includeInAnalysis,
-      lifecycle: entry.lifecycle,
-      systemKind: entry.systemKind,
-    );
+    return entry.normalizedTransferEndpoints();
   }
 }

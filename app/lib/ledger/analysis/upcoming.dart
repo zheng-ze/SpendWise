@@ -160,7 +160,9 @@ List<PlanOccurrence> upcomingPlanOccurrences({
           date: date,
           projected: entryRecord(
             ledger,
-            plan.template.makeEntry(plan.id, date),
+            plan.template
+                .makeEntry(plan.id, date)
+                .normalizedTransferEndpoints(),
           ),
         ),
       );

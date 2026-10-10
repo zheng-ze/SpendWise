@@ -584,4 +584,85 @@ void main() {
       expect(changes, contains(DeletePlan(planID)));
     });
   });
+
+  group('negative-amount transfer plan normalization', () {
+    test(
+      'normalizedTransferEndpoints swaps endpoints and negates the amount',
+      () {
+        final entry = Entry(
+          id: uuid(7),
+          date: DateTime.utc(2026, 2, 15),
+          amount: Decimal.fromInt(-10),
+          name: 'sweep',
+          sourceID: accountID,
+          destinationID: otherAccountID,
+        );
+
+        final normalized = entry.normalizedTransferEndpoints();
+
+        expect(normalized.sourceID, otherAccountID);
+        expect(normalized.destinationID, accountID);
+        expect(normalized.amount, Decimal.fromInt(10));
+        expect(normalized.id, entry.id);
+        expect(normalized.date, entry.date);
+        expect(normalized.name, entry.name);
+        expect(normalized.includeInAnalysis, entry.includeInAnalysis);
+        expect(normalized.lifecycle, entry.lifecycle);
+      },
+    );
+
+    test('leaves positive, zero and non-transfer entries unchanged', () {
+      final positiveTransfer = Entry(
+        id: uuid(7),
+        amount: Decimal.fromInt(10),
+        name: 'sweep',
+        sourceID: accountID,
+        destinationID: otherAccountID,
+      );
+      final zeroTransfer = Entry(
+        id: uuid(7),
+        amount: Decimal.zero,
+        name: 'sweep',
+        sourceID: accountID,
+        destinationID: otherAccountID,
+      );
+      final negativeExpense = Entry(
+        id: uuid(7),
+        amount: Decimal.fromInt(-10),
+        name: 'rent',
+        sourceID: accountID,
+      );
+
+      expect(positiveTransfer.normalizedTransferEndpoints(), positiveTransfer);
+      expect(zeroTransfer.normalizedTransferEndpoints(), zeroTransfer);
+      expect(negativeExpense.normalizedTransferEndpoints(), negativeExpense);
+    });
+
+    test('a resolved negative-amount transfer plan equals the normalized '
+        'template entry', () {
+      final state = seeded();
+      final stored = plan(
+        entryTemplate: template(
+          amount: Decimal.fromInt(-10),
+          destinationID: otherAccountID,
+        ),
+      );
+      state.addPlan(stored);
+
+      final occurrence = DateTime.utc(2026, 2, 15);
+      state.resolvePlans(DateTime.utc(2026, 2, 20));
+
+      final materialized =
+          state.entries[OccurrenceID.make(planID, occurrence)]!;
+      expect(materialized.sourceID, otherAccountID);
+      expect(materialized.destinationID, accountID);
+      expect(materialized.amount, Decimal.fromInt(10));
+      expect(
+        materialized,
+        stored.template
+            .makeEntry(planID, occurrence)
+            .normalizedTransferEndpoints(),
+      );
+    });
+  });
 }
