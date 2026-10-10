@@ -87,17 +87,8 @@ ScopedTrend scopedTrend({
       }
   }
   final selected = _scopedItems(items, state, main, scope);
-  final masked = mode == AnalysisPeriodMode.year && day.year == todayDay.year
-      ? selected
-            .where(
-              (item) => item.date.isBefore(
-                DateTime.utc(todayDay.year, todayDay.month + 1, 1),
-              ),
-            )
-            .toList()
-      : selected;
   final spread = monthSpread(
-    items: masked,
+    items: selected,
     endMonth: anchor,
     kind: kind,
     firstRecordMonth: firstRecordMonth(state),

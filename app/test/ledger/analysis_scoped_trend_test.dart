@@ -233,8 +233,8 @@ void main() {
     });
   });
 
-  group('current year masking', () {
-    test('months after today are zero in year mode', () {
+  group('current year', () {
+    test('includes months after today in year mode', () {
       final state = _coreState();
       ScopedTrend trend(AnalysisCategoryScope scope) => _trend(
         state,
@@ -250,20 +250,48 @@ void main() {
 
       for (final result in [all, sub, direct]) {
         expect(result.slots, hasLength(12));
-        for (var month = 6; month <= 12; month++) {
+        expect(result.endMonth, DateTime.utc(2027, 12, 1));
+        expect(result.slots.first.month, DateTime.utc(2027, 1, 1));
+        expect(result.slots.last.month, DateTime.utc(2027, 12, 1));
+      }
+      expect(_slot(all, 2027, 1).total, Decimal.fromInt(10));
+      expect(_slot(all, 2027, 1).itemCount, 3);
+      expect(_slot(all, 2027, 5).total, Decimal.fromInt(31));
+      expect(_slot(all, 2027, 5).itemCount, 3);
+      expect(_slot(all, 2027, 6).total, Decimal.fromInt(40));
+      expect(_slot(all, 2027, 6).itemCount, 2);
+      expect(_slot(all, 2027, 12).total, Decimal.fromInt(48));
+      expect(_slot(all, 2027, 12).itemCount, 2);
+      expect(_slot(sub, 2027, 1).total, Decimal.fromInt(2));
+      expect(_slot(sub, 2027, 1).itemCount, 1);
+      expect(_slot(sub, 2027, 5).total, Decimal.fromInt(7));
+      expect(_slot(sub, 2027, 5).itemCount, 1);
+      expect(_slot(sub, 2027, 6).total, Decimal.fromInt(17));
+      expect(_slot(sub, 2027, 6).itemCount, 1);
+      expect(_slot(sub, 2027, 12).total, Decimal.zero);
+      expect(_slot(sub, 2027, 12).itemCount, 0);
+      expect(_slot(direct, 2027, 1).total, Decimal.fromInt(5));
+      expect(_slot(direct, 2027, 1).itemCount, 1);
+      expect(_slot(direct, 2027, 5).total, Decimal.fromInt(13));
+      expect(_slot(direct, 2027, 5).itemCount, 1);
+      expect(_slot(direct, 2027, 6).total, Decimal.fromInt(23));
+      expect(_slot(direct, 2027, 6).itemCount, 1);
+      expect(_slot(direct, 2027, 12).total, Decimal.fromInt(29));
+      expect(_slot(direct, 2027, 12).itemCount, 1);
+      for (final result in [all, sub, direct]) {
+        for (final month in [2, 3, 4, 7, 8, 9, 10, 11]) {
           expect(_slot(result, 2027, month).total, Decimal.zero);
           expect(_slot(result, 2027, month).itemCount, 0);
         }
       }
-      expect(_slot(all, 2027, 5).total, Decimal.fromInt(31));
-      expect(_slot(all, 2027, 5).itemCount, 3);
-      expect(_slot(sub, 2027, 5).total, Decimal.fromInt(7));
-      expect(_slot(sub, 2027, 5).itemCount, 1);
-      expect(_slot(direct, 2027, 5).total, Decimal.fromInt(13));
-      expect(_slot(direct, 2027, 5).itemCount, 1);
+      Decimal sum(ScopedTrend result) =>
+          result.slots.fold(Decimal.zero, (total, slot) => total + slot.total);
+      expect(sum(all), Decimal.fromInt(129));
+      expect(sum(sub), Decimal.fromInt(26));
+      expect(sum(direct), Decimal.fromInt(70));
     });
 
-    test('future months are masked for the income kind', () {
+    test('includes future months for the income kind', () {
       final state = _state(
         categories: [
           _category(_incomeMain, kind: CategoryKind.income),
@@ -317,17 +345,35 @@ void main() {
 
       for (final result in [all, sub, direct]) {
         expect(result.slots, hasLength(12));
-        for (var month = 6; month <= 12; month++) {
-          expect(_slot(result, 2027, month).total, Decimal.zero);
-          expect(_slot(result, 2027, month).itemCount, 0);
-        }
+        expect(result.endMonth, DateTime.utc(2027, 12, 1));
       }
       expect(_slot(all, 2027, 1).total, Decimal.fromInt(15));
       expect(_slot(all, 2027, 1).itemCount, 2);
+      expect(_slot(all, 2027, 6).total, Decimal.fromInt(30));
+      expect(_slot(all, 2027, 6).itemCount, 1);
+      expect(_slot(all, 2027, 12).total, Decimal.fromInt(40));
+      expect(_slot(all, 2027, 12).itemCount, 1);
       expect(_slot(sub, 2027, 1).total, Decimal.fromInt(6));
       expect(_slot(sub, 2027, 1).itemCount, 1);
+      expect(_slot(sub, 2027, 6).total, Decimal.fromInt(30));
+      expect(_slot(sub, 2027, 6).itemCount, 1);
+      expect(_slot(sub, 2027, 12).total, Decimal.zero);
+      expect(_slot(sub, 2027, 12).itemCount, 0);
       expect(_slot(direct, 2027, 1).total, Decimal.fromInt(9));
       expect(_slot(direct, 2027, 1).itemCount, 1);
+      expect(_slot(direct, 2027, 6).total, Decimal.zero);
+      expect(_slot(direct, 2027, 6).itemCount, 0);
+      expect(_slot(direct, 2027, 12).total, Decimal.fromInt(40));
+      expect(_slot(direct, 2027, 12).itemCount, 1);
+      for (final result in [all, sub, direct]) {
+        expect(_slot(result, 2027, 2).total, Decimal.zero);
+        expect(_slot(result, 2027, 2).itemCount, 0);
+      }
+      Decimal sum(ScopedTrend result) =>
+          result.slots.fold(Decimal.zero, (total, slot) => total + slot.total);
+      expect(sum(all), Decimal.fromInt(85));
+      expect(sum(sub), Decimal.fromInt(36));
+      expect(sum(direct), Decimal.fromInt(49));
     });
   });
 
