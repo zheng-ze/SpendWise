@@ -33,12 +33,38 @@ Future<void> _openFreshEnrollment(WidgetTester tester) async {
   await pumpFlowFrames(tester);
 }
 
+Future<void> _openRepairRoute(WidgetTester tester) async {
+  await tester.tap(find.text(_repairLabel));
+  await tester.pumpAndSettle();
+}
+
+Future<ProviderContainer> _pumpRepair(WidgetTester tester, Size size) async {
+  final harness = await pumpShell(
+    tester,
+    status: const HostedSyncBindingRepair(),
+    seedPhase: SyncEnrollmentPhase.bindingAuthorizationRequired,
+    size: size,
+  );
+  return harness.container;
+}
+
+void _expectOneRepairRoute(WidgetTester tester) {
+  final route = find.byType(SyncEnrollmentFlow, skipOffstage: false);
+  expect(route, findsOneWidget);
+  expect(tester.widget<SyncEnrollmentFlow>(route).repairMode, isTrue);
+}
+
+void _expectClosedCleanly(ProviderContainer container) {
+  expect(container.read(enrollmentFlowOpenProvider), isFalse);
+  expect(container.read(settingsRootViewModelProvider).step, isNull);
+}
+
 void _expectOneSettingsAndOneEnrollment(
   WidgetTester tester,
   ProviderContainer container,
 ) {
-  expect(find.byType(SettingsFlow), findsOneWidget);
-  expect(find.byType(SyncEnrollmentFlow), findsOneWidget);
+  expect(find.byType(SettingsFlow, skipOffstage: false), findsOneWidget);
+  expect(find.byType(SyncEnrollmentFlow, skipOffstage: false), findsOneWidget);
   expect(container.read(settingsOpenProvider), isTrue);
   expect(container.read(enrollmentFlowOpenProvider), isTrue);
 }
@@ -308,6 +334,107 @@ void main() {
       expect(find.byType(SettingsFlow), findsOneWidget);
       expect(find.byType(NavigationRail), findsNothing);
       expect(harness.container.read(settingsOpenProvider), isTrue);
+    });
+  });
+
+  group('repair route ownership', () {
+    testWidgets('destination switch on desktop closes an open repair route', (
+      tester,
+    ) async {
+      final container = await _pumpRepair(tester, _desktop);
+      await _openRepairRoute(tester);
+      _expectOneRepairRoute(tester);
+
+      await tester.tap(find.text('Stats'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byType(SyncEnrollmentFlow, skipOffstage: false),
+        findsNothing,
+      );
+      _expectClosedCleanly(container);
+    });
+
+    testWidgets('closing Settings on phone closes an open repair route', (
+      tester,
+    ) async {
+      final container = await _pumpRepair(tester, _phone);
+      await _openRepairRoute(tester);
+
+      tester.widget<SettingsFlow>(find.byType(SettingsFlow)).onEnded!();
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byType(SyncEnrollmentFlow, skipOffstage: false),
+        findsNothing,
+      );
+      _expectClosedCleanly(container);
+    });
+
+    testWidgets('phone to desktop hands the repair route over once', (
+      tester,
+    ) async {
+      final container = await _pumpRepair(tester, _phone);
+      await _openRepairRoute(tester);
+
+      await _resize(tester, _desktop);
+
+      _expectOneRepairRoute(tester);
+      expect(find.byType(SettingsFlow, skipOffstage: false), findsOneWidget);
+      expect(container.read(enrollmentFlowOpenProvider), isTrue);
+    });
+
+    testWidgets('desktop to phone hands the repair route over once', (
+      tester,
+    ) async {
+      final container = await _pumpRepair(tester, _desktop);
+      await _openRepairRoute(tester);
+
+      await _resize(tester, _phone);
+
+      _expectOneRepairRoute(tester);
+      expect(find.byType(SettingsFlow, skipOffstage: false), findsOneWidget);
+      expect(container.read(enrollmentFlowOpenProvider), isTrue);
+    });
+
+    testWidgets('a repair tap during an unsettled transition opens one '
+        'repair route', (tester) async {
+      final container = await _pumpRepair(tester, _desktop);
+
+      tester.view.physicalSize = _phone;
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(find.text(_repairLabel).last);
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      _expectOneRepairRoute(tester);
+      expect(find.byType(SettingsFlow, skipOffstage: false), findsOneWidget);
+      expect(container.read(settingsOpenProvider), isTrue);
+    });
+
+    testWidgets('closing and reopening Settings before the outgoing layout '
+        'disposes does not reopen the enrollment route', (tester) async {
+      final harness = await pumpShell(tester, status: null, size: _desktop);
+      final container = harness.container;
+      await _openSettingsItem(tester);
+      await _openFreshEnrollment(tester);
+
+      tester.view.physicalSize = _phone;
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      container.read(settingsOpenProvider.notifier).state = false;
+      await tester.pump();
+      container.read(settingsOpenProvider.notifier).state = true;
+      await tester.pumpAndSettle();
+
+      expect(find.byType(SettingsFlow, skipOffstage: false), findsOneWidget);
+      expect(
+        find.byType(SyncEnrollmentFlow, skipOffstage: false),
+        findsNothing,
+      );
+      expect(find.byKey(_hostedTile), findsOneWidget);
+      _expectClosedCleanly(container);
     });
   });
 

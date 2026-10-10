@@ -61,8 +61,7 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   `Navigator.removeRoute` when the flag turns false. At the rail threshold or wider it shows
   `SettingsFlow` in the content area instead of the selected destination; the rail and the 720/680
   hysteresis come from `layout_breakpoints.dart`. `SettingsFlow` is mounted only while shown and
-  refreshes the hosted sync status in `initState`. `AppShell` listens to the flag on the provider
-  container, because a widget-scoped listener is paused while the `SettingsRoute` covers the shell.
+  refreshes the hosted sync status in `initState`.
 - **Close or hand-over at dispose** - `SettingsFlow.dispose` reads nothing from `ref`. It schedules one
   microtask using the captured `ProviderContainer` and `StateController`. If
   `settingsOpenProvider` is still true, a layout switch is re-hosting Settings, and the microtask
@@ -70,7 +69,9 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   `ResumeFreshEnrollmentRequested` (unless the status is `HostedSyncReady`) or
   `RepairDeviceAccessRequested` (only for binding repair or session reauth). If the flag is false,
   the user closed Settings: the microtask releases `enrollmentFlowOpenProvider` if this Flow owned
-  the route and calls `clearStep()`, so the next open shows only the Settings root.
+  the route and calls `clearStep()`, so the next open shows only the Settings root. A Flow that saw
+  the flag turn false while mounted always takes this path, even when Settings was reopened before
+  the outgoing layout of a layout switch finished disposing it.
 - **Layout switch with Settings open** - the flag stays true. Phone to rail removes the
   `SettingsRoute` and mounts the content `SettingsFlow`; rail to phone unmounts the content
   `SettingsFlow` and pushes the `SettingsRoute`. The disposed Flow takes the hand-over path, the new

@@ -29,12 +29,16 @@ class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
   late final ProviderContainer _container;
   bool _ownsEnrollmentRoute = false;
   bool _ownedRepairRoute = false;
+  bool _closedWhileMounted = false;
 
   @override
   void initState() {
     super.initState();
     _enrollmentFlowOpen = ref.read(enrollmentFlowOpenProvider.notifier);
     _container = ProviderScope.containerOf(context, listen: false);
+    ref.listenManual(settingsOpenProvider, (_, open) {
+      if (!open) _closedWhileMounted = true;
+    });
     unawaited(_refreshSyncStatus());
     // FlowBase drops steps emitted before the navigator mounts, so re-check
     // the pending step once mounted.
@@ -130,11 +134,10 @@ class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
   }
 
   // Provider writes are illegal while the tree finalizes, hence the microtask.
-  // AppShell leaves the flag true when it re-hosts Settings across a layout
-  // switch, so only a cleared flag means the user closed Settings.
   void _settleAtDispose() {
     final ownedRoute = _ownsEnrollmentRoute;
     final ownedRepairRoute = _ownedRepairRoute;
+    final closedWhileMounted = _closedWhileMounted;
     _ownsEnrollmentRoute = false;
     _ownedRepairRoute = false;
     final enrollmentFlowOpen = _enrollmentFlowOpen;
@@ -142,7 +145,7 @@ class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
     scheduleMicrotask(() {
       if (!enrollmentFlowOpen.mounted) return;
       final viewModel = container.read(settingsRootViewModelProvider.notifier);
-      if (!container.read(settingsOpenProvider)) {
+      if (closedWhileMounted || !container.read(settingsOpenProvider)) {
         if (ownedRoute) enrollmentFlowOpen.state = false;
         viewModel.clearStep();
         return;

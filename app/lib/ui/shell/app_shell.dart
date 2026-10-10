@@ -43,22 +43,15 @@ class _AppShellState extends ConsumerState<AppShell> {
   bool _extended = false;
   DayTicker? _ticker;
   Route<void>? _settingsRoute;
-  late final ProviderSubscription<bool> _settingsOpenSubscription;
 
-  // A widget-scoped listener is paused while the SettingsRoute covers the
-  // shell, and that is exactly when the flag must be able to remove the route.
   @override
   void initState() {
     super.initState();
-    _settingsOpenSubscription = ProviderScope.containerOf(
-      context,
-      listen: false,
-    ).listen(settingsOpenProvider, (_, _) => _scheduleReconcile());
+    ref.listenManual(settingsOpenProvider, (_, _) => _scheduleReconcile());
   }
 
   @override
   void dispose() {
-    _settingsOpenSubscription.close();
     _ticker?.dispose();
     _ticker = null;
     super.dispose();
