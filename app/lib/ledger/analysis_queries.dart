@@ -65,7 +65,12 @@ class AnalysisQueries extends ChangeNotifier {
   Future<void> retry() {
     _failedEvaluations.clear();
     if (_disposed) return Future.value();
-    return _requestRefresh();
+    final wasInflight = _inflight.contains(_ledger.revision);
+    final refresh = _requestRefresh();
+    if (!wasInflight && _inflight.contains(_ledger.revision)) {
+      notifyListeners();
+    }
+    return refresh;
   }
 
   AnalysisQueryResult<TodaySummary> readToday() {

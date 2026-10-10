@@ -179,6 +179,7 @@ List<UpcomingStatement> _upcomingStatements({
   for (final source in ledger.moneySources.values) {
     final account = source.asAccount;
     if (account == null) continue;
+    if (scope != null && !scope.contains(account.id)) continue;
     var statement = cardStatement(
       ledger: ledger,
       accountID: account.id,
@@ -194,7 +195,6 @@ List<UpcomingStatement> _upcomingStatements({
       if (statement == null) continue;
     }
     if (!window.contains(statement.nextCut)) continue;
-    if (scope != null && !scope.contains(statement.accountID)) continue;
     statements.add(
       UpcomingStatement(
         accountID: statement.accountID,

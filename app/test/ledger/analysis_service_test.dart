@@ -802,6 +802,13 @@ void main() {
 
     final cardScoped = setup.queries.readUpcoming(sourceIDs: {_cardID});
     expect(cardScoped.value!.whereType<UpcomingStatement>(), hasLength(1));
+    final cardScopedStatement = cardScoped.value!
+        .whereType<UpcomingStatement>()
+        .single;
+    expect(cardScopedStatement.date, DateTime.utc(2027, 4, 10));
+    expect(cardScopedStatement.cycleAmount, Decimal.parse('50.00'));
+    final emptyScoped = setup.queries.readUpcoming(sourceIDs: <String>{});
+    expect(emptyScoped.value!.whereType<UpcomingStatement>(), isEmpty);
     final checkingScoped = setup.queries.readUpcoming(sourceIDs: {_checkingID});
     expect(checkingScoped.value!.whereType<UpcomingStatement>(), isEmpty);
   });
