@@ -1,6 +1,6 @@
 # Ledger Runtime
 
-Last reconciled: 996dce4
+Last reconciled: 2bb225f
 
 ## Feature overview
 
@@ -269,13 +269,13 @@ its previous successful value if present (`analysis_queries.dart:_readLedgerOnly
   `monthSpread` and returns a `ScopedTrend` with 12 chronological `MonthSlot`s of the requested kind.
   `AnalysisPeriodMode.month` covers the 12 months ending at the period's month; a future month
   throws `ArgumentError`. `year` covers January through December of the period's year, anchored
-  at December; a future year throws `ArgumentError`. In the current year, items dated in months
-  after today's month are excluded, leaving those slots zero; the current month still includes
-  entries dated after today. Scopes and results have value equality, including element-wise slots
+  at December; a future year throws `ArgumentError`. Year mode covers every entry dated in the
+  selected calendar year as committed amounts, including entries dated after today; months with
+  no entries are zero with itemCount 0. Scopes and results have value equality, including element-wise slots
   (`app/lib/ledger/analysis/analysis_category_scope.dart`, `analysis_period_mode.dart`,
   `scoped_trend.dart`; `app/test/ledger/analysis_scoped_trend_test.dart`:
   `month mode all scope sums children and direct`, `invalid child parent pairs throw`,
-  `months after today are zero in year mode`, `independent equal trends are equal`).
+  `includes months after today in year mode`, `independent equal trends are equal`).
 - `readComparedWithUsual(month:, kind:)` is a mixed read for a pace comparison. The observed
   total covers the selected month up to today for the current month, or the whole month for a past
   month. The usual is the mean of the same elapsed days in exactly the three calendar months before
