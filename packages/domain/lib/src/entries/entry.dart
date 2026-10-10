@@ -58,24 +58,6 @@ class Entry with HolderReferencing {
   final LifecycleState lifecycle;
   final SystemEntryKind? systemKind;
 
-  Entry normalizedTransferEndpoints() {
-    final destination = destinationID;
-    if (destination == null) return this;
-    if (amount >= Decimal.zero) return this;
-    return Entry(
-      id: id,
-      date: date,
-      amount: -amount,
-      name: name,
-      categoryID: categoryID,
-      sourceID: destination,
-      destinationID: sourceID,
-      includeInAnalysis: includeInAnalysis,
-      lifecycle: lifecycle,
-      systemKind: systemKind,
-    );
-  }
-
   @override
   bool operator ==(Object other) {
     return other is Entry &&
