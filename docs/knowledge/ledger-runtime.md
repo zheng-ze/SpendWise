@@ -1,6 +1,6 @@
 # Ledger Runtime
 
-Last reconciled: 3a7a24b
+Last reconciled: 6c0c7d3
 
 ## Feature overview
 
@@ -128,9 +128,13 @@ acceptance before awaiting subscription cancellation
 `analysisQueriesProvider` and bound to one Ledger and its cache. Its pure helpers and result types
 live under `app/lib/ledger/analysis/`; `CardStatement` and `cardStatement` are domain-owned
 (`packages/domain/lib/src/analysis/card_statement.dart`). It requests refresh on
-construction and every Ledger notification, independently of ViewModels. `retry()` clears failed
-query evaluations and requests refresh at the current revision; a later Ledger notification also
-recovers from a cache failure. Reads and failed refreshes start no recursive work. Disposal removes
+construction and every Ledger notification, independently of ViewModels. Failed evaluations are a
+set of memo keys tagged with the single Ledger revision they failed at; recording a failure at a
+different revision drops the earlier keys (`_recordFailure`). `retry()` clears the failed
+evaluations, requests refresh at the current revision, and notifies listeners once when that
+request starts new work. That includes an already current cache, where `AnalysisCache.refresh`
+returns a completed future without invoking the runner. It does not notify when a refresh for the
+revision is already in flight; a later Ledger notification also recovers from a cache failure. Reads and failed refreshes start no recursive work. Disposal removes
 its Ledger/cache listeners and suppresses late notifications; cache ownership remains with the
 session (`app/lib/ledger/analysis_queries.dart`; `app/test/ledger/analysis_queries_test.dart`).
 
@@ -149,7 +153,8 @@ updates the existing query object without a cache computation
 `sourceRevision`. These reads mix Ledger state with
 analysis items and evaluate only when `cache.itemsSourceRevision == ledger.revision`. While
 pending or failed, a previously read query retains its last successful value and that value's
-revision; a query without a successful value returns null for both. A calculation exception fails
+revision, provided its identity is still retained (see the memo bound below); a query without a
+successful value returns null for both. A calculation exception fails
 only that query. The service notifies on every Ledger notification and day change, so reads that
 do not wait for the cache update at once, and notifies again when the cache accepts the current
 Ledger revision or that revision's refresh fails. Interim publications and older completions emit
@@ -162,8 +167,18 @@ Successful mixed results are memoized by query identity, normalized today, Ledge
 accepted cache source revision. Period identity uses normalized window endpoints and a normalized,
 deduplicated, sorted source-ID set; null scope and empty scope are distinct. `setToday` normalizes
 the calendar day, ignores same-day changes, and notifies on every day change. For mixed reads, a day
-change during pending work retains the old value until coherent evaluation can resume
-(`app/lib/ledger/analysis_queries.dart`; `app/test/ledger/analysis_queries_memo_test.dart`).
+change during pending work retains the old value until coherent evaluation can resume.
+
+Memoized results are bounded by `_maxRetainedIdentities` (256 identities). Each read moves its
+identity to the most recent position (`_touch`), and storing a result evicts the least recently
+read identities beyond the cap (`_retain`). An evicted identity loses its last successful value,
+so a later pending or failed read of it returns no previous value
+(`app/lib/ledger/analysis_queries.dart`; `app/test/ledger/analysis_queries_memo_test.dart`;
+`app/test/ledger/analysis_queries_retention_test.dart`:
+`readingMoreThanTheCapEvictsTheOldestIdentity`,
+`aRecentlyReadIdentitySurvivesWhileTheOldestIsEvicted`,
+`stalePreviousValueSurvivesALedgerChangeWithinTheCap`; retry notification in
+`analysis_queries_test.dart`: `retryNotifiesListenersWhenItStartsNewWork`).
 
 `TodaySummary` contains the normalized day, that day's analysis-gated expense total, and an
 optional daily guide. The guide uses the applicable unscoped budget's effective monthly limit,
@@ -187,7 +202,7 @@ treat-as-expense transfers can contribute to both spending and moved volume
 evaluate against the current Ledger without waiting for analysis items.
 Successful results carry `Ledger.revision`; memo keys include normalized query parameters and
 revision, plus today for day-dependent reads. Exceptions fail only the affected query and retain
-its previous successful value if present (`analysis_queries.dart:_readLedgerOnly`;
+its previous successful value if it is still retained (`analysis_queries.dart:_readLedgerOnly`;
 `app/test/ledger/analysis_service_test.dart`: `ledgerOnlyReadsComputeWhileMixedReadsStayPending`,
 `equivalentReadsReuseAcrossNormalizedScopes`, `queryFailuresAreIsolatedAndRetryRecovers`).
 
@@ -202,13 +217,16 @@ its previous successful value if present (`analysis_queries.dart:_readLedgerOnly
 - `readRecent(limit: 4, sourceIDs:)` excludes dates after today and sorts by date descending,
   breaking ties by reverse insertion order. `readSearch(query:, window:, sourceIDs:, kind:)`
   searches trimmed, case-insensitive entry, category, parent-category, source, and destination
-  names and returns newest-first month groups with register totals (`app/lib/ledger/analysis/register.dart`,
+  names and returns newest-first month groups with register totals. `registerDays` and
+  `searchEntries` build the complete source set once per read and pass it as `complete` to
+  `registerDay`/`registerTotals` rather than rebuilding it per day or month (`app/lib/ledger/analysis/register.dart`,
   `app/lib/ledger/analysis/search.dart`; `analysis_service_test.dart`).
 - `readUpcoming(window:, sourceIDs:)` defaults to `[today, today + 42 days)` and merges future
   recorded entries, projected plan occurrences, and the next card statement. Same-day ties sort
   statement, plan, entry, then by stable ID. `readCalendarDays(window:, sourceIDs:)` returns
   oldest-first populated days containing recorded entries and projected plans. Both use the same
-  cursor-aware projection without mutating Ledger state; see
+  cursor-aware projection without mutating Ledger state. Upcoming statements filter by source
+  scope before computing `cardStatement`, so out-of-scope cards cost no statement work; see
   [recurring-plans-and-accounting.md](recurring-plans-and-accounting.md)
   (`app/lib/ledger/analysis/upcoming.dart`, `app/lib/ledger/analysis/calendar.dart`; `analysis_service_test.dart`).
 - `readWeeks(window:, sourceIDs:)` returns Monday-based full weeks intersecting the requested
@@ -294,7 +312,8 @@ its previous successful value if present (`analysis_queries.dart:_readLedgerOnly
   normalized main bucket using `AnalysisCategoryScope`: `all` matches `Accounting.mainBucketID`,
   `direct` matches the raw normalized bucket, and `subcategory` matches its raw normalized bucket
   after checking that it names a real child of the supplied main; invalid child/main pairs throw
-  `ArgumentError`. Unknown, synthetic and null mains yield zero when unmatched. It reuses pure
+  `ArgumentError`. Unknown, synthetic and null mains yield zero when unmatched. It computes no first record month
+  (`scopedTrend` passes `firstRecordMonth: null`). It reuses pure
   `monthSpread` and returns a `ScopedTrend` with 12 chronological `MonthSlot`s of the requested kind.
   `AnalysisPeriodMode.month` covers the 12 months ending at the period's month; a future month
   throws `ArgumentError`. `year` covers January through December of the period's year, anchored
