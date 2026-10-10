@@ -42,8 +42,8 @@ counts. These counts include active and binned entries through `entriesReferenci
 ## Navigation
 
 The Settings Flow owns this tab's nested navigator. Rows push the category/plan edit sheets and the
-symbol picker; forms open as sheets via `FormScaffold`. The recycle bin lists archived items in
-three sections (Accounts, Subpockets, Categories), each hidden when empty.
+symbol picker; forms open as sheets via `FormScaffold`. The recycle bin lists binned items in
+four sections (Entries, Accounts, Subpockets, Categories), each hidden when empty.
 
 ## Hosted Sync
 
@@ -139,7 +139,13 @@ platform. The receipt scan-strip switch stays in `AppSettings`. Source:
   source line, Repeat row (`RecurrencePickerSheet` with non-optional binding - "One time" is ignored
   because a plan cannot become one-shot), first-date picker, end-date toggle + picker. Editing the
   anchor/frequency does not retro-generate or delete existing entries.
-- **Recycle bin** - archived items in three sections; rows show name (pockets qualified as
+- **Recycle bin Entries section** - first section, built from `LedgerState.binnedEntries` by
+  `RecycleBinViewModel` as `BinEntryRow`s, newest date first, with no filter. A row shows the entry
+  name (the category title when the name is empty), "d MMM yyyy / \<source name\>" (transfers show
+  "source > destination"), the category medallion and the kind-styled signed amount, all derived
+  through `transactionRow`. The Restore text and a leading swipe call `restoreEntry` with no
+  confirmation; a trailing swipe shows the shared purge confirmation, then `purgeEntry`.
+- **Recycle bin** - archived items in the three sections below the Entries section; rows show name (pockets qualified as
   "Parent/Pocket") and a "N references" badge, sorted by name ascending. Leading swipe → Restore
   (silent no-op if the parent account is still binned - restore the account first); trailing swipe →
   purge confirmation ("\<name\> leaves the bin for good..."). Purge routing: money source →
@@ -149,8 +155,10 @@ platform. The receipt scan-strip switch stays in `AppSettings`. Source:
 
 - Child-category restore is blocked while its parent is archived; pocket restore is blocked while its
   parent account is archived. `ledger-and-money-model.md` §Restore blocking.
-- Plan delete is a hard delete with no recycle bin. The Settings recycle bin displays only money
+- Plan delete is a hard delete with no recycle bin. The Settings recycle bin displays entries, money
   sources and categories (`app/lib/ui/settings/recycle_bin/recycle_bin_view_model.dart`).
+- Entry rows reuse the swipe, semantics and purge-confirmation path of the other rows, so the
+  purge dialog names the entry. Binned entries still count in the other rows' reference labels.
 - Category kind is locked while active or binned entries reference it
   (`app/lib/ui/settings/category/category_form_view_model.dart`: `_isReferenced`;
   `packages/domain/lib/src/ledger_state/ledger_state_queries.dart`: `entryCountReferencing`).
@@ -165,5 +173,7 @@ platform. The receipt scan-strip switch stays in `AppSettings`. Source:
 - Category list ordering is roots-then-children A–Z per kind.
 - Plan list sorts by next occurrence ascending with ended plans last and name as tiebreak.
 - Plan save preserves the template's original sign.
+- The Entries section lists binned entries newest first, hides when none are binned, restores
+  without confirmation and purges only after confirmation.
 - Recycle bin restore on a pocket whose parent is still binned is a silent no-op.
 - Delete copy pluralizes by referencing-entry count.

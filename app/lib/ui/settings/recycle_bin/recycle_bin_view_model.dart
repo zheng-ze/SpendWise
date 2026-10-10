@@ -6,8 +6,11 @@ import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/step_emitting.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
+import 'package:spendwise/ui/format/date_format.dart';
+import 'package:spendwise/ui/format/money_format.dart';
+import 'package:spendwise/ui/transactions/daily_list/transaction_row.dart';
 
-enum BinRowKind { account, pocket, category }
+enum BinRowKind { entry, account, pocket, category }
 
 class BinRow {
   const BinRow({
@@ -25,6 +28,41 @@ class BinRow {
   final int referenceCount;
   final String? symbolName;
   final Color? color;
+}
+
+class BinEntryRow extends BinRow {
+  const BinEntryRow({
+    required super.id,
+    required super.name,
+    required super.symbolName,
+    required super.color,
+    required this.caption,
+    required this.amount,
+    required this.amountKind,
+    required this.date,
+  }) : super(kind: BinRowKind.entry, referenceCount: 0);
+
+  final String caption;
+  final Decimal amount;
+  final AmountKind amountKind;
+  final DateTime date;
+}
+
+List<BinEntryRow> _entryRows(LedgerState state) {
+  final rows = state.binnedEntries.values.map((entry) {
+    final row = transactionRow(entry, state);
+    return BinEntryRow(
+      id: entry.id,
+      name: entry.name.isEmpty ? row.title : entry.name,
+      symbolName: row.symbolName,
+      color: row.color,
+      caption: '${formatEntryDate(entry.date)} / ${row.accountLine}',
+      amount: row.amount,
+      amountKind: row.amountKind,
+      date: entry.date,
+    );
+  }).toList()..sort((a, b) => b.date.compareTo(a.date));
+  return rows;
 }
 
 List<BinRow> _sortedArchivedRows<T>(
@@ -83,12 +121,14 @@ class PurgeConfirmationRequested extends RecycleBinStep {
 class RecycleBinViewState
     implements HasStep<RecycleBinViewState, RecycleBinStep> {
   const RecycleBinViewState({
+    required this.entries,
     required this.accounts,
     required this.pockets,
     required this.categories,
     this.step,
   });
 
+  final List<BinEntryRow> entries;
   final List<BinRow> accounts;
   final List<BinRow> pockets;
   final List<BinRow> categories;
@@ -96,12 +136,14 @@ class RecycleBinViewState
   final RecycleBinStep? step;
 
   RecycleBinViewState copyWith({
+    List<BinEntryRow>? entries,
     List<BinRow>? accounts,
     List<BinRow>? pockets,
     List<BinRow>? categories,
     RecycleBinStep? Function()? step,
   }) {
     return RecycleBinViewState(
+      entries: entries ?? this.entries,
       accounts: accounts ?? this.accounts,
       pockets: pockets ?? this.pockets,
       categories: categories ?? this.categories,
@@ -142,6 +184,7 @@ class RecycleBinNotifier extends AsyncNotifier<RecycleBinViewState>
   RecycleBinViewState _buildState(Ledger ledger, {RecycleBinStep? step}) {
     final ledgerState = ledger.state;
     return RecycleBinViewState(
+      entries: _entryRows(ledgerState),
       accounts: _accountRows(ledgerState),
       pockets: _pocketRows(ledgerState),
       categories: _categoryRows(ledgerState),
@@ -152,6 +195,8 @@ class RecycleBinNotifier extends AsyncNotifier<RecycleBinViewState>
   @override
   void restore(BinRowKind kind, String id) {
     switch (kind) {
+      case BinRowKind.entry:
+        ledger.restoreEntry(id);
       case BinRowKind.account:
         ledger.restoreAccount(id);
       case BinRowKind.pocket:
@@ -168,6 +213,8 @@ class RecycleBinNotifier extends AsyncNotifier<RecycleBinViewState>
   void applyPurgeConfirmed(bool confirmed, BinRowKind kind, String id) {
     if (confirmed) {
       switch (kind) {
+        case BinRowKind.entry:
+          ledger.purgeEntry(id);
         case BinRowKind.account:
           ledger.purgeAccount(id);
         case BinRowKind.pocket:

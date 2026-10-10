@@ -3,7 +3,9 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/common/category_icon.dart';
+import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
+import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/settings/recycle_bin/recycle_bin_view_model.dart';
 import 'package:spendwise/ui/symbol_map.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
@@ -99,11 +101,16 @@ class _RecycleBinScreenBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final entries = viewState.entries;
     final accounts = viewState.accounts;
     final pockets = viewState.pockets;
     final categories = viewState.categories;
 
-    final isEmpty = accounts.isEmpty && pockets.isEmpty && categories.isEmpty;
+    final isEmpty =
+        entries.isEmpty &&
+        accounts.isEmpty &&
+        pockets.isEmpty &&
+        categories.isEmpty;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Recycle bin')),
@@ -112,6 +119,12 @@ class _RecycleBinScreenBody extends StatelessWidget {
             ? const _EmptyState()
             : ListView(
                 children: [
+                  if (entries.isNotEmpty)
+                    _EntriesSection(
+                      rows: entries,
+                      onRestore: (row) => viewModel.restore(row.kind, row.id),
+                      onRequestPurge: (row) => viewModel.requestPurge(row),
+                    ),
                   if (accounts.isNotEmpty)
                     _BinSection(
                       title: 'Accounts',
@@ -143,6 +156,119 @@ class _RecycleBinScreenBody extends StatelessWidget {
   }
 }
 
+class _BinSectionTitle extends StatelessWidget {
+  const _BinSectionTitle(this.title);
+
+  final String title;
+
+  static const _titlePadding = EdgeInsets.fromLTRB(16, 16, 16, 4);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: _titlePadding,
+      child: Text(
+        title,
+        style: theme.textTheme.labelLarge?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+      ),
+    );
+  }
+}
+
+class _EntriesSection extends StatelessWidget {
+  const _EntriesSection({
+    required this.rows,
+    required this.onRestore,
+    required this.onRequestPurge,
+  });
+
+  final List<BinEntryRow> rows;
+  final void Function(BinRow row) onRestore;
+  final void Function(BinRow row) onRequestPurge;
+
+  static const _title = 'Entries';
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _BinSectionTitle(_title),
+        for (final row in rows)
+          _SwipeableBinRow(
+            row: row,
+            onRestore: () => onRestore(row),
+            onRequestPurge: () => onRequestPurge(row),
+            child: _EntryRowContent(row: row, onRestore: () => onRestore(row)),
+          ),
+      ],
+    );
+  }
+}
+
+class _EntryRowContent extends StatelessWidget {
+  const _EntryRowContent({required this.row, required this.onRestore});
+
+  final BinEntryRow row;
+  final VoidCallback onRestore;
+
+  static const _contentPadding = EdgeInsets.symmetric(
+    horizontal: 16,
+    vertical: 10,
+  );
+  static const _contentGap = 12.0;
+  static const _restoreGap = 6.0;
+  static const _restoreLabel = 'Restore';
+  static const _amountWeight = FontWeight.w600;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final captionStyle = theme.textTheme.bodySmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+    final amountStyle = theme.textTheme.titleSmall?.copyWith(
+      color: AmountStyle.of(context, kind: row.amountKind).color,
+      fontWeight: _amountWeight,
+    );
+    final amountText = formatSignedMoney(
+      row.amount,
+      kind: row.amountKind,
+      symbol: false,
+    );
+    final texts = Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(row.name, style: theme.textTheme.bodyMedium),
+          Text(row.caption, style: captionStyle),
+        ],
+      ),
+    );
+
+    return Padding(
+      padding: _contentPadding,
+      child: Row(
+        children: [
+          CategoryIcon(
+            symbolName: row.symbolName!,
+            color: row.color ?? colorHexFallback,
+          ),
+          const SizedBox(width: _contentGap),
+          texts,
+          const SizedBox(width: _contentGap),
+          Text(amountText, style: amountStyle),
+          const SizedBox(width: _restoreGap),
+          TextButton(onPressed: onRestore, child: const Text(_restoreLabel)),
+        ],
+      ),
+    );
+  }
+}
+
 class _BinSection extends StatelessWidget {
   const _BinSection({
     required this.title,
@@ -158,23 +284,12 @@ class _BinSection extends StatelessWidget {
   final void Function(BinRow row) onRestore;
   final void Function(BinRow row) onRequestPurge;
 
-  static const _titlePadding = EdgeInsets.fromLTRB(16, 16, 16, 4);
-
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: _titlePadding,
-          child: Text(
-            title,
-            style: theme.textTheme.labelLarge?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
+        _BinSectionTitle(title),
         for (final row in rows)
           _BinRowTile(
             row: row,
@@ -241,6 +356,30 @@ class _BinRowTile extends StatelessWidget {
         ],
       ),
     );
+    return _SwipeableBinRow(
+      row: row,
+      onRestore: onRestore,
+      onRequestPurge: onRequestPurge,
+      child: content,
+    );
+  }
+}
+
+class _SwipeableBinRow extends StatelessWidget {
+  const _SwipeableBinRow({
+    required this.row,
+    required this.onRestore,
+    required this.onRequestPurge,
+    required this.child,
+  });
+
+  final BinRow row;
+  final VoidCallback onRestore;
+  final VoidCallback onRequestPurge;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
     final tile = Dismissible(
       key: ValueKey('bin-${row.kind}-${row.id}'),
       direction: DismissDirection.horizontal,
@@ -254,7 +393,7 @@ class _BinRowTile extends StatelessWidget {
         }
         return false;
       },
-      child: content,
+      child: child,
     );
 
     return Semantics(

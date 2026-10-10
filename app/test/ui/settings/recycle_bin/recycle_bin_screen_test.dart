@@ -50,12 +50,14 @@ void main() {
     Map<String, MoneySource> moneySources = const {},
     Map<String, TransactionCategory> categories = const {},
     Map<String, Entry> entries = const {},
+    Map<String, Entry> binnedEntries = const {},
   }) {
     return Ledger(
       state: LedgerState(
         moneySources: moneySources,
         categories: categories,
         entries: entries,
+        binnedEntries: binnedEntries,
       ),
     );
   }
@@ -365,4 +367,158 @@ void main() {
       handle.dispose();
     },
   );
+
+  group('Entries section', () {
+    const sourceId = 'a0000000-0000-0000-0000-0000000000a1';
+    final wallet = account(
+      sourceId,
+      'Wallet',
+      lifecycle: LifecycleState.active,
+    );
+
+    Entry binned(String name, DateTime date, {String amount = '-5'}) => Entry(
+      name: name,
+      amount: dec(amount),
+      date: date,
+      sourceID: sourceId,
+    ).settingLifecycle(LifecycleState.archived);
+
+    Ledger ledgerWith(List<Entry> entries) => buildLedger(
+      moneySources: {wallet.id: MoneySource.account(wallet)},
+      binnedEntries: {for (final e in entries) e.id: e},
+    );
+
+    Future<Ledger> pumpWith(WidgetTester tester, List<Entry> entries) async {
+      final ledger = ledgerWith(entries);
+      await pumpScreen(tester, ledger);
+      await tester.pumpAndSettle();
+      return ledger;
+    }
+
+    testWidgets('lists binned entries newest date first above other sections', (
+      tester,
+    ) async {
+      final older = binned('Older lunch', DateTime.utc(2026, 9, 1));
+      final newer = binned('Newer coffee', DateTime.utc(2026, 10, 3));
+      final cat = category('a0000000-0000-0000-0000-000000000003', 'Old Cat');
+      final ledger = buildLedger(
+        moneySources: {wallet.id: MoneySource.account(wallet)},
+        categories: {cat.id: cat},
+        binnedEntries: {older.id: older, newer.id: newer},
+      );
+      await pumpScreen(tester, ledger);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Entries'), findsOneWidget);
+      expect(
+        tester.getCenter(find.text('Newer coffee')).dy,
+        lessThan(tester.getCenter(find.text('Older lunch')).dy),
+      );
+      expect(
+        tester.getCenter(find.text('Older lunch')).dy,
+        lessThan(tester.getCenter(find.text('Categories')).dy),
+      );
+    });
+
+    testWidgets('a row shows date, source name, kind-styled signed amount', (
+      tester,
+    ) async {
+      await pumpWith(tester, [
+        binned('Coffee', DateTime.utc(2026, 10, 3), amount: '-42.50'),
+      ]);
+
+      expect(find.text('3 Oct 2026 / Wallet'), findsOneWidget);
+      expect(find.text('-42.50'), findsOneWidget);
+      expect(find.text('Restore'), findsOneWidget);
+    });
+
+    testWidgets('the section is hidden when no entry is binned', (
+      tester,
+    ) async {
+      final acc = account('a0000000-0000-0000-0000-000000000001', 'Old Bank');
+      final ledger = buildLedger(
+        moneySources: {acc.id: MoneySource.account(acc)},
+      );
+      await pumpScreen(tester, ledger);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Entries'), findsNothing);
+    });
+
+    testWidgets('the Restore text restores the entry without confirmation', (
+      tester,
+    ) async {
+      final entry = binned('Coffee', DateTime.utc(2026, 10, 3));
+      final ledger = await pumpWith(tester, [entry]);
+
+      await tester.tap(find.text('Restore'));
+      await tester.pumpAndSettle();
+
+      expect(ledger.state.entries.containsKey(entry.id), isTrue);
+      expect(ledger.state.binnedEntries, isEmpty);
+      expect(find.text('Delete permanently?'), findsNothing);
+      expect(find.text('Entries'), findsNothing);
+    });
+
+    testWidgets('a leading swipe restores the entry', (tester) async {
+      final entry = binned('Coffee', DateTime.utc(2026, 10, 3));
+      final ledger = await pumpWith(tester, [entry]);
+
+      await tester.drag(find.text('Coffee'), const Offset(500, 0));
+      await tester.pumpAndSettle();
+
+      expect(ledger.state.entries.containsKey(entry.id), isTrue);
+      expect(find.text('Coffee'), findsNothing);
+    });
+
+    testWidgets('a trailing swipe then Delete purges the entry', (
+      tester,
+    ) async {
+      final entry = binned('Coffee', DateTime.utc(2026, 10, 3));
+      final ledger = await pumpWith(tester, [entry]);
+
+      await tester.drag(find.text('Coffee'), const Offset(-500, 0));
+      await tester.pumpAndSettle();
+      expect(find.text('Delete permanently?'), findsOneWidget);
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+
+      expect(ledger.state.binnedEntries, isEmpty);
+      expect(ledger.state.entries, isEmpty);
+    });
+
+    testWidgets('cancelling the purge confirmation keeps the entry', (
+      tester,
+    ) async {
+      final entry = binned('Coffee', DateTime.utc(2026, 10, 3));
+      final ledger = await pumpWith(tester, [entry]);
+
+      await tester.drag(find.text('Coffee'), const Offset(-500, 0));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(ledger.state.binnedEntries.containsKey(entry.id), isTrue);
+      expect(find.text('Coffee'), findsOneWidget);
+    });
+
+    testWidgets('a binned entry counts toward another row reference count', (
+      tester,
+    ) async {
+      final acc = account('a0000000-0000-0000-0000-000000000001', 'Old Bank');
+      final entry = Entry(
+        name: 'x',
+        amount: dec('-5'),
+        sourceID: acc.id,
+      ).settingLifecycle(LifecycleState.archived);
+      final ledger = buildLedger(
+        moneySources: {acc.id: MoneySource.account(acc)},
+        binnedEntries: {entry.id: entry},
+      );
+      await pumpScreen(tester, ledger);
+      await tester.pumpAndSettle();
+
+      expect(find.text('1 reference'), findsOneWidget);
+    });
+  });
 }
