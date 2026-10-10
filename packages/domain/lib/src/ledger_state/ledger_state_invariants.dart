@@ -255,6 +255,12 @@ extension LedgerStateInvariants on LedgerState {
           'binned entry ${entry.id} is ${entry.lifecycle.name}',
         );
       }
+      if (entry.systemKind != null) {
+        throw _violation(
+          _clauseEntriesActive,
+          'binned entry ${entry.id} is a system entry',
+        );
+      }
     }
   }
 

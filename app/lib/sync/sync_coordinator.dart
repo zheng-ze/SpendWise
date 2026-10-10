@@ -832,7 +832,8 @@ final class SyncCoordinator extends ChangeNotifier {
         }
         return UpsertCategory(category);
       case SyncCollection.entries:
-        final Entry? entry = state.entries[row.rowID];
+        final Entry? entry =
+            state.entries[row.rowID] ?? state.binnedEntries[row.rowID];
         if (entry == null || entry.lifecycle == LifecycleState.tombstoned) {
           return deleteFor(row.collection, row.rowID);
         }

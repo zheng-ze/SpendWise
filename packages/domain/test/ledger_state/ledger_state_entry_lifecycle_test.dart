@@ -303,6 +303,24 @@ void main() {
       expect(violation(state).message, contains('invariant 9'));
     });
 
+    test('a binned system entry breaks clause 9', () {
+      final state = LedgerState(
+        moneySources: {uuid(1): AccountSource(account(uuid(1)))},
+        binnedEntries: {
+          uuid(3): Entry(
+            id: uuid(3),
+            amount: Decimal.fromInt(5),
+            name: 'Opening balance',
+            sourceID: uuid(1),
+            lifecycle: LifecycleState.archived,
+            systemKind: SystemEntryKind.openingBalance,
+          ),
+        },
+      );
+
+      expect(violation(state).message, contains('invariant 9'));
+    });
+
     test('a binned entry stored under another key breaks clause 1', () {
       final state = LedgerState(
         moneySources: {uuid(1): AccountSource(account(uuid(1)))},
