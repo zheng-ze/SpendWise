@@ -10,6 +10,8 @@ import 'package:spendwise/ledger/analysis/category_breakdown.dart';
 import 'package:spendwise/ledger/analysis/compared_with_usual.dart';
 import 'package:spendwise/ledger/analysis/completeness.dart';
 import 'package:spendwise/ledger/analysis/entry_record.dart';
+import 'package:spendwise/ledger/analysis/insight_rules.dart';
+import 'package:spendwise/ledger/analysis/matched_day_insights.dart';
 import 'package:spendwise/ledger/analysis/month_spread.dart';
 import 'package:spendwise/ledger/analysis/period_summary.dart';
 import 'package:spendwise/ledger/analysis/register.dart';
@@ -17,6 +19,7 @@ import 'package:spendwise/ledger/analysis/scoped_trend.dart';
 import 'package:spendwise/ledger/analysis/search.dart';
 import 'package:spendwise/ledger/analysis/today_summary.dart';
 import 'package:spendwise/ledger/analysis/upcoming.dart';
+import 'package:spendwise/ledger/analysis/week_so_far.dart';
 import 'package:spendwise/ledger/analysis/weeks.dart';
 import 'package:spendwise/ledger/analysis/year_spread.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
@@ -29,7 +32,9 @@ class AnalysisQueries extends ChangeNotifier {
     required Ledger ledger,
     required AnalysisCache cache,
     required DateTime today,
-  }) : _today = startOfDayUtc(today) {
+    InsightRules? rules,
+  }) : _today = startOfDayUtc(today),
+       _rules = rules ?? InsightRules.defaults {
     _ledger = ledger;
     _cache = cache;
     _publishedStamp = _cache.itemsSourceRevision;
@@ -41,6 +46,8 @@ class AnalysisQueries extends ChangeNotifier {
   late final Ledger _ledger;
 
   late final AnalysisCache _cache;
+
+  final InsightRules _rules;
 
   DateTime _today;
 
@@ -404,6 +411,31 @@ class AnalysisQueries extends ChangeNotifier {
           today: _today,
         );
       },
+    );
+  }
+
+  AnalysisQueryResult<MatchedDayInsights> readMatchedDayInsights() {
+    return _readMixed<MatchedDayInsights>(
+      'matched-day-insights',
+      () => matchedDayInsights(
+        items: _cache.items,
+        state: _ledger.state,
+        firstRecordMonth: firstRecordMonth(_ledger.state),
+        today: _today,
+        rules: _rules,
+      ),
+    );
+  }
+
+  AnalysisQueryResult<WeekSoFar> readWeekSoFar() {
+    return _readMixed<WeekSoFar>(
+      'week-so-far',
+      () => weekSoFar(
+        items: _cache.items,
+        firstRecordMonth: firstRecordMonth(_ledger.state),
+        today: _today,
+        rules: _rules,
+      ),
     );
   }
 
