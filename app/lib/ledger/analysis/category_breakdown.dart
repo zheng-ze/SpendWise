@@ -3,6 +3,15 @@ import 'package:flutter/foundation.dart';
 
 enum BreakdownLevel { categories, subcategories }
 
+const _shareTenths = 1000;
+
+typedef _SizedBucket = ({
+  String? bucketID,
+  String? mainBucketID,
+  bool isDirect,
+  Decimal amount,
+});
+
 @immutable
 class BreakdownRow {
   const BreakdownRow({
@@ -10,6 +19,7 @@ class BreakdownRow {
     required this.mainBucketID,
     required this.isDirect,
     required this.amount,
+    required this.sharePercent,
   });
 
   final String? bucketID;
@@ -20,17 +30,21 @@ class BreakdownRow {
 
   final Decimal amount;
 
+  final Decimal sharePercent;
+
   @override
   bool operator ==(Object other) {
     return other is BreakdownRow &&
         other.bucketID == bucketID &&
         other.mainBucketID == mainBucketID &&
         other.isDirect == isDirect &&
-        other.amount == amount;
+        other.amount == amount &&
+        other.sharePercent == sharePercent;
   }
 
   @override
-  int get hashCode => Object.hash(bucketID, mainBucketID, isDirect, amount);
+  int get hashCode =>
+      Object.hash(bucketID, mainBucketID, isDirect, amount, sharePercent);
 }
 
 @immutable
@@ -78,32 +92,46 @@ PeriodBreakdown categoryBreakdown({
   final selected = items
       .where((item) => item.kind == kind && window.contains(item.date))
       .toList();
-  final rows = switch (level) {
-    BreakdownLevel.categories => _categoryRows(selected, state),
-    BreakdownLevel.subcategories => _subcategoryRows(selected, state),
-  }.where((row) => row.amount > Decimal.zero).toList()..sort(_compareRows);
+  final total = selected.fold(Decimal.zero, (sum, item) => sum + item.amount);
+  final sized =
+      switch (level) {
+          BreakdownLevel.categories => _categoryAmounts(selected, state),
+          BreakdownLevel.subcategories => _subcategoryAmounts(selected, state),
+        }.where((bucket) => bucket.amount > Decimal.zero).toList()
+        ..sort(_compareSized);
+  final shares = _largestRemainderShares(sized, total);
   return PeriodBreakdown(
     window: window,
     kind: kind,
     level: level,
-    total: selected.fold(Decimal.zero, (sum, item) => sum + item.amount),
-    rows: List.unmodifiable(rows),
+    total: total,
+    rows: List.unmodifiable([
+      for (var index = 0; index < sized.length; index++)
+        BreakdownRow(
+          bucketID: sized[index].bucketID,
+          mainBucketID: sized[index].mainBucketID,
+          isDirect: sized[index].isDirect,
+          amount: sized[index].amount,
+          sharePercent: shares[index],
+        ),
+    ]),
   );
 }
 
-Iterable<BreakdownRow> _categoryRows(
+List<_SizedBucket> _categoryAmounts(
   List<AnalysisItem> items,
   LedgerState state,
-) => Accounting.rollUp(items, state).entries.map(
-  (entry) => BreakdownRow(
-    bucketID: entry.key,
-    mainBucketID: entry.key,
-    isDirect: false,
-    amount: entry.value,
-  ),
-);
+) => [
+  for (final entry in Accounting.rollUp(items, state).entries)
+    (
+      bucketID: entry.key,
+      mainBucketID: entry.key,
+      isDirect: false,
+      amount: entry.value,
+    ),
+];
 
-Iterable<BreakdownRow> _subcategoryRows(
+List<_SizedBucket> _subcategoryAmounts(
   List<AnalysisItem> items,
   LedgerState state,
 ) {
@@ -115,26 +143,66 @@ Iterable<BreakdownRow> _subcategoryRows(
     final bucketID = normalizedOptionalID(item.bucketID);
     sums[bucketID] = (sums[bucketID] ?? Decimal.zero) + item.amount;
   }
-  return sums.entries.map(
-    (entry) => BreakdownRow(
-      bucketID: entry.key,
-      mainBucketID: Accounting.mainBucketID(entry.key, state),
-      isDirect: entry.key != null && parentIDs.contains(entry.key),
-      amount: entry.value,
-    ),
-  );
+  return [
+    for (final entry in sums.entries)
+      (
+        bucketID: entry.key,
+        mainBucketID: Accounting.mainBucketID(entry.key, state),
+        isDirect: entry.key != null && parentIDs.contains(entry.key),
+        amount: entry.value,
+      ),
+  ];
 }
 
-int _compareRows(BreakdownRow a, BreakdownRow b) {
+List<Decimal> _largestRemainderShares(
+  List<_SizedBucket> buckets,
+  Decimal total,
+) {
+  if (buckets.isEmpty) return [];
+  final bases = <BigInt>[];
+  final remainders = <Decimal>[];
+  for (final bucket in buckets) {
+    final scaled = bucket.amount * Decimal.fromInt(_shareTenths);
+    bases.add(scaled ~/ total);
+    remainders.add(scaled % total);
+  }
+  var missing =
+      _shareTenths - bases.fold(BigInt.zero, (sum, base) => sum + base).toInt();
+  final order = List<int>.generate(buckets.length, (index) => index)
+    ..sort((a, b) {
+      final byRemainder = remainders[b].compareTo(remainders[a]);
+      if (byRemainder != 0) return byRemainder;
+      return _compareBucketIdentity(
+        buckets[a].bucketID,
+        buckets[a].isDirect,
+        buckets[b].bucketID,
+        buckets[b].isDirect,
+      );
+    });
+  for (var rank = 0; rank < missing; rank++) {
+    bases[order[rank]] += BigInt.one;
+  }
+  return [for (final base in bases) Decimal.fromBigInt(base).shift(-1)];
+}
+
+int _compareSized(_SizedBucket a, _SizedBucket b) {
   final byAmount = b.amount.compareTo(a.amount);
   if (byAmount != 0) return byAmount;
-  final aID = a.bucketID;
-  final bID = b.bucketID;
+  return _compareBucketIdentity(a.bucketID, a.isDirect, b.bucketID, b.isDirect);
+}
+
+int _compareBucketIdentity(
+  String? aID,
+  bool aDirect,
+  String? bID,
+  bool bDirect,
+) {
   if (aID != bID) {
     if (aID == null) return 1;
     if (bID == null) return -1;
-    return aID.compareTo(bID);
+    final byID = aID.compareTo(bID);
+    if (byID != 0) return byID;
   }
-  if (a.isDirect == b.isDirect) return 0;
-  return a.isDirect ? 1 : -1;
+  if (aDirect == bDirect) return 0;
+  return aDirect ? 1 : -1;
 }
