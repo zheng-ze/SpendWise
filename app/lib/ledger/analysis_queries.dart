@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
 import 'package:spendwise/ledger/analysis/calendar.dart';
+import 'package:spendwise/ledger/analysis/category_breakdown.dart';
 import 'package:spendwise/ledger/analysis/compared_with_usual.dart';
 import 'package:spendwise/ledger/analysis/completeness.dart';
 import 'package:spendwise/ledger/analysis/entry_record.dart';
@@ -12,6 +13,7 @@ import 'package:spendwise/ledger/analysis/month_spread.dart';
 import 'package:spendwise/ledger/analysis/period_summary.dart';
 import 'package:spendwise/ledger/analysis/register.dart';
 import 'package:spendwise/ledger/analysis/search.dart';
+import 'package:spendwise/ledger/analysis/scoped_trend.dart';
 import 'package:spendwise/ledger/analysis/today_summary.dart';
 import 'package:spendwise/ledger/analysis/upcoming.dart';
 import 'package:spendwise/ledger/analysis/weeks.dart';
@@ -314,6 +316,33 @@ class AnalysisQueries extends ChangeNotifier {
         today: _today,
       );
     });
+  }
+
+  AnalysisQueryResult<PeriodBreakdown> readCategoryBreakdown({
+    required DateTime period,
+    required AnalysisPeriodMode mode,
+    required CategoryKind kind,
+    required BreakdownLevel level,
+  }) {
+    final day = startOfDayUtc(period);
+    final window = switch (mode) {
+      AnalysisPeriodMode.month => monthWindow(day),
+      AnalysisPeriodMode.year => DateRange(
+        DateTime.utc(day.year, 1, 1),
+        DateTime.utc(day.year + 1, 1, 1),
+      ),
+    };
+    return _readMixed<PeriodBreakdown>(
+      'breakdown|${mode.name}|${window.start.toIso8601String()}|'
+      '${kind.name}|${level.name}',
+      () => categoryBreakdown(
+        items: _cache.items,
+        state: _ledger.state,
+        window: window,
+        kind: kind,
+        level: level,
+      ),
+    );
   }
 
   AnalysisQueryResult<ComparedWithUsual> readComparedWithUsual({
