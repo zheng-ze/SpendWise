@@ -48,20 +48,21 @@ extension LedgerStateQueries on LedgerState {
 
   int entriesReferencing(String rawHolderID) {
     final holderID = normalizedID(rawHolderID);
-    return _entries.values.where((entry) => entry.references(holderID)).length;
+    return _allEntries.where((entry) => entry.references(holderID)).length;
   }
 
   int entryCount(Set<String> rawIDs) {
     final ids = rawIDs.map(normalizedID).toSet();
-    return _entries.values.where((entry) => entry.touches(ids)).length;
+    return _allEntries.where((entry) => entry.touches(ids)).length;
   }
 
   int entryCountReferencing(String rawCategoryID) {
     final categoryID = normalizedID(rawCategoryID);
-    return _entries.values
-        .where((entry) => entry.categoryID == categoryID)
-        .length;
+    return _allEntries.where((entry) => entry.categoryID == categoryID).length;
   }
+
+  Iterable<Entry> get _allEntries =>
+      _entries.values.followedBy(_binnedEntries.values);
 
   bool _isHolderReferenced(String holderID) {
     final source = _moneySources[holderID];

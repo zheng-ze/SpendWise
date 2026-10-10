@@ -17,6 +17,7 @@ const _clausePlansReferenceActive = 14;
 const _clausePocketLiveness = 15;
 const _clauseBudgetCategory = 16;
 const _clauseBudgetLimitEvents = 17;
+const _clauseEntryInOneTable = 18;
 
 extension LedgerStateInvariants on LedgerState {
   void _assertChecked() {
@@ -67,6 +68,7 @@ extension LedgerStateInvariants on LedgerState {
     _assertPocketNotMoreAliveThanAccount();
     _assertBudgetCategoryResolves();
     _assertBudgetLimitEventShape();
+    _assertEntryInOneTable();
   }
 
   void _assertKeysMatchIDs() {
@@ -78,7 +80,7 @@ extension LedgerStateInvariants on LedgerState {
         );
       }
     }
-    for (final MapEntry(:key, :value) in _entries.entries) {
+    for (final MapEntry(:key, :value) in _allEntryPairs) {
       if (key != value.id) {
         throw _violation(_clauseKeysMatchIDs, 'entry $key holds ${value.id}');
       }
@@ -131,7 +133,7 @@ extension LedgerStateInvariants on LedgerState {
   }
 
   void _assertNoDanglingEntryReference() {
-    for (final entry in _entries.values) {
+    for (final entry in _allEntries) {
       for (final holderID in entry.holderIDs) {
         if (!_moneySources.containsKey(holderID)) {
           throw _violation(
@@ -179,7 +181,7 @@ extension LedgerStateInvariants on LedgerState {
   }
 
   void _assertEntryCategoryCoherence() {
-    for (final entry in _entries.values) {
+    for (final entry in _allEntries) {
       final categoryID = entry.categoryID;
       if (categoryID == null) continue;
 
@@ -243,6 +245,25 @@ extension LedgerStateInvariants on LedgerState {
         throw _violation(
           _clauseEntriesActive,
           'entry ${entry.id} is ${entry.lifecycle.name}',
+        );
+      }
+    }
+    for (final entry in _binnedEntries.values) {
+      if (entry.lifecycle != LifecycleState.archived) {
+        throw _violation(
+          _clauseEntriesActive,
+          'binned entry ${entry.id} is ${entry.lifecycle.name}',
+        );
+      }
+    }
+  }
+
+  void _assertEntryInOneTable() {
+    for (final id in _entries.keys) {
+      if (_binnedEntries.containsKey(id)) {
+        throw _violation(
+          _clauseEntryInOneTable,
+          'entry $id is live and binned',
         );
       }
     }
@@ -408,6 +429,9 @@ extension LedgerStateInvariants on LedgerState {
       }
     }
   }
+
+  Iterable<MapEntry<String, Entry>> get _allEntryPairs =>
+      _entries.entries.followedBy(_binnedEntries.entries);
 
   Iterable<Account> get _accounts =>
       _moneySources.values.map((source) => source.asAccount).nonNulls;

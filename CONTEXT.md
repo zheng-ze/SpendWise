@@ -25,6 +25,15 @@ side (`Account.subPocketIDs`), never the child's. See ADR-0002 for why the link 
 source and (for transfers) a destination money source, an optional category, a date, and an
 analysis-inclusion flag.
 
+**Entry lifecycle** — an entry is `active` (in `LedgerState.entries`, counted in money and analysis)
+or binned (`archived`, in `LedgerState.binnedEntries`, excluded from money and analysis). `archiveEntry`
+bins, `restoreEntry` returns it, `purgeEntry` removes it. An entry is never `referenceOnly` or
+`tombstoned`. System entries cannot be binned.
+
+**Reference-count semantics** — `entriesReferencing`, `entryCount` and `entryCountReferencing` count
+active plus binned entries, so an account or category referenced only by binned entries stays
+`referenceOnly` on purge and its type stays locked, because a restore brings the reference back.
+
 **Transaction category** (`TransactionCategory`) — a label for spending or income, with a kind
 (income or expense) and an optional parent category. Nesting is capped at two levels.
 

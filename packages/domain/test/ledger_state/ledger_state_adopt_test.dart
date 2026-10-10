@@ -25,12 +25,15 @@ LedgerState _fiveTableState() {
     ),
   );
   state.addBudget(null, Decimal.fromInt(100), now: DateTime.utc(2026, 1, 15));
+  state.addEntry(entry(id: uuid(6), sourceID: uuid(1)));
+  state.archiveEntry(uuid(6));
   return state;
 }
 
 void expectSameTables(LedgerState actual, LedgerState expected) {
   expect(actual.moneySources, expected.moneySources);
   expect(actual.entries, expected.entries);
+  expect(actual.binnedEntries, expected.binnedEntries);
   expect(actual.categories, expected.categories);
   expect(actual.plans, expected.plans);
   expect(actual.budgets, expected.budgets);
@@ -57,6 +60,7 @@ void main() {
 
     expect(live.moneySources, isEmpty);
     expect(live.entries, isEmpty);
+    expect(live.binnedEntries, isEmpty);
     expect(live.categories, isEmpty);
     expect(live.plans, isEmpty);
     expect(live.budgets, isEmpty);

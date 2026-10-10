@@ -58,6 +58,19 @@ class Entry with HolderReferencing {
   final LifecycleState lifecycle;
   final SystemEntryKind? systemKind;
 
+  Entry settingLifecycle(LifecycleState lifecycle) => Entry(
+    id: id,
+    date: date,
+    amount: amount,
+    name: name,
+    categoryID: categoryID,
+    sourceID: sourceID,
+    destinationID: destinationID,
+    includeInAnalysis: includeInAnalysis,
+    lifecycle: lifecycle,
+    systemKind: systemKind,
+  );
+
   @override
   bool operator ==(Object other) {
     return other is Entry &&

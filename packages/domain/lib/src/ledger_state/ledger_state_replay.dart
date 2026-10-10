@@ -11,7 +11,14 @@ extension LedgerStateReplay on LedgerState {
         case UpsertCategory(:final category):
           _categories[category.id] = category;
         case UpsertEntry(:final entry):
-          _entries[entry.id] = entry;
+          switch (entry.lifecycle) {
+            case LifecycleState.archived:
+              _entries.remove(entry.id);
+              _binnedEntries[entry.id] = entry;
+            default:
+              _binnedEntries.remove(entry.id);
+              _entries[entry.id] = entry;
+          }
         case UpsertPlan(:final plan):
           _plans[plan.id] = plan;
         case UpsertBudget(:final budget):
@@ -22,6 +29,7 @@ extension LedgerStateReplay on LedgerState {
           _categories.remove(id);
         case DeleteEntry(:final id):
           _entries.remove(id);
+          _binnedEntries.remove(id);
         case DeletePlan(:final id):
           _plans.remove(id);
         case DeleteBudget(:final id):

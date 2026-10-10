@@ -35,11 +35,13 @@ class LedgerState {
   LedgerState({
     Map<String, MoneySource>? moneySources,
     Map<String, Entry>? entries,
+    Map<String, Entry>? binnedEntries,
     Map<String, TransactionCategory>? categories,
     Map<String, RecurringPlan>? plans,
     Map<String, Budget>? budgets,
   }) : _moneySources = {...?moneySources},
        _entries = {...?entries},
+       _binnedEntries = {...?binnedEntries},
        _categories = {...?categories},
        _plans = {...?plans},
        _budgets = {...?budgets};
@@ -47,6 +49,7 @@ class LedgerState {
   LedgerState.replaying(List<LedgerChange> changes)
     : _moneySources = {},
       _entries = {},
+      _binnedEntries = {},
       _categories = {},
       _plans = {},
       _budgets = {} {
@@ -59,6 +62,8 @@ class LedgerState {
 
   final Map<String, Entry> _entries;
 
+  final Map<String, Entry> _binnedEntries;
+
   final Map<String, TransactionCategory> _categories;
 
   final Map<String, RecurringPlan> _plans;
@@ -69,6 +74,8 @@ class LedgerState {
       UnmodifiableMapView(_moneySources);
 
   Map<String, Entry> get entries => UnmodifiableMapView(_entries);
+
+  Map<String, Entry> get binnedEntries => UnmodifiableMapView(_binnedEntries);
 
   Map<String, TransactionCategory> get categories =>
       UnmodifiableMapView(_categories);
