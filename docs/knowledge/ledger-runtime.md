@@ -1,6 +1,6 @@
 # Ledger Runtime
 
-Last reconciled: e6e6d31
+Last reconciled: 2026-10-10
 
 ## Feature overview
 
@@ -60,8 +60,8 @@ path (`ledger_publication.dart`, `persistence_processor.dart:_forward`).
 
 `Ledger.applySyncBatch(changes, stamps)` (`ledger.dart`) is the sync apply boundary for an
 already-decided remote batch. `SyncCoordinator` calls it after synchronous finalization accepts
-the remote changes and stamps (`app/lib/sync/sync_coordinator.dart`). It copies the five live
-tables into a candidate `LedgerState`, applies the batch there, and calls `candidate.assertInvariants` directly
+the remote changes and stamps (`app/lib/sync/sync_coordinator.dart`). It copies all six tables
+into a candidate `LedgerState`, applies the batch there, and calls `candidate.assertInvariants` directly
 outside `assert` - structural clauses only, no mutator clause 12 monotonicity, so a legitimate
 remote lifecycle transition this device never observed still passes. Only then it adopts the
 candidate into the live object (`LedgerState.adopt`) and calls `_commit`. A non-empty sync batch
@@ -102,8 +102,8 @@ the consumers through their watched dependency (`app/lib/ui/stats/analysis/analy
 
 `AnalysisCache.revision` counts received publications, ignoring stamps. `refresh(state,
 sourceRevision: ...)` chooses the explicit source revision, then the bound Ledger getter, then the
-publication counter. It captures the five LedgerState tables before running
-`Accounting.analysisItems` through `isolateComputeRunner`; `syncComputeRunner` is an injectable
+publication counter. It captures all six LedgerState tables, including `binnedEntries`, before
+running `Accounting.analysisItems` through `isolateComputeRunner`; `syncComputeRunner` is an injectable
 test seam (`app/lib/ledger/analysis_cache.dart:refresh`, `isolateComputeRunner`,
 `syncComputeRunner`). Requests for the same pending source revision share one Future, and a request
 for the accepted source revision does no work. A completion replaces `items` only when its source

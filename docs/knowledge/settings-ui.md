@@ -1,6 +1,6 @@
 # Settings UI
 
-Last reconciled: 12f4774
+Last reconciled: 2026-10-10
 
 ## Feature overview
 
@@ -35,7 +35,9 @@ form controllers.
 The list providers read `Ledger` query methods (e.g. `categories(of:)` ordering per
 `ledger_runtime.md` §1.3) and mutate through `Ledger`. Forms use per-sheet `autoDispose` controllers
 seeded with the initial data. Delete copies (recycle-bin messaging) are derived from referencing
-counts.
+counts. These counts include active and binned entries through `entriesReferencing`,
+`entryCount` and `entryCountReferencing`
+(`packages/domain/lib/src/ledger_state/ledger_state_queries.dart`).
 
 ## Navigation
 
@@ -147,9 +149,11 @@ platform. The receipt scan-strip switch stays in `AppSettings`. Source:
 
 - Child-category restore is blocked while its parent is archived; pocket restore is blocked while its
   parent account is archived. `ledger-and-money-model.md` §Restore blocking.
-- Plan delete is a hard delete with no recycle bin; the archive path applies only to money sources
-  and categories. `recurring-plans-and-accounting.md`
-- Category kind is locked while transactions reference it.
+- Plan delete is a hard delete with no recycle bin. The Settings recycle bin displays only money
+  sources and categories (`app/lib/ui/settings/recycle_bin/recycle_bin_view_model.dart`).
+- Category kind is locked while active or binned entries reference it
+  (`app/lib/ui/settings/category/category_form_view_model.dart`: `_isReferenced`;
+  `packages/domain/lib/src/ledger_state/ledger_state_queries.dart`: `entryCountReferencing`).
 - Purge moves referenced rows to `referenceOnly` and unreferenced rows to tombstoned; the domain
   decides which. `ledger-and-money-model.md` §Purge.
 
