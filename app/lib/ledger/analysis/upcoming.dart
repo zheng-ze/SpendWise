@@ -153,17 +153,16 @@ List<PlanOccurrence> upcomingPlanOccurrences({
     for (final date in plan.occurrences(after: after, upTo: upTo)) {
       final occurrenceID = OccurrenceID.make(plan.id, date);
       if (ledger.entries.containsKey(occurrenceID)) continue;
+      final resolved = ledger.resolvedEntryOrNull(
+        plan.template.makeEntry(plan.id, date),
+      );
+      if (resolved == null) continue;
       occurrences.add(
         PlanOccurrence(
           planID: plan.id,
           occurrenceID: occurrenceID,
           date: date,
-          projected: entryRecord(
-            ledger,
-            plan.template
-                .makeEntry(plan.id, date)
-                .normalizedTransferEndpoints(),
-          ),
+          projected: entryRecord(ledger, resolved),
         ),
       );
     }

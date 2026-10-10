@@ -664,5 +664,37 @@ void main() {
             .normalizedTransferEndpoints(),
       );
     });
+
+    group('resolvedEntryOrNull', () {
+      test('returns the normalized entry without mutating state', () {
+        final state = seeded();
+        final entry = template(
+          amount: Decimal.fromInt(-10),
+          destinationID: otherAccountID,
+        ).makeEntry(planID, DateTime.utc(2026, 2, 15));
+
+        final resolved = state.resolvedEntryOrNull(entry);
+
+        expect(resolved, entry.normalizedTransferEndpoints());
+        expect(state.entries, isEmpty);
+      });
+
+      test('returns null for a zero amount', () {
+        final entry = template(
+          amount: Decimal.zero,
+        ).makeEntry(planID, DateTime.utc(2026, 2, 15));
+
+        expect(seeded().resolvedEntryOrNull(entry), isNull);
+      });
+
+      test('returns null for an archived source', () {
+        final state = seeded()..deleteAccount(otherAccountID);
+        final entry = template(
+          sourceID: otherAccountID,
+        ).makeEntry(planID, DateTime.utc(2026, 2, 15));
+
+        expect(state.resolvedEntryOrNull(entry), isNull);
+      });
+    });
   });
 }
