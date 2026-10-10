@@ -29,12 +29,13 @@ TransactionCategory _category(
   String? name,
   CategoryKind kind = CategoryKind.expense,
   LifecycleState lifecycle = LifecycleState.active,
+  bool includeInAnalysis = true,
 }) => TransactionCategory(
   id: id,
   name: name ?? id,
   kind: kind,
   colorHex: '#000000',
-  includeInAnalysis: true,
+  includeInAnalysis: includeInAnalysis,
   parentID: parent,
   symbol: 'tag',
   lifecycle: lifecycle,
@@ -202,6 +203,23 @@ void main() {
 
       expect(rows, [_row(_main, _main, 10, isDirect: true)]);
     });
+
+    test(
+      'a child excluded from analysis still gives the main a direct row',
+      () {
+        final state = _state(
+          categories: [
+            _category(_main),
+            _category(_childA, parent: _main, includeInAnalysis: false),
+          ],
+          bookings: [_Booking(_main, 10)],
+        );
+
+        final rows = _breakdown(state, BreakdownLevel.subcategories).rows;
+
+        expect(rows, [_row(_main, _main, 10, isDirect: true)]);
+      },
+    );
   });
 
   group('income', () {
