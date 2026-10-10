@@ -56,7 +56,7 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   exactly two places: the `onEnded` callback of `SettingsFlow` (back control or Android back at the
   Settings root, through `goBack`) and selecting a destination. No route-level pop callback writes
   it, so `Navigator.removeRoute` leaves it true. `AppShell` alone materialises the signal. Below the
-  rail threshold it pushes exactly one `SettingsRoute` on the root navigator when the flag turns true,
+  rail threshold it pushes exactly one settings route on the root navigator when the flag turns true,
   with the current destination's label as the back label and its own `StatusBanner` over the
   `SettingsFlow` (the shell's banner is covered), and removes it with
   `Navigator.removeRoute` when the flag turns false. At the rail threshold or wider it shows
@@ -74,14 +74,14 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   the flag turn false while mounted always takes this path, even when Settings was reopened before
   the outgoing layout of a layout switch finished disposing it.
 - **Layout switch with Settings open** - the flag stays true. Phone to rail removes the
-  `SettingsRoute` and mounts the content `SettingsFlow`; rail to phone unmounts the content
-  `SettingsFlow` and pushes the `SettingsRoute`. The disposed Flow takes the hand-over path, the new
+  settings route and mounts the content `SettingsFlow`; rail to phone unmounts the content
+  `SettingsFlow` and pushes the settings route. The disposed Flow takes the hand-over path, the new
   Flow picks up the step after its first frame, and `enrollmentFlowOpenProvider` admits one
   enrollment route, so one `SettingsFlow` and at most one enrollment route remain once the frame
   settles. `StatusBanner` hides the repair banner only while `enrollmentFlowOpenProvider` and
   `settingsOpenProvider` are both true. A repair tap sets the flag and calls `requestRepair()` only
   while `enrollmentFlowOpenProvider` is false. (`app/lib/ui/shell/app_shell.dart`,
-  `app/lib/ui/shell/settings_route.dart`, `app/lib/ui/shell/status_banner.dart`,
+  `app/lib/ui/shell/status_banner.dart`,
   `app/lib/ui/settings/settings_flow.dart` - `_settleAtDispose`, `handleStep`)
 
 ## Notifier conventions

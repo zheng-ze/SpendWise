@@ -5,7 +5,6 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/shell/day_ticker.dart';
 import 'package:spendwise/ui/settings/settings_flow.dart';
 import 'package:spendwise/ui/shell/layout_breakpoints.dart';
-import 'package:spendwise/ui/shell/settings_route.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/shell/status_banner.dart';
 
@@ -97,9 +96,16 @@ class _AppShellState extends ConsumerState<AppShell> {
     final route = _settingsRoute;
     final navigator = Navigator.of(context, rootNavigator: true);
     if (wanted && route == null) {
-      final created = SettingsRoute(
-        backLabel: _destinationLabels[ref.read(selectedDestinationProvider)]!,
-        onEnded: _closeSettings,
+      final backLabel =
+          _destinationLabels[ref.read(selectedDestinationProvider)]!;
+      final created = MaterialPageRoute<void>(
+        builder: (_) => Stack(
+          fit: StackFit.expand,
+          children: [
+            SettingsFlow(backLabel: backLabel, onEnded: _closeSettings),
+            const StatusBanner(),
+          ],
+        ),
       );
       _settingsRoute = created;
       navigator.push(created);
