@@ -12,11 +12,13 @@ import 'package:spendwise/ledger/analysis_queries.dart';
 import 'package:spendwise/ledger/ledger.dart';
 
 const _checkingID = '11111111-1111-1111-1111-111111111111';
-const _mainID = '33333333-3333-3333-3333-333333333333';
-const _childAID = '44444444-4444-4444-4444-444444444444';
+const _mainID = 'bbbbbbbb-3333-3333-3333-333333333333';
+const _childAID = 'aaaaaaaa-4444-4444-4444-444444444444';
 const _childBID = '55555555-5555-5555-5555-555555555555';
 const _childlessID = '66666666-6666-6666-6666-666666666666';
 const _payID = '77777777-7777-7777-7777-777777777777';
+const _literalUncategorizedMain = 'uncategorized';
+const _prefixedUncategorizedMain = 'bucket:uncategorized';
 
 const _janAllTotal = '10.00';
 const _mayAllTotal = '31.00';
@@ -24,6 +26,7 @@ const _june2026AllTotal = '1.00';
 const _monthAllTotal = '42.00';
 const _yearAllTotal = '51.00';
 const _mayUncategorizedTotal = '9.00';
+const _decemberAllTotal = '6.00';
 const _mayIncomeTotal = '50.00';
 const _childlessMayTotal = '100.00';
 const _mutatedMayTotal = '36.00';
@@ -32,6 +35,7 @@ const _staleNewestMayTotal = '34.00';
 const _recoveredMayTotal = '32.00';
 
 final _today = DateTime.utc(2027, 5, 15);
+final _decemberToday = DateTime.utc(2027, 12, 15);
 final _may = DateTime.utc(2027, 5, 1);
 final _january = DateTime.utc(2027, 1, 1);
 final _june = DateTime.utc(2027, 6, 1);
@@ -607,19 +611,17 @@ void main() {
     final first = monthRead();
     expect(first.state, AnalysisQueryState.ready);
     expect(identical(monthRead(), first), isTrue);
-    expect(
-      identical(monthRead(mainBucketID: _mainID.toUpperCase()), first),
-      isTrue,
+    final upperMain = monthRead(mainBucketID: _mainID.toUpperCase());
+    expect(identical(upperMain, first), isTrue);
+    expect(upperMain.value, first.value);
+    final lowerScope = monthRead(
+      scope: AnalysisCategoryScope.subcategory(_childAID),
     );
-    expect(
-      identical(
-        monthRead(
-          scope: AnalysisCategoryScope.subcategory(_childAID.toUpperCase()),
-        ),
-        monthRead(scope: AnalysisCategoryScope.subcategory(_childAID)),
-      ),
-      isTrue,
+    final upperScope = monthRead(
+      scope: AnalysisCategoryScope.subcategory(_childAID.toUpperCase()),
     );
+    expect(identical(upperScope, lowerScope), isTrue);
+    expect(upperScope.value, lowerScope.value);
     expect(
       identical(monthRead(period: DateTime.utc(2027, 5, 20, 14, 45)), first),
       isTrue,
@@ -709,6 +711,51 @@ void main() {
       Decimal.parse(_janAllTotal),
     );
     expect(_slotsTotal(januaryYear.value!), Decimal.parse(_yearAllTotal));
+
+    final decemberSetup = _setup(today: _decemberToday);
+    _populate(decemberSetup.ledger);
+    await _settle(decemberSetup.runner, decemberSetup.ledger);
+    final decemberQueries = decemberSetup.queries;
+    final decemberMonth = decemberQueries.readScopedTrend(
+      period: _december,
+      mode: AnalysisPeriodMode.month,
+      kind: CategoryKind.expense,
+      mainBucketID: _mainID,
+      scope: const AnalysisCategoryScope.all(),
+    );
+    final decemberYear = decemberQueries.readScopedTrend(
+      period: _december,
+      mode: AnalysisPeriodMode.year,
+      kind: CategoryKind.expense,
+      mainBucketID: _mainID,
+      scope: const AnalysisCategoryScope.all(),
+    );
+    expect(decemberMonth.state, AnalysisQueryState.ready);
+    expect(decemberYear.state, AnalysisQueryState.ready);
+    expect(decemberMonth.value?.endMonth, _december);
+    expect(decemberYear.value?.endMonth, _december);
+    expect(identical(decemberYear, decemberMonth), isFalse);
+    expect(
+      _slot(decemberMonth.value!, _december).total,
+      Decimal.parse(_decemberAllTotal),
+    );
+    expect(_slotsTotal(decemberYear.value!), Decimal.parse(_yearAllTotal));
+
+    final nullMain = read(mainBucketID: null);
+    final literalMain = read(mainBucketID: _literalUncategorizedMain);
+    final prefixedMain = read(mainBucketID: _prefixedUncategorizedMain);
+    expect(nullMain.state, AnalysisQueryState.ready);
+    expect(literalMain.state, AnalysisQueryState.ready);
+    expect(prefixedMain.state, AnalysisQueryState.ready);
+    expect(identical(literalMain, nullMain), isFalse);
+    expect(identical(prefixedMain, nullMain), isFalse);
+    expect(identical(prefixedMain, literalMain), isFalse);
+    expect(
+      _slot(nullMain.value!, _may).total,
+      Decimal.parse(_mayUncategorizedTotal),
+    );
+    expect(_slotsTotal(literalMain.value!), Decimal.zero);
+    expect(_slotsTotal(prefixedMain.value!), Decimal.zero);
   });
 
   test('dayRolloverKeepsYearTrendWithoutRunnerWork', () async {
