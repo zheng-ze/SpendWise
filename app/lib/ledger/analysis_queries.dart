@@ -354,14 +354,7 @@ class AnalysisQueries extends ChangeNotifier {
     required AnalysisCategoryScope scope,
   }) {
     final day = startOfDayUtc(period);
-    final anchor = switch (mode) {
-      AnalysisPeriodMode.month => monthWindow(day).start,
-      AnalysisPeriodMode.year => DateTime.utc(
-        day.year,
-        scopedTrendDecemberMonth,
-        1,
-      ),
-    };
+    final anchor = scopedTrendAnchor(day, mode);
     final main = normalizedOptionalID(mainBucketID);
     final mainIdentity = main == null ? 'uncategorized' : 'bucket:$main';
     final scopeIdentity = switch (scope) {

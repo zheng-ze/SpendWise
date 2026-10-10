@@ -26,6 +26,8 @@ const _syntheticID = 'transfer-expense:savings';
 
 const _mayExpenseTotal = '85.00';
 const _twoEditMayTotal = '195.00';
+const _firstEditID = 'c0000000-0000-0000-0000-000000000001';
+const _secondEditID = 'c0000000-0000-0000-0000-000000000002';
 const _mayIncomeTotal = '50.00';
 const _juneExpenseTotal = '99.00';
 const _year2026ExpenseTotal = '7.00';
@@ -289,6 +291,42 @@ PeriodBreakdown _readyBreakdown(
   );
   expect(read.state, AnalysisQueryState.ready);
   return read.value!;
+}
+
+Future<int> _editTwiceAndAcceptFirst(
+  Ledger ledger,
+  _ManualRunner runner,
+  AnalysisCache cache,
+  int settledRevision,
+) async {
+  final base = runner.pending.length;
+  ledger.addEntry(
+    Entry(
+      id: _firstEditID,
+      amount: Decimal.parse('-10.00'),
+      name: 'entry',
+      sourceID: _checkingID,
+      categoryID: _childID,
+      date: DateTime.utc(2027, 5, 12),
+    ),
+  );
+  final itemsAfterFirst = Accounting.analysisItems(ledger.state);
+  ledger.addEntry(
+    Entry(
+      id: _secondEditID,
+      amount: Decimal.parse('-100.00'),
+      name: 'entry',
+      sourceID: _checkingID,
+      categoryID: _childID,
+      date: DateTime.utc(2027, 5, 13),
+    ),
+  );
+  expect(runner.pending.length, base + 2);
+  runner.pending[base].complete(itemsAfterFirst);
+  await pumpEventQueue();
+  expect(cache.itemsSourceRevision, settledRevision + 1);
+  expect(ledger.revision, settledRevision + 2);
+  return base;
 }
 
 void main() {
@@ -948,33 +986,12 @@ void main() {
       expect(settled.sourceRevision, settledRevision);
       expect(settled.value?.total, Decimal.parse(_mayExpenseTotal));
 
-      final base = runner.pending.length;
-      ledger.addEntry(
-        Entry(
-          id: 'c0000000-0000-0000-0000-000000000001',
-          amount: Decimal.parse('-10.00'),
-          name: 'entry',
-          sourceID: _checkingID,
-          categoryID: _childID,
-          date: DateTime.utc(2027, 5, 12),
-        ),
+      final base = await _editTwiceAndAcceptFirst(
+        ledger,
+        runner,
+        cache,
+        settledRevision,
       );
-      final itemsAfterFirst = Accounting.analysisItems(ledger.state);
-      ledger.addEntry(
-        Entry(
-          id: 'c0000000-0000-0000-0000-000000000002',
-          amount: Decimal.parse('-100.00'),
-          name: 'entry',
-          sourceID: _checkingID,
-          categoryID: _childID,
-          date: DateTime.utc(2027, 5, 13),
-        ),
-      );
-      runner.pending[base].complete(itemsAfterFirst);
-      await pumpEventQueue();
-
-      expect(cache.itemsSourceRevision, settledRevision + 1);
-      expect(ledger.revision, settledRevision + 2);
       final intermediate = read();
       expect(intermediate.state, AnalysisQueryState.loading);
       expect(intermediate.value, settled.value);
@@ -1010,33 +1027,12 @@ void main() {
             level: BreakdownLevel.categories,
           );
 
-      final base = runner.pending.length;
-      ledger.addEntry(
-        Entry(
-          id: 'c0000000-0000-0000-0000-000000000001',
-          amount: Decimal.parse('-10.00'),
-          name: 'entry',
-          sourceID: _checkingID,
-          categoryID: _childID,
-          date: DateTime.utc(2027, 5, 12),
-        ),
+      final base = await _editTwiceAndAcceptFirst(
+        ledger,
+        runner,
+        cache,
+        settledRevision,
       );
-      final itemsAfterFirst = Accounting.analysisItems(ledger.state);
-      ledger.addEntry(
-        Entry(
-          id: 'c0000000-0000-0000-0000-000000000002',
-          amount: Decimal.parse('-100.00'),
-          name: 'entry',
-          sourceID: _checkingID,
-          categoryID: _childID,
-          date: DateTime.utc(2027, 5, 13),
-        ),
-      );
-      runner.pending[base].complete(itemsAfterFirst);
-      await pumpEventQueue();
-
-      expect(cache.itemsSourceRevision, settledRevision + 1);
-      expect(ledger.revision, settledRevision + 2);
       final intermediate = read();
       expect(intermediate.state, AnalysisQueryState.loading);
       expect(intermediate.value, isNull);

@@ -11,6 +11,17 @@ const scopedTrendSlotCount = 12;
 
 const scopedTrendDecemberMonth = 12;
 
+DateTime scopedTrendAnchor(DateTime day, AnalysisPeriodMode mode) {
+  return switch (mode) {
+    AnalysisPeriodMode.month => monthWindow(day).start,
+    AnalysisPeriodMode.year => DateTime.utc(
+      day.year,
+      scopedTrendDecemberMonth,
+      1,
+    ),
+  };
+}
+
 @immutable
 class ScopedTrend {
   const ScopedTrend({
@@ -69,14 +80,7 @@ ScopedTrend scopedTrend({
   final main = normalizedOptionalID(mainBucketID);
   final day = startOfDayUtc(period);
   final todayDay = startOfDayUtc(today);
-  final anchor = switch (mode) {
-    AnalysisPeriodMode.month => monthWindow(day).start,
-    AnalysisPeriodMode.year => DateTime.utc(
-      day.year,
-      scopedTrendDecemberMonth,
-      1,
-    ),
-  };
+  final anchor = scopedTrendAnchor(day, mode);
   switch (mode) {
     case AnalysisPeriodMode.month:
       if (anchor.isAfter(monthWindow(todayDay).start)) {
