@@ -2,9 +2,10 @@ import 'package:domain/domain.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:spendwise/ledger/analysis/analysis_category_scope.dart';
-import 'package:spendwise/ledger/analysis/analysis_period_mode.dart';
 import 'package:spendwise/ledger/analysis/completeness.dart';
 import 'package:spendwise/ledger/analysis/month_spread.dart';
+
+enum AnalysisPeriodMode { month, year }
 
 const scopedTrendSlotCount = 12;
 

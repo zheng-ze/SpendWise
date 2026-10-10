@@ -272,7 +272,7 @@ its previous successful value if present (`analysis_queries.dart:_readLedgerOnly
   at December; a future year throws `ArgumentError`. Year mode covers every entry dated in the
   selected calendar year as committed amounts, including entries dated after today; months with
   no entries are zero with itemCount 0. Scopes and results have value equality, including element-wise slots
-  (`app/lib/ledger/analysis/analysis_category_scope.dart`, `analysis_period_mode.dart`,
+  (`app/lib/ledger/analysis/analysis_category_scope.dart`,
   `scoped_trend.dart`; `app/test/ledger/analysis_scoped_trend_test.dart`:
   `month mode all scope sums children and direct`, `invalid child parent pairs throw`,
   `includes months after today in year mode`, `independent equal trends are equal`).
