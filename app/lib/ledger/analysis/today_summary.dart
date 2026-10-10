@@ -37,6 +37,7 @@ TodaySummary todaySummary({
   required DateTime today,
 }) {
   final day = startOfDayUtc(today);
+  final monthlyCap = _monthlyCap(ledger, day);
   var spent = Decimal.zero;
   for (final item in items) {
     if (item.kind == CategoryKind.expense && item.date == day) {
@@ -46,13 +47,12 @@ TodaySummary todaySummary({
   return TodaySummary(
     day: day,
     spent: spent,
-    dailyGuide: _dailyGuide(ledger, day),
-    monthlyCap: _monthlyCap(ledger, day),
+    dailyGuide: _dailyGuide(monthlyCap, day),
+    monthlyCap: monthlyCap,
   );
 }
 
-Decimal? _dailyGuide(LedgerState ledger, DateTime day) {
-  final limit = _monthlyCap(ledger, day);
+Decimal? _dailyGuide(Decimal? limit, DateTime day) {
   if (limit == null) return null;
   final days = DateTime.utc(day.year, day.month + 1, 0).day;
   final padded = limit + Decimal.parse('0.5') * Decimal.fromInt(days);

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/overview/overview_view_model.dart';
@@ -52,6 +53,50 @@ void main() {
       expect(viewState.today, isNull);
       expect(viewState.recent, isNotEmpty);
       expect(viewState.upcoming, isNotEmpty);
+    });
+  });
+
+  group('Today failure and freshness', () {
+    test('a failed Today read is flagged and Retry recomputes', () async {
+      final ledger = Ledger(state: defaultState());
+      var failing = true;
+      final container = overviewContainer(
+        ledger,
+        runner: (state) => failing
+            ? Future.error(StateError('boom'))
+            : syncComputeRunner(state),
+      );
+      container.listen(overviewViewModelProvider, (_, _) {});
+      await pumpEventQueue();
+      expect(container.read(overviewViewModelProvider).todayFailed, isTrue);
+
+      failing = false;
+      container.read(overviewViewModelProvider.notifier).retryToday();
+      await settleAnalysis(container, ledger);
+
+      final viewState = container.read(overviewViewModelProvider);
+      expect(viewState.todayFailed, isFalse);
+      expect(viewState.today!.spent, Decimal.parse('45.70'));
+    });
+
+    test('does not claim an entry today before Today catches up', () async {
+      final ledger = Ledger(state: emptyState());
+      final pending = Completer<List<AnalysisItem>>();
+      var calls = 0;
+      final container = overviewContainer(
+        ledger,
+        runner: (state) =>
+            ++calls == 1 ? syncComputeRunner(state) : pending.future,
+      );
+      container.listen(overviewViewModelProvider, (_, _) {});
+      await settleAnalysis(container, ledger);
+
+      ledger.addEntry(entry(1, '-5.00', fixtureToday, categoryID: groceriesID));
+      await pumpEventQueue();
+
+      final viewState = container.read(overviewViewModelProvider);
+      expect(viewState.recent, hasLength(1));
+      expect(viewState.recordedToday, isFalse);
     });
   });
 

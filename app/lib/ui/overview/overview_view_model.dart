@@ -3,6 +3,7 @@ import 'package:flutter/painting.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
+import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
 import 'package:spendwise/ledger/analysis/today_summary.dart';
 import 'package:spendwise/ledger/analysis/upcoming.dart';
 import 'package:spendwise/ui/format/date_format.dart';
@@ -19,20 +20,16 @@ const _unnamedCardTitle = 'Card';
 
 class OverviewEntryRow {
   const OverviewEntryRow({
-    required this.id,
     required this.title,
     required this.caption,
-    required this.isToday,
     required this.symbolName,
     required this.color,
     required this.amount,
     required this.amountKind,
   });
 
-  final String id;
   final String title;
   final String caption;
-  final bool isToday;
   final String symbolName;
   final Color color;
   final Decimal amount;
@@ -41,7 +38,6 @@ class OverviewEntryRow {
 
 class OverviewUpcomingRow {
   const OverviewUpcomingRow({
-    required this.id,
     required this.day,
     required this.month,
     required this.title,
@@ -50,7 +46,6 @@ class OverviewUpcomingRow {
     this.amountKind,
   });
 
-  final String id;
   final String day;
   final String month;
   final String title;
@@ -65,6 +60,8 @@ class OverviewViewState {
     required this.today,
     required this.recent,
     required this.upcoming,
+    this.todayFailed = false,
+    this.recordedToday = false,
   });
 
   final DateTime day;
@@ -72,7 +69,8 @@ class OverviewViewState {
   final List<OverviewEntryRow>? recent;
   final List<OverviewUpcomingRow>? upcoming;
 
-  bool get recordedToday => recent?.firstOrNull?.isToday ?? false;
+  final bool todayFailed;
+  final bool recordedToday;
 }
 
 class OverviewNotifier extends Notifier<OverviewViewState> {
@@ -92,9 +90,14 @@ class OverviewNotifier extends Notifier<OverviewViewState> {
     final ledger = session.ledger.state;
     final recent = queries.readRecent().value;
     final upcoming = queries.readUpcoming().value;
+    final today = queries.readToday();
+    final todayIsCurrent = today.sourceRevision == session.ledger.revision;
+    final newest = recent?.firstOrNull;
     return OverviewViewState(
       day: day,
-      today: queries.readToday().value,
+      today: today.value,
+      todayFailed: today.state == AnalysisQueryState.failed,
+      recordedToday: todayIsCurrent && newest?.entry.date == day,
       recent: recent == null
           ? null
           : [for (final record in recent) _entryRow(record.entry, ledger, day)],
@@ -103,6 +106,8 @@ class OverviewNotifier extends Notifier<OverviewViewState> {
           : [for (final item in upcoming) _upcomingRow(item, ledger)],
     );
   }
+
+  void retryToday() => ref.read(analysisQueriesProvider)?.retry();
 }
 
 OverviewEntryRow _entryRow(Entry entry, LedgerState ledger, DateTime today) {
@@ -110,10 +115,8 @@ OverviewEntryRow _entryRow(Entry entry, LedgerState ledger, DateTime today) {
   final isToday = entry.date == today;
   final date = isToday ? _todayLabel : formatDayMonthShort(entry.date);
   return OverviewEntryRow(
-    id: entry.id,
     title: row.note.isEmpty ? row.title : row.note,
     caption: [date, row.title, row.accountLine].join(_captionSeparator),
-    isToday: isToday,
     symbolName: row.symbolName,
     color: row.color,
     amount: row.amount,
@@ -126,14 +129,12 @@ OverviewUpcomingRow _upcomingRow(UpcomingItem item, LedgerState ledger) {
   final month = formatMonthShort(item.date);
   return switch (item) {
     UpcomingStatement() => OverviewUpcomingRow(
-      id: item.accountID,
       day: day,
       month: month,
       title: '${item.accountName ?? _unnamedCardTitle} $_statementTitleSuffix',
       caption: '$_statementCaptionPrefix${formatMoney(item.cycleAmount)}',
     ),
     UpcomingPlan(:final occurrence) => _datedRow(
-      occurrence.occurrenceID,
       occurrence.projected.entry,
       ledger,
       day,
@@ -141,7 +142,6 @@ OverviewUpcomingRow _upcomingRow(UpcomingItem item, LedgerState ledger) {
       _planCaption,
     ),
     UpcomingEntry(:final record) => _datedRow(
-      record.entry.id,
       record.entry,
       ledger,
       day,
@@ -152,7 +152,6 @@ OverviewUpcomingRow _upcomingRow(UpcomingItem item, LedgerState ledger) {
 }
 
 OverviewUpcomingRow _datedRow(
-  String id,
   Entry entry,
   LedgerState ledger,
   String day,
@@ -161,7 +160,6 @@ OverviewUpcomingRow _datedRow(
 ) {
   final row = transactionRow(entry, ledger);
   return OverviewUpcomingRow(
-    id: id,
     day: day,
     month: month,
     title: row.note.isEmpty ? row.title : row.note,

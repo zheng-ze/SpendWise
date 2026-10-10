@@ -29,7 +29,11 @@ renders its own copy for an empty ledger, and a section whose read has not settl
 It calls `readToday()`, `readRecent()` and `readUpcoming()` and maps the results. `readToday()` is a
 mixed read, so its value is null until the cache accepts the current Ledger revision; `readRecent()`
 and `readUpcoming()` depend on the Ledger only and are available at once. A null section value
-renders a skeleton for that section alone.
+renders a skeleton for that section alone. A failed `readToday()` renders 'Couldn't load today's
+spending' and a filled Retry in the Today tray; Retry calls `AnalysisQueries.retry()` through
+`OverviewNotifier.retryToday`. Recent entries and Coming up keep rendering. `recordedToday` is true
+only when `readToday()` is current for the Ledger revision, so a new first entry never shows
+'S$0.00' while Today is still computing.
 
 ## Read definitions
 
@@ -38,7 +42,8 @@ renders a skeleton for that section alone.
   shows 'Set a monthly cap to see a daily guide.' with a 'Set a monthly cap' link.
 - Today shows 'Nothing recorded today' instead of an amount when no active entry is dated today
   (`OverviewViewState.recordedToday`), so an unknown day is never drawn as zero spending.
-- Recent entries: at most 4 active entries dated before tomorrow, newest first. A row caption is
+- Recent entries: at most 4 active entries dated before tomorrow, newest first; same-day entries
+  order by id descending. A row caption is
   '<Today or d MMM> / <category> / <account line>' and the title is the entry name, falling back to
   the category title.
 - Coming up: the next 42 days from `readUpcoming()`, in its date order. A statement row reads
@@ -57,7 +62,8 @@ renders a skeleton for that section alone.
 - The fresh-install framing of the reference ('Start with an account' tray, 'Add your first entry'
   link) is not rendered.
 - `OverviewFlow` is not mounted by `AppShell` yet; tests mount it directly.
-- Every visual value in `overview_screen.dart` is a named constant.
+- Every visual value in `overview_screen.dart` is a named constant. Coming up rows pass the date
+  column to `MedallionRow.leading`, which replaces the medallion.
 
 ## Requirements
 

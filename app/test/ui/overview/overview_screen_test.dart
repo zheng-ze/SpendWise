@@ -2,6 +2,7 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/tray.dart';
 import 'package:spendwise/ui/overview/overview_flow.dart';
@@ -16,12 +17,13 @@ Future<void> _pumpOverview(
   WidgetTester tester,
   LedgerState state, {
   required Brightness brightness,
+  ComputeRunner runner = syncComputeRunner,
 }) async {
   tester.view.physicalSize = _phoneSize;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   final ledger = Ledger(state: state);
-  final container = overviewContainer(ledger);
+  final container = overviewContainer(ledger, runner: runner);
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
@@ -150,6 +152,30 @@ void main() {
         );
         expect(find.text('Set a monthly cap'), findsOneWidget);
         expect(find.textContaining('Daily guide'), findsNothing);
+      });
+
+      testWidgets('shows an error with Retry when Today fails', (tester) async {
+        var failing = true;
+        await _pumpOverview(
+          tester,
+          defaultState(),
+          brightness: brightness,
+          runner: (state) => failing
+              ? Future.error(StateError('boom'))
+              : syncComputeRunner(state),
+        );
+
+        expect(find.text("Couldn't load today's spending"), findsOneWidget);
+        expect(find.text('S\$45.70'), findsNothing);
+        expect(find.text('Recent entries'), findsOneWidget);
+
+        failing = false;
+        await tester.tap(find.text('Retry'));
+        await tester.runAsync(() => pumpEventQueue());
+        await tester.pumpAndSettle();
+
+        expect(find.text("Couldn't load today's spending"), findsNothing);
+        expect(find.text('S\$45.70'), findsOneWidget);
       });
 
       testWidgets('is never empty on a fresh install', (tester) async {

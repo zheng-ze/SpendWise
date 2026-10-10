@@ -5,14 +5,17 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 class MedallionRow extends StatelessWidget {
   const MedallionRow({
     super.key,
-    required this.icon,
+    this.icon,
+    this.leading,
     this.iconColor,
     required this.title,
     this.subtitle,
     this.trailing,
-  });
+  }) : assert(icon != null || leading != null);
 
-  final IconData icon;
+  final IconData? icon;
+
+  final Widget? leading;
 
   final Color? iconColor;
 
@@ -41,19 +44,22 @@ class MedallionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final medallion = Container(
-      width: _medallionSize,
-      height: _medallionSize,
-      decoration: BoxDecoration(
-        color: colors.tint,
-        borderRadius: BorderRadius.circular(_medallionRadius),
-      ),
-      child: Icon(
-        icon,
-        size: _medallionIconSize,
-        color: iconColor ?? colors.action,
-      ),
-    );
+    final icon = this.icon;
+    final medallion =
+        leading ??
+        Container(
+          width: _medallionSize,
+          height: _medallionSize,
+          decoration: BoxDecoration(
+            color: colors.tint,
+            borderRadius: BorderRadius.circular(_medallionRadius),
+          ),
+          child: Icon(
+            icon,
+            size: _medallionIconSize,
+            color: iconColor ?? colors.action,
+          ),
+        );
     final subtitle = this.subtitle;
     final titleText = Text(
       title,

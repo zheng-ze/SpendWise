@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ledger/analysis/today_summary.dart';
+import 'package:spendwise/ui/common/app_buttons.dart';
 import 'package:spendwise/ui/common/loading_skeleton.dart';
 import 'package:spendwise/ui/common/medallion_row.dart';
 import 'package:spendwise/ui/common/tray.dart';
@@ -13,6 +14,11 @@ import 'package:spendwise/ui/overview/overview_view_model.dart';
 import 'package:spendwise/ui/symbol_map.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
+const _fullWidth = double.infinity;
+const _linkChevron = Icons.chevron_right;
+const _statementSymbol = 'credit_card';
+const _todayErrorTitle = "Couldn't load today's spending";
+const _retryLabel = 'Retry';
 const _pagePadding = EdgeInsets.fromLTRB(14, 12, 14, 14);
 const _trayGap = 10.0;
 const _smallFontSize = 10.0;
@@ -129,13 +135,18 @@ class _TodayTray extends StatelessWidget {
     final colors = context.colors;
     final isLight = Theme.of(context).brightness == Brightness.light;
     final today = viewState.today;
-    final Widget content = today == null
-        ? const LoadingSkeleton()
-        : _TodayContent(
-            day: viewState.day,
-            summary: today,
-            recorded: viewState.recordedToday,
-          );
+    final Widget content;
+    if (viewState.todayFailed) {
+      content = const _TodayError();
+    } else if (today == null) {
+      content = const LoadingSkeleton();
+    } else {
+      content = _TodayContent(
+        day: viewState.day,
+        summary: today,
+        recorded: viewState.recordedToday,
+      );
+    }
     return Container(
       padding: const EdgeInsets.all(_padding),
       decoration: BoxDecoration(
@@ -146,7 +157,35 @@ class _TodayTray extends StatelessWidget {
         ),
         borderRadius: _radius,
       ),
-      child: SizedBox(width: double.infinity, child: content),
+      child: SizedBox(width: _fullWidth, child: content),
+    );
+  }
+}
+
+class _TodayError extends ConsumerWidget {
+  const _TodayError();
+
+  static const _messageGap = 10.0;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          _todayErrorTitle,
+          style: TextStyle(
+            fontSize: _bodyFontSize,
+            fontWeight: _semiBold,
+            color: context.colors.error,
+          ),
+        ),
+        const SizedBox(height: _messageGap),
+        PrimaryButton(
+          label: _retryLabel,
+          onPressed: ref.read(overviewViewModelProvider.notifier).retryToday,
+        ),
+      ],
     );
   }
 }
@@ -257,7 +296,7 @@ class _LinkText extends StatelessWidget {
           ),
           if (withChevron) ...[
             const SizedBox(width: _chevronGap),
-            Icon(Icons.chevron_right, size: _linkIconSize, color: color),
+            Icon(_linkChevron, size: _linkIconSize, color: color),
           ],
         ],
       ),
@@ -304,7 +343,7 @@ class _RecentTray extends StatelessWidget {
       );
     }
     return SizedBox(
-      width: double.infinity,
+      width: _fullWidth,
       child: Tray(title: _recentTitle, child: content),
     );
   }
@@ -335,7 +374,7 @@ class _ComingUpTray extends StatelessWidget {
       );
     }
     return SizedBox(
-      width: double.infinity,
+      width: _fullWidth,
       child: Tray(
         title: _comingUpTitle,
         trailing: _EmptyCopy(_comingUpWindow),
@@ -354,12 +393,14 @@ class _OverviewRowFrame extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final divider = BorderSide(
-      color: isLast ? Colors.transparent : context.colors.edge,
+      color: context.colors.edge,
       width: _rowDividerWidth,
     );
     return Container(
       padding: const EdgeInsets.symmetric(vertical: _rowVerticalPadding),
-      decoration: BoxDecoration(border: Border(bottom: divider)),
+      decoration: isLast
+          ? null
+          : BoxDecoration(border: Border(bottom: divider)),
       child: child,
     );
   }
@@ -410,9 +451,6 @@ class _UpcomingRowContent extends StatelessWidget {
   static const _dateWidth = 30.0;
   static const _dayFontSize = 18.0;
   static const _dayLineHeight = 1.05;
-  static const _labelGap = 9.0;
-  static const _titleLineHeight = 1.25;
-  static const _captionLineHeight = 1.3;
   static const _statementIconSize = 17.0;
 
   @override
@@ -424,7 +462,7 @@ class _UpcomingRowContent extends StatelessWidget {
         ? Padding(
             padding: const EdgeInsets.only(left: _rowTrailingGap),
             child: Icon(
-              symbolIcon('credit_card'),
+              symbolIcon(_statementSymbol),
               size: _statementIconSize,
               color: colors.text,
             ),
@@ -454,35 +492,11 @@ class _UpcomingRowContent extends StatelessWidget {
         ],
       ),
     );
-    final labels = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          row.title,
-          style: const TextStyle(
-            fontSize: _bodyFontSize,
-            fontWeight: _semiBold,
-            height: _titleLineHeight,
-          ),
-        ),
-        Text(
-          row.caption,
-          style: TextStyle(
-            fontSize: _smallFontSize,
-            color: colors.subtext,
-            height: _captionLineHeight,
-          ),
-        ),
-      ],
-    );
-    return Row(
-      children: [
-        date,
-        const SizedBox(width: _labelGap),
-        Expanded(child: labels),
-        trailing,
-      ],
+    return MedallionRow(
+      leading: date,
+      title: row.title,
+      subtitle: row.caption,
+      trailing: trailing,
     );
   }
 }
