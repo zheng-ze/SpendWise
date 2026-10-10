@@ -61,7 +61,8 @@ class InsightRules {
     int baselineExpenseCount,
   ) {
     final change = scaledChange(observedTotal, baselineTotal).abs();
-    return baselineExpenseCount >= minimumExpenseCount &&
+    return change > Decimal.zero &&
+        baselineExpenseCount >= minimumExpenseCount &&
         baselineTotal >= minimumUsual * _baselineWindowDecimal &&
         change >= minimumAbsoluteChange * _baselineWindowDecimal &&
         change >= baselineTotal * minimumRelativeChange;

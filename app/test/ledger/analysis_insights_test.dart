@@ -362,6 +362,31 @@ void main() {
       expect(qualifies('500', '0'), isFalse);
     });
 
+    test('zeroChangeNeverQualifiesEvenWithZeroThresholds', () {
+      final open = InsightRules(
+        minimumAbsoluteChange: Decimal.zero,
+        minimumRelativeChange: Decimal.zero,
+      );
+      final flat = [
+        ..._monthly(_groceriesID, ['10', '10', '10', '0', '0']),
+        _expense(_groceriesID, '10', _today),
+        ..._monthly(_diningID, ['10', '10', '10', '0', '0']),
+        _expense(_diningID, '15', _today),
+      ];
+      final weekFlat = [
+        for (var day = 7; day < 12; day++)
+          _expense(_groceriesID, '6', DateTime.utc(2026, 9, day)),
+        _expense(_groceriesID, '10', _today),
+      ];
+
+      expect(open.qualifies(_d('10'), _d('30'), 5), isFalse);
+      expect(open.qualifies(_d('11'), _d('30'), 5), isTrue);
+      expect(_categories(flat, rules: open).changes.map((c) => c.bucketID), [
+        _diningID,
+      ]);
+      expect(_week(weekFlat, rules: open).qualifies, isFalse);
+    });
+
     test('comparisonIsExactForRepeatingMeans', () {
       final strict = InsightRules(
         minimumUsual: _d('1'),
