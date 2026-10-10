@@ -1,0 +1,1 @@
+enum AnalysisPeriodMode { month, year }
