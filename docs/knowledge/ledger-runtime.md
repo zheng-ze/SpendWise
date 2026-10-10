@@ -1,6 +1,6 @@
 # Ledger Runtime
 
-Last reconciled: 2bb225f
+Last reconciled: fc33c78
 
 ## Feature overview
 
@@ -142,7 +142,8 @@ updates the existing query object without a cache computation
 (`app/lib/boot/providers.dart:analysisQueriesProvider`;
 `app/test/boot/analysis_queries_provider_test.dart`).
 
-`readToday()`, `readPeriod(window:, sourceIDs:)`, and `readWeeks(window:, sourceIDs:)` return
+`readToday()`, `readPeriod(window:, sourceIDs:)`, `readWeeks(window:, sourceIDs:)`, and
+`readCategoryBreakdown(period:, mode:, kind:, level:)` return
 `AnalysisQueryResult<T>` with nullable `value`, `ready`/`loading`/`failed` state, and nullable
 `sourceRevision`. These reads mix Ledger state with
 analysis items and evaluate only when `cache.itemsSourceRevision == ledger.revision`. While
@@ -247,8 +248,22 @@ its previous successful value if present (`analysis_queries.dart:_readLedgerOnly
   backward navigation in 3-year pages anchored at the current year and is computed from
   firstRecordMonth inside the gated evaluation. An end year after the current year fails the read
   (`app/lib/ledger/analysis/year_spread.dart`; `analysis_year_spread_test.dart`).
-- `categoryBreakdown` is a pure helper, with no `AnalysisQueries` read. It groups `AnalysisItem`s
-  of one kind within one window into a `PeriodBreakdown` of ranked `BreakdownRow`s.
+- `readCategoryBreakdown(period:, mode:, kind:, level:)` is a mixed read returning
+  `AnalysisQueryResult<PeriodBreakdown>` through `_readMixed`, using the pure `categoryBreakdown`
+  helper to group `AnalysisItem`s of one kind within one window into ranked `BreakdownRow`s.
+  It normalizes `period` with `startOfDayUtc`; month mode covers its calendar month and year mode
+  covers `[1 January, next 1 January)`. Both use committed amounts without clipping to today,
+  so entries dated after today count. A future period is accepted and yields an empty breakdown
+  unless entries are dated there. Row totals equal the matching expense or income total from
+  `readPeriod` for that window and the matching month or year spread slot when available.
+  Query identity includes mode, window start, kind and level; revision gating, retained values
+  and retry follow the shared mixed-read pattern
+  (`app/lib/ledger/analysis_queries.dart:readCategoryBreakdown`;
+  `app/test/ledger/analysis_category_breakdown_query_test.dart`:
+  `mayBreakdownMatchesPeriodAndMonthSlotAtBothLevels`,
+  `yearBreakdownCoversCalendarYearAndCountsFutureDecember`, `periodInputsNormaliseToUtcMidnight`,
+  `memoIdentitySeparatesByKindLevelModeAndPeriod`, `breakdownFollowsMixedMemoAndRevisionGate`,
+  `failedRefreshRetainsBreakdownAndRetryRecovers`, `futurePeriodsAreReadyAndEmptyUnlessBooked`).
   `BreakdownLevel.categories` uses `Accounting.rollUp`; `subcategories` keeps leaf rows and marks
   a main's directly booked items as an `isDirect` 'Direct to <Main>' row when any child exists in
   `state.categories`, regardless of that child's lifecycle or `includeInAnalysis` flag. A childless
