@@ -22,7 +22,7 @@ import 'package:spendwise/ledger/analysis/year_spread.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
 
-const int _maxRetainedIdentities = 64;
+const int _maxRetainedIdentities = 16;
 
 class AnalysisQueries extends ChangeNotifier {
   AnalysisQueries({
@@ -510,7 +510,6 @@ class AnalysisQueries extends ChangeNotifier {
   }
 
   void _retain(String identity, _Stored stored) {
-    _stored.remove(identity);
     _stored[identity] = stored;
     while (_stored.length > _maxRetainedIdentities) {
       _stored.remove(_stored.keys.first);

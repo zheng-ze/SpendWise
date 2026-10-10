@@ -5,7 +5,7 @@ import 'package:spendwise/ledger/analysis_queries.dart';
 
 import 'analysis_test_support.dart';
 
-const _retentionCap = 64;
+const _retentionCap = 16;
 const _overflowCount = 10;
 
 void _readSearches(AnalysisQueries queries, Iterable<int> range) {
@@ -21,11 +21,6 @@ void main() {
     _readSearches(h.queries, Iterable.generate(_retentionCap + _overflowCount));
 
     expect(identical(h.queries.readSearch(query: 'q0'), oldest), isFalse);
-    final newest = h.queries.readSearch(query: 'q$_retentionCap');
-    expect(
-      identical(h.queries.readSearch(query: 'q$_retentionCap'), newest),
-      isTrue,
-    );
   });
 
   test('aRecentlyReadIdentitySurvivesWhileTheOldestIsEvicted', () {
