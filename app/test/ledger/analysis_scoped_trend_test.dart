@@ -5,17 +5,17 @@ import 'package:spendwise/ledger/analysis/completeness.dart';
 import 'package:spendwise/ledger/analysis/month_spread.dart';
 import 'package:spendwise/ledger/analysis/scoped_trend.dart';
 
-String _id(int n) => '00000000-0000-4000-8000-${n.toString().padLeft(12, '0')}';
+import 'analysis_test_support.dart';
 
-final _main = _id(1);
-final _childA = _id(2);
-final _childB = _id(3);
-final _other = _id(4);
-final _otherChild = _id(5);
-final _checking = _id(10);
-final _flagged = _id(11);
-final _incomeMain = _id(20);
-final _incomeChild = _id(21);
+final _main = testId(1);
+final _childA = testId(2);
+final _childB = testId(3);
+final _other = testId(4);
+final _otherChild = testId(5);
+final _checking = testId(10);
+final _flagged = testId(11);
+final _incomeMain = testId(20);
+final _incomeChild = testId(21);
 const _syntheticID = 'transfer-expense:savings';
 
 final _today = DateTime.utc(2027, 5, 15);
@@ -781,7 +781,7 @@ void main() {
 
       expect(() => trend(_other, _childA), throwsArgumentError);
       expect(() => trend(null, _childA), throwsArgumentError);
-      expect(() => trend(_main, _id(99)), throwsArgumentError);
+      expect(() => trend(_main, testId(99)), throwsArgumentError);
       expect(() => trend(_main, _main), throwsArgumentError);
       expect(() => trend(_childB, _childA), throwsArgumentError);
     });
@@ -815,18 +815,18 @@ void main() {
       final state = _coreState();
       final all = _trend(
         state,
-        main: _id(99),
+        main: testId(99),
         scope: const AnalysisCategoryScope.all(),
       );
       final direct = _trend(
         state,
-        main: _id(99),
+        main: testId(99),
         scope: const AnalysisCategoryScope.direct(),
       );
 
       for (final result in [all, direct]) {
         expect(result.slots, hasLength(12));
-        expect(result.mainBucketID, _id(99));
+        expect(result.mainBucketID, testId(99));
         for (final slot in result.slots) {
           expect(slot.total, Decimal.zero);
           expect(slot.itemCount, 0);

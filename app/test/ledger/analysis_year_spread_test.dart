@@ -1,12 +1,11 @@
-import 'dart:async';
-
 import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
 import 'package:spendwise/ledger/analysis/year_spread.dart';
-import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/analysis_queries.dart';
 import 'package:spendwise/ledger/ledger.dart';
+
+import 'analysis_test_support.dart';
 
 const _checkingID = '11111111-1111-1111-1111-111111111111';
 const _savingsID = '22222222-2222-2222-2222-222222222222';
@@ -19,32 +18,6 @@ const _earliestID = 'd0000000-0000-0000-0000-000000000001';
 
 final _today = DateTime.utc(2027, 5, 15);
 const _endYear = 2027;
-
-class _ManualRunner {
-  final List<Completer<List<AnalysisItem>>> pending = [];
-
-  int calls = 0;
-
-  Future<List<AnalysisItem>> call(LedgerState state) {
-    calls++;
-    final completer = Completer<List<AnalysisItem>>();
-    pending.add(completer);
-    return completer.future;
-  }
-}
-
-({Ledger ledger, AnalysisQueries queries, _ManualRunner runner}) _setup() {
-  final ledger = Ledger();
-  final runner = _ManualRunner();
-  final cache = AnalysisCache(runner: runner.call)
-    ..start(ledger.bus, sourceRevision: () => ledger.revision);
-  final queries = AnalysisQueries(ledger: ledger, cache: cache, today: _today);
-  addTearDown(() async {
-    queries.dispose();
-    await cache.dispose();
-  });
-  return (ledger: ledger, queries: queries, runner: runner);
-}
 
 void _populate(Ledger ledger) {
   ledger.addAccount(
@@ -205,11 +178,6 @@ void _populate(Ledger ledger) {
   );
 }
 
-Future<void> _settle(_ManualRunner runner, Ledger ledger) async {
-  runner.pending.last.complete(Accounting.analysisItems(ledger.state));
-  await pumpEventQueue();
-}
-
 YearSpread _readySpread(AnalysisQueries queries, CategoryKind kind) {
   final read = queries.readYearSpread(endYear: _endYear, kind: kind);
   expect(read.state, AnalysisQueryState.ready);
@@ -222,9 +190,9 @@ YearSlot _slot(YearSpread spread, int year) {
 
 void main() {
   test('fullYearSumsIncludeJanuaryLateYearAndAfterTodayEntries', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     _populate(setup.ledger);
-    await _settle(setup.runner, setup.ledger);
+    await settle(setup.runner, setup.ledger);
     final expense = _readySpread(setup.queries, CategoryKind.expense);
     final income = _readySpread(setup.queries, CategoryKind.income);
 
@@ -260,8 +228,8 @@ void main() {
   });
 
   test('emptyAndOutOfRecordYearsStayZeroAndFutureEndsFail', () async {
-    final empty = _setup();
-    await _settle(empty.runner, empty.ledger);
+    final empty = setupAnalysis();
+    await settle(empty.runner, empty.ledger);
     final emptySpread = empty.queries.readYearSpread(
       endYear: _endYear,
       kind: CategoryKind.expense,
@@ -273,9 +241,9 @@ void main() {
     expect(emptyCurrent.total, Decimal.zero);
     expect(emptyCurrent.itemCount, 0);
 
-    final setup = _setup();
+    final setup = setupAnalysis();
     _populate(setup.ledger);
-    await _settle(setup.runner, setup.ledger);
+    await settle(setup.runner, setup.ledger);
 
     final historical = setup.queries.readYearSpread(
       endYear: 2023,
@@ -344,7 +312,7 @@ void main() {
   });
 
   test('spreadFollowsMixedMemoAndRevisionGate', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     final ledger = setup.ledger;
     final queries = setup.queries;
     final runner = setup.runner;
@@ -357,7 +325,7 @@ void main() {
     expect(loading.value, isNull);
 
     _populate(ledger);
-    await _settle(runner, ledger);
+    await settle(runner, ledger);
     final settled = queries.readYearSpread(
       endYear: _endYear,
       kind: CategoryKind.expense,
@@ -390,7 +358,7 @@ void main() {
     expect(retained.value, settled.value);
     expect(retained.sourceRevision, settled.sourceRevision);
 
-    await _settle(runner, ledger);
+    await settle(runner, ledger);
     final updated = queries.readYearSpread(
       endYear: _endYear,
       kind: CategoryKind.expense,
@@ -401,12 +369,12 @@ void main() {
   });
 
   test('movingEarliestDuringPendingRefreshKeepsSpreadCoherent', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     final ledger = setup.ledger;
     final queries = setup.queries;
     final runner = setup.runner;
     _populate(ledger);
-    await _settle(runner, ledger);
+    await settle(runner, ledger);
 
     final revision = ledger.revision;
     final settled = queries.readYearSpread(
@@ -433,7 +401,7 @@ void main() {
     expect(freshFirst.value, DateTime.utc(2025, 1, 1));
     expect(retained.sourceRevision, isNot(freshFirst.sourceRevision));
 
-    await _settle(runner, ledger);
+    await settle(runner, ledger);
     final accepted = queries.readYearSpread(
       endYear: _endYear,
       kind: CategoryKind.expense,
@@ -444,9 +412,9 @@ void main() {
   });
 
   test('dayChangeRecomputesSpreadWithoutRunnerWork', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     _populate(setup.ledger);
-    await _settle(setup.runner, setup.ledger);
+    await settle(setup.runner, setup.ledger);
     final queries = setup.queries;
     final calls = setup.runner.calls;
     var notifications = 0;
@@ -475,9 +443,9 @@ void main() {
   });
 
   test('spreadFailureIsIsolated', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     _populate(setup.ledger);
-    await _settle(setup.runner, setup.ledger);
+    await settle(setup.runner, setup.ledger);
     final queries = setup.queries;
 
     final failed = queries.readYearSpread(

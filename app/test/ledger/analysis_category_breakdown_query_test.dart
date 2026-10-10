@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
@@ -9,6 +7,8 @@ import 'package:spendwise/ledger/analysis/scoped_trend.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/analysis_queries.dart';
 import 'package:spendwise/ledger/ledger.dart';
+
+import 'analysis_test_support.dart';
 
 const _checkingID = '11111111-1111-1111-1111-111111111111';
 const _savingsID = '22222222-2222-2222-2222-222222222222';
@@ -34,46 +34,9 @@ const _year2026ExpenseTotal = '7.00';
 const _year2027ExpenseTotal = '189.00';
 const _futureDecemberTotal = '7.00';
 
-final _today = DateTime.utc(2027, 5, 15);
 final _may = DateTime.utc(2027, 5, 1);
 final _june = DateTime.utc(2027, 6, 1);
 final _mayWindow = DateRange(_may, _june);
-
-class _ManualRunner {
-  final List<Completer<List<AnalysisItem>>> pending = [];
-
-  int calls = 0;
-
-  Future<List<AnalysisItem>> call(LedgerState state) {
-    calls++;
-    final completer = Completer<List<AnalysisItem>>();
-    pending.add(completer);
-    return completer.future;
-  }
-}
-
-({
-  Ledger ledger,
-  AnalysisCache cache,
-  AnalysisQueries queries,
-  _ManualRunner runner,
-})
-_setup({DateTime? today}) {
-  final ledger = Ledger();
-  final runner = _ManualRunner();
-  final cache = AnalysisCache(runner: runner.call)
-    ..start(ledger.bus, sourceRevision: () => ledger.revision);
-  final queries = AnalysisQueries(
-    ledger: ledger,
-    cache: cache,
-    today: today ?? _today,
-  );
-  addTearDown(() async {
-    queries.dispose();
-    await cache.dispose();
-  });
-  return (ledger: ledger, cache: cache, queries: queries, runner: runner);
-}
 
 void _populate(Ledger ledger) {
   ledger.addAccount(
@@ -268,11 +231,6 @@ void _populate(Ledger ledger) {
   );
 }
 
-Future<void> _settle(_ManualRunner runner, Ledger ledger) async {
-  runner.pending.last.complete(Accounting.analysisItems(ledger.state));
-  await pumpEventQueue();
-}
-
 Decimal _rowsTotal(PeriodBreakdown breakdown) =>
     breakdown.rows.fold(Decimal.zero, (sum, row) => sum + row.amount);
 
@@ -295,7 +253,7 @@ PeriodBreakdown _readyBreakdown(
 
 Future<int> _editTwiceAndAcceptFirst(
   Ledger ledger,
-  _ManualRunner runner,
+  ManualRunner runner,
   AnalysisCache cache,
   int settledRevision,
 ) async {
@@ -331,9 +289,9 @@ Future<int> _editTwiceAndAcceptFirst(
 
 void main() {
   test('mayBreakdownMatchesPeriodAndMonthSlotAtBothLevels', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     _populate(setup.ledger);
-    await _settle(setup.runner, setup.ledger);
+    await settle(setup.runner, setup.ledger);
     final queries = setup.queries;
 
     final period = queries.readPeriod(window: _mayWindow);
@@ -423,9 +381,9 @@ void main() {
   });
 
   test('yearBreakdownCoversCalendarYearAndCountsFutureDecember', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     _populate(setup.ledger);
-    await _settle(setup.runner, setup.ledger);
+    await settle(setup.runner, setup.ledger);
     final queries = setup.queries;
 
     DateRange yearWindow(int year) =>
@@ -496,9 +454,9 @@ void main() {
   });
 
   test('periodInputsNormaliseToUtcMidnight', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     _populate(setup.ledger);
-    await _settle(setup.runner, setup.ledger);
+    await settle(setup.runner, setup.ledger);
     final queries = setup.queries;
 
     final canonical = queries.readCategoryBreakdown(
@@ -555,9 +513,9 @@ void main() {
   });
 
   test('modeAloneSeparatesJanuaryReadsWithSharedWindowStart', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     _populate(setup.ledger);
-    await _settle(setup.runner, setup.ledger);
+    await settle(setup.runner, setup.ledger);
     final queries = setup.queries;
 
     final january = DateTime.utc(2027, 1, 15);
@@ -590,9 +548,9 @@ void main() {
   });
 
   test('periodInputsUseNamedCalendarDayAcrossBoundaries', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     _populate(setup.ledger);
-    await _settle(setup.runner, setup.ledger);
+    await settle(setup.runner, setup.ledger);
     final queries = setup.queries;
 
     AnalysisQueryResult<PeriodBreakdown> query(
@@ -672,8 +630,8 @@ void main() {
   });
 
   test('emptyLedgersGiveEmptyBreakdowns', () async {
-    final setup = _setup();
-    await _settle(setup.runner, setup.ledger);
+    final setup = setupAnalysis();
+    await settle(setup.runner, setup.ledger);
     for (final mode in AnalysisPeriodMode.values) {
       for (final level in BreakdownLevel.values) {
         for (final kind in CategoryKind.values) {
@@ -690,7 +648,7 @@ void main() {
       }
     }
 
-    final expenseOnly = _setup();
+    final expenseOnly = setupAnalysis();
     expenseOnly.ledger.addAccount(
       Account(id: _checkingID, name: 'Checking', type: AccountType.checking),
     );
@@ -715,7 +673,7 @@ void main() {
         date: _may,
       ),
     );
-    await _settle(expenseOnly.runner, expenseOnly.ledger);
+    await settle(expenseOnly.runner, expenseOnly.ledger);
     for (final level in BreakdownLevel.values) {
       final incomeMonth = _readyBreakdown(
         expenseOnly.queries,
@@ -739,9 +697,9 @@ void main() {
   });
 
   test('gatingFixturesStayOutOfBreakdowns', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     _populate(setup.ledger);
-    await _settle(setup.runner, setup.ledger);
+    await settle(setup.runner, setup.ledger);
     final queries = setup.queries;
 
     for (final level in BreakdownLevel.values) {
@@ -761,7 +719,7 @@ void main() {
   });
 
   test('breakdownFollowsMixedMemoAndRevisionGate', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     final ledger = setup.ledger;
     final queries = setup.queries;
     final runner = setup.runner;
@@ -777,7 +735,7 @@ void main() {
     expect(loading.sourceRevision, isNull);
 
     _populate(ledger);
-    await _settle(runner, ledger);
+    await settle(runner, ledger);
     final settled = queries.readCategoryBreakdown(
       period: _may,
       mode: AnalysisPeriodMode.month,
@@ -808,7 +766,7 @@ void main() {
     expect(retained.value, settled.value);
     expect(retained.sourceRevision, settled.sourceRevision);
 
-    await _settle(runner, ledger);
+    await settle(runner, ledger);
     final updated = queries.readCategoryBreakdown(
       period: _may,
       mode: AnalysisPeriodMode.month,
@@ -821,7 +779,7 @@ void main() {
   });
 
   test('hierarchyAndItemsShareOneRevisionGate', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     final ledger = setup.ledger;
     final queries = setup.queries;
     final runner = setup.runner;
@@ -849,7 +807,7 @@ void main() {
         date: DateTime.utc(2027, 5, 5),
       ),
     );
-    await _settle(runner, ledger);
+    await settle(runner, ledger);
 
     final settled = queries.readCategoryBreakdown(
       period: _may,
@@ -882,7 +840,7 @@ void main() {
     expect(retained.sourceRevision, settled.sourceRevision);
     expect(retained.value?.rows.single.isDirect, isFalse);
 
-    await _settle(runner, ledger);
+    await settle(runner, ledger);
     final updated = queries.readCategoryBreakdown(
       period: _may,
       mode: AnalysisPeriodMode.month,
@@ -896,12 +854,12 @@ void main() {
   });
 
   test('staleCompletionKeepsTheNewerBreakdown', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     final ledger = setup.ledger;
     final queries = setup.queries;
     final runner = setup.runner;
     _populate(ledger);
-    await _settle(runner, ledger);
+    await settle(runner, ledger);
     final base = runner.pending.length;
 
     PeriodBreakdown read() => _readyBreakdown(
@@ -965,13 +923,13 @@ void main() {
   test(
     'acceptedOlderRefreshDuringNewerPendingRetainsPublishedBreakdown',
     () async {
-      final setup = _setup();
+      final setup = setupAnalysis();
       final ledger = setup.ledger;
       final queries = setup.queries;
       final runner = setup.runner;
       final cache = setup.cache;
       _populate(ledger);
-      await _settle(runner, ledger);
+      await settle(runner, ledger);
       final settledRevision = ledger.revision;
 
       AnalysisQueryResult<PeriodBreakdown> read() =>
@@ -1010,13 +968,13 @@ void main() {
   test(
     'acceptedOlderRefreshDuringNewerPendingLeavesUnreadBreakdownLoading',
     () async {
-      final setup = _setup();
+      final setup = setupAnalysis();
       final ledger = setup.ledger;
       final queries = setup.queries;
       final runner = setup.runner;
       final cache = setup.cache;
       _populate(ledger);
-      await _settle(runner, ledger);
+      await settle(runner, ledger);
       final settledRevision = ledger.revision;
 
       AnalysisQueryResult<PeriodBreakdown> read() =>
@@ -1048,12 +1006,12 @@ void main() {
   );
 
   test('failedRefreshRetainsBreakdownAndRetryRecovers', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     final ledger = setup.ledger;
     final queries = setup.queries;
     final runner = setup.runner;
     _populate(ledger);
-    await _settle(runner, ledger);
+    await settle(runner, ledger);
 
     final settled = queries.readCategoryBreakdown(
       period: _may,
@@ -1114,9 +1072,9 @@ void main() {
   });
 
   test('memoIdentitySeparatesByKindLevelModeAndPeriod', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     _populate(setup.ledger);
-    await _settle(setup.runner, setup.ledger);
+    await settle(setup.runner, setup.ledger);
     final queries = setup.queries;
 
     AnalysisQueryResult<PeriodBreakdown> read({
@@ -1157,9 +1115,9 @@ void main() {
   });
 
   test('dayRolloverKeepsBreakdownTotalsWithoutRunnerWork', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     _populate(setup.ledger);
-    await _settle(setup.runner, setup.ledger);
+    await settle(setup.runner, setup.ledger);
     final queries = setup.queries;
     final calls = setup.runner.calls;
 
@@ -1186,9 +1144,9 @@ void main() {
   });
 
   test('futurePeriodsAreReadyAndEmptyUnlessBooked', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     _populate(setup.ledger);
-    await _settle(setup.runner, setup.ledger);
+    await settle(setup.runner, setup.ledger);
     final queries = setup.queries;
 
     final june = _readyBreakdown(

@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ledger/analysis/analysis_category_scope.dart';
@@ -10,6 +8,8 @@ import 'package:spendwise/ledger/analysis/scoped_trend.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/analysis_queries.dart';
 import 'package:spendwise/ledger/ledger.dart';
+
+import 'analysis_test_support.dart';
 
 const _checkingID = '11111111-1111-1111-1111-111111111111';
 const _mainID = 'bbbbbbbb-3333-3333-3333-333333333333';
@@ -37,7 +37,6 @@ const _mutatedYearTotal = '56.00';
 const _staleNewestMayTotal = '34.00';
 const _recoveredMayTotal = '32.00';
 
-final _today = DateTime.utc(2027, 5, 15);
 final _decemberToday = DateTime.utc(2027, 12, 15);
 final _may = DateTime.utc(2027, 5, 1);
 final _january = DateTime.utc(2027, 1, 1);
@@ -45,42 +44,6 @@ final _june = DateTime.utc(2027, 6, 1);
 final _june2026 = DateTime.utc(2026, 6, 1);
 final _december = DateTime.utc(2027, 12, 1);
 final _yearPeriod = DateTime.utc(2027, 6, 15);
-
-class _ManualRunner {
-  final List<Completer<List<AnalysisItem>>> pending = [];
-
-  int calls = 0;
-
-  Future<List<AnalysisItem>> call(LedgerState state) {
-    calls++;
-    final completer = Completer<List<AnalysisItem>>();
-    pending.add(completer);
-    return completer.future;
-  }
-}
-
-({
-  Ledger ledger,
-  AnalysisCache cache,
-  AnalysisQueries queries,
-  _ManualRunner runner,
-})
-_setup({DateTime? today}) {
-  final ledger = Ledger();
-  final runner = _ManualRunner();
-  final cache = AnalysisCache(runner: runner.call)
-    ..start(ledger.bus, sourceRevision: () => ledger.revision);
-  final queries = AnalysisQueries(
-    ledger: ledger,
-    cache: cache,
-    today: today ?? _today,
-  );
-  addTearDown(() async {
-    queries.dispose();
-    await cache.dispose();
-  });
-  return (ledger: ledger, cache: cache, queries: queries, runner: runner);
-}
 
 void _populate(Ledger ledger) {
   ledger.addAccount(
@@ -218,11 +181,6 @@ void _populate(Ledger ledger) {
   entry('${p}000000000012', '-9.00', DateTime.utc(2027, 5, 14));
 }
 
-Future<void> _settle(_ManualRunner runner, Ledger ledger) async {
-  runner.pending.last.complete(Accounting.analysisItems(ledger.state));
-  await pumpEventQueue();
-}
-
 MonthSlot _slot(ScopedTrend trend, DateTime month) =>
     trend.slots.singleWhere((candidate) => candidate.month == month);
 
@@ -250,7 +208,7 @@ ScopedTrend _readyTrend(
 
 Future<int> _editTwiceAndAcceptFirst(
   Ledger ledger,
-  _ManualRunner runner,
+  ManualRunner runner,
   AnalysisCache cache,
   int settledRevision,
 ) async {
@@ -286,9 +244,9 @@ Future<int> _editTwiceAndAcceptFirst(
 
 void main() {
   test('monthTrendScopesReturnCommittedSlotTotals', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     _populate(setup.ledger);
-    await _settle(setup.runner, setup.ledger);
+    await settle(setup.runner, setup.ledger);
     final queries = setup.queries;
 
     ScopedTrend read(String? main, AnalysisCategoryScope scope) => _readyTrend(
@@ -356,9 +314,9 @@ void main() {
   });
 
   test('yearTrendCountsEntriesAfterToday', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     _populate(setup.ledger);
-    await _settle(setup.runner, setup.ledger);
+    await settle(setup.runner, setup.ledger);
     final queries = setup.queries;
 
     ScopedTrend read(String? main, AnalysisCategoryScope scope) => _readyTrend(
@@ -399,7 +357,7 @@ void main() {
   });
 
   test('trendFollowsMixedMemoAndRevisionGate', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     final ledger = setup.ledger;
     final queries = setup.queries;
     final runner = setup.runner;
@@ -429,7 +387,7 @@ void main() {
     expect(loadingYear.sourceRevision, isNull);
 
     _populate(ledger);
-    await _settle(runner, ledger);
+    await settle(runner, ledger);
 
     final settledMonth = monthRead();
     expect(settledMonth.state, AnalysisQueryState.ready);
@@ -466,7 +424,7 @@ void main() {
     expect(freshWhilePending.value, isNull);
     expect(freshWhilePending.sourceRevision, isNull);
 
-    await _settle(runner, ledger);
+    await settle(runner, ledger);
     final updatedMonth = monthRead();
     expect(updatedMonth.state, AnalysisQueryState.ready);
     expect(updatedMonth.sourceRevision, ledger.revision);
@@ -481,12 +439,12 @@ void main() {
   });
 
   test('staleCompletionKeepsTheNewerTrend', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     final ledger = setup.ledger;
     final queries = setup.queries;
     final runner = setup.runner;
     _populate(ledger);
-    await _settle(runner, ledger);
+    await settle(runner, ledger);
     final base = runner.pending.length;
 
     ScopedTrend read() => _readyTrend(
@@ -557,13 +515,13 @@ void main() {
   });
 
   test('acceptedOlderRefreshDuringNewerPendingRetainsPublishedTrend', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     final ledger = setup.ledger;
     final queries = setup.queries;
     final runner = setup.runner;
     final cache = setup.cache;
     _populate(ledger);
-    await _settle(runner, ledger);
+    await settle(runner, ledger);
     final settledRevision = ledger.revision;
 
     AnalysisQueryResult<ScopedTrend> read() => queries.readScopedTrend(
@@ -604,13 +562,13 @@ void main() {
   test(
     'acceptedOlderRefreshDuringNewerPendingLeavesUnreadTrendLoading',
     () async {
-      final setup = _setup();
+      final setup = setupAnalysis();
       final ledger = setup.ledger;
       final queries = setup.queries;
       final runner = setup.runner;
       final cache = setup.cache;
       _populate(ledger);
-      await _settle(runner, ledger);
+      await settle(runner, ledger);
       final settledRevision = ledger.revision;
 
       AnalysisQueryResult<ScopedTrend> read() => queries.readScopedTrend(
@@ -645,12 +603,12 @@ void main() {
   );
 
   test('failedRefreshRetainsTrendAndRetryRecovers', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     final ledger = setup.ledger;
     final queries = setup.queries;
     final runner = setup.runner;
     _populate(ledger);
-    await _settle(runner, ledger);
+    await settle(runner, ledger);
 
     final settled = queries.readScopedTrend(
       period: _may,
@@ -718,9 +676,9 @@ void main() {
   });
 
   test('memoIdentitySharesEquivalentInputs', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     _populate(setup.ledger);
-    await _settle(setup.runner, setup.ledger);
+    await settle(setup.runner, setup.ledger);
     final queries = setup.queries;
 
     AnalysisQueryResult<ScopedTrend> monthRead({
@@ -776,9 +734,9 @@ void main() {
   });
 
   test('memoIdentitySeparatesByKindModePeriodMainAndScope', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     _populate(setup.ledger);
-    await _settle(setup.runner, setup.ledger);
+    await settle(setup.runner, setup.ledger);
     final queries = setup.queries;
 
     const useDefaultMain = Object();
@@ -839,9 +797,9 @@ void main() {
     );
     expect(_slotsTotal(januaryYear.value!), Decimal.parse(_yearAllTotal));
 
-    final decemberSetup = _setup(today: _decemberToday);
+    final decemberSetup = setupAnalysis(today: _decemberToday);
     _populate(decemberSetup.ledger);
-    await _settle(decemberSetup.runner, decemberSetup.ledger);
+    await settle(decemberSetup.runner, decemberSetup.ledger);
     final decemberQueries = decemberSetup.queries;
     final decemberMonth = decemberQueries.readScopedTrend(
       period: _december,
@@ -886,9 +844,9 @@ void main() {
   });
 
   test('dayRolloverKeepsYearTrendWithoutRunnerWork', () async {
-    final setup = _setup(today: DateTime.utc(2027, 5, 31));
+    final setup = setupAnalysis(today: DateTime.utc(2027, 5, 31));
     _populate(setup.ledger);
-    await _settle(setup.runner, setup.ledger);
+    await settle(setup.runner, setup.ledger);
     final queries = setup.queries;
     final calls = setup.runner.calls;
 
@@ -918,9 +876,9 @@ void main() {
   });
 
   test('invalidTrendFailsOnlyItsIdentity', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     _populate(setup.ledger);
-    await _settle(setup.runner, setup.ledger);
+    await settle(setup.runner, setup.ledger);
     final queries = setup.queries;
 
     final valid = queries.readScopedTrend(
