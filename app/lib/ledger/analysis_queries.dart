@@ -3,14 +3,17 @@ import 'dart:async';
 import 'package:domain/domain.dart';
 import 'package:flutter/foundation.dart';
 
+import 'package:spendwise/ledger/analysis/analysis_category_scope.dart';
 import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
 import 'package:spendwise/ledger/analysis/calendar.dart';
+import 'package:spendwise/ledger/analysis/category_breakdown.dart';
 import 'package:spendwise/ledger/analysis/compared_with_usual.dart';
 import 'package:spendwise/ledger/analysis/completeness.dart';
 import 'package:spendwise/ledger/analysis/entry_record.dart';
 import 'package:spendwise/ledger/analysis/month_spread.dart';
 import 'package:spendwise/ledger/analysis/period_summary.dart';
 import 'package:spendwise/ledger/analysis/register.dart';
+import 'package:spendwise/ledger/analysis/scoped_trend.dart';
 import 'package:spendwise/ledger/analysis/search.dart';
 import 'package:spendwise/ledger/analysis/today_summary.dart';
 import 'package:spendwise/ledger/analysis/upcoming.dart';
@@ -314,6 +317,65 @@ class AnalysisQueries extends ChangeNotifier {
         today: _today,
       );
     });
+  }
+
+  AnalysisQueryResult<PeriodBreakdown> readCategoryBreakdown({
+    required DateTime period,
+    required AnalysisPeriodMode mode,
+    required CategoryKind kind,
+    required BreakdownLevel level,
+  }) {
+    final day = startOfDayUtc(period);
+    final window = switch (mode) {
+      AnalysisPeriodMode.month => monthWindow(day),
+      AnalysisPeriodMode.year => DateRange(
+        DateTime.utc(day.year, 1, 1),
+        DateTime.utc(day.year + 1, 1, 1),
+      ),
+    };
+    return _readMixed<PeriodBreakdown>(
+      'breakdown|${mode.name}|${window.start.toIso8601String()}|'
+      '${kind.name}|${level.name}',
+      () => categoryBreakdown(
+        items: _cache.items,
+        state: _ledger.state,
+        window: window,
+        kind: kind,
+        level: level,
+      ),
+    );
+  }
+
+  AnalysisQueryResult<ScopedTrend> readScopedTrend({
+    required DateTime period,
+    required AnalysisPeriodMode mode,
+    required CategoryKind kind,
+    required String? mainBucketID,
+    required AnalysisCategoryScope scope,
+  }) {
+    final day = startOfDayUtc(period);
+    final anchor = scopedTrendAnchor(day, mode);
+    final main = normalizedOptionalID(mainBucketID);
+    final mainIdentity = main == null ? 'uncategorized' : 'bucket:$main';
+    final scopeIdentity = switch (scope) {
+      AllCategoryScope() => 'all',
+      DirectCategoryScope() => 'direct',
+      SubCategoryScope(:final subID) => 'sub:$subID',
+    };
+    return _readMixed<ScopedTrend>(
+      'scoped-trend|${mode.name}|${anchor.toIso8601String()}|'
+      '${kind.name}|$mainIdentity|$scopeIdentity',
+      () => scopedTrend(
+        mainBucketID: main,
+        scope: scope,
+        kind: kind,
+        period: day,
+        mode: mode,
+        today: _today,
+        state: _ledger.state,
+        items: _cache.items,
+      ),
+    );
   }
 
   AnalysisQueryResult<ComparedWithUsual> readComparedWithUsual({

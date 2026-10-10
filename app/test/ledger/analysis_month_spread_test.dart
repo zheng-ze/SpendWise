@@ -1,13 +1,12 @@
-import 'dart:async';
-
 import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
 import 'package:spendwise/ledger/analysis/completeness.dart';
 import 'package:spendwise/ledger/analysis/month_spread.dart';
-import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/analysis_queries.dart';
 import 'package:spendwise/ledger/ledger.dart';
+
+import 'analysis_test_support.dart';
 
 const _checkingID = '11111111-1111-1111-1111-111111111111';
 const _savingsID = '22222222-2222-2222-2222-222222222222';
@@ -18,42 +17,6 @@ const _hiddenID = '66666666-6666-6666-6666-666666666666';
 
 final _today = DateTime.utc(2027, 5, 15);
 final _endMonth = DateTime.utc(2027, 5, 1);
-
-class _ManualRunner {
-  final List<Completer<List<AnalysisItem>>> pending = [];
-
-  int calls = 0;
-
-  Future<List<AnalysisItem>> call(LedgerState state) {
-    calls++;
-    final completer = Completer<List<AnalysisItem>>();
-    pending.add(completer);
-    return completer.future;
-  }
-}
-
-({
-  Ledger ledger,
-  AnalysisCache cache,
-  AnalysisQueries queries,
-  _ManualRunner runner,
-})
-_setup({DateTime? today}) {
-  final ledger = Ledger();
-  final runner = _ManualRunner();
-  final cache = AnalysisCache(runner: runner.call)
-    ..start(ledger.bus, sourceRevision: () => ledger.revision);
-  final queries = AnalysisQueries(
-    ledger: ledger,
-    cache: cache,
-    today: today ?? _today,
-  );
-  addTearDown(() async {
-    queries.dispose();
-    await cache.dispose();
-  });
-  return (ledger: ledger, cache: cache, queries: queries, runner: runner);
-}
 
 void _populate(Ledger ledger) {
   ledger.addAccount(
@@ -213,15 +176,6 @@ void _populate(Ledger ledger) {
   );
 }
 
-Future<void> _settle(
-  _ManualRunner runner,
-  Ledger ledger, {
-  List<AnalysisItem>? items,
-}) async {
-  runner.pending.last.complete(items ?? Accounting.analysisItems(ledger.state));
-  await pumpEventQueue();
-}
-
 MonthSpread _readySpread(AnalysisQueries queries, CategoryKind kind) {
   final read = queries.readMonthSpread(endMonth: _endMonth, kind: kind);
   expect(read.state, AnalysisQueryState.ready);
@@ -236,9 +190,9 @@ MonthSlot _slot(MonthSpread spread, int year, int month) {
 
 void main() {
   test('spreadsCoverTwelveMonthsWithCommittedTotals', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     _populate(setup.ledger);
-    await _settle(setup.runner, setup.ledger);
+    await settle(setup.runner, setup.ledger);
     final expense = _readySpread(setup.queries, CategoryKind.expense);
     final income = _readySpread(setup.queries, CategoryKind.income);
 
@@ -280,8 +234,8 @@ void main() {
   });
 
   test('emptyMonthsAreZeroForBothKinds', () async {
-    final juneSetup = _setup(today: DateTime.utc(2027, 6, 15));
-    await _settle(juneSetup.runner, juneSetup.ledger);
+    final juneSetup = setupAnalysis(today: DateTime.utc(2027, 6, 15));
+    await settle(juneSetup.runner, juneSetup.ledger);
     final june = juneSetup.queries.readMonthSpread(
       endMonth: DateTime.utc(2027, 6, 1),
       kind: CategoryKind.expense,
@@ -294,9 +248,9 @@ void main() {
   });
 
   test('currentSlotMatchesReadPeriodForBothKinds', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     _populate(setup.ledger);
-    await _settle(setup.runner, setup.ledger);
+    await settle(setup.runner, setup.ledger);
     final queries = setup.queries;
     final may = DateRange(_endMonth, DateTime.utc(2027, 6, 1));
 
@@ -310,9 +264,9 @@ void main() {
   });
 
   test('outOfRecordEndsStayEmptyAndFutureEndsFail', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     _populate(setup.ledger);
-    await _settle(setup.runner, setup.ledger);
+    await settle(setup.runner, setup.ledger);
 
     final historical = setup.queries.readMonthSpread(
       endMonth: DateTime.utc(2026, 6, 1),
@@ -348,9 +302,9 @@ void main() {
   });
 
   test('navigationAnchorsPagesAtTheCurrentMonth', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     _populate(setup.ledger);
-    await _settle(setup.runner, setup.ledger);
+    await settle(setup.runner, setup.ledger);
     expect(
       _readySpread(setup.queries, CategoryKind.expense).earliestSpreadEndMonth,
       _endMonth,
@@ -403,7 +357,7 @@ void main() {
   });
 
   test('spreadFollowsMixedMemoAndRevisionGate', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     final ledger = setup.ledger;
     final queries = setup.queries;
     final runner = setup.runner;
@@ -416,7 +370,7 @@ void main() {
     expect(loading.value, isNull);
 
     _populate(ledger);
-    await _settle(runner, ledger);
+    await settle(runner, ledger);
     final settled = queries.readMonthSpread(
       endMonth: _endMonth,
       kind: CategoryKind.expense,
@@ -459,7 +413,7 @@ void main() {
     expect(retained.value, settled.value);
     expect(retained.sourceRevision, settled.sourceRevision);
 
-    await _settle(runner, ledger);
+    await settle(runner, ledger);
     final updated = queries.readMonthSpread(
       endMonth: _endMonth,
       kind: CategoryKind.expense,
@@ -470,12 +424,12 @@ void main() {
   });
 
   test('movingEarliestDuringPendingRefreshKeepsSpreadCoherent', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     final ledger = setup.ledger;
     final queries = setup.queries;
     final runner = setup.runner;
     _populate(ledger);
-    await _settle(runner, ledger);
+    await settle(runner, ledger);
 
     final revision = ledger.revision;
     final settled = queries.readMonthSpread(
@@ -505,7 +459,7 @@ void main() {
     expect(freshMonth.value?.state, PeriodCompleteness.preRecord);
     expect(retained.sourceRevision, isNot(freshMonth.sourceRevision));
 
-    await _settle(runner, ledger);
+    await settle(runner, ledger);
     final accepted = queries.readMonthSpread(
       endMonth: _endMonth,
       kind: CategoryKind.expense,
@@ -523,9 +477,9 @@ void main() {
   });
 
   test('dayChangeRecomputesSpreadWithoutRunnerWork', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     _populate(setup.ledger);
-    await _settle(setup.runner, setup.ledger);
+    await settle(setup.runner, setup.ledger);
     final queries = setup.queries;
     final calls = setup.runner.calls;
     var notifications = 0;
@@ -554,9 +508,9 @@ void main() {
   });
 
   test('spreadFailureIsIsolated', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     _populate(setup.ledger);
-    await _settle(setup.runner, setup.ledger);
+    await settle(setup.runner, setup.ledger);
     final queries = setup.queries;
 
     final failed = queries.readMonthSpread(

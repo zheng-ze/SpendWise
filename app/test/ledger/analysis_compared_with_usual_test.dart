@@ -1,14 +1,13 @@
-import 'dart:async';
-
 import 'package:decimal/decimal.dart';
 import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
 import 'package:spendwise/ledger/analysis/compared_with_usual.dart';
 import 'package:spendwise/ledger/analysis/completeness.dart';
-import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/analysis_queries.dart';
 import 'package:spendwise/ledger/ledger.dart';
+
+import 'analysis_test_support.dart';
 
 const _checkingID = '11111111-1111-1111-1111-111111111111';
 const _foodID = '33333333-3333-3333-3333-333333333333';
@@ -17,42 +16,6 @@ const _payID = '44444444-4444-4444-4444-444444444444';
 final _today = DateTime.utc(2027, 5, 15);
 final _may = DateTime.utc(2027, 5, 1);
 final _firstRecord = DateTime.utc(2027, 1, 1);
-
-class _ManualRunner {
-  final List<Completer<List<AnalysisItem>>> pending = [];
-
-  int calls = 0;
-
-  Future<List<AnalysisItem>> call(LedgerState state) {
-    calls++;
-    final completer = Completer<List<AnalysisItem>>();
-    pending.add(completer);
-    return completer.future;
-  }
-}
-
-({
-  Ledger ledger,
-  AnalysisCache cache,
-  AnalysisQueries queries,
-  _ManualRunner runner,
-})
-_setup({DateTime? today}) {
-  final ledger = Ledger();
-  final runner = _ManualRunner();
-  final cache = AnalysisCache(runner: runner.call)
-    ..start(ledger.bus, sourceRevision: () => ledger.revision);
-  final queries = AnalysisQueries(
-    ledger: ledger,
-    cache: cache,
-    today: today ?? _today,
-  );
-  addTearDown(() async {
-    queries.dispose();
-    await cache.dispose();
-  });
-  return (ledger: ledger, cache: cache, queries: queries, runner: runner);
-}
 
 void _accounts(Ledger ledger) {
   ledger.addAccount(
@@ -128,11 +91,6 @@ void _populateLateStart(Ledger ledger) {
   _entry(ledger, '-7.00', _may.add(const Duration(days: 2)), _foodID);
 }
 
-Future<void> _settle(_ManualRunner runner, Ledger ledger) async {
-  runner.pending.last.complete(Accounting.analysisItems(ledger.state));
-  await pumpEventQueue();
-}
-
 ComparedWithUsual _readyUsual(
   AnalysisQueries queries,
   DateTime month,
@@ -145,9 +103,9 @@ ComparedWithUsual _readyUsual(
 
 void main() {
   test('currentMonthComparesEntriesUpToTodayAgainstThreePrefixes', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     _populateStandard(setup.ledger);
-    await _settle(setup.runner, setup.ledger);
+    await settle(setup.runner, setup.ledger);
     final usual = _readyUsual(setup.queries, _may, CategoryKind.expense);
 
     expect(usual.selectedMonth, _may);
@@ -179,9 +137,9 @@ void main() {
   });
 
   test('pastMonthComparesWholeMonthWithClippedPrefixes', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     _populateStandard(setup.ledger);
-    await _settle(setup.runner, setup.ledger);
+    await settle(setup.runner, setup.ledger);
     final usual = _readyUsual(
       setup.queries,
       DateTime.utc(2027, 4, 1),
@@ -260,9 +218,9 @@ void main() {
   });
 
   test('futureSelectionFailsAtFacadeButNotHelper', () async {
-    final setup = _setup(today: DateTime.utc(2027, 4, 15));
+    final setup = setupAnalysis(today: DateTime.utc(2027, 4, 15));
     _populateStandard(setup.ledger);
-    await _settle(setup.runner, setup.ledger);
+    await settle(setup.runner, setup.ledger);
 
     final failed = setup.queries.readComparedWithUsual(
       month: _may,
@@ -284,9 +242,9 @@ void main() {
       isNull,
     );
 
-    final setup = _setup();
+    final setup = setupAnalysis();
     _populateLateStart(setup.ledger);
-    await _settle(setup.runner, setup.ledger);
+    await settle(setup.runner, setup.ledger);
     final usual = _readyUsual(setup.queries, _may, CategoryKind.expense);
     expect(usual.state, ComparedWithUsualState.notEnoughData);
     expect(usual.baselineWindows, isEmpty);
@@ -297,9 +255,9 @@ void main() {
   });
 
   test('emptyBaselinesStayAvailableWithZeroMean', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     _populateSparse(setup.ledger);
-    await _settle(setup.runner, setup.ledger);
+    await settle(setup.runner, setup.ledger);
     final usual = _readyUsual(setup.queries, _may, CategoryKind.expense);
     expect(usual.state, ComparedWithUsualState.available);
     expect(usual.baselineWindows, hasLength(3));
@@ -381,7 +339,7 @@ void main() {
   });
 
   test('usualFollowsMixedMemoAndRevisionGate', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     final ledger = setup.ledger;
     final queries = setup.queries;
     final runner = setup.runner;
@@ -394,7 +352,7 @@ void main() {
     expect(loading.value, isNull);
 
     _populateStandard(ledger);
-    await _settle(runner, ledger);
+    await settle(runner, ledger);
     final settled = queries.readComparedWithUsual(
       month: _may,
       kind: CategoryKind.expense,
@@ -437,7 +395,7 @@ void main() {
     expect(retained.value, settled.value);
     expect(retained.sourceRevision, settled.sourceRevision);
 
-    await _settle(runner, ledger);
+    await settle(runner, ledger);
     final updated = queries.readComparedWithUsual(
       month: _may,
       kind: CategoryKind.expense,
@@ -465,12 +423,12 @@ void main() {
   });
 
   test('movingEarliestDuringPendingRefreshKeepsUsualCoherent', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     final ledger = setup.ledger;
     final queries = setup.queries;
     final runner = setup.runner;
     _populateStandard(ledger);
-    await _settle(runner, ledger);
+    await settle(runner, ledger);
 
     final revision = ledger.revision;
     final settled = queries.readComparedWithUsual(
@@ -503,7 +461,7 @@ void main() {
     expect(freshMonth.value?.state, PeriodCompleteness.preRecord);
     expect(retained.sourceRevision, isNot(freshMonth.sourceRevision));
 
-    await _settle(runner, ledger);
+    await settle(runner, ledger);
     final accepted = queries.readComparedWithUsual(
       month: _may,
       kind: CategoryKind.expense,
@@ -514,9 +472,9 @@ void main() {
   });
 
   test('usualFailureIsIsolated', () async {
-    final setup = _setup();
+    final setup = setupAnalysis();
     _populateStandard(setup.ledger);
-    await _settle(setup.runner, setup.ledger);
+    await settle(setup.runner, setup.ledger);
     final queries = setup.queries;
 
     final failed = queries.readComparedWithUsual(

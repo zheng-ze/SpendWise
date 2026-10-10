@@ -166,7 +166,7 @@ List<Decimal> _largestRemainderShares(
     bases.add(scaled ~/ total);
     remainders.add(scaled % total);
   }
-  var missing =
+  final missing =
       _shareTenths - bases.fold(BigInt.zero, (sum, base) => sum + base).toInt();
   final order = List<int>.generate(buckets.length, (index) => index)
     ..sort((a, b) {

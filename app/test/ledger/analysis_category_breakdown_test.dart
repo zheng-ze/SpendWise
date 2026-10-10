@@ -2,20 +2,20 @@ import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ledger/analysis/category_breakdown.dart';
 
-String _id(int n) => '00000000-0000-4000-8000-${n.toString().padLeft(12, '0')}';
+import 'analysis_test_support.dart';
 
-final _main = _id(1);
-final _childA = _id(2);
-final _childB = _id(3);
-final _childless = _id(4);
-final _checking = _id(10);
-final _flagged = _id(11);
+final _main = testId(1);
+final _childA = testId(2);
+final _childB = testId(3);
+final _childless = testId(4);
+final _checking = testId(10);
+final _flagged = testId(11);
 const _syntheticID = 'transfer-expense:savings';
 
 final _window = DateRange(DateTime.utc(2026, 1, 1), DateTime.utc(2026, 2, 1));
 final _day = DateTime.utc(2026, 1, 10);
-final _incomeMain = _id(5);
-final _incomeChild = _id(6);
+final _incomeMain = testId(5);
+final _incomeChild = testId(6);
 
 class _Booking {
   _Booking(this.categoryID, this.amount, {this.income = false, DateTime? date})
@@ -323,9 +323,9 @@ void main() {
     test(
       'three equal amounts give the extra tenth to the smallest identity',
       () {
-        final first = _id(20);
-        final second = _id(21);
-        final third = _id(22);
+        final first = testId(20);
+        final second = testId(21);
+        final third = testId(22);
         final state = _state(
           categories: [_category(first), _category(second), _category(third)],
           bookings: [
@@ -356,16 +356,16 @@ void main() {
             ],
             bookings: [for (final id in order) _Booking(id, 1)],
           );
-      final ids = [_id(20), _id(21), _id(22)];
+      final ids = [testId(20), testId(21), testId(22)];
       final forward = build(ids, {
-        _id(20): 'Zebra',
-        _id(21): 'Mango',
-        _id(22): 'Apple',
+        testId(20): 'Zebra',
+        testId(21): 'Mango',
+        testId(22): 'Apple',
       });
       final reversed = build(ids.reversed.toList(), {
-        _id(20): 'Apple',
-        _id(21): 'Zebra',
-        _id(22): 'Mango',
+        testId(20): 'Apple',
+        testId(21): 'Zebra',
+        testId(22): 'Mango',
       });
 
       final forwardRows = _breakdown(forward, BreakdownLevel.categories).rows;
@@ -376,9 +376,9 @@ void main() {
     });
 
     test('remainder priority differs from amount rank', () {
-      final high = _id(20);
-      final lowA = _id(21);
-      final lowB = _id(22);
+      final high = testId(20);
+      final lowA = testId(21);
+      final lowB = testId(22);
       final state = _state(
         categories: [_category(high), _category(lowA), _category(lowB)],
         bookings: [_Booking(high, 7), _Booking(lowA, 2), _Booking(lowB, 2)],
@@ -399,9 +399,9 @@ void main() {
     test(
       'a remainder tie at the cutoff breaks by identity, not amount rank',
       () {
-        final smallA = _id(20);
-        final smallB = _id(21);
-        final large = _id(22);
+        final smallA = testId(20);
+        final smallB = testId(21);
+        final large = testId(22);
         final state = _state(
           categories: [_category(smallA), _category(smallB), _category(large)],
           bookings: [
@@ -447,8 +447,8 @@ void main() {
     );
 
     test('a tiny positive row stays present with a 0.0 share', () {
-      final big = _id(20);
-      final tiny = _id(21);
+      final big = testId(20);
+      final tiny = testId(21);
       final state = _state(
         categories: [_category(big), _category(tiny)],
         bookings: [_Booking(big, 9999)],
@@ -660,7 +660,7 @@ void main() {
       );
       expect(
         base,
-        isNot(withRow(_row(_id(99), first.mainBucketID, 30, share: '30.0'))),
+        isNot(withRow(_row(testId(99), first.mainBucketID, 30, share: '30.0'))),
       );
       expect(
         base,
