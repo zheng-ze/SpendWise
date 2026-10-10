@@ -8,6 +8,8 @@ import 'package:spendwise/ledger/analysis/month_spread.dart';
 
 const scopedTrendSlotCount = 12;
 
+const scopedTrendDecemberMonth = 12;
+
 @immutable
 class ScopedTrend {
   const ScopedTrend({
@@ -68,7 +70,11 @@ ScopedTrend scopedTrend({
   final todayDay = startOfDayUtc(today);
   final anchor = switch (mode) {
     AnalysisPeriodMode.month => monthWindow(day).start,
-    AnalysisPeriodMode.year => DateTime.utc(day.year, scopedTrendSlotCount, 1),
+    AnalysisPeriodMode.year => DateTime.utc(
+      day.year,
+      scopedTrendDecemberMonth,
+      1,
+    ),
   };
   switch (mode) {
     case AnalysisPeriodMode.month:

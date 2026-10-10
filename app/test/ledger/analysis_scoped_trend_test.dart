@@ -119,6 +119,8 @@ LedgerState _coreState() => _state(
     _Booking(_main, 13, date: DateTime.utc(2027, 5, 31)),
     _Booking(_childA, 17, date: DateTime.utc(2027, 6, 10)),
     _Booking(_childB, 19, date: DateTime.utc(2027, 12, 5)),
+    _Booking(_main, 23, date: DateTime.utc(2027, 6, 10)),
+    _Booking(_main, 29, date: DateTime.utc(2027, 12, 5)),
     _Booking(_otherChild, 50, date: DateTime.utc(2027, 1, 12)),
   ],
 );
@@ -233,19 +235,99 @@ void main() {
 
   group('current year masking', () {
     test('months after today are zero in year mode', () {
-      final result = _trend(
-        _coreState(),
+      final state = _coreState();
+      ScopedTrend trend(AnalysisCategoryScope scope) => _trend(
+        state,
         main: _main,
-        scope: const AnalysisCategoryScope.all(),
+        scope: scope,
         period: DateTime.utc(2027, 4, 2),
         mode: AnalysisPeriodMode.year,
       );
 
-      for (var month = 6; month <= 12; month++) {
-        expect(_slot(result, 2027, month).total, Decimal.zero);
-        expect(_slot(result, 2027, month).itemCount, 0);
+      final all = trend(const AnalysisCategoryScope.all());
+      final sub = trend(AnalysisCategoryScope.subcategory(_childA));
+      final direct = trend(const AnalysisCategoryScope.direct());
+
+      for (final result in [all, sub, direct]) {
+        expect(result.slots, hasLength(12));
+        for (var month = 6; month <= 12; month++) {
+          expect(_slot(result, 2027, month).total, Decimal.zero);
+          expect(_slot(result, 2027, month).itemCount, 0);
+        }
       }
-      expect(_slot(result, 2027, 5).total, Decimal.fromInt(31));
+      expect(_slot(all, 2027, 5).total, Decimal.fromInt(31));
+      expect(_slot(all, 2027, 5).itemCount, 3);
+      expect(_slot(sub, 2027, 5).total, Decimal.fromInt(7));
+      expect(_slot(sub, 2027, 5).itemCount, 1);
+      expect(_slot(direct, 2027, 5).total, Decimal.fromInt(13));
+      expect(_slot(direct, 2027, 5).itemCount, 1);
+    });
+
+    test('future months are masked for the income kind', () {
+      final state = _state(
+        categories: [
+          _category(_incomeMain, kind: CategoryKind.income),
+          _category(
+            _incomeChild,
+            parent: _incomeMain,
+            kind: CategoryKind.income,
+          ),
+        ],
+        bookings: [
+          _Booking(
+            _incomeChild,
+            6,
+            income: true,
+            date: DateTime.utc(2027, 1, 10),
+          ),
+          _Booking(
+            _incomeMain,
+            9,
+            income: true,
+            date: DateTime.utc(2027, 1, 10),
+          ),
+          _Booking(
+            _incomeChild,
+            30,
+            income: true,
+            date: DateTime.utc(2027, 6, 10),
+          ),
+          _Booking(
+            _incomeMain,
+            40,
+            income: true,
+            date: DateTime.utc(2027, 12, 5),
+          ),
+        ],
+      );
+      ScopedTrend trend(AnalysisCategoryScope scope) => scopedTrend(
+        mainBucketID: _incomeMain,
+        scope: scope,
+        kind: CategoryKind.income,
+        period: DateTime.utc(2027, 4, 2),
+        mode: AnalysisPeriodMode.year,
+        today: _today,
+        state: state,
+        items: Accounting.analysisItems(state),
+      );
+
+      final all = trend(const AnalysisCategoryScope.all());
+      final sub = trend(AnalysisCategoryScope.subcategory(_incomeChild));
+      final direct = trend(const AnalysisCategoryScope.direct());
+
+      for (final result in [all, sub, direct]) {
+        expect(result.slots, hasLength(12));
+        for (var month = 6; month <= 12; month++) {
+          expect(_slot(result, 2027, month).total, Decimal.zero);
+          expect(_slot(result, 2027, month).itemCount, 0);
+        }
+      }
+      expect(_slot(all, 2027, 1).total, Decimal.fromInt(15));
+      expect(_slot(all, 2027, 1).itemCount, 2);
+      expect(_slot(sub, 2027, 1).total, Decimal.fromInt(6));
+      expect(_slot(sub, 2027, 1).itemCount, 1);
+      expect(_slot(direct, 2027, 1).total, Decimal.fromInt(9));
+      expect(_slot(direct, 2027, 1).itemCount, 1);
     });
   });
 
@@ -548,6 +630,39 @@ void main() {
       expect(result.endMonth, DateTime.utc(2027, 12, 1));
       expect(result.slots, hasLength(12));
     });
+
+    test('local non-midnight period shares the midnight anchor', () {
+      final state = _coreState();
+      ScopedTrend trend(DateTime period, AnalysisPeriodMode mode) => _trend(
+        state,
+        main: _main,
+        scope: const AnalysisCategoryScope.all(),
+        period: period,
+        mode: mode,
+      );
+
+      final monthMidnight = trend(
+        DateTime.utc(2027, 5, 15),
+        AnalysisPeriodMode.month,
+      );
+      final monthLocal = trend(
+        DateTime(2027, 5, 15, 13, 30),
+        AnalysisPeriodMode.month,
+      );
+      final yearMidnight = trend(
+        DateTime.utc(2027, 3, 20),
+        AnalysisPeriodMode.year,
+      );
+      final yearLocal = trend(
+        DateTime(2027, 3, 20, 8, 45),
+        AnalysisPeriodMode.year,
+      );
+
+      expect(monthLocal.endMonth, DateTime.utc(2027, 5, 1));
+      expect(monthLocal, monthMidnight);
+      expect(yearLocal.endMonth, DateTime.utc(2027, 12, 1));
+      expect(yearLocal, yearMidnight);
+    });
   });
 
   group('scope matching', () {
@@ -564,23 +679,51 @@ void main() {
           _Booking(upperMain, 9, date: DateTime.utc(2027, 1, 10)),
         ],
       );
-      ScopedTrend trend(String main, String child) => scopedTrend(
-        mainBucketID: main,
-        scope: AnalysisCategoryScope.subcategory(child),
-        kind: CategoryKind.expense,
-        period: DateTime.utc(2027, 5, 15),
-        mode: AnalysisPeriodMode.month,
-        today: _today,
-        state: state,
-        items: Accounting.analysisItems(state),
+      ScopedTrend trend(String? main, AnalysisCategoryScope scope) =>
+          scopedTrend(
+            mainBucketID: main,
+            scope: scope,
+            kind: CategoryKind.expense,
+            period: DateTime.utc(2027, 5, 15),
+            mode: AnalysisPeriodMode.month,
+            today: _today,
+            state: state,
+            items: Accounting.analysisItems(state),
+          );
+
+      final lowerMain = upperMain.toLowerCase();
+      final lowerChild = upperChild.toLowerCase();
+      final upperAll = trend(upperMain, const AnalysisCategoryScope.all());
+      final lowerAll = trend(lowerMain, const AnalysisCategoryScope.all());
+      final upperDirect = trend(
+        upperMain,
+        const AnalysisCategoryScope.direct(),
+      );
+      final lowerDirect = trend(
+        lowerMain,
+        const AnalysisCategoryScope.direct(),
+      );
+      final upperSub = trend(
+        upperMain,
+        AnalysisCategoryScope.subcategory(upperChild),
+      );
+      final lowerSub = trend(
+        lowerMain,
+        AnalysisCategoryScope.subcategory(lowerChild),
       );
 
-      final upper = trend(upperMain, upperChild);
-      final lower = trend(upperMain.toLowerCase(), upperChild.toLowerCase());
-
-      expect(_slot(upper, 2027, 1).total, Decimal.fromInt(6));
-      expect(upper, lower);
-      expect(upper.hashCode, lower.hashCode);
+      expect(_slot(upperAll, 2027, 1).total, Decimal.fromInt(15));
+      expect(_slot(upperAll, 2027, 1).itemCount, 2);
+      expect(upperAll, lowerAll);
+      expect(upperAll.hashCode, lowerAll.hashCode);
+      expect(_slot(upperDirect, 2027, 1).total, Decimal.fromInt(9));
+      expect(_slot(upperDirect, 2027, 1).itemCount, 1);
+      expect(upperDirect, lowerDirect);
+      expect(upperDirect.hashCode, lowerDirect.hashCode);
+      expect(_slot(upperSub, 2027, 1).total, Decimal.fromInt(6));
+      expect(_slot(upperSub, 2027, 1).itemCount, 1);
+      expect(upperSub, lowerSub);
+      expect(upperSub.hashCode, lowerSub.hashCode);
     });
 
     test('invalid child parent pairs throw', () {
@@ -621,6 +764,29 @@ void main() {
       expect(_slot(all, 2027, 1).itemCount, 1);
       expect(_slot(direct, 2027, 1).total, Decimal.fromInt(5));
       expect(_slot(direct, 2027, 1).itemCount, 1);
+    });
+
+    test('unknown main yields twelve zero slots for all and direct', () {
+      final state = _coreState();
+      final all = _trend(
+        state,
+        main: _id(99),
+        scope: const AnalysisCategoryScope.all(),
+      );
+      final direct = _trend(
+        state,
+        main: _id(99),
+        scope: const AnalysisCategoryScope.direct(),
+      );
+
+      for (final result in [all, direct]) {
+        expect(result.slots, hasLength(12));
+        expect(result.mainBucketID, _id(99));
+        for (final slot in result.slots) {
+          expect(slot.total, Decimal.zero);
+          expect(slot.itemCount, 0);
+        }
+      }
     });
 
     test('synthetic main works for all and direct', () {
@@ -693,88 +859,63 @@ void main() {
       expect(first.hashCode, second.hashCode);
     });
 
-    test('trends differ by slot scope anchor main kind and mode', () {
-      final state = _coreState();
+    test('trends differ by one metadata field at a time', () {
       final base = _trend(
-        state,
+        _coreState(),
         main: _main,
         scope: const AnalysisCategoryScope.all(),
       );
-      ScopedTrend withSlots(List<MonthSlot> slots) => ScopedTrend(
-        mode: base.mode,
-        endMonth: base.endMonth,
-        kind: base.kind,
-        mainBucketID: base.mainBucketID,
-        scope: base.scope,
-        slots: slots,
+      ScopedTrend copyWith({
+        AnalysisPeriodMode? mode,
+        DateTime? endMonth,
+        CategoryKind? kind,
+        String? mainBucketID,
+        AnalysisCategoryScope? scope,
+      }) => ScopedTrend(
+        mode: mode ?? base.mode,
+        endMonth: endMonth ?? base.endMonth,
+        kind: kind ?? base.kind,
+        mainBucketID: mainBucketID ?? base.mainBucketID,
+        scope: scope ?? base.scope,
+        slots: base.slots,
+      );
+
+      expect(copyWith(mode: AnalysisPeriodMode.year), isNot(base));
+      expect(copyWith(endMonth: DateTime.utc(2027, 4, 1)), isNot(base));
+      expect(copyWith(kind: CategoryKind.income), isNot(base));
+      expect(copyWith(mainBucketID: _other), isNot(base));
+      expect(
+        copyWith(scope: const AnalysisCategoryScope.direct()),
+        isNot(base),
+      );
+    });
+
+    test('trends differ by slot', () {
+      final base = _trend(
+        _coreState(),
+        main: _main,
+        scope: const AnalysisCategoryScope.all(),
       );
 
       expect(
         base,
         isNot(
-          _trend(
-            state,
-            main: _main,
-            scope: const AnalysisCategoryScope.direct(),
+          ScopedTrend(
+            mode: base.mode,
+            endMonth: base.endMonth,
+            kind: base.kind,
+            mainBucketID: base.mainBucketID,
+            scope: base.scope,
+            slots: [
+              ...base.slots.skip(1),
+              MonthSlot(
+                month: DateTime.utc(2027, 5, 1),
+                window: monthWindow(DateTime.utc(2027, 5, 1)),
+                total: Decimal.fromInt(999),
+                itemCount: 1,
+              ),
+            ],
           ),
-        ),
-      );
-      expect(
-        base,
-        isNot(
-          _trend(
-            state,
-            main: _main,
-            scope: const AnalysisCategoryScope.all(),
-            period: DateTime.utc(2027, 4, 15),
-          ),
-        ),
-      );
-      expect(
-        base,
-        isNot(
-          _trend(
-            state,
-            main: _other,
-            scope: AnalysisCategoryScope.subcategory(_otherChild),
-          ),
-        ),
-      );
-      expect(
-        base,
-        isNot(
-          _trend(
-            state,
-            main: _main,
-            scope: const AnalysisCategoryScope.all(),
-            kind: CategoryKind.income,
-          ),
-        ),
-      );
-      expect(
-        base,
-        isNot(
-          _trend(
-            state,
-            main: _main,
-            scope: const AnalysisCategoryScope.all(),
-            period: DateTime.utc(2027, 2, 2),
-            mode: AnalysisPeriodMode.year,
-          ),
-        ),
-      );
-      expect(
-        base,
-        isNot(
-          withSlots([
-            ...base.slots.skip(1),
-            MonthSlot(
-              month: DateTime.utc(2027, 5, 1),
-              window: monthWindow(DateTime.utc(2027, 5, 1)),
-              total: Decimal.fromInt(999),
-              itemCount: 1,
-            ),
-          ]),
         ),
       );
     });
