@@ -2,7 +2,10 @@ part of 'ledger_state.dart';
 
 extension LedgerStateEntries on LedgerState {
   List<LedgerChange> addEntry(Entry entry) {
-    if (_entries.containsKey(entry.id)) throw IdCollision(entry.id);
+    if (_entries.containsKey(entry.id) ||
+        _binnedEntries.containsKey(entry.id)) {
+      throw IdCollision(entry.id);
+    }
 
     final stored = _validated(entry);
     _entries[stored.id] = stored;
@@ -58,10 +61,41 @@ extension LedgerStateEntries on LedgerState {
 
   List<LedgerChange> deleteEntry(String rawID) {
     final id = normalizedID(rawID);
+    final removed = _entries.remove(id) ?? _binnedEntries.remove(id);
+    if (removed == null) return _checked([]);
+
+    return _checked([
+      DeleteEntry(id),
+      ..._tombstoneDereferenced(removed.holderIDs, removed.categoryID),
+    ]);
+  }
+
+  List<LedgerChange> archiveEntry(String rawID) {
+    final id = normalizedID(rawID);
     final existing = _entries[id];
+    if (existing == null || existing.systemKind != null) {
+      return _checked([]);
+    }
+
+    final binned = existing.settingLifecycle(LifecycleState.archived);
+    _entries.remove(id);
+    _binnedEntries[id] = binned;
+    return _checked([UpsertEntry(binned)]);
+  }
+
+  List<LedgerChange> restoreEntry(String rawID) {
+    final id = normalizedID(rawID);
+    final existing = _binnedEntries.remove(id);
     if (existing == null) return _checked([]);
 
-    final removed = _entries.remove(id);
+    final restored = existing.settingLifecycle(LifecycleState.active);
+    _entries[id] = restored;
+    return _checked([UpsertEntry(restored)]);
+  }
+
+  List<LedgerChange> purgeEntry(String rawID) {
+    final id = normalizedID(rawID);
+    final removed = _binnedEntries.remove(id);
     if (removed == null) return _checked([]);
 
     return _checked([

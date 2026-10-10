@@ -321,4 +321,33 @@ void main() {
     expect(called, 0);
     expect(ledger.state.entries, hasLength(1));
   });
+
+  test('entryLifecycleMutatorsPublishAndNotify', () {
+    final ledger = Ledger();
+    final account = _account();
+    ledger.addAccount(account);
+    final entry = _entry(account.id);
+    ledger.addEntry(entry);
+    var notifications = 0;
+    ledger.addListener(() => notifications++);
+
+    final archived = ledger.archiveEntry(entry.id);
+    final archivedEntry = ledger.state.binnedEntries[entry.id]!;
+    expect(ledger.state.entries, isEmpty);
+    expect(ledger.state.binnedEntries.keys, [entry.id]);
+
+    final restored = ledger.restoreEntry(entry.id);
+    expect(ledger.state.entries.keys, [entry.id]);
+
+    ledger.archiveEntry(entry.id);
+    final purged = ledger.purgeEntry(entry.id);
+    expect(purged, [DeleteEntry(entry.id)]);
+    expect(ledger.state.binnedEntries, isEmpty);
+
+    expect(archived, [UpsertEntry(archivedEntry)]);
+    expect(restored, [UpsertEntry(entry)]);
+    expect(notifications, 4);
+    expect(ledger.purgeEntry(entry.id), isEmpty);
+    expect(notifications, 4);
+  });
 }

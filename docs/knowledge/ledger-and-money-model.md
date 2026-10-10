@@ -1,6 +1,6 @@
 # Ledger & Money Model
 
-Last reconciled: 2026-10-08
+Last reconciled: 2026-10-10
 
 ## Feature overview
 
@@ -33,7 +33,7 @@ an id and equality is by case + id: `IdCollision`, `UnknownAccount`, `UnknownHol
 ## Key files
 
 - `packages/domain/lib/src/ledger_state/ledger_state.dart` — the container: five id-keyed maps
-  (`moneySources`, `entries`, `categories`, `plans`, `budgets`) and every mutator.
+  (`moneySources`, `entries`, `binnedEntries`, `categories`, `plans`, `budgets`) and every mutator.
 - `packages/domain/lib/src/ledger_state/ledger_state_invariants.dart` — the debug `assertInvariants`
   sweep run after every mutation.
 - `packages/domain/lib/src/ledger_state/ledger_state_queries.dart` — read-only queries and the
@@ -85,7 +85,9 @@ The state machine, with the rule behind each edge (`ledger_state_purge.dart`,
 `ledger_state_invariants.dart`):
 
 - **Delete archives.** `deleteAccount` / `deletePocket` / `deleteCategory` set `archived`; nothing
-  is removed and entries are always retained. Only entries and plans hard-delete.
+  is removed and entries are always retained. Only plans and `deleteEntry` hard-delete. `archiveEntry`,
+  `restoreEntry` and `purgeEntry` are available domain behavior; the swipe path still calls
+  `deleteEntry` (hard delete) until the UI ticket replaces it.
 - **Archive cascade.** Archiving an account also archives its active pockets and hard-deletes every
   plan touching the account or its pockets. Archiving a category archives its active children.
 - **Restore reactivates.** `restoreAccount` / `restoreCategory` reactivate their archived children;
@@ -96,8 +98,18 @@ The state machine, with the rule behind each edge (`ledger_state_purge.dart`,
   resolves); an unreferenced row is tombstoned (removed from the table).
 - **referenceOnly is terminal-but-one.** No restore from `referenceOnly`; the only exit is
   tombstoning via the dereference sweep when the last referencing entry is deleted or retargeted.
-- **Entries are binary.** `active` or gone; `deleteEntry` removes the row and may cascade
-  tombstones through the sweep.
+- **Entries have a bin.** `entries` holds active entries only and drives Accounting, balances,
+  analysis, budgets and plans. `binnedEntries` holds archived entries. `archiveEntry` moves an active,
+  non-system entry to the bin and returns `[UpsertEntry(archived)]` with no sweep. `restoreEntry`
+  moves a binned entry back and returns `[UpsertEntry(active)]`. `purgeEntry` removes a binned entry
+  and returns `[DeleteEntry, ...sweep]`. An invalid target returns `[]` and never throws. An entry
+  is never `referenceOnly` or `tombstoned`. `deleteEntry` stays a hard delete on either map for
+  internal and seed use.
+- **Binned entries count as references.** `entriesReferencing`, `entryCount`,
+  `entryCountReferencing` and the purge and sweep helpers count active plus binned entries, so a
+  purge never tombstones a row that a binned entry needs on restore.
+- **Binned ids are taken.** `addEntry` throws `IdCollision` for an id in either map, `updateEntry`
+  throws `UnknownEntry` for a binned id, and `resolvePlans` does not re-create a binned occurrence.
 
 ### The account-referencedness fix (Dart port)
 
@@ -139,14 +151,16 @@ is a no-op returning `[]`.
 
 ## Invariants
 
-`assertInvariants` runs after every mutation in debug builds only (`ledger_state_invariants.dart`),
-backstopping states that closed maps and dedicated removers are meant to make unreachable. The
-clauses: keys match ids; pocket links resolve and are exclusive; no orphan pocket; no dangling
-entry reference; category depth ≤ 2 with matching kinds and a non-ghost parent; entry-category
-coherence; no dangling plan reference; no stored exhausted plan; entries are active; no stored
+`assertInvariants` runs after every mutation in debug builds, and `LedgerState.replaying` runs it
+unconditionally (`ledger_state_invariants.dart`), so a corrupt stored row fails the load. Replay
+routes `UpsertEntry` by lifecycle: active to `entries`, archived to `binnedEntries`, any other
+lifecycle to `entries` where clause 9 rejects it; `DeleteEntry` clears both maps. The clauses: keys
+match ids (entries and binned entries); pocket links resolve and are exclusive; no orphan pocket; no dangling
+entry reference (active and binned); category depth ≤ 2 with matching kinds and a non-ghost parent; entry-category
+coherence (active and binned); no dangling plan reference; no stored exhausted plan; live entries are active and binned entries are archived (9); no stored
 tombstone; `referenceOnly` implies referenced (recursively for categories); lifecycle monotonicity
 (`archived → active` is the only back-edge); statement-day range; plans reference no leaving row;
-a pocket may not outlive its account. The reference-count clause for accounts is checked by calling
+a pocket may not outlive its account; no entry id sits in both `entries` and `binnedEntries` (18). The reference-count clause for accounts is checked by calling
 the same helper the purge and sweep paths use, so the three can never drift.
 
 ## Gotchas and invariants

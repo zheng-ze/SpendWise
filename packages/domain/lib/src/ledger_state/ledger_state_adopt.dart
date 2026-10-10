@@ -8,6 +8,9 @@ extension LedgerStateAdopt on LedgerState {
     _entries
       ..clear()
       ..addAll(other._entries);
+    _binnedEntries
+      ..clear()
+      ..addAll(other._binnedEntries);
     _categories
       ..clear()
       ..addAll(other._categories);

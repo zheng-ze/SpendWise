@@ -79,7 +79,8 @@ extension LedgerStatePlans on LedgerState {
 
       for (final date in due) {
         final entry = plan.template.makeEntry(plan.id, date);
-        if (_entries.containsKey(entry.id)) {
+        if (_entries.containsKey(entry.id) ||
+            _binnedEntries.containsKey(entry.id)) {
           if (!sawFailure) cursor = date;
           continue;
         }

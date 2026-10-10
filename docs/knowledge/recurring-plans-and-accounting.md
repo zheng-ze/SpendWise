@@ -1,6 +1,6 @@
 # Recurring Plans & Accounting
 
-Last reconciled: 6c0c7d3
+Last reconciled: 2026-10-10
 
 The pure-domain plan and accounting logic in `packages/domain/lib/src/plans/` and
 `packages/domain/lib/src/accounting.dart`, plus the plan mutators on `LedgerState`. Plans expand
@@ -56,7 +56,7 @@ plan-id match and the time-of-day collapse (local vs UTC, any time of day) to th
 
 **`resolvePlans(now)`** (`ledger_state_plans.dart`) iterates plans in sorted-id order. For each
 plan it computes `occurrences(after: lastResolvedDate, upTo: now)`, builds each entry via
-`makeEntry`, skips silently if an entry with that id already exists, runs full entry validation
+`makeEntry`, skips silently if that id exists in `entries` or `binnedEntries`, runs full entry validation
 (`_validated`), stores on success, and appends a `PlanFailure` on error while continuing. The cursor
 **stops at the first failure**: it advances to the last successfully-materialized or already-present
 occurrence before that failure, then still attempts later dates. A failed occurrence is recorded in
@@ -84,8 +84,9 @@ plan survives and its next resolution emits `PlanFailure(inactiveReference)` per
 
 ## Accounting
 
-All pure static functions; money is `Decimal`; balances are derived from the entry log, never
-stored.
+All pure static functions; money is `Decimal`; balances are derived from the supplied entries,
+never stored. `netWorth` and `analysisItems` read the active `LedgerState.entries` map, so binned
+entries contribute to neither (`accounting.dart`: `netWorth`, `analysisItems`).
 
 - **`applies(entry, sourceIDs)`** - a transfer counts only when both endpoints are in the existence
   set (every `moneySources` key, including archived/referenceOnly). A tombstoned holder un-applies
@@ -126,7 +127,7 @@ are `CardStatement` and `cardStatement`
 requested `[start, end)` window. It delegates anchor-based generation and end-date clamping to
 `RecurringPlan.occurrences`, so a cursor before the anchor can project the anchor and a cursor
 ahead of today suppresses earlier dates. Any deterministic `OccurrenceID` already present in
-`ledger.entries` suppresses the projection, regardless of entry lifecycle. It validates each
+`ledger.entries` or `ledger.binnedEntries` suppresses the projection. It validates each
 made entry through `LedgerState.resolvedEntryOrNull`
 (`packages/domain/lib/src/ledger_state/ledger_state_entries.dart`) and skips occurrences that
 resolution would reject: zero amount, inactive or unknown holder or category, and kind mismatch.

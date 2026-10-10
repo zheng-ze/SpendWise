@@ -2397,6 +2397,43 @@ void main() {
     });
   });
 
+  group('pushCollection: archived entries', () {
+    test(
+      'a pending row for a binned entry pushes an archived upsert',
+      () async {
+        const holderID = 'aaaaaaaa-0000-1111-2222-333333333333';
+        const rowID = 'f2f2f2f2-f2f2-f2f2-f2f2-f2f2f2f2f2f2';
+        final key = _freshKey();
+        final backend = _FakeSyncBackend();
+        backend.onPush = _appliedPush;
+        final setup = await driftSetup(backend: backend, e2eKey: key);
+        final coordinator = setup.coordinator;
+        await seedDriftHolder(holderID, coordinator.persistenceProcessor);
+        ledger.addEntry(driftEntry(rowID, holderID));
+        await coordinator.persistenceProcessor.flush();
+        await coordinator.metadataStore.enterReconciliationComplete();
+        await coordinator.metadataStore.enterGateEnabled();
+        ledger.archiveEntry(rowID);
+
+        final result = await coordinator.pushCollection(SyncCollection.entries);
+
+        expect(result, isA<PushFullyAcknowledged>());
+        final envelope = backend.pushes.single.envelopes.single;
+        final plaintext = await const SyncCipher().decrypt(
+          key: key,
+          ciphertext: envelope.ciphertext,
+          aad: envelope.aadBytes(),
+        );
+        final change = const PayloadCodec().decodeChange(plaintext);
+        expect(change, isA<UpsertEntry>());
+        expect(
+          (change as UpsertEntry).entry.lifecycle,
+          LifecycleState.archived,
+        );
+      },
+    );
+  });
+
   group('pushCollection: recovery-before-push ordering (TS2)', () {
     test('a pending acknowledgement is recovered and cleared before the push '
         'query', () async {

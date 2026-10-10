@@ -92,6 +92,15 @@ class Ledger extends ChangeNotifier {
   List<LedgerChange> deleteEntry(String rawID) =>
       _mutate((state) => state.deleteEntry(rawID));
 
+  List<LedgerChange> archiveEntry(String rawID) =>
+      _mutate((state) => state.archiveEntry(rawID));
+
+  List<LedgerChange> restoreEntry(String rawID) =>
+      _mutate((state) => state.restoreEntry(rawID));
+
+  List<LedgerChange> purgeEntry(String rawID) =>
+      _mutate((state) => state.purgeEntry(rawID));
+
   List<LedgerChange> addCategory(TransactionCategory category) =>
       _mutate((state) => state.addCategory(category));
 
@@ -152,6 +161,7 @@ class Ledger extends ChangeNotifier {
     final candidate = LedgerState(
       moneySources: _state.moneySources,
       entries: _state.entries,
+      binnedEntries: _state.binnedEntries,
       categories: _state.categories,
       plans: _state.plans,
       budgets: _state.budgets,
