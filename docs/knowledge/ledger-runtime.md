@@ -1,6 +1,6 @@
 # Ledger Runtime
 
-Last reconciled: fc33c78
+Last reconciled: 3a7a24b
 
 ## Feature overview
 
@@ -21,7 +21,7 @@ banners, and first-launch seeding. These live in `app/lib/ledger/` and `app/lib/
   publication counter and accepted source revision.
 - `app/lib/ledger/ledger_session.dart` - pairs a ready Ledger with its non-null analysis cache.
 - `app/lib/ledger/analysis_queries.dart` - observable query results, refresh ownership, retry,
-  and per-query memoization.
+  and per-query memoization, including the mixed `readScopedTrend` read.
 - `app/lib/ledger/analysis/` - app-owned query result types and pure helpers for summaries,
   entry metadata, register days, recent entries, upcoming items, weeks, search, calendar days,
   firstRecordMonth, period completeness, month and year spreads, category breakdowns, scoped trends,
@@ -142,8 +142,9 @@ updates the existing query object without a cache computation
 (`app/lib/boot/providers.dart:analysisQueriesProvider`;
 `app/test/boot/analysis_queries_provider_test.dart`).
 
-`readToday()`, `readPeriod(window:, sourceIDs:)`, `readWeeks(window:, sourceIDs:)`, and
-`readCategoryBreakdown(period:, mode:, kind:, level:)` return
+`readToday()`, `readPeriod(window:, sourceIDs:)`, `readWeeks(window:, sourceIDs:)`,
+`readCategoryBreakdown(period:, mode:, kind:, level:)`, and
+`readScopedTrend(period:, mode:, kind:, mainBucketID:, scope:)` return
 `AnalysisQueryResult<T>` with nullable `value`, `ready`/`loading`/`failed` state, and nullable
 `sourceRevision`. These reads mix Ledger state with
 analysis items and evaluate only when `cache.itemsSourceRevision == ledger.revision`. While
@@ -276,7 +277,20 @@ its previous successful value if present (`analysis_queries.dart:_readLedgerOnly
   identity order used for ranking, independent of amount rank. A positive row can have a 0.0 share
   and remains present; an empty breakdown has no rows (`app/lib/ledger/analysis/category_breakdown.dart`;
   `analysis_category_breakdown_test.dart`).
-- `scopedTrend` is a pure helper, with no `AnalysisQueries` read. It filters items for a nullable,
+- `readScopedTrend(period:, mode:, kind:, mainBucketID:, scope:)` is a mixed read returning
+  `AnalysisQueryResult<ScopedTrend>` through `_readMixed` around the pure `scopedTrend` helper.
+  It normalizes `period` with `startOfDayUtc`; month mode anchors at the period's month start,
+  and year mode anchors at December 1 of the period's year. Memo identity includes mode, anchor,
+  kind, main (`bucket:<id>` or `uncategorized` for null), and scope (`all`, `direct`, or `sub:<id>`).
+  Period, anchor, main ID, and subcategory ID are normalized before identity construction;
+  `SubCategoryScope` normalizes its ID on construction. Revision gating, retained values, and
+  retry follow the shared mixed-read pattern. A future month or year, or a subcategory scope that
+  is not a child of the main, returns a failed result only for its own identity
+  (`app/lib/ledger/analysis_queries.dart:readScopedTrend`, `_readMixed`;
+  `app/test/ledger/analysis_scoped_trend_query_test.dart`:
+  `memoIdentitySharesEquivalentInputs`, `memoIdentitySeparatesByKindModePeriodMainAndScope`,
+  `trendFollowsMixedMemoAndRevisionGate`, `failedRefreshRetainsTrendAndRetryRecovers`,
+  `invalidTrendFailsOnlyItsIdentity`). The helper filters items for a nullable,
   normalized main bucket using `AnalysisCategoryScope`: `all` matches `Accounting.mainBucketID`,
   `direct` matches the raw normalized bucket, and `subcategory` matches its raw normalized bucket
   after checking that it names a real child of the supplied main; invalid child/main pairs throw
