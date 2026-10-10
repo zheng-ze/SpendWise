@@ -1,6 +1,6 @@
 # Ledger Runtime
 
-Last reconciled: 6c0c7d3
+Last reconciled: e6e6d31
 
 ## Feature overview
 
@@ -335,6 +335,22 @@ its previous successful value if it is still retained (`analysis_queries.dart:_r
   `previousCompleteMonthWindows` helper is shared with insights and does not reject future
   selections (`app/lib/ledger/analysis/compared_with_usual.dart`;
   `analysis_compared_with_usual_test.dart`).
+- `readMatchedDayInsights()` and `readWeekSoFar()` are parameterless mixed reads at today with fixed
+  `InsightRules` (optional constructor argument, not part of the memo key). Defaults: usual at least
+  10, change at least 20, relative change at least 20%, at least 5 baseline expenses, at most 2
+  category changes; every gate is inclusive and decided by exact cross-products on `3 * observed -
+  baseline`, never on the rounded `usualMean`. Category changes compare day 1 to today with the same
+  days of the three previous complete months (`previousCompleteMonthWindows`), roll expenses up to
+  main categories, and count the 5 expenses per rolled-up category across its three baseline
+  windows. They rank by absolute change, ties by bucket ID with null last. A missing baseline
+  gives `historyNeeded` with no windows or changes; a complete baseline is `available` even with no
+  changes. Week so far compares Monday to today with the same weekdays of the three preceding full
+  weeks, each complete under D8 before clipping; a week without expenses counts as zero, and fewer
+  than 5 aggregate baseline expenses gives `historyNeeded` with evidence kept and `qualifies`
+  false. Results carry bucket IDs, windows and numbers only; `difference` and `usualMean` are
+  thirds at scale 12 and `relativeChangePercent` is null for a zero baseline
+  (`app/lib/ledger/analysis/insight_rules.dart`, `matched_day_insights.dart`, `week_so_far.dart`;
+  `analysis_insights_test.dart`, `analysis_insights_queries_test.dart`).
 - `readCardStatement(accountID:)` wraps the domain query at today. An ineligible account returns
   a ready result with null value and the current Ledger revision (`analysis_queries.dart`;
   `analysis_service_test.dart`: `ineligibleCardIsReadyNullWithRevision`).
