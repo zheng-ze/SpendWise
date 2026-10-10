@@ -1,6 +1,6 @@
 # Sync: package engine
 
-Last reconciled: 5cdcf72
+Last reconciled: 2026-10-10
 
 ## Overview
 
@@ -303,6 +303,28 @@ the corresponding authorization-bearing `BeginReconcile` through `authorizeBegin
   `packages/sync/lib/src/engine/sync_engine.dart` - `SyncEngine._decodeRow`,
   `SyncEngine._nonDominatedFrontier`;
   `packages/sync/test/engine/sync_engine_test.dart` - group `reconcile: same-row grouping`.
+
+## Archived entries
+
+Payload version stays 1 and the entry payload already carries its lifecycle. Archiving an entry
+syncs as `UpsertEntry` with lifecycle 1, restoring it as `UpsertEntry` with lifecycle 0, and purging
+it as a tombstone. `SyncCoordinator._currentLocalChange` looks an entry up in `entries`, then in
+`binnedEntries`, before it falls back to a delete, so a pending row for a binned entry pushes an
+archived upsert and never a delete. `Ledger.applySyncBatch` builds its candidate with
+`binnedEntries` and runs `assertInvariants`; a violation throws `StateError` before the live state
+is adopted, applies nothing from the batch, and reaches `onPassFailure`.
+
+Minimum peer version: the first release containing archivable entries. The repository has no
+version tag yet and `app/pubspec.yaml` reads `0.1.0+1`, so no version number identifies it. A peer
+older than that release fails invariant clause 9 on an archived upsert, applies nothing from that
+batch, and fails its sync pass until it upgrades. No data is lost, and restore and purge payloads
+still apply on that peer. When an older peer sends to a newer one, version vectors order the
+changes and a concurrent edit is staged as a conflict. An older peer also drops the note of an
+entry it edits, because it does not read or write that field. Downgrading the app while binned
+entries exist fails at boot and is unsupported. Source:
+`app/lib/sync/sync_coordinator.dart:_currentLocalChange`; `app/lib/ledger/ledger.dart:applySyncBatch`;
+tests in `sync_coordinator_test.dart` groups `processPullPage: archived entries` and
+`pushCollection: archived entries`, and `ledger_sync_batch_test.dart` group `binned entries`.
 
 ## Gotchas
 

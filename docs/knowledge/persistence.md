@@ -1,6 +1,6 @@
 # Persistence
 
-Last reconciled: 9066882
+Last reconciled: 2026-10-10
 
 ## Feature overview
 
@@ -45,7 +45,7 @@ its stamp at the ingest boundary and carries the pairs through the whole pipelin
 
 | Member | Contract |
 |---|---|
-| `load()` | Reads all non-tombstoned rows, maps to domain, rebuilds `LedgerState` by replay. Throws on failure. Boot-time only. |
+| `load()` | Reads all rows with `lifecycle != 3`, maps to domain, rebuilds `LedgerState` by replay. Archived entry rows (lifecycle 1) replay into `binnedEntries`. Throws on failure, including an invariant violation in the stored rows. Boot-time only. |
 | `start()` | Begins draining the ingest queue. Idempotent; safe to call from `flushNow`. |
 | `enqueue(changes)` | Synchronous, non-blocking; empty list is a no-op; batches ingest in call order. |
 | `enqueueStamped(changes, stamps)` | Stamped variant of `enqueue` for sync publications; each change pairs with the stamp keyed by its `SyncRowID` (`collectionFor` plus `targetID`), or no stamp when the map has none for it. Unstamped publications (including an empty stamps map) keep the `enqueue` bump path. |
@@ -130,6 +130,24 @@ vector — a bump for an unstamped delete, the verbatim stamp for a stamped one.
 fetches `WHERE lifecycle != 3` from every table, maps via `toDomain()`, and rebuilds in the order
 accounts, pockets, categories, entries, plans.
 
+## Archived entries
+
+Archiving an entry publishes `UpsertEntry` with lifecycle 1. The store writes it like any other
+upsert: an unstamped write bumps the row's version vector, a stamped one writes its stamp verbatim.
+Restoring writes lifecycle 0 the same way, and purging writes the tombstone described above. There
+is no schema change and no migration: `entries.lifecycle` already exists, the mappers already
+round-trip it, and existing rows load as active. `load()` selects `lifecycle != 3`, so archived rows
+come back, and `LedgerState.replaying` routes them into `binnedEntries` and rejects any other
+non-active lifecycle on a live entry. A corrupt stored row fails the invariant sweep, and boot shows
+"Couldn't load your data" with Retry.
+
+Downgrading the app while binned entries exist is unsupported: an older build replays lifecycle 1
+rows into `entries`, fails the invariant sweep at boot, and cannot start until the app is upgraded
+again. (`app/lib/persistence/drift_ledger_store.dart:loadChanges`,
+`app/lib/persistence/mappers.dart:entryToRow`; tests `anArchivedEntryPersistsAsLifecycleOneAndReloadsIntoTheBin`,
+`restoringAnArchivedEntryPersistsLifecycleZero`, `purgingAnArchivedEntryWritesTheTombstone` in
+`drift_ledger_store_test.dart`)
+
 ## Seeding
 
 `seedIfFirstLaunch` is gated on `store_meta.has_seeded`, not database emptiness. It sets the flag,
@@ -171,6 +189,8 @@ cleanly. See `ledger_runtime.md` §6 for the seed dataset.
   (`persistence.md` §7)
 - Tombstones set `lifecycle = 3` and are hidden from `load()` but remain in SQLite.
   (`drift_ledger_store.dart` §5)
+- Archived entries persist as `lifecycle = 1` and reload into `binnedEntries`; restore persists
+  `lifecycle = 0`; purge writes the tombstone. (`drift_ledger_store.dart:loadChanges`)
 - An undecodable stored version vector on an unstamped write reports `permanentlyFailed` once, arms no timed retry, and
   leaves its pending batch undrained. A stamped survivor bypasses the decode. (tests `a corrupt version vector reports the terminal state
   once`, `the terminal save never drains the pending batch` in `drift_ledger_store_test.dart`)

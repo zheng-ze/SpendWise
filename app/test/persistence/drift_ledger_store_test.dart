@@ -920,6 +920,78 @@ void main() {
       expect(state.moneySources['a1']!.name, 'wallet');
     });
 
+    test('anArchivedEntryPersistsAsLifecycleOneAndReloadsIntoTheBin', () async {
+      final active = entry('e1', '12.34');
+      store.enqueue([UpsertAccount(account('a', 'wallet'))]);
+      store.enqueue([UpsertEntry(active)]);
+      await store.flushNow();
+
+      store.enqueue([
+        UpsertEntry(active.settingLifecycle(LifecycleState.archived)),
+      ]);
+      await store.flushNow();
+
+      final row = await db.select(db.entries).getSingle();
+      expect(row.lifecycle, LifecycleState.archived.code);
+      final state = await store.load();
+      expect(state.entries, isEmpty);
+      expect(state.binnedEntries.keys.toSet(), {'e1'});
+      expect(state.binnedEntries['e1']!.amount, Decimal.parse('12.34'));
+    });
+
+    test('restoringAnArchivedEntryPersistsLifecycleZero', () async {
+      final active = entry('e1', '12.34');
+      store.enqueue([
+        UpsertAccount(account('a', 'wallet')),
+        UpsertEntry(active.settingLifecycle(LifecycleState.archived)),
+      ]);
+      await store.flushNow();
+
+      store.enqueue([UpsertEntry(active)]);
+      await store.flushNow();
+
+      final row = await db.select(db.entries).getSingle();
+      expect(row.lifecycle, LifecycleState.active.code);
+      final state = await store.load();
+      expect(state.binnedEntries, isEmpty);
+      expect(state.entries.keys.toSet(), {'e1'});
+    });
+
+    test('purgingAnArchivedEntryWritesTheTombstone', () async {
+      store.enqueue([
+        UpsertAccount(account('a', 'wallet')),
+        UpsertEntry(
+          entry('e1', '12.34').settingLifecycle(LifecycleState.archived),
+        ),
+      ]);
+      await store.flushNow();
+
+      store.enqueue([const DeleteEntry('e1')]);
+      await store.flushNow();
+
+      final row = await db.select(db.entries).getSingle();
+      expect(row.lifecycle, LifecycleState.tombstoned.code);
+      final state = await store.load();
+      expect(state.binnedEntries, isEmpty);
+      expect(state.entries, isEmpty);
+    });
+
+    test('archivingAnEntryBumpsItsVersionVector', () async {
+      final active = entry('e1', '12.34');
+      store.enqueue([UpsertEntry(active)]);
+      await store.flushNow();
+      final before = (await db.select(db.entries).getSingle()).versionData;
+
+      store.enqueue([
+        UpsertEntry(active.settingLifecycle(LifecycleState.archived)),
+      ]);
+      await store.flushNow();
+
+      final after = (await db.select(db.entries).getSingle()).versionData;
+      expect(versionFromRow(after).dominates(versionFromRow(before)), isTrue);
+      expect(after, isNot(before));
+    });
+
     test('deleteChangeRemovesFromLoadedState', () async {
       store.enqueue([
         UpsertAccount(account('a1', 'wallet')),

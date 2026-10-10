@@ -84,6 +84,33 @@ void main() {
     expect(store.state.plans, isEmpty);
   });
 
+  test('archive, restore and purge move an entry between the maps', () async {
+    final store = InMemoryLedgerStore();
+    final active = _entry('e1', '12.34');
+    store.enqueue([UpsertEntry(active)]);
+    await store.flushNow();
+
+    store.enqueue([
+      UpsertEntry(active.settingLifecycle(LifecycleState.archived)),
+    ]);
+    await store.flushNow();
+    expect(store.state.entries, isEmpty);
+    expect(store.state.binnedEntries.keys.toSet(), {'e1'});
+
+    store.enqueue([UpsertEntry(active)]);
+    await store.flushNow();
+    expect(store.state.binnedEntries, isEmpty);
+    expect(store.state.entries.keys.toSet(), {'e1'});
+
+    store.enqueue([
+      UpsertEntry(active.settingLifecycle(LifecycleState.archived)),
+    ]);
+    store.enqueue([const DeleteEntry('e1')]);
+    await store.flushNow();
+    expect(store.state.binnedEntries, isEmpty);
+    expect(store.state.entries, isEmpty);
+  });
+
   test('a later upsert of one id replaces the earlier one', () async {
     final store = InMemoryLedgerStore();
     store.enqueue([UpsertAccount(_account('a1', 'first'))]);
