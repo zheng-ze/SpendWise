@@ -522,6 +522,22 @@ void main() {
         includeInAnalysis: true,
       );
 
+  Future<({_DriftSetup setup, Uint8List key, _FakeSyncBackend backend})>
+  driftReadySetup(String rowID) async {
+    const holderID = 'aaaaaaaa-0000-1111-2222-333333333333';
+    final key = _freshKey();
+    final backend = _FakeSyncBackend();
+    backend.onPush = _appliedPush;
+    final setup = await driftSetup(backend: backend, e2eKey: key);
+    final coordinator = setup.coordinator;
+    await seedDriftHolder(holderID, coordinator.persistenceProcessor);
+    ledger.addEntry(driftEntry(rowID, holderID));
+    await coordinator.persistenceProcessor.flush();
+    await coordinator.metadataStore.enterReconciliationComplete();
+    await coordinator.metadataStore.enterGateEnabled();
+    return (setup: setup, key: key, backend: backend);
+  }
+
   Future<_PushSetup> pushSetup({
     _FakeSyncBackend? backend,
     bool enableWrites = true,
@@ -2431,13 +2447,18 @@ void main() {
 
     test('a remote archive, restore and purge move the local entry through '
         'the bin', () async {
-      final key = _freshKey();
-      final backend = _FakeSyncBackend();
-      final setup = await driftSetup(backend: backend, e2eKey: key);
-      await seedDriftHolder(holderID, setup.coordinator.persistenceProcessor);
+      final (:setup, :key, :backend) = await driftReadySetup(rowID);
       final entry = driftEntry(rowID, holderID);
-      ledger.addEntry(entry);
-      await setup.coordinator.persistenceProcessor.flush();
+
+      Future<void> expectStored(int lifecycle, int counter) async {
+        await setup.coordinator.persistenceProcessor.flush();
+        final stored = await db.select(db.entries).getSingle();
+        expect(stored.lifecycle, lifecycle);
+        expect(
+          VersionVector.decode(stored.versionData),
+          VersionVector(<String, int>{setup.device: 1, 'remotedev': counter}),
+        );
+      }
 
       await pullRemote(
         setup,
@@ -2448,10 +2469,12 @@ void main() {
       );
       expect(ledger.state.entries, isEmpty);
       expect(ledger.state.binnedEntries.keys, [rowID]);
+      await expectStored(LifecycleState.archived.code, 2);
 
       await pullRemote(setup, key, backend, UpsertEntry(entry), 3);
       expect(ledger.state.binnedEntries, isEmpty);
       expect(ledger.state.entries.keys, [rowID]);
+      await expectStored(LifecycleState.active.code, 3);
 
       await pullRemote(
         setup,
@@ -2463,6 +2486,7 @@ void main() {
       await pullRemote(setup, key, backend, const DeleteEntry(rowID), 5);
       expect(ledger.state.binnedEntries, isEmpty);
       expect(ledger.state.entries, isEmpty);
+      await expectStored(LifecycleState.tombstoned.code, 5);
     });
 
     test('an archived upsert the state rejects fails the pass and applies '
@@ -2527,18 +2551,9 @@ void main() {
     test(
       'a pending row for a binned entry pushes an archived upsert',
       () async {
-        const holderID = 'aaaaaaaa-0000-1111-2222-333333333333';
         const rowID = 'f2f2f2f2-f2f2-f2f2-f2f2-f2f2f2f2f2f2';
-        final key = _freshKey();
-        final backend = _FakeSyncBackend();
-        backend.onPush = _appliedPush;
-        final setup = await driftSetup(backend: backend, e2eKey: key);
+        final (:setup, :key, :backend) = await driftReadySetup(rowID);
         final coordinator = setup.coordinator;
-        await seedDriftHolder(holderID, coordinator.persistenceProcessor);
-        ledger.addEntry(driftEntry(rowID, holderID));
-        await coordinator.persistenceProcessor.flush();
-        await coordinator.metadataStore.enterReconciliationComplete();
-        await coordinator.metadataStore.enterGateEnabled();
         ledger.archiveEntry(rowID);
 
         final result = await coordinator.pushCollection(SyncCollection.entries);
@@ -2564,19 +2579,11 @@ void main() {
       required LifecycleState persisted,
       required SiblingLifecycle envelopeLifecycle,
     }) async {
-      const holderID = 'aaaaaaaa-0000-1111-2222-333333333333';
       const rowID = 'f3f3f3f3-f3f3-f3f3-f3f3-f3f3f3f3f3f3';
-      final key = _freshKey();
-      final backend = _FakeSyncBackend();
-      backend.onPush = _appliedPush;
-      final setup = await driftSetup(backend: backend, e2eKey: key);
+      final (:setup, :key, :backend) = await driftReadySetup(rowID);
       final coordinator = setup.coordinator;
-      await seedDriftHolder(holderID, coordinator.persistenceProcessor);
-      ledger.addEntry(driftEntry(rowID, holderID));
       ledger.archiveEntry(rowID);
       await coordinator.persistenceProcessor.flush();
-      await coordinator.metadataStore.enterReconciliationComplete();
-      await coordinator.metadataStore.enterGateEnabled();
       await coordinator.pushCollection(SyncCollection.entries);
       final row = SyncRowID.of(SyncCollection.entries, rowID);
       final baseline = (await DriftCollectionVersionReader(

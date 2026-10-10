@@ -319,8 +319,7 @@ version tag yet and `app/pubspec.yaml` reads `0.1.0+1`, so no version number ide
 older than that release fails invariant clause 9 on an archived upsert, applies nothing from that
 batch, and fails its sync pass until it upgrades. No data is lost, and restore and purge payloads
 still apply on that peer. When an older peer sends to a newer one, version vectors order the
-changes and a concurrent edit is staged as a conflict. An older peer also drops the note of an
-entry it edits, because it does not read or write that field. Downgrading the app while binned
+changes and a concurrent edit is staged as a conflict. Downgrading the app while binned
 entries exist fails at boot and is unsupported. Source:
 `app/lib/sync/sync_coordinator.dart:_currentLocalChange`; `app/lib/ledger/ledger.dart:applySyncBatch`;
 tests in `sync_coordinator_test.dart` groups `processPullPage: archived entries` and
