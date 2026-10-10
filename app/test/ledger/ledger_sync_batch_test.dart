@@ -147,4 +147,107 @@ void main() {
       LifecycleState.archived,
     );
   });
+
+  group('binned entries', () {
+    late Ledger ledger;
+    late Account account;
+    late Entry entry;
+
+    setUp(() {
+      ledger = Ledger();
+      account = _account();
+      ledger.addAccount(account);
+      entry = _entry(account.id);
+      ledger.addEntry(entry);
+    });
+
+    Map<SyncRowID, VersionVector> stampsFor(Entry target) => {
+      SyncRowID.of(SyncCollection.entries, target.id): _stamp(7),
+    };
+
+    Entry archivedCopy(Entry source) =>
+        source.settingLifecycle(LifecycleState.archived);
+
+    test('a batch that archives an entry moves it into the bin', () {
+      ledger.applySyncBatch([
+        UpsertEntry(archivedCopy(entry)),
+      ], stampsFor(entry));
+
+      expect(ledger.state.entries, isEmpty);
+      expect(ledger.state.binnedEntries[entry.id], archivedCopy(entry));
+    });
+
+    test('a batch on another row keeps existing binned entries', () {
+      ledger.archiveEntry(entry.id);
+      final other = _entry(account.id);
+
+      ledger.applySyncBatch([UpsertEntry(other)], stampsFor(other));
+
+      expect(ledger.state.binnedEntries.keys, [entry.id]);
+      expect(ledger.state.entries.keys, [other.id]);
+    });
+
+    test('a batch that restores an entry moves it back out of the bin', () {
+      ledger.archiveEntry(entry.id);
+
+      ledger.applySyncBatch([UpsertEntry(entry)], stampsFor(entry));
+
+      expect(ledger.state.binnedEntries, isEmpty);
+      expect(ledger.state.entries[entry.id], entry);
+    });
+
+    test('a batch that purges an entry removes it from the bin', () {
+      ledger.archiveEntry(entry.id);
+
+      ledger.applySyncBatch([DeleteEntry(entry.id)], stampsFor(entry));
+
+      expect(ledger.state.binnedEntries, isEmpty);
+      expect(ledger.state.entries, isEmpty);
+    });
+
+    test('an archived upsert of a system entry throws and changes nothing', () {
+      final system = Entry(
+        amount: Decimal.fromInt(5),
+        name: 'opening',
+        sourceID: account.id,
+        systemKind: SystemEntryKind.openingBalance,
+      );
+      ledger.addEntry(system);
+      final publications = <LedgerPublication>[];
+      ledger.bus.subscribe().listen(publications.add);
+
+      expect(
+        () => ledger.applySyncBatch([
+          UpsertEntry(archivedCopy(system)),
+        ], stampsFor(system)),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(ledger.state.binnedEntries, isEmpty);
+      expect(ledger.state.entries[system.id], system);
+      expect(publications, isEmpty);
+    });
+
+    test(
+      'a binned entry with a missing reference throws and changes nothing',
+      () {
+        final dangling = Entry(
+          amount: Decimal.fromInt(-3),
+          name: 'dangling',
+          sourceID: '4f2c1b90-3e5d-4a18-9c7b-6d0e2a1f8b43',
+          lifecycle: LifecycleState.archived,
+        );
+
+        expect(
+          () => ledger.applySyncBatch([
+            UpsertEntry(dangling),
+          ], stampsFor(dangling)),
+          throwsA(isA<StateError>()),
+        );
+
+        expect(ledger.state.binnedEntries, isEmpty);
+        expect(ledger.state.entries.keys, [entry.id]);
+      },
+    );
+  });
 }

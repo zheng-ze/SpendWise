@@ -255,6 +255,7 @@ Future<SyncEnvelope> _pullEnvelope({
   required VersionVector version,
   LedgerChange? change,
   SyncCollection collection = SyncCollection.entries,
+  SiblingLifecycle lifecycle = SiblingLifecycle.live,
 }) async {
   const cipher = SyncCipher();
   const codec = PayloadCodec();
@@ -272,7 +273,7 @@ Future<SyncEnvelope> _pullEnvelope({
       versionVector: version,
     ),
     versionVector: version,
-    lifecycle: SiblingLifecycle.live,
+    lifecycle: lifecycle,
     ciphertext: ciphertext,
   );
   final payload = change == null ? const <int>[] : codec.encodeChange(change);
@@ -427,6 +428,7 @@ void main() {
     })?
     buildEngine,
     CollectionVersionReader Function(CollectionVersionReader inner)? wrapReader,
+    PassFailureHandler? onPassFailure,
   }) async {
     final Uint8List key = e2eKey ?? _freshKey();
     final String id = await deviceID(db);
@@ -488,6 +490,7 @@ void main() {
       ledger: ledger,
       persistenceProcessor: driftProcessor,
       stagingStore: driftStaging,
+      onPassFailure: onPassFailure,
     );
     return _DriftSetup(
       coordinator: coordinator,
@@ -518,6 +521,22 @@ void main() {
         sourceID: sourceID,
         includeInAnalysis: true,
       );
+
+  Future<({_DriftSetup setup, Uint8List key, _FakeSyncBackend backend})>
+  driftReadySetup(String rowID) async {
+    const holderID = 'aaaaaaaa-0000-1111-2222-333333333333';
+    final key = _freshKey();
+    final backend = _FakeSyncBackend();
+    backend.onPush = _appliedPush;
+    final setup = await driftSetup(backend: backend, e2eKey: key);
+    final coordinator = setup.coordinator;
+    await seedDriftHolder(holderID, coordinator.persistenceProcessor);
+    ledger.addEntry(driftEntry(rowID, holderID));
+    await coordinator.persistenceProcessor.flush();
+    await coordinator.metadataStore.enterReconciliationComplete();
+    await coordinator.metadataStore.enterGateEnabled();
+    return (setup: setup, key: key, backend: backend);
+  }
 
   Future<_PushSetup> pushSetup({
     _FakeSyncBackend? backend,
@@ -2397,22 +2416,144 @@ void main() {
     });
   });
 
+  group('processPullPage: archived entries', () {
+    const holderID = 'aaaaaaaa-0000-1111-2222-333333333333';
+    const rowID = '99999999-9999-9999-9999-999999999999';
+
+    Future<void> pullRemote(
+      _DriftSetup setup,
+      Uint8List key,
+      _FakeSyncBackend backend,
+      LedgerChange change,
+      int counter,
+    ) async {
+      final envelope = await _pullEnvelope(
+        key: key,
+        rowID: rowID,
+        version: VersionVector(<String, int>{
+          setup.device: 1,
+          'remotedev': counter,
+        }),
+        change: change is DeleteEntry ? null : change,
+        lifecycle: change is DeleteEntry
+            ? SiblingLifecycle.tombstone
+            : SiblingLifecycle.live,
+      );
+      backend.pages[SyncCollection.entries] = _pullPage(<SyncEnvelope>[
+        envelope,
+      ], 'cursor-$counter');
+      await setup.coordinator.processPullPage(SyncCollection.entries);
+    }
+
+    test('a remote archive, restore and purge move the local entry through '
+        'the bin', () async {
+      final (:setup, :key, :backend) = await driftReadySetup(rowID);
+      final entry = driftEntry(rowID, holderID);
+
+      Future<void> expectStored(int lifecycle, int counter) async {
+        await setup.coordinator.persistenceProcessor.flush();
+        final stored = await db.select(db.entries).getSingle();
+        expect(stored.lifecycle, lifecycle);
+        expect(
+          VersionVector.decode(stored.versionData),
+          VersionVector(<String, int>{setup.device: 1, 'remotedev': counter}),
+        );
+      }
+
+      await pullRemote(
+        setup,
+        key,
+        backend,
+        UpsertEntry(entry.settingLifecycle(LifecycleState.archived)),
+        2,
+      );
+      expect(ledger.state.entries, isEmpty);
+      expect(ledger.state.binnedEntries.keys, [rowID]);
+      await expectStored(LifecycleState.archived.code, 2);
+
+      await pullRemote(setup, key, backend, UpsertEntry(entry), 3);
+      expect(ledger.state.binnedEntries, isEmpty);
+      expect(ledger.state.entries.keys, [rowID]);
+      await expectStored(LifecycleState.active.code, 3);
+
+      await pullRemote(
+        setup,
+        key,
+        backend,
+        UpsertEntry(entry.settingLifecycle(LifecycleState.archived)),
+        4,
+      );
+      await pullRemote(setup, key, backend, const DeleteEntry(rowID), 5);
+      expect(ledger.state.binnedEntries, isEmpty);
+      expect(ledger.state.entries, isEmpty);
+      await expectStored(LifecycleState.tombstoned.code, 5);
+    });
+
+    test('an archived upsert the state rejects fails the pass and applies '
+        'nothing from the batch', () async {
+      const otherID = '88888888-8888-8888-8888-888888888888';
+      final key = _freshKey();
+      final backend = _FakeSyncBackend(pages: _emptyPages('rejected'));
+      backend.onPush = _appliedPush;
+      final failures = <Object>[];
+      final setup = await driftSetup(
+        backend: backend,
+        e2eKey: key,
+        onPassFailure: failures.add,
+      );
+      await seedDriftHolder(holderID, setup.coordinator.persistenceProcessor);
+      await setup.coordinator.metadataStore.enterReconciliationComplete();
+      await setup.coordinator.metadataStore.enterGateEnabled();
+      final system = Entry(
+        id: rowID,
+        date: DateTime.utc(2024, 3, 15),
+        amount: Decimal.parse('5'),
+        name: 'opening',
+        sourceID: holderID,
+        systemKind: SystemEntryKind.openingBalance,
+        lifecycle: LifecycleState.archived,
+      );
+      backend.pages[SyncCollection.entries] = _pullPage(<SyncEnvelope>[
+        await _pullEnvelope(
+          key: key,
+          rowID: rowID,
+          version: VersionVector(<String, int>{'remotedev': 1}),
+          change: UpsertEntry(system),
+        ),
+        await _pullEnvelope(
+          key: key,
+          rowID: otherID,
+          version: VersionVector(<String, int>{'remotedev': 1}),
+          change: UpsertEntry(driftEntry(otherID, holderID)),
+        ),
+      ], 'cursor-rejected');
+
+      final publications = await collectPublications(setup.coordinator.syncNow);
+
+      expect(failures, hasLength(1));
+      expect(
+        failures.single,
+        isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          contains('invariant 9'),
+        ),
+      );
+      expect(publications, isEmpty);
+      expect(ledger.state.entries, isEmpty);
+      expect(ledger.state.binnedEntries, isEmpty);
+      final snapshot = await setup.coordinator.metadataStore.snapshot();
+      expect(snapshot.watermarks[SyncCollection.entries], isNull);
+    });
+  });
+
   group('pushCollection: archived entries', () {
     test(
       'a pending row for a binned entry pushes an archived upsert',
       () async {
-        const holderID = 'aaaaaaaa-0000-1111-2222-333333333333';
         const rowID = 'f2f2f2f2-f2f2-f2f2-f2f2-f2f2f2f2f2f2';
-        final key = _freshKey();
-        final backend = _FakeSyncBackend();
-        backend.onPush = _appliedPush;
-        final setup = await driftSetup(backend: backend, e2eKey: key);
+        final (:setup, :key, :backend) = await driftReadySetup(rowID);
         final coordinator = setup.coordinator;
-        await seedDriftHolder(holderID, coordinator.persistenceProcessor);
-        ledger.addEntry(driftEntry(rowID, holderID));
-        await coordinator.persistenceProcessor.flush();
-        await coordinator.metadataStore.enterReconciliationComplete();
-        await coordinator.metadataStore.enterGateEnabled();
         ledger.archiveEntry(rowID);
 
         final result = await coordinator.pushCollection(SyncCollection.entries);
@@ -2431,6 +2572,66 @@ void main() {
           LifecycleState.archived,
         );
       },
+    );
+
+    Future<void> expectOperationPushes(
+      void Function(String rowID) operation, {
+      required LifecycleState persisted,
+      required SiblingLifecycle envelopeLifecycle,
+    }) async {
+      const rowID = 'f3f3f3f3-f3f3-f3f3-f3f3-f3f3f3f3f3f3';
+      final (:setup, :key, :backend) = await driftReadySetup(rowID);
+      final coordinator = setup.coordinator;
+      ledger.archiveEntry(rowID);
+      await coordinator.persistenceProcessor.flush();
+      await coordinator.pushCollection(SyncCollection.entries);
+      final row = SyncRowID.of(SyncCollection.entries, rowID);
+      final baseline = (await DriftCollectionVersionReader(
+        db,
+      ).readRowVersions(SyncCollection.entries))[row]!.versionVector;
+      backend.pushes.clear();
+
+      operation(rowID);
+      await coordinator.persistenceProcessor.flush();
+      final result = await coordinator.pushCollection(SyncCollection.entries);
+
+      expect(result, isA<PushFullyAcknowledged>());
+      final advanced = (await DriftCollectionVersionReader(
+        db,
+      ).readRowVersions(SyncCollection.entries))[row]!.versionVector;
+      expect(advanced.dominates(baseline), isTrue);
+      expect(advanced, isNot(baseline));
+      final stored = await db.select(db.entries).getSingle();
+      expect(stored.lifecycle, persisted.code);
+      final envelope = backend.pushes.single.envelopes.single;
+      expect(envelope.lifecycle, envelopeLifecycle);
+      if (envelopeLifecycle == SiblingLifecycle.live) {
+        final plaintext = await const SyncCipher().decrypt(
+          key: key,
+          ciphertext: envelope.ciphertext,
+          aad: envelope.aadBytes(),
+        );
+        final change = const PayloadCodec().decodeChange(plaintext);
+        expect((change as UpsertEntry).entry.lifecycle, persisted);
+      }
+    }
+
+    test(
+      'a restored entry pushes an active upsert after an archived baseline',
+      () => expectOperationPushes(
+        ledger.restoreEntry,
+        persisted: LifecycleState.active,
+        envelopeLifecycle: SiblingLifecycle.live,
+      ),
+    );
+
+    test(
+      'a purged entry pushes a tombstone after an archived baseline',
+      () => expectOperationPushes(
+        ledger.purgeEntry,
+        persisted: LifecycleState.tombstoned,
+        envelopeLifecycle: SiblingLifecycle.tombstone,
+      ),
     );
   });
 
