@@ -436,6 +436,32 @@ void main() {
     expect(queries.readRecent().state, AnalysisQueryState.ready);
   });
 
+  test('recentKeepsSameDayOrderAfterArchiveAndRestore', () async {
+    final state = _baseState();
+    for (final n in [1, 2]) {
+      _expense(
+        state,
+        'c0000000-0000-0000-0000-00000000000$n',
+        '-1.00',
+        DateTime.utc(2027, 4, 7),
+        name: 'same-day',
+      );
+    }
+    final setup = _ready(state);
+    await _accept(setup.cache, setup.ledger);
+    List<String> ids() => setup.queries
+        .readRecent()
+        .value!
+        .map((record) => record.entry.id)
+        .toList();
+    final before = ids();
+
+    setup.ledger.archiveEntry('c0000000-0000-0000-0000-000000000001');
+    setup.ledger.restoreEntry('c0000000-0000-0000-0000-000000000001');
+
+    expect(ids(), before);
+  });
+
   test('searchMatchesNamesAcrossScopes', () async {
     final state = _baseState();
     state.addCategory(

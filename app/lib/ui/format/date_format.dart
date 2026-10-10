@@ -7,6 +7,9 @@ final DateFormat _monthLabel = DateFormat('MMM yyyy');
 final DateFormat _yearLabel = DateFormat('yyyy');
 final DateFormat _fullDay = DateFormat('d MMM yyyy');
 final DateFormat _rangeDay = DateFormat('d MMM');
+final DateFormat _weekdayDate = DateFormat('EEEE, d MMMM');
+final DateFormat _dayMonthLong = DateFormat('d MMMM');
+final DateFormat _monthShort = DateFormat('MMM');
 
 const _exclusiveEndStepBack = Duration(days: 1);
 
@@ -37,3 +40,11 @@ String formatWeekRange(DateRange window) {
   final lastIncluded = window.end.subtract(_exclusiveEndStepBack);
   return '${_rangeDay.format(window.start)} - ${_rangeDay.format(lastIncluded)}';
 }
+
+String formatWeekdayDate(DateTime day) => _weekdayDate.format(day);
+
+String formatDayMonthLong(DateTime day) => _dayMonthLong.format(day);
+
+String formatDayMonthShort(DateTime day) => _rangeDay.format(day);
+
+String formatMonthShort(DateTime day) => _monthShort.format(day);
