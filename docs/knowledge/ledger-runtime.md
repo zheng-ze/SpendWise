@@ -1,6 +1,6 @@
 # Ledger Runtime
 
-Last reconciled: 5cc373c
+Last reconciled: 33f30e7
 
 ## Feature overview
 
@@ -24,8 +24,8 @@ banners, and first-launch seeding. These live in `app/lib/ledger/` and `app/lib/
   and per-query memoization.
 - `app/lib/ledger/analysis/` - app-owned query result types and pure helpers for summaries,
   entry metadata, register days, recent entries, upcoming items, weeks, search, calendar days,
-  firstRecordMonth, period completeness, month and year spreads, category breakdowns, and compared
-  with usual.
+  firstRecordMonth, period completeness, month and year spreads, category breakdowns, scoped trends,
+  and compared with usual.
   The pure-domain card query lives in `packages/domain/lib/src/analysis/card_statement.dart`.
 - `app/lib/ui/common/ledger_backed_notifier.dart` - watches the ready session and exposes its
   Ledger and cache to ViewModels.
@@ -257,6 +257,21 @@ its previous successful value if present (`analysis_queries.dart:_readLedgerOnly
   null last, then non-direct before direct. `total` sums the items filtered by kind and window;
   rows carry no share (`app/lib/ledger/analysis/category_breakdown.dart`;
   `analysis_category_breakdown_test.dart`).
+- `scopedTrend` is a pure helper, with no `AnalysisQueries` read. It filters items for a nullable,
+  normalized main bucket using `AnalysisCategoryScope`: `all` matches `Accounting.mainBucketID`,
+  `direct` matches the raw normalized bucket, and `subcategory` matches its raw normalized bucket
+  after checking that it names a real child of the supplied main; invalid child/main pairs throw
+  `ArgumentError`. Unknown, synthetic and null mains yield zero when unmatched. It reuses pure
+  `monthSpread` and returns a `ScopedTrend` with 12 chronological `MonthSlot`s of the requested kind.
+  `AnalysisPeriodMode.month` covers the 12 months ending at the period's month; a future month
+  throws `ArgumentError`. `year` covers January through December of the period's year, anchored
+  at December; a future year throws `ArgumentError`. In the current year, items dated in months
+  after today's month are excluded, leaving those slots zero; the current month still includes
+  entries dated after today. Scopes and results have value equality, including element-wise slots
+  (`app/lib/ledger/analysis/analysis_category_scope.dart`, `analysis_period_mode.dart`,
+  `scoped_trend.dart`; `app/test/ledger/analysis_scoped_trend_test.dart`:
+  `month mode all scope sums children and direct`, `invalid child parent pairs throw`,
+  `months after today are zero in year mode`, `independent equal trends are equal`).
 - `readComparedWithUsual(month:, kind:)` is a mixed read for a pace comparison. The observed
   total covers the selected month up to today for the current month, or the whole month for a past
   month. The usual is the mean of the same elapsed days in exactly the three calendar months before
