@@ -87,9 +87,6 @@ pumpFreshSettings(WidgetTester tester, {HostedSyncStatus? status}) async {
     ),
   );
   await tester.pumpAndSettle();
-  container.read(selectedDestinationProvider.notifier).state =
-      ShellDestination.settings;
-  await tester.pumpAndSettle();
   return (container: container, metadataStore: metadataStore, opener: opener);
 }
 

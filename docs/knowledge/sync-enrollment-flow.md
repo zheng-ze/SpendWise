@@ -233,9 +233,8 @@ or reopening one with an OTP-rejecting resolver. Source:
   The surviving Settings Flow opens a fresh route through the shared guard without rechecking tile
   eligibility, including when enrollment has reached binding authorization. Repair handover requests
   repair again only for binding-repair or session-reauth status. Source: `app/lib/ui/settings/settings_flow.dart` -
-  `_SettingsFlowState._openFreshFlow`, `_handOverOpenEnrollmentRoute`, `handleStep`,
+  `_SettingsFlowState._openFreshFlow`, `_settleAtDispose`, `handleStep`,
   `_pushEnrollmentRoute`.
-- A repair banner tap selects Settings and requests repair only when `enrollmentFlowOpenProvider`
-  is false. An open fresh route awaiting binding authorization therefore remains the single route
-  when the banner is tapped from another tab. Source: `app/lib/ui/shell/status_banner.dart` -
+- A repair banner tap opens Settings and requests repair only when `enrollmentFlowOpenProvider`
+  is false. An open fresh route awaiting binding authorization therefore remains the single route. Source: `app/lib/ui/shell/status_banner.dart` -
   `_RepairBanner.build`; `app/lib/ui/settings/settings_flow.dart` - `_pushEnrollmentRoute`.

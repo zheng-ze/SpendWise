@@ -78,17 +78,17 @@ void main() {
     expect(labels, ['Transactions', 'Stats', 'Accounts', 'Settings']);
   });
 
-  testWidgets('switching destinations swaps the visible body', (tester) async {
+  testWidgets('selecting a destination moves the bar selection', (
+    tester,
+  ) async {
     await _pumpShell(tester, size: _compact);
 
-    expect(find.text('Transactions'), findsWidgets);
-
-    await tester.tap(find.text('Settings'));
+    await tester.tap(find.text('Stats'));
     await tester.pumpAndSettle();
 
     expect(
       tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
-      3,
+      1,
     );
   });
 

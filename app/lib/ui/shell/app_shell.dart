@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/shell/day_ticker.dart';
+import 'package:spendwise/ui/settings/settings_flow.dart';
 import 'package:spendwise/ui/shell/layout_breakpoints.dart';
+import 'package:spendwise/ui/shell/settings_route.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/shell/status_banner.dart';
 
@@ -13,14 +15,18 @@ const _destinationLabels = {
   ShellDestination.transactions: 'Transactions',
   ShellDestination.stats: 'Stats',
   ShellDestination.accounts: 'Accounts',
-  ShellDestination.settings: 'Settings',
 };
+
+const _settingsLabel = 'Settings';
+
+const _settingsIcon = Icons.settings_outlined;
+
+final _settingsIndex = ShellDestination.values.length;
 
 const _destinationIcons = {
   ShellDestination.transactions: Icons.receipt_long_outlined,
   ShellDestination.stats: Icons.pie_chart_outline,
   ShellDestination.accounts: Icons.account_balance_wallet_outlined,
-  ShellDestination.settings: Icons.settings_outlined,
 };
 
 class AppShell extends ConsumerStatefulWidget {
@@ -36,9 +42,23 @@ class _AppShellState extends ConsumerState<AppShell> {
   bool _useRail = false;
   bool _extended = false;
   DayTicker? _ticker;
+  Route<void>? _settingsRoute;
+  late final ProviderSubscription<bool> _settingsOpenSubscription;
+
+  // A widget-scoped listener is paused while the SettingsRoute covers the
+  // shell, and that is exactly when the flag must be able to remove the route.
+  @override
+  void initState() {
+    super.initState();
+    _settingsOpenSubscription = ProviderScope.containerOf(
+      context,
+      listen: false,
+    ).listen(settingsOpenProvider, (_, _) => _scheduleReconcile());
+  }
 
   @override
   void dispose() {
+    _settingsOpenSubscription.close();
     _ticker?.dispose();
     _ticker = null;
     super.dispose();
@@ -69,19 +89,64 @@ class _AppShellState extends ConsumerState<AppShell> {
     }
   }
 
+  void _closeSettings() =>
+      ref.read(settingsOpenProvider.notifier).state = false;
+
+  void _scheduleReconcile() {
+    WidgetsBinding.instance
+      ..addPostFrameCallback((_) => _reconcileSettingsRoute())
+      ..ensureVisualUpdate();
+  }
+
+  void _reconcileSettingsRoute() {
+    if (!mounted) return;
+    final wanted = ref.read(settingsOpenProvider) && !_useRail;
+    final route = _settingsRoute;
+    final navigator = Navigator.of(context, rootNavigator: true);
+    if (wanted && route == null) {
+      final created = SettingsRoute(
+        backLabel: _destinationLabels[ref.read(selectedDestinationProvider)]!,
+        onEnded: _closeSettings,
+      );
+      _settingsRoute = created;
+      navigator.push(created);
+    } else if (!wanted && route != null) {
+      _settingsRoute = null;
+      navigator.removeRoute(route);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final selected = ref.watch(selectedDestinationProvider);
+    final settingsOpen = ref.watch(settingsOpenProvider);
     _ensureTicker(ref.watch(clockProvider));
     _updateLayoutMode(MediaQuery.sizeOf(context).width);
 
-    void select(int index) =>
-        ref.read(selectedDestinationProvider.notifier).state =
-            ShellDestination.values[index];
+    final settingsInContent = settingsOpen && _useRail;
+    final wantsRoute = settingsOpen && !_useRail;
+    if (wantsRoute != (_settingsRoute != null)) {
+      _scheduleReconcile();
+    }
+
+    void select(int index) {
+      if (index == _settingsIndex) {
+        ref.read(settingsOpenProvider.notifier).state = true;
+        return;
+      }
+      _closeSettings();
+      ref.read(selectedDestinationProvider.notifier).state =
+          ShellDestination.values[index];
+    }
 
     final content = Stack(
+      fit: StackFit.expand,
       children: [
-        _DestinationStacks(selected: selected, bodies: widget.bodies),
+        Offstage(
+          offstage: settingsInContent,
+          child: _DestinationStacks(selected: selected, bodies: widget.bodies),
+        ),
+        if (settingsInContent) SettingsFlow(onEnded: _closeSettings),
         const StatusBanner(),
       ],
     );
@@ -90,7 +155,7 @@ class _AppShellState extends ConsumerState<AppShell> {
         ? _RailLayout(
             key: const ValueKey('rail'),
             content: content,
-            selectedIndex: selected.index,
+            selectedIndex: settingsInContent ? _settingsIndex : selected.index,
             onDestinationSelected: select,
             extended: _extended,
           )
@@ -151,6 +216,10 @@ class _InsetNavigationBar extends StatelessWidget {
           icon: Icon(_destinationIcons[destination]),
           label: _destinationLabels[destination]!,
         ),
+      const NavigationDestination(
+        icon: Icon(_settingsIcon),
+        label: _settingsLabel,
+      ),
     ];
     final bar = NavigationBar(
       selectedIndex: selectedIndex,
@@ -197,6 +266,10 @@ class _RailLayout extends StatelessWidget {
           icon: Icon(_destinationIcons[destination]),
           label: Text(_destinationLabels[destination]!),
         ),
+      const NavigationRailDestination(
+        icon: Icon(_settingsIcon),
+        label: Text(_settingsLabel),
+      ),
     ];
     final rail = NavigationRail(
       selectedIndex: selectedIndex,

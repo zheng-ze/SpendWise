@@ -16,7 +16,9 @@ import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_flow.dart';
 
 class SettingsFlow extends FlowBase<SettingsStep> {
-  const SettingsFlow({super.key});
+  const SettingsFlow({super.key, super.onEnded, this.backLabel});
+
+  final String? backLabel;
 
   @override
   ConsumerState<SettingsFlow> createState() => _SettingsFlowState();
@@ -27,18 +29,13 @@ class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
   late final ProviderContainer _container;
   bool _ownsEnrollmentRoute = false;
   bool _ownedRepairRoute = false;
-  void Function()? _closeSelectionSubscription;
 
   @override
   void initState() {
     super.initState();
     _enrollmentFlowOpen = ref.read(enrollmentFlowOpenProvider.notifier);
     _container = ProviderScope.containerOf(context, listen: false);
-    // AppShell keeps every destination mounted, so the cached status must be
-    // re-read when the Settings tab is selected.
-    if (ref.read(selectedDestinationProvider) == ShellDestination.settings) {
-      unawaited(_refreshSyncStatus());
-    }
+    unawaited(_refreshSyncStatus());
     // FlowBase drops steps emitted before the navigator mounts, so re-check
     // the pending step once mounted.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -48,21 +45,11 @@ class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
       final step = ref.read(settingsRootViewModelProvider).step;
       if (step != null) handleStep(context, step);
     });
-    _closeSelectionSubscription = ref.listenManual(
-      selectedDestinationProvider,
-      (previous, next) {
-        if (previous != ShellDestination.settings &&
-            next == ShellDestination.settings) {
-          unawaited(_refreshSyncStatus());
-        }
-      },
-    ).close;
   }
 
   @override
   void dispose() {
-    _closeSelectionSubscription?.call();
-    _handOverOpenEnrollmentRoute();
+    _settleAtDispose();
     super.dispose();
   }
 
@@ -143,8 +130,10 @@ class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
   }
 
   // Provider writes are illegal while the tree finalizes, hence the microtask.
-  void _handOverOpenEnrollmentRoute() {
-    if (!_ownsEnrollmentRoute) return;
+  // AppShell leaves the flag true when it re-hosts Settings across a layout
+  // switch, so only a cleared flag means the user closed Settings.
+  void _settleAtDispose() {
+    final ownedRoute = _ownsEnrollmentRoute;
     final ownedRepairRoute = _ownedRepairRoute;
     _ownsEnrollmentRoute = false;
     _ownedRepairRoute = false;
@@ -152,20 +141,25 @@ class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
     final container = _container;
     scheduleMicrotask(() {
       if (!enrollmentFlowOpen.mounted) return;
+      final viewModel = container.read(settingsRootViewModelProvider.notifier);
+      if (!container.read(settingsOpenProvider)) {
+        if (ownedRoute) enrollmentFlowOpen.state = false;
+        viewModel.clearStep();
+        return;
+      }
+      if (!ownedRoute) return;
       enrollmentFlowOpen.state = false;
       final status = container.read(hostedSyncStatusProvider);
       if (!ownedRepairRoute) {
         if (status is HostedSyncReady) return;
-        container
-            .read(settingsRootViewModelProvider.notifier)
-            .requestResumeFreshEnrollment();
+        viewModel.requestResumeFreshEnrollment();
         return;
       }
       final needsRepair =
           status is HostedSyncBindingRepair ||
           status is HostedSyncSessionReauth;
       if (!needsRepair) return;
-      container.read(settingsRootViewModelProvider.notifier).requestRepair();
+      viewModel.requestRepair();
     });
   }
 
@@ -176,5 +170,8 @@ class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
   }
 
   @override
-  Widget buildRoot(BuildContext context) => const SettingsScreen();
+  Widget buildRoot(BuildContext context) => SettingsScreen(
+    backLabel: widget.backLabel,
+    onBack: widget.backLabel == null ? null : goBack,
+  );
 }

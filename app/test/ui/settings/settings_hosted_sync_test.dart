@@ -12,7 +12,6 @@ import 'package:spendwise/persistence/ledger_database.dart' show LedgerDatabase;
 import 'package:spendwise/sync/hosted_sync_status.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
 import 'package:spendwise/ui/settings/settings_flow.dart';
-import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_screen.dart';
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_screens.dart';
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart';
@@ -215,26 +214,23 @@ void main() {
     expect(find.text('Repair Device Access'), findsOneWidget);
   });
 
-  testWidgets('selecting the Settings tab refreshes a changed durable phase', (
+  testWidgets('mounting SettingsFlow refreshes a changed durable phase', (
     tester,
   ) async {
     final harness = await pumpSettingsFlow(tester, null);
-    expect(find.text('Status unavailable'), findsOneWidget);
-
-    harness.container.read(selectedDestinationProvider.notifier).state =
-        ShellDestination.settings;
-    await tester.pumpAndSettle();
     expect(find.text('Not configured'), findsOneWidget);
 
     await harness.metadataStore.setBackendSelection(
       backend: SyncBackendKind.supabase,
     );
     await harness.metadataStore.enterBindingAuthorizationRequired();
-    harness.container.read(selectedDestinationProvider.notifier).state =
-        ShellDestination.transactions;
-    await tester.pumpAndSettle();
-    harness.container.read(selectedDestinationProvider.notifier).state =
-        ShellDestination.settings;
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: harness.container,
+        child: const MaterialApp(home: SettingsFlow()),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Binding repair needed'), findsOneWidget);
