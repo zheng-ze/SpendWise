@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:domain/domain.dart';
 import 'package:flutter/foundation.dart';
 
+import 'package:spendwise/ledger/analysis/analysis_category_scope.dart';
 import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
 import 'package:spendwise/ledger/analysis/calendar.dart';
 import 'package:spendwise/ledger/analysis/category_breakdown.dart';
@@ -341,6 +342,45 @@ class AnalysisQueries extends ChangeNotifier {
         window: window,
         kind: kind,
         level: level,
+      ),
+    );
+  }
+
+  AnalysisQueryResult<ScopedTrend> readScopedTrend({
+    required DateTime period,
+    required AnalysisPeriodMode mode,
+    required CategoryKind kind,
+    required String? mainBucketID,
+    required AnalysisCategoryScope scope,
+  }) {
+    final day = startOfDayUtc(period);
+    final anchor = switch (mode) {
+      AnalysisPeriodMode.month => monthWindow(day).start,
+      AnalysisPeriodMode.year => DateTime.utc(
+        day.year,
+        scopedTrendDecemberMonth,
+        1,
+      ),
+    };
+    final main = normalizedOptionalID(mainBucketID);
+    final mainIdentity = main == null ? 'uncategorized' : 'bucket:$main';
+    final scopeIdentity = switch (scope) {
+      AllCategoryScope() => 'all',
+      DirectCategoryScope() => 'direct',
+      SubCategoryScope(:final subID) => 'sub:$subID',
+    };
+    return _readMixed<ScopedTrend>(
+      'scoped-trend|${mode.name}|${anchor.toIso8601String()}|'
+      '${kind.name}|$mainIdentity|$scopeIdentity',
+      () => scopedTrend(
+        mainBucketID: main,
+        scope: scope,
+        kind: kind,
+        period: day,
+        mode: mode,
+        today: _today,
+        state: _ledger.state,
+        items: _cache.items,
       ),
     );
   }
