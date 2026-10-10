@@ -218,9 +218,11 @@ class _EntryRowContent extends StatelessWidget {
 
   static const _contentPadding = EdgeInsets.symmetric(
     horizontal: 16,
-    vertical: 10,
+    vertical: 7,
   );
   static const _restoreGap = 6.0;
+  static const _restoreFontSize = 12.0;
+  static const _restoreWeight = FontWeight.w600;
   static const _restoreLabel = 'Restore';
   static const _amountFontSize = 12.0;
   static const _amountWeight = FontWeight.w600;
@@ -242,7 +244,22 @@ class _EntryRowContent extends StatelessWidget {
       children: [
         Text(amountText, style: amountStyle),
         const SizedBox(width: _restoreGap),
-        TextButton(onPressed: onRestore, child: const Text(_restoreLabel)),
+        Semantics(
+          button: true,
+          label: _restoreLabel,
+          excludeSemantics: true,
+          child: InkWell(
+            onTap: onRestore,
+            child: Text(
+              _restoreLabel,
+              style: TextStyle(
+                fontSize: _restoreFontSize,
+                fontWeight: _restoreWeight,
+                color: context.colors.action,
+              ),
+            ),
+          ),
+        ),
       ],
     );
 
