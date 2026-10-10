@@ -463,6 +463,32 @@ void main() {
       expect(find.text('Entries'), findsNothing);
     });
 
+    testWidgets('the Restore control has a 48 wide tap target and is hidden '
+        'from screen readers', (tester) async {
+      final handle = tester.ensureSemantics();
+      await pumpWith(tester, [binned('Coffee', DateTime.utc(2026, 10, 3))]);
+
+      final target = find.ancestor(
+        of: find.text('Restore'),
+        matching: find.byType(InkWell),
+      );
+      expect(tester.getSize(target).width, greaterThanOrEqualTo(48));
+      expect(find.bySemanticsLabel('Restore'), findsNothing);
+      handle.dispose();
+    });
+
+    testWidgets('entries on the same date list by name', (tester) async {
+      await pumpWith(tester, [
+        binned('Beta', DateTime.utc(2026, 10, 3)),
+        binned('Alpha', DateTime.utc(2026, 10, 3)),
+      ]);
+
+      expect(
+        tester.getCenter(find.text('Alpha')).dy,
+        lessThan(tester.getCenter(find.text('Beta')).dy),
+      );
+    });
+
     testWidgets('a leading swipe restores the entry', (tester) async {
       final entry = binned('Coffee', DateTime.utc(2026, 10, 3));
       final ledger = await pumpWith(tester, [entry]);
@@ -483,6 +509,12 @@ void main() {
       await tester.drag(find.text('Coffee'), const Offset(-500, 0));
       await tester.pumpAndSettle();
       expect(find.text('Delete permanently?'), findsOneWidget);
+      expect(
+        find.text(
+          'Coffee leaves the bin for good and can no longer be restored.',
+        ),
+        findsOneWidget,
+      );
       await tester.tap(find.text('Delete'));
       await tester.pumpAndSettle();
 

@@ -17,7 +17,7 @@ class BinRow {
     required this.kind,
     required this.id,
     required this.name,
-    required this.referenceCount,
+    this.referenceCount = 0,
     this.symbolName,
     this.color,
   });
@@ -34,22 +34,30 @@ class BinEntryRow extends BinRow {
   const BinEntryRow({
     required super.id,
     required super.name,
-    required super.symbolName,
+    required String super.symbolName,
     required super.color,
     required this.caption,
     required this.amount,
     required this.amountKind,
-    required this.date,
-  }) : super(kind: BinRowKind.entry, referenceCount: 0);
+  }) : super(kind: BinRowKind.entry);
+
+  @override
+  String get symbolName => super.symbolName!;
 
   final String caption;
   final Decimal amount;
   final AmountKind amountKind;
-  final DateTime date;
 }
 
 List<BinEntryRow> _entryRows(LedgerState state) {
-  final rows = state.binnedEntries.values.map((entry) {
+  final entries = state.binnedEntries.values.toList()
+    ..sort((a, b) {
+      final byDate = b.date.compareTo(a.date);
+      if (byDate != 0) return byDate;
+      final byName = a.name.compareTo(b.name);
+      return byName != 0 ? byName : a.id.compareTo(b.id);
+    });
+  return entries.map((entry) {
     final row = transactionRow(entry, state);
     return BinEntryRow(
       id: entry.id,
@@ -59,10 +67,8 @@ List<BinEntryRow> _entryRows(LedgerState state) {
       caption: '${formatEntryDate(entry.date)} / ${row.accountLine}',
       amount: row.amount,
       amountKind: row.amountKind,
-      date: entry.date,
     );
-  }).toList()..sort((a, b) => b.date.compareTo(a.date));
-  return rows;
+  }).toList();
 }
 
 List<BinRow> _sortedArchivedRows<T>(

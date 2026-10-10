@@ -48,14 +48,15 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
   }
 
   Future<void> _confirmPurge(BinRow row) async {
+    final purgeBody = row.kind == BinRowKind.entry
+        ? '${row.name} leaves the bin for good and can no longer be restored.'
+        : '${row.name} leaves the bin for good. Existing transactions keep '
+              'the name but it can no longer be restored.';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete permanently?'),
-        content: Text(
-          '${row.name} leaves the bin for good. Existing transactions keep '
-          'the name but it can no longer be restored.',
-        ),
+        content: Text(purgeBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -222,6 +223,8 @@ class _EntryRowContent extends StatelessWidget {
     horizontal: 16,
     vertical: 7,
   );
+  static const _restoreMinHeight = 30.0;
+  static const _restoreMinWidth = 48.0;
   static const _restoreGap = 6.0;
   static const _restoreFontSize = 12.0;
   static const _restoreWeight = FontWeight.w600;
@@ -246,18 +249,23 @@ class _EntryRowContent extends StatelessWidget {
       children: [
         Text(amountText, style: amountStyle),
         const SizedBox(width: _restoreGap),
-        Semantics(
-          button: true,
-          label: _restoreLabel,
-          excludeSemantics: true,
+        ExcludeSemantics(
           child: InkWell(
             onTap: onRestore,
-            child: Text(
-              _restoreLabel,
-              style: TextStyle(
-                fontSize: _restoreFontSize,
-                fontWeight: _restoreWeight,
-                color: context.colors.action,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                minWidth: _restoreMinWidth,
+                minHeight: _restoreMinHeight,
+              ),
+              child: Center(
+                child: Text(
+                  _restoreLabel,
+                  style: TextStyle(
+                    fontSize: _restoreFontSize,
+                    fontWeight: _restoreWeight,
+                    color: context.colors.action,
+                  ),
+                ),
               ),
             ),
           ),
@@ -268,7 +276,7 @@ class _EntryRowContent extends StatelessWidget {
     return Padding(
       padding: _contentPadding,
       child: MedallionRow(
-        icon: symbolIcon(row.symbolName!),
+        icon: symbolIcon(row.symbolName),
         iconColor: row.color,
         title: row.name,
         subtitle: row.caption,
