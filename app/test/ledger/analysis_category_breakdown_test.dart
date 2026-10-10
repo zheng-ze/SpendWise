@@ -397,6 +397,34 @@ void main() {
     });
 
     test(
+      'a remainder tie at the cutoff breaks by identity, not amount rank',
+      () {
+        final smallA = _id(20);
+        final smallB = _id(21);
+        final large = _id(22);
+        final state = _state(
+          categories: [_category(smallA), _category(smallB), _category(large)],
+          bookings: [
+            _Booking(smallA, 1),
+            _Booking(smallB, 1),
+            _Booking(large, 4),
+          ],
+        );
+
+        final result = _breakdown(state, BreakdownLevel.categories);
+
+        expect(result.total, Decimal.fromInt(6));
+        expect(result.rows, [
+          _row(large, large, 4, share: '66.6'),
+          _row(smallA, smallA, 1, share: '16.7'),
+          _row(smallB, smallB, 1, share: '16.7'),
+        ]);
+        expect(_shareSum(result.rows), Decimal.parse('100.0'));
+        _expectTenths(result.rows);
+      },
+    );
+
+    test(
       'equal real, synthetic and null amounts order lexically null-last',
       () {
         final state = _state(
