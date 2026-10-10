@@ -14,13 +14,17 @@ const _syntheticID = 'transfer-expense:savings';
 
 final _window = DateRange(DateTime.utc(2026, 1, 1), DateTime.utc(2026, 2, 1));
 final _day = DateTime.utc(2026, 1, 10);
+final _incomeMain = _id(5);
+final _incomeChild = _id(6);
 
 class _Booking {
-  const _Booking(this.categoryID, this.amount, {this.income = false});
+  _Booking(this.categoryID, this.amount, {this.income = false, DateTime? date})
+    : date = date ?? _day;
 
   final String? categoryID;
   final int amount;
   final bool income;
+  final DateTime date;
 }
 
 TransactionCategory _category(
@@ -59,14 +63,19 @@ LedgerState _state({
       ),
     );
   categories.forEach(state.addCategory);
-  Entry entry(int amount, {String? categoryID, String? destinationID}) => Entry(
+  Entry entry(
+    int amount, {
+    String? categoryID,
+    String? destinationID,
+    DateTime? date,
+  }) => Entry(
     id: null,
     amount: Decimal.fromInt(amount),
     name: 'entry',
     sourceID: _checking,
     destinationID: destinationID,
     categoryID: categoryID,
-    date: _day,
+    date: date ?? _day,
     includeInAnalysis: true,
   );
   for (final booking in bookings) {
@@ -74,6 +83,7 @@ LedgerState _state({
       entry(
         booking.income ? booking.amount : -booking.amount,
         categoryID: booking.categoryID,
+        date: booking.date,
       ),
     );
   }
@@ -119,7 +129,7 @@ LedgerState _mixedState() => _state(
     _Booking(_childB, 30),
     _Booking(_main, 10),
     _Booking(_childless, 15),
-    const _Booking(null, 5),
+    _Booking(null, 5),
   ],
   syntheticTransfer: 20,
 );
@@ -286,7 +296,7 @@ void main() {
     test('a null bucket sorts after a real bucket of equal amount', () {
       final state = _state(
         categories: [_category(_childless)],
-        bookings: [_Booking(_childless, 5), const _Booking(null, 5)],
+        bookings: [_Booking(_childless, 5), _Booking(null, 5)],
       );
 
       final ids = _breakdown(
@@ -302,7 +312,7 @@ void main() {
     test('null and synthetic buckets survive both levels', () {
       final state = _state(
         categories: const [],
-        bookings: [const _Booking(null, 5)],
+        bookings: [_Booking(null, 5)],
         syntheticTransfer: 20,
       );
 
@@ -315,13 +325,94 @@ void main() {
     });
 
     test('an empty period has zero total and no rows', () {
-      final state = _state(categories: const [], bookings: const []);
+      final state = _state(categories: const [], bookings: []);
 
       for (final level in BreakdownLevel.values) {
         final result = _breakdown(state, level);
         expect(result.total, Decimal.zero);
         expect(result.rows, isEmpty);
       }
+    });
+  });
+
+  group('filters', () {
+    final state = _state(
+      categories: [
+        _category(_main),
+        _category(_childA, parent: _main),
+        _category(_incomeMain, kind: CategoryKind.income),
+        _category(_incomeChild, parent: _incomeMain, kind: CategoryKind.income),
+      ],
+      bookings: [
+        _Booking(_childA, 1, date: DateTime.utc(2025, 12, 31)),
+        _Booking(_childA, 2, date: DateTime.utc(2026, 1, 1)),
+        _Booking(_childA, 4, date: DateTime.utc(2026, 1, 31)),
+        _Booking(_childA, 8, date: DateTime.utc(2026, 2, 1)),
+        _Booking(_childA, 16, date: DateTime.utc(2026, 3, 1)),
+        _Booking(_main, 32, date: DateTime.utc(2026, 1, 15)),
+        _Booking(
+          _incomeChild,
+          256,
+          income: true,
+          date: DateTime.utc(2025, 12, 31),
+        ),
+        _Booking(_incomeChild, 3, income: true, date: DateTime.utc(2026, 1, 1)),
+        _Booking(
+          _incomeChild,
+          5,
+          income: true,
+          date: DateTime.utc(2026, 1, 31),
+        ),
+        _Booking(
+          _incomeChild,
+          128,
+          income: true,
+          date: DateTime.utc(2026, 2, 1),
+        ),
+        _Booking(
+          _incomeMain,
+          64,
+          income: true,
+          date: DateTime.utc(2026, 1, 15),
+        ),
+      ],
+    );
+
+    test(
+      'expense kind keeps only expense items inside the half-open window',
+      () {
+        final categories = _breakdown(state, BreakdownLevel.categories);
+        final subcategories = _breakdown(state, BreakdownLevel.subcategories);
+
+        expect(categories.total, Decimal.fromInt(38));
+        expect(categories.rows, [_row(_main, _main, 38)]);
+        expect(subcategories.total, Decimal.fromInt(38));
+        expect(subcategories.rows, [
+          _row(_main, _main, 32, isDirect: true),
+          _row(_childA, _main, 6),
+        ]);
+      },
+    );
+
+    test('income kind keeps only income items inside the half-open window', () {
+      final categories = _breakdown(
+        state,
+        BreakdownLevel.categories,
+        kind: CategoryKind.income,
+      );
+      final subcategories = _breakdown(
+        state,
+        BreakdownLevel.subcategories,
+        kind: CategoryKind.income,
+      );
+
+      expect(categories.total, Decimal.fromInt(72));
+      expect(categories.rows, [_row(_incomeMain, _incomeMain, 72)]);
+      expect(subcategories.total, Decimal.fromInt(72));
+      expect(subcategories.rows, [
+        _row(_incomeMain, _incomeMain, 64, isDirect: true),
+        _row(_incomeChild, _incomeMain, 8),
+      ]);
     });
   });
 
