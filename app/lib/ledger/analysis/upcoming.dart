@@ -152,7 +152,10 @@ List<PlanOccurrence> upcomingPlanOccurrences({
     if (floor.isAfter(after)) after = floor;
     for (final date in plan.occurrences(after: after, upTo: upTo)) {
       final occurrenceID = OccurrenceID.make(plan.id, date);
-      if (ledger.entries.containsKey(occurrenceID)) continue;
+      if (ledger.entries.containsKey(occurrenceID) ||
+          ledger.binnedEntries.containsKey(occurrenceID)) {
+        continue;
+      }
       final resolved = ledger.resolvedEntryOrNull(
         plan.template.makeEntry(plan.id, date),
       );

@@ -190,6 +190,18 @@ void main() {
       expect(state.binnedEntries, isEmpty);
     });
 
+    test('an active upsert after an archived one removes the binned copy', () {
+      final live = entry(id: uuid(3), sourceID: uuid(1));
+      final state = LedgerState.replaying([
+        ...base,
+        UpsertEntry(live.settingLifecycle(LifecycleState.archived)),
+        UpsertEntry(live),
+      ]);
+
+      expect(state.binnedEntries, isEmpty);
+      expect(state.entries.keys, [uuid(3)]);
+    });
+
     test('rejects a referenceOnly or tombstoned entry with clause 9', () {
       for (final lifecycle in [
         LifecycleState.referenceOnly,
@@ -249,4 +261,102 @@ void main() {
       );
     });
   });
+
+  group('invariants over binned entries', () {
+    StateError violation(LedgerState state) {
+      try {
+        state.assertInvariants();
+      } on StateError catch (error) {
+        return error;
+      }
+      fail('expected an invariant violation');
+    }
+
+    Entry binned({String? categoryID, String? sourceID}) => entry(
+      id: uuid(3),
+      sourceID: sourceID ?? uuid(1),
+      categoryID: categoryID,
+    ).settingLifecycle(LifecycleState.archived);
+
+    test('a binned entry with a missing account breaks clause 4', () {
+      final state = LedgerState(binnedEntries: {uuid(3): binned()});
+
+      expect(violation(state).message, contains('invariant 4'));
+    });
+
+    test('a binned entry with a mismatched category breaks clause 6', () {
+      final state = LedgerState(
+        moneySources: {uuid(1): AccountSource(account(uuid(1)))},
+        categories: {uuid(2): category(uuid(2), kind: CategoryKind.income)},
+        binnedEntries: {uuid(3): binned(categoryID: uuid(2))},
+      );
+
+      expect(violation(state).message, contains('invariant 6'));
+    });
+
+    test('a binned entry that is not archived breaks clause 9', () {
+      final state = LedgerState(
+        moneySources: {uuid(1): AccountSource(account(uuid(1)))},
+        binnedEntries: {uuid(3): entry(id: uuid(3), sourceID: uuid(1))},
+      );
+
+      expect(violation(state).message, contains('invariant 9'));
+    });
+
+    test('a binned entry stored under another key breaks clause 1', () {
+      final state = LedgerState(
+        moneySources: {uuid(1): AccountSource(account(uuid(1)))},
+        binnedEntries: {uuid(4): binned()},
+      );
+
+      expect(violation(state).message, contains('invariant 1'));
+    });
+  });
+
+  test(
+    'a pocket and its account referenced only by a binned entry survive',
+    () {
+      final state = LedgerState();
+      state.addAccount(account(uuid(1)));
+      state.addPocket(pocket(uuid(2)), uuid(1));
+      state.addEntry(entry(id: uuid(3), sourceID: uuid(2)));
+      state.archiveEntry(uuid(3));
+
+      state.deleteAccount(uuid(1));
+      state.purgeAccount(uuid(1));
+
+      expect(state.moneySources.keys, unorderedEquals([uuid(1), uuid(2)]));
+      expect(
+        state.moneySources[uuid(1)]!.lifecycle,
+        LifecycleState.referenceOnly,
+      );
+      expect(
+        state.moneySources[uuid(2)]!.lifecycle,
+        LifecycleState.referenceOnly,
+      );
+    },
+  );
+
+  test(
+    'a parent category referenced only through a binned child entry stays',
+    () {
+      final state = LedgerState();
+      state.addAccount(account(uuid(1)));
+      state.addCategory(category(uuid(2)));
+      state.addCategory(category(uuid(4), parent: uuid(2)));
+      state.addEntry(
+        entry(id: uuid(3), sourceID: uuid(1), categoryID: uuid(4)),
+      );
+      state.archiveEntry(uuid(3));
+
+      state.deleteCategory(uuid(2));
+      state.purgeCategory(uuid(2));
+
+      expect(state.categories.keys, unorderedEquals([uuid(2), uuid(4)]));
+      expect(
+        state.categories[uuid(2)]!.lifecycle,
+        LifecycleState.referenceOnly,
+      );
+    },
+  );
 }

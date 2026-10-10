@@ -95,6 +95,7 @@ class AnalysisCache extends ChangeNotifier {
     final captured = LedgerState(
       moneySources: state.moneySources,
       entries: state.entries,
+      binnedEntries: state.binnedEntries,
       categories: state.categories,
       plans: state.plans,
       budgets: state.budgets,

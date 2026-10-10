@@ -85,8 +85,9 @@ The state machine, with the rule behind each edge (`ledger_state_purge.dart`,
 `ledger_state_invariants.dart`):
 
 - **Delete archives.** `deleteAccount` / `deletePocket` / `deleteCategory` set `archived`; nothing
-  is removed and entries are always retained. Only plans and `deleteEntry` hard-delete; the
-  user-facing entry path is `archiveEntry`.
+  is removed and entries are always retained. Only plans and `deleteEntry` hard-delete. `archiveEntry`,
+  `restoreEntry` and `purgeEntry` are available domain behavior; the swipe path still calls
+  `deleteEntry` (hard delete) until the UI ticket replaces it.
 - **Archive cascade.** Archiving an account also archives its active pockets and hard-deletes every
   plan touching the account or its pockets. Archiving a category archives its active children.
 - **Restore reactivates.** `restoreAccount` / `restoreCategory` reactivate their archived children;
