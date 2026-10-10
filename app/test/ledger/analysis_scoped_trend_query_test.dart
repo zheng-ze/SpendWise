@@ -22,6 +22,7 @@ const _prefixedUncategorizedMain = 'bucket:uncategorized';
 
 const _janAllTotal = '10.00';
 const _mayAllTotal = '31.00';
+const _twoEditMaySlotTotal = '141.00';
 const _june2026AllTotal = '1.00';
 const _monthAllTotal = '42.00';
 const _yearAllTotal = '51.00';
@@ -516,6 +517,136 @@ void main() {
       Decimal.parse(_staleNewestMayTotal),
     );
   });
+
+  test('acceptedOlderRefreshDuringNewerPendingRetainsPublishedTrend', () async {
+    final setup = _setup();
+    final ledger = setup.ledger;
+    final queries = setup.queries;
+    final runner = setup.runner;
+    final cache = setup.cache;
+    _populate(ledger);
+    await _settle(runner, ledger);
+    final settledRevision = ledger.revision;
+
+    AnalysisQueryResult<ScopedTrend> read() => queries.readScopedTrend(
+      period: _may,
+      mode: AnalysisPeriodMode.month,
+      kind: CategoryKind.expense,
+      mainBucketID: _mainID,
+      scope: const AnalysisCategoryScope.all(),
+    );
+    final settled = read();
+    expect(settled.state, AnalysisQueryState.ready);
+    expect(settled.sourceRevision, settledRevision);
+    expect(_slot(settled.value!, _may).total, Decimal.parse(_mayAllTotal));
+
+    final base = runner.pending.length;
+    ledger.addEntry(
+      Entry(
+        id: 'c0000000-0000-0000-0000-000000000001',
+        amount: Decimal.parse('-10.00'),
+        name: 'entry',
+        sourceID: _checkingID,
+        categoryID: _childAID,
+        date: DateTime.utc(2027, 5, 20),
+      ),
+    );
+    final itemsAfterFirst = Accounting.analysisItems(ledger.state);
+    ledger.addEntry(
+      Entry(
+        id: 'c0000000-0000-0000-0000-000000000002',
+        amount: Decimal.parse('-100.00'),
+        name: 'entry',
+        sourceID: _checkingID,
+        categoryID: _childAID,
+        date: DateTime.utc(2027, 5, 21),
+      ),
+    );
+    runner.pending[base].complete(itemsAfterFirst);
+    await pumpEventQueue();
+
+    expect(cache.itemsSourceRevision, settledRevision + 1);
+    expect(ledger.revision, settledRevision + 2);
+    final intermediate = read();
+    expect(intermediate.state, AnalysisQueryState.loading);
+    expect(intermediate.value, settled.value);
+    expect(intermediate.sourceRevision, settled.sourceRevision);
+    expect(_slot(intermediate.value!, _may).total, Decimal.parse(_mayAllTotal));
+
+    runner.pending[base + 1].complete(Accounting.analysisItems(ledger.state));
+    await pumpEventQueue();
+    final updated = read();
+    expect(updated.state, AnalysisQueryState.ready);
+    expect(updated.sourceRevision, ledger.revision);
+    expect(
+      _slot(updated.value!, _may).total,
+      Decimal.parse(_twoEditMaySlotTotal),
+    );
+  });
+
+  test(
+    'acceptedOlderRefreshDuringNewerPendingLeavesUnreadTrendLoading',
+    () async {
+      final setup = _setup();
+      final ledger = setup.ledger;
+      final queries = setup.queries;
+      final runner = setup.runner;
+      final cache = setup.cache;
+      _populate(ledger);
+      await _settle(runner, ledger);
+      final settledRevision = ledger.revision;
+
+      AnalysisQueryResult<ScopedTrend> read() => queries.readScopedTrend(
+        period: _may,
+        mode: AnalysisPeriodMode.month,
+        kind: CategoryKind.expense,
+        mainBucketID: _mainID,
+        scope: const AnalysisCategoryScope.all(),
+      );
+
+      final base = runner.pending.length;
+      ledger.addEntry(
+        Entry(
+          id: 'c0000000-0000-0000-0000-000000000001',
+          amount: Decimal.parse('-10.00'),
+          name: 'entry',
+          sourceID: _checkingID,
+          categoryID: _childAID,
+          date: DateTime.utc(2027, 5, 20),
+        ),
+      );
+      final itemsAfterFirst = Accounting.analysisItems(ledger.state);
+      ledger.addEntry(
+        Entry(
+          id: 'c0000000-0000-0000-0000-000000000002',
+          amount: Decimal.parse('-100.00'),
+          name: 'entry',
+          sourceID: _checkingID,
+          categoryID: _childAID,
+          date: DateTime.utc(2027, 5, 21),
+        ),
+      );
+      runner.pending[base].complete(itemsAfterFirst);
+      await pumpEventQueue();
+
+      expect(cache.itemsSourceRevision, settledRevision + 1);
+      expect(ledger.revision, settledRevision + 2);
+      final intermediate = read();
+      expect(intermediate.state, AnalysisQueryState.loading);
+      expect(intermediate.value, isNull);
+      expect(intermediate.sourceRevision, isNull);
+
+      runner.pending[base + 1].complete(Accounting.analysisItems(ledger.state));
+      await pumpEventQueue();
+      final updated = read();
+      expect(updated.state, AnalysisQueryState.ready);
+      expect(updated.sourceRevision, ledger.revision);
+      expect(
+        _slot(updated.value!, _may).total,
+        Decimal.parse(_twoEditMaySlotTotal),
+      );
+    },
+  );
 
   test('failedRefreshRetainsTrendAndRetryRecovers', () async {
     final setup = _setup();

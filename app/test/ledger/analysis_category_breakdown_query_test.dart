@@ -25,6 +25,7 @@ const _soloChildID = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
 const _syntheticID = 'transfer-expense:savings';
 
 const _mayExpenseTotal = '85.00';
+const _twoEditMayTotal = '195.00';
 const _mayIncomeTotal = '50.00';
 const _juneExpenseTotal = '99.00';
 const _year2026ExpenseTotal = '7.00';
@@ -922,6 +923,133 @@ void main() {
     expect(afterStale.value, newest.value);
     expect(afterStale.value?.total, settledTotal + Decimal.parse('3.00'));
   });
+
+  test(
+    'acceptedOlderRefreshDuringNewerPendingRetainsPublishedBreakdown',
+    () async {
+      final setup = _setup();
+      final ledger = setup.ledger;
+      final queries = setup.queries;
+      final runner = setup.runner;
+      final cache = setup.cache;
+      _populate(ledger);
+      await _settle(runner, ledger);
+      final settledRevision = ledger.revision;
+
+      AnalysisQueryResult<PeriodBreakdown> read() =>
+          queries.readCategoryBreakdown(
+            period: _may,
+            mode: AnalysisPeriodMode.month,
+            kind: CategoryKind.expense,
+            level: BreakdownLevel.categories,
+          );
+      final settled = read();
+      expect(settled.state, AnalysisQueryState.ready);
+      expect(settled.sourceRevision, settledRevision);
+      expect(settled.value?.total, Decimal.parse(_mayExpenseTotal));
+
+      final base = runner.pending.length;
+      ledger.addEntry(
+        Entry(
+          id: 'c0000000-0000-0000-0000-000000000001',
+          amount: Decimal.parse('-10.00'),
+          name: 'entry',
+          sourceID: _checkingID,
+          categoryID: _childID,
+          date: DateTime.utc(2027, 5, 12),
+        ),
+      );
+      final itemsAfterFirst = Accounting.analysisItems(ledger.state);
+      ledger.addEntry(
+        Entry(
+          id: 'c0000000-0000-0000-0000-000000000002',
+          amount: Decimal.parse('-100.00'),
+          name: 'entry',
+          sourceID: _checkingID,
+          categoryID: _childID,
+          date: DateTime.utc(2027, 5, 13),
+        ),
+      );
+      runner.pending[base].complete(itemsAfterFirst);
+      await pumpEventQueue();
+
+      expect(cache.itemsSourceRevision, settledRevision + 1);
+      expect(ledger.revision, settledRevision + 2);
+      final intermediate = read();
+      expect(intermediate.state, AnalysisQueryState.loading);
+      expect(intermediate.value, settled.value);
+      expect(intermediate.sourceRevision, settled.sourceRevision);
+      expect(intermediate.value?.total, Decimal.parse(_mayExpenseTotal));
+
+      runner.pending[base + 1].complete(Accounting.analysisItems(ledger.state));
+      await pumpEventQueue();
+      final updated = read();
+      expect(updated.state, AnalysisQueryState.ready);
+      expect(updated.sourceRevision, ledger.revision);
+      expect(updated.value?.total, Decimal.parse(_twoEditMayTotal));
+    },
+  );
+
+  test(
+    'acceptedOlderRefreshDuringNewerPendingLeavesUnreadBreakdownLoading',
+    () async {
+      final setup = _setup();
+      final ledger = setup.ledger;
+      final queries = setup.queries;
+      final runner = setup.runner;
+      final cache = setup.cache;
+      _populate(ledger);
+      await _settle(runner, ledger);
+      final settledRevision = ledger.revision;
+
+      AnalysisQueryResult<PeriodBreakdown> read() =>
+          queries.readCategoryBreakdown(
+            period: _may,
+            mode: AnalysisPeriodMode.month,
+            kind: CategoryKind.expense,
+            level: BreakdownLevel.categories,
+          );
+
+      final base = runner.pending.length;
+      ledger.addEntry(
+        Entry(
+          id: 'c0000000-0000-0000-0000-000000000001',
+          amount: Decimal.parse('-10.00'),
+          name: 'entry',
+          sourceID: _checkingID,
+          categoryID: _childID,
+          date: DateTime.utc(2027, 5, 12),
+        ),
+      );
+      final itemsAfterFirst = Accounting.analysisItems(ledger.state);
+      ledger.addEntry(
+        Entry(
+          id: 'c0000000-0000-0000-0000-000000000002',
+          amount: Decimal.parse('-100.00'),
+          name: 'entry',
+          sourceID: _checkingID,
+          categoryID: _childID,
+          date: DateTime.utc(2027, 5, 13),
+        ),
+      );
+      runner.pending[base].complete(itemsAfterFirst);
+      await pumpEventQueue();
+
+      expect(cache.itemsSourceRevision, settledRevision + 1);
+      expect(ledger.revision, settledRevision + 2);
+      final intermediate = read();
+      expect(intermediate.state, AnalysisQueryState.loading);
+      expect(intermediate.value, isNull);
+      expect(intermediate.sourceRevision, isNull);
+
+      runner.pending[base + 1].complete(Accounting.analysisItems(ledger.state));
+      await pumpEventQueue();
+      final updated = read();
+      expect(updated.state, AnalysisQueryState.ready);
+      expect(updated.sourceRevision, ledger.revision);
+      expect(updated.value?.total, Decimal.parse(_twoEditMayTotal));
+    },
+  );
 
   test('failedRefreshRetainsBreakdownAndRetryRecovers', () async {
     final setup = _setup();
