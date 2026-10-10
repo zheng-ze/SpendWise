@@ -2478,6 +2478,8 @@ void main() {
         onPassFailure: failures.add,
       );
       await seedDriftHolder(holderID, setup.coordinator.persistenceProcessor);
+      await setup.coordinator.metadataStore.enterReconciliationComplete();
+      await setup.coordinator.metadataStore.enterGateEnabled();
       final system = Entry(
         id: rowID,
         date: DateTime.utc(2024, 3, 15),
@@ -2502,11 +2504,22 @@ void main() {
         ),
       ], 'cursor-rejected');
 
-      await setup.coordinator.syncNow();
+      final publications = await collectPublications(setup.coordinator.syncNow);
 
-      expect(failures.single, isA<StateError>());
+      expect(failures, hasLength(1));
+      expect(
+        failures.single,
+        isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          contains('invariant 9'),
+        ),
+      );
+      expect(publications, isEmpty);
       expect(ledger.state.entries, isEmpty);
       expect(ledger.state.binnedEntries, isEmpty);
+      final snapshot = await setup.coordinator.metadataStore.snapshot();
+      expect(snapshot.watermarks[SyncCollection.entries], isNull);
     });
   });
 
@@ -2546,9 +2559,11 @@ void main() {
       },
     );
 
-    Future<LedgerChange?> pushLifecycle(
-      void Function(String rowID, String holderID) act,
-    ) async {
+    Future<void> expectOperationPushes(
+      void Function(String rowID) operation, {
+      required LifecycleState persisted,
+      required SiblingLifecycle envelopeLifecycle,
+    }) async {
       const holderID = 'aaaaaaaa-0000-1111-2222-333333333333';
       const rowID = 'f3f3f3f3-f3f3-f3f3-f3f3-f3f3f3f3f3f3';
       final key = _freshKey();
@@ -2558,41 +2573,59 @@ void main() {
       final coordinator = setup.coordinator;
       await seedDriftHolder(holderID, coordinator.persistenceProcessor);
       ledger.addEntry(driftEntry(rowID, holderID));
+      ledger.archiveEntry(rowID);
       await coordinator.persistenceProcessor.flush();
       await coordinator.metadataStore.enterReconciliationComplete();
       await coordinator.metadataStore.enterGateEnabled();
-      act(rowID, holderID);
+      await coordinator.pushCollection(SyncCollection.entries);
+      final row = SyncRowID.of(SyncCollection.entries, rowID);
+      final baseline = (await DriftCollectionVersionReader(
+        db,
+      ).readRowVersions(SyncCollection.entries))[row]!.versionVector;
+      backend.pushes.clear();
 
+      operation(rowID);
+      await coordinator.persistenceProcessor.flush();
       final result = await coordinator.pushCollection(SyncCollection.entries);
 
       expect(result, isA<PushFullyAcknowledged>());
+      final advanced = (await DriftCollectionVersionReader(
+        db,
+      ).readRowVersions(SyncCollection.entries))[row]!.versionVector;
+      expect(advanced.dominates(baseline), isTrue);
+      expect(advanced, isNot(baseline));
+      final stored = await db.select(db.entries).getSingle();
+      expect(stored.lifecycle, persisted.code);
       final envelope = backend.pushes.single.envelopes.single;
-      if (envelope.lifecycle == SiblingLifecycle.tombstone) return null;
-      final plaintext = await const SyncCipher().decrypt(
-        key: key,
-        ciphertext: envelope.ciphertext,
-        aad: envelope.aadBytes(),
-      );
-      return const PayloadCodec().decodeChange(plaintext);
+      expect(envelope.lifecycle, envelopeLifecycle);
+      if (envelopeLifecycle == SiblingLifecycle.live) {
+        final plaintext = await const SyncCipher().decrypt(
+          key: key,
+          ciphertext: envelope.ciphertext,
+          aad: envelope.aadBytes(),
+        );
+        final change = const PayloadCodec().decodeChange(plaintext);
+        expect((change as UpsertEntry).entry.lifecycle, persisted);
+      }
     }
 
-    test('a restored entry pushes an active upsert', () async {
-      final change = await pushLifecycle((rowID, _) {
-        ledger.archiveEntry(rowID);
-        ledger.restoreEntry(rowID);
-      });
+    test(
+      'a restored entry pushes an active upsert after an archived baseline',
+      () => expectOperationPushes(
+        ledger.restoreEntry,
+        persisted: LifecycleState.active,
+        envelopeLifecycle: SiblingLifecycle.live,
+      ),
+    );
 
-      expect((change as UpsertEntry).entry.lifecycle, LifecycleState.active);
-    });
-
-    test('a purged entry pushes a tombstone', () async {
-      final change = await pushLifecycle((rowID, _) {
-        ledger.archiveEntry(rowID);
-        ledger.purgeEntry(rowID);
-      });
-
-      expect(change, isNull);
-    });
+    test(
+      'a purged entry pushes a tombstone after an archived baseline',
+      () => expectOperationPushes(
+        ledger.purgeEntry,
+        persisted: LifecycleState.tombstoned,
+        envelopeLifecycle: SiblingLifecycle.tombstone,
+      ),
+    );
   });
 
   group('pushCollection: recovery-before-push ordering (TS2)', () {
