@@ -397,5 +397,32 @@ void main() {
           .value;
       expect(formState?.kindLocked, isTrue);
     });
+
+    test('kind stays locked while only a binned entry references it', () async {
+      final existing = category(name: 'Food');
+      final account = Account(name: 'Wallet', type: AccountType.cash);
+      final entry = Entry(
+        name: 'Groceries',
+        amount: Decimal.parse('-10'),
+        date: DateTime.utc(2024, 1, 1),
+        sourceID: account.id,
+        categoryID: existing.id,
+      ).settingLifecycle(LifecycleState.archived);
+      final ledger = Ledger(
+        state: LedgerState(
+          categories: {existing.id: existing},
+          moneySources: {account.id: MoneySource.account(account)},
+          binnedEntries: {entry.id: entry},
+        ),
+      );
+      final container = buildContainer(ledger);
+      final args = CategoryFormArgs(category: existing);
+      await container.read(categoryFormViewModelProvider(args).future);
+
+      final formState = container
+          .read(categoryFormViewModelProvider(args))
+          .value;
+      expect(formState?.kindLocked, isTrue);
+    });
   });
 }

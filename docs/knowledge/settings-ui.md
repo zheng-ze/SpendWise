@@ -4,7 +4,7 @@ Last reconciled: 2026-10-10
 
 ## Feature overview
 
-The Settings tab contains category management (list, form, symbol picker), recurring-plan management
+Settings contains category management (list, form, symbol picker), recurring-plan management
 (list, form), the Recycle Bin for archived rows, and Hosted Sync status, enrollment, and device-access
 repair. The ledger screens are mostly stateless facades over `Ledger`, with per-sheet `autoDispose`
 form controllers.
@@ -41,9 +41,10 @@ counts. These counts include active and binned entries through `entriesReferenci
 
 ## Navigation
 
-The Settings Flow owns this tab's nested navigator. Rows push the category/plan edit sheets and the
-symbol picker; forms open as sheets via `FormScaffold`. The recycle bin lists archived items in
-three sections (Accounts, Subpockets, Categories), each hidden when empty.
+The Settings Flow owns Settings' nested navigator; `AppShell` hosts it through `settingsOpenProvider`
+(see `ui-framework-mvvm.md`). Rows push the category/plan edit sheets and the
+symbol picker; forms open as sheets via `FormScaffold`. The recycle bin lists binned items in
+four sections (Entries, Accounts, Subpockets, Categories), each hidden when empty.
 
 ## Hosted Sync
 
@@ -60,7 +61,7 @@ The `hostedSyncStatus` tile is tappable and shows a chevron only for `HostedSync
 opening `SyncEnrollmentFlow(repairMode: false)`, whose root is the backend picker. Other statuses
 keep the tile passive. Fresh and repair routes share `enrollmentFlowOpenProvider` to prevent
 duplicate pushes across Settings Flow instances; only the instance that owns the route releases
-the guard. Hosted Sync status refreshes when Settings becomes selected and after either route closes.
+the guard. Hosted Sync status refreshes when `SettingsFlow` mounts and after either route closes.
 Source: `app/lib/ui/settings/settings_root_screen.dart` - `_HostedSyncSection`;
 `app/lib/ui/settings/settings_root_view_model.dart` - `StartHostedEnrollmentRequested`;
 `app/lib/ui/settings/settings_flow.dart` - `_openFreshFlow`, `_pushEnrollmentRoute`,
@@ -68,23 +69,25 @@ Source: `app/lib/ui/settings/settings_root_screen.dart` - `_HostedSyncSection`;
 
 `SettingsRootNotifier.requestRepair()` emits the single-shot `RepairDeviceAccessRequested` navigation
 step. The persistent shell repair banner also uses this seam; it appears for binding-repair and
-session-reauth status and takes precedence over the timed plan/save message. Tapping it selects
+session-reauth status and takes precedence over the timed plan/save message. Tapping it opens
 Settings and requests repair only when `enrollmentFlowOpenProvider` is false. `SettingsFlow` opens
 `SyncEnrollmentFlow(repairMode: true)` for the request and re-checks a pending step after its navigator
 mounts, so a request made before Settings is built is consumed once. The banner hides while either
-fresh enrollment or repair is open and Settings is selected. On another tab it returns; tapping it
-exposes the existing route, preserving a fresh route awaiting binding authorization. Source:
+fresh enrollment or repair is open and Settings is open. Closing Settings clears the open
+enrollment route and any pending step; an unfinished fresh setup stays resumable from the Hosted Sync
+tile. Source:
 `app/lib/ui/settings/settings_flow.dart`, `app/lib/ui/shell/status_banner.dart`,
 `app/lib/ui/shell/shell_providers.dart`.
 
 Across coexisting Settings Flows during an AppShell layout transition, the shared guard admits one
-enrollment route. If its owning Flow is disposed, a microtask releases the guard and reads the cached
+enrollment route. If its owning Flow is disposed while `settingsOpenProvider` is still true, a
+microtask releases the guard and reads the cached
 `hostedSyncStatusProvider`. For a fresh route, it emits `ResumeFreshEnrollmentRequested` unless the
 status is `HostedSyncReady`; the surviving Flow pushes `SyncEnrollmentFlow(repairMode: false)` through
 `_pushEnrollmentRoute`, bypassing the tile eligibility check. For a repair route, it requests repair
 again only while the cached status is binding repair or session reauth. See `sync-enrollment-flow.md`
 for enrollment behavior. Source: `app/lib/ui/settings/settings_flow.dart` -
-`_handOverOpenEnrollmentRoute`, `handleStep`; `app/lib/ui/settings/settings_root_view_model.dart` -
+`_settleAtDispose`, `handleStep`; `app/lib/ui/settings/settings_root_view_model.dart` -
 `SettingsRootNotifier.requestResumeFreshEnrollment`.
 
 ## Display preferences
@@ -139,7 +142,13 @@ platform. The receipt scan-strip switch stays in `AppSettings`. Source:
   source line, Repeat row (`RecurrencePickerSheet` with non-optional binding - "One time" is ignored
   because a plan cannot become one-shot), first-date picker, end-date toggle + picker. Editing the
   anchor/frequency does not retro-generate or delete existing entries.
-- **Recycle bin** - archived items in three sections; rows show name (pockets qualified as
+- **Recycle bin Entries section** - first section, built from `LedgerState.binnedEntries` by
+  `RecycleBinViewModel` as `BinEntryRow`s, newest date first, with no filter. A row shows the entry
+  name (the category title when the name is empty), "d MMM yyyy / \<source name\>" (transfers show
+  "source > destination"), the category medallion and the kind-styled signed amount, all derived
+  through `transactionRow`. The Restore text and a leading swipe call `restoreEntry` with no
+  confirmation; a trailing swipe shows the shared purge confirmation, then `purgeEntry`.
+- **Recycle bin** - archived items in the three sections below the Entries section; rows show name (pockets qualified as
   "Parent/Pocket") and a "N references" badge, sorted by name ascending. Leading swipe → Restore
   (silent no-op if the parent account is still binned - restore the account first); trailing swipe →
   purge confirmation ("\<name\> leaves the bin for good..."). Purge routing: money source →
@@ -149,8 +158,10 @@ platform. The receipt scan-strip switch stays in `AppSettings`. Source:
 
 - Child-category restore is blocked while its parent is archived; pocket restore is blocked while its
   parent account is archived. `ledger-and-money-model.md` §Restore blocking.
-- Plan delete is a hard delete with no recycle bin. The Settings recycle bin displays only money
+- Plan delete is a hard delete with no recycle bin. The Settings recycle bin displays entries, money
   sources and categories (`app/lib/ui/settings/recycle_bin/recycle_bin_view_model.dart`).
+- Entry rows reuse the swipe, semantics and purge-confirmation path of the other rows, so the
+  purge dialog names the entry. Binned entries still count in the other rows' reference labels.
 - Category kind is locked while active or binned entries reference it
   (`app/lib/ui/settings/category/category_form_view_model.dart`: `_isReferenced`;
   `packages/domain/lib/src/ledger_state/ledger_state_queries.dart`: `entryCountReferencing`).
@@ -165,5 +176,7 @@ platform. The receipt scan-strip switch stays in `AppSettings`. Source:
 - Category list ordering is roots-then-children A–Z per kind.
 - Plan list sorts by next occurrence ascending with ended plans last and name as tiebreak.
 - Plan save preserves the template's original sign.
+- The Entries section lists binned entries newest first, hides when none are binned, restores
+  without confirmation and purges only after confirmation.
 - Recycle bin restore on a pocket whose parent is still binned is a silent no-op.
 - Delete copy pluralizes by referencing-entry count.

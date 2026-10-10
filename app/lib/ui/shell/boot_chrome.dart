@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/boot/app_phase.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/accounts/accounts_flow.dart';
-import 'package:spendwise/ui/settings/settings_flow.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/stats/stats_flow.dart';
@@ -25,7 +24,6 @@ class BootChrome extends ConsumerWidget {
           ShellDestination.transactions: _buildTransactionsTab,
           ShellDestination.stats: _buildStatsTab,
           ShellDestination.accounts: _buildAccountsTab,
-          ShellDestination.settings: _buildSettingsTab,
         },
       ),
     };
@@ -37,8 +35,6 @@ Widget _buildTransactionsTab(BuildContext context) => const TransactionsFlow();
 Widget _buildStatsTab(BuildContext context) => const StatsFlow();
 
 Widget _buildAccountsTab(BuildContext context) => const AccountsFlow();
-
-Widget _buildSettingsTab(BuildContext context) => const SettingsFlow();
 
 class _LoadFailure extends ConsumerWidget {
   const _LoadFailure({required this.error});

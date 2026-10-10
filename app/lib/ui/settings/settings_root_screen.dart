@@ -7,7 +7,11 @@ import 'package:spendwise/sync/hosted_sync_status.dart';
 import 'package:spendwise/ui/settings/settings_root_view_model.dart';
 
 class SettingsScreen extends ConsumerWidget {
-  const SettingsScreen({super.key});
+  const SettingsScreen({super.key, this.backLabel, this.onBack});
+
+  final String? backLabel;
+
+  final VoidCallback? onBack;
 
   static const _dividerHeight = 1.0;
 
@@ -17,7 +21,17 @@ class SettingsScreen extends ConsumerWidget {
     final scanStripEnabled = ref.watch(scanStripEnabledProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings'), centerTitle: false),
+      appBar: AppBar(
+        leading: onBack == null
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.arrow_back),
+                tooltip: backLabel,
+                onPressed: onBack,
+              ),
+        title: const Text('Settings'),
+        centerTitle: false,
+      ),
       body: ListView(
         children: [
           const _SectionHeader('Manage'),
