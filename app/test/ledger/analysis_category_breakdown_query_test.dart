@@ -515,6 +515,123 @@ void main() {
     );
   });
 
+  test('modeAloneSeparatesJanuaryReadsWithSharedWindowStart', () async {
+    final setup = _setup();
+    _populate(setup.ledger);
+    await _settle(setup.runner, setup.ledger);
+    final queries = setup.queries;
+
+    final january = DateTime.utc(2027, 1, 15);
+    final monthRead = queries.readCategoryBreakdown(
+      period: january,
+      mode: AnalysisPeriodMode.month,
+      kind: CategoryKind.expense,
+      level: BreakdownLevel.categories,
+    );
+    final yearRead = queries.readCategoryBreakdown(
+      period: january,
+      mode: AnalysisPeriodMode.year,
+      kind: CategoryKind.expense,
+      level: BreakdownLevel.categories,
+    );
+    expect(monthRead.state, AnalysisQueryState.ready);
+    expect(yearRead.state, AnalysisQueryState.ready);
+    expect(
+      monthRead.value?.window,
+      DateRange(DateTime.utc(2027, 1, 1), DateTime.utc(2027, 2, 1)),
+    );
+    expect(
+      yearRead.value?.window,
+      DateRange(DateTime.utc(2027, 1, 1), DateTime.utc(2028, 1, 1)),
+    );
+    expect(monthRead.value?.window.start, yearRead.value?.window.start);
+    expect(monthRead.value?.total, Decimal.parse('5.00'));
+    expect(yearRead.value?.total, Decimal.parse(_year2027ExpenseTotal));
+    expect(identical(yearRead, monthRead), isFalse);
+  });
+
+  test('periodInputsUseNamedCalendarDayAcrossBoundaries', () async {
+    final setup = _setup();
+    _populate(setup.ledger);
+    await _settle(setup.runner, setup.ledger);
+    final queries = setup.queries;
+
+    AnalysisQueryResult<PeriodBreakdown> query(
+      DateTime period,
+      AnalysisPeriodMode mode,
+    ) => queries.readCategoryBreakdown(
+      period: period,
+      mode: mode,
+      kind: CategoryKind.expense,
+      level: BreakdownLevel.categories,
+    );
+
+    final januaryWall = DateTime(2026, 1, 1, 0, 30);
+    final decemberWall = DateTime(2025, 12, 31, 23, 30);
+
+    final januaryMonth = query(januaryWall, AnalysisPeriodMode.month);
+    expect(januaryMonth.state, AnalysisQueryState.ready);
+    expect(
+      januaryMonth.value?.window,
+      DateRange(DateTime.utc(2026, 1, 1), DateTime.utc(2026, 2, 1)),
+    );
+    expect(januaryMonth.value?.total, Decimal.parse('3.00'));
+    expect(
+      identical(
+        query(DateTime.utc(2026, 1, 15), AnalysisPeriodMode.month),
+        januaryMonth,
+      ),
+      isTrue,
+    );
+
+    final januaryYear = query(januaryWall, AnalysisPeriodMode.year);
+    expect(januaryYear.state, AnalysisQueryState.ready);
+    expect(
+      januaryYear.value?.window,
+      DateRange(DateTime.utc(2026, 1, 1), DateTime.utc(2027, 1, 1)),
+    );
+    expect(januaryYear.value?.total, Decimal.parse(_year2026ExpenseTotal));
+    expect(
+      identical(
+        query(DateTime.utc(2026, 6, 15), AnalysisPeriodMode.year),
+        januaryYear,
+      ),
+      isTrue,
+    );
+
+    final decemberMonth = query(decemberWall, AnalysisPeriodMode.month);
+    expect(decemberMonth.state, AnalysisQueryState.ready);
+    expect(
+      decemberMonth.value?.window,
+      DateRange(DateTime.utc(2025, 12, 1), DateTime.utc(2026, 1, 1)),
+    );
+    expect(decemberMonth.value?.total, Decimal.zero);
+    expect(decemberMonth.value?.rows, isEmpty);
+    expect(
+      identical(
+        query(DateTime.utc(2025, 12, 15), AnalysisPeriodMode.month),
+        decemberMonth,
+      ),
+      isTrue,
+    );
+
+    final decemberYear = query(decemberWall, AnalysisPeriodMode.year);
+    expect(decemberYear.state, AnalysisQueryState.ready);
+    expect(
+      decemberYear.value?.window,
+      DateRange(DateTime.utc(2025, 1, 1), DateTime.utc(2026, 1, 1)),
+    );
+    expect(decemberYear.value?.total, Decimal.zero);
+    expect(decemberYear.value?.rows, isEmpty);
+    expect(
+      identical(
+        query(DateTime.utc(2025, 6, 15), AnalysisPeriodMode.year),
+        decemberYear,
+      ),
+      isTrue,
+    );
+  });
+
   test('emptyLedgersGiveEmptyBreakdowns', () async {
     final setup = _setup();
     await _settle(setup.runner, setup.ledger);
