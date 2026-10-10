@@ -113,46 +113,48 @@ class _RecycleBinScreenBody extends StatelessWidget {
         pockets.isEmpty &&
         categories.isEmpty;
 
+    void restore(BinRow row) => viewModel.restore(row.kind, row.id);
+    void requestPurge(BinRow row) => viewModel.requestPurge(row);
+
+    final sections = [
+      if (entries.isNotEmpty)
+        _EntriesSection(
+          rows: entries,
+          onRestore: restore,
+          onRequestPurge: requestPurge,
+        ),
+      if (accounts.isNotEmpty)
+        _BinSection(
+          title: 'Accounts',
+          sectionIcon: symbolIcon('wallet'),
+          rows: accounts,
+          onRestore: restore,
+          onRequestPurge: requestPurge,
+        ),
+      if (pockets.isNotEmpty)
+        _BinSection(
+          title: 'Subpockets',
+          sectionIcon: symbolIcon('inbox'),
+          rows: pockets,
+          onRestore: restore,
+          onRequestPurge: requestPurge,
+        ),
+      if (categories.isNotEmpty)
+        _BinSection(
+          title: 'Categories',
+          sectionIcon: null,
+          rows: categories,
+          onRestore: restore,
+          onRequestPurge: requestPurge,
+        ),
+    ];
+    final content = isEmpty
+        ? const _EmptyState()
+        : ListView(children: sections);
+
     return Scaffold(
       appBar: AppBar(title: const Text('Recycle bin')),
-      body: SafeArea(
-        child: isEmpty
-            ? const _EmptyState()
-            : ListView(
-                children: [
-                  if (entries.isNotEmpty)
-                    _EntriesSection(
-                      rows: entries,
-                      onRestore: (row) => viewModel.restore(row.kind, row.id),
-                      onRequestPurge: (row) => viewModel.requestPurge(row),
-                    ),
-                  if (accounts.isNotEmpty)
-                    _BinSection(
-                      title: 'Accounts',
-                      sectionIcon: symbolIcon('wallet'),
-                      rows: accounts,
-                      onRestore: (row) => viewModel.restore(row.kind, row.id),
-                      onRequestPurge: (row) => viewModel.requestPurge(row),
-                    ),
-                  if (pockets.isNotEmpty)
-                    _BinSection(
-                      title: 'Subpockets',
-                      sectionIcon: symbolIcon('inbox'),
-                      rows: pockets,
-                      onRestore: (row) => viewModel.restore(row.kind, row.id),
-                      onRequestPurge: (row) => viewModel.requestPurge(row),
-                    ),
-                  if (categories.isNotEmpty)
-                    _BinSection(
-                      title: 'Categories',
-                      sectionIcon: null,
-                      rows: categories,
-                      onRestore: (row) => viewModel.restore(row.kind, row.id),
-                      onRequestPurge: (row) => viewModel.requestPurge(row),
-                    ),
-                ],
-              ),
-      ),
+      body: SafeArea(child: content),
     );
   }
 }
