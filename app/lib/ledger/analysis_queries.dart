@@ -22,7 +22,7 @@ import 'package:spendwise/ledger/analysis/year_spread.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
 
-const int _maxRetainedIdentities = 16;
+const int _maxRetainedIdentities = 256;
 
 class AnalysisQueries extends ChangeNotifier {
   AnalysisQueries({
@@ -50,7 +50,9 @@ class AnalysisQueries extends ChangeNotifier {
 
   final Map<String, _Stored> _stored = {};
 
-  final Map<String, int> _failedEvaluations = {};
+  final Set<String> _failedEvaluations = {};
+
+  int? _failedRevision;
 
   final Set<Future<void>> _observed = {};
 
@@ -436,7 +438,7 @@ class AnalysisQueries extends ChangeNotifier {
     if (stored != null && stored.key == key) {
       return stored.result as AnalysisQueryResult<T>;
     }
-    if (!_failedEvaluations.containsKey(key)) {
+    if (!_failedEvaluations.contains(key)) {
       try {
         final result = AnalysisQueryResult<T>(
           value: evaluate(),
@@ -472,7 +474,7 @@ class AnalysisQueries extends ChangeNotifier {
     if (stored != null && stored.key == key) {
       return stored.result as AnalysisQueryResult<T>;
     }
-    if (stamp == revision && !_failedEvaluations.containsKey(key)) {
+    if (stamp == revision && !_failedEvaluations.contains(key)) {
       try {
         final result = AnalysisQueryResult<T>(
           value: evaluate(),
@@ -486,7 +488,7 @@ class AnalysisQueries extends ChangeNotifier {
       }
     }
     final previous = stored?.result as AnalysisQueryResult<T>?;
-    final state = _failedEvaluations.containsKey(key)
+    final state = _failedEvaluations.contains(key)
         ? AnalysisQueryState.failed
         : _pendingState(revision);
     if (previous != null) {
@@ -518,8 +520,11 @@ class AnalysisQueries extends ChangeNotifier {
 
   void _recordFailure(String key) {
     final revision = _ledger.revision;
-    _failedEvaluations.removeWhere((_, failedAt) => failedAt != revision);
-    _failedEvaluations[key] = revision;
+    if (_failedRevision != revision) {
+      _failedEvaluations.clear();
+      _failedRevision = revision;
+    }
+    _failedEvaluations.add(key);
   }
 
   AnalysisQueryState _pendingState(int revision) {

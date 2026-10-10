@@ -316,6 +316,19 @@ void main() {
     await retrying;
   });
 
+  test('retryNotifiesOnceWhenTheCacheIsAlreadyCurrent', () async {
+    final setup = _setup();
+    final queries = setup.queries;
+    setup.runner.pending.last.complete(const []);
+    await pumpEventQueue();
+    var notifications = 0;
+    queries.addListener(() => notifications++);
+
+    await queries.retry();
+
+    expect(notifications, 1);
+  });
+
   test('bothFailingBeforeDrainingPublishesTheFailureOnce', () async {
     final setup = _setup();
     final ledger = setup.ledger;

@@ -5,7 +5,7 @@ import 'package:spendwise/ledger/analysis_queries.dart';
 
 import 'analysis_test_support.dart';
 
-const _retentionCap = 16;
+const _retentionCap = 256;
 const _overflowCount = 10;
 
 void _readSearches(AnalysisQueries queries, Iterable<int> range) {
@@ -36,6 +36,36 @@ void main() {
 
     expect(identical(h.queries.readSearch(query: 'q0'), first), isTrue);
     expect(identical(h.queries.readSearch(query: 'q1'), second), isFalse);
+  });
+
+  test('readingTwentyIdentitiesTwiceInTheSameOrderNeverThrashes', () {
+    final h = setupAnalysis();
+    final first = [
+      for (var i = 0; i < 20; i++) h.queries.readSearch(query: 'q$i'),
+    ];
+    final second = [
+      for (var i = 0; i < 20; i++) h.queries.readSearch(query: 'q$i'),
+    ];
+
+    for (var i = 0; i < 20; i++) {
+      expect(identical(second[i], first[i]), isTrue, reason: 'q$i');
+    }
+  });
+
+  test('readingExactlyTheCapDistinctIdentitiesEvictsNothing', () {
+    final h = setupAnalysis();
+    final first = [
+      for (var i = 0; i < _retentionCap; i++)
+        h.queries.readSearch(query: 'q$i'),
+    ];
+
+    for (var i = 0; i < _retentionCap; i++) {
+      expect(
+        identical(h.queries.readSearch(query: 'q$i'), first[i]),
+        isTrue,
+        reason: 'q$i',
+      );
+    }
   });
 
   test('stalePreviousValueSurvivesALedgerChangeWithinTheCap', () async {
