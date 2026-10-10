@@ -70,6 +70,14 @@ extension LedgerStateEntries on LedgerState {
     ]);
   }
 
+  Entry? resolvedEntryOrNull(Entry entry) {
+    try {
+      return _validated(entry);
+    } on LedgerError {
+      return null;
+    }
+  }
+
   Entry _validated(Entry entry, {Entry? previous}) {
     if (entry.amount == Decimal.zero) throw const ZeroAmount();
 

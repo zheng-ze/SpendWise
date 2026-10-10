@@ -96,7 +96,7 @@ ScopedTrend scopedTrend({
     items: selected,
     endMonth: anchor,
     kind: kind,
-    firstRecordMonth: firstRecordMonth(state),
+    firstRecordMonth: null,
     today: todayDay,
   );
   return ScopedTrend(

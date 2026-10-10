@@ -802,6 +802,13 @@ void main() {
 
     final cardScoped = setup.queries.readUpcoming(sourceIDs: {_cardID});
     expect(cardScoped.value!.whereType<UpcomingStatement>(), hasLength(1));
+    final cardScopedStatement = cardScoped.value!
+        .whereType<UpcomingStatement>()
+        .single;
+    expect(cardScopedStatement.date, DateTime.utc(2027, 4, 10));
+    expect(cardScopedStatement.cycleAmount, Decimal.parse('50.00'));
+    final emptyScoped = setup.queries.readUpcoming(sourceIDs: <String>{});
+    expect(emptyScoped.value!.whereType<UpcomingStatement>(), isEmpty);
     final checkingScoped = setup.queries.readUpcoming(sourceIDs: {_checkingID});
     expect(checkingScoped.value!.whereType<UpcomingStatement>(), isEmpty);
   });
@@ -1436,6 +1443,115 @@ void main() {
     final failedSearch = queries.readSearch(query: 'ramen', window: reversed);
     expect(failedSearch.state, AnalysisQueryState.failed);
     expect(queries.readSearch(query: 'ramen').state, AnalysisQueryState.ready);
+  });
+
+  test('negativeTransferPlanProjectsAsResolved', () async {
+    final state = _baseState();
+    const planID = '99999999-aaaa-4444-aaaa-aaaaaaaaaaaa';
+    final occurrence = DateTime.utc(2027, 4, 9);
+    state.addPlan(
+      RecurringPlan(
+        id: planID,
+        template: EntryTemplate(
+          amount: Decimal.parse('-10'),
+          name: 'sweep',
+          sourceID: _checkingID,
+          destinationID: _savingsID,
+        ),
+        frequency: RecurrenceFrequency.weekly,
+        anchor: occurrence,
+        lastResolvedDate: DateTime.utc(2027, 4, 2),
+      ),
+    );
+    final setup = _ready(state);
+    await _accept(setup.cache, setup.ledger);
+    final queries = setup.queries;
+
+    final window = DateRange(
+      DateTime.utc(2027, 4, 7),
+      DateTime.utc(2027, 4, 20),
+    );
+    final upcoming = queries
+        .readUpcoming(window: window)
+        .value!
+        .whereType<UpcomingPlan>()
+        .singleWhere(
+          (item) =>
+              item.occurrence.planID == planID &&
+              item.occurrence.date == occurrence,
+        );
+    final projected = upcoming.occurrence.projected.entry;
+    expect(projected.sourceID, _savingsID);
+    expect(projected.destinationID, _checkingID);
+    expect(projected.amount, Decimal.parse('10'));
+
+    final calendar = queries.readCalendarDays(window: _april()).value!;
+    final day = calendar.firstWhere((item) => item.date == occurrence);
+    final planned = day.plans.singleWhere((item) => item.planID == planID);
+    expect(planned.projected.entry, projected);
+
+    setup.ledger.resolvePlans(DateTime.utc(2027, 4, 10));
+    final materialized = state.entries[OccurrenceID.make(planID, occurrence)]!;
+    expect(materialized.sourceID, projected.sourceID);
+    expect(materialized.destinationID, projected.destinationID);
+    expect(materialized.amount, projected.amount);
+    expect(materialized, projected);
+  });
+
+  test('unresolvablePlansAreAbsentFromUpcomingAndCalendar', () async {
+    final state = _baseState();
+    const pocketID = '33333333-3333-3333-3333-333333333333';
+    const validID = '11111111-aaaa-1111-aaaa-111111111111';
+    const zeroID = '22222222-bbbb-2222-bbbb-222222222222';
+    const archivedID = '33333333-cccc-3333-cccc-333333333333';
+    final occurrence = DateTime.utc(2027, 4, 9);
+    state.addPocket(SubPocket(id: pocketID, name: 'Bills'), _checkingID);
+    for (final (id, amount, sourceID) in [
+      (validID, '-5', _checkingID),
+      (archivedID, '-5', pocketID),
+    ]) {
+      _addPlan(
+        state,
+        id: id,
+        anchor: occurrence,
+        lastResolvedDate: DateTime.utc(2027, 4, 2),
+        amount: amount,
+        sourceID: sourceID,
+      );
+    }
+    state.addPlan(
+      RecurringPlan(
+        id: zeroID,
+        template: EntryTemplate(
+          amount: Decimal.zero,
+          name: 'zero',
+          sourceID: _checkingID,
+        ),
+        frequency: RecurrenceFrequency.weekly,
+        anchor: occurrence,
+        lastResolvedDate: DateTime.utc(2027, 4, 2),
+      ),
+    );
+    state.deletePocket(pocketID);
+    final setup = _ready(state);
+    await _accept(setup.cache, setup.ledger);
+    final queries = setup.queries;
+
+    final window = DateRange(
+      DateTime.utc(2027, 4, 7),
+      DateTime.utc(2027, 4, 20),
+    );
+    final upcomingIDs = queries
+        .readUpcoming(window: window)
+        .value!
+        .whereType<UpcomingPlan>()
+        .map((item) => item.occurrence.planID)
+        .toSet();
+    expect(upcomingIDs, {validID});
+
+    final calendar = queries.readCalendarDays(window: _april()).value!;
+    final day = calendar.firstWhere((item) => item.date == occurrence);
+    expect(day.plans.map((item) => item.planID), [validID]);
   });
 
   test('ineligibleCardIsReadyNullWithRevision', () async {

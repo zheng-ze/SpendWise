@@ -1,6 +1,6 @@
 # Recurring Plans & Accounting
 
-Last reconciled: 9fc9e82
+Last reconciled: 6c0c7d3
 
 The pure-domain plan and accounting logic in `packages/domain/lib/src/plans/` and
 `packages/domain/lib/src/accounting.dart`, plus the plan mutators on `LedgerState`. Plans expand
@@ -115,19 +115,34 @@ account type. A flagged source emits an income item with `bucketID: null`
 ## Read-only plan projection
 
 The shared app-layer `AnalysisQueries` service owns upcoming and calendar reads. Its helpers and
-result types stay under `app/lib/ledger/analysis/`. `CardStatement` and `cardStatement` are the
-only domain addition to the shared analysis service
-(`app/lib/ledger/analysis_queries.dart`, `packages/domain/lib/src/analysis/card_statement.dart`).
+result types stay under `app/lib/ledger/analysis/`. The domain additions to the shared analysis service
+are `CardStatement` and `cardStatement`
+(`packages/domain/lib/src/analysis/card_statement.dart`) and the public
+`LedgerState.resolvedEntryOrNull`
+(`packages/domain/lib/src/ledger_state/ledger_state_entries.dart`); everything else lives in
+`app/lib/ledger/analysis_queries.dart` and `app/lib/ledger/analysis/`.
 
 `upcomingPlanOccurrences` starts strictly after `lastResolvedDate`, bounded by today and the
 requested `[start, end)` window. It delegates anchor-based generation and end-date clamping to
 `RecurringPlan.occurrences`, so a cursor before the anchor can project the anchor and a cursor
 ahead of today suppresses earlier dates. Any deterministic `OccurrenceID` already present in
-`ledger.entries` suppresses the projection, regardless of entry lifecycle. It constructs temporary
-entry records from templates without inserting entries, advancing cursors, or resolving plans.
+`ledger.entries` suppresses the projection, regardless of entry lifecycle. It validates each
+made entry through `LedgerState.resolvedEntryOrNull`
+(`packages/domain/lib/src/ledger_state/ledger_state_entries.dart`) and skips occurrences that
+resolution would reject: zero amount, inactive or unknown holder or category, and kind mismatch.
+A negative-amount transfer is projected with the swapped endpoints and positive amount that
+resolution stores, because `resolvedEntryOrNull` applies the swap through `_validated`. It constructs
+temporary entry records from the resolved entries without inserting entries, advancing cursors, or
+resolving plans.
 Upcoming and calendar share this helper (`app/lib/ledger/analysis/upcoming.dart`,
 `app/lib/ledger/analysis/calendar.dart`; `app/test/ledger/analysis_service_test.dart`:
-`upcomingMergesKindsWithTieOrderAndCursorRules`, `calendarMarksRecordedAndPlannedDays`).
+`upcomingMergesKindsWithTieOrderAndCursorRules`, `calendarMarksRecordedAndPlannedDays`,
+`negativeTransferPlanProjectsAsResolved`, `unresolvablePlansAreAbsentFromUpcomingAndCalendar`;
+`packages/domain/test/ledger_state/ledger_state_plans_test.dart`: the group `negative-amount transfer plan normalization`, whose test `a resolved
+negative-amount transfer plan stores swapped endpoints and a positive amount` asserts resolution
+stores the swapped endpoints and positive amount, and whose nested group `resolvedEntryOrNull`
+includes `returns the normalized entry without mutating state`, asserting the same swap and amount
+without changing `state.entries`).
 
 `registerDays` provides the shared app-layer seam for History day groups and calendar
 selected-day totals.

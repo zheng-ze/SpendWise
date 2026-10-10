@@ -22,6 +22,8 @@ import 'package:spendwise/ledger/analysis/year_spread.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
 
+const int _maxRetainedIdentities = 256;
+
 class AnalysisQueries extends ChangeNotifier {
   AnalysisQueries({
     required Ledger ledger,
@@ -65,7 +67,12 @@ class AnalysisQueries extends ChangeNotifier {
   Future<void> retry() {
     _failedEvaluations.clear();
     if (_disposed) return Future.value();
-    return _requestRefresh();
+    final wasInflight = _inflight.contains(_ledger.revision);
+    final refresh = _requestRefresh();
+    if (!wasInflight && _inflight.contains(_ledger.revision)) {
+      notifyListeners();
+    }
+    return refresh;
   }
 
   AnalysisQueryResult<TodaySummary> readToday() {
@@ -425,7 +432,7 @@ class AnalysisQueries extends ChangeNotifier {
     String key,
     T Function() evaluate,
   ) {
-    final stored = _stored[identity];
+    final stored = _touch(identity);
     if (stored != null && stored.key == key) {
       return stored.result as AnalysisQueryResult<T>;
     }
@@ -436,10 +443,10 @@ class AnalysisQueries extends ChangeNotifier {
           state: AnalysisQueryState.ready,
           sourceRevision: _ledger.revision,
         );
-        _stored[identity] = _Stored(key, result);
+        _retain(identity, _Stored(key, result));
         return result;
       } catch (_) {
-        _failedEvaluations.add(key);
+        _recordFailure(key);
       }
     }
     final previous = stored?.result as AnalysisQueryResult<T>?;
@@ -461,7 +468,7 @@ class AnalysisQueries extends ChangeNotifier {
     final revision = _ledger.revision;
     final stamp = _cache.itemsSourceRevision;
     final key = '$identity|${_today.toIso8601String()}|$revision|$stamp';
-    final stored = _stored[identity];
+    final stored = _touch(identity);
     if (stored != null && stored.key == key) {
       return stored.result as AnalysisQueryResult<T>;
     }
@@ -472,10 +479,10 @@ class AnalysisQueries extends ChangeNotifier {
           state: AnalysisQueryState.ready,
           sourceRevision: revision,
         );
-        _stored[identity] = _Stored(key, result);
+        _retain(identity, _Stored(key, result));
         return result;
       } catch (_) {
-        _failedEvaluations.add(key);
+        _recordFailure(key);
       }
     }
     final previous = stored?.result as AnalysisQueryResult<T>?;
@@ -496,6 +503,21 @@ class AnalysisQueries extends ChangeNotifier {
     );
   }
 
+  _Stored? _touch(String identity) {
+    final stored = _stored.remove(identity);
+    if (stored != null) _stored[identity] = stored;
+    return stored;
+  }
+
+  void _retain(String identity, _Stored stored) {
+    _stored[identity] = stored;
+    while (_stored.length > _maxRetainedIdentities) {
+      _stored.remove(_stored.keys.first);
+    }
+  }
+
+  void _recordFailure(String key) => _failedEvaluations.add(key);
+
   AnalysisQueryState _pendingState(int revision) {
     if (_inflight.contains(revision)) return AnalysisQueryState.loading;
     final failure = _cache.lastFailure;
@@ -507,6 +529,7 @@ class AnalysisQueries extends ChangeNotifier {
 
   void _onLedgerChanged() {
     if (_disposed) return;
+    _failedEvaluations.clear();
     unawaited(_requestRefresh());
     notifyListeners();
   }

@@ -187,7 +187,7 @@ void main() {
       await retrying;
       await pumpEventQueue();
 
-      expect(notifications, 4);
+      expect(notifications, 5);
       final recovered = queries.readPeriod(window: _april());
       expect(recovered.state, AnalysisQueryState.ready);
       expect(recovered.value?.spent, Decimal.parse('13.50'));
@@ -286,11 +286,47 @@ void main() {
     await retrying;
     await pumpEventQueue();
 
-    expect(notifications, 5);
+    expect(notifications, 6);
     expect(
       queries.readPeriod(window: _april()).value?.spent,
       Decimal.parse('20.50'),
     );
+  });
+
+  test('retryNotifiesListenersWhenItStartsNewWork', () async {
+    final setup = _setup();
+    final ledger = setup.ledger;
+    final queries = setup.queries;
+    final runner = setup.runner;
+    var notifications = 0;
+    queries.addListener(() => notifications++);
+    runner.pending.last.complete(const []);
+    await pumpEventQueue();
+    _addExpense(ledger, 'cccccccc-cccc-cccc-cccc-cccccccccccc', '-13.50');
+    runner.pending.last.completeError(StateError('boom'));
+    await pumpEventQueue();
+    expect(queries.readToday().state, AnalysisQueryState.failed);
+    final before = notifications;
+
+    final retrying = queries.retry();
+
+    expect(queries.readToday().state, AnalysisQueryState.loading);
+    expect(notifications, before + 1);
+    runner.pending.last.complete(Accounting.analysisItems(ledger.state));
+    await retrying;
+  });
+
+  test('retryNotifiesOnceWhenTheCacheIsAlreadyCurrent', () async {
+    final setup = _setup();
+    final queries = setup.queries;
+    setup.runner.pending.last.complete(const []);
+    await pumpEventQueue();
+    var notifications = 0;
+    queries.addListener(() => notifications++);
+
+    await queries.retry();
+
+    expect(notifications, 1);
   });
 
   test('bothFailingBeforeDrainingPublishesTheFailureOnce', () async {

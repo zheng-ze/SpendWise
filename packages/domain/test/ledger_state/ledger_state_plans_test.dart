@@ -584,4 +584,62 @@ void main() {
       expect(changes, contains(DeletePlan(planID)));
     });
   });
+
+  group('negative-amount transfer plan normalization', () {
+    test('a resolved negative-amount transfer plan stores swapped endpoints '
+        'and a positive amount', () {
+      final state = seeded();
+      state.addPlan(
+        plan(
+          entryTemplate: template(
+            amount: Decimal.fromInt(-10),
+            destinationID: otherAccountID,
+          ),
+        ),
+      );
+
+      final occurrence = DateTime.utc(2026, 2, 15);
+      state.resolvePlans(DateTime.utc(2026, 2, 20));
+
+      final materialized =
+          state.entries[OccurrenceID.make(planID, occurrence)]!;
+      expect(materialized.sourceID, otherAccountID);
+      expect(materialized.destinationID, accountID);
+      expect(materialized.amount, Decimal.fromInt(10));
+    });
+
+    group('resolvedEntryOrNull', () {
+      test('returns the normalized entry without mutating state', () {
+        final state = seeded();
+        final entry = template(
+          amount: Decimal.fromInt(-10),
+          destinationID: otherAccountID,
+        ).makeEntry(planID, DateTime.utc(2026, 2, 15));
+
+        final resolved = state.resolvedEntryOrNull(entry);
+
+        expect(resolved!.sourceID, otherAccountID);
+        expect(resolved.destinationID, accountID);
+        expect(resolved.amount, Decimal.fromInt(10));
+        expect(state.entries, isEmpty);
+      });
+
+      test('returns null for a zero amount', () {
+        final entry = template(
+          amount: Decimal.zero,
+        ).makeEntry(planID, DateTime.utc(2026, 2, 15));
+
+        expect(seeded().resolvedEntryOrNull(entry), isNull);
+      });
+
+      test('returns null for an archived source', () {
+        final state = seeded()..deleteAccount(otherAccountID);
+        final entry = template(
+          sourceID: otherAccountID,
+        ).makeEntry(planID, DateTime.utc(2026, 2, 15));
+
+        expect(state.resolvedEntryOrNull(entry), isNull);
+      });
+    });
+  });
 }

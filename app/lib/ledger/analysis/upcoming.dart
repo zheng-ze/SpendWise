@@ -153,15 +153,16 @@ List<PlanOccurrence> upcomingPlanOccurrences({
     for (final date in plan.occurrences(after: after, upTo: upTo)) {
       final occurrenceID = OccurrenceID.make(plan.id, date);
       if (ledger.entries.containsKey(occurrenceID)) continue;
+      final resolved = ledger.resolvedEntryOrNull(
+        plan.template.makeEntry(plan.id, date),
+      );
+      if (resolved == null) continue;
       occurrences.add(
         PlanOccurrence(
           planID: plan.id,
           occurrenceID: occurrenceID,
           date: date,
-          projected: entryRecord(
-            ledger,
-            plan.template.makeEntry(plan.id, date),
-          ),
+          projected: entryRecord(ledger, resolved),
         ),
       );
     }
@@ -179,6 +180,7 @@ List<UpcomingStatement> _upcomingStatements({
   for (final source in ledger.moneySources.values) {
     final account = source.asAccount;
     if (account == null) continue;
+    if (scope != null && !scope.contains(account.id)) continue;
     var statement = cardStatement(
       ledger: ledger,
       accountID: account.id,
@@ -194,7 +196,6 @@ List<UpcomingStatement> _upcomingStatements({
       if (statement == null) continue;
     }
     if (!window.contains(statement.nextCut)) continue;
-    if (scope != null && !scope.contains(statement.accountID)) continue;
     statements.add(
       UpcomingStatement(
         accountID: statement.accountID,

@@ -45,6 +45,7 @@ List<SearchMonth> searchEntries({
   EntryKind? kind,
 }) {
   final range = window == null ? null : normalizedWindow(window);
+  final complete = ledger.moneySources.keys.toSet();
   final scope = normalizedScope(sourceIDs);
   final needle = query.trim().toLowerCase();
   final indexed = <({int index, Entry entry})>[];
@@ -72,7 +73,13 @@ List<SearchMonth> searchEntries({
   final months = byMonth.keys.toList()..sort((a, b) => b.compareTo(a));
   return List.unmodifiable([
     for (final month in months)
-      _searchMonth(ledger, month, byMonth[month]!, scope: scope),
+      _searchMonth(
+        ledger,
+        month,
+        byMonth[month]!,
+        complete: complete,
+        scope: scope,
+      ),
   ]);
 }
 
@@ -80,9 +87,15 @@ SearchMonth _searchMonth(
   LedgerState ledger,
   YearMonth month,
   List<Entry> matches, {
+  required Set<String> complete,
   Set<String>? scope,
 }) {
-  final totals = registerTotals(ledger, matches, scope: scope);
+  final totals = registerTotals(
+    ledger,
+    matches,
+    complete: complete,
+    scope: scope,
+  );
   return SearchMonth(
     month: month,
     matches: List.unmodifiable([
