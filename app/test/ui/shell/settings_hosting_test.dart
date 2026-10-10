@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:spendwise/boot/banner_state.dart';
 import 'package:spendwise/boot/providers.dart';
+import 'package:spendwise/persistence/ledger_store.dart';
 import 'package:spendwise/sync/hosted_sync_status.dart';
 import 'package:spendwise/ui/settings/settings_flow.dart';
 import 'package:spendwise/ui/settings/settings_root_view_model.dart';
@@ -171,6 +173,29 @@ void main() {
       expect(find.byType(SyncIdentifierScreen), findsOneWidget);
       expect(find.byType(SyncEnrollmentFlow), findsOneWidget);
       expect(harness.container.read(settingsOpenProvider), isTrue);
+    });
+
+    testWidgets('a save problem shows above phone Settings', (tester) async {
+      final banner = BannerState();
+      await pumpShell(tester, status: null, banner: banner);
+      await _openSettingsItem(tester);
+
+      banner.receiveSaveState(SaveBannerState.retrying);
+      await tester.pump();
+
+      expect(find.text("Couldn't save changes, retrying"), findsOneWidget);
+    });
+
+    testWidgets('the repair banner stays hidden above phone Settings while '
+        'the repair route is open', (tester) async {
+      await pumpShell(
+        tester,
+        status: const HostedSyncBindingRepair(),
+        seedPhase: SyncEnrollmentPhase.bindingAuthorizationRequired,
+      );
+      await _openRepairRoute(tester);
+
+      expect(find.text(_repairLabel, skipOffstage: false), findsNothing);
     });
 
     testWidgets('a repair tap while an enrollment route is already open '

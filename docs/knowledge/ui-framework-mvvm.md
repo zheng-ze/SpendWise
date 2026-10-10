@@ -57,7 +57,8 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   Settings root, through `goBack`) and selecting a destination. No route-level pop callback writes
   it, so `Navigator.removeRoute` leaves it true. `AppShell` alone materialises the signal. Below the
   rail threshold it pushes exactly one `SettingsRoute` on the root navigator when the flag turns true,
-  with the current destination's label as the back label, and removes it with
+  with the current destination's label as the back label and its own `StatusBanner` over the
+  `SettingsFlow` (the shell's banner is covered), and removes it with
   `Navigator.removeRoute` when the flag turns false. At the rail threshold or wider it shows
   `SettingsFlow` in the content area instead of the selected destination; the rail and the 720/680
   hysteresis come from `layout_breakpoints.dart`. `SettingsFlow` is mounted only while shown and
