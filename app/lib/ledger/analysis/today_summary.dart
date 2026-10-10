@@ -7,6 +7,7 @@ class TodaySummary {
     required this.day,
     required this.spent,
     required this.dailyGuide,
+    required this.monthlyCap,
   });
 
   final DateTime day;
@@ -15,16 +16,19 @@ class TodaySummary {
 
   final Decimal? dailyGuide;
 
+  final Decimal? monthlyCap;
+
   @override
   bool operator ==(Object other) {
     return other is TodaySummary &&
         other.day == day &&
         other.spent == spent &&
-        other.dailyGuide == dailyGuide;
+        other.dailyGuide == dailyGuide &&
+        other.monthlyCap == monthlyCap;
   }
 
   @override
-  int get hashCode => Object.hash(day, spent, dailyGuide);
+  int get hashCode => Object.hash(day, spent, dailyGuide, monthlyCap);
 }
 
 TodaySummary todaySummary({
@@ -43,10 +47,19 @@ TodaySummary todaySummary({
     day: day,
     spent: spent,
     dailyGuide: _dailyGuide(ledger, day),
+    monthlyCap: _monthlyCap(ledger, day),
   );
 }
 
 Decimal? _dailyGuide(LedgerState ledger, DateTime day) {
+  final limit = _monthlyCap(ledger, day);
+  if (limit == null) return null;
+  final days = DateTime.utc(day.year, day.month + 1, 0).day;
+  final padded = limit + Decimal.parse('0.5') * Decimal.fromInt(days);
+  return Decimal.fromBigInt(padded ~/ Decimal.fromInt(days));
+}
+
+Decimal? _monthlyCap(LedgerState ledger, DateTime day) {
   final month = YearMonth.fromUtc(day);
   Budget? budget;
   for (final candidate in ledger.budgets.values) {
@@ -58,8 +71,5 @@ Decimal? _dailyGuide(LedgerState ledger, DateTime day) {
     budget = candidate;
   }
   if (budget == null) return null;
-  final limit = effectiveLimit(budget, month);
-  final days = DateTime.utc(day.year, day.month + 1, 0).day;
-  final padded = limit + Decimal.parse('0.5') * Decimal.fromInt(days);
-  return Decimal.fromBigInt(padded ~/ Decimal.fromInt(days));
+  return effectiveLimit(budget, month);
 }

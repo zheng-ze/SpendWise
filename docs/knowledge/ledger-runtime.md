@@ -150,7 +150,8 @@ updates the existing query object without a cache computation
 `readCategoryBreakdown(period:, mode:, kind:, level:)`, and
 `readScopedTrend(period:, mode:, kind:, mainBucketID:, scope:)` return
 `AnalysisQueryResult<T>` with nullable `value`, `ready`/`loading`/`failed` state, and nullable
-`sourceRevision`. These reads mix Ledger state with
+`sourceRevision`. `readToday()` returns a `TodaySummary` with `spent`, `dailyGuide` and `monthlyCap`;
+the Overview consumes it (see [overview-ui.md](overview-ui.md)). These reads mix Ledger state with
 analysis items and evaluate only when `cache.itemsSourceRevision == ledger.revision`. While
 pending or failed, a previously read query retains its last successful value and that value's
 revision, provided its identity is still retained (see the memo bound below); a query without a
