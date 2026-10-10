@@ -22,6 +22,8 @@ import 'package:spendwise/ledger/analysis/year_spread.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
 
+const int _maxRetainedIdentities = 64;
+
 class AnalysisQueries extends ChangeNotifier {
   AnalysisQueries({
     required Ledger ledger,
@@ -48,7 +50,7 @@ class AnalysisQueries extends ChangeNotifier {
 
   final Map<String, _Stored> _stored = {};
 
-  final Set<String> _failedEvaluations = {};
+  final Map<String, int> _failedEvaluations = {};
 
   final Set<Future<void>> _observed = {};
 
@@ -430,21 +432,21 @@ class AnalysisQueries extends ChangeNotifier {
     String key,
     T Function() evaluate,
   ) {
-    final stored = _stored[identity];
+    final stored = _touch(identity);
     if (stored != null && stored.key == key) {
       return stored.result as AnalysisQueryResult<T>;
     }
-    if (!_failedEvaluations.contains(key)) {
+    if (!_failedEvaluations.containsKey(key)) {
       try {
         final result = AnalysisQueryResult<T>(
           value: evaluate(),
           state: AnalysisQueryState.ready,
           sourceRevision: _ledger.revision,
         );
-        _stored[identity] = _Stored(key, result);
+        _retain(identity, _Stored(key, result));
         return result;
       } catch (_) {
-        _failedEvaluations.add(key);
+        _recordFailure(key);
       }
     }
     final previous = stored?.result as AnalysisQueryResult<T>?;
@@ -466,25 +468,25 @@ class AnalysisQueries extends ChangeNotifier {
     final revision = _ledger.revision;
     final stamp = _cache.itemsSourceRevision;
     final key = '$identity|${_today.toIso8601String()}|$revision|$stamp';
-    final stored = _stored[identity];
+    final stored = _touch(identity);
     if (stored != null && stored.key == key) {
       return stored.result as AnalysisQueryResult<T>;
     }
-    if (stamp == revision && !_failedEvaluations.contains(key)) {
+    if (stamp == revision && !_failedEvaluations.containsKey(key)) {
       try {
         final result = AnalysisQueryResult<T>(
           value: evaluate(),
           state: AnalysisQueryState.ready,
           sourceRevision: revision,
         );
-        _stored[identity] = _Stored(key, result);
+        _retain(identity, _Stored(key, result));
         return result;
       } catch (_) {
-        _failedEvaluations.add(key);
+        _recordFailure(key);
       }
     }
     final previous = stored?.result as AnalysisQueryResult<T>?;
-    final state = _failedEvaluations.contains(key)
+    final state = _failedEvaluations.containsKey(key)
         ? AnalysisQueryState.failed
         : _pendingState(revision);
     if (previous != null) {
@@ -499,6 +501,26 @@ class AnalysisQueries extends ChangeNotifier {
       state: state,
       sourceRevision: null,
     );
+  }
+
+  _Stored? _touch(String identity) {
+    final stored = _stored.remove(identity);
+    if (stored != null) _stored[identity] = stored;
+    return stored;
+  }
+
+  void _retain(String identity, _Stored stored) {
+    _stored.remove(identity);
+    _stored[identity] = stored;
+    while (_stored.length > _maxRetainedIdentities) {
+      _stored.remove(_stored.keys.first);
+    }
+  }
+
+  void _recordFailure(String key) {
+    final revision = _ledger.revision;
+    _failedEvaluations.removeWhere((_, failedAt) => failedAt != revision);
+    _failedEvaluations[key] = revision;
   }
 
   AnalysisQueryState _pendingState(int revision) {
