@@ -6,6 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/settings/recycle_bin/recycle_bin_screen.dart';
+import 'package:spendwise/ui/symbol_map.dart';
+import 'package:spendwise/ui/theme/spendwise_colors.dart';
 
 import '../../../support/semantics_test_support.dart';
 
@@ -520,5 +522,95 @@ void main() {
 
       expect(find.text('1 reference'), findsOneWidget);
     });
+
+    Color amountColor(WidgetTester tester, String text) =>
+        tester.widget<Text>(find.text(text)).style!.color!;
+
+    testWidgets(
+      'an unnamed categorized expense shows the category title and its '
+      'category-coloured medallion icon',
+      (tester) async {
+        final cat = category(
+          'a0000000-0000-0000-0000-000000000003',
+          'Dining',
+          lifecycle: LifecycleState.active,
+        );
+        final entry = Entry(
+          name: '',
+          amount: dec('-8'),
+          date: DateTime.utc(2026, 10, 3),
+          sourceID: sourceId,
+          categoryID: cat.id,
+        ).settingLifecycle(LifecycleState.archived);
+        final ledger = buildLedger(
+          moneySources: {wallet.id: MoneySource.account(wallet)},
+          categories: {cat.id: cat},
+          binnedEntries: {entry.id: entry},
+        );
+        await pumpScreen(tester, ledger);
+        await tester.pumpAndSettle();
+
+        expect(find.text('Dining'), findsOneWidget);
+        final icon = tester.widget<Icon>(
+          find.byWidgetPredicate(
+            (w) => w is Icon && w.icon == symbolIcon('tag'),
+          ),
+        );
+        expect(icon.color, const Color(0xFFFF0000));
+      },
+    );
+
+    testWidgets('an income entry shows a plus sign in the income colour', (
+      tester,
+    ) async {
+      await pumpWith(tester, [
+        binned('Salary', DateTime.utc(2026, 10, 3), amount: '100'),
+      ]);
+
+      expect(find.text('+100.00'), findsOneWidget);
+      expect(amountColor(tester, '+100.00'), SpendWiseColors.light.income);
+    });
+
+    testWidgets('an expense entry shows a minus sign in the expense colour', (
+      tester,
+    ) async {
+      await pumpWith(tester, [
+        binned('Coffee', DateTime.utc(2026, 10, 3), amount: '-5'),
+      ]);
+
+      expect(amountColor(tester, '-5.00'), SpendWiseColors.light.expense);
+    });
+
+    testWidgets(
+      'a transfer shows an unsigned amount in the neutral colour and a '
+      'source > destination caption',
+      (tester) async {
+        final savings = account(
+          'a0000000-0000-0000-0000-0000000000a2',
+          'Savings',
+          lifecycle: LifecycleState.active,
+        );
+        final transfer = Entry(
+          name: 'Move',
+          amount: dec('-20'),
+          date: DateTime.utc(2026, 10, 3),
+          sourceID: sourceId,
+          destinationID: savings.id,
+        ).settingLifecycle(LifecycleState.archived);
+        final ledger = buildLedger(
+          moneySources: {
+            wallet.id: MoneySource.account(wallet),
+            savings.id: MoneySource.account(savings),
+          },
+          binnedEntries: {transfer.id: transfer},
+        );
+        await pumpScreen(tester, ledger);
+        await tester.pumpAndSettle();
+
+        expect(find.text('3 Oct 2026 / Wallet > Savings'), findsOneWidget);
+        expect(find.text('20.00'), findsOneWidget);
+        expect(amountColor(tester, '20.00'), SpendWiseColors.light.text);
+      },
+    );
   });
 }

@@ -3,6 +3,7 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/common/category_icon.dart';
+import 'package:spendwise/ui/common/medallion_row.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
 import 'package:spendwise/ui/format/money_format.dart';
@@ -219,51 +220,40 @@ class _EntryRowContent extends StatelessWidget {
     horizontal: 16,
     vertical: 10,
   );
-  static const _contentGap = 12.0;
   static const _restoreGap = 6.0;
   static const _restoreLabel = 'Restore';
+  static const _amountFontSize = 12.0;
   static const _amountWeight = FontWeight.w600;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final captionStyle = theme.textTheme.bodySmall?.copyWith(
-      color: theme.colorScheme.onSurfaceVariant,
-    );
-    final amountStyle = theme.textTheme.titleSmall?.copyWith(
-      color: AmountStyle.of(context, kind: row.amountKind).color,
+    final amountStyle = TextStyle(
+      fontSize: _amountFontSize,
       fontWeight: _amountWeight,
+      color: AmountStyle.of(context, kind: row.amountKind).color,
     );
     final amountText = formatSignedMoney(
       row.amount,
       kind: row.amountKind,
       symbol: false,
     );
-    final texts = Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(row.name, style: theme.textTheme.bodyMedium),
-          Text(row.caption, style: captionStyle),
-        ],
-      ),
+    final trailing = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(amountText, style: amountStyle),
+        const SizedBox(width: _restoreGap),
+        TextButton(onPressed: onRestore, child: const Text(_restoreLabel)),
+      ],
     );
 
     return Padding(
       padding: _contentPadding,
-      child: Row(
-        children: [
-          CategoryIcon(
-            symbolName: row.symbolName!,
-            color: row.color ?? colorHexFallback,
-          ),
-          const SizedBox(width: _contentGap),
-          texts,
-          const SizedBox(width: _contentGap),
-          Text(amountText, style: amountStyle),
-          const SizedBox(width: _restoreGap),
-          TextButton(onPressed: onRestore, child: const Text(_restoreLabel)),
-        ],
+      child: MedallionRow(
+        icon: symbolIcon(row.symbolName!),
+        iconColor: row.color,
+        title: row.name,
+        subtitle: row.caption,
+        trailing: trailing,
       ),
     );
   }
