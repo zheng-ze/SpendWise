@@ -153,7 +153,8 @@ the Flow clears it via the ViewModel's `clearStep()` after acting on it, whether
 push or a modal launch. Replaces the earlier `NavigationIntent` field. See ADR-0059.
 
 `AppShell` (`app/lib/ui/shell/app_shell.dart`) itself gets no ViewModel: its only state is
-responsive-layout bookkeeping (`_useRail`, `_extended`), a flat width-to-bool computation with no
+the fixed platform layout mode (`shellLayoutModeProvider`, resolving `ShellLayoutMode.phone`
+or `ShellLayoutMode.desktop` once per run from the platform), with no
 async loading and no domain import. It mounts one Flow per destination directly, with no
 shell-level `Navigator` of its own — each Flow already owns its own, per the Flow entry above. This
 was issue #30's last open "does `shell` need a migration ticket" question, closed by issue #39.

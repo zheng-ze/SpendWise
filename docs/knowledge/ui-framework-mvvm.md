@@ -1,6 +1,6 @@
 # UI Framework (MVVM)
 
-Last reconciled: 2026-10-10
+Last reconciled: 2026-10-11
 
 ## Feature overview
 
@@ -18,8 +18,9 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
 - `app/lib/ui/common/step_emitting.dart` — the `Step` emission contract.
 - `app/lib/ui/common/flow_base.dart` — the Flow base that watches ViewModels for `Step` and maps each
   to a push/pop on its own `Navigator`.
-- `app/lib/ui/shell/app_shell.dart` — the responsive shell: no ViewModel, only layout bookkeeping
-  (`_useRail`, `_extended`), mounting one Flow per destination.
+- `app/lib/ui/shell/app_shell.dart` — the shell: no ViewModel, only the fixed
+  platform layout mode (`shellLayoutModeProvider`), mounting one Flow per
+  destination.
 - `app/lib/ui/symbol_map.dart` — symbol-to-IconData mapping.
 - `app/lib/ui/theme/` - `spendwise_colors.dart` (`SpendWiseColors` ThemeExtension with the
   Harbour glass light/dark tokens), `spendwise_text.dart` (`SpendWiseText` amount roles plus the
@@ -48,42 +49,46 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   acting. Replaces the earlier `NavigationIntent` field.
 - **One ViewModel per View**; shared presentation widgets own no ViewModel because they never read
   Riverpod state (zero `ConsumerWidget`/`WidgetRef` usage).
-- **AppShell** gets no ViewModel: its only state is a flat width-to-bool layout computation, no
-  async loading, no domain import. It mounts one Flow per destination, with no shell-level navigator.
-  The Settings navigation item is a writer of `settingsOpenProvider`, not a destination.
-  (`app/lib/ui/shell/app_shell.dart`, `app/lib/ui/shell/shell_providers.dart`)
-- **Settings hosting** - `settingsOpenProvider` (`StateProvider<bool>`) is the only settings-visible
-  signal. The Settings navigation item and the repair banner tap set it true. It is cleared in
-  exactly two places: the `onEnded` callback of `SettingsFlow` (back control or Android back at the
-  Settings root, through `goBack`) and selecting a destination. No route-level pop callback writes
-  it, so `Navigator.removeRoute` leaves it true. `AppShell` alone materialises the signal. Below the
-  rail threshold it pushes exactly one settings route on the root navigator when the flag turns true,
-  with the current destination's label as the back label and its own `StatusBanner` over the
-  `SettingsFlow` (the shell's banner is covered), and removes it with
-  `Navigator.removeRoute` when the flag turns false. At the rail threshold or wider it shows
-  `SettingsFlow` in the content area instead of the selected destination; the rail and the 720/680
-  hysteresis come from `layout_breakpoints.dart`. `SettingsFlow` is mounted only while shown and
-  refreshes the hosted sync status in `initState`.
-- **Close or hand-over at dispose** - `SettingsFlow.dispose` reads nothing from `ref`. It schedules one
-  microtask using the captured `ProviderContainer` and `StateController`. If
-  `settingsOpenProvider` is still true, a layout switch is re-hosting Settings, and the microtask
-  hands over: it releases `enrollmentFlowOpenProvider` if this Flow owned the route and requests
-  `ResumeFreshEnrollmentRequested` (unless the status is `HostedSyncReady`) or
-  `RepairDeviceAccessRequested` (only for binding repair or session reauth). If the flag is false,
-  the user closed Settings: the microtask releases `enrollmentFlowOpenProvider` if this Flow owned
-  the route and calls `clearStep()`, so the next open shows only the Settings root. A Flow that saw
-  the flag turn false while mounted always takes this path, even when Settings was reopened before
-  the outgoing layout of a layout switch finished disposing it.
-- **Layout switch with Settings open** - the flag stays true. Phone to rail removes the
-  settings route and mounts the content `SettingsFlow`; rail to phone unmounts the content
-  `SettingsFlow` and pushes the settings route. The disposed Flow takes the hand-over path, the new
-  Flow picks up the step after its first frame, and `enrollmentFlowOpenProvider` admits one
-  enrollment route, so one `SettingsFlow` and at most one enrollment route remain once the frame
-  settles. `StatusBanner` hides the repair banner only while `enrollmentFlowOpenProvider` and
-  `settingsOpenProvider` are both true. A repair tap sets the flag and calls `requestRepair()` only
-  while `enrollmentFlowOpenProvider` is false. (`app/lib/ui/shell/app_shell.dart`,
+- **AppShell** gets no ViewModel: its only state is the fixed platform layout
+  mode, no async loading, no domain import. `shellLayoutModeProvider`
+  (`app/lib/ui/shell/shell_providers.dart`) resolves `ShellLayoutMode.phone`
+  or `ShellLayoutMode.desktop` once per run from the platform (web, macOS,
+  Windows and Linux use desktop; iOS and Android use phone) and reads no
+  window width, so resizing never switches the bar/rail layout. `AppShell`
+  shows the bottom bar in phone mode and the compact labelled rail in
+   desktop mode. It mounts one Flow per destination, with no shell-level
+   navigator. The Settings navigation item selects the `settings`
+   destination.
+   (`app/lib/ui/shell/app_shell.dart`, `app/lib/ui/shell/shell_providers.dart`)
+- **Settings hosting** - `ShellDestination.settings` is a plain retained destination. `BootChrome`
+  supplies `SettingsFlow` in the Settings slot and `AppShell` mounts all four destinations once in a
+  keyed `IndexedStack`, with `SettingsFlow` built without `backLabel` or `onEnded`, so its root
+  screen shows no back control. Selecting Settings only writes `selectedDestinationProvider`. Back
+  pops Settings child routes; at the root it preserves the selection. Switching destinations retains
+  Settings and any open enrollment route. Settings refreshes the hosted sync status on mount,
+  whenever Settings becomes the selected destination (a `selectedDestinationProvider` listener),
+  and after an enrollment route closes. (`app/lib/ui/shell/app_shell.dart`,
+  `app/lib/ui/shell/shell_providers.dart`, `app/lib/ui/shell/boot_chrome.dart`,
+  `app/lib/ui/settings/settings_flow.dart`)
+- **Destination Back activity** - `DestinationActivity` (`app/lib/ui/common/flow_base.dart`) is a
+  pure inherited active flag defaulting to active for standalone Flows. Each `IndexedStack` slot
+  wraps its destination with the flag derived from the selected destination. An inactive `FlowBase`
+  `PopScope` permits propagation and ignores its callback; the active Flow delegates Back through
+  its own nested `Navigator`. `FlowBase` reads no shell providers. Nested enrollment and scoped
+  Flows inherit their host destination's activity.
+- **Settings teardown** - `SettingsFlow.dispose` performs terminal cleanup only through one
+  disposal-safe microtask using the captured `ProviderContainer` and guard controller: it releases
+  `enrollmentFlowOpenProvider` when this Flow owned the route and clears any pending navigation
+  step. It never re-emits resume or repair steps and never reopens a route. A route completion
+  arriving after teardown cannot release another owner's guard. (`app/lib/ui/settings/settings_flow.dart`)
+- **Repair routing and visibility** - `StatusBanner` hides the repair banner only while
+  `selectedDestinationProvider` is `settings` and `enrollmentFlowOpenProvider` is true. A repair
+  tap selects Settings first and calls `requestRepair()` only while `enrollmentFlowOpenProvider` is
+  false. Returning to Settings reveals the existing route without duplication. `SettingsFlow`
+  re-checks a pending step after its navigator mounts, so a request made before Settings is built is
+  consumed once. (`app/lib/ui/shell/app_shell.dart`,
   `app/lib/ui/shell/status_banner.dart`,
-  `app/lib/ui/settings/settings_flow.dart` - `_settleAtDispose`, `handleStep`)
+  `app/lib/ui/settings/settings_flow.dart` - `handleStep`)
 
 ## Notifier conventions
 
@@ -135,21 +140,30 @@ value, which then overwrites it. (issue #38)
 ## Sheet and component kit
 
 - **AppSheet** (`app/lib/ui/common/app_sheet.dart`) is the shared kit sheet surface.
-  `showAppSheet<T>(context, builder:)` pushes an `AppSheetRoute` on the root navigator, so
-  its barrier covers the window even when opened from a nested Flow. The builder returns
-  `AppSheet(header:, body:, footer:, inputSurface:, alert:, onAlertAction:)`. Below
-  `LayoutBreakpoints.railEnter` (720), it spans the phone width at the bottom; at or above
-  that width, it centres a dialog no wider than 440. Both size to content up to
-  `0.66 * (window height - top safe padding - bottom keyboard inset)`. Only the body
-  scrolls; the header, footer and input surface stay pinned. The route lifts the sheet above
-  the keyboard, and the surface keeps its footer/input above the bottom safe inset while
-  the phone background fills that inset. (`app/lib/ui/shell/layout_breakpoints.dart`)
+  `showAppSheet<T>(context, presentation:, builder:)` pushes an `AppSheetRoute`
+  on the root navigator, so its barrier covers the window even when opened from
+  a nested Flow. `presentation` is a required plain `AppSheetPresentation`
+  (`phone`, `desktop`) value; every caller supplies it, and `ui/common` reads
+  no Riverpod state and no window width. The builder returns
+  `AppSheet(header:, body:, footer:, inputSurface:, alert:, onAlertAction:)`.
+  The route captures the value and passes it to both the page alignment and
+  the sheet chrome: phone spans the full available width at the bottom, desktop
+  centres a dialog no wider than 440 while fitting the viewport. Both size to
+  content up to `0.66 * (window height - top safe padding - bottom keyboard
+  inset)`. Only the body scrolls; the header, footer and input surface stay
+  pinned. The route lifts the sheet above the keyboard, and the surface keeps
+  its footer/input above the bottom safe inset while the phone background fills
+  that inset. Resizing an open sheet changes available geometry, never its
+  presentation.
 - **Sheet alerts** - the presentation kit owns no Riverpod state. `AppSheetRoute` owns
-  alert and action `ValueNotifier`s exposed through `AppSheetAlertSlot`; `AppSheet` publishes
-  them post-frame and clears them on dispose. The route renders `SheetAlert` outside the
-  sheet, so errors and warnings never change sheet height. A View passes its ViewModel's
-  alert and callback down. A standalone `AppSheet` needs the route slot to display alerts.
-  The banner is a live region; its action appears only with both a label and callback.
+  alert and action `ValueNotifier`s plus the captured presentation, exposed
+  through `AppSheetAlertSlot`; `AppSheet` publishes them post-frame and clears
+  them on dispose. The route renders `SheetAlert` outside the sheet, so errors
+  and warnings never change sheet height. A View passes its ViewModel's alert
+  and callback down. A standalone `AppSheet` needs the route slot with an
+  explicit presentation to display anything; a missing slot is a caller error
+  reported as a `FlutterError`, never a width or platform fallback. The banner
+  is a live region; its action appears only with both a label and callback.
   (`app/lib/ui/common/app_sheet.dart`, `app/lib/ui/common/sheet_alert.dart`)
 - **Actions** (`app/lib/ui/common/app_buttons.dart`): `PrimaryButton` is filled, with
   `destructive: true` using error/on-action tokens; `SecondaryButton` defaults to text and
@@ -170,8 +184,9 @@ value, which then overwrites it. (issue #38)
   category when `onSelect` is supplied.
   `WeekStrip` leaves future days blank and draws dashed stubs for past empty days.
   (`app/lib/ui/common/charts/week_strip.dart`)
-- **Sheet checks** - `app/test/support/sheet_contract.dart` provides route pumping, cap checks
-  for every drawn sheet, and an assertion that the alert sits outside the sheet subtree.
+- **Sheet checks** - `app/test/support/sheet_contract.dart` provides route pumping
+  with an explicit presentation, cap checks for every drawn sheet, and an
+  assertion that the alert sits outside the sheet subtree.
 
 ## Gotchas and invariants
 

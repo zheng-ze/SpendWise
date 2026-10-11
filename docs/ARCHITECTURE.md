@@ -264,10 +264,11 @@ separator input is a recorded non-goal until localization work begins.
 
 ### 4.4 UI (`app/lib/ui/`)
 
-The app is phone-first with one shell that adapts to width:
+The app is phone-first with one shell whose phone or desktop layout is chosen by platform:
 
-- `NavigationBar` with 4 destinations on compact width, `NavigationRail` on wide layouts (desktop,
-  tablet).
+- `NavigationBar` with 4 destinations in phone mode, compact labelled `NavigationRail` in
+  desktop mode (`shellLayoutModeProvider` resolves `ShellLayoutMode.phone` or
+  `ShellLayoutMode.desktop` once per run; resizing never switches the layout).
 - Screen-level state — selected month, selector mode, stats kind, and similar per-tab state — lives
   in providers, never in widget-local state that a rebuild can silently recreate. Controllers that
   window on "now" take an injected clock, so statement and summary window logic can be pinned in

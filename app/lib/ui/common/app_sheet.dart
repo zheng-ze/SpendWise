@@ -2,28 +2,33 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
 import 'package:spendwise/ui/common/sheet_alert.dart';
-import 'package:spendwise/ui/shell/layout_breakpoints.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 const _sheetMaxWidth = 440.0;
 
+enum AppSheetPresentation { phone, desktop }
+
 Future<T?> showAppSheet<T>(
   BuildContext context, {
+  required AppSheetPresentation presentation,
   required WidgetBuilder builder,
 }) {
   return Navigator.of(
     context,
     rootNavigator: true,
-  ).push<T>(AppSheetRoute<T>(builder: builder));
+  ).push<T>(AppSheetRoute<T>(presentation: presentation, builder: builder));
 }
 
 class AppSheetAlertSlot extends InheritedWidget {
   const AppSheetAlertSlot({
     super.key,
+    required this.presentation,
     required this.alerts,
     required this.alertAction,
     required super.child,
   });
+
+  final AppSheetPresentation presentation;
 
   final ValueNotifier<SheetAlertData?> alerts;
 
@@ -34,7 +39,9 @@ class AppSheetAlertSlot extends InheritedWidget {
 
   @override
   bool updateShouldNotify(covariant AppSheetAlertSlot oldWidget) =>
-      alerts != oldWidget.alerts || alertAction != oldWidget.alertAction;
+      presentation != oldWidget.presentation ||
+      alerts != oldWidget.alerts ||
+      alertAction != oldWidget.alertAction;
 }
 
 class AppSheet extends StatefulWidget {
@@ -111,8 +118,15 @@ class _AppSheetState extends State<AppSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final presentation = AppSheetAlertSlot.maybeOf(context)?.presentation;
+    if (presentation == null) {
+      throw FlutterError(
+        'AppSheet must be hosted under an AppSheetAlertSlot '
+        'with an explicit presentation.',
+      );
+    }
+    final desktop = presentation == AppSheetPresentation.desktop;
     final media = MediaQuery.of(context);
-    final desktop = media.size.width >= LayoutBreakpoints.railEnter;
     final cap =
         _maxHeightFraction *
         (media.size.height - media.padding.top - media.viewInsets.bottom);
@@ -417,7 +431,7 @@ class _SheetHandle extends StatelessWidget {
 }
 
 class AppSheetRoute<T> extends ModalRoute<T> {
-  AppSheetRoute({required this.builder});
+  AppSheetRoute({required this.presentation, required this.builder});
 
   static const _transitionMillis = 220;
 
@@ -428,6 +442,8 @@ class AppSheetRoute<T> extends ModalRoute<T> {
   static const _slideBeginDy = 0.06;
 
   final WidgetBuilder builder;
+
+  final AppSheetPresentation presentation;
 
   late final ValueNotifier<SheetAlertData?> _alerts =
       ValueNotifier<SheetAlertData?>(null);
@@ -460,9 +476,10 @@ class AppSheetRoute<T> extends ModalRoute<T> {
     Animation<double> secondaryAnimation,
   ) {
     return AppSheetAlertSlot(
+      presentation: presentation,
       alerts: _alerts,
       alertAction: _alertAction,
-      child: _AppSheetPage(builder: builder),
+      child: _AppSheetPage(presentation: presentation, builder: builder),
     );
   }
 
@@ -492,25 +509,29 @@ class AppSheetRoute<T> extends ModalRoute<T> {
 }
 
 class _AppSheetPage extends StatelessWidget {
-  const _AppSheetPage({required this.builder});
+  const _AppSheetPage({required this.presentation, required this.builder});
 
   static const _desktopAlertTop = 16.0;
 
   static const _compactAlertTop = 12.0;
+
+  static const _bottomAlignment = Alignment.bottomCenter;
+
+  final AppSheetPresentation presentation;
 
   final WidgetBuilder builder;
 
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final desktop = media.size.width >= LayoutBreakpoints.railEnter;
+    final desktop = presentation == AppSheetPresentation.desktop;
     final sheet = Padding(
       padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
       child: Builder(builder: builder),
     );
     final positionedSheet = desktop
         ? Center(child: sheet)
-        : Align(alignment: Alignment.bottomCenter, child: sheet);
+        : Align(alignment: _bottomAlignment, child: sheet);
     final slot = AppSheetAlertSlot.maybeOf(context);
     if (slot == null) return positionedSheet;
     final alertTop =

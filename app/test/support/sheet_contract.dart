@@ -13,11 +13,16 @@ void useSheetSize(WidgetTester tester, Size size) {
 Future<void> pumpAppSheet(
   WidgetTester tester,
   AppSheet sheet, {
+  required AppSheetPresentation presentation,
   Size size = const Size(320, 760),
 }) async {
   useSheetSize(tester, size);
   final app = MaterialApp(
-    home: _ContractSheetOpener(sheet: sheet, label: 'open sheet'),
+    home: _ContractSheetOpener(
+      sheet: sheet,
+      label: 'open sheet',
+      presentation: presentation,
+    ),
   );
   await tester.pumpWidget(app);
   await tester.tap(find.text('open sheet'));
@@ -25,16 +30,26 @@ Future<void> pumpAppSheet(
 }
 
 class _ContractSheetOpener extends StatelessWidget {
-  const _ContractSheetOpener({required this.sheet, required this.label});
+  const _ContractSheetOpener({
+    required this.sheet,
+    required this.label,
+    required this.presentation,
+  });
 
   final AppSheet sheet;
 
   final String label;
 
+  final AppSheetPresentation presentation;
+
   @override
   Widget build(BuildContext context) {
     return TextButton(
-      onPressed: () => showAppSheet<void>(context, builder: (_) => sheet),
+      onPressed: () => showAppSheet<void>(
+        context,
+        presentation: presentation,
+        builder: (_) => sheet,
+      ),
       child: Text(label),
     );
   }
