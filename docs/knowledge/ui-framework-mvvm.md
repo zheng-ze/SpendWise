@@ -82,7 +82,7 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   the route and calls `clearStep()`, so the next open shows only the Settings root. A Flow that saw
   the flag turn false while mounted always takes this path, even when Settings was reopened before
   the outgoing layout of a layout switch finished disposing it.
-- **Layout switch with Settings open** - the flag stays true. Phone to rail removes the
+- **Layout switch with Settings open** - the layout mode is fixed for the run, so this path cannot occur in production and remains only until the hand-over code is removed. The flag stays true. Phone to rail removes the
   settings route and mounts the content `SettingsFlow`; rail to phone unmounts the content
   `SettingsFlow` and pushes the settings route. The disposed Flow takes the hand-over path, the new
   Flow picks up the step after its first frame, and `enrollmentFlowOpenProvider` admits one
