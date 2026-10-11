@@ -21,7 +21,7 @@ class NewEntryForm extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppSheet(
-      header: _NewEntryHeader(onCancel: () => Navigator.of(context).pop()),
+      header: _NewEntryHeader(onCancel: viewModel.cancel),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

@@ -147,6 +147,7 @@ abstract class EntryFormViewModel {
   void revertToPersisted();
   Future<void> save();
   Future<void> delete();
+  void cancel();
   void requestDocumentCrop(Uint8List bytes);
 
   void prefillSource(String? id);
@@ -408,6 +409,9 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
     ledger.deleteEntry(id);
     updateState((current) => current.copyWith(dismissed: true));
   }
+
+  @override
+  void cancel() => updateState((c) => c.copyWith(dismissed: true));
 
   @override
   void requestScan(ReceiptScanSource source, {Uint8List? preCapturedBytes}) {

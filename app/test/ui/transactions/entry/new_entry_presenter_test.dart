@@ -182,6 +182,22 @@ void main() {
       expect(ledger.state.entries, isEmpty);
     });
 
+    testWidgets('the ViewModel cancel closes the sheet without an entry', (
+      tester,
+    ) async {
+      final ledger = buildLedger();
+      await pumpFlow(tester, ledger: ledger);
+      await openAdd(tester);
+
+      containerOf(tester)
+          .read(entryFormViewModelProvider(null).notifier)
+          .cancel();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Add entry'), findsNothing);
+      expect(ledger.state.entries, isEmpty);
+    });
+
     testWidgets('barrier dismissal closes the sheet without an entry', (
       tester,
     ) async {
@@ -863,7 +879,11 @@ void main() {
               final gate = Completer<void>();
               gates.add(gate);
               await gate.future;
-              return [line('Coffee Shop')];
+              return [
+                line('Coffee Shop'),
+                line('Total \$12.50'),
+                line('01/15/2026'),
+              ];
             });
         addTearDown(() {
           TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -874,6 +894,11 @@ void main() {
         addTearDown(container.dispose);
         ReceiptOrchestrationState read() =>
             container.read(receiptEntryCoordinatorProvider(null));
+        final draft = <String, Object?>{
+          'name': 'fresh',
+          'amount': '',
+          'date': null,
+        };
         Future<void> scan() async {
           final expected = gates.length + 1;
           container
@@ -881,7 +906,11 @@ void main() {
               .requestScan(
                 ReceiptScanSource.camera,
                 preCapturedBytes: Uint8List(0),
-                onPrefill: ({name, amount, required date}) {},
+                onPrefill: ({name, amount, required date}) {
+                  draft['name'] = name;
+                  draft['amount'] = amount;
+                  draft['date'] = date;
+                },
               );
           for (var i = 0; i < 200 && gates.length < expected; i++) {
             await Future<void>.delayed(const Duration(milliseconds: 5));
@@ -897,12 +926,16 @@ void main() {
         gates[0].complete();
         await Future<void>.delayed(const Duration(milliseconds: 300));
         expect(read().scanning, isTrue);
+        expect(draft, {'name': 'fresh', 'amount': '', 'date': null});
 
         gates[1].complete();
         for (var i = 0; i < 200 && read().scanning; i++) {
           await Future<void>.delayed(const Duration(milliseconds: 5));
         }
         expect(read().scanning, isFalse);
+        expect(draft['name'], 'Coffee Shop');
+        expect(draft['amount'], dec('12.50'));
+        expect(draft['date'], isA<DateTime>());
       },
     );
   });
