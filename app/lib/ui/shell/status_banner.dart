@@ -22,8 +22,8 @@ class StatusBanner extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final status = ref.watch(hostedSyncStatusProvider);
     final repairFlowVisible =
-        ref.watch(enrollmentFlowOpenProvider) &&
-        ref.watch(settingsOpenProvider);
+        ref.watch(selectedDestinationProvider) == ShellDestination.settings &&
+        ref.watch(enrollmentFlowOpenProvider);
     final needsRepair =
         status is HostedSyncBindingRepair || status is HostedSyncSessionReauth;
     if (needsRepair && !repairFlowVisible) return const _RepairBanner();
@@ -105,7 +105,8 @@ class _RepairBanner extends ConsumerWidget {
     final foreground = theme.colorScheme.onErrorContainer;
 
     void openRepair() {
-      ref.read(settingsOpenProvider.notifier).state = true;
+      ref.read(selectedDestinationProvider.notifier).state =
+          ShellDestination.settings;
       if (!ref.read(enrollmentFlowOpenProvider)) {
         ref.read(settingsRootViewModelProvider.notifier).requestRepair();
       }

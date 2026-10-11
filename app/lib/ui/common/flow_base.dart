@@ -7,6 +7,26 @@ abstract class FlowBase<S> extends ConsumerStatefulWidget {
   final VoidCallback? onEnded;
 }
 
+class DestinationActivity extends InheritedWidget {
+  const DestinationActivity({
+    super.key,
+    required this.active,
+    required super.child,
+  });
+
+  final bool active;
+
+  static bool of(BuildContext context) =>
+      context
+          .dependOnInheritedWidgetOfExactType<DestinationActivity>()
+          ?.active ??
+      true;
+
+  @override
+  bool updateShouldNotify(DestinationActivity oldWidget) =>
+      active != oldWidget.active;
+}
+
 abstract class FlowBaseState<S, T extends FlowBase<S>>
     extends ConsumerState<T> {
   final _navigatorKey = GlobalKey<NavigatorState>();
@@ -49,10 +69,11 @@ abstract class FlowBaseState<S, T extends FlowBase<S>>
 
   @override
   Widget build(BuildContext context) {
+    final active = DestinationActivity.of(context);
     return PopScope(
-      canPop: false,
+      canPop: !active,
       onPopInvokedWithResult: (didPop, _) async {
-        if (didPop) return;
+        if (didPop || !active) return;
         await goBack();
       },
       child: Navigator(

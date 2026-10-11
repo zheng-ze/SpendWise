@@ -3,11 +3,39 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/sync/hosted_sync_status.dart';
+import 'package:spendwise/ui/common/flow_base.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
 const _compact = Size(400, 800);
 const _wide = Size(1200, 900);
+
+class _ProbeFlow extends FlowBase<String> {
+  const _ProbeFlow({required this.label});
+
+  final String label;
+
+  @override
+  ConsumerState<_ProbeFlow> createState() => _ProbeFlowState();
+}
+
+class _ProbeFlowState extends FlowBaseState<String, _ProbeFlow> {
+  @override
+  void Function() subscribeToStep(void Function(String? step) handle) => () {};
+
+  @override
+  void handleStep(BuildContext context, String step) {}
+
+  @override
+  Widget buildRoot(BuildContext context) => Text(widget.label);
+}
+
+Future<void> _pushProbeChild(WidgetTester tester, String label) async {
+  final root = tester.element(find.text(label, skipOffstage: false));
+  Navigator.of(root)
+      .push(MaterialPageRoute<void>(builder: (_) => Text('$label child')));
+  await tester.pumpAndSettle();
+}
 
 Future<void> _pumpShell(
   WidgetTester tester, {
@@ -221,6 +249,110 @@ void main() {
 
     expect(find.text('entry detail'), findsOneWidget);
     expect(find.byType(NavigationBar), findsOneWidget);
+  });
+
+  testWidgets('selecting Settings shows its body and retains other stacks', (
+    tester,
+  ) async {
+    await _pumpShell(
+      tester,
+      size: _compact,
+      bodies: {
+        ShellDestination.transactions: (context) => Navigator(
+          onGenerateRoute: (settings) => MaterialPageRoute<void>(
+            settings: settings,
+            builder: (context) => Center(
+              child: TextButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const Scaffold(body: Text('entry detail')),
+                  ),
+                ),
+                child: const Text('open detail'),
+              ),
+            ),
+          ),
+        ),
+        ShellDestination.settings: (context) => const Text('settings body'),
+      },
+    );
+
+    await tester.tap(find.text('open detail'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Settings'));
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
+      ShellDestination.settings.index,
+    );
+    expect(find.text('settings body'), findsOneWidget);
+
+    await tester.tap(find.text('Transactions'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('entry detail'), findsOneWidget);
+  });
+
+  group('destination Back activity', () {
+    Future<void> pumpProbes(WidgetTester tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: IndexedStack(
+            index: 0,
+            children: [
+              DestinationActivity(
+                active: true,
+                child: _ProbeFlow(label: 'active'),
+              ),
+              DestinationActivity(
+                active: false,
+                child: _ProbeFlow(label: 'hidden'),
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('an inactive destination ignores system Back', (tester) async {
+      await pumpProbes(tester);
+      await _pushProbeChild(tester, 'active');
+      await _pushProbeChild(tester, 'hidden');
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+
+      expect(find.text('active child'), findsNothing);
+      expect(find.text('active'), findsOneWidget);
+      expect(find.text('hidden child', skipOffstage: false), findsOneWidget);
+    });
+
+    testWidgets('Back at an active root preserves every stack', (tester) async {
+      await pumpProbes(tester);
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+
+      expect(find.text('active'), findsOneWidget);
+      expect(find.text('hidden', skipOffstage: false), findsOneWidget);
+    });
+
+    testWidgets('a standalone Flow keeps active Back behavior', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(home: _ProbeFlow(label: 'solo')),
+      );
+      await tester.pumpAndSettle();
+      await _pushProbeChild(tester, 'solo');
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+
+      expect(find.text('solo child'), findsNothing);
+      expect(find.text('solo'), findsOneWidget);
+    });
   });
 
   testWidgets('a shell rebuild keeps a non-current selected month', (

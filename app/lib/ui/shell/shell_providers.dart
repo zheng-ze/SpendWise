@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/legacy.dart';
 
 import 'package:spendwise/boot/providers.dart';
 
-enum ShellDestination { transactions, stats, accounts }
+enum ShellDestination { transactions, stats, accounts, settings }
 
 enum ShellLayoutMode { phone, desktop }
 
@@ -47,5 +47,3 @@ final effectiveMonthProvider = Provider<DateTime>((ref) {
 });
 
 final enrollmentFlowOpenProvider = StateProvider<bool>((ref) => false);
-
-final settingsOpenProvider = StateProvider<bool>((ref) => false);

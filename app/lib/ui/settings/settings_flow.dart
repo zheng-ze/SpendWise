@@ -16,9 +16,7 @@ import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_flow.dart';
 
 class SettingsFlow extends FlowBase<SettingsStep> {
-  const SettingsFlow({super.key, super.onEnded, this.backLabel});
-
-  final String? backLabel;
+  const SettingsFlow({super.key});
 
   @override
   ConsumerState<SettingsFlow> createState() => _SettingsFlowState();
@@ -28,17 +26,12 @@ class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
   late final StateController<bool> _enrollmentFlowOpen;
   late final ProviderContainer _container;
   bool _ownsEnrollmentRoute = false;
-  bool _ownedRepairRoute = false;
-  bool _closedWhileMounted = false;
 
   @override
   void initState() {
     super.initState();
     _enrollmentFlowOpen = ref.read(enrollmentFlowOpenProvider.notifier);
     _container = ProviderScope.containerOf(context, listen: false);
-    ref.listenManual(settingsOpenProvider, (_, open) {
-      if (!open) _closedWhileMounted = true;
-    });
     unawaited(_refreshSyncStatus());
     // FlowBase drops steps emitted before the navigator mounts, so re-check
     // the pending step once mounted.
@@ -53,7 +46,16 @@ class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
 
   @override
   void dispose() {
-    _settleAtDispose();
+    final ownedRoute = _ownsEnrollmentRoute;
+    _ownsEnrollmentRoute = false;
+    final enrollmentFlowOpen = _enrollmentFlowOpen;
+    final container = _container;
+    // Provider writes are illegal while the tree finalizes, hence the microtask.
+    scheduleMicrotask(() {
+      if (!enrollmentFlowOpen.mounted) return;
+      if (ownedRoute) enrollmentFlowOpen.state = false;
+      container.read(settingsRootViewModelProvider.notifier).clearStep();
+    });
     super.dispose();
   }
 
@@ -104,12 +106,9 @@ class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
   }
 
   void _pushEnrollmentRoute(BuildContext context, {required bool repairMode}) {
-    // Two Flows coexist during an AppShell layout switch; the shared flag lets
-    // only one push.
     if (_enrollmentFlowOpen.state) return;
     _enrollmentFlowOpen.state = true;
     _ownsEnrollmentRoute = true;
-    _ownedRepairRoute = repairMode;
     Navigator.of(context)
         .push(
           MaterialPageRoute<void>(
@@ -129,41 +128,7 @@ class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
   void _markEnrollmentRouteClosed() {
     if (!_ownsEnrollmentRoute) return;
     _ownsEnrollmentRoute = false;
-    _ownedRepairRoute = false;
     if (_enrollmentFlowOpen.mounted) _enrollmentFlowOpen.state = false;
-  }
-
-  // Provider writes are illegal while the tree finalizes, hence the microtask.
-  void _settleAtDispose() {
-    final ownedRoute = _ownsEnrollmentRoute;
-    final ownedRepairRoute = _ownedRepairRoute;
-    final closedWhileMounted = _closedWhileMounted;
-    _ownsEnrollmentRoute = false;
-    _ownedRepairRoute = false;
-    final enrollmentFlowOpen = _enrollmentFlowOpen;
-    final container = _container;
-    scheduleMicrotask(() {
-      if (!enrollmentFlowOpen.mounted) return;
-      final viewModel = container.read(settingsRootViewModelProvider.notifier);
-      if (closedWhileMounted || !container.read(settingsOpenProvider)) {
-        if (ownedRoute) enrollmentFlowOpen.state = false;
-        viewModel.clearStep();
-        return;
-      }
-      if (!ownedRoute) return;
-      enrollmentFlowOpen.state = false;
-      final status = container.read(hostedSyncStatusProvider);
-      if (!ownedRepairRoute) {
-        if (status is HostedSyncReady) return;
-        viewModel.requestResumeFreshEnrollment();
-        return;
-      }
-      final needsRepair =
-          status is HostedSyncBindingRepair ||
-          status is HostedSyncSessionReauth;
-      if (!needsRepair) return;
-      viewModel.requestRepair();
-    });
   }
 
   Future<void> _refreshSyncStatus() async {
@@ -173,8 +138,5 @@ class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
   }
 
   @override
-  Widget buildRoot(BuildContext context) => SettingsScreen(
-    backLabel: widget.backLabel,
-    onBack: widget.backLabel == null ? null : goBack,
-  );
+  Widget buildRoot(BuildContext context) => const SettingsScreen();
 }

@@ -1,6 +1,6 @@
 # Sync enrollment: hosted Flow
 
-Last reconciled: 0d906b7
+Last reconciled: 2026-10-11
 
 ## Overview
 
@@ -227,14 +227,10 @@ or reopening one with an OTP-rejecting resolver. Source:
   `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart`
   - `SyncEnrollmentNotifier._failureCopy`, `_copyForCode`.
 - Settings rechecks tile eligibility for `StartHostedEnrollmentRequested`; an ineligible request
-  is consumed without opening the Flow. If an AppShell layout switch disposes the Settings Flow
-  owning a fresh route, a microtask releases `enrollmentFlowOpenProvider` and emits
-  `ResumeFreshEnrollmentRequested` unless the cached Hosted Sync status is `HostedSyncReady`.
-  The surviving Settings Flow opens a fresh route through the shared guard without rechecking tile
-  eligibility, including when enrollment has reached binding authorization. Repair handover requests
-  repair again only for binding-repair or session-reauth status. Source: `app/lib/ui/settings/settings_flow.dart` -
-  `_SettingsFlowState._openFreshFlow`, `_settleAtDispose`, `handleStep`,
-  `_pushEnrollmentRoute`.
+  is consumed without opening the Flow. `ResumeFreshEnrollmentRequested` opens a fresh route
+  through the shared guard without rechecking tile eligibility, including when enrollment has
+  reached binding authorization. Source: `app/lib/ui/settings/settings_flow.dart` -
+  `_SettingsFlowState._openFreshFlow`, `handleStep`, `_pushEnrollmentRoute`.
 - A repair banner tap opens Settings and requests repair only when `enrollmentFlowOpenProvider`
   is false. An open fresh route awaiting binding authorization therefore remains the single route. Source: `app/lib/ui/shell/status_banner.dart` -
   `_RepairBanner.build`; `app/lib/ui/settings/settings_flow.dart` - `_pushEnrollmentRoute`.

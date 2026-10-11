@@ -14,6 +14,7 @@ import 'package:spendwise/persistence/ledger_database.dart' show LedgerDatabase;
 import 'package:spendwise/persistence/ledger_store.dart';
 import 'package:spendwise/sync/hosted_sync_status.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
+import 'package:spendwise/ui/settings/settings_flow.dart';
 import 'package:spendwise/ui/settings/settings_root_view_model.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
@@ -62,6 +63,7 @@ pumpShell(
   required ShellLayoutMode layoutMode,
   SyncEnrollmentPhase? seedPhase,
   List<SettingsStep>? settingsSteps,
+  Map<ShellDestination, WidgetBuilder>? bodies,
 }) async {
   SharedPreferences.setMockInitialValues({});
   final db = LedgerDatabase(NativeDatabase.memory());
@@ -127,6 +129,8 @@ pumpShell(
           bodies: {
             ShellDestination.transactions: (context) =>
                 const Text('transactions body'),
+            ShellDestination.settings: (context) => const SettingsFlow(),
+            ...?bodies,
           },
         ),
       ),
@@ -193,7 +197,10 @@ void main() {
     await tester.tap(find.text(_repairLabel));
     await tester.pumpAndSettle();
 
-    expect(container.read(settingsOpenProvider), isTrue);
+    expect(
+      container.read(selectedDestinationProvider),
+      ShellDestination.settings,
+    );
     expect(find.byType(SyncIdentifierScreen), findsOneWidget);
     expect(find.byType(BackendPickerScreen), findsNothing);
     expect(container.read(settingsRootViewModelProvider).step, isNull);
@@ -240,7 +247,7 @@ void main() {
   });
 
   testWidgets('the banner is hidden while the repair route is open and '
-      'returns after Settings closes', (tester) async {
+      'returns after the repair route closes', (tester) async {
     final harness = await pumpShell(
       tester,
       status: const HostedSyncBindingRepair(),
@@ -259,11 +266,10 @@ void main() {
 
     expect(harness.container.read(enrollmentFlowOpenProvider), isFalse);
     expect(find.byType(SyncIdentifierScreen), findsNothing);
-
-    await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
-
-    expect(harness.container.read(settingsOpenProvider), isFalse);
+    expect(
+      harness.container.read(selectedDestinationProvider),
+      ShellDestination.settings,
+    );
     expect(find.text(_repairLabel), findsOneWidget);
   });
 

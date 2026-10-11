@@ -56,42 +56,38 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   Windows and Linux use desktop; iOS and Android use phone) and reads no
   window width, so resizing never switches the bar/rail layout. `AppShell`
   shows the bottom bar in phone mode and the compact labelled rail in
-  desktop mode. It mounts one Flow per destination, with no shell-level
-  navigator. The Settings navigation item is a writer of `settingsOpenProvider`,
-  not a destination.
-  (`app/lib/ui/shell/app_shell.dart`, `app/lib/ui/shell/shell_providers.dart`)
-- **Settings hosting** - `settingsOpenProvider` (`StateProvider<bool>`) is the only settings-visible
-  signal. The Settings navigation item and the repair banner tap set it true. It is cleared in
-  exactly two places: the `onEnded` callback of `SettingsFlow` (back control or Android back at the
-  Settings root, through `goBack`) and selecting a destination. No route-level pop callback writes
-  it, so `Navigator.removeRoute` leaves it true. `AppShell` alone materialises the signal. In phone
-  mode it pushes exactly one settings route on the root navigator when the flag turns true,
-  with the current destination's label as the back label and its own `StatusBanner` over the
-  `SettingsFlow` (the shell's banner is covered), and removes it with
-  `Navigator.removeRoute` when the flag turns false. In desktop mode it shows
-  `SettingsFlow` in the content area instead of the selected destination; the phone or desktop
-  layout comes from `shellLayoutModeProvider`. `SettingsFlow` is mounted only while shown and
-  refreshes the hosted sync status in `initState`.
-- **Close or hand-over at dispose** - `SettingsFlow.dispose` reads nothing from `ref`. It schedules one
-  microtask using the captured `ProviderContainer` and `StateController`. If
-  `settingsOpenProvider` is still true, a layout switch is re-hosting Settings, and the microtask
-  hands over: it releases `enrollmentFlowOpenProvider` if this Flow owned the route and requests
-  `ResumeFreshEnrollmentRequested` (unless the status is `HostedSyncReady`) or
-  `RepairDeviceAccessRequested` (only for binding repair or session reauth). If the flag is false,
-  the user closed Settings: the microtask releases `enrollmentFlowOpenProvider` if this Flow owned
-  the route and calls `clearStep()`, so the next open shows only the Settings root. A Flow that saw
-  the flag turn false while mounted always takes this path, even when Settings was reopened before
-  the outgoing layout of a layout switch finished disposing it.
-- **Layout switch with Settings open** - the layout mode is fixed for the run, so this path cannot occur in production and remains only until the hand-over code is removed. The flag stays true. Phone to rail removes the
-  settings route and mounts the content `SettingsFlow`; rail to phone unmounts the content
-  `SettingsFlow` and pushes the settings route. The disposed Flow takes the hand-over path, the new
-  Flow picks up the step after its first frame, and `enrollmentFlowOpenProvider` admits one
-  enrollment route, so one `SettingsFlow` and at most one enrollment route remain once the frame
-  settles. `StatusBanner` hides the repair banner only while `enrollmentFlowOpenProvider` and
-  `settingsOpenProvider` are both true. A repair tap sets the flag and calls `requestRepair()` only
-  while `enrollmentFlowOpenProvider` is false. (`app/lib/ui/shell/app_shell.dart`,
+   desktop mode. It mounts one Flow per destination, with no shell-level
+   navigator. The Settings navigation item selects the `settings`
+   destination.
+   (`app/lib/ui/shell/app_shell.dart`, `app/lib/ui/shell/shell_providers.dart`)
+- **Settings hosting** - `ShellDestination.settings` is a plain retained destination. `BootChrome`
+  supplies `SettingsFlow` in the Settings slot and `AppShell` mounts all four destinations once in a
+  keyed `IndexedStack`, with `SettingsFlow` built without `backLabel` or `onEnded`, so its root
+  screen shows no back control. Selecting Settings only writes `selectedDestinationProvider`. Back
+  pops Settings child routes; at the root it preserves the selection. Switching destinations retains
+  Settings and any open enrollment route. Settings refreshes the hosted sync status on mount and
+  after an enrollment route closes. (`app/lib/ui/shell/app_shell.dart`,
+  `app/lib/ui/shell/shell_providers.dart`, `app/lib/ui/shell/boot_chrome.dart`,
+  `app/lib/ui/settings/settings_flow.dart`)
+- **Destination Back activity** - `DestinationActivity` (`app/lib/ui/common/flow_base.dart`) is a
+  pure inherited active flag defaulting to active for standalone Flows. Each `IndexedStack` slot
+  wraps its destination with the flag derived from the selected destination. An inactive `FlowBase`
+  `PopScope` permits propagation and ignores its callback; the active Flow delegates Back through
+  its own nested `Navigator`. `FlowBase` reads no shell providers. Nested enrollment and scoped
+  Flows inherit their host destination's activity.
+- **Settings teardown** - `SettingsFlow.dispose` performs terminal cleanup only through one
+  disposal-safe microtask using the captured `ProviderContainer` and guard controller: it releases
+  `enrollmentFlowOpenProvider` when this Flow owned the route and clears any pending navigation
+  step. It never re-emits resume or repair steps and never reopens a route. A route completion
+  arriving after teardown cannot release another owner's guard. (`app/lib/ui/settings/settings_flow.dart`)
+- **Repair routing and visibility** - `StatusBanner` hides the repair banner only while
+  `selectedDestinationProvider` is `settings` and `enrollmentFlowOpenProvider` is true. A repair
+  tap selects Settings first and calls `requestRepair()` only while `enrollmentFlowOpenProvider` is
+  false. Returning to Settings reveals the existing route without duplication. `SettingsFlow`
+  re-checks a pending step after its navigator mounts, so a request made before Settings is built is
+  consumed once. (`app/lib/ui/shell/app_shell.dart`,
   `app/lib/ui/shell/status_banner.dart`,
-  `app/lib/ui/settings/settings_flow.dart` - `_settleAtDispose`, `handleStep`)
+  `app/lib/ui/settings/settings_flow.dart` - `handleStep`)
 
 ## Notifier conventions
 
