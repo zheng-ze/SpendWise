@@ -59,6 +59,7 @@ class ReceiptEntryCoordinator extends Notifier<ReceiptOrchestrationState> {
     Uint8List? preCapturedBytes,
     ScanResultHandler onPrefill,
   ) async {
+    final initiatingRef = ref;
     state = state.copyWith(scanning: true);
     ReceiptScanStop? stop;
     try {
@@ -87,7 +88,7 @@ class ReceiptEntryCoordinator extends Notifier<ReceiptOrchestrationState> {
         onStop: (value) => stop = value,
       );
     } finally {
-      if (ref.mounted) {
+      if (initiatingRef.mounted) {
         state = state.copyWith(scanning: false, scanStop: () => stop);
       }
     }

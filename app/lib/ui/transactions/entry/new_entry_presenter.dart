@@ -47,7 +47,15 @@ Future<void> openNewEntry({
       presentation: presentation,
       builder: (_) => const EntryForm(),
     );
-  } catch (_) {
+  } catch (error, stack) {
+    FlutterError.reportError(
+      FlutterErrorDetails(
+        exception: error,
+        stack: stack,
+        library: 'spendwise',
+        context: ErrorDescription('while opening a new entry'),
+      ),
+    );
   } finally {
     subscription?.close();
     _newEntryOpen = false;

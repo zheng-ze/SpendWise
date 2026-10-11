@@ -682,45 +682,60 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('a failed presentation releases the guard', (tester) async {
+    testWidgets('a failed presentation is reported and releases the guard', (
+      tester,
+    ) async {
       registerSheetTearDown(tester);
       WidgetRef? stashedRef;
       BuildContext? stashedContext;
-      stashOverrides() => [
-        ledgerProvider.overrideWithValue(buildLedger()),
-        scanStripEnabledProvider.overrideWith((ref) async => true),
-      ];
       await tester.pumpWidget(
         ProviderScope(
-          overrides: stashOverrides(),
-          child: MaterialApp(
-            home: Consumer(
-              builder: (context, ref, _) {
-                stashedContext = context;
-                stashedRef = ref;
-                return TransactionsFlow();
-              },
-            ),
+          overrides: [
+            ledgerProvider.overrideWithValue(buildLedger()),
+            scanStripEnabledProvider.overrideWith((ref) async => true),
+          ],
+          child: Consumer(
+            builder: (context, ref, _) {
+              stashedContext = context;
+              stashedRef = ref;
+              return const SizedBox.shrink();
+            },
           ),
         ),
       );
-      await tester.pumpAndSettle();
 
-      await tester.pumpWidget(Container());
-      await openNewEntry(context: stashedContext!, ref: stashedRef!);
-      await tester.pumpAndSettle();
+      final reported = <FlutterErrorDetails>[];
+      final originalOnError = FlutterError.onError;
+      FlutterError.onError = reported.add;
+      try {
+        await openNewEntry(context: stashedContext!, ref: stashedRef!);
+      } finally {
+        FlutterError.onError = originalOnError;
+      }
+      expect(reported, hasLength(1));
 
+      final container = ProviderScope.containerOf(stashedContext!);
+      container
+          .read(entryFormViewModelProvider(null).notifier)
+          .requestPickDate();
+      await tester.pump();
+      expect(
+        container.read(entryFormViewModelProvider(null)).value?.step,
+        isNotNull,
+      );
       expect(tester.takeException(), isNull);
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: stashOverrides(),
+          overrides: [
+            ledgerProvider.overrideWithValue(buildLedger()),
+            scanStripEnabledProvider.overrideWith((ref) async => true),
+          ],
           child: MaterialApp(home: TransactionsFlow()),
         ),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.byIcon(Icons.add));
-      await tester.pumpAndSettle();
+      await openAdd(tester);
 
       expect(find.byType(AppSheet), findsOneWidget);
       expect(find.text('Add entry'), findsOneWidget);
@@ -728,7 +743,7 @@ void main() {
       await closeAdd(tester);
     });
 
-    testWidgets('a throwing form provider releases the guard silently', (
+    testWidgets('a throwing form provider is reported and releases the guard', (
       tester,
     ) async {
       registerSheetTearDown(tester);
@@ -746,11 +761,20 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(Icons.add));
-      await tester.pumpAndSettle();
+      final reported = <FlutterErrorDetails>[];
+      final originalOnError = FlutterError.onError;
+      FlutterError.onError = reported.add;
+      try {
+        await tester.tap(find.byIcon(Icons.add));
+        await tester.pumpAndSettle();
+      } finally {
+        FlutterError.onError = originalOnError;
+      }
 
       expect(find.byType(AppSheet), findsNothing);
-      expect(tester.takeException(), isNull);
+      expect(reported, hasLength(1));
+      expect(reported.single.exception, isA<StateError>());
+      expect(reported.single.stack, isNotNull);
 
       shouldThrow = false;
       await tester.tap(find.byIcon(Icons.add));
@@ -830,51 +854,56 @@ void main() {
       'confidence': 0.9,
     };
 
-    test('a late receipt finish after invalidation writes nothing', () async {
-      final gate = Completer<void>();
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(_mlKitChannel, (call) async {
-            await gate.future;
-            return [line('Coffee Shop')];
-          });
-      addTearDown(() {
+    test(
+      'a stale scan finishing after a newer scan starts writes nothing',
+      () async {
+        final gates = <Completer<void>>[];
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-            .setMockMethodCallHandler(_mlKitChannel, null);
-      });
+            .setMockMethodCallHandler(_mlKitChannel, (call) async {
+              final gate = Completer<void>();
+              gates.add(gate);
+              await gate.future;
+              return [line('Coffee Shop')];
+            });
+        addTearDown(() {
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+              .setMockMethodCallHandler(_mlKitChannel, null);
+        });
 
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
-      container
-          .read(receiptEntryCoordinatorProvider(null).notifier)
-          .requestScan(
-            ReceiptScanSource.camera,
-            preCapturedBytes: Uint8List(0),
-            onPrefill: ({name, amount, required date}) {},
-          );
-      for (var i = 0; i < 200; i++) {
-        await Future<void>.delayed(const Duration(milliseconds: 5));
-        if (container.read(receiptEntryCoordinatorProvider(null)).scanning) {
-          break;
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+        ReceiptOrchestrationState read() =>
+            container.read(receiptEntryCoordinatorProvider(null));
+        Future<void> scan() async {
+          final expected = gates.length + 1;
+          container
+              .read(receiptEntryCoordinatorProvider(null).notifier)
+              .requestScan(
+                ReceiptScanSource.camera,
+                preCapturedBytes: Uint8List(0),
+                onPrefill: ({name, amount, required date}) {},
+              );
+          for (var i = 0; i < 200 && gates.length < expected; i++) {
+            await Future<void>.delayed(const Duration(milliseconds: 5));
+          }
+          expect(gates, hasLength(expected));
         }
-      }
-      expect(
-        container.read(receiptEntryCoordinatorProvider(null)).scanning,
-        isTrue,
-      );
 
-      container.invalidate(receiptEntryCoordinatorProvider(null));
+        await scan();
+        container.invalidate(receiptEntryCoordinatorProvider(null));
+        await scan();
+        expect(read().scanning, isTrue);
 
-      gate.complete();
-      await Future<void>.delayed(const Duration(milliseconds: 300));
+        gates[0].complete();
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+        expect(read().scanning, isTrue);
 
-      expect(
-        container.read(receiptEntryCoordinatorProvider(null)).scanning,
-        isFalse,
-      );
-      expect(
-        container.read(receiptEntryCoordinatorProvider(null)).scanStop,
-        isNull,
-      );
-    });
+        gates[1].complete();
+        for (var i = 0; i < 200 && read().scanning; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 5));
+        }
+        expect(read().scanning, isFalse);
+      },
+    );
   });
 }
