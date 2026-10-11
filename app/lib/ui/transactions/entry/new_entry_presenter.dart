@@ -39,19 +39,17 @@ Future<void> openNewEntry({
       final step = next.value?.step;
       if (step == null) return;
       if (!context.mounted) return;
-      dispatchEntryFormStep(context, ref, null, step);
+      dispatchEntryFormStep(context, ref, null, step, useRootNavigator: true);
       ref.read(entryFormViewModelProvider(null).notifier).clearStep();
     });
-    try {
-      await showAppSheet<void>(
-        context,
-        presentation: presentation,
-        builder: (_) => const EntryForm(),
-      );
-    } finally {
-      subscription.close();
-    }
+    await showAppSheet<void>(
+      context,
+      presentation: presentation,
+      builder: (_) => const EntryForm(),
+    );
+  } catch (_) {
   } finally {
+    subscription?.close();
     _newEntryOpen = false;
   }
 }

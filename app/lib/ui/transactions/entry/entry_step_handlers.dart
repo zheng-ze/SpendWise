@@ -23,78 +23,123 @@ void dispatchEntryFormStep(
   BuildContext context,
   WidgetRef ref,
   String? formKey,
-  TransactionsStep step,
-) {
+  TransactionsStep step, {
+  bool useRootNavigator = false,
+}) {
+  final form = ref.read(entryFormViewModelProvider(formKey).notifier);
   switch (step) {
     case PickSourceRequested():
-      pickEntrySource(context, ref, formKey);
+      _pickSource(
+        context,
+        ref,
+        formKey,
+        form,
+        useRootNavigator: useRootNavigator,
+      );
     case PickDestinationRequested():
-      pickEntryDestination(context, ref, formKey);
+      _pickDestination(
+        context,
+        ref,
+        formKey,
+        form,
+        useRootNavigator: useRootNavigator,
+      );
     case PickCategoryRequested():
-      pickEntryCategory(context, ref, formKey);
+      _pickCategory(
+        context,
+        ref,
+        formKey,
+        form,
+        useRootNavigator: useRootNavigator,
+      );
     case PickRecurrenceRequested():
-      pickEntryRecurrence(context, ref, formKey);
+      _pickRecurrence(
+        context,
+        ref,
+        formKey,
+        form,
+        useRootNavigator: useRootNavigator,
+      );
     case PickDateRequested():
-      pickEntryDate(context, ref, formKey);
+      _pickDate(
+        context,
+        ref,
+        formKey,
+        form,
+        useRootNavigator: useRootNavigator,
+      );
     case PickEndDateRequested():
-      pickEntryEndDate(context, ref, formKey);
+      _pickEndDate(
+        context,
+        ref,
+        formKey,
+        form,
+        useRootNavigator: useRootNavigator,
+      );
     case DocumentCropRequested(:final imageBytes):
-      pushDocumentCrop(context, ref, formKey, imageBytes);
+      _pushDocumentCrop(
+        context,
+        form,
+        imageBytes,
+        useRootNavigator: useRootNavigator,
+      );
     case EntryFormRequested():
     case SourceEditRequested():
       break;
   }
 }
 
-Future<void> pickEntrySource(
+Future<void> _pickSource(
   BuildContext context,
   WidgetRef ref,
   String? formKey,
-) async {
+  EntryFormNotifier form, {
+  bool useRootNavigator = false,
+}) async {
   final ledger = ref.read(ledgerProvider);
   if (ledger == null) return;
   final formState = ref.read(entryFormViewModelProvider(formKey)).value;
   final outcome = await showSourcePickerSheet(
     context: context,
-    useRootNavigator: true,
+    useRootNavigator: useRootNavigator,
     title: formState?.kind == EntryFormKind.transfer ? 'From' : 'Account',
     state: ledger.state,
     selectedId: formState?.sourceId,
   );
   if (!context.mounted) return;
   if (outcome == null) return;
-  ref
-      .read(entryFormViewModelProvider(formKey).notifier)
-      .applyPickedSource(_idFromOutcome(outcome));
+  form.applyPickedSource(_idFromOutcome(outcome));
 }
 
-Future<void> pickEntryDestination(
+Future<void> _pickDestination(
   BuildContext context,
   WidgetRef ref,
   String? formKey,
-) async {
+  EntryFormNotifier form, {
+  bool useRootNavigator = false,
+}) async {
   final ledger = ref.read(ledgerProvider);
   if (ledger == null) return;
   final formState = ref.read(entryFormViewModelProvider(formKey)).value;
   final outcome = await showSourcePickerSheet(
     context: context,
-    useRootNavigator: true,
+    useRootNavigator: useRootNavigator,
     title: 'To',
     state: ledger.state,
     selectedId: formState?.destinationId,
   );
   if (!context.mounted) return;
   if (outcome == null) return;
-  ref
-      .read(entryFormViewModelProvider(formKey).notifier)
-      .applyPickedDestination(_idFromOutcome(outcome));
+  form.applyPickedDestination(_idFromOutcome(outcome));
 }
 
-Future<void> pickEntryCategory(
+Future<void> _pickCategory(
   BuildContext context,
   WidgetRef ref,
   String? formKey,
-) async {
+  EntryFormNotifier form, {
+  bool useRootNavigator = false,
+}) async {
   final ledger = ref.read(ledgerProvider);
   if (ledger == null) return;
   final formState = ref.read(entryFormViewModelProvider(formKey)).value;
@@ -103,83 +148,81 @@ Future<void> pickEntryCategory(
       : CategoryKind.expense;
   final outcome = await showCategoryPickerSheet(
     context: context,
-    useRootNavigator: true,
+    useRootNavigator: useRootNavigator,
     state: ledger.state,
     kind: categoryKind,
     selectedId: formState?.categoryId,
   );
   if (!context.mounted) return;
   if (outcome == null) return;
-  ref
-      .read(entryFormViewModelProvider(formKey).notifier)
-      .applyPickedCategory(_idFromOutcome(outcome));
+  form.applyPickedCategory(_idFromOutcome(outcome));
 }
 
-Future<void> pickEntryRecurrence(
+Future<void> _pickRecurrence(
   BuildContext context,
   WidgetRef ref,
   String? formKey,
-) async {
+  EntryFormNotifier form, {
+  bool useRootNavigator = false,
+}) async {
   final formState = ref.read(entryFormViewModelProvider(formKey)).value;
   final chosen = await showRecurrencePickerSheet(
     context: context,
-    useRootNavigator: true,
+    useRootNavigator: useRootNavigator,
     selected: formState?.recurrence,
   );
   if (!context.mounted) return;
-  ref
-      .read(entryFormViewModelProvider(formKey).notifier)
-      .applyPickedRecurrence(chosen);
+  form.applyPickedRecurrence(chosen);
 }
 
-Future<void> pickEntryDate(
+Future<void> _pickDate(
   BuildContext context,
   WidgetRef ref,
   String? formKey,
-) async {
+  EntryFormNotifier form, {
+  bool useRootNavigator = false,
+}) async {
   final formState = ref.read(entryFormViewModelProvider(formKey)).value;
   final picked = await showDatePicker(
     context: context,
-    useRootNavigator: true,
+    useRootNavigator: useRootNavigator,
     initialDate: formState?.date ?? DateTime.now(),
     firstDate: DateTime.utc(_datePickerFirstYear),
     lastDate: DateTime.utc(_datePickerLastYear),
   );
   if (!context.mounted) return;
   if (picked == null) return;
-  ref
-      .read(entryFormViewModelProvider(formKey).notifier)
-      .applyPickedDate(DateTime.utc(picked.year, picked.month, picked.day));
+  form.applyPickedDate(DateTime.utc(picked.year, picked.month, picked.day));
 }
 
-Future<void> pickEntryEndDate(
+Future<void> _pickEndDate(
   BuildContext context,
   WidgetRef ref,
   String? formKey,
-) async {
+  EntryFormNotifier form, {
+  bool useRootNavigator = false,
+}) async {
   final formState = ref.read(entryFormViewModelProvider(formKey)).value;
   final initial = formState?.endDate ?? formState?.date ?? DateTime.now();
   final picked = await showDatePicker(
     context: context,
-    useRootNavigator: true,
+    useRootNavigator: useRootNavigator,
     initialDate: initial,
     firstDate: formState?.date ?? DateTime.utc(_datePickerFirstYear),
     lastDate: DateTime.utc(_datePickerLastYear),
   );
   if (!context.mounted) return;
   if (picked == null) return;
-  ref
-      .read(entryFormViewModelProvider(formKey).notifier)
-      .applyPickedEndDate(DateTime.utc(picked.year, picked.month, picked.day));
+  form.applyPickedEndDate(DateTime.utc(picked.year, picked.month, picked.day));
 }
 
-Future<void> pushDocumentCrop(
+Future<void> _pushDocumentCrop(
   BuildContext context,
-  WidgetRef ref,
-  String? formKey,
-  Uint8List imageBytes,
-) async {
-  final cropped = await Navigator.of(context, rootNavigator: true)
+  EntryFormNotifier form,
+  Uint8List imageBytes, {
+  bool useRootNavigator = false,
+}) async {
+  final cropped = await Navigator.of(context, rootNavigator: useRootNavigator)
       .push<Uint8List>(
         MaterialPageRoute(
           builder: (_) => DocumentCropScreen(imageBytes: imageBytes),
@@ -187,9 +230,7 @@ Future<void> pushDocumentCrop(
       );
   if (!context.mounted) return;
   if (cropped == null) return;
-  ref
-      .read(entryFormViewModelProvider(formKey).notifier)
-      .applyCroppedDocument(cropped);
+  form.applyCroppedDocument(cropped);
 }
 
 String? _idFromOutcome(PickerOutcome outcome) => switch (outcome) {

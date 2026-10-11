@@ -34,6 +34,18 @@ class _DeniedPermissions extends PermissionHandlerPlatform {
   }
 }
 
+class _ThrowOnceFormNotifier extends EntryFormNotifier {
+  _ThrowOnceFormNotifier(this.shouldThrow) : super(null);
+
+  final bool Function() shouldThrow;
+
+  @override
+  Future<EntryFormViewState> build() async {
+    if (shouldThrow()) throw StateError('deliberate init failure');
+    return super.build();
+  }
+}
+
 Future<Uint8List> _solidPng() async {
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder);
@@ -76,6 +88,16 @@ void main() {
     );
   }
 
+  void registerSheetTearDown(WidgetTester tester) {
+    addTearDown(() async {
+      final sheets = find.byType(AppSheet, skipOffstage: false);
+      while (sheets.evaluate().isNotEmpty) {
+        Navigator.of(tester.element(sheets.last), rootNavigator: true).pop();
+        await tester.pumpAndSettle();
+      }
+    });
+  }
+
   Future<void> pumpFlow(
     WidgetTester tester, {
     required Ledger ledger,
@@ -83,6 +105,7 @@ void main() {
     Size? size,
     bool scanStripEnabled = true,
   }) async {
+    registerSheetTearDown(tester);
     if (size != null) {
       tester.view.physicalSize = size;
       tester.view.devicePixelRatio = 1;
@@ -407,6 +430,86 @@ void main() {
 
       await closeAdd(tester);
     });
+
+    testWidgets(
+      'edit-form pickers stay nested while Add pickers use the root navigator',
+      (tester) async {
+        final savings = Account(
+          id: 'b0000000-0000-0000-0000-000000000002',
+          name: 'Savings',
+          type: AccountType.savings,
+        );
+        final today = DateTime.now();
+        final entry = Entry(
+          amount: dec('-5'),
+          name: 'Coffee run',
+          sourceID: savings.id,
+          date: DateTime.utc(today.year, today.month, 1),
+        );
+        final ledger = Ledger(
+          state: LedgerState(
+            moneySources: {
+              checking.id: MoneySource.account(checking),
+              savings.id: MoneySource.account(savings),
+            },
+            categories: {coffee.id: coffee},
+            entries: {entry.id: entry},
+          ),
+        );
+        await pumpFlow(tester, ledger: ledger);
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(TransactionsFlow)),
+        );
+
+        await tester.tap(find.text('Coffee run'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Edit'));
+        await tester.pumpAndSettle();
+        await revealRow(tester, 'Account');
+        await tester.tap(find.text('Account'));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(TwoColumnPickerSheet), findsOneWidget);
+        final nestedPicker = tester.element(find.byType(TwoColumnPickerSheet));
+        expect(
+          identical(
+            Navigator.of(nestedPicker),
+            Navigator.of(nestedPicker, rootNavigator: true),
+          ),
+          isFalse,
+        );
+
+        await tester.tap(find.text('Checking'));
+        await tester.pumpAndSettle();
+        expect(
+          container.read(entryFormViewModelProvider(entry.id)).value?.sourceId,
+          checking.id,
+        );
+
+        await revealRow(tester, 'Delete Entry');
+        await tester.tap(find.text('Delete Entry'));
+        await tester.pumpAndSettle();
+        expect(find.text('Edit Entry'), findsNothing);
+
+        await openAdd(tester);
+        await revealRow(tester, 'Account');
+        await tester.tap(find.text('Account'));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(TwoColumnPickerSheet), findsOneWidget);
+        final rootPicker = tester.element(find.byType(TwoColumnPickerSheet));
+        expect(
+          identical(
+            Navigator.of(rootPicker),
+            Navigator.of(rootPicker, rootNavigator: true),
+          ),
+          isTrue,
+        );
+
+        await popTopSheet(tester, TwoColumnPickerSheet);
+        await closeAdd(tester);
+      },
+    );
   });
 
   group('presentation follows the layout mode at one size', () {
@@ -502,21 +605,64 @@ void main() {
     });
 
     testWidgets('duplicate requests open a single sheet', (tester) async {
-      await pumpFlow(tester, ledger: buildLedger());
-
-      await tester.tap(find.byIcon(Icons.add));
-      await tester.tap(find.byIcon(Icons.add));
+      registerSheetTearDown(tester);
+      late WidgetRef stashedRef;
+      late BuildContext stashedContext;
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            ledgerProvider.overrideWithValue(buildLedger()),
+            scanStripEnabledProvider.overrideWith((ref) async => true),
+          ],
+          child: MaterialApp(
+            home: Consumer(
+              builder: (context, ref, _) {
+                stashedContext = context;
+                stashedRef = ref;
+                return TransactionsFlow();
+              },
+            ),
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
 
-      expect(find.byType(AppSheet), findsOneWidget);
+      final firstOpen = openNewEntry(context: stashedContext, ref: stashedRef);
+      final duplicateOpen = openNewEntry(
+        context: stashedContext,
+        ref: stashedRef,
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AppSheet, skipOffstage: false), findsOneWidget);
+      await duplicateOpen;
+
+      final form = containerOf(tester)
+          .read(entryFormViewModelProvider(null).notifier);
+      for (var i = 0; i < 2; i++) {
+        form.requestPickSource();
+        await tester.pumpAndSettle();
+        expect(
+          find.byType(TwoColumnPickerSheet, skipOffstage: false),
+          findsOneWidget,
+        );
+        await popTopSheet(tester, TwoColumnPickerSheet);
+        expect(
+          find.byType(TwoColumnPickerSheet, skipOffstage: false),
+          findsNothing,
+        );
+      }
 
       await closeAdd(tester);
+      await firstOpen;
       expect(find.text('Add entry'), findsNothing);
 
-      await openAdd(tester);
-      expect(find.byType(AppSheet), findsOneWidget);
+      final reopened = openNewEntry(context: stashedContext, ref: stashedRef);
+      await tester.pumpAndSettle();
+      expect(find.byType(AppSheet, skipOffstage: false), findsOneWidget);
 
       await closeAdd(tester);
+      await reopened;
     });
 
     testWidgets('a step emitted after close pushes nothing', (tester) async {
@@ -537,39 +683,83 @@ void main() {
     });
 
     testWidgets('a failed presentation releases the guard', (tester) async {
-      final errors = <Object>[];
+      registerSheetTearDown(tester);
+      WidgetRef? stashedRef;
+      BuildContext? stashedContext;
+      stashOverrides() => [
+        ledgerProvider.overrideWithValue(buildLedger()),
+        scanStripEnabledProvider.overrideWith((ref) async => true),
+      ];
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [ledgerProvider.overrideWithValue(buildLedger())],
-          child: MediaQuery(
-            data: const MediaQueryData(),
-            child: Directionality(
-              textDirection: TextDirection.ltr,
-              child: Material(
-                child: Builder(
-                  builder: (context) => Consumer(
-                    builder: (context, ref, _) => TextButton(
-                      onPressed: () {
-                        openNewEntry(
-                          context: context,
-                          ref: ref,
-                        ).then((_) {}, onError: errors.add);
-                      },
-                      child: const Text('open'),
-                    ),
-                  ),
-                ),
-              ),
+          overrides: stashOverrides(),
+          child: MaterialApp(
+            home: Consumer(
+              builder: (context, ref, _) {
+                stashedContext = context;
+                stashedRef = ref;
+                return TransactionsFlow();
+              },
             ),
           ),
         ),
       );
-      await tester.tap(find.text('open'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
 
-      expect(errors.length, 2);
+      await tester.pumpWidget(Container());
+      await openNewEntry(context: stashedContext!, ref: stashedRef!);
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: stashOverrides(),
+          child: MaterialApp(home: TransactionsFlow()),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.add));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AppSheet), findsOneWidget);
+      expect(find.text('Add entry'), findsOneWidget);
+
+      await closeAdd(tester);
+    });
+
+    testWidgets('a throwing form provider releases the guard silently', (
+      tester,
+    ) async {
+      registerSheetTearDown(tester);
+      var shouldThrow = true;
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            ledgerProvider.overrideWithValue(buildLedger()),
+            scanStripEnabledProvider.overrideWith((ref) async => true),
+            entryFormViewModelProvider(null)
+                .overrideWith(() => _ThrowOnceFormNotifier(() => shouldThrow)),
+          ],
+          child: MaterialApp(home: TransactionsFlow()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.add));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AppSheet), findsNothing);
+      expect(tester.takeException(), isNull);
+
+      shouldThrow = false;
+      await tester.tap(find.byIcon(Icons.add));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AppSheet), findsOneWidget);
+      expect(find.text('Add entry'), findsOneWidget);
+
+      await closeAdd(tester);
     });
 
     testWidgets('reopening resets a finished receipt session', (tester) async {
