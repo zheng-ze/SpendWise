@@ -1,21 +1,12 @@
-import 'dart:typed_data';
-
-import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/boot/providers.dart';
-import 'package:spendwise/ui/common/pickers/category_picker.dart';
 import 'package:spendwise/ui/common/flow_base.dart';
-import 'package:spendwise/ui/common/pickers/recurrence_picker.dart';
-import 'package:spendwise/ui/common/pickers/source_picker.dart';
-import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
 import 'package:spendwise/ui/transactions/daily_list/daily_transactions_screen.dart';
-import 'package:spendwise/ui/transactions/document_crop/document_crop_screen.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form.dart';
-import 'package:spendwise/ui/transactions/entry/entry_form_logic.dart'
-    show EntryFormKind;
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
+import 'package:spendwise/ui/transactions/entry/entry_step_handlers.dart';
+import 'package:spendwise/ui/transactions/entry/new_entry_presenter.dart';
 import 'package:spendwise/ui/transactions/transactions_view_model.dart';
 
 class TransactionsScope {
@@ -56,9 +47,6 @@ class _TransactionsFlowState
   String? _openFormKey;
   bool _formKeyIsSet = false;
 
-  static const _datePickerFirstYear = 2000;
-  static const _datePickerLastYear = 2100;
-
   @override
   void dispose() {
     _formSubscription?.close();
@@ -69,9 +57,6 @@ class _TransactionsFlowState
       ref.read(transactionsViewModelProvider(widget.initialScope).notifier);
 
   EntryFormViewModel _formViewModel(String? key) =>
-      ref.read(entryFormViewModelProvider(key).notifier);
-
-  ReceiptScanController _scanController(String? key) =>
       ref.read(entryFormViewModelProvider(key).notifier);
 
   @override
@@ -89,7 +74,18 @@ class _TransactionsFlowState
   void handleStep(BuildContext context, TransactionsStep step) {
     switch (step) {
       case EntryFormRequested(:final entry):
-        _openEntryForm(context, entry?.id);
+        if (entry == null) {
+          final scope = widget.initialScope;
+          openNewEntry(
+            context: context,
+            ref: ref,
+            sourceId: scope != null && scope.scopeIDs.isNotEmpty
+                ? scope.scopeIDs.first
+                : null,
+          );
+        } else {
+          _openEntryForm(context, entry.id);
+        }
       case SourceEditRequested():
         final scope = widget.initialScope;
         if (scope != null && scope.scopeIDs.isNotEmpty) {
@@ -107,7 +103,7 @@ class _TransactionsFlowState
     _screenViewModel.clearStep();
   }
 
-  void _openEntryForm(BuildContext context, String? entryId) {
+  void _openEntryForm(BuildContext context, String entryId) {
     _formSubscription?.close();
     _openFormKey = entryId;
     _formKeyIsSet = true;
@@ -115,12 +111,6 @@ class _TransactionsFlowState
       entryFormViewModelProvider(entryId),
       (previous, next) => _handleFormStep(entryId, next.value?.step),
     );
-    if (entryId == null) {
-      final scope = widget.initialScope;
-      if (scope != null && scope.scopeIDs.isNotEmpty) {
-        _formViewModel(entryId).prefillSource(scope.scopeIDs.first);
-      }
-    }
     showEntryFormSheet(context: context, entryId: entryId).whenComplete(() {
       if (_openFormKey == entryId) {
         _formSubscription?.close();
@@ -136,129 +126,8 @@ class _TransactionsFlowState
     final context = navigatorContext;
     if (context == null) return;
 
-    switch (step) {
-      case PickSourceRequested():
-        _pickSource(context, formKey);
-      case PickDestinationRequested():
-        _pickDestination(context, formKey);
-      case PickCategoryRequested():
-        _pickCategory(context, formKey);
-      case PickRecurrenceRequested():
-        _pickRecurrence(context, formKey);
-      case PickDateRequested():
-        _pickDate(context, formKey);
-      case PickEndDateRequested():
-        _pickEndDate(context, formKey);
-      case DocumentCropRequested(:final imageBytes):
-        _pushDocumentCrop(context, formKey, imageBytes);
-      case EntryFormRequested():
-      case SourceEditRequested():
-        break;
-    }
+    dispatchEntryFormStep(context, ref, formKey, step);
     _formViewModel(formKey).clearStep();
-  }
-
-  Future<void> _pickSource(BuildContext context, String? formKey) async {
-    final ledger = ref.read(ledgerProvider);
-    if (ledger == null) return;
-    final formState = ref.read(entryFormViewModelProvider(formKey)).value;
-    final outcome = await showSourcePickerSheet(
-      context: context,
-      title: formState?.kind == EntryFormKind.transfer ? 'From' : 'Account',
-      state: ledger.state,
-      selectedId: formState?.sourceId,
-    );
-    if (!context.mounted) return;
-    if (outcome == null) return;
-    _formViewModel(formKey).applyPickedSource(_idFromOutcome(outcome));
-  }
-
-  Future<void> _pickDestination(BuildContext context, String? formKey) async {
-    final ledger = ref.read(ledgerProvider);
-    if (ledger == null) return;
-    final formState = ref.read(entryFormViewModelProvider(formKey)).value;
-    final outcome = await showSourcePickerSheet(
-      context: context,
-      title: 'To',
-      state: ledger.state,
-      selectedId: formState?.destinationId,
-    );
-    if (!context.mounted) return;
-    if (outcome == null) return;
-    _formViewModel(formKey).applyPickedDestination(_idFromOutcome(outcome));
-  }
-
-  Future<void> _pickCategory(BuildContext context, String? formKey) async {
-    final ledger = ref.read(ledgerProvider);
-    if (ledger == null) return;
-    final formState = ref.read(entryFormViewModelProvider(formKey)).value;
-    final categoryKind = formState?.kind == EntryFormKind.income
-        ? CategoryKind.income
-        : CategoryKind.expense;
-    final outcome = await showCategoryPickerSheet(
-      context: context,
-      state: ledger.state,
-      kind: categoryKind,
-      selectedId: formState?.categoryId,
-    );
-    if (!context.mounted) return;
-    if (outcome == null) return;
-    _formViewModel(formKey).applyPickedCategory(_idFromOutcome(outcome));
-  }
-
-  Future<void> _pickRecurrence(BuildContext context, String? formKey) async {
-    final formState = ref.read(entryFormViewModelProvider(formKey)).value;
-    final chosen = await showRecurrencePickerSheet(
-      context: context,
-      selected: formState?.recurrence,
-    );
-    if (!context.mounted) return;
-    _formViewModel(formKey).applyPickedRecurrence(chosen);
-  }
-
-  Future<void> _pickDate(BuildContext context, String? formKey) async {
-    final formState = ref.read(entryFormViewModelProvider(formKey)).value;
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: formState?.date ?? DateTime.now(),
-      firstDate: DateTime.utc(_datePickerFirstYear),
-      lastDate: DateTime.utc(_datePickerLastYear),
-    );
-    if (!context.mounted) return;
-    if (picked == null) return;
-    _formViewModel(formKey)
-        .applyPickedDate(DateTime.utc(picked.year, picked.month, picked.day));
-  }
-
-  Future<void> _pickEndDate(BuildContext context, String? formKey) async {
-    final formState = ref.read(entryFormViewModelProvider(formKey)).value;
-    final initial = formState?.endDate ?? formState?.date ?? DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: initial,
-      firstDate: formState?.date ?? DateTime.utc(_datePickerFirstYear),
-      lastDate: DateTime.utc(_datePickerLastYear),
-    );
-    if (!context.mounted) return;
-    if (picked == null) return;
-    _formViewModel(
-      formKey,
-    ).applyPickedEndDate(DateTime.utc(picked.year, picked.month, picked.day));
-  }
-
-  Future<void> _pushDocumentCrop(
-    BuildContext context,
-    String? formKey,
-    Uint8List imageBytes,
-  ) async {
-    final cropped = await Navigator.of(context).push<Uint8List>(
-      MaterialPageRoute(
-        builder: (_) => DocumentCropScreen(imageBytes: imageBytes),
-      ),
-    );
-    if (!context.mounted) return;
-    if (cropped == null) return;
-    _scanController(formKey).applyCroppedDocument(cropped);
   }
 
   @override
@@ -267,8 +136,3 @@ class _TransactionsFlowState
     onBackPressed: showsOwnBackButton ? goBack : null,
   );
 }
-
-String? _idFromOutcome(PickerOutcome outcome) => switch (outcome) {
-  PickerChose(:final id) => id,
-  PickerCleared() => null,
-};

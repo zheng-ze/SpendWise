@@ -14,6 +14,7 @@ Future<PickerOutcome?> showCategoryPickerSheet({
   required LedgerState state,
   required CategoryKind kind,
   String? selectedId,
+  bool useRootNavigator = false,
 }) {
   final ofKind = state.categories.values.where(
     (category) => category.kind == kind && category.lifecycle.isActive,
@@ -62,5 +63,6 @@ Future<PickerOutcome?> showCategoryPickerSheet({
     groups: groups,
     selectedId: selectedId,
     allowsNone: true,
+    useRootNavigator: useRootNavigator,
   );
 }

@@ -38,10 +38,12 @@ Future<PickerOutcome?> showTwoColumnPickerSheet({
   required List<PickerOption> groups,
   String? selectedId,
   bool allowsNone = false,
+  bool useRootNavigator = false,
 }) {
   return showModalBottomSheet<PickerOutcome>(
     context: context,
     isScrollControlled: true,
+    useRootNavigator: useRootNavigator,
     builder: (_) => FractionallySizedBox(
       heightFactor: _sheetHeightFactor,
       child: TwoColumnPickerSheet(

@@ -87,7 +87,9 @@ class ReceiptEntryCoordinator extends Notifier<ReceiptOrchestrationState> {
         onStop: (value) => stop = value,
       );
     } finally {
-      state = state.copyWith(scanning: false, scanStop: () => stop);
+      if (ref.mounted) {
+        state = state.copyWith(scanning: false, scanStop: () => stop);
+      }
     }
   }
 
