@@ -10,6 +10,7 @@ import 'package:permission_handler_platform_interface/permission_handler_platfor
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/settings/settings_providers.dart';
+import 'package:spendwise/ui/common/app_sheet.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_flow.dart';
@@ -74,10 +75,22 @@ void main() {
           scanStripEnabledProvider.overrideWith((ref) async => true),
         ],
         child: MaterialApp(
-          home: Scaffold(body: EntryForm(entryId: entryId)),
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: ElevatedButton(
+                onPressed: () => showAppSheet<void>(
+                  context,
+                  presentation: AppSheetPresentation.phone,
+                  builder: (_) => EntryForm(entryId: entryId),
+                ),
+                child: const Text('open'),
+              ),
+            ),
+          ),
         ),
       ),
     );
+    await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
   }
 

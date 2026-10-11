@@ -47,6 +47,20 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
 - **Step** is a sealed per-Flow type carrying only plain data (e.g. `BudgetSelected(String id)`), no
   `Widget` or `BuildContext`; consumption is single-shot — the Flow clears it via `clearStep()` after
   acting. Replaces the earlier `NavigationIntent` field.
+- **Shared Add presenter** - `openNewEntry` (`app/lib/ui/transactions/entry/new_entry_presenter.dart`)
+  is the single entry point for creating entries: it reads `shellLayoutModeProvider` from the
+  caller-side ref, maps it to the `AppSheet` presentation, and pushes the null-key `EntryForm` with
+  `showAppSheet` on the root navigator. Before opening it invalidates the null-key form and receipt
+  providers, initializes the fresh form, then applies the optional scoped source prefill. It holds
+  exactly one `ref.listenManual` subscription to the null-key form for the modal lifetime, dispatches
+  each Step through the shared entry Step handlers (`entry_step_handlers.dart`, presented above the
+  sheet through the root navigator), clears each handled Step once, and closes the subscription in
+  `finally`. A presenter-owned boolean open guard drops duplicate requests and releases in `finally`.
+  `TransactionsFlow` routes `EntryFormRequested(null)` through it and keeps only its non-null entry
+  subscription. There is no `ProviderScope`, shared lock provider, nested `Navigator` or new Flow.
+  (`app/lib/ui/transactions/entry/new_entry_presenter.dart`,
+  `app/lib/ui/transactions/entry/entry_step_handlers.dart`,
+  `app/lib/ui/transactions/transactions_flow.dart`)
 - **One ViewModel per View**; shared presentation widgets own no ViewModel because they never read
   Riverpod state (zero `ConsumerWidget`/`WidgetRef` usage).
 - **AppShell** gets no ViewModel: its only state is the fixed platform layout

@@ -1,6 +1,6 @@
 # Transactions UI
 
-Last reconciled: 12f4774
+Last reconciled: 2026-10-11
 
 ## Feature overview
 
@@ -16,6 +16,13 @@ and is the only place recurring plans are created.
 - `app/lib/ui/transactions/daily_list/` and `app/lib/ui/transactions/monthly/` — the day-sectioned
   list and the month/week breakdown views.
 - `app/lib/ui/transactions/entry/` — the entry form sheet.
+- `app/lib/ui/transactions/entry/new_entry_presenter.dart` — the shared Add presenter
+  (`openNewEntry`): reads `shellLayoutModeProvider` from the caller-side ref, opens the null-key
+  entry form in `AppSheet` on the root navigator, and owns the only null-form Step subscription for
+  the modal lifetime.
+- `app/lib/ui/transactions/entry/entry_step_handlers.dart` — the shared source, destination,
+  category, recurrence, date, end-date and document-crop Step handlers used by both the presenter
+  and `TransactionsFlow`, presented above the sheet through the root navigator.
 - `app/lib/ui/transactions/receipt_scan/` — the OCR entry hook (see `ocr-receipt-entry.md`).
 - `app/lib/ui/transactions/transactions_flow.dart` — the Flow that owns this tab's nested navigator.
 - `app/lib/ui/common/day_sectioned_entry_list.dart`, `expanding_fab.dart`, `form_scaffold.dart`,
@@ -33,10 +40,18 @@ decision, not a bug.
 ## Navigation
 
 The Transactions Flow owns a nested `Navigator` scoped with a `GlobalKey<NavigatorState>` local to
-the Flow (`ui-framework-mvvm.md`). Screens pushed: the entry form sheet, the category/source picker
-sheets, and the receipt scan screen. The account-scoped screen reuses the same screen with a custom
-title and `sourceIDs` filter. Back-stack behavior per tab survives switching because each
-destination keeps its own navigator.
+the Flow (`ui-framework-mvvm.md`). Screens pushed: the entry form sheet for an existing entry, the
+category/source picker sheets, and the receipt scan screen. New entries go through the shared Add
+presenter instead: `TransactionsFlow` maps `EntryFormRequested(null)` to `openNewEntry` with the
+scoped source ID (`initialScope.scopeIDs.first` when nonempty) and keeps no null-form subscription
+of its own, so shell Add (unscoped, no prefill) and scoped Add share one Step consumer. The
+presenter invalidates the null-key form and receipt providers before opening, initializes the fresh
+form, applies the scoped prefill after initialization, maps the shell layout mode to the
+`AppSheet` presentation, and releases its open guard and subscription when the sheet completes or
+presentation fails. A late receipt finish after invalidation writes no state
+(`ReceiptEntryCoordinator` checks `ref.mounted` in its asynchronous finally). The account-scoped
+screen reuses the same screen with a custom title and `sourceIDs` filter. Back-stack behavior per
+tab survives switching because each destination keeps its own navigator.
 
 ## Screens and flows
 
@@ -50,16 +65,19 @@ destination keeps its own navigator.
   month, newest first, each with weeks kept at full week range even when spilling into neighboring
   months (a spillover week appears under both months). Tap a month expands only it; tap a week jumps
   to Daily view of that week's month.
-- **Entry form** — three modes. New ("New Entry", Save enabled when valid). View existing ("Entry",
-  leading ‹ Back, trailing ✎ Edit). Edit existing ("Edit Entry", leading ✕ Back reverts fields to
-  persisted values and drops to view mode with the sheet open). Fields: kind segmented (changing
-  kind clears the selected category), amount, name, date with a recurrence button (new only),
-  optional end date, source pickers (plus a To row for transfers, else a Category row), and an
-  "Include in Analysis" toggle. `canSave` is a pure function; deeper rules are the domain validator's
-  job and surface via the `ErrorSection` ("Could not save entry: <error>"). Save semantics: sign is
-  applied from kind; edit stays open and flips to read-only; new without recurrence calls `addEntry`;
-  new with recurrence builds an `EntryTemplate` and calls `addPlan` with `anchor = date` and
-  `lastResolvedDate = date − 1 s` so the anchor day resolves, then calls `resolvePlans`.
+- **Entry form** — three modes. New ("Add entry" with Cancel in the `AppSheet` header,
+  `ReceiptScanStrip` + fields + `ErrorSection` in the body, Save in the footer driven by `canSave`).
+  View existing ("Entry", leading ‹ Back, trailing ✎ Edit). Edit existing ("Edit Entry", leading ✕
+  Back reverts fields to persisted values and drops to view mode with the sheet open). Fields: kind
+  segmented (changing kind clears the selected category), amount, name, date with a recurrence
+  button (new only), optional end date, source pickers (plus a To row for transfers, else a Category
+  row), and an "Include in Analysis" toggle. `canSave` is a pure function; deeper rules are the
+  domain validator's job and surface via the `ErrorSection` ("Could not save entry: <error>"). Save
+  semantics: sign is applied from kind; edit stays open and flips to read-only; new without
+  recurrence calls `addEntry`; new with recurrence builds an `EntryTemplate` and calls `addPlan`
+  with `anchor = date` and `lastResolvedDate = date − 1 s` so the anchor day resolves, then calls
+  `resolvePlans`. A saved or cancelled new entry resets on the next open through provider
+  invalidation. Cancel, barrier dismissal and Back dismiss Add without creating an entry.
 - **Picker sheets** — `TwoColumnPickerSheet` (master/detail, expands a parent into the right column,
   selects a childless parent or a child); `SourcePickerSheet` (active accounts with active pockets as
   children, no None); `CategoryPickerSheet` (groups from `EntryFormViewModel.categoryGroups`,

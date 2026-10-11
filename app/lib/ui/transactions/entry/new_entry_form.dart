@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:spendwise/ui/common/app_sheet.dart';
 import 'package:spendwise/ui/common/error_section.dart';
-import 'package:spendwise/ui/common/form_scaffold.dart';
 import 'package:spendwise/ui/transactions/entry/entry_fields.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_strip.dart';
@@ -20,17 +20,66 @@ class NewEntryForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FormScaffold(
-      title: 'New Entry',
-      canSave: state.canSave,
-      onSave: viewModel.save,
-      error: ErrorSection(subject: 'entry', error: state.error),
-      child: Column(
+    return AppSheet(
+      header: _NewEntryHeader(onCancel: viewModel.cancel),
+      body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           ReceiptScanStrip(formKey: formKey),
           EntryFields(viewModel: viewModel, state: state, readOnly: false),
+          ErrorSection(subject: 'entry', error: state.error),
         ],
+      ),
+      footer: _NewEntrySaveFooter(
+        canSave: state.canSave,
+        onSave: viewModel.save,
+      ),
+    );
+  }
+}
+
+class _NewEntryHeader extends StatelessWidget {
+  const _NewEntryHeader({required this.onCancel});
+
+  final VoidCallback onCancel;
+
+  static const _titleSpacing = 8.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            'Add entry',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+        ),
+        const SizedBox(width: _titleSpacing),
+        TextButton(onPressed: onCancel, child: const Text('Cancel')),
+      ],
+    );
+  }
+}
+
+class _NewEntrySaveFooter extends StatelessWidget {
+  const _NewEntrySaveFooter({required this.canSave, required this.onSave});
+
+  final bool canSave;
+  final Future<void> Function() onSave;
+
+  static const _saveTopSpacing = 4.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: _saveTopSpacing),
+      child: SizedBox(
+        width: double.infinity,
+        child: FilledButton(
+          onPressed: canSave ? onSave : null,
+          child: const Text('Save'),
+        ),
       ),
     );
   }

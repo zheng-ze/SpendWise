@@ -59,6 +59,8 @@ class ReceiptEntryCoordinator extends Notifier<ReceiptOrchestrationState> {
     Uint8List? preCapturedBytes,
     ScanResultHandler onPrefill,
   ) async {
+    final initiatingRef = ref;
+    final guardedPrefill = _whileMounted(initiatingRef, onPrefill);
     state = state.copyWith(scanning: true);
     ReceiptScanStop? stop;
     try {
@@ -71,7 +73,7 @@ class ReceiptEntryCoordinator extends Notifier<ReceiptOrchestrationState> {
             await runReceiptScan(
               source: source,
               preCapturedBytes: bytes,
-              onExtracted: onPrefill,
+              onExtracted: guardedPrefill,
               onStop: (value) => stop = value,
             );
             return;
@@ -83,12 +85,25 @@ class ReceiptEntryCoordinator extends Notifier<ReceiptOrchestrationState> {
       await runReceiptScan(
         source: source,
         preCapturedBytes: preCapturedBytes,
-        onExtracted: onPrefill,
+        onExtracted: guardedPrefill,
         onStop: (value) => stop = value,
       );
     } finally {
-      state = state.copyWith(scanning: false, scanStop: () => stop);
+      if (initiatingRef.mounted) {
+        state = state.copyWith(scanning: false, scanStop: () => stop);
+      }
     }
+  }
+
+  ScanResultHandler _whileMounted(
+    Ref initiatingRef,
+    ScanResultHandler handler,
+  ) {
+    return ({name, amount, required date}) {
+      if (initiatingRef.mounted) {
+        handler(name: name, amount: amount, date: date);
+      }
+    };
   }
 
   Future<_NativeScannerOutcome> _captureWithNativeScanner() async {

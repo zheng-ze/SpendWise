@@ -14,11 +14,13 @@ const Map<RecurrenceFrequency, String> frequencyLabels = {
 Future<RecurrenceFrequency?> showRecurrencePickerSheet({
   required BuildContext context,
   RecurrenceFrequency? selected,
+  bool useRootNavigator = false,
 }) {
   return showModalBottomSheet<_RecurrenceOutcome>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
+    useRootNavigator: useRootNavigator,
     builder: (_) => _RecurrencePickerSheet(selected: selected),
   ).then((outcome) => outcome == null ? selected : outcome.frequency);
 }

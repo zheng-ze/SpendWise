@@ -8,6 +8,7 @@ Future<PickerOutcome?> showSourcePickerSheet({
   required String title,
   required LedgerState state,
   String? selectedId,
+  bool useRootNavigator = false,
 }) {
   final groups = [
     for (final account in state.activeAccounts)
@@ -26,5 +27,6 @@ Future<PickerOutcome?> showSourcePickerSheet({
     title: title,
     groups: groups,
     selectedId: selectedId,
+    useRootNavigator: useRootNavigator,
   );
 }

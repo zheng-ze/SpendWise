@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/settings/settings_providers.dart';
+import 'package:spendwise/ui/common/app_sheet.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_logic.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
@@ -49,10 +50,33 @@ void main() {
           scanStripEnabledProvider.overrideWith((ref) async => true),
         ],
         child: MaterialApp(
-          home: Scaffold(body: EntryForm(entryId: entryId)),
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: ElevatedButton(
+                onPressed: () {
+                  if (entryId == null) {
+                    showAppSheet<void>(
+                      context,
+                      presentation: AppSheetPresentation.phone,
+                      builder: (_) => EntryForm(entryId: entryId),
+                    );
+                  } else {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            Scaffold(body: EntryForm(entryId: entryId)),
+                      ),
+                    );
+                  }
+                },
+                child: const Text('open'),
+              ),
+            ),
+          ),
         ),
       ),
     );
+    await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
   }
 
@@ -62,7 +86,7 @@ void main() {
     ) async {
       await pumpForm(tester, ledger: buildLedger());
 
-      expect(find.text('New Entry'), findsOneWidget);
+      expect(find.text('Add entry'), findsOneWidget);
       expect(find.text('Save'), findsOneWidget);
     });
 
@@ -239,10 +263,10 @@ void main() {
             home: Builder(
               builder: (context) => Scaffold(
                 body: ElevatedButton(
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const Scaffold(body: EntryForm()),
-                    ),
+                  onPressed: () => showAppSheet<void>(
+                    context,
+                    presentation: AppSheetPresentation.phone,
+                    builder: (_) => const EntryForm(),
                   ),
                   child: const Text('open'),
                 ),

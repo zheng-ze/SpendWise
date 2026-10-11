@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/settings/settings_providers.dart';
+import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
 
 void main() {
@@ -68,8 +69,12 @@ void main() {
     await tester.tap(find.byIcon(Icons.add));
     await tester.pumpAndSettle();
 
-    expect(find.text('New Entry'), findsOneWidget);
+    expect(find.text('Add entry'), findsOneWidget);
     expect(find.text('Save'), findsOneWidget);
+
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(find.text('Add entry'), findsNothing);
   });
 
   testWidgets('tapping a row opens the entry form for it, read-only', (
@@ -93,18 +98,27 @@ void main() {
     expect(find.text('Edit'), findsOneWidget);
   });
 
+  Future<void> scrollToFormRow(WidgetTester tester, String label) async {
+    await tester.ensureVisible(find.text(label));
+    await tester.pumpAndSettle();
+  }
+
   testWidgets('picking an account applies it to the open form', (tester) async {
     await pumpFlow(tester, ledger: buildLedger());
 
     await tester.tap(find.byIcon(Icons.add));
     await tester.pumpAndSettle();
 
+    await scrollToFormRow(tester, 'Account');
     await tester.tap(find.text('Account'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Checking'));
     await tester.pumpAndSettle();
 
     expect(find.text('Checking'), findsOneWidget);
+
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
   });
 
   testWidgets('picking a category applies it to the open form', (tester) async {
@@ -113,12 +127,16 @@ void main() {
     await tester.tap(find.byIcon(Icons.add));
     await tester.pumpAndSettle();
 
+    await scrollToFormRow(tester, 'Category');
     await tester.tap(find.text('Category'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Coffee'));
     await tester.pumpAndSettle();
 
     expect(find.text('Coffee'), findsOneWidget);
+
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
   });
 
   testWidgets('a new entry saved through the flow lands in the ledger', (
@@ -134,6 +152,7 @@ void main() {
     await tester.enterText(find.byType(TextField).at(1), 'New expense');
     await tester.pumpAndSettle();
 
+    await scrollToFormRow(tester, 'Account');
     await tester.tap(find.text('Account'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Checking'));
@@ -146,7 +165,7 @@ void main() {
     final added = ledger.state.entries.values.first;
     expect(added.name, 'New expense');
     expect(added.amount, dec('-12.50'));
-    expect(find.text('New Entry'), findsNothing);
+    expect(find.text('Add entry'), findsNothing);
   });
 
   group('scoped flow', () {
@@ -166,7 +185,17 @@ void main() {
         await tester.pumpAndSettle();
       }
 
-      expect(find.text('Checking'), findsOneWidget);
+      final container = ProviderScope.containerOf(
+        tester.element(find.text('Add entry')),
+      );
+      expect(
+        container.read(entryFormViewModelProvider(null)).value?.sourceId,
+        checking.id,
+      );
+      expect(find.text('Checking'), findsWidgets);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
     });
 
     testWidgets(
