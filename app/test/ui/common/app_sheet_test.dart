@@ -10,7 +10,9 @@ import '../../support/sheet_contract.dart' as contract;
 
 const _phone = Size(320, 760);
 const _compact = Size(320, 560);
-const _desktop = Size(1200, 800);
+const _probeHeight = 760.0;
+const _probeWidths = [320.0, 719.0, 720.0, 1200.0];
+const _sheetMaxWidth = 440.0;
 
 void _useSize(WidgetTester tester, Size size) {
   tester.view.physicalSize = size;
@@ -33,9 +35,17 @@ AppSheet _sheet({
   );
 }
 
-Future<void> _openSheet(WidgetTester tester, AppSheet sheet) async {
+Future<void> _openSheet(
+  WidgetTester tester,
+  AppSheet sheet, {
+  AppSheetPresentation presentation = AppSheetPresentation.phone,
+}) async {
   final app = MaterialApp(
-    home: _SheetLauncher(sheet: sheet, label: 'open'),
+    home: _SheetLauncher(
+      sheet: sheet,
+      label: 'open',
+      presentation: presentation,
+    ),
   );
   await tester.pumpWidget(app);
   await tester.tap(find.text('open'));
@@ -43,29 +53,42 @@ Future<void> _openSheet(WidgetTester tester, AppSheet sheet) async {
 }
 
 class _SheetLauncher extends StatelessWidget {
-  const _SheetLauncher({required this.sheet, required this.label});
+  const _SheetLauncher({
+    required this.sheet,
+    required this.label,
+    required this.presentation,
+  });
 
   final AppSheet sheet;
 
   final String label;
 
-  @override
-  Widget build(BuildContext context) {
-    return TextButton(
-      onPressed: () => showAppSheet<void>(context, builder: (_) => sheet),
-      child: Text(label),
-    );
-  }
-}
-
-class _LayerButton extends StatelessWidget {
-  const _LayerButton();
+  final AppSheetPresentation presentation;
 
   @override
   Widget build(BuildContext context) {
     return TextButton(
       onPressed: () => showAppSheet<void>(
         context,
+        presentation: presentation,
+        builder: (_) => sheet,
+      ),
+      child: Text(label),
+    );
+  }
+}
+
+class _LayerButton extends StatelessWidget {
+  const _LayerButton({required this.presentation});
+
+  final AppSheetPresentation presentation;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton(
+      onPressed: () => showAppSheet<void>(
+        context,
+        presentation: presentation,
         builder: (_) =>
             const AppSheet(header: Text('second'), body: Text('second body')),
       ),
@@ -74,11 +97,15 @@ class _LayerButton extends StatelessWidget {
   }
 }
 
-Widget _layeredSheetApp() {
+Widget _layeredSheetApp({required AppSheetPresentation presentation}) {
   return MaterialApp(
     home: _SheetLauncher(
       label: 'open',
-      sheet: AppSheet(header: const Text('first'), body: const _LayerButton()),
+      presentation: presentation,
+      sheet: AppSheet(
+        header: const Text('first'),
+        body: _LayerButton(presentation: presentation),
+      ),
     ),
   );
 }
@@ -108,19 +135,133 @@ void main() {
     expect(footerRect.top, bodyRect.bottom);
   });
 
-  for (final size in [_phone, _compact]) {
-    testWidgets(
-      'phone sheets span the full width at ${size.height.toInt()}px',
-      (tester) async {
-        _useSize(tester, size);
-        await _openSheet(tester, _sheet(body: const Text('short body')));
+  for (final width in _probeWidths) {
+    testWidgets('phone presentation at ${width.toInt()}px spans the full width '
+        'at the bottom', (tester) async {
+      _useSize(tester, Size(width, _probeHeight));
+      await _openSheet(
+        tester,
+        _sheet(body: const Text('short body')),
+        presentation: AppSheetPresentation.phone,
+      );
 
-        final rect = tester.getRect(find.byType(AppSheet));
-        expect(rect.left, 0);
-        expect(rect.right, size.width);
-      },
-    );
+      final rect = tester.getRect(find.byType(AppSheet));
+      expect(rect.left, 0);
+      expect(rect.right, width);
+      expect(rect.bottom, _probeHeight);
+    });
+
+    testWidgets('desktop presentation at ${width.toInt()}px centres a dialog '
+        'no wider than 440', (tester) async {
+      _useSize(tester, Size(width, _probeHeight));
+      await _openSheet(
+        tester,
+        _sheet(body: const Text('short body')),
+        presentation: AppSheetPresentation.desktop,
+      );
+
+      final rect = tester.getRect(find.byType(AppSheet));
+      expect(rect.center, Offset(width / 2, _probeHeight / 2));
+      expect(rect.width, lessThanOrEqualTo(_sheetMaxWidth));
+      expect(rect.width, lessThanOrEqualTo(width));
+    });
   }
+
+  testWidgets('resizing keeps the captured phone presentation', (tester) async {
+    _useSize(tester, const Size(320, _probeHeight));
+    await _openSheet(
+      tester,
+      _sheet(
+        alert: const SheetAlertData(
+          message: 'Could not save entry.',
+          severity: SheetAlertSeverity.error,
+        ),
+        body: const Text('short body'),
+      ),
+      presentation: AppSheetPresentation.phone,
+    );
+
+    tester.view.physicalSize = const Size(1200, _probeHeight);
+    await tester.pumpAndSettle();
+
+    final rect = tester.getRect(find.byType(AppSheet));
+    expect(rect.left, 0);
+    expect(rect.right, 1200);
+    expect(rect.bottom, _probeHeight);
+    expect(find.text('Could not save entry.'), findsOneWidget);
+
+    await tester.tapAt(const Offset(600, 10));
+    await tester.pumpAndSettle();
+    expect(find.byType(AppSheet), findsNothing);
+  });
+
+  testWidgets('resizing keeps the captured desktop presentation', (
+    tester,
+  ) async {
+    _useSize(tester, const Size(1200, _probeHeight));
+    await _openSheet(
+      tester,
+      _sheet(
+        alert: const SheetAlertData(
+          message: 'Sync timed out.',
+          severity: SheetAlertSeverity.warning,
+        ),
+        body: const Text('short body'),
+      ),
+      presentation: AppSheetPresentation.desktop,
+    );
+
+    tester.view.physicalSize = const Size(320, _probeHeight);
+    await tester.pumpAndSettle();
+
+    final rect = tester.getRect(find.byType(AppSheet));
+    expect(rect.center, const Offset(160, _probeHeight / 2));
+    expect(rect.width, lessThanOrEqualTo(_sheetMaxWidth));
+    expect(find.text('Sync timed out.'), findsOneWidget);
+
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pumpAndSettle();
+    expect(find.byType(AppSheet), findsNothing);
+  });
+
+  testWidgets(
+    'an AppSheet without its presentation slot reports a caller error',
+    (tester) async {
+      _useSize(tester, _phone);
+      await tester.pumpWidget(
+        MaterialApp(home: _sheet(body: const Text('short body'))),
+      );
+
+      expect(tester.takeException(), isFlutterError);
+    },
+  );
+
+  testWidgets('a directly pushed route carries its captured presentation', (
+    tester,
+  ) async {
+    _useSize(tester, _phone);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () => Navigator.of(context).push(
+              AppSheetRoute<void>(
+                presentation: AppSheetPresentation.desktop,
+                builder: (_) => _sheet(body: const Text('direct body')),
+              ),
+            ),
+            child: const Text('open'),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    final rect = tester.getRect(find.byType(AppSheet));
+    expect(rect.center, Offset(_phone.width / 2, _phone.height / 2));
+    expect(rect.width, lessThanOrEqualTo(_sheetMaxWidth));
+  });
 
   testWidgets('footer and input surface stay above the bottom safe inset', (
     tester,
@@ -159,9 +300,15 @@ void main() {
   });
 
   group('root navigator', () {
-    Future<void> openFromNested(WidgetTester tester, Size size) async {
+    Future<void> openFromNested(
+      WidgetTester tester,
+      Size size,
+      AppSheetPresentation presentation,
+    ) async {
       _useSize(tester, size);
-      const app = MaterialApp(home: _NestedSheetHost());
+      final app = MaterialApp(
+        home: _NestedSheetHost(presentation: presentation),
+      );
       await tester.pumpWidget(app);
       await tester.tap(find.text('open nested'));
       await tester.pumpAndSettle();
@@ -180,7 +327,7 @@ void main() {
     testWidgets('the barrier and sheet cover the window, not the pane', (
       tester,
     ) async {
-      await openFromNested(tester, _phone);
+      await openFromNested(tester, _phone, AppSheetPresentation.phone);
 
       expect(tester.getRect(find.byType(AppSheet)).width, _phone.width);
       expect(barrierCovers(tester, _phone), isTrue);
@@ -189,19 +336,22 @@ void main() {
     testWidgets('the desktop dialog centres in the window, not the pane', (
       tester,
     ) async {
-      await openFromNested(tester, _desktop);
+      const desktop = Size(1200, 800);
+      await openFromNested(tester, desktop, AppSheetPresentation.desktop);
 
       expect(
         tester.getRect(find.byType(AppSheet)).center,
-        Offset(_desktop.width / 2, _desktop.height / 2),
+        Offset(desktop.width / 2, desktop.height / 2),
       );
-      expect(barrierCovers(tester, _desktop), isTrue);
+      expect(barrierCovers(tester, desktop), isTrue);
     });
   });
 
   testWidgets('the contract helper checks every drawn sheet', (tester) async {
     contract.useSheetSize(tester, _phone);
-    await tester.pumpWidget(_layeredSheetApp());
+    await tester.pumpWidget(
+      _layeredSheetApp(presentation: AppSheetPresentation.phone),
+    );
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('layer'));
@@ -338,7 +488,9 @@ void main() {
 
   testWidgets('layered sheets push a second route', (tester) async {
     _useSize(tester, _phone);
-    await tester.pumpWidget(_layeredSheetApp());
+    await tester.pumpWidget(
+      _layeredSheetApp(presentation: AppSheetPresentation.phone),
+    );
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
     expect(find.text('first'), findsOneWidget);
@@ -355,10 +507,16 @@ void main() {
   group('sheet alert slot', () {
     final alertProvider = StateProvider<SheetAlertData?>((ref) => null);
 
-    Future<void> openWatchedSheet(WidgetTester tester) async {
+    Future<void> openWatchedSheet(
+      WidgetTester tester, {
+      AppSheetPresentation presentation = AppSheetPresentation.phone,
+    }) async {
       final app = ProviderScope(
         child: MaterialApp(
-          home: _WatchedSheetLauncher(provider: alertProvider),
+          home: _WatchedSheetLauncher(
+            provider: alertProvider,
+            presentation: presentation,
+          ),
         ),
       );
       await tester.pumpWidget(app);
@@ -423,8 +581,12 @@ void main() {
     final alertProvider = StateProvider<SheetAlertData?>((ref) => null);
 
     testWidgets('the sheet becomes a dialog no wider than 440', (tester) async {
-      _useSize(tester, _desktop);
-      await _openSheet(tester, _sheet(body: const Text('short body')));
+      _useSize(tester, const Size(1200, 800));
+      await _openSheet(
+        tester,
+        _sheet(body: const Text('short body')),
+        presentation: AppSheetPresentation.desktop,
+      );
 
       final width = tester.getSize(find.byType(AppSheet)).width;
       expect(width, lessThanOrEqualTo(440));
@@ -433,10 +595,13 @@ void main() {
     testWidgets('the alert sits outside the dialog and changes no height', (
       tester,
     ) async {
-      _useSize(tester, _desktop);
+      _useSize(tester, const Size(1200, 800));
       final app = ProviderScope(
         child: MaterialApp(
-          home: _WatchedSheetLauncher(provider: alertProvider),
+          home: _WatchedSheetLauncher(
+            provider: alertProvider,
+            presentation: AppSheetPresentation.desktop,
+          ),
         ),
       );
       await tester.pumpWidget(app);
@@ -459,7 +624,9 @@ void main() {
 }
 
 class _NestedSheetHost extends StatelessWidget {
-  const _NestedSheetHost();
+  const _NestedSheetHost({required this.presentation});
+
+  final AppSheetPresentation presentation;
 
   @override
   Widget build(BuildContext context) {
@@ -475,6 +642,7 @@ class _NestedSheetHost extends StatelessWidget {
                 builder: (context) => TextButton(
                   onPressed: () => showAppSheet<void>(
                     context,
+                    presentation: presentation,
                     builder: (_) => _sheet(body: const Text('nested body')),
                   ),
                   child: const Text('open nested'),
@@ -489,15 +657,21 @@ class _NestedSheetHost extends StatelessWidget {
 }
 
 class _WatchedSheetLauncher extends StatelessWidget {
-  const _WatchedSheetLauncher({required this.provider});
+  const _WatchedSheetLauncher({
+    required this.provider,
+    required this.presentation,
+  });
 
   final StateProvider<SheetAlertData?> provider;
+
+  final AppSheetPresentation presentation;
 
   @override
   Widget build(BuildContext context) {
     return TextButton(
       onPressed: () => showAppSheet<void>(
         context,
+        presentation: presentation,
         builder: (_) => _WatchedSheet(provider: provider),
       ),
       child: const Text('open'),

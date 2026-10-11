@@ -1,9 +1,36 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
 import 'package:spendwise/boot/providers.dart';
 
 enum ShellDestination { transactions, stats, accounts }
+
+enum ShellLayoutMode { phone, desktop }
+
+ShellLayoutMode resolveShellLayoutMode({
+  required bool isWeb,
+  required TargetPlatform targetPlatform,
+}) {
+  if (isWeb) return ShellLayoutMode.desktop;
+  switch (targetPlatform) {
+    case TargetPlatform.iOS:
+    case TargetPlatform.android:
+      return ShellLayoutMode.phone;
+    case TargetPlatform.macOS:
+    case TargetPlatform.windows:
+    case TargetPlatform.linux:
+    case TargetPlatform.fuchsia:
+      return ShellLayoutMode.desktop;
+  }
+}
+
+final shellLayoutModeProvider = Provider<ShellLayoutMode>(
+  (ref) => resolveShellLayoutMode(
+    isWeb: kIsWeb,
+    targetPlatform: defaultTargetPlatform,
+  ),
+);
 
 final selectedDestinationProvider = StateProvider<ShellDestination>(
   (ref) => ShellDestination.transactions,

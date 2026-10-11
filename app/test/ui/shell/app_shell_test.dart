@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/sync/hosted_sync_status.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
-import 'package:spendwise/ui/shell/layout_breakpoints.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
 const _compact = Size(400, 800);
@@ -13,6 +12,7 @@ const _wide = Size(1200, 900);
 Future<void> _pumpShell(
   WidgetTester tester, {
   required Size size,
+  ShellLayoutMode layoutMode = ShellLayoutMode.phone,
   Map<ShellDestination, WidgetBuilder> bodies = const {},
 }) async {
   tester.view.physicalSize = size;
@@ -23,6 +23,7 @@ Future<void> _pumpShell(
     ProviderScope(
       overrides: [
         hostedSyncStatusProvider.overrideWithValue(const HostedSyncReady()),
+        shellLayoutModeProvider.overrideWithValue(layoutMode),
       ],
       child: MaterialApp(home: AppShell(bodies: bodies)),
     ),
@@ -35,7 +36,7 @@ Future<void> _resize(WidgetTester tester, Size size) async {
 }
 
 void main() {
-  testWidgets('compact width uses a bottom bar with the four destinations', (
+  testWidgets('phone mode uses a bottom bar with the four destinations', (
     tester,
   ) async {
     await _pumpShell(tester, size: _compact);
@@ -63,10 +64,10 @@ void main() {
     expect(tester.getSize(find.byType(NavigationBar)).height, plain);
   });
 
-  testWidgets('wide width uses a rail with the same destinations', (
+  testWidgets('desktop mode uses a compact rail with the same destinations', (
     tester,
   ) async {
-    await _pumpShell(tester, size: _wide);
+    await _pumpShell(tester, size: _wide, layoutMode: ShellLayoutMode.desktop);
 
     expect(find.byType(NavigationRail), findsOneWidget);
     expect(find.byType(NavigationBar), findsNothing);
@@ -76,6 +77,62 @@ void main() {
         .map((d) => (d.label as Text).data)
         .toList();
     expect(labels, ['Transactions', 'Stats', 'Accounts', 'Settings']);
+    expect(rail.extended, isFalse);
+    expect(rail.labelType, NavigationRailLabelType.all);
+  });
+
+  for (final width in [320.0, 720.0, 1440.0]) {
+    testWidgets(
+      'phone mode keeps the bar at ${width.toInt()}px logical width',
+      (tester) async {
+        await _pumpShell(tester, size: Size(width, 800));
+
+        expect(find.byType(NavigationBar), findsOneWidget);
+        expect(find.byType(NavigationRail), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'desktop mode keeps the rail at ${width.toInt()}px logical width',
+      (tester) async {
+        await _pumpShell(
+          tester,
+          size: Size(width, 800),
+          layoutMode: ShellLayoutMode.desktop,
+        );
+
+        expect(find.byType(NavigationRail), findsOneWidget);
+        expect(find.byType(NavigationBar), findsNothing);
+      },
+    );
+  }
+
+  testWidgets('resizing across former thresholds switches no layout', (
+    tester,
+  ) async {
+    await _pumpShell(tester, size: _compact);
+    await tester.tap(find.text('Stats'));
+    await tester.pumpAndSettle();
+
+    for (final width in [680.0, 700.0, 720.0, 960.0, 1000.0, 1200.0]) {
+      await _resize(tester, Size(width, 900));
+      expect(find.byType(NavigationBar), findsOneWidget);
+      expect(find.byType(NavigationRail), findsNothing);
+    }
+    expect(
+      tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
+      1,
+    );
+  });
+
+  testWidgets('resizing a desktop shell switches no layout', (tester) async {
+    await _pumpShell(tester, size: _wide, layoutMode: ShellLayoutMode.desktop);
+
+    for (final width in [1200.0, 1000.0, 960.0, 720.0, 680.0, 320.0]) {
+      await _resize(tester, Size(width, 900));
+      expect(find.byType(NavigationRail), findsOneWidget);
+      expect(find.byType(NavigationBar), findsNothing);
+    }
   });
 
   testWidgets('selecting a destination moves the bar selection', (
@@ -132,12 +189,47 @@ void main() {
     expect(find.text('open detail'), findsNothing);
   });
 
+  testWidgets('a drilled-in destination keeps its stack across a resize', (
+    tester,
+  ) async {
+    await _pumpShell(
+      tester,
+      size: _compact,
+      bodies: {
+        ShellDestination.transactions: (context) => Navigator(
+          onGenerateRoute: (settings) => MaterialPageRoute<void>(
+            settings: settings,
+            builder: (context) => Center(
+              child: TextButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const Scaffold(body: Text('entry detail')),
+                  ),
+                ),
+                child: const Text('open detail'),
+              ),
+            ),
+          ),
+        ),
+      },
+    );
+
+    await tester.tap(find.text('open detail'));
+    await tester.pumpAndSettle();
+
+    await _resize(tester, const Size(1200, 900));
+
+    expect(find.text('entry detail'), findsOneWidget);
+    expect(find.byType(NavigationBar), findsOneWidget);
+  });
+
   testWidgets('a shell rebuild keeps a non-current selected month', (
     tester,
   ) async {
     final container = ProviderContainer(
       overrides: [
         hostedSyncStatusProvider.overrideWithValue(const HostedSyncReady()),
+        shellLayoutModeProvider.overrideWithValue(ShellLayoutMode.phone),
       ],
     );
     addTearDown(container.dispose);
@@ -178,76 +270,5 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('month 2019-3'), findsOneWidget);
-  });
-
-  testWidgets(
-    'shrinking into the dead zone between thresholds stays in rail mode',
-    (tester) async {
-      await _pumpShell(tester, size: _wide);
-      expect(find.byType(NavigationRail), findsOneWidget);
-
-      await _resize(
-        tester,
-        Size(
-          (LayoutBreakpoints.railEnter + LayoutBreakpoints.railExit) / 2,
-          900,
-        ),
-      );
-      expect(find.byType(NavigationRail), findsOneWidget);
-      expect(find.byType(NavigationBar), findsNothing);
-
-      await _resize(tester, Size(LayoutBreakpoints.railExit - 1, 900));
-      expect(find.byType(NavigationBar), findsOneWidget);
-      expect(find.byType(NavigationRail), findsNothing);
-    },
-  );
-
-  testWidgets(
-    'growing into the dead zone between thresholds stays in bottom nav mode',
-    (tester) async {
-      await _pumpShell(tester, size: _compact);
-      expect(find.byType(NavigationBar), findsOneWidget);
-
-      await _resize(
-        tester,
-        Size(
-          (LayoutBreakpoints.railEnter + LayoutBreakpoints.railExit) / 2,
-          900,
-        ),
-      );
-      expect(find.byType(NavigationBar), findsOneWidget);
-      expect(find.byType(NavigationRail), findsNothing);
-
-      await _resize(tester, Size(LayoutBreakpoints.railEnter + 1, 900));
-      expect(find.byType(NavigationRail), findsOneWidget);
-      expect(find.byType(NavigationBar), findsNothing);
-    },
-  );
-
-  testWidgets('a rail above the extended breakpoint is extended', (
-    tester,
-  ) async {
-    await _pumpShell(
-      tester,
-      size: Size(LayoutBreakpoints.extendedRailEnter + 100, 900),
-    );
-
-    final rail = tester.widget<NavigationRail>(find.byType(NavigationRail));
-    expect(rail.extended, isTrue);
-  });
-
-  testWidgets('a rail between the rail and extended breakpoints is compact', (
-    tester,
-  ) async {
-    await _pumpShell(
-      tester,
-      size: Size(
-        (LayoutBreakpoints.railEnter + LayoutBreakpoints.extendedRailEnter) / 2,
-        900,
-      ),
-    );
-
-    final rail = tester.widget<NavigationRail>(find.byType(NavigationRail));
-    expect(rail.extended, isFalse);
   });
 }

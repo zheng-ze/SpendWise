@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/banner_state.dart';
-import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/persistence/ledger_store.dart';
 import 'package:spendwise/sync/hosted_sync_status.dart';
 import 'package:spendwise/ui/settings/settings_flow.dart';
@@ -216,31 +215,6 @@ void main() {
       expect(find.byType(SettingsFlow), findsOneWidget);
       expect(steps.whereType<RepairDeviceAccessRequested>(), isEmpty);
     });
-
-    testWidgets('a Ready status ends a handed-over fresh route on the switch '
-        'to desktop', (tester) async {
-      final harness = await pumpShell(tester, status: null);
-      await _openSettingsItem(tester);
-      await _openFreshEnrollment(tester);
-      await harness.metadataStore.setBackendSelection(
-        backend: SyncBackendKind.supabase,
-      );
-      await harness.metadataStore.enterReconciliationComplete();
-      await harness.metadataStore.enterGateEnabled();
-      await harness.container.read(appBootProvider).refreshSyncStatus();
-      await tester.pump();
-      expect(
-        harness.container.read(hostedSyncStatusProvider),
-        isA<HostedSyncReady>(),
-      );
-
-      await _resize(tester, _desktop);
-
-      expect(find.byType(SettingsFlow), findsOneWidget);
-      expect(find.byType(SyncEnrollmentFlow), findsNothing);
-      expect(harness.container.read(enrollmentFlowOpenProvider), isFalse);
-      expect(harness.container.read(settingsRootViewModelProvider).step, null);
-    });
   });
 
   group('desktop', () {
@@ -324,9 +298,9 @@ void main() {
     });
   });
 
-  group('layout switch with Settings open', () {
-    testWidgets('phone to desktop keeps one Settings and one enrollment '
-        'route', (tester) async {
+  group('resize with Settings open', () {
+    testWidgets('resizing to a desktop width keeps one Settings and one '
+        'enrollment route without switching layout', (tester) async {
       final harness = await pumpShell(tester, status: null);
       await _openSettingsItem(tester);
       await _openFreshEnrollment(tester);
@@ -334,11 +308,12 @@ void main() {
       await _resize(tester, _desktop);
 
       _expectOneSettingsAndOneEnrollment(tester, harness.container);
-      expect(find.byType(NavigationRail), findsOneWidget);
+      expect(find.byType(NavigationRail), findsNothing);
+      expect(find.byType(NavigationBar), findsNothing);
     });
 
-    testWidgets('desktop to phone keeps one Settings and one enrollment '
-        'route', (tester) async {
+    testWidgets('resizing to a phone width keeps one Settings and one '
+        'enrollment route without switching layout', (tester) async {
       final harness = await pumpShell(tester, status: null, size: _desktop);
       await _openSettingsItem(tester);
       await _openFreshEnrollment(tester);
@@ -347,10 +322,11 @@ void main() {
 
       _expectOneSettingsAndOneEnrollment(tester, harness.container);
       expect(find.byType(NavigationBar), findsNothing);
+      expect(find.byType(NavigationRail), findsOneWidget);
     });
 
-    testWidgets('hysteresis holds the open Settings in place between 680 and '
-        '720', (tester) async {
+    testWidgets('resizing between 680 and 720 keeps the open Settings '
+        'in place', (tester) async {
       final harness = await pumpShell(tester, status: null);
       await _openSettingsItem(tester);
 

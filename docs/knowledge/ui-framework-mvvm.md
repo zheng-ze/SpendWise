@@ -1,6 +1,6 @@
 # UI Framework (MVVM)
 
-Last reconciled: 2026-10-10
+Last reconciled: 2026-10-11
 
 ## Feature overview
 
@@ -18,8 +18,9 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
 - `app/lib/ui/common/step_emitting.dart` — the `Step` emission contract.
 - `app/lib/ui/common/flow_base.dart` — the Flow base that watches ViewModels for `Step` and maps each
   to a push/pop on its own `Navigator`.
-- `app/lib/ui/shell/app_shell.dart` — the responsive shell: no ViewModel, only layout bookkeeping
-  (`_useRail`, `_extended`), mounting one Flow per destination.
+- `app/lib/ui/shell/app_shell.dart` — the shell: no ViewModel, only the fixed
+  platform layout mode (`shellLayoutModeProvider`), mounting one Flow per
+  destination.
 - `app/lib/ui/symbol_map.dart` — symbol-to-IconData mapping.
 - `app/lib/ui/theme/` - `spendwise_colors.dart` (`SpendWiseColors` ThemeExtension with the
   Harbour glass light/dark tokens), `spendwise_text.dart` (`SpendWiseText` amount roles plus the
@@ -48,9 +49,16 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   acting. Replaces the earlier `NavigationIntent` field.
 - **One ViewModel per View**; shared presentation widgets own no ViewModel because they never read
   Riverpod state (zero `ConsumerWidget`/`WidgetRef` usage).
-- **AppShell** gets no ViewModel: its only state is a flat width-to-bool layout computation, no
-  async loading, no domain import. It mounts one Flow per destination, with no shell-level navigator.
-  The Settings navigation item is a writer of `settingsOpenProvider`, not a destination.
+- **AppShell** gets no ViewModel: its only state is the fixed platform layout
+  mode, no async loading, no domain import. `shellLayoutModeProvider`
+  (`app/lib/ui/shell/shell_providers.dart`) resolves `ShellLayoutMode.phone`
+  or `ShellLayoutMode.desktop` once per run from the platform (web, macOS,
+  Windows and Linux use desktop; iOS and Android use phone) and reads no
+  window width, so resizing never switches the bar/rail layout. `AppShell`
+  shows the bottom bar in phone mode and the compact labelled rail in
+  desktop mode. It mounts one Flow per destination, with no shell-level
+  navigator. The Settings navigation item is a writer of `settingsOpenProvider`,
+  not a destination.
   (`app/lib/ui/shell/app_shell.dart`, `app/lib/ui/shell/shell_providers.dart`)
 - **Settings hosting** - `settingsOpenProvider` (`StateProvider<bool>`) is the only settings-visible
   signal. The Settings navigation item and the repair banner tap set it true. It is cleared in
@@ -135,21 +143,30 @@ value, which then overwrites it. (issue #38)
 ## Sheet and component kit
 
 - **AppSheet** (`app/lib/ui/common/app_sheet.dart`) is the shared kit sheet surface.
-  `showAppSheet<T>(context, builder:)` pushes an `AppSheetRoute` on the root navigator, so
-  its barrier covers the window even when opened from a nested Flow. The builder returns
-  `AppSheet(header:, body:, footer:, inputSurface:, alert:, onAlertAction:)`. Below
-  `LayoutBreakpoints.railEnter` (720), it spans the phone width at the bottom; at or above
-  that width, it centres a dialog no wider than 440. Both size to content up to
-  `0.66 * (window height - top safe padding - bottom keyboard inset)`. Only the body
-  scrolls; the header, footer and input surface stay pinned. The route lifts the sheet above
-  the keyboard, and the surface keeps its footer/input above the bottom safe inset while
-  the phone background fills that inset. (`app/lib/ui/shell/layout_breakpoints.dart`)
+  `showAppSheet<T>(context, presentation:, builder:)` pushes an `AppSheetRoute`
+  on the root navigator, so its barrier covers the window even when opened from
+  a nested Flow. `presentation` is a required plain `AppSheetPresentation`
+  (`phone`, `desktop`) value; every caller supplies it, and `ui/common` reads
+  no Riverpod state and no window width. The builder returns
+  `AppSheet(header:, body:, footer:, inputSurface:, alert:, onAlertAction:)`.
+  The route captures the value and passes it to both the page alignment and
+  the sheet chrome: phone spans the full available width at the bottom, desktop
+  centres a dialog no wider than 440 while fitting the viewport. Both size to
+  content up to `0.66 * (window height - top safe padding - bottom keyboard
+  inset)`. Only the body scrolls; the header, footer and input surface stay
+  pinned. The route lifts the sheet above the keyboard, and the surface keeps
+  its footer/input above the bottom safe inset while the phone background fills
+  that inset. Resizing an open sheet changes available geometry, never its
+  presentation.
 - **Sheet alerts** - the presentation kit owns no Riverpod state. `AppSheetRoute` owns
-  alert and action `ValueNotifier`s exposed through `AppSheetAlertSlot`; `AppSheet` publishes
-  them post-frame and clears them on dispose. The route renders `SheetAlert` outside the
-  sheet, so errors and warnings never change sheet height. A View passes its ViewModel's
-  alert and callback down. A standalone `AppSheet` needs the route slot to display alerts.
-  The banner is a live region; its action appears only with both a label and callback.
+  alert and action `ValueNotifier`s plus the captured presentation, exposed
+  through `AppSheetAlertSlot`; `AppSheet` publishes them post-frame and clears
+  them on dispose. The route renders `SheetAlert` outside the sheet, so errors
+  and warnings never change sheet height. A View passes its ViewModel's alert
+  and callback down. A standalone `AppSheet` needs the route slot with an
+  explicit presentation to display anything; a missing slot is a caller error
+  reported as a `FlutterError`, never a width or platform fallback. The banner
+  is a live region; its action appears only with both a label and callback.
   (`app/lib/ui/common/app_sheet.dart`, `app/lib/ui/common/sheet_alert.dart`)
 - **Actions** (`app/lib/ui/common/app_buttons.dart`): `PrimaryButton` is filled, with
   `destructive: true` using error/on-action tokens; `SecondaryButton` defaults to text and
@@ -170,8 +187,9 @@ value, which then overwrites it. (issue #38)
   category when `onSelect` is supplied.
   `WeekStrip` leaves future days blank and draws dashed stubs for past empty days.
   (`app/lib/ui/common/charts/week_strip.dart`)
-- **Sheet checks** - `app/test/support/sheet_contract.dart` provides route pumping, cap checks
-  for every drawn sheet, and an assertion that the alert sits outside the sheet subtree.
+- **Sheet checks** - `app/test/support/sheet_contract.dart` provides route pumping
+  with an explicit presentation, cap checks for every drawn sheet, and an
+  assertion that the alert sits outside the sheet subtree.
 
 ## Gotchas and invariants
 

@@ -4,11 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/shell/day_ticker.dart';
 import 'package:spendwise/ui/settings/settings_flow.dart';
-import 'package:spendwise/ui/shell/layout_breakpoints.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/shell/status_banner.dart';
-
-const _layoutTransitionDuration = Duration(milliseconds: 180);
 
 const _destinationLabels = {
   ShellDestination.transactions: 'Transactions',
@@ -38,8 +35,6 @@ class AppShell extends ConsumerStatefulWidget {
 }
 
 class _AppShellState extends ConsumerState<AppShell> {
-  bool _useRail = false;
-  bool _extended = false;
   DayTicker? _ticker;
   Route<void>? _settingsRoute;
 
@@ -65,22 +60,6 @@ class _AppShellState extends ConsumerState<AppShell> {
     );
   }
 
-  void _updateLayoutMode(double width) {
-    final useRail = _useRail
-        ? width >= LayoutBreakpoints.railExit
-        : width >= LayoutBreakpoints.railEnter;
-    final extended = _extended
-        ? width >= LayoutBreakpoints.extendedRailExit
-        : width >= LayoutBreakpoints.extendedRailEnter;
-
-    if (useRail != _useRail || extended != _extended) {
-      setState(() {
-        _useRail = useRail;
-        _extended = extended;
-      });
-    }
-  }
-
   void _closeSettings() =>
       ref.read(settingsOpenProvider.notifier).state = false;
 
@@ -92,7 +71,9 @@ class _AppShellState extends ConsumerState<AppShell> {
 
   void _reconcileSettingsRoute() {
     if (!mounted) return;
-    final wanted = ref.read(settingsOpenProvider) && !_useRail;
+    final useRail =
+        ref.read(shellLayoutModeProvider) == ShellLayoutMode.desktop;
+    final wanted = ref.read(settingsOpenProvider) && !useRail;
     final route = _settingsRoute;
     final navigator = Navigator.of(context, rootNavigator: true);
     if (wanted && route == null) {
@@ -119,11 +100,12 @@ class _AppShellState extends ConsumerState<AppShell> {
   Widget build(BuildContext context) {
     final selected = ref.watch(selectedDestinationProvider);
     final settingsOpen = ref.watch(settingsOpenProvider);
+    final useRail =
+        ref.watch(shellLayoutModeProvider) == ShellLayoutMode.desktop;
     _ensureTicker(ref.watch(clockProvider));
-    _updateLayoutMode(MediaQuery.sizeOf(context).width);
 
-    final settingsInContent = settingsOpen && _useRail;
-    final wantsRoute = settingsOpen && !_useRail;
+    final settingsInContent = settingsOpen && useRail;
+    final wantsRoute = settingsOpen && !useRail;
     if (wantsRoute != (_settingsRoute != null)) {
       _scheduleReconcile();
     }
@@ -150,13 +132,12 @@ class _AppShellState extends ConsumerState<AppShell> {
       ],
     );
 
-    final body = _useRail
+    final body = useRail
         ? _RailLayout(
             key: const ValueKey('rail'),
             content: content,
             selectedIndex: settingsInContent ? _settingsIndex : selected.index,
             onDestinationSelected: select,
-            extended: _extended,
           )
         : _BottomBarLayout(
             key: const ValueKey('bottom-nav'),
@@ -165,7 +146,7 @@ class _AppShellState extends ConsumerState<AppShell> {
             onDestinationSelected: select,
           );
 
-    return AnimatedSwitcher(duration: _layoutTransitionDuration, child: body);
+    return body;
   }
 }
 
@@ -247,13 +228,11 @@ class _RailLayout extends StatelessWidget {
     required this.content,
     required this.selectedIndex,
     required this.onDestinationSelected,
-    required this.extended,
   });
 
   final Widget content;
   final int selectedIndex;
   final ValueChanged<int> onDestinationSelected;
-  final bool extended;
 
   static const _railDividerWidth = 1.0;
 
@@ -273,10 +252,8 @@ class _RailLayout extends StatelessWidget {
     final rail = NavigationRail(
       selectedIndex: selectedIndex,
       onDestinationSelected: onDestinationSelected,
-      labelType: extended
-          ? NavigationRailLabelType.none
-          : NavigationRailLabelType.all,
-      extended: extended,
+      labelType: NavigationRailLabelType.all,
+      extended: false,
       destinations: destinations,
     );
     final pane = Expanded(child: content);

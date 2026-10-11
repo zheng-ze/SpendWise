@@ -30,6 +30,8 @@ const _repairLabel = 'Sync needs attention - Repair Device Access';
 
 const _compact = Size(400, 800);
 
+const _desktopMinWidth = 720.0;
+
 final _statusStateProvider = StateProvider<HostedSyncStatus>(
   (ref) => const HostedSyncNoSelection(),
 );
@@ -59,6 +61,7 @@ pumpShell(
   HostedSyncStatus? status = const HostedSyncNoSelection(),
   BannerState? banner,
   Size size = _compact,
+  ShellLayoutMode? layoutMode,
   SyncEnrollmentPhase? seedPhase,
   List<SettingsStep>? settingsSteps,
 }) async {
@@ -76,6 +79,12 @@ pumpShell(
   final container = ProviderContainer(
     overrides: [
       ledgerProvider.overrideWithValue(_buildLedger()),
+      shellLayoutModeProvider.overrideWithValue(
+        layoutMode ??
+            (size.width >= _desktopMinWidth
+                ? ShellLayoutMode.desktop
+                : ShellLayoutMode.phone),
+      ),
       if (status != null)
         hostedSyncStatusProvider.overrideWith(
           (ref) => ref.watch(_statusStateProvider),
@@ -280,8 +289,11 @@ void main() {
     final navBar = tester.getRect(find.byType(NavigationBar));
     expect(bottomNavBanner.bottom, lessThanOrEqualTo(navBar.top));
 
-    tester.view.physicalSize = const Size(900, 800);
-    await tester.pumpAndSettle();
+    await pumpShell(
+      tester,
+      status: const HostedSyncBindingRepair(),
+      size: const Size(900, 800),
+    );
     expect(find.byType(NavigationRail), findsOneWidget);
     final railBanner = tester.getRect(_bannerSurface());
     expect(railBanner.bottom, lessThanOrEqualTo(800 - 34));
