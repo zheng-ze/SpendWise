@@ -39,12 +39,17 @@ Future<void> _openRepairRoute(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
-Future<ProviderContainer> _pumpRepair(WidgetTester tester, Size size) async {
+Future<ProviderContainer> _pumpRepair(
+  WidgetTester tester,
+  Size size,
+  ShellLayoutMode layoutMode,
+) async {
   final harness = await pumpShell(
     tester,
     status: const HostedSyncBindingRepair(),
     seedPhase: SyncEnrollmentPhase.bindingAuthorizationRequired,
     size: size,
+    layoutMode: layoutMode,
   );
   return harness.container;
 }
@@ -75,7 +80,11 @@ void main() {
     testWidgets('the Settings item opens one root route and sets the flag', (
       tester,
     ) async {
-      final harness = await pumpShell(tester, status: null);
+      final harness = await pumpShell(
+        tester,
+        status: null,
+        layoutMode: ShellLayoutMode.phone,
+      );
 
       await _openSettingsItem(tester);
 
@@ -92,7 +101,11 @@ void main() {
     testWidgets('the back control clears the flag and removes the route', (
       tester,
     ) async {
-      final harness = await pumpShell(tester, status: null);
+      final harness = await pumpShell(
+        tester,
+        status: null,
+        layoutMode: ShellLayoutMode.phone,
+      );
       await _openSettingsItem(tester);
 
       await tester.tap(find.byTooltip('Transactions'));
@@ -106,7 +119,11 @@ void main() {
     testWidgets('Android back at the Settings root clears the flag', (
       tester,
     ) async {
-      final harness = await pumpShell(tester, status: null);
+      final harness = await pumpShell(
+        tester,
+        status: null,
+        layoutMode: ShellLayoutMode.phone,
+      );
       await _openSettingsItem(tester);
 
       await tester.binding.handlePopRoute();
@@ -119,7 +136,11 @@ void main() {
     testWidgets('removing the route with removeRoute leaves the flag true', (
       tester,
     ) async {
-      final harness = await pumpShell(tester, status: null);
+      final harness = await pumpShell(
+        tester,
+        status: null,
+        layoutMode: ShellLayoutMode.phone,
+      );
       await _openSettingsItem(tester);
       final route = ModalRoute.of(tester.element(find.byType(SettingsFlow)))!;
 
@@ -135,7 +156,11 @@ void main() {
 
     testWidgets('closing Settings with a fresh enrollment route open clears '
         'it and the next open shows the Settings root', (tester) async {
-      final harness = await pumpShell(tester, status: null);
+      final harness = await pumpShell(
+        tester,
+        status: null,
+        layoutMode: ShellLayoutMode.phone,
+      );
       await _openSettingsItem(tester);
       await _openFreshEnrollment(tester);
       expect(find.byType(SyncEnrollmentFlow), findsOneWidget);
@@ -161,6 +186,7 @@ void main() {
       final harness = await pumpShell(
         tester,
         status: const HostedSyncBindingRepair(),
+        layoutMode: ShellLayoutMode.phone,
         seedPhase: SyncEnrollmentPhase.bindingAuthorizationRequired,
       );
 
@@ -176,7 +202,12 @@ void main() {
 
     testWidgets('a save problem shows above phone Settings', (tester) async {
       final banner = BannerState();
-      await pumpShell(tester, status: null, banner: banner);
+      await pumpShell(
+        tester,
+        status: null,
+        layoutMode: ShellLayoutMode.phone,
+        banner: banner,
+      );
       await _openSettingsItem(tester);
 
       banner.receiveSaveState(SaveBannerState.retrying);
@@ -190,6 +221,7 @@ void main() {
       await pumpShell(
         tester,
         status: const HostedSyncBindingRepair(),
+        layoutMode: ShellLayoutMode.phone,
         seedPhase: SyncEnrollmentPhase.bindingAuthorizationRequired,
       );
       await _openRepairRoute(tester);
@@ -203,6 +235,7 @@ void main() {
       final harness = await pumpShell(
         tester,
         status: const HostedSyncBindingRepair(),
+        layoutMode: ShellLayoutMode.phone,
         settingsSteps: steps,
       );
       harness.container.read(enrollmentFlowOpenProvider.notifier).state = true;
@@ -221,7 +254,12 @@ void main() {
     testWidgets('the Settings item shows Settings in the content area', (
       tester,
     ) async {
-      final harness = await pumpShell(tester, status: null, size: _desktop);
+      final harness = await pumpShell(
+        tester,
+        status: null,
+        size: _desktop,
+        layoutMode: ShellLayoutMode.desktop,
+      );
 
       await _openSettingsItem(tester);
 
@@ -233,7 +271,12 @@ void main() {
     testWidgets('Android back at the Settings root clears the flag', (
       tester,
     ) async {
-      final harness = await pumpShell(tester, status: null, size: _desktop);
+      final harness = await pumpShell(
+        tester,
+        status: null,
+        size: _desktop,
+        layoutMode: ShellLayoutMode.desktop,
+      );
       await _openSettingsItem(tester);
 
       await tester.binding.handlePopRoute();
@@ -244,7 +287,12 @@ void main() {
     });
 
     testWidgets('selecting a destination clears the flag', (tester) async {
-      final harness = await pumpShell(tester, status: null, size: _desktop);
+      final harness = await pumpShell(
+        tester,
+        status: null,
+        size: _desktop,
+        layoutMode: ShellLayoutMode.desktop,
+      );
       await _openSettingsItem(tester);
 
       await tester.tap(find.text('Stats'));
@@ -260,7 +308,12 @@ void main() {
 
     testWidgets('switching destination with a fresh enrollment route open '
         'clears it and the next open shows the Settings root', (tester) async {
-      final harness = await pumpShell(tester, status: null, size: _desktop);
+      final harness = await pumpShell(
+        tester,
+        status: null,
+        size: _desktop,
+        layoutMode: ShellLayoutMode.desktop,
+      );
       await _openSettingsItem(tester);
       await _openFreshEnrollment(tester);
       expect(harness.container.read(enrollmentFlowOpenProvider), isTrue);
@@ -285,6 +338,7 @@ void main() {
         status: const HostedSyncBindingRepair(),
         seedPhase: SyncEnrollmentPhase.bindingAuthorizationRequired,
         size: _desktop,
+        layoutMode: ShellLayoutMode.desktop,
       );
 
       await tester.tap(find.text(_repairLabel));
@@ -301,7 +355,11 @@ void main() {
   group('resize with Settings open', () {
     testWidgets('resizing to a desktop width keeps one Settings and one '
         'enrollment route without switching layout', (tester) async {
-      final harness = await pumpShell(tester, status: null);
+      final harness = await pumpShell(
+        tester,
+        status: null,
+        layoutMode: ShellLayoutMode.phone,
+      );
       await _openSettingsItem(tester);
       await _openFreshEnrollment(tester);
 
@@ -314,7 +372,12 @@ void main() {
 
     testWidgets('resizing to a phone width keeps one Settings and one '
         'enrollment route without switching layout', (tester) async {
-      final harness = await pumpShell(tester, status: null, size: _desktop);
+      final harness = await pumpShell(
+        tester,
+        status: null,
+        size: _desktop,
+        layoutMode: ShellLayoutMode.desktop,
+      );
       await _openSettingsItem(tester);
       await _openFreshEnrollment(tester);
 
@@ -327,7 +390,11 @@ void main() {
 
     testWidgets('resizing between 680 and 720 keeps the open Settings '
         'in place', (tester) async {
-      final harness = await pumpShell(tester, status: null);
+      final harness = await pumpShell(
+        tester,
+        status: null,
+        layoutMode: ShellLayoutMode.phone,
+      );
       await _openSettingsItem(tester);
 
       await _resize(tester, const Size(700, 800));
@@ -342,7 +409,11 @@ void main() {
     testWidgets('destination switch on desktop closes an open repair route', (
       tester,
     ) async {
-      final container = await _pumpRepair(tester, _desktop);
+      final container = await _pumpRepair(
+        tester,
+        _desktop,
+        ShellLayoutMode.desktop,
+      );
       await _openRepairRoute(tester);
       _expectOneRepairRoute(tester);
 
@@ -359,7 +430,11 @@ void main() {
     testWidgets('closing Settings on phone closes an open repair route', (
       tester,
     ) async {
-      final container = await _pumpRepair(tester, _phone);
+      final container = await _pumpRepair(
+        tester,
+        _phone,
+        ShellLayoutMode.phone,
+      );
       await _openRepairRoute(tester);
 
       tester.widget<SettingsFlow>(find.byType(SettingsFlow)).onEnded!();
@@ -375,7 +450,11 @@ void main() {
     testWidgets('phone to desktop hands the repair route over once', (
       tester,
     ) async {
-      final container = await _pumpRepair(tester, _phone);
+      final container = await _pumpRepair(
+        tester,
+        _phone,
+        ShellLayoutMode.phone,
+      );
       await _openRepairRoute(tester);
 
       await _resize(tester, _desktop);
@@ -388,7 +467,11 @@ void main() {
     testWidgets('desktop to phone hands the repair route over once', (
       tester,
     ) async {
-      final container = await _pumpRepair(tester, _desktop);
+      final container = await _pumpRepair(
+        tester,
+        _desktop,
+        ShellLayoutMode.desktop,
+      );
       await _openRepairRoute(tester);
 
       await _resize(tester, _phone);
@@ -400,7 +483,11 @@ void main() {
 
     testWidgets('a repair tap during an unsettled transition opens one '
         'repair route', (tester) async {
-      final container = await _pumpRepair(tester, _desktop);
+      final container = await _pumpRepair(
+        tester,
+        _desktop,
+        ShellLayoutMode.desktop,
+      );
 
       tester.view.physicalSize = _phone;
       await tester.pump();
@@ -416,7 +503,12 @@ void main() {
 
     testWidgets('closing and reopening Settings before the outgoing layout '
         'disposes does not reopen the enrollment route', (tester) async {
-      final harness = await pumpShell(tester, status: null, size: _desktop);
+      final harness = await pumpShell(
+        tester,
+        status: null,
+        size: _desktop,
+        layoutMode: ShellLayoutMode.desktop,
+      );
       final container = harness.container;
       await _openSettingsItem(tester);
       await _openFreshEnrollment(tester);
@@ -446,6 +538,7 @@ void main() {
         tester,
         status: const HostedSyncBindingRepair(),
         size: _desktop,
+        layoutMode: ShellLayoutMode.desktop,
       );
       final container = harness.container;
       expect(find.text(_repairLabel), findsOneWidget);

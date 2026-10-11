@@ -64,13 +64,13 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   signal. The Settings navigation item and the repair banner tap set it true. It is cleared in
   exactly two places: the `onEnded` callback of `SettingsFlow` (back control or Android back at the
   Settings root, through `goBack`) and selecting a destination. No route-level pop callback writes
-  it, so `Navigator.removeRoute` leaves it true. `AppShell` alone materialises the signal. Below the
-  rail threshold it pushes exactly one settings route on the root navigator when the flag turns true,
+  it, so `Navigator.removeRoute` leaves it true. `AppShell` alone materialises the signal. In phone
+  mode it pushes exactly one settings route on the root navigator when the flag turns true,
   with the current destination's label as the back label and its own `StatusBanner` over the
   `SettingsFlow` (the shell's banner is covered), and removes it with
-  `Navigator.removeRoute` when the flag turns false. At the rail threshold or wider it shows
-  `SettingsFlow` in the content area instead of the selected destination; the rail and the 720/680
-  hysteresis come from `layout_breakpoints.dart`. `SettingsFlow` is mounted only while shown and
+  `Navigator.removeRoute` when the flag turns false. In desktop mode it shows
+  `SettingsFlow` in the content area instead of the selected destination; the phone or desktop
+  layout comes from `shellLayoutModeProvider`. `SettingsFlow` is mounted only while shown and
   refreshes the hosted sync status in `initState`.
 - **Close or hand-over at dispose** - `SettingsFlow.dispose` reads nothing from `ref`. It schedules one
   microtask using the captured `ProviderContainer` and `StateController`. If

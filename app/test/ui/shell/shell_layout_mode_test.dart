@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -95,14 +96,15 @@ void main() {
     expect(find.byType(NavigationBar), findsNothing);
   });
 
-  test('the mode resolves once per container', () {
+  test('the mode persists for the container lifetime', () {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
     final container = ProviderContainer();
     addTearDown(container.dispose);
 
-    expect(container.read(shellLayoutModeProvider), isNotNull);
-    expect(
-      container.read(shellLayoutModeProvider),
-      container.read(shellLayoutModeProvider),
-    );
+    expect(container.read(shellLayoutModeProvider), ShellLayoutMode.phone);
+
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    expect(container.read(shellLayoutModeProvider), ShellLayoutMode.phone);
   });
 }

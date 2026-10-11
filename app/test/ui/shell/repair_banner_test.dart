@@ -30,8 +30,6 @@ const _repairLabel = 'Sync needs attention - Repair Device Access';
 
 const _compact = Size(400, 800);
 
-const _desktopMinWidth = 720.0;
-
 final _statusStateProvider = StateProvider<HostedSyncStatus>(
   (ref) => const HostedSyncNoSelection(),
 );
@@ -61,7 +59,7 @@ pumpShell(
   HostedSyncStatus? status = const HostedSyncNoSelection(),
   BannerState? banner,
   Size size = _compact,
-  ShellLayoutMode? layoutMode,
+  required ShellLayoutMode layoutMode,
   SyncEnrollmentPhase? seedPhase,
   List<SettingsStep>? settingsSteps,
 }) async {
@@ -79,12 +77,7 @@ pumpShell(
   final container = ProviderContainer(
     overrides: [
       ledgerProvider.overrideWithValue(_buildLedger()),
-      shellLayoutModeProvider.overrideWithValue(
-        layoutMode ??
-            (size.width >= _desktopMinWidth
-                ? ShellLayoutMode.desktop
-                : ShellLayoutMode.phone),
-      ),
+      shellLayoutModeProvider.overrideWithValue(layoutMode),
       if (status != null)
         hostedSyncStatusProvider.overrideWith(
           (ref) => ref.watch(_statusStateProvider),
@@ -147,7 +140,11 @@ void main() {
   testWidgets('binding repair shows the persistent repair banner', (
     tester,
   ) async {
-    await pumpShell(tester, status: const HostedSyncBindingRepair());
+    await pumpShell(
+      tester,
+      status: const HostedSyncBindingRepair(),
+      layoutMode: ShellLayoutMode.phone,
+    );
 
     expect(find.text(_repairLabel), findsOneWidget);
   });
@@ -155,7 +152,11 @@ void main() {
   testWidgets('session reauth shows the persistent repair banner', (
     tester,
   ) async {
-    await pumpShell(tester, status: const HostedSyncSessionReauth());
+    await pumpShell(
+      tester,
+      status: const HostedSyncSessionReauth(),
+      layoutMode: ShellLayoutMode.phone,
+    );
 
     expect(find.text(_repairLabel), findsOneWidget);
   });
@@ -169,7 +170,11 @@ void main() {
       const HostedSyncUnavailable(),
     ];
     for (final status in cases) {
-      await pumpShell(tester, status: status);
+      await pumpShell(
+        tester,
+        status: status,
+        layoutMode: ShellLayoutMode.phone,
+      );
       expect(find.text(_repairLabel), findsNothing);
     }
   });
@@ -180,6 +185,7 @@ void main() {
     final harness = await pumpShell(
       tester,
       status: const HostedSyncBindingRepair(),
+      layoutMode: ShellLayoutMode.phone,
       seedPhase: SyncEnrollmentPhase.bindingAuthorizationRequired,
     );
     final container = harness.container;
@@ -199,6 +205,7 @@ void main() {
     final harness = await pumpShell(
       tester,
       status: const HostedSyncBindingRepair(),
+      layoutMode: ShellLayoutMode.phone,
       banner: banner,
     );
     final container = harness.container;
@@ -221,6 +228,7 @@ void main() {
     await pumpShell(
       tester,
       status: const HostedSyncBindingRepair(),
+      layoutMode: ShellLayoutMode.phone,
       seedPhase: SyncEnrollmentPhase.bindingAuthorizationRequired,
     );
 
@@ -236,6 +244,7 @@ void main() {
     final harness = await pumpShell(
       tester,
       status: const HostedSyncBindingRepair(),
+      layoutMode: ShellLayoutMode.phone,
       seedPhase: SyncEnrollmentPhase.bindingAuthorizationRequired,
     );
 
@@ -263,6 +272,7 @@ void main() {
     await pumpShell(
       tester,
       status: const HostedSyncBindingRepair(),
+      layoutMode: ShellLayoutMode.phone,
       seedPhase: SyncEnrollmentPhase.bindingAuthorizationRequired,
     );
     await tester.tap(find.text(_repairLabel));
@@ -284,7 +294,11 @@ void main() {
     addTearDown(tester.view.resetPadding);
     addTearDown(tester.view.resetViewPadding);
 
-    await pumpShell(tester, status: const HostedSyncBindingRepair());
+    await pumpShell(
+      tester,
+      status: const HostedSyncBindingRepair(),
+      layoutMode: ShellLayoutMode.phone,
+    );
     final bottomNavBanner = tester.getRect(_bannerSurface());
     final navBar = tester.getRect(find.byType(NavigationBar));
     expect(bottomNavBanner.bottom, lessThanOrEqualTo(navBar.top));
@@ -293,6 +307,7 @@ void main() {
       tester,
       status: const HostedSyncBindingRepair(),
       size: const Size(900, 800),
+      layoutMode: ShellLayoutMode.desktop,
     );
     expect(find.byType(NavigationRail), findsOneWidget);
     final railBanner = tester.getRect(_bannerSurface());
@@ -300,7 +315,11 @@ void main() {
   });
 
   testWidgets('the repair banner has no dismiss affordance', (tester) async {
-    await pumpShell(tester, status: const HostedSyncBindingRepair());
+    await pumpShell(
+      tester,
+      status: const HostedSyncBindingRepair(),
+      layoutMode: ShellLayoutMode.phone,
+    );
 
     expect(find.byType(Dismissible), findsNothing);
     expect(find.byIcon(Icons.close), findsNothing);
@@ -311,7 +330,11 @@ void main() {
   testWidgets('the repair banner exposes button semantics with its label', (
     tester,
   ) async {
-    await pumpShell(tester, status: const HostedSyncBindingRepair());
+    await pumpShell(
+      tester,
+      status: const HostedSyncBindingRepair(),
+      layoutMode: ShellLayoutMode.phone,
+    );
 
     expect(find.bySemanticsLabel(_repairLabel), findsOneWidget);
     expect(
