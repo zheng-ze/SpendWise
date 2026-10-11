@@ -13,7 +13,7 @@ Future<OverviewViewState> _settled(Ledger ledger) async {
   final container = overviewContainer(ledger);
   container.listen(overviewViewModelProvider, (_, _) {});
   await settleAnalysis(container, ledger);
-  return container.read(overviewViewModelProvider);
+  return container.read(overviewViewModelProvider).requireValue;
 }
 
 void main() {
@@ -48,7 +48,7 @@ void main() {
       container.listen(overviewViewModelProvider, (_, _) {});
       await pumpEventQueue();
 
-      final viewState = container.read(overviewViewModelProvider);
+      final viewState = container.read(overviewViewModelProvider).requireValue;
 
       expect(viewState.today, isNull);
       expect(viewState.recent, isNotEmpty);
@@ -68,36 +68,46 @@ void main() {
       );
       container.listen(overviewViewModelProvider, (_, _) {});
       await pumpEventQueue();
-      expect(container.read(overviewViewModelProvider).todayFailed, isTrue);
+      expect(
+        container.read(overviewViewModelProvider).requireValue.todayFailed,
+        isTrue,
+      );
 
       failing = false;
       container.read(overviewViewModelProvider.notifier).retryToday();
       await settleAnalysis(container, ledger);
 
-      final viewState = container.read(overviewViewModelProvider);
+      final viewState = container.read(overviewViewModelProvider).requireValue;
       expect(viewState.todayFailed, isFalse);
       expect(viewState.today!.spent, Decimal.parse('45.70'));
     });
 
-    test('does not claim an entry today before Today catches up', () async {
-      final ledger = Ledger(state: emptyState());
-      final pending = Completer<List<AnalysisItem>>();
-      var calls = 0;
-      final container = overviewContainer(
-        ledger,
-        runner: (state) =>
-            ++calls == 1 ? syncComputeRunner(state) : pending.future,
-      );
-      container.listen(overviewViewModelProvider, (_, _) {});
-      await settleAnalysis(container, ledger);
+    test(
+      'shows Today as loading until it catches up with the ledger',
+      () async {
+        final ledger = Ledger(state: emptyState());
+        final pending = Completer<List<AnalysisItem>>();
+        var calls = 0;
+        final container = overviewContainer(
+          ledger,
+          runner: (state) =>
+              ++calls == 1 ? syncComputeRunner(state) : pending.future,
+        );
+        container.listen(overviewViewModelProvider, (_, _) {});
+        await settleAnalysis(container, ledger);
 
-      ledger.addEntry(entry(1, '-5.00', fixtureToday, categoryID: groceriesID));
-      await pumpEventQueue();
+        ledger.addEntry(
+          entry(1, '-5.00', fixtureToday, categoryID: groceriesID),
+        );
+        await pumpEventQueue();
 
-      final viewState = container.read(overviewViewModelProvider);
-      expect(viewState.recent, hasLength(1));
-      expect(viewState.recordedToday, isFalse);
-    });
+        final viewState = container
+            .read(overviewViewModelProvider)
+            .requireValue;
+        expect(viewState.recent, hasLength(1));
+        expect(viewState.today, isNull);
+      },
+    );
   });
 
   group('Recent entries', () {
@@ -154,7 +164,7 @@ void main() {
       ledger.addEntry(entry(9, '-1.00', fixtureToday, name: 'Newest'));
       await settleAnalysis(container, ledger);
 
-      final viewState = container.read(overviewViewModelProvider);
+      final viewState = container.read(overviewViewModelProvider).requireValue;
       expect(viewState.recent!.first.title, 'Newest');
       expect(viewState.today!.spent, Decimal.parse('46.70'));
     });

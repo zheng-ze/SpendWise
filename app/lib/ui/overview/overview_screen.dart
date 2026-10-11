@@ -53,7 +53,11 @@ class OverviewScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final viewState = ref.watch(overviewViewModelProvider);
+    final viewState = ref.watch(overviewViewModelProvider).value;
+    final viewModel = ref.watch(overviewViewModelProvider.notifier);
+    if (viewState == null) {
+      return const Scaffold(body: LoadingSkeleton());
+    }
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -62,7 +66,7 @@ class OverviewScreen extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _OverviewHeader(day: viewState.day),
-              _TodayTray(viewState: viewState),
+              _TodayTray(viewState: viewState, viewModel: viewModel),
               const SizedBox(height: _trayGap),
               _RecentTray(rows: viewState.recent),
               const SizedBox(height: _trayGap),
@@ -115,9 +119,10 @@ class _OverviewHeader extends StatelessWidget {
 }
 
 class _TodayTray extends StatelessWidget {
-  const _TodayTray({required this.viewState});
+  const _TodayTray({required this.viewState, required this.viewModel});
 
   final OverviewViewState viewState;
+  final OverviewViewModel viewModel;
 
   static const _padding = 14.0;
   static const _borderWidth = 1.0;
@@ -137,7 +142,7 @@ class _TodayTray extends StatelessWidget {
     final today = viewState.today;
     final Widget content;
     if (viewState.todayFailed) {
-      content = const _TodayError();
+      content = _TodayError(viewModel: viewModel);
     } else if (today == null) {
       content = const LoadingSkeleton();
     } else {
@@ -162,13 +167,15 @@ class _TodayTray extends StatelessWidget {
   }
 }
 
-class _TodayError extends ConsumerWidget {
-  const _TodayError();
+class _TodayError extends StatelessWidget {
+  const _TodayError({required this.viewModel});
+
+  final OverviewViewModel viewModel;
 
   static const _messageGap = 10.0;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -181,10 +188,7 @@ class _TodayError extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: _messageGap),
-        PrimaryButton(
-          label: _retryLabel,
-          onPressed: ref.read(overviewViewModelProvider.notifier).retryToday,
-        ),
+        PrimaryButton(label: _retryLabel, onPressed: viewModel.retryToday),
       ],
     );
   }

@@ -11,8 +11,8 @@ renders its own copy for an empty ledger, and a section whose read has not settl
 
 ## Key files
 
-- `app/lib/ui/overview/overview_view_model.dart` - `OverviewNotifier` (`overviewViewModelProvider`),
-  `OverviewViewState`, and the row types `OverviewEntryRow` and `OverviewUpcomingRow`.
+- `app/lib/ui/overview/overview_view_model.dart` - `OverviewViewModel` (abstract), `OverviewNotifier`
+  (`AsyncNotifier` with `LedgerBackedNotifier`, `overviewViewModelProvider`), `OverviewViewState`, and the row types `OverviewEntryRow` and `OverviewUpcomingRow`.
 - `app/lib/ui/overview/overview_screen.dart` - `OverviewScreen` and its standalone section widgets.
 - `app/lib/ui/overview/overview_flow.dart` - `OverviewFlow` (`FlowBase`) with an empty `OverviewStep`.
 - `app/lib/ledger/analysis/today_summary.dart` - `TodaySummary` carries `spent`, `dailyGuide` and
@@ -25,15 +25,15 @@ renders its own copy for an empty ledger, and a section whose read has not settl
 ## Module interactions
 
 `OverviewNotifier.build` watches `todayProvider`, `analysisQueriesProvider` and
-`ledgerSessionProvider`, so it rebuilds on every `AnalysisQueries` notification and on day change.
+`ledgerSessionProvider` (through `LedgerBackedNotifier`), so it rebuilds on every `AnalysisQueries` notification and on day change.
 It calls `readToday()`, `readRecent()` and `readUpcoming()` and maps the results. `readToday()` is a
-mixed read, so its value is null until the cache accepts the current Ledger revision; `readRecent()`
+mixed read, so the view state carries `today` only while the read is current for the Ledger revision
+and otherwise null, which renders the Today skeleton instead of a stale summary; `readRecent()`
 and `readUpcoming()` depend on the Ledger only and are available at once. A null section value
 renders a skeleton for that section alone. A failed `readToday()` renders 'Couldn't load today's
 spending' and a filled Retry in the Today tray; Retry calls `AnalysisQueries.retry()` through
-`OverviewNotifier.retryToday`. Recent entries and Coming up keep rendering. `recordedToday` is true
-only when `readToday()` is current for the Ledger revision, so a new first entry never shows
-'S$0.00' while Today is still computing.
+`OverviewNotifier.retryToday`. Recent entries and Coming up keep rendering. `recordedToday` is
+read only beside a current Today summary, so the empty headline never appears over stale data.
 
 ## Read definitions
 

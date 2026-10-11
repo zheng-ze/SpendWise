@@ -6,6 +6,7 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
 import 'package:spendwise/ledger/analysis/today_summary.dart';
 import 'package:spendwise/ledger/analysis/upcoming.dart';
+import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/transactions/daily_list/transaction_row.dart';
@@ -73,13 +74,19 @@ class OverviewViewState {
   final bool recordedToday;
 }
 
-class OverviewNotifier extends Notifier<OverviewViewState> {
+abstract class OverviewViewModel {
+  void retryToday();
+}
+
+class OverviewNotifier extends AsyncNotifier<OverviewViewState>
+    with LedgerBackedNotifier<OverviewViewState>
+    implements OverviewViewModel {
   @override
-  OverviewViewState build() {
+  Future<OverviewViewState> build() async {
     final day = ref.watch(todayProvider);
+    final currentLedger = ledger;
     final queries = ref.watch(analysisQueriesProvider);
-    final session = ref.watch(ledgerSessionProvider);
-    if (queries == null || session == null) {
+    if (queries == null) {
       return OverviewViewState(
         day: day,
         today: null,
@@ -87,26 +94,30 @@ class OverviewNotifier extends Notifier<OverviewViewState> {
         upcoming: null,
       );
     }
-    final ledger = session.ledger.state;
+    final ledgerState = currentLedger.state;
     final recent = queries.readRecent().value;
     final upcoming = queries.readUpcoming().value;
     final today = queries.readToday();
-    final todayIsCurrent = today.sourceRevision == session.ledger.revision;
+    final todayIsCurrent = today.sourceRevision == currentLedger.revision;
     final newest = recent?.firstOrNull;
     return OverviewViewState(
       day: day,
-      today: today.value,
+      today: todayIsCurrent ? today.value : null,
       todayFailed: today.state == AnalysisQueryState.failed,
-      recordedToday: todayIsCurrent && newest?.entry.date == day,
+      recordedToday: newest?.entry.date == day,
       recent: recent == null
           ? null
-          : [for (final record in recent) _entryRow(record.entry, ledger, day)],
+          : [
+              for (final record in recent)
+                _entryRow(record.entry, ledgerState, day),
+            ],
       upcoming: upcoming == null
           ? null
-          : [for (final item in upcoming) _upcomingRow(item, ledger)],
+          : [for (final item in upcoming) _upcomingRow(item, ledgerState)],
     );
   }
 
+  @override
   void retryToday() => ref.read(analysisQueriesProvider)?.retry();
 }
 
@@ -170,4 +181,6 @@ OverviewUpcomingRow _datedRow(
 }
 
 final overviewViewModelProvider =
-    NotifierProvider<OverviewNotifier, OverviewViewState>(OverviewNotifier.new);
+    AsyncNotifierProvider<OverviewNotifier, OverviewViewState>(
+      OverviewNotifier.new,
+    );
