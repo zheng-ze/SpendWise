@@ -65,8 +65,9 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   keyed `IndexedStack`, with `SettingsFlow` built without `backLabel` or `onEnded`, so its root
   screen shows no back control. Selecting Settings only writes `selectedDestinationProvider`. Back
   pops Settings child routes; at the root it preserves the selection. Switching destinations retains
-  Settings and any open enrollment route. Settings refreshes the hosted sync status on mount and
-  after an enrollment route closes. (`app/lib/ui/shell/app_shell.dart`,
+  Settings and any open enrollment route. Settings refreshes the hosted sync status on mount,
+  whenever Settings becomes the selected destination (a `selectedDestinationProvider` listener),
+  and after an enrollment route closes. (`app/lib/ui/shell/app_shell.dart`,
   `app/lib/ui/shell/shell_providers.dart`, `app/lib/ui/shell/boot_chrome.dart`,
   `app/lib/ui/settings/settings_flow.dart`)
 - **Destination Back activity** - `DestinationActivity` (`app/lib/ui/common/flow_base.dart`) is a

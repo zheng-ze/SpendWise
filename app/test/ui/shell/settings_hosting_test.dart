@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,12 +13,13 @@ import 'package:spendwise/ui/settings/plan/plan_list_screen.dart';
 import 'package:spendwise/ui/settings/recycle_bin/recycle_bin_screen.dart';
 import 'package:spendwise/ui/settings/settings_flow.dart';
 import 'package:spendwise/ui/settings/settings_root_view_model.dart';
+import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_flow.dart';
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_screens.dart';
 
 import '../sync/enrollment/sync_enrollment_flow_test.dart' show pumpFlowFrames;
-import 'repair_banner_test.dart' show pumpShell;
+import 'repair_banner_test.dart' show createEnrollmentContainer, pumpShell;
 
 const _desktop = Size(1200, 800);
 const _hostedTile = Key('hostedSyncStatus');
@@ -104,14 +107,24 @@ void main() {
         tester,
         status: null,
         layoutMode: ShellLayoutMode.phone,
+        bodies: {ShellDestination.stats: (context) => const _HoldingFlow()},
       );
       await _openSettingsItem(tester);
-
-      await tester.binding.handlePopRoute();
+      final holdingRoot = tester.element(
+        find.text('holding body', skipOffstage: false),
+      );
+      Navigator.of(holdingRoot).push(
+        MaterialPageRoute<void>(builder: (_) => const Text('stats detail')),
+      );
       await tester.pumpAndSettle();
 
+      final handled = await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+
+      expect(handled, isTrue);
       _expectSelectedSettings(harness.container);
       expect(find.byType(SettingsFlow), findsOneWidget);
+      expect(find.text('stats detail', skipOffstage: false), findsOneWidget);
     });
 
     testWidgets(
@@ -161,6 +174,37 @@ void main() {
       expect(find.byKey(_hostedTile), findsOneWidget);
     });
 
+    testWidgets(
+      'system Back with a root dialog open dismisses only the dialog',
+      (tester) async {
+        final harness = await pumpShell(
+          tester,
+          status: null,
+          layoutMode: ShellLayoutMode.phone,
+        );
+        await _openSettingsItem(tester);
+        await tester.tap(find.text('Categories'));
+        await tester.pumpAndSettle();
+
+        unawaited(
+          showDialog<void>(
+            context: tester.element(find.byType(AppShell)),
+            builder: (_) => const Text('root dialog'),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('root dialog'), findsOneWidget);
+
+        final handled = await tester.binding.handlePopRoute();
+        await tester.pumpAndSettle();
+
+        expect(handled, isTrue);
+        expect(find.text('root dialog'), findsNothing);
+        expect(find.byType(CategoryListScreen), findsOneWidget);
+        _expectSelectedSettings(harness.container);
+      },
+    );
+
     testWidgets('a fresh enrollment opens one route and closes cleanly', (
       tester,
     ) async {
@@ -181,6 +225,71 @@ void main() {
       expect(find.byType(SyncEnrollmentFlow), findsNothing);
       expect(find.byKey(_hostedTile), findsOneWidget);
       _expectClosedCleanly(harness.container);
+    });
+
+    testWidgets(
+      'completing an enrollment route refreshes status and releases the guard',
+      (tester) async {
+        final harness = await pumpShell(
+          tester,
+          status: null,
+          layoutMode: ShellLayoutMode.phone,
+        );
+        await harness.metadataStore.setBackendSelection(
+          backend: SyncBackendKind.supabase,
+        );
+        await harness.metadataStore.enterBindingAuthorizationRequired();
+        await _openSettingsItem(tester);
+        expect(find.text('Binding repair needed'), findsOneWidget);
+
+        await tester.tap(find.text('Repair Device Access'));
+        await pumpFlowFrames(tester);
+        expect(find.byType(SyncEnrollmentFlow), findsOneWidget);
+
+        await harness.metadataStore.clearBackendSelection();
+
+        await tester.binding.handlePopRoute();
+        await pumpFlowFrames(tester);
+
+        expect(find.byType(SyncEnrollmentFlow), findsNothing);
+        _expectClosedCleanly(harness.container);
+        expect(find.text('Status unavailable'), findsOneWidget);
+      },
+    );
+
+    testWidgets('selecting Settings refreshes a changed durable phase', (
+      tester,
+    ) async {
+      final harness = await pumpShell(
+        tester,
+        status: null,
+        layoutMode: ShellLayoutMode.phone,
+      );
+      expect(find.text('Not configured', skipOffstage: false), findsOneWidget);
+
+      await harness.metadataStore.setBackendSelection(
+        backend: SyncBackendKind.supabase,
+      );
+      await harness.metadataStore.enterBindingAuthorizationRequired();
+
+      await tester.tap(find.text('Stats'));
+      await tester.pumpAndSettle();
+      expect(find.text('Not configured', skipOffstage: false), findsOneWidget);
+
+      await _openSettingsItem(tester);
+      expect(find.text('Binding repair needed'), findsOneWidget);
+
+      await harness.metadataStore.clearBackendSelection();
+
+      await tester.tap(find.text('Stats'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Binding repair needed', skipOffstage: false),
+        findsOneWidget,
+      );
+
+      await _openSettingsItem(tester);
+      expect(find.text('Status unavailable'), findsOneWidget);
     });
 
     testWidgets('a repair tap selects Settings with one repair route', (
@@ -363,14 +472,24 @@ void main() {
         status: null,
         size: _desktop,
         layoutMode: ShellLayoutMode.desktop,
+        bodies: {ShellDestination.stats: (context) => const _HoldingFlow()},
       );
       await _openSettingsItem(tester);
-
-      await tester.binding.handlePopRoute();
+      final holdingRoot = tester.element(
+        find.text('holding body', skipOffstage: false),
+      );
+      Navigator.of(holdingRoot).push(
+        MaterialPageRoute<void>(builder: (_) => const Text('stats detail')),
+      );
       await tester.pumpAndSettle();
 
+      final handled = await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+
+      expect(handled, isTrue);
       _expectSelectedSettings(harness.container);
       expect(find.byType(SettingsFlow), findsOneWidget);
+      expect(find.text('stats detail', skipOffstage: false), findsOneWidget);
     });
 
     testWidgets('a repair tap selects Settings with one repair route', (
@@ -430,5 +549,39 @@ void main() {
       await tester.pump();
       expect(find.text(_repairLabel), findsOneWidget);
     });
+  });
+
+  group('pending step pickup', () {
+    testWidgets(
+      'a repair requested before mount opens one route exactly once',
+      (tester) async {
+        final created = await createEnrollmentContainer(
+          status: const HostedSyncBindingRepair(),
+          seedPhase: SyncEnrollmentPhase.bindingAuthorizationRequired,
+        );
+        created.container
+            .read(settingsRootViewModelProvider.notifier)
+            .requestRepair();
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: created.container,
+            child: const MaterialApp(home: SettingsFlow()),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byType(SyncEnrollmentFlow, skipOffstage: false),
+          findsOneWidget,
+        );
+        expect(find.byType(SyncIdentifierScreen), findsOneWidget);
+        expect(
+          created.container.read(settingsRootViewModelProvider).step,
+          isNull,
+        );
+        expect(created.container.read(enrollmentFlowOpenProvider), isTrue);
+      },
+    );
   });
 }

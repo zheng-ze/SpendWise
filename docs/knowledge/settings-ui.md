@@ -63,7 +63,8 @@ The `hostedSyncStatus` tile is tappable and shows a chevron only for `HostedSync
 opening `SyncEnrollmentFlow(repairMode: false)`, whose root is the backend picker. Other statuses
 keep the tile passive. Fresh and repair routes share `enrollmentFlowOpenProvider` to prevent
 duplicate pushes across Settings Flow instances; only the instance that owns the route releases
-the guard. Hosted Sync status refreshes when `SettingsFlow` mounts and after either route closes.
+the guard. Hosted Sync status refreshes when `SettingsFlow` mounts, whenever Settings becomes
+the selected destination, and after either route closes.
 Source: `app/lib/ui/settings/settings_root_screen.dart` - `_HostedSyncSection`;
 `app/lib/ui/settings/settings_root_view_model.dart` - `StartHostedEnrollmentRequested`;
 `app/lib/ui/settings/settings_flow.dart` - `_openFreshFlow`, `_pushEnrollmentRoute`,

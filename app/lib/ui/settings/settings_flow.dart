@@ -26,12 +26,22 @@ class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
   late final StateController<bool> _enrollmentFlowOpen;
   late final ProviderContainer _container;
   bool _ownsEnrollmentRoute = false;
+  void Function()? _closeSelectionSubscription;
 
   @override
   void initState() {
     super.initState();
     _enrollmentFlowOpen = ref.read(enrollmentFlowOpenProvider.notifier);
     _container = ProviderScope.containerOf(context, listen: false);
+    _closeSelectionSubscription = ref.listenManual(
+      selectedDestinationProvider,
+      (previous, next) {
+        if (previous != ShellDestination.settings &&
+            next == ShellDestination.settings) {
+          unawaited(_refreshSyncStatus());
+        }
+      },
+    ).close;
     unawaited(_refreshSyncStatus());
     // FlowBase drops steps emitted before the navigator mounts, so re-check
     // the pending step once mounted.
@@ -46,6 +56,7 @@ class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
 
   @override
   void dispose() {
+    _closeSelectionSubscription?.call();
     final ownedRoute = _ownsEnrollmentRoute;
     _ownsEnrollmentRoute = false;
     final enrollmentFlowOpen = _enrollmentFlowOpen;

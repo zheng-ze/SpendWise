@@ -55,15 +55,12 @@ Future<
     FakeSessionOpener opener,
   })
 >
-pumpShell(
-  WidgetTester tester, {
+createEnrollmentContainer({
   HostedSyncStatus? status = const HostedSyncNoSelection(),
   BannerState? banner,
-  Size size = _compact,
-  required ShellLayoutMode layoutMode,
   SyncEnrollmentPhase? seedPhase,
   List<SettingsStep>? settingsSteps,
-  Map<ShellDestination, WidgetBuilder>? bodies,
+  ShellLayoutMode? layoutMode,
 }) async {
   SharedPreferences.setMockInitialValues({});
   final db = LedgerDatabase(NativeDatabase.memory());
@@ -79,7 +76,8 @@ pumpShell(
   final container = ProviderContainer(
     overrides: [
       ledgerProvider.overrideWithValue(_buildLedger()),
-      shellLayoutModeProvider.overrideWithValue(layoutMode),
+      if (layoutMode != null)
+        shellLayoutModeProvider.overrideWithValue(layoutMode),
       if (status != null)
         hostedSyncStatusProvider.overrideWith(
           (ref) => ref.watch(_statusStateProvider),
@@ -116,6 +114,36 @@ pumpShell(
   if (status != null) {
     container.read(_statusStateProvider.notifier).state = status;
   }
+  return (container: container, metadataStore: metadataStore, opener: opener);
+}
+
+Future<
+  ({
+    ProviderContainer container,
+    SyncMetadataStore metadataStore,
+    FakeSessionOpener opener,
+  })
+>
+pumpShell(
+  WidgetTester tester, {
+  HostedSyncStatus? status = const HostedSyncNoSelection(),
+  BannerState? banner,
+  Size size = _compact,
+  required ShellLayoutMode layoutMode,
+  SyncEnrollmentPhase? seedPhase,
+  List<SettingsStep>? settingsSteps,
+  Map<ShellDestination, WidgetBuilder>? bodies,
+}) async {
+  final created = await createEnrollmentContainer(
+    status: status,
+    banner: banner,
+    seedPhase: seedPhase,
+    settingsSteps: settingsSteps,
+    layoutMode: layoutMode,
+  );
+  final container = created.container;
+  final metadataStore = created.metadataStore;
+  final opener = created.opener;
 
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;

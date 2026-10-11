@@ -332,12 +332,15 @@ void main() {
 
     testWidgets('Back at an active root preserves every stack', (tester) async {
       await pumpProbes(tester);
+      await _pushProbeChild(tester, 'hidden');
 
-      await tester.binding.handlePopRoute();
+      final handled = await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
 
+      expect(handled, isTrue);
       expect(find.text('active'), findsOneWidget);
       expect(find.text('hidden', skipOffstage: false), findsOneWidget);
+      expect(find.text('hidden child', skipOffstage: false), findsOneWidget);
     });
 
     testWidgets('a standalone Flow keeps active Back behavior', (tester) async {
