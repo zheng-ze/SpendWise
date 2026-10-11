@@ -28,7 +28,8 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
 - `app/lib/ui/format/` - `money_format.dart`, `amount_style.dart`, `amount_input.dart`,
   `color_hex.dart`, `date_format.dart`, `amount_parse.dart`, `account_type_format.dart`.
 - Per-screen: `transactions/transactions_view_model.dart`, `stats/`, `accounts/`, `budgets/`,
-  `settings/`.
+  `settings/`, `overview/` (`OverviewFlow`, `OverviewNotifier`, `OverviewScreen`; see
+  [overview-ui.md](overview-ui.md)).
 
 ## Architecture rules
 

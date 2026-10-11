@@ -26,6 +26,7 @@ themselves. Feature entries fold in still-current legacy material when a feature
 | Categories and the on-device category classifier | [categories-and-classification.md](categories-and-classification.md) |
 | Transactions tab and entry form | [transactions-ui.md](transactions-ui.md) |
 | Stats tab and category drill-down | [stats-and-analysis-ui.md](stats-and-analysis-ui.md) |
+| Overview screen: Today, Recent entries, Coming up | [overview-ui.md](overview-ui.md) |
 | Accounts tab and account/pocket forms | [accounts-ui.md](accounts-ui.md) |
 | Settings: categories, recurring plans, recycle bin, Hosted Sync enrollment and repair, device-local display preferences | [settings-ui.md](settings-ui.md) |
 | Receipt OCR entry | [ocr-receipt-entry.md](ocr-receipt-entry.md) |
