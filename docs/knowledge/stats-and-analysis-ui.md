@@ -4,7 +4,7 @@ Last reconciled: c06d3fb
 
 ## Feature overview
 
-The Stats tab and its category drill-down. Stats renders analysis items (post-analysis-gate:
+The Stats screen, hosted by the Trends destination, and its category drill-down. Stats renders analysis items (post-analysis-gate:
 category include-gates and treat-as-expense transfer reclassification) as a donut with leader-line
 labels and a category legend, and Category Detail drills into a main category with a subcategory
 table, a trend card, and a scoped entry list. Data comes from the ready Ledger's `AnalysisCache`;
@@ -14,7 +14,7 @@ notifications (`app/lib/ui/stats/analysis/analysis_view_model.dart`,
 
 ## Key files
 
-- `app/lib/ui/stats/stats_root_view_model.dart`, `stats_flow.dart` - the tab view model and Flow.
+- `app/lib/ui/stats/stats_root_view_model.dart`, `stats_flow.dart` - the screen view model and Flow.
 - `app/lib/ui/stats/donut/` - the donut chart (leader-line labels).
 - `app/lib/ui/stats/analysis/` - slice/roll-up helpers.
 - `app/lib/ui/stats/category_detail/` - the drill-down screen and view model.
@@ -52,7 +52,7 @@ replacement Ledger's cache restarts `itemsRevision`, which can equal the previou
 
 ## Navigation
 
-The Stats Flow owns this tab's nested navigator. Category Detail is pushed with
+The Stats Flow owns the Trends destination's nested navigator. Category Detail is pushed with
 `(mainID, kind, mode, initialDate)`; it has its own date state (seeded from Stats' date) but
 inherits mode fixed - the toolbar has the `MonthYearSelector` only, no range menu. The Uncategorized
 row in the legend is not navigable.

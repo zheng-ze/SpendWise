@@ -71,8 +71,8 @@ void main() {
       ),
     );
 
-    expect(find.byType(NavigationBar), findsOneWidget);
-    expect(find.byType(NavigationRail), findsNothing);
+    expect(find.byKey(const ValueKey('phone-bar')), findsOneWidget);
+    expect(find.byKey(const ValueKey('sidebar')), findsNothing);
   });
 
   testWidgets('a provider override selects the rail on a phone width', (
@@ -92,8 +92,8 @@ void main() {
       ),
     );
 
-    expect(find.byType(NavigationRail), findsOneWidget);
-    expect(find.byType(NavigationBar), findsNothing);
+    expect(find.byKey(const ValueKey('sidebar')), findsOneWidget);
+    expect(find.byKey(const ValueKey('phone-bar')), findsNothing);
   });
 
   test('the mode persists for the container lifetime', () {

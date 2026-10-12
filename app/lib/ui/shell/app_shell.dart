@@ -4,22 +4,27 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/common/flow_base.dart';
 import 'package:spendwise/ui/shell/day_ticker.dart';
+import 'package:spendwise/ui/shell/desktop_sidebar.dart';
+import 'package:spendwise/ui/shell/phone_bar.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/shell/status_banner.dart';
 
-const _destinationLabels = {
-  ShellDestination.transactions: 'Transactions',
-  ShellDestination.stats: 'Stats',
-  ShellDestination.accounts: 'Accounts',
-  ShellDestination.settings: 'Settings',
-};
+const phoneDestinations = [
+  ShellDestination.overview,
+  ShellDestination.trends,
+  ShellDestination.money,
+  ShellDestination.settings,
+];
 
-const _destinationIcons = {
-  ShellDestination.transactions: Icons.receipt_long_outlined,
-  ShellDestination.stats: Icons.pie_chart_outline,
-  ShellDestination.accounts: Icons.account_balance_wallet_outlined,
-  ShellDestination.settings: Icons.settings_outlined,
-};
+const desktopDestinations = [
+  ShellDestination.overview,
+  ShellDestination.history,
+  ShellDestination.trends,
+  ShellDestination.money,
+  ShellDestination.settings,
+];
+
+const _fallbackStackIndex = 0;
 
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key, this.bodies = const {}});
@@ -49,166 +54,72 @@ class _AppShellState extends ConsumerState<AppShell> {
     );
   }
 
+  void _select(ShellDestination destination) {
+    ref.read(selectedDestinationProvider.notifier).state = destination;
+  }
+
   @override
   Widget build(BuildContext context) {
     final selected = ref.watch(selectedDestinationProvider);
-    final useRail =
+    final desktop =
         ref.watch(shellLayoutModeProvider) == ShellLayoutMode.desktop;
     _ensureTicker(ref.watch(clockProvider));
-
-    void select(int index) {
-      ref.read(selectedDestinationProvider.notifier).state =
-          ShellDestination.values[index];
-    }
 
     final content = Stack(
       fit: StackFit.expand,
       children: [
-        _DestinationStacks(selected: selected, bodies: widget.bodies),
+        _DestinationStacks(
+          selected: selected,
+          order: desktop ? desktopDestinations : phoneDestinations,
+          bodies: widget.bodies,
+        ),
         const StatusBanner(),
       ],
     );
 
-    return useRail
-        ? _RailLayout(
-            key: const ValueKey('rail'),
-            content: content,
-            selectedIndex: selected.index,
-            onDestinationSelected: select,
-          )
-        : _BottomBarLayout(
-            key: const ValueKey('bottom-nav'),
-            content: content,
-            selectedIndex: selected.index,
-            onDestinationSelected: select,
-          );
-  }
-}
-
-class _BottomBarLayout extends StatelessWidget {
-  const _BottomBarLayout({
-    super.key,
-    required this.content,
-    required this.selectedIndex,
-    required this.onDestinationSelected,
-  });
-
-  final Widget content;
-  final int selectedIndex;
-  final ValueChanged<int> onDestinationSelected;
-
-  @override
-  Widget build(BuildContext context) {
+    if (desktop) {
+      return Scaffold(
+        key: const ValueKey('sidebar-layout'),
+        body: Row(
+          children: [
+            DesktopSidebar(selected: selected, onDestinationSelected: _select),
+            const SidebarDivider(),
+            Expanded(child: content),
+          ],
+        ),
+      );
+    }
     return Scaffold(
-      key: const ValueKey('bottom-nav'),
+      key: const ValueKey('phone-layout'),
       body: content,
-      bottomNavigationBar: _InsetNavigationBar(
-        selectedIndex: selectedIndex,
-        onDestinationSelected: onDestinationSelected,
+      bottomNavigationBar: PhoneBar(
+        selected: selected,
+        onDestinationSelected: _select,
       ),
     );
   }
 }
 
-class _InsetNavigationBar extends StatelessWidget {
-  const _InsetNavigationBar({
-    required this.selectedIndex,
-    required this.onDestinationSelected,
-  });
-
-  final int selectedIndex;
-  final ValueChanged<int> onDestinationSelected;
-
-  static const _barCornerRadius = 20.0;
-
-  static const _barInsets = EdgeInsets.fromLTRB(8, 0, 8, 8);
-
-  @override
-  Widget build(BuildContext context) {
-    final destinations = [
-      for (final destination in ShellDestination.values)
-        NavigationDestination(
-          icon: Icon(_destinationIcons[destination]),
-          label: _destinationLabels[destination]!,
-        ),
-    ];
-    final bar = NavigationBar(
-      selectedIndex: selectedIndex,
-      onDestinationSelected: onDestinationSelected,
-      destinations: destinations,
-    );
-    final clipped = ClipRRect(
-      borderRadius: BorderRadius.circular(_barCornerRadius),
-      child: bar,
-    );
-    final unpadded = MediaQuery.removePadding(
-      context: context,
-      removeTop: true,
-      removeBottom: true,
-      child: clipped,
-    );
-    final padded = Padding(padding: _barInsets, child: unpadded);
-
-    return SafeArea(top: false, child: padded);
-  }
-}
-
-class _RailLayout extends StatelessWidget {
-  const _RailLayout({
-    super.key,
-    required this.content,
-    required this.selectedIndex,
-    required this.onDestinationSelected,
-  });
-
-  final Widget content;
-  final int selectedIndex;
-  final ValueChanged<int> onDestinationSelected;
-
-  static const _railDividerWidth = 1.0;
-
-  @override
-  Widget build(BuildContext context) {
-    final destinations = [
-      for (final destination in ShellDestination.values)
-        NavigationRailDestination(
-          icon: Icon(_destinationIcons[destination]),
-          label: Text(_destinationLabels[destination]!),
-        ),
-    ];
-    final rail = NavigationRail(
-      selectedIndex: selectedIndex,
-      onDestinationSelected: onDestinationSelected,
-      labelType: NavigationRailLabelType.all,
-      extended: false,
-      destinations: destinations,
-    );
-    final pane = Expanded(child: content);
-    final row = Row(
-      children: [
-        rail,
-        const VerticalDivider(width: _railDividerWidth),
-        pane,
-      ],
-    );
-
-    return Scaffold(key: const ValueKey('rail'), body: row);
-  }
-}
-
 class _DestinationStacks extends StatelessWidget {
-  const _DestinationStacks({required this.selected, required this.bodies});
+  const _DestinationStacks({
+    required this.selected,
+    required this.order,
+    required this.bodies,
+  });
 
   final ShellDestination selected;
+
+  final List<ShellDestination> order;
 
   final Map<ShellDestination, WidgetBuilder> bodies;
 
   @override
   Widget build(BuildContext context) {
+    final selectedIndex = order.indexOf(selected);
     return IndexedStack(
-      index: selected.index,
+      index: selectedIndex < 0 ? _fallbackStackIndex : selectedIndex,
       children: [
-        for (final destination in ShellDestination.values)
+        for (final destination in order)
           KeyedSubtree(
             key: ValueKey(destination),
             child: DestinationActivity(

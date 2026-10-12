@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/legacy.dart';
 
 import 'package:spendwise/boot/providers.dart';
 
-enum ShellDestination { transactions, stats, accounts, settings }
+enum ShellDestination { overview, history, trends, money, settings }
 
 enum ShellLayoutMode { phone, desktop }
 
@@ -33,7 +33,7 @@ final shellLayoutModeProvider = Provider<ShellLayoutMode>(
 );
 
 final selectedDestinationProvider = StateProvider<ShellDestination>(
-  (ref) => ShellDestination.transactions,
+  (ref) => ShellDestination.overview,
 );
 
 DateTime startOfMonthUtc(DateTime date) => DateTime.utc(date.year, date.month);

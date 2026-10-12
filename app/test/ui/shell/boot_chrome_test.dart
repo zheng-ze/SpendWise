@@ -8,9 +8,9 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/boot/seed_data.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/persistence/ledger_store.dart';
+import 'package:spendwise/ui/overview/overview_screen.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/boot_chrome.dart';
-import 'package:spendwise/ui/transactions/daily_list/daily_transactions_screen.dart';
 
 import '../../support/in_memory_ledger_store.dart';
 
@@ -120,7 +120,7 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsNothing);
   });
 
-  testWidgets('ready shows real content in the transactions tab, not an '
+  testWidgets('ready shows real content in the overview tab, not an '
       'empty placeholder', (tester) async {
     final factory = _GatedStoreFactory();
     await tester.pumpWidget(hostedIn(containerWith(factory)));
@@ -128,6 +128,6 @@ void main() {
     factory.succeed();
     await tester.pumpAndSettle();
 
-    expect(find.byType(TransactionsScreen), findsOneWidget);
+    expect(find.byType(OverviewScreen), findsOneWidget);
   });
 }

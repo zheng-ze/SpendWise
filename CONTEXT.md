@@ -155,7 +155,12 @@ push or a modal launch. Replaces the earlier `NavigationIntent` field. See ADR-0
 `AppShell` (`app/lib/ui/shell/app_shell.dart`) itself gets no ViewModel: its only state is
 the fixed platform layout mode (`shellLayoutModeProvider`, resolving `ShellLayoutMode.phone`
 or `ShellLayoutMode.desktop` once per run from the platform), with no
-async loading and no domain import. It mounts one Flow per destination directly, with no
+async loading and no domain import. `ShellDestination` is overview, history, trends, money and
+settings, opening on overview. Phone renders a rounded five-position bar (Overview, Trends,
+centred Add, Money, Settings) over a stable `IndexedStack` of its four destination slots; desktop
+renders a sidebar (wordmark, Overview, History, Trends, Money, Add entry, Settings at the bottom)
+over a stable `IndexedStack` of all five. The centre Add action is never selected and opens the
+shared `openNewEntry` presenter. It mounts one Flow per destination directly, with no
 shell-level `Navigator` of its own — each Flow already owns its own, per the Flow entry above. This
 was issue #30's last open "does `shell` need a migration ticket" question, closed by issue #39.
 

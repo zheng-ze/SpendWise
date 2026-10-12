@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/boot/app_phase.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/accounts/accounts_flow.dart';
+import 'package:spendwise/ui/overview/overview_flow.dart';
 import 'package:spendwise/ui/settings/settings_flow.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
@@ -22,9 +23,10 @@ class BootChrome extends ConsumerWidget {
       Failed(:final error) => _LoadFailure(error: error),
       Ready() => const AppShell(
         bodies: {
-          ShellDestination.transactions: _buildTransactionsTab,
-          ShellDestination.stats: _buildStatsTab,
-          ShellDestination.accounts: _buildAccountsTab,
+          ShellDestination.overview: _buildOverviewTab,
+          ShellDestination.history: _buildHistoryTab,
+          ShellDestination.trends: _buildTrendsTab,
+          ShellDestination.money: _buildMoneyTab,
           ShellDestination.settings: _buildSettingsTab,
         },
       ),
@@ -32,11 +34,13 @@ class BootChrome extends ConsumerWidget {
   }
 }
 
-Widget _buildTransactionsTab(BuildContext context) => const TransactionsFlow();
+Widget _buildOverviewTab(BuildContext context) => const OverviewFlow();
 
-Widget _buildStatsTab(BuildContext context) => const StatsFlow();
+Widget _buildHistoryTab(BuildContext context) => const TransactionsFlow();
 
-Widget _buildAccountsTab(BuildContext context) => const AccountsFlow();
+Widget _buildTrendsTab(BuildContext context) => const StatsFlow();
+
+Widget _buildMoneyTab(BuildContext context) => const AccountsFlow();
 
 Widget _buildSettingsTab(BuildContext context) => const SettingsFlow();
 
