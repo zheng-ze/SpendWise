@@ -1,7 +1,9 @@
 import 'package:domain/domain.dart';
 
+// MARK: - AccountFormKind
 enum AccountFormKind { account, subpocket }
 
+// MARK: - Helpers
 List<Account> pocketableParents(LedgerState state) {
   return state.activeAccounts
       .where((account) => account.type != AccountType.card)

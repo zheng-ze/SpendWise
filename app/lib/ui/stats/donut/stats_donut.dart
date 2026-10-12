@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/stats/helpers/slices.dart';
 
+// MARK: - Constants
 const _outerRadiusFraction = 0.6;
 const _innerRadiusFraction = 0.58;
 const _sliceGapDegrees = 1.5;
@@ -18,7 +19,11 @@ const _degreesInHalfCircle = 180;
 const _rightSideSign = 1.0;
 const _leftSideSign = -1.0;
 const _connectorLineWidth = 1.0;
+const _halfFactor = 0.5;
+const _zeroSweep = 0.0;
+const _labelOrigin = 0.0;
 
+// MARK: - StatsDonut
 class StatsDonut extends StatelessWidget {
   const StatsDonut({super.key, required this.slices});
 
@@ -47,6 +52,8 @@ class StatsDonut extends StatelessWidget {
   }
 }
 
+// MARK: - Summary Label
+
 String _summaryLabel(List<Slice> slices) {
   return slices
       .map(
@@ -57,6 +64,7 @@ String _summaryLabel(List<Slice> slices) {
       .join('. ');
 }
 
+// MARK: - DonutPainter
 class _DonutPainter extends CustomPainter {
   _DonutPainter({required this.slices, required this.labelColor});
 
@@ -67,25 +75,25 @@ class _DonutPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (slices.isEmpty) return;
 
-    final center = Offset(size.width / 2, size.height / 2);
-    final halfShortSide = math.min(size.width, size.height) / 2;
+    final center = Offset(size.width * _halfFactor, size.height * _halfFactor);
+    final halfShortSide = math.min(size.width, size.height) * _halfFactor;
     final outerRadius = halfShortSide * _outerRadiusFraction;
     final innerRadius = outerRadius * _innerRadiusFraction;
-    final gap = slices.length == 1 ? 0.0 : _sliceGapDegrees;
+    final gap = slices.length == 1 ? _zeroSweep : _sliceGapDegrees;
 
     var startDegrees = _startAngleDegrees;
     final midAngles = <double>[];
 
     for (final slice in slices) {
       final sweep = slice.fraction.toDouble() * _fullCircleDegrees;
-      final drawSweep = math.max(sweep - gap, 0.0);
+      final drawSweep = math.max(sweep - gap, _zeroSweep);
 
       final paint = Paint()
         ..color = slice.color
         ..style = PaintingStyle.stroke
         ..strokeWidth = outerRadius - innerRadius;
 
-      final ringRadius = (outerRadius + innerRadius) / 2;
+      final ringRadius = (outerRadius + innerRadius) * _halfFactor;
       canvas.drawArc(
         Rect.fromCircle(center: center, radius: ringRadius),
         _toRadians(startDegrees),
@@ -94,7 +102,7 @@ class _DonutPainter extends CustomPainter {
         paint,
       );
 
-      midAngles.add(startDegrees + drawSweep / 2);
+      midAngles.add(startDegrees + drawSweep * _halfFactor);
       startDegrees += sweep;
     }
 
@@ -116,8 +124,11 @@ class _DonutPainter extends CustomPainter {
 
     final ringPoint = center + direction * outerRadius;
     final elbow = center + direction * (outerRadius + _elbowDistance);
-    final awayFromCenter = direction.dx >= 0 ? _rightSideSign : _leftSideSign;
-    final labelAnchor = elbow + Offset(awayFromCenter * _labelLegLength, 0);
+    final awayFromCenter = direction.dx >= _labelOrigin
+        ? _rightSideSign
+        : _leftSideSign;
+    final labelAnchor =
+        elbow + Offset(awayFromCenter * _labelLegLength, _labelOrigin);
 
     final linePaint = Paint()
       ..color = slice.color
@@ -151,13 +162,19 @@ class _DonutPainter extends CustomPainter {
     final painter = TextPainter(text: span, textDirection: TextDirection.ltr)
       ..layout();
 
-    var labelX = awayFromCenter >= 0
+    var labelX = awayFromCenter >= _labelOrigin
         ? labelAnchor.dx
         : labelAnchor.dx - painter.width;
-    var labelY = labelAnchor.dy - painter.height / 2;
+    var labelY = labelAnchor.dy - painter.height * _halfFactor;
 
-    labelX = labelX.clamp(0.0, math.max(size.width - painter.width, 0.0));
-    labelY = labelY.clamp(0.0, math.max(size.height - painter.height, 0.0));
+    labelX = labelX.clamp(
+      _labelOrigin,
+      math.max(size.width - painter.width, _labelOrigin),
+    );
+    labelY = labelY.clamp(
+      _labelOrigin,
+      math.max(size.height - painter.height, _labelOrigin),
+    );
 
     painter.paint(canvas, Offset(labelX, labelY));
   }
@@ -167,5 +184,7 @@ class _DonutPainter extends CustomPainter {
     return oldDelegate.slices != slices || oldDelegate.labelColor != labelColor;
   }
 }
+
+// MARK: - Angle Conversion
 
 double _toRadians(double degrees) => degrees * math.pi / _degreesInHalfCircle;

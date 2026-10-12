@@ -31,6 +31,8 @@ class EntryTemplate with HolderReferencing {
 
   final bool includeInAnalysis;
 
+  // MARK: - Derivers
+
   Entry makeEntry(String planID, DateTime date) {
     return Entry(
       id: OccurrenceID.make(planID, date),
@@ -43,6 +45,8 @@ class EntryTemplate with HolderReferencing {
       includeInAnalysis: includeInAnalysis,
     );
   }
+
+  // MARK: - Equality
 
   @override
   bool operator ==(Object other) {

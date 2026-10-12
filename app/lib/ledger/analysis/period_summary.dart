@@ -1,6 +1,8 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/foundation.dart';
 
+// MARK: - Summary
+
 @immutable
 class PeriodSummary {
   const PeriodSummary({
@@ -39,6 +41,8 @@ class PeriodSummary {
   int get hashCode =>
       Object.hash(window, effectiveWindow, spent, income, net, moved);
 }
+
+// MARK: - Query
 
 PeriodSummary periodSummary({
   required LedgerState ledger,

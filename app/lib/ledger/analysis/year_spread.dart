@@ -1,6 +1,8 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/foundation.dart';
 
+// MARK: - Slots
+
 @immutable
 class YearSlot {
   const YearSlot({
@@ -30,6 +32,8 @@ class YearSlot {
   @override
   int get hashCode => Object.hash(year, window, total, itemCount);
 }
+
+// MARK: - Spread
 
 @immutable
 class YearSpread {
@@ -71,6 +75,8 @@ class YearSpread {
   );
 }
 
+// MARK: - Query
+
 YearSpread yearSpread({
   required Iterable<AnalysisItem> items,
   required int endYear,
@@ -109,6 +115,8 @@ YearSpread yearSpread({
     slots: List.unmodifiable(slots),
   );
 }
+
+// MARK: - Helpers
 
 int _earliestEnd({required int? firstRecordYear, required int currentYear}) {
   if (firstRecordYear == null || firstRecordYear > currentYear) {

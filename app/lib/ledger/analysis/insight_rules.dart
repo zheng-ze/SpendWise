@@ -1,6 +1,8 @@
 import 'package:decimal/decimal.dart';
 import 'package:domain/domain.dart';
 
+// MARK: - State
+
 enum InsightState { available, historyNeeded }
 
 typedef BaselineEvidence = ({
@@ -16,6 +18,8 @@ typedef BaselineComparison = ({
 });
 
 const int baselineWindowCount = 3;
+
+// MARK: - Rules
 
 final Decimal _baselineWindowDecimal = Decimal.fromInt(baselineWindowCount);
 final Decimal _percentScale = Decimal.fromInt(100);
@@ -68,6 +72,8 @@ class InsightRules {
         change >= baselineTotal * minimumRelativeChange;
   }
 }
+
+// MARK: - Comparison
 
 Decimal scaledChange(Decimal observedTotal, Decimal baselineTotal) =>
     observedTotal * _baselineWindowDecimal - baselineTotal;

@@ -2,6 +2,8 @@ import 'package:decimal/decimal.dart';
 import 'package:domain/src/time/year_month.dart';
 import 'package:meta/meta.dart';
 
+// MARK: - Kind
+
 enum LimitEventKind {
   defaultLimit(0),
   override(1);
@@ -18,6 +20,8 @@ enum LimitEventKind {
     };
   }
 }
+
+// MARK: - Model
 
 @immutable
 class LimitEvent {

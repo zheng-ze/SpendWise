@@ -19,8 +19,13 @@ Future<bool> showDeleteConfirmation(
   return confirmed ?? false;
 }
 
+// MARK: - Constants
+
+const _semiBoldWeight = FontWeight.w600;
+
 const _dialogMaxWidth = 440.0;
 
+// MARK: - DeleteDialog
 class _DeleteDialog extends StatelessWidget {
   const _DeleteDialog({required this.itemName});
 
@@ -60,6 +65,7 @@ class _DeleteDialog extends StatelessWidget {
   }
 }
 
+// MARK: - DeleteTitle
 class _DeleteTitle extends StatelessWidget {
   const _DeleteTitle({required this.itemName});
 
@@ -73,12 +79,13 @@ class _DeleteTitle extends StatelessWidget {
       'Delete $itemName?',
       style: const TextStyle(
         fontSize: _titleFontSize,
-        fontWeight: FontWeight.w600,
+        fontWeight: _semiBoldWeight,
       ),
     );
   }
 }
 
+// MARK: - DeleteActions
 class _DeleteActions extends StatelessWidget {
   const _DeleteActions();
 

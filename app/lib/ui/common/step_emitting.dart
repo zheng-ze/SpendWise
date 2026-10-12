@@ -3,6 +3,7 @@ abstract interface class HasStep<T, S> {
   T withStep(S? Function() step);
 }
 
+// MARK: - StepEmitting
 mixin StepEmitting<T extends HasStep<T, S>, S> {
   void updateState(T Function(T current) apply);
 

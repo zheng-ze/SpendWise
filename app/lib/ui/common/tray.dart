@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
+// MARK: - Constants
+
+const _semiBoldWeight = FontWeight.w600;
+
+// MARK: - Tray
 class Tray extends StatelessWidget {
   const Tray({super.key, this.title, this.trailing, required this.child});
 
@@ -43,6 +48,7 @@ class Tray extends StatelessWidget {
   }
 }
 
+// MARK: - TrayHeader
 class _TrayHeader extends StatelessWidget {
   const _TrayHeader({required this.title, required this.trailing});
 
@@ -62,7 +68,7 @@ class _TrayHeader extends StatelessWidget {
       title,
       style: const TextStyle(
         fontSize: _titleFontSize,
-        fontWeight: FontWeight.w600,
+        fontWeight: _semiBoldWeight,
         height: _titleLineHeight,
       ),
     );

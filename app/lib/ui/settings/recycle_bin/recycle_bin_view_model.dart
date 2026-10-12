@@ -10,8 +10,10 @@ import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/transactions/daily_list/transaction_row.dart';
 
+// MARK: - BinRowKind
 enum BinRowKind { entry, account, pocket, category }
 
+// MARK: - BinRow
 class BinRow {
   const BinRow({
     required this.kind,
@@ -30,6 +32,7 @@ class BinRow {
   final Color? color;
 }
 
+// MARK: - BinEntryRow
 class BinEntryRow extends BinRow {
   const BinEntryRow({
     required super.id,
@@ -116,6 +119,7 @@ List<BinRow> _categoryRows(LedgerState state) => _sortedArchivedRows(
   ),
 );
 
+// MARK: - Steps
 sealed class RecycleBinStep {}
 
 class PurgeConfirmationRequested extends RecycleBinStep {
@@ -124,6 +128,7 @@ class PurgeConfirmationRequested extends RecycleBinStep {
   final BinRow row;
 }
 
+// MARK: - RecycleBinViewState
 class RecycleBinViewState
     implements HasStep<RecycleBinViewState, RecycleBinStep> {
   const RecycleBinViewState({
@@ -162,6 +167,7 @@ class RecycleBinViewState
       copyWith(step: step);
 }
 
+// MARK: - RecycleBinViewModel
 abstract class RecycleBinViewModel {
   void restore(BinRowKind kind, String id);
   void requestPurge(BinRow row);
@@ -169,6 +175,7 @@ abstract class RecycleBinViewModel {
   void clearStep();
 }
 
+// MARK: - RecycleBinNotifier
 class RecycleBinNotifier extends AsyncNotifier<RecycleBinViewState>
     with
         LedgerBackedNotifier<RecycleBinViewState>,
@@ -233,6 +240,7 @@ class RecycleBinNotifier extends AsyncNotifier<RecycleBinViewState>
   }
 }
 
+// MARK: - Constants
 final recycleBinViewModelProvider =
     AsyncNotifierProvider<RecycleBinNotifier, RecycleBinViewState>(
       RecycleBinNotifier.new,

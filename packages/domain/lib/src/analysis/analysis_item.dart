@@ -19,6 +19,8 @@ class AnalysisItem {
   final DateTime date;
   final CategoryKind kind;
 
+  // MARK: - Equality
+
   @override
   bool operator ==(Object other) {
     return other is AnalysisItem &&

@@ -1,8 +1,10 @@
 import 'package:decimal/decimal.dart';
 import 'package:intl/intl.dart';
 
+// MARK: - AmountKind
 enum AmountKind { income, expense, transfer }
 
+// MARK: - Constants
 const _groupSize = 3;
 
 const _keptFractionDigits = 2;
@@ -51,6 +53,7 @@ String _roundedTwoPlaces(Decimal magnitude, {required bool grouped}) {
   return '$body.${kept.toString().padLeft(_keptFractionDigits, '0')}';
 }
 
+// MARK: - Helpers
 String formatMoney(Decimal amount, {bool symbol = true}) {
   final negative = amount < Decimal.zero;
   final body = _roundedTwoPlaces(amount.abs(), grouped: true);

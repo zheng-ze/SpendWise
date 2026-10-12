@@ -12,10 +12,14 @@ class PersistenceProcessor {
 
   StreamSubscription<LedgerPublication>? _subscription;
 
+  // MARK: - Lifecycle
+
   Future<void> start() async {
     _subscription ??= bus.subscribe().listen(_forward);
     await store.start();
   }
+
+  // MARK: - Forwarding
 
   void _forward(LedgerPublication publication) {
     if (publication.hasStamps) {

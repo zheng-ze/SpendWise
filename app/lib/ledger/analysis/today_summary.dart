@@ -1,6 +1,8 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/foundation.dart';
 
+// MARK: - Summary
+
 @immutable
 class TodaySummary {
   const TodaySummary({
@@ -31,6 +33,8 @@ class TodaySummary {
   int get hashCode => Object.hash(day, spent, dailyGuide, monthlyCap);
 }
 
+// MARK: - Query
+
 TodaySummary todaySummary({
   required LedgerState ledger,
   required List<AnalysisItem> items,
@@ -51,6 +55,8 @@ TodaySummary todaySummary({
     monthlyCap: monthlyCap,
   );
 }
+
+// MARK: - Helpers
 
 Decimal? _dailyGuide(Decimal? limit, DateTime day) {
   if (limit == null) return null;

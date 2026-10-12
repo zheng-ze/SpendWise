@@ -5,9 +5,11 @@ import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/stats/helpers/slices.dart';
 
+// MARK: - Constants
 const _iconSize = 34.0;
 const _dividerIndent = _iconSize + 32;
 
+// MARK: - StatsLegend
 class StatsLegend extends StatelessWidget {
   const StatsLegend({
     super.key,
@@ -39,6 +41,7 @@ class StatsLegend extends StatelessWidget {
   }
 }
 
+// MARK: - LegendRow
 class _LegendRow extends StatelessWidget {
   const _LegendRow({required this.slice, this.onTap});
 

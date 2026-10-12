@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+// MARK: - TransactionsEmptyState
 class TransactionsEmptyState extends StatelessWidget {
   const TransactionsEmptyState({super.key});
 

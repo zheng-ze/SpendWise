@@ -1,10 +1,14 @@
 import 'package:drift/drift.dart';
 
+// MARK: - Synced Rows
+
 mixin SyncedRow on Table {
   BlobColumn get versionData => blob().named('version_data')();
 
   IntColumn get lifecycle => integer()();
 }
+
+// MARK: - Accounts
 
 class Accounts extends Table with SyncedRow {
   TextColumn get id => text()();
@@ -27,6 +31,8 @@ class Accounts extends Table with SyncedRow {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+// MARK: - Pockets
+
 class SubPockets extends Table with SyncedRow {
   TextColumn get id => text()();
 
@@ -38,6 +44,8 @@ class SubPockets extends Table with SyncedRow {
   @override
   Set<Column<Object>> get primaryKey => {id};
 }
+
+// MARK: - Categories
 
 class Categories extends Table with SyncedRow {
   TextColumn get id => text()();
@@ -58,6 +66,8 @@ class Categories extends Table with SyncedRow {
   @override
   Set<Column<Object>> get primaryKey => {id};
 }
+
+// MARK: - Entries
 
 class Entries extends Table with SyncedRow {
   TextColumn get id => text()();
@@ -84,6 +94,8 @@ class Entries extends Table with SyncedRow {
   @override
   Set<Column<Object>> get primaryKey => {id};
 }
+
+// MARK: - Plans
 
 class Plans extends Table with SyncedRow {
   TextColumn get id => text()();
@@ -115,6 +127,8 @@ class Plans extends Table with SyncedRow {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+// MARK: - Budgets
+
 class Budgets extends Table with SyncedRow {
   TextColumn get id => text()();
 
@@ -128,6 +142,8 @@ class Budgets extends Table with SyncedRow {
   @override
   Set<Column<Object>> get primaryKey => {id};
 }
+
+// MARK: - Store Meta
 
 /// Device-local; the one table outside sync.
 @DataClassName('StoreMetaRow')

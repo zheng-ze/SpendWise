@@ -12,6 +12,7 @@ import 'package:spendwise/ui/stats/category_detail/category_scope.dart';
 import 'package:spendwise/ui/stats/helpers/stats_window.dart';
 import 'package:spendwise/ui/stats/helpers/trend.dart';
 
+// MARK: - CategoryDetailArgs
 @immutable
 class CategoryDetailArgs {
   const CategoryDetailArgs({
@@ -38,6 +39,7 @@ class CategoryDetailArgs {
   int get hashCode => Object.hash(mainID, kind, isYearRange, initialDate);
 }
 
+// MARK: - CategoryTotals
 class CategoryTotals {
   const CategoryTotals({
     required this.mainTotal,
@@ -92,6 +94,7 @@ Decimal _sumBucket(Iterable<AnalysisItem> items, String bucketID) {
       .fold(Decimal.zero, (sum, item) => sum + item.amount);
 }
 
+// MARK: - Helpers
 String scopeCaption(String mainName, CategoryScope scope, LedgerState state) {
   switch (scope) {
     case AllScope():
@@ -104,6 +107,7 @@ String scopeCaption(String mainName, CategoryScope scope, LedgerState state) {
   }
 }
 
+// MARK: - CategoryDetailViewState
 class CategoryDetailViewState {
   const CategoryDetailViewState({
     required this.detailDate,
@@ -134,11 +138,13 @@ class CategoryDetailViewState {
   final Set<String?> scopedBuckets;
 }
 
+// MARK: - CategoryDetailViewModel
 abstract class CategoryDetailViewModel {
   void setDate(DateTime date);
   void setScope(CategoryScope scope);
 }
 
+// MARK: - CategoryDetailNotifier
 class CategoryDetailNotifier extends AsyncNotifier<CategoryDetailViewState>
     with LedgerBackedNotifier<CategoryDetailViewState>
     implements CategoryDetailViewModel {
@@ -253,6 +259,7 @@ class CategoryDetailNotifier extends AsyncNotifier<CategoryDetailViewState>
   }
 }
 
+// MARK: - Constants
 final categoryDetailViewModelProvider =
     AsyncNotifierProvider.family<
       CategoryDetailNotifier,

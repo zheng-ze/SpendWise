@@ -5,6 +5,13 @@ import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
+// MARK: - Constants
+
+const _mediumWeight = FontWeight.w500;
+
+const _semiBoldWeight = FontWeight.w600;
+
+// MARK: - SummaryBandCell
 @immutable
 class SummaryBandCell {
   const SummaryBandCell({
@@ -23,6 +30,7 @@ class SummaryBandCell {
   final bool symbol;
 }
 
+// MARK: - SummaryBand
 class SummaryBand extends StatelessWidget {
   const SummaryBand({
     super.key,
@@ -100,6 +108,7 @@ Color _amountColor(BuildContext context, AmountKind? kind, Decimal value) {
   return AmountStyle.of(context, kind: kind, signedValue: value).color;
 }
 
+// MARK: - LeadAmount
 class _LeadAmount extends StatelessWidget {
   const _LeadAmount({
     required this.label,
@@ -133,7 +142,7 @@ class _LeadAmount extends StatelessWidget {
       formatSignedMoney(amount, kind: kind, symbol: symbol),
       style: TextStyle(
         fontSize: _amountFontSize,
-        fontWeight: FontWeight.w500,
+        fontWeight: _mediumWeight,
         letterSpacing: _amountLetterSpacing,
         color: _amountColor(context, kind, amount),
       ),
@@ -146,6 +155,7 @@ class _LeadAmount extends StatelessWidget {
   }
 }
 
+// MARK: - CellAmount
 class _CellAmount extends StatelessWidget {
   const _CellAmount({required this.cell});
 
@@ -168,7 +178,7 @@ class _CellAmount extends StatelessWidget {
       formatSignedMoney(cell.amount, kind: cell.kind, symbol: cell.symbol),
       style: TextStyle(
         fontSize: _amountFontSize,
-        fontWeight: FontWeight.w600,
+        fontWeight: _semiBoldWeight,
         color: _amountColor(context, cell.kind, cell.amount),
       ),
     );

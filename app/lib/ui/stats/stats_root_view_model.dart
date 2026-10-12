@@ -1,9 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+// MARK: - StatsTab
 enum StatsTab { income, expense, budgets }
 
+// MARK: - StatsRangeMode
 enum StatsRangeMode { month, year }
 
+// MARK: - StatsRootViewState
 class StatsRootViewState {
   const StatsRootViewState({required this.tab, required this.range});
 
@@ -15,11 +18,13 @@ class StatsRootViewState {
   }
 }
 
+// MARK: - StatsRootViewModel
 abstract class StatsRootViewModel {
   void setTab(StatsTab tab);
   void setRange(StatsRangeMode range);
 }
 
+// MARK: - StatsRootNotifier
 class StatsRootNotifier extends Notifier<StatsRootViewState>
     implements StatsRootViewModel {
   @override
@@ -39,6 +44,7 @@ class StatsRootNotifier extends Notifier<StatsRootViewState>
   }
 }
 
+// MARK: - Constants
 final statsRootViewModelProvider =
     NotifierProvider<StatsRootNotifier, StatsRootViewState>(
       StatsRootNotifier.new,

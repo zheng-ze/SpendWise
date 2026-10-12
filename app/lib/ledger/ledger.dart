@@ -23,6 +23,8 @@ class Ledger extends ChangeNotifier {
 
   int get revision => _revision;
 
+  // MARK: - Commit
+
   List<LedgerChange> _mutate(List<LedgerChange> Function(LedgerState) mutator) {
     assert(ChangeNotifier.debugAssertNotDisposed(this));
 
@@ -45,6 +47,8 @@ class Ledger extends ChangeNotifier {
     return changes;
   }
 
+  // MARK: - Accounts
+
   List<LedgerChange> addAccount(Account account) =>
       _mutate((state) => state.addAccount(account));
 
@@ -60,6 +64,8 @@ class Ledger extends ChangeNotifier {
   List<LedgerChange> purgeAccount(String rawID) =>
       _mutate((state) => state.purgeAccount(rawID));
 
+  // MARK: - Pockets
+
   List<LedgerChange> addPocket(SubPocket pocket, String rawAccountID) =>
       _mutate((state) => state.addPocket(pocket, rawAccountID));
 
@@ -74,6 +80,8 @@ class Ledger extends ChangeNotifier {
 
   List<LedgerChange> purgePocket(String rawID) =>
       _mutate((state) => state.purgePocket(rawID));
+
+  // MARK: - Entries
 
   List<LedgerChange> addEntry(Entry entry) =>
       _mutate((state) => state.addEntry(entry));
@@ -101,6 +109,8 @@ class Ledger extends ChangeNotifier {
   List<LedgerChange> purgeEntry(String rawID) =>
       _mutate((state) => state.purgeEntry(rawID));
 
+  // MARK: - Categories
+
   List<LedgerChange> addCategory(TransactionCategory category) =>
       _mutate((state) => state.addCategory(category));
 
@@ -116,6 +126,8 @@ class Ledger extends ChangeNotifier {
   List<LedgerChange> purgeCategory(String rawID) =>
       _mutate((state) => state.purgeCategory(rawID));
 
+  // MARK: - Plans
+
   List<LedgerChange> addPlan(RecurringPlan plan) =>
       _mutate((state) => state.addPlan(plan));
 
@@ -124,6 +136,20 @@ class Ledger extends ChangeNotifier {
 
   List<LedgerChange> deletePlan(String rawID) =>
       _mutate((state) => state.deletePlan(rawID));
+
+  void resolvePlans(DateTime now) {
+    late final PlanResolution resolution;
+    _mutate((state) {
+      resolution = state.resolvePlans(now);
+      return resolution.changes;
+    });
+
+    if (resolution.failures.isEmpty) return;
+
+    onPlanError?.call(resolution.failures);
+  }
+
+  // MARK: - Budgets
 
   List<LedgerChange> addBudget(
     String? categoryID,
@@ -152,6 +178,8 @@ class Ledger extends ChangeNotifier {
   List<LedgerChange> deleteBudget(String rawID) =>
       _mutate((state) => state.deleteBudget(rawID));
 
+  // MARK: - Sync
+
   List<LedgerChange> applySyncBatch(
     List<LedgerChange> changes,
     Map<SyncRowID, VersionVector> stamps,
@@ -172,17 +200,7 @@ class Ledger extends ChangeNotifier {
     return _commit(changes, stamps: stamps);
   }
 
-  void resolvePlans(DateTime now) {
-    late final PlanResolution resolution;
-    _mutate((state) {
-      resolution = state.resolvePlans(now);
-      return resolution.changes;
-    });
-
-    if (resolution.failures.isEmpty) return;
-
-    onPlanError?.call(resolution.failures);
-  }
+  // MARK: - Queries
 
   List<TransactionCategory> categories(CategoryKind kind) =>
       _state.categoriesGroupedByParent(kind);

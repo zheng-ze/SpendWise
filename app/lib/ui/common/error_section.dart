@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
+// MARK: - ErrorSection
 class ErrorSection extends StatelessWidget {
   const ErrorSection({
     super.key,
@@ -68,6 +69,7 @@ class ErrorSection extends StatelessWidget {
   }
 }
 
+// MARK: - RetryButton
 class _RetryButton extends StatelessWidget {
   const _RetryButton({required this.onPressed});
 
@@ -84,6 +86,7 @@ class _RetryButton extends StatelessWidget {
   }
 }
 
+// MARK: - Helpers
 String friendlyLedgerErrorMessage(LedgerError error) {
   return switch (error) {
     IdCollision() => 'that id is already in use.',

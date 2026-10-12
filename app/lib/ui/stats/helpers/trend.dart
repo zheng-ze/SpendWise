@@ -1,8 +1,10 @@
 import 'package:domain/domain.dart';
 
+// MARK: - Constants
 const _monthRangeSpan = 6;
 const _yearRangeSpan = 12;
 
+// MARK: - Helpers
 List<DateTime> trendMonths(DateTime detailDate, {required bool isYearRange}) {
   if (isYearRange) {
     final yearStart = DateTime.utc(detailDate.year);

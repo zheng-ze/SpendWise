@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:spendwise/ui/theme/spendwise_colors.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
+// MARK: - Constants
 const _focusedBorderWidth = 2.0;
 
 const _sheetCornerRadius = 22.0;
 
+// MARK: - Helpers
 ThemeData buildSpendWiseTheme(Brightness brightness) {
   final tokens = brightness == Brightness.dark
       ? SpendWiseColors.dark

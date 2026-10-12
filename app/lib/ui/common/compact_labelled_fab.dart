@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
+// MARK: - Constants
+
+const _semiBoldWeight = FontWeight.w600;
+
+// MARK: - CompactLabelledFab
 class CompactLabelledFab extends StatelessWidget {
   const CompactLabelledFab({
     super.key,
@@ -36,7 +41,7 @@ class CompactLabelledFab extends StatelessWidget {
     final radius = BorderRadius.circular(_cornerRadius);
     final labelStyle = Theme.of(context).textTheme.labelLarge?.copyWith(
       fontSize: _labelFontSize,
-      fontWeight: FontWeight.w600,
+      fontWeight: _semiBoldWeight,
       color: colors.onAction,
     );
     final glyph = ExcludeSemantics(
@@ -72,6 +77,7 @@ class CompactLabelledFab extends StatelessWidget {
   }
 }
 
+// MARK: - FabReserveSpace
 class FabReserveSpace extends StatelessWidget {
   const FabReserveSpace({super.key});
 

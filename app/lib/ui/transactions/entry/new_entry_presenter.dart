@@ -10,6 +10,7 @@ import 'package:spendwise/ui/transactions/receipt_scan/receipt_entry_coordinator
 
 bool _newEntryOpen = false;
 
+// MARK: - Helpers
 Future<void> openNewEntry({
   required BuildContext context,
   required WidgetRef ref,

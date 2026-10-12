@@ -8,6 +8,8 @@ import 'package:spendwise/ui/stats/category_detail/category_scope.dart';
 import 'package:spendwise/ui/stats/helpers/chart_helpers.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
+// MARK: - Scope Name
+
 String _scopeShortName(
   String mainName,
   CategoryScope scope,
@@ -22,6 +24,7 @@ String _scopeShortName(
   }
 }
 
+// MARK: - TrendCard
 class TrendCard extends StatefulWidget {
   const TrendCard({
     super.key,
@@ -48,6 +51,7 @@ class TrendCard extends StatefulWidget {
   State<TrendCard> createState() => _TrendCardState();
 }
 
+// MARK: - TrendCardState
 class _TrendCardState extends State<TrendCard> {
   int? _selectedIndex;
 
@@ -144,6 +148,7 @@ class _TrendCardState extends State<TrendCard> {
   }
 }
 
+// MARK: - TrendLineChart
 class _TrendLineChart extends StatelessWidget {
   const _TrendLineChart({
     required this.months,
@@ -164,6 +169,9 @@ class _TrendLineChart extends StatelessWidget {
   final void Function(FlTouchEvent, LineTouchResponse?) onTouch;
 
   static const _axisTickInterval = 1.0;
+  static const _chartBaseline = 0.0;
+  static const _dotStrokeWidth = 0.0;
+  static const _touchSpotThreshold = double.infinity;
   static const _transparent = Color(0x00000000);
   static const _lineWidth = 2.0;
   static const _selectedDotRadius = 5.0;
@@ -182,7 +190,7 @@ class _TrendLineChart extends StatelessWidget {
     );
 
     final lineTouchData = LineTouchData(
-      touchSpotThreshold: double.infinity,
+      touchSpotThreshold: _touchSpotThreshold,
       touchTooltipData: LineTouchTooltipData(
         getTooltipColor: (_) => _transparent,
         getTooltipItems: (spots) => [for (final _ in spots) null],
@@ -196,7 +204,7 @@ class _TrendLineChart extends StatelessWidget {
                   FlDotCirclePainter(
                     radius: _selectedDotRadius,
                     color: selectedMark,
-                    strokeWidth: 0,
+                    strokeWidth: _dotStrokeWidth,
                   ),
             ),
           ),
@@ -219,7 +227,7 @@ class _TrendLineChart extends StatelessWidget {
           getDotPainter: (spot, percent, bar, index) => FlDotCirclePainter(
             radius: index == selected ? _selectedDotRadius : _dotRadius,
             color: index == selected ? selectedMark : lineColor,
-            strokeWidth: 0,
+            strokeWidth: _dotStrokeWidth,
           ),
         ),
         belowBarData: BarAreaData(show: false),
@@ -228,7 +236,7 @@ class _TrendLineChart extends StatelessWidget {
 
     return LineChart(
       LineChartData(
-        minY: 0,
+        minY: _chartBaseline,
         maxY: maxY,
         titlesData: FlTitlesData(
           topTitles: const AxisTitles(),

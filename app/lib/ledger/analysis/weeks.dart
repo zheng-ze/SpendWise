@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 
 import 'package:spendwise/ledger/analysis/entry_record.dart';
 
+// MARK: - Total
+
 @immutable
 class WeekTotal {
   const WeekTotal({
@@ -30,6 +32,8 @@ class WeekTotal {
   int get hashCode =>
       Object.hash(range, effectiveWindow, spent, expenseItemCount);
 }
+
+// MARK: - Query
 
 List<WeekTotal> weekTotals({
   required LedgerState ledger,
@@ -81,6 +85,8 @@ List<WeekTotal> weekTotals({
   }
   return List.unmodifiable(totals);
 }
+
+// MARK: - Helpers
 
 DateTime _mondayOf(DateTime date) {
   return date.subtract(Duration(days: date.weekday - DateTime.monday));

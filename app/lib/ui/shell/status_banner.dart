@@ -6,8 +6,12 @@ import 'package:spendwise/sync/hosted_sync_status.dart';
 import 'package:spendwise/ui/settings/settings_root_view_model.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
+// MARK: - Constants
 const _bannerElevation = 3.0;
+const _messageHorizontalInset = 0.0;
+const _bannerBottom = 0.0;
 
+// MARK: - StatusBanner
 class StatusBanner extends ConsumerWidget {
   const StatusBanner({super.key});
 
@@ -34,7 +38,7 @@ class StatusBanner extends ConsumerWidget {
     final theme = Theme.of(context);
 
     return _BottomAnchored(
-      horizontalInset: 0,
+      horizontalInset: _messageHorizontalInset,
       child: Center(
         child: Material(
           color: theme.colorScheme.inverseSurface.withValues(
@@ -57,6 +61,7 @@ class StatusBanner extends ConsumerWidget {
   }
 }
 
+// MARK: - BottomAnchored
 // The rail layout has no bottom bar to consume the system inset.
 class _BottomAnchored extends StatelessWidget {
   const _BottomAnchored({required this.horizontalInset, required this.child});
@@ -71,7 +76,7 @@ class _BottomAnchored extends StatelessWidget {
     return Positioned(
       left: horizontalInset,
       right: horizontalInset,
-      bottom: 0,
+      bottom: _bannerBottom,
       child: SafeArea(
         top: false,
         left: false,
@@ -83,6 +88,7 @@ class _BottomAnchored extends StatelessWidget {
   }
 }
 
+// MARK: - RepairBanner
 // Takes precedence over BannerState's timed messages, which return once repair
 // clears.
 class _RepairBanner extends ConsumerWidget {

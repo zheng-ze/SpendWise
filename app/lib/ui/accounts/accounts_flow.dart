@@ -8,6 +8,7 @@ import 'package:spendwise/ui/accounts/source_edit/source_edit_form.dart';
 import 'package:spendwise/ui/common/flow_base.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
 
+// MARK: - AccountsFlow
 class AccountsFlow extends FlowBase<AccountsStep> {
   const AccountsFlow({super.key});
 
@@ -15,6 +16,7 @@ class AccountsFlow extends FlowBase<AccountsStep> {
   ConsumerState<AccountsFlow> createState() => _AccountsFlowState();
 }
 
+// MARK: - AccountsFlowState
 class _AccountsFlowState extends FlowBaseState<AccountsStep, AccountsFlow> {
   AccountsViewModel get _screenViewModel =>
       ref.read(accountsViewModelProvider.notifier);

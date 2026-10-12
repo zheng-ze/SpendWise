@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+// MARK: - ColumnTextItem
 @immutable
 class ColumnTextItem {
   const ColumnTextItem({
@@ -13,6 +14,7 @@ class ColumnTextItem {
   final Color? valueColor;
 }
 
+// MARK: - ColumnText
 class ColumnText extends StatelessWidget {
   const ColumnText({super.key, required this.items});
 

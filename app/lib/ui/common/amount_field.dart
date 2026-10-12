@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/format/amount_input.dart';
 
+// MARK: - AmountField
 class AmountField extends StatefulWidget {
   const AmountField({
     super.key,
@@ -22,6 +23,7 @@ class AmountField extends StatefulWidget {
   State<AmountField> createState() => _AmountFieldState();
 }
 
+// MARK: - AmountFieldState
 class _AmountFieldState extends State<AmountField> {
   late bool _hasText = widget.controller.text.isNotEmpty;
 

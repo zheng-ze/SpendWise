@@ -5,6 +5,7 @@ import 'package:spendwise/ui/common/category_icon.dart';
 import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
 
+// MARK: - Constants
 const _rootIconSize = 28.0;
 
 const _childIconSize = 24.0;

@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 
+// MARK: - Constants
+
+const _unboundedExtent = double.infinity;
+
 const _sheetPadding = 16.0;
 
+// MARK: - SheetShell
 class SheetShell extends StatelessWidget {
   const SheetShell({super.key, required this.children});
 
@@ -27,6 +32,7 @@ class SheetShell extends StatelessWidget {
   }
 }
 
+// MARK: - FormScaffold
 class FormScaffold extends StatelessWidget {
   const FormScaffold({
     super.key,
@@ -55,7 +61,7 @@ class FormScaffold extends StatelessWidget {
         error,
         const SizedBox(height: _sheetPadding),
         SizedBox(
-          width: double.infinity,
+          width: _unboundedExtent,
           child: FilledButton(
             onPressed: canSave ? onSave : null,
             child: const Text('Save'),

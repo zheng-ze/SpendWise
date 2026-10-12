@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:spendwise/ui/transactions/daily_list/transaction_row.dart';
 
+// MARK: - DaySection
 @immutable
 class DaySection {
   const DaySection({

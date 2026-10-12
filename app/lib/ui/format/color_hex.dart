@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+// MARK: - Constants
 const Color colorHexFallback = Color(0xFF8E8E93);
 
 final RegExp _sixDigitHex = RegExp(r'^#?([0-9a-fA-F]{6})$');
@@ -12,6 +13,7 @@ const _redChannelShift = 16;
 
 const _channelMax = 255;
 
+// MARK: - Helpers
 Color parseColorHex(String hex) {
   final match = _sixDigitHex.firstMatch(hex.trim());
   if (match == null) return colorHexFallback;

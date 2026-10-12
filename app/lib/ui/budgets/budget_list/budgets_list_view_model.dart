@@ -25,6 +25,7 @@ import 'package:spendwise/ui/common/step_emitting.dart';
   return (parentName, true, category.name);
 }
 
+// MARK: - Helpers
 List<Budget> sortedBudgets(LedgerState state) {
   final budgets = state.budgets.values.toList()
     ..sort((a, b) {
@@ -38,6 +39,7 @@ List<Budget> sortedBudgets(LedgerState state) {
   return budgets;
 }
 
+// MARK: - BudgetsListViewState
 class BudgetsListViewState
     implements HasStep<BudgetsListViewState, BudgetsStep> {
   const BudgetsListViewState({
@@ -75,6 +77,7 @@ class BudgetsListViewState
       copyWith(step: step);
 }
 
+// MARK: - BudgetsListViewModel
 abstract class BudgetsListViewModel {
   void requestBudgetDetail(String budgetID);
   void requestNewBudget();
@@ -83,6 +86,7 @@ abstract class BudgetsListViewModel {
   void clearStep();
 }
 
+// MARK: - BudgetsListNotifier
 class BudgetsListNotifier extends AsyncNotifier<BudgetsListViewState>
     with
         LedgerBackedNotifier<BudgetsListViewState>,
@@ -144,6 +148,7 @@ class BudgetsListNotifier extends AsyncNotifier<BudgetsListViewState>
   }
 }
 
+// MARK: - Constants
 final budgetsListViewModelProvider =
     AsyncNotifierProvider<BudgetsListNotifier, BudgetsListViewState>(
       BudgetsListNotifier.new,

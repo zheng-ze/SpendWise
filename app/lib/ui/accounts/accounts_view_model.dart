@@ -6,6 +6,7 @@ import 'package:spendwise/ui/accounts/account_sections.dart';
 import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/step_emitting.dart';
 
+// MARK: - Steps
 sealed class AccountsStep {}
 
 class AccountFormRequested extends AccountsStep {}
@@ -43,6 +44,7 @@ class PocketOpened extends AccountsStep {
   final Set<String> scopeIDs;
 }
 
+// MARK: - AccountsViewState
 class AccountsViewState implements HasStep<AccountsViewState, AccountsStep> {
   const AccountsViewState({
     required this.sections,
@@ -78,6 +80,7 @@ class AccountsViewState implements HasStep<AccountsViewState, AccountsStep> {
       copyWith(step: step);
 }
 
+// MARK: - AccountsViewModel
 abstract class AccountsViewModel {
   void toggleExpanded(String accountId);
   Future<void> deleteAccount(String id);
@@ -91,6 +94,7 @@ abstract class AccountsViewModel {
   void clearStep();
 }
 
+// MARK: - AccountsNotifier
 class AccountsNotifier extends AsyncNotifier<AccountsViewState>
     with
         LedgerBackedNotifier<AccountsViewState>,
@@ -197,6 +201,7 @@ class AccountsNotifier extends AsyncNotifier<AccountsViewState>
       emitStep(SourceEditRequested(holderId));
 }
 
+// MARK: - Constants
 final accountsViewModelProvider =
     AsyncNotifierProvider<AccountsNotifier, AccountsViewState>(
       AccountsNotifier.new,

@@ -2,6 +2,7 @@ import 'package:domain/domain.dart';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 
+// MARK: - Constants
 final DateFormat _dayCaption = DateFormat('MMM yyyy EEE');
 final DateFormat _monthLabel = DateFormat('MMM yyyy');
 final DateFormat _yearLabel = DateFormat('yyyy');
@@ -13,6 +14,7 @@ final DateFormat _monthShort = DateFormat('MMM');
 
 const _exclusiveEndStepBack = Duration(days: 1);
 
+// MARK: - DayHeaderLabel
 @immutable
 class DayHeaderLabel {
   const DayHeaderLabel({required this.dayNumber, required this.caption});
@@ -21,6 +23,7 @@ class DayHeaderLabel {
   final String caption;
 }
 
+// MARK: - Helpers
 DayHeaderLabel formatDayHeader(DateTime day) {
   return DayHeaderLabel(
     dayNumber: '${day.day}',

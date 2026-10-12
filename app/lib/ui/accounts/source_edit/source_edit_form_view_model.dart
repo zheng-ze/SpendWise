@@ -9,6 +9,7 @@ import 'package:spendwise/ui/common/step_emitting.dart';
 import 'package:spendwise/ui/format/amount_parse.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 
+// MARK: - SourceEditFormViewState
 class SourceEditFormViewState
     implements HasStep<SourceEditFormViewState, AccountsStep> {
   const SourceEditFormViewState({
@@ -77,6 +78,7 @@ class SourceEditFormViewState
       copyWith(step: step);
 }
 
+// MARK: - SourceEditFormViewModel
 abstract class SourceEditFormViewModel {
   void setName(String name);
   void setType(AccountType type);
@@ -88,6 +90,7 @@ abstract class SourceEditFormViewModel {
   void clearStep();
 }
 
+// MARK: - SourceEditFormNotifier
 class SourceEditFormNotifier extends AsyncNotifier<SourceEditFormViewState>
     with
         LedgerBackedNotifier<SourceEditFormViewState>,
@@ -218,6 +221,7 @@ class SourceEditFormNotifier extends AsyncNotifier<SourceEditFormViewState>
   }
 }
 
+// MARK: - Constants
 final sourceEditFormViewModelProvider =
     AsyncNotifierProvider.family<
       SourceEditFormNotifier,

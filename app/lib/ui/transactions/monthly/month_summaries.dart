@@ -1,8 +1,10 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/foundation.dart';
 
+// MARK: - Constants
 const _daysPerWeek = 7;
 
+// MARK: - WeekSummary
 @immutable
 class WeekSummary {
   const WeekSummary({
@@ -18,6 +20,7 @@ class WeekSummary {
   final bool isCurrentWeek;
 }
 
+// MARK: - MonthSummary
 @immutable
 class MonthSummary {
   const MonthSummary({

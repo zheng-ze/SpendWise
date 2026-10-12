@@ -4,6 +4,7 @@ import 'package:flutter/semantics.dart';
 import 'package:spendwise/ui/common/delete_confirmation.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
+// MARK: - SwipeToDeleteRow
 class SwipeToDeleteRow extends StatelessWidget {
   const SwipeToDeleteRow({
     super.key,

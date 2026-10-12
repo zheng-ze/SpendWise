@@ -1,20 +1,17 @@
-import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ui/budgets/budget_list/budget_card.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_screen.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
-import 'package:spendwise/ui/budgets/budget_list/budget_form.dart';
-import 'package:spendwise/ui/budgets/budget_list/budget_form_view_model.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_limit_screen.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_limit_view_model.dart';
+import 'package:spendwise/ui/budgets/budget_list/budget_form.dart';
+import 'package:spendwise/ui/budgets/budget_list/budget_form_view_model.dart';
+import 'package:spendwise/ui/budgets/budget_list/budgets_list_view.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
-import 'package:spendwise/ui/common/expanding_fab.dart';
 import 'package:spendwise/ui/common/flow_base.dart';
-import 'package:spendwise/ui/common/swipe_to_delete_row.dart';
-import 'package:spendwise/ui/shell/shell_providers.dart';
 
+// MARK: - BudgetsFlow
 class BudgetsFlow extends FlowBase<BudgetsStep> {
   const BudgetsFlow({super.key});
 
@@ -22,12 +19,15 @@ class BudgetsFlow extends FlowBase<BudgetsStep> {
   ConsumerState<BudgetsFlow> createState() => _BudgetsFlowState();
 }
 
+// MARK: - BudgetsFlowState
 class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
   ProviderSubscription<AsyncValue<BudgetDetailViewState>>? _detailSubscription;
   ProviderSubscription<AsyncValue<BudgetLimitViewState>>? _limitSubscription;
   String? _openBudgetID;
 
   ProviderSubscription<AsyncValue<BudgetFormViewState>>? _formSubscription;
+
+  // MARK: - Lifecycle
 
   @override
   void initState() {
@@ -46,8 +46,21 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     super.dispose();
   }
 
+  // MARK: - View Model Contracts
+
   BudgetsListViewModel get _listViewModel =>
       ref.read(budgetsListViewModelProvider.notifier);
+
+  BudgetDetailViewModel _detailViewModel(String budgetID) =>
+      ref.read(budgetDetailViewModelProvider(budgetID).notifier);
+
+  BudgetLimitViewModel _limitViewModel(String budgetID) =>
+      ref.read(budgetLimitViewModelProvider(budgetID).notifier);
+
+  BudgetFormViewModel get _formViewModel =>
+      ref.read(budgetFormViewModelProvider.notifier);
+
+  // MARK: - List Navigation
 
   @override
   void Function() subscribeToStep(void Function(BudgetsStep? step) handle) =>
@@ -74,6 +87,8 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     }
     _listViewModel.clearStep();
   }
+
+  // MARK: - Budget Navigation
 
   void _openBudget(BuildContext context, String budgetID) {
     _detailSubscription?.close();
@@ -112,7 +127,7 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
       case BudgetFormSaved():
         break;
     }
-    ref.read(budgetDetailViewModelProvider(budgetID).notifier).clearStep();
+    _detailViewModel(budgetID).clearStep();
   }
 
   Future<void> _handleLimitStep(String budgetID, BudgetsStep? step) async {
@@ -126,10 +141,10 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
       context: context,
       target: step.target,
     );
-    ref
-        .read(budgetLimitViewModelProvider(budgetID).notifier)
-        .applyPickedLimit(entered);
+    _limitViewModel(budgetID).applyPickedLimit(entered);
   }
+
+  // MARK: - Form Navigation
 
   Future<void> _handleFormStep(BudgetsStep? step) async {
     if (step == null) return;
@@ -145,14 +160,12 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
           formState: formState,
         );
         if (!context.mounted) return;
-        ref
-            .read(budgetFormViewModelProvider.notifier)
-            .applyPickedCategory(
-              chosen == budgetFormOverallSentinel ? null : chosen,
-            );
+        _formViewModel.applyPickedCategory(
+          chosen == budgetFormOverallSentinel ? null : chosen,
+        );
       case BudgetFormSaved():
         if (Navigator.of(context).canPop()) Navigator.of(context).pop();
-        ref.read(budgetFormViewModelProvider.notifier).clearStep();
+        _formViewModel.clearStep();
       case BudgetDetailRequested():
       case BudgetFormRequested():
       case BudgetLimitEditRequested():
@@ -162,114 +175,5 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
   }
 
   @override
-  Widget buildRoot(BuildContext context) => const _BudgetsRoot();
-}
-
-class _BudgetsRoot extends ConsumerWidget {
-  const _BudgetsRoot();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final asyncState = ref.watch(budgetsListViewModelProvider);
-    final viewModel = ref.watch(budgetsListViewModelProvider.notifier);
-    final month = YearMonth.fromUtc(ref.watch(effectiveMonthProvider));
-
-    return asyncState.when(
-      data: (viewState) => _BudgetsRootBody(
-        viewState: viewState,
-        viewModel: viewModel,
-        month: month,
-      ),
-      loading: () =>
-          const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (error, stackTrace) =>
-          Scaffold(body: Center(child: Text('$error'))),
-    );
-  }
-}
-
-class _BudgetsRootBody extends StatelessWidget {
-  const _BudgetsRootBody({
-    required this.viewState,
-    required this.viewModel,
-    required this.month,
-  });
-
-  final BudgetsListViewState viewState;
-  final BudgetsListViewModel viewModel;
-  final YearMonth month;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: Stack(
-          children: [
-            _BudgetsList(
-              viewState: viewState,
-              viewModel: viewModel,
-              month: month,
-            ),
-            ExpandingFab(
-              primary: FabAction(
-                label: 'Add Budget',
-                icon: Icons.add,
-                onTap: viewModel.requestNewBudget,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _BudgetsList extends StatelessWidget {
-  const _BudgetsList({
-    required this.viewState,
-    required this.viewModel,
-    required this.month,
-  });
-
-  final BudgetsListViewState viewState;
-  final BudgetsListViewModel viewModel;
-  final YearMonth month;
-
-  static const _listVerticalPadding = 8.0;
-  static const _separatorHeight = 1.0;
-
-  @override
-  Widget build(BuildContext context) {
-    final budgets = viewState.budgets;
-
-    if (budgets.isEmpty) return const BudgetsEmptyState();
-
-    return ListView.separated(
-      padding: const EdgeInsets.symmetric(vertical: _listVerticalPadding),
-      itemCount: budgets.length,
-      separatorBuilder: (_, _) => const Divider(height: _separatorHeight),
-      itemBuilder: (context, index) {
-        final budget = budgets[index];
-        return SwipeToDeleteRow(
-          itemKey: ValueKey('budget-${budget.id}'),
-          itemName: _budgetDisplayName(budget, viewState.ledgerState),
-          onDeleted: () => viewModel.deleteBudget(budget.id),
-          child: BudgetCard(
-            budget: budget,
-            month: month,
-            items: viewState.items,
-            state: viewState.ledgerState,
-            isSubcategory: viewState.isSubcategoryBudget(budget),
-            onTap: () => viewModel.requestBudgetDetail(budget.id),
-          ),
-        );
-      },
-    );
-  }
-
-  String _budgetDisplayName(Budget budget, LedgerState state) {
-    final categoryID = budget.categoryID;
-    if (categoryID == null) return 'Overall';
-    return state.categories[categoryID]?.name ?? '(category deleted)';
-  }
+  Widget buildRoot(BuildContext context) => const BudgetsRoot();
 }

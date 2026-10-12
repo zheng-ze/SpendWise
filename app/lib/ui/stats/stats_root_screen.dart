@@ -10,8 +10,12 @@ import 'package:spendwise/ui/stats/analysis/analysis_flow.dart';
 import 'package:spendwise/ui/stats/stats_root_view_model.dart';
 import 'package:spendwise/ui/stats/helpers/stats_window.dart';
 
+// MARK: - Constants
 const _tabTitles = ['Income', 'Expense', 'Budgets'];
+const _incomeTabIndex = 0;
+const _expenseTabIndex = 1;
 
+// MARK: - StatsRootScreen
 class StatsRootScreen extends ConsumerWidget {
   const StatsRootScreen({super.key});
 
@@ -31,6 +35,7 @@ class StatsRootScreen extends ConsumerWidget {
   }
 }
 
+// MARK: - StatsRootBody
 class _StatsRootBody extends StatelessWidget {
   const _StatsRootBody({
     required this.viewState,
@@ -48,8 +53,8 @@ class _StatsRootBody extends StatelessWidget {
 
   void _setTab(int tabIndex) {
     viewModel.setTab(switch (tabIndex) {
-      0 => StatsTab.income,
-      1 => StatsTab.expense,
+      _incomeTabIndex => StatsTab.income,
+      _expenseTabIndex => StatsTab.expense,
       _ => StatsTab.budgets,
     });
   }
@@ -109,6 +114,7 @@ class _StatsRootBody extends StatelessWidget {
   }
 }
 
+// MARK: - StatsTabContent
 class _StatsTabContent extends StatelessWidget {
   const _StatsTabContent({
     required this.tab,

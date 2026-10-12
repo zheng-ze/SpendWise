@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 
 import 'package:spendwise/ledger/analysis/completeness.dart';
 
+// MARK: - Slots
+
 @immutable
 class MonthSlot {
   const MonthSlot({
@@ -32,6 +34,8 @@ class MonthSlot {
   @override
   int get hashCode => Object.hash(month, window, total, itemCount);
 }
+
+// MARK: - Spread
 
 @immutable
 class MonthSpread {
@@ -72,6 +76,8 @@ class MonthSpread {
     Object.hashAll(slots),
   );
 }
+
+// MARK: - Query
 
 MonthSpread monthSpread({
   required Iterable<AnalysisItem> items,
@@ -114,6 +120,8 @@ MonthSpread monthSpread({
     slots: List.unmodifiable(slots),
   );
 }
+
+// MARK: - Helpers
 
 DateTime _earliestEnd({
   required DateTime? firstRecordMonth,

@@ -31,6 +31,8 @@ class AppBoot extends ChangeNotifier with WidgetsBindingObserver {
   /// Always UTC, never device-local time.
   final DateTime Function() now;
 
+  // MARK: - Clock
+
   @visibleForTesting
   static DateTime utcNowFor([DateTime? localNow]) =>
       startOfDayUtc(localNow ?? DateTime.now());
@@ -63,6 +65,8 @@ class AppBoot extends ChangeNotifier with WidgetsBindingObserver {
   HostedSyncStatus get syncStatus => _syncStatus;
 
   int _statusGeneration = 0;
+
+  // MARK: - Starting
 
   Future<void> start() async {
     final generation = ++_statusGeneration;
@@ -102,6 +106,8 @@ class AppBoot extends ChangeNotifier with WidgetsBindingObserver {
     return start();
   }
 
+  // MARK: - Sync Status
+
   Future<void> refreshSyncStatus() {
     final generation = ++_statusGeneration;
     return _loadSyncStatus(generation);
@@ -122,6 +128,8 @@ class AppBoot extends ChangeNotifier with WidgetsBindingObserver {
     _syncStatus = projected;
     notifyListeners();
   }
+
+  // MARK: - App Lifecycle
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -148,6 +156,8 @@ class AppBoot extends ChangeNotifier with WidgetsBindingObserver {
         break;
     }
   }
+
+  // MARK: - Teardown
 
   Future<void> _teardown() async {
     final persistence = _persistence;
@@ -188,6 +198,8 @@ class AppBoot extends ChangeNotifier with WidgetsBindingObserver {
     );
     super.dispose();
   }
+
+  // MARK: - Handlers
 
   void _handleSaveState(SaveBannerState state) => onSaveState?.call(state);
 

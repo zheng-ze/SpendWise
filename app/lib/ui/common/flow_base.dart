@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+// MARK: - FlowBase
 abstract class FlowBase<S> extends ConsumerStatefulWidget {
   const FlowBase({super.key, this.onEnded});
 
   final VoidCallback? onEnded;
 }
 
+// MARK: - DestinationActivity
 class DestinationActivity extends InheritedWidget {
   const DestinationActivity({
     super.key,
@@ -27,6 +29,7 @@ class DestinationActivity extends InheritedWidget {
       active != oldWidget.active;
 }
 
+// MARK: - FlowBaseState
 abstract class FlowBaseState<S, T extends FlowBase<S>>
     extends ConsumerState<T> {
   final _navigatorKey = GlobalKey<NavigatorState>();

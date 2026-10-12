@@ -5,12 +5,16 @@ import 'package:flutter/foundation.dart';
 sealed class AnalysisCategoryScope {
   const AnalysisCategoryScope();
 
+  // MARK: - Factories
+
   const factory AnalysisCategoryScope.all() = AllCategoryScope;
 
   const factory AnalysisCategoryScope.direct() = DirectCategoryScope;
 
   factory AnalysisCategoryScope.subcategory(String subID) = SubCategoryScope;
 }
+
+// MARK: - Variants
 
 @immutable
 class AllCategoryScope extends AnalysisCategoryScope {

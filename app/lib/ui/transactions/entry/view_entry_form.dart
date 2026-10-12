@@ -11,6 +11,11 @@ import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_logic.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 
+// MARK: - Visual Constants
+
+const _actionWidth = double.infinity;
+
+// MARK: - ViewEntryForm
 class ViewEntryForm extends ConsumerWidget {
   const ViewEntryForm({
     super.key,
@@ -100,7 +105,7 @@ class ViewEntryForm extends ConsumerWidget {
         ),
         const SizedBox(height: _contentGap),
         SizedBox(
-          width: double.infinity,
+          width: _actionWidth,
           child: TextButton(
             onPressed: viewModel.startEditing,
             child: const Text('Edit'),
@@ -121,6 +126,7 @@ class ViewEntryForm extends ConsumerWidget {
   }
 }
 
+// MARK: - DetailRow
 class _DetailRow extends StatelessWidget {
   const _DetailRow({required this.label, required this.value});
 

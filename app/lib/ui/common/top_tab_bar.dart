@@ -1,7 +1,16 @@
 import 'package:flutter/material.dart';
 
+// MARK: - Constants
+
+const _regularWeight = FontWeight.w400;
+
+const _boldWeight = FontWeight.w700;
+
 const double _underlineThickness = 3;
 
+const _indicatorBottom = 0.0;
+
+// MARK: - TopTabBar
 class TopTabBar extends StatelessWidget {
   const TopTabBar({
     super.key,
@@ -39,8 +48,8 @@ class TopTabBar extends StatelessWidget {
                             titles[index],
                             style: theme.textTheme.titleSmall?.copyWith(
                               fontWeight: index == selectedIndex
-                                  ? FontWeight.w700
-                                  : FontWeight.w400,
+                                  ? _boldWeight
+                                  : _regularWeight,
                               color: index == selectedIndex
                                   ? theme.colorScheme.onSurface
                                   : theme.colorScheme.onSurfaceVariant,
@@ -55,7 +64,7 @@ class TopTabBar extends StatelessWidget {
                 duration: _indicatorAnimation,
                 curve: Curves.easeOut,
                 left: tabWidth * selectedIndex,
-                bottom: 0,
+                bottom: _indicatorBottom,
                 width: tabWidth,
                 height: _underlineThickness,
                 child: DecoratedBox(

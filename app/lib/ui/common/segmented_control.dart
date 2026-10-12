@@ -2,6 +2,13 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
+// MARK: - Constants
+
+const _regularWeight = FontWeight.w400;
+
+const _semiBoldWeight = FontWeight.w600;
+
+// MARK: - SegmentedOption
 @immutable
 class SegmentedOption<T> {
   const SegmentedOption({required this.value, required this.label});
@@ -11,6 +18,7 @@ class SegmentedOption<T> {
   final String label;
 }
 
+// MARK: - SegmentedControl
 class SegmentedControl<T> extends StatelessWidget {
   const SegmentedControl({
     super.key,
@@ -60,6 +68,7 @@ class SegmentedControl<T> extends StatelessWidget {
   }
 }
 
+// MARK: - Segment
 class _Segment extends StatelessWidget {
   const _Segment({
     required this.label,
@@ -113,7 +122,7 @@ class _Segment extends StatelessWidget {
       style: TextStyle(
         fontSize: small ? _smallFontSize : _regularFontSize,
         color: selected ? selectedColor : colors.subtext,
-        fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+        fontWeight: selected ? _semiBoldWeight : _regularWeight,
       ),
     );
     return InkWell(

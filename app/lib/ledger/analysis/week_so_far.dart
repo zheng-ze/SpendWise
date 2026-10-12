@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:spendwise/ledger/analysis/completeness.dart';
 import 'package:spendwise/ledger/analysis/insight_rules.dart';
 
+// MARK: - Result
+
 @immutable
 class WeekSoFar {
   WeekSoFar({
@@ -99,6 +101,8 @@ class WeekSoFar {
     qualifies,
   );
 }
+
+// MARK: - Query
 
 WeekSoFar weekSoFar({
   required Iterable<AnalysisItem> items,

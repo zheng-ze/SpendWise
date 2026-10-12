@@ -7,6 +7,7 @@ import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/step_emitting.dart';
 import 'package:spendwise/ui/format/amount_parse.dart';
 
+// MARK: - AccountFormViewState
 class AccountFormViewState
     implements HasStep<AccountFormViewState, AccountsStep> {
   const AccountFormViewState({
@@ -69,6 +70,7 @@ class AccountFormViewState
       copyWith(step: step);
 }
 
+// MARK: - AccountFormViewModel
 abstract class AccountFormViewModel {
   void setKind(AccountFormKind kind);
   void setName(String name);
@@ -81,6 +83,7 @@ abstract class AccountFormViewModel {
   void clearStep();
 }
 
+// MARK: - AccountFormNotifier
 class AccountFormNotifier extends AsyncNotifier<AccountFormViewState>
     with
         LedgerBackedNotifier<AccountFormViewState>,
@@ -175,6 +178,7 @@ class AccountFormNotifier extends AsyncNotifier<AccountFormViewState>
   }
 }
 
+// MARK: - Constants
 final accountFormViewModelProvider =
     AsyncNotifierProvider<AccountFormNotifier, AccountFormViewState>(
       AccountFormNotifier.new,

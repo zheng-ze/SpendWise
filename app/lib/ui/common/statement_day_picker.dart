@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 
+// MARK: - Constants
+
+const _emptyContentPadding = EdgeInsets.zero;
+
+// MARK: - StatementDayPicker
 class StatementDayPicker extends StatelessWidget {
   const StatementDayPicker({
     super.key,
@@ -17,7 +22,7 @@ class StatementDayPicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      contentPadding: EdgeInsets.zero,
+      contentPadding: _emptyContentPadding,
       title: const Text('Statement Day'),
       trailing: Text(selected?.toString() ?? 'Select'),
       onTap: () => _pick(context),

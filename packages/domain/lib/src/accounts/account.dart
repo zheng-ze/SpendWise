@@ -34,6 +34,8 @@ class Account {
 
   final LifecycleState lifecycle;
 
+  // MARK: - Pocket links
+
   Account addSubPocket(String pocketID) {
     return _copy(subPocketIDs: {...subPocketIDs, normalizedID(pocketID)});
   }
@@ -51,6 +53,8 @@ class Account {
   Account settingLifecycle(LifecycleState lifecycle) {
     return _copy(lifecycle: lifecycle);
   }
+
+  // MARK: - Normalization
 
   Account withNormalizedStatementDay() {
     final normalized = type == AccountType.card && statementDay != null
@@ -87,6 +91,8 @@ class Account {
       lifecycle: lifecycle ?? this.lifecycle,
     );
   }
+
+  // MARK: - Equality
 
   @override
   bool operator ==(Object other) {

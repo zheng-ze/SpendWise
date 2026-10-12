@@ -1,5 +1,6 @@
 import 'package:domain/domain.dart';
 
+// MARK: - Helpers
 bool canSaveSourceEditForm({required String name, required Decimal? balance}) {
   if (name.trim().isEmpty) return false;
   return balance != null;

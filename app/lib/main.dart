@@ -10,6 +10,8 @@ import 'package:spendwise/settings/display_preferences_store.dart';
 import 'package:spendwise/ui/shell/boot_chrome.dart';
 import 'package:spendwise/ui/theme/spendwise_theme.dart';
 
+// MARK: - Entry
+
 Future<void> main() async {
   LicenseRegistry.addLicense(() async* {
     final license = await rootBundle.loadString(
@@ -27,6 +29,8 @@ Future<void> main() async {
   );
 }
 
+// MARK: - Preferences
+
 @visibleForTesting
 Future<DisplayPreferences> loadInitialDisplayPreferences([
   Future<SharedPreferences> Function()? read,
@@ -40,11 +44,15 @@ Future<DisplayPreferences> loadInitialDisplayPreferences([
   }
 }
 
+// MARK: - Theme
+
 ThemeMode themeModeFor(Appearance appearance) => switch (appearance) {
   Appearance.system => ThemeMode.system,
   Appearance.light => ThemeMode.light,
   Appearance.dark => ThemeMode.dark,
 };
+
+// MARK: - App
 
 class SpendWiseApp extends ConsumerWidget {
   const SpendWiseApp({super.key});

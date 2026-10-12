@@ -10,6 +10,11 @@ import 'package:spendwise/ui/common/error_section.dart';
 import 'package:spendwise/ui/common/form_scaffold.dart';
 import 'package:spendwise/ui/common/statement_day_picker.dart';
 
+// MARK: - Visual Constants
+
+const _fieldContentPadding = EdgeInsets.zero;
+
+// MARK: - Helpers
 Future<void> showSourceEditFormSheet({
   required BuildContext context,
   required String holderID,
@@ -22,6 +27,7 @@ Future<void> showSourceEditFormSheet({
   );
 }
 
+// MARK: - SourceEditForm
 class SourceEditForm extends ConsumerStatefulWidget {
   const SourceEditForm({super.key, required this.holderID});
 
@@ -31,6 +37,7 @@ class SourceEditForm extends ConsumerStatefulWidget {
   ConsumerState<SourceEditForm> createState() => _SourceEditFormState();
 }
 
+// MARK: - SourceEditFormState
 class _SourceEditFormState extends ConsumerState<SourceEditForm> {
   late final TextEditingController _nameController = TextEditingController();
   late final TextEditingController _balanceController = TextEditingController();
@@ -93,6 +100,7 @@ class _SourceEditFormState extends ConsumerState<SourceEditForm> {
   }
 }
 
+// MARK: - SourceEditFormBody
 class _SourceEditFormBody extends StatelessWidget {
   const _SourceEditFormBody({
     required this.formState,
@@ -154,7 +162,7 @@ class _SourceEditFormBody extends StatelessWidget {
           if (formState.showsTransferToggle) ...[
             const SizedBox(height: _fieldGap),
             SwitchListTile(
-              contentPadding: EdgeInsets.zero,
+              contentPadding: _fieldContentPadding,
               title: const Text('Transfers in count as expenses'),
               subtitle: const Text(
                 'When on, money transferred into this holder is treated as '
@@ -166,7 +174,7 @@ class _SourceEditFormBody extends StatelessWidget {
           ],
           if (formState.isAccount)
             SwitchListTile(
-              contentPadding: EdgeInsets.zero,
+              contentPadding: _fieldContentPadding,
               title: const Text('Include in net worth'),
               value: formState.includeInNetWorth,
               onChanged: viewModel.setIncludeInNetWorth,

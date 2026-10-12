@@ -5,6 +5,8 @@ import 'package:sync/sync.dart';
 
 part 'ledger_database.g.dart';
 
+// MARK: - Database
+
 @DriftDatabase(
   tables: [
     Accounts,
@@ -27,6 +29,8 @@ class LedgerDatabase extends _$LedgerDatabase {
 
   @override
   int get schemaVersion => 6;
+
+  // MARK: - Migration
 
   @override
   MigrationStrategy get migration => MigrationStrategy(

@@ -4,6 +4,8 @@ import 'package:domain/src/entries/category_kind.dart';
 enum EntryKind { income, expense, transfer }
 
 mixin HolderReferencing {
+  // MARK: - Identity
+
   String get sourceID;
   String? get destinationID;
   Decimal get amount;
@@ -13,6 +15,8 @@ mixin HolderReferencing {
   bool references(String id) => sourceID == id || destinationID == id;
 
   bool touches(Set<String> ids) => holderIDs.intersection(ids).isNotEmpty;
+
+  // MARK: - Classification
 
   bool get isTransfer => destinationID != null;
 

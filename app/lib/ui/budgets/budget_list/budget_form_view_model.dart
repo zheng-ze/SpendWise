@@ -40,6 +40,7 @@ List<(TransactionCategory, List<TransactionCategory>)> groupedBudgetCategories(
   ];
 }
 
+// MARK: - BudgetFormViewState
 class BudgetFormViewState implements HasStep<BudgetFormViewState, BudgetsStep> {
   const BudgetFormViewState({
     required this.categoryID,
@@ -96,6 +97,7 @@ class BudgetFormViewState implements HasStep<BudgetFormViewState, BudgetsStep> {
       copyWith(step: step);
 }
 
+// MARK: - BudgetFormViewModel
 abstract class BudgetFormViewModel {
   void setAmount(String raw);
   void requestPickCategory();
@@ -104,6 +106,7 @@ abstract class BudgetFormViewModel {
   void clearStep();
 }
 
+// MARK: - BudgetFormNotifier
 class BudgetFormNotifier extends AsyncNotifier<BudgetFormViewState>
     with
         LedgerBackedNotifier<BudgetFormViewState>,
@@ -154,6 +157,7 @@ class BudgetFormNotifier extends AsyncNotifier<BudgetFormViewState>
   }
 }
 
+// MARK: - Constants
 final budgetFormViewModelProvider =
     AsyncNotifierProvider<BudgetFormNotifier, BudgetFormViewState>(
       BudgetFormNotifier.new,

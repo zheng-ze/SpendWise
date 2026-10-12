@@ -5,6 +5,8 @@ import 'package:spendwise/ledger/analysis/compared_with_usual.dart';
 import 'package:spendwise/ledger/analysis/completeness.dart';
 import 'package:spendwise/ledger/analysis/insight_rules.dart';
 
+// MARK: - Changes
+
 @immutable
 class CategoryChange {
   CategoryChange({
@@ -65,6 +67,8 @@ class CategoryChange {
   );
 }
 
+// MARK: - Result
+
 @immutable
 class MatchedDayInsights {
   MatchedDayInsights({
@@ -122,6 +126,10 @@ class MatchedDayInsights {
 }
 
 typedef _BucketTotal = ({Decimal total, int count});
+
+typedef _BucketTotals = Map<String?, _BucketTotal>;
+
+// MARK: - Query
 
 MatchedDayInsights matchedDayInsights({
   required Iterable<AnalysisItem> items,
@@ -231,7 +239,7 @@ MatchedDayInsights matchedDayInsights({
   );
 }
 
-typedef _BucketTotals = Map<String?, _BucketTotal>;
+// MARK: - Helpers
 
 Decimal _absoluteChange(CategoryChange change) =>
     scaledChange(change.observedTotal, change.baselineTotal).abs();

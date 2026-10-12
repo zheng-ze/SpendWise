@@ -1,6 +1,8 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/foundation.dart';
 
+// MARK: - Record
+
 @immutable
 class EntryRecord {
   const EntryRecord({
@@ -45,6 +47,8 @@ EntryRecord entryRecord(LedgerState ledger, Entry entry) {
     destinationName: ledger.sourceName(entry.destinationID),
   );
 }
+
+// MARK: - Scope
 
 Set<String>? normalizedScope(Set<String>? sourceIDs) {
   if (sourceIDs == null) return null;

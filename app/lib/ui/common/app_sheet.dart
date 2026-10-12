@@ -1,23 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 
 import 'package:spendwise/ui/common/sheet_alert.dart';
+import 'package:spendwise/ui/common/sheet_pinned_layout.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
+
+export 'package:spendwise/ui/common/app_sheet_route.dart';
+
+// MARK: - Constants
+
+const _unboundedExtent = double.infinity;
 
 const _sheetMaxWidth = 440.0;
 
+// MARK: - Presentation
+
 enum AppSheetPresentation { phone, desktop }
 
-Future<T?> showAppSheet<T>(
-  BuildContext context, {
-  required AppSheetPresentation presentation,
-  required WidgetBuilder builder,
-}) {
-  return Navigator.of(
-    context,
-    rootNavigator: true,
-  ).push<T>(AppSheetRoute<T>(presentation: presentation, builder: builder));
-}
+// MARK: - Alert Slot
 
 class AppSheetAlertSlot extends InheritedWidget {
   const AppSheetAlertSlot({
@@ -43,6 +42,8 @@ class AppSheetAlertSlot extends InheritedWidget {
       alerts != oldWidget.alerts ||
       alertAction != oldWidget.alertAction;
 }
+
+// MARK: - Sheet
 
 class AppSheet extends StatefulWidget {
   const AppSheet({
@@ -142,7 +143,7 @@ class _AppSheetState extends State<AppSheet> {
     );
     final constraints = desktop
         ? BoxConstraints(maxHeight: cap, maxWidth: _sheetMaxWidth)
-        : BoxConstraints(maxHeight: cap, minWidth: double.infinity);
+        : BoxConstraints(maxHeight: cap, minWidth: _unboundedExtent);
     final chrome = _SheetChrome(
       desktop: desktop,
       bottomInset: media.padding.bottom,
@@ -152,6 +153,8 @@ class _AppSheetState extends State<AppSheet> {
     return ConstrainedBox(constraints: constraints, child: chrome);
   }
 }
+
+// MARK: - Structure
 
 class _SheetTop extends StatelessWidget {
   const _SheetTop({required this.header});
@@ -200,7 +203,7 @@ class _SheetScrollBody extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) => SingleChildScrollView(
-        child: _SheetLayout(
+        child: SheetPinnedLayout(
           maxHeight: constraints.maxHeight,
           top: top,
           body: SingleChildScrollView(child: body),
@@ -210,6 +213,8 @@ class _SheetScrollBody extends StatelessWidget {
     );
   }
 }
+
+// MARK: - Chrome
 
 class _SheetChrome extends StatelessWidget {
   const _SheetChrome({
@@ -263,148 +268,6 @@ class _SheetChrome extends StatelessWidget {
   }
 }
 
-enum _SheetSlot { top, body, bottom }
-
-// Keeps top and bottom pinned while only the body scrolls. When top and
-// bottom alone exceed maxHeight, the body takes its natural height so the
-// enclosing scroll view scrolls the whole sheet and every control stays
-// reachable.
-class _SheetLayout
-    extends SlottedMultiChildRenderObjectWidget<_SheetSlot, RenderBox> {
-  const _SheetLayout({
-    required this.maxHeight,
-    required this.top,
-    required this.body,
-    required this.bottom,
-  });
-
-  final double maxHeight;
-
-  final Widget top;
-
-  final Widget body;
-
-  final Widget? bottom;
-
-  @override
-  Iterable<_SheetSlot> get slots => _SheetSlot.values;
-
-  @override
-  Widget? childForSlot(_SheetSlot slot) => switch (slot) {
-    _SheetSlot.top => top,
-    _SheetSlot.body => body,
-    _SheetSlot.bottom => bottom,
-  };
-
-  @override
-  _RenderSheetLayout createRenderObject(BuildContext context) =>
-      _RenderSheetLayout(maxHeight);
-
-  @override
-  void updateRenderObject(
-    BuildContext context,
-    _RenderSheetLayout renderObject,
-  ) {
-    renderObject.maxHeight = maxHeight;
-  }
-}
-
-class _RenderSheetLayout extends RenderBox
-    with SlottedContainerRenderObjectMixin<_SheetSlot, RenderBox> {
-  _RenderSheetLayout(this._maxHeight);
-
-  double _maxHeight;
-
-  set maxHeight(double value) {
-    if (value == _maxHeight) return;
-    _maxHeight = value;
-    markNeedsLayout();
-  }
-
-  @override
-  void performLayout() {
-    final childConstraints = BoxConstraints(maxWidth: constraints.maxWidth);
-    final top = childForSlot(_SheetSlot.top)!;
-    final body = childForSlot(_SheetSlot.body)!;
-    final bottom = childForSlot(_SheetSlot.bottom);
-
-    final pinnedHeight = _layoutPinned(childConstraints, top, bottom);
-    _layoutBody(childConstraints, body, pinnedHeight);
-    final ordered = [top, body, ?bottom];
-    final width = constraints.constrainWidth(_widestChild(ordered));
-    final height = _positionChildren(ordered, width);
-    size = constraints.constrain(Size(width, height));
-  }
-
-  double _layoutPinned(
-    BoxConstraints childConstraints,
-    RenderBox top,
-    RenderBox? bottom,
-  ) {
-    top.layout(childConstraints, parentUsesSize: true);
-    bottom?.layout(childConstraints, parentUsesSize: true);
-    return top.size.height + (bottom?.size.height ?? 0);
-  }
-
-  void _layoutBody(
-    BoxConstraints childConstraints,
-    RenderBox body,
-    double pinnedHeight,
-  ) {
-    final bodyMaxHeight = pinnedHeight <= _maxHeight
-        ? _maxHeight - pinnedHeight
-        : double.infinity;
-    body.layout(
-      childConstraints.copyWith(maxHeight: bodyMaxHeight),
-      parentUsesSize: true,
-    );
-  }
-
-  double _widestChild(List<RenderBox> ordered) {
-    var widest = 0.0;
-    for (final child in ordered) {
-      if (child.size.width > widest) widest = child.size.width;
-    }
-    return widest;
-  }
-
-  double _positionChildren(List<RenderBox> ordered, double width) {
-    var y = 0.0;
-    for (final child in ordered) {
-      (child.parentData! as BoxParentData).offset = Offset(
-        (width - child.size.width) / 2,
-        y,
-      );
-      y += child.size.height;
-    }
-    return y;
-  }
-
-  @override
-  void paint(PaintingContext context, Offset offset) {
-    for (final child in children) {
-      context.paintChild(
-        child,
-        offset + (child.parentData! as BoxParentData).offset,
-      );
-    }
-  }
-
-  @override
-  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
-    for (final child in children) {
-      final hit = result.addWithPaintOffset(
-        offset: (child.parentData! as BoxParentData).offset,
-        position: position,
-        hitTest: (result, transformed) =>
-            child.hitTest(result, position: transformed),
-      );
-      if (hit) return true;
-    }
-    return false;
-  }
-}
-
 class _SheetHandle extends StatelessWidget {
   const _SheetHandle();
 
@@ -426,176 +289,6 @@ class _SheetHandle extends StatelessWidget {
         color: context.colors.control,
         borderRadius: BorderRadius.circular(_handleRadius),
       ),
-    );
-  }
-}
-
-class AppSheetRoute<T> extends ModalRoute<T> {
-  AppSheetRoute({required this.presentation, required this.builder});
-
-  static const _transitionMillis = 220;
-
-  static const _transitionDuration = Duration(milliseconds: _transitionMillis);
-
-  static const _barrierColor = Color(0x52101212);
-
-  static const _slideBeginDy = 0.06;
-
-  final WidgetBuilder builder;
-
-  final AppSheetPresentation presentation;
-
-  late final ValueNotifier<SheetAlertData?> _alerts =
-      ValueNotifier<SheetAlertData?>(null);
-
-  late final ValueNotifier<VoidCallback?> _alertAction =
-      ValueNotifier<VoidCallback?>(null);
-
-  @override
-  Duration get transitionDuration => _transitionDuration;
-
-  @override
-  bool get opaque => false;
-
-  @override
-  bool get barrierDismissible => true;
-
-  @override
-  Color? get barrierColor => _barrierColor;
-
-  @override
-  String? get barrierLabel => 'Dismiss';
-
-  @override
-  bool get maintainState => true;
-
-  @override
-  Widget buildPage(
-    BuildContext context,
-    Animation<double> animation,
-    Animation<double> secondaryAnimation,
-  ) {
-    return AppSheetAlertSlot(
-      presentation: presentation,
-      alerts: _alerts,
-      alertAction: _alertAction,
-      child: _AppSheetPage(presentation: presentation, builder: builder),
-    );
-  }
-
-  @override
-  Widget buildTransitions(
-    BuildContext context,
-    Animation<double> animation,
-    Animation<double> secondaryAnimation,
-    Widget child,
-  ) {
-    final slide = Tween<Offset>(
-      begin: const Offset(0, _slideBeginDy),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut));
-    return FadeTransition(
-      opacity: animation,
-      child: SlideTransition(position: slide, child: child),
-    );
-  }
-
-  @override
-  void dispose() {
-    _alerts.dispose();
-    _alertAction.dispose();
-    super.dispose();
-  }
-}
-
-class _AppSheetPage extends StatelessWidget {
-  const _AppSheetPage({required this.presentation, required this.builder});
-
-  static const _desktopAlertTop = 16.0;
-
-  static const _compactAlertTop = 12.0;
-
-  static const _bottomAlignment = Alignment.bottomCenter;
-
-  final AppSheetPresentation presentation;
-
-  final WidgetBuilder builder;
-
-  @override
-  Widget build(BuildContext context) {
-    final media = MediaQuery.of(context);
-    final desktop = presentation == AppSheetPresentation.desktop;
-    final sheet = Padding(
-      padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
-      child: Builder(builder: builder),
-    );
-    final positionedSheet = desktop
-        ? Center(child: sheet)
-        : Align(alignment: _bottomAlignment, child: sheet);
-    final slot = AppSheetAlertSlot.maybeOf(context);
-    if (slot == null) return positionedSheet;
-    final alertTop =
-        media.padding.top + (desktop ? _desktopAlertTop : _compactAlertTop);
-    final overlay = _SheetAlertOverlay(slot: slot, alertTop: alertTop);
-
-    return Stack(children: [positionedSheet, overlay]);
-  }
-}
-
-class _SheetAlertOverlay extends StatelessWidget {
-  const _SheetAlertOverlay({required this.slot, required this.alertTop});
-
-  static const _overlayHorizontalInset = 12.0;
-
-  final AppSheetAlertSlot slot;
-
-  final double alertTop;
-
-  @override
-  Widget build(BuildContext context) {
-    final banner = ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: _sheetMaxWidth),
-      child: _SheetAlertListener(slot: slot),
-    );
-
-    return Positioned(
-      top: alertTop,
-      left: _overlayHorizontalInset,
-      right: _overlayHorizontalInset,
-      child: Center(child: banner),
-    );
-  }
-}
-
-class _SheetAlertListener extends StatelessWidget {
-  const _SheetAlertListener({required this.slot});
-
-  final AppSheetAlertSlot slot;
-
-  @override
-  Widget build(BuildContext context) {
-    return ValueListenableBuilder<SheetAlertData?>(
-      valueListenable: slot.alerts,
-      builder: (context, data, _) {
-        if (data == null) return const SizedBox.shrink();
-        return _SheetAlertActionListener(slot: slot, data: data);
-      },
-    );
-  }
-}
-
-class _SheetAlertActionListener extends StatelessWidget {
-  const _SheetAlertActionListener({required this.slot, required this.data});
-
-  final AppSheetAlertSlot slot;
-
-  final SheetAlertData data;
-
-  @override
-  Widget build(BuildContext context) {
-    return ValueListenableBuilder<VoidCallback?>(
-      valueListenable: slot.alertAction,
-      builder: (context, action, _) => SheetAlert(data: data, onAction: action),
     );
   }
 }

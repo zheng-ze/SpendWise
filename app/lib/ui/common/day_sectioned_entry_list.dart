@@ -6,6 +6,7 @@ import 'package:spendwise/ui/transactions/daily_list/day_header.dart';
 import 'package:spendwise/ui/transactions/daily_list/day_sections.dart';
 import 'package:spendwise/ui/transactions/daily_list/entry_row.dart';
 
+// MARK: - DaySectionedEntryList
 class DaySectionedEntryList extends StatelessWidget {
   const DaySectionedEntryList({
     super.key,

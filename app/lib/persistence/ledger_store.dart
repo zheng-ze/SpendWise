@@ -1,9 +1,13 @@
 import 'package:domain/domain.dart';
 import 'package:sync/sync.dart';
 
+// MARK: - Save State
+
 enum SaveBannerState { clear, retrying, failedWillRetry, permanentlyFailed }
 
 typedef SaveErrorHandler = void Function(SaveBannerState state);
+
+// MARK: - Store
 
 abstract class LedgerStore {
   Future<LedgerState> load();

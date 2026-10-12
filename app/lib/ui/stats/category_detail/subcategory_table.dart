@@ -8,8 +8,10 @@ import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/stats/category_detail/category_scope.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
+// MARK: - Constants
 const _directSymbol = 'radio_button_checked';
 
+// MARK: - SubcategoryRowData
 class _SubcategoryRowData {
   const _SubcategoryRowData({
     required this.scope,
@@ -26,6 +28,7 @@ class _SubcategoryRowData {
   final Decimal amount;
 }
 
+// MARK: - SubcategoryTable
 class SubcategoryTable extends StatelessWidget {
   const SubcategoryTable({
     super.key,
@@ -47,6 +50,7 @@ class SubcategoryTable extends StatelessWidget {
   final void Function(CategoryScope scope) onSelectScope;
 
   static const _fractionScale = 4;
+  static const _dividerHeight = 1.0;
 
   @override
   Widget build(BuildContext context) {
@@ -74,7 +78,7 @@ class SubcategoryTable extends StatelessWidget {
 
     return Column(
       children: [
-        const Divider(height: 1),
+        const Divider(height: _dividerHeight),
         _SubcategoryRow(
           name: 'All ${mainCategory?.name ?? ''}',
           symbolName: mainCategory?.symbol ?? 'help_outline',
@@ -105,6 +109,7 @@ class SubcategoryTable extends StatelessWidget {
   }
 }
 
+// MARK: - SubcategoryRow
 class _SubcategoryRow extends StatelessWidget {
   const _SubcategoryRow({
     required this.name,
@@ -153,6 +158,7 @@ class _SubcategoryRow extends StatelessWidget {
   }
 }
 
+// MARK: - SubcategoryRowContent
 class _SubcategoryRowContent extends StatelessWidget {
   const _SubcategoryRowContent({
     required this.name,

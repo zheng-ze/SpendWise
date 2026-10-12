@@ -9,6 +9,7 @@ import 'document_crop_geometry.dart';
 
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
+// MARK: - Corner
 enum _Corner {
   topLeft,
   topRight,
@@ -31,6 +32,7 @@ enum _Corner {
       };
 }
 
+// MARK: - DocumentCropScreen
 class DocumentCropScreen extends StatefulWidget {
   const DocumentCropScreen({super.key, required this.imageBytes});
 
@@ -40,6 +42,7 @@ class DocumentCropScreen extends StatefulWidget {
   State<DocumentCropScreen> createState() => _DocumentCropScreenState();
 }
 
+// MARK: - DocumentCropScreenState
 class _DocumentCropScreenState extends State<DocumentCropScreen> {
   ui.Image? _image;
   DocumentCorners? _corners;
@@ -105,6 +108,7 @@ class _DocumentCropScreenState extends State<DocumentCropScreen> {
   }
 }
 
+// MARK: - CropCanvas
 class _CropCanvas extends StatelessWidget {
   const _CropCanvas({
     required this.image,
@@ -165,6 +169,7 @@ class _CropCanvas extends StatelessWidget {
   }
 }
 
+// MARK: - CropOverlayPainter
 class _CropOverlayPainter extends CustomPainter {
   const _CropOverlayPainter({
     required this.corners,
@@ -196,6 +201,7 @@ class _CropOverlayPainter extends CustomPainter {
       oldDelegate.corners != corners || oldDelegate.color != color;
 }
 
+// MARK: - CornerHandle
 class _CornerHandle extends StatelessWidget {
   const _CornerHandle({
     required this.position,
@@ -207,6 +213,7 @@ class _CornerHandle extends StatelessWidget {
   final ValueChanged<Offset> onDrag;
   final double scale;
 
+  static const _handleRadius = _handleSize / 2;
   static const _handleSize = 28.0;
   static const _handleFillOpacity = 0.8;
   static const _handleBorderWidth = 2.0;
@@ -214,8 +221,8 @@ class _CornerHandle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Positioned(
-      left: position.dx - _handleSize / 2,
-      top: position.dy - _handleSize / 2,
+      left: position.dx - _handleRadius,
+      top: position.dy - _handleRadius,
       child: GestureDetector(
         onPanUpdate: (details) => onDrag(details.delta / scale),
         child: Container(

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
+// MARK: - Helpers
 DateRange monthWindow(DateTime month) {
   final start = DateTime.utc(month.year, month.month);
   final end = shiftMonthThenClampDayUtc(start, 1, day: 1);
@@ -16,6 +17,7 @@ DateRange yearWindow(DateTime year) {
   return DateRange(start, end);
 }
 
+// MARK: - AmountHeader
 class AmountHeader extends StatelessWidget {
   const AmountHeader({
     super.key,

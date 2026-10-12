@@ -2,16 +2,31 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
+// MARK: - Constants
+
+const _semiBoldWeight = FontWeight.w600;
+
+const _paintOrigin = Offset.zero;
+
+const _unboundedExtent = double.infinity;
+
 const _barHeight = 40.0;
 
 const _barRadius = 2.0;
 
+const _emptyFraction = 0.0;
+
+const _pathStart = 0.0;
+
+const _labelMaxLines = 1;
+
+// MARK: - WeekStripDay
 @immutable
 class WeekStripDay {
   const WeekStripDay({
     required this.label,
     required this.caption,
-    this.fraction = 0,
+    this.fraction = _emptyFraction,
     this.future = false,
   });
 
@@ -24,6 +39,7 @@ class WeekStripDay {
   final bool future;
 }
 
+// MARK: - WeekStrip
 class WeekStrip extends StatelessWidget {
   const WeekStrip({super.key, required this.days});
 
@@ -37,6 +53,7 @@ class WeekStrip extends StatelessWidget {
   }
 }
 
+// MARK: - GapStubPainter
 class GapStubPainter extends CustomPainter {
   const GapStubPainter({required this.color});
 
@@ -62,7 +79,7 @@ class GapStubPainter extends CustomPainter {
   Path _outline(Size size) {
     return Path()..addRRect(
       RRect.fromRectAndRadius(
-        Offset.zero & size,
+        _paintOrigin & size,
         const Radius.circular(_barRadius),
       ),
     );
@@ -71,10 +88,10 @@ class GapStubPainter extends CustomPainter {
   Path _dashed(Path outline) {
     final dashed = Path();
     for (final metric in outline.computeMetrics()) {
-      var distance = 0.0;
+      var distance = _pathStart;
       while (distance < metric.length) {
-        final end = (distance + _dashLength).clamp(0.0, metric.length);
-        dashed.addPath(metric.extractPath(distance, end), Offset.zero);
+        final end = (distance + _dashLength).clamp(_pathStart, metric.length);
+        dashed.addPath(metric.extractPath(distance, end), _paintOrigin);
         distance += _dashStep;
       }
     }
@@ -86,6 +103,7 @@ class GapStubPainter extends CustomPainter {
       oldDelegate.color != color;
 }
 
+// MARK: - DayColumn
 class _DayColumn extends StatelessWidget {
   const _DayColumn({required this.day});
 
@@ -110,15 +128,15 @@ class _DayColumn extends StatelessWidget {
       day.label,
       style: const TextStyle(
         fontSize: _captionFontSize,
-        fontWeight: FontWeight.w600,
+        fontWeight: _semiBoldWeight,
       ),
-      maxLines: 1,
+      maxLines: _labelMaxLines,
       overflow: TextOverflow.ellipsis,
     );
     final caption = Text(
       day.caption,
       style: TextStyle(fontSize: _captionFontSize, color: colors.subtext),
-      maxLines: 1,
+      maxLines: _labelMaxLines,
       overflow: TextOverflow.ellipsis,
     );
 
@@ -129,6 +147,7 @@ class _DayColumn extends StatelessWidget {
   }
 }
 
+// MARK: - DayBar
 class _DayBar extends StatelessWidget {
   const _DayBar({required this.day});
 
@@ -138,7 +157,7 @@ class _DayBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final bar = switch (day) {
       WeekStripDay(future: true) => const SizedBox(height: _barHeight),
-      WeekStripDay(fraction: <= 0) => const _GapStub(),
+      WeekStripDay(fraction: <= _emptyFraction) => const _GapStub(),
       _ => _ValueBar(fraction: day.fraction),
     };
 
@@ -146,6 +165,7 @@ class _DayBar extends StatelessWidget {
   }
 }
 
+// MARK: - ValueBar
 class _ValueBar extends StatelessWidget {
   const _ValueBar({required this.fraction});
 
@@ -167,6 +187,7 @@ class _ValueBar extends StatelessWidget {
   }
 }
 
+// MARK: - GapStub
 class _GapStub extends StatelessWidget {
   const _GapStub();
 
@@ -176,7 +197,7 @@ class _GapStub extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       height: _stubHeight,
-      width: double.infinity,
+      width: _unboundedExtent,
       child: CustomPaint(
         key: const ValueKey('weekStripGapStub'),
         painter: GapStubPainter(color: context.colors.gap),

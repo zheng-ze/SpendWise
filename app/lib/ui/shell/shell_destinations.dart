@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
+// MARK: - Constants
 const destinationLabels = {
   ShellDestination.overview: 'Overview',
   ShellDestination.history: 'History',

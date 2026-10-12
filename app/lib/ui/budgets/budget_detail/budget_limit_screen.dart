@@ -44,6 +44,11 @@ Future<Decimal?> showBudgetLimitEditSheet({
   );
 }
 
+// MARK: - Visual Constants
+
+const _actionWidth = double.infinity;
+
+// MARK: - BudgetLimitScreen
 class BudgetLimitScreen extends ConsumerWidget {
   const BudgetLimitScreen({super.key, required this.budgetID});
 
@@ -66,6 +71,7 @@ class BudgetLimitScreen extends ConsumerWidget {
   }
 }
 
+// MARK: - BudgetLimitScreenBody
 class _BudgetLimitScreenBody extends StatelessWidget {
   const _BudgetLimitScreenBody({
     required this.viewState,
@@ -142,6 +148,7 @@ class _BudgetLimitScreenBody extends StatelessWidget {
   }
 }
 
+// MARK: - BudgetLimitEditSheet
 class BudgetLimitEditSheet extends StatefulWidget {
   const BudgetLimitEditSheet({
     super.key,
@@ -158,6 +165,7 @@ class BudgetLimitEditSheet extends StatefulWidget {
   State<BudgetLimitEditSheet> createState() => _BudgetLimitEditSheetState();
 }
 
+// MARK: - BudgetLimitEditSheetState
 class _BudgetLimitEditSheetState extends State<BudgetLimitEditSheet> {
   static const _subtitleGap = 4.0;
   static const _fieldGap = 12.0;
@@ -188,7 +196,7 @@ class _BudgetLimitEditSheetState extends State<BudgetLimitEditSheet> {
       autofocus: true,
     );
     final save = SizedBox(
-      width: double.infinity,
+      width: _actionWidth,
       child: FilledButton(
         onPressed: () {
           final amount = parseAmountInput(_controller.text);

@@ -6,6 +6,7 @@ import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 import 'package:spendwise/ui/transactions/entry/new_entry_presenter.dart';
 
+// MARK: - Constants
 const _sidebarKey = ValueKey('sidebar');
 
 const _sidebarWidth = 172.0;
@@ -39,6 +40,7 @@ const _loopDestinations = [
   ShellDestination.money,
 ];
 
+// MARK: - DesktopSidebar
 class DesktopSidebar extends ConsumerWidget {
   const DesktopSidebar({
     super.key,
@@ -94,6 +96,7 @@ class DesktopSidebar extends ConsumerWidget {
   }
 }
 
+// MARK: - SidebarScroll
 class _SidebarScroll extends StatelessWidget {
   const _SidebarScroll({required this.child});
 
@@ -112,6 +115,7 @@ class _SidebarScroll extends StatelessWidget {
   }
 }
 
+// MARK: - Wordmark
 class _Wordmark extends StatelessWidget {
   const _Wordmark();
 
@@ -138,6 +142,7 @@ class _Wordmark extends StatelessWidget {
   }
 }
 
+// MARK: - SidebarDestination
 class _SidebarDestination extends StatelessWidget {
   const _SidebarDestination({
     required this.destination,
@@ -193,6 +198,7 @@ class _SidebarDestination extends StatelessWidget {
   }
 }
 
+// MARK: - SidebarDivider
 class SidebarDivider extends StatelessWidget {
   const SidebarDivider({super.key});
 

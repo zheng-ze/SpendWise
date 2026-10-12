@@ -4,10 +4,14 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+// MARK: - Encoding
+
 typedef PngEncoder = Future<ByteData?> Function(ui.Image image);
 
 Future<ByteData?> _defaultPngEncoder(ui.Image image) =>
     image.toByteData(format: ui.ImageByteFormat.png);
+
+// MARK: - Cropping
 
 Future<Uint8List> cropToRect(
   Uint8List sourceBytes,
@@ -42,6 +46,8 @@ Future<Uint8List> cropToRect(
   }
   return byteData.buffer.asUint8List();
 }
+
+// MARK: - Decoding
 
 Future<ui.Image> _decodeImage(Uint8List bytes) {
   final completer = Completer<ui.Image>();

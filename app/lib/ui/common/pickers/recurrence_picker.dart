@@ -1,6 +1,7 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 
+// MARK: - Constants
 const _oneTimeLabel = 'One time';
 
 const Map<RecurrenceFrequency, String> frequencyLabels = {
@@ -25,6 +26,7 @@ Future<RecurrenceFrequency?> showRecurrencePickerSheet({
   ).then((outcome) => outcome == null ? selected : outcome.frequency);
 }
 
+// MARK: - RecurrenceOutcome
 @immutable
 class _RecurrenceOutcome {
   const _RecurrenceOutcome(this.frequency);
@@ -32,6 +34,7 @@ class _RecurrenceOutcome {
   final RecurrenceFrequency? frequency;
 }
 
+// MARK: - RecurrencePickerSheet
 class _RecurrencePickerSheet extends StatelessWidget {
   const _RecurrencePickerSheet({required this.selected});
 
@@ -77,6 +80,7 @@ class _RecurrencePickerSheet extends StatelessWidget {
   }
 }
 
+// MARK: - RecurrenceRow
 class _RecurrenceRow extends StatelessWidget {
   const _RecurrenceRow({
     required this.label,

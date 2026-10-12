@@ -5,9 +5,16 @@ import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/budgets/helpers/budget_spend.dart';
-import 'package:spendwise/ui/theme/spendwise_colors.dart';
+import 'package:spendwise/ui/budgets/budget_list/budget_card_progress_bar.dart';
 
-const _barHeight = 22.0;
+export 'package:spendwise/ui/budgets/budget_list/budgets_empty_state.dart';
+
+// MARK: - Constants
+
+const _emptyProgress = 0.0;
+const _fullProgress = 1.0;
+
+// MARK: - Card
 
 class BudgetCard extends StatelessWidget {
   const BudgetCard({
@@ -52,7 +59,7 @@ class BudgetCard extends StatelessWidget {
     final remaining = limit - spend;
     final overLimit = spend > limit;
     final percentOfLimit = limit == Decimal.zero
-        ? (spend == Decimal.zero ? 0.0 : 1.0)
+        ? (spend == Decimal.zero ? _emptyProgress : _fullProgress)
         : (spend / limit).toDouble();
 
     final header = _BudgetCardHeader(
@@ -60,7 +67,7 @@ class BudgetCard extends StatelessWidget {
       limit: limit,
       isSubcategory: isSubcategory,
     );
-    final bar = _BudgetCardBar(
+    final bar = BudgetCardProgressBar(
       percentOfLimit: percentOfLimit,
       color: overLimit
           ? AmountStyle.of(context, kind: AmountKind.expense).color
@@ -95,6 +102,8 @@ class BudgetCard extends StatelessWidget {
     );
   }
 }
+
+// MARK: - Header
 
 class _BudgetCardHeader extends StatelessWidget {
   const _BudgetCardHeader({
@@ -135,94 +144,7 @@ class _BudgetCardHeader extends StatelessWidget {
   }
 }
 
-class _BudgetCardBar extends StatelessWidget {
-  const _BudgetCardBar({required this.percentOfLimit, required this.color});
-
-  final double percentOfLimit;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final fraction = percentOfLimit.clamp(0.0, 1.0);
-    final trackLabel = _BudgetCardBarLabel(
-      percentOfLimit: percentOfLimit,
-      color: theme.colorScheme.onSurfaceVariant,
-    );
-    final fillLabel = _BudgetCardBarLabel(
-      percentOfLimit: percentOfLimit,
-      color: foregroundOn(color),
-    );
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(_barHeight / 2),
-      child: Stack(
-        children: [
-          Container(
-            height: _barHeight,
-            color: theme.colorScheme.surfaceContainerHighest,
-          ),
-          FractionallySizedBox(
-            widthFactor: fraction,
-            child: Container(height: _barHeight, color: color),
-          ),
-          Positioned.fill(child: trackLabel),
-          Positioned.fill(
-            child: ClipRect(
-              clipper: _LeadingFractionClipper(fraction),
-              child: fillLabel,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LeadingFractionClipper extends CustomClipper<Rect> {
-  const _LeadingFractionClipper(this.fraction);
-
-  final double fraction;
-
-  @override
-  Rect getClip(Size size) =>
-      Rect.fromLTWH(0, 0, size.width * fraction, size.height);
-
-  @override
-  bool shouldReclip(_LeadingFractionClipper oldClipper) =>
-      oldClipper.fraction != fraction;
-}
-
-class _BudgetCardBarLabel extends StatelessWidget {
-  const _BudgetCardBarLabel({
-    required this.percentOfLimit,
-    required this.color,
-  });
-
-  final double percentOfLimit;
-  final Color color;
-
-  static const _labelRightPadding = 8.0;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Align(
-      alignment: Alignment.centerRight,
-      child: Padding(
-        padding: const EdgeInsets.only(right: _labelRightPadding),
-        child: Text(
-          formatPercent(percentOfLimit),
-          style: theme.textTheme.labelMedium?.copyWith(
-            fontWeight: FontWeight.w700,
-            color: color,
-          ),
-        ),
-      ),
-    );
-  }
-}
+// MARK: - Footer
 
 class _BudgetCardFooter extends StatelessWidget {
   const _BudgetCardFooter({
@@ -273,42 +195,6 @@ class _BudgetCardFooter extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class BudgetsEmptyState extends StatelessWidget {
-  const BudgetsEmptyState({super.key});
-
-  static const _verticalPadding = 48.0;
-  static const _iconSize = 48.0;
-  static const _contentGap = 12.0;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: _verticalPadding),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.savings_outlined,
-              size: _iconSize,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: _contentGap),
-            Text(
-              'No budgets yet. Tap + to create one.',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

@@ -7,53 +7,21 @@ import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/step_emitting.dart';
+import 'package:spendwise/ui/budgets/budget_detail/budgets_steps.dart';
 import 'package:spendwise/ui/budgets/helpers/budget_spend.dart';
 import 'package:spendwise/ui/stats/helpers/stats_window.dart';
 import 'package:spendwise/ui/stats/helpers/trend.dart';
 
-sealed class BudgetsStep {}
+export 'package:spendwise/ui/budgets/budget_detail/budgets_steps.dart';
 
-class BudgetLimitEditRequested extends BudgetsStep {}
-
-class BudgetDetailRequested extends BudgetsStep {
-  BudgetDetailRequested(this.budgetID);
-
-  final String budgetID;
-}
-
-class BudgetFormRequested extends BudgetsStep {}
-
-sealed class LimitEditTarget {}
-
-class DefaultLimitTarget extends LimitEditTarget {
-  DefaultLimitTarget(this.current, this.effectiveFromMonth);
-
-  final Decimal current;
-  final YearMonth effectiveFromMonth;
-}
-
-class MonthLimitTarget extends LimitEditTarget {
-  MonthLimitTarget(this.month, this.current);
-
-  final YearMonth month;
-  final Decimal current;
-}
-
-class PickLimitRequested extends BudgetsStep {
-  PickLimitRequested(this.target);
-
-  final LimitEditTarget target;
-}
-
-class PickCategoryRequested extends BudgetsStep {}
-
-class BudgetFormSaved extends BudgetsStep {}
+// MARK: - Helpers
 
 List<T> monthSeries<T>(
   List<DateTime> months,
   T Function(YearMonth month) forMonth,
 ) => [for (final month in months) forMonth(YearMonth(month.year, month.month))];
 
+// MARK: - Helpers
 double chartMaxY(List<Decimal> spend, List<Decimal> limit) {
   final maxAmount = [
     ...spend,
@@ -64,9 +32,11 @@ double chartMaxY(List<Decimal> spend, List<Decimal> limit) {
       : _emptyChartMaxY;
 }
 
+// MARK: - Constants
 const _chartHeadroomFactor = 1.15;
 const _emptyChartMaxY = 1.0;
 
+// MARK: - BudgetDetailViewState
 class BudgetDetailViewState
     implements HasStep<BudgetDetailViewState, BudgetsStep> {
   const BudgetDetailViewState({
@@ -147,6 +117,7 @@ class BudgetDetailViewState
       copyWith(step: step);
 }
 
+// MARK: - BudgetDetailViewModel
 abstract class BudgetDetailViewModel {
   void selectMonth(DateTime month);
   void changeYear(DateTime year);
@@ -154,6 +125,7 @@ abstract class BudgetDetailViewModel {
   void clearStep();
 }
 
+// MARK: - BudgetDetailNotifier
 class BudgetDetailNotifier extends AsyncNotifier<BudgetDetailViewState>
     with
         LedgerBackedNotifier<BudgetDetailViewState>,

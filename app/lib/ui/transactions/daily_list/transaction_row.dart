@@ -7,11 +7,13 @@ import 'package:spendwise/ui/format/color_hex.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/transactions/entry/entry_transfer_scope.dart';
 
+// MARK: - Constants
 const _unknownHolderLabel = 'Unknown';
 const _uncategorizedSymbol = 'help_outline';
 const _transferSymbol = 'swap_horiz';
 const _transferChipColor = Color(0xFF8E8E93);
 
+// MARK: - TransactionRow
 @immutable
 class TransactionRow {
   const TransactionRow({

@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 
 import 'package:spendwise/ledger/analysis/entry_record.dart';
 
+// MARK: - Days
+
 @immutable
 class RegisterDay {
   const RegisterDay({
@@ -35,6 +37,8 @@ class RegisterDay {
   @override
   int get hashCode => Object.hash(date, entries, income, expense, net, moved);
 }
+
+// MARK: - Queries
 
 List<RegisterDay> registerDays({
   required LedgerState ledger,
@@ -119,6 +123,8 @@ RegisterDay registerDay(
     moved: moved,
   );
 }
+
+// MARK: - Recent
 
 List<EntryRecord> recentEntries({
   required LedgerState ledger,

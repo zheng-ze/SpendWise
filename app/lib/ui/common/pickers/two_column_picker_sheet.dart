@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+// MARK: - PickerOption
 @immutable
 class PickerOption {
   const PickerOption({
@@ -15,21 +16,25 @@ class PickerOption {
   final List<PickerOption> children;
 }
 
+// MARK: - PickerOutcome
 @immutable
 sealed class PickerOutcome {
   const PickerOutcome();
 }
 
+// MARK: - PickerChose
 class PickerChose extends PickerOutcome {
   const PickerChose(this.id);
 
   final String id;
 }
 
+// MARK: - PickerCleared
 class PickerCleared extends PickerOutcome {
   const PickerCleared();
 }
 
+// MARK: - Constants
 const _sheetHeightFactor = 0.7;
 
 Future<PickerOutcome?> showTwoColumnPickerSheet({
@@ -56,6 +61,7 @@ Future<PickerOutcome?> showTwoColumnPickerSheet({
   );
 }
 
+// MARK: - TwoColumnPickerSheet
 class TwoColumnPickerSheet extends StatefulWidget {
   const TwoColumnPickerSheet({
     super.key,
@@ -74,6 +80,7 @@ class TwoColumnPickerSheet extends StatefulWidget {
   State<TwoColumnPickerSheet> createState() => _TwoColumnPickerSheetState();
 }
 
+// MARK: - TwoColumnPickerSheetState
 class _TwoColumnPickerSheetState extends State<TwoColumnPickerSheet> {
   String? _expandedId;
 
@@ -160,6 +167,7 @@ class _TwoColumnPickerSheetState extends State<TwoColumnPickerSheet> {
   }
 }
 
+// MARK: - PickerRow
 class _PickerRow extends StatelessWidget {
   const _PickerRow({
     required this.option,

@@ -11,6 +11,7 @@ import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/stats/stats_flow.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
 
+// MARK: - BootChrome
 class BootChrome extends ConsumerWidget {
   const BootChrome({super.key});
 
@@ -36,8 +37,10 @@ class BootChrome extends ConsumerWidget {
 
 Widget _buildOverviewTab(BuildContext context) => const _OverviewTabEntry();
 
+// MARK: - Constants
 const _overviewBackLabel = 'Overview';
 
+// MARK: - OverviewTabEntry
 class _OverviewTabEntry extends ConsumerWidget {
   const _OverviewTabEntry();
 
@@ -67,6 +70,7 @@ Widget _buildMoneyTab(BuildContext context) => const AccountsFlow();
 
 Widget _buildSettingsTab(BuildContext context) => const SettingsFlow();
 
+// MARK: - LoadFailure
 class _LoadFailure extends ConsumerWidget {
   const _LoadFailure({required this.error});
 

@@ -1,6 +1,8 @@
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/persistence/persistence_processor.dart';
 
+// MARK: - Phases
+
 sealed class AppPhase {
   const AppPhase();
 }

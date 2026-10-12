@@ -1,6 +1,8 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/foundation.dart';
 
+// MARK: - Level
+
 enum BreakdownLevel { categories, subcategories }
 
 const _shareTenths = 1000;
@@ -11,6 +13,8 @@ typedef _SizedBucket = ({
   bool isDirect,
   Decimal amount,
 });
+
+// MARK: - Rows
 
 @immutable
 class BreakdownRow {
@@ -82,6 +86,8 @@ class PeriodBreakdown {
       Object.hash(window, kind, level, total, Object.hashAll(rows));
 }
 
+// MARK: - Query
+
 PeriodBreakdown categoryBreakdown({
   required Iterable<AnalysisItem> items,
   required LedgerState state,
@@ -118,6 +124,8 @@ PeriodBreakdown categoryBreakdown({
   );
 }
 
+// MARK: - Buckets
+
 List<_SizedBucket> _categoryAmounts(
   List<AnalysisItem> items,
   LedgerState state,
@@ -153,6 +161,8 @@ List<_SizedBucket> _subcategoryAmounts(
       ),
   ];
 }
+
+// MARK: - Shares
 
 List<Decimal> _largestRemainderShares(
   List<_SizedBucket> buckets,

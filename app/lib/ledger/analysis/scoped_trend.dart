@@ -5,6 +5,8 @@ import 'package:spendwise/ledger/analysis/analysis_category_scope.dart';
 import 'package:spendwise/ledger/analysis/completeness.dart';
 import 'package:spendwise/ledger/analysis/month_spread.dart';
 
+// MARK: - Mode
+
 enum AnalysisPeriodMode { month, year }
 
 const scopedTrendSlotCount = 12;
@@ -21,6 +23,8 @@ DateTime scopedTrendAnchor(DateTime day, AnalysisPeriodMode mode) {
     ),
   };
 }
+
+// MARK: - Trend
 
 @immutable
 class ScopedTrend {
@@ -67,6 +71,8 @@ class ScopedTrend {
   );
 }
 
+// MARK: - Query
+
 ScopedTrend scopedTrend({
   required String? mainBucketID,
   required AnalysisCategoryScope scope,
@@ -108,6 +114,8 @@ ScopedTrend scopedTrend({
     slots: spread.slots,
   );
 }
+
+// MARK: - Scoping
 
 List<AnalysisItem> _scopedItems(
   Iterable<AnalysisItem> items,

@@ -5,6 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spendwise/settings/display_preferences.dart';
 import 'package:spendwise/settings/display_preferences_store.dart';
 
+// MARK: - Providers
+
 final initialDisplayPreferencesProvider = Provider<DisplayPreferences>(
   (ref) => DisplayPreferences.defaults,
 );
@@ -13,6 +15,8 @@ final displayPreferencesProvider =
     NotifierProvider<DisplayPreferencesNotifier, DisplayPreferences>(
       DisplayPreferencesNotifier.new,
     );
+
+// MARK: - Notifier
 
 class DisplayPreferencesNotifier extends Notifier<DisplayPreferences> {
   @override

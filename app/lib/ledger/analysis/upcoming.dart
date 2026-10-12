@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 
 import 'package:spendwise/ledger/analysis/entry_record.dart';
 
+// MARK: - Items
+
 @immutable
 class PlanOccurrence {
   const PlanOccurrence({
@@ -97,6 +99,8 @@ final class UpcomingStatement extends UpcomingItem {
   int get hashCode => Object.hash(accountID, accountName, date, cycleAmount);
 }
 
+// MARK: - Queries
+
 List<UpcomingItem> upcomingItems({
   required LedgerState ledger,
   required DateTime today,
@@ -173,6 +177,8 @@ List<PlanOccurrence> upcomingPlanOccurrences({
   return occurrences;
 }
 
+// MARK: - Statements
+
 List<UpcomingStatement> _upcomingStatements({
   required LedgerState ledger,
   required DateTime today,
@@ -210,6 +216,8 @@ List<UpcomingStatement> _upcomingStatements({
   }
   return statements;
 }
+
+// MARK: - Sorting
 
 int _byDateThenKindThenID(UpcomingItem a, UpcomingItem b) {
   final byDate = a.date.compareTo(b.date);

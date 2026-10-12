@@ -1,5 +1,6 @@
 import 'package:domain/domain.dart';
 
+// MARK: - Helpers
 DateTime statementCut(int statementDay, DateTime now) {
   final anchorsPreviousMonth = now.day < statementDay;
   final anchor = anchorsPreviousMonth

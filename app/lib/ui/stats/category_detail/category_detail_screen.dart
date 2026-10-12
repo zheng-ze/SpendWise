@@ -13,6 +13,7 @@ import 'package:spendwise/ui/stats/category_detail/category_trend_card.dart';
 import 'package:spendwise/ui/stats/helpers/stats_window.dart';
 import 'package:spendwise/ui/stats/category_detail/subcategory_table.dart';
 
+// MARK: - CategoryDetailScreen
 class CategoryDetailScreen extends ConsumerWidget {
   const CategoryDetailScreen({super.key, required this.args});
 
@@ -40,6 +41,7 @@ class CategoryDetailScreen extends ConsumerWidget {
   }
 }
 
+// MARK: - CategoryDetailBody
 class _CategoryDetailBody extends StatelessWidget {
   const _CategoryDetailBody({
     required this.viewState,

@@ -3,6 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:spendwise/ui/common/tray.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
+// MARK: - Constants
+
+const _unboundedExtent = double.infinity;
+
+// MARK: - LoadingSkeleton
 class LoadingSkeleton extends StatelessWidget {
   const LoadingSkeleton({super.key, this.lines = _defaultLines});
 
@@ -23,6 +28,7 @@ class LoadingSkeleton extends StatelessWidget {
   }
 }
 
+// MARK: - Bar
 class _Bar extends StatelessWidget {
   const _Bar({required this.color, required this.wide});
 
@@ -56,11 +62,12 @@ class _Bar extends StatelessWidget {
     );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: _verticalPadding),
-      child: SizedBox(width: double.infinity, child: fraction),
+      child: SizedBox(width: _unboundedExtent, child: fraction),
     );
   }
 }
 
+// MARK: - LoadingTrays
 class LoadingTrays extends StatelessWidget {
   const LoadingTrays({super.key, this.trays = _defaultTrays});
 

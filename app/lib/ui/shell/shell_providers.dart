@@ -4,10 +4,13 @@ import 'package:flutter_riverpod/legacy.dart';
 
 import 'package:spendwise/boot/providers.dart';
 
+// MARK: - ShellDestination
 enum ShellDestination { overview, history, trends, money, settings }
 
+// MARK: - ShellLayoutMode
 enum ShellLayoutMode { phone, desktop }
 
+// MARK: - Helpers
 ShellLayoutMode resolveShellLayoutMode({
   required bool isWeb,
   required TargetPlatform targetPlatform,
@@ -25,6 +28,7 @@ ShellLayoutMode resolveShellLayoutMode({
   }
 }
 
+// MARK: - Constants
 final shellLayoutModeProvider = Provider<ShellLayoutMode>(
   (ref) => resolveShellLayoutMode(
     isWeb: kIsWeb,

@@ -15,6 +15,7 @@ import 'package:spendwise/ui/settings/settings_root_view_model.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_flow.dart';
 
+// MARK: - SettingsFlow
 class SettingsFlow extends FlowBase<SettingsStep> {
   const SettingsFlow({super.key});
 
@@ -22,6 +23,7 @@ class SettingsFlow extends FlowBase<SettingsStep> {
   ConsumerState<SettingsFlow> createState() => _SettingsFlowState();
 }
 
+// MARK: - SettingsFlowState
 class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
   late final StateController<bool> _enrollmentFlowOpen;
   late final ProviderContainer _container;

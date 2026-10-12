@@ -1,6 +1,8 @@
 part of 'ledger_state.dart';
 
 extension LedgerStateCategories on LedgerState {
+  // MARK: - Mutators
+
   List<LedgerChange> addCategory(TransactionCategory category) {
     if (_categories.containsKey(category.id)) throw IdCollision(category.id);
 
@@ -48,6 +50,8 @@ extension LedgerStateCategories on LedgerState {
     return !parent.lifecycle.isAtLeastAsAliveAs(category.lifecycle);
   }
 
+  // MARK: - Deletion and restore
+
   List<LedgerChange> deleteCategory(String rawID) {
     final id = normalizedID(rawID);
     final category = _categories[id];
@@ -82,6 +86,8 @@ extension LedgerStateCategories on LedgerState {
       ),
     );
   }
+
+  // MARK: - Helpers
 
   List<LedgerChange> _moveCategoryTree(
     TransactionCategory category, {

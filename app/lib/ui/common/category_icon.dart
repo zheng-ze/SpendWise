@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:spendwise/ui/symbol_map.dart';
 import 'package:spendwise/ui/theme/spendwise_colors.dart';
 
+// MARK: - Constants
 const double _glyphFraction = 0.44;
 const double _ringThickness = 2;
 const double _unselectedFillOpacity = 0.15;
 
+// MARK: - CategoryIcon
 class CategoryIcon extends StatelessWidget {
   const CategoryIcon({
     super.key,

@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/format/date_format.dart';
 
+// MARK: - MonthYearStep
 enum MonthYearStep { month, year }
 
+// MARK: - MonthYearSelector
 class MonthYearSelector extends StatelessWidget {
   const MonthYearSelector({
     super.key,

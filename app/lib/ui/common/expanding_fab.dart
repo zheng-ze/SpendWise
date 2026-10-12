@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
+// MARK: - Constants
 const _fabInset = 16.0;
 
 const _actionGap = 12.0;
 
+// MARK: - FabAction
 class FabAction {
   const FabAction({
     required this.label,
@@ -18,6 +20,7 @@ class FabAction {
   final VoidCallback onTap;
 }
 
+// MARK: - ExpandingFab
 class ExpandingFab extends StatefulWidget {
   const ExpandingFab({super.key, required this.primary, this.secondary});
 
@@ -28,8 +31,11 @@ class ExpandingFab extends StatefulWidget {
   State<ExpandingFab> createState() => _ExpandingFabState();
 }
 
+// MARK: - ExpandingFabState
 class _ExpandingFabState extends State<ExpandingFab> {
   static const _expandedTurns = 0.125;
+
+  static const _collapsedTurns = 0.0;
 
   static const _toggleMillis = 200;
 
@@ -80,7 +86,7 @@ class _ExpandingFabState extends State<ExpandingFab> {
       onPressed: _toggle,
       tooltip: _expanded ? 'Close menu' : widget.primary.label,
       child: AnimatedRotation(
-        turns: _expanded ? _expandedTurns : 0,
+        turns: _expanded ? _expandedTurns : _collapsedTurns,
         duration: _toggleDuration,
         child: Icon(_expanded ? Icons.close : widget.primary.icon),
       ),
@@ -100,6 +106,7 @@ class _ExpandingFabState extends State<ExpandingFab> {
   }
 }
 
+// MARK: - SingleFab
 class _SingleFab extends StatelessWidget {
   const _SingleFab({required this.action});
 
@@ -121,6 +128,7 @@ class _SingleFab extends StatelessWidget {
   }
 }
 
+// MARK: - ActionCapsule
 class _ActionCapsule extends StatelessWidget {
   const _ActionCapsule({required this.action, required this.onTap});
 

@@ -5,6 +5,8 @@ import 'package:meta/meta.dart';
 
 @immutable
 sealed class MoneySource {
+  // MARK: - Construction
+
   const MoneySource();
 
   const factory MoneySource.account(Account account) = AccountSource;
@@ -28,6 +30,8 @@ sealed class MoneySource {
 
   MoneySource settingLifecycle(LifecycleState lifecycle);
 }
+
+// MARK: - Account source
 
 final class AccountSource extends MoneySource {
   const AccountSource(this.account);
@@ -58,6 +62,8 @@ final class AccountSource extends MoneySource {
   @override
   int get hashCode => account.hashCode;
 }
+
+// MARK: - Pocket source
 
 final class PocketSource extends MoneySource {
   const PocketSource(this.pocket);

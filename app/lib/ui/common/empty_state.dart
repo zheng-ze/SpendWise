@@ -3,6 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:spendwise/ui/common/app_buttons.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
+// MARK: - Constants
+
+const _semiBoldWeight = FontWeight.w600;
+
+// MARK: - EmptyState
 class EmptyState extends StatelessWidget {
   const EmptyState({
     super.key,
@@ -79,7 +84,7 @@ class EmptyState extends StatelessWidget {
       textAlign: TextAlign.center,
       style: const TextStyle(
         fontSize: _titleFontSize,
-        fontWeight: FontWeight.w600,
+        fontWeight: _semiBoldWeight,
       ),
     );
     final content = <Widget>[
@@ -114,6 +119,7 @@ class EmptyState extends StatelessWidget {
   }
 }
 
+// MARK: - EmptyAction
 class _EmptyAction extends StatelessWidget {
   const _EmptyAction({required this.label, required this.onPressed});
 

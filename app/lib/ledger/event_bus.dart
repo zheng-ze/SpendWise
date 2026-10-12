@@ -12,6 +12,8 @@ class EventBus {
   final StreamController<LedgerPublication> _controller =
       StreamController<LedgerPublication>.broadcast(sync: true);
 
+  // MARK: - Publishing
+
   void publish(
     List<LedgerChange> changes, {
     Map<SyncRowID, VersionVector>? stamps,
@@ -33,6 +35,8 @@ class EventBus {
 
     _controller.add(publication);
   }
+
+  // MARK: - Subscribing
 
   Stream<LedgerPublication> subscribe() => _controller.stream;
 

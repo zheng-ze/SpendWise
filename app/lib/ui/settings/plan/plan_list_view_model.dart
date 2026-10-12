@@ -28,6 +28,7 @@ List<RecurringPlan> sortedPlans(
   return sorted;
 }
 
+// MARK: - Steps
 sealed class PlanListStep {}
 
 class PlanFormRequested extends PlanListStep {
@@ -42,6 +43,7 @@ class DeleteConfirmationRequested extends PlanListStep {
   final RecurringPlan plan;
 }
 
+// MARK: - PlanListViewState
 class PlanListViewState implements HasStep<PlanListViewState, PlanListStep> {
   const PlanListViewState({
     required this.plans,
@@ -75,6 +77,7 @@ class PlanListViewState implements HasStep<PlanListViewState, PlanListStep> {
       copyWith(step: step);
 }
 
+// MARK: - PlanListViewModel
 abstract class PlanListViewModel {
   void toggleEditing();
   void requestEditPlan(RecurringPlan plan);
@@ -86,6 +89,7 @@ abstract class PlanListViewModel {
   void clearStep();
 }
 
+// MARK: - PlanListNotifier
 class PlanListNotifier extends AsyncNotifier<PlanListViewState>
     with
         LedgerBackedNotifier<PlanListViewState>,
@@ -150,6 +154,7 @@ class PlanListNotifier extends AsyncNotifier<PlanListViewState>
   }
 }
 
+// MARK: - Constants
 final planListViewModelProvider =
     AsyncNotifierProvider<PlanListNotifier, PlanListViewState>(
       PlanListNotifier.new,

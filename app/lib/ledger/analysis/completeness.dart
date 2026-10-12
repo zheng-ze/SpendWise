@@ -1,6 +1,8 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/foundation.dart';
 
+// MARK: - Completeness
+
 enum PeriodCompleteness { preRecord, complete, incomplete }
 
 @immutable
@@ -33,6 +35,8 @@ class PeriodCompletenessResult {
   int get hashCode => Object.hash(window, firstRecordMonth, today, state);
 }
 
+// MARK: - First Record
+
 DateTime? firstRecordMonth(LedgerState ledger) {
   DateTime? earliest;
   for (final entry in ledger.entries.values) {
@@ -44,6 +48,8 @@ DateTime? firstRecordMonth(LedgerState ledger) {
   if (earliest == null) return null;
   return DateTime.utc(earliest.year, earliest.month, 1);
 }
+
+// MARK: - Classification
 
 PeriodCompleteness classifyPeriod({
   required DateRange window,
@@ -59,6 +65,8 @@ PeriodCompleteness classifyPeriod({
   if (!end.isAfter(day)) return PeriodCompleteness.complete;
   return PeriodCompleteness.incomplete;
 }
+
+// MARK: - Windows
 
 DateRange monthWindow(DateTime month) {
   final day = startOfDayUtc(month);

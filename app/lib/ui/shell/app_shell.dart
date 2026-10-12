@@ -9,6 +9,7 @@ import 'package:spendwise/ui/shell/phone_bar.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/shell/status_banner.dart';
 
+// MARK: - Constants
 const phoneDestinations = [
   ShellDestination.overview,
   ShellDestination.trends,
@@ -26,6 +27,7 @@ const desktopDestinations = [
 
 const _fallbackStackIndex = 0;
 
+// MARK: - AppShell
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key, this.bodies = const {}});
 
@@ -35,6 +37,7 @@ class AppShell extends ConsumerStatefulWidget {
   ConsumerState<AppShell> createState() => _AppShellState();
 }
 
+// MARK: - AppShellState
 class _AppShellState extends ConsumerState<AppShell> {
   DayTicker? _ticker;
 
@@ -100,6 +103,7 @@ class _AppShellState extends ConsumerState<AppShell> {
   }
 }
 
+// MARK: - DestinationStacks
 class _DestinationStacks extends StatelessWidget {
   const _DestinationStacks({
     required this.selected,

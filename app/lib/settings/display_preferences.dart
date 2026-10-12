@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+// MARK: - Appearance
+
 enum Appearance {
   system('system'),
   light('light'),
@@ -14,6 +16,8 @@ enum Appearance {
     orElse: () => Appearance.system,
   );
 }
+
+// MARK: - Overview Widgets
 
 enum OverviewWidgetKind {
   today('today'),
@@ -38,6 +42,8 @@ enum OverviewWidgetKind {
       .firstOrNull;
 }
 
+// MARK: - Breakdown Chart
+
 enum BreakdownChart {
   donut('donut'),
   categoryMap('categoryMap');
@@ -52,6 +58,8 @@ enum BreakdownChart {
         orElse: () => BreakdownChart.donut,
       );
 }
+
+// MARK: - Breakdown Level
 
 enum BreakdownLevel {
   categories('categories'),
@@ -68,6 +76,8 @@ enum BreakdownLevel {
       );
 }
 
+// MARK: - Chart Colours
+
 enum ChartColours {
   categoryColours('categoryColours'),
   themeShades('themeShades'),
@@ -82,6 +92,8 @@ enum ChartColours {
     orElse: () => ChartColours.categoryColours,
   );
 }
+
+// MARK: - Preferences
 
 class DisplayPreferences {
   DisplayPreferences({

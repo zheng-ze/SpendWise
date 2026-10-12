@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
+// MARK: - Constants
+
+const _semiBoldWeight = FontWeight.w600;
+
 final _shape = RoundedRectangleBorder(
   borderRadius: BorderRadius.circular(_cornerRadius),
 );
@@ -21,11 +25,12 @@ const _labelFontSize = 12.0;
 
 TextStyle _labelStyle(BuildContext context) {
   final base = Theme.of(context).textTheme.labelLarge
-      ?.copyWith(fontSize: _labelFontSize, fontWeight: FontWeight.w600);
+      ?.copyWith(fontSize: _labelFontSize, fontWeight: _semiBoldWeight);
   return base ??
-      const TextStyle(fontSize: _labelFontSize, fontWeight: FontWeight.w600);
+      const TextStyle(fontSize: _labelFontSize, fontWeight: _semiBoldWeight);
 }
 
+// MARK: - PrimaryButton
 class PrimaryButton extends StatelessWidget {
   const PrimaryButton({
     super.key,
@@ -54,6 +59,7 @@ class PrimaryButton extends StatelessWidget {
   }
 }
 
+// MARK: - SecondaryButton
 class SecondaryButton extends StatelessWidget {
   const SecondaryButton({
     super.key,

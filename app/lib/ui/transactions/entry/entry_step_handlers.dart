@@ -15,6 +15,7 @@ import 'package:spendwise/ui/transactions/entry/entry_form_logic.dart'
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/transactions_view_model.dart';
 
+// MARK: - Constants
 const _datePickerFirstYear = 2000;
 
 const _datePickerLastYear = 2100;

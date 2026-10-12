@@ -9,6 +9,7 @@ import 'package:spendwise/ui/transactions/entry/entry_step_handlers.dart';
 import 'package:spendwise/ui/transactions/entry/new_entry_presenter.dart';
 import 'package:spendwise/ui/transactions/transactions_view_model.dart';
 
+// MARK: - TransactionsScope
 class TransactionsScope {
   const TransactionsScope({required this.title, required this.scopeIDs});
 
@@ -26,6 +27,7 @@ class TransactionsScope {
   int get hashCode => Object.hash(title, Object.hashAllUnordered(scopeIDs));
 }
 
+// MARK: - TransactionsFlow
 class TransactionsFlow extends FlowBase<TransactionsStep> {
   const TransactionsFlow({
     super.key,
@@ -43,6 +45,7 @@ class TransactionsFlow extends FlowBase<TransactionsStep> {
   ConsumerState<TransactionsFlow> createState() => _TransactionsFlowState();
 }
 
+// MARK: - TransactionsFlowState
 class _TransactionsFlowState
     extends FlowBaseState<TransactionsStep, TransactionsFlow> {
   ProviderSubscription<AsyncValue<EntryFormViewState>>? _formSubscription;

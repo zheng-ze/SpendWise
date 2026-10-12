@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
+// MARK: - SheetAlertSeverity
 enum SheetAlertSeverity { error, warning }
 
+// MARK: - SheetAlertData
 @immutable
 class SheetAlertData {
   const SheetAlertData({
@@ -29,6 +31,7 @@ class SheetAlertData {
   int get hashCode => Object.hash(message, severity, actionLabel);
 }
 
+// MARK: - SheetAlert
 class SheetAlert extends StatelessWidget {
   const SheetAlert({super.key, required this.data, this.onAction});
 
@@ -109,6 +112,7 @@ class SheetAlert extends StatelessWidget {
   }
 }
 
+// MARK: - BannerAction
 class _BannerAction extends StatelessWidget {
   const _BannerAction({required this.label, required this.onPressed});
 

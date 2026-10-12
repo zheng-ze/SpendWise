@@ -1,5 +1,6 @@
 import 'package:domain/domain.dart';
 
+// MARK: - AnalysisScan
 class AnalysisScan {
   Object? _cachedSource;
   int? _cachedRevision;

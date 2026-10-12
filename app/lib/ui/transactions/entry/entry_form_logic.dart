@@ -1,7 +1,9 @@
 import 'package:domain/domain.dart';
 
+// MARK: - EntryFormKind
 enum EntryFormKind { expense, income, transfer }
 
+// MARK: - Helpers
 bool canSaveEntryForm({
   required Decimal? amount,
   required String name,

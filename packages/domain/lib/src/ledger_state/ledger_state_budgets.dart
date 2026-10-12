@@ -1,6 +1,8 @@
 part of 'ledger_state.dart';
 
 extension LedgerStateBudgets on LedgerState {
+  // MARK: - Mutators
+
   List<LedgerChange> addBudget(
     String? categoryID,
     Decimal initialAmount, {
@@ -79,6 +81,8 @@ extension LedgerStateBudgets on LedgerState {
 
     return _checked([DeleteBudget(id)]);
   }
+
+  // MARK: - Helpers
 
   Budget _appendEvent(Budget stored, LimitEvent event) => Budget(
     id: stored.id,

@@ -6,6 +6,7 @@ import 'package:spendwise/settings/settings_providers.dart';
 import 'package:spendwise/sync/hosted_sync_status.dart';
 import 'package:spendwise/ui/settings/settings_root_view_model.dart';
 
+// MARK: - SettingsScreen
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
@@ -66,6 +67,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 }
 
+// MARK: - SectionHeader
 class _SectionHeader extends StatelessWidget {
   const _SectionHeader(this.title);
 
@@ -88,6 +90,7 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
+// MARK: - SettingsLink
 class _SettingsLink extends StatelessWidget {
   const _SettingsLink({
     required this.icon,
@@ -110,6 +113,7 @@ class _SettingsLink extends StatelessWidget {
   }
 }
 
+// MARK: - HostedSyncSection
 class _HostedSyncSection extends ConsumerWidget {
   const _HostedSyncSection();
 

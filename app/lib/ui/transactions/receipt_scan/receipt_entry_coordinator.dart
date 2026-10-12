@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/ocr/document_scanner_selection.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_flow.dart';
 
+// MARK: - ReceiptOrchestrationState
 class ReceiptOrchestrationState {
   const ReceiptOrchestrationState({this.scanning = false, this.scanStop});
 
@@ -25,6 +26,7 @@ class ReceiptOrchestrationState {
   }
 }
 
+// MARK: - ReceiptEntryCoordinator
 class ReceiptEntryCoordinator extends Notifier<ReceiptOrchestrationState> {
   ReceiptEntryCoordinator([this.entryId]);
 
@@ -123,6 +125,7 @@ class ReceiptEntryCoordinator extends Notifier<ReceiptOrchestrationState> {
   }
 }
 
+// MARK: - Constants
 final receiptEntryCoordinatorProvider =
     NotifierProvider.family<
       ReceiptEntryCoordinator,
@@ -130,18 +133,22 @@ final receiptEntryCoordinatorProvider =
       String?
     >(ReceiptEntryCoordinator.new);
 
+// MARK: - NativeScannerOutcome
 sealed class _NativeScannerOutcome {
   const _NativeScannerOutcome();
 }
 
+// MARK: - NativeScannerUnavailable
 class _NativeScannerUnavailable extends _NativeScannerOutcome {
   const _NativeScannerUnavailable();
 }
 
+// MARK: - NativeScannerCancelled
 class _NativeScannerCancelled extends _NativeScannerOutcome {
   const _NativeScannerCancelled();
 }
 
+// MARK: - NativeScannerCaptured
 class _NativeScannerCaptured extends _NativeScannerOutcome {
   const _NativeScannerCaptured(this.bytes);
 

@@ -4,7 +4,11 @@ import 'package:flutter/foundation.dart';
 
 import 'package:spendwise/ledger/analysis/completeness.dart';
 
+// MARK: - State
+
 enum ComparedWithUsualState { available, notEnoughData }
+
+// MARK: - Result
 
 @immutable
 class ComparedWithUsual {
@@ -71,6 +75,8 @@ class ComparedWithUsual {
   );
 }
 
+// MARK: - Baselines
+
 List<DateRange>? previousCompleteMonthWindows({
   required DateTime selectedMonth,
   required int elapsedDayCount,
@@ -106,6 +112,8 @@ List<DateRange>? previousCompleteMonthWindows({
   }
   return List.unmodifiable(windows);
 }
+
+// MARK: - Query
 
 ComparedWithUsual comparedWithUsual({
   required Iterable<AnalysisItem> items,
@@ -178,6 +186,8 @@ ComparedWithUsual comparedWithUsual({
     ),
   );
 }
+
+// MARK: - Helpers
 
 int _monthLength(DateTime monthStart) {
   return DateTime.utc(

@@ -6,6 +6,7 @@ import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart
 import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/step_emitting.dart';
 
+// MARK: - BudgetLimitViewState
 class BudgetLimitViewState
     implements HasStep<BudgetLimitViewState, BudgetsStep> {
   const BudgetLimitViewState({
@@ -56,6 +57,7 @@ class BudgetLimitViewState
       copyWith(step: step);
 }
 
+// MARK: - BudgetLimitViewModel
 abstract class BudgetLimitViewModel {
   void changeYear(DateTime year);
   void requestEditDefault();
@@ -64,6 +66,7 @@ abstract class BudgetLimitViewModel {
   void clearStep();
 }
 
+// MARK: - BudgetLimitNotifier
 class BudgetLimitNotifier extends AsyncNotifier<BudgetLimitViewState>
     with
         LedgerBackedNotifier<BudgetLimitViewState>,
@@ -144,6 +147,7 @@ class BudgetLimitNotifier extends AsyncNotifier<BudgetLimitViewState>
   }
 }
 
+// MARK: - Constants
 final budgetLimitViewModelProvider =
     AsyncNotifierProvider.family<
       BudgetLimitNotifier,

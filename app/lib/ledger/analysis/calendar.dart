@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:spendwise/ledger/analysis/entry_record.dart';
 import 'package:spendwise/ledger/analysis/upcoming.dart';
 
+// MARK: - Day
+
 @immutable
 class CalendarDay {
   const CalendarDay({
@@ -27,6 +29,8 @@ class CalendarDay {
   @override
   int get hashCode => Object.hash(date, entries, plans);
 }
+
+// MARK: - Query
 
 List<CalendarDay> calendarDays({
   required LedgerState ledger,

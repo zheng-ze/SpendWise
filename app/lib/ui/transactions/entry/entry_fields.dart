@@ -12,6 +12,12 @@ import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_logic.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 
+// MARK: - Visual Constants
+
+const _fieldContentPadding = EdgeInsets.zero;
+const _actionWidth = double.infinity;
+
+// MARK: - EntryFields
 class EntryFields extends ConsumerStatefulWidget {
   const EntryFields({
     super.key,
@@ -30,6 +36,7 @@ class EntryFields extends ConsumerStatefulWidget {
   ConsumerState<EntryFields> createState() => _EntryFieldsState();
 }
 
+// MARK: - EntryFieldsState
 class _EntryFieldsState extends ConsumerState<EntryFields> {
   static const _categoryIconSize = 24.0;
   static const _sectionSpacing = 16.0;
@@ -88,7 +95,7 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
       children: [
         Expanded(
           child: ListTile(
-            contentPadding: EdgeInsets.zero,
+            contentPadding: _fieldContentPadding,
             title: const Text('Date'),
             trailing: Text(formatEntryDate(state.date)),
             onTap: widget.readOnly ? null : widget.viewModel.requestPickDate,
@@ -115,14 +122,14 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
     final state = widget.state;
     return [
       SwitchListTile(
-        contentPadding: EdgeInsets.zero,
+        contentPadding: _fieldContentPadding,
         title: const Text('Ends'),
         value: state.hasEndDate,
         onChanged: widget.viewModel.setEndDateEnabled,
       ),
       if (state.hasEndDate)
         ListTile(
-          contentPadding: EdgeInsets.zero,
+          contentPadding: _fieldContentPadding,
           title: const Text('End date'),
           trailing: Text(formatEntryDate(state.endDate ?? state.date)),
           onTap: widget.viewModel.requestPickEndDate,
@@ -164,21 +171,21 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
     final kind = state.kind;
     final sourceDestinationRows = [
       ListTile(
-        contentPadding: EdgeInsets.zero,
+        contentPadding: _fieldContentPadding,
         title: Text(kind == EntryFormKind.transfer ? 'From' : 'Account'),
         trailing: Text(sourceLabel(state.sourceId) ?? 'Select'),
         onTap: readOnly ? null : viewModel.requestPickSource,
       ),
       if (kind == EntryFormKind.transfer)
         ListTile(
-          contentPadding: EdgeInsets.zero,
+          contentPadding: _fieldContentPadding,
           title: const Text('To'),
           trailing: Text(sourceLabel(state.destinationId) ?? 'Select'),
           onTap: readOnly ? null : viewModel.requestPickDestination,
         )
       else
         ListTile(
-          contentPadding: EdgeInsets.zero,
+          contentPadding: _fieldContentPadding,
           leading: categoryLeading(),
           title: const Text('Category'),
           trailing: Text(categoryLabel(state.categoryId) ?? 'None'),
@@ -215,7 +222,7 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
         if (isNew && state.recurrence != null) ..._recurrenceSection(),
         ...sourceDestinationRows,
         SwitchListTile(
-          contentPadding: EdgeInsets.zero,
+          contentPadding: _fieldContentPadding,
           title: const Text('Include in Analysis'),
           value: state.includeInAnalysis,
           onChanged: readOnly || state.isSystemEntry
@@ -225,7 +232,7 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
         if (widget.showDelete) ...[
           const SizedBox(height: _deleteSpacing),
           SizedBox(
-            width: double.infinity,
+            width: _actionWidth,
             child: TextButton(
               onPressed: viewModel.delete,
               style: TextButton.styleFrom(

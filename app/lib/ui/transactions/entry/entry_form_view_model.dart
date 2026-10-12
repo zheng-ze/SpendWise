@@ -6,124 +6,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/step_emitting.dart';
-import 'package:spendwise/ui/format/amount_parse.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_logic.dart';
+import 'package:spendwise/ui/transactions/entry/entry_form_state.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_entry_coordinator.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_flow.dart';
 import 'package:spendwise/ui/transactions/transactions_view_model.dart';
 
-enum EntryFormMode { newEntry, viewing, editing }
+export 'package:spendwise/ui/transactions/entry/entry_form_state.dart';
 
-class EntryFormViewState
-    implements HasStep<EntryFormViewState, TransactionsStep> {
-  const EntryFormViewState({
-    required this.mode,
-    required this.kind,
-    required this.amountText,
-    required this.nameText,
-    required this.date,
-    required this.sourceId,
-    required this.destinationId,
-    required this.categoryId,
-    required this.includeInAnalysis,
-    required this.recurrence,
-    required this.hasEndDate,
-    required this.endDate,
-    required this.isSystemEntry,
-    required this.entryId,
-    this.error,
-    this.scanning = false,
-    this.scanStop,
-    this.dismissed = false,
-    this.step,
-  });
-
-  final EntryFormMode mode;
-  final EntryFormKind kind;
-  final String amountText;
-  final String nameText;
-  final DateTime date;
-  final String? sourceId;
-  final String? destinationId;
-  final String? categoryId;
-  final bool includeInAnalysis;
-  final RecurrenceFrequency? recurrence;
-  final bool hasEndDate;
-  final DateTime? endDate;
-  final bool isSystemEntry;
-
-  final String? entryId;
-
-  final LedgerError? error;
-
-  final bool scanning;
-
-  final ReceiptScanStop? scanStop;
-
-  final bool dismissed;
-
-  @override
-  final TransactionsStep? step;
-
-  Decimal? get parsedAmount => parseAmountInput(amountText);
-
-  bool get canSave => canSaveEntryForm(
-    amount: parsedAmount,
-    name: nameText,
-    sourceId: sourceId,
-    kind: kind,
-    destinationId: destinationId,
-  );
-
-  EntryFormViewState copyWith({
-    EntryFormMode? mode,
-    EntryFormKind? kind,
-    String? amountText,
-    String? nameText,
-    DateTime? date,
-    String? Function()? sourceId,
-    String? Function()? destinationId,
-    String? Function()? categoryId,
-    bool? includeInAnalysis,
-    RecurrenceFrequency? Function()? recurrence,
-    bool? hasEndDate,
-    DateTime? Function()? endDate,
-    LedgerError? Function()? error,
-    bool? scanning,
-    ReceiptScanStop? Function()? scanStop,
-    bool? dismissed,
-    TransactionsStep? Function()? step,
-  }) {
-    return EntryFormViewState(
-      mode: mode ?? this.mode,
-      kind: kind ?? this.kind,
-      amountText: amountText ?? this.amountText,
-      nameText: nameText ?? this.nameText,
-      date: date ?? this.date,
-      sourceId: sourceId == null ? this.sourceId : sourceId(),
-      destinationId: destinationId == null
-          ? this.destinationId
-          : destinationId(),
-      categoryId: categoryId == null ? this.categoryId : categoryId(),
-      includeInAnalysis: includeInAnalysis ?? this.includeInAnalysis,
-      recurrence: recurrence == null ? this.recurrence : recurrence(),
-      hasEndDate: hasEndDate ?? this.hasEndDate,
-      endDate: endDate == null ? this.endDate : endDate(),
-      isSystemEntry: isSystemEntry,
-      entryId: entryId,
-      error: error == null ? this.error : error(),
-      scanning: scanning ?? this.scanning,
-      scanStop: scanStop == null ? this.scanStop : scanStop(),
-      dismissed: dismissed ?? this.dismissed,
-      step: step == null ? this.step : step(),
-    );
-  }
-
-  @override
-  EntryFormViewState withStep(TransactionsStep? Function() step) =>
-      copyWith(step: step);
-}
+// MARK: - View Model Contract
 
 abstract class EntryFormViewModel {
   void setKind(EntryFormKind kind);
@@ -154,12 +46,16 @@ abstract class EntryFormViewModel {
   void clearStep();
 }
 
+// MARK: - Scan Contract
+
 abstract class ReceiptScanController {
   void requestScan(ReceiptScanSource source, {Uint8List? preCapturedBytes});
   void applyCroppedDocument(Uint8List bytes);
 
   void clearScanStop();
 }
+
+// MARK: - Notifier
 
 class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
     with
@@ -220,6 +116,8 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
     );
   }
 
+  // MARK: - Field Setters
+
   @override
   void setKind(EntryFormKind kind) {
     updateState(
@@ -252,6 +150,8 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
       ),
     );
   }
+
+  // MARK: - Pickers
 
   @override
   void requestPickDate() => emitStep(PickDateRequested());
@@ -312,6 +212,8 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
     );
   }
 
+  // MARK: - Editing Lifecycle
+
   @override
   void startEditing() =>
       updateState((current) => current.copyWith(mode: EntryFormMode.editing));
@@ -339,6 +241,8 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
       ),
     );
   }
+
+  // MARK: - Persistence
 
   @override
   Future<void> save() async {
@@ -413,6 +317,8 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
   @override
   void cancel() => updateState((c) => c.copyWith(dismissed: true));
 
+  // MARK: - Receipt Scan
+
   @override
   void requestScan(ReceiptScanSource source, {Uint8List? preCapturedBytes}) {
     unawaited(
@@ -461,6 +367,8 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
   @override
   void clearScanStop() => _coordinator!.clearScanStop();
 }
+
+// MARK: - Provider
 
 final entryFormViewModelProvider =
     AsyncNotifierProvider.family<

@@ -28,6 +28,8 @@ class TransactionCategory {
   final String symbol;
   final LifecycleState lifecycle;
 
+  // MARK: - Derivers
+
   TransactionCategory settingLifecycle(LifecycleState lifecycle) {
     return TransactionCategory(
       id: id,
@@ -40,6 +42,8 @@ class TransactionCategory {
       lifecycle: lifecycle,
     );
   }
+
+  // MARK: - Equality
 
   @override
   bool operator ==(Object other) {

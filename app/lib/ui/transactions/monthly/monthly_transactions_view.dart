@@ -8,6 +8,7 @@ import 'package:spendwise/ui/transactions/daily_list/empty_state.dart';
 import 'package:spendwise/ui/transactions/monthly/month_summaries.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
+// MARK: - MonthlyTransactionsView
 class MonthlyTransactionsView extends StatefulWidget {
   const MonthlyTransactionsView({
     super.key,
@@ -23,6 +24,7 @@ class MonthlyTransactionsView extends StatefulWidget {
       _MonthlyTransactionsViewState();
 }
 
+// MARK: - MonthlyTransactionsViewState
 class _MonthlyTransactionsViewState extends State<MonthlyTransactionsView> {
   DateTime? _expandedMonth;
 
@@ -65,6 +67,7 @@ class _MonthlyTransactionsViewState extends State<MonthlyTransactionsView> {
   }
 }
 
+// MARK: - MonthRow
 class _MonthRow extends StatelessWidget {
   const _MonthRow({
     required this.summary,
@@ -105,6 +108,7 @@ class _MonthRow extends StatelessWidget {
   }
 }
 
+// MARK: - WeekRow
 class _WeekRow extends StatelessWidget {
   const _WeekRow({required this.summary, required this.onTap});
 
@@ -143,6 +147,7 @@ class _WeekRow extends StatelessWidget {
   }
 }
 
+// MARK: - TransactionSummaryRow
 class _TransactionSummaryRow extends StatelessWidget {
   const _TransactionSummaryRow({
     this.background,

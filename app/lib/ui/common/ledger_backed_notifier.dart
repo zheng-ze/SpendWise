@@ -5,6 +5,7 @@ import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ledger/ledger_session.dart';
 
+// MARK: - LedgerBackedNotifier
 mixin LedgerBackedNotifier<T> on AsyncNotifier<T> {
   LedgerSession get _session {
     final current = ref.watch(ledgerSessionProvider);

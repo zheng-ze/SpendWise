@@ -12,6 +12,7 @@ import 'package:spendwise/ui/stats/donut/stats_donut.dart';
 import 'package:spendwise/ui/stats/donut/stats_legend.dart';
 import 'package:spendwise/ui/stats/helpers/stats_window.dart';
 
+// MARK: - AnalysisFlow
 class AnalysisFlow extends FlowBase<AnalysisStep> {
   const AnalysisFlow({
     super.key,
@@ -30,6 +31,7 @@ class AnalysisFlow extends FlowBase<AnalysisStep> {
   ConsumerState<AnalysisFlow> createState() => _AnalysisFlowState();
 }
 
+// MARK: - AnalysisFlowState
 class _AnalysisFlowState extends FlowBaseState<AnalysisStep, AnalysisFlow> {
   @override
   void Function() subscribeToStep(void Function(AnalysisStep? step) handle) =>
@@ -73,6 +75,7 @@ class _AnalysisFlowState extends FlowBaseState<AnalysisStep, AnalysisFlow> {
   );
 }
 
+// MARK: - AnalysisBody
 class _AnalysisBody extends ConsumerWidget {
   const _AnalysisBody({
     required this.kind,
@@ -106,6 +109,7 @@ class _AnalysisBody extends ConsumerWidget {
   }
 }
 
+// MARK: - AnalysisBodyContent
 class _AnalysisBodyContent extends StatelessWidget {
   const _AnalysisBodyContent({
     required this.viewState,
@@ -177,6 +181,7 @@ class _AnalysisBodyContent extends StatelessWidget {
   }
 }
 
+// MARK: - EmptyState
 class _EmptyState extends StatelessWidget {
   const _EmptyState({required this.kind});
 

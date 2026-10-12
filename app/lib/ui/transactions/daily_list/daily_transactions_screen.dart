@@ -17,8 +17,10 @@ import 'package:spendwise/ui/transactions/daily_list/transaction_cell.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
 import 'package:spendwise/ui/transactions/transactions_view_model.dart';
 
+// MARK: - Constants
 const _tabTitles = ['Daily', 'Monthly'];
 
+// MARK: - TransactionsScreen
 class TransactionsScreen extends ConsumerWidget {
   const TransactionsScreen({
     super.key,
@@ -55,6 +57,7 @@ class TransactionsScreen extends ConsumerWidget {
   }
 }
 
+// MARK: - TransactionsScreenBody
 class _TransactionsScreenBody extends StatelessWidget {
   const _TransactionsScreenBody({
     required this.state,
@@ -142,6 +145,7 @@ class _TransactionsScreenBody extends StatelessWidget {
   }
 }
 
+// MARK: - TotalsBar
 class _TotalsBar extends StatelessWidget {
   const _TotalsBar({required this.state});
 
@@ -176,6 +180,7 @@ class _TotalsBar extends StatelessWidget {
   }
 }
 
+// MARK: - DailyContent
 class _DailyContent extends StatelessWidget {
   const _DailyContent({required this.state, required this.viewModel});
 
@@ -207,6 +212,7 @@ class _DailyContent extends StatelessWidget {
   }
 }
 
+// MARK: - DaySliverList
 class _DaySliverList extends StatelessWidget {
   const _DaySliverList({required this.section, required this.viewModel});
 

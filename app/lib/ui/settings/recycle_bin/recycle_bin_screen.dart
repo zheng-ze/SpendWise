@@ -1,15 +1,26 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ui/common/category_icon.dart';
-import 'package:spendwise/ui/common/medallion_row.dart';
-import 'package:spendwise/ui/format/amount_style.dart';
-import 'package:spendwise/ui/format/color_hex.dart';
-import 'package:spendwise/ui/format/money_format.dart';
+import 'package:spendwise/ui/settings/recycle_bin/recycle_bin_purge_dialog.dart';
+import 'package:spendwise/ui/settings/recycle_bin/recycle_bin_sections.dart';
 import 'package:spendwise/ui/settings/recycle_bin/recycle_bin_view_model.dart';
 import 'package:spendwise/ui/symbol_map.dart';
-import 'package:spendwise/ui/theme/spendwise_text.dart';
+
+// MARK: - Constants
+
+const _screenTitle = 'Recycle bin';
+
+const _accountsTitle = 'Accounts';
+
+const _pocketsTitle = 'Subpockets';
+
+const _categoriesTitle = 'Categories';
+
+const _accountsSymbol = 'wallet';
+
+const _pocketsSymbol = 'inbox';
+
+// MARK: - Screen
 
 class RecycleBinScreen extends ConsumerStatefulWidget {
   const RecycleBinScreen({super.key});
@@ -17,6 +28,8 @@ class RecycleBinScreen extends ConsumerStatefulWidget {
   @override
   ConsumerState<RecycleBinScreen> createState() => _RecycleBinScreenState();
 }
+
+// MARK: - State
 
 class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
   ProviderSubscription<AsyncValue<RecycleBinViewState>>? _subscription;
@@ -48,33 +61,9 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
   }
 
   Future<void> _confirmPurge(BinRow row) async {
-    final purgeBody = row.kind == BinRowKind.entry
-        ? '${row.name} leaves the bin for good and can no longer be restored.'
-        : '${row.name} leaves the bin for good. Existing transactions keep '
-              'the name but it can no longer be restored.';
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete permanently?'),
-        content: Text(purgeBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-              foregroundColor: context.colors.onAction,
-            ),
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
+    final confirmed = await confirmBinPurge(context, row);
     if (!mounted) return;
-    _viewModel.applyPurgeConfirmed(confirmed ?? false, row.kind, row.id);
+    _viewModel.applyPurgeConfirmed(confirmed, row.kind, row.id);
   }
 
   @override
@@ -91,6 +80,8 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
     );
   }
 }
+
+// MARK: - Body
 
 class _RecycleBinScreenBody extends StatelessWidget {
   const _RecycleBinScreenBody({
@@ -119,30 +110,30 @@ class _RecycleBinScreenBody extends StatelessWidget {
 
     final sections = [
       if (entries.isNotEmpty)
-        _EntriesSection(
+        BinEntriesSection(
           rows: entries,
           onRestore: restore,
           onRequestPurge: requestPurge,
         ),
       if (accounts.isNotEmpty)
-        _BinSection(
-          title: 'Accounts',
-          sectionIcon: symbolIcon('wallet'),
+        BinSection(
+          title: _accountsTitle,
+          sectionIcon: symbolIcon(_accountsSymbol),
           rows: accounts,
           onRestore: restore,
           onRequestPurge: requestPurge,
         ),
       if (pockets.isNotEmpty)
-        _BinSection(
-          title: 'Subpockets',
-          sectionIcon: symbolIcon('inbox'),
+        BinSection(
+          title: _pocketsTitle,
+          sectionIcon: symbolIcon(_pocketsSymbol),
           rows: pockets,
           onRestore: restore,
           onRequestPurge: requestPurge,
         ),
       if (categories.isNotEmpty)
-        _BinSection(
-          title: 'Categories',
+        BinSection(
+          title: _categoriesTitle,
           sectionIcon: null,
           rows: categories,
           onRestore: restore,
@@ -150,322 +141,12 @@ class _RecycleBinScreenBody extends StatelessWidget {
         ),
     ];
     final content = isEmpty
-        ? const _EmptyState()
+        ? const BinEmptyState()
         : ListView(children: sections);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Recycle bin')),
+      appBar: AppBar(title: const Text(_screenTitle)),
       body: SafeArea(child: content),
-    );
-  }
-}
-
-class _BinSectionTitle extends StatelessWidget {
-  const _BinSectionTitle(this.title);
-
-  final String title;
-
-  static const _titlePadding = EdgeInsets.fromLTRB(16, 16, 16, 4);
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: _titlePadding,
-      child: Text(
-        title,
-        style: theme.textTheme.labelLarge?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
-      ),
-    );
-  }
-}
-
-class _EntriesSection extends StatelessWidget {
-  const _EntriesSection({
-    required this.rows,
-    required this.onRestore,
-    required this.onRequestPurge,
-  });
-
-  final List<BinEntryRow> rows;
-  final void Function(BinRow row) onRestore;
-  final void Function(BinRow row) onRequestPurge;
-
-  static const _title = 'Entries';
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _BinSectionTitle(_title),
-        for (final row in rows)
-          _SwipeableBinRow(
-            row: row,
-            onRestore: () => onRestore(row),
-            onRequestPurge: () => onRequestPurge(row),
-            child: _EntryRowContent(row: row, onRestore: () => onRestore(row)),
-          ),
-      ],
-    );
-  }
-}
-
-class _EntryRowContent extends StatelessWidget {
-  const _EntryRowContent({required this.row, required this.onRestore});
-
-  final BinEntryRow row;
-  final VoidCallback onRestore;
-
-  static const _contentPadding = EdgeInsets.symmetric(
-    horizontal: 16,
-    vertical: 7,
-  );
-  static const _restoreMinHeight = 30.0;
-  static const _restoreMinWidth = 48.0;
-  static const _restoreGap = 6.0;
-  static const _restoreFontSize = 12.0;
-  static const _restoreWeight = FontWeight.w600;
-  static const _restoreLabel = 'Restore';
-  static const _amountFontSize = 12.0;
-  static const _amountWeight = FontWeight.w600;
-
-  @override
-  Widget build(BuildContext context) {
-    final amountStyle = TextStyle(
-      fontSize: _amountFontSize,
-      fontWeight: _amountWeight,
-      color: AmountStyle.of(context, kind: row.amountKind).color,
-    );
-    final amountText = formatSignedMoney(
-      row.amount,
-      kind: row.amountKind,
-      symbol: false,
-    );
-    final trailing = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(amountText, style: amountStyle),
-        const SizedBox(width: _restoreGap),
-        ExcludeSemantics(
-          child: InkWell(
-            onTap: onRestore,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                minWidth: _restoreMinWidth,
-                minHeight: _restoreMinHeight,
-              ),
-              child: Center(
-                child: Text(
-                  _restoreLabel,
-                  style: TextStyle(
-                    fontSize: _restoreFontSize,
-                    fontWeight: _restoreWeight,
-                    color: context.colors.action,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-
-    return Padding(
-      padding: _contentPadding,
-      child: MedallionRow(
-        icon: symbolIcon(row.symbolName),
-        iconColor: row.color,
-        title: row.name,
-        subtitle: row.caption,
-        trailing: trailing,
-      ),
-    );
-  }
-}
-
-class _BinSection extends StatelessWidget {
-  const _BinSection({
-    required this.title,
-    required this.sectionIcon,
-    required this.rows,
-    required this.onRestore,
-    required this.onRequestPurge,
-  });
-
-  final String title;
-  final IconData? sectionIcon;
-  final List<BinRow> rows;
-  final void Function(BinRow row) onRestore;
-  final void Function(BinRow row) onRequestPurge;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _BinSectionTitle(title),
-        for (final row in rows)
-          _BinRowTile(
-            row: row,
-            sectionIcon: sectionIcon,
-            onRestore: () => onRestore(row),
-            onRequestPurge: () => onRequestPurge(row),
-          ),
-      ],
-    );
-  }
-}
-
-class _BinRowTile extends StatelessWidget {
-  const _BinRowTile({
-    required this.row,
-    required this.sectionIcon,
-    required this.onRestore,
-    required this.onRequestPurge,
-  });
-
-  final BinRow row;
-  final IconData? sectionIcon;
-  final VoidCallback onRestore;
-  final VoidCallback onRequestPurge;
-
-  static const _iconSize = 28.0;
-  static const _contentPadding = EdgeInsets.symmetric(
-    horizontal: 16,
-    vertical: 10,
-  );
-  static const _leadingGap = 12.0;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final referenceLabel = row.referenceCount == 1
-        ? '1 reference'
-        : '${row.referenceCount} references';
-
-    final leading = row.symbolName != null
-        ? CategoryIcon(
-            symbolName: row.symbolName!,
-            color: row.color ?? colorHexFallback,
-            size: _iconSize,
-          )
-        : Icon(sectionIcon, color: theme.colorScheme.onSurfaceVariant);
-    final title = Expanded(
-      child: Text(row.name, style: theme.textTheme.bodyLarge),
-    );
-    final references = Text(
-      referenceLabel,
-      style: theme.textTheme.bodySmall?.copyWith(
-        color: theme.colorScheme.onSurfaceVariant,
-      ),
-    );
-    final content = Padding(
-      padding: _contentPadding,
-      child: Row(
-        children: [
-          leading,
-          const SizedBox(width: _leadingGap),
-          title,
-          references,
-        ],
-      ),
-    );
-    return _SwipeableBinRow(
-      row: row,
-      onRestore: onRestore,
-      onRequestPurge: onRequestPurge,
-      child: content,
-    );
-  }
-}
-
-class _SwipeableBinRow extends StatelessWidget {
-  const _SwipeableBinRow({
-    required this.row,
-    required this.onRestore,
-    required this.onRequestPurge,
-    required this.child,
-  });
-
-  final BinRow row;
-  final VoidCallback onRestore;
-  final VoidCallback onRequestPurge;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final tile = Dismissible(
-      key: ValueKey('bin-${row.kind}-${row.id}'),
-      direction: DismissDirection.horizontal,
-      background: const _RestoreBackground(),
-      secondaryBackground: const _PurgeBackground(),
-      confirmDismiss: (direction) async {
-        if (direction == DismissDirection.startToEnd) {
-          onRestore();
-        } else {
-          onRequestPurge();
-        }
-        return false;
-      },
-      child: child,
-    );
-
-    return Semantics(
-      customSemanticsActions: {
-        CustomSemanticsAction(label: 'Restore ${row.name}'): onRestore,
-        CustomSemanticsAction(label: 'Purge ${row.name}'): onRequestPurge,
-      },
-      child: tile,
-    );
-  }
-}
-
-class _RestoreBackground extends StatelessWidget {
-  const _RestoreBackground();
-
-  static const _backgroundPadding = EdgeInsets.symmetric(horizontal: 20);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: context.colors.action,
-      alignment: Alignment.centerLeft,
-      padding: _backgroundPadding,
-      child: Icon(symbolIcon('undo'), color: context.colors.onAction),
-    );
-  }
-}
-
-class _PurgeBackground extends StatelessWidget {
-  const _PurgeBackground();
-
-  static const _backgroundPadding = EdgeInsets.symmetric(horizontal: 20);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: Theme.of(context).colorScheme.error,
-      alignment: Alignment.centerRight,
-      padding: _backgroundPadding,
-      child: Icon(Icons.delete_outline, color: context.colors.onAction),
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  const _EmptyState();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Text(
-        'Recycle bin is empty',
-        style: Theme.of(context).textTheme.bodyMedium
-            ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-      ),
     );
   }
 }

@@ -7,6 +7,7 @@ import 'package:spendwise/ui/transactions/entry/entry_form.dart';
 import 'package:spendwise/ui/transactions/daily_list/transaction_cell.dart';
 import 'package:spendwise/ui/transactions/daily_list/transaction_row.dart';
 
+// MARK: - EntryRow
 class EntryRow extends StatelessWidget {
   const EntryRow({
     super.key,

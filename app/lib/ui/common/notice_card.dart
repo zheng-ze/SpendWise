@@ -3,6 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:spendwise/ui/common/app_buttons.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
+// MARK: - Constants
+
+const _semiBoldWeight = FontWeight.w600;
+
+// MARK: - NoticeCardAction
 @immutable
 class NoticeCardAction {
   const NoticeCardAction({required this.label, required this.onPressed});
@@ -12,6 +17,7 @@ class NoticeCardAction {
   final VoidCallback onPressed;
 }
 
+// MARK: - NoticeCard
 class NoticeCard extends StatelessWidget {
   const NoticeCard({
     super.key,
@@ -66,7 +72,7 @@ class NoticeCard extends StatelessWidget {
       title,
       style: TextStyle(
         fontSize: _bodyFontSize,
-        fontWeight: FontWeight.w600,
+        fontWeight: _semiBoldWeight,
         color: colors.notice,
         height: _bodyLineHeight,
       ),
@@ -95,6 +101,7 @@ class NoticeCard extends StatelessWidget {
   }
 }
 
+// MARK: - NoticeActions
 class _NoticeActions extends StatelessWidget {
   const _NoticeActions({
     required this.primaryAction,

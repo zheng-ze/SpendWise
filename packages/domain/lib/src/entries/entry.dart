@@ -1,24 +1,12 @@
 import 'package:decimal/decimal.dart';
 import 'package:domain/src/entries/holder_referencing.dart';
+import 'package:domain/src/entries/system_entry_kind.dart';
 import 'package:domain/src/ids.dart';
 import 'package:domain/src/lifecycle_state.dart';
 import 'package:domain/src/time/calendar_day.dart';
 import 'package:meta/meta.dart';
 
-enum SystemEntryKind {
-  openingBalance(0),
-  balanceAdjustment(1);
-
-  const SystemEntryKind(this.code);
-
-  final int code;
-
-  static SystemEntryKind? fromCode(int? code) => switch (code) {
-    0 => openingBalance,
-    1 => balanceAdjustment,
-    _ => null,
-  };
-}
+// MARK: - Model
 
 @immutable
 class Entry with HolderReferencing {
@@ -58,6 +46,8 @@ class Entry with HolderReferencing {
   final LifecycleState lifecycle;
   final SystemEntryKind? systemKind;
 
+  // MARK: - Derivers
+
   Entry settingLifecycle(LifecycleState lifecycle) => Entry(
     id: id,
     date: date,
@@ -70,6 +60,8 @@ class Entry with HolderReferencing {
     lifecycle: lifecycle,
     systemKind: systemKind,
   );
+
+  // MARK: - Equality
 
   @override
   bool operator ==(Object other) {

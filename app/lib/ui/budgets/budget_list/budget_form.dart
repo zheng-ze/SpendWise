@@ -8,6 +8,11 @@ import 'package:spendwise/ui/common/error_section.dart';
 import 'package:spendwise/ui/common/form_scaffold.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
 
+// MARK: - Visual Constants
+
+const _fieldContentPadding = EdgeInsets.zero;
+
+// MARK: - Helpers
 Future<void> showBudgetFormSheet({required BuildContext context}) {
   return showModalBottomSheet<void>(
     context: context,
@@ -17,6 +22,7 @@ Future<void> showBudgetFormSheet({required BuildContext context}) {
   );
 }
 
+// MARK: - Constants
 const budgetFormOverallSentinel = '__overall__';
 
 const _rootCategoryIconSize = 24.0;
@@ -79,6 +85,7 @@ Future<String?> showBudgetCategoryPickerSheet({
   );
 }
 
+// MARK: - BudgetForm
 class BudgetForm extends ConsumerStatefulWidget {
   const BudgetForm({super.key});
 
@@ -86,6 +93,7 @@ class BudgetForm extends ConsumerStatefulWidget {
   ConsumerState<BudgetForm> createState() => _BudgetFormState();
 }
 
+// MARK: - BudgetFormState
 class _BudgetFormState extends ConsumerState<BudgetForm> {
   late final TextEditingController _amountController = TextEditingController();
 
@@ -111,6 +119,7 @@ class _BudgetFormState extends ConsumerState<BudgetForm> {
   }
 }
 
+// MARK: - BudgetFormBody
 class _BudgetFormBody extends StatelessWidget {
   const _BudgetFormBody({
     required this.formState,
@@ -131,7 +140,7 @@ class _BudgetFormBody extends StatelessWidget {
     }
 
     final categoryTile = ListTile(
-      contentPadding: EdgeInsets.zero,
+      contentPadding: _fieldContentPadding,
       title: const Text('Category'),
       trailing: Text(formState.categoryLabel),
       onTap: viewModel.requestPickCategory,

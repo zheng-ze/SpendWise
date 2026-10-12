@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
+// MARK: - Constants
+
+const _semiBoldWeight = FontWeight.w600;
+
+// MARK: - MedallionRow
 class MedallionRow extends StatelessWidget {
   const MedallionRow({
     super.key,
@@ -65,7 +70,7 @@ class MedallionRow extends StatelessWidget {
       title,
       style: const TextStyle(
         fontSize: _titleFontSize,
-        fontWeight: FontWeight.w600,
+        fontWeight: _semiBoldWeight,
         height: _titleLineHeight,
       ),
     );

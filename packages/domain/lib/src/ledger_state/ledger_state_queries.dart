@@ -1,6 +1,8 @@
 part of 'ledger_state.dart';
 
 extension LedgerStateQueries on LedgerState {
+  // MARK: - Lifecycle sets
+
   Set<String> get activeSources => _sourceIDsWith(LifecycleState.active);
 
   Set<String> get binnedSources => _sourceIDsWith(LifecycleState.archived);
@@ -8,6 +10,8 @@ extension LedgerStateQueries on LedgerState {
   Set<String> get activeCategories => _categoryIDsWith(LifecycleState.active);
 
   Set<String> get binnedCategories => _categoryIDsWith(LifecycleState.archived);
+
+  // MARK: - Account queries
 
   List<Account> get activeAccounts {
     final accounts = _moneySources.values
@@ -46,6 +50,8 @@ extension LedgerStateQueries on LedgerState {
     }
   }
 
+  // MARK: - Entry counts
+
   int entriesReferencing(String rawHolderID) {
     final holderID = normalizedID(rawHolderID);
     return _allEntries.where((entry) => entry.references(holderID)).length;
@@ -77,6 +83,8 @@ extension LedgerStateQueries on LedgerState {
         .any(_isHolderReferenced);
   }
 
+  // MARK: - Helpers
+
   Set<String> _sourceIDsWith(LifecycleState lifecycle) => _moneySources.values
       .where((source) => source.lifecycle == lifecycle)
       .map((source) => source.id)
@@ -92,6 +100,8 @@ extension LedgerStateQueries on LedgerState {
       .nonNulls
       .where((account) => account.subPocketIDs.contains(pocketID))
       .firstOrNull;
+
+  // MARK: - Category grouping
 
   List<TransactionCategory> categoriesGroupedByParent(CategoryKind kind) {
     final active = activeCategories;
