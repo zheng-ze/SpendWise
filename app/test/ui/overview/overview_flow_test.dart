@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/app_boot.dart';
@@ -137,6 +138,31 @@ void main() {
       );
     });
 
+    testWidgets('system Back returns to Overview and allows reopening', (
+      tester,
+    ) async {
+      final container = await _pumpOverviewFlow(
+        tester,
+        historyRouteBuilder: _phoneHistoryBuilder(),
+      );
+      await _requestHistory(tester, container);
+      final historyState = tester.state(find.byType(TransactionsFlow));
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TransactionsFlow), findsNothing);
+      expect(find.text('Recent entries'), findsOneWidget);
+
+      await _requestHistory(tester, container);
+
+      expect(find.byType(TransactionsFlow), findsOneWidget);
+      expect(
+        tester.state(find.byType(TransactionsFlow)),
+        isNot(same(historyState)),
+      );
+    });
+
     testWidgets('a request before mount is picked up once mounted', (
       tester,
     ) async {
@@ -168,7 +194,7 @@ void main() {
       expect(tester.state(find.byType(TransactionsFlow)), same(historyState));
     });
 
-    testWidgets('the pushed history back control is labelled Overview', (
+    testWidgets('the Overview semantics action returns and allows reopening', (
       tester,
     ) async {
       final container = await _pumpOverviewFlow(
@@ -177,13 +203,28 @@ void main() {
       );
       await _requestHistory(tester, container);
 
-      expect(
-        find.descendant(
+      final semantics = tester.ensureSemantics();
+      try {
+        final backControl = find.descendant(
           of: find.byType(AppBar),
           matching: find.bySemanticsLabel('Overview'),
-        ),
-        findsOneWidget,
-      );
+        );
+        expect(backControl, findsOneWidget);
+        final node = tester.getSemantics(backControl);
+        expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
+
+        node.owner!.performAction(node.id, SemanticsAction.tap);
+        await tester.pumpAndSettle();
+
+        expect(find.byType(TransactionsFlow), findsNothing);
+        expect(find.text('Recent entries'), findsOneWidget);
+
+        await _requestHistory(tester, container);
+
+        expect(find.byType(TransactionsFlow), findsOneWidget);
+      } finally {
+        semantics.dispose();
+      }
     });
   });
 
@@ -289,6 +330,56 @@ void main() {
 
       expect(find.byType(TransactionsFlow), findsOneWidget);
       expect(tester.state(find.byType(TransactionsFlow)), same(historyState));
+    });
+
+    testWidgets('system Back preserves History in an inactive destination', (
+      tester,
+    ) async {
+      final container = await pumpShell(tester, ShellLayoutMode.phone);
+      await tapViewHistory(tester);
+      final historyState = tester.state(find.byType(TransactionsFlow));
+
+      container.read(selectedDestinationProvider.notifier).state =
+          ShellDestination.trends;
+      await tester.pumpAndSettle();
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+
+      expect(
+        container.read(selectedDestinationProvider),
+        ShellDestination.trends,
+      );
+      expect(find.byType(TransactionsFlow), findsNothing);
+      expect(
+        tester.state(find.byType(TransactionsFlow, skipOffstage: false)),
+        same(historyState),
+      );
+
+      container.read(selectedDestinationProvider.notifier).state =
+          ShellDestination.overview;
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TransactionsFlow), findsOneWidget);
+      expect(tester.state(find.byType(TransactionsFlow)), same(historyState));
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TransactionsFlow), findsNothing);
+      expect(find.text('Recent entries'), findsOneWidget);
+      expect(
+        container.read(selectedDestinationProvider),
+        ShellDestination.overview,
+      );
+
+      await tapViewHistory(tester);
+
+      expect(find.byType(TransactionsFlow), findsOneWidget);
+      expect(
+        tester.state(find.byType(TransactionsFlow)),
+        isNot(same(historyState)),
+      );
     });
 
     testWidgets('desktop selects the history destination', (tester) async {

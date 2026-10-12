@@ -122,6 +122,7 @@ class _TransactionsScreenBody extends StatelessWidget {
                 : Semantics(
                     label: backLabel,
                     button: true,
+                    onTap: pressed,
                     excludeSemantics: true,
                     child: BackButton(onPressed: pressed),
                   ),
