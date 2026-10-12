@@ -1,6 +1,6 @@
 # Overview UI
 
-Last reconciled: 2026-10-10
+Last reconciled: 2026-10-12
 
 ## Feature overview
 
@@ -61,7 +61,9 @@ read only beside a current Today summary, so the empty headline never appears ov
   shell's `StatusBanner` owns notice display.
 - The fresh-install framing of the reference ('Start with an account' tray, 'Add your first entry'
   link) is not rendered.
-- `OverviewFlow` is not mounted by `AppShell` yet; tests mount it directly.
+- `OverviewFlow` is mounted by `AppShell` as the default `overview` destination on both
+  layouts (`app/lib/ui/shell/app_shell.dart`, `app/lib/ui/shell/boot_chrome.dart`); tests may still
+  mount it directly.
 - Every visual value in `overview_screen.dart` is a named constant. Coming up rows pass the date
   column to `MedallionRow.leading`, which replaces the medallion.
 

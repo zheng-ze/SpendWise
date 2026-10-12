@@ -1,6 +1,6 @@
 # UI Framework (MVVM)
 
-Last reconciled: 2026-10-11
+Last reconciled: 2026-10-12
 
 ## Feature overview
 
@@ -68,14 +68,28 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   (`app/lib/ui/shell/shell_providers.dart`) resolves `ShellLayoutMode.phone`
   or `ShellLayoutMode.desktop` once per run from the platform (web, macOS,
   Windows and Linux use desktop; iOS and Android use phone) and reads no
-  window width, so resizing never switches the bar/rail layout. `AppShell`
-  shows the bottom bar in phone mode and the compact labelled rail in
-   desktop mode. It mounts one Flow per destination, with no shell-level
-   navigator. The Settings navigation item selects the `settings`
-   destination.
-   (`app/lib/ui/shell/app_shell.dart`, `app/lib/ui/shell/shell_providers.dart`)
+  window width, so resizing never switches the bar/sidebar layout.
+  `ShellDestination` (`overview`, `history`, `trends`, `money`, `settings`)
+  defaults to `overview`. Phone shows a rounded five-position bar in exactly
+  this order: Overview, Trends, Add, Money, Settings. Add is the exact-centre
+  action: an action control with button semantics that opens the shared
+  `openNewEntry` presenter without changing the selection and is never
+  selected. Desktop shows a sidebar with the SpendWise wordmark, Overview,
+  History, Trends, Money, an Add entry button, flexible separation and
+  Settings at the bottom. Each layout keeps its destinations in a stable
+  keyed `IndexedStack` (phone: overview, trends, money, settings; desktop:
+  overview, history, trends, money, settings), resolved through explicit
+  destination lists, never `enum.index`. Overview hosts `OverviewFlow`,
+  Trends hosts `StatsFlow`, Money hosts `AccountsFlow`, desktop History hosts
+  the unscoped `TransactionsFlow`, Settings hosts `SettingsFlow`. Phone
+  mounts no History slot. There is no header gear and no shell Add FAB.
+  Every visual value in the shell chrome is a named constant.
+  `BootChrome` supplies the five feature builders and only the selected
+  layout invokes the builders it needs.
+   (`app/lib/ui/shell/app_shell.dart`, `app/lib/ui/shell/shell_providers.dart`,
+   `app/lib/ui/shell/boot_chrome.dart`)
 - **Settings hosting** - `ShellDestination.settings` is a plain retained destination. `BootChrome`
-  supplies `SettingsFlow` in the Settings slot and `AppShell` mounts all four destinations once in a
+  supplies `SettingsFlow` in the Settings slot and `AppShell` mounts each layout's destinations once in a
   keyed `IndexedStack`, with `SettingsFlow` built without `backLabel` or `onEnded`, so its root
   screen shows no back control. Selecting Settings only writes `selectedDestinationProvider`. Back
   pops Settings child routes; at the root it preserves the selection. Switching destinations retains

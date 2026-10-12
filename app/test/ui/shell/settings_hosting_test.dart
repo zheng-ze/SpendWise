@@ -85,12 +85,25 @@ void main() {
 
       _expectSelectedSettings(harness.container);
       expect(find.byType(SettingsFlow), findsOneWidget);
-      expect(find.byType(NavigationBar), findsOneWidget);
+      expect(find.byKey(const ValueKey('phone-bar')), findsOneWidget);
       expect(
-        tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
-        ShellDestination.settings.index,
+        tester.getSemantics(
+          find.descendant(
+            of: find.byKey(const ValueKey('phone-bar')),
+            matching: find.text('Settings'),
+          ),
+        ),
+        matchesSemantics(
+          label: 'Settings',
+          isButton: true,
+          hasSelectedState: true,
+          isSelected: true,
+          hasTapAction: true,
+          isFocusable: true,
+          hasFocusAction: true,
+        ),
       );
-      expect(find.text('transactions body'), findsNothing);
+      expect(find.text('history body'), findsNothing);
     });
 
     testWidgets('the Settings root shows no back control', (tester) async {
@@ -107,14 +120,14 @@ void main() {
         tester,
         status: null,
         layoutMode: ShellLayoutMode.phone,
-        bodies: {ShellDestination.stats: (context) => const _HoldingFlow()},
+        bodies: {ShellDestination.trends: (context) => const _HoldingFlow()},
       );
       await _openSettingsItem(tester);
       final holdingRoot = tester.element(
         find.text('holding body', skipOffstage: false),
       );
       Navigator.of(holdingRoot).push(
-        MaterialPageRoute<void>(builder: (_) => const Text('stats detail')),
+        MaterialPageRoute<void>(builder: (_) => const Text('trends detail')),
       );
       await tester.pumpAndSettle();
 
@@ -124,7 +137,7 @@ void main() {
       expect(handled, isTrue);
       _expectSelectedSettings(harness.container);
       expect(find.byType(SettingsFlow), findsOneWidget);
-      expect(find.text('stats detail', skipOffstage: false), findsOneWidget);
+      expect(find.text('trends detail', skipOffstage: false), findsOneWidget);
     });
 
     testWidgets(
@@ -272,7 +285,7 @@ void main() {
       );
       await harness.metadataStore.enterBindingAuthorizationRequired();
 
-      await tester.tap(find.text('Stats'));
+      await tester.tap(find.text('Trends'));
       await tester.pumpAndSettle();
       expect(find.text('Not configured', skipOffstage: false), findsOneWidget);
 
@@ -281,7 +294,7 @@ void main() {
 
       await harness.metadataStore.clearBackendSelection();
 
-      await tester.tap(find.text('Stats'));
+      await tester.tap(find.text('Trends'));
       await tester.pumpAndSettle();
       expect(
         find.text('Binding repair needed', skipOffstage: false),
@@ -374,7 +387,7 @@ void main() {
       await _openSettingsItem(tester);
       await _openFreshEnrollment(tester);
 
-      await tester.tap(find.text('Stats'));
+      await tester.tap(find.text('Trends'));
       await tester.pumpAndSettle();
 
       expect(
@@ -395,12 +408,12 @@ void main() {
         tester,
         status: null,
         layoutMode: ShellLayoutMode.phone,
-        bodies: {ShellDestination.stats: (context) => const _HoldingFlow()},
+        bodies: {ShellDestination.trends: (context) => const _HoldingFlow()},
       );
       await _openSettingsItem(tester);
       await _openFreshEnrollment(tester);
 
-      await tester.tap(find.text('Stats'));
+      await tester.tap(find.text('Trends'));
       await tester.pumpAndSettle();
 
       await tester.binding.handlePopRoute();
@@ -455,12 +468,23 @@ void main() {
 
       _expectSelectedSettings(harness.container);
       expect(find.byType(SettingsFlow), findsOneWidget);
-      expect(find.byType(NavigationRail), findsOneWidget);
+      expect(find.byKey(const ValueKey('sidebar')), findsOneWidget);
       expect(
-        tester
-            .widget<NavigationRail>(find.byType(NavigationRail))
-            .selectedIndex,
-        ShellDestination.settings.index,
+        tester.getSemantics(
+          find.descendant(
+            of: find.byKey(const ValueKey('sidebar')),
+            matching: find.text('Settings'),
+          ),
+        ),
+        matchesSemantics(
+          label: 'Settings',
+          isButton: true,
+          hasSelectedState: true,
+          isSelected: true,
+          hasTapAction: true,
+          isFocusable: true,
+          hasFocusAction: true,
+        ),
       );
     });
 
@@ -472,14 +496,14 @@ void main() {
         status: null,
         size: _desktop,
         layoutMode: ShellLayoutMode.desktop,
-        bodies: {ShellDestination.stats: (context) => const _HoldingFlow()},
+        bodies: {ShellDestination.trends: (context) => const _HoldingFlow()},
       );
       await _openSettingsItem(tester);
       final holdingRoot = tester.element(
         find.text('holding body', skipOffstage: false),
       );
       Navigator.of(holdingRoot).push(
-        MaterialPageRoute<void>(builder: (_) => const Text('stats detail')),
+        MaterialPageRoute<void>(builder: (_) => const Text('trends detail')),
       );
       await tester.pumpAndSettle();
 
@@ -489,7 +513,7 @@ void main() {
       expect(handled, isTrue);
       _expectSelectedSettings(harness.container);
       expect(find.byType(SettingsFlow), findsOneWidget);
-      expect(find.text('stats detail', skipOffstage: false), findsOneWidget);
+      expect(find.text('trends detail', skipOffstage: false), findsOneWidget);
     });
 
     testWidgets('a repair tap selects Settings with one repair route', (
@@ -536,7 +560,7 @@ void main() {
       expect(find.text(_repairLabel), findsNothing);
 
       container.read(selectedDestinationProvider.notifier).state =
-          ShellDestination.transactions;
+          ShellDestination.history;
       await tester.pump();
       expect(find.text(_repairLabel), findsOneWidget);
 

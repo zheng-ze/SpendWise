@@ -1,6 +1,6 @@
 # Transactions UI
 
-Last reconciled: 2026-10-11
+Last reconciled: 2026-10-12
 
 ## Feature overview
 
@@ -40,7 +40,8 @@ decision, not a bug.
 ## Navigation
 
 The Transactions Flow owns a nested `Navigator` scoped with a `GlobalKey<NavigatorState>` local to
-the Flow (`ui-framework-mvvm.md`). Screens pushed: the entry form sheet for an existing entry, the
+the Flow (`ui-framework-mvvm.md`). The unscoped `TransactionsFlow` is the desktop shell's History
+destination (`ShellDestination.history`); scoped instances live inside Money. Screens pushed: the entry form sheet for an existing entry, the
 category/source picker sheets, and the receipt scan screen. New entries go through the shared Add
 presenter instead: `TransactionsFlow` maps `EntryFormRequested(null)` to `openNewEntry` with the
 scoped source ID (`initialScope.scopeIDs.first` when nonempty) and keeps no null-form subscription

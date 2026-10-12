@@ -155,8 +155,7 @@ pumpShell(
       child: MaterialApp(
         home: AppShell(
           bodies: {
-            ShellDestination.transactions: (context) =>
-                const Text('transactions body'),
+            ShellDestination.history: (context) => const Text('history body'),
             ShellDestination.settings: (context) => const SettingsFlow(),
             ...?bodies,
           },
@@ -334,7 +333,7 @@ void main() {
       layoutMode: ShellLayoutMode.phone,
     );
     final bottomNavBanner = tester.getRect(_bannerSurface());
-    final navBar = tester.getRect(find.byType(NavigationBar));
+    final navBar = tester.getRect(find.byKey(const ValueKey('phone-bar')));
     expect(bottomNavBanner.bottom, lessThanOrEqualTo(navBar.top));
 
     await pumpShell(
@@ -343,7 +342,7 @@ void main() {
       size: const Size(900, 800),
       layoutMode: ShellLayoutMode.desktop,
     );
-    expect(find.byType(NavigationRail), findsOneWidget);
+    expect(find.byKey(const ValueKey('sidebar')), findsOneWidget);
     final railBanner = tester.getRect(_bannerSurface());
     expect(railBanner.bottom, lessThanOrEqualTo(800 - 34));
   });

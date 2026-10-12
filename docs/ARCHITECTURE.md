@@ -80,9 +80,10 @@ document is the wide-angle view that ties those entries together.
   engine; full merge logic is deferred to that engine, while the store already computes the carried
   pointwise maximum for stamped ingestion. Store metadata tracks a per-device id and
   whether the store has been seeded.
-- **UI** — four top-level destinations: Transactions, Stats, Accounts, and Settings. Transactions
-  shows a month-navigated list grouped into day sections, with month and week summaries. Stats
-  shows Income and Expense donut charts with category drill-down, plus a Budgets tab. Accounts groups money sources by account type, with
+- **UI** — five top-level destinations: Overview, History, Trends, Money, and Settings. Overview
+  shows Today, Recent entries and Coming up. History shows a month-navigated list grouped into day
+  sections, with month and week summaries. Trends
+  shows Income and Expense donut charts with category drill-down, plus a Budgets tab. Money groups money sources by account type, with
   pockets nested under their parent and card accounts showing payable and outstanding balances.
   Forms exist for entries, accounts, pockets, categories, and plans, plus a category picker, a
   recurrence picker, and a recycle bin for restoring or purging archived rows. The app seeds sample
@@ -266,9 +267,14 @@ separator input is a recorded non-goal until localization work begins.
 
 The app is phone-first with one shell whose phone or desktop layout is chosen by platform:
 
-- `NavigationBar` with 4 destinations in phone mode, compact labelled `NavigationRail` in
-  desktop mode (`shellLayoutModeProvider` resolves `ShellLayoutMode.phone` or
-  `ShellLayoutMode.desktop` once per run; resizing never switches the layout).
+- Phone shows a rounded five-position bar (Overview, Trends, centred Add, Money, Settings;
+  Add is a never-selected action opening the shared entry presenter) over a stable `IndexedStack`
+  of the Overview, Trends, Money and Settings slots. Desktop shows a sidebar (wordmark,
+  Overview, History, Trends, Money, an Add entry button, Settings at the bottom) over a stable
+  `IndexedStack` of all five destinations. History hosts the unscoped `TransactionsFlow` on
+  desktop; on phone it is reached from Overview. `shellLayoutModeProvider` resolves
+  `ShellLayoutMode.phone` or `ShellLayoutMode.desktop` once per run; resizing never switches the
+  layout. Each stack resolves its index through its own explicit destination list.
 - Screen-level state — selected month, selector mode, stats kind, and similar per-tab state — lives
   in providers, never in widget-local state that a rebuild can silently recreate. Controllers that
   window on "now" take an injected clock, so statement and summary window logic can be pinned in
