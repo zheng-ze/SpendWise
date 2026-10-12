@@ -21,7 +21,7 @@
 ],
 [
 "Add entry, note focus",
-"app/lib/ui/transactions/entry/entry_fields.dart",
+"app/lib/ui/transactions/entry/fields/entry_fields.dart",
 "Transactions / Drawn"
 ],
 [
@@ -31,7 +31,7 @@
 ],
 [
 "Month and year picker",
-"app/lib/ui/common/month_year_selector.dart",
+"app/lib/ui/common/inputs/month_year_selector.dart",
 "Transactions / Drawn"
 ],
 [
@@ -41,7 +41,7 @@
 ],
 [
 "Add entry, transfer",
-"app/lib/ui/transactions/entry/entry_fields.dart",
+"app/lib/ui/transactions/entry/fields/entry_fields.dart",
 "Transactions / Drawn"
 ],
 [
@@ -51,7 +51,7 @@
 ],
 [
 "Edit system entry",
-"app/lib/ui/transactions/entry/entry_fields.dart",
+"app/lib/ui/transactions/entry/fields/entry_fields.dart",
 "Transactions / Drawn"
 ],
 [
@@ -61,7 +61,7 @@
 ],
 [
 "Entry save failure",
-"app/lib/ui/common/error_section.dart",
+"app/lib/ui/common/feedback/error_section.dart",
 "Transactions / Drawn"
 ],
 [
@@ -201,7 +201,7 @@
 ],
 [
 "Delete budget confirmation",
-"app/lib/ui/common/delete_confirmation.dart",
+"app/lib/ui/common/feedback/delete_confirmation.dart",
 "Budgets / Drawn"
 ],
 [
@@ -281,7 +281,7 @@
 ],
 [
 "Card statement day picker",
-"app/lib/ui/common/statement_day_picker.dart",
+"app/lib/ui/common/inputs/statement_day_picker.dart",
 "Accounts / Drawn"
 ],
 [
@@ -291,12 +291,12 @@
 ],
 [
 "Delete account confirmation",
-"app/lib/ui/common/delete_confirmation.dart",
+"app/lib/ui/common/feedback/delete_confirmation.dart",
 "Accounts / Drawn"
 ],
 [
 "Delete subpocket confirmation",
-"app/lib/ui/common/delete_confirmation.dart",
+"app/lib/ui/common/feedback/delete_confirmation.dart",
 "Accounts / Drawn"
 ],
 [
@@ -351,7 +351,7 @@
 ],
 [
 "Delete category confirmation",
-"app/lib/ui/common/delete_confirmation.dart",
+"app/lib/ui/common/feedback/delete_confirmation.dart",
 "Settings / Drawn"
 ],
 [
@@ -376,7 +376,7 @@
 ],
 [
 "Delete recurring plan",
-"app/lib/ui/common/delete_confirmation.dart",
+"app/lib/ui/common/feedback/delete_confirmation.dart",
 "Settings / Drawn"
 ],
 [
@@ -586,7 +586,7 @@
 ],
 [
 "Category detail, no entries",
-"app/lib/ui/common/day_sectioned_entry_list.dart",
+"app/lib/ui/common/lists/day_sectioned_entry_list.dart",
 "Stats / Drawn"
 ],
 [
@@ -851,7 +851,7 @@
 ],
 [
 "Swipe-to-delete entry confirmation",
-"app/lib/ui/common/day_sectioned_entry_list.dart; app/lib/ui/transactions/daily_list/entry_row.dart",
+"app/lib/ui/common/lists/day_sectioned_entry_list.dart; app/lib/ui/transactions/daily_list/entry_row.dart",
 "Not drawn: Superseded by the approved Delete entry action in the edit sheet; no entry swipe deletion is drawn."
 ],
 [

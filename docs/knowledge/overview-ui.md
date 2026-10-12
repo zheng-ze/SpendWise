@@ -21,7 +21,7 @@ renders its own copy for an empty ledger, and a section whose read has not settl
 - `app/lib/ui/overview/overview_flow.dart` - `OverviewFlow` (`FlowBase`) subscribing to
   `OverviewStep` once, with an optional phone `historyRouteBuilder` and an optional desktop
   `onHistorySelected` callback, plus a route-open guard.
-- `app/lib/ledger/analysis/today_summary.dart` - `TodaySummary` carries `spent`, `dailyGuide` and
+- `app/lib/ledger/analysis/summaries/today_summary.dart` - `TodaySummary` carries `spent`, `dailyGuide` and
   `monthlyCap`.
 - `app/lib/ui/transactions/daily_list/transaction_row.dart` - `transactionRow` supplies titles,
   account lines, symbols and amount kinds for entries and projected plan occurrences.

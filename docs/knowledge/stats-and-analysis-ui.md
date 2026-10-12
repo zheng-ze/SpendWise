@@ -18,7 +18,7 @@ notifications (`app/lib/ui/stats/analysis/analysis_view_model.dart`,
 - `app/lib/ui/stats/donut/` - the donut chart (leader-line labels).
 - `app/lib/ui/stats/analysis/` - slice/roll-up helpers.
 - `app/lib/ui/stats/category_detail/` - the drill-down screen and view model.
-- `app/lib/ui/common/day_sectioned_entry_list.dart` - reused entry list with tap-to-view and
+- `app/lib/ui/common/lists/day_sectioned_entry_list.dart` - reused entry list with tap-to-view and
   swipe-delete.
 - `packages/domain/lib/src/accounting.dart` - `rollUp`, `fraction`, filtering (see
   `recurring-plans-and-accounting.md`).
@@ -29,7 +29,7 @@ notifications (`app/lib/ui/stats/analysis/analysis_view_model.dart`,
 
 `AnalysisNotifier.build` and `CategoryDetailNotifier.build` obtain the ready Ledger and its
 non-null cache through `LedgerBackedNotifier`, which watches `ledgerSessionProvider` and throws
-`StateError` while the session is unavailable (`app/lib/ui/common/ledger_backed_notifier.dart`).
+`StateError` while the session is unavailable (`app/lib/ui/common/base/ledger_backed_notifier.dart`).
 Each build captures the Ledger and cache in `_ledger` and `_cache`, attaches listeners, registers
 listener removal against those captured instances, and awaits `cache.refresh(ledger.state)`.
 Subsequent notifications refresh the captured `_cache`. The session provider owns cache

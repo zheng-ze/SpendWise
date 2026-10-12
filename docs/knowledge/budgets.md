@@ -15,7 +15,7 @@ produce facts (entries) only indirectly, via the spend math the app layer runs a
   immutable `List<LimitEvent>`, and `createdAtMonth`.
 - `packages/domain/lib/src/budgets/limit_event.dart` — `LimitEvent`, a `default` (changes the
   ongoing limit from a month forward) or an `override` (pins exactly one month).
-- `packages/domain/lib/src/ledger_state/ledger_state_budgets.dart` — the budget mutators on
+- `packages/domain/lib/src/ledger_state/mutators/ledger_state_budgets.dart` — the budget mutators on
   `LedgerState`: create, update, delete, duplicate-guard, and the category sweep.
 - `app/lib/ui/budgets/budget_list/` — budget list view model, form, card, and `budgets_flow.dart`.
 - `app/lib/ui/budgets/budget_detail/` — detail and limit screens with their view models.

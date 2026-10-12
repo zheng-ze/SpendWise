@@ -34,15 +34,15 @@ an id and equality is by case + id: `IdCollision`, `UnknownAccount`, `UnknownHol
 
 - `packages/domain/lib/src/ledger_state/ledger_state.dart` — the container: five id-keyed maps
   (`moneySources`, `entries`, `binnedEntries`, `categories`, `plans`, `budgets`) and every mutator.
-- `packages/domain/lib/src/ledger_state/ledger_state_invariants.dart` — the debug `assertInvariants`
+- `packages/domain/lib/src/ledger_state/invariants/ledger_state_invariants.dart` — the debug `assertInvariants`
   sweep run after every mutation.
-- `packages/domain/lib/src/ledger_state/ledger_state_queries.dart` — read-only queries and the
+- `packages/domain/lib/src/ledger_state/queries/ledger_state_queries.dart` — read-only queries and the
   reference-counting helpers used by purge.
-- `packages/domain/lib/src/ledger_state/ledger_state_replay.dart` — validation-free replay used by
+- `packages/domain/lib/src/ledger_state/mutators/ledger_state_replay.dart` — validation-free replay used by
   load, the in-memory double, and seeding.
-- `packages/domain/lib/src/ledger_state/ledger_state_purge.dart` — the holder/category purge rule
+- `packages/domain/lib/src/ledger_state/mutators/ledger_state_purge.dart` — the holder/category purge rule
   and the dereference sweep.
-- `packages/domain/lib/src/ledger_state/ledger_state_entries.dart`, `ledger_state_holders.dart`,
+- `packages/domain/lib/src/ledger_state/mutators/ledger_state_entries.dart`, `ledger_state_holders.dart`,
   `ledger_state_categories.dart`, `ledger_state_plans.dart`, `ledger_state_budgets.dart` — the
   mutator groupings by row kind.
 - `packages/domain/lib/src/entries/entry.dart`, `account.dart`, `sub_pocket.dart`,

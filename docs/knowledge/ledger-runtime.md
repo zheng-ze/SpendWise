@@ -27,9 +27,9 @@ banners, and first-launch seeding. These live in `app/lib/ledger/` and `app/lib/
   firstRecordMonth, period completeness, month and year spreads, category breakdowns, scoped trends,
   and compared with usual.
   The pure-domain card query lives in `packages/domain/lib/src/analysis/card_statement.dart`.
-- `app/lib/ui/common/ledger_backed_notifier.dart` - watches the ready session and exposes its
+- `app/lib/ui/common/base/ledger_backed_notifier.dart` - watches the ready session and exposes its
   Ledger and cache to ViewModels.
-- `app/lib/persistence/persistence_processor.dart` - subscribes to the bus and forwards each
+- `app/lib/persistence/store/persistence_processor.dart` - subscribes to the bus and forwards each
   publication to `enqueue` (unstamped) or `enqueueStamped` (stamped).
 - `app/lib/boot/app_boot.dart`, `app_phase.dart`, `banner_state.dart`, `providers.dart`,
   `seed_data.dart` - boot state machine, banner state, Riverpod wiring, and the sample dataset.
@@ -90,7 +90,7 @@ current bus and rejects rebinding to a different bus (`analysis_cache.dart:Analy
 
 `LedgerBackedNotifier` watches `ledgerSessionProvider`, throws `StateError` when the session is
 null, and exposes the Ledger and cache from that same session
-(`app/lib/ui/common/ledger_backed_notifier.dart`).
+(`app/lib/ui/common/base/ledger_backed_notifier.dart`).
 `AnalysisNotifier.build`, `CategoryDetailNotifier.build`, `BudgetsListNotifier.build`, and
 `BudgetDetailNotifier.build` capture that Ledger and cache in `_ledger` and `_cache`. Each build
 attaches listeners, registers removal against the captured instances, and awaits the initial
@@ -185,7 +185,7 @@ so a later pending or failed read of it returns no previous value
 optional daily guide. The guide uses the applicable unscoped budget's effective monthly limit,
 including overrides, divided by calendar days in the month and rounded half-up to whole dollars.
 It is null without an applicable budget; multiple applicable unscoped budgets fail evaluation
-(`app/lib/ledger/analysis/today_summary.dart`; `app/test/ledger/analysis_today_period_test.dart`).
+(`app/lib/ledger/analysis/summaries/today_summary.dart`; `app/test/ledger/analysis_today_period_test.dart`).
 
 `PeriodSummary` contains the normalized requested `[start, end)` window, an effective window equal
 to it, expense/income totals, `net = income - spent`, and absolute transfer volume `moved`. Totals
@@ -196,7 +196,7 @@ Without a source scope, totals use cached analysis items. A scope selects active
 any selected source and classifies them against the complete Ledger source set; an empty scope
 selects nothing. `moved` counts each qualifying active transfer once, regardless of analysis gates;
 treat-as-expense transfers can contribute to both spending and moved volume
-(`app/lib/ledger/analysis/period_summary.dart`; `app/test/ledger/analysis_today_period_test.dart`).
+(`app/lib/ledger/analysis/summaries/period_summary.dart`; `app/test/ledger/analysis_today_period_test.dart`).
 
 `readRegisterDays`, `readRecent`, `readUpcoming`, `readSearch`, `readCalendarDays`,
 `readCardStatement`, `readFirstRecordMonth`, `readMonthCompleteness`, and `readWeekCompleteness`
@@ -212,7 +212,7 @@ its previous successful value if it is still retained (`analysis_queries.dart:_r
   for History day groups and calendar selected-day totals. Its `Accounting.totals` semantics
   intentionally include excluded-category entries that analysis totals omit; entry-level
   `includeInAnalysis` still gates totals. Rows remain visible regardless of those flags
-  (`app/lib/ledger/analysis/register.dart`: `registerDays`, `registerTotals`;
+  (`app/lib/ledger/analysis/summaries/register.dart`: `registerDays`, `registerTotals`;
   `app/test/ledger/analysis_service_test.dart`: `registerPreservesDaySectionsAccounting`,
   `registerTotalsMatchPeriodFixtureAndHistoryEqualsSelectedDay`).
 - `readRecent(limit: 4, sourceIDs:)` excludes dates after today and sorts by date descending,
@@ -221,7 +221,7 @@ its previous successful value if it is still retained (`analysis_queries.dart:_r
   searches trimmed, case-insensitive entry, category, parent-category, source, and destination
   names and returns newest-first month groups with register totals. `registerDays` and
   `searchEntries` build the complete source set once per read and pass it as `complete` to
-  `registerDay`/`registerTotals` rather than rebuilding it per day or month (`app/lib/ledger/analysis/register.dart`,
+  `registerDay`/`registerTotals` rather than rebuilding it per day or month (`app/lib/ledger/analysis/summaries/register.dart`,
   `app/lib/ledger/analysis/search.dart`; `analysis_service_test.dart`).
 - `readUpcoming(window:, sourceIDs:)` defaults to `[today, today + 42 days)` and merges future
   recorded entries, projected plan occurrences, and the next card statement. Same-day ties sort
@@ -230,14 +230,14 @@ its previous successful value if it is still retained (`analysis_queries.dart:_r
   cursor-aware projection without mutating Ledger state. Upcoming statements filter by source
   scope before computing `cardStatement`, so out-of-scope cards cost no statement work; see
   [recurring-plans-and-accounting.md](recurring-plans-and-accounting.md)
-  (`app/lib/ledger/analysis/upcoming.dart`, `app/lib/ledger/analysis/calendar.dart`; `analysis_service_test.dart`).
+  (`app/lib/ledger/analysis/summaries/upcoming.dart`, `app/lib/ledger/analysis/summaries/calendar.dart`; `analysis_service_test.dart`).
 - `readWeeks(window:, sourceIDs:)` returns Monday-based full weeks intersecting the requested
   window, including days outside its endpoints. Each effective window is the full week, and totals
   are committed: entries dated after today count, so future weeks can hold spending. A week that
   crosses a month boundary has the same range and amount when read through either month, so a
   month's week rows can add up to more than its period total. Spending and counts use expense
   analysis items; scoped reads classify touching active entries against all source IDs. Every
-  scope uses the same cache-revision gate (`app/lib/ledger/analysis/weeks.dart`, `analysis_queries.dart:readWeeks`;
+  scope uses the same cache-revision gate (`app/lib/ledger/analysis/summaries/weeks.dart`, `analysis_queries.dart:readWeeks`;
   `analysis_service_test.dart`: `weeksTotalAcrossMonthBoundaryWithCounts`).
 - `readFirstRecordMonth()` returns the UTC first day of the month holding the earliest active
   entry of any kind, including system entries and entries excluded from analysis, or null for an
@@ -245,7 +245,7 @@ its previous successful value if it is still retained (`analysis_queries.dart:_r
   normalize to the month or Monday-start week and classify it with `classifyPeriod`: preRecord
   before firstRecordMonth (always on an empty ledger), complete once the window ends on or before
   today, otherwise incomplete. Their memo keys include today, so day rollover reclassifies without
-  runner work (`app/lib/ledger/analysis/completeness.dart`; `analysis_completeness_test.dart`).
+  runner work (`app/lib/ledger/analysis/insights/completeness.dart`; `analysis_completeness_test.dart`).
 - Completeness reads publish the current Ledger revision while `readWeeks` and `readPeriod` keep
   their previous value during a pending cache refresh. A consumer that combines them treats the
   pair as coherent only when both `sourceRevision` values are non-null and equal, and shows
@@ -260,7 +260,7 @@ its previous successful value if it is still retained (`analysis_queries.dart:_r
   anchored at the current month. It is computed from firstRecordMonth inside the gated
   evaluation, so it and the totals share one revision. An end month after the current month fails
   the read.
-  `MonthSpread` compares its slots element-wise (`app/lib/ledger/analysis/month_spread.dart`;
+  `MonthSpread` compares its slots element-wise (`app/lib/ledger/analysis/summaries/month_spread.dart`;
   `analysis_month_spread_test.dart`).
 - `readYearSpread(endYear:, kind:)` is a mixed read returning three chronological calendar-year
   slots ending at `endYear`. Each slot holds its year, `[1 January, next 1 January)` window,
@@ -268,7 +268,7 @@ its previous successful value if it is still retained (`analysis_queries.dart:_r
   filtering and no display state; an empty year is a zero total. `earliestSpreadEndYear` bounds
   backward navigation in 3-year pages anchored at the current year and is computed from
   firstRecordMonth inside the gated evaluation. An end year after the current year fails the read
-  (`app/lib/ledger/analysis/year_spread.dart`; `analysis_year_spread_test.dart`).
+  (`app/lib/ledger/analysis/summaries/year_spread.dart`; `analysis_year_spread_test.dart`).
 - `readCategoryBreakdown(period:, mode:, kind:, level:)` is a mixed read returning
   `AnalysisQueryResult<PeriodBreakdown>` through `_readMixed`, using the pure `categoryBreakdown`
   helper to group `AnalysisItem`s of one kind within one window into ranked `BreakdownRow`s.
@@ -295,7 +295,7 @@ its previous successful value if it is still retained (`analysis_queries.dart:_r
   to 1 decimal place. Exact-Decimal largest-remainder allocation distributes 1000 tenths so
   a nonempty breakdown's shares sum to exactly 100.0. Equal remainders break by the same bucket
   identity order used for ranking, independent of amount rank. A positive row can have a 0.0 share
-  and remains present; an empty breakdown has no rows (`app/lib/ledger/analysis/category_breakdown.dart`;
+  and remains present; an empty breakdown has no rows (`app/lib/ledger/analysis/breakdowns/category_breakdown.dart`;
   `analysis_category_breakdown_test.dart`).
 - `readScopedTrend(period:, mode:, kind:, mainBucketID:, scope:)` is a mixed read returning
   `AnalysisQueryResult<ScopedTrend>` through `_readMixed` around the pure `scopedTrend` helper.
@@ -322,7 +322,7 @@ its previous successful value if it is still retained (`analysis_queries.dart:_r
   at December; a future year throws `ArgumentError`. Year mode covers every entry dated in the
   selected calendar year as committed amounts, including entries dated after today; months with
   no entries are zero with itemCount 0. Scopes and results have value equality, including element-wise slots
-  (`app/lib/ledger/analysis/analysis_category_scope.dart`,
+  (`app/lib/ledger/analysis/breakdowns/analysis_category_scope.dart`,
   `scoped_trend.dart`; `app/test/ledger/analysis_scoped_trend_test.dart`:
   `month mode all scope sums children and direct`, `invalid child parent pairs throw`,
   `includes months after today in year mode`, `independent equal trends are equal`).
@@ -335,7 +335,7 @@ its previous successful value if it is still retained (`analysis_queries.dart:_r
   `observedTotal * 3` against `baselineTotal`. The headline figure stays the committed
   whole-month total. A selected month after the current month fails the read. The pure
   `previousCompleteMonthWindows` helper is shared with insights and does not reject future
-  selections (`app/lib/ledger/analysis/compared_with_usual.dart`;
+  selections (`app/lib/ledger/analysis/breakdowns/compared_with_usual.dart`;
   `analysis_compared_with_usual_test.dart`).
 - `readMatchedDayInsights()` and `readWeekSoFar()` are parameterless mixed reads at today with fixed
   `InsightRules` (optional constructor argument, not part of the memo key). Defaults: usual at least
@@ -351,7 +351,7 @@ its previous successful value if it is still retained (`analysis_queries.dart:_r
   than 5 aggregate baseline expenses gives `historyNeeded` with evidence kept and `qualifies`
   false. Results carry bucket IDs, windows and numbers only; `difference` and `usualMean` are
   thirds at scale 12 and `relativeChangePercent` is null for a zero baseline
-  (`app/lib/ledger/analysis/insight_rules.dart`, `matched_day_insights.dart`, `week_so_far.dart`;
+  (`app/lib/ledger/analysis/insights/insight_rules.dart`, `matched_day_insights.dart`, `week_so_far.dart`;
   `analysis_insights_test.dart`, `analysis_insights_queries_test.dart`).
 - `readCardStatement(accountID:)` wraps the domain query at today. An ineligible account returns
   a ready result with null value and the current Ledger revision (`analysis_queries.dart`;

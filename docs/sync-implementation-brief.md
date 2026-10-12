@@ -55,12 +55,12 @@ Explicitly out of scope (per issue #101):
   `category_resolution.dart`, `occurrence_id.dart`). `packages/sync` imports it from `domain` by
   path — its one permitted intra-repo dependency.
 - **Current `VersionVector`.** `app/lib/persistence/version_vector.dart` — imports
-  `package:domain/domain.dart` for `normalizedID` and `package:spendwise/persistence/ledger_database.dart`
+  `package:domain/domain.dart` for `normalizedID` and `package:spendwise/persistence/database/ledger_database.dart`
   (only for a doc comment reference at present). Holds `Map<String, int>` device→counter,
   `bump`, `dominates`, `isConcurrent`, `encode`/`decode`. No `merge` — deliberately absent, meant
   for the sync engine to add later (still out of scope for #101; only the coordinator ticket adds
   merge semantics).
-- **Persistence layer this must not touch.** `app/lib/persistence/drift_ledger_store.dart` already
+- **Persistence layer this must not touch.** `app/lib/persistence/store/drift_ledger_store.dart` already
   ships `PermanentSaveError` classification for undecodable stored version vectors
   (`docs/knowledge/persistence.md` "Terminal save failures"), landed by #6/PR #102. `packages/sync`
   does not change persistence write-pipeline behavior — it only relocates the `VersionVector` type
