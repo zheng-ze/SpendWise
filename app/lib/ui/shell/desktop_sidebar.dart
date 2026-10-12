@@ -173,14 +173,16 @@ class _SidebarDestination extends StatelessWidget {
                 color: isSelected ? colors.action : colors.subtext,
               ),
               const SizedBox(width: _sidebarLabelGap),
-              Text(
-                destinationLabels[destination]!,
-                style: TextStyle(
-                  fontSize: _sidebarLabelFontSize,
-                  fontWeight: isSelected
-                      ? selectedDestinationWeight
-                      : unselectedDestinationWeight,
-                  color: isSelected ? colors.action : colors.text,
+              Expanded(
+                child: Text(
+                  destinationLabels[destination]!,
+                  style: TextStyle(
+                    fontSize: _sidebarLabelFontSize,
+                    fontWeight: isSelected
+                        ? selectedDestinationWeight
+                        : unselectedDestinationWeight,
+                    color: isSelected ? colors.action : colors.text,
+                  ),
                 ),
               ),
             ],
