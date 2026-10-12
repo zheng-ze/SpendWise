@@ -20,11 +20,18 @@ import 'package:spendwise/ui/transactions/transactions_view_model.dart';
 const _tabTitles = ['Daily', 'Monthly'];
 
 class TransactionsScreen extends ConsumerWidget {
-  const TransactionsScreen({super.key, this.scope, this.onBackPressed});
+  const TransactionsScreen({
+    super.key,
+    this.scope,
+    this.onBackPressed,
+    this.backLabel,
+  });
 
   final TransactionsScope? scope;
 
   final VoidCallback? onBackPressed;
+
+  final String? backLabel;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -42,6 +49,7 @@ class TransactionsScreen extends ConsumerWidget {
         state: state,
         viewModel: viewModel,
         onBackPressed: onBackPressed,
+        backLabel: backLabel,
       ),
     );
   }
@@ -52,11 +60,13 @@ class _TransactionsScreenBody extends StatelessWidget {
     required this.state,
     required this.viewModel,
     this.onBackPressed,
+    this.backLabel,
   });
 
   final TransactionsViewState state;
   final TransactionsViewModel viewModel;
   final VoidCallback? onBackPressed;
+  final String? backLabel;
 
   static const _dividerHeight = 1.0;
 
@@ -104,9 +114,18 @@ class _TransactionsScreenBody extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        leading: onBackPressed == null
-            ? null
-            : BackButton(onPressed: onBackPressed),
+        leading: switch (onBackPressed) {
+          null => null,
+          final pressed =>
+            backLabel == null
+                ? BackButton(onPressed: pressed)
+                : Semantics(
+                    label: backLabel,
+                    button: true,
+                    excludeSemantics: true,
+                    child: BackButton(onPressed: pressed),
+                  ),
+        },
         title: Text(state.title),
         actions: [
           MonthYearSelector(

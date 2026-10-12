@@ -26,6 +26,9 @@ and is the only place recurring plans are created.
   and `TransactionsFlow`, presented above the sheet through the root navigator.
 - `app/lib/ui/transactions/receipt_scan/` — the OCR entry hook (see `ocr-receipt-entry.md`).
 - `app/lib/ui/transactions/transactions_flow.dart` — the Flow that owns this list's nested navigator.
+  It takes an optional `backLabel` passed through to the screen's back control; the phone
+  History page sets it to 'Overview' with an `onEnded` that pops its containing Overview route,
+  while the desktop History slot and scoped lists set none.
 - `app/lib/ui/common/day_sectioned_entry_list.dart`, `expanding_fab.dart`, `form_scaffold.dart`,
   `swipe_to_delete_row.dart`, `pickers/` — shared components and picker sheets.
 - `app/lib/ui/symbol_map.dart` — symbol-to-IconData mapping.
@@ -53,7 +56,10 @@ form, applies the scoped prefill after initialization, maps the shell layout mod
 presentation fails. A late receipt finish after invalidation writes no state
 (`ReceiptEntryCoordinator` checks `ref.mounted` in its asynchronous finally). The account-scoped
 screen reuses the same screen with a custom title and `sourceIDs` filter. Back-stack behavior per
-destination survives switching because each destination keeps its own navigator.
+destination survives switching because each destination keeps its own navigator. A labelled back
+control (phone History's 'Overview') keeps the existing `BackButton` and `goBack` behavior —
+inner child routes pop first — and only changes its accessible label; unlabelled flows render a
+plain back control.
 
 ## Screens and flows
 

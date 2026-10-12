@@ -4,8 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ui/common/loading_skeleton.dart';
 import 'package:spendwise/ui/common/tray.dart';
 import 'package:spendwise/ui/overview/overview_flow.dart';
+import 'package:spendwise/ui/overview/overview_screen.dart';
+import 'package:spendwise/ui/overview/overview_view_model.dart';
 import 'package:spendwise/ui/theme/spendwise_colors.dart';
 import 'package:spendwise/ui/theme/spendwise_theme.dart';
 
@@ -13,7 +16,7 @@ import 'overview_fixture.dart';
 
 const _phoneSize = Size(320, 760);
 
-Future<void> _pumpOverview(
+Future<ProviderContainer> _pumpOverview(
   WidgetTester tester,
   LedgerState state, {
   required Brightness brightness,
@@ -35,12 +38,23 @@ Future<void> _pumpOverview(
   );
   await tester.runAsync(() => settleAnalysis(container, ledger));
   await tester.pumpAndSettle();
+  return container;
 }
 
 Finder _inTray(String title, String text) => find.descendant(
   of: find.ancestor(of: find.text(title), matching: find.byType(Tray)),
   matching: find.text(text),
 );
+
+class _LoadingOverviewNotifier extends OverviewNotifier {
+  @override
+  Future<OverviewViewState> build() async => OverviewViewState(
+    day: fixtureToday,
+    today: null,
+    recent: null,
+    upcoming: null,
+  );
+}
 
 Color? _textColor(WidgetTester tester, Finder finder) =>
     tester.widget<Text>(finder).style?.color;
@@ -190,7 +204,79 @@ void main() {
           find.text('No known dates in the next six weeks.'),
           findsOneWidget,
         );
-        expect(find.text('View History'), findsNothing);
+      });
+
+      testWidgets('View History requests the history page', (tester) async {
+        tester.view.physicalSize = _phoneSize;
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        final ledger = Ledger(state: defaultState());
+        final container = overviewContainer(ledger);
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              theme: buildSpendWiseTheme(brightness),
+              home: const OverviewScreen(),
+            ),
+          ),
+        );
+        await tester.runAsync(() => settleAnalysis(container, ledger));
+        await tester.pumpAndSettle();
+
+        final action = find.widgetWithText(TextButton, 'View History');
+        expect(action, findsOneWidget);
+        expect(tester.widget<TextButton>(action).onPressed, isNotNull);
+        expect(find.byIcon(Icons.chevron_right), findsOneWidget);
+        expect(tester.getSize(action).height, greaterThanOrEqualTo(48));
+        expect(tester.getSemantics(action).flagsCollection.isButton, isTrue);
+
+        await tester.ensureVisible(action);
+        await tester.tap(action);
+        await tester.pump();
+
+        expect(
+          container.read(overviewViewModelProvider).requireValue.step,
+          isA<OverviewHistoryRequested>(),
+        );
+      });
+
+      testWidgets('View History is shown when recent entries are empty', (
+        tester,
+      ) async {
+        await _pumpOverview(tester, LedgerState(), brightness: brightness);
+
+        expect(find.text('Your entries will appear here.'), findsOneWidget);
+        expect(find.widgetWithText(TextButton, 'View History'), findsOneWidget);
+      });
+
+      testWidgets('View History is shown while the recent section loads', (
+        tester,
+      ) async {
+        tester.view.physicalSize = _phoneSize;
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        final container = ProviderContainer(
+          overrides: [
+            overviewViewModelProvider.overrideWith(
+              () => _LoadingOverviewNotifier(),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              theme: buildSpendWiseTheme(brightness),
+              home: const OverviewFlow(),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        expect(find.byType(LoadingSkeleton), findsWidgets);
+        expect(find.widgetWithText(TextButton, 'View History'), findsOneWidget);
       });
     });
   }

@@ -32,10 +32,12 @@ class TransactionsFlow extends FlowBase<TransactionsStep> {
     super.onEnded,
     this.initialScope,
     this.onEditSource,
+    this.backLabel,
   });
 
   final TransactionsScope? initialScope;
   final void Function(BuildContext context, String holderId)? onEditSource;
+  final String? backLabel;
 
   @override
   ConsumerState<TransactionsFlow> createState() => _TransactionsFlowState();
@@ -134,5 +136,6 @@ class _TransactionsFlowState
   Widget buildRoot(BuildContext context) => TransactionsScreen(
     scope: widget.initialScope,
     onBackPressed: showsOwnBackButton ? goBack : null,
+    backLabel: widget.backLabel,
   );
 }

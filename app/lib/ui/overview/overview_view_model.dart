@@ -7,6 +7,7 @@ import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
 import 'package:spendwise/ledger/analysis/today_summary.dart';
 import 'package:spendwise/ledger/analysis/upcoming.dart';
 import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
+import 'package:spendwise/ui/common/step_emitting.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/transactions/daily_list/transaction_row.dart';
@@ -55,7 +56,7 @@ class OverviewUpcomingRow {
   final AmountKind? amountKind;
 }
 
-class OverviewViewState {
+class OverviewViewState implements HasStep<OverviewViewState, OverviewStep> {
   const OverviewViewState({
     required this.day,
     required this.today,
@@ -63,6 +64,7 @@ class OverviewViewState {
     required this.upcoming,
     this.todayFailed = false,
     this.recordedToday = false,
+    this.step,
   });
 
   final DateTime day;
@@ -72,26 +74,50 @@ class OverviewViewState {
 
   final bool todayFailed;
   final bool recordedToday;
+  @override
+  final OverviewStep? step;
+
+  @override
+  OverviewViewState withStep(OverviewStep? Function() step) =>
+      OverviewViewState(
+        day: day,
+        today: today,
+        recent: recent,
+        upcoming: upcoming,
+        todayFailed: todayFailed,
+        recordedToday: recordedToday,
+        step: step(),
+      );
 }
+
+sealed class OverviewStep {}
+
+class OverviewHistoryRequested extends OverviewStep {}
 
 abstract class OverviewViewModel {
   void retryToday();
+  void requestHistory();
+  void clearStep();
 }
 
 class OverviewNotifier extends AsyncNotifier<OverviewViewState>
-    with LedgerBackedNotifier<OverviewViewState>
+    with
+        LedgerBackedNotifier<OverviewViewState>,
+        StepEmitting<OverviewViewState, OverviewStep>
     implements OverviewViewModel {
   @override
   Future<OverviewViewState> build() async {
     final day = ref.watch(todayProvider);
     final currentLedger = ledger;
     final queries = ref.watch(analysisQueriesProvider);
+    final pendingStep = state.value?.step;
     if (queries == null) {
       return OverviewViewState(
         day: day,
         today: null,
         recent: null,
         upcoming: null,
+        step: pendingStep,
       );
     }
     final ledgerState = currentLedger.state;
@@ -114,11 +140,15 @@ class OverviewNotifier extends AsyncNotifier<OverviewViewState>
       upcoming: upcoming == null
           ? null
           : [for (final item in upcoming) _upcomingRow(item, ledgerState)],
+      step: pendingStep,
     );
   }
 
   @override
   void retryToday() => ref.read(analysisQueriesProvider)?.retry();
+
+  @override
+  void requestHistory() => emitStep(OverviewHistoryRequested());
 }
 
 OverviewEntryRow _entryRow(Entry entry, LedgerState ledger, DateTime today) {

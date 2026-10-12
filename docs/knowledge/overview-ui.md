@@ -13,8 +13,14 @@ renders its own copy for an empty ledger, and a section whose read has not settl
 
 - `app/lib/ui/overview/overview_view_model.dart` - `OverviewViewModel` (abstract), `OverviewNotifier`
   (`AsyncNotifier` with `LedgerBackedNotifier`, `overviewViewModelProvider`), `OverviewViewState`, and the row types `OverviewEntryRow` and `OverviewUpcomingRow`.
+  The view state carries an `OverviewStep` (`HasStep`/`StepEmitting`); `requestHistory` emits
+  `OverviewHistoryRequested` and `clearStep` clears it. Rebuilds preserve a pending step.
 - `app/lib/ui/overview/overview_screen.dart` - `OverviewScreen` and its standalone section widgets.
-- `app/lib/ui/overview/overview_flow.dart` - `OverviewFlow` (`FlowBase`) with an empty `OverviewStep`.
+  The Recent entries tray ends in a `TextButton` action labelled 'View History' with a chevron,
+  shown for nonempty, empty and section-loading rows.
+- `app/lib/ui/overview/overview_flow.dart` - `OverviewFlow` (`FlowBase`) subscribing to
+  `OverviewStep` once, with an optional phone `historyRouteBuilder` and an optional desktop
+  `onHistorySelected` callback, plus a route-open guard.
 - `app/lib/ledger/analysis/today_summary.dart` - `TodaySummary` carries `spent`, `dailyGuide` and
   `monthlyCap`.
 - `app/lib/ui/transactions/daily_list/transaction_row.dart` - `transactionRow` supplies titles,
@@ -34,6 +40,13 @@ renders a skeleton for that section alone. A failed `readToday()` renders 'Could
 spending' and a filled Retry in the Today tray; Retry calls `AnalysisQueries.retry()` through
 `OverviewNotifier.retryToday`. Recent entries and Coming up keep rendering. `recordedToday` is
 read only beside a current Today summary, so the empty headline never appears over stale data.
+Tapping 'View History' calls `OverviewViewModel.requestHistory`; `OverviewFlow` consumes the
+resulting `OverviewHistoryRequested` exactly once and clears it, including requests made before
+its Navigator mounts. On phone (`shellLayoutModeProvider`, `app/lib/ui/shell/boot_chrome.dart`)
+the flow pushes a `MaterialPageRoute` holding one unscoped `TransactionsFlow` (back control
+labelled 'Overview') into its own nested Navigator; a route-open guard collapses duplicate
+requests. On desktop the same step selects the `ShellDestination.history` slot and pushes no
+route. Opening History leaves Overview selected.
 
 ## Read definitions
 
@@ -53,8 +66,10 @@ read only beside a current Today summary, so the empty headline never appears ov
 
 ## Gotchas and invariants
 
-- The 'View History' and 'Set a monthly cap' links render as styled text without a tap target. The
-  shell wiring that makes them navigate does not exist yet.
+- The 'Set a monthly cap' link renders as styled text without a tap target. The shell wiring
+  that makes it navigate does not exist yet.
+- 'View History' is a real action; it stays reachable for empty and section-loading Recent
+  entries, not only for nonempty rows.
 - The screen has no header actions. The gear and 'Edit Overview' of the reference frame are not
   rendered.
 - Notices above the sections (sync, save retry, plan attention) are not part of this screen. The
@@ -72,6 +87,9 @@ read only beside a current Today summary, so the empty headline never appears ov
 - Section order is Today, Recent entries, Coming up (`app/test/ui/overview/overview_screen_test.dart`).
 - Recent entries never exceeds 4 and sorts newest first
   (`app/test/ui/overview/overview_view_model_test.dart`).
+- 'View History' is shown for nonempty, empty and section-loading Recent entries, carries
+  button semantics with a 48px minimum hit target, and requests the History page
+  (`app/test/ui/overview/overview_screen_test.dart`, `app/test/ui/overview/overview_flow_test.dart`).
 - Coming up excludes dates at or beyond 42 days
   (`app/test/ui/overview/overview_view_model_test.dart`).
 - An empty ledger renders all three sections with their own copy

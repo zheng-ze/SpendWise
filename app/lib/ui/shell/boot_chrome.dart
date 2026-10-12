@@ -34,7 +34,30 @@ class BootChrome extends ConsumerWidget {
   }
 }
 
-Widget _buildOverviewTab(BuildContext context) => const OverviewFlow();
+Widget _buildOverviewTab(BuildContext context) => const _OverviewTabEntry();
+
+const _overviewBackLabel = 'Overview';
+
+class _OverviewTabEntry extends ConsumerWidget {
+  const _OverviewTabEntry();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (ref.watch(shellLayoutModeProvider) == ShellLayoutMode.desktop) {
+      return OverviewFlow(
+        onHistorySelected: () =>
+            ref.read(selectedDestinationProvider.notifier).state =
+                ShellDestination.history,
+      );
+    }
+    return OverviewFlow(historyRouteBuilder: _buildHistoryPage);
+  }
+}
+
+Widget _buildHistoryPage(BuildContext routeContext) => TransactionsFlow(
+  backLabel: _overviewBackLabel,
+  onEnded: () => Navigator.of(routeContext).pop(),
+);
 
 Widget _buildHistoryTab(BuildContext context) => const TransactionsFlow();
 
