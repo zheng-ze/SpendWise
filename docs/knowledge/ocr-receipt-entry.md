@@ -41,10 +41,10 @@ receipt-agnostic) and receipt-specific field-extraction heuristics in `app/`.
 - `packages/ocr/lib/src/text_recognition_failure.dart` — the engine-failure exception.
 - `packages/ocr/lib/src/android/android_text_recognizer.dart`, `android_engine.dart` — the native Android
   engine (`AndroidTextRecognizer`) and its injectable `AndroidEngine` seam, reaching
-  `app/android/app/src/main/kotlin/com/example/spendwise/TextRecognizerChannel.kt` over the
+  `app/android/app/src/main/kotlin/com/zhengze/spendwise/TextRecognizerChannel.kt` over the
   `spendwise/android_text_recognizer` method channel (method `recognizeText`). No Flutter-plugin
   dependency — see Engines below.
-- `app/android/app/src/main/kotlin/com/example/spendwise/TextRecognizerChannel.kt` — the native
+- `app/android/app/src/main/kotlin/com/zhengze/spendwise/TextRecognizerChannel.kt` — the native
   Android bridge. Registered in `MainActivity.kt`'s `configureFlutterEngine`. Runs
   `TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)` on a single-thread `Executor`
   (decode + recognition never block the platform-channel thread), replies exactly once via

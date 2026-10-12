@@ -1,4 +1,4 @@
-package com.example.spendwise
+package com.zhengze.spendwise
 
 import android.app.Activity
 import com.google.android.gms.common.ConnectionResult
