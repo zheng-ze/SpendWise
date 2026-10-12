@@ -1,9 +1,9 @@
 import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:spendwise/ledger/analysis/analysis_category_scope.dart';
-import 'package:spendwise/ledger/analysis/completeness.dart';
-import 'package:spendwise/ledger/analysis/month_spread.dart';
-import 'package:spendwise/ledger/analysis/scoped_trend.dart';
+import 'package:spendwise/ledger/analysis/breakdowns/analysis_category_scope.dart';
+import 'package:spendwise/ledger/analysis/insights/completeness.dart';
+import 'package:spendwise/ledger/analysis/summaries/month_spread.dart';
+import 'package:spendwise/ledger/analysis/breakdowns/scoped_trend.dart';
 
 import 'analysis_test_support.dart';
 

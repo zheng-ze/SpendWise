@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:spendwise/persistence/ledger_database.dart';
+import 'package:spendwise/persistence/database/ledger_database.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
 
 final class BoundRpcLease {

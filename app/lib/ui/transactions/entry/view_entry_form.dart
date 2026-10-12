@@ -4,11 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
-import 'package:spendwise/ui/common/form_scaffold.dart';
+import 'package:spendwise/ui/common/inputs/form_scaffold.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
-import 'package:spendwise/ui/transactions/entry/entry_form_logic.dart';
+import 'package:spendwise/ui/transactions/entry/steps/entry_form_logic.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 
 // MARK: - Visual Constants

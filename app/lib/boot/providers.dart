@@ -12,11 +12,11 @@ import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/analysis_queries.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ledger/ledger_session.dart';
-import 'package:spendwise/persistence/database_connection.dart';
-import 'package:spendwise/persistence/drift_ledger_store.dart';
-import 'package:spendwise/persistence/ledger_database.dart';
-import 'package:spendwise/persistence/ledger_store.dart';
-import 'package:spendwise/persistence/persistence_processor.dart';
+import 'package:spendwise/persistence/database/database_connection.dart';
+import 'package:spendwise/persistence/store/drift_ledger_store.dart';
+import 'package:spendwise/persistence/database/ledger_database.dart';
+import 'package:spendwise/persistence/store/ledger_store.dart';
+import 'package:spendwise/persistence/store/persistence_processor.dart';
 import 'package:spendwise/sync/hosted_sync_status.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
 

@@ -2,7 +2,7 @@ import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/accounts/account_sections.dart';
-import 'package:spendwise/ui/common/swipe_to_delete_row.dart';
+import 'package:spendwise/ui/common/lists/swipe_to_delete_row.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 

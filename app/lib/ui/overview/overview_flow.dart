@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ui/common/flow_base.dart';
+import 'package:spendwise/ui/common/base/flow_base.dart';
 import 'package:spendwise/ui/overview/overview_screen.dart';
 import 'package:spendwise/ui/overview/overview_view_model.dart';
 

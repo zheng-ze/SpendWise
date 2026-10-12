@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:spendwise/ui/common/expanding_fab.dart';
+import 'package:spendwise/ui/common/navigation/expanding_fab.dart';
 import 'package:spendwise/ui/theme/spendwise_colors.dart';
 import 'package:spendwise/ui/theme/spendwise_theme.dart';
 

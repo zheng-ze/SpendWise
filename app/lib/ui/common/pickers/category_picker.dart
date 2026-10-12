@@ -1,7 +1,7 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 
-import 'package:spendwise/ui/common/category_icon.dart';
+import 'package:spendwise/ui/common/lists/category_icon.dart';
 import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
 

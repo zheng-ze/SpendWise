@@ -8,7 +8,7 @@ import 'package:spendwise/sync/sync_enrollment_service.dart';
 import 'package:spendwise/sync/sync_enrollment_session.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
 import 'package:spendwise/sync/sync_secret_keys.dart';
-import 'package:spendwise/ui/common/step_emitting.dart';
+import 'package:spendwise/ui/common/base/step_emitting.dart';
 import 'package:sync/sync.dart';
 
 final class SyncEnrollmentOtpCancelled implements Exception {

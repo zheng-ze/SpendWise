@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/ui/accounts/account_row.dart';
 import 'package:spendwise/ui/accounts/account_sections.dart';
 import 'package:spendwise/ui/accounts/accounts_view_model.dart';
-import 'package:spendwise/ui/common/column_text.dart';
+import 'package:spendwise/ui/common/lists/column_text.dart';
 import 'package:spendwise/ui/format/account_type_format.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';

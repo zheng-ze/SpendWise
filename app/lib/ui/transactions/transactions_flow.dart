@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ui/common/flow_base.dart';
+import 'package:spendwise/ui/common/base/flow_base.dart';
 import 'package:spendwise/ui/transactions/daily_list/daily_transactions_screen.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
-import 'package:spendwise/ui/transactions/entry/entry_step_handlers.dart';
+import 'package:spendwise/ui/transactions/entry/steps/entry_step_handlers.dart';
 import 'package:spendwise/ui/transactions/entry/new_entry_presenter.dart';
 import 'package:spendwise/ui/transactions/transactions_view_model.dart';
 

@@ -5,8 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
-import 'package:spendwise/ui/common/step_emitting.dart';
+import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
+import 'package:spendwise/ui/common/base/step_emitting.dart';
 import 'package:spendwise/ui/stats/helpers/slices.dart';
 
 // MARK: - Steps

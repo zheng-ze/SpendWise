@@ -5,9 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart'
     show DefaultLimitTarget, LimitEditTarget, MonthLimitTarget;
 import 'package:spendwise/ui/budgets/budget_detail/budget_limit_view_model.dart';
-import 'package:spendwise/ui/common/amount_field.dart';
-import 'package:spendwise/ui/common/error_section.dart';
-import 'package:spendwise/ui/common/month_year_selector.dart';
+import 'package:spendwise/ui/common/inputs/amount_field.dart';
+import 'package:spendwise/ui/common/feedback/error_section.dart';
+import 'package:spendwise/ui/common/inputs/month_year_selector.dart';
 import 'package:spendwise/ui/format/amount_parse.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';

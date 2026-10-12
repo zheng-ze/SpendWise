@@ -1,7 +1,7 @@
 import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:spendwise/ledger/analysis/calendar.dart';
-import 'package:spendwise/ledger/analysis/upcoming.dart';
+import 'package:spendwise/ledger/analysis/summaries/calendar.dart';
+import 'package:spendwise/ledger/analysis/summaries/upcoming.dart';
 
 void main() {
   late LedgerState state;

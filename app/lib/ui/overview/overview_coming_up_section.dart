@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import 'package:spendwise/ui/common/loading_skeleton.dart';
-import 'package:spendwise/ui/common/medallion_row.dart';
-import 'package:spendwise/ui/common/tray.dart';
+import 'package:spendwise/ui/common/feedback/loading_skeleton.dart';
+import 'package:spendwise/ui/common/lists/medallion_row.dart';
+import 'package:spendwise/ui/common/sheets/tray.dart';
 import 'package:spendwise/ui/overview/overview_constants.dart';
 import 'package:spendwise/ui/overview/overview_rows.dart';
 import 'package:spendwise/ui/overview/overview_view_model.dart';

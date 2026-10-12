@@ -6,8 +6,8 @@ import 'package:flutter/widgets.dart';
 import 'package:spendwise/boot/app_phase.dart';
 import 'package:spendwise/ledger/event_bus.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/persistence/ledger_store.dart';
-import 'package:spendwise/persistence/persistence_processor.dart';
+import 'package:spendwise/persistence/store/ledger_store.dart';
+import 'package:spendwise/persistence/store/persistence_processor.dart';
 import 'package:spendwise/sync/hosted_sync_status.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
 

@@ -1,7 +1,7 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 
-import 'package:spendwise/ui/common/category_icon.dart';
+import 'package:spendwise/ui/common/lists/category_icon.dart';
 import 'package:spendwise/ui/settings/category/category_form_state.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 

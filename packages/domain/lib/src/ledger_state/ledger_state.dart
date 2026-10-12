@@ -21,25 +21,25 @@ import 'package:domain/src/plans/recurring_plan.dart';
 import 'package:domain/src/time/calendar_day.dart';
 import 'package:domain/src/time/year_month.dart';
 
-part 'ledger_state_accounts.dart';
-part 'ledger_state_adopt.dart';
-part 'ledger_state_budgets.dart';
-part 'ledger_state_categories.dart';
-part 'ledger_state_entries.dart';
-part 'ledger_state_entry_validation.dart';
-part 'ledger_state_invariants.dart';
-part 'ledger_state_invariants_budgets.dart';
-part 'ledger_state_invariants_categories.dart';
-part 'ledger_state_invariants_entries.dart';
-part 'ledger_state_invariants_holders.dart';
-part 'ledger_state_invariants_plans.dart';
-part 'ledger_state_plan_resolution.dart';
-part 'ledger_state_plans.dart';
-part 'ledger_state_pockets.dart';
-part 'ledger_state_purge.dart';
-part 'ledger_state_queries.dart';
-part 'ledger_state_replay.dart';
-part 'ledger_state_sweep.dart';
+part 'mutators/ledger_state_accounts.dart';
+part 'mutators/ledger_state_adopt.dart';
+part 'mutators/ledger_state_budgets.dart';
+part 'mutators/ledger_state_categories.dart';
+part 'mutators/ledger_state_entries.dart';
+part 'mutators/ledger_state_entry_validation.dart';
+part 'invariants/ledger_state_invariants.dart';
+part 'invariants/ledger_state_invariants_budgets.dart';
+part 'invariants/ledger_state_invariants_categories.dart';
+part 'invariants/ledger_state_invariants_entries.dart';
+part 'invariants/ledger_state_invariants_holders.dart';
+part 'invariants/ledger_state_invariants_plans.dart';
+part 'mutators/ledger_state_plan_resolution.dart';
+part 'mutators/ledger_state_plans.dart';
+part 'mutators/ledger_state_pockets.dart';
+part 'mutators/ledger_state_purge.dart';
+part 'queries/ledger_state_queries.dart';
+part 'mutators/ledger_state_replay.dart';
+part 'mutators/ledger_state_sweep.dart';
 
 class LedgerState {
   // MARK: - Construction

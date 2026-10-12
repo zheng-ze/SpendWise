@@ -9,7 +9,7 @@ import 'package:spendwise/ui/budgets/budget_list/budget_form.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_form_view_model.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
-import 'package:spendwise/ui/common/flow_base.dart';
+import 'package:spendwise/ui/common/base/flow_base.dart';
 
 // MARK: - BudgetsFlow
 class BudgetsFlow extends FlowBase<BudgetsStep> {

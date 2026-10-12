@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
-import 'package:spendwise/ui/common/column_text.dart';
-import 'package:spendwise/ui/common/expanding_fab.dart';
-import 'package:spendwise/ui/common/month_year_selector.dart';
-import 'package:spendwise/ui/common/swipe_to_delete_row.dart';
-import 'package:spendwise/ui/common/top_tab_bar.dart';
+import 'package:spendwise/ui/common/lists/column_text.dart';
+import 'package:spendwise/ui/common/navigation/expanding_fab.dart';
+import 'package:spendwise/ui/common/inputs/month_year_selector.dart';
+import 'package:spendwise/ui/common/lists/swipe_to_delete_row.dart';
+import 'package:spendwise/ui/common/navigation/top_tab_bar.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/transactions/daily_list/day_header.dart';

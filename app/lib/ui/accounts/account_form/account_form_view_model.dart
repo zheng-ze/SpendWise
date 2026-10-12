@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/accounts/account_form/account_form_logic.dart';
 import 'package:spendwise/ui/accounts/accounts_view_model.dart';
-import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
-import 'package:spendwise/ui/common/step_emitting.dart';
+import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
+import 'package:spendwise/ui/common/base/step_emitting.dart';
 import 'package:spendwise/ui/format/amount_parse.dart';
 
 // MARK: - AccountFormViewState

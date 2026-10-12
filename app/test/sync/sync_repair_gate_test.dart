@@ -3,7 +3,7 @@ import 'package:drift/native.dart';
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:spendwise/persistence/ledger_database.dart';
+import 'package:spendwise/persistence/database/ledger_database.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
 import 'package:spendwise/sync/sync_repair_gate.dart';
 import 'package:sync/sync.dart';

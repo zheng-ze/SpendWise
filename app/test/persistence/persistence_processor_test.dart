@@ -4,7 +4,7 @@ import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ledger/event_bus.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/persistence/persistence_processor.dart';
+import 'package:spendwise/persistence/store/persistence_processor.dart';
 import 'package:sync/sync.dart';
 
 import '../support/in_memory_ledger_store.dart';

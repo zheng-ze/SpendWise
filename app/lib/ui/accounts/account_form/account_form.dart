@@ -6,10 +6,10 @@ import 'package:spendwise/ui/accounts/account_form/account_form_logic.dart';
 import 'package:spendwise/ui/accounts/account_form/account_form_view_model.dart';
 import 'package:spendwise/ui/accounts/accounts_view_model.dart';
 import 'package:spendwise/ui/common/pickers/account_type_picker.dart';
-import 'package:spendwise/ui/common/amount_field.dart';
-import 'package:spendwise/ui/common/error_section.dart';
-import 'package:spendwise/ui/common/form_scaffold.dart';
-import 'package:spendwise/ui/common/statement_day_picker.dart';
+import 'package:spendwise/ui/common/inputs/amount_field.dart';
+import 'package:spendwise/ui/common/feedback/error_section.dart';
+import 'package:spendwise/ui/common/inputs/form_scaffold.dart';
+import 'package:spendwise/ui/common/inputs/statement_day_picker.dart';
 import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
 
 // MARK: - Visual Constants

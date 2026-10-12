@@ -1,6 +1,6 @@
 import 'package:domain/domain.dart';
 import 'package:drift/drift.dart';
-import 'package:spendwise/persistence/ledger_database.dart';
+import 'package:spendwise/persistence/database/ledger_database.dart';
 import 'package:sync/sync.dart';
 
 const int _stagedLifecycleLive = 0;

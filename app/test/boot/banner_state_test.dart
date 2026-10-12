@@ -2,7 +2,7 @@ import 'package:domain/domain.dart';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/banner_state.dart';
-import 'package:spendwise/persistence/ledger_store.dart';
+import 'package:spendwise/persistence/store/ledger_store.dart';
 
 PlanFailure failure(String planID) => PlanFailure(
   planID: planID,

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
-import 'package:spendwise/ui/common/flow_base.dart';
+import 'package:spendwise/ui/common/base/flow_base.dart';
 import 'package:spendwise/ui/shell/day_ticker.dart';
 import 'package:spendwise/ui/shell/desktop_sidebar.dart';
 import 'package:spendwise/ui/shell/phone_bar.dart';

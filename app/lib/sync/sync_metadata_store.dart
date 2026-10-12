@@ -1,6 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart' show immutable, visibleForTesting;
-import 'package:spendwise/persistence/ledger_database.dart';
+import 'package:spendwise/persistence/database/ledger_database.dart';
 import 'package:spendwise/sync/backend_selection_writer.dart';
 import 'package:sync/sync.dart';
 

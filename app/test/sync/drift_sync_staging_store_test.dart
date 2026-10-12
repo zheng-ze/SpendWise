@@ -4,7 +4,8 @@ import 'package:domain/domain.dart';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:spendwise/persistence/ledger_database.dart' show LedgerDatabase;
+import 'package:spendwise/persistence/database/ledger_database.dart'
+    show LedgerDatabase;
 import 'package:spendwise/sync/drift_sync_staging_store.dart';
 import 'package:sync/sync.dart';
 

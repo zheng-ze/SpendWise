@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ui/common/loading_skeleton.dart';
+import 'package:spendwise/ui/common/feedback/loading_skeleton.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/overview/overview_coming_up_section.dart';
 import 'package:spendwise/ui/overview/overview_constants.dart';

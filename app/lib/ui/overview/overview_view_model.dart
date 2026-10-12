@@ -4,10 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
-import 'package:spendwise/ledger/analysis/today_summary.dart';
-import 'package:spendwise/ledger/analysis/upcoming.dart';
-import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
-import 'package:spendwise/ui/common/step_emitting.dart';
+import 'package:spendwise/ledger/analysis/summaries/today_summary.dart';
+import 'package:spendwise/ledger/analysis/summaries/upcoming.dart';
+import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
+import 'package:spendwise/ui/common/base/step_emitting.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/transactions/daily_list/transaction_row.dart';

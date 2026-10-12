@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/budgets/budget_list/budgets_flow.dart';
-import 'package:spendwise/ui/common/month_year_selector.dart';
-import 'package:spendwise/ui/common/top_tab_bar.dart';
+import 'package:spendwise/ui/common/inputs/month_year_selector.dart';
+import 'package:spendwise/ui/common/navigation/top_tab_bar.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/stats/analysis/analysis_flow.dart';
 import 'package:spendwise/ui/stats/stats_root_view_model.dart';

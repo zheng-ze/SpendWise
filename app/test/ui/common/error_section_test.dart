@@ -1,7 +1,7 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:spendwise/ui/common/error_section.dart';
+import 'package:spendwise/ui/common/feedback/error_section.dart';
 
 void main() {
   Future<void> pumpSection(WidgetTester tester, LedgerError? error) {

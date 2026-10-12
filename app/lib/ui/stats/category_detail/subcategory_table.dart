@@ -2,7 +2,7 @@ import 'package:decimal/decimal.dart';
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 
-import 'package:spendwise/ui/common/category_icon.dart';
+import 'package:spendwise/ui/common/lists/category_icon.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/stats/category_detail/category_scope.dart';

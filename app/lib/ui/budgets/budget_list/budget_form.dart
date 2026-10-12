@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/budgets/budget_list/budget_form_view_model.dart';
-import 'package:spendwise/ui/common/amount_field.dart';
-import 'package:spendwise/ui/common/category_icon.dart';
-import 'package:spendwise/ui/common/error_section.dart';
-import 'package:spendwise/ui/common/form_scaffold.dart';
+import 'package:spendwise/ui/common/inputs/amount_field.dart';
+import 'package:spendwise/ui/common/lists/category_icon.dart';
+import 'package:spendwise/ui/common/feedback/error_section.dart';
+import 'package:spendwise/ui/common/inputs/form_scaffold.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
 
 // MARK: - Visual Constants

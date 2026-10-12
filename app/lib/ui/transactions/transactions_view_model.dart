@@ -4,8 +4,8 @@ import 'package:domain/domain.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
-import 'package:spendwise/ui/common/step_emitting.dart';
+import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
+import 'package:spendwise/ui/common/base/step_emitting.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart' show startOfMonthUtc;
 import 'package:spendwise/ui/stats/helpers/stats_window.dart';
 import 'package:spendwise/ui/transactions/daily_list/day_sections.dart';

@@ -3,8 +3,8 @@ import 'dart:convert';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:spendwise/persistence/device_identity.dart';
-import 'package:spendwise/persistence/ledger_database.dart';
+import 'package:spendwise/persistence/store/device_identity.dart';
+import 'package:spendwise/persistence/database/ledger_database.dart';
 import 'package:spendwise/sync/credential_provider.dart';
 import 'package:spendwise/sync/secret_store.dart';
 import 'package:spendwise/sync/sync_secret_keys.dart';

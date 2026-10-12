@@ -1,7 +1,7 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 
-import 'package:spendwise/ui/common/step_emitting.dart';
+import 'package:spendwise/ui/common/base/step_emitting.dart';
 
 // MARK: - Default Color
 

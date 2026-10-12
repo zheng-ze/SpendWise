@@ -7,7 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spendwise/boot/app_boot.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/main.dart';
-import 'package:spendwise/persistence/ledger_store.dart';
+import 'package:spendwise/persistence/store/ledger_store.dart';
 import 'package:spendwise/settings/display_preferences.dart';
 import 'package:spendwise/settings/display_preferences_providers.dart';
 import 'package:spendwise/settings/display_preferences_store.dart';

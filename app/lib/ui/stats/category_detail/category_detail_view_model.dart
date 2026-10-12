@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
+import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/stats/analysis/analysis_scan.dart';
 import 'package:spendwise/ui/stats/category_detail/category_scope.dart';
 import 'package:spendwise/ui/stats/helpers/stats_window.dart';

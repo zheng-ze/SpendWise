@@ -3,11 +3,11 @@ import 'package:domain/domain.dart' as domain;
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:spendwise/persistence/device_identity.dart';
-import 'package:spendwise/persistence/drift_ledger_store.dart';
-import 'package:spendwise/persistence/ledger_database.dart';
-import 'package:spendwise/persistence/ledger_store.dart';
-import 'package:spendwise/persistence/mappers.dart';
+import 'package:spendwise/persistence/store/device_identity.dart';
+import 'package:spendwise/persistence/store/drift_ledger_store.dart';
+import 'package:spendwise/persistence/database/ledger_database.dart';
+import 'package:spendwise/persistence/store/ledger_store.dart';
+import 'package:spendwise/persistence/mappers/mappers.dart';
 import 'package:sync/sync.dart';
 
 class ManualClock {

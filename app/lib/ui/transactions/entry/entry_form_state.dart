@@ -1,8 +1,8 @@
 import 'package:domain/domain.dart';
 
-import 'package:spendwise/ui/common/step_emitting.dart';
+import 'package:spendwise/ui/common/base/step_emitting.dart';
 import 'package:spendwise/ui/format/amount_parse.dart';
-import 'package:spendwise/ui/transactions/entry/entry_form_logic.dart';
+import 'package:spendwise/ui/transactions/entry/steps/entry_form_logic.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_flow.dart';
 import 'package:spendwise/ui/transactions/transactions_view_model.dart';
 

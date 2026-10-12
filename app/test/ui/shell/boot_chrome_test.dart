@@ -7,7 +7,7 @@ import 'package:spendwise/boot/app_boot.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/boot/seed_data.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
-import 'package:spendwise/persistence/ledger_store.dart';
+import 'package:spendwise/persistence/store/ledger_store.dart';
 import 'package:spendwise/ui/overview/overview_screen.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/boot_chrome.dart';

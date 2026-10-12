@@ -1,10 +1,10 @@
 import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:spendwise/ledger/analysis/analysis_category_scope.dart';
+import 'package:spendwise/ledger/analysis/breakdowns/analysis_category_scope.dart';
 import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
-import 'package:spendwise/ledger/analysis/category_breakdown.dart';
-import 'package:spendwise/ledger/analysis/month_spread.dart';
-import 'package:spendwise/ledger/analysis/scoped_trend.dart';
+import 'package:spendwise/ledger/analysis/breakdowns/category_breakdown.dart';
+import 'package:spendwise/ledger/analysis/summaries/month_spread.dart';
+import 'package:spendwise/ledger/analysis/breakdowns/scoped_trend.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/analysis_queries.dart';
 import 'package:spendwise/ledger/ledger.dart';

@@ -2,9 +2,9 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ui/common/delete_confirmation.dart';
-import 'package:spendwise/ui/common/error_section.dart';
-import 'package:spendwise/ui/common/form_scaffold.dart';
+import 'package:spendwise/ui/common/feedback/delete_confirmation.dart';
+import 'package:spendwise/ui/common/feedback/error_section.dart';
+import 'package:spendwise/ui/common/inputs/form_scaffold.dart';
 import 'package:spendwise/ui/common/pickers/symbol_picker.dart';
 import 'package:spendwise/ui/settings/category/category_form_fields.dart';
 import 'package:spendwise/ui/settings/category/category_form_view_model.dart';

@@ -1,0 +1,130 @@
+part of '../ledger_state.dart';
+
+extension LedgerStateCategories on LedgerState {
+  // MARK: - Mutators
+
+  List<LedgerChange> addCategory(TransactionCategory category) {
+    if (_categories.containsKey(category.id)) throw IdCollision(category.id);
+
+    _validateParent(category);
+    _categories[category.id] = category;
+    return _checked([UpsertCategory(category)]);
+  }
+
+  List<LedgerChange> updateCategory(TransactionCategory category) {
+    final existing = _categories[category.id];
+    if (existing == null) throw UnknownCategory(category.id);
+
+    if (existing.kind != category.kind) throw const CategoryKindMismatch();
+
+    if (category.parentID != null && _children(category.id).isNotEmpty) {
+      throw const CategoryTooDeep();
+    }
+
+    _validateParent(category);
+
+    final requested = category.settingLifecycle(
+      _editableLifecycle(existing.lifecycle),
+    );
+    final stored = _willOutliveParentCategory(requested)
+        ? requested.settingLifecycle(existing.lifecycle)
+        : requested;
+    _categories[stored.id] = stored;
+
+    final droppedParent = existing.parentID == stored.parentID
+        ? null
+        : existing.parentID;
+    return _checked([
+      UpsertCategory(stored),
+      if (droppedParent != null) ..._sweepCategory(droppedParent),
+    ]);
+  }
+
+  bool _willOutliveParentCategory(TransactionCategory category) {
+    final parentID = category.parentID;
+    if (parentID == null) return false;
+
+    final parent = _categories[parentID];
+    if (parent == null) return false;
+
+    return !parent.lifecycle.isAtLeastAsAliveAs(category.lifecycle);
+  }
+
+  // MARK: - Deletion and restore
+
+  List<LedgerChange> deleteCategory(String rawID) {
+    final id = normalizedID(rawID);
+    final category = _categories[id];
+    if (category == null || !category.lifecycle.isActive) return _checked([]);
+
+    return _checked(
+      _moveCategoryTree(
+        category,
+        from: LifecycleState.active,
+        to: LifecycleState.archived,
+      ),
+    );
+  }
+
+  List<LedgerChange> restoreCategory(String rawID) {
+    final id = normalizedID(rawID);
+    final category = _categories[id];
+    if (category == null || category.lifecycle != LifecycleState.archived) {
+      return _checked([]);
+    }
+    final parentID = category.parentID;
+    if (parentID != null &&
+        _categories[parentID]?.lifecycle == LifecycleState.archived) {
+      return _checked([]);
+    }
+
+    return _checked(
+      _moveCategoryTree(
+        category,
+        from: LifecycleState.archived,
+        to: LifecycleState.active,
+      ),
+    );
+  }
+
+  // MARK: - Helpers
+
+  List<LedgerChange> _moveCategoryTree(
+    TransactionCategory category, {
+    required LifecycleState from,
+    required LifecycleState to,
+  }) {
+    final moved = category.settingLifecycle(to);
+    _categories[moved.id] = moved;
+    final changes = <LedgerChange>[UpsertCategory(moved)];
+
+    for (final child in _children(category.id)) {
+      if (child.lifecycle != from) continue;
+
+      final movedChild = child.settingLifecycle(to);
+      _categories[child.id] = movedChild;
+      changes.add(UpsertCategory(movedChild));
+    }
+    return changes;
+  }
+
+  List<TransactionCategory> _children(String parentID) => _categories.values
+      .where((category) => category.parentID == parentID)
+      .toList();
+
+  void _validateParent(TransactionCategory category) {
+    final parentID = category.parentID;
+    if (parentID == null) return;
+
+    if (parentID == category.id) throw const CategoryTooDeep();
+
+    final parent = _categories[parentID];
+    if (parent == null) throw UnknownCategory(parentID);
+    if (parent.parentID != null) throw const CategoryTooDeep();
+    if (parent.kind != category.kind) throw const CategoryKindMismatch();
+
+    if (!parent.lifecycle.isAtLeastAsAliveAs(LifecycleState.archived)) {
+      throw InactiveReference(parentID);
+    }
+  }
+}

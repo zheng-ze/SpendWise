@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:spendwise/ui/common/category_icon.dart';
+import 'package:spendwise/ui/common/lists/category_icon.dart';
 import 'package:spendwise/ui/symbol_map.dart';
 
 // MARK: - Constants

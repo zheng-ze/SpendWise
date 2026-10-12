@@ -2,8 +2,8 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ui/common/delete_confirmation.dart';
-import 'package:spendwise/ui/common/swipe_to_delete_row.dart';
+import 'package:spendwise/ui/common/feedback/delete_confirmation.dart';
+import 'package:spendwise/ui/common/lists/swipe_to_delete_row.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';

@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/boot/providers.dart';
-import 'package:spendwise/ui/common/flow_base.dart';
+import 'package:spendwise/ui/common/base/flow_base.dart';
 import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_flow.dart';
 import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_view_model.dart';
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_screens.dart';

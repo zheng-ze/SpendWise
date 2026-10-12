@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart' show immutable;
 
 import 'package:spendwise/ui/format/color_hex.dart';
 import 'package:spendwise/ui/format/money_format.dart';
-import 'package:spendwise/ui/transactions/entry/entry_transfer_scope.dart';
+import 'package:spendwise/ui/transactions/entry/fields/entry_transfer_scope.dart';
 
 // MARK: - Constants
 const _unknownHolderLabel = 'Unknown';

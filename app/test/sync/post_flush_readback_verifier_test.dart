@@ -1,8 +1,9 @@
 import 'package:domain/domain.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:spendwise/persistence/ledger_database.dart' hide Account;
-import 'package:spendwise/persistence/mappers.dart';
+import 'package:spendwise/persistence/database/ledger_database.dart'
+    hide Account;
+import 'package:spendwise/persistence/mappers/mappers.dart';
 import 'package:spendwise/sync/collection_version_reader.dart';
 import 'package:spendwise/sync/post_flush_readback_verifier.dart';
 import 'package:spendwise/sync/row_readback_outcome.dart';

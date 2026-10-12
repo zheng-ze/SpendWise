@@ -1,6 +1,6 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:spendwise/persistence/ledger_database.dart';
+import 'package:spendwise/persistence/database/ledger_database.dart';
 import 'package:spendwise/sync/drift_sync_staging_store.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
 import 'package:sync/sync.dart';

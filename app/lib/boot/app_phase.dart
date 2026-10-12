@@ -1,5 +1,5 @@
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/persistence/persistence_processor.dart';
+import 'package:spendwise/persistence/store/persistence_processor.dart';
 
 // MARK: - Phases
 

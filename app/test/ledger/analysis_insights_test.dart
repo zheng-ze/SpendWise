@@ -1,8 +1,8 @@
 import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:spendwise/ledger/analysis/insight_rules.dart';
-import 'package:spendwise/ledger/analysis/matched_day_insights.dart';
-import 'package:spendwise/ledger/analysis/week_so_far.dart';
+import 'package:spendwise/ledger/analysis/insights/insight_rules.dart';
+import 'package:spendwise/ledger/analysis/insights/matched_day_insights.dart';
+import 'package:spendwise/ledger/analysis/summaries/week_so_far.dart';
 
 import 'analysis_test_support.dart';
 

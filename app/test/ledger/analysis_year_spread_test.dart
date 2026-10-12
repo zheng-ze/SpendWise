@@ -1,7 +1,7 @@
 import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
-import 'package:spendwise/ledger/analysis/year_spread.dart';
+import 'package:spendwise/ledger/analysis/summaries/year_spread.dart';
 import 'package:spendwise/ledger/analysis_queries.dart';
 import 'package:spendwise/ledger/ledger.dart';
 

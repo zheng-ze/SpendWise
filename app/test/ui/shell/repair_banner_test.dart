@@ -10,8 +10,9 @@ import 'package:spendwise/boot/app_boot.dart';
 import 'package:spendwise/boot/banner_state.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/persistence/ledger_database.dart' show LedgerDatabase;
-import 'package:spendwise/persistence/ledger_store.dart';
+import 'package:spendwise/persistence/database/ledger_database.dart'
+    show LedgerDatabase;
+import 'package:spendwise/persistence/store/ledger_store.dart';
 import 'package:spendwise/sync/hosted_sync_status.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
 import 'package:spendwise/ui/settings/settings_flow.dart';

@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:spendwise/persistence/device_identity.dart';
-import 'package:spendwise/persistence/ledger_database.dart';
+import 'package:spendwise/persistence/store/device_identity.dart';
+import 'package:spendwise/persistence/database/ledger_database.dart';
 import 'package:spendwise/sync/secret_store.dart';
 import 'package:spendwise/sync/sync_secret_keys.dart';
 import 'package:sync/sync.dart';

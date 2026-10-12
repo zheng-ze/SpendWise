@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import 'package:spendwise/ui/common/app_sheet.dart';
-import 'package:spendwise/ui/common/error_section.dart';
-import 'package:spendwise/ui/transactions/entry/entry_fields.dart';
+import 'package:spendwise/ui/common/sheets/app_sheet.dart';
+import 'package:spendwise/ui/common/feedback/error_section.dart';
+import 'package:spendwise/ui/transactions/entry/fields/entry_fields.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_strip.dart';
 

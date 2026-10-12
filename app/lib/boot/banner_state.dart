@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:domain/domain.dart';
 import 'package:flutter/foundation.dart';
 
-import 'package:spendwise/persistence/ledger_store.dart';
+import 'package:spendwise/persistence/store/ledger_store.dart';
 
 const _dismissAfter = Duration(seconds: 4);
 

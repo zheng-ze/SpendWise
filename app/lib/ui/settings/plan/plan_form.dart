@@ -2,9 +2,9 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ui/common/amount_field.dart';
-import 'package:spendwise/ui/common/error_section.dart';
-import 'package:spendwise/ui/common/form_scaffold.dart';
+import 'package:spendwise/ui/common/inputs/amount_field.dart';
+import 'package:spendwise/ui/common/feedback/error_section.dart';
+import 'package:spendwise/ui/common/inputs/form_scaffold.dart';
 import 'package:spendwise/ui/common/pickers/recurrence_picker.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/settings/plan/plan_form_view_model.dart';

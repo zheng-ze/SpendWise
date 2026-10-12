@@ -1,9 +1,9 @@
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 
-import 'package:spendwise/ledger/analysis/today_summary.dart';
-import 'package:spendwise/ui/common/app_buttons.dart';
-import 'package:spendwise/ui/common/loading_skeleton.dart';
+import 'package:spendwise/ledger/analysis/summaries/today_summary.dart';
+import 'package:spendwise/ui/common/buttons/app_buttons.dart';
+import 'package:spendwise/ui/common/feedback/loading_skeleton.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/overview/overview_constants.dart';
 import 'package:spendwise/ui/overview/overview_view_model.dart';

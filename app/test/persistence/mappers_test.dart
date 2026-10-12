@@ -4,8 +4,8 @@ import 'dart:typed_data';
 import 'package:domain/domain.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:spendwise/persistence/ledger_database.dart' as rows;
-import 'package:spendwise/persistence/mappers.dart';
+import 'package:spendwise/persistence/database/ledger_database.dart' as rows;
+import 'package:spendwise/persistence/mappers/mappers.dart';
 import 'package:sync/sync.dart';
 
 void main() {

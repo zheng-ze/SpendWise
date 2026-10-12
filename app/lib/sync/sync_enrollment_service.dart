@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:spendwise/persistence/device_identity.dart';
-import 'package:spendwise/persistence/ledger_database.dart';
+import 'package:spendwise/persistence/store/device_identity.dart';
+import 'package:spendwise/persistence/database/ledger_database.dart';
 import 'package:spendwise/sync/credential_provider.dart';
 import 'package:spendwise/sync/reconciliation_snapshot_hasher.dart';
 import 'package:spendwise/sync/secret_store.dart';
