@@ -4,7 +4,8 @@ Last reconciled: 2026-10-12
 
 ## Feature overview
 
-The Transactions tab and its entry form. The tab shows a month-navigated list grouped into day
+The transactions list and its entry form. The unscoped list is the desktop History destination;
+scoped lists live inside Money. It shows a month-navigated list grouped into day
 sections (Daily) or a year broken into months and weeks (Monthly), and renders account-scoped with
 a custom title and source filter. The entry form creates, views (read-only-first), and edits entries
 and is the only place recurring plans are created.
@@ -24,7 +25,7 @@ and is the only place recurring plans are created.
   category, recurrence, date, end-date and document-crop Step handlers used by both the presenter
   and `TransactionsFlow`, presented above the sheet through the root navigator.
 - `app/lib/ui/transactions/receipt_scan/` — the OCR entry hook (see `ocr-receipt-entry.md`).
-- `app/lib/ui/transactions/transactions_flow.dart` — the Flow that owns this tab's nested navigator.
+- `app/lib/ui/transactions/transactions_flow.dart` — the Flow that owns this list's nested navigator.
 - `app/lib/ui/common/day_sectioned_entry_list.dart`, `expanding_fab.dart`, `form_scaffold.dart`,
   `swipe_to_delete_row.dart`, `pickers/` — shared components and picker sheets.
 - `app/lib/ui/symbol_map.dart` — symbol-to-IconData mapping.
@@ -52,7 +53,7 @@ form, applies the scoped prefill after initialization, maps the shell layout mod
 presentation fails. A late receipt finish after invalidation writes no state
 (`ReceiptEntryCoordinator` checks `ref.mounted` in its asynchronous finally). The account-scoped
 screen reuses the same screen with a custom title and `sourceIDs` filter. Back-stack behavior per
-tab survives switching because each destination keeps its own navigator.
+destination survives switching because each destination keeps its own navigator.
 
 ## Screens and flows
 

@@ -272,7 +272,8 @@ The app is phone-first with one shell whose phone or desktop layout is chosen by
   of the Overview, Trends, Money and Settings slots. Desktop shows a sidebar (wordmark,
   Overview, History, Trends, Money, an Add entry button, Settings at the bottom) over a stable
   `IndexedStack` of all five destinations. History hosts the unscoped `TransactionsFlow` on
-  desktop; on phone it is reached from Overview. `shellLayoutModeProvider` resolves
+  desktop. Phone has no History slot, and the Overview 'View History' link is not wired yet.
+  `shellLayoutModeProvider` resolves
   `ShellLayoutMode.phone` or `ShellLayoutMode.desktop` once per run; resizing never switches the
   layout. Each stack resolves its index through its own explicit destination list.
 - Screen-level state — selected month, selector mode, stats kind, and similar per-tab state — lives

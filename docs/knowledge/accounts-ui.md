@@ -4,7 +4,7 @@ Last reconciled: 2026-10-08
 
 ## Feature overview
 
-The Accounts tab and its account/pocket forms. The tab groups active accounts by type with pockets
+The Accounts screen, hosted by the Money destination, and its account/pocket forms. The screen groups active accounts by type with pockets
 nested under their parent, shows card accounts as payable/outstanding two columns, and derives net
 worth from `Accounting.netWorth`. Tapping an account row pushes the Transactions screen scoped to
 that account and its pockets. Forms exist for creating accounts and pockets and for editing a source,
@@ -13,7 +13,7 @@ including posting a balance-adjustment delta entry.
 ## Key files
 
 - `app/lib/ui/accounts/accounts_view_model.dart`, `accounts_flow.dart`, `accounts_screen.dart` —
-  the tab view model, Flow, and screen.
+  the screen view model, Flow, and screen.
 - `app/lib/ui/accounts/account_sections.dart`, `account_row.dart` — section grouping and row
   rendering.
 - `app/lib/ui/accounts/account_form/` — the New Account / New Subpocket sheet.
@@ -40,7 +40,7 @@ cycle charges through the named day. Its contracts live in
 
 ## Navigation
 
-The Accounts Flow owns this tab's nested navigator, and the tab additionally owns its own stack
+The Accounts Flow owns the Money destination's nested navigator, and the screen additionally owns its own stack
 internally (path-based). Tapping an account row pushes the scoped Transactions screen; the
 "Excluding subpockets" and per-pocket expanded rows push narrower scopes. The account/source-edit
 forms and the entry form open as sheets.
