@@ -233,4 +233,54 @@ void main() {
       expect(viewState.recordedToday, isFalse);
     });
   });
+
+  group('History step', () {
+    test('requestHistory emits an overview history request', () async {
+      final ledger = Ledger(state: defaultState());
+      final container = overviewContainer(ledger);
+      container.listen(overviewViewModelProvider, (_, _) {});
+      await settleAnalysis(container, ledger);
+
+      container.read(overviewViewModelProvider.notifier).requestHistory();
+
+      expect(
+        container.read(overviewViewModelProvider).requireValue.step,
+        isA<OverviewHistoryRequested>(),
+      );
+    });
+
+    test('clearStep clears a pending history request', () async {
+      final ledger = Ledger(state: defaultState());
+      final container = overviewContainer(ledger);
+      container.listen(overviewViewModelProvider, (_, _) {});
+      await settleAnalysis(container, ledger);
+      container.read(overviewViewModelProvider.notifier).requestHistory();
+
+      container.read(overviewViewModelProvider.notifier).clearStep();
+
+      expect(
+        container.read(overviewViewModelProvider).requireValue.step,
+        isNull,
+      );
+    });
+
+    test(
+      'a pending history request survives unrelated view rebuilds',
+      () async {
+        final ledger = Ledger(state: defaultState());
+        final container = overviewContainer(ledger);
+        container.listen(overviewViewModelProvider, (_, _) {});
+        await settleAnalysis(container, ledger);
+        container.read(overviewViewModelProvider.notifier).requestHistory();
+
+        container.invalidate(overviewViewModelProvider);
+        await settleAnalysis(container, ledger);
+
+        expect(
+          container.read(overviewViewModelProvider).requireValue.step,
+          isA<OverviewHistoryRequested>(),
+        );
+      },
+    );
+  });
 }

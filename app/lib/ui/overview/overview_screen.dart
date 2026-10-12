@@ -68,7 +68,7 @@ class OverviewScreen extends ConsumerWidget {
               _OverviewHeader(day: viewState.day),
               _TodayTray(viewState: viewState, viewModel: viewModel),
               const SizedBox(height: _trayGap),
-              _RecentTray(rows: viewState.recent),
+              _RecentTray(rows: viewState.recent, viewModel: viewModel),
               const SizedBox(height: _trayGap),
               _ComingUpTray(rows: viewState.upcoming),
             ],
@@ -275,34 +275,22 @@ class _DailyGuide extends StatelessWidget {
 }
 
 class _LinkText extends StatelessWidget {
-  const _LinkText(this.text, {this.withChevron = false});
+  const _LinkText(this.text);
 
   final String text;
-  final bool withChevron;
-
-  static const _chevronGap = 4.0;
 
   @override
   Widget build(BuildContext context) {
     final color = context.colors.action;
     return Padding(
       padding: const EdgeInsets.only(top: _linkTopPadding),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            text,
-            style: TextStyle(
-              fontSize: _bodyFontSize,
-              fontWeight: _semiBold,
-              color: color,
-            ),
-          ),
-          if (withChevron) ...[
-            const SizedBox(width: _chevronGap),
-            Icon(_linkChevron, size: _linkIconSize, color: color),
-          ],
-        ],
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: _bodyFontSize,
+          fontWeight: _semiBold,
+          color: color,
+        ),
       ),
     );
   }
@@ -320,21 +308,63 @@ class _EmptyCopy extends StatelessWidget {
   );
 }
 
+class _HistoryAction extends StatelessWidget {
+  const _HistoryAction({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  static const _chevronGap = 4.0;
+  static const _minWidth = 48.0;
+  static const _minHeight = 48.0;
+  static const _padding = EdgeInsets.zero;
+  static const _alignment = Alignment.centerLeft;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = context.colors.action;
+    return Padding(
+      padding: const EdgeInsets.only(top: _linkTopPadding),
+      child: TextButton(
+        onPressed: onPressed,
+        style: TextButton.styleFrom(
+          foregroundColor: color,
+          minimumSize: const Size(_minWidth, _minHeight),
+          tapTargetSize: MaterialTapTargetSize.padded,
+          padding: _padding,
+          alignment: _alignment,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              _historyLink,
+              style: TextStyle(fontSize: _bodyFontSize, fontWeight: _semiBold),
+            ),
+            const SizedBox(width: _chevronGap),
+            const Icon(_linkChevron, size: _linkIconSize),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _RecentTray extends StatelessWidget {
-  const _RecentTray({required this.rows});
+  const _RecentTray({required this.rows, required this.viewModel});
 
   final List<OverviewEntryRow>? rows;
+  final OverviewViewModel viewModel;
 
   @override
   Widget build(BuildContext context) {
     final rows = this.rows;
-    final Widget content;
+    final Widget entries;
     if (rows == null) {
-      content = const LoadingSkeleton();
+      entries = const LoadingSkeleton();
     } else if (rows.isEmpty) {
-      content = const _EmptyCopy(_recentEmpty);
+      entries = const _EmptyCopy(_recentEmpty);
     } else {
-      content = Column(
+      entries = Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           for (final (index, row) in rows.indexed)
@@ -342,13 +372,21 @@ class _RecentTray extends StatelessWidget {
               isLast: index == rows.length - 1,
               child: _EntryRowContent(row: row),
             ),
-          const _LinkText(_historyLink, withChevron: true),
         ],
       );
     }
     return SizedBox(
       width: _fullWidth,
-      child: Tray(title: _recentTitle, child: content),
+      child: Tray(
+        title: _recentTitle,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            entries,
+            _HistoryAction(onPressed: viewModel.requestHistory),
+          ],
+        ),
+      ),
     );
   }
 }
