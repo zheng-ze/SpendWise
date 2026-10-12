@@ -163,8 +163,7 @@ void main() {
       matchesSemantics(
         label: 'Add',
         isButton: true,
-        hasSelectedState: true,
-        isSelected: false,
+        hasSelectedState: false,
         isFocusable: true,
         hasTapAction: true,
         hasFocusAction: true,
@@ -222,8 +221,7 @@ void main() {
       matchesSemantics(
         label: 'Add',
         isButton: true,
-        hasSelectedState: true,
-        isSelected: false,
+        hasSelectedState: false,
         hasTapAction: true,
         isFocusable: true,
         hasFocusAction: true,

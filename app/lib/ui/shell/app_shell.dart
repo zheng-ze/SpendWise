@@ -77,6 +77,9 @@ const _sidebarLabelGap = 10.0;
 const _sidebarLabelFontSize = 13.0;
 const _sidebarAddGap = 8.0;
 const _sidebarAddVerticalPadding = 12.0;
+const _unselectedBackground = Colors.transparent;
+
+const _fallbackStackIndex = 0;
 
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key, this.bodies = const {}});
@@ -220,7 +223,7 @@ class _BarSlot extends StatelessWidget {
     required this.children,
   });
 
-  final bool selected;
+  final bool? selected;
   final VoidCallback onTap;
   final List<Widget> children;
 
@@ -293,7 +296,7 @@ class _BarAdd extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     return _BarSlot(
-      selected: false,
+      selected: null,
       onTap: onTap,
       children: [
         Container(
@@ -442,7 +445,7 @@ class _SidebarDestination extends StatelessWidget {
         child: Container(
           padding: _sidebarItemPadding,
           decoration: BoxDecoration(
-            color: isSelected ? colors.tint : Colors.transparent,
+            color: isSelected ? colors.tint : _unselectedBackground,
             borderRadius: BorderRadius.circular(_sidebarItemCornerRadius),
           ),
           child: Row(
@@ -486,7 +489,7 @@ class _DestinationStacks extends StatelessWidget {
   Widget build(BuildContext context) {
     final selectedIndex = order.indexOf(selected);
     return IndexedStack(
-      index: selectedIndex < 0 ? 0 : selectedIndex,
+      index: selectedIndex < 0 ? _fallbackStackIndex : selectedIndex,
       children: [
         for (final destination in order)
           KeyedSubtree(
