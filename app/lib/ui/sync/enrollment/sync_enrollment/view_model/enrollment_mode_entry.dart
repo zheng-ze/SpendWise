@@ -1,24 +1,30 @@
-// ignore_for_file: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
 part of '../sync_enrollment_view_model.dart';
 
 // MARK: - Mode Entry
 
-extension SyncEnrollmentModeEntry on SyncEnrollmentNotifier {
-  Future<bool?> enterRepairMode() {
-    final settlement = _enterRepairMode();
-    final tracked = settlement.then<void>((_) {}, onError: (_) {});
-    _pendingSettlements.add(tracked);
-    return settlement.whenComplete(() => _pendingSettlements.remove(tracked));
-  }
+typedef _EnrollmentStateUpdater = void Function(
+  SyncEnrollmentState Function(SyncEnrollmentState current) apply,
+);
 
-  Future<bool?> _enterRepairMode() async {
-    _modeSequence++;
-    if (state.inFlight) return state.repairPhase != null;
-    _repairMode = true;
-    final operation = _EnrollmentOperation();
-    _currentOperation = operation;
-    _session = null;
-    state = state.copyWith(
+class _EnrollmentOperations {
+  Completer<String>? otpCompleter;
+  SyncEnrollmentSession? session;
+  _EnrollmentOperation? currentOperation;
+  Future<void>? abandonedPublication;
+  int pendingEnrolls = 0;
+  final List<Future<void>> pendingSettlements = [];
+}
+
+Future<bool?> _finishEnteringRepairMode({
+  required _EnrollmentOperation operation,
+  required _EnrollmentOperations operations,
+  required _EnrollmentStateUpdater updateState,
+  required bool Function() isMounted,
+  required Future<SyncEnrollmentPhase> Function() currentPhase,
+  required void Function(SyncEnrollmentStep step) emitStep,
+}) async {
+  updateState(
+    (current) => current.copyWith(
       identifier: '',
       errorMessage: () => null,
       cancelled: false,
@@ -26,46 +32,57 @@ extension SyncEnrollmentModeEntry on SyncEnrollmentNotifier {
       explainCodeReplacement: true,
       inFlight: true,
       step: () => null,
-    );
-    final SyncEnrollmentPhase phase;
-    try {
-      phase = await _currentPhase();
-    } catch (_) {
-      if (identical(operation, _currentOperation) && ref.mounted) {
-        state = state.copyWith(inFlight: false);
-      }
-      return false;
+    ),
+  );
+  final SyncEnrollmentPhase phase;
+  try {
+    phase = await currentPhase();
+  } catch (_) {
+    if (identical(operation, operations.currentOperation) && isMounted()) {
+      updateState((current) => current.copyWith(inFlight: false));
     }
-    if (!ref.mounted || !identical(operation, _currentOperation)) return null;
-    state = state.copyWith(inFlight: false);
-    if (SyncEnrollmentFailureCopy._isRepairPhase(phase)) {
-      state = state.copyWith(repairPhase: () => phase);
-    }
-    emitStep(ShowIdentifierEntry());
-    return SyncEnrollmentFailureCopy._isRepairPhase(phase);
+    return false;
   }
+  if (!isMounted() || !identical(operation, operations.currentOperation)) {
+    return null;
+  }
+  updateState((current) => current.copyWith(inFlight: false));
+  if (_isRepairPhase(phase)) {
+    updateState((current) => current.copyWith(repairPhase: () => phase));
+  }
+  emitStep(ShowIdentifierEntry());
+  return _isRepairPhase(phase);
+}
 
-  // MARK: - Prior Operation Settlement
+// MARK: - Prior Operation Settlement
 
-  bool get _priorOperationPending =>
-      state.inFlight ||
-      _pendingEnrolls > 0 ||
-      _abandonedPublication != null ||
-      _pendingSettlements.isNotEmpty;
+bool _priorEnrollmentOperationPending(
+  SyncEnrollmentState currentState,
+  _EnrollmentOperations operations,
+) =>
+    currentState.inFlight ||
+    operations.pendingEnrolls > 0 ||
+    operations.abandonedPublication != null ||
+    operations.pendingSettlements.isNotEmpty;
 
-  Future<void> _settlePriorOperation() async {
-    while (_priorOperationPending) {
-      final abandoned = _abandonedPublication;
-      final waiting = <Future<void>>[..._pendingSettlements, ?abandoned];
-      if (waiting.isEmpty) {
-        await Future<void>.delayed(Duration.zero);
-        continue;
-      }
-      for (final pending in waiting) {
-        try {
-          await pending;
-        } catch (_) {}
-      }
+Future<void> _settlePriorEnrollmentOperation({
+  required SyncEnrollmentState Function() readState,
+  required _EnrollmentOperations operations,
+}) async {
+  while (_priorEnrollmentOperationPending(readState(), operations)) {
+    final abandoned = operations.abandonedPublication;
+    final waiting = <Future<void>>[
+      ...operations.pendingSettlements,
+      ?abandoned,
+    ];
+    if (waiting.isEmpty) {
+      await Future<void>.delayed(Duration.zero);
+      continue;
+    }
+    for (final pending in waiting) {
+      try {
+        await pending;
+      } catch (_) {}
     }
   }
 }

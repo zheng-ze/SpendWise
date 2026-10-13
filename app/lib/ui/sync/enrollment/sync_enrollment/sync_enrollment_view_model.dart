@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:spendwise/boot/app_boot.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/sync/enrollment_snapshot_publisher.dart';
 import 'package:spendwise/sync/secret_store.dart';
@@ -45,12 +46,7 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
   final SecretStore _secretStore;
   bool _repairMode;
   final DateTime Function() _now;
-  Completer<String>? _otpCompleter;
-  SyncEnrollmentSession? _session;
-  _EnrollmentOperation? _currentOperation;
-  Future<void>? _abandonedPublication;
-  int _pendingEnrolls = 0;
-  final List<Future<void>> _pendingSettlements = [];
+  final _operations = _EnrollmentOperations();
 
   /// Latest mode entry. Each fresh or repair entry claims a new id; a fresh
   /// entry whose wait ends under an older id belongs to a closed route and
@@ -102,8 +98,8 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
       return FreshEntryResult.superseded;
     }
     _repairMode = false;
-    _currentOperation = null;
-    _session = null;
+    _operations.currentOperation = null;
+    _operations.session = null;
     state = state.copyWith(
       errorMessage: () => null,
       cancelled: false,
@@ -130,14 +126,12 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
     }
     final cooldown = _codeCooldownRemaining();
     if (cooldown != null) {
-      state = state.copyWith(
-        errorMessage: () => SyncEnrollmentFailureCopy._cooldownCopy(cooldown),
-      );
+      state = state.copyWith(errorMessage: () => _cooldownCopy(cooldown));
       return;
     }
     final operation = _EnrollmentOperation();
-    _currentOperation = operation;
-    _session = null;
+    _operations.currentOperation = operation;
+    _operations.session = null;
     state = state.copyWith(
       identifier: trimmed,
       inFlight: true,
@@ -145,11 +139,11 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
       cancelled: false,
     );
     final settlement = _submitAfterIdentifier(trimmed, operation);
-    _pendingSettlements.add(settlement);
+    _operations.pendingSettlements.add(settlement);
     try {
       await settlement;
     } finally {
-      _pendingSettlements.remove(settlement);
+      _operations.pendingSettlements.remove(settlement);
     }
   }
 
@@ -157,7 +151,7 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
 
   @override
   void submitOtp(String otp) {
-    final pending = _otpCompleter;
+    final pending = _operations.otpCompleter;
     if (pending == null || pending.isCompleted) return;
     final trimmed = otp.trim();
     if (trimmed.isEmpty) {
@@ -167,8 +161,8 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
       return;
     }
     state = state.copyWith(errorMessage: () => null, otpWaiting: false);
-    _otpCompleter = null;
-    final acceptedOperation = _currentOperation;
+    _operations.otpCompleter = null;
+    final acceptedOperation = _operations.currentOperation;
     if (_repairMode && acceptedOperation != null) {
       acceptedOperation.otpAccepted = true;
       emitStep(ShowProgressResume());
@@ -178,9 +172,9 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
 
   @override
   void cancelOtp() {
-    final pending = _otpCompleter;
+    final pending = _operations.otpCompleter;
     if (pending == null || pending.isCompleted) return;
-    _otpCompleter = null;
+    _operations.otpCompleter = null;
     state = state.copyWith(otpWaiting: false);
     pending.completeError(const SyncEnrollmentOtpCancelled());
   }
@@ -188,13 +182,11 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
   @override
   Future<void> requestNewCode() async {
     // Only one OTP resolver waiting means repeated taps cannot stack sessions.
-    final waiting = _otpCompleter;
+    final waiting = _operations.otpCompleter;
     if (waiting == null || waiting.isCompleted) return;
     final cooldown = _codeCooldownRemaining();
     if (cooldown != null) {
-      state = state.copyWith(
-        errorMessage: () => SyncEnrollmentFailureCopy._cooldownCopy(cooldown),
-      );
+      state = state.copyWith(errorMessage: () => _cooldownCopy(cooldown));
       return;
     }
     final identifier = state.identifier.trim();
@@ -226,17 +218,17 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
 
   @override
   void cancelPendingOperation() {
-    final operation = _currentOperation;
+    final operation = _operations.currentOperation;
     final cancelsAcceptedOtp =
         operation != null && operation.otpAccepted && state.inFlight;
     operation?.cancel();
-    _currentOperation = null;
+    _operations.currentOperation = null;
     // A disposed route no longer owns its pending fresh entry; a newer mode
     // entry already superseded it or will claim the next id.
     _modeSequence++;
-    final pending = _otpCompleter;
-    _otpCompleter = null;
-    _session = null;
+    final pending = _operations.otpCompleter;
+    _operations.otpCompleter = null;
+    _operations.session = null;
     if (pending != null && !pending.isCompleted) {
       pending.completeError(const SyncEnrollmentOtpCancelled());
     }
@@ -244,7 +236,7 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
     // deferred.
     if (ref.mounted) {
       scheduleMicrotask(() {
-        if (!ref.mounted || _currentOperation != null) return;
+        if (!ref.mounted || _operations.currentOperation != null) return;
         if (cancelsAcceptedOtp && _repairMode) {
           emitStep(ShowOtpEntry());
         }
@@ -259,20 +251,239 @@ class SyncEnrollmentNotifier extends Notifier<SyncEnrollmentState>
   Future<void> retry() async {
     if (state.inFlight) return;
     final operation = _EnrollmentOperation();
-    _currentOperation = operation;
+    _operations.currentOperation = operation;
     state = state.copyWith(
       inFlight: true,
       errorMessage: () => null,
       cancelled: false,
     );
     final settlement = _retryAfterStart(operation);
-    _pendingSettlements.add(settlement);
+    _operations.pendingSettlements.add(settlement);
     try {
       await settlement;
     } finally {
-      _pendingSettlements.remove(settlement);
+      _operations.pendingSettlements.remove(settlement);
     }
   }
+
+  // MARK: - Enrollment Helpers
+
+  Future<bool?> enterRepairMode() {
+    final settlement = _enterRepairMode();
+    final tracked = settlement.then<void>((_) {}, onError: (_) {});
+    _operations.pendingSettlements.add(tracked);
+    return settlement.whenComplete(
+      () => _operations.pendingSettlements.remove(tracked),
+    );
+  }
+
+  Future<bool?> _enterRepairMode() async {
+    _modeSequence++;
+    if (state.inFlight) return state.repairPhase != null;
+    _repairMode = true;
+    final operation = _EnrollmentOperation();
+    _operations.currentOperation = operation;
+    _operations.session = null;
+    return _finishEnteringRepairMode(
+      operation: operation,
+      operations: _operations,
+      updateState: updateState,
+      isMounted: () => ref.mounted,
+      currentPhase: _currentPhase,
+      emitStep: emitStep,
+    );
+  }
+
+  bool get _priorOperationPending =>
+      _priorEnrollmentOperationPending(state, _operations);
+
+  Future<void> _settlePriorOperation() => _settlePriorEnrollmentOperation(
+    readState: () => state,
+    operations: _operations,
+  );
+
+  Future<void> _submitAfterIdentifier(
+    String identifier,
+    _EnrollmentOperation operation,
+  ) => _submitEnrollmentAfterIdentifier(
+    identifier: identifier,
+    operation: operation,
+    operations: _operations,
+    isMounted: () => ref.mounted,
+    updateState: updateState,
+    enrollFromIdentifier: _enrollFromIdentifier,
+    refreshSyncStatus: _refreshSyncStatus,
+  );
+
+  Future<void> _enrollFromIdentifier(
+    String identifier,
+    _EnrollmentOperation operation,
+  ) => _enrollWithIdentifier(
+    identifier: identifier,
+    operation: operation,
+    operations: _operations,
+    isMounted: () => ref.mounted,
+    repairMode: () => _repairMode,
+    updateState: updateState,
+    emitStep: emitStep,
+    noteCodeRequested: _noteCodeRequested,
+    openSession: _openSession,
+    refreshRepairPhase: _refreshRepairPhase,
+    enterCancelled: _enterCancelled,
+    failPhaseAware: _failPhaseAware,
+    publishAbandonedRepairProof: _publishAbandonedRepairProof,
+    completeRepairIfProofPresent: _completeRepairIfProofPresent,
+    publishUntilPublished: _publishUntilPublished,
+  );
+
+  Future<SyncEnrollmentSessionResult?> _openSession({
+    required String identifier,
+    required Future<String> Function(EnrollmentChallenge challenge) resolveOtp,
+    required _EnrollmentOperation operation,
+  }) => _openEnrollmentSession(
+    identifier: identifier,
+    resolveOtp: resolveOtp,
+    operation: operation,
+    opener: _opener,
+    failPhaseAware: _failPhaseAware,
+  );
+
+  Future<void> _retryAfterStart(_EnrollmentOperation operation) =>
+      _retryEnrollmentAfterStart(
+        operation: operation,
+        operations: _operations,
+        isMounted: () => ref.mounted,
+        repairMode: () => _repairMode,
+        updateState: updateState,
+        emitStep: emitStep,
+        currentPhase: _currentPhase,
+        resumeWithoutCredentials: _resumeWithoutCredentials,
+        refreshSyncStatus: _refreshSyncStatus,
+      );
+
+  Future<void> _resumeWithoutCredentials(_EnrollmentOperation operation) =>
+      _resumeEnrollmentWithoutCredentials(
+        operation: operation,
+        operations: _operations,
+        isMounted: () => ref.mounted,
+        repairMode: () => _repairMode,
+        reopenForResume: _reopenForResume,
+        failPhaseAware: _failPhaseAware,
+        completeRepairIfProofPresent: _completeRepairIfProofPresent,
+        publishUntilPublished: _publishUntilPublished,
+      );
+
+  Future<SyncEnrollmentSession?> _reopenForResume(
+    _EnrollmentOperation operation,
+  ) => _reopenEnrollmentForResume(
+    identifier: state.identifier,
+    operation: operation,
+    operations: _operations,
+    isMounted: () => ref.mounted,
+    updateState: updateState,
+    openSession: _openSession,
+  );
+
+  Future<void> _completeRepairIfProofPresent(
+    SyncEnrollmentSession session,
+    _EnrollmentOperation operation,
+  ) => _completeEnrollmentRepairIfProofPresent(
+    session: session,
+    operation: operation,
+    operations: _operations,
+    secretStore: _secretStore,
+    isMounted: () => ref.mounted,
+    updateState: updateState,
+    emitStep: emitStep,
+    failPhaseAware: _failPhaseAware,
+    publishUntilPublished: _publishUntilPublished,
+  );
+
+  Future<void> _publishUntilPublished(
+    SyncEnrollmentSession session,
+    _EnrollmentOperation operation,
+  ) => _publishEnrollmentUntilPublished(
+    session: session,
+    operation: operation,
+    operations: _operations,
+    isMounted: () => ref.mounted,
+    updateState: updateState,
+    emitStep: emitStep,
+    failPhaseAware: _failPhaseAware,
+  );
+
+  Future<void> _publishAbandonedRepairProof(SyncEnrollmentSession session) =>
+      _publishAbandonedEnrollmentRepairProof(
+        session: session,
+        operations: _operations,
+        runAbandonedPublication: _runAbandonedPublication,
+      );
+
+  Future<void> _runAbandonedPublication(SyncEnrollmentSession session) =>
+      _runAbandonedEnrollmentPublication(
+        session: session,
+        secretStore: _secretStore,
+        isMounted: () => ref.mounted,
+        refreshSyncStatus: _refreshSyncStatus,
+      );
+
+  void _enterCancelled(_EnrollmentOperation operation) =>
+      _enterEnrollmentCancelled(
+        operation: operation,
+        operations: _operations,
+        updateState: updateState,
+        emitStep: emitStep,
+      );
+
+  Future<void> _failPhaseAware(Object error, _EnrollmentOperation operation) =>
+      _failEnrollmentPhaseAware(
+        error: error,
+        operation: operation,
+        operations: _operations,
+        isMounted: () => ref.mounted,
+        repairMode: () => _repairMode,
+        updateState: updateState,
+        emitStep: emitStep,
+        currentPhase: _currentPhase,
+        extendCooldownFrom: _extendCooldownFrom,
+      );
+
+  Future<void> _refreshRepairPhase(_EnrollmentOperation operation) =>
+      _refreshEnrollmentRepairPhase(
+        operation: operation,
+        operations: _operations,
+        isMounted: () => ref.mounted,
+        updateState: updateState,
+        currentPhase: _currentPhase,
+      );
+
+  Future<void> _refreshSyncStatus() async {
+    try {
+      await _refreshEnrollmentSyncStatus(ref.read(appBootProvider));
+    } catch (_) {}
+  }
+
+  Future<SyncEnrollmentPhase> _currentPhase() async =>
+      _currentEnrollmentPhase(ref.read(syncMetadataStoreProvider));
+
+  Duration? _codeCooldownRemaining() =>
+      _enrollmentCodeCooldownRemaining(state, _now);
+
+  void _noteCodeRequested() => _noteEnrollmentCodeRequested(
+    isMounted: () => ref.mounted,
+    now: _now,
+    updateState: updateState,
+  );
+
+  void _extendCooldownFrom(Object error, _EnrollmentOperation operation) =>
+      _extendEnrollmentCooldownFrom(
+        error: error,
+        operation: operation,
+        operations: _operations,
+        readState: () => state,
+        now: _now,
+        updateState: updateState,
+      );
 }
 
 // MARK: - Provider
