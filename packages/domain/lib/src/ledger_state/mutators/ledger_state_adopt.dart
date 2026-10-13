@@ -1,6 +1,8 @@
 part of '../ledger_state.dart';
 
 extension LedgerStateAdopt on LedgerState {
+  // MARK: - Adoption
+
   void adopt(LedgerState other) {
     _moneySources
       ..clear()

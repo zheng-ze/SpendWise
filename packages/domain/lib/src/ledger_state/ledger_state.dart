@@ -27,6 +27,7 @@ part 'mutators/ledger_state_budgets.dart';
 part 'mutators/ledger_state_categories.dart';
 part 'mutators/ledger_state_entries.dart';
 part 'mutators/ledger_state_entry_validation.dart';
+part 'mutators/ledger_state_holders.dart';
 part 'invariants/ledger_state_invariants.dart';
 part 'invariants/ledger_state_invariants_budgets.dart';
 part 'invariants/ledger_state_invariants_categories.dart';

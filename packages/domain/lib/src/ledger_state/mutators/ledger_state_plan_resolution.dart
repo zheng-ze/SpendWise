@@ -3,7 +3,7 @@ part of '../ledger_state.dart';
 extension LedgerStatePlanResolution on LedgerState {
   // MARK: - Resolution
 
-  PlanResolution resolvePlans(DateTime now) {
+  PlanResolution _resolvePlans(DateTime now) {
     final changes = <LedgerChange>[];
     final failures = <PlanFailure>[];
 

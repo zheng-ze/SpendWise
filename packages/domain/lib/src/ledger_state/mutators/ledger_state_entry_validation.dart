@@ -3,7 +3,7 @@ part of '../ledger_state.dart';
 extension LedgerStateEntryValidation on LedgerState {
   // MARK: - Queries
 
-  Entry? resolvedEntryOrNull(Entry entry) {
+  Entry? _resolvedEntryOrNull(Entry entry) {
     try {
       return _validated(entry);
     } on LedgerError {

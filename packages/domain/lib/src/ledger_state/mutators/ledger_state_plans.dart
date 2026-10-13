@@ -1,6 +1,10 @@
 part of '../ledger_state.dart';
 
 extension LedgerStatePlans on LedgerState {
+  // MARK: - Resolution
+
+  PlanResolution resolvePlans(DateTime now) => _resolvePlans(now);
+
   // MARK: - Mutators
 
   List<LedgerChange> addPlan(RecurringPlan plan) {

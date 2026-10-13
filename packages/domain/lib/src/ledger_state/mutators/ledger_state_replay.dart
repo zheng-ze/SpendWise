@@ -1,6 +1,8 @@
 part of '../ledger_state.dart';
 
 extension LedgerStateReplay on LedgerState {
+  // MARK: - Replay
+
   void apply(List<LedgerChange> changes) {
     for (final change in changes) {
       switch (change) {

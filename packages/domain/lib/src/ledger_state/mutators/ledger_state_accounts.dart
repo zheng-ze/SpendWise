@@ -3,7 +3,7 @@ part of '../ledger_state.dart';
 extension LedgerStateAccounts on LedgerState {
   // MARK: - Mutators
 
-  List<LedgerChange> addAccount(Account account) {
+  List<LedgerChange> _addAccount(Account account) {
     if (_moneySources.containsKey(account.id)) {
       throw IdCollision(account.id);
     }
@@ -15,7 +15,7 @@ extension LedgerStateAccounts on LedgerState {
     return _checked([UpsertAccount(stored)]);
   }
 
-  List<LedgerChange> updateAccount(Account account) {
+  List<LedgerChange> _updateAccount(Account account) {
     final existing = _moneySources[account.id]?.asAccount;
     if (existing == null) throw UnknownAccount(account.id);
 
@@ -30,7 +30,7 @@ extension LedgerStateAccounts on LedgerState {
 
   // MARK: - Deletion and restore
 
-  List<LedgerChange> deleteAccount(String rawID) {
+  List<LedgerChange> _deleteAccount(String rawID) {
     final id = normalizedID(rawID);
     final account = _moneySources[id]?.asAccount;
     if (account == null || !account.lifecycle.isActive) return _checked([]);
@@ -46,7 +46,7 @@ extension LedgerStateAccounts on LedgerState {
     ]);
   }
 
-  List<LedgerChange> restoreAccount(String rawID) {
+  List<LedgerChange> _restoreAccount(String rawID) {
     final id = normalizedID(rawID);
     final account = _moneySources[id]?.asAccount;
     if (account == null || account.lifecycle != LifecycleState.archived) {

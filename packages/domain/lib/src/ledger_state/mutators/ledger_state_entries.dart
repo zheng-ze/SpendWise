@@ -1,6 +1,10 @@
 part of '../ledger_state.dart';
 
 extension LedgerStateEntries on LedgerState {
+  // MARK: - Queries
+
+  Entry? resolvedEntryOrNull(Entry entry) => _resolvedEntryOrNull(entry);
+
   // MARK: - Mutators
 
   List<LedgerChange> addEntry(Entry entry) {

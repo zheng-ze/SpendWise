@@ -3,7 +3,7 @@ part of '../ledger_state.dart';
 extension LedgerStatePockets on LedgerState {
   // MARK: - Mutators
 
-  List<LedgerChange> addPocket(SubPocket pocket, String rawAccountID) {
+  List<LedgerChange> _addPocket(SubPocket pocket, String rawAccountID) {
     final accountID = normalizedID(rawAccountID);
     final parent = _moneySources[accountID]?.asAccount;
     if (parent == null) throw UnknownAccount(accountID);
@@ -16,7 +16,7 @@ extension LedgerStatePockets on LedgerState {
     return _checked([UpsertPocket(pocket), UpsertAccount(linked)]);
   }
 
-  List<LedgerChange> updatePocket(SubPocket pocket) {
+  List<LedgerChange> _updatePocket(SubPocket pocket) {
     final existing = _moneySources[pocket.id]?.asPocket;
     if (existing == null) throw UnknownHolder(pocket.id);
 
@@ -32,7 +32,7 @@ extension LedgerStatePockets on LedgerState {
 
   // MARK: - Deletion and restore
 
-  List<LedgerChange> deletePocket(String rawID) {
+  List<LedgerChange> _deletePocket(String rawID) {
     final id = normalizedID(rawID);
     final pocket = _moneySources[id]?.asPocket;
     if (pocket == null || !pocket.lifecycle.isActive) return _checked([]);
@@ -42,7 +42,7 @@ extension LedgerStatePockets on LedgerState {
     return _checked([UpsertPocket(archived)]);
   }
 
-  List<LedgerChange> restorePocket(String rawID) {
+  List<LedgerChange> _restorePocket(String rawID) {
     final id = normalizedID(rawID);
     final pocket = _moneySources[id]?.asPocket;
     if (pocket == null || pocket.lifecycle != LifecycleState.archived) {

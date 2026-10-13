@@ -20,6 +20,7 @@ const _datePickerFirstYear = 2000;
 
 const _datePickerLastYear = 2100;
 
+// MARK: - Dispatch
 void dispatchEntryFormStep(
   BuildContext context,
   WidgetRef ref,
@@ -90,6 +91,7 @@ void dispatchEntryFormStep(
   }
 }
 
+// MARK: - Source Pickers
 Future<void> _pickSource(
   BuildContext context,
   WidgetRef ref,
@@ -134,6 +136,7 @@ Future<void> _pickDestination(
   form.applyPickedDestination(_idFromOutcome(outcome));
 }
 
+// MARK: - Category/Recurrence Pickers
 Future<void> _pickCategory(
   BuildContext context,
   WidgetRef ref,
@@ -176,6 +179,12 @@ Future<void> _pickRecurrence(
   form.applyPickedRecurrence(chosen);
 }
 
+String? _idFromOutcome(PickerOutcome outcome) => switch (outcome) {
+  PickerChose(:final id) => id,
+  PickerCleared() => null,
+};
+
+// MARK: - Date Pickers
 Future<void> _pickDate(
   BuildContext context,
   WidgetRef ref,
@@ -217,6 +226,7 @@ Future<void> _pickEndDate(
   form.applyPickedEndDate(DateTime.utc(picked.year, picked.month, picked.day));
 }
 
+// MARK: - Document Cropping
 Future<void> _pushDocumentCrop(
   BuildContext context,
   EntryFormNotifier form,
@@ -233,8 +243,3 @@ Future<void> _pushDocumentCrop(
   if (cropped == null) return;
   form.applyCroppedDocument(cropped);
 }
-
-String? _idFromOutcome(PickerOutcome outcome) => switch (outcome) {
-  PickerChose(:final id) => id,
-  PickerCleared() => null,
-};
