@@ -104,6 +104,8 @@ class SummaryBand extends StatelessWidget {
   }
 }
 
+// MARK: - Helpers
+
 Color _amountColor(BuildContext context, AmountKind? kind, Decimal value) {
   return AmountStyle.of(context, kind: kind, signedValue: value).color;
 }

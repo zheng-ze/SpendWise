@@ -6,6 +6,8 @@ import 'package:spendwise/ui/symbol_map.dart';
 // MARK: - Constants
 const _gridColumns = 6;
 
+// MARK: - Helpers
+
 Map<String, List<String>> filterSymbolSections(
   Map<String, List<String>> sections,
   String query,
@@ -22,6 +24,8 @@ Map<String, List<String>> filterSymbolSections(
   }
   return result;
 }
+
+// MARK: - Show
 
 Future<String?> showSymbolPickerSheet({
   required BuildContext context,

@@ -1,3 +1,4 @@
+// MARK: - HasStep
 abstract interface class HasStep<T, S> {
   S? get step;
   T withStep(S? Function() step);

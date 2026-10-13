@@ -10,6 +10,8 @@ const _rootIconSize = 28.0;
 
 const _childIconSize = 24.0;
 
+// MARK: - Show
+
 Future<PickerOutcome?> showCategoryPickerSheet({
   required BuildContext context,
   required LedgerState state,
