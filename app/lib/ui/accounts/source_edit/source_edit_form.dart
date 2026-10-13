@@ -2,7 +2,7 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ui/accounts/accounts_view_model.dart';
+import 'package:spendwise/ui/accounts/accounts_steps.dart';
 import 'package:spendwise/ui/accounts/source_edit/source_edit_form_view_model.dart';
 import 'package:spendwise/ui/common/pickers/account_type_picker.dart';
 import 'package:spendwise/ui/common/inputs/amount_field.dart';

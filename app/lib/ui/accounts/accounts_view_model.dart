@@ -3,46 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/accounts/account_sections.dart';
+import 'package:spendwise/ui/accounts/accounts_steps.dart';
 import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/base/step_emitting.dart';
 
-// MARK: - Steps
-sealed class AccountsStep {}
-
-class AccountFormRequested extends AccountsStep {}
-
-class SourceEditRequested extends AccountsStep {
-  SourceEditRequested(this.holderId);
-
-  final String holderId;
-}
-
-class PickParentRequested extends AccountsStep {}
-
-class AccountFormSaved extends AccountsStep {}
-
-class SourceEditFormSaved extends AccountsStep {}
-
-class AccountOpened extends AccountsStep {
-  AccountOpened(this.title, this.scopeIDs);
-
-  final String title;
-  final Set<String> scopeIDs;
-}
-
-class AccountAloneOpened extends AccountsStep {
-  AccountAloneOpened(this.title, this.scopeIDs);
-
-  final String title;
-  final Set<String> scopeIDs;
-}
-
-class PocketOpened extends AccountsStep {
-  PocketOpened(this.title, this.scopeIDs);
-
-  final String title;
-  final Set<String> scopeIDs;
-}
+export 'package:spendwise/ui/accounts/accounts_steps.dart';
 
 // MARK: - AccountsViewState
 class AccountsViewState implements HasStep<AccountsViewState, AccountsStep> {

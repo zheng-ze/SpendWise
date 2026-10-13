@@ -192,6 +192,7 @@ class DailyGuide extends StatelessWidget {
   }
 }
 
+// MARK: - Guide Link
 class _GuideLinkText extends StatelessWidget {
   const _GuideLinkText(this.text);
 

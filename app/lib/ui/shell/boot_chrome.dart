@@ -57,6 +57,7 @@ class _OverviewTabEntry extends ConsumerWidget {
   }
 }
 
+// MARK: - Tab Builders
 Widget _buildHistoryPage(BuildContext routeContext) => TransactionsFlow(
   backLabel: _overviewBackLabel,
   onEnded: () => Navigator.of(routeContext).pop(),

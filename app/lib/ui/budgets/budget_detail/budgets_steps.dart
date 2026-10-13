@@ -4,6 +4,8 @@ import 'package:domain/domain.dart';
 
 sealed class BudgetsStep {}
 
+// MARK: - Navigation Steps
+
 class BudgetLimitEditRequested extends BudgetsStep {}
 
 class BudgetDetailRequested extends BudgetsStep {
@@ -13,6 +15,18 @@ class BudgetDetailRequested extends BudgetsStep {
 }
 
 class BudgetFormRequested extends BudgetsStep {}
+
+// MARK: - Picker Steps
+
+class PickLimitRequested extends BudgetsStep {
+  PickLimitRequested(this.target);
+
+  final LimitEditTarget target;
+}
+
+class PickCategoryRequested extends BudgetsStep {}
+
+class BudgetFormSaved extends BudgetsStep {}
 
 // MARK: - Limit Targets
 
@@ -31,13 +45,3 @@ class MonthLimitTarget extends LimitEditTarget {
   final YearMonth month;
   final Decimal current;
 }
-
-class PickLimitRequested extends BudgetsStep {
-  PickLimitRequested(this.target);
-
-  final LimitEditTarget target;
-}
-
-class PickCategoryRequested extends BudgetsStep {}
-
-class BudgetFormSaved extends BudgetsStep {}

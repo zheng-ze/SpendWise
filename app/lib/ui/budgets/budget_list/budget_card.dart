@@ -7,12 +7,12 @@ import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/budgets/helpers/budget_spend.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_card_progress_bar.dart';
 
-export 'package:spendwise/ui/budgets/budget_list/budgets_empty_state.dart';
-
 // MARK: - Constants
 
 const _emptyProgress = 0.0;
 const _fullProgress = 1.0;
+const _limitWeight = FontWeight.w600;
+const _tabularFigures = [FontFeature.tabularFigures()];
 
 // MARK: - Card
 
@@ -135,8 +135,8 @@ class _BudgetCardHeader extends StatelessWidget {
         Text(
           formatMoney(limit),
           style: theme.textTheme.bodyMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-            fontFeatures: const [FontFeature.tabularFigures()],
+            fontWeight: _limitWeight,
+            fontFeatures: _tabularFigures,
           ),
         ),
       ],
@@ -181,7 +181,7 @@ class _BudgetCardFooter extends StatelessWidget {
           formatMoney(spend, symbol: false),
           style: theme.textTheme.bodySmall?.copyWith(
             color: overLimit ? expense : neutral,
-            fontFeatures: const [FontFeature.tabularFigures()],
+            fontFeatures: _tabularFigures,
           ),
         ),
         const Spacer(),
@@ -191,7 +191,7 @@ class _BudgetCardFooter extends StatelessWidget {
               : formatMoney(remaining, symbol: false),
           style: theme.textTheme.bodySmall?.copyWith(
             color: overLimit ? expense : theme.colorScheme.onSurfaceVariant,
-            fontFeatures: const [FontFeature.tabularFigures()],
+            fontFeatures: _tabularFigures,
           ),
         ),
       ],

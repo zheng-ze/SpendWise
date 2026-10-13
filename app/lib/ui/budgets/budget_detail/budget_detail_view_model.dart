@@ -14,14 +14,14 @@ import 'package:spendwise/ui/stats/helpers/trend.dart';
 
 export 'package:spendwise/ui/budgets/budget_detail/budgets_steps.dart';
 
-// MARK: - Helpers
+// MARK: - Month Series
 
 List<T> monthSeries<T>(
   List<DateTime> months,
   T Function(YearMonth month) forMonth,
 ) => [for (final month in months) forMonth(YearMonth(month.year, month.month))];
 
-// MARK: - Helpers
+// MARK: - Chart Scale
 double chartMaxY(List<Decimal> spend, List<Decimal> limit) {
   final maxAmount = [
     ...spend,
@@ -233,6 +233,7 @@ class BudgetDetailNotifier extends AsyncNotifier<BudgetDetailViewState>
   }
 }
 
+// MARK: - Constants
 final budgetDetailViewModelProvider =
     AsyncNotifierProvider.family<
       BudgetDetailNotifier,

@@ -2,7 +2,7 @@ import 'package:domain/domain.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/accounts/accounts_view_model.dart';
+import 'package:spendwise/ui/accounts/accounts_steps.dart';
 import 'package:spendwise/ui/accounts/source_edit/source_edit_form_logic.dart';
 import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/base/step_emitting.dart';

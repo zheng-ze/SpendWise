@@ -7,6 +7,7 @@ import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/base/step_emitting.dart';
 import 'package:spendwise/ui/format/amount_parse.dart';
 
+// MARK: - Category Grouping
 List<(TransactionCategory, List<TransactionCategory>)> groupedBudgetCategories(
   LedgerState state,
 ) {

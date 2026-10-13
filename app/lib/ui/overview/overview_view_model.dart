@@ -158,6 +158,7 @@ class OverviewNotifier extends AsyncNotifier<OverviewViewState>
   void requestHistory() => emitStep(OverviewHistoryRequested());
 }
 
+// MARK: - Row Mapping
 OverviewEntryRow _entryRow(Entry entry, LedgerState ledger, DateTime today) {
   final row = transactionRow(entry, ledger);
   final isToday = entry.date == today;
@@ -217,6 +218,7 @@ OverviewUpcomingRow _datedRow(
   );
 }
 
+// MARK: - Constants
 final overviewViewModelProvider =
     AsyncNotifierProvider<OverviewNotifier, OverviewViewState>(
       OverviewNotifier.new,

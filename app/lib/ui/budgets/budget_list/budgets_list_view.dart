@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/budgets/budget_list/budget_card.dart';
+import 'package:spendwise/ui/budgets/budget_list/budgets_empty_state.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
 import 'package:spendwise/ui/common/navigation/expanding_fab.dart';
 import 'package:spendwise/ui/common/lists/swipe_to_delete_row.dart';

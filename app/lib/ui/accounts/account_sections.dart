@@ -107,6 +107,7 @@ class AccountSection {
   final SectionHeader header;
 }
 
+// MARK: - Section Builder
 List<AccountSection> accountSections(
   LedgerState state, {
   required DateTime now,
@@ -144,6 +145,7 @@ List<AccountSection> accountSections(
   return sections;
 }
 
+// MARK: - Row Builder
 AccountRow _row(
   Account account, {
   required LedgerState state,
@@ -198,6 +200,7 @@ AccountRow _row(
   );
 }
 
+// MARK: - Header Builder
 SectionHeader _header(AccountType type, List<AccountRow> rows) {
   if (type == AccountType.card) {
     var payableSum = Decimal.zero;

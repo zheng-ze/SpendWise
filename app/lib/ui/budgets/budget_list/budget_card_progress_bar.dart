@@ -10,6 +10,7 @@ const _barRadius = _barHeight / 2;
 const _emptyProgress = 0.0;
 const _fullProgress = 1.0;
 const _clipOrigin = 0.0;
+const _labelWeight = FontWeight.w700;
 
 // MARK: - Progress Bar
 
@@ -61,6 +62,7 @@ class BudgetCardProgressBar extends StatelessWidget {
   }
 }
 
+// MARK: - Leading Fraction Clipper
 class _LeadingFractionClipper extends CustomClipper<Rect> {
   const _LeadingFractionClipper(this.fraction);
 
@@ -79,6 +81,7 @@ class _LeadingFractionClipper extends CustomClipper<Rect> {
       oldClipper.fraction != fraction;
 }
 
+// MARK: - Progress Label
 class _ProgressLabel extends StatelessWidget {
   const _ProgressLabel({required this.percentOfLimit, required this.color});
 
@@ -98,7 +101,7 @@ class _ProgressLabel extends StatelessWidget {
         child: Text(
           formatPercent(percentOfLimit),
           style: theme.textTheme.labelMedium?.copyWith(
-            fontWeight: FontWeight.w700,
+            fontWeight: _labelWeight,
             color: color,
           ),
         ),

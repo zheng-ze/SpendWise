@@ -28,7 +28,7 @@ ShellLayoutMode resolveShellLayoutMode({
   }
 }
 
-// MARK: - Constants
+// MARK: - Layout Providers
 final shellLayoutModeProvider = Provider<ShellLayoutMode>(
   (ref) => resolveShellLayoutMode(
     isWeb: kIsWeb,
@@ -40,6 +40,7 @@ final selectedDestinationProvider = StateProvider<ShellDestination>(
   (ref) => ShellDestination.overview,
 );
 
+// MARK: - Month Selection
 DateTime startOfMonthUtc(DateTime date) => DateTime.utc(date.year, date.month);
 
 final selectedMonthProvider = StateProvider<DateTime?>((ref) => null);
@@ -50,4 +51,5 @@ final effectiveMonthProvider = Provider<DateTime>((ref) {
   return startOfMonthUtc(ref.watch(todayProvider));
 });
 
+// MARK: - Enrollment
 final enrollmentFlowOpenProvider = StateProvider<bool>((ref) => false);
