@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:spendwise/ui/shell/sidebar_status_view_model.dart';
 import 'package:spendwise/ui/shell/shell_destinations.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/shell/spendwise_wordmark.dart';
@@ -23,6 +25,8 @@ const _sidebarAddGap = 8.0;
 const _sidebarAddVerticalPadding = 12.0;
 const _unselectedBackground = Colors.transparent;
 const _addEntryLabel = 'Add entry';
+const _syncLabelFontSize = 11.0;
+const _syncStatusPadding = EdgeInsets.fromLTRB(10, 8, 10, 0);
 
 const _loopDestinations = [
   ShellDestination.overview,
@@ -85,8 +89,27 @@ class DesktopSidebar extends StatelessWidget {
               selected: selected,
               onSelected: onDestinationSelected,
             ),
+            const _SidebarSyncStatus(),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// MARK: - SidebarSyncStatus
+class _SidebarSyncStatus extends ConsumerWidget {
+  const _SidebarSyncStatus();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = context.colors;
+    final label = ref.watch(sidebarStatusViewModelProvider).syncLabel;
+    return Padding(
+      padding: _syncStatusPadding,
+      child: Text(
+        label,
+        style: TextStyle(fontSize: _syncLabelFontSize, color: colors.subtext),
       ),
     );
   }

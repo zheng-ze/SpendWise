@@ -1,6 +1,6 @@
 # UI Framework (MVVM)
 
-Last reconciled: 2026-10-13
+Last reconciled: 2026-10-14
 
 ## Feature overview
 
@@ -86,6 +86,14 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   Trends hosts `StatsFlow`, Money hosts `AccountsFlow`, desktop History hosts
   the unscoped `TransactionsFlow`, Settings hosts `SettingsFlow`. Phone
   mounts no History slot. There is no header gear and no shell Add FAB.
+  The desktop sidebar's sync line is a dedicated `SidebarStatusViewModel` that
+  watches `hostedSyncStatusProvider`: no selection shows "Sync not configured",
+  setup pending shows "Sync setup pending", ready shows "Sync ready", binding
+  repair shows "Device access needs repair", session reauthentication shows
+  "Sign in to restore sync", unsupported custom sync shows "Custom sync
+  unsupported", and unavailable shows "Sync unavailable". The line starts no
+  refresh, polling, enrollment or repair operation and shows no synchronization
+  timestamp. Phone chrome has no sync line.
   Every visual value in the shell chrome is a named constant.
   `BootChrome` supplies the five feature builders and only the selected
   layout invokes the builders it needs.
