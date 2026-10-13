@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/shell/shell_destinations.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
+import 'package:spendwise/ui/shell/spendwise_wordmark.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Constants
@@ -11,15 +12,7 @@ const _sidebarWidth = 172.0;
 const _sidebarPadding = EdgeInsets.fromLTRB(8, 12, 8, 12);
 const _sidebarDividerWidth = 1.0;
 const _wordmarkFontSize = 18.0;
-const _wordmarkLetterSpacing = -0.8;
 const _wordmarkPadding = EdgeInsets.fromLTRB(8, 0, 8, 16);
-const _wordmarkStart = 'Spend';
-const _wordmarkEnd = 'Wise';
-const _wordmarkStyle = TextStyle(
-  fontSize: _wordmarkFontSize,
-  fontWeight: selectedDestinationWeight,
-  letterSpacing: _wordmarkLetterSpacing,
-);
 const _sidebarItemPadding = EdgeInsets.symmetric(horizontal: 10, vertical: 9);
 const _sidebarItemGap = 2.0;
 const _sidebarItemCornerRadius = 12.0;
@@ -63,7 +56,10 @@ class DesktopSidebar extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const _Wordmark(),
+            const Padding(
+              padding: _wordmarkPadding,
+              child: SpendWiseWordmark(fontSize: _wordmarkFontSize),
+            ),
             for (final (index, destination) in _loopDestinations.indexed) ...[
               if (index > 0) const SizedBox(height: _sidebarItemGap),
               _SidebarDestination(
@@ -109,33 +105,6 @@ class _SidebarScroll extends StatelessWidget {
         child: ConstrainedBox(
           constraints: BoxConstraints(minHeight: constraints.maxHeight),
           child: IntrinsicHeight(child: child),
-        ),
-      ),
-    );
-  }
-}
-
-// MARK: - Wordmark
-class _Wordmark extends StatelessWidget {
-  const _Wordmark();
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return Padding(
-      padding: _wordmarkPadding,
-      child: Text.rich(
-        TextSpan(
-          children: [
-            TextSpan(
-              text: _wordmarkStart,
-              style: _wordmarkStyle.copyWith(color: colors.text),
-            ),
-            TextSpan(
-              text: _wordmarkEnd,
-              style: _wordmarkStyle.copyWith(color: colors.action),
-            ),
-          ],
         ),
       ),
     );

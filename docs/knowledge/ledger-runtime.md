@@ -1,6 +1,6 @@
 # Ledger Runtime
 
-Last reconciled: 2026-10-10
+Last reconciled: 2026-10-13
 
 ## Feature overview
 
@@ -397,9 +397,14 @@ a newer status. Source:
 
 ## Boot phase machine
 
-`AppPhase` is `loading` (spinner), `ready` (root shell with the ledger injected and the banner
-overlay active), or `failed(error)` (headline "Couldn't load your data", error description, and a
-Retry button that resets phase to `loading` and re-runs the whole boot).
+`AppPhase` is `loading` (a centered SpendWise wordmark and accessible progress indicator),
+`ready` (root shell with the ledger injected and the banner overlay active), or `failed(error)`
+(the wordmark, headline "Couldn't load your data", the friendly explanation, and a filled Retry
+button that resets phase to `loading` and re-runs the whole boot). The Loading and Failed states
+use the theme background, mount no shell navigation or destination Flows, and keep raw errors out
+of the UI. The Failed content scrolls on short windows. `BootChrome` logs the raw error through
+`debugPrint` for diagnostics (`app/lib/ui/shell/boot_chrome.dart`,
+`app/test/ui/shell/boot_chrome_test.dart`).
 
 ## Lifecycle hooks
 
