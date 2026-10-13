@@ -127,7 +127,8 @@ class _AnalysisBodyContent extends StatelessWidget {
   final bool isYearRange;
   final DateTime selectedDate;
 
-  static const _headerPadding = EdgeInsets.all(16);
+  static const _headerInset = 16.0;
+  static const _headerPadding = EdgeInsets.all(_headerInset);
   static const _dividerHeight = 1.0;
 
   @override
@@ -187,7 +188,10 @@ class _EmptyState extends StatelessWidget {
 
   final CategoryKind kind;
 
-  static const _emptyPadding = EdgeInsets.symmetric(vertical: 48);
+  static const _emptyVerticalInset = 48.0;
+  static const _emptyPadding = EdgeInsets.symmetric(
+    vertical: _emptyVerticalInset,
+  );
   static const _emptyIconSize = 48.0;
   static const _messageGap = 12.0;
 

@@ -15,8 +15,8 @@ TextRecognizer? defaultRecognizer() => selectRecognizer();
 // MARK: - ReceiptScanSource
 enum ReceiptScanSource { camera, gallery }
 
-// MARK: - on
-extension on ReceiptScanSource {
+// MARK: - ReceiptScanSourceMapping
+extension ReceiptScanSourceMapping on ReceiptScanSource {
   Permission get permission =>
       this == ReceiptScanSource.camera ? Permission.camera : Permission.photos;
 
@@ -28,6 +28,7 @@ extension on ReceiptScanSource {
 // MARK: - ReceiptScanStop
 enum ReceiptScanStop { permissionDenied, cancelled }
 
+// MARK: - Scan Handlers
 typedef ScanResultHandler = void Function({
   String? name,
   Decimal? amount,

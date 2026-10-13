@@ -42,6 +42,7 @@ class TransactionRow {
   final AmountKind amountKind;
 }
 
+// MARK: - Helpers
 TransactionRow transactionRow(
   Entry entry,
   LedgerState state, {

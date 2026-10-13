@@ -48,7 +48,12 @@ class _LegendRow extends StatelessWidget {
   final Slice slice;
   final VoidCallback? onTap;
 
-  static const _rowPadding = EdgeInsets.symmetric(horizontal: 16, vertical: 8);
+  static const _rowHorizontalInset = 16.0;
+  static const _rowVerticalInset = 8.0;
+  static const _rowPadding = EdgeInsets.symmetric(
+    horizontal: _rowHorizontalInset,
+    vertical: _rowVerticalInset,
+  );
   static const _iconGap = 12.0;
   static const _chevronBoxWidth = 24.0;
   static const _chevronSize = 20.0;

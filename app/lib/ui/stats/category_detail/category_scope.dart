@@ -27,6 +27,7 @@ class DirectScope extends CategoryScope {
   const DirectScope();
 }
 
+// MARK: - Helpers
 Set<String?> matchingCategoryIDs(
   String mainID,
   CategoryScope scope,
@@ -49,4 +50,16 @@ Set<String?> matchingCategoryIDs(
 String? resolvedSubName(String? subID, LedgerState state) {
   if (subID == null) return null;
   return state.categories[subID]?.name;
+}
+
+String scopeCaption(String mainName, CategoryScope scope, LedgerState state) {
+  switch (scope) {
+    case AllScope():
+      return mainName;
+    case DirectScope():
+      return '$mainName › Direct';
+    case SubScope(:final subID):
+      final subName = resolvedSubName(subID, state) ?? 'Uncategorized';
+      return '$mainName › $subName';
+  }
 }

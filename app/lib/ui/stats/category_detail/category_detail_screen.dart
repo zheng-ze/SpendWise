@@ -9,6 +9,7 @@ import 'package:spendwise/ui/common/inputs/month_year_selector.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/stats/category_detail/category_detail_view_model.dart';
+import 'package:spendwise/ui/stats/category_detail/category_scope.dart';
 import 'package:spendwise/ui/stats/category_detail/category_trend_card.dart';
 import 'package:spendwise/ui/stats/helpers/stats_window.dart';
 import 'package:spendwise/ui/stats/category_detail/subcategory_table.dart';
@@ -53,8 +54,17 @@ class _CategoryDetailBody extends StatelessWidget {
   final CategoryDetailViewModel viewModel;
   final Ledger ledger;
 
-  static const _headlinePadding = EdgeInsets.all(16);
-  static const _entriesLabelPadding = EdgeInsets.fromLTRB(16, 24, 16, 8);
+  static const _headlineInset = 16.0;
+  static const _headlinePadding = EdgeInsets.all(_headlineInset);
+  static const _entriesTopInset = 24.0;
+  static const _entriesSideInset = 16.0;
+  static const _entriesBottomInset = 8.0;
+  static const _entriesLabelPadding = EdgeInsets.fromLTRB(
+    _entriesSideInset,
+    _entriesTopInset,
+    _entriesSideInset,
+    _entriesBottomInset,
+  );
 
   @override
   Widget build(BuildContext context) {

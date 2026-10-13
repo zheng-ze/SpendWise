@@ -19,6 +19,7 @@ class DaySection {
   final Decimal expenses;
 }
 
+// MARK: - Helpers
 List<DaySection> daySections(
   Iterable<Entry> entries,
   LedgerState state, {

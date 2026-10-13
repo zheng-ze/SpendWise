@@ -48,6 +48,7 @@ class Slice {
       syntheticTransferExpenseAccountType(bucketID!) != null;
 }
 
+// MARK: - Helpers
 List<Slice> slices(
   List<AnalysisItem> items,
   CategoryKind kind,

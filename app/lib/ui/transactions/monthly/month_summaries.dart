@@ -38,6 +38,7 @@ class MonthSummary {
   final List<WeekSummary> weeks;
 }
 
+// MARK: - Helpers
 List<MonthSummary> monthSummaries(
   LedgerState state,
   DateTime year, {

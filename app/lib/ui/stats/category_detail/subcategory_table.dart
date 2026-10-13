@@ -130,7 +130,12 @@ class _SubcategoryRow extends StatelessWidget {
   final VoidCallback onTap;
 
   static const _transparentBackground = Color(0x00000000);
-  static const _rowPadding = EdgeInsets.symmetric(horizontal: 16, vertical: 8);
+  static const _rowHorizontalInset = 16.0;
+  static const _rowVerticalInset = 8.0;
+  static const _rowPadding = EdgeInsets.symmetric(
+    horizontal: _rowHorizontalInset,
+    vertical: _rowVerticalInset,
+  );
 
   @override
   Widget build(BuildContext context) {

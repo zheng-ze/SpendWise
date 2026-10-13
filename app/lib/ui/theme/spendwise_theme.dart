@@ -8,6 +8,8 @@ const _focusedBorderWidth = 2.0;
 
 const _sheetCornerRadius = 22.0;
 
+const _fontFamily = 'InstrumentSans';
+
 // MARK: - Helpers
 ThemeData buildSpendWiseTheme(Brightness brightness) {
   final tokens = brightness == Brightness.dark
@@ -47,7 +49,7 @@ ThemeData buildSpendWiseTheme(Brightness brightness) {
     brightness: brightness,
     colorScheme: scheme,
     scaffoldBackgroundColor: tokens.base,
-    fontFamily: 'InstrumentSans',
+    fontFamily: _fontFamily,
     extensions: [tokens, amountRoles],
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(

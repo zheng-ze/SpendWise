@@ -5,6 +5,7 @@ import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ocr/document_scanner_selection.dart';
+import 'package:spendwise/ui/transactions/receipt_scan/receipt_native_scanner.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_flow.dart';
 
 // MARK: - ReceiptOrchestrationState
@@ -69,9 +70,9 @@ class ReceiptEntryCoordinator extends Notifier<ReceiptOrchestrationState> {
       if (source == ReceiptScanSource.camera && preCapturedBytes == null) {
         final capture = await _captureWithNativeScanner();
         switch (capture) {
-          case _NativeScannerCancelled():
+          case NativeScannerCancelled():
             return;
-          case _NativeScannerCaptured(:final bytes):
+          case NativeScannerCaptured(:final bytes):
             await runReceiptScan(
               source: source,
               preCapturedBytes: bytes,
@@ -79,7 +80,7 @@ class ReceiptEntryCoordinator extends Notifier<ReceiptOrchestrationState> {
               onStop: (value) => stop = value,
             );
             return;
-          case _NativeScannerUnavailable():
+          case NativeScannerUnavailable():
             break;
         }
       }
@@ -108,20 +109,20 @@ class ReceiptEntryCoordinator extends Notifier<ReceiptOrchestrationState> {
     };
   }
 
-  Future<_NativeScannerOutcome> _captureWithNativeScanner() async {
+  Future<NativeScannerOutcome> _captureWithNativeScanner() async {
     final scanner = await selectDocumentScanner();
-    if (scanner == null) return const _NativeScannerUnavailable();
+    if (scanner == null) return const NativeScannerUnavailable();
 
     Uint8List? bytes;
     try {
       bytes = await scanner.scanDocument();
     } on PlatformException {
-      return const _NativeScannerUnavailable();
+      return const NativeScannerUnavailable();
     }
 
     return bytes == null
-        ? const _NativeScannerCancelled()
-        : _NativeScannerCaptured(bytes);
+        ? const NativeScannerCancelled()
+        : NativeScannerCaptured(bytes);
   }
 }
 
@@ -132,25 +133,3 @@ final receiptEntryCoordinatorProvider =
       ReceiptOrchestrationState,
       String?
     >(ReceiptEntryCoordinator.new);
-
-// MARK: - NativeScannerOutcome
-sealed class _NativeScannerOutcome {
-  const _NativeScannerOutcome();
-}
-
-// MARK: - NativeScannerUnavailable
-class _NativeScannerUnavailable extends _NativeScannerOutcome {
-  const _NativeScannerUnavailable();
-}
-
-// MARK: - NativeScannerCancelled
-class _NativeScannerCancelled extends _NativeScannerOutcome {
-  const _NativeScannerCancelled();
-}
-
-// MARK: - NativeScannerCaptured
-class _NativeScannerCaptured extends _NativeScannerOutcome {
-  const _NativeScannerCaptured(this.bytes);
-
-  final Uint8List bytes;
-}
