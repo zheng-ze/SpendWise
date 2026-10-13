@@ -6,7 +6,7 @@ import 'package:spendwise/ui/budgets/budget_list/budget_card.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_empty_state.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
 import 'package:spendwise/ui/common/navigation/expanding_fab.dart';
-import 'package:spendwise/ui/common/lists/swipe_to_delete_row.dart';
+import 'package:spendwise/ui/common/lists/swipe_row.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
 // MARK: - Root
@@ -108,7 +108,7 @@ class BudgetsListView extends StatelessWidget {
       separatorBuilder: (_, _) => const Divider(height: _separatorHeight),
       itemBuilder: (context, index) {
         final budget = budgets[index];
-        return SwipeToDeleteRow(
+        return SwipeRow(
           itemKey: ValueKey('budget-${budget.id}'),
           itemName: _budgetDisplayName(budget, viewState.ledgerState),
           onDeleted: () => viewModel.deleteBudget(budget.id),

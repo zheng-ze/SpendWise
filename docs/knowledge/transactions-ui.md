@@ -1,6 +1,6 @@
 # Transactions UI
 
-Last reconciled: 2026-10-12
+Last reconciled: 2026-10-13
 
 ## Feature overview
 
@@ -29,8 +29,8 @@ and is the only place recurring plans are created.
   It takes an optional `backLabel` passed through to the screen's back control; the phone
   History page sets it to 'Overview' with an `onEnded` that pops its containing Overview route,
   while the desktop History slot and scoped lists set none.
-- `app/lib/ui/common/lists/day_sectioned_entry_list.dart`, `expanding_fab.dart`, `form_scaffold.dart`,
-  `swipe_to_delete_row.dart`, `pickers/` — shared components and picker sheets.
+- `app/lib/ui/common/lists/day_sectioned_entry_list.dart`, `form_scaffold.dart`,
+  `swipe_row.dart`, `pickers/` — shared components and picker sheets.
 - `app/lib/ui/symbol_map.dart` — symbol-to-IconData mapping.
 
 ## Module interactions
@@ -46,11 +46,12 @@ decision, not a bug.
 The Transactions Flow owns a nested `Navigator` scoped with a `GlobalKey<NavigatorState>` local to
 the Flow (`ui-framework-mvvm.md`). The unscoped `TransactionsFlow` is the desktop shell's History
 destination (`ShellDestination.history`); scoped instances live inside Money. Screens pushed: the entry form sheet for an existing entry, the
-category/source picker sheets, and the receipt scan screen. New entries go through the shared Add
-presenter instead: `TransactionsFlow` maps `EntryFormRequested(null)` to `openNewEntry` with the
-scoped source ID (`initialScope.scopeIDs.first` when nonempty) and keeps no null-form subscription
-of its own, so shell Add (unscoped, no prefill) and scoped Add share one Step consumer. The
-presenter invalidates the null-key form and receipt providers before opening, initializes the fresh
+category/source picker sheets, and the receipt scan screen. New entries open only through the shell's
+Add control and shared presenter. The Transactions screen has no local Add or Edit source control.
+When Money is selected, the shell reads the top scoped Money route's preferred source through its
+constructor-injected observer getter; every other destination and an unscoped Money route open Add
+without a source. The presenter captures that source at invocation, invalidates the null-key form and
+receipt providers before opening, initializes the fresh
 form, applies the scoped prefill after initialization, maps the shell layout mode to the
 `AppSheet` presentation, and releases its open guard and subscription when the sheet completes or
 presentation fails. A late receipt finish after invalidation writes no state
@@ -91,8 +92,8 @@ plain back control.
   children, no None); `CategoryPickerSheet` (groups from `EntryFormViewModel.categoryGroups`,
   ordered roots-then-children A–Z, `allowsNone: true`, never shown for transfers); `RecurrencePickerSheet`
   (One time then Weekly/Biweekly/Monthly/Quarterly/Yearly).
-- **ExpandingFAB** — single action behaves as a plain FAB; multiple actions toggle expansion (`+`
-  rotates to `×`, capsule buttons stack above, outside-tap collapses).
+- **Shell Add** — phone bar and desktop sidebar share one callback to the presenter. Transactions
+  retains date selection, mode switching, filtering, row view/edit and Back behavior.
 
 ## Gotchas and invariants
 

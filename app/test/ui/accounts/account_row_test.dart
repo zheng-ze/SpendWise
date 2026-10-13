@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/ui/accounts/account_row.dart';
 import 'package:spendwise/ui/accounts/account_sections.dart';
+import 'package:spendwise/ui/common/lists/swipe_row.dart';
 
 import '../../support/semantics_test_support.dart';
 
@@ -48,9 +49,11 @@ void main() {
               onToggleExpanded: null,
               onTap: () {},
               onAccountDeleted: () => deleted = true,
+              onAccountEdit: () {},
               onOpenAccountAlone: () {},
               onOpenPocket: (_) {},
               onPocketDeleted: (_) {},
+              onPocketEdit: (_) {},
             ),
           ),
         ),
@@ -88,9 +91,11 @@ void main() {
               onToggleExpanded: null,
               onTap: () {},
               onAccountDeleted: () => deleted = true,
+              onAccountEdit: () {},
               onOpenAccountAlone: () {},
               onOpenPocket: (_) {},
               onPocketDeleted: (_) {},
+              onPocketEdit: (_) {},
             ),
           ),
         ),
@@ -127,9 +132,11 @@ void main() {
               onToggleExpanded: () {},
               onTap: () {},
               onAccountDeleted: () {},
+              onAccountEdit: () {},
               onOpenAccountAlone: () {},
               onOpenPocket: (_) {},
               onPocketDeleted: (_) => deletedPocket = true,
+              onPocketEdit: (_) {},
             ),
           ),
         ),
@@ -163,9 +170,11 @@ void main() {
             onToggleExpanded: () {},
             onTap: () {},
             onAccountDeleted: () {},
+            onAccountEdit: () {},
             onOpenAccountAlone: () {},
             onOpenPocket: (_) {},
             onPocketDeleted: (_) {},
+            onPocketEdit: (_) {},
           ),
         ),
       ),
@@ -175,5 +184,155 @@ void main() {
     expect(find.text('S\$300.00'), findsNothing);
     expect(find.text('50.00'), findsOneWidget);
     expect(find.text('S\$50.00'), findsNothing);
+  });
+
+  testWidgets('account Edit semantic action invokes edit without dismissing', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    var edited = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: AccountRowTile(
+            row: plainRow,
+            expanded: false,
+            onToggleExpanded: null,
+            onTap: () {},
+            onAccountDeleted: () {},
+            onAccountEdit: () => edited = true,
+            onOpenAccountAlone: () {},
+            onOpenPocket: (_) {},
+            onPocketDeleted: (_) {},
+            onPocketEdit: (_) {},
+          ),
+        ),
+      ),
+    );
+
+    await performCustomSemanticsAction(
+      tester,
+      of: find.text('Main Checking'),
+      label: 'Edit Main Checking',
+    );
+    await tester.pumpAndSettle();
+
+    expect(edited, isTrue);
+    expect(find.text('Main Checking'), findsOneWidget);
+    final dismissible = tester.widget<Dismissible>(find.byType(Dismissible));
+    expect(dismissible.direction, DismissDirection.horizontal);
+    semantics.dispose();
+  });
+
+  testWidgets('pocket Edit semantic action targets that pocket', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    PocketRow? edited;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: AccountRowTile(
+            row: rowWithPocket,
+            expanded: true,
+            onToggleExpanded: () {},
+            onTap: () {},
+            onAccountDeleted: () {},
+            onAccountEdit: () {},
+            onOpenAccountAlone: () {},
+            onOpenPocket: (_) {},
+            onPocketDeleted: (_) {},
+            onPocketEdit: (pocket) => edited = pocket,
+          ),
+        ),
+      ),
+    );
+
+    await performCustomSemanticsAction(
+      tester,
+      of: find.text('Rent'),
+      label: 'Edit Rent',
+    );
+
+    expect(edited?.id, rowWithPocket.pockets.single.id);
+    expect(find.text('Rent'), findsOneWidget);
+    semantics.dispose();
+  });
+
+  for (final testCase in [
+    (
+      label: 'LTR rightward',
+      direction: TextDirection.ltr,
+      offset: const Offset(500, 0),
+    ),
+    (
+      label: 'RTL leftward',
+      direction: TextDirection.rtl,
+      offset: const Offset(-500, 0),
+    ),
+  ]) {
+    testWidgets('${testCase.label} swipe edits the account and keeps its row', (
+      tester,
+    ) async {
+      var edited = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Directionality(
+            textDirection: testCase.direction,
+            child: Scaffold(
+              body: AccountRowTile(
+                row: plainRow,
+                expanded: false,
+                onToggleExpanded: null,
+                onTap: () {},
+                onAccountDeleted: () {},
+                onAccountEdit: () => edited = true,
+                onOpenAccountAlone: () {},
+                onOpenPocket: (_) {},
+                onPocketDeleted: (_) {},
+                onPocketEdit: (_) {},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.drag(find.text('Main Checking'), testCase.offset);
+      await tester.pumpAndSettle();
+
+      expect(edited, isTrue);
+      expect(find.text('Main Checking'), findsOneWidget);
+      expect(find.text('Delete Main Checking?'), findsNothing);
+    });
+  }
+
+  testWidgets('Delete-only SwipeRow retains end-to-start deletion', (
+    tester,
+  ) async {
+    var deleted = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SwipeRow(
+            itemKey: const ValueKey('delete-only'),
+            itemName: 'Plain row',
+            onDeleted: () => deleted = true,
+            child: const Text('Plain row'),
+          ),
+        ),
+      ),
+    );
+
+    final dismissible = tester.widget<Dismissible>(find.byType(Dismissible));
+    expect(dismissible.direction, DismissDirection.endToStart);
+    expect(dismissible.secondaryBackground, isNull);
+
+    await tester.drag(find.text('Plain row'), const Offset(-500, 0));
+    await tester.pumpAndSettle();
+    expect(find.text('Delete Plain row?'), findsOneWidget);
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+
+    expect(deleted, isTrue);
   });
 }

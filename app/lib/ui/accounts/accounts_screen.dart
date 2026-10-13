@@ -153,9 +153,11 @@ class _AccountSection extends StatelessWidget {
                 : () => viewModel.toggleExpanded(row.id),
             onTap: () => viewModel.openAccount(row.id),
             onAccountDeleted: () => viewModel.deleteAccount(row.id),
+            onAccountEdit: () => viewModel.requestSourceEdit(row.id),
             onOpenAccountAlone: () => viewModel.openAccountAlone(row.id),
             onOpenPocket: (pocket) => viewModel.openPocket(pocket.id),
             onPocketDeleted: (pocket) => viewModel.deletePocket(pocket.id),
+            onPocketEdit: (pocket) => viewModel.requestSourceEdit(pocket.id),
           ),
       ],
     );

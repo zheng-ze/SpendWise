@@ -69,9 +69,7 @@ void main() {
   });
 
   testWidgets('AccountOpened pushes a TransactionsFlow scoped to the '
-      "account and its pockets, wired to this Flow's own edit-source step", (
-    tester,
-  ) async {
+      'account and its pockets', (tester) async {
     final container = await pumpFlow(tester, buildLedger());
 
     container.read(accountsViewModelProvider.notifier).openAccount(checking.id);
@@ -82,15 +80,6 @@ void main() {
     );
     expect(pushed.initialScope?.title, 'Main Checking');
     expect(pushed.initialScope?.scopeIDs, {checking.id});
-
-    pushed.onEditSource!(
-      tester.element(find.byType(TransactionsFlow)),
-      checking.id,
-    );
-    await tester.pumpAndSettle();
-
-    final form = tester.widget<SourceEditForm>(find.byType(SourceEditForm));
-    expect(form.holderID, checking.id);
   });
 
   testWidgets('AccountOpened pushes a TransactionsFlow whose AppBar shows a '

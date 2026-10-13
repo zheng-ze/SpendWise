@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/shell/shell_destinations.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
-import 'package:spendwise/ui/transactions/entry/new_entry_presenter.dart';
 
 // MARK: - Constants
 const _sidebarKey = ValueKey('sidebar');
@@ -41,18 +39,20 @@ const _loopDestinations = [
 ];
 
 // MARK: - DesktopSidebar
-class DesktopSidebar extends ConsumerWidget {
+class DesktopSidebar extends StatelessWidget {
   const DesktopSidebar({
     super.key,
     required this.selected,
     required this.onDestinationSelected,
+    required this.onAdd,
   });
 
   final ShellDestination selected;
   final ValueChanged<ShellDestination> onDestinationSelected;
+  final VoidCallback onAdd;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final colors = context.colors;
     return Container(
       key: _sidebarKey,
@@ -74,7 +74,7 @@ class DesktopSidebar extends ConsumerWidget {
             ],
             const SizedBox(height: _sidebarAddGap),
             FilledButton.icon(
-              onPressed: () => openNewEntry(context: context, ref: ref),
+              onPressed: onAdd,
               icon: const Icon(Icons.add),
               label: const Text(_addEntryLabel),
               style: FilledButton.styleFrom(

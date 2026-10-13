@@ -9,8 +9,12 @@ import 'package:spendwise/boot/seed_data.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/persistence/store/ledger_store.dart';
 import 'package:spendwise/ui/overview/overview_screen.dart';
+import 'package:spendwise/ui/accounts/accounts_view_model.dart';
+import 'package:spendwise/boot/money_navigation_provider.dart';
+import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/boot_chrome.dart';
+import 'package:spendwise/ui/shell/shell_providers.dart';
 
 import '../../support/in_memory_ledger_store.dart';
 
@@ -118,6 +122,80 @@ void main() {
 
     expect(find.byType(AppShell), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsNothing);
+  });
+
+  testWidgets('BootChrome injects scoped Money Add source into the shell', (
+    tester,
+  ) async {
+    final factory = _GatedStoreFactory();
+    final container = containerWith(factory);
+    await tester.pumpWidget(hostedIn(container));
+    factory.succeed();
+    await tester.pumpAndSettle();
+
+    final accountState = await container.read(accountsViewModelProvider.future);
+    final account = accountState.sections
+        .expand((section) => section.rows)
+        .firstWhere((row) => row.pockets.isNotEmpty);
+    final pocketId = account.pockets.first.id;
+    final observer = container.read(moneyNavigatorObserverProvider);
+    container.read(selectedDestinationProvider.notifier).state =
+        ShellDestination.money;
+    container.read(accountsViewModelProvider.notifier).openAccount(account.id);
+    await tester.pumpAndSettle();
+    expect(observer.sourceId, account.id);
+
+    Future<void> addAndExpectSource(String? expectedSourceId) async {
+      final addControl = find.text('Add').evaluate().isNotEmpty
+          ? find.text('Add')
+          : find.text('Add entry');
+      await tester.tap(addControl);
+      await tester.pumpAndSettle();
+      expect(
+        container.read(entryFormViewModelProvider(null)).value?.sourceId,
+        expectedSourceId,
+      );
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+    }
+
+    await addAndExpectSource(account.id);
+
+    container.read(selectedDestinationProvider.notifier).state =
+        ShellDestination.history;
+    await tester.pumpAndSettle();
+    expect(
+      identical(container.read(moneyNavigatorObserverProvider), observer),
+      isTrue,
+    );
+    await addAndExpectSource(null);
+
+    container.read(selectedDestinationProvider.notifier).state =
+        ShellDestination.money;
+    await tester.pumpAndSettle();
+    await addAndExpectSource(account.id);
+    expect(observer.sourceId, account.id);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    container
+        .read(accountsViewModelProvider.notifier)
+        .openAccountAlone(account.id);
+    await tester.pumpAndSettle();
+    expect(observer.sourceId, account.id);
+    await addAndExpectSource(account.id);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    container.read(accountsViewModelProvider.notifier).openPocket(pocketId);
+    await tester.pumpAndSettle();
+    expect(observer.sourceId, pocketId);
+    await addAndExpectSource(pocketId);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(observer.sourceId, isNull);
+    await addAndExpectSource(null);
   });
 
   testWidgets('ready shows real content in the overview tab, not an '

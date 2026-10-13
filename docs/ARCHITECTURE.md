@@ -271,7 +271,9 @@ The app is phone-first with one shell whose phone or desktop layout is chosen by
   Add is a never-selected action opening the shared entry presenter) over a stable `IndexedStack`
   of the Overview, Trends, Money and Settings slots. Desktop shows a sidebar (wordmark,
   Overview, History, Trends, Money, an Add entry button, Settings at the bottom) over a stable
-  `IndexedStack` of all five destinations. History hosts the unscoped `TransactionsFlow` on
+  `IndexedStack` of all five destinations. Both Add controls open the shared entry presenter; the
+  shell captures the top scoped Money route's preferred source only while Money is selected.
+  History hosts the unscoped `TransactionsFlow` on
   desktop. Phone has no History slot, and the Overview 'View History' link is not wired yet.
   `shellLayoutModeProvider` resolves
   `ShellLayoutMode.phone` or `ShellLayoutMode.desktop` once per run; resizing never switches the
@@ -292,7 +294,7 @@ The app is phone-first with one shell whose phone or desktop layout is chosen by
   navigator first (ADR-0059). This keeps the transform logic testable without widgets and couples a
   view only to the interface of methods that drive it, not to their implementation.
 - Transactions: a month selector, a day-sectioned list with income/expense/net day headers, month
-  and week summaries, and an expanding FAB that opens the entry form. `daySections` and
+  and week summaries. Add lives in the shell; Transactions has no local Add or Edit source control. `daySections` and
   month-interval math are pure, tested functions in the application layer, not view logic.
 - Entry form: an amount field, an income/expense/transfer segmented control, source and destination
   pickers, a two-column category picker sheet, a recurrence picker, and an `includeInAnalysis`

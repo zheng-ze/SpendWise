@@ -3,9 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/common/lists/column_text.dart';
-import 'package:spendwise/ui/common/navigation/expanding_fab.dart';
 import 'package:spendwise/ui/common/inputs/month_year_selector.dart';
-import 'package:spendwise/ui/common/lists/swipe_to_delete_row.dart';
+import 'package:spendwise/ui/common/lists/swipe_row.dart';
 import 'package:spendwise/ui/common/navigation/top_tab_bar.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
@@ -85,20 +84,6 @@ class _TransactionsScreenBody extends StatelessWidget {
             summaries: state.monthSummaries,
             onWeekTap: viewModel.switchToDaily,
           );
-    final fab = ExpandingFab(
-      primary: FabAction(
-        label: 'Add Transaction',
-        icon: Icons.add,
-        onTap: viewModel.requestNewEntry,
-      ),
-      secondary: !state.showEditSourceAction
-          ? null
-          : FabAction(
-              label: 'Edit ${state.title}',
-              icon: Icons.edit_outlined,
-              onTap: viewModel.requestEditSource,
-            ),
-    );
     final tabs = TopTabBar(
       titles: _tabTitles,
       selectedIndex: state.mode.index,
@@ -140,7 +125,7 @@ class _TransactionsScreenBody extends StatelessWidget {
         ],
         centerTitle: false,
       ),
-      body: Stack(children: [column, fab]),
+      body: column,
     );
   }
 }
@@ -230,7 +215,7 @@ class _DaySliverList extends StatelessWidget {
           onTap: () => viewModel.openEntry(row.id),
         );
 
-        return SwipeToDeleteRow(
+        return SwipeRow(
           itemKey: ValueKey(row.id),
           itemName: row.title,
           onDeleted: () => viewModel.deleteEntry(row.id),

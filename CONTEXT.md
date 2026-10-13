@@ -160,7 +160,9 @@ settings, opening on overview. Phone renders a rounded five-position bar (Overvi
 centred Add, Money, Settings) over a stable `IndexedStack` of its four destination slots; desktop
 renders a sidebar (wordmark, Overview, History, Trends, Money, Add entry, Settings at the bottom)
 over a stable `IndexedStack` of all five. The centre Add action is never selected and opens the
-shared `openNewEntry` presenter. It mounts one Flow per destination directly, with no
+shared `openNewEntry` presenter. Shell Add captures the top scoped Money route's preferred source
+only while Money is selected, through an injected `MoneyNavigatorObserver` getter; all other states
+open unscoped. Transactions has no local Add or Edit source control. It mounts one Flow per destination directly, with no
 shell-level `Navigator` of its own — each Flow already owns its own, per the Flow entry above. This
 was issue #30's last open "does `shell` need a migration ticket" question, closed by issue #39.
 

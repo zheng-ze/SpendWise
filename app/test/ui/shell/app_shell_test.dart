@@ -8,6 +8,8 @@ import 'package:spendwise/settings/settings_providers.dart';
 import 'package:spendwise/sync/hosted_sync_status.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/common/base/flow_base.dart';
+import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
+import 'package:spendwise/ui/transactions/transactions_flow.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
@@ -65,6 +67,7 @@ Future<ProviderContainer> _pumpShell(
   ShellLayoutMode layoutMode = ShellLayoutMode.phone,
   Map<ShellDestination, WidgetBuilder>? bodies,
   Ledger? ledger,
+  String? Function()? moneySourceId,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -95,7 +98,12 @@ Future<ProviderContainer> _pumpShell(
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
-      child: MaterialApp(home: AppShell(bodies: bodies ?? _probeBodies())),
+      child: MaterialApp(
+        home: AppShell(
+          bodies: bodies ?? _probeBodies(),
+          moneySourceId: moneySourceId,
+        ),
+      ),
     ),
   );
   await tester.pumpAndSettle();
@@ -360,6 +368,44 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(AppSheet), findsNothing);
   });
+
+  for (final layoutMode in ShellLayoutMode.values) {
+    testWidgets('$layoutMode Add captures the scoped Money source', (
+      tester,
+    ) async {
+      final ledger = _buildLedger();
+      final sourceId = ledger.state.moneySources.keys.single;
+      await _pumpShell(
+        tester,
+        size: layoutMode == ShellLayoutMode.desktop ? _wide : _compact,
+        layoutMode: layoutMode,
+        ledger: ledger,
+        moneySourceId: () => sourceId,
+        bodies: {
+          ..._probeBodies(),
+          ShellDestination.money: (_) => const TransactionsFlow(),
+        },
+      );
+
+      await tester.tap(find.text('Money'));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.text(layoutMode == ShellLayoutMode.desktop ? 'Add entry' : 'Add'),
+      );
+      await tester.pumpAndSettle();
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.text('Add entry').last),
+      );
+      expect(
+        container.read(entryFormViewModelProvider(null)).value?.sourceId,
+        sourceId,
+      );
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+    });
+  }
 
   for (final width in [320.0, 720.0, 1440.0]) {
     testWidgets(

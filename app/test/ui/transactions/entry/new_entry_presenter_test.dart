@@ -25,6 +25,23 @@ import 'package:spendwise/ui/transactions/transactions_flow.dart';
 const _mlKitChannel = MethodChannel('spendwise/android_text_recognizer');
 const _documentScannerChannel = MethodChannel('spendwise/document_scanner');
 
+class _PresenterHost extends ConsumerWidget {
+  const _PresenterHost();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => Scaffold(
+    body: Column(
+      children: [
+        TextButton(
+          onPressed: () => unawaited(openNewEntry(context: context, ref: ref)),
+          child: const Text('Open Add'),
+        ),
+        const Expanded(child: TransactionsFlow()),
+      ],
+    ),
+  );
+}
+
 class _DeniedPermissions extends PermissionHandlerPlatform {
   @override
   Future<Map<Permission, PermissionStatus>> requestPermissions(
@@ -120,14 +137,14 @@ void main() {
           ),
           if (mode != null) shellLayoutModeProvider.overrideWithValue(mode),
         ],
-        child: MaterialApp(home: TransactionsFlow()),
+        child: const MaterialApp(home: _PresenterHost()),
       ),
     );
     await tester.pumpAndSettle();
   }
 
   Future<void> openAdd(WidgetTester tester) async {
-    await tester.tap(find.byIcon(Icons.add));
+    await tester.tap(find.text('Open Add'));
     await tester.pumpAndSettle();
   }
 
@@ -747,7 +764,7 @@ void main() {
             ledgerProvider.overrideWithValue(buildLedger()),
             scanStripEnabledProvider.overrideWith((ref) async => true),
           ],
-          child: MaterialApp(home: TransactionsFlow()),
+          child: const MaterialApp(home: _PresenterHost()),
         ),
       );
       await tester.pumpAndSettle();
@@ -772,7 +789,7 @@ void main() {
             entryFormViewModelProvider(null)
                 .overrideWith(() => _ThrowOnceFormNotifier(() => shouldThrow)),
           ],
-          child: MaterialApp(home: TransactionsFlow()),
+          child: MaterialApp(home: _PresenterHost()),
         ),
       );
       await tester.pumpAndSettle();
@@ -781,7 +798,7 @@ void main() {
       final originalOnError = FlutterError.onError;
       FlutterError.onError = reported.add;
       try {
-        await tester.tap(find.byIcon(Icons.add));
+        await tester.tap(find.text('Open Add'));
         await tester.pumpAndSettle();
       } finally {
         FlutterError.onError = originalOnError;
@@ -793,7 +810,7 @@ void main() {
       expect(reported.single.stack, isNotNull);
 
       shouldThrow = false;
-      await tester.tap(find.byIcon(Icons.add));
+      await tester.tap(find.text('Open Add'));
       await tester.pumpAndSettle();
 
       expect(find.byType(AppSheet), findsOneWidget);

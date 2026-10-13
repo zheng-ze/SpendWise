@@ -86,7 +86,6 @@ void dispatchEntryFormStep(
         useRootNavigator: useRootNavigator,
       );
     case EntryFormRequested():
-    case SourceEditRequested():
       break;
   }
 }

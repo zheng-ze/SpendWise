@@ -21,7 +21,7 @@ sealed class TransactionsStep {}
 class EntryFormRequested extends TransactionsStep {
   EntryFormRequested(this.entry);
 
-  final Entry? entry;
+  final Entry entry;
 }
 
 class PickSourceRequested extends TransactionsStep {}
@@ -42,8 +42,6 @@ class DocumentCropRequested extends TransactionsStep {
   final Uint8List imageBytes;
 }
 
-class SourceEditRequested extends TransactionsStep {}
-
 // MARK: - TransactionsViewState
 class TransactionsViewState
     implements HasStep<TransactionsViewState, TransactionsStep> {
@@ -55,7 +53,6 @@ class TransactionsViewState
     required this.monthSummaries,
     required this.income,
     required this.expenses,
-    required this.showEditSourceAction,
     this.step,
   });
 
@@ -66,7 +63,6 @@ class TransactionsViewState
   final List<MonthSummary> monthSummaries;
   final Decimal income;
   final Decimal expenses;
-  final bool showEditSourceAction;
   @override
   final TransactionsStep? step;
 
@@ -89,7 +85,6 @@ class TransactionsViewState
       monthSummaries: monthSummaries ?? this.monthSummaries,
       income: income ?? this.income,
       expenses: expenses ?? this.expenses,
-      showEditSourceAction: showEditSourceAction,
       step: step == null ? this.step : step(),
     );
   }
@@ -106,8 +101,6 @@ abstract class TransactionsViewModel {
   Future<void> deleteEntry(String id);
   void switchToDaily(DateTime month);
   void openEntry(String id);
-  void requestNewEntry();
-  void requestEditSource();
   void clearStep();
 }
 
@@ -181,7 +174,6 @@ class TransactionsNotifier extends AsyncNotifier<TransactionsViewState>
       monthSummaries: monthSummaries(ledgerState, selectedDate),
       income: income,
       expenses: expenses,
-      showEditSourceAction: scope != null,
       step: step,
     );
   }
@@ -226,15 +218,6 @@ class TransactionsNotifier extends AsyncNotifier<TransactionsViewState>
     final entry = ledger.state.entries[id];
     if (entry == null) return;
     emitStep(EntryFormRequested(entry));
-  }
-
-  @override
-  void requestNewEntry() => emitStep(EntryFormRequested(null));
-
-  @override
-  void requestEditSource() {
-    if (scope == null) return;
-    emitStep(SourceEditRequested());
   }
 }
 
