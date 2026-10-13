@@ -2,12 +2,6 @@ part of '../../../sync.dart';
 
 // MARK: - Reconciliation Context
 
-/// Device-bound context for paging one fixed-watermark snapshot.
-///
-/// The client owns this wire shape; the future backend must implement these
-/// fields and their semantics. The snapshot watermark stays fixed for the
-/// whole reconciliation while the snapshot-only [cursor] advances inside the
-/// nested context, so durable normal cursors are never read or written here.
 final class ReconciliationContext {
   const ReconciliationContext({
     required this.reconciliationID,
@@ -82,8 +76,6 @@ final class BeginReconcile extends ReconcileRequest {
   const BeginReconcile({String? bindingAuthorization})
       : _bindingAuthorization = bindingAuthorization;
 
-  // Travels as the X-SpendWise-Binding-Authorization header, never in the
-  // JSON body, so same-library adapters read this field directly.
   final String? _bindingAuthorization;
 
   @override
@@ -125,11 +117,6 @@ final class CompleteReconcile extends ReconcileRequest {
 final class ReconcileResponse extends _OpaqueWireResponse {
   ReconcileResponse(super.wire);
 
-  /// Device-bound context decoded from a `begin_reconcile` response.
-  ///
-  /// The response carries the context as a nested `reconciliation` object
-  /// using the same shape a reconciliation pull sends. A missing or
-  /// malformed object throws [FormatException].
   ReconciliationContext get reconciliationContext {
     final raw = wire['reconciliation'];
     if (raw is! Map<Object?, Object?>) {

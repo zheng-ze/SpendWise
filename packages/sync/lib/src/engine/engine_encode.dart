@@ -3,8 +3,6 @@ part of '../../sync.dart';
 // MARK: - Engine Encode
 
 extension SyncEngineEncode on SyncEngine {
-  /// Converts local [changes] plus their exact stored versions into
-  /// push-ready envelopes.
   Future<List<SyncEnvelope>> encode(
     Iterable<LedgerChange> changes,
     SyncVersionSource versionSource,
@@ -52,8 +50,6 @@ extension SyncEngineEncode on SyncEngine {
     return envelopes;
   }
 
-  /// Frames [payload] with a fresh nonce under [key], binding every visible
-  /// envelope field except ciphertext via AAD.
   Future<String> _framePayload({
     required Uint8List key,
     required Uint8List payload,

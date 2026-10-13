@@ -4,7 +4,6 @@ part of '../sync_enrollment_view_model.dart';
 // MARK: - Mode Entry
 
 extension SyncEnrollmentModeEntry on SyncEnrollmentNotifier {
-  /// Null when a newer operation superseded this read and owns the outcome.
   Future<bool?> enterRepairMode() {
     final settlement = _enterRepairMode();
     final tracked = settlement.then<void>((_) {}, onError: (_) {});

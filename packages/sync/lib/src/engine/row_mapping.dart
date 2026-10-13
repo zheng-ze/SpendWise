@@ -2,7 +2,6 @@ part of '../../sync.dart';
 
 // MARK: - Change Collection Mapping
 
-/// Maps a [LedgerChange] to its [SyncCollection]. Total across every variant.
 SyncCollection collectionFor(LedgerChange change) {
   switch (change) {
     case UpsertAccount() || UpsertPocket() || DeleteMoneySource():
@@ -20,7 +19,6 @@ SyncCollection collectionFor(LedgerChange change) {
 
 // MARK: - Tombstone Mapping
 
-/// Builds the payload-free delete change for a tombstone envelope.
 LedgerChange deleteFor(SyncCollection collection, String rowID) =>
     switch (collection) {
       SyncCollection.moneySources => DeleteMoneySource(normalizedID(rowID)),

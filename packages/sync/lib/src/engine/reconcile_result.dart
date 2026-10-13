@@ -2,8 +2,6 @@ part of '../../sync.dart';
 
 // MARK: - Reconcile Result
 
-/// Output of [SyncEngine.reconcile]: the conflict-free stamped changes, the
-/// per-row stamps, and the staged conflict groups.
 @immutable
 final class ReconcileResult {
   ReconcileResult._(
@@ -13,9 +11,6 @@ final class ReconcileResult {
     this.winningInputIndex,
   );
 
-  /// Builds an immutable [ReconcileResult], copying every collection so a
-  /// later mutation of the caller's list or map cannot change this result's
-  /// content-based equality or hash code.
   factory ReconcileResult({
     required List<LedgerChange> changes,
     required Map<SyncRowID, VersionVector> stamps,
@@ -33,11 +28,6 @@ final class ReconcileResult {
   final Map<SyncRowID, VersionVector> stamps;
   final List<StagedConflict> stagedConflicts;
 
-  /// For each conflict-free row, the index of its winning envelope within the
-  /// `envelopes` iterable originally passed into [SyncEngine.reconcile]. Rows
-  /// that end up staged have no entry: only conflict-free rows have a single
-  /// winning input to record. The engine stays agnostic to who submitted
-  /// which envelope; only the position is recorded.
   final Map<SyncRowID, int> winningInputIndex;
 
   bool get hasConflicts => stagedConflicts.isNotEmpty;
@@ -82,9 +72,6 @@ bool _mapEquals<K, V>(Map<K, V> a, Map<K, V> b) {
 int _hashList<T>(List<T> values) =>
     Object.hashAll(values.map((value) => value.hashCode));
 
-/// Folds each entry's hash with XOR so the result ignores map insertion order,
-/// matching [_mapEquals]. Order-sensitive hashing would let two maps with the
-/// same entries produce different codes and break equals/hashCode.
 int _hashMap<K, V>(Map<K, V> map) {
   var hash = 0;
   for (final entry in map.entries) {

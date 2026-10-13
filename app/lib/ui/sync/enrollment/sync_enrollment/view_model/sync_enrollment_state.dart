@@ -30,7 +30,6 @@ final class SyncEnrollmentState
   final bool explainCodeReplacement;
   final DateTime? codeCooldownEndsAt;
 
-  /// True while exactly one OTP resolver waits for input.
   final bool otpWaiting;
 
   SyncEnrollmentState copyWith({

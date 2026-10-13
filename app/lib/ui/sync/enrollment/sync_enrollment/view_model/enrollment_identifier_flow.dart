@@ -28,7 +28,6 @@ extension SyncEnrollmentIdentifierFlow on SyncEnrollmentNotifier {
       if (!identical(operation, _currentOperation) || operation.cancelled) {
         throw const SyncEnrollmentOtpCancelled();
       }
-      // The challenge issues the code, so the cooldown starts here.
       _noteCodeRequested();
       final otpCompleter = Completer<String>();
       _otpCompleter = otpCompleter;

@@ -28,7 +28,6 @@ class SyncEnrollmentResumeScreen extends ConsumerWidget {
         : const Text('Retry');
 
     return PopScope(
-      // Repair publishing must not be popped mid-flight.
       canPop: !state.repairMode || !state.inFlight,
       child: Scaffold(
         appBar: AppBar(

@@ -60,9 +60,6 @@ extension SyncEnrollmentPublication on SyncEnrollmentNotifier {
 
   // MARK: - Abandoned Publication
 
-  // The Flow can close after OTP acceptance while the service still stores its
-  // write proof; publish it here since no UI remains to retry. New operations
-  // wait for it because sessions share one proof key.
   Future<void> _publishAbandonedRepairProof(SyncEnrollmentSession session) {
     final publication = _runAbandonedPublication(session);
     _abandonedPublication = publication;
@@ -88,9 +85,7 @@ extension SyncEnrollmentPublication on SyncEnrollmentNotifier {
           await Future<void>.delayed(SyncEnrollmentNotifier._publishRetryDelay);
         }
       }
-    } on Object catch (_) {
-      // No UI remains to surface the failure; the proof stays stored.
-    }
+    } on Object catch (_) {}
     if (ref.mounted) await _refreshSyncStatus();
   }
 }

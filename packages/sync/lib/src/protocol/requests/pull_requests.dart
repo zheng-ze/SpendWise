@@ -17,15 +17,8 @@ final class PullRequest {
 
   final SyncCollection collection;
 
-  /// Ordinary durable pull cursor. Never set on a reconciliation pull.
   final String? cursor;
 
-  /// Snapshot-only reconciliation context. Never set on an ordinary pull.
-  ///
-  /// The two constructors keep ordinary and reconciliation pulls mutually
-  /// exclusive: a reconciliation pull carries the nested `reconciliation`
-  /// object (with the continuation cursor inside it) instead of a top-level
-  /// `cursor`.
   final ReconciliationContext? reconciliation;
   final int? pageLimit;
 
@@ -48,25 +41,9 @@ final class PullRequest {
 
 // MARK: - Pull Response
 
-/// Typed, decoded view of a pull-page wire response.
-///
-/// This schema is PROVISIONAL: no deployed backend or SQL migration exists
-/// yet (see [SupabaseSyncBackend]'s note that its RPC names and signatures
-/// must be locked with the SQL migration before shipping). The wire keys are
-/// `envelopes` (a JSON array decoded element-wise via
-/// [SyncEnvelope.fromWireJson], reusing the `envelopes` key name from
-/// [PushRequest.toWireJson]), `cursor` (the next server-assigned pull
-/// cursor), and the optional `end_of_snapshot` boolean marker, which is
-/// absent or false unless the reconciliation snapshot path sets it.
-///
-/// A response missing `envelopes` or `cursor`, or holding a malformed
-/// envelope element, throws [FormatException] — the same typed error
-/// [SyncEnvelope.fromWireJson] already uses for malformed wire JSON — never
-/// a raw cast failure.
 final class PullResponse extends _OpaqueWireResponse {
   PullResponse(super.wire);
 
-  /// Envelopes decoded element-wise via [SyncEnvelope.fromWireJson].
   List<SyncEnvelope> get envelopes {
     final raw = wire['envelopes'];
     if (raw is! List<Object?>) {
@@ -96,7 +73,6 @@ final class PullResponse extends _OpaqueWireResponse {
     return List.unmodifiable(decoded);
   }
 
-  /// The next server-assigned pull cursor.
   String get cursor {
     final raw = wire['cursor'];
     if (raw is! String) {
@@ -107,10 +83,6 @@ final class PullResponse extends _OpaqueWireResponse {
     return raw;
   }
 
-  /// Whether this page ends the reconciliation snapshot.
-  ///
-  /// Absent or false unless the reconciliation snapshot path sets it; a
-  /// present non-boolean value throws [FormatException].
   bool get endOfSnapshot {
     final raw = wire['end_of_snapshot'];
     if (raw == null) return false;

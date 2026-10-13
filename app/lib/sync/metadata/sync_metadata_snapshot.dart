@@ -21,7 +21,6 @@ final class SyncMetadataSnapshot {
   final SyncEnrollmentPhase phase;
   final bool writeEnabled;
 
-  // The row needs binding authorization before writes may resume.
   final bool deviceBindingRequired;
 
   final SyncDeviceBindingState deviceBindingState;

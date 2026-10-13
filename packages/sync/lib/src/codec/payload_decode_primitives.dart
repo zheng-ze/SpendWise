@@ -3,10 +3,6 @@ part of '../../sync.dart';
 // MARK: - Payload Field Readers
 
 extension PayloadCodecDecodePrimitives on PayloadCodec {
-  /// Runs a domain-level decode that can throw on attacker-controlled content
-  /// (unknown enum codes, unparseable dates or amounts) and converts any
-  /// thrown exception into a [PayloadDecodeError] with a fixed, non-leaking
-  /// message.
   T _fromCode<T>(String field, T Function() decode) {
     try {
       return decode();

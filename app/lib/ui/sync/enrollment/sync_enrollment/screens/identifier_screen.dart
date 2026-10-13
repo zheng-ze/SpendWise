@@ -63,8 +63,6 @@ class _SyncIdentifierScreenState extends ConsumerState<SyncIdentifierScreen> {
         : const Text('Continue');
 
     return PopScope(
-      // The repair root is isFirst; back must bubble to the Flow, which ends
-      // the repair. Vetoing here would swallow the back press.
       canPop: state.repairMode || !state.inFlight,
       child: Scaffold(
         appBar: AppBar(

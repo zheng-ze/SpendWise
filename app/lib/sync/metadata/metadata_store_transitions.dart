@@ -5,8 +5,6 @@ part of '../sync_metadata_store.dart';
 extension SyncMetadataStoreTransitions on SyncMetadataStore {
   Future<void> enterBindingAuthorizationRequired() => _db.transaction(() async {
     await _ensureMetaRow();
-    // Binding repair unconditionally overrides a prior session reauth, so the
-    // stale resume target is cleared here rather than preserved.
     await _writeMeta(
       SyncMetaCompanion(
         deviceBindingState: Value(
@@ -97,10 +95,6 @@ extension SyncMetadataStoreTransitions on SyncMetadataStore {
             ? SessionReauthEntry.alreadyInProgress
             : SessionReauthEntry.rejectedIllegalState;
       }
-      // One transaction: a concurrent second caller observes the already
-      // written sessionReauthRequired above and no-ops instead of clobbering
-      // the recorded resume phase. Binding repair always wins over a
-      // session-reauth attempt, never the reverse.
       switch ((binding, phase)) {
         case (
           SyncDeviceBindingState.bound,
@@ -110,14 +104,10 @@ extension SyncMetadataStoreTransitions on SyncMetadataStore {
           SyncDeviceBindingState.bound,
           SyncEnrollmentPhase.reconciliationComplete,
         ):
-          // These phases are only legal with writes disabled and no
-          // pending resume target; anything else is an illegal row.
           if (meta.writeEnabled || resume != null) {
             return SessionReauthEntry.rejectedIllegalState;
           }
         case (SyncDeviceBindingState.bound, SyncEnrollmentPhase.gateEnabled):
-          // gateEnabled is only legal with writes enabled and no pending
-          // resume target; anything else is an illegal row.
           if (!meta.writeEnabled || resume != null) {
             return SessionReauthEntry.rejectedIllegalState;
           }
@@ -159,9 +149,6 @@ extension SyncMetadataStoreTransitions on SyncMetadataStore {
           'phase=${phase.name}, resume=${resume?.name}.',
         );
       }
-      // Rows seeded outside enterSessionReauthRequired may carry an illegal
-      // writes-enabled sessionReauthRequired tuple, so writes must be checked
-      // here rather than trusted from entry.
       await _writeMeta(
         SyncMetaCompanion(
           enrollmentPhase: Value(resume.code),

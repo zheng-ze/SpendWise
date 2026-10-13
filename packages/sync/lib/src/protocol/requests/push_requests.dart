@@ -17,18 +17,12 @@ final class PushRequest {
 
 // MARK: - Push Row Outcomes
 
-/// Per-row outcome of a push call, decoded from [PushResponse.rowOutcomes].
-///
-/// Every variant carries the submitted row's `sibling_id`, so a caller can
-/// verify the entry belongs to the sibling it actually submitted before
-/// retiring any acknowledged vector.
 sealed class PushRowOutcome {
   const PushRowOutcome({required this.siblingID});
 
   final String siblingID;
 }
 
-/// The server applied the submitted sibling.
 final class PushApplied extends PushRowOutcome {
   const PushApplied({
     required super.siblingID,
@@ -38,7 +32,6 @@ final class PushApplied extends PushRowOutcome {
   final VersionVector resultingFrontier;
 }
 
-/// The submitted sibling was already present on the server.
 final class PushAlreadyPresent extends PushRowOutcome {
   const PushAlreadyPresent({
     required super.siblingID,
@@ -48,32 +41,15 @@ final class PushAlreadyPresent extends PushRowOutcome {
   final VersionVector resultingFrontier;
 }
 
-/// The server rejected the submitted sibling.
 final class PushRejected extends PushRowOutcome {
   const PushRejected({required super.siblingID});
 }
 
 // MARK: - Push Response
 
-/// Typed, decoded view of a push wire response.
-///
-/// This schema is PROVISIONAL: no deployed backend or SQL migration exists
-/// yet (see [SupabaseSyncBackend]'s note that its RPC names and signatures
-/// must be locked with the SQL migration before shipping). The wire key is
-/// `rows` (a JSON array of per-row objects), where each entry carries
-/// `row_id`, `collection`, `sibling_id`, and a `status` of `applied`,
-/// `already_present`, or `rejected`, plus a `version_vector` object on
-/// `applied`/`already_present` entries holding the resulting causal
-/// frontier.
-///
-/// A response missing `rows`, or holding a malformed entry — a missing or
-/// unrecognized `status`, a missing `version_vector` on an
-/// applied/already_present entry, or a missing/non-string `sibling_id` —
-/// throws [FormatException], never a raw cast failure.
 final class PushResponse extends _OpaqueWireResponse {
   PushResponse(super.wire);
 
-  /// Per-row outcomes keyed by [SyncRowID].
   Map<SyncRowID, PushRowOutcome> get rowOutcomes {
     final raw = wire['rows'];
     if (raw is! List<Object?>) {
