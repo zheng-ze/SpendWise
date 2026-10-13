@@ -49,17 +49,16 @@ void main() {
   }
 
   group('unscoped screen', () {
-    test('shows the default title and no edit-source action', () async {
+    test('shows the default title', () async {
       final container = containerFor(buildLedger());
       final state = await stateOf(container, null);
 
       expect(state.title, 'Transactions');
-      expect(state.showEditSourceAction, isFalse);
     });
   });
 
   group('scoped screen', () {
-    test('shows the scope title and the edit-source action', () async {
+    test('shows the scope title', () async {
       final scope = TransactionsScope(
         title: 'Checking',
         scopeIDs: {account.id, pocket.id},
@@ -68,7 +67,6 @@ void main() {
       final state = await stateOf(container, scope);
 
       expect(state.title, 'Checking');
-      expect(state.showEditSourceAction, isTrue);
     });
 
     test('filters day sections to the scoped holders', () async {
@@ -190,25 +188,6 @@ void main() {
 
   group('step emission', () {
     test(
-      'requestNewEntry emits EntryFormRequested with a null entry',
-      () async {
-        final container = containerFor(buildLedger());
-        await stateOf(container, null);
-        final viewModel = container.read(
-          transactionsViewModelProvider(null).notifier,
-        );
-
-        viewModel.requestNewEntry();
-
-        final state = container
-            .read(transactionsViewModelProvider(null))
-            .value!;
-        expect(state.step, isA<EntryFormRequested>());
-        expect((state.step! as EntryFormRequested).entry, isNull);
-      },
-    );
-
-    test(
       'openEntry emits EntryFormRequested with the resolved entry',
       () async {
         final entry = Entry(
@@ -229,48 +208,24 @@ void main() {
         final state = container
             .read(transactionsViewModelProvider(null))
             .value!;
-        expect((state.step! as EntryFormRequested).entry?.id, entry.id);
+        expect((state.step! as EntryFormRequested).entry.id, entry.id);
       },
     );
 
-    test('requestEditSource is a no-op when the screen is unscoped', () async {
-      final container = containerFor(buildLedger());
-      await stateOf(container, null);
-      final viewModel = container.read(
-        transactionsViewModelProvider(null).notifier,
-      );
-
-      viewModel.requestEditSource();
-
-      final state = container.read(transactionsViewModelProvider(null)).value!;
-      expect(state.step, isNull);
-    });
-
-    test('requestEditSource emits SourceEditRequested when scoped', () async {
-      final scope = TransactionsScope(
-        title: 'Checking',
-        scopeIDs: {account.id},
-      );
-      final container = containerFor(buildLedger());
-      await stateOf(container, scope);
-      final viewModel = container.read(
-        transactionsViewModelProvider(scope).notifier,
-      );
-
-      viewModel.requestEditSource();
-
-      final state = container.read(transactionsViewModelProvider(scope)).value!;
-      expect(state.step, isA<SourceEditRequested>());
-    });
-
     test('clearStep clears a pending step', () async {
-      final container = containerFor(buildLedger());
+      final entry = Entry(
+        amount: dec('-5'),
+        name: 'Coffee',
+        sourceID: account.id,
+        date: day(1),
+      );
+      final container = containerFor(buildLedger(entries: {entry.id: entry}));
       await stateOf(container, null);
       final viewModel = container.read(
         transactionsViewModelProvider(null).notifier,
       );
 
-      viewModel.requestNewEntry();
+      viewModel.openEntry(entry.id);
       viewModel.clearStep();
 
       final state = container.read(transactionsViewModelProvider(null)).value!;

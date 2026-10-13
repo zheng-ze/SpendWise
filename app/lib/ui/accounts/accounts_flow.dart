@@ -4,13 +4,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/ui/accounts/account_form/account_form.dart';
 import 'package:spendwise/ui/accounts/accounts_screen.dart';
 import 'package:spendwise/ui/accounts/accounts_view_model.dart';
+import 'package:spendwise/ui/accounts/money_navigation.dart';
 import 'package:spendwise/ui/accounts/source_edit/source_edit_form.dart';
 import 'package:spendwise/ui/common/base/flow_base.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
 
 // MARK: - AccountsFlow
 class AccountsFlow extends FlowBase<AccountsStep> {
-  const AccountsFlow({super.key});
+  const AccountsFlow({super.key, this.moneyObserver});
+
+  final MoneyNavigatorObserver? moneyObserver;
 
   @override
   ConsumerState<AccountsFlow> createState() => _AccountsFlowState();
@@ -18,6 +21,14 @@ class AccountsFlow extends FlowBase<AccountsStep> {
 
 // MARK: - AccountsFlowState
 class _AccountsFlowState extends FlowBaseState<AccountsStep, AccountsFlow> {
+  late final List<NavigatorObserver> _navigatorObservers =
+      switch (widget.moneyObserver) {
+        null => const [],
+        final observer => [observer],
+      };
+
+  @override
+  List<NavigatorObserver> get navigatorObservers => _navigatorObservers;
   AccountsViewModel get _screenViewModel =>
       ref.read(accountsViewModelProvider.notifier);
 
@@ -60,10 +71,11 @@ class _AccountsFlowState extends FlowBaseState<AccountsStep, AccountsFlow> {
   ) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
+        settings: MoneyTransactionsRouteSettings(
+          preferredSourceId: scopeIDs.firstOrNull,
+        ),
         builder: (_) => TransactionsFlow(
           initialScope: TransactionsScope(title: title, scopeIDs: scopeIDs),
-          onEditSource: (context, holderId) =>
-              _screenViewModel.requestSourceEdit(holderId),
           onEnded: () => Navigator.of(context).pop(),
         ),
       ),

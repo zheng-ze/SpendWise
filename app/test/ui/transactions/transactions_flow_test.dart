@@ -1,11 +1,15 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
+
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/settings/settings_providers.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
+import 'package:spendwise/ui/transactions/entry/new_entry_presenter.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
 
 void main() {
@@ -42,7 +46,6 @@ void main() {
     WidgetTester tester, {
     required Ledger ledger,
     TransactionsScope? initialScope,
-    void Function(BuildContext, String)? onEditSource,
   }) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -51,9 +54,24 @@ void main() {
           scanStripEnabledProvider.overrideWith((ref) async => true),
         ],
         child: MaterialApp(
-          home: TransactionsFlow(
-            initialScope: initialScope,
-            onEditSource: onEditSource,
+          home: Consumer(
+            builder: (context, ref, child) => Scaffold(
+              body: Column(
+                children: [
+                  TextButton(
+                    onPressed: () => unawaited(
+                      openNewEntry(
+                        context: context,
+                        ref: ref,
+                        sourceId: initialScope?.scopeIDs.firstOrNull,
+                      ),
+                    ),
+                    child: const Text('Open Add'),
+                  ),
+                  Expanded(child: TransactionsFlow(initialScope: initialScope)),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -66,7 +84,7 @@ void main() {
   ) async {
     await pumpFlow(tester, ledger: buildLedger());
 
-    await tester.tap(find.byIcon(Icons.add));
+    await tester.tap(find.text('Open Add'));
     await tester.pumpAndSettle();
 
     expect(find.text('Add entry'), findsOneWidget);
@@ -106,7 +124,7 @@ void main() {
   testWidgets('picking an account applies it to the open form', (tester) async {
     await pumpFlow(tester, ledger: buildLedger());
 
-    await tester.tap(find.byIcon(Icons.add));
+    await tester.tap(find.text('Open Add'));
     await tester.pumpAndSettle();
 
     await scrollToFormRow(tester, 'Account');
@@ -124,7 +142,7 @@ void main() {
   testWidgets('picking a category applies it to the open form', (tester) async {
     await pumpFlow(tester, ledger: buildLedger());
 
-    await tester.tap(find.byIcon(Icons.add));
+    await tester.tap(find.text('Open Add'));
     await tester.pumpAndSettle();
 
     await scrollToFormRow(tester, 'Category');
@@ -145,7 +163,7 @@ void main() {
     final ledger = buildLedger();
     await pumpFlow(tester, ledger: ledger);
 
-    await tester.tap(find.byIcon(Icons.add));
+    await tester.tap(find.text('Open Add'));
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField).at(0), '12.50');
@@ -178,12 +196,8 @@ void main() {
       );
       await pumpFlow(tester, ledger: buildLedger(), initialScope: scope);
 
-      await tester.tap(find.byIcon(Icons.add));
+      await tester.tap(find.text('Open Add'));
       await tester.pumpAndSettle();
-      if (find.text('Add Transaction').evaluate().isNotEmpty) {
-        await tester.tap(find.text('Add Transaction'));
-        await tester.pumpAndSettle();
-      }
 
       final container = ProviderScope.containerOf(
         tester.element(find.text('Add entry')),
@@ -197,30 +211,6 @@ void main() {
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
     });
-
-    testWidgets(
-      'requesting edit-source calls onEditSource with the scope holder',
-      (tester) async {
-        final scope = TransactionsScope(
-          title: 'Checking',
-          scopeIDs: {checking.id},
-        );
-        String? calledWith;
-        await pumpFlow(
-          tester,
-          ledger: buildLedger(),
-          initialScope: scope,
-          onEditSource: (context, holderId) => calledWith = holderId,
-        );
-
-        await tester.tap(find.byIcon(Icons.add));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Edit Checking'));
-        await tester.pumpAndSettle();
-
-        expect(calledWith, checking.id);
-      },
-    );
   });
 
   testWidgets(

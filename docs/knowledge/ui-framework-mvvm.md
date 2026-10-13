@@ -1,6 +1,6 @@
 # UI Framework (MVVM)
 
-Last reconciled: 2026-10-12
+Last reconciled: 2026-10-13
 
 ## Feature overview
 
@@ -56,8 +56,11 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   each Step through the shared entry Step handlers (`entry_step_handlers.dart`, presented above the
   sheet through the root navigator), clears each handled Step once, and closes the subscription in
   `finally`. A presenter-owned boolean open guard drops duplicate requests and releases in `finally`.
-  `TransactionsFlow` routes `EntryFormRequested(null)` through it and keeps only its non-null entry
-  subscription. There is no `ProviderScope`, shared lock provider, nested `Navigator` or new Flow.
+  `AppShell` routes its phone and desktop Add controls through one callback. It captures a source
+  only when Money is selected, using a constructor-injected getter backed by the stable
+  `MoneyNavigatorObserver`; the observer tracks the top route of AccountsFlow's navigator, and
+  scoped Transactions routes carry their preferred source ID. TransactionsFlow handles only
+  existing-entry forms. There is no `ProviderScope`, shared lock provider, nested `Navigator` or new Flow.
   (`app/lib/ui/transactions/entry/new_entry_presenter.dart`,
   `app/lib/ui/transactions/entry/steps/entry_step_handlers.dart`,
   `app/lib/ui/transactions/transactions_flow.dart`)

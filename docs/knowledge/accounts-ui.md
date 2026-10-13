@@ -1,6 +1,6 @@
 # Accounts UI
 
-Last reconciled: 2026-10-08
+Last reconciled: 2026-10-13
 
 ## Feature overview
 
@@ -42,8 +42,11 @@ cycle charges through the named day. Its contracts live in
 
 The Accounts Flow owns the Money destination's nested navigator, and the screen additionally owns its own stack
 internally (path-based). Tapping an account row pushes the scoped Transactions screen; the
-"Excluding subpockets" and per-pocket expanded rows push narrower scopes. The account/source-edit
-forms and the entry form open as sheets.
+"Excluding subpockets" and per-pocket expanded rows push narrower scopes. Account headers and pocket
+rows offer Edit by swiping start-to-end or using the Edit custom semantic action; it opens the
+source-edit form for that exact holder ID. AccountsFlow tags each scoped Transactions route with its
+preferred source, and its constructor-injected MoneyNavigatorObserver lets shell Add prefill the top
+scoped route while Money is selected. Root and untagged Money routes remain unscoped.
 
 ## Screens and flows
 
@@ -53,8 +56,8 @@ forms and the entry form open as sheets.
   order Cash, Checking, Savings, Cards, Prepaid, Investment, Insurance, Other, skipping empty types.
   Non-card rows show `accountTotal`; card rows show payable (`max(0, −accountTotal)`) and outstanding
   (negated negative non-transfer entries since the statement cut). Expanding one account shows an
-  "Excluding subpockets" row and one row per pocket. Swipe-delete on account and pocket rows opens a
-  "Delete \<name\>?" dialog with body "N transactions keep this name".
+  "Excluding subpockets" row and one row per pocket. Swipe start-to-end edits the account or pocket;
+  swipe end-to-start opens a "Delete \<name\>?" dialog with body "N transactions keep this name".
 - **Card math** — payable is what you owe overall; outstanding is spend since the last statement,
   excluding transfers (repayments reduce payable via the balance, not outstanding). Statement cut
   anchors to the current month if `today.day ≥ d` else the previous month, clamped into the month via
@@ -66,7 +69,7 @@ forms and the entry form open as sheets.
   Subpocket mode: name, parent account picker. Save: `addAccount` (statement day only for cards),
   then `setOpeningBalance` if the balance ≠ 0 (posts the synthetic excluded opening-balance entry);
   Subpocket: `addPocket`.
-- **Source edit form** — reached only via the scoped-transactions FAB "Edit \<name\>". Name; for
+- **Source edit form** — reached from an account-header or pocket-row Edit action. Name; for
   accounts a balance section (allows negatives) whose edit posts a "Balance adjustment" entry for the
   delta with `includeInAnalysis: false` (no delta produces no entry); toggles "Transfers in count as
   expenses" (`incomingTransfersAsExpenses`) and, accounts only, "Include in net worth".

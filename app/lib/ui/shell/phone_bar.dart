@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/shell/shell_destinations.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
-import 'package:spendwise/ui/transactions/entry/new_entry_presenter.dart';
 
 // MARK: - Constants
 const _barKey = ValueKey('phone-bar');
@@ -34,18 +32,20 @@ const _destinationsAfterAdd = [
 ];
 
 // MARK: - PhoneBar
-class PhoneBar extends ConsumerWidget {
+class PhoneBar extends StatelessWidget {
   const PhoneBar({
     super.key,
     required this.selected,
     required this.onDestinationSelected,
+    required this.onAdd,
   });
 
   final ShellDestination selected;
   final ValueChanged<ShellDestination> onDestinationSelected;
+  final VoidCallback onAdd;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final colors = context.colors;
     final bar = Container(
       key: _barKey,
@@ -64,9 +64,7 @@ class PhoneBar extends ConsumerWidget {
               selected: selected,
               onSelected: onDestinationSelected,
             ),
-          _BarAdd(
-            onTap: () => openNewEntry(context: context, ref: ref),
-          ),
+          _BarAdd(onTap: onAdd),
           for (final destination in _destinationsAfterAdd)
             _BarDestination(
               destination: destination,

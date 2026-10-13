@@ -51,6 +51,8 @@ abstract class FlowBaseState<S, T extends FlowBase<S>>
 
   Widget buildRoot(BuildContext context);
 
+  List<NavigatorObserver> get navigatorObservers => const [];
+
   @override
   void initState() {
     super.initState();
@@ -81,6 +83,7 @@ abstract class FlowBaseState<S, T extends FlowBase<S>>
       },
       child: Navigator(
         key: _navigatorKey,
+        observers: navigatorObservers,
         onGenerateRoute: (settings) => MaterialPageRoute(
           settings: settings,
           builder: (_) => buildRoot(context),

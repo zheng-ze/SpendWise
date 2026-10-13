@@ -6,7 +6,6 @@ import 'package:spendwise/ui/transactions/daily_list/daily_transactions_screen.d
 import 'package:spendwise/ui/transactions/entry/entry_form.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/entry/steps/entry_step_handlers.dart';
-import 'package:spendwise/ui/transactions/entry/new_entry_presenter.dart';
 import 'package:spendwise/ui/transactions/transactions_view_model.dart';
 
 // MARK: - TransactionsScope
@@ -33,12 +32,10 @@ class TransactionsFlow extends FlowBase<TransactionsStep> {
     super.key,
     super.onEnded,
     this.initialScope,
-    this.onEditSource,
     this.backLabel,
   });
 
   final TransactionsScope? initialScope;
-  final void Function(BuildContext context, String holderId)? onEditSource;
   final String? backLabel;
 
   @override
@@ -79,23 +76,7 @@ class _TransactionsFlowState
   void handleStep(BuildContext context, TransactionsStep step) {
     switch (step) {
       case EntryFormRequested(:final entry):
-        if (entry == null) {
-          final scope = widget.initialScope;
-          openNewEntry(
-            context: context,
-            ref: ref,
-            sourceId: scope != null && scope.scopeIDs.isNotEmpty
-                ? scope.scopeIDs.first
-                : null,
-          );
-        } else {
-          _openEntryForm(context, entry.id);
-        }
-      case SourceEditRequested():
-        final scope = widget.initialScope;
-        if (scope != null && scope.scopeIDs.isNotEmpty) {
-          widget.onEditSource?.call(context, scope.scopeIDs.first);
-        }
+        _openEntryForm(context, entry.id);
       case PickSourceRequested():
       case PickDestinationRequested():
       case PickCategoryRequested():

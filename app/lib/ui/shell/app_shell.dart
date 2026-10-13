@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/common/base/flow_base.dart';
+import 'package:spendwise/ui/transactions/entry/new_entry_presenter.dart';
 import 'package:spendwise/ui/shell/day_ticker.dart';
 import 'package:spendwise/ui/shell/desktop_sidebar.dart';
 import 'package:spendwise/ui/shell/phone_bar.dart';
@@ -29,9 +30,10 @@ const _fallbackStackIndex = 0;
 
 // MARK: - AppShell
 class AppShell extends ConsumerStatefulWidget {
-  const AppShell({super.key, this.bodies = const {}});
+  const AppShell({super.key, this.bodies = const {}, this.moneySourceId});
 
   final Map<ShellDestination, WidgetBuilder> bodies;
+  final String? Function()? moneySourceId;
 
   @override
   ConsumerState<AppShell> createState() => _AppShellState();
@@ -61,6 +63,14 @@ class _AppShellState extends ConsumerState<AppShell> {
     ref.read(selectedDestinationProvider.notifier).state = destination;
   }
 
+  void _openNewEntry(BuildContext context) {
+    final selected = ref.read(selectedDestinationProvider);
+    final sourceId = selected == ShellDestination.money
+        ? widget.moneySourceId?.call()
+        : null;
+    openNewEntry(context: context, ref: ref, sourceId: sourceId);
+  }
+
   @override
   Widget build(BuildContext context) {
     final selected = ref.watch(selectedDestinationProvider);
@@ -85,7 +95,11 @@ class _AppShellState extends ConsumerState<AppShell> {
         key: const ValueKey('sidebar-layout'),
         body: Row(
           children: [
-            DesktopSidebar(selected: selected, onDestinationSelected: _select),
+            DesktopSidebar(
+              selected: selected,
+              onDestinationSelected: _select,
+              onAdd: () => _openNewEntry(context),
+            ),
             const SidebarDivider(),
             Expanded(child: content),
           ],
@@ -98,6 +112,7 @@ class _AppShellState extends ConsumerState<AppShell> {
       bottomNavigationBar: PhoneBar(
         selected: selected,
         onDestinationSelected: _select,
+        onAdd: () => _openNewEntry(context),
       ),
     );
   }

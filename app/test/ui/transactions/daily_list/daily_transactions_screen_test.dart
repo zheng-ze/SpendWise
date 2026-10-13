@@ -152,7 +152,7 @@ void main() {
     },
   );
 
-  testWidgets('shows the scope title and an edit-source action when scoped', (
+  testWidgets('scoped transactions have no local Add or Edit source control', (
     tester,
   ) async {
     final ledger = Ledger(
@@ -172,13 +172,16 @@ void main() {
 
     expect(find.text('Checking'), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.add));
+    expect(find.byIcon(Icons.add), findsNothing);
+    expect(find.byIcon(Icons.edit_outlined), findsNothing);
+    await tester.tap(find.text('Monthly'));
     await tester.pumpAndSettle();
-    expect(find.text('Edit Checking'), findsOneWidget);
+    expect(find.byIcon(Icons.add), findsNothing);
+    expect(find.byIcon(Icons.edit_outlined), findsNothing);
   });
 
   testWidgets(
-    'shows the default title and no edit-source action when unscoped',
+    'unscoped transactions have no local Add or Edit source control',
     (tester) async {
       final ledger = Ledger(
         state: LedgerState(
@@ -195,6 +198,11 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Transactions'), findsOneWidget);
+      expect(find.byIcon(Icons.add), findsNothing);
+      expect(find.byIcon(Icons.edit_outlined), findsNothing);
+      await tester.tap(find.text('Monthly'));
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.add), findsNothing);
       expect(find.byIcon(Icons.edit_outlined), findsNothing);
     },
   );

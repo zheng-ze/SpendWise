@@ -29,6 +29,7 @@ void main() {
                     child: DesktopSidebar(
                       selected: ShellDestination.overview,
                       onDestinationSelected: selected.add,
+                      onAdd: () {},
                     ),
                   ),
                 ),

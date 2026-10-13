@@ -2,7 +2,7 @@ import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/accounts/account_sections.dart';
-import 'package:spendwise/ui/common/lists/swipe_to_delete_row.dart';
+import 'package:spendwise/ui/common/lists/swipe_row.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 
@@ -15,9 +15,11 @@ class AccountRowTile extends StatelessWidget {
     required this.onToggleExpanded,
     required this.onTap,
     required this.onAccountDeleted,
+    required this.onAccountEdit,
     required this.onOpenAccountAlone,
     required this.onOpenPocket,
     required this.onPocketDeleted,
+    required this.onPocketEdit,
   });
 
   final AccountRow row;
@@ -25,18 +27,21 @@ class AccountRowTile extends StatelessWidget {
   final VoidCallback? onToggleExpanded;
   final VoidCallback onTap;
   final VoidCallback onAccountDeleted;
+  final VoidCallback onAccountEdit;
   final VoidCallback onOpenAccountAlone;
   final void Function(PocketRow pocket) onOpenPocket;
   final void Function(PocketRow pocket) onPocketDeleted;
+  final void Function(PocketRow pocket) onPocketEdit;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        SwipeToDeleteRow(
+        SwipeRow(
           itemKey: ValueKey('account-${row.id}'),
           itemName: row.name,
           onDeleted: onAccountDeleted,
+          onEdit: onAccountEdit,
           child: _AccountRowBody(
             row: row,
             expanded: expanded,
@@ -51,10 +56,11 @@ class AccountRowTile extends StatelessWidget {
             onTap: onOpenAccountAlone,
           ),
           for (final pocket in row.pockets)
-            SwipeToDeleteRow(
+            SwipeRow(
               itemKey: ValueKey('pocket-${pocket.id}'),
               itemName: pocket.name,
               onDeleted: () => onPocketDeleted(pocket),
+              onEdit: () => onPocketEdit(pocket),
               child: _SubRow(
                 title: pocket.name,
                 amount: pocket.balance,
