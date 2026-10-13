@@ -210,6 +210,18 @@ void main() {
     expect(factory.startCount, 2);
   });
 
+  testWidgets('loading content does not overflow a short window', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(320, 100));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final factory = _GatedStoreFactory();
+    await tester.pumpWidget(hostedIn(containerWith(factory)));
+
+    expect(find.byType(SingleChildScrollView), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('ready shows the shell', (tester) async {
     final factory = _GatedStoreFactory();
     await tester.pumpWidget(hostedIn(containerWith(factory)));

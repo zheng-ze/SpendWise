@@ -97,25 +97,29 @@ class _BootLoading extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: colors.base,
-      body: Center(
-        child: Padding(
-          padding: _bootPagePadding,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SpendWiseWordmark(fontSize: _bootWordmarkFontSize),
-              const SizedBox(height: _bootContentGap),
-              SizedBox(
-                width: _progressSize,
-                height: _progressSize,
-                child: CircularProgressIndicator(
-                  strokeWidth: _progressStrokeWidth,
-                  backgroundColor: colors.surface,
-                  color: colors.action,
-                  semanticsLabel: _loadingSemanticsLabel,
-                ),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: _bootPagePadding,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SpendWiseWordmark(fontSize: _bootWordmarkFontSize),
+                  const SizedBox(height: _bootContentGap),
+                  SizedBox(
+                    width: _progressSize,
+                    height: _progressSize,
+                    child: CircularProgressIndicator(
+                      strokeWidth: _progressStrokeWidth,
+                      backgroundColor: colors.surface,
+                      color: colors.action,
+                      semanticsLabel: _loadingSemanticsLabel,
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
