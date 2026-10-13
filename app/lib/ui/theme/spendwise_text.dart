@@ -2,7 +2,18 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/theme/spendwise_colors.dart';
 
+// MARK: - Constants
 const _amountFamily = 'InstrumentSans';
+const _heroSize = 34.0;
+const _heroLetterSpacing = -1.2;
+const _headlineSize = 26.0;
+const _headlineLetterSpacing = -0.7;
+const _rowSize = 14.0;
+const _rowLetterSpacing = -0.2;
+const _smallSize = 12.0;
+const _smallLetterSpacing = 0.0;
+
+// MARK: - Amount Style
 
 TextStyle _amount(double size, FontWeight weight, double letterSpacing) {
   return const TextStyle().copyWith(
@@ -14,6 +25,7 @@ TextStyle _amount(double size, FontWeight weight, double letterSpacing) {
   );
 }
 
+// MARK: - SpendWiseText
 class SpendWiseText extends ThemeExtension<SpendWiseText> {
   const SpendWiseText({
     required this.hero,
@@ -23,17 +35,17 @@ class SpendWiseText extends ThemeExtension<SpendWiseText> {
   });
 
   static final light = SpendWiseText(
-    hero: _amount(34, FontWeight.w500, -1.2),
-    headline: _amount(26, FontWeight.w500, -0.7),
-    row: _amount(14, FontWeight.w600, -0.2),
-    small: _amount(12, FontWeight.w600, 0),
+    hero: _amount(_heroSize, FontWeight.w500, _heroLetterSpacing),
+    headline: _amount(_headlineSize, FontWeight.w500, _headlineLetterSpacing),
+    row: _amount(_rowSize, FontWeight.w600, _rowLetterSpacing),
+    small: _amount(_smallSize, FontWeight.w600, _smallLetterSpacing),
   );
 
   static final dark = SpendWiseText(
-    hero: _amount(34, FontWeight.w500, -1.2),
-    headline: _amount(26, FontWeight.w500, -0.7),
-    row: _amount(14, FontWeight.w600, -0.2),
-    small: _amount(12, FontWeight.w600, 0),
+    hero: _amount(_heroSize, FontWeight.w500, _heroLetterSpacing),
+    headline: _amount(_headlineSize, FontWeight.w500, _headlineLetterSpacing),
+    row: _amount(_rowSize, FontWeight.w600, _rowLetterSpacing),
+    small: _amount(_smallSize, FontWeight.w600, _smallLetterSpacing),
   );
 
   final TextStyle hero;
@@ -68,6 +80,7 @@ class SpendWiseText extends ThemeExtension<SpendWiseText> {
   }
 }
 
+// MARK: - SpendWiseThemeContext
 extension SpendWiseThemeContext on BuildContext {
   SpendWiseColors get colors =>
       Theme.of(this).extension<SpendWiseColors>() ?? SpendWiseColors.light;

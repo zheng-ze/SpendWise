@@ -13,9 +13,12 @@ import 'package:domain/src/entries/entry.dart';
 import 'package:domain/src/entries/holder_referencing.dart';
 import 'package:domain/src/ids.dart';
 import 'package:domain/src/ledger_state/ledger_state.dart';
-import 'package:domain/src/time/date_range.dart';
+
+export 'package:domain/src/accounting/analysis_item_list.dart';
 
 abstract final class Accounting {
+  // MARK: - Scope
+
   static bool applies(Entry entry, Set<String> sourceIDs) {
     if (!sourceIDs.contains(entry.sourceID)) return false;
 
@@ -24,6 +27,8 @@ abstract final class Accounting {
 
     return sourceIDs.contains(destination);
   }
+
+  // MARK: - Balances
 
   static Decimal balance({
     required String of,
@@ -91,6 +96,8 @@ abstract final class Accounting {
 
     return NetWorth(asset, liability);
   }
+
+  // MARK: - Classification
 
   static List<AnalysisItem> analysisItems(LedgerState ledger) {
     final sourceIDs = ledger.moneySources.keys.toSet();
@@ -204,6 +211,8 @@ abstract final class Accounting {
     return account!.type;
   }
 
+  // MARK: - Category resolution
+
   static CategoryResolution resolveCategory(Entry entry, LedgerState ledger) {
     final categoryID = entry.categoryID;
     if (categoryID == null) return const Uncategorized();
@@ -226,14 +235,7 @@ abstract final class Accounting {
     return resolveCategory(entry, ledger) is! Excluded;
   }
 
-  static double fraction(Decimal amount, Decimal over) {
-    if (over <= Decimal.zero) return 0.0;
-
-    final ratio = (amount / over).toDouble();
-    if (!ratio.isFinite) return ratio.isNegative ? -1.0 : 1.0;
-
-    return ratio;
-  }
+  // MARK: - Buckets
 
   static String? mainBucketID(String? rawLeafID, LedgerState state) {
     final leafID = normalizedOptionalID(rawLeafID);
@@ -256,35 +258,15 @@ abstract final class Accounting {
     }
     return UnmodifiableMapView(sums);
   }
-}
 
-extension AnalysisItemList on List<AnalysisItem> {
-  List<AnalysisItem> filtered({
-    CategoryKind? kind,
-    Set<String?>? buckets,
-    DateRange? interval,
-  }) {
-    final wanted = buckets?.map(normalizedOptionalID).toSet();
-    return UnmodifiableListView(
-      where((item) {
-        if (kind != null && item.kind != kind) return false;
-        if (wanted != null && !wanted.contains(item.bucketID)) return false;
-        if (interval != null && !interval.contains(item.date)) return false;
+  // MARK: - Helpers
 
-        return true;
-      }).toList(),
-    );
-  }
+  static double fraction(Decimal amount, Decimal over) {
+    if (over <= Decimal.zero) return 0.0;
 
-  Decimal total({
-    CategoryKind? kind,
-    Set<String?>? buckets,
-    DateRange? interval,
-  }) {
-    return filtered(
-      kind: kind,
-      buckets: buckets,
-      interval: interval,
-    ).fold(Decimal.zero, (sum, item) => sum + item.amount);
+    final ratio = (amount / over).toDouble();
+    if (!ratio.isFinite) return ratio.isNegative ? -1.0 : 1.0;
+
+    return ratio;
   }
 }

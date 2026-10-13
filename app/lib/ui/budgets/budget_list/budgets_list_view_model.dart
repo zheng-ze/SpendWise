@@ -6,9 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
-import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
-import 'package:spendwise/ui/common/step_emitting.dart';
+import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
+import 'package:spendwise/ui/common/base/step_emitting.dart';
 
+// MARK: - Sort Key
 (String groupName, bool isSubcategory, String ownName) budgetSortKey(
   Budget budget,
   LedgerState state,
@@ -25,6 +26,7 @@ import 'package:spendwise/ui/common/step_emitting.dart';
   return (parentName, true, category.name);
 }
 
+// MARK: - Helpers
 List<Budget> sortedBudgets(LedgerState state) {
   final budgets = state.budgets.values.toList()
     ..sort((a, b) {
@@ -38,6 +40,7 @@ List<Budget> sortedBudgets(LedgerState state) {
   return budgets;
 }
 
+// MARK: - BudgetsListViewState
 class BudgetsListViewState
     implements HasStep<BudgetsListViewState, BudgetsStep> {
   const BudgetsListViewState({
@@ -75,6 +78,7 @@ class BudgetsListViewState
       copyWith(step: step);
 }
 
+// MARK: - BudgetsListViewModel
 abstract class BudgetsListViewModel {
   void requestBudgetDetail(String budgetID);
   void requestNewBudget();
@@ -83,6 +87,7 @@ abstract class BudgetsListViewModel {
   void clearStep();
 }
 
+// MARK: - BudgetsListNotifier
 class BudgetsListNotifier extends AsyncNotifier<BudgetsListViewState>
     with
         LedgerBackedNotifier<BudgetsListViewState>,
@@ -144,6 +149,7 @@ class BudgetsListNotifier extends AsyncNotifier<BudgetsListViewState>
   }
 }
 
+// MARK: - Constants
 final budgetsListViewModelProvider =
     AsyncNotifierProvider<BudgetsListNotifier, BudgetsListViewState>(
       BudgetsListNotifier.new,

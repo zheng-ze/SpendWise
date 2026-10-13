@@ -2,8 +2,8 @@ import 'dart:typed_data';
 
 import 'package:domain/domain.dart';
 import 'package:drift/drift.dart' show Selectable, Variable;
-import 'package:spendwise/persistence/ledger_database.dart';
-import 'package:spendwise/persistence/mappers.dart';
+import 'package:spendwise/persistence/database/ledger_database.dart';
+import 'package:spendwise/persistence/mappers/mappers.dart';
 import 'package:sync/sync.dart';
 
 abstract class CollectionVersionReader {

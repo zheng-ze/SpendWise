@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
-import 'package:spendwise/ui/common/column_text.dart';
-import 'package:spendwise/ui/common/expanding_fab.dart';
-import 'package:spendwise/ui/common/month_year_selector.dart';
-import 'package:spendwise/ui/common/swipe_to_delete_row.dart';
-import 'package:spendwise/ui/common/top_tab_bar.dart';
+import 'package:spendwise/ui/common/lists/column_text.dart';
+import 'package:spendwise/ui/common/navigation/expanding_fab.dart';
+import 'package:spendwise/ui/common/inputs/month_year_selector.dart';
+import 'package:spendwise/ui/common/lists/swipe_to_delete_row.dart';
+import 'package:spendwise/ui/common/navigation/top_tab_bar.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/transactions/daily_list/day_header.dart';
@@ -17,8 +17,10 @@ import 'package:spendwise/ui/transactions/daily_list/transaction_cell.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
 import 'package:spendwise/ui/transactions/transactions_view_model.dart';
 
+// MARK: - Constants
 const _tabTitles = ['Daily', 'Monthly'];
 
+// MARK: - TransactionsScreen
 class TransactionsScreen extends ConsumerWidget {
   const TransactionsScreen({
     super.key,
@@ -55,6 +57,7 @@ class TransactionsScreen extends ConsumerWidget {
   }
 }
 
+// MARK: - TransactionsScreenBody
 class _TransactionsScreenBody extends StatelessWidget {
   const _TransactionsScreenBody({
     required this.state,
@@ -142,6 +145,7 @@ class _TransactionsScreenBody extends StatelessWidget {
   }
 }
 
+// MARK: - TotalsBar
 class _TotalsBar extends StatelessWidget {
   const _TotalsBar({required this.state});
 
@@ -176,6 +180,7 @@ class _TotalsBar extends StatelessWidget {
   }
 }
 
+// MARK: - DailyContent
 class _DailyContent extends StatelessWidget {
   const _DailyContent({required this.state, required this.viewModel});
 
@@ -207,6 +212,7 @@ class _DailyContent extends StatelessWidget {
   }
 }
 
+// MARK: - DaySliverList
 class _DaySliverList extends StatelessWidget {
   const _DaySliverList({required this.section, required this.viewModel});
 

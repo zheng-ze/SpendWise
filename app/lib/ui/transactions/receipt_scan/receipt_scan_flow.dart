@@ -12,9 +12,11 @@ import 'package:spendwise/ocr/receipt_recognizer_selection.dart';
 
 TextRecognizer? defaultRecognizer() => selectRecognizer();
 
+// MARK: - ReceiptScanSource
 enum ReceiptScanSource { camera, gallery }
 
-extension on ReceiptScanSource {
+// MARK: - ReceiptScanSourceMapping
+extension ReceiptScanSourceMapping on ReceiptScanSource {
   Permission get permission =>
       this == ReceiptScanSource.camera ? Permission.camera : Permission.photos;
 
@@ -23,8 +25,10 @@ extension on ReceiptScanSource {
       : ImageSource.gallery;
 }
 
+// MARK: - ReceiptScanStop
 enum ReceiptScanStop { permissionDenied, cancelled }
 
+// MARK: - Scan Handlers
 typedef ScanResultHandler = void Function({
   String? name,
   Decimal? amount,
@@ -33,6 +37,7 @@ typedef ScanResultHandler = void Function({
 
 typedef RecognizerFactory = TextRecognizer? Function();
 
+// MARK: - Helpers
 Future<void> runReceiptScan({
   required ReceiptScanSource source,
   required ScanResultHandler onExtracted,

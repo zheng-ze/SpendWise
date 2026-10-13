@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 
-import 'package:spendwise/ui/common/category_icon.dart';
+import 'package:spendwise/ui/common/lists/category_icon.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/stats/helpers/slices.dart';
 
+// MARK: - Constants
 const _iconSize = 34.0;
 const _dividerIndent = _iconSize + 32;
 
+// MARK: - StatsLegend
 class StatsLegend extends StatelessWidget {
   const StatsLegend({
     super.key,
@@ -39,13 +41,19 @@ class StatsLegend extends StatelessWidget {
   }
 }
 
+// MARK: - LegendRow
 class _LegendRow extends StatelessWidget {
   const _LegendRow({required this.slice, this.onTap});
 
   final Slice slice;
   final VoidCallback? onTap;
 
-  static const _rowPadding = EdgeInsets.symmetric(horizontal: 16, vertical: 8);
+  static const _rowHorizontalInset = 16.0;
+  static const _rowVerticalInset = 8.0;
+  static const _rowPadding = EdgeInsets.symmetric(
+    horizontal: _rowHorizontalInset,
+    vertical: _rowVerticalInset,
+  );
   static const _iconGap = 12.0;
   static const _chevronBoxWidth = 24.0;
   static const _chevronSize = 20.0;

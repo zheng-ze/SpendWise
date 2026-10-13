@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
+// MARK: - AmountStyle
 @immutable
 class AmountStyle {
   const AmountStyle({required this.color});

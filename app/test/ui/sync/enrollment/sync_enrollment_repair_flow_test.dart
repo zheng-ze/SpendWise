@@ -6,7 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/app_boot.dart';
 import 'package:spendwise/boot/providers.dart';
-import 'package:spendwise/persistence/ledger_database.dart' show LedgerDatabase;
+import 'package:spendwise/persistence/database/ledger_database.dart'
+    show LedgerDatabase;
 import 'package:spendwise/sync/hosted_sync_status.dart';
 import 'package:spendwise/sync/sync_enrollment_service.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';

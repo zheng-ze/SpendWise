@@ -5,11 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/ui/accounts/account_row.dart';
 import 'package:spendwise/ui/accounts/account_sections.dart';
 import 'package:spendwise/ui/accounts/accounts_view_model.dart';
-import 'package:spendwise/ui/common/column_text.dart';
+import 'package:spendwise/ui/common/lists/column_text.dart';
 import 'package:spendwise/ui/format/account_type_format.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 
+// MARK: - AccountsScreen
 class AccountsScreen extends ConsumerWidget {
   const AccountsScreen({super.key});
 
@@ -32,6 +33,7 @@ class AccountsScreen extends ConsumerWidget {
   }
 }
 
+// MARK: - AccountsBody
 class _AccountsBody extends StatelessWidget {
   const _AccountsBody({required this.viewState, required this.viewModel});
 
@@ -124,6 +126,7 @@ class _AccountsBody extends StatelessWidget {
   }
 }
 
+// MARK: - AccountSection
 class _AccountSection extends StatelessWidget {
   const _AccountSection({
     required this.section,
@@ -159,6 +162,7 @@ class _AccountSection extends StatelessWidget {
   }
 }
 
+// MARK: - SectionHeaderRow
 class _SectionHeaderRow extends StatelessWidget {
   const _SectionHeaderRow({required this.type, required this.header});
 
@@ -221,6 +225,7 @@ class _SectionHeaderRow extends StatelessWidget {
   }
 }
 
+// MARK: - EmptyState
 class _EmptyState extends StatelessWidget {
   const _EmptyState();
 

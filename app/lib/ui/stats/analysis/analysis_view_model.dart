@@ -5,10 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
-import 'package:spendwise/ui/common/step_emitting.dart';
+import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
+import 'package:spendwise/ui/common/base/step_emitting.dart';
 import 'package:spendwise/ui/stats/helpers/slices.dart';
 
+// MARK: - Steps
 sealed class AnalysisStep {}
 
 class CategoryDetailRequested extends AnalysisStep {
@@ -23,6 +24,7 @@ class CategoryDetailRequested extends AnalysisStep {
   final DateTime initialDate;
 }
 
+// MARK: - AnalysisViewState
 class AnalysisViewState implements HasStep<AnalysisViewState, AnalysisStep> {
   const AnalysisViewState({
     required this.kind,
@@ -55,6 +57,7 @@ class AnalysisViewState implements HasStep<AnalysisViewState, AnalysisStep> {
       copyWith(step: step);
 }
 
+// MARK: - AnalysisViewModel
 abstract class AnalysisViewModel {
   void requestCategoryDetail({
     required String mainID,
@@ -64,6 +67,7 @@ abstract class AnalysisViewModel {
   void clearStep();
 }
 
+// MARK: - AnalysisNotifier
 class AnalysisNotifier extends AsyncNotifier<AnalysisViewState>
     with
         LedgerBackedNotifier<AnalysisViewState>,
@@ -118,6 +122,7 @@ class AnalysisNotifier extends AsyncNotifier<AnalysisViewState>
   );
 }
 
+// MARK: - Constants
 final analysisViewModelProvider =
     AsyncNotifierProvider.family<
       AnalysisNotifier,
@@ -125,5 +130,6 @@ final analysisViewModelProvider =
       CategoryKind
     >(AnalysisNotifier.new);
 
+// MARK: - Helpers
 List<Slice> analysisSlices(AnalysisViewState state, DateRange window) =>
     slices(state.items, state.kind, window, state.ledgerState);

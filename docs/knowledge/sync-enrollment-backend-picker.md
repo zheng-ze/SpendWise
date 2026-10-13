@@ -73,7 +73,7 @@ Source:
   `_BackendPickerScreenState.build`;
   `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_flow.dart` -
   `_SyncEnrollmentFlowState.buildRoot`;
-  `app/lib/ui/common/flow_base.dart` - `FlowBaseState.showsOwnBackButton`,
+  `app/lib/ui/common/base/flow_base.dart` - `FlowBaseState.showsOwnBackButton`,
   `FlowBaseState.goBack`.
 - The picker's Back arrow is an `IconButton` keyed `syncPickerBack` with a
   `BackButtonIcon`; `onPressed` is null while `saving` is true. A `BackButton`

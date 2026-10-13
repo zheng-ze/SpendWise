@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
-import 'package:spendwise/ui/common/category_icon.dart';
+import 'package:spendwise/ui/common/lists/category_icon.dart';
 import 'package:spendwise/ui/symbol_map.dart';
 
+// MARK: - Constants
 const _gridColumns = 6;
+
+// MARK: - Helpers
 
 Map<String, List<String>> filterSymbolSections(
   Map<String, List<String>> sections,
@@ -22,6 +25,8 @@ Map<String, List<String>> filterSymbolSections(
   return result;
 }
 
+// MARK: - Show
+
 Future<String?> showSymbolPickerSheet({
   required BuildContext context,
   required String selected,
@@ -34,6 +39,7 @@ Future<String?> showSymbolPickerSheet({
   );
 }
 
+// MARK: - SymbolPicker
 class SymbolPicker extends StatefulWidget {
   const SymbolPicker({super.key, required this.selected, required this.color});
 
@@ -44,6 +50,7 @@ class SymbolPicker extends StatefulWidget {
   State<SymbolPicker> createState() => _SymbolPickerState();
 }
 
+// MARK: - SymbolPickerState
 class _SymbolPickerState extends State<SymbolPicker> {
   final _searchController = TextEditingController();
   String _query = '';
@@ -96,6 +103,7 @@ class _SymbolPickerState extends State<SymbolPicker> {
   }
 }
 
+// MARK: - SymbolSection
 class _SymbolSection extends StatelessWidget {
   const _SymbolSection({
     required this.title,

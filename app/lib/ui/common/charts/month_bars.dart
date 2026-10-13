@@ -4,17 +4,27 @@ import 'package:flutter/material.dart';
 import 'package:spendwise/ui/theme/spendwise_colors.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
+// MARK: - Constants
+
+const _emptyValue = 0.0;
+
+// MARK: - MonthBarStatus
 enum MonthBarStatus { value, incomplete, gap, blank }
 
+// MARK: - MonthBarSlot
 @immutable
 class MonthBarSlot {
-  const MonthBarSlot({this.value = 0, this.status = MonthBarStatus.value});
+  const MonthBarSlot({
+    this.value = _emptyValue,
+    this.status = MonthBarStatus.value,
+  });
 
   final double value;
 
   final MonthBarStatus status;
 }
 
+// MARK: - MonthBars
 class MonthBars extends StatelessWidget {
   const MonthBars({
     super.key,
@@ -87,7 +97,7 @@ class MonthBars extends StatelessWidget {
       },
     );
     final chartData = BarChartData(
-      minY: 0,
+      minY: _emptyValue,
       maxY: top,
       alignment: BarChartAlignment.spaceAround,
       gridData: const FlGridData(show: false),
@@ -125,7 +135,7 @@ class MonthBars extends StatelessWidget {
     final stubHeight = top * _stubFraction;
     if (selected) {
       final selectedHeight = switch (slot.status) {
-        MonthBarStatus.blank => 0.0,
+        MonthBarStatus.blank => _emptyValue,
         MonthBarStatus.gap => stubHeight,
         MonthBarStatus.value || MonthBarStatus.incomplete => slot.value,
       };
@@ -159,7 +169,10 @@ class MonthBars extends StatelessWidget {
         borderSide: BorderSide(color: colors.gap, width: _outlineWidth),
         borderDashArray: _dashPattern,
       ),
-      MonthBarStatus.blank => BarChartRodData(toY: 0, width: barWidth),
+      MonthBarStatus.blank => BarChartRodData(
+        toY: _emptyValue,
+        width: barWidth,
+      ),
     };
   }
 }

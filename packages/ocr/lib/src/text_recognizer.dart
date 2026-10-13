@@ -2,6 +2,8 @@ import 'recognizable_image.dart';
 import 'recognized_text.dart';
 import 'text_recognition_failure.dart';
 
+// MARK: - Recognizer
+
 /// Engine-swappable seam: implementations wrap a specific engine and map
 /// its result into [RecognizedText].
 abstract class TextRecognizer {

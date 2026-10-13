@@ -1,5 +1,7 @@
 import 'package:flutter/services.dart';
 
+// MARK: - Engine
+
 /// The single engine call [VisionTextRecognizer] needs from the native
 /// Vision recognizer.
 abstract class VisionEngine {
@@ -11,6 +13,8 @@ abstract class VisionEngine {
   /// recognizer never reports one.
   Future<List<Map<Object?, Object?>>> recognizeText(Uint8List imageBytes);
 }
+
+// MARK: - Plugin
 
 /// Runs the real native Vision recognizer over the
 /// `spendwise/vision_text_recognizer` method channel.

@@ -5,8 +5,10 @@ import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 
+// MARK: - Constants
 const double dayHeaderHeight = 56;
 
+// MARK: - DayHeader
 class DayHeader extends StatelessWidget {
   const DayHeader({super.key, required this.day, required this.net});
 
@@ -54,6 +56,7 @@ class DayHeader extends StatelessWidget {
   }
 }
 
+// MARK: - DayHeaderDelegate
 class DayHeaderDelegate extends SliverPersistentHeaderDelegate {
   const DayHeaderDelegate({required this.day, required this.net});
 

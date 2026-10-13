@@ -3,7 +3,11 @@ import 'package:ocr/ocr.dart';
 
 import 'platform_adapter_selection.dart';
 
+// MARK: - Factory
+
 typedef TextRecognizerFactory = TextRecognizer Function();
+
+// MARK: - Selection
 
 TextRecognizer? selectRecognizer({
   bool? isIOS,

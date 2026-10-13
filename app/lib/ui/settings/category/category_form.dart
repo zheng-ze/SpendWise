@@ -2,24 +2,14 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ui/common/category_icon.dart';
-import 'package:spendwise/ui/common/delete_confirmation.dart';
-import 'package:spendwise/ui/common/error_section.dart';
-import 'package:spendwise/ui/common/form_scaffold.dart';
+import 'package:spendwise/ui/common/feedback/delete_confirmation.dart';
+import 'package:spendwise/ui/common/feedback/error_section.dart';
+import 'package:spendwise/ui/common/inputs/form_scaffold.dart';
 import 'package:spendwise/ui/common/pickers/symbol_picker.dart';
+import 'package:spendwise/ui/settings/category/category_form_fields.dart';
 import 'package:spendwise/ui/settings/category/category_form_view_model.dart';
-import 'package:spendwise/ui/theme/spendwise_text.dart';
 
-const _swatches = [
-  defaultCategoryColor,
-  Color(0xFFFF3B30),
-  Color(0xFFFF9500),
-  Color(0xFFFFCC00),
-  Color(0xFF34C759),
-  Color(0xFF5AC8FA),
-  Color(0xFFAF52DE),
-  Color(0xFF8E8E93),
-];
+// MARK: - Show
 
 Future<void> showCategoryFormSheet({
   required BuildContext context,
@@ -35,6 +25,8 @@ Future<void> showCategoryFormSheet({
   );
 }
 
+// MARK: - Form
+
 class CategoryForm extends ConsumerStatefulWidget {
   const CategoryForm({super.key, this.category, this.presetParentID});
 
@@ -44,6 +36,8 @@ class CategoryForm extends ConsumerStatefulWidget {
   @override
   ConsumerState<CategoryForm> createState() => _CategoryFormState();
 }
+
+// MARK: - Form State
 
 class _CategoryFormState extends ConsumerState<CategoryForm> {
   late final TextEditingController _nameController = TextEditingController();
@@ -155,6 +149,8 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
   }
 }
 
+// MARK: - Body
+
 class _CategoryFormBody extends StatelessWidget {
   const _CategoryFormBody({
     required this.formState,
@@ -167,91 +163,13 @@ class _CategoryFormBody extends StatelessWidget {
   final TextEditingController nameController;
 
   static const _fieldGap = 16.0;
-  static const _colorLabelGap = 8.0;
   static const _deleteSectionGap = 24.0;
-  static const _lockedNoteTopPadding = 4.0;
-  static const _swatchSpacing = 12.0;
-  static const _swatchSize = 32.0;
-  static const _selectedSwatchBorderWidth = 2.0;
-  static const _disabledKindOpacity = 0.5;
 
   @override
   Widget build(BuildContext context) {
     if (nameController.text != formState.name) {
       nameController.text = formState.name;
     }
-
-    final theme = Theme.of(context);
-    final nameField = TextField(
-      controller: nameController,
-      decoration: const InputDecoration(hintText: 'Name'),
-      onChanged: viewModel.setName,
-    );
-    final kindSelector = IgnorePointer(
-      ignoring: formState.kindLocked,
-      child: Opacity(
-        opacity: formState.kindLocked ? _disabledKindOpacity : 1,
-        child: SegmentedButton<CategoryKind>(
-          segments: const [
-            ButtonSegment(value: CategoryKind.income, label: Text('Income')),
-            ButtonSegment(value: CategoryKind.expense, label: Text('Expense')),
-          ],
-          selected: {formState.kind},
-          onSelectionChanged: formState.kindLocked
-              ? null
-              : (selection) => viewModel.setKind(selection.first),
-        ),
-      ),
-    );
-    final symbolTile = ListTile(
-      contentPadding: EdgeInsets.zero,
-      title: const Text('Symbol'),
-      leading: CategoryIcon(
-        symbolName: formState.symbol,
-        color: formState.color,
-      ),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: viewModel.requestPickSymbol,
-    );
-    final colorLabel = Text('Color', style: theme.textTheme.labelLarge);
-    final colorPicker = Wrap(
-      spacing: _swatchSpacing,
-      children: [
-        for (final swatch in _swatches)
-          InkWell(
-            customBorder: const CircleBorder(),
-            onTap: () => viewModel.setColor(swatch),
-            child: Container(
-              width: _swatchSize,
-              height: _swatchSize,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: swatch,
-                border: swatch == formState.color
-                    ? Border.all(
-                        color: context.colors.text,
-                        width: _selectedSwatchBorderWidth,
-                      )
-                    : null,
-              ),
-            ),
-          ),
-      ],
-    );
-    final analysisSwitch = SwitchListTile(
-      contentPadding: EdgeInsets.zero,
-      title: const Text('Include in analysis'),
-      value: formState.includeInAnalysis,
-      onChanged: viewModel.setIncludeInAnalysis,
-    );
-    final deleteButton = SizedBox(
-      width: double.infinity,
-      child: FilledButton(
-        style: FilledButton.styleFrom(backgroundColor: theme.colorScheme.error),
-        onPressed: viewModel.requestDelete,
-        child: const Text('Delete Category'),
-      ),
-    );
 
     return FormScaffold(
       title: formState.title,
@@ -261,37 +179,40 @@ class _CategoryFormBody extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          nameField,
+          CategoryFormNameField(
+            controller: nameController,
+            onChanged: viewModel.setName,
+          ),
           const SizedBox(height: _fieldGap),
-          kindSelector,
-          if (formState.kindLocked)
-            Padding(
-              padding: const EdgeInsets.only(top: _lockedNoteTopPadding),
-              child: Text(
-                'Type is locked while transactions use this category.',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
+          CategoryKindSelector(
+            kind: formState.kind,
+            locked: formState.kindLocked,
+            onKindSelected: viewModel.setKind,
+          ),
           const SizedBox(height: _fieldGap),
-          symbolTile,
+          CategorySymbolTile(
+            symbol: formState.symbol,
+            color: formState.color,
+            onTap: viewModel.requestPickSymbol,
+          ),
           const SizedBox(height: _fieldGap),
-          colorLabel,
-          const SizedBox(height: _colorLabelGap),
-          colorPicker,
+          CategoryColorPicker(
+            selected: formState.color,
+            onColorSelected: viewModel.setColor,
+          ),
           const SizedBox(height: _fieldGap),
-          analysisSwitch,
+          CategoryAnalysisSwitch(
+            value: formState.includeInAnalysis,
+            onChanged: viewModel.setIncludeInAnalysis,
+          ),
           if (formState.showParentPicker)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Parent'),
-              trailing: Text(formState.parentLabel ?? 'None'),
+            CategoryParentTile(
+              parentLabel: formState.parentLabel,
               onTap: viewModel.requestPickParent,
             ),
           if (formState.isEditing) ...[
             const SizedBox(height: _deleteSectionGap),
-            deleteButton,
+            CategoryDeleteButton(onPressed: viewModel.requestDelete),
           ],
         ],
       ),

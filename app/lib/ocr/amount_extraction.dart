@@ -1,6 +1,8 @@
 import 'package:decimal/decimal.dart';
 import 'package:ocr/ocr.dart';
 
+// MARK: - Constants
+
 final _grandTotalKeywords = [
   'TOTAL DUE',
   'GRAND TOTAL',
@@ -12,6 +14,8 @@ final _falseMatchKeywords = ['SUBTOTAL', 'TAX'];
 final _currencyNumber = RegExp(
   r'\$?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?|\d+\.\d{1,2})',
 );
+
+// MARK: - Extraction
 
 Decimal? extractAmount(RecognizedText text) {
   for (final line in text.lines) {
@@ -25,6 +29,8 @@ Decimal? extractAmount(RecognizedText text) {
 
   return _lastCurrencyNumberInReceipt(text);
 }
+
+// MARK: - Parsing
 
 Decimal? _lastCurrencyNumberInReceipt(RecognizedText text) {
   Decimal? last;

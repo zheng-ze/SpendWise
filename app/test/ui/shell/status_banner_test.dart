@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:domain/domain.dart';
 import 'package:spendwise/boot/banner_state.dart';
 import 'package:spendwise/boot/providers.dart';
-import 'package:spendwise/persistence/ledger_store.dart';
+import 'package:spendwise/persistence/store/ledger_store.dart';
 import 'package:spendwise/sync/hosted_sync_status.dart';
 import 'package:spendwise/ui/shell/status_banner.dart';
 

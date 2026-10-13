@@ -1,5 +1,6 @@
 import 'package:domain/domain.dart';
 
+// MARK: - Constants
 const _accountTypeLabels = <AccountType, String>{
   AccountType.cash: 'Cash',
   AccountType.checking: 'Checking',
@@ -13,4 +14,5 @@ const _accountTypeLabels = <AccountType, String>{
   AccountType.overdraft: 'Overdraft',
 };
 
+// MARK: - Helpers
 String accountTypeLabel(AccountType type) => _accountTypeLabels[type]!;

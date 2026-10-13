@@ -2,12 +2,13 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ui/common/category_icon.dart';
-import 'package:spendwise/ui/common/swipe_to_delete_row.dart';
+import 'package:spendwise/ui/common/lists/category_icon.dart';
+import 'package:spendwise/ui/common/lists/swipe_to_delete_row.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
 import 'package:spendwise/ui/settings/category/category_form.dart';
 import 'package:spendwise/ui/settings/category/category_list_view_model.dart';
 
+// MARK: - CategoryListScreen
 class CategoryListScreen extends ConsumerStatefulWidget {
   const CategoryListScreen({super.key});
 
@@ -15,6 +16,7 @@ class CategoryListScreen extends ConsumerStatefulWidget {
   ConsumerState<CategoryListScreen> createState() => _CategoryListScreenState();
 }
 
+// MARK: - CategoryListScreenState
 class _CategoryListScreenState extends ConsumerState<CategoryListScreen> {
   ProviderSubscription<AsyncValue<CategoryListViewState>>? _stepSubscription;
 
@@ -71,6 +73,7 @@ class _CategoryListScreenState extends ConsumerState<CategoryListScreen> {
   }
 }
 
+// MARK: - CategoryListScreenBody
 class _CategoryListScreenBody extends StatelessWidget {
   const _CategoryListScreenBody({
     required this.viewState,
@@ -114,6 +117,7 @@ class _CategoryListScreenBody extends StatelessWidget {
   }
 }
 
+// MARK: - CategorySection
 class _CategorySection extends StatelessWidget {
   const _CategorySection({
     required this.title,
@@ -190,6 +194,7 @@ class _CategorySection extends StatelessWidget {
   }
 }
 
+// MARK: - CategoryRow
 class _CategoryRow extends StatelessWidget {
   const _CategoryRow({
     required this.category,
@@ -202,6 +207,7 @@ class _CategoryRow extends StatelessWidget {
   final VoidCallback? onAddSubcategory;
 
   static const _childIndent = 24.0;
+  static const _rootIndent = 0.0;
   static const _rowLeftPadding = 16.0;
   static const _rowRightPadding = 8.0;
   static const _iconSize = 30.0;
@@ -209,7 +215,7 @@ class _CategoryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final indent = category.parentID != null ? _childIndent : 0.0;
+    final indent = category.parentID != null ? _childIndent : _rootIndent;
     final color = parseColorHex(category.colorHex);
 
     return ListTile(

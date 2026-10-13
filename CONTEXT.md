@@ -118,7 +118,7 @@ input means" is a documented convention here, not tool-enforced — reviewed the
 convention violation is caught.
 
 Every ViewModel backed by the app's single `Ledger` uses the `LedgerBackedNotifier` mixin
-(`app/lib/ui/common/ledger_backed_notifier.dart`) rather than repeating its own ledger accessor and
+(`app/lib/ui/common/base/ledger_backed_notifier.dart`) rather than repeating its own ledger accessor and
 state-update helper. The mixin gives a notifier a `ledger` getter that throws if the ledger is not
 ready yet, and an `updateState()` method that applies a transform to the current `ViewState` and
 no-ops if the provider has already been disposed — the guard a picker callback needs when its

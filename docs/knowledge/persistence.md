@@ -12,23 +12,23 @@ Lives in `app/lib/persistence/`.
 
 ## Key files
 
-- `app/lib/persistence/ledger_store.dart` — the `LedgerStore` abstract contract,
+- `app/lib/persistence/store/ledger_store.dart` — the `LedgerStore` abstract contract,
   `SaveBannerState` (including `permanentlyFailed`), and `SaveErrorHandler`.
-- `app/lib/persistence/drift_ledger_store.dart` — the Drift implementation of the pipeline and
+- `app/lib/persistence/store/drift_ledger_store.dart` — the Drift implementation of the pipeline and
   `PermanentSaveError` classification for undecodable stored version vectors.
 - `app/lib/boot/banner_state.dart` — the `SaveBannerState` consumer that maps
   `permanentlyFailed` to `"Couldn't save changes"`.
-- `app/lib/persistence/ledger_database.dart`, `ledger_database.g.dart`, `tables.dart` — schema and
+- `app/lib/persistence/database/ledger_database.dart`, `ledger_database.g.dart`, `tables.dart` — schema and
   generated row models.
-- `app/lib/persistence/mappers.dart` — domain ↔ row mapping.
+- `app/lib/persistence/mappers/mappers.dart` — domain ↔ row mapping.
 - `app/lib/persistence/version_vector.dart` — `VersionVector` and its JSON codec.
-- `app/lib/persistence/database_connection.dart` — `openLedgerConnection`, which imports
+- `app/lib/persistence/database/database_connection.dart` — `openLedgerConnection`, which imports
   `database_connection_native.dart` directly (no conditional import; web support was dropped in
   commit `e7a963d`).
-- `app/lib/persistence/database_connection_native.dart` — `openConnection`, which opens a
+- `app/lib/persistence/database/database_connection_native.dart` — `openConnection`, which opens a
   `NativeDatabase` file under the app's documents directory on every supported platform (Android,
   iOS, macOS, Windows, Linux).
-- `app/lib/persistence/persistence_processor.dart` — bus-to-store bridge (also `ledger_runtime.md`).
+- `app/lib/persistence/store/persistence_processor.dart` — bus-to-store bridge (also `ledger_runtime.md`).
 
 ## Module interactions
 
@@ -85,18 +85,18 @@ Constants: `debounce = 250 ms`, `maxRetries = 2`, `retryBackoff = 200 ms` (`drif
    `failedWillRetry` and arm a timed retry; `PermanentSaveError` reports `permanentlyFailed` and
    returns without arming one. Retries and later partial-prefix cycles recompute coalescing from
    the still-pending pairs, so stamp provenance survives them.
-   (`app/lib/persistence/drift_ledger_store.dart:_runCycle`)
+   (`app/lib/persistence/store/drift_ledger_store.dart:_runCycle`)
 5. **`flushNow` barrier** — calls `start()` defensively, pushes a barrier, cancels the debounce
    timer, awaits any in-flight flush, then loops flush cycles until `pending` is empty (or a cycle
    gives up after reporting a retryable or terminal failure state.
-   (`app/lib/persistence/drift_ledger_store.dart:flushNow`, `_runCycle`)
+   (`app/lib/persistence/store/drift_ledger_store.dart:flushNow`, `_runCycle`)
 
 ### Terminal save failures
 
 `_decodeVersion` converts `VersionVectorDecodeError` from `versionFromRow` into
 `PermanentSaveError`; both upserts and tombstones use it before bumping a stored vector.
 `_runCycle` catches that type before `Object`, reports `SaveBannerState.permanentlyFailed`, and
-does not arm a timed retry. (`app/lib/persistence/drift_ledger_store.dart:_decodeVersion`,
+does not arm a timed retry. (`app/lib/persistence/store/drift_ledger_store.dart:_decodeVersion`,
 `_bumpedVersion`, `_tombstone`, `_runCycle`; commit `2445ed2`)
 
 Drift's transaction implementation rolls back and rethrows the callback exception unchanged, so
@@ -106,7 +106,7 @@ the preceding typed catch receives `PermanentSaveError` rather than the generic 
 A terminally failing change remains in `_pending`: only a committed transaction removes its raw
 prefix. Each later cycle coalesces the full pending prefix and applies it in one transaction, so a
 new unrelated change shares the failing transaction until the corrupted row is repaired.
-(`app/lib/persistence/drift_ledger_store.dart:_runCycle`, `_coalesce`; commit `2445ed2`)
+(`app/lib/persistence/store/drift_ledger_store.dart:_runCycle`, `_coalesce`; commit `2445ed2`)
 
 ## Version vector
 
@@ -120,7 +120,7 @@ object; decode recognizes both the normalized object form and the Swift alternat
 Decode failure does not affect boot because `loadChanges` never decodes `version_data`; the next
 unstamped write or tombstone of that row classifies it as `PermanentSaveError` instead of silently resetting
 causal history, while a stamped survivor bypasses that decode and overwrites a corrupt stored
-vector with its verbatim stamp. (`app/lib/persistence/drift_ledger_store.dart:loadChanges`, `_decodeVersion`,
+vector with its verbatim stamp. (`app/lib/persistence/store/drift_ledger_store.dart:loadChanges`, `_decodeVersion`,
 `_bumpedVersion`, `_tombstone`; commit `2445ed2`)
 
 ## Tombstones and load
@@ -143,8 +143,8 @@ non-active lifecycle on a live entry. A corrupt stored row fails the invariant s
 
 Downgrading the app while binned entries exist is unsupported: an older build replays lifecycle 1
 rows into `entries`, fails the invariant sweep at boot, and cannot start until the app is upgraded
-again. (`app/lib/persistence/drift_ledger_store.dart:loadChanges`,
-`app/lib/persistence/mappers.dart:entryToRow`; tests `anArchivedEntryPersistsAsLifecycleOneAndReloadsIntoTheBin`,
+again. (`app/lib/persistence/store/drift_ledger_store.dart:loadChanges`,
+`app/lib/persistence/mappers/mappers.dart:entryToRow`; tests `anArchivedEntryPersistsAsLifecycleOneAndReloadsIntoTheBin`,
 `restoringAnArchivedEntryPersistsLifecycleZero`, `purgingAnArchivedEntryWritesTheTombstone` in
 `drift_ledger_store_test.dart`)
 

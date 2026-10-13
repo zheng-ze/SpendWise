@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show immutable;
 
 import 'package:spendwise/ui/accounts/helpers/card_math.dart';
 
+// MARK: - Constants
 const _sectionOrder = [
   AccountType.cash,
   AccountType.checking,
@@ -14,11 +15,13 @@ const _sectionOrder = [
   AccountType.other,
 ];
 
+// MARK: - RowAmount
 @immutable
 sealed class RowAmount {
   const RowAmount();
 }
 
+// MARK: - SingleTotal
 @immutable
 class SingleTotal extends RowAmount {
   const SingleTotal(this.total);
@@ -26,6 +29,7 @@ class SingleTotal extends RowAmount {
   final Decimal total;
 }
 
+// MARK: - CardAmounts
 @immutable
 class CardAmounts extends RowAmount {
   const CardAmounts({required this.payable, required this.outstanding});
@@ -34,6 +38,7 @@ class CardAmounts extends RowAmount {
   final Decimal outstanding;
 }
 
+// MARK: - PocketRow
 @immutable
 class PocketRow {
   const PocketRow({
@@ -47,6 +52,7 @@ class PocketRow {
   final Decimal balance;
 }
 
+// MARK: - AccountRow
 @immutable
 class AccountRow {
   const AccountRow({
@@ -64,11 +70,13 @@ class AccountRow {
   final List<PocketRow> pockets;
 }
 
+// MARK: - SectionHeader
 @immutable
 sealed class SectionHeader {
   const SectionHeader();
 }
 
+// MARK: - SubtotalHeader
 @immutable
 class SubtotalHeader extends SectionHeader {
   const SubtotalHeader(this.subtotal);
@@ -76,6 +84,7 @@ class SubtotalHeader extends SectionHeader {
   final Decimal subtotal;
 }
 
+// MARK: - CardHeader
 @immutable
 class CardHeader extends SectionHeader {
   const CardHeader({required this.payable, required this.outstanding});
@@ -84,6 +93,7 @@ class CardHeader extends SectionHeader {
   final Decimal outstanding;
 }
 
+// MARK: - AccountSection
 @immutable
 class AccountSection {
   const AccountSection({
@@ -97,6 +107,7 @@ class AccountSection {
   final SectionHeader header;
 }
 
+// MARK: - Section Builder
 List<AccountSection> accountSections(
   LedgerState state, {
   required DateTime now,
@@ -134,6 +145,7 @@ List<AccountSection> accountSections(
   return sections;
 }
 
+// MARK: - Row Builder
 AccountRow _row(
   Account account, {
   required LedgerState state,
@@ -188,6 +200,7 @@ AccountRow _row(
   );
 }
 
+// MARK: - Header Builder
 SectionHeader _header(AccountType type, List<AccountRow> rows) {
   if (type == AccountType.card) {
     var payableSum = Decimal.zero;

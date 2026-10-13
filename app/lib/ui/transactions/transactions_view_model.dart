@@ -4,16 +4,18 @@ import 'package:domain/domain.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
-import 'package:spendwise/ui/common/step_emitting.dart';
+import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
+import 'package:spendwise/ui/common/base/step_emitting.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart' show startOfMonthUtc;
 import 'package:spendwise/ui/stats/helpers/stats_window.dart';
 import 'package:spendwise/ui/transactions/daily_list/day_sections.dart';
 import 'package:spendwise/ui/transactions/monthly/month_summaries.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
 
+// MARK: - TransactionsScreenMode
 enum TransactionsScreenMode { daily, monthly }
 
+// MARK: - Steps
 sealed class TransactionsStep {}
 
 class EntryFormRequested extends TransactionsStep {
@@ -42,6 +44,7 @@ class DocumentCropRequested extends TransactionsStep {
 
 class SourceEditRequested extends TransactionsStep {}
 
+// MARK: - TransactionsViewState
 class TransactionsViewState
     implements HasStep<TransactionsViewState, TransactionsStep> {
   const TransactionsViewState({
@@ -96,6 +99,7 @@ class TransactionsViewState
       copyWith(step: step);
 }
 
+// MARK: - TransactionsViewModel
 abstract class TransactionsViewModel {
   void setDate(DateTime date);
   void setMode(TransactionsScreenMode mode);
@@ -107,6 +111,7 @@ abstract class TransactionsViewModel {
   void clearStep();
 }
 
+// MARK: - TransactionsNotifier
 class TransactionsNotifier extends AsyncNotifier<TransactionsViewState>
     with
         LedgerBackedNotifier<TransactionsViewState>,
@@ -233,6 +238,7 @@ class TransactionsNotifier extends AsyncNotifier<TransactionsViewState>
   }
 }
 
+// MARK: - Constants
 final transactionsViewModelProvider =
     AsyncNotifierProvider.family<
       TransactionsNotifier,

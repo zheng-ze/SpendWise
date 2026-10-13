@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:spendwise/boot/providers.dart';
-import 'package:spendwise/persistence/device_identity.dart';
+import 'package:spendwise/persistence/store/device_identity.dart';
 import 'package:spendwise/sync/enrollment_snapshot_publisher.dart';
 import 'package:spendwise/sync/reconciliation_snapshot_hasher.dart';
 import 'package:spendwise/sync/secret_store.dart';

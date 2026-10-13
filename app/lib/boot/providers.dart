@@ -12,13 +12,15 @@ import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/analysis_queries.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ledger/ledger_session.dart';
-import 'package:spendwise/persistence/database_connection.dart';
-import 'package:spendwise/persistence/drift_ledger_store.dart';
-import 'package:spendwise/persistence/ledger_database.dart';
-import 'package:spendwise/persistence/ledger_store.dart';
-import 'package:spendwise/persistence/persistence_processor.dart';
+import 'package:spendwise/persistence/database/database_connection.dart';
+import 'package:spendwise/persistence/store/drift_ledger_store.dart';
+import 'package:spendwise/persistence/database/ledger_database.dart';
+import 'package:spendwise/persistence/store/ledger_store.dart';
+import 'package:spendwise/persistence/store/persistence_processor.dart';
 import 'package:spendwise/sync/hosted_sync_status.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
+
+// MARK: - Database
 
 final databaseConnectionProvider = Provider<Future<QueryExecutor>>((ref) {
   return openLedgerConnection();
@@ -40,9 +42,13 @@ final syncMetadataStoreProvider = Provider<SyncMetadataStore>((ref) {
   return SyncMetadataStore(ref.watch(ledgerDatabaseProvider));
 });
 
+// MARK: - Banners
+
 final bannerStateProvider = ChangeNotifierProvider<BannerState>((ref) {
   return BannerState();
 });
+
+// MARK: - Analysis
 
 final analysisComputeRunnerProvider = Provider<ComputeRunner>(
   (ref) => isolateComputeRunner,
@@ -68,6 +74,8 @@ final analysisQueriesProvider = ChangeNotifierProvider<AnalysisQueries?>((ref) {
   ref.listen(todayProvider, (_, today) => queries.setToday(today));
   return queries;
 });
+
+// MARK: - Boot
 
 final appBootProvider = ChangeNotifierProvider<AppBoot>((ref) {
   final banner = ref.read(bannerStateProvider.notifier);
@@ -110,6 +118,8 @@ final persistenceProcessorProvider = Provider<PersistenceProcessor?>((ref) {
   final phase = ref.watch(appPhaseProvider);
   return phase is Ready ? phase.persistence : null;
 });
+
+// MARK: - Clock
 
 final clockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
 

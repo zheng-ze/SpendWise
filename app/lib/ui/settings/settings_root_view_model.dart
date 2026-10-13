@@ -1,7 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ui/common/step_emitting.dart';
+import 'package:spendwise/ui/common/base/step_emitting.dart';
 
+// MARK: - Steps
 sealed class SettingsStep {}
 
 class CategoriesRequested extends SettingsStep {}
@@ -16,6 +17,7 @@ class StartHostedEnrollmentRequested extends SettingsStep {}
 
 class ResumeFreshEnrollmentRequested extends SettingsStep {}
 
+// MARK: - SettingsRootViewState
 class SettingsRootViewState
     implements HasStep<SettingsRootViewState, SettingsStep> {
   const SettingsRootViewState({this.step});
@@ -32,6 +34,7 @@ class SettingsRootViewState
       copyWith(step: step);
 }
 
+// MARK: - SettingsRootViewModel
 abstract class SettingsRootViewModel {
   void requestCategories();
   void requestPlans();
@@ -42,6 +45,7 @@ abstract class SettingsRootViewModel {
   void clearStep();
 }
 
+// MARK: - SettingsRootNotifier
 class SettingsRootNotifier extends Notifier<SettingsRootViewState>
     with StepEmitting<SettingsRootViewState, SettingsStep>
     implements SettingsRootViewModel {
@@ -74,6 +78,7 @@ class SettingsRootNotifier extends Notifier<SettingsRootViewState>
       emitStep(ResumeFreshEnrollmentRequested());
 }
 
+// MARK: - Constants
 final settingsRootViewModelProvider =
     NotifierProvider<SettingsRootNotifier, SettingsRootViewState>(
       SettingsRootNotifier.new,

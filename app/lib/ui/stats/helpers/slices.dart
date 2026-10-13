@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart' show immutable;
 
 import 'package:spendwise/ui/format/color_hex.dart';
 
+// MARK: - Constants
 const _uncategorizedSymbol = 'help_outline';
 const _syntheticTransferSymbol = 'swap_horiz';
 
@@ -20,6 +21,7 @@ const _syntheticTransferNames = <AccountType, String>{
 
 const _fractionScale = 12;
 
+// MARK: - Slice
 @immutable
 class Slice {
   const Slice({
@@ -46,6 +48,7 @@ class Slice {
       syntheticTransferExpenseAccountType(bucketID!) != null;
 }
 
+// MARK: - Helpers
 List<Slice> slices(
   List<AnalysisItem> items,
   CategoryKind kind,

@@ -2,8 +2,8 @@ import 'package:decimal/decimal.dart';
 import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
-import 'package:spendwise/ledger/analysis/compared_with_usual.dart';
-import 'package:spendwise/ledger/analysis/completeness.dart';
+import 'package:spendwise/ledger/analysis/breakdowns/compared_with_usual.dart';
+import 'package:spendwise/ledger/analysis/insights/completeness.dart';
 import 'package:spendwise/ledger/analysis_queries.dart';
 import 'package:spendwise/ledger/ledger.dart';
 

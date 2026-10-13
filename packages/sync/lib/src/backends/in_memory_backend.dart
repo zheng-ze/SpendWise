@@ -1,68 +1,6 @@
 part of '../../sync.dart';
 
-typedef PushHandler = Future<SyncOutcome<PushResponse>> Function(
-  SyncCredential credential,
-  PushRequest request,
-);
-typedef PullHandler = Future<SyncOutcome<PullResponse>> Function(
-  SyncCredential credential,
-  PullRequest request,
-);
-typedef ReconcileHandler = Future<SyncOutcome<ReconcileResponse>> Function(
-  SyncCredential credential,
-  ReconcileRequest request,
-);
-typedef AcknowledgeHandler = Future<SyncOutcome<AcknowledgeResponse>> Function(
-  SyncCredential credential,
-  AcknowledgeRequest request,
-);
-
-final class _EmulatedBinding {
-  _EmulatedBinding({
-    required this.bearerToken,
-    required this.deviceSecret,
-    required this.generation,
-  });
-
-  String bearerToken;
-  String? deviceSecret;
-  int generation;
-  bool retired = false;
-  bool bearerExpired = false;
-}
-
-final class _EmulatedChallenge {
-  _EmulatedChallenge({
-    required this.challengeID,
-    required this.identifier,
-    required this.deviceID,
-    required this.expiresAt,
-  });
-
-  final String challengeID;
-  final String identifier;
-  final String deviceID;
-  final DateTime expiresAt;
-}
-
-final class _EmulatedAuthorization {
-  _EmulatedAuthorization({
-    required this.token,
-    required this.deviceID,
-    required this.generation,
-    required this.sessionBearer,
-    required this.priorBearer,
-    required this.expiresAt,
-  });
-
-  final String token;
-  final String deviceID;
-  final int generation;
-  final String sessionBearer;
-  final String? priorBearer;
-  final DateTime expiresAt;
-  bool consumed = false;
-}
+// MARK: - In-Memory Backend
 
 /// Lightweight fake for coordinator and adapter-contract tests.
 ///
@@ -109,6 +47,8 @@ final class InMemorySyncBackend
 
   final List<String> calls = <String>[];
 
+  // MARK: - Provisioning
+
   void provisionBoundDevice({
     required String deviceID,
     required String bearerToken,
@@ -137,6 +77,8 @@ final class InMemorySyncBackend
   void retireDevice(String deviceID) {
     _bindings[normalizedID(deviceID)]?.retired = true;
   }
+
+  // MARK: - Transport
 
   @override
   Future<SyncOutcome<PushResponse>> push(
@@ -194,6 +136,8 @@ final class InMemorySyncBackend
     return _onAcknowledge?.call(credential, request) ??
         SyncSuccess(AcknowledgeResponse(const {}));
   }
+
+  // MARK: - Binding Emulation
 
   @override
   Future<SyncOutcome<StartDeviceBindingResponse>> startBinding(
@@ -284,6 +228,8 @@ final class InMemorySyncBackend
       ),
     );
   }
+
+  // MARK: - Credential Matching
 
   SyncFailure<T>? _gate<T>(SyncCredential credential) {
     final deviceID = _deviceIDOf(credential);

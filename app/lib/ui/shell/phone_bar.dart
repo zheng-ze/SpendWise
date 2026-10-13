@@ -6,6 +6,7 @@ import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 import 'package:spendwise/ui/transactions/entry/new_entry_presenter.dart';
 
+// MARK: - Constants
 const _barKey = ValueKey('phone-bar');
 
 const _barMargin = EdgeInsets.fromLTRB(8, 0, 8, 8);
@@ -32,6 +33,7 @@ const _destinationsAfterAdd = [
   ShellDestination.settings,
 ];
 
+// MARK: - PhoneBar
 class PhoneBar extends ConsumerWidget {
   const PhoneBar({
     super.key,
@@ -85,6 +87,7 @@ class PhoneBar extends ConsumerWidget {
   }
 }
 
+// MARK: - BarSlot
 class _BarSlot extends StatelessWidget {
   const _BarSlot({
     required this.selected,
@@ -117,6 +120,7 @@ class _BarSlot extends StatelessWidget {
   }
 }
 
+// MARK: - BarDestination
 class _BarDestination extends StatelessWidget {
   const _BarDestination({
     required this.destination,
@@ -158,6 +162,7 @@ class _BarDestination extends StatelessWidget {
   }
 }
 
+// MARK: - BarAdd
 class _BarAdd extends StatelessWidget {
   const _BarAdd({required this.onTap});
 

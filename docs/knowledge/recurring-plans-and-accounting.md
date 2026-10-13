@@ -17,7 +17,7 @@ classification from the entry log as pure static functions.
   `classify`, `rollUp`, and the filtering helpers.
 - `packages/domain/lib/src/analysis/analysis_item.dart`, `net_worth.dart`, `synthetic_buckets.dart`,
   `card_statement.dart` - domain analysis value types and the pure card-statement query.
-- `packages/domain/lib/src/ledger_state/ledger_state_plans.dart` - the plan mutators on `LedgerState`.
+- `packages/domain/lib/src/ledger_state/mutators/ledger_state_plans.dart` - the plan mutators on `LedgerState`.
 - `packages/domain/lib/src/time/calendar_day.dart`, `date_range.dart`, `year_month.dart` - date
   helpers, including the month-clamp function.
 
@@ -120,7 +120,7 @@ result types stay under `app/lib/ledger/analysis/`. The domain additions to the 
 are `CardStatement` and `cardStatement`
 (`packages/domain/lib/src/analysis/card_statement.dart`) and the public
 `LedgerState.resolvedEntryOrNull`
-(`packages/domain/lib/src/ledger_state/ledger_state_entries.dart`); everything else lives in
+(`packages/domain/lib/src/ledger_state/mutators/ledger_state_entries.dart`); everything else lives in
 `app/lib/ledger/analysis_queries.dart` and `app/lib/ledger/analysis/`.
 
 `upcomingPlanOccurrences` starts strictly after `lastResolvedDate`, bounded by today and the
@@ -129,14 +129,14 @@ requested `[start, end)` window. It delegates anchor-based generation and end-da
 ahead of today suppresses earlier dates. Any deterministic `OccurrenceID` already present in
 `ledger.entries` or `ledger.binnedEntries` suppresses the projection. It validates each
 made entry through `LedgerState.resolvedEntryOrNull`
-(`packages/domain/lib/src/ledger_state/ledger_state_entries.dart`) and skips occurrences that
+(`packages/domain/lib/src/ledger_state/mutators/ledger_state_entries.dart`) and skips occurrences that
 resolution would reject: zero amount, inactive or unknown holder or category, and kind mismatch.
 A negative-amount transfer is projected with the swapped endpoints and positive amount that
 resolution stores, because `resolvedEntryOrNull` applies the swap through `_validated`. It constructs
 temporary entry records from the resolved entries without inserting entries, advancing cursors, or
 resolving plans.
-Upcoming and calendar share this helper (`app/lib/ledger/analysis/upcoming.dart`,
-`app/lib/ledger/analysis/calendar.dart`; `app/test/ledger/analysis_service_test.dart`:
+Upcoming and calendar share this helper (`app/lib/ledger/analysis/summaries/upcoming.dart`,
+`app/lib/ledger/analysis/summaries/calendar.dart`; `app/test/ledger/analysis_service_test.dart`:
 `upcomingMergesKindsWithTieOrderAndCursorRules`, `calendarMarksRecordedAndPlannedDays`,
 `negativeTransferPlanProjectsAsResolved`, `unresolvablePlansAreAbsentFromUpcomingAndCalendar`;
 `packages/domain/test/ledger_state/ledger_state_plans_test.dart`: the group `negative-amount transfer plan normalization`, whose test `a resolved
@@ -149,7 +149,7 @@ without changing `state.entries`).
 selected-day totals.
 Its `registerTotals` calls `Accounting.totals`, which applies entry-level analysis gates while
 retaining excluded-category amounts. `Accounting.classify` excludes those categories, so register
-and analysis totals intentionally differ (`app/lib/ledger/analysis/register.dart`,
+and analysis totals intentionally differ (`app/lib/ledger/analysis/summaries/register.dart`,
 `packages/domain/lib/src/accounting.dart`; `analysis_service_test.dart`:
 `registerPreservesDaySectionsAccounting`).
 

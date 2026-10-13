@@ -3,10 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart'
     show BudgetFormSaved, BudgetsStep, PickCategoryRequested;
-import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
-import 'package:spendwise/ui/common/step_emitting.dart';
+import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
+import 'package:spendwise/ui/common/base/step_emitting.dart';
 import 'package:spendwise/ui/format/amount_parse.dart';
 
+// MARK: - Category Grouping
 List<(TransactionCategory, List<TransactionCategory>)> groupedBudgetCategories(
   LedgerState state,
 ) {
@@ -40,6 +41,7 @@ List<(TransactionCategory, List<TransactionCategory>)> groupedBudgetCategories(
   ];
 }
 
+// MARK: - BudgetFormViewState
 class BudgetFormViewState implements HasStep<BudgetFormViewState, BudgetsStep> {
   const BudgetFormViewState({
     required this.categoryID,
@@ -96,6 +98,7 @@ class BudgetFormViewState implements HasStep<BudgetFormViewState, BudgetsStep> {
       copyWith(step: step);
 }
 
+// MARK: - BudgetFormViewModel
 abstract class BudgetFormViewModel {
   void setAmount(String raw);
   void requestPickCategory();
@@ -104,6 +107,7 @@ abstract class BudgetFormViewModel {
   void clearStep();
 }
 
+// MARK: - BudgetFormNotifier
 class BudgetFormNotifier extends AsyncNotifier<BudgetFormViewState>
     with
         LedgerBackedNotifier<BudgetFormViewState>,
@@ -154,6 +158,7 @@ class BudgetFormNotifier extends AsyncNotifier<BudgetFormViewState>
   }
 }
 
+// MARK: - Constants
 final budgetFormViewModelProvider =
     AsyncNotifierProvider<BudgetFormNotifier, BudgetFormViewState>(
       BudgetFormNotifier.new,

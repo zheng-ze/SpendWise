@@ -1,5 +1,5 @@
 import 'package:domain/domain.dart';
-import 'package:spendwise/persistence/ledger_store.dart';
+import 'package:spendwise/persistence/store/ledger_store.dart';
 
 import 'in_memory_ledger_store.dart';
 

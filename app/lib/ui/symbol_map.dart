@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+// MARK: - Constants
 const fallbackSymbolIcon = Icons.circle_outlined;
 
 const _chromeIcons = <String, IconData>{
@@ -245,5 +246,6 @@ List<String> get categoryIconNames => [
   for (final section in categoryIconSections.values) ...section,
 ];
 
+// MARK: - Helpers
 IconData symbolIcon(String name) =>
     _categoryIcons[name] ?? _chromeIcons[name] ?? fallbackSymbolIcon;

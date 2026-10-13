@@ -3,6 +3,11 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
+// MARK: - Constants
+
+const _semiBoldWeight = FontWeight.w600;
+
+// MARK: - DonutSegment
 @immutable
 class DonutSegment {
   const DonutSegment({
@@ -18,6 +23,7 @@ class DonutSegment {
   final Color color;
 }
 
+// MARK: - DonutChart
 class DonutChart extends StatelessWidget {
   const DonutChart({
     super.key,
@@ -94,6 +100,7 @@ class DonutChart extends StatelessWidget {
   }
 }
 
+// MARK: - DonutCenter
 class _DonutCenter extends StatelessWidget {
   const _DonutCenter({required this.centerLabel, required this.centerValue});
 
@@ -115,7 +122,7 @@ class _DonutCenter extends StatelessWidget {
             centerValue,
             style: const TextStyle(
               fontSize: _valueFontSize,
-              fontWeight: FontWeight.w600,
+              fontWeight: _semiBoldWeight,
             ),
           );
     final labelText = centerLabel == null

@@ -12,11 +12,11 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
 
 ## Key files
 
-- `app/lib/ui/common/ledger_backed_notifier.dart` — the `LedgerBackedNotifier` mixin: a `ledger`
+- `app/lib/ui/common/base/ledger_backed_notifier.dart` — the `LedgerBackedNotifier` mixin: a `ledger`
   getter that throws if the ledger is not ready, and `updateState()` that applies a transform to the
   current `ViewState` and no-ops if the provider is disposed.
-- `app/lib/ui/common/step_emitting.dart` — the `Step` emission contract.
-- `app/lib/ui/common/flow_base.dart` — the Flow base that watches ViewModels for `Step` and maps each
+- `app/lib/ui/common/base/step_emitting.dart` — the `Step` emission contract.
+- `app/lib/ui/common/base/flow_base.dart` — the Flow base that watches ViewModels for `Step` and maps each
   to a push/pop on its own `Navigator`.
 - `app/lib/ui/shell/app_shell.dart` — the shell: no ViewModel, only the fixed
   platform layout mode (`shellLayoutModeProvider`), mounting one Flow per
@@ -59,7 +59,7 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   `TransactionsFlow` routes `EntryFormRequested(null)` through it and keeps only its non-null entry
   subscription. There is no `ProviderScope`, shared lock provider, nested `Navigator` or new Flow.
   (`app/lib/ui/transactions/entry/new_entry_presenter.dart`,
-  `app/lib/ui/transactions/entry/entry_step_handlers.dart`,
+  `app/lib/ui/transactions/entry/steps/entry_step_handlers.dart`,
   `app/lib/ui/transactions/transactions_flow.dart`)
 - **One ViewModel per View**; shared presentation widgets own no ViewModel because they never read
   Riverpod state (zero `ConsumerWidget`/`WidgetRef` usage).
@@ -98,7 +98,7 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   and after an enrollment route closes. (`app/lib/ui/shell/app_shell.dart`,
   `app/lib/ui/shell/shell_providers.dart`, `app/lib/ui/shell/boot_chrome.dart`,
   `app/lib/ui/settings/settings_flow.dart`)
-- **Destination Back activity** - `DestinationActivity` (`app/lib/ui/common/flow_base.dart`) is a
+- **Destination Back activity** - `DestinationActivity` (`app/lib/ui/common/base/flow_base.dart`) is a
   pure inherited active flag defaulting to active for standalone Flows. Each `IndexedStack` slot
   wraps its destination with the flag derived from the selected destination. An inactive `FlowBase`
   `PopScope` permits propagation and ignores its callback; the active Flow delegates Back through
@@ -163,11 +163,11 @@ value, which then overwrites it. (issue #38)
 - **Neutral vs semantic color** - neutral label text uses theme `onSurface`; amount roles use the
   income, expense and text tokens through `AmountStyle`, never fixed hex or `Colors.*`.
 - **Destructive confirmations** - the confirm action is a filled button in the error token with the
-  on-action label colour; cancel stays text. (`app/lib/ui/common/delete_confirmation.dart`)
+  on-action label colour; cancel stays text. (`app/lib/ui/common/feedback/delete_confirmation.dart`)
 
 ## Sheet and component kit
 
-- **AppSheet** (`app/lib/ui/common/app_sheet.dart`) is the shared kit sheet surface.
+- **AppSheet** (`app/lib/ui/common/sheets/app_sheet.dart`) is the shared kit sheet surface.
   `showAppSheet<T>(context, presentation:, builder:)` pushes an `AppSheetRoute`
   on the root navigator, so its barrier covers the window even when opened from
   a nested Flow. `presentation` is a required plain `AppSheetPresentation`
@@ -192,8 +192,8 @@ value, which then overwrites it. (issue #38)
   explicit presentation to display anything; a missing slot is a caller error
   reported as a `FlutterError`, never a width or platform fallback. The banner
   is a live region; its action appears only with both a label and callback.
-  (`app/lib/ui/common/app_sheet.dart`, `app/lib/ui/common/sheet_alert.dart`)
-- **Actions** (`app/lib/ui/common/app_buttons.dart`): `PrimaryButton` is filled, with
+  (`app/lib/ui/common/sheets/app_sheet.dart`, `app/lib/ui/common/sheets/sheet_alert.dart`)
+- **Actions** (`app/lib/ui/common/buttons/app_buttons.dart`): `PrimaryButton` is filled, with
   `destructive: true` using error/on-action tokens; `SecondaryButton` defaults to text and
   uses the control outline when `outlined: true`. A null callback disables either button.
 - **Surfaces** (`app/lib/ui/common/`): `Tray`, `MedallionRow`, `SummaryBand` (signed amounts
@@ -203,7 +203,7 @@ value, which then overwrites it. (issue #38)
   callbacks; the caller supplies the selected value/index on rebuild. `MonthBars` and
   `DonutChart` use `selectedMark` fill with no selection stroke. Month blanks stay zero-height
   even when selected; unselected gaps are dashed stubs and incomplete bars retain their
-  distinct fill/outline. (`app/lib/ui/common/segmented_control.dart`,
+  distinct fill/outline. (`app/lib/ui/common/inputs/segmented_control.dart`,
   `app/lib/ui/common/charts/month_bars.dart`, `app/lib/ui/common/charts/donut_chart.dart`)
 - **CategoryMap** (`app/lib/ui/common/charts/category_map.dart`) uses pure squarified
   `layoutCategoryMap`; returned rectangles and selection callbacks preserve input indices
@@ -219,7 +219,7 @@ value, which then overwrites it. (issue #38)
 ## Gotchas and invariants
 
 - Legacy pickers still call `showModalBottomSheet`; using the kit does not imply that all
-  sheets have migrated. (`app/lib/ui/common/statement_day_picker.dart`,
+  sheets have migrated. (`app/lib/ui/common/inputs/statement_day_picker.dart`,
   `app/lib/ui/common/pickers/two_column_picker_sheet.dart`,
   `app/lib/ui/common/pickers/recurrence_picker.dart`,
   `app/lib/ui/common/pickers/account_type_picker.dart`)

@@ -1,20 +1,20 @@
 import 'package:domain/domain.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ui/budgets/budget_detail/budget_detail_chart.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
-import 'package:spendwise/ui/common/day_sectioned_entry_list.dart';
-import 'package:spendwise/ui/common/month_year_selector.dart';
+import 'package:spendwise/ui/common/lists/day_sectioned_entry_list.dart';
+import 'package:spendwise/ui/common/inputs/month_year_selector.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/budgets/helpers/budget_spend.dart';
-import 'package:spendwise/ui/stats/helpers/chart_helpers.dart';
 import 'package:spendwise/ui/stats/helpers/stats_window.dart';
-import 'package:spendwise/ui/theme/spendwise_text.dart';
+
+// MARK: - Screen
 
 class BudgetDetailScreen extends ConsumerWidget {
   const BudgetDetailScreen({super.key, required this.budgetID});
@@ -43,6 +43,8 @@ class BudgetDetailScreen extends ConsumerWidget {
     );
   }
 }
+
+// MARK: - Body
 
 class _BudgetDetailBody extends StatelessWidget {
   const _BudgetDetailBody({
@@ -74,7 +76,7 @@ class _BudgetDetailBody extends StatelessWidget {
     );
     final chart = SizedBox(
       height: _chartHeight,
-      child: _BudgetChart(
+      child: BudgetDetailChart(
         months: viewState.months,
         spend: viewState.spendSeries,
         limit: viewState.limitSeries,
@@ -115,9 +117,13 @@ class _BudgetDetailBody extends StatelessWidget {
   }
 }
 
+// MARK: - App Bar
+
 class _BudgetDetailAppBar extends StatelessWidget
     implements PreferredSizeWidget {
   const _BudgetDetailAppBar({required this.title, required this.viewModel});
+
+  static const _editTooltip = 'Edit limit history';
 
   final String title;
   final BudgetDetailViewModel viewModel;
@@ -132,13 +138,15 @@ class _BudgetDetailAppBar extends StatelessWidget
       actions: [
         IconButton(
           icon: const Icon(Icons.edit_outlined),
-          tooltip: 'Edit limit history',
+          tooltip: _editTooltip,
           onPressed: viewModel.requestLimitEdit,
         ),
       ],
     );
   }
 }
+
+// MARK: - Header
 
 class _BudgetDetailHeader extends StatelessWidget {
   const _BudgetDetailHeader({required this.budget, required this.viewState});
@@ -175,12 +183,16 @@ class _BudgetDetailHeader extends StatelessWidget {
   }
 }
 
+// MARK: - Entries Label
+
 class _BudgetDetailEntriesLabel extends StatelessWidget {
   const _BudgetDetailEntriesLabel({required this.selectedMonth});
 
   final DateTime selectedMonth;
 
   static const _labelPadding = EdgeInsets.fromLTRB(16, 24, 16, 8);
+
+  static const _entriesSuffix = ' ENTRIES';
 
   @override
   Widget build(BuildContext context) {
@@ -189,220 +201,11 @@ class _BudgetDetailEntriesLabel extends StatelessWidget {
     return Padding(
       padding: _labelPadding,
       child: Text(
-        '${formatMonthLabel(selectedMonth).toUpperCase()} ENTRIES',
+        '${formatMonthLabel(selectedMonth).toUpperCase()}$_entriesSuffix',
         style: theme.textTheme.labelMedium?.copyWith(
           color: theme.colorScheme.onSurfaceVariant,
         ),
       ),
-    );
-  }
-}
-
-class _BudgetChart extends StatelessWidget {
-  const _BudgetChart({
-    required this.months,
-    required this.spend,
-    required this.limit,
-    required this.maxY,
-    required this.selectedMonth,
-    required this.onSelectMonth,
-    required this.barColor,
-  });
-
-  final List<DateTime> months;
-  final List<Decimal> spend;
-  final List<Decimal> limit;
-  final double maxY;
-  final DateTime selectedMonth;
-  final void Function(DateTime month) onSelectMonth;
-  final Color barColor;
-
-  static const _chartPadding = EdgeInsets.fromLTRB(16, 0, 16, 0);
-
-  @override
-  Widget build(BuildContext context) {
-    final spendBars = _BudgetDetailSpendBars(
-      months: months,
-      spend: spend,
-      maxY: maxY,
-      selectedMonth: selectedMonth,
-      barColor: barColor,
-    );
-    final limitLine = _BudgetDetailLimitLine(
-      months: months,
-      limit: limit,
-      maxY: maxY,
-    );
-    final tapOverlay = _BudgetDetailTapOverlay(
-      months: months,
-      onSelectMonth: onSelectMonth,
-    );
-
-    return Padding(
-      padding: _chartPadding,
-      child: Stack(children: [spendBars, limitLine, tapOverlay]),
-    );
-  }
-}
-
-class _BudgetDetailSpendBars extends StatelessWidget {
-  const _BudgetDetailSpendBars({
-    required this.months,
-    required this.spend,
-    required this.maxY,
-    required this.selectedMonth,
-    required this.barColor,
-  });
-
-  final List<DateTime> months;
-  final List<Decimal> spend;
-  final double maxY;
-  final DateTime selectedMonth;
-  final Color barColor;
-
-  static const _titleInterval = 1.0;
-  static const _unselectedBarAlpha = 0.5;
-  static const _barWidth = 18.0;
-  static const _barCornerRadius = 4.0;
-  static const _selectedBorderColor = Color(0x00000000);
-
-  @override
-  Widget build(BuildContext context) {
-    final selectedMark = context.colors.selectedMark;
-    final selectedIndex = months.indexWhere(
-      (month) =>
-          month.year == selectedMonth.year &&
-          month.month == selectedMonth.month,
-    );
-
-    final titlesData = FlTitlesData(
-      topTitles: const AxisTitles(),
-      rightTitles: const AxisTitles(),
-      leftTitles: const AxisTitles(),
-      bottomTitles: AxisTitles(
-        sideTitles: SideTitles(
-          showTitles: true,
-          interval: _titleInterval,
-          getTitlesWidget: (value, meta) => monthAxisTick(
-            Theme.of(context).textTheme.labelSmall,
-            months,
-            value,
-          ),
-        ),
-      ),
-    );
-
-    final barGroups = [
-      for (var i = 0; i < months.length; i++)
-        BarChartGroupData(
-          x: i,
-          barRods: [
-            BarChartRodData(
-              toY: spend[i].toDouble(),
-              color: i == selectedIndex
-                  ? selectedMark
-                  : barColor.withValues(alpha: _unselectedBarAlpha),
-              width: _barWidth,
-              borderRadius: BorderRadius.circular(_barCornerRadius),
-              borderSide: i == selectedIndex
-                  ? const BorderSide(width: 0, color: _selectedBorderColor)
-                  : BorderSide.none,
-            ),
-          ],
-        ),
-    ];
-    final data = BarChartData(
-      minY: 0,
-      maxY: maxY,
-      gridData: const FlGridData(show: false),
-      borderData: FlBorderData(show: false),
-      titlesData: titlesData,
-      barTouchData: BarTouchData(enabled: false),
-      barGroups: barGroups,
-    );
-
-    return BarChart(data);
-  }
-}
-
-class _BudgetDetailLimitLine extends StatelessWidget {
-  const _BudgetDetailLimitLine({
-    required this.months,
-    required this.limit,
-    required this.maxY,
-  });
-
-  final List<DateTime> months;
-  final List<Decimal> limit;
-  final double maxY;
-
-  static const _lineWidth = 2.0;
-  static const _dotRadius = 3.0;
-  static const _edgeInset = 0.5;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    final lineBarsData = [
-      LineChartBarData(
-        spots: [
-          for (var i = 0; i < months.length; i++)
-            FlSpot(i.toDouble(), limit[i].toDouble()),
-        ],
-        isCurved: false,
-        color: theme.colorScheme.onSurface,
-        barWidth: _lineWidth,
-        dotData: FlDotData(
-          getDotPainter: (spot, percent, bar, index) => FlDotCirclePainter(
-            radius: _dotRadius,
-            color: theme.colorScheme.onSurface,
-            strokeWidth: 0,
-          ),
-        ),
-        belowBarData: BarAreaData(show: false),
-      ),
-    ];
-
-    return IgnorePointer(
-      child: LineChart(
-        LineChartData(
-          minX: -_edgeInset,
-          maxX: months.length - _edgeInset,
-          minY: 0,
-          maxY: maxY,
-          gridData: const FlGridData(show: false),
-          borderData: FlBorderData(show: false),
-          titlesData: const FlTitlesData(show: false),
-          lineTouchData: const LineTouchData(enabled: false),
-          lineBarsData: lineBarsData,
-        ),
-      ),
-    );
-  }
-}
-
-class _BudgetDetailTapOverlay extends StatelessWidget {
-  const _BudgetDetailTapOverlay({
-    required this.months,
-    required this.onSelectMonth,
-  });
-
-  final List<DateTime> months;
-  final void Function(DateTime month) onSelectMonth;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        for (var i = 0; i < months.length; i++)
-          Expanded(
-            child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onTap: () => onSelectMonth(months[i]),
-            ),
-          ),
-      ],
     );
   }
 }

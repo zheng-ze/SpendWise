@@ -2,10 +2,11 @@ import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/accounts/account_sections.dart';
-import 'package:spendwise/ui/common/swipe_to_delete_row.dart';
+import 'package:spendwise/ui/common/lists/swipe_to_delete_row.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 
+// MARK: - AccountRowTile
 class AccountRowTile extends StatelessWidget {
   const AccountRowTile({
     super.key,
@@ -66,6 +67,7 @@ class AccountRowTile extends StatelessWidget {
   }
 }
 
+// MARK: - AccountRowBody
 class _AccountRowBody extends StatelessWidget {
   const _AccountRowBody({
     required this.row,
@@ -137,6 +139,7 @@ class _AccountRowBody extends StatelessWidget {
   }
 }
 
+// MARK: - SubRow
 class _SubRow extends StatelessWidget {
   const _SubRow({
     required this.title,

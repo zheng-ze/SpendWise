@@ -25,6 +25,8 @@ class RecurringPlan {
   final DateTime? endDate;
   final DateTime lastResolvedDate;
 
+  // MARK: - Derivers
+
   RecurringPlan resolvedAt(DateTime date) => RecurringPlan(
     id: id,
     template: template,
@@ -33,6 +35,8 @@ class RecurringPlan {
     endDate: endDate,
     lastResolvedDate: date,
   );
+
+  // MARK: - Occurrences
 
   DateTime? nextOccurrence({required DateTime onOrAfter}) {
     final end = endDate;
@@ -65,6 +69,8 @@ class RecurringPlan {
       if (date.isAfter(after)) dates.add(date);
     }
   }
+
+  // MARK: - Equality
 
   @override
   bool operator ==(Object other) {

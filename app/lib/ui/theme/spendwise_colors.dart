@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+// MARK: - SpendWiseColors
 class SpendWiseColors extends ThemeExtension<SpendWiseColors> {
   const SpendWiseColors({
     required this.base,
@@ -246,11 +247,13 @@ class SpendWiseColors extends ThemeExtension<SpendWiseColors> {
   }
 }
 
+// MARK: - Constants
 const Color _lightForeground = Color(0xFFFFFFFF);
 const Color _darkForeground = Color(0xFF101112);
 
 const _contrastOffset = 0.05;
 
+// MARK: - Helpers
 Color foregroundOn(Color fill) {
   final fillLuminance = fill.computeLuminance();
   double contrastWith(Color foreground) {

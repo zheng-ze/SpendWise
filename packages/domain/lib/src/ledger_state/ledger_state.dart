@@ -9,6 +9,7 @@ import 'package:domain/src/budgets/budget.dart';
 import 'package:domain/src/budgets/limit_event.dart';
 import 'package:domain/src/entries/category_kind.dart';
 import 'package:domain/src/entries/entry.dart';
+import 'package:domain/src/entries/system_entry_kind.dart';
 import 'package:domain/src/entries/transaction_category.dart';
 import 'package:domain/src/ids.dart';
 import 'package:domain/src/ledger_change.dart';
@@ -20,18 +21,30 @@ import 'package:domain/src/plans/recurring_plan.dart';
 import 'package:domain/src/time/calendar_day.dart';
 import 'package:domain/src/time/year_month.dart';
 
-part 'ledger_state_adopt.dart';
-part 'ledger_state_budgets.dart';
-part 'ledger_state_categories.dart';
-part 'ledger_state_entries.dart';
-part 'ledger_state_holders.dart';
-part 'ledger_state_invariants.dart';
-part 'ledger_state_plans.dart';
-part 'ledger_state_purge.dart';
-part 'ledger_state_queries.dart';
-part 'ledger_state_replay.dart';
+part 'mutators/ledger_state_accounts.dart';
+part 'mutators/ledger_state_adopt.dart';
+part 'mutators/ledger_state_budgets.dart';
+part 'mutators/ledger_state_categories.dart';
+part 'mutators/ledger_state_entries.dart';
+part 'mutators/ledger_state_entry_validation.dart';
+part 'mutators/ledger_state_holders.dart';
+part 'invariants/ledger_state_invariants.dart';
+part 'invariants/ledger_state_invariants_budgets.dart';
+part 'invariants/ledger_state_invariants_categories.dart';
+part 'invariants/ledger_state_invariants_entries.dart';
+part 'invariants/ledger_state_invariants_holders.dart';
+part 'invariants/ledger_state_invariants_plans.dart';
+part 'mutators/ledger_state_plan_resolution.dart';
+part 'mutators/ledger_state_plans.dart';
+part 'mutators/ledger_state_pockets.dart';
+part 'mutators/ledger_state_purge.dart';
+part 'queries/ledger_state_queries.dart';
+part 'mutators/ledger_state_replay.dart';
+part 'mutators/ledger_state_sweep.dart';
 
 class LedgerState {
+  // MARK: - Construction
+
   LedgerState({
     Map<String, MoneySource>? moneySources,
     Map<String, Entry>? entries,
@@ -58,6 +71,8 @@ class LedgerState {
     assertInvariants();
   }
 
+  // MARK: - State
+
   final Map<String, MoneySource> _moneySources;
 
   final Map<String, Entry> _entries;
@@ -69,6 +84,10 @@ class LedgerState {
   final Map<String, RecurringPlan> _plans;
 
   final Map<String, Budget> _budgets;
+
+  Map<String, LifecycleState>? _lifecycleAtLastCheck;
+
+  // MARK: - Views
 
   Map<String, MoneySource> get moneySources =>
       UnmodifiableMapView(_moneySources);
@@ -84,7 +103,7 @@ class LedgerState {
 
   Map<String, Budget> get budgets => UnmodifiableMapView(_budgets);
 
-  Map<String, LifecycleState>? _lifecycleAtLastCheck;
+  // MARK: - Checks
 
   List<LedgerChange> _checked(List<LedgerChange> changes) {
     assert(() {

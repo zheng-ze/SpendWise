@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/settings/settings_providers.dart';
-import 'package:spendwise/ui/transactions/entry/entry_form_logic.dart'
+import 'package:spendwise/ui/transactions/entry/steps/entry_form_logic.dart'
     show EntryFormKind;
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart'
     show

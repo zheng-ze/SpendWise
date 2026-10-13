@@ -1,3 +1,5 @@
+// MARK: - Selection
+
 T? selectPlatformAdapter<T>(List<T? Function()> candidates) {
   for (final candidate in candidates) {
     final value = candidate();

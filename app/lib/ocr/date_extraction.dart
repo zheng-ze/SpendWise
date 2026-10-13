@@ -2,6 +2,8 @@ import 'dart:ui' show PlatformDispatcher;
 
 import 'package:ocr/ocr.dart';
 
+// MARK: - Constants
+
 const _monthFirstRegions = {'US', 'PH', 'PW', 'FM', 'CA'};
 
 const _monthsInYear = 12;
@@ -10,6 +12,8 @@ const _twoDigitYearCenturyBase = 2000;
 final _dateShapedPattern = RegExp(
   r'\b(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2}|\d{4})\b',
 );
+
+// MARK: - Extraction
 
 DateTime extractDate(RecognizedText text, {String? locale, DateTime? now}) {
   for (final line in text.lines) {
@@ -27,6 +31,8 @@ DateTime _today(DateTime? now) {
   final today = now ?? DateTime.now();
   return DateTime.utc(today.year, today.month, today.day);
 }
+
+// MARK: - Resolution
 
 DateTime? _resolveDate(RegExpMatch match, String? locale) {
   final first = int.parse(match.group(1)!);
@@ -58,6 +64,8 @@ int _fullYear(String yearText) {
   if (yearText.length == 4) return int.parse(yearText);
   return _twoDigitYearCenturyBase + int.parse(yearText);
 }
+
+// MARK: - Locale
 
 bool _localeIsDayFirst(String? locale) {
   final region = locale != null

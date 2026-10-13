@@ -5,6 +5,7 @@ import 'package:spendwise/settings/settings_providers.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_flow.dart';
 
+// MARK: - ReceiptScanStrip
 class ReceiptScanStrip extends ConsumerWidget {
   const ReceiptScanStrip({super.key, required this.formKey});
 

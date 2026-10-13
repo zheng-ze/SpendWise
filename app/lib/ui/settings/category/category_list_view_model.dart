@@ -2,9 +2,10 @@ import 'package:domain/domain.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
-import 'package:spendwise/ui/common/step_emitting.dart';
+import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
+import 'package:spendwise/ui/common/base/step_emitting.dart';
 
+// MARK: - Steps
 sealed class CategoryListStep {}
 
 class CategoryFormRequested extends CategoryListStep {
@@ -14,6 +15,7 @@ class CategoryFormRequested extends CategoryListStep {
   final String? presetParentID;
 }
 
+// MARK: - CategoryListViewState
 class CategoryListViewState
     implements HasStep<CategoryListViewState, CategoryListStep> {
   const CategoryListViewState({
@@ -44,6 +46,7 @@ class CategoryListViewState
       copyWith(step: step);
 }
 
+// MARK: - CategoryListViewModel
 abstract class CategoryListViewModel {
   void requestNewCategory();
   void requestEditCategory(TransactionCategory category);
@@ -52,6 +55,7 @@ abstract class CategoryListViewModel {
   void clearStep();
 }
 
+// MARK: - CategoryListNotifier
 class CategoryListNotifier extends AsyncNotifier<CategoryListViewState>
     with
         LedgerBackedNotifier<CategoryListViewState>,
@@ -95,6 +99,7 @@ class CategoryListNotifier extends AsyncNotifier<CategoryListViewState>
   }
 }
 
+// MARK: - Constants
 final categoryListViewModelProvider =
     AsyncNotifierProvider<CategoryListNotifier, CategoryListViewState>(
       CategoryListNotifier.new,

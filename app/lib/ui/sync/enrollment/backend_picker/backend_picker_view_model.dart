@@ -4,7 +4,7 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/sync/backend_selection_writer.dart';
 import 'package:spendwise/sync/custom_endpoint_validator.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
-import 'package:spendwise/ui/common/step_emitting.dart';
+import 'package:spendwise/ui/common/base/step_emitting.dart';
 
 typedef CustomEndpointValidator = CustomEndpointValidation Function(
   String? endpoint,

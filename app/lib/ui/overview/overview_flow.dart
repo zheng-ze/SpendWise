@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ui/common/flow_base.dart';
+import 'package:spendwise/ui/common/base/flow_base.dart';
 import 'package:spendwise/ui/overview/overview_screen.dart';
 import 'package:spendwise/ui/overview/overview_view_model.dart';
 
+// MARK: - OverviewFlow
 class OverviewFlow extends FlowBase<OverviewStep> {
   const OverviewFlow({
     super.key,
@@ -19,6 +20,7 @@ class OverviewFlow extends FlowBase<OverviewStep> {
   ConsumerState<OverviewFlow> createState() => _OverviewFlowState();
 }
 
+// MARK: - OverviewFlowState
 class _OverviewFlowState extends FlowBaseState<OverviewStep, OverviewFlow> {
   bool _historyRouteOpen = false;
 

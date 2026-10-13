@@ -20,7 +20,7 @@ form controllers.
   provider and durable-metadata projection.
 - `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_flow.dart` - fresh enrollment and
   repair presentation opened from Settings; see `sync-enrollment-flow.md`.
-- `packages/domain/lib/src/ledger_state/ledger_state_categories.dart`, `ledger_state_plans.dart`
+- `packages/domain/lib/src/ledger_state/mutators/ledger_state_categories.dart`, `ledger_state_plans.dart`
   - the domain mutators (see `ledger-and-money-model.md`, `recurring-plans-and-accounting.md`).
 - `app/lib/settings/display_preferences.dart`,
   `app/lib/settings/display_preferences_store.dart`,
@@ -37,7 +37,7 @@ The list providers read `Ledger` query methods (e.g. `categories(of:)` ordering 
 seeded with the initial data. Delete copies (recycle-bin messaging) are derived from referencing
 counts. These counts include active and binned entries through `entriesReferencing`,
 `entryCount` and `entryCountReferencing`
-(`packages/domain/lib/src/ledger_state/ledger_state_queries.dart`).
+(`packages/domain/lib/src/ledger_state/queries/ledger_state_queries.dart`).
 
 ## Navigation
 
@@ -159,7 +159,7 @@ platform. The receipt scan-strip switch stays in `AppSettings`. Source:
   purge dialog names the entry. Binned entries still count in the other rows' reference labels.
 - Category kind is locked while active or binned entries reference it
   (`app/lib/ui/settings/category/category_form_view_model.dart`: `_isReferenced`;
-  `packages/domain/lib/src/ledger_state/ledger_state_queries.dart`: `entryCountReferencing`).
+  `packages/domain/lib/src/ledger_state/queries/ledger_state_queries.dart`: `entryCountReferencing`).
 - Purge moves referenced rows to `referenceOnly` and unreferenced rows to tombstoned; the domain
   decides which. `ledger-and-money-model.md` §Purge.
 

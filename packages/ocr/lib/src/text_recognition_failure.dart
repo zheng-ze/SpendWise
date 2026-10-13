@@ -1,5 +1,7 @@
 import 'package:meta/meta.dart';
 
+// MARK: - Failure
+
 /// Thrown by a recognizer's `recognize` call when the engine cannot produce
 /// a result (decode failure, plugin unavailable, native crash). [message]
 /// combines the engine name and the underlying cause; it's for logs and

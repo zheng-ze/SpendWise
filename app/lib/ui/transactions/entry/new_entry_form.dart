@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 
-import 'package:spendwise/ui/common/app_sheet.dart';
-import 'package:spendwise/ui/common/error_section.dart';
-import 'package:spendwise/ui/transactions/entry/entry_fields.dart';
+import 'package:spendwise/ui/common/sheets/app_sheet.dart';
+import 'package:spendwise/ui/common/feedback/error_section.dart';
+import 'package:spendwise/ui/transactions/entry/fields/entry_fields.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_strip.dart';
 
+// MARK: - Visual Constants
+
+const _actionWidth = double.infinity;
+
+// MARK: - NewEntryForm
 class NewEntryForm extends StatelessWidget {
   const NewEntryForm({
     super.key,
@@ -38,6 +43,7 @@ class NewEntryForm extends StatelessWidget {
   }
 }
 
+// MARK: - NewEntryHeader
 class _NewEntryHeader extends StatelessWidget {
   const _NewEntryHeader({required this.onCancel});
 
@@ -62,6 +68,7 @@ class _NewEntryHeader extends StatelessWidget {
   }
 }
 
+// MARK: - NewEntrySaveFooter
 class _NewEntrySaveFooter extends StatelessWidget {
   const _NewEntrySaveFooter({required this.canSave, required this.onSave});
 
@@ -75,7 +82,7 @@ class _NewEntrySaveFooter extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(top: _saveTopSpacing),
       child: SizedBox(
-        width: double.infinity,
+        width: _actionWidth,
         child: FilledButton(
           onPressed: canSave ? onSave : null,
           child: const Text('Save'),

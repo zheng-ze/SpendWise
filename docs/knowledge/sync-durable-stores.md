@@ -29,7 +29,7 @@ verifier. The composition root owns assembly, while run and scheduling remain a 
 - `app/lib/sync/post_flush_readback_verifier.dart` - `PostFlushReadbackVerifier`, which groups
   submitted stamps by collection and classifies durable readback.
 - `app/lib/sync/row_readback_outcome.dart` - The sealed readback outcome hierarchy.
-- `app/lib/persistence/ledger_database.dart` - Schema version 6 and the v4/v5 to v6 `sync_meta`
+- `app/lib/persistence/database/ledger_database.dart` - Schema version 6 and the v4/v5 to v6 `sync_meta`
   migration.
 - `app/test/sync/sync_metadata_store_test.dart` - Metadata defaults, round-trips, atomicity and
   rollback, secret separation, and restart durability.
@@ -100,7 +100,7 @@ The v3 to v4 migration creates the five tables with `CREATE TABLE IF NOT EXISTS`
 user rows are preserved. The v4/v5 to v6 migration adds `device_binding_state INTEGER NOT NULL
 DEFAULT 0` and nullable `reauth_resume_phase` to `sync_meta`. Binding-state codes are 0
 (`notApplicable`), 1 (`authorizationRequired`), and 2 (`bound`). Source:
-`app/lib/persistence/ledger_database.dart` - `migration`;
+`app/lib/persistence/database/ledger_database.dart` - `migration`;
 `app/test/sync/sync_migration_test.dart` - test
 `the v3 to v4 migration preserves existing user rows`.
 
@@ -236,10 +236,10 @@ This layer has no routes or screens. Source: `app/lib/sync/sync_metadata_store.d
   `gateEnabled` (4) becomes `bindingAuthorizationRequired` (5), receives
   `device_binding_state` 1, and has writes disabled. Rows outside these matches retain their
   existing fields and receive the two added-column defaults.
-  Source: `app/lib/persistence/ledger_database.dart` - `migration`;
+  Source: `app/lib/persistence/database/ledger_database.dart` - `migration`;
   `app/test/sync/sync_migration_test.dart` - v4/v5-to-v6 upgrade tests.
 - The migration never writes `reauth_resume_phase`, so it remains null, and it cannot produce
-  `device_binding_state` 2 (`bound`). Source: `app/lib/persistence/ledger_database.dart` -
+  `device_binding_state` 2 (`bound`). Source: `app/lib/persistence/database/ledger_database.dart` -
   `migration`.
 - `CollectionVersionReader` is intentionally distinct from package `SyncVersionSource`.
   `SyncVersionSource` synchronously looks up one row for `SyncEngine.encode`; the app reader

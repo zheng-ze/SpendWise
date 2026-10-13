@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 
+// MARK: - DayTicker
 class DayTicker with WidgetsBindingObserver {
   DayTicker({required this.clock, required this.onDayChanged}) {
     WidgetsBinding.instance.addObserver(this);

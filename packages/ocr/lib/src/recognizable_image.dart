@@ -2,6 +2,8 @@ import 'dart:typed_data';
 
 import 'package:meta/meta.dart';
 
+// MARK: - Image
+
 /// Already-decoded image bytes (PNG/JPEG), never a platform file or path.
 /// Converting whatever a camera or picker plugin returns is the caller's job.
 @immutable
@@ -21,6 +23,8 @@ class RecognizableImage {
   @override
   String toString() => 'RecognizableImage(${bytes.length} bytes)';
 }
+
+// MARK: - Helpers
 
 bool _bytesEqual(Uint8List a, Uint8List b) {
   if (a.length != b.length) return false;

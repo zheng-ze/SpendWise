@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 
-import 'package:spendwise/ui/common/category_icon.dart';
+import 'package:spendwise/ui/common/lists/category_icon.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/transactions/daily_list/transaction_row.dart';
 
+// MARK: - TransactionCell
 class TransactionCell extends StatelessWidget {
   const TransactionCell({super.key, required this.row, this.onTap});
 

@@ -1,0 +1,50 @@
+import 'package:flutter/material.dart';
+
+import 'package:spendwise/ui/symbol_map.dart';
+import 'package:spendwise/ui/theme/spendwise_colors.dart';
+
+// MARK: - Constants
+const double _glyphFraction = 0.44;
+const double _ringThickness = 2;
+const double _unselectedFillOpacity = 0.15;
+
+// MARK: - CategoryIcon
+class CategoryIcon extends StatelessWidget {
+  const CategoryIcon({
+    super.key,
+    required this.symbolName,
+    required this.color,
+    this.size = _defaultSize,
+    this.selected = false,
+  });
+
+  static const _defaultSize = 32.0;
+
+  final String symbolName;
+  final Color color;
+  final double size;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: selected
+            ? color
+            : color.withValues(alpha: _unselectedFillOpacity),
+        border: selected
+            ? Border.all(color: color, width: _ringThickness)
+            : null,
+      ),
+      alignment: Alignment.center,
+      child: Icon(
+        symbolIcon(symbolName),
+        size: size * _glyphFraction,
+        color: selected ? foregroundOn(color) : color,
+      ),
+    );
+  }
+}

@@ -3,6 +3,11 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/format/account_type_format.dart';
 
+// MARK: - Constants
+
+const _emptyContentPadding = EdgeInsets.zero;
+
+// MARK: - AccountTypePicker
 class AccountTypePicker extends StatelessWidget {
   const AccountTypePicker({
     super.key,
@@ -18,7 +23,7 @@ class AccountTypePicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      contentPadding: EdgeInsets.zero,
+      contentPadding: _emptyContentPadding,
       title: const Text('Type'),
       trailing: Text(accountTypeLabel(selected)),
       onTap: () => _pick(context),

@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/budgets/budget_list/budget_form_view_model.dart';
-import 'package:spendwise/ui/common/amount_field.dart';
-import 'package:spendwise/ui/common/category_icon.dart';
-import 'package:spendwise/ui/common/error_section.dart';
-import 'package:spendwise/ui/common/form_scaffold.dart';
-import 'package:spendwise/ui/format/color_hex.dart';
+import 'package:spendwise/ui/common/inputs/amount_field.dart';
+import 'package:spendwise/ui/common/feedback/error_section.dart';
+import 'package:spendwise/ui/common/inputs/form_scaffold.dart';
 
+// MARK: - Visual Constants
+
+const _fieldContentPadding = EdgeInsets.zero;
+
+// MARK: - Sheet Presenter
 Future<void> showBudgetFormSheet({required BuildContext context}) {
   return showModalBottomSheet<void>(
     context: context,
@@ -17,68 +20,7 @@ Future<void> showBudgetFormSheet({required BuildContext context}) {
   );
 }
 
-const budgetFormOverallSentinel = '__overall__';
-
-const _rootCategoryIconSize = 24.0;
-const _childCategoryIconSize = 20.0;
-const _childRowIndent = 32.0;
-
-Future<String?> showBudgetCategoryPickerSheet({
-  required BuildContext context,
-  required BudgetFormViewState formState,
-}) {
-  final groups = formState.groupedCategories;
-  final budgeted = formState.budgetedCategoryIDs;
-
-  final overallTile = ListTile(
-    title: const Text('Overall'),
-    onTap: () => Navigator.of(context).pop(budgetFormOverallSentinel),
-  );
-  final categoryRows = [
-    for (final (root, children) in groups) ...[
-      ListTile(
-        leading: CategoryIcon(
-          symbolName: root.symbol,
-          color: parseColorHex(root.colorHex),
-          size: _rootCategoryIconSize,
-        ),
-        title: Text(
-          root.name,
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-        enabled: !budgeted.contains(root.id),
-        onTap: () => Navigator.of(context).pop(root.id),
-      ),
-      for (final child in children)
-        Padding(
-          padding: const EdgeInsets.only(left: _childRowIndent),
-          child: ListTile(
-            leading: CategoryIcon(
-              symbolName: child.symbol,
-              color: parseColorHex(child.colorHex),
-              size: _childCategoryIconSize,
-            ),
-            title: Text(
-              child.name,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            onTap: () => Navigator.of(context).pop(child.id),
-          ),
-        ),
-    ],
-  ];
-
-  return showModalBottomSheet<String?>(
-    context: context,
-    builder: (_) => SafeArea(
-      child: ListView(
-        shrinkWrap: true,
-        children: [overallTile, ...categoryRows],
-      ),
-    ),
-  );
-}
-
+// MARK: - BudgetForm
 class BudgetForm extends ConsumerStatefulWidget {
   const BudgetForm({super.key});
 
@@ -86,6 +28,7 @@ class BudgetForm extends ConsumerStatefulWidget {
   ConsumerState<BudgetForm> createState() => _BudgetFormState();
 }
 
+// MARK: - BudgetFormState
 class _BudgetFormState extends ConsumerState<BudgetForm> {
   late final TextEditingController _amountController = TextEditingController();
 
@@ -111,6 +54,7 @@ class _BudgetFormState extends ConsumerState<BudgetForm> {
   }
 }
 
+// MARK: - BudgetFormBody
 class _BudgetFormBody extends StatelessWidget {
   const _BudgetFormBody({
     required this.formState,
@@ -131,7 +75,7 @@ class _BudgetFormBody extends StatelessWidget {
     }
 
     final categoryTile = ListTile(
-      contentPadding: EdgeInsets.zero,
+      contentPadding: _fieldContentPadding,
       title: const Text('Category'),
       trailing: Text(formState.categoryLabel),
       onTap: viewModel.requestPickCategory,

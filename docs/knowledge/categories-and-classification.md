@@ -15,7 +15,7 @@ user's accept/correct/ignore signals.
 - `packages/domain/lib/src/entries/transaction_category.dart` — the `TransactionCategory` model.
 - `packages/domain/lib/src/entries/category_kind.dart`, `category_resolution.dart` — the kind enum
   and the sealed analysis-resolution result.
-- `packages/domain/lib/src/ledger_state/ledger_state_categories.dart` — category mutators and
+- `packages/domain/lib/src/ledger_state/mutators/ledger_state_categories.dart` — category mutators and
   validation on `LedgerState`.
 - The classifier has no Swift precursor and no implementation source yet; the design below is the
   intended first implementation.

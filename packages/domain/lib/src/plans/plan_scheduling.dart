@@ -24,6 +24,8 @@ enum RecurrenceFrequency {
     };
   }
 
+  // MARK: - Stepping
+
   DateTime stepFrom(DateTime anchor, int stepCount) {
     return switch (this) {
       weekly => anchor.add(Duration(days: _daysPerWeek * stepCount)),
@@ -38,6 +40,8 @@ enum RecurrenceFrequency {
 const _daysPerWeek = 7;
 const _monthsPerQuarter = 3;
 const _monthsPerYear = 12;
+
+// MARK: - Month arithmetic
 
 DateTime _addMonths(DateTime anchor, int months) {
   final rawMonth = anchor.month - 1 + months;

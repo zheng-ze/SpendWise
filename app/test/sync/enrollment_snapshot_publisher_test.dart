@@ -5,10 +5,10 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ledger/event_bus.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/persistence/device_identity.dart';
-import 'package:spendwise/persistence/ledger_database.dart'
+import 'package:spendwise/persistence/store/device_identity.dart';
+import 'package:spendwise/persistence/database/ledger_database.dart'
     hide Account, SubPocket, Entry, Budget;
-import 'package:spendwise/persistence/persistence_processor.dart';
+import 'package:spendwise/persistence/store/persistence_processor.dart';
 import 'package:spendwise/sync/collection_version_reader.dart';
 import 'package:spendwise/sync/credential_provider.dart';
 import 'package:spendwise/sync/enrollment_snapshot_publisher.dart';

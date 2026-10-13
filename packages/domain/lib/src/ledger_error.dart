@@ -1,5 +1,7 @@
 import 'package:meta/meta.dart';
 
+// MARK: - Base
+
 @immutable
 sealed class LedgerError implements Exception {
   const LedgerError();
@@ -115,6 +117,8 @@ final class SystemEntryLocked extends _IdentifiedError {
   @override
   String get _case => 'systemEntryLocked';
 }
+
+// MARK: - Plain errors
 
 final class ZeroAmount extends _PlainError {
   const ZeroAmount();

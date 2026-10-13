@@ -1,5 +1,7 @@
 import 'package:flutter/services.dart';
 
+// MARK: - Engine
+
 /// The single engine call [AndroidTextRecognizer] needs from the native
 /// ML Kit recognizer on Android.
 abstract class AndroidEngine {
@@ -12,6 +14,8 @@ abstract class AndroidEngine {
   /// tag) is present only when ML Kit could determine one for that line.
   Future<List<Map<Object?, Object?>>> recognizeText(Uint8List imageBytes);
 }
+
+// MARK: - Plugin
 
 /// Runs the real native ML Kit recognizer over the
 /// `spendwise/android_text_recognizer` method channel.

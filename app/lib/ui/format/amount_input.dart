@@ -1,9 +1,11 @@
 import 'package:flutter/services.dart';
 
+// MARK: - Constants
 const int _maxFractionDigits = 2;
 const int _zero = 0x30;
 const int _nine = 0x39;
 
+// MARK: - Helpers
 String sanitizeAmount(String text, {required bool allowsNegative}) {
   final buffer = StringBuffer();
   var seenPoint = false;
@@ -36,6 +38,7 @@ String sanitizeAmount(String text, {required bool allowsNegative}) {
   return buffer.toString();
 }
 
+// MARK: - AmountInputFormatter
 class AmountInputFormatter extends TextInputFormatter {
   const AmountInputFormatter({required this.allowsNegative});
 

@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
 
+// MARK: - Constants
+
+const _imageOrigin = Offset.zero;
+const _imageEdge = 0.0;
+
+// MARK: - DocumentCorners
 @immutable
 class DocumentCorners {
   const DocumentCorners({
@@ -42,19 +48,20 @@ class DocumentCorners {
   int get hashCode => Object.hash(topLeft, topRight, bottomRight, bottomLeft);
 }
 
+// MARK: - Helpers
 DocumentCorners initialCorners(Size imageSize) {
   return DocumentCorners(
-    topLeft: Offset.zero,
-    topRight: Offset(imageSize.width, 0),
+    topLeft: _imageOrigin,
+    topRight: Offset(imageSize.width, _imageEdge),
     bottomRight: Offset(imageSize.width, imageSize.height),
-    bottomLeft: Offset(0, imageSize.height),
+    bottomLeft: Offset(_imageEdge, imageSize.height),
   );
 }
 
 Offset clampToImage(Offset point, Size imageSize) {
   return Offset(
-    point.dx.clamp(0, imageSize.width),
-    point.dy.clamp(0, imageSize.height),
+    point.dx.clamp(_imageEdge, imageSize.width),
+    point.dy.clamp(_imageEdge, imageSize.height),
   );
 }
 

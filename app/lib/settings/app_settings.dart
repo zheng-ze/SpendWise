@@ -1,6 +1,10 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+// MARK: - Keys
+
 const _scanStripEnabledKey = 'scanStripEnabled';
+
+// MARK: - Scan Strip
 
 class AppSettings {
   const AppSettings();

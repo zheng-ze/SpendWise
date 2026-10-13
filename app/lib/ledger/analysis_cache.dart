@@ -1,20 +1,13 @@
 import 'dart:async';
-import 'dart:isolate';
 
 import 'package:domain/domain.dart';
 import 'package:flutter/foundation.dart';
+import 'package:spendwise/ledger/analysis_compute.dart';
 import 'package:spendwise/ledger/event_bus.dart';
 
-typedef ComputeRunner = Future<List<AnalysisItem>> Function(LedgerState state);
+export 'package:spendwise/ledger/analysis_compute.dart';
 
-Future<List<AnalysisItem>> syncComputeRunner(LedgerState state) async {
-  return Accounting.analysisItems(state);
-}
-
-Future<List<AnalysisItem>> isolateComputeRunner(LedgerState state) {
-  // Must not capture the calling instance; it would not send.
-  return Isolate.run(() => Accounting.analysisItems(state));
-}
+// MARK: - Failures
 
 class AnalysisCacheFailure {
   AnalysisCacheFailure({
@@ -29,6 +22,8 @@ class AnalysisCacheFailure {
 
   final int sourceRevision;
 }
+
+// MARK: - Cache
 
 class AnalysisCache extends ChangeNotifier {
   AnalysisCache({ComputeRunner? runner})
@@ -68,6 +63,8 @@ class AnalysisCache extends ChangeNotifier {
 
   AnalysisCacheFailure? get lastFailure => _lastFailure;
 
+  // MARK: - Lifecycle
+
   void start(EventBus bus, {int Function()? sourceRevision}) {
     if (identical(_bus, bus)) return;
     if (_bus != null) {
@@ -84,6 +81,8 @@ class AnalysisCache extends ChangeNotifier {
       notifyListeners();
     });
   }
+
+  // MARK: - Refresh
 
   Future<void> refresh(LedgerState state, {int? sourceRevision}) {
     if (_disposed) return Future.value();

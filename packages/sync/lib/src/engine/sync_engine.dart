@@ -1,94 +1,6 @@
 part of '../../sync.dart';
 
-/// Narrow scoped accessor the engine uses to obtain the raw E2E key.
-///
-/// The engine never receives the app's general SecretStore or the opaque
-/// credential payload; this is its only key-related dependency.
-typedef SyncE2EKeyAccessor = Future<Uint8List> Function();
-
-/// Error thrown when an authenticated envelope's decrypted payload does not
-/// match the envelope's declared collection, row ID, or tombstone shape.
-///
-/// Distinct from [SyncPayloadDecryptionError] (AEAD authentication failure)
-/// and [PayloadDecodeError] (authentic bytes this codec cannot read): an
-/// identity mismatch means the bytes were authentic but the decoded entity
-/// does not belong to this envelope.
-final class SyncPayloadIdentityError implements Exception {
-  const SyncPayloadIdentityError(this.message);
-
-  final String message;
-
-  @override
-  String toString() => 'SyncPayloadIdentityError: $message';
-}
-
-/// Error thrown when [SyncEngine.encode] is asked to push a row the version
-/// source does not track, so no stored [RowVersion] is available.
-final class SyncUntrackedRowError implements Exception {
-  const SyncUntrackedRowError(this.message);
-
-  final String message;
-
-  @override
-  String toString() => 'SyncUntrackedRowError: $message';
-}
-
-/// Output of [SyncEngine.reconcile]: the conflict-free stamped changes, the
-/// per-row stamps, and the staged conflict groups.
-@immutable
-final class ReconcileResult {
-  ReconcileResult._(
-    this.changes,
-    this.stamps,
-    this.stagedConflicts,
-    this.winningInputIndex,
-  );
-
-  /// Builds an immutable [ReconcileResult], copying every collection so a
-  /// later mutation of the caller's list or map cannot change this result's
-  /// content-based equality or hash code.
-  factory ReconcileResult({
-    required List<LedgerChange> changes,
-    required Map<SyncRowID, VersionVector> stamps,
-    required List<StagedConflict> stagedConflicts,
-    required Map<SyncRowID, int> winningInputIndex,
-  }) =>
-      ReconcileResult._(
-        List.unmodifiable(changes),
-        Map.unmodifiable(stamps),
-        List.unmodifiable(stagedConflicts),
-        Map.unmodifiable(winningInputIndex),
-      );
-
-  final List<LedgerChange> changes;
-  final Map<SyncRowID, VersionVector> stamps;
-  final List<StagedConflict> stagedConflicts;
-
-  /// For each conflict-free row, the index of its winning envelope within the
-  /// `envelopes` iterable originally passed into [SyncEngine.reconcile]. Rows
-  /// that end up staged have no entry: only conflict-free rows have a single
-  /// winning input to record. The engine stays agnostic to who submitted
-  /// which envelope; only the position is recorded.
-  final Map<SyncRowID, int> winningInputIndex;
-
-  bool get hasConflicts => stagedConflicts.isNotEmpty;
-
-  @override
-  bool operator ==(Object other) =>
-      other is ReconcileResult &&
-      _listEquals(other.changes, changes) &&
-      _mapEquals(other.stamps, stamps) &&
-      _listEquals(other.stagedConflicts, stagedConflicts) &&
-      _mapEquals(other.winningInputIndex, winningInputIndex);
-
-  @override
-  int get hashCode => Object.hash(
-        _hashList(changes),
-        _hashMap(stamps),
-        _hashList(stagedConflicts),
-        _hashMap(winningInputIndex),
-      );
-}
+// MARK: - Sync Engine
 
 /// Flutter-free sync engine: encodes local rows, decrypts and decodes pulled
 /// envelopes, groups concurrent siblings by [SyncRowID], and either returns
@@ -108,6 +20,8 @@ class SyncEngine {
   final SyncStagingStore _staging;
   final PayloadCodec _codec = const PayloadCodec();
   final SyncCipher _cipher = const SyncCipher();
+
+  // MARK: - Reconcile
 
   /// Decrypts, decodes, groups, and classifies [envelopes].
   ///
@@ -171,6 +85,8 @@ class SyncEngine {
     );
   }
 
+  // MARK: - Row Decoding
+
   Future<LedgerChange> _decodeRow(
     Uint8List key,
     SyncEnvelope envelope,
@@ -203,6 +119,8 @@ class SyncEngine {
     }
     return change;
   }
+
+  // MARK: - Frontier Reduction
 
   // Returns the non-dominated frontier of [siblings]: the subset whose version
   // vectors no other sibling dominates. Exact-duplicate vectors collapse to one
@@ -241,171 +159,9 @@ class SyncEngine {
         )
         .toList();
   }
-
-  static DecodedSibling _toDecodedSibling(_DecodedRow row) => DecodedSibling(
-        row.envelope.versionVector,
-        row.change,
-        row.envelope.siblingID,
-      );
-
-  /// Converts local [changes] plus their exact stored versions into
-  /// push-ready envelopes.
-  Future<List<SyncEnvelope>> encode(
-    Iterable<LedgerChange> changes,
-    SyncVersionSource versionSource,
-  ) async {
-    final key = await _keyAccessor();
-    final envelopes = <SyncEnvelope>[];
-    for (final change in changes) {
-      final collection = collectionFor(change);
-      final rowID = normalizedID(change.targetID);
-      final row = SyncRowID.of(collection, rowID);
-      final stored = versionSource.readRowVersion(row);
-      if (stored == null) {
-        throw SyncUntrackedRowError(
-          'Cannot encode row $rowID in $collection: the version source '
-          'does not track a stored version for it.',
-        );
-      }
-      final version = stored.versionVector;
-      final lifecycle = _lifecycleFor(change);
-      final payload = Uint8List.fromList(_codec.encodeChange(change));
-      final ciphertext = await _framePayload(
-        key: key,
-        payload: payload,
-        collection: collection,
-        rowID: rowID,
-        versionVector: version,
-        lifecycle: lifecycle,
-      );
-      envelopes.add(SyncEnvelope(
-        protocolVersion: syncProtocolVersion,
-        userID: userID,
-        collection: collection,
-        rowID: rowID,
-        siblingID: computeSiblingID(
-          userID: userID,
-          collection: collection,
-          rowID: rowID,
-          versionVector: version,
-        ),
-        versionVector: version,
-        lifecycle: lifecycle,
-        ciphertext: ciphertext,
-      ));
-    }
-    return envelopes;
-  }
-
-  /// Frames [payload] with a fresh nonce under [key], binding every visible
-  /// envelope field except ciphertext via AAD.
-  Future<String> _framePayload({
-    required Uint8List key,
-    required Uint8List payload,
-    required SyncCollection collection,
-    required String rowID,
-    required VersionVector versionVector,
-    required SiblingLifecycle lifecycle,
-  }) async {
-    final preview = SyncEnvelope(
-      protocolVersion: syncProtocolVersion,
-      userID: userID,
-      collection: collection,
-      rowID: rowID,
-      siblingID: computeSiblingID(
-        userID: userID,
-        collection: collection,
-        rowID: rowID,
-        versionVector: versionVector,
-      ),
-      versionVector: versionVector,
-      lifecycle: lifecycle,
-      ciphertext: '',
-    );
-    final framed = await _cipher.encrypt(
-      key: key,
-      plaintext: payload,
-      aad: preview.aadBytes(),
-    );
-    return base64Url.encode(framed).replaceAll('=', '');
-  }
-
-  static SiblingLifecycle _lifecycleFor(LedgerChange change) =>
-      switch (change) {
-        DeleteBudget() ||
-        DeleteCategory() ||
-        DeleteEntry() ||
-        DeletePlan() ||
-        DeleteMoneySource() =>
-          SiblingLifecycle.tombstone,
-        UpsertAccount() ||
-        UpsertPocket() ||
-        UpsertCategory() ||
-        UpsertEntry() ||
-        UpsertPlan() ||
-        UpsertBudget() =>
-          SiblingLifecycle.live,
-      };
 }
 
-/// Maps a [LedgerChange] to its [SyncCollection]. Total across every variant.
-SyncCollection collectionFor(LedgerChange change) {
-  switch (change) {
-    case UpsertAccount() || UpsertPocket() || DeleteMoneySource():
-      return SyncCollection.moneySources;
-    case UpsertCategory() || DeleteCategory():
-      return SyncCollection.categories;
-    case UpsertEntry() || DeleteEntry():
-      return SyncCollection.entries;
-    case UpsertPlan() || DeletePlan():
-      return SyncCollection.plans;
-    case UpsertBudget() || DeleteBudget():
-      return SyncCollection.budgets;
-  }
-}
-
-/// Builds the payload-free delete change for a tombstone envelope.
-LedgerChange deleteFor(SyncCollection collection, String rowID) =>
-    switch (collection) {
-      SyncCollection.moneySources => DeleteMoneySource(normalizedID(rowID)),
-      SyncCollection.categories => DeleteCategory(normalizedID(rowID)),
-      SyncCollection.entries => DeleteEntry(normalizedID(rowID)),
-      SyncCollection.plans => DeletePlan(normalizedID(rowID)),
-      SyncCollection.budgets => DeleteBudget(normalizedID(rowID)),
-    };
-
-/// A decoded, decrypted sibling carried into a [StagedConflict]: its version
-/// vector, the [LedgerChange] decoded from its ciphertext, and the stable
-/// [siblingID] taken from the original envelope.
-///
-/// [StagedConflict] carries these decoded values rather than raw envelopes so
-/// a later durable store can persist already-decrypted content without a
-/// second decryption pass. [siblingID] is preserved so a later conflict-review
-/// store can audit, deduplicate, and identify a sibling's source across slices.
-@immutable
-final class DecodedSibling {
-  const DecodedSibling(this.versionVector, this.change, this.siblingID);
-
-  final VersionVector versionVector;
-  final LedgerChange change;
-
-  /// Stable per-sibling identity from the original envelope.
-  final String siblingID;
-
-  @override
-  bool operator ==(Object other) =>
-      other is DecodedSibling &&
-      other.versionVector == versionVector &&
-      other.change == change &&
-      other.siblingID == siblingID;
-
-  @override
-  int get hashCode => Object.hash(versionVector, change, siblingID);
-
-  @override
-  String toString() =>
-      'DecodedSibling($change under $versionVector, sibling $siblingID)';
-}
+// MARK: - Decoded Row
 
 class _DecodedRow {
   const _DecodedRow(this.rowID, this.change, this.envelope, this.inputIndex);
@@ -416,36 +172,4 @@ class _DecodedRow {
   /// Position of the originating envelope within the `envelopes` iterable
   /// passed into [SyncEngine.reconcile].
   final int inputIndex;
-}
-
-bool _listEquals<T>(List<T> a, List<T> b) {
-  if (a.length != b.length) return false;
-  for (var index = 0; index < a.length; index += 1) {
-    if (a[index] != b[index]) return false;
-  }
-  return true;
-}
-
-bool _mapEquals<K, V>(Map<K, V> a, Map<K, V> b) {
-  if (a.length != b.length) return false;
-  for (final entry in a.entries) {
-    if (!b.containsKey(entry.key) || b[entry.key] != entry.value) {
-      return false;
-    }
-  }
-  return true;
-}
-
-int _hashList<T>(List<T> values) =>
-    Object.hashAll(values.map((value) => value.hashCode));
-
-/// Folds each entry's hash with XOR so the result ignores map insertion order,
-/// matching [_mapEquals]. Order-sensitive hashing would let two maps with the
-/// same entries produce different codes and break equals/hashCode.
-int _hashMap<K, V>(Map<K, V> map) {
-  var hash = 0;
-  for (final entry in map.entries) {
-    hash ^= Object.hash(entry.key, entry.value);
-  }
-  return hash;
 }

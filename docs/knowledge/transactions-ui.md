@@ -21,7 +21,7 @@ and is the only place recurring plans are created.
   (`openNewEntry`): reads `shellLayoutModeProvider` from the caller-side ref, opens the null-key
   entry form in `AppSheet` on the root navigator, and owns the only null-form Step subscription for
   the modal lifetime.
-- `app/lib/ui/transactions/entry/entry_step_handlers.dart` — the shared source, destination,
+- `app/lib/ui/transactions/entry/steps/entry_step_handlers.dart` — the shared source, destination,
   category, recurrence, date, end-date and document-crop Step handlers used by both the presenter
   and `TransactionsFlow`, presented above the sheet through the root navigator.
 - `app/lib/ui/transactions/receipt_scan/` — the OCR entry hook (see `ocr-receipt-entry.md`).
@@ -29,7 +29,7 @@ and is the only place recurring plans are created.
   It takes an optional `backLabel` passed through to the screen's back control; the phone
   History page sets it to 'Overview' with an `onEnded` that pops its containing Overview route,
   while the desktop History slot and scoped lists set none.
-- `app/lib/ui/common/day_sectioned_entry_list.dart`, `expanding_fab.dart`, `form_scaffold.dart`,
+- `app/lib/ui/common/lists/day_sectioned_entry_list.dart`, `expanding_fab.dart`, `form_scaffold.dart`,
   `swipe_to_delete_row.dart`, `pickers/` — shared components and picker sheets.
 - `app/lib/ui/symbol_map.dart` — symbol-to-IconData mapping.
 

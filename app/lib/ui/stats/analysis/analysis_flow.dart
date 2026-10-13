@@ -2,7 +2,7 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ui/common/flow_base.dart';
+import 'package:spendwise/ui/common/base/flow_base.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/stats/analysis/analysis_view_model.dart';
@@ -12,6 +12,7 @@ import 'package:spendwise/ui/stats/donut/stats_donut.dart';
 import 'package:spendwise/ui/stats/donut/stats_legend.dart';
 import 'package:spendwise/ui/stats/helpers/stats_window.dart';
 
+// MARK: - AnalysisFlow
 class AnalysisFlow extends FlowBase<AnalysisStep> {
   const AnalysisFlow({
     super.key,
@@ -30,6 +31,7 @@ class AnalysisFlow extends FlowBase<AnalysisStep> {
   ConsumerState<AnalysisFlow> createState() => _AnalysisFlowState();
 }
 
+// MARK: - AnalysisFlowState
 class _AnalysisFlowState extends FlowBaseState<AnalysisStep, AnalysisFlow> {
   @override
   void Function() subscribeToStep(void Function(AnalysisStep? step) handle) =>
@@ -73,6 +75,7 @@ class _AnalysisFlowState extends FlowBaseState<AnalysisStep, AnalysisFlow> {
   );
 }
 
+// MARK: - AnalysisBody
 class _AnalysisBody extends ConsumerWidget {
   const _AnalysisBody({
     required this.kind,
@@ -106,6 +109,7 @@ class _AnalysisBody extends ConsumerWidget {
   }
 }
 
+// MARK: - AnalysisBodyContent
 class _AnalysisBodyContent extends StatelessWidget {
   const _AnalysisBodyContent({
     required this.viewState,
@@ -123,7 +127,8 @@ class _AnalysisBodyContent extends StatelessWidget {
   final bool isYearRange;
   final DateTime selectedDate;
 
-  static const _headerPadding = EdgeInsets.all(16);
+  static const _headerInset = 16.0;
+  static const _headerPadding = EdgeInsets.all(_headerInset);
   static const _dividerHeight = 1.0;
 
   @override
@@ -177,12 +182,16 @@ class _AnalysisBodyContent extends StatelessWidget {
   }
 }
 
+// MARK: - EmptyState
 class _EmptyState extends StatelessWidget {
   const _EmptyState({required this.kind});
 
   final CategoryKind kind;
 
-  static const _emptyPadding = EdgeInsets.symmetric(vertical: 48);
+  static const _emptyVerticalInset = 48.0;
+  static const _emptyPadding = EdgeInsets.symmetric(
+    vertical: _emptyVerticalInset,
+  );
   static const _emptyIconSize = 48.0;
   static const _messageGap = 12.0;
 

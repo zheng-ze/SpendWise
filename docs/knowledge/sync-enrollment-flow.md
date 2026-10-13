@@ -209,7 +209,7 @@ or reopening one with an OTP-rejecting resolver. Source:
   `SyncEnrollmentCompletionScreen`;
   `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart` -
   `SyncEnrollmentNotifier.dismissFlow`, `DismissRepairFlow`;
-  `app/lib/ui/common/flow_base.dart` -
+  `app/lib/ui/common/base/flow_base.dart` -
   `FlowBaseState.goBack`.
 
 ## Gotchas

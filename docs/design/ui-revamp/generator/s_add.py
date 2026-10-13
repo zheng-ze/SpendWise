@@ -5,7 +5,7 @@ from s_overview import default_body
 
 A = "add"
 NEWF = "app/lib/ui/transactions/entry/new_entry_form.dart"
-FIELDS = "app/lib/ui/transactions/entry/entry_fields.dart"
+FIELDS = "app/lib/ui/transactions/entry/fields/entry_fields.dart"
 
 
 def under_overview():

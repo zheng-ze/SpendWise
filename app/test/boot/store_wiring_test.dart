@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/app_phase.dart';
 import 'package:spendwise/boot/providers.dart';
-import 'package:spendwise/persistence/drift_ledger_store.dart';
+import 'package:spendwise/persistence/store/drift_ledger_store.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

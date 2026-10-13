@@ -7,6 +7,8 @@ class DisplayPreferencesStore {
 
   final SharedPreferences prefs;
 
+  // MARK: - Keys
+
   static const appearanceKey = 'display.v1.appearance';
   static const overviewWidgetsKey = 'display.v1.overviewWidgets';
   static const breakdownChartKey = 'display.v1.breakdownChart';
@@ -17,6 +19,8 @@ class DisplayPreferencesStore {
   static const insightUsualPaceKey = 'display.v1.insights.usualPace';
   static const dismissedInsightsKey = 'display.v1.insights.dismissed';
   static const savingsPocketKey = 'display.v1.savingsPocket';
+
+  // MARK: - Loading
 
   DisplayPreferences load() {
     final widgetsRaw = prefs.getString(overviewWidgetsKey);
@@ -36,6 +40,8 @@ class DisplayPreferencesStore {
       savingsPocketID: prefs.getString(savingsPocketKey),
     );
   }
+
+  // MARK: - Saving
 
   Future<void> save(DisplayPreferences preferences) async {
     await prefs.setString(appearanceKey, preferences.appearance.code);
@@ -62,6 +68,8 @@ class DisplayPreferencesStore {
       await prefs.setString(savingsPocketKey, pocketID);
     }
   }
+
+  // MARK: - Helpers
 
   static List<OverviewWidgetKind> _decodeWidgets(String raw) {
     if (raw.isEmpty) return const [];

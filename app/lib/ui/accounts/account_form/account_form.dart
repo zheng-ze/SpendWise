@@ -4,14 +4,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/accounts/account_form/account_form_logic.dart';
 import 'package:spendwise/ui/accounts/account_form/account_form_view_model.dart';
-import 'package:spendwise/ui/accounts/accounts_view_model.dart';
+import 'package:spendwise/ui/accounts/accounts_steps.dart';
 import 'package:spendwise/ui/common/pickers/account_type_picker.dart';
-import 'package:spendwise/ui/common/amount_field.dart';
-import 'package:spendwise/ui/common/error_section.dart';
-import 'package:spendwise/ui/common/form_scaffold.dart';
-import 'package:spendwise/ui/common/statement_day_picker.dart';
+import 'package:spendwise/ui/common/inputs/amount_field.dart';
+import 'package:spendwise/ui/common/feedback/error_section.dart';
+import 'package:spendwise/ui/common/inputs/form_scaffold.dart';
+import 'package:spendwise/ui/common/inputs/statement_day_picker.dart';
 import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
 
+// MARK: - Visual Constants
+
+const _fieldContentPadding = EdgeInsets.zero;
+
+// MARK: - Helpers
 Future<void> showAccountFormSheet({required BuildContext context}) {
   return showModalBottomSheet<void>(
     context: context,
@@ -21,6 +26,7 @@ Future<void> showAccountFormSheet({required BuildContext context}) {
   );
 }
 
+// MARK: - AccountForm
 class AccountForm extends ConsumerStatefulWidget {
   const AccountForm({super.key});
 
@@ -28,6 +34,7 @@ class AccountForm extends ConsumerStatefulWidget {
   ConsumerState<AccountForm> createState() => _AccountFormState();
 }
 
+// MARK: - AccountFormState
 class _AccountFormState extends ConsumerState<AccountForm> {
   late final TextEditingController _nameController = TextEditingController();
   late final TextEditingController _balanceController = TextEditingController();
@@ -110,6 +117,7 @@ class _AccountFormState extends ConsumerState<AccountForm> {
   }
 }
 
+// MARK: - AccountFormBody
 class _AccountFormBody extends StatelessWidget {
   const _AccountFormBody({
     required this.formState,
@@ -191,7 +199,7 @@ class _AccountFormBody extends StatelessWidget {
             ),
           ] else
             ListTile(
-              contentPadding: EdgeInsets.zero,
+              contentPadding: _fieldContentPadding,
               title: const Text('Account'),
               trailing: Text(_parentLabel() ?? 'Select'),
               onTap: viewModel.requestPickParent,

@@ -1,11 +1,12 @@
 import 'package:domain/domain.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
-import 'package:spendwise/ui/common/step_emitting.dart';
+import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
+import 'package:spendwise/ui/common/base/step_emitting.dart';
 import 'package:spendwise/ui/format/amount_parse.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 
+// MARK: - Helpers
 bool canSavePlanForm({required String name, required Decimal amount}) {
   if (name.trim().isEmpty) return false;
   if (amount == Decimal.zero) return false;
@@ -24,6 +25,7 @@ RecurrenceFrequency applyPickerResult(
   RecurrenceFrequency? picked,
 ) => picked ?? current;
 
+// MARK: - Steps
 sealed class PlanFormStep {}
 
 class PickRecurrenceRequested extends PlanFormStep {}
@@ -34,6 +36,7 @@ class PickEndDateRequested extends PlanFormStep {}
 
 class PlanFormSaved extends PlanFormStep {}
 
+// MARK: - PlanFormViewState
 class PlanFormViewState implements HasStep<PlanFormViewState, PlanFormStep> {
   const PlanFormViewState({
     required this.name,
@@ -91,6 +94,7 @@ class PlanFormViewState implements HasStep<PlanFormViewState, PlanFormStep> {
       copyWith(step: step);
 }
 
+// MARK: - PlanFormViewModel
 abstract class PlanFormViewModel {
   void setName(String raw);
   void setAmount(String raw);
@@ -105,6 +109,7 @@ abstract class PlanFormViewModel {
   void clearStep();
 }
 
+// MARK: - PlanFormNotifier
 class PlanFormNotifier extends AsyncNotifier<PlanFormViewState>
     with
         LedgerBackedNotifier<PlanFormViewState>,
@@ -243,6 +248,7 @@ class PlanFormNotifier extends AsyncNotifier<PlanFormViewState>
   }
 }
 
+// MARK: - Constants
 final planFormViewModelProvider =
     AsyncNotifierProvider.family<PlanFormNotifier, PlanFormViewState, String>(
       PlanFormNotifier.new,

@@ -8,12 +8,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:spendwise/ledger/event_bus.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/persistence/device_identity.dart';
-import 'package:spendwise/persistence/drift_ledger_store.dart';
-import 'package:spendwise/persistence/ledger_database.dart'
+import 'package:spendwise/persistence/store/device_identity.dart';
+import 'package:spendwise/persistence/store/drift_ledger_store.dart';
+import 'package:spendwise/persistence/database/ledger_database.dart'
     hide Account, SubPocket, Entry, Budget;
-import 'package:spendwise/persistence/ledger_store.dart';
-import 'package:spendwise/persistence/persistence_processor.dart';
+import 'package:spendwise/persistence/store/ledger_store.dart';
+import 'package:spendwise/persistence/store/persistence_processor.dart';
 import 'package:spendwise/sync/cached_collection_version_source.dart';
 import 'package:spendwise/sync/collection_version_reader.dart';
 import 'package:spendwise/sync/credential_provider.dart';

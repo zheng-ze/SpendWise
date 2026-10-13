@@ -1,6 +1,10 @@
 import 'package:flutter/foundation.dart';
 
+// MARK: - State
+
 enum AnalysisQueryState { ready, loading, failed }
+
+// MARK: - Result
 
 @immutable
 class AnalysisQueryResult<T> {

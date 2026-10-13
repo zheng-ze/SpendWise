@@ -4,14 +4,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
-import 'package:spendwise/ledger/analysis/today_summary.dart';
-import 'package:spendwise/ledger/analysis/upcoming.dart';
-import 'package:spendwise/ui/common/ledger_backed_notifier.dart';
-import 'package:spendwise/ui/common/step_emitting.dart';
+import 'package:spendwise/ledger/analysis/summaries/today_summary.dart';
+import 'package:spendwise/ledger/analysis/summaries/upcoming.dart';
+import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
+import 'package:spendwise/ui/common/base/step_emitting.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/transactions/daily_list/transaction_row.dart';
 
+// MARK: - Constants
 const _todayLabel = 'Today';
 const _captionSeparator = ' / ';
 const _planCaption = 'Plan';
@@ -20,6 +21,7 @@ const _statementTitleSuffix = 'statement closes';
 const _statementCaptionPrefix = 'This cycle so far: ';
 const _unnamedCardTitle = 'Card';
 
+// MARK: - OverviewEntryRow
 class OverviewEntryRow {
   const OverviewEntryRow({
     required this.title,
@@ -38,6 +40,7 @@ class OverviewEntryRow {
   final AmountKind amountKind;
 }
 
+// MARK: - OverviewUpcomingRow
 class OverviewUpcomingRow {
   const OverviewUpcomingRow({
     required this.day,
@@ -56,6 +59,7 @@ class OverviewUpcomingRow {
   final AmountKind? amountKind;
 }
 
+// MARK: - OverviewViewState
 class OverviewViewState implements HasStep<OverviewViewState, OverviewStep> {
   const OverviewViewState({
     required this.day,
@@ -90,16 +94,19 @@ class OverviewViewState implements HasStep<OverviewViewState, OverviewStep> {
       );
 }
 
+// MARK: - Steps
 sealed class OverviewStep {}
 
 class OverviewHistoryRequested extends OverviewStep {}
 
+// MARK: - OverviewViewModel
 abstract class OverviewViewModel {
   void retryToday();
   void requestHistory();
   void clearStep();
 }
 
+// MARK: - OverviewNotifier
 class OverviewNotifier extends AsyncNotifier<OverviewViewState>
     with
         LedgerBackedNotifier<OverviewViewState>,
@@ -151,6 +158,7 @@ class OverviewNotifier extends AsyncNotifier<OverviewViewState>
   void requestHistory() => emitStep(OverviewHistoryRequested());
 }
 
+// MARK: - Row Mapping
 OverviewEntryRow _entryRow(Entry entry, LedgerState ledger, DateTime today) {
   final row = transactionRow(entry, ledger);
   final isToday = entry.date == today;
@@ -210,6 +218,7 @@ OverviewUpcomingRow _datedRow(
   );
 }
 
+// MARK: - Constants
 final overviewViewModelProvider =
     AsyncNotifierProvider<OverviewNotifier, OverviewViewState>(
       OverviewNotifier.new,

@@ -6,6 +6,7 @@ import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/entry/new_entry_form.dart';
 import 'package:spendwise/ui/transactions/entry/view_entry_form.dart';
 
+// MARK: - Helpers
 Future<void> showEntryFormSheet({
   required BuildContext context,
   String? entryId,
@@ -18,6 +19,7 @@ Future<void> showEntryFormSheet({
   );
 }
 
+// MARK: - EntryForm
 class EntryForm extends ConsumerWidget {
   const EntryForm({super.key, this.entryId});
 

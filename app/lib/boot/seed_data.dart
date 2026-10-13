@@ -2,6 +2,8 @@ import 'package:domain/domain.dart';
 
 typedef IdFactory = String Function();
 
+// MARK: - Seed
+
 List<LedgerChange> seedChanges({DateTime? today, IdFactory? newID}) =>
     buildSeed(LedgerState(), today: today, newID: newID);
 
@@ -28,12 +30,16 @@ List<LedgerChange> _serialize(LedgerState state) => <LedgerChange>[
 
 String _uniqueID() => newID();
 
+// MARK: - Builder
+
 class _SeedBuilder {
   _SeedBuilder({required this.state, required this.today, required this.newID});
 
   final LedgerState state;
   final DateTime today;
   final IdFactory newID;
+
+  // MARK: - Time
 
   DateTime _day(int offset) => startOfDayUtc(today.add(Duration(days: offset)));
 
@@ -98,6 +104,8 @@ class _SeedBuilder {
     _plan('3200', 'Monthly salary', salary, checking, _month(0, day: 25));
   }
 
+  // MARK: - Accounts
+
   String _account(String name, AccountType type, {int? statementDay}) {
     final account = Account(
       id: newID(),
@@ -119,6 +127,8 @@ class _SeedBuilder {
     state.setOpeningBalance(Decimal.fromInt(amount), holderID, date: date);
   }
 
+  // MARK: - Categories
+
   String _category(
     String name,
     String colorHex,
@@ -138,6 +148,8 @@ class _SeedBuilder {
     state.addCategory(category);
     return category.id;
   }
+
+  // MARK: - Entries
 
   void _entry(
     DateTime date,
@@ -159,6 +171,8 @@ class _SeedBuilder {
       ),
     );
   }
+
+  // MARK: - Plans
 
   void _plan(
     String amount,

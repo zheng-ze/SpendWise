@@ -1,6 +1,6 @@
 import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:spendwise/ledger/analysis/category_breakdown.dart';
+import 'package:spendwise/ledger/analysis/breakdowns/category_breakdown.dart';
 
 import 'analysis_test_support.dart';
 

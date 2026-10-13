@@ -2,13 +2,18 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ui/common/amount_field.dart';
-import 'package:spendwise/ui/common/error_section.dart';
-import 'package:spendwise/ui/common/form_scaffold.dart';
+import 'package:spendwise/ui/common/inputs/amount_field.dart';
+import 'package:spendwise/ui/common/feedback/error_section.dart';
+import 'package:spendwise/ui/common/inputs/form_scaffold.dart';
 import 'package:spendwise/ui/common/pickers/recurrence_picker.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/settings/plan/plan_form_view_model.dart';
 
+// MARK: - Constants
+
+const _emptyContentPadding = EdgeInsets.zero;
+
+// MARK: - Helpers
 Future<void> showPlanFormSheet({
   required BuildContext context,
   required RecurringPlan plan,
@@ -21,6 +26,7 @@ Future<void> showPlanFormSheet({
   );
 }
 
+// MARK: - PlanForm
 class PlanForm extends ConsumerStatefulWidget {
   const PlanForm({super.key, required this.planId});
 
@@ -30,6 +36,7 @@ class PlanForm extends ConsumerStatefulWidget {
   ConsumerState<PlanForm> createState() => _PlanFormState();
 }
 
+// MARK: - PlanFormState
 class _PlanFormState extends ConsumerState<PlanForm> {
   late final TextEditingController _nameController = TextEditingController();
   late final TextEditingController _amountController = TextEditingController();
@@ -128,6 +135,7 @@ class _PlanFormState extends ConsumerState<PlanForm> {
   }
 }
 
+// MARK: - PlanFormBody
 class _PlanFormBody extends StatelessWidget {
   const _PlanFormBody({
     required this.formState,
@@ -175,26 +183,26 @@ class _PlanFormBody extends StatelessWidget {
           Text('Source: ${formState.sourceName}'),
           const SizedBox(height: _fieldGap),
           ListTile(
-            contentPadding: EdgeInsets.zero,
+            contentPadding: _emptyContentPadding,
             title: const Text('Repeat'),
             trailing: Text(frequencyLabels[formState.frequency]!),
             onTap: viewModel.requestPickRecurrence,
           ),
           ListTile(
-            contentPadding: EdgeInsets.zero,
+            contentPadding: _emptyContentPadding,
             title: const Text('First date'),
             trailing: Text(formatEntryDate(formState.anchor)),
             onTap: viewModel.requestPickAnchor,
           ),
           SwitchListTile(
-            contentPadding: EdgeInsets.zero,
+            contentPadding: _emptyContentPadding,
             title: const Text('End date'),
             value: formState.hasEndDate,
             onChanged: viewModel.setHasEndDate,
           ),
           if (formState.hasEndDate)
             ListTile(
-              contentPadding: EdgeInsets.zero,
+              contentPadding: _emptyContentPadding,
               title: const Text('Ends on'),
               trailing: Text(
                 formatEntryDate(formState.endDate ?? formState.anchor),

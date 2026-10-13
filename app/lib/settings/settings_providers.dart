@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/settings/app_settings.dart';
 
+// MARK: - Providers
+
 final appSettingsProvider = Provider<AppSettings>((ref) => const AppSettings());
 
 final scanStripEnabledProvider = FutureProvider<bool>((ref) {

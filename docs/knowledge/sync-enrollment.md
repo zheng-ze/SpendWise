@@ -148,7 +148,7 @@ field; re-enrollment is required. Source:
 `_credentialFromVerifyBody`, `_gotrueFailureFromHttp` (400/422 invalid request, 429 rate limited,
 other statuses backend unavailable);
 `packages/sync/lib/src/protocol/credential.dart` - `DeviceCredential`;
-`app/lib/persistence/device_identity.dart` - `deviceID`.
+`app/lib/persistence/store/device_identity.dart` - `deviceID`.
 
 ## Contracts and invariants
 

@@ -5,6 +5,8 @@ import 'platform_adapter_selection.dart';
 
 const _documentScannerChannelName = 'spendwise/document_scanner';
 
+// MARK: - Selection
+
 Future<DocumentScannerChannel?> selectDocumentScanner({
   bool? isIOS,
   bool? isAndroid,
@@ -26,6 +28,8 @@ Future<DocumentScannerChannel?> selectDocumentScanner({
     ],
   );
 }
+
+// MARK: - Availability
 
 Future<bool> _isAndroidScannerAvailable() {
   return DocumentScannerChannel(_documentScannerChannelName).isAvailable();

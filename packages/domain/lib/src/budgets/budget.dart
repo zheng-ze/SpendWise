@@ -1,8 +1,9 @@
-import 'package:decimal/decimal.dart';
 import 'package:domain/src/budgets/limit_event.dart';
 import 'package:domain/src/ids.dart';
 import 'package:domain/src/time/year_month.dart';
 import 'package:meta/meta.dart';
+
+// MARK: - Model
 
 @immutable
 class Budget {
@@ -42,36 +43,4 @@ bool _listEquals(List<LimitEvent> a, List<LimitEvent> b) {
     if (a[i] != b[i]) return false;
   }
   return true;
-}
-
-Decimal effectiveLimit(Budget budget, YearMonth month) {
-  for (final event in budget.limitEvents.reversed) {
-    if (event.kind == LimitEventKind.override &&
-        event.effectiveFromMonth == month) {
-      return event.value;
-    }
-  }
-
-  LimitEvent? latestDefault;
-  for (final event in budget.limitEvents) {
-    if (event.kind != LimitEventKind.defaultLimit) continue;
-    final from = event.effectiveFromMonth;
-    if (from != null && from > month) continue;
-
-    if (latestDefault == null) {
-      latestDefault = event;
-      continue;
-    }
-    final latestFrom = latestDefault.effectiveFromMonth;
-    if (latestFrom == null || (from != null && from >= latestFrom)) {
-      latestDefault = event;
-    }
-  }
-
-  if (latestDefault == null) {
-    throw StateError(
-      'Budget ${budget.id} has no default limit event at or before $month.',
-    );
-  }
-  return latestDefault.value;
 }

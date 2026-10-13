@@ -2,13 +2,17 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ui/common/delete_confirmation.dart';
-import 'package:spendwise/ui/common/swipe_to_delete_row.dart';
+import 'package:spendwise/ui/common/feedback/delete_confirmation.dart';
+import 'package:spendwise/ui/common/lists/swipe_to_delete_row.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/settings/plan/plan_form.dart';
 import 'package:spendwise/ui/settings/plan/plan_list_view_model.dart';
+
+// MARK: - Constants
+
+const _semiBoldWeight = FontWeight.w600;
 
 const Map<RecurrenceFrequency, String> _frequencyLabels = {
   RecurrenceFrequency.weekly: 'Weekly',
@@ -18,6 +22,7 @@ const Map<RecurrenceFrequency, String> _frequencyLabels = {
   RecurrenceFrequency.yearly: 'Yearly',
 };
 
+// MARK: - PlanListScreen
 class PlanListScreen extends ConsumerStatefulWidget {
   const PlanListScreen({super.key});
 
@@ -25,6 +30,7 @@ class PlanListScreen extends ConsumerStatefulWidget {
   ConsumerState<PlanListScreen> createState() => _PlanListScreenState();
 }
 
+// MARK: - PlanListScreenState
 class _PlanListScreenState extends ConsumerState<PlanListScreen> {
   ProviderSubscription<AsyncValue<PlanListViewState>>? _stepSubscription;
 
@@ -87,6 +93,7 @@ class _PlanListScreenState extends ConsumerState<PlanListScreen> {
   }
 }
 
+// MARK: - PlanListScreenBody
 class _PlanListScreenBody extends StatelessWidget {
   const _PlanListScreenBody({required this.viewState, required this.viewModel});
 
@@ -131,6 +138,7 @@ class _PlanListScreenBody extends StatelessWidget {
   }
 }
 
+// MARK: - PlanRow
 class _PlanRow extends StatelessWidget {
   const _PlanRow({
     required this.plan,
@@ -176,7 +184,7 @@ class _PlanRow extends StatelessWidget {
           context,
           kind: isIncome ? AmountKind.income : AmountKind.expense,
         ).color,
-        fontWeight: FontWeight.w600,
+        fontWeight: _semiBoldWeight,
       ),
     );
 

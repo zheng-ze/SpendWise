@@ -4,10 +4,13 @@ import 'package:flutter_riverpod/legacy.dart';
 
 import 'package:spendwise/boot/providers.dart';
 
+// MARK: - ShellDestination
 enum ShellDestination { overview, history, trends, money, settings }
 
+// MARK: - ShellLayoutMode
 enum ShellLayoutMode { phone, desktop }
 
+// MARK: - Helpers
 ShellLayoutMode resolveShellLayoutMode({
   required bool isWeb,
   required TargetPlatform targetPlatform,
@@ -25,6 +28,7 @@ ShellLayoutMode resolveShellLayoutMode({
   }
 }
 
+// MARK: - Layout Providers
 final shellLayoutModeProvider = Provider<ShellLayoutMode>(
   (ref) => resolveShellLayoutMode(
     isWeb: kIsWeb,
@@ -36,6 +40,7 @@ final selectedDestinationProvider = StateProvider<ShellDestination>(
   (ref) => ShellDestination.overview,
 );
 
+// MARK: - Month Selection
 DateTime startOfMonthUtc(DateTime date) => DateTime.utc(date.year, date.month);
 
 final selectedMonthProvider = StateProvider<DateTime?>((ref) => null);
@@ -46,4 +51,5 @@ final effectiveMonthProvider = Provider<DateTime>((ref) {
   return startOfMonthUtc(ref.watch(todayProvider));
 });
 
+// MARK: - Enrollment
 final enrollmentFlowOpenProvider = StateProvider<bool>((ref) => false);

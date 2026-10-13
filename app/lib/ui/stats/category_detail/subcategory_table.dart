@@ -2,14 +2,16 @@ import 'package:decimal/decimal.dart';
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 
-import 'package:spendwise/ui/common/category_icon.dart';
+import 'package:spendwise/ui/common/lists/category_icon.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/stats/category_detail/category_scope.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
+// MARK: - Constants
 const _directSymbol = 'radio_button_checked';
 
+// MARK: - SubcategoryRowData
 class _SubcategoryRowData {
   const _SubcategoryRowData({
     required this.scope,
@@ -26,6 +28,7 @@ class _SubcategoryRowData {
   final Decimal amount;
 }
 
+// MARK: - SubcategoryTable
 class SubcategoryTable extends StatelessWidget {
   const SubcategoryTable({
     super.key,
@@ -47,6 +50,7 @@ class SubcategoryTable extends StatelessWidget {
   final void Function(CategoryScope scope) onSelectScope;
 
   static const _fractionScale = 4;
+  static const _dividerHeight = 1.0;
 
   @override
   Widget build(BuildContext context) {
@@ -74,7 +78,7 @@ class SubcategoryTable extends StatelessWidget {
 
     return Column(
       children: [
-        const Divider(height: 1),
+        const Divider(height: _dividerHeight),
         _SubcategoryRow(
           name: 'All ${mainCategory?.name ?? ''}',
           symbolName: mainCategory?.symbol ?? 'help_outline',
@@ -105,6 +109,7 @@ class SubcategoryTable extends StatelessWidget {
   }
 }
 
+// MARK: - SubcategoryRow
 class _SubcategoryRow extends StatelessWidget {
   const _SubcategoryRow({
     required this.name,
@@ -125,7 +130,12 @@ class _SubcategoryRow extends StatelessWidget {
   final VoidCallback onTap;
 
   static const _transparentBackground = Color(0x00000000);
-  static const _rowPadding = EdgeInsets.symmetric(horizontal: 16, vertical: 8);
+  static const _rowHorizontalInset = 16.0;
+  static const _rowVerticalInset = 8.0;
+  static const _rowPadding = EdgeInsets.symmetric(
+    horizontal: _rowHorizontalInset,
+    vertical: _rowVerticalInset,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -153,6 +163,7 @@ class _SubcategoryRow extends StatelessWidget {
   }
 }
 
+// MARK: - SubcategoryRowContent
 class _SubcategoryRowContent extends StatelessWidget {
   const _SubcategoryRowContent({
     required this.name,

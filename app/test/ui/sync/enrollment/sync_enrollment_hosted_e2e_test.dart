@@ -9,10 +9,10 @@ import 'package:http/http.dart' as http;
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/event_bus.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/persistence/drift_ledger_store.dart';
-import 'package:spendwise/persistence/ledger_database.dart'
+import 'package:spendwise/persistence/store/drift_ledger_store.dart';
+import 'package:spendwise/persistence/database/ledger_database.dart'
     hide Account, SubPocket, Entry, Budget;
-import 'package:spendwise/persistence/persistence_processor.dart';
+import 'package:spendwise/persistence/store/persistence_processor.dart';
 import 'package:spendwise/sync/sync_backend_resolver.dart';
 import 'package:spendwise/sync/sync_enrollment_session.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';

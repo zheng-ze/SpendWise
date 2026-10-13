@@ -1,16 +1,19 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/foundation.dart' show immutable;
 
+// MARK: - CategoryScope
 @immutable
 sealed class CategoryScope {
   const CategoryScope();
 }
 
+// MARK: - AllScope
 @immutable
 class AllScope extends CategoryScope {
   const AllScope();
 }
 
+// MARK: - SubScope
 @immutable
 class SubScope extends CategoryScope {
   const SubScope(this.subID);
@@ -18,11 +21,13 @@ class SubScope extends CategoryScope {
   final String? subID;
 }
 
+// MARK: - DirectScope
 @immutable
 class DirectScope extends CategoryScope {
   const DirectScope();
 }
 
+// MARK: - Helpers
 Set<String?> matchingCategoryIDs(
   String mainID,
   CategoryScope scope,
@@ -45,4 +50,16 @@ Set<String?> matchingCategoryIDs(
 String? resolvedSubName(String? subID, LedgerState state) {
   if (subID == null) return null;
   return state.categories[subID]?.name;
+}
+
+String scopeCaption(String mainName, CategoryScope scope, LedgerState state) {
+  switch (scope) {
+    case AllScope():
+      return mainName;
+    case DirectScope():
+      return '$mainName › Direct';
+    case SubScope(:final subID):
+      final subName = resolvedSubName(subID, state) ?? 'Uncategorized';
+      return '$mainName › $subName';
+  }
 }

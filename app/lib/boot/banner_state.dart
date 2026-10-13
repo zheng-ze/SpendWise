@@ -3,9 +3,13 @@ import 'dart:async';
 import 'package:domain/domain.dart';
 import 'package:flutter/foundation.dart';
 
-import 'package:spendwise/persistence/ledger_store.dart';
+import 'package:spendwise/persistence/store/ledger_store.dart';
+
+// MARK: - Constants
 
 const _dismissAfter = Duration(seconds: 4);
+
+// MARK: - State
 
 class BannerState extends ChangeNotifier {
   SaveBannerState _saveState = SaveBannerState.clear;
@@ -24,10 +28,14 @@ class BannerState extends ChangeNotifier {
     SaveBannerState.permanentlyFailed => "Couldn't save changes",
   };
 
+  // MARK: - Save State
+
   void receiveSaveState(SaveBannerState state) {
     _saveState = state;
     notifyListeners();
   }
+
+  // MARK: - Plan Errors
 
   void receivePlanErrors(List<PlanFailure> failures) {
     final planCount = failures.map((f) => f.planID).toSet().length;

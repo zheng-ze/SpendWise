@@ -2,6 +2,8 @@ import 'package:domain/domain.dart';
 
 import 'package:spendwise/ui/stats/helpers/stats_window.dart';
 
+// MARK: - Category Scope
+
 Set<String>? budgetBucketIDs(Budget budget, LedgerState state) {
   final categoryID = budget.categoryID;
   if (categoryID == null) return null;
@@ -22,6 +24,8 @@ bool _budgetMatches(Budget budget, AnalysisItem item, LedgerState state) {
   if (bucketID == null) return false;
   return state.categories[bucketID]?.parentID == budget.categoryID;
 }
+
+// MARK: - Spending
 
 Decimal budgetSpend(
   Budget budget,

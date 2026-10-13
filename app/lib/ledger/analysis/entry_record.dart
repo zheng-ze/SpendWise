@@ -1,6 +1,8 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/foundation.dart';
 
+// MARK: - Record
+
 @immutable
 class EntryRecord {
   const EntryRecord({
@@ -44,22 +46,4 @@ EntryRecord entryRecord(LedgerState ledger, Entry entry) {
     sourceName: ledger.sourceName(entry.sourceID),
     destinationName: ledger.sourceName(entry.destinationID),
   );
-}
-
-Set<String>? normalizedScope(Set<String>? sourceIDs) {
-  if (sourceIDs == null) return null;
-  return sourceIDs.map(normalizedID).toSet();
-}
-
-DateRange normalizedWindow(DateRange window) {
-  final start = startOfDayUtc(window.start);
-  final end = startOfDayUtc(window.end);
-  if (end.isBefore(start)) {
-    throw ArgumentError.value(window, 'window', 'End is before start.');
-  }
-  return DateRange(start, end);
-}
-
-bool inScope(HolderReferencing holder, Set<String>? scope) {
-  return scope == null || holder.touches(scope);
 }
