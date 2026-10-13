@@ -9,8 +9,10 @@ import 'package:spendwise/ui/overview/overview_flow.dart';
 import 'package:spendwise/ui/settings/settings_flow.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
+import 'package:spendwise/ui/shell/spendwise_wordmark.dart';
 import 'package:spendwise/ui/stats/stats_flow.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
+import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - BootChrome
 class BootChrome extends ConsumerWidget {
@@ -19,9 +21,7 @@ class BootChrome extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return switch (ref.watch(appPhaseProvider)) {
-      Loading() => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      ),
+      Loading() => const _BootLoading(),
       Failed(:final error) => _LoadFailure(error: error),
       Ready() => AppShell(
         moneySourceId: () => ref.read(moneyNavigatorObserverProvider).sourceId,
@@ -43,6 +43,20 @@ Widget _buildOverviewTab(BuildContext context) => const _OverviewTabEntry();
 
 // MARK: - Constants
 const _overviewBackLabel = 'Overview';
+const _bootPagePadding = EdgeInsets.all(30);
+const _bootContentGap = 14.0;
+const _bootWordmarkFontSize = 26.0;
+const _progressSize = 30.0;
+const _progressStrokeWidth = 3.0;
+const _loadingSemanticsLabel = 'Loading your data';
+const _failureTitle = "Couldn't load your data";
+const _failureMessage =
+    'Something went wrong loading your data. Please try again.';
+const _retryLabel = 'Retry';
+const _failureTitleFontSize = 18.0;
+const _failureTitleWeight = FontWeight.w600;
+const _failureMessageFontSize = 12.0;
+const _retryWidth = double.infinity;
 
 // MARK: - OverviewTabEntry
 class _OverviewTabEntry extends ConsumerWidget {
@@ -73,50 +87,100 @@ Widget _buildTrendsTab(BuildContext context) => const StatsFlow();
 
 Widget _buildSettingsTab(BuildContext context) => const SettingsFlow();
 
+// MARK: - BootLoading
+class _BootLoading extends StatelessWidget {
+  const _BootLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+
+    return Scaffold(
+      backgroundColor: colors.base,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: _bootPagePadding,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SpendWiseWordmark(fontSize: _bootWordmarkFontSize),
+                  const SizedBox(height: _bootContentGap),
+                  SizedBox(
+                    width: _progressSize,
+                    height: _progressSize,
+                    child: CircularProgressIndicator(
+                      strokeWidth: _progressStrokeWidth,
+                      backgroundColor: colors.surface,
+                      color: colors.action,
+                      semanticsLabel: _loadingSemanticsLabel,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 // MARK: - LoadFailure
 class _LoadFailure extends ConsumerWidget {
   const _LoadFailure({required this.error});
 
   final Object error;
 
-  static const _pagePadding = EdgeInsets.all(24);
-
-  static const _messageGap = 8.0;
-
-  static const _retryGap = 24.0;
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final colors = context.colors;
 
     debugPrint('AppBoot failed to load: $error');
 
     return Scaffold(
-      body: Center(
-        child: Padding(
-          padding: _pagePadding,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                "Couldn't load your data",
-                style: theme.textTheme.headlineSmall,
-                textAlign: TextAlign.center,
+      backgroundColor: colors.base,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: _bootPagePadding,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SpendWiseWordmark(fontSize: _bootWordmarkFontSize),
+                  const SizedBox(height: _bootContentGap),
+                  Text(
+                    _failureTitle,
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontSize: _failureTitleFontSize,
+                      fontWeight: _failureTitleWeight,
+                      color: colors.text,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: _bootContentGap),
+                  Text(
+                    _failureMessage,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontSize: _failureMessageFontSize,
+                      color: colors.subtext,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: _bootContentGap),
+                  SizedBox(
+                    width: _retryWidth,
+                    child: FilledButton(
+                      onPressed: () => ref.read(appBootProvider).retry(),
+                      child: const Text(_retryLabel),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: _messageGap),
-              Text(
-                'Something went wrong loading your data. Please try again.',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: _retryGap),
-              FilledButton(
-                onPressed: () => ref.read(appBootProvider).retry(),
-                child: const Text('Retry'),
-              ),
-            ],
+            ),
           ),
         ),
       ),

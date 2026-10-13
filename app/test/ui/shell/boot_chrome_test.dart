@@ -9,12 +9,22 @@ import 'package:spendwise/boot/seed_data.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/persistence/store/ledger_store.dart';
 import 'package:spendwise/ui/overview/overview_screen.dart';
+import 'package:spendwise/ui/overview/overview_flow.dart';
 import 'package:spendwise/ui/accounts/accounts_view_model.dart';
+import 'package:spendwise/ui/accounts/accounts_flow.dart';
 import 'package:spendwise/boot/money_navigation_provider.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
+import 'package:spendwise/ui/transactions/transactions_flow.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/boot_chrome.dart';
+import 'package:spendwise/ui/shell/desktop_sidebar.dart';
+import 'package:spendwise/ui/shell/phone_bar.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
+import 'package:spendwise/ui/shell/spendwise_wordmark.dart';
+import 'package:spendwise/ui/settings/settings_flow.dart';
+import 'package:spendwise/ui/stats/stats_flow.dart';
+import 'package:spendwise/ui/theme/spendwise_colors.dart';
+import 'package:spendwise/ui/theme/spendwise_theme.dart';
 
 import '../../support/in_memory_ledger_store.dart';
 
@@ -38,10 +48,41 @@ class _GatedStoreFactory {
 }
 
 void main() {
-  Widget hostedIn(ProviderContainer container) => UncontrolledProviderScope(
+  Widget hostedIn(
+    ProviderContainer container, {
+    Brightness brightness = Brightness.light,
+  }) => UncontrolledProviderScope(
     container: container,
-    child: const MaterialApp(home: BootChrome()),
+    child: MaterialApp(
+      theme: buildSpendWiseTheme(brightness),
+      home: const BootChrome(),
+    ),
   );
+
+  void expectWordmark(WidgetTester tester, Color actionColor) {
+    final wordmark = find.byType(SpendWiseWordmark);
+    expect(wordmark, findsOneWidget);
+    final text = tester.widget<Text>(
+      find.descendant(of: wordmark, matching: find.byType(Text)),
+    );
+    final span = text.textSpan as TextSpan;
+    expect(span.toPlainText(), 'SpendWise');
+    final wise = span.children?.last as TextSpan;
+    expect(wise.style?.color, actionColor);
+  }
+
+  void expectNoShellNavigation() {
+    expect(find.byType(AppShell), findsNothing);
+    expect(find.byType(PhoneBar), findsNothing);
+    expect(find.byType(DesktopSidebar), findsNothing);
+    expect(find.byType(NavigationBar), findsNothing);
+    expect(find.byType(NavigationRail), findsNothing);
+    expect(find.byType(OverviewFlow), findsNothing);
+    expect(find.byType(TransactionsFlow), findsNothing);
+    expect(find.byType(StatsFlow), findsNothing);
+    expect(find.byType(AccountsFlow), findsNothing);
+    expect(find.byType(SettingsFlow), findsNothing);
+  }
 
   ProviderContainer containerWith(_GatedStoreFactory factory) {
     final container = ProviderContainer(
@@ -58,15 +99,36 @@ void main() {
     return container;
   }
 
-  testWidgets('loading shows a progress indicator', (tester) async {
+  testWidgets('loading uses the theme background and accessible wordmark', (
+    tester,
+  ) async {
     final factory = _GatedStoreFactory();
-    await tester.pumpWidget(hostedIn(containerWith(factory)));
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      hostedIn(containerWith(factory), brightness: Brightness.dark),
+    );
 
+    expect(
+      tester.widget<Scaffold>(find.byType(Scaffold)).backgroundColor,
+      SpendWiseColors.dark.base,
+    );
+    expectWordmark(tester, SpendWiseColors.dark.action);
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
-    expect(find.byType(AppShell), findsNothing);
+    expect(find.bySemanticsLabel('Loading your data'), findsOneWidget);
+    expectNoShellNavigation();
+
+    factory.fail(StateError('loading diagnostic sentinel'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Retry'));
+    await tester.pump();
+
+    expect(find.textContaining('loading diagnostic sentinel'), findsNothing);
+    expect(find.bySemanticsLabel('Loading your data'), findsOneWidget);
+    expectNoShellNavigation();
+    semantics.dispose();
   });
 
-  testWidgets('failure shows the headline, a friendly message and retry', (
+  testWidgets('failure shows exact copy, wordmark and filled retry', (
     tester,
   ) async {
     final factory = _GatedStoreFactory();
@@ -75,8 +137,18 @@ void main() {
     factory.fail(StateError('disk on fire'));
     await tester.pumpAndSettle();
 
+    expect(
+      tester.widget<Scaffold>(find.byType(Scaffold)).backgroundColor,
+      SpendWiseColors.light.base,
+    );
+    expectWordmark(tester, SpendWiseColors.light.action);
     expect(find.text("Couldn't load your data"), findsOneWidget);
+    expect(
+      find.text('Something went wrong loading your data. Please try again.'),
+      findsOneWidget,
+    );
     expect(find.widgetWithText(FilledButton, 'Retry'), findsOneWidget);
+    expectNoShellNavigation();
   });
 
   testWidgets('failure does not leak the raw exception text to the user', (
@@ -96,6 +168,7 @@ void main() {
       find.textContaining("Something went wrong loading your data"),
       findsOneWidget,
     );
+    expectNoShellNavigation();
   });
 
   testWidgets('retry re-enters loading and re-runs boot', (tester) async {
@@ -110,7 +183,43 @@ void main() {
 
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
     expect(find.text("Couldn't load your data"), findsNothing);
+    expect(find.textContaining('disk on fire'), findsNothing);
+    expectWordmark(tester, SpendWiseColors.light.action);
+    expectNoShellNavigation();
     expect(factory.startCount, 2);
+  });
+
+  testWidgets('failure retry remains reachable on a short window', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(320, 180));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final factory = _GatedStoreFactory();
+    await tester.pumpWidget(hostedIn(containerWith(factory)));
+
+    factory.fail(StateError('disk on fire'));
+    await tester.pumpAndSettle();
+
+    final retry = find.widgetWithText(FilledButton, 'Retry');
+    expect(find.byType(SingleChildScrollView), findsOneWidget);
+    await tester.ensureVisible(retry);
+    await tester.pumpAndSettle();
+    await tester.tap(retry);
+    await tester.pump();
+
+    expect(factory.startCount, 2);
+  });
+
+  testWidgets('loading content does not overflow a short window', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(320, 100));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final factory = _GatedStoreFactory();
+    await tester.pumpWidget(hostedIn(containerWith(factory)));
+
+    expect(find.byType(SingleChildScrollView), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('ready shows the shell', (tester) async {
