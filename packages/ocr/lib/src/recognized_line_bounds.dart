@@ -1,5 +1,7 @@
 import 'package:meta/meta.dart';
 
+// MARK: - Bounds
+
 /// Bounding box in the source image's coordinate space.
 @immutable
 class RecognizedLineBounds {

@@ -1,5 +1,7 @@
 import 'package:ocr/ocr.dart';
 
+// MARK: - Constants
+
 const _scanDepth = 5;
 const _maxConsecutiveSkips = 3;
 const _minLength = 3;
@@ -34,6 +36,8 @@ final _trailingStoreNumber = RegExp(
   r'\s*store\s*#\s*\d+\s*$',
   caseSensitive: false,
 );
+
+// MARK: - Extraction
 
 String? extractName(RecognizedText text) {
   final scanned = text.lines.take(_scanDepth).toList();
@@ -70,6 +74,8 @@ String? extractName(RecognizedText text) {
   return bestCandidate;
 }
 
+// MARK: - Predicates
+
 bool _isSkippable(String line) {
   final upper = line.toUpperCase();
   return _addressPattern.hasMatch(line) ||
@@ -86,6 +92,8 @@ bool _looksLikeAName(String line) {
   if (!_alphabeticCharacter.hasMatch(trimmed)) return false;
   return _digitDensity(trimmed) < _maxDigitDensity;
 }
+
+// MARK: - Helpers
 
 double _digitDensity(String text) {
   final digitCount = _digit.allMatches(text).length;

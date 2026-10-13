@@ -2,6 +2,8 @@ import 'package:meta/meta.dart';
 
 import 'recognized_line_bounds.dart';
 
+// MARK: - Line
+
 /// [bounds] and [confidence] are null, and [recognizedLanguages] is empty,
 /// when the engine that produced this line doesn't expose that data.
 @immutable
@@ -43,6 +45,8 @@ class RecognizedLine {
   @override
   String toString() => 'RecognizedLine($text)';
 }
+
+// MARK: - Helpers
 
 bool _listEquals(List<String> a, List<String> b) {
   if (a.length != b.length) return false;

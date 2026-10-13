@@ -6,6 +6,8 @@ import '../recognized_text.dart';
 import '../text_recognition_failure.dart';
 import '../text_recognizer.dart';
 
+// MARK: - Recognizer
+
 /// Recognizes text in an image using Android's on-device ML Kit recognizer,
 /// reached through [AndroidEngine].
 class AndroidTextRecognizer implements TextRecognizer {
@@ -32,6 +34,8 @@ class AndroidTextRecognizer implements TextRecognizer {
     // release, unlike the plugin's long-lived recognizer instance.
   }
 }
+
+// MARK: - Mapping
 
 RecognizedText _toRecognizedText(List<Map<Object?, Object?>> result) {
   final lines = <RecognizedLine>[

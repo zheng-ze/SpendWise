@@ -2,6 +2,8 @@ import 'package:meta/meta.dart';
 
 import 'recognized_line.dart';
 
+// MARK: - Text
+
 /// The result of one recognition call, with lines in the order the engine
 /// returned them.
 @immutable
@@ -21,6 +23,8 @@ class RecognizedText {
   @override
   String toString() => 'RecognizedText(${lines.length} lines)';
 }
+
+// MARK: - Helpers
 
 bool _listEquals(List<RecognizedLine> a, List<RecognizedLine> b) {
   if (a.length != b.length) return false;

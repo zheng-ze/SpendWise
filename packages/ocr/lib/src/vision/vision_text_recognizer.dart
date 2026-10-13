@@ -6,6 +6,8 @@ import '../recognized_text.dart';
 import '../text_recognition_failure.dart';
 import '../text_recognizer.dart';
 
+// MARK: - Recognizer
+
 /// Recognizes text in an image using the native Apple Vision recognizer,
 /// reached through [VisionEngine].
 class VisionTextRecognizer implements TextRecognizer {
@@ -32,6 +34,8 @@ class VisionTextRecognizer implements TextRecognizer {
     // release, unlike Android's process-scoped ML Kit recognizer instance.
   }
 }
+
+// MARK: - Mapping
 
 RecognizedText _toRecognizedText(List<Map<Object?, Object?>> result) {
   final lines = <RecognizedLine>[
