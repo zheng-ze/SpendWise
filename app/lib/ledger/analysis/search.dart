@@ -2,6 +2,7 @@ import 'package:domain/domain.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:spendwise/ledger/analysis/entry_record.dart';
+import 'package:spendwise/ledger/analysis/scope.dart';
 import 'package:spendwise/ledger/analysis/summaries/register.dart';
 
 // MARK: - Month

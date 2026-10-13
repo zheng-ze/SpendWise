@@ -1,6 +1,8 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/foundation.dart';
 
+// MARK: - Scope
+
 @immutable
 sealed class AnalysisCategoryScope {
   const AnalysisCategoryScope();

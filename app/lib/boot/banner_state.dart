@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 
 import 'package:spendwise/persistence/store/ledger_store.dart';
 
+// MARK: - Constants
+
 const _dismissAfter = Duration(seconds: 4);
 
 // MARK: - State
