@@ -39,6 +39,21 @@ SpendWise is a personal finance app built in Flutter.
 
 - Name every visual value as an easy-to-find constant, including self-explanatory values such as a
   1px divider, transparent color, spacing, radius, and chart axis.
+- In widget code, never extract a piece as a `Widget _buildX()` method. Use a local or its own
+  `StatelessWidget`.
+
+## Nesting
+
+- Keep all code flat, in every package and every language: production code, tests, and test setup.
+  Nesting depth is 2 to 3 levels ideally and 5 at the absolute maximum. Never exceed 5.
+- Depth counts every nested construct: widget constructors, callbacks and closures, control flow
+  (`if`, `for`, `switch`, `try`), collection literals, and chained call arguments.
+- Fix depth by naming pieces as locals before the final `return`, using early returns and guard
+  clauses, and extracting a piece into its own function, class, or widget. The final expression
+  reads as an outline.
+- Test setup follows the same limit: extract a shared helper instead of repeating a provider-scope,
+  app and shell pyramid in each test.
+- Full rule: `.agents/rules/code-quality.md`, "Flat methods".
 
 ## Comments
 
