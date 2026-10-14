@@ -1,6 +1,6 @@
 # UI Framework (MVVM)
 
-Last reconciled: 2026-10-14
+Last reconciled: 2026-10-15
 
 ## Feature overview
 
@@ -95,7 +95,7 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   On iOS and Android the mode is open exactly when the window is at least
   600 dp wide and at least 480 dp high (`openModeMinWidth`,
   `openModeMinHeight`, both inclusive), otherwise phone, following window
-  size changes at runtime in both directions with no hysteresis. The
+  size changes at runtime in both directions with no hysteresis. Phones are locked to portrait where the platform honours the request (iPhone `UISupportedInterfaceOrientations` lists portrait only; Android `MainActivity` requests portrait through `requestedOrientation` while `smallestScreenWidthDp` is below 600 and re-applies on configuration change), but Android multi-window can ignore the request and still present a landscape-shaped window; tablets and unfolded foldables keep every orientation, and the 600 x 480 dp rule and its landscape-window tests are unchanged and still cover those cases. The
   inspected Flutter 3.47.4 iOS embedder reports no display features, and the
   rule ignores display features on every platform. Phone and open share one
   stable Scaffold, content Stack and keyed `IndexedStack` with five fixed
