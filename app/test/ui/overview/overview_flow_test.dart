@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/app_boot.dart';
 import 'package:spendwise/boot/providers.dart';
@@ -18,7 +19,10 @@ import '../../support/in_memory_ledger_store.dart';
 import 'overview_fixture.dart';
 
 const _phoneSize = Size(400, 800);
+const _openSize = Size(960, 720);
 const _desktopSize = Size(1200, 900);
+const _testDevicePixelRatio = 1.0;
+final _responsiveWindowSizeProvider = StateProvider<Size>((ref) => _phoneSize);
 
 Future<ProviderContainer> _pumpOverviewFlow(
   WidgetTester tester, {
@@ -27,7 +31,7 @@ Future<ProviderContainer> _pumpOverviewFlow(
   bool requestBeforeMount = false,
 }) async {
   tester.view.physicalSize = _phoneSize;
-  tester.view.devicePixelRatio = 1;
+  tester.view.devicePixelRatio = _testDevicePixelRatio;
   addTearDown(tester.view.reset);
   final ledger = Ledger(state: defaultState());
   final container = overviewContainer(ledger);
@@ -272,10 +276,12 @@ void main() {
       WidgetTester tester,
       ShellLayoutMode mode,
     ) async {
-      tester.view.physicalSize = mode == ShellLayoutMode.desktop
-          ? _desktopSize
-          : _phoneSize;
-      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = switch (mode) {
+        ShellLayoutMode.phone => _phoneSize,
+        ShellLayoutMode.open => _openSize,
+        ShellLayoutMode.desktop => _desktopSize,
+      };
+      tester.view.devicePixelRatio = _testDevicePixelRatio;
       addTearDown(tester.view.reset);
       final container = ProviderContainer(
         overrides: [
@@ -393,6 +399,71 @@ void main() {
       );
       expect(find.byType(TransactionsFlow), findsOneWidget);
       expect(find.byType(BackButton), findsNothing);
+    });
+
+    testWidgets('open mode selects the shell History destination', (
+      tester,
+    ) async {
+      final container = await pumpShell(tester, ShellLayoutMode.open);
+
+      await tapViewHistory(tester);
+
+      expect(
+        container.read(selectedDestinationProvider),
+        ShellDestination.history,
+      );
+      expect(find.byType(TransactionsFlow), findsOneWidget);
+      expect(find.byType(BackButton), findsNothing);
+    });
+
+    testWidgets('phone History route survives open and phone resizing', (
+      tester,
+    ) async {
+      tester.view.physicalSize = _phoneSize;
+      tester.view.devicePixelRatio = _testDevicePixelRatio;
+      addTearDown(tester.view.reset);
+      final container = ProviderContainer(
+        overrides: [
+          appBootProvider.overrideWith(
+            (ref) => AppBoot(
+              createStore: () async => InMemoryLedgerStore(),
+              seedChanges: seedChanges,
+            )..start(),
+          ),
+          analysisComputeRunnerProvider.overrideWithValue(syncComputeRunner),
+          shellPlatformProvider.overrideWithValue((
+            isWeb: false,
+            targetPlatform: TargetPlatform.android,
+          )),
+          shellWindowSizeProvider.overrideWith(
+            (ref) => ref.watch(_responsiveWindowSizeProvider),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: BootChrome()),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tapViewHistory(tester);
+      final historyState = tester.state(find.byType(TransactionsFlow));
+
+      tester.view.physicalSize = _openSize;
+      container.read(_responsiveWindowSizeProvider.notifier).state = _openSize;
+      await tester.pumpAndSettle();
+
+      expect(container.read(shellLayoutModeProvider), ShellLayoutMode.open);
+      expect(tester.state(find.byType(TransactionsFlow)), same(historyState));
+
+      tester.view.physicalSize = _phoneSize;
+      container.read(_responsiveWindowSizeProvider.notifier).state = _phoneSize;
+      await tester.pumpAndSettle();
+
+      expect(container.read(shellLayoutModeProvider), ShellLayoutMode.phone);
+      expect(tester.state(find.byType(TransactionsFlow)), same(historyState));
     });
   });
 }
