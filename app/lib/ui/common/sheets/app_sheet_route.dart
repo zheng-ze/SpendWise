@@ -12,24 +12,37 @@ const _paintOrigin = Offset.zero;
 Future<T?> showAppSheet<T>(
   BuildContext context, {
   required AppSheetPresentation presentation,
+  AppSheetPresentation Function(BuildContext)? presentationResolver,
   required WidgetBuilder builder,
 }) {
-  return Navigator.of(
-    context,
-    rootNavigator: true,
-  ).push<T>(AppSheetRoute<T>(presentation: presentation, builder: builder));
+  return Navigator.of(context, rootNavigator: true).push<T>(
+    AppSheetRoute<T>(
+      presentation: presentation,
+      presentationResolver: presentationResolver,
+      builder: builder,
+    ),
+  );
 }
 
 // MARK: - Route
 
 class AppSheetRoute<T> extends ModalRoute<T> {
-  AppSheetRoute({required this.presentation, required this.builder});
+  AppSheetRoute({
+    required this.presentation,
+    required this.builder,
+    this.presentationResolver,
+  }) {
+    effectivePresentation = ValueNotifier<AppSheetPresentation>(presentation);
+    effectivePresentation.addListener(_reportBarrierChange);
+  }
 
   static const _transitionMillis = 220;
 
   static const _transitionDuration = Duration(milliseconds: _transitionMillis);
 
   static const _barrierColor = Color(0x52101212);
+
+  static const _openBarrierColor = Color(0x00000000);
 
   static const _slideBeginDy = 0.06;
 
@@ -38,6 +51,21 @@ class AppSheetRoute<T> extends ModalRoute<T> {
   final WidgetBuilder builder;
 
   final AppSheetPresentation presentation;
+
+  final AppSheetPresentation Function(BuildContext)? presentationResolver;
+
+  late final ValueNotifier<AppSheetPresentation> effectivePresentation;
+
+  AppSheetPresentation resolveLive(BuildContext context) =>
+      presentationResolver?.call(context) ?? presentation;
+
+  void updateEffective(AppSheetPresentation value) {
+    if (effectivePresentation.value != value) {
+      effectivePresentation.value = value;
+    }
+  }
+
+  void _reportBarrierChange() => changedInternalState();
 
   late final ValueNotifier<SheetAlertData?> _alerts =
       ValueNotifier<SheetAlertData?>(null);
@@ -55,7 +83,10 @@ class AppSheetRoute<T> extends ModalRoute<T> {
   bool get barrierDismissible => true;
 
   @override
-  Color? get barrierColor => _barrierColor;
+  Color? get barrierColor =>
+      effectivePresentation.value == AppSheetPresentation.open
+      ? _openBarrierColor
+      : _barrierColor;
 
   @override
   String? get barrierLabel => 'Dismiss';
@@ -69,12 +100,7 @@ class AppSheetRoute<T> extends ModalRoute<T> {
     Animation<double> animation,
     Animation<double> secondaryAnimation,
   ) {
-    return AppSheetAlertSlot(
-      presentation: presentation,
-      alerts: _alerts,
-      alertAction: _alertAction,
-      child: _AppSheetPage(presentation: presentation, builder: builder),
-    );
+    return _AppSheetPage<T>(route: this);
   }
 
   @override
@@ -96,6 +122,7 @@ class AppSheetRoute<T> extends ModalRoute<T> {
 
   @override
   void dispose() {
+    effectivePresentation.dispose();
     _alerts.dispose();
     _alertAction.dispose();
     super.dispose();
@@ -104,50 +131,96 @@ class AppSheetRoute<T> extends ModalRoute<T> {
 
 // MARK: - Page
 
-class _AppSheetPage extends StatelessWidget {
-  const _AppSheetPage({required this.presentation, required this.builder});
+class _AppSheetPage<T> extends StatefulWidget {
+  const _AppSheetPage({required this.route});
 
+  final AppSheetRoute<T> route;
+
+  @override
+  State<_AppSheetPage<T>> createState() => _AppSheetPageState<T>();
+}
+
+class _AppSheetPageState<T> extends State<_AppSheetPage<T>> {
   static const _desktopAlertTop = 16.0;
 
   static const _compactAlertTop = 12.0;
 
   static const _bottomAlignment = Alignment.bottomCenter;
 
-  final AppSheetPresentation presentation;
+  static const _centerAlignment = Alignment.center;
 
-  final WidgetBuilder builder;
+  static const _openAlignment = Alignment.topRight;
+
+  static const _openWidthDivisor = 2.0;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    widget.route.updateEffective(widget.route.resolveLive(context));
+  }
 
   @override
   Widget build(BuildContext context) {
+    final presentation = widget.route.resolveLive(context);
+    widget.route.updateEffective(presentation);
     final media = MediaQuery.of(context);
+    final open = presentation == AppSheetPresentation.open;
     final desktop = presentation == AppSheetPresentation.desktop;
+    final alignment = open
+        ? _openAlignment
+        : desktop
+        ? _centerAlignment
+        : _bottomAlignment;
     final sheet = Padding(
-      padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
-      child: Builder(builder: builder),
+      padding: EdgeInsets.only(
+        top: open ? media.padding.top : 0,
+        bottom: media.viewInsets.bottom,
+      ),
+      child: Builder(builder: widget.route.builder),
     );
-    final positionedSheet = desktop
-        ? Center(child: sheet)
-        : Align(alignment: _bottomAlignment, child: sheet);
-    final slot = AppSheetAlertSlot.maybeOf(context);
-    if (slot == null) return positionedSheet;
+    final positionedSheet = Align(
+      alignment: alignment,
+      child: SizedBox(
+        width: open ? media.size.width / _openWidthDivisor : null,
+        height: open
+            ? media.size.height - media.padding.top - media.padding.bottom
+            : null,
+        child: sheet,
+      ),
+    );
     final alertTop =
         media.padding.top + (desktop ? _desktopAlertTop : _compactAlertTop);
-    final overlay = _SheetAlertOverlay(slot: slot, alertTop: alertTop);
+    final overlay = _SheetAlertOverlay(
+      alerts: widget.route._alerts,
+      alertAction: widget.route._alertAction,
+      alertTop: alertTop,
+    );
 
-    return Stack(children: [positionedSheet, overlay]);
+    return AppSheetAlertSlot(
+      presentation: presentation,
+      alerts: widget.route._alerts,
+      alertAction: widget.route._alertAction,
+      child: Stack(children: [positionedSheet, overlay]),
+    );
   }
 }
 
 // MARK: - Alert Overlay
 
 class _SheetAlertOverlay extends StatelessWidget {
-  const _SheetAlertOverlay({required this.slot, required this.alertTop});
+  const _SheetAlertOverlay({
+    required this.alerts,
+    required this.alertAction,
+    required this.alertTop,
+  });
 
   static const _overlayHorizontalInset = 12.0;
 
   static const _sheetMaxWidth = 440.0;
 
-  final AppSheetAlertSlot slot;
+  final ValueNotifier<SheetAlertData?> alerts;
+
+  final ValueNotifier<VoidCallback?> alertAction;
 
   final double alertTop;
 
@@ -155,7 +228,7 @@ class _SheetAlertOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     final banner = ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: _sheetMaxWidth),
-      child: _SheetAlertListener(slot: slot),
+      child: _SheetAlertListener(alerts: alerts, alertAction: alertAction),
     );
 
     return Positioned(
@@ -168,33 +241,38 @@ class _SheetAlertOverlay extends StatelessWidget {
 }
 
 class _SheetAlertListener extends StatelessWidget {
-  const _SheetAlertListener({required this.slot});
+  const _SheetAlertListener({required this.alerts, required this.alertAction});
 
-  final AppSheetAlertSlot slot;
+  final ValueNotifier<SheetAlertData?> alerts;
+
+  final ValueNotifier<VoidCallback?> alertAction;
 
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<SheetAlertData?>(
-      valueListenable: slot.alerts,
+      valueListenable: alerts,
       builder: (context, data, _) {
         if (data == null) return const SizedBox.shrink();
-        return _SheetAlertActionListener(slot: slot, data: data);
+        return _SheetAlertActionListener(alertAction: alertAction, data: data);
       },
     );
   }
 }
 
 class _SheetAlertActionListener extends StatelessWidget {
-  const _SheetAlertActionListener({required this.slot, required this.data});
+  const _SheetAlertActionListener({
+    required this.alertAction,
+    required this.data,
+  });
 
-  final AppSheetAlertSlot slot;
+  final ValueNotifier<VoidCallback?> alertAction;
 
   final SheetAlertData data;
 
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<VoidCallback?>(
-      valueListenable: slot.alertAction,
+      valueListenable: alertAction,
       builder: (context, action, _) => SheetAlert(data: data, onAction: action),
     );
   }

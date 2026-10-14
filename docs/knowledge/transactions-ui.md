@@ -53,8 +53,11 @@ constructor-injected observer getter; every other destination and an unscoped Mo
 without a source. The presenter captures that source at invocation, invalidates the null-key form and
 receipt providers before opening, initializes the fresh
 form, applies the scoped prefill after initialization, maps the shell layout mode to the
-`AppSheet` presentation (open uses the phone presentation until the open sheet lands), and releases
-its open guard and subscription when the sheet completes or presentation fails. A late receipt finish after invalidation writes no state
+`AppSheet` presentation (phone, open or desktop), and releases
+its presentation state and subscription when the sheet completes or presentation fails. The Add
+  route re-resolves its presentation live through a resolver reading `ShellLayoutModeScope`, so a
+  phone/open resize changes only the sheet geometry, alignment and chrome around the retained
+  keyed form and never replaces the route. A late receipt finish after invalidation writes no state
 (`ReceiptEntryCoordinator` checks `ref.mounted` in its asynchronous finally). The account-scoped
 screen reuses the same screen with a custom title and `sourceIDs` filter. Back-stack behavior per
 destination survives switching because each destination keeps its own navigator. A labelled back

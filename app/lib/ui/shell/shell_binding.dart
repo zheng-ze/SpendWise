@@ -20,6 +20,12 @@ class ShellLayoutModeScope extends InheritedWidget {
     return scope!.mode;
   }
 
+  static ShellLayoutMode? maybeOf(BuildContext context) {
+    final scope = context
+        .dependOnInheritedWidgetOfExactType<ShellLayoutModeScope>();
+    return scope?.mode;
+  }
+
   @override
   bool updateShouldNotify(ShellLayoutModeScope oldWidget) =>
       mode != oldWidget.mode;
