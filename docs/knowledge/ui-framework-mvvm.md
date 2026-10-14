@@ -130,16 +130,40 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   inside Overview stays on that nested stack across resize; later Overview
   History requests push within Overview on phone and select shell History on
   open or desktop. There is no header gear and no shell Add FAB.
-  `ShellPaneHost` keeps one destination page and optional selected detail in
-  bounded viewports. In open mode it reserves the 72 dp rail gutter, splits the
-  remaining body between page and detail, and owns the detail divider, header,
-  and Close control. The page and detail builders own their scrolling. A
-  destination retains its selected detail in feature state; the active Flow
-  reconciles that selection with its one managed phone detail route after
-  selection or mode changes. Presentation-only route removal preserves
-  selection, while user Back or Close clears it. Unrelated routes remain on
-  their Flow Navigator. (`app/lib/ui/shell/shell_pane_host.dart`,
-  `app/lib/ui/common/base/flow_base.dart`)
+  `ShellPaneScope` supplies the mode, safe body width and whether Add is
+  presented. `ShellPaneHost` calls `pageBuilder(context, presentation)` with
+  bounded page constraints and either `ShellPagePresentation.fullPage` or
+  `ShellPagePresentation.singleColumn`. In open mode, let W be the complete safe body width: the page
+  is W/2 wide when a detail or Add occupies the right half, and W - 72 dp wide
+  without either. A visible detail starts at W/2 and is W/2 - 72 dp wide; the
+  72 dp rail gutter is reserved once. The host retains the page child at one
+  element location across selection, resize and Add visibility changes. It owns
+  the detail divider, pinned title/subtitle/actions header and Close button.
+  `ShellDetail` requires a stable `id`, title, body builder and `onClose`, with
+  optional subtitle and header actions. Page and detail body builders own their
+  vertical scrolling. When detail is hidden by phone/desktop mode
+  or Add, its subtree remains offstage with feature selection intact.
+  `ShellPaneHost` never changes routes. A visible floating action appears only
+  for the active, current page in open mode without Add, at 10 dp from the
+  bottom and 3 dp from the usable page's right edge (75 dp from the full body's
+  right edge). (`app/lib/ui/shell/shell_pane_host.dart`,
+  `app/lib/ui/shell/open_rail.dart`)
+
+  Selected-detail state, including `selectedDetailId`, belongs to the feature
+  ViewModel and is independent of layout mode. Phone and open row actions write
+  the same selection. A retained feature Flow owns at most one managed phone
+  detail route; its content observes the latest selection. After selection or
+  mode changes, one post-frame reconciliation reads the latest values. Entering
+  open removes only that Flow's tracked phone detail route as a presentation-
+  only removal, preserving selection. Entering phone pushes one managed detail
+  route when selection exists and none is present. A selection change updates
+  the existing route instead of stacking another. User Back or Close clears
+  selection; presentation-only removal preserves it. Route identity prevents a
+  completed outgoing route from clearing a replacement selection. Reconcile
+  only after the feature page is exposed: preserve unrelated routes and defer a
+  missing phone-detail push while one covers that page. Exactly one exposed
+  detail must match the latest selection. Desktop detail presentation remains
+  feature-owned. (`app/test/ui/shell/shell_pane_selection_contract_test.dart`)
   The desktop sidebar's sync line is a dedicated `SidebarStatusViewModel` that
   watches `hostedSyncStatusProvider`: no selection shows "Sync not configured",
   setup pending shows "Sync setup pending", ready shows "Sync ready", binding

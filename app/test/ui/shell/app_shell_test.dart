@@ -23,6 +23,7 @@ import '../overview/overview_fixture.dart' show emptyState, settleAnalysis;
 const _compact = Size(400, 800);
 const _wide = Size(1200, 900);
 const _openSized = Size(960, 720);
+const _openInsets = FakeViewPadding(left: 20, right: 30);
 
 const _phoneBarKey = ValueKey('phone-bar');
 const _openRailKey = ValueKey('open-rail');
@@ -188,6 +189,48 @@ void _expectBarOrder(WidgetTester tester) {
 }
 
 void main() {
+  testWidgets('open viewport applies horizontal safe insets exactly once', (
+    tester,
+  ) async {
+    tester.view.physicalSize = _openSized;
+    tester.view.devicePixelRatio = 1;
+    tester.view.viewPadding = _openInsets;
+    tester.view.padding = _openInsets;
+    addTearDown(tester.view.reset);
+    final container = ProviderContainer(
+      overrides: [
+        hostedSyncStatusProvider.overrideWithValue(const HostedSyncReady()),
+        shellLayoutModeProvider.overrideWithValue(ShellLayoutMode.open),
+      ],
+    );
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          home: AppShell(
+            bodies: {
+              ShellDestination.overview: (context) => SafeArea(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final padding = MediaQuery.paddingOf(context);
+                    return Text(
+                      'padding:${padding.left}:${padding.right};'
+                      'width:${constraints.maxWidth}',
+                    );
+                  },
+                ),
+              ),
+            },
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('padding:0.0:0.0;width:838.0'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('the shell opens on the overview destination', (tester) async {
     final container = await _pumpShell(tester, size: _compact);
 

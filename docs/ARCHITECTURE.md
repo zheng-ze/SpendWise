@@ -300,14 +300,32 @@ The app is phone-first with one shell whose phone or desktop layout is chosen by
   shared `buildShellAppContent` app builder reads the root window size before `SafeArea` and
   feeds a retained binding scope, so resize keeps the selected destination and provider
   container identity.
-  The pane host owns bounded page and detail viewports, their divider, the detail header and
-  Close action; page builders own their scrolling. Each feature retains detail selection in its
-  ViewModel and reconciles it with one managed phone detail route across mode and selection
-  changes. Presentation-only route removal preserves selection; user Back or Close clears it.
-  `showShellConfirmation<T>` pushes on the root Navigator. Open mode centers a dialog up to
-  308 dp over both panes, blocks the full window with a transparent barrier, and paints dim only
-  over the pane region before the 72 dp rail gutter. Phone and desktop keep full-window centering.
-  Delete and purge helpers map dismissal to false.
+  `ShellPaneScope` supplies mode, safe body width and whether the existing Add route is presented.
+  `ShellPaneHost` calls its page builder with bounded constraints and
+  `ShellPagePresentation.fullPage` or `singleColumn`. In open mode, for safe body width W, the page
+  is W/2 wide when a detail or Add occupies the right half and W - 72 dp wide otherwise. A visible
+  detail starts at W/2 and is W/2 - 72 dp wide; the rail gutter is reserved once. `ShellDetail`
+  requires stable identity, title, body builder and Close callback, with optional subtitle and
+  header actions. The host retains the page child at one element location, owns the divider and
+  pinned detail header, and leaves scrolling to page and detail body builders. It retains hidden
+  detail offstage with feature selection intact and never pushes or pops routes. A supplied
+  floating action appears only on the active, current open page while Add is closed, at 10 dp from
+  the bottom and 3 dp from the usable page's right edge, or 75 dp from the full body's right edge.
+  Each feature owns `selectedDetailId` and selected-detail state in its ViewModel, independent of
+  mode. Phone and open actions update the same selection. The retained feature Flow owns at most one
+  managed phone detail route whose content observes the latest selection. One post-frame
+  reconciliation coalesces mode and selection changes. Entering open removes only the tracked
+  route through that Flow's Navigator as a presentation-only removal. Entering phone pushes one
+  route when selection exists and no managed route exists; a selection change updates that route.
+  User Back or Close clears selection, while presentation-only removal preserves it. Route identity
+  prevents an outgoing route from clearing replacement selection. Preserve unrelated routes and
+  defer a missing phone detail until its feature page is exposed. Exactly one exposed detail matches
+  the latest selection. Desktop detail presentation remains feature-owned.
+  `showShellConfirmation<T>` pushes on the root Navigator and returns the caller's result; dismissal
+  returns null. Open mode centers a dialog up to 308 dp over both panes, blocks the full window
+  with a transparent barrier, and paints dim only over the pane region before the 72 dp rail
+  gutter. Phone and desktop keep full-window centering. Delete and purge helpers map dismissal to
+  false.
 - Screen-level state — selected month, selector mode, stats kind, and similar per-tab state — lives
   in providers, never in widget-local state that a rebuild can silently recreate. Controllers that
   window on "now" take an injected clock, so statement and summary window logic can be pinned in
