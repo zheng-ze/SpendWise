@@ -150,7 +150,9 @@ whose raw outcome the Flow reports back to the ViewModel through a named method 
 `applyPickedParent(String? id)`). Either way `Step` stays plain data with no Flutter import, so this
 does not reintroduce a Flutter dependency into the ViewModel. `Step` consumption is single-shot —
 the Flow clears it via the ViewModel's `clearStep()` after acting on it, whether that action was a
-push or a modal launch. Replaces the earlier `NavigationIntent` field. See ADR-0059.
+push or a modal launch. `TransactionsFlow` additionally consumes its screen `Step` only while its
+destination is active, so a hidden retained History instance never acts on or clears a shared
+`Step`. Replaces the earlier `NavigationIntent` field. See ADR-0059.
 
 `AppShell` (`app/lib/ui/shell/app_shell.dart`) itself gets no ViewModel: its only state is
 the layout mode (`shellLayoutModeProvider`, resolving `ShellLayoutMode.phone`, `ShellLayoutMode.open`
@@ -159,13 +161,21 @@ with no async loading and no domain import. Web, macOS, Windows and Linux always
 on iOS and Android the window uses open exactly when at least 600 dp wide and at least 480 dp
 high (both inclusive), otherwise phone, following runtime size changes with no hysteresis. The
 inspected Flutter 3.47.4 iOS embedder reports no display features, and the rule ignores display
-features on every platform. Until the open chrome lands, open renders the phone chrome.
-`ShellDestination` is overview, history, trends, money and
+features on every platform. Phone and open share one stable Scaffold, content Stack and
+keyed `IndexedStack` with five fixed destination positions; only chrome and the content gutter
+change between them, so a phone/open switch keeps the selected destination, every Flow State,
+Navigator State and nested route. `ShellDestination` is overview, history, trends, money and
 settings, opening on overview. Phone renders a rounded five-position bar (Overview, Trends,
-centred Add, Money, Settings) over a stable `IndexedStack` of its four destination slots; desktop
-renders a sidebar (wordmark, Overview, History, Trends, Money, Add entry, Settings at the bottom)
-over a stable `IndexedStack` of all five. The centre Add action is never selected and opens the
- shared `openNewEntry` presenter. Shell Add captures the top scoped Money route's preferred source
+centred Add, Money, Settings); open renders a vertical rail docked bottom right (Overview,
+History, Trends, Money, Settings, filled Add; 54 dp wide with 9 dp right and 10 dp bottom
+insets, 18 dp radius) over content reserving a 72 dp gutter, with `StatusBanner` clearing the
+same gutter. The mobile History slot materializes lazily on first open-mode use or explicit
+History selection and is retained after; the phone bar still shows no History item, and a shell
+History selected at an open-to-phone switch stays selected and visible with a root back control
+labelled Overview. Desktop renders a sidebar (wordmark, Overview, History, Trends, Money, Add
+entry, Settings at the bottom) over the same five slots. Add in every layout is never selected
+and opens the shared `openNewEntry` presenter. Shell Add captures the top scoped Money route's
+preferred source
 only while Money is selected, through an injected `MoneyNavigatorObserver` getter; all other states
 open unscoped. The Add sheet keeps its root route and keyed form across phone/open resizes,
 re-resolving phone, open or desktop presentation live: the open surface docks full-height in the

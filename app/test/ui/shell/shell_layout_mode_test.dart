@@ -627,7 +627,7 @@ void main() {
       expect(find.byKey(const ValueKey('phone-bar')), findsNothing);
     });
 
-    testWidgets('open renders the phone chrome until the open chrome lands', (
+    testWidgets('an enclosing explicit open override renders the rail', (
       tester,
     ) async {
       tester.view.physicalSize = _openSize;
@@ -643,8 +643,10 @@ void main() {
           child: const MaterialApp(home: AppShell()),
         ),
       );
+      await tester.pumpAndSettle();
 
-      expect(find.byKey(const ValueKey('phone-bar')), findsOneWidget);
+      expect(find.byKey(const ValueKey('open-rail')), findsOneWidget);
+      expect(find.byKey(const ValueKey('phone-bar')), findsNothing);
       expect(find.byKey(const ValueKey('sidebar')), findsNothing);
     });
   });

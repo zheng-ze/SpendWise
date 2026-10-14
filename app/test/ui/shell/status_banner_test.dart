@@ -99,4 +99,37 @@ void main() {
       greaterThan(tester.getRect(find.byType(Stack).first).center.dy),
     );
   });
+
+  testWidgets('the open gutter shifts the banner clear of the rail', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(960, 720);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final container = ProviderContainer(
+      overrides: [
+        bannerStateProvider.overrideWith((ref) => banner),
+        hostedSyncStatusProvider.overrideWithValue(const HostedSyncReady()),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(
+          home: Scaffold(
+            body: Stack(children: [StatusBanner(rightGutter: 72)]),
+          ),
+        ),
+      ),
+    );
+    banner.receiveSaveState(SaveBannerState.retrying);
+    await tester.pumpAndSettle();
+
+    final message = tester.getRect(
+      find.text("Couldn't save changes, retrying"),
+    );
+    expect(message.right, lessThanOrEqualTo(960 - 72));
+  });
 }

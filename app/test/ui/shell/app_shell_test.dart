@@ -10,19 +10,28 @@ import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/common/base/flow_base.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
+import 'package:spendwise/ui/transactions/transactions_view_model.dart';
+import 'package:spendwise/ui/overview/overview_flow.dart';
+import 'package:spendwise/ui/overview/overview_view_model.dart';
+import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
+import 'package:spendwise/ui/shell/shell_binding.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
+
+import '../overview/overview_fixture.dart' show emptyState, settleAnalysis;
 
 const _compact = Size(400, 800);
 const _wide = Size(1200, 900);
+const _openSized = Size(960, 720);
 
 const _phoneBarKey = ValueKey('phone-bar');
+const _openRailKey = ValueKey('open-rail');
 const _sidebarKey = ValueKey('sidebar');
 
 const _barLabels = ['Overview', 'Trends', 'Add', 'Money', 'Settings'];
 
 class _ProbeFlow extends FlowBase<String> {
-  const _ProbeFlow({required this.label});
+  const _ProbeFlow({super.key, required this.label});
 
   final String label;
 
@@ -113,6 +122,60 @@ Future<ProviderContainer> _pumpShell(
 Future<void> _resize(WidgetTester tester, Size size) async {
   tester.view.physicalSize = size;
   await tester.pumpAndSettle();
+}
+
+Future<ProviderContainer> _pumpBoundShell(
+  WidgetTester tester, {
+  required Size size,
+  Map<ShellDestination, WidgetBuilder>? bodies,
+  Ledger? ledger,
+  bool settleAnalysisCache = false,
+}) async {
+  tester.view.physicalSize = size;
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+  final ownedLedger = ledger ?? _buildLedger();
+  final container = ProviderContainer(
+    overrides: [
+      hostedSyncStatusProvider.overrideWithValue(const HostedSyncReady()),
+      shellPlatformProvider.overrideWithValue((
+        isWeb: false,
+        targetPlatform: TargetPlatform.iOS,
+      )),
+      ledgerProvider.overrideWithValue(ownedLedger),
+      scanStripEnabledProvider.overrideWith((ref) async => false),
+      analysisComputeRunnerProvider.overrideWithValue(syncComputeRunner),
+    ],
+  );
+  addTearDown(container.dispose);
+
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        builder: buildShellAppContent,
+        home: AppShell(bodies: bodies ?? _probeBodies()),
+      ),
+    ),
+  );
+  if (settleAnalysisCache) {
+    await tester.runAsync(() => settleAnalysis(container, ownedLedger));
+  }
+  await tester.pumpAndSettle();
+  return container;
+}
+
+Ledger _ledgerWithEntry(StringBuffer entryIdOut) {
+  final ledger = _buildLedger();
+  final entry = Entry(
+    amount: Decimal.parse('-5'),
+    name: 'Coffee run',
+    sourceID: ledger.state.moneySources.keys.single,
+    date: DateTime.utc(2026, 10, 3),
+  );
+  ledger.addEntry(entry);
+  entryIdOut.write(entry.id);
+  return ledger;
 }
 
 void _expectBarOrder(WidgetTester tester) {
@@ -433,22 +496,28 @@ void main() {
     );
   }
 
-  testWidgets('resizing across former thresholds switches no layout', (
-    tester,
-  ) async {
-    final container = await _pumpShell(tester, size: _compact);
+  testWidgets('resizing phone to open and back switches chrome and keeps '
+      'the selection', (tester) async {
+    final container = await _pumpBoundShell(tester, size: _compact);
     await tester.tap(find.text('Trends'));
     await tester.pumpAndSettle();
 
-    for (final width in [680.0, 700.0, 720.0, 960.0, 1000.0, 1200.0]) {
-      await _resize(tester, Size(width, 900));
-      expect(find.byKey(_phoneBarKey), findsOneWidget);
-      expect(find.byKey(_sidebarKey), findsNothing);
-    }
+    await _resize(tester, _openSized);
+    expect(find.byKey(_openRailKey), findsOneWidget);
+    expect(find.byKey(_phoneBarKey), findsNothing);
     expect(
       container.read(selectedDestinationProvider),
       ShellDestination.trends,
     );
+
+    await _resize(tester, _compact);
+    expect(find.byKey(_phoneBarKey), findsOneWidget);
+    expect(find.byKey(_openRailKey), findsNothing);
+    expect(
+      container.read(selectedDestinationProvider),
+      ShellDestination.trends,
+    );
+    expect(find.text('trends probe'), findsOneWidget);
   });
 
   testWidgets('resizing a desktop shell switches no layout', (tester) async {
@@ -502,10 +571,9 @@ void main() {
     expect(find.text('open detail'), findsNothing);
   });
 
-  testWidgets('a drilled-in destination keeps its stack across a resize', (
-    tester,
-  ) async {
-    await _pumpShell(
+  testWidgets('a drilled-in destination keeps its stack across a real '
+      'mobile switch', (tester) async {
+    await _pumpBoundShell(
       tester,
       size: _compact,
       bodies: {
@@ -531,7 +599,12 @@ void main() {
     await tester.tap(find.text('open detail'));
     await tester.pumpAndSettle();
 
-    await _resize(tester, const Size(1200, 900));
+    await _resize(tester, _openSized);
+
+    expect(find.text('entry detail'), findsOneWidget);
+    expect(find.byKey(_openRailKey), findsOneWidget);
+
+    await _resize(tester, _compact);
 
     expect(find.text('entry detail'), findsOneWidget);
     expect(find.byKey(_phoneBarKey), findsOneWidget);
@@ -698,5 +771,326 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('month 2019-3'), findsOneWidget);
+  });
+
+  group('stable mobile stack', () {
+    Future<void> pushChild(
+      WidgetTester tester,
+      ShellDestination destination,
+      ProviderContainer container,
+    ) async {
+      container.read(selectedDestinationProvider.notifier).state = destination;
+      await tester.pumpAndSettle();
+      final root = tester.element(find.text('${destination.name} probe'));
+      Navigator.of(root).push(
+        MaterialPageRoute<void>(
+          builder: (_) => Text('${destination.name} child'),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('nested routes in every destination survive a phone-open-'
+        'phone round trip', (tester) async {
+      final keys = {
+        for (final destination in ShellDestination.values)
+          destination: GlobalKey(),
+      };
+      final container = await _pumpBoundShell(
+        tester,
+        size: _compact,
+        bodies: {
+          for (final destination in ShellDestination.values)
+            destination: (_) => _ProbeFlow(
+              key: keys[destination],
+              label: '${destination.name} probe',
+            ),
+        },
+      );
+      for (final destination in ShellDestination.values) {
+        await pushChild(tester, destination, container);
+      }
+
+      Finder navOf(ShellDestination destination) => find.byElementPredicate(
+        (element) =>
+            element ==
+            (keys[destination]!.currentState as _ProbeFlowState?)
+                ?.navigatorContext,
+        skipOffstage: false,
+      );
+      final flowStates = {
+        for (final destination in keys.keys)
+          destination: keys[destination]!.currentState,
+      };
+      final navStates = {
+        for (final destination in keys.keys)
+          destination: tester.state(navOf(destination)),
+      };
+
+      await _resize(tester, _openSized);
+      expect(find.byKey(_openRailKey), findsOneWidget);
+      await _resize(tester, _compact);
+      expect(find.byKey(_phoneBarKey), findsOneWidget);
+
+      for (final destination in keys.keys) {
+        expect(
+          identical(keys[destination]!.currentState, flowStates[destination]),
+          isTrue,
+          reason: '${destination.name} flow state',
+        );
+        expect(
+          identical(tester.state(navOf(destination)), navStates[destination]),
+          isTrue,
+          reason: '${destination.name} navigator state',
+        );
+        expect(
+          find.text('${destination.name} child', skipOffstage: false),
+          findsOneWidget,
+        );
+      }
+
+      container.read(selectedDestinationProvider.notifier).state =
+          ShellDestination.overview;
+      await tester.pumpAndSettle();
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+
+      expect(find.text('overview child'), findsNothing);
+      expect(find.text('overview probe'), findsOneWidget);
+      expect(find.text('trends child', skipOffstage: false), findsOneWidget);
+    });
+
+    testWidgets('inactive destinations keep nested routes while open', (
+      tester,
+    ) async {
+      final container = await _pumpBoundShell(tester, size: _compact);
+      for (final destination in [
+        ShellDestination.trends,
+        ShellDestination.money,
+      ]) {
+        await pushChild(tester, destination, container);
+      }
+      container.read(selectedDestinationProvider.notifier).state =
+          ShellDestination.overview;
+      await tester.pumpAndSettle();
+
+      await _resize(tester, _openSized);
+
+      expect(find.text('overview probe'), findsOneWidget);
+      expect(find.text('trends child'), findsNothing);
+      expect(find.text('trends child', skipOffstage: false), findsOneWidget);
+      expect(find.text('money child', skipOffstage: false), findsOneWidget);
+
+      await _resize(tester, _compact);
+
+      expect(find.text('trends child', skipOffstage: false), findsOneWidget);
+      expect(find.text('money child', skipOffstage: false), findsOneWidget);
+    });
+
+    testWidgets('shell history stays selected on phone with an overview '
+        'back action', (tester) async {
+      final historyFlowKey = GlobalKey();
+      final entryIds = StringBuffer();
+      final container = await _pumpBoundShell(
+        tester,
+        size: _openSized,
+        bodies: {
+          ..._probeBodies(),
+          ShellDestination.history: (context) => TransactionsFlow(
+            key: historyFlowKey,
+            backLabel: 'Overview',
+            onEnded: () =>
+                ProviderScope.containerOf(context)
+                        .read(selectedDestinationProvider.notifier)
+                        .state =
+                    ShellDestination.overview,
+          ),
+        },
+        ledger: _ledgerWithEntry(entryIds),
+      );
+      container.read(selectedDestinationProvider.notifier).state =
+          ShellDestination.history;
+      await tester.pumpAndSettle();
+      expect(find.text('Transactions'), findsOneWidget);
+      final flowState = historyFlowKey.currentState;
+
+      await _resize(tester, _compact);
+
+      expect(
+        container.read(selectedDestinationProvider),
+        ShellDestination.history,
+      );
+      expect(find.text('Transactions'), findsOneWidget);
+      expect(find.text('History'), findsNothing);
+      expect(identical(historyFlowKey.currentState, flowState), isTrue);
+      expect(tester.getSemantics(find.byType(BackButton)).label, 'Overview');
+
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+
+      expect(
+        container.read(selectedDestinationProvider),
+        ShellDestination.overview,
+      );
+      expect(find.text('overview probe'), findsOneWidget);
+    });
+
+    testWidgets('overview-pushed history stays on the overview stack across '
+        'a mobile switch', (tester) async {
+      final owned = Ledger(state: emptyState());
+      final container = await _pumpBoundShell(
+        tester,
+        size: _compact,
+        bodies: {
+          ..._probeBodies(),
+          ShellDestination.overview: (_) => OverviewFlow(
+            historyRouteBuilder: (routeContext) => TransactionsFlow(
+              backLabel: 'Overview',
+              onEnded: () => Navigator.of(routeContext).pop(),
+            ),
+          ),
+        },
+        ledger: owned,
+        settleAnalysisCache: true,
+      );
+      container.read(overviewViewModelProvider.notifier).requestHistory();
+      await tester.pumpAndSettle();
+      expect(find.text('Transactions'), findsOneWidget);
+      expect(
+        container.read(selectedDestinationProvider),
+        ShellDestination.overview,
+      );
+
+      await _resize(tester, _openSized);
+      expect(find.text('Transactions'), findsOneWidget);
+      expect(find.byKey(_openRailKey), findsOneWidget);
+
+      await _resize(tester, _compact);
+      expect(find.text('Transactions'), findsOneWidget);
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.text('Transactions'), findsNothing);
+    });
+
+    testWidgets('exactly one editor opens in the visible history owner', (
+      tester,
+    ) async {
+      final entryIds = StringBuffer();
+      final ledger = _ledgerWithEntry(entryIds);
+      final entryId = entryIds.toString();
+      TransactionsViewModel historyViewModel(ProviderContainer container) =>
+          container.read(transactionsViewModelProvider(null).notifier);
+      final container = await _pumpBoundShell(
+        tester,
+        size: _openSized,
+        bodies: {
+          ..._probeBodies(),
+          ShellDestination.overview: (_) => Navigator(
+            onGenerateRoute: (settings) => MaterialPageRoute<void>(
+              settings: settings,
+              builder: (context) => Center(
+                child: TextButton(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const TransactionsFlow(),
+                    ),
+                  ),
+                  child: const Text('open history'),
+                ),
+              ),
+            ),
+          ),
+          ShellDestination.history: (_) => const TransactionsFlow(),
+        },
+        ledger: ledger,
+      );
+      container.read(selectedDestinationProvider.notifier).state =
+          ShellDestination.history;
+      await tester.pumpAndSettle();
+      expect(find.text('Transactions'), findsOneWidget);
+
+      container.read(selectedDestinationProvider.notifier).state =
+          ShellDestination.overview;
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('open history'));
+      await tester.pumpAndSettle();
+      expect(find.text('Transactions'), findsOneWidget);
+
+      historyViewModel(container).openEntry(entryId);
+      await tester.pumpAndSettle();
+      expect(find.text('Edit'), findsOneWidget);
+
+      container.read(selectedDestinationProvider.notifier).state =
+          ShellDestination.history;
+      await tester.pumpAndSettle();
+      expect(find.text('Transactions'), findsOneWidget);
+      expect(find.text('Edit'), findsNothing);
+
+      container.read(selectedDestinationProvider.notifier).state =
+          ShellDestination.overview;
+      await tester.pumpAndSettle();
+      Navigator.of(tester.element(find.text('Edit'))).pop();
+      await tester.pumpAndSettle();
+      expect(find.text('Edit'), findsNothing);
+
+      container.read(selectedDestinationProvider.notifier).state =
+          ShellDestination.history;
+      await tester.pumpAndSettle();
+      historyViewModel(container).openEntry(entryId);
+      await tester.pumpAndSettle();
+      expect(find.text('Edit'), findsOneWidget);
+      expect(find.text('Transactions', skipOffstage: false), findsNWidgets(2));
+      Navigator.of(tester.element(find.text('Edit'))).pop();
+      await tester.pumpAndSettle();
+      expect(find.text('Edit'), findsNothing);
+    });
+
+    testWidgets('activation pickup consumes a pending step once and never '
+        'replays it', (tester) async {
+      final entryIds = StringBuffer();
+      final ledger = _ledgerWithEntry(entryIds);
+      final entryId = entryIds.toString();
+      final container = await _pumpBoundShell(
+        tester,
+        size: _openSized,
+        bodies: {
+          ..._probeBodies(),
+          ShellDestination.history: (_) => const TransactionsFlow(),
+        },
+        ledger: ledger,
+      );
+      container.read(selectedDestinationProvider.notifier).state =
+          ShellDestination.trends;
+      await tester.pumpAndSettle();
+      container
+          .read(transactionsViewModelProvider(null).notifier)
+          .openEntry(entryId);
+      await tester.pumpAndSettle();
+      expect(find.text('Edit'), findsNothing);
+      expect(
+        container.read(transactionsViewModelProvider(null)).value?.step,
+        isNotNull,
+      );
+
+      container.read(selectedDestinationProvider.notifier).state =
+          ShellDestination.history;
+      await tester.pumpAndSettle();
+      expect(find.text('Edit'), findsOneWidget);
+      expect(
+        container.read(transactionsViewModelProvider(null)).value?.step,
+        isNull,
+      );
+      Navigator.of(tester.element(find.text('Edit'))).pop();
+      await tester.pumpAndSettle();
+
+      container.read(selectedDestinationProvider.notifier).state =
+          ShellDestination.overview;
+      await tester.pumpAndSettle();
+      container.read(selectedDestinationProvider.notifier).state =
+          ShellDestination.history;
+      await tester.pumpAndSettle();
+      expect(find.text('Edit'), findsNothing);
+    });
   });
 }

@@ -14,11 +14,13 @@ import 'package:spendwise/ui/settings/recycle_bin/recycle_bin_screen.dart';
 import 'package:spendwise/ui/settings/settings_flow.dart';
 import 'package:spendwise/ui/settings/settings_root_view_model.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
+import 'package:spendwise/ui/shell/shell_binding.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_flow.dart';
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_screens.dart';
 
-import '../sync/enrollment/sync_enrollment_flow_test.dart' show pumpFlowFrames;
+import '../sync/enrollment/sync_enrollment_flow_test.dart'
+    show FakeSessionOpener, pumpFlowFrames;
 import 'repair_banner_test.dart' show createEnrollmentContainer, pumpShell;
 
 const _desktop = Size(1200, 800);
@@ -607,5 +609,169 @@ void main() {
         expect(created.container.read(enrollmentFlowOpenProvider), isTrue);
       },
     );
+  });
+
+  group('phone-open resize', () {
+    Future<
+      ({
+        ProviderContainer container,
+        SyncMetadataStore metadataStore,
+        FakeSessionOpener opener,
+      })
+    >
+    pumpBoundShell(
+      WidgetTester tester, {
+      Size size = const Size(400, 800),
+      Map<ShellDestination, WidgetBuilder>? bodies,
+    }) async {
+      final created = await createEnrollmentContainer(
+        status: null,
+        platform: (isWeb: false, targetPlatform: TargetPlatform.iOS),
+      );
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: created.container,
+          child: MaterialApp(
+            builder: buildShellAppContent,
+            home: AppShell(
+              bodies: {
+                ShellDestination.history: (context) =>
+                    const Text('history body'),
+                ShellDestination.settings: (context) => const SettingsFlow(),
+                ...?bodies,
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      return created;
+    }
+
+    Future<void> resize(WidgetTester tester, Size size) async {
+      tester.view.physicalSize = size;
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('a mobile switch retains the settings flow, its child route '
+        'and its container', (tester) async {
+      final harness = await pumpBoundShell(tester);
+      final container = harness.container;
+      await _openSettingsItem(tester);
+
+      await tester.tap(find.text('Categories'));
+      await tester.pumpAndSettle();
+      expect(find.byType(CategoryListScreen), findsOneWidget);
+      final flowState = tester.state(find.byType(SettingsFlow));
+      final scoped = ProviderScope.containerOf(
+        tester.element(find.byType(SettingsFlow)),
+      );
+
+      await resize(tester, const Size(960, 720));
+      expect(find.byKey(const ValueKey('open-rail')), findsOneWidget);
+      expect(find.byType(CategoryListScreen), findsOneWidget);
+      expect(
+        identical(tester.state(find.byType(SettingsFlow)), flowState),
+        isTrue,
+      );
+      expect(
+        identical(
+          ProviderScope.containerOf(tester.element(find.byType(SettingsFlow))),
+          scoped,
+        ),
+        isTrue,
+      );
+
+      await resize(tester, const Size(400, 800));
+      expect(find.byKey(const ValueKey('phone-bar')), findsOneWidget);
+      expect(find.byType(CategoryListScreen), findsOneWidget);
+      expect(
+        identical(tester.state(find.byType(SettingsFlow)), flowState),
+        isTrue,
+      );
+      _expectSelectedSettings(container);
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.byType(CategoryListScreen), findsNothing);
+      expect(find.byKey(_hostedTile), findsOneWidget);
+      _expectSelectedSettings(container);
+    });
+
+    testWidgets('a mobile switch retains an open enrollment route without '
+        're-hosting it', (tester) async {
+      final harness = await pumpBoundShell(tester);
+      final container = harness.container;
+      await _openSettingsItem(tester);
+      await _openFreshEnrollment(tester);
+      expect(find.byType(SyncEnrollmentFlow), findsOneWidget);
+      expect(container.read(enrollmentFlowOpenProvider), isTrue);
+      final scoped = ProviderScope.containerOf(
+        tester.element(find.byType(SettingsFlow)),
+      );
+
+      await resize(tester, const Size(960, 720));
+      expect(find.byType(SyncEnrollmentFlow), findsOneWidget);
+      expect(container.read(enrollmentFlowOpenProvider), isTrue);
+      expect(
+        identical(
+          ProviderScope.containerOf(tester.element(find.byType(SettingsFlow))),
+          scoped,
+        ),
+        isTrue,
+      );
+
+      await resize(tester, const Size(400, 800));
+      expect(find.byType(SyncEnrollmentFlow), findsOneWidget);
+      expect(container.read(enrollmentFlowOpenProvider), isTrue);
+
+      await tester.binding.handlePopRoute();
+      await pumpFlowFrames(tester);
+      expect(find.byType(SyncEnrollmentFlow), findsNothing);
+      _expectClosedCleanly(container);
+    });
+
+    testWidgets('system back across a resize targets the active destination '
+        'and leaves hidden stacks intact', (tester) async {
+      final harness = await pumpBoundShell(
+        tester,
+        bodies: {ShellDestination.trends: (context) => const _HoldingFlow()},
+      );
+      final container = harness.container;
+      await _openSettingsItem(tester);
+      await tester.tap(find.text('Categories'));
+      await tester.pumpAndSettle();
+
+      container.read(selectedDestinationProvider.notifier).state =
+          ShellDestination.trends;
+      await tester.pumpAndSettle();
+      final holdingRoot = tester.element(
+        find.text('holding body', skipOffstage: false),
+      );
+      Navigator.of(holdingRoot).push(
+        MaterialPageRoute<void>(builder: (_) => const Text('trends detail')),
+      );
+      await tester.pumpAndSettle();
+
+      await resize(tester, const Size(960, 720));
+
+      final handled = await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+
+      expect(handled, isTrue);
+      expect(find.text('trends detail'), findsNothing);
+      expect(find.text('holding body'), findsOneWidget);
+      expect(
+        find.byType(CategoryListScreen, skipOffstage: false),
+        findsOneWidget,
+      );
+      expect(
+        container.read(selectedDestinationProvider),
+        ShellDestination.trends,
+      );
+    });
   });
 }

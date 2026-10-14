@@ -10,6 +10,7 @@ import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/persistence/store/ledger_store.dart';
 import 'package:spendwise/ui/overview/overview_screen.dart';
 import 'package:spendwise/ui/overview/overview_flow.dart';
+import 'package:spendwise/ui/overview/overview_view_model.dart';
 import 'package:spendwise/ui/accounts/accounts_view_model.dart';
 import 'package:spendwise/ui/accounts/accounts_flow.dart';
 import 'package:spendwise/boot/money_navigation_provider.dart';
@@ -17,6 +18,7 @@ import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/boot_chrome.dart';
+import 'package:spendwise/ui/shell/shell_binding.dart';
 import 'package:spendwise/ui/shell/desktop_sidebar.dart';
 import 'package:spendwise/ui/shell/phone_bar.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
@@ -58,6 +60,27 @@ void main() {
       home: const BootChrome(),
     ),
   );
+
+  Widget hostedBoundIn(
+    WidgetTester tester,
+    ProviderContainer container,
+    Size size,
+  ) {
+    tester.view.physicalSize = size;
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    return UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        builder: buildShellAppContent,
+        home: const BootChrome(),
+      ),
+    );
+  }
+
+  ShellLayoutMode boundMode(WidgetTester tester) =>
+      ProviderScope.containerOf(tester.element(find.byType(BootChrome)))
+          .read(shellLayoutModeProvider);
 
   void expectWordmark(WidgetTester tester, Color actionColor) {
     final wordmark = find.byType(SpendWiseWordmark);
@@ -316,5 +339,52 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(OverviewScreen), findsOneWidget);
+  });
+
+  testWidgets('an open overview history request selects shell history '
+      'without pushing a route', (tester) async {
+    final factory = _GatedStoreFactory();
+    final container = containerWith(factory);
+    await tester.pumpWidget(
+      hostedBoundIn(tester, container, const Size(960, 720)),
+    );
+    factory.succeed();
+    await tester.pumpAndSettle();
+    expect(boundMode(tester), ShellLayoutMode.open);
+    expect(container.read(overviewViewModelProvider).hasValue, isTrue);
+
+    container.read(overviewViewModelProvider.notifier).requestHistory();
+    await tester.pumpAndSettle();
+
+    expect(
+      container.read(selectedDestinationProvider),
+      ShellDestination.history,
+    );
+    expect(find.byType(TransactionsFlow), findsOneWidget);
+    expect(find.byType(OverviewScreen, skipOffstage: false), findsOneWidget);
+    expect(find.byType(BackButton), findsNothing);
+  });
+
+  testWidgets('a phone overview history request pushes onto overview '
+      'without reselecting', (tester) async {
+    final factory = _GatedStoreFactory();
+    final container = containerWith(factory);
+    await tester.pumpWidget(
+      hostedBoundIn(tester, container, const Size(400, 800)),
+    );
+    factory.succeed();
+    await tester.pumpAndSettle();
+    expect(boundMode(tester), ShellLayoutMode.phone);
+    expect(container.read(overviewViewModelProvider).hasValue, isTrue);
+
+    container.read(overviewViewModelProvider.notifier).requestHistory();
+    await tester.pumpAndSettle();
+
+    expect(
+      container.read(selectedDestinationProvider),
+      ShellDestination.overview,
+    );
+    expect(find.byType(TransactionsFlow), findsOneWidget);
+    expect(find.byType(OverviewScreen, skipOffstage: false), findsOneWidget);
   });
 }

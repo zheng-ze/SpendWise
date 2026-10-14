@@ -4,7 +4,7 @@ Last reconciled: 2026-10-14
 
 ## Feature overview
 
-The transactions list and its entry form. The unscoped list is the desktop History destination;
+The transactions list and its entry form. The unscoped list is the shell History destination;
 scoped lists live inside Money. It shows a month-navigated list grouped into day
 sections (Daily) or a year broken into months and weeks (Monthly), and renders account-scoped with
 a custom title and source filter. The entry form creates, views (read-only-first), and edits entries
@@ -27,8 +27,13 @@ and is the only place recurring plans are created.
 - `app/lib/ui/transactions/receipt_scan/` — the OCR entry hook (see `ocr-receipt-entry.md`).
 - `app/lib/ui/transactions/transactions_flow.dart` — the Flow that owns this list's nested navigator.
   It takes an optional `backLabel` passed through to the screen's back control; the phone
-  History page sets it to 'Overview' with an `onEnded` that pops its containing Overview route,
-  while the desktop History slot and scoped lists set none.
+  shell-History slot sets it to 'Overview' with an `onEnded` that reselects Overview, the phone
+  Overview-pushed History page sets it to 'Overview' with an `onEnded` that pops its containing
+  Overview route, while the open/desktop History slot and scoped lists set none. Screen-`Step`
+  consumption is gated on the enclosing `DestinationActivity`: a hidden retained History
+  instance neither acts on nor clears a shared `Step`, rechecks provider ownership of the
+  pending `Step` before handling, and picks up the current `Step` once post-frame on
+  activation, so a `Step` cleared by the visible owner never replays.
 - `app/lib/ui/common/lists/day_sectioned_entry_list.dart`, `form_scaffold.dart`,
   `swipe_row.dart`, `pickers/` — shared components and picker sheets.
 - `app/lib/ui/symbol_map.dart` — symbol-to-IconData mapping.
@@ -44,7 +49,7 @@ decision, not a bug.
 ## Navigation
 
 The Transactions Flow owns a nested `Navigator` scoped with a `GlobalKey<NavigatorState>` local to
-the Flow (`ui-framework-mvvm.md`). The unscoped `TransactionsFlow` is the desktop shell's History
+the Flow (`ui-framework-mvvm.md`). The unscoped `TransactionsFlow` is the shell's History
 destination (`ShellDestination.history`); scoped instances live inside Money. Screens pushed: the entry form sheet for an existing entry, the
 category/source picker sheets, and the receipt scan screen. New entries open only through the shell's
 Add control and shared presenter. The Transactions screen has no local Add or Edit source control.
@@ -95,7 +100,7 @@ plain back control.
   children, no None); `CategoryPickerSheet` (groups from `EntryFormViewModel.categoryGroups`,
   ordered roots-then-children A–Z, `allowsNone: true`, never shown for transfers); `RecurrencePickerSheet`
   (One time then Weekly/Biweekly/Monthly/Quarterly/Yearly).
-- **Shell Add** — phone bar and desktop sidebar share one callback to the presenter. Transactions
+- **Shell Add** — phone bar, open rail and desktop sidebar share one callback to the presenter. Transactions
   retains date selection, mode switching, filtering, row view/edit and Back behavior.
 
 ## Gotchas and invariants
