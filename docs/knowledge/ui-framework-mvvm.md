@@ -18,9 +18,18 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
 - `app/lib/ui/common/base/step_emitting.dart` — the `Step` emission contract.
 - `app/lib/ui/common/base/flow_base.dart` — the Flow base that watches ViewModels for `Step` and maps each
   to a push/pop on its own `Navigator`.
-- `app/lib/ui/shell/app_shell.dart` — the shell: no ViewModel, only the fixed
-  platform layout mode (`shellLayoutModeProvider`), mounting one Flow per
-  destination.
+- `app/lib/ui/shell/app_shell.dart` - the shell: no ViewModel, only the layout
+  mode (`shellLayoutModeProvider`), mounting one Flow per destination.
+- `app/lib/ui/shell/shell_binding.dart` - the root window binding:
+  `buildShellAppContent` is the single `MaterialApp.builder` used by
+  `SpendWiseApp`; it reads the root `MediaQuery` size before `SafeArea` and
+  supplies it through a scoped `shellWindowSizeProvider` override in a
+  retained `ProviderScope`, publishing the resolved mode through a plain
+  `ShellLayoutModeScope` above the root `Navigator`. An explicit
+  `shellLayoutModeProvider` override in an enclosing scope wins over derived
+  geometry. `shellWindowSizeProvider` defaults to `Size.zero`, so fixtures
+  without the binding resolve mobile to phone and desktop platforms to
+  desktop.
 - `app/lib/ui/symbol_map.dart` — symbol-to-IconData mapping.
 - `app/lib/ui/theme/` - `spendwise_colors.dart` (`SpendWiseColors` ThemeExtension with the
   Harbour glass light/dark tokens), `spendwise_text.dart` (`SpendWiseText` amount roles plus the
@@ -49,13 +58,22 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   acting. Replaces the earlier `NavigationIntent` field.
 - **Shared Add presenter** - `openNewEntry` (`app/lib/ui/transactions/entry/new_entry_presenter.dart`)
   is the single entry point for creating entries: it reads `shellLayoutModeProvider` from the
-  caller-side ref, maps it to the `AppSheet` presentation, and pushes the null-key `EntryForm` with
-  `showAppSheet` on the root navigator. Before opening it invalidates the null-key form and receipt
+  caller-side ref, maps phone, open and desktop to the matching `AppSheet` presentation, and pushes
+  the null-key `EntryForm` (keyed `'new-entry-form'`) with `showAppSheet` on the root navigator,
+  supplying a presentation resolver that re-reads the live mode through `ShellLayoutModeScope`
+  in the route context and falls back to the captured presentation when no scope is bound.
+  Before opening it invalidates the null-key form and receipt
   providers, initializes the fresh form, then applies the optional scoped source prefill. It holds
   exactly one `ref.listenManual` subscription to the null-key form for the modal lifetime, dispatches
   each Step through the shared entry Step handlers (`entry_step_handlers.dart`, presented above the
   sheet through the root navigator), clears each handled Step once, and closes the subscription in
-  `finally`. A presenter-owned boolean open guard drops duplicate requests and releases in `finally`.
+  `finally`. A container-local `newEntryPresentationProvider` (`closed`, `opening`, `presented`)
+  drops duplicate requests while non-`closed`: `closed` becomes `opening` before asynchronous
+  initialization, `presented` is published immediately before `showAppSheet`, and the provider
+  returns to `closed` in `finally`. The provider publishes `presented` while the sheet is up so the
+  shell can narrow its page for the open right-half form. A resize neither restarts the presenter nor invalidates the form or coordinator nor
+  replaces the subscription or route, so the draft, auxiliary picker routes above the sheet and
+  the captured Money source survive threshold crossings.
   `AppShell` routes its phone and desktop Add controls through one callback. It captures a source
   only when Money is selected, using a constructor-injected getter backed by the stable
   `MoneyNavigatorObserver`; the observer tracks the top route of AccountsFlow's navigator, and
@@ -66,12 +84,21 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   `app/lib/ui/transactions/transactions_flow.dart`)
 - **One ViewModel per View**; shared presentation widgets own no ViewModel because they never read
   Riverpod state (zero `ConsumerWidget`/`WidgetRef` usage).
-- **AppShell** gets no ViewModel: its only state is the fixed platform layout
-  mode, no async loading, no domain import. `shellLayoutModeProvider`
-  (`app/lib/ui/shell/shell_providers.dart`) resolves `ShellLayoutMode.phone`
-  or `ShellLayoutMode.desktop` once per run from the platform (web, macOS,
-  Windows and Linux use desktop; iOS and Android use phone) and reads no
-  window width, so resizing never switches the bar/sidebar layout.
+- **AppShell** gets no ViewModel: its only state is the layout mode, no async
+  loading, no domain import. `shellLayoutModeProvider`
+  (`app/lib/ui/shell/shell_providers.dart`) resolves `ShellLayoutMode.phone`,
+  `ShellLayoutMode.open` or `ShellLayoutMode.desktop` from fixed platform
+  facts (`shellPlatformProvider` captures `isWeb` and `TargetPlatform` once
+  per root container) plus the current logical window size
+  (`shellWindowSizeProvider`). Web, macOS, Windows and Linux always resolve
+  to desktop at any window size; the Fuchsia desktop fallback is preserved.
+  On iOS and Android the mode is open exactly when the window is at least
+  600 dp wide and at least 480 dp high (`openModeMinWidth`,
+  `openModeMinHeight`, both inclusive), otherwise phone, following window
+  size changes at runtime in both directions with no hysteresis. The
+  inspected Flutter 3.47.4 iOS embedder reports no display features, and the
+  rule ignores display features on every platform. Until the open chrome
+  lands, open mode renders the existing phone chrome.
   `ShellDestination` (`overview`, `history`, `trends`, `money`, `settings`)
   defaults to `overview`. Phone shows a rounded five-position bar in exactly
   this order: Overview, Trends, Add, Money, Settings. Add is the exact-centre
@@ -179,21 +206,28 @@ value, which then overwrites it. (issue #38)
 ## Sheet and component kit
 
 - **AppSheet** (`app/lib/ui/common/sheets/app_sheet.dart`) is the shared kit sheet surface.
-  `showAppSheet<T>(context, presentation:, builder:)` pushes an `AppSheetRoute`
-  on the root navigator, so its barrier covers the window even when opened from
+  `showAppSheet<T>(context, presentation:, builder:, presentationResolver:)` pushes an
+  `AppSheetRoute` on the root navigator, so its barrier covers the window even when opened from
   a nested Flow. `presentation` is a required plain `AppSheetPresentation`
-  (`phone`, `desktop`) value; every caller supplies it, and `ui/common` reads
-  no Riverpod state and no window width. The builder returns
-  `AppSheet(header:, body:, footer:, inputSurface:, alert:, onAlertAction:)`.
-  The route captures the value and passes it to both the page alignment and
-  the sheet chrome: phone spans the full available width at the bottom, desktop
-  centres a dialog no wider than 440 while fitting the viewport. Both size to
-  content up to `0.66 * (window height - top safe padding - bottom keyboard
+  (`phone`, `open`, `desktop`) value; every caller supplies it, and `ui/common` reads
+  no Riverpod state and no window width. An optional `presentationResolver` maps the route
+  context to a live presentation; omitted resolvers keep the captured static presentation, and
+  resizing a static sheet changes available geometry, never its presentation. The route keeps
+  the captured value as the fallback and publishes the resolved value through a retained
+  `effectivePresentation` notifier that also drives the barrier color without replacing the
+  route: phone and desktop dim the window, open uses a transparent dismissible full-window
+  barrier with the underlying page visible but inert. The page resolves the live presentation
+  on every build through one stable `Align` ancestry that varies only alignment, box size and
+  chrome around the caller's builder subtree, so a keyed form keeps its `State`, controllers,
+  selection and focus across presentation changes. Phone spans the full available width at the
+  bottom, desktop centres a dialog no wider than 440 while fitting the viewport, and open docks
+  a full-height surface in the safe right half starting at half the window width with an 82 dp
+  right content inset reserving rail clearance, no grab handle and no height cap. Phone and
+  desktop size to content up to `0.66 * (window height - top safe padding - bottom keyboard
   inset)`. Only the body scrolls; the header, footer and input surface stay
   pinned. The route lifts the sheet above the keyboard, and the surface keeps
   its footer/input above the bottom safe inset while the phone background fills
-  that inset. Resizing an open sheet changes available geometry, never its
-  presentation.
+  that inset.
 - **Sheet alerts** - the presentation kit owns no Riverpod state. `AppSheetRoute` owns
   alert and action `ValueNotifier`s plus the captured presentation, exposed
   through `AppSheetAlertSlot`; `AppSheet` publishes them post-frame and clears

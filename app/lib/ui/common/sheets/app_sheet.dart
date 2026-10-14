@@ -14,7 +14,7 @@ const _sheetMaxWidth = 440.0;
 
 // MARK: - Presentation
 
-enum AppSheetPresentation { phone, desktop }
+enum AppSheetPresentation { phone, open, desktop }
 
 // MARK: - Alert Slot
 
@@ -126,13 +126,19 @@ class _AppSheetState extends State<AppSheet> {
         'with an explicit presentation.',
       );
     }
+    final open = presentation == AppSheetPresentation.open;
     final desktop = presentation == AppSheetPresentation.desktop;
     final media = MediaQuery.of(context);
     final cap =
         _maxHeightFraction *
         (media.size.height - media.padding.top - media.viewInsets.bottom);
+    final openHeight =
+        media.size.height -
+        media.padding.top -
+        media.padding.bottom -
+        media.viewInsets.bottom;
     final hasBottom = widget.footer != null || widget.inputSurface != null;
-    final top = _SheetTop(header: widget.header);
+    final top = _SheetTop(header: widget.header, showHandle: !open);
     final bottom = hasBottom
         ? _SheetBottom(footer: widget.footer, inputSurface: widget.inputSurface)
         : null;
@@ -141,11 +147,13 @@ class _AppSheetState extends State<AppSheet> {
       body: widget.body,
       bottom: bottom,
     );
-    final constraints = desktop
+    final constraints = open
+        ? BoxConstraints(minHeight: openHeight, maxHeight: openHeight)
+        : desktop
         ? BoxConstraints(maxHeight: cap, maxWidth: _sheetMaxWidth)
         : BoxConstraints(maxHeight: cap, minWidth: _unboundedExtent);
     final chrome = _SheetChrome(
-      desktop: desktop,
+      presentation: presentation,
       bottomInset: media.padding.bottom,
       child: scrollBody,
     );
@@ -157,15 +165,17 @@ class _AppSheetState extends State<AppSheet> {
 // MARK: - Structure
 
 class _SheetTop extends StatelessWidget {
-  const _SheetTop({required this.header});
+  const _SheetTop({required this.header, required this.showHandle});
 
   final Widget header;
+
+  final bool showHandle;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       mainAxisSize: MainAxisSize.min,
-      children: [const _SheetHandle(), header],
+      children: [if (showHandle) const _SheetHandle(), header],
     );
   }
 }
@@ -218,7 +228,7 @@ class _SheetScrollBody extends StatelessWidget {
 
 class _SheetChrome extends StatelessWidget {
   const _SheetChrome({
-    required this.desktop,
+    required this.presentation,
     required this.bottomInset,
     required this.child,
   });
@@ -229,13 +239,23 @@ class _SheetChrome extends StatelessWidget {
 
   static const _topBorderWidth = 2.0;
 
+  static const _openBorderWidth = 1.0;
+
   static const _horizontalPadding = 14.0;
 
   static const _topPadding = 8.0;
 
   static const _bottomPadding = 14.0;
 
-  final bool desktop;
+  static const _openTopPadding = 16.0;
+
+  static const _openRightInset = 82.0;
+
+  static const _openBottomPadding = 14.0;
+
+  static const _openLeftPadding = 16.0;
+
+  final AppSheetPresentation presentation;
 
   final double bottomInset;
 
@@ -244,21 +264,36 @@ class _SheetChrome extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final radius = desktop
+    final open = presentation == AppSheetPresentation.open;
+    final desktop = presentation == AppSheetPresentation.desktop;
+    final radius = open
+        ? BorderRadius.zero
+        : desktop
         ? BorderRadius.circular(_desktopRadius)
         : const BorderRadius.vertical(top: Radius.circular(_sheetTopRadius));
-    final border = desktop
+    final border = open
+        ? Border(
+            left: BorderSide(color: colors.control, width: _openBorderWidth),
+          )
+        : desktop
         ? Border.all(color: colors.control)
         : Border(
             top: BorderSide(color: colors.control, width: _topBorderWidth),
           );
     final decoration = BoxDecoration(border: border, borderRadius: radius);
-    final padding = EdgeInsets.fromLTRB(
-      _horizontalPadding,
-      _topPadding,
-      _horizontalPadding,
-      _bottomPadding + bottomInset,
-    );
+    final padding = open
+        ? EdgeInsets.fromLTRB(
+            _openLeftPadding,
+            _openTopPadding,
+            _openRightInset,
+            _openBottomPadding + bottomInset,
+          )
+        : EdgeInsets.fromLTRB(
+            _horizontalPadding,
+            _topPadding,
+            _horizontalPadding,
+            _bottomPadding + bottomInset,
+          );
 
     return Material(
       color: colors.raised,

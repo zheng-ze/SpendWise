@@ -1,6 +1,6 @@
 # Settings UI
 
-Last reconciled: 2026-10-11
+Last reconciled: 2026-10-14
 
 ## Feature overview
 
@@ -43,7 +43,8 @@ counts. These counts include active and binned entries through `entriesReferenci
 
 The Settings Flow owns Settings' nested navigator; `AppShell` mounts it once as the retained
 `settings` destination in its `IndexedStack` (see `ui-framework-mvvm.md`). The root screen shows no
-back control. Back pops child routes and preserves the destination selection at the root. Rows push
+back control. Back pops child routes and preserves the destination selection at the root. Phone/open
+resize retains the mounted flow and its open enrollment route without re-hosting. Rows push
 the category/plan edit sheets and the
 symbol picker; forms open as sheets via `FormScaffold`. The recycle bin lists binned items in
 four sections (Entries, Accounts, Subpockets, Categories), each hidden when empty.

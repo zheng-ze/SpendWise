@@ -273,11 +273,23 @@ The app is phone-first with one shell whose phone or desktop layout is chosen by
   Overview, History, Trends, Money, an Add entry button, Settings at the bottom) over a stable
   `IndexedStack` of all five destinations. Both Add controls open the shared entry presenter; the
   shell captures the top scoped Money route's preferred source only while Money is selected.
+  The shared Add presenter opens one root `AppSheetRoute` with a keyed entry form and a live
+  presentation resolver: phone spans the bottom at full width, desktop centres a dialog, and open
+  docks a full-height surface in the safe right half starting at half the window width behind a
+  transparent dismissible barrier. A phone/open resize changes only sheet geometry, alignment and
+  chrome, keeping the route, draft, focus and auxiliary picker routes.
   History hosts the unscoped `TransactionsFlow` on
-  desktop. Phone has no History slot, and the Overview 'View History' link is not wired yet.
-  `shellLayoutModeProvider` resolves
-  `ShellLayoutMode.phone` or `ShellLayoutMode.desktop` once per run; resizing never switches the
-  layout. Each stack resolves its index through its own explicit destination list.
+  desktop. Phone has no History slot. `shellLayoutModeProvider` resolves
+  `ShellLayoutMode.phone`, `ShellLayoutMode.open` or `ShellLayoutMode.desktop` from fixed
+  platform facts plus the current logical window size: web, macOS, Windows and Linux always use
+  desktop; on iOS and Android the window is open exactly when at least 600 dp wide and at least
+  480 dp high (both inclusive), otherwise phone, following runtime size changes with no
+  hysteresis. The inspected Flutter 3.47.4 iOS embedder reports no display features, and the
+  rule ignores display features on every platform. Until the open chrome lands, open renders the
+  phone chrome. Each stack resolves its index through its own explicit destination list. The
+  shared `buildShellAppContent` app builder reads the root window size before `SafeArea` and
+  feeds a retained binding scope, so resize keeps the selected destination and provider
+  container identity.
 - Screen-level state — selected month, selector mode, stats kind, and similar per-tab state — lives
   in providers, never in widget-local state that a rebuild can silently recreate. Controllers that
   window on "now" take an injected clock, so statement and summary window logic can be pinned in

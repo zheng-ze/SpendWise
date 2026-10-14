@@ -153,16 +153,24 @@ the Flow clears it via the ViewModel's `clearStep()` after acting on it, whether
 push or a modal launch. Replaces the earlier `NavigationIntent` field. See ADR-0059.
 
 `AppShell` (`app/lib/ui/shell/app_shell.dart`) itself gets no ViewModel: its only state is
-the fixed platform layout mode (`shellLayoutModeProvider`, resolving `ShellLayoutMode.phone`
-or `ShellLayoutMode.desktop` once per run from the platform), with no
-async loading and no domain import. `ShellDestination` is overview, history, trends, money and
+the layout mode (`shellLayoutModeProvider`, resolving `ShellLayoutMode.phone`, `ShellLayoutMode.open`
+or `ShellLayoutMode.desktop` from fixed platform facts plus the current logical window size),
+with no async loading and no domain import. Web, macOS, Windows and Linux always use desktop;
+on iOS and Android the window uses open exactly when at least 600 dp wide and at least 480 dp
+high (both inclusive), otherwise phone, following runtime size changes with no hysteresis. The
+inspected Flutter 3.47.4 iOS embedder reports no display features, and the rule ignores display
+features on every platform. Until the open chrome lands, open renders the phone chrome.
+`ShellDestination` is overview, history, trends, money and
 settings, opening on overview. Phone renders a rounded five-position bar (Overview, Trends,
 centred Add, Money, Settings) over a stable `IndexedStack` of its four destination slots; desktop
 renders a sidebar (wordmark, Overview, History, Trends, Money, Add entry, Settings at the bottom)
 over a stable `IndexedStack` of all five. The centre Add action is never selected and opens the
-shared `openNewEntry` presenter. Shell Add captures the top scoped Money route's preferred source
+ shared `openNewEntry` presenter. Shell Add captures the top scoped Money route's preferred source
 only while Money is selected, through an injected `MoneyNavigatorObserver` getter; all other states
-open unscoped. Transactions has no local Add or Edit source control. It mounts one Flow per destination directly, with no
+open unscoped. The Add sheet keeps its root route and keyed form across phone/open resizes,
+re-resolving phone, open or desktop presentation live: the open surface docks full-height in the
+safe right half while the draft, focus and auxiliary picker routes survive the crossing.
+Transactions has no local Add or Edit source control. It mounts one Flow per destination directly, with no
 shell-level `Navigator` of its own — each Flow already owns its own, per the Flow entry above. This
 was issue #30's last open "does `shell` need a migration ticket" question, closed by issue #39.
 

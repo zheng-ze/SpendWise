@@ -377,7 +377,7 @@ void main() {
       final sourceId = ledger.state.moneySources.keys.single;
       await _pumpShell(
         tester,
-        size: layoutMode == ShellLayoutMode.desktop ? _wide : _compact,
+        size: layoutMode == ShellLayoutMode.phone ? _compact : _wide,
         layoutMode: layoutMode,
         ledger: ledger,
         moneySourceId: () => sourceId,
