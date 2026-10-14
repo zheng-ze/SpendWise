@@ -8,22 +8,24 @@ The Overview screen renders three read-only sections in fixed default order: Tod
 and Coming up. A full-page open layout places Today across row one columns one and two, leaves the
 third column empty, then places Recent entries across row two columns one and two and Coming up in
 column three. Three equal columns use the named 10 dp tray gap. The row-two cards stretch to the
-larger card's content-driven height. Add presentation, a detail pane, or a column narrower than the text-scaled
-minimum column width uses one column in the same section order. Phone and desktop retain their single-column presentation. The screen has no edit
-mode or widget catalogue. No section is ever blank. Each section renders its own copy for an empty
-ledger, and a section whose read has not settled renders a `LoadingSkeleton`. The screen reads only
-through `AnalysisQueries`; widgets compute no totals.
+larger card's content-driven height. Add presentation, a detail pane, or a column narrower than
+220 dp uses one column in the same section order. The 220 dp minimum is not text-scaled, so the grid
+needs a page width of 708 dp (a window of about 780 dp beside the 72 dp rail) at any text size.
+Phone and desktop retain their single-column presentation. The screen has no edit mode or widget
+catalogue. No section is ever blank. Each section renders its own copy for an empty ledger, and a
+section whose read has not settled renders a `LoadingSkeleton`. The screen reads only through
+`AnalysisQueries`; widgets compute no totals.
 
 ## Key files
 
 - `app/lib/ui/overview/overview_view_model.dart` - `OverviewViewModel` (abstract), `OverviewNotifier`
-  (`AsyncNotifier` with `LedgerBackedNotifier`, `overviewViewModelProvider`), `OverviewViewState`, and the row types `OverviewEntryRow` and `OverviewUpcomingRow`.
-  The view state carries an `OverviewStep` (`HasStep`/`StepEmitting`); `requestHistory` emits
-  `OverviewHistoryRequested` and `clearStep` clears it. Rebuilds preserve a pending step.
+  (`AsyncNotifier` with `LedgerBackedNotifier`, `overviewViewModelProvider`), `OverviewViewState`,
+  and the row types `OverviewEntryRow` and `OverviewUpcomingRow`. The view state carries an
+  `OverviewStep` (`HasStep`/`StepEmitting`); `requestHistory` emits `OverviewHistoryRequested` and
+  `clearStep` clears it. Rebuilds preserve a pending step.
 - `app/lib/ui/overview/overview_screen.dart` - `OverviewScreen`, its open-layout grid and its
-  standalone section widgets.
-  The Recent entries tray ends in a `TextButton` action labelled 'View History' with a chevron,
-  shown for nonempty, empty and section-loading rows.
+  standalone section widgets. The Recent entries tray ends in a `TextButton` action labelled 'View
+  History' with a chevron, shown for nonempty, empty and section-loading rows.
 - `app/lib/ui/overview/overview_flow.dart` - `OverviewFlow` (`FlowBase`) subscribing to
   `OverviewStep` once, with an optional phone `historyRouteBuilder` and an optional desktop
   `onHistorySelected` callback, plus a route-open guard. When hosted in the shell it supplies its
@@ -49,15 +51,15 @@ spending' and a filled Retry in the Today tray; Retry calls `AnalysisQueries.ret
 `OverviewNotifier.retryToday`. Recent entries and Coming up keep rendering. `recordedToday` is
 read only beside a current Today summary, so the empty headline never appears over stale data.
 Tapping 'View History' calls `OverviewViewModel.requestHistory`; `OverviewFlow` consumes the
-resulting `OverviewHistoryRequested` exactly once and clears it, including requests made before
-its Navigator mounts. On phone (`shellLayoutModeProvider`,
-`app/lib/ui/shell/boot_chrome.dart`) the flow pushes a `MaterialPageRoute` holding one unscoped `TransactionsFlow` (back control
-labelled 'Overview') into its own nested Navigator; a route-open guard collapses duplicate
-requests. On open and desktop the same step selects the `ShellDestination.history` slot and pushes no
-route. Opening History leaves Overview selected. If shell History remains selected through a switch
-to phone mode, it remains visible with its root back control; that explicit back action selects
-Overview. A History route pushed inside Overview on phone remains on its retained nested Navigator
-when the shell switches between phone and open modes.
+resulting `OverviewHistoryRequested` exactly once and clears it, including requests made before its
+Navigator mounts. On phone (`shellLayoutModeProvider`, `app/lib/ui/shell/boot_chrome.dart`) the flow
+pushes a `MaterialPageRoute` holding one unscoped `TransactionsFlow` (back control labelled
+'Overview') into its own nested Navigator; a route-open guard collapses duplicate requests. On open
+and desktop the same step selects the `ShellDestination.history` slot and pushes no route. Opening
+History leaves Overview selected. If shell History remains selected through a switch to phone mode,
+it remains visible with its root back control; that explicit back action selects Overview. A History
+route pushed inside Overview on phone remains on its retained nested Navigator when the shell
+switches between phone and open modes.
 
 ## Read definitions
 

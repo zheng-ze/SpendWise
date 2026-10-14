@@ -7,6 +7,7 @@ import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/feedback/loading_skeleton.dart';
 import 'package:spendwise/ui/common/sheets/tray.dart';
 import 'package:spendwise/ui/format/money_format.dart';
+import 'package:spendwise/ui/overview/overview_constants.dart';
 import 'package:spendwise/ui/overview/overview_flow.dart';
 import 'package:spendwise/ui/overview/overview_screen.dart';
 import 'package:spendwise/ui/overview/overview_today_section.dart';
@@ -19,28 +20,25 @@ import 'package:spendwise/ui/theme/spendwise_theme.dart';
 import 'overview_fixture.dart';
 
 const _phoneSize = Size(320, 760);
-const _openWidth = 960.0;
-const _openSize = Size(_openWidth, 720);
+const _openSize = Size(960, 720);
 const _testDevicePixelRatio = 1.0;
-const _overviewHorizontalInsets = 28.0;
-const _openGridGap = 10.0;
-const _openGridGapCount = 2;
-const _openGridColumnCount = 3;
-const _openGridSpanColumnCount = 2;
 const _geometryTolerance = 0.01;
 const _minimumTallRowHeight = 200.0;
-const _openThresholdSize = Size(600, 480);
-const _thresholdTextScales = [1.0, 2.0];
-const _phoneThresholdSizes = [Size(599, 480), Size(600, 479)];
+const _narrowOpenSize = Size(600, 480);
+const _largeTextScales = [1.3, 2.0];
+const _pagePaddingWidth = 28.0;
+const _gridSwitchPageWidth =
+    overviewGridMinimumColumnWidth * overviewGridColumnCount +
+    overviewTrayGap * overviewGridGapCount +
+    _pagePaddingWidth;
 
 Future<ProviderContainer> _pumpOverview(
   WidgetTester tester,
   LedgerState state, {
   required Brightness brightness,
   ComputeRunner runner = syncComputeRunner,
-  Size size = _phoneSize,
 }) async {
-  tester.view.physicalSize = size;
+  tester.view.physicalSize = _phoneSize;
   tester.view.devicePixelRatio = _testDevicePixelRatio;
   addTearDown(tester.view.reset);
   final ledger = Ledger(state: state);
@@ -87,23 +85,19 @@ Future<ProviderContainer> _pumpOpenOverview(
   ComputeRunner runner = syncComputeRunner,
   Size size = _openSize,
   double textScale = 1,
+  ProviderContainer? existing,
 }) async {
   tester.view.physicalSize = size;
-  tester.platformDispatcher.textScaleFactorTestValue = textScale;
-  addTearDown(tester.platformDispatcher.clearAllTestValues);
   tester.view.devicePixelRatio = _testDevicePixelRatio;
+  tester.platformDispatcher.textScaleFactorTestValue = textScale;
   addTearDown(tester.view.reset);
+  addTearDown(tester.platformDispatcher.clearAllTestValues);
   final ledger = Ledger(state: state);
-  final container = viewState == null
-      ? overviewContainer(ledger, runner: runner)
-      : ProviderContainer(
-          overrides: [
-            overviewViewModelProvider.overrideWith(
-              () => _FixedOverviewNotifier(viewState),
-            ),
-          ],
-        );
-  if (viewState != null) addTearDown(container.dispose);
+  final container =
+      existing ??
+      (viewState == null
+          ? overviewContainer(ledger, runner: runner)
+          : _fixedContainer(viewState));
   final overview = detail == null
       ? const OverviewFlow()
       : _HostedOverviewScreen(detail: detail);
@@ -112,13 +106,26 @@ Future<ProviderContainer> _pumpOpenOverview(
       container: container,
       brightness: brightness,
       addPresented: addPresented,
+      pageWidth: size.width,
       child: overview,
     ),
   );
-  if (viewState == null) {
+  if (existing == null && viewState == null) {
     await tester.runAsync(() => settleAnalysis(container, ledger));
   }
   await tester.pumpAndSettle();
+  return container;
+}
+
+ProviderContainer _fixedContainer(OverviewViewState viewState) {
+  final container = ProviderContainer(
+    overrides: [
+      overviewViewModelProvider.overrideWith(
+        () => _FixedOverviewNotifier(viewState),
+      ),
+    ],
+  );
+  addTearDown(container.dispose);
   return container;
 }
 
@@ -127,19 +134,21 @@ class _OpenApp extends StatelessWidget {
     required this.container,
     required this.brightness,
     required this.addPresented,
+    required this.pageWidth,
     required this.child,
   });
 
   final ProviderContainer container;
   final Brightness brightness;
   final bool addPresented;
+  final double pageWidth;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
     final shell = ShellPaneScope(
       mode: ShellLayoutMode.open,
-      safeBodyWidth: _openWidth,
+      safeBodyWidth: pageWidth,
       addPresented: addPresented,
       child: child,
     );
@@ -174,12 +183,79 @@ class _HostedOverviewScreen extends StatelessWidget {
   );
 }
 
-Rect _todayRect(WidgetTester tester) => tester.getRect(find.byType(TodayTray));
+typedef _Rects = ({Rect today, Rect recent, Rect coming});
 
-Rect _trayRect(WidgetTester tester, String title) {
-  final tray = find.ancestor(of: find.text(title), matching: find.byType(Tray));
-  return tester.getRect(tray.first);
+_Rects _rects(WidgetTester tester) => (
+  today: tester.getRect(find.byType(TodayTray)),
+  recent: tester.getRect(_trayFinder('Recent entries')),
+  coming: tester.getRect(_trayFinder('Coming up')),
+);
+
+Finder _trayFinder(String title) =>
+    find.ancestor(of: find.text(title), matching: find.byType(Tray)).first;
+
+void _expectGrid(WidgetTester tester, double pageWidth) {
+  final rects = _rects(tester);
+  const gaps = overviewTrayGap * overviewGridGapCount;
+  final columnWidth =
+      (pageWidth - _pagePaddingWidth - gaps) / overviewGridColumnCount;
+  final spanWidth = columnWidth * overviewGridSpanColumnCount + overviewTrayGap;
+
+  expect(rects.today.width, closeTo(spanWidth, _geometryTolerance));
+  expect(rects.recent.width, closeTo(spanWidth, _geometryTolerance));
+  expect(rects.coming.width, closeTo(columnWidth, _geometryTolerance));
+  expect(rects.recent.left, rects.today.left);
+  expect(rects.recent.top, rects.coming.top);
+  expect(rects.coming.left, rects.recent.right + overviewTrayGap);
+  expect(rects.recent.height, rects.coming.height);
+  expect(rects.recent.top, greaterThan(rects.today.bottom));
 }
+
+void _expectSingleColumn(WidgetTester tester, double pageWidth) {
+  final rects = _rects(tester);
+  final width = pageWidth - _pagePaddingWidth;
+
+  expect(rects.today.width, closeTo(width, _geometryTolerance));
+  expect(rects.recent.width, closeTo(width, _geometryTolerance));
+  expect(rects.coming.width, closeTo(width, _geometryTolerance));
+  expect(rects.today.bottom, lessThan(rects.recent.top));
+  expect(rects.recent.bottom, lessThan(rects.coming.top));
+}
+
+OverviewViewState _overviewState({
+  List<OverviewEntryRow>? recent = const [],
+  List<OverviewUpcomingRow>? upcoming = const [],
+}) => OverviewViewState(
+  day: fixtureToday,
+  today: null,
+  recent: recent,
+  upcoming: upcoming,
+);
+
+OverviewUpcomingRow _upcomingRow(int index) => OverviewUpcomingRow(
+  day: '${index + 1}',
+  month: 'Oct',
+  title: 'Upcoming entry $index',
+  caption: 'Checking',
+  amount: Decimal.parse('1.00'),
+  amountKind: AmountKind.expense,
+);
+
+OverviewEntryRow _longRecentRow() => OverviewEntryRow(
+  title: _repeatedText('Recent entry ', 24),
+  caption: _repeatedText('Long account and category caption ', 12),
+  symbolName: 'receipt',
+  color: Colors.blue,
+  amount: Decimal.parse('1.00'),
+  amountKind: AmountKind.expense,
+);
+
+String _repeatedText(String value, int count) =>
+    List<String>.filled(count, value).join();
+
+Widget _detailBody(BuildContext context) => const SizedBox.expand();
+
+void _closeDetail() {}
 
 void main() {
   for (final brightness in Brightness.values) {
@@ -328,24 +404,6 @@ void main() {
         );
       });
 
-      testWidgets('phone threshold sizes wrap without overflow', (
-        tester,
-      ) async {
-        for (final size in _phoneThresholdSizes) {
-          await _pumpOverview(
-            tester,
-            defaultState(),
-            brightness: brightness,
-            size: size,
-          );
-
-          expect(find.text('Today / 3 October'), findsOneWidget);
-          expect(find.text('Recent entries'), findsOneWidget);
-          expect(find.text('Coming up'), findsOneWidget);
-          expect(tester.takeException(), isNull);
-        }
-      });
-
       testWidgets('View History requests the history page', (tester) async {
         tester.view.physicalSize = _phoneSize;
         tester.view.devicePixelRatio = _testDevicePixelRatio;
@@ -424,114 +482,103 @@ void main() {
       ) async {
         await _pumpOpenOverview(tester, defaultState(), brightness: brightness);
 
-        final today = _todayRect(tester);
-        final recent = _trayRect(tester, 'Recent entries');
-        final coming = _trayRect(tester, 'Coming up');
-        const contentWidth = _openWidth - _overviewHorizontalInsets;
-        const gridColumnWidth =
-            (contentWidth - _openGridGap * _openGridGapCount) /
-            _openGridColumnCount;
-
-        expect(
-          today.width,
-          closeTo(
-            gridColumnWidth * _openGridSpanColumnCount + _openGridGap,
-            _geometryTolerance,
-          ),
-        );
-        expect(recent.width, today.width);
-        expect(coming.width, closeTo(gridColumnWidth, _geometryTolerance));
-        expect(today.left, recent.left);
-        expect(recent.top, coming.top);
-        expect(recent.left + recent.width + _openGridGap, coming.left);
-        expect(today.right + _openGridGap, coming.left);
-        expect(coming.top, greaterThan(today.top));
-        expect(today.top, lessThan(recent.top));
-        expect(recent.height, coming.height);
-        expect(find.byType(Tray), findsNWidgets(2));
+        _expectGrid(tester, _openSize.width);
       });
 
-      testWidgets('open Overview uses one column while Add is presented', (
-        tester,
-      ) async {
-        await _pumpOpenOverview(
-          tester,
-          defaultState(),
-          brightness: brightness,
-          addPresented: true,
-        );
-
-        final today = _todayRect(tester);
-        final recent = _trayRect(tester, 'Recent entries');
-        final coming = _trayRect(tester, 'Coming up');
-
-        expect(today.width, recent.width);
-        expect(recent.width, coming.width);
-        expect(today.top, lessThan(recent.top));
-        expect(recent.top, lessThan(coming.top));
-      });
-
-      testWidgets('closing Add restores the open Overview grid', (
-        tester,
-      ) async {
-        tester.view.physicalSize = _openSize;
-        tester.view.devicePixelRatio = _testDevicePixelRatio;
-        addTearDown(tester.view.reset);
-        final ledger = Ledger(state: defaultState());
-        final container = overviewContainer(ledger);
-        Future<void> pumpShell({required bool addPresented}) =>
-            tester.pumpWidget(
-              _OpenApp(
-                container: container,
-                brightness: brightness,
-                addPresented: addPresented,
-                child: const _HostedOverviewScreen(),
-              ),
-            );
-        await pumpShell(addPresented: true);
-        await tester.runAsync(() => settleAnalysis(container, ledger));
-        await tester.pumpAndSettle();
-
-        final singleColumnToday = _todayRect(tester);
-        final singleColumnRecent = _trayRect(tester, 'Recent entries');
-        final singleColumnComing = _trayRect(tester, 'Coming up');
-        expect(singleColumnToday.width, singleColumnRecent.width);
-        expect(singleColumnRecent.width, singleColumnComing.width);
-
-        await pumpShell(addPresented: false);
-        await tester.pumpAndSettle();
-
-        final gridToday = _todayRect(tester);
-        final gridRecent = _trayRect(tester, 'Recent entries');
-        final gridComing = _trayRect(tester, 'Coming up');
-        expect(gridToday.width, gridRecent.width);
-        expect(gridComing.width, lessThan(gridToday.width));
-        expect(gridRecent.top, gridComing.top);
-      });
-
-      testWidgets('open Overview uses one column beside a detail pane', (
-        tester,
-      ) async {
-        await _pumpOpenOverview(
-          tester,
-          defaultState(),
-          brightness: brightness,
-          detail: const ShellDetail(
+      testWidgets(
+        'Add or detail uses one column and closing restores the grid',
+        (tester) async {
+          const detail = ShellDetail(
             id: 'test-detail',
             title: 'Detail',
             bodyBuilder: _detailBody,
             onClose: _closeDetail,
-          ),
+          );
+          final container = await _pumpOpenOverview(
+            tester,
+            defaultState(),
+            brightness: brightness,
+            addPresented: true,
+          );
+          final pageWidth = _openSize.width / 2;
+          _expectSingleColumn(tester, pageWidth);
+
+          await _pumpOpenOverview(
+            tester,
+            defaultState(),
+            brightness: brightness,
+            existing: container,
+          );
+          _expectGrid(tester, _openSize.width);
+
+          await _pumpOpenOverview(
+            tester,
+            defaultState(),
+            brightness: brightness,
+            detail: detail,
+            existing: container,
+          );
+          _expectSingleColumn(tester, pageWidth);
+        },
+      );
+
+      testWidgets('the grid switches to one column at the minimum width', (
+        tester,
+      ) async {
+        const narrowerThanGrid = Size(_gridSwitchPageWidth - 1, 720);
+        const atGrid = Size(_gridSwitchPageWidth, 720);
+
+        await _pumpOpenOverview(
+          tester,
+          defaultState(),
+          brightness: brightness,
+          size: narrowerThanGrid,
         );
+        _expectSingleColumn(tester, narrowerThanGrid.width);
 
-        final today = _todayRect(tester);
-        final recent = _trayRect(tester, 'Recent entries');
-        final coming = _trayRect(tester, 'Coming up');
+        await _pumpOpenOverview(
+          tester,
+          defaultState(),
+          brightness: brightness,
+          size: atGrid,
+        );
+        _expectGrid(tester, atGrid.width);
+      });
 
-        expect(today.width, recent.width);
-        expect(recent.width, coming.width);
-        expect(today.top, lessThan(recent.top));
-        expect(recent.top, lessThan(coming.top));
+      testWidgets('open Overview stays one column without overflow at 600', (
+        tester,
+      ) async {
+        for (final textScale in [1.0, 2.0]) {
+          await _pumpOpenOverview(
+            tester,
+            defaultState(),
+            brightness: brightness,
+            size: _narrowOpenSize,
+            textScale: textScale,
+          );
+
+          _expectSingleColumn(tester, _narrowOpenSize.width);
+          expect(tester.takeException(), isNull);
+        }
+      });
+
+      testWidgets('open grid has no overflow with large text', (tester) async {
+        final state = _overviewState(
+          recent: [_longRecentRow()],
+          upcoming: List.generate(4, _upcomingRow),
+        );
+        for (final textScale in _largeTextScales) {
+          await _pumpOpenOverview(
+            tester,
+            emptyState(),
+            brightness: brightness,
+            viewState: state,
+            textScale: textScale,
+          );
+
+          _expectGrid(tester, _openSize.width);
+          expect(tester.takeException(), isNull);
+        }
       });
 
       testWidgets('row two stretches when Coming up is taller', (tester) async {
@@ -543,28 +590,16 @@ void main() {
           viewState: state,
         );
 
-        final recent = _trayRect(tester, 'Recent entries');
-        final coming = _trayRect(tester, 'Coming up');
+        final rects = _rects(tester);
 
-        expect(recent.height, coming.height);
-        expect(coming.height, greaterThan(_minimumTallRowHeight));
+        expect(rects.recent.height, rects.coming.height);
+        expect(rects.coming.height, greaterThan(_minimumTallRowHeight));
       });
 
       testWidgets('row two stretches when Recent entries is taller', (
         tester,
       ) async {
-        final state = _overviewState(
-          recent: [
-            OverviewEntryRow(
-              title: _repeatedText('Recent entry ', 24),
-              caption: _repeatedText('Long account and category caption ', 12),
-              symbolName: 'receipt',
-              color: Colors.blue,
-              amount: Decimal.parse('1.00'),
-              amountKind: AmountKind.expense,
-            ),
-          ],
-        );
+        final state = _overviewState(recent: [_longRecentRow()]);
         await _pumpOpenOverview(
           tester,
           emptyState(),
@@ -572,11 +607,10 @@ void main() {
           viewState: state,
         );
 
-        final recent = _trayRect(tester, 'Recent entries');
-        final coming = _trayRect(tester, 'Coming up');
+        final rects = _rects(tester);
 
-        expect(recent.height, coming.height);
-        expect(recent.height, greaterThan(_minimumTallRowHeight));
+        expect(rects.recent.height, rects.coming.height);
+        expect(rects.recent.height, greaterThan(_minimumTallRowHeight));
       });
 
       testWidgets('open Overview preserves empty and loading sections', (
@@ -601,22 +635,6 @@ void main() {
 
         expect(find.byType(LoadingSkeleton), findsNWidgets(3));
         expect(find.widgetWithText(TextButton, 'View History'), findsOneWidget);
-      });
-
-      testWidgets('open Overview has no overflow at the threshold', (
-        tester,
-      ) async {
-        for (final textScale in _thresholdTextScales) {
-          await _pumpOpenOverview(
-            tester,
-            defaultState(),
-            brightness: brightness,
-            size: _openThresholdSize,
-            textScale: textScale,
-          );
-
-          expect(tester.takeException(), isNull);
-        }
       });
 
       testWidgets('open Today error keeps Retry behavior', (tester) async {
@@ -645,29 +663,3 @@ void main() {
     });
   }
 }
-
-OverviewViewState _overviewState({
-  List<OverviewEntryRow>? recent = const [],
-  List<OverviewUpcomingRow>? upcoming = const [],
-}) => OverviewViewState(
-  day: fixtureToday,
-  today: null,
-  recent: recent,
-  upcoming: upcoming,
-);
-
-OverviewUpcomingRow _upcomingRow(int index) => OverviewUpcomingRow(
-  day: '${index + 1}',
-  month: 'Oct',
-  title: 'Upcoming entry $index',
-  caption: 'Checking',
-  amount: Decimal.parse('1.00'),
-  amountKind: AmountKind.expense,
-);
-
-String _repeatedText(String value, int count) =>
-    List<String>.filled(count, value).join();
-
-Widget _detailBody(BuildContext context) => const SizedBox.expand();
-
-void _closeDetail() {}

@@ -14,11 +14,6 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Screen
 
-const _overviewGridColumnCount = 3;
-const _overviewGridSpanColumnCount = 2;
-const _overviewGridGapCount = 2;
-const _overviewGridMinimumColumnWidth = 220.0;
-
 class OverviewScreen extends ConsumerWidget {
   const OverviewScreen({
     super.key,
@@ -100,11 +95,9 @@ class _OpenOverviewGrid extends StatelessWidget {
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
       final columnWidth =
-          (constraints.maxWidth - overviewTrayGap * _overviewGridGapCount) /
-          _overviewGridColumnCount;
-      final minimumColumnWidth = MediaQuery.textScalerOf(context)
-          .scale(_overviewGridMinimumColumnWidth);
-      if (columnWidth < minimumColumnWidth) {
+          (constraints.maxWidth - overviewTrayGap * overviewGridGapCount) /
+          overviewGridColumnCount;
+      if (columnWidth < overviewGridMinimumColumnWidth) {
         return _OverviewSections(
           today: today,
           recent: recent,
@@ -112,7 +105,7 @@ class _OpenOverviewGrid extends StatelessWidget {
         );
       }
       final spanWidth =
-          columnWidth * _overviewGridSpanColumnCount + overviewTrayGap;
+          columnWidth * overviewGridSpanColumnCount + overviewTrayGap;
       final todayRow = Row(
         children: [
           SizedBox(width: spanWidth, child: today),
