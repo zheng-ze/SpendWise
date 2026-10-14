@@ -294,7 +294,7 @@ The app is phone-first with one shell whose phone or desktop layout is chosen by
   platform facts plus the current logical window size: web, macOS, Windows and Linux always use
   desktop; on iOS and Android the window is open exactly when at least 600 dp wide and at least
   480 dp high (both inclusive), otherwise phone, following runtime size changes with no
-  hysteresis. The inspected Flutter 3.47.4 iOS embedder reports no display features, and the
+  hysteresis. Phones are locked to portrait (iPhone `UISupportedInterfaceOrientations` lists portrait only; Android `MainActivity` requests portrait while `smallestScreenWidthDp` is below 600 and re-applies on configuration change), so landscape phones no longer occur; tablets and unfolded foldables keep every orientation, and the 600 x 480 threshold is unchanged for tablets and split-screen windows. The inspected Flutter 3.47.4 iOS embedder reports no display features, and the
   rule ignores display features on every platform. One fixed destination list resolves every
   stack index. The
   shared `buildShellAppContent` app builder reads the root window size before `SafeArea` and
