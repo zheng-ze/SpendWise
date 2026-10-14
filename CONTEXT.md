@@ -153,9 +153,14 @@ the Flow clears it via the ViewModel's `clearStep()` after acting on it, whether
 push or a modal launch. Replaces the earlier `NavigationIntent` field. See ADR-0059.
 
 `AppShell` (`app/lib/ui/shell/app_shell.dart`) itself gets no ViewModel: its only state is
-the fixed platform layout mode (`shellLayoutModeProvider`, resolving `ShellLayoutMode.phone`
-or `ShellLayoutMode.desktop` once per run from the platform), with no
-async loading and no domain import. `ShellDestination` is overview, history, trends, money and
+the layout mode (`shellLayoutModeProvider`, resolving `ShellLayoutMode.phone`, `ShellLayoutMode.open`
+or `ShellLayoutMode.desktop` from fixed platform facts plus the current logical window size),
+with no async loading and no domain import. Web, macOS, Windows and Linux always use desktop;
+on iOS and Android the window uses open exactly when at least 600 dp wide and at least 480 dp
+high (both inclusive), otherwise phone, following runtime size changes with no hysteresis. The
+inspected Flutter 3.47.4 iOS embedder reports no display features, and the rule ignores display
+features on every platform. Until the open chrome lands, open renders the phone chrome.
+`ShellDestination` is overview, history, trends, money and
 settings, opening on overview. Phone renders a rounded five-position bar (Overview, Trends,
 centred Add, Money, Settings) over a stable `IndexedStack` of its four destination slots; desktop
 renders a sidebar (wordmark, Overview, History, Trends, Money, Add entry, Settings at the bottom)

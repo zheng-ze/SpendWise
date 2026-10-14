@@ -18,9 +18,18 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
 - `app/lib/ui/common/base/step_emitting.dart` — the `Step` emission contract.
 - `app/lib/ui/common/base/flow_base.dart` — the Flow base that watches ViewModels for `Step` and maps each
   to a push/pop on its own `Navigator`.
-- `app/lib/ui/shell/app_shell.dart` — the shell: no ViewModel, only the fixed
-  platform layout mode (`shellLayoutModeProvider`), mounting one Flow per
-  destination.
+- `app/lib/ui/shell/app_shell.dart` - the shell: no ViewModel, only the layout
+  mode (`shellLayoutModeProvider`), mounting one Flow per destination.
+- `app/lib/ui/shell/shell_binding.dart` - the root window binding:
+  `buildShellAppContent` is the single `MaterialApp.builder` used by
+  `SpendWiseApp`; it reads the root `MediaQuery` size before `SafeArea` and
+  supplies it through a scoped `shellWindowSizeProvider` override in a
+  retained `ProviderScope`, publishing the resolved mode through a plain
+  `ShellLayoutModeScope` above the root `Navigator`. An explicit
+  `shellLayoutModeProvider` override in an enclosing scope wins over derived
+  geometry. `shellWindowSizeProvider` defaults to `Size.zero`, so fixtures
+  without the binding resolve mobile to phone and desktop platforms to
+  desktop.
 - `app/lib/ui/symbol_map.dart` — symbol-to-IconData mapping.
 - `app/lib/ui/theme/` - `spendwise_colors.dart` (`SpendWiseColors` ThemeExtension with the
   Harbour glass light/dark tokens), `spendwise_text.dart` (`SpendWiseText` amount roles plus the
@@ -66,12 +75,21 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   `app/lib/ui/transactions/transactions_flow.dart`)
 - **One ViewModel per View**; shared presentation widgets own no ViewModel because they never read
   Riverpod state (zero `ConsumerWidget`/`WidgetRef` usage).
-- **AppShell** gets no ViewModel: its only state is the fixed platform layout
-  mode, no async loading, no domain import. `shellLayoutModeProvider`
-  (`app/lib/ui/shell/shell_providers.dart`) resolves `ShellLayoutMode.phone`
-  or `ShellLayoutMode.desktop` once per run from the platform (web, macOS,
-  Windows and Linux use desktop; iOS and Android use phone) and reads no
-  window width, so resizing never switches the bar/sidebar layout.
+- **AppShell** gets no ViewModel: its only state is the layout mode, no async
+  loading, no domain import. `shellLayoutModeProvider`
+  (`app/lib/ui/shell/shell_providers.dart`) resolves `ShellLayoutMode.phone`,
+  `ShellLayoutMode.open` or `ShellLayoutMode.desktop` from fixed platform
+  facts (`shellPlatformProvider` captures `isWeb` and `TargetPlatform` once
+  per root container) plus the current logical window size
+  (`shellWindowSizeProvider`). Web, macOS, Windows and Linux always resolve
+  to desktop at any window size; the Fuchsia desktop fallback is preserved.
+  On iOS and Android the mode is open exactly when the window is at least
+  600 dp wide and at least 480 dp high (`openModeMinWidth`,
+  `openModeMinHeight`, both inclusive), otherwise phone, following window
+  size changes at runtime in both directions with no hysteresis. The
+  inspected Flutter 3.47.4 iOS embedder reports no display features, and the
+  rule ignores display features on every platform. Until the open chrome
+  lands, open mode renders the existing phone chrome.
   `ShellDestination` (`overview`, `history`, `trends`, `money`, `settings`)
   defaults to `overview`. Phone shows a rounded five-position bar in exactly
   this order: Overview, Trends, Add, Money, Settings. Add is the exact-centre

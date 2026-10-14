@@ -1,6 +1,6 @@
 # Overview UI
 
-Last reconciled: 2026-10-12
+Last reconciled: 2026-10-14
 
 ## Feature overview
 
@@ -42,7 +42,7 @@ spending' and a filled Retry in the Today tray; Retry calls `AnalysisQueries.ret
 read only beside a current Today summary, so the empty headline never appears over stale data.
 Tapping 'View History' calls `OverviewViewModel.requestHistory`; `OverviewFlow` consumes the
 resulting `OverviewHistoryRequested` exactly once and clears it, including requests made before
-its Navigator mounts. On phone (`shellLayoutModeProvider`, `app/lib/ui/shell/boot_chrome.dart`)
+its Navigator mounts. On phone and open (`shellLayoutModeProvider`, `app/lib/ui/shell/boot_chrome.dart`)
 the flow pushes a `MaterialPageRoute` holding one unscoped `TransactionsFlow` (back control
 labelled 'Overview') into its own nested Navigator; a route-open guard collapses duplicate
 requests. On desktop the same step selects the `ShellDestination.history` slot and pushes no

@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
@@ -8,17 +9,27 @@ import 'package:spendwise/boot/providers.dart';
 enum ShellDestination { overview, history, trends, money, settings }
 
 // MARK: - ShellLayoutMode
-enum ShellLayoutMode { phone, desktop }
+enum ShellLayoutMode { phone, open, desktop }
+
+typedef ShellPlatformFacts = ({bool isWeb, TargetPlatform targetPlatform});
+
+const openModeMinWidth = 600.0;
+const openModeMinHeight = 480.0;
 
 // MARK: - Helpers
 ShellLayoutMode resolveShellLayoutMode({
   required bool isWeb,
   required TargetPlatform targetPlatform,
+  required Size windowSize,
 }) {
   if (isWeb) return ShellLayoutMode.desktop;
   switch (targetPlatform) {
     case TargetPlatform.iOS:
     case TargetPlatform.android:
+      if (windowSize.width >= openModeMinWidth &&
+          windowSize.height >= openModeMinHeight) {
+        return ShellLayoutMode.open;
+      }
       return ShellLayoutMode.phone;
     case TargetPlatform.macOS:
     case TargetPlatform.windows:
@@ -29,11 +40,19 @@ ShellLayoutMode resolveShellLayoutMode({
 }
 
 // MARK: - Layout Providers
+final shellPlatformProvider = Provider<ShellPlatformFacts>(
+  (ref) => (isWeb: kIsWeb, targetPlatform: defaultTargetPlatform),
+);
+
+final shellWindowSizeProvider = Provider<Size>((ref) => Size.zero);
+
 final shellLayoutModeProvider = Provider<ShellLayoutMode>(
   (ref) => resolveShellLayoutMode(
-    isWeb: kIsWeb,
-    targetPlatform: defaultTargetPlatform,
+    isWeb: ref.watch(shellPlatformProvider).isWeb,
+    targetPlatform: ref.watch(shellPlatformProvider).targetPlatform,
+    windowSize: ref.watch(shellWindowSizeProvider),
   ),
+  dependencies: [shellPlatformProvider, shellWindowSizeProvider],
 );
 
 final selectedDestinationProvider = StateProvider<ShellDestination>(
