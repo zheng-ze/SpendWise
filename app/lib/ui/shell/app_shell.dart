@@ -66,22 +66,13 @@ class _AppShellState extends ConsumerState<AppShell> {
     openNewEntry(context: context, ref: ref, sourceId: sourceId);
   }
 
-  void _ensureHistory(ShellLayoutMode mode, ShellDestination selected) {
-    if (_historyMaterialized) return;
-    if (mode != ShellLayoutMode.open && selected != ShellDestination.history) {
-      return;
-    }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) setState(() => _historyMaterialized = true);
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final selected = ref.watch(selectedDestinationProvider);
     final mode = ref.watch(shellLayoutModeProvider);
     _ensureTicker(ref.watch(clockProvider));
-    _ensureHistory(mode, selected);
+    _historyMaterialized |=
+        mode == ShellLayoutMode.open || selected == ShellDestination.history;
 
     if (mode == ShellLayoutMode.desktop) {
       return Scaffold(
@@ -99,7 +90,6 @@ class _AppShellState extends ConsumerState<AppShell> {
                 selected: selected,
                 bodies: widget.bodies,
                 historyEnabled: true,
-                bannerGutter: 0,
                 rail: null,
               ),
             ),
@@ -114,7 +104,6 @@ class _AppShellState extends ConsumerState<AppShell> {
         selected: selected,
         bodies: widget.bodies,
         historyEnabled: _historyMaterialized,
-        bannerGutter: open ? openRailGutter : 0,
         rail: open
             ? OpenRail(
                 selected: selected,
@@ -140,14 +129,12 @@ class _ShellStack extends StatelessWidget {
     required this.selected,
     required this.bodies,
     required this.historyEnabled,
-    required this.bannerGutter,
     required this.rail,
   });
 
   final ShellDestination selected;
   final Map<ShellDestination, WidgetBuilder> bodies;
   final bool historyEnabled;
-  final double bannerGutter;
   final Widget? rail;
 
   @override
@@ -157,8 +144,11 @@ class _ShellStack extends StatelessWidget {
       bodies: bodies,
       historyEnabled: historyEnabled,
     );
+    final gutter = rail == null
+        ? 0.0
+        : openRailGutter + MediaQuery.paddingOf(context).right;
     final viewport = Padding(
-      padding: EdgeInsets.only(right: rail == null ? 0 : openRailGutter),
+      padding: EdgeInsets.only(right: gutter),
       child: stacks,
     );
     final docked = rail == null
@@ -181,7 +171,7 @@ class _ShellStack extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         viewport,
-        StatusBanner(rightGutter: bannerGutter),
+        StatusBanner(rightGutter: gutter),
         ?docked,
       ],
     );

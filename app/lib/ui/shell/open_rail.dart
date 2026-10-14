@@ -7,6 +7,8 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 // MARK: - Geometry
 const openRailKey = ValueKey('open-rail');
 
+const openRailNavigationLabel = 'Main navigation';
+
 const openRailGutter = 72.0;
 const openRailRightInset = 9.0;
 const openRailBottomInset = 10.0;
@@ -25,7 +27,7 @@ const _railMinHitSize = 48.0;
 const _railAddBadgeSize = 32.0;
 const _railAddBadgePadding = 5.0;
 const _railAddBadgeRadius = 10.0;
-const _railAddIconSize = 32.0;
+const _railAddIconSize = 22.0;
 const _railAddLabel = 'Add';
 
 const _openRailOrder = [
@@ -52,83 +54,37 @@ class OpenRail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return Container(
-      key: openRailKey,
-      width: openRailWidth,
-      padding: _railPadding,
-      decoration: BoxDecoration(
-        color: colors.surface,
-        border: Border.all(color: colors.edge, width: openRailBorderWidth),
-        borderRadius: BorderRadius.circular(openRailCornerRadius),
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final (index, destination) in _openRailOrder.indexed) ...[
-              if (index > 0) const SizedBox(height: _railItemGap),
-              _RailDestination(
-                destination: destination,
-                selected: selected,
-                onSelected: onDestinationSelected,
-              ),
-            ],
-            const SizedBox(height: _railAddTopGap + _railItemGap),
-            _RailAdd(onTap: onAdd),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// MARK: - RailDestination
-class _RailDestination extends StatelessWidget {
-  const _RailDestination({
-    required this.destination,
-    required this.selected,
-    required this.onSelected,
-  });
-
-  final ShellDestination destination;
-  final ShellDestination selected;
-  final ValueChanged<ShellDestination> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final isSelected = destination == selected;
-    final foreground = isSelected ? colors.action : colors.subtext;
     return Semantics(
-      button: true,
-      selected: isSelected,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(_railItemCornerRadius),
-        onTap: () => onSelected(destination),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            minWidth: _railMinHitSize,
-            minHeight: _railMinHitSize,
-          ),
+      container: true,
+      label: openRailNavigationLabel,
+      child: Container(
+        key: openRailKey,
+        width: openRailWidth,
+        padding: _railPadding,
+        decoration: BoxDecoration(
+          color: colors.surface,
+          border: Border.all(color: colors.edge, width: openRailBorderWidth),
+          borderRadius: BorderRadius.circular(openRailCornerRadius),
+        ),
+        child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                destinationIcons[destination],
-                size: _railIconSize,
-                color: foreground,
-              ),
-              const SizedBox(height: _railLabelGap),
-              Text(
-                destinationLabels[destination]!,
-                style: TextStyle(
-                  fontSize: _railLabelFontSize,
-                  fontWeight: isSelected
-                      ? selectedDestinationWeight
-                      : unselectedDestinationWeight,
-                  color: foreground,
+              for (final (index, destination) in _openRailOrder.indexed) ...[
+                if (index > 0) const SizedBox(height: _railItemGap),
+                _RailItem(
+                  label: destinationLabels[destination]!,
+                  icon: destinationIcons[destination],
+                  selected: destination == selected,
+                  onTap: () => onDestinationSelected(destination),
                 ),
+              ],
+              const SizedBox(height: _railAddTopGap + _railItemGap),
+              _RailItem(
+                label: _railAddLabel,
+                icon: Icons.add,
+                filled: true,
+                onTap: onAdd,
               ),
             ],
           ),
@@ -138,17 +94,43 @@ class _RailDestination extends StatelessWidget {
   }
 }
 
-// MARK: - RailAdd
-class _RailAdd extends StatelessWidget {
-  const _RailAdd({required this.onTap});
+// MARK: - RailItem
+class _RailItem extends StatelessWidget {
+  const _RailItem({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+    this.selected,
+    this.filled = false,
+  });
 
+  final String label;
+  final IconData? icon;
   final VoidCallback onTap;
+  final bool? selected;
+  final bool filled;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final isSelected = selected ?? false;
+    final highlighted = filled || isSelected;
+    final foreground = highlighted ? colors.action : colors.subtext;
+    final graphic = filled
+        ? Container(
+            width: _railAddBadgeSize,
+            height: _railAddBadgeSize,
+            padding: const EdgeInsets.all(_railAddBadgePadding),
+            decoration: BoxDecoration(
+              color: colors.action,
+              borderRadius: BorderRadius.circular(_railAddBadgeRadius),
+            ),
+            child: Icon(icon, size: _railAddIconSize, color: colors.onAction),
+          )
+        : Icon(icon, size: _railIconSize, color: foreground);
     return Semantics(
       button: true,
+      selected: selected,
       child: InkWell(
         borderRadius: BorderRadius.circular(_railItemCornerRadius),
         onTap: onTap,
@@ -161,27 +143,16 @@ class _RailAdd extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                width: _railAddBadgeSize + _railAddBadgePadding * 2,
-                height: _railAddBadgeSize + _railAddBadgePadding * 2,
-                padding: const EdgeInsets.all(_railAddBadgePadding),
-                decoration: BoxDecoration(
-                  color: colors.action,
-                  borderRadius: BorderRadius.circular(_railAddBadgeRadius),
-                ),
-                child: Icon(
-                  Icons.add,
-                  size: _railAddIconSize,
-                  color: colors.onAction,
-                ),
-              ),
+              graphic,
               const SizedBox(height: _railLabelGap),
               Text(
-                _railAddLabel,
+                label,
                 style: TextStyle(
                   fontSize: _railLabelFontSize,
-                  fontWeight: selectedDestinationWeight,
-                  color: colors.action,
+                  fontWeight: highlighted
+                      ? selectedDestinationWeight
+                      : unselectedDestinationWeight,
+                  color: filled ? colors.action : foreground,
                 ),
               ),
             ],

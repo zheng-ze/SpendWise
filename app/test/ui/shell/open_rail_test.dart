@@ -126,8 +126,26 @@ void main() {
       (badge.decoration as BoxDecoration).color,
       SpendWiseColors.light.action,
     );
+    expect(
+      tester.getSize(
+        find
+            .ancestor(
+              of: find.byIcon(Icons.add),
+              matching: find.byType(Container),
+            )
+            .first,
+      ),
+      const Size(32, 32),
+    );
     final badgeIcon = tester.widget<Icon>(find.byIcon(Icons.add));
+    expect(badgeIcon.size, 22);
     expect(badgeIcon.color, SpendWiseColors.light.onAction);
+  });
+
+  testWidgets('the rail exposes a main-navigation landmark', (tester) async {
+    await _pumpOpen(tester);
+
+    expect(find.bySemanticsLabel(openRailNavigationLabel), findsOneWidget);
   });
 
   testWidgets('selecting a rail destination updates selection and semantics', (
@@ -213,6 +231,27 @@ void main() {
       moreOrLessEquals(_openSize.width - openRailGutter, epsilon: 0.5),
     );
     expect(find.byIcon(Icons.settings), findsNothing);
+  });
+
+  testWidgets('a right system inset extends the content gutter clear of '
+      'the rail', (tester) async {
+    tester.view.viewPadding = const FakeViewPadding(right: 20);
+    tester.view.padding = const FakeViewPadding(right: 20);
+    addTearDown(tester.view.reset);
+    await _pumpOpen(tester);
+
+    final stackWidth = tester.getSize(find.byType(IndexedStack)).width;
+    expect(
+      stackWidth,
+      moreOrLessEquals(_openSize.width - openRailGutter - 20, epsilon: 0.5),
+    );
+    final railRect = tester.getRect(find.byKey(openRailKey));
+    expect(
+      railRect.right,
+      moreOrLessEquals(_openSize.width - openRailRightInset - 20, epsilon: 0.5),
+    );
+    expect(stackWidth, lessThanOrEqualTo(railRect.left));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('rail Add opens the shared sheet and keeps the selection', (
