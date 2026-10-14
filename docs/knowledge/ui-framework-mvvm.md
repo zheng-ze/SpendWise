@@ -74,7 +74,7 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   shell can narrow its page for the open right-half form. A resize neither restarts the presenter nor invalidates the form or coordinator nor
   replaces the subscription or route, so the draft, auxiliary picker routes above the sheet and
   the captured Money source survive threshold crossings.
-  `AppShell` routes its phone and desktop Add controls through one callback. It captures a source
+  `AppShell` routes its phone, open and desktop Add controls through one callback. It captures a source
   only when Money is selected, using a constructor-injected getter backed by the stable
   `MoneyNavigatorObserver`; the observer tracks the top route of AccountsFlow's navigator, and
   scoped Transactions routes carry their preferred source ID. TransactionsFlow handles only
@@ -97,22 +97,39 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   `openModeMinHeight`, both inclusive), otherwise phone, following window
   size changes at runtime in both directions with no hysteresis. The
   inspected Flutter 3.47.4 iOS embedder reports no display features, and the
-  rule ignores display features on every platform. Until the open chrome
-  lands, open mode renders the existing phone chrome.
+  rule ignores display features on every platform. Phone and open share one
+  stable Scaffold, content Stack and keyed `IndexedStack` with five fixed
+  destination positions (overview, history, trends, money, settings) resolved
+  through one explicit destination list, never `enum.index`; only chrome and
+  the content gutter change between them, so a phone/open switch keeps the
+  selected destination, every Flow State, Navigator State and nested route.
+  Desktop keeps its own scaffold with the same five slots.
   `ShellDestination` (`overview`, `history`, `trends`, `money`, `settings`)
   defaults to `overview`. Phone shows a rounded five-position bar in exactly
   this order: Overview, Trends, Add, Money, Settings. Add is the exact-centre
   action: an action control with button semantics that opens the shared
   `openNewEntry` presenter without changing the selection and is never
-  selected. Desktop shows a sidebar with the SpendWise wordmark, Overview,
+  selected. Open shows a vertical rail docked bottom right in the order
+  Overview, History, Trends, Money, Settings, Add (`openRailWidth` 54,
+  `openRailRightInset` 9, `openRailBottomInset` 10, `openRailCornerRadius` 18,
+  all dp); Add is a filled accent action that is never selected and opens the
+  same presenter. The rail keeps labelled button semantics with 48 dp minimum
+  hit targets, scrolls vertically when height or text scaling requires it, and
+  renders no header gear. Open content reserves an `openRailGutter` of 72 dp
+  for existing single pages, and `StatusBanner` shifts by the same gutter.
+  Desktop shows a sidebar with the SpendWise wordmark, Overview,
   History, Trends, Money, an Add entry button, flexible separation and
-  Settings at the bottom. Each layout keeps its destinations in a stable
-  keyed `IndexedStack` (phone: overview, trends, money, settings; desktop:
-  overview, history, trends, money, settings), resolved through explicit
-  destination lists, never `enum.index`. Overview hosts `OverviewFlow`,
-  Trends hosts `StatsFlow`, Money hosts `AccountsFlow`, desktop History hosts
-  the unscoped `TransactionsFlow`, Settings hosts `SettingsFlow`. Phone
-  mounts no History slot. There is no header gear and no shell Add FAB.
+  Settings at the bottom. Overview hosts `OverviewFlow`,
+  Trends hosts `StatsFlow`, Money hosts `AccountsFlow`, History hosts
+  the unscoped `TransactionsFlow`, Settings hosts `SettingsFlow`. The mobile
+  History slot materializes lazily on first open-mode use or explicit History
+  selection and is retained afterwards; the phone bar still shows no History
+  item. If shell History is selected when the window becomes phone-sized, it
+  stays selected and visible with a root back control labelled Overview whose
+  explicit back action reselects Overview. A History page already pushed
+  inside Overview stays on that nested stack across resize; later Overview
+  History requests push within Overview on phone and select shell History on
+  open or desktop. There is no header gear and no shell Add FAB.
   The desktop sidebar's sync line is a dedicated `SidebarStatusViewModel` that
   watches `hostedSyncStatusProvider`: no selection shows "Sync not configured",
   setup pending shows "Sync setup pending", ready shows "Sync ready", binding
@@ -141,7 +158,11 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   wraps its destination with the flag derived from the selected destination. An inactive `FlowBase`
   `PopScope` permits propagation and ignores its callback; the active Flow delegates Back through
   its own nested `Navigator`. `FlowBase` reads no shell providers. Nested enrollment and scoped
-  Flows inherit their host destination's activity.
+  Flows inherit their host destination's activity. `TransactionsFlow` additionally gates its
+  screen-`Step` consumption on that flag: a hidden retained History instance neither acts on nor
+  clears a shared `Step`, rechecks that the provider still holds the same pending `Step` before
+  handling, and schedules one post-frame pickup of the current `Step` on activation with the same
+  recheck, so a `Step` cleared by the visible owner never replays. (`app/lib/ui/transactions/transactions_flow.dart`)
 - **Settings teardown** - `SettingsFlow.dispose` performs terminal cleanup only through one
   disposal-safe microtask using the captured `ProviderContainer` and guard controller: it releases
   `enrollmentFlowOpenProvider` when this Flow owned the route and clears any pending navigation

@@ -6,19 +6,13 @@ import 'package:spendwise/ui/common/base/flow_base.dart';
 import 'package:spendwise/ui/transactions/entry/new_entry_presenter.dart';
 import 'package:spendwise/ui/shell/day_ticker.dart';
 import 'package:spendwise/ui/shell/desktop_sidebar.dart';
+import 'package:spendwise/ui/shell/open_rail.dart';
 import 'package:spendwise/ui/shell/phone_bar.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/shell/status_banner.dart';
 
 // MARK: - Constants
-const phoneDestinations = [
-  ShellDestination.overview,
-  ShellDestination.trends,
-  ShellDestination.money,
-  ShellDestination.settings,
-];
-
-const desktopDestinations = [
+const shellDestinations = [
   ShellDestination.overview,
   ShellDestination.history,
   ShellDestination.trends,
@@ -42,6 +36,7 @@ class AppShell extends ConsumerStatefulWidget {
 // MARK: - AppShellState
 class _AppShellState extends ConsumerState<AppShell> {
   DayTicker? _ticker;
+  bool _historyMaterialized = false;
 
   @override
   void dispose() {
@@ -71,26 +66,24 @@ class _AppShellState extends ConsumerState<AppShell> {
     openNewEntry(context: context, ref: ref, sourceId: sourceId);
   }
 
+  void _ensureHistory(ShellLayoutMode mode, ShellDestination selected) {
+    if (_historyMaterialized) return;
+    if (mode != ShellLayoutMode.open && selected != ShellDestination.history) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _historyMaterialized = true);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final selected = ref.watch(selectedDestinationProvider);
-    final desktop =
-        ref.watch(shellLayoutModeProvider) == ShellLayoutMode.desktop;
+    final mode = ref.watch(shellLayoutModeProvider);
     _ensureTicker(ref.watch(clockProvider));
+    _ensureHistory(mode, selected);
 
-    final content = Stack(
-      fit: StackFit.expand,
-      children: [
-        _DestinationStacks(
-          selected: selected,
-          order: desktop ? desktopDestinations : phoneDestinations,
-          bodies: widget.bodies,
-        ),
-        const StatusBanner(),
-      ],
-    );
-
-    if (desktop) {
+    if (mode == ShellLayoutMode.desktop) {
       return Scaffold(
         key: const ValueKey('sidebar-layout'),
         body: Row(
@@ -101,19 +94,96 @@ class _AppShellState extends ConsumerState<AppShell> {
               onAdd: () => _openNewEntry(context),
             ),
             const SidebarDivider(),
-            Expanded(child: content),
+            Expanded(
+              child: _ShellStack(
+                selected: selected,
+                bodies: widget.bodies,
+                historyEnabled: true,
+                bannerGutter: 0,
+                rail: null,
+              ),
+            ),
           ],
         ),
       );
     }
+    final open = mode == ShellLayoutMode.open;
     return Scaffold(
-      key: const ValueKey('phone-layout'),
-      body: content,
-      bottomNavigationBar: PhoneBar(
+      key: const ValueKey('mobile-layout'),
+      body: _ShellStack(
         selected: selected,
-        onDestinationSelected: _select,
-        onAdd: () => _openNewEntry(context),
+        bodies: widget.bodies,
+        historyEnabled: _historyMaterialized,
+        bannerGutter: open ? openRailGutter : 0,
+        rail: open
+            ? OpenRail(
+                selected: selected,
+                onDestinationSelected: _select,
+                onAdd: () => _openNewEntry(context),
+              )
+            : null,
       ),
+      bottomNavigationBar: open
+          ? null
+          : PhoneBar(
+              selected: selected,
+              onDestinationSelected: _select,
+              onAdd: () => _openNewEntry(context),
+            ),
+    );
+  }
+}
+
+// MARK: - ShellStack
+class _ShellStack extends StatelessWidget {
+  const _ShellStack({
+    required this.selected,
+    required this.bodies,
+    required this.historyEnabled,
+    required this.bannerGutter,
+    required this.rail,
+  });
+
+  final ShellDestination selected;
+  final Map<ShellDestination, WidgetBuilder> bodies;
+  final bool historyEnabled;
+  final double bannerGutter;
+  final Widget? rail;
+
+  @override
+  Widget build(BuildContext context) {
+    final stacks = _DestinationStacks(
+      selected: selected,
+      bodies: bodies,
+      historyEnabled: historyEnabled,
+    );
+    final viewport = Padding(
+      padding: EdgeInsets.only(right: rail == null ? 0 : openRailGutter),
+      child: stacks,
+    );
+    final docked = rail == null
+        ? null
+        : Positioned(
+            right: openRailRightInset,
+            bottom: openRailBottomInset,
+            child: SafeArea(
+              top: false,
+              left: false,
+              child: LayoutBuilder(
+                builder: (context, constraints) => ConstrainedBox(
+                  constraints: BoxConstraints(maxHeight: constraints.maxHeight),
+                  child: rail,
+                ),
+              ),
+            ),
+          );
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        viewport,
+        StatusBanner(rightGutter: bannerGutter),
+        ?docked,
+      ],
     );
   }
 }
@@ -122,31 +192,31 @@ class _AppShellState extends ConsumerState<AppShell> {
 class _DestinationStacks extends StatelessWidget {
   const _DestinationStacks({
     required this.selected,
-    required this.order,
     required this.bodies,
+    required this.historyEnabled,
   });
 
   final ShellDestination selected;
 
-  final List<ShellDestination> order;
-
   final Map<ShellDestination, WidgetBuilder> bodies;
+
+  final bool historyEnabled;
 
   @override
   Widget build(BuildContext context) {
-    final selectedIndex = order.indexOf(selected);
+    final selectedIndex = shellDestinations.indexOf(selected);
     return IndexedStack(
       index: selectedIndex < 0 ? _fallbackStackIndex : selectedIndex,
       children: [
-        for (final destination in order)
+        for (final destination in shellDestinations)
           KeyedSubtree(
             key: ValueKey(destination),
             child: DestinationActivity(
               active: destination == selected,
-              child:
-                  (bodies[destination] ?? (context) => const SizedBox.shrink())(
-                    context,
-                  ),
+              child: destination == ShellDestination.history && !historyEnabled
+                  ? const SizedBox.shrink()
+                  : (bodies[destination] ??
+                        (context) => const SizedBox.shrink())(context),
             ),
           ),
       ],

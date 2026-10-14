@@ -62,6 +62,7 @@ createEnrollmentContainer({
   SyncEnrollmentPhase? seedPhase,
   List<SettingsStep>? settingsSteps,
   ShellLayoutMode? layoutMode,
+  ShellPlatformFacts? platform,
 }) async {
   SharedPreferences.setMockInitialValues({});
   final db = LedgerDatabase(NativeDatabase.memory());
@@ -79,6 +80,7 @@ createEnrollmentContainer({
       ledgerProvider.overrideWithValue(_buildLedger()),
       if (layoutMode != null)
         shellLayoutModeProvider.overrideWithValue(layoutMode),
+      if (platform != null) shellPlatformProvider.overrideWithValue(platform),
       if (status != null)
         hostedSyncStatusProvider.overrideWith(
           (ref) => ref.watch(_statusStateProvider),
@@ -346,6 +348,26 @@ void main() {
     expect(find.byKey(const ValueKey('sidebar')), findsOneWidget);
     final railBanner = tester.getRect(_bannerSurface());
     expect(railBanner.bottom, lessThanOrEqualTo(800 - 34));
+  });
+
+  testWidgets('the open rail clears the repair banner and repair keeps '
+      'precedence over timed messages', (tester) async {
+    final banner = BannerState();
+    await pumpShell(
+      tester,
+      status: const HostedSyncBindingRepair(),
+      layoutMode: ShellLayoutMode.open,
+      size: const Size(960, 720),
+      banner: banner,
+    );
+    banner.receiveSaveState(SaveBannerState.retrying);
+    await tester.pump();
+
+    expect(find.text(_repairLabel), findsOneWidget);
+    expect(find.text("Couldn't save changes, retrying"), findsNothing);
+    final bannerRect = tester.getRect(_bannerSurface());
+    final railRect = tester.getRect(find.byKey(const ValueKey('open-rail')));
+    expect(bannerRect.right, lessThanOrEqualTo(railRect.left));
   });
 
   testWidgets('the repair banner has no dismiss affordance', (tester) async {

@@ -268,25 +268,35 @@ separator input is a recorded non-goal until localization work begins.
 The app is phone-first with one shell whose phone or desktop layout is chosen by platform:
 
 - Phone shows a rounded five-position bar (Overview, Trends, centred Add, Money, Settings;
-  Add is a never-selected action opening the shared entry presenter) over a stable `IndexedStack`
-  of the Overview, Trends, Money and Settings slots. Desktop shows a sidebar (wordmark,
-  Overview, History, Trends, Money, an Add entry button, Settings at the bottom) over a stable
-  `IndexedStack` of all five destinations. Both Add controls open the shared entry presenter; the
+  Add is a never-selected action opening the shared entry presenter). Open shows a vertical
+  rail docked bottom right (Overview, History, Trends, Money, Settings, filled Add; 54 dp wide
+  with 9 dp right and 10 dp bottom insets, 18 dp radius) over content reserving a 72 dp gutter,
+  with the status banner clearing the same gutter. Phone and open share one stable Scaffold,
+  content Stack and keyed `IndexedStack` with five fixed destination positions; only chrome and
+  the content gutter change between them, so a phone/open switch keeps the selected destination,
+  every Flow State, Navigator State and nested route. The mobile History slot materializes
+  lazily on first open-mode use or explicit History selection and is retained after; the phone
+  bar still shows no History item, and a shell History selected at an open-to-phone switch stays
+  selected and visible with a root back control labelled Overview. A History page already pushed
+  inside Overview stays on that nested stack across resize. Desktop shows a sidebar (wordmark,
+  Overview, History, Trends, Money, an Add entry button, Settings at the bottom) over the same
+  five slots. All Add controls open the shared entry presenter; the
   shell captures the top scoped Money route's preferred source only while Money is selected.
   The shared Add presenter opens one root `AppSheetRoute` with a keyed entry form and a live
   presentation resolver: phone spans the bottom at full width, desktop centres a dialog, and open
   docks a full-height surface in the safe right half starting at half the window width behind a
   transparent dismissible barrier. A phone/open resize changes only sheet geometry, alignment and
   chrome, keeping the route, draft, focus and auxiliary picker routes.
-  History hosts the unscoped `TransactionsFlow` on
-  desktop. Phone has no History slot. `shellLayoutModeProvider` resolves
+  History hosts the unscoped `TransactionsFlow`; its screen-`Step` consumption is gated on the
+  enclosing `DestinationActivity`, so a hidden retained instance neither acts on nor clears a
+  shared `Step`. `shellLayoutModeProvider` resolves
   `ShellLayoutMode.phone`, `ShellLayoutMode.open` or `ShellLayoutMode.desktop` from fixed
   platform facts plus the current logical window size: web, macOS, Windows and Linux always use
   desktop; on iOS and Android the window is open exactly when at least 600 dp wide and at least
   480 dp high (both inclusive), otherwise phone, following runtime size changes with no
   hysteresis. The inspected Flutter 3.47.4 iOS embedder reports no display features, and the
-  rule ignores display features on every platform. Until the open chrome lands, open renders the
-  phone chrome. Each stack resolves its index through its own explicit destination list. The
+  rule ignores display features on every platform. One fixed destination list resolves every
+  stack index. The
   shared `buildShellAppContent` app builder reads the root window size before `SafeArea` and
   feeds a retained binding scope, so resize keeps the selected destination and provider
   container identity.

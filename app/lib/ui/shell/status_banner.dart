@@ -13,7 +13,9 @@ const _bannerBottom = 0.0;
 
 // MARK: - StatusBanner
 class StatusBanner extends ConsumerWidget {
-  const StatusBanner({super.key});
+  const StatusBanner({super.key, this.rightGutter = 0});
+
+  final double rightGutter;
 
   static const _messageBackgroundOpacity = 0.92;
 
@@ -30,7 +32,9 @@ class StatusBanner extends ConsumerWidget {
         ref.watch(enrollmentFlowOpenProvider);
     final needsRepair =
         status is HostedSyncBindingRepair || status is HostedSyncSessionReauth;
-    if (needsRepair && !repairFlowVisible) return const _RepairBanner();
+    if (needsRepair && !repairFlowVisible) {
+      return _RepairBanner(rightGutter: rightGutter);
+    }
 
     final message = ref.watch(bannerStateProvider).message;
     if (message == null) return const SizedBox.shrink();
@@ -38,7 +42,8 @@ class StatusBanner extends ConsumerWidget {
     final theme = Theme.of(context);
 
     return _BottomAnchored(
-      horizontalInset: _messageHorizontalInset,
+      left: _messageHorizontalInset,
+      right: _messageHorizontalInset + rightGutter,
       child: Center(
         child: Material(
           color: theme.colorScheme.inverseSurface.withValues(
@@ -64,9 +69,14 @@ class StatusBanner extends ConsumerWidget {
 // MARK: - BottomAnchored
 // The rail layout has no bottom bar to consume the system inset.
 class _BottomAnchored extends StatelessWidget {
-  const _BottomAnchored({required this.horizontalInset, required this.child});
+  const _BottomAnchored({
+    required this.left,
+    required this.right,
+    required this.child,
+  });
 
-  final double horizontalInset;
+  final double left;
+  final double right;
   final Widget child;
 
   static const _safeAreaBottomMargin = EdgeInsets.only(bottom: 16);
@@ -74,8 +84,8 @@ class _BottomAnchored extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Positioned(
-      left: horizontalInset,
-      right: horizontalInset,
+      left: left,
+      right: right,
       bottom: _bannerBottom,
       child: SafeArea(
         top: false,
@@ -92,7 +102,9 @@ class _BottomAnchored extends StatelessWidget {
 // Takes precedence over BannerState's timed messages, which return once repair
 // clears.
 class _RepairBanner extends ConsumerWidget {
-  const _RepairBanner();
+  const _RepairBanner({required this.rightGutter});
+
+  final double rightGutter;
 
   static const _cornerRadius = 16.0;
 
@@ -147,7 +159,8 @@ class _RepairBanner extends ConsumerWidget {
     );
 
     return _BottomAnchored(
-      horizontalInset: _horizontalInset,
+      left: _horizontalInset,
+      right: _horizontalInset + rightGutter,
       child: MergeSemantics(child: Semantics(button: true, child: banner)),
     );
   }

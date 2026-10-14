@@ -64,14 +64,14 @@ class _OverviewTabEntry extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (ref.watch(shellLayoutModeProvider) == ShellLayoutMode.desktop) {
-      return OverviewFlow(
-        onHistorySelected: () =>
-            ref.read(selectedDestinationProvider.notifier).state =
-                ShellDestination.history,
-      );
+    if (ref.watch(shellLayoutModeProvider) == ShellLayoutMode.phone) {
+      return OverviewFlow(historyRouteBuilder: _buildHistoryPage);
     }
-    return OverviewFlow(historyRouteBuilder: _buildHistoryPage);
+    return OverviewFlow(
+      onHistorySelected: () =>
+          ref.read(selectedDestinationProvider.notifier).state =
+              ShellDestination.history,
+    );
   }
 }
 
@@ -81,7 +81,24 @@ Widget _buildHistoryPage(BuildContext routeContext) => TransactionsFlow(
   onEnded: () => Navigator.of(routeContext).pop(),
 );
 
-Widget _buildHistoryTab(BuildContext context) => const TransactionsFlow();
+// MARK: - HistoryTabEntry
+class _HistoryTabEntry extends ConsumerWidget {
+  const _HistoryTabEntry();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (ref.watch(shellLayoutModeProvider) == ShellLayoutMode.phone) {
+      return TransactionsFlow(
+        backLabel: _overviewBackLabel,
+        onEnded: () => ref.read(selectedDestinationProvider.notifier).state =
+            ShellDestination.overview,
+      );
+    }
+    return const TransactionsFlow();
+  }
+}
+
+Widget _buildHistoryTab(BuildContext context) => const _HistoryTabEntry();
 
 Widget _buildTrendsTab(BuildContext context) => const StatsFlow();
 

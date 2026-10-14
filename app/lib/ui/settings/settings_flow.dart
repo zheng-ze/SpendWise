@@ -63,11 +63,17 @@ class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
     _ownsEnrollmentRoute = false;
     final enrollmentFlowOpen = _enrollmentFlowOpen;
     final container = _container;
-    // Provider writes are illegal while the tree finalizes, hence the microtask.
+    // Provider writes are illegal while the tree finalizes, hence the
+    // microtask. Its scope may be disposed before it runs, and then there
+    // is nothing left to release or clear.
     scheduleMicrotask(() {
       if (!enrollmentFlowOpen.mounted) return;
       if (ownedRoute) enrollmentFlowOpen.state = false;
-      container.read(settingsRootViewModelProvider.notifier).clearStep();
+      try {
+        container.read(settingsRootViewModelProvider.notifier).clearStep();
+      } on StateError {
+        return;
+      }
     });
     super.dispose();
   }
