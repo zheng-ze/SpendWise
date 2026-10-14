@@ -46,14 +46,14 @@ final shellPlatformProvider = Provider<ShellPlatformFacts>(
 
 final shellWindowSizeProvider = Provider<Size>((ref) => Size.zero);
 
-final shellLayoutModeProvider = Provider<ShellLayoutMode>(
-  (ref) => resolveShellLayoutMode(
-    isWeb: ref.watch(shellPlatformProvider).isWeb,
-    targetPlatform: ref.watch(shellPlatformProvider).targetPlatform,
+final shellLayoutModeProvider = Provider<ShellLayoutMode>((ref) {
+  final platform = ref.watch(shellPlatformProvider);
+  return resolveShellLayoutMode(
+    isWeb: platform.isWeb,
+    targetPlatform: platform.targetPlatform,
     windowSize: ref.watch(shellWindowSizeProvider),
-  ),
-  dependencies: [shellPlatformProvider, shellWindowSizeProvider],
-);
+  );
+}, dependencies: [shellPlatformProvider, shellWindowSizeProvider]);
 
 final selectedDestinationProvider = StateProvider<ShellDestination>(
   (ref) => ShellDestination.overview,
