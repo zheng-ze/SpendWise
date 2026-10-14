@@ -82,9 +82,12 @@ Future<ProviderContainer> _pumpShell(
   Map<ShellDestination, WidgetBuilder>? bodies,
   Ledger? ledger,
   String? Function()? moneySourceId,
+  FakeViewPadding insets = FakeViewPadding.zero,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
+  tester.view.viewPadding = insets;
+  tester.view.padding = insets;
   addTearDown(tester.view.reset);
   if (ledger != null) {
     addTearDown(() async {
@@ -196,39 +199,24 @@ void main() {
   testWidgets('open viewport applies horizontal safe insets exactly once', (
     tester,
   ) async {
-    tester.view.physicalSize = _openSized;
-    tester.view.devicePixelRatio = 1;
-    tester.view.viewPadding = _openInsets;
-    tester.view.padding = _openInsets;
-    addTearDown(tester.view.reset);
-    final container = ProviderContainer(
-      overrides: [
-        hostedSyncStatusProvider.overrideWithValue(const HostedSyncReady()),
-        shellLayoutModeProvider.overrideWithValue(ShellLayoutMode.open),
-      ],
-    );
-    addTearDown(container.dispose);
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp(
-          home: AppShell(
-            bodies: {
-              ShellDestination.overview: (context) => SafeArea(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final padding = MediaQuery.paddingOf(context);
-                    return Text(
-                      'padding:${padding.left}:${padding.right};'
-                      'width:${constraints.maxWidth}',
-                    );
-                  },
-                ),
-              ),
-            },
-          ),
-        ),
+    Widget insetProbe(BuildContext context) => SafeArea(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final padding = MediaQuery.paddingOf(context);
+          return Text(
+            'padding:${padding.left}:${padding.right};'
+            'width:${constraints.maxWidth}',
+          );
+        },
       ),
+    );
+
+    await _pumpShell(
+      tester,
+      size: _openSized,
+      layoutMode: ShellLayoutMode.open,
+      insets: _openInsets,
+      bodies: {ShellDestination.overview: insetProbe},
     );
 
     expect(find.text('padding:0.0:0.0;width:838.0'), findsOneWidget);
@@ -238,38 +226,23 @@ void main() {
   testWidgets('open pane host splits the safe body around the rail gutter', (
     tester,
   ) async {
-    tester.view.physicalSize = _openSized;
-    tester.view.devicePixelRatio = 1;
-    tester.view.viewPadding = _rightOnlyInset;
-    tester.view.padding = _rightOnlyInset;
-    addTearDown(tester.view.reset);
-    final container = ProviderContainer(
-      overrides: [
-        hostedSyncStatusProvider.overrideWithValue(const HostedSyncReady()),
-        shellLayoutModeProvider.overrideWithValue(ShellLayoutMode.open),
-      ],
+    final detail = ShellDetail(
+      id: 'selected',
+      title: 'Selected',
+      bodyBuilder: (_) => const SizedBox.shrink(),
+      onClose: () {},
     );
-    addTearDown(container.dispose);
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp(
-          home: AppShell(
-            bodies: {
-              ShellDestination.overview: (context) => ShellPaneHost(
-                pageBuilder: (_, _) =>
-                    const SizedBox.expand(key: _paneHostPageKey),
-                detail: ShellDetail(
-                  id: 'selected',
-                  title: 'Selected',
-                  bodyBuilder: (_) => const SizedBox.shrink(),
-                  onClose: () {},
-                ),
-              ),
-            },
-          ),
-        ),
-      ),
+    Widget paneHost(BuildContext context) => ShellPaneHost(
+      pageBuilder: (_, _) => const SizedBox.expand(key: _paneHostPageKey),
+      detail: detail,
+    );
+
+    await _pumpShell(
+      tester,
+      size: _openSized,
+      layoutMode: ShellLayoutMode.open,
+      insets: _rightOnlyInset,
+      bodies: {ShellDestination.overview: paneHost},
     );
 
     const safeWidth = 960.0 - 30;

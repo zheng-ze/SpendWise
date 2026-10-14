@@ -116,40 +116,36 @@ class ShellPaneHost extends StatelessWidget {
         final presentation = pageWidth < constraints.maxWidth
             ? ShellPagePresentation.singleColumn
             : ShellPagePresentation.fullPage;
-        final page = SizedBox(
-          width: pageWidth,
-          height: constraints.maxHeight,
-          child: pageBuilder(context, presentation),
-        );
 
-        return Stack(
-          fit: StackFit.expand,
-          children: [
-            Align(key: _pageSlotKey, alignment: Alignment.topLeft, child: page),
-            if (detail != null)
-              Align(
+        final page = Align(
+          key: _pageSlotKey,
+          alignment: Alignment.topLeft,
+          child: SizedBox(
+            width: pageWidth,
+            height: constraints.maxHeight,
+            child: pageBuilder(context, presentation),
+          ),
+        );
+        final detailSlot = detail == null
+            ? null
+            : Align(
                 key: _detailSlotKey,
                 alignment: Alignment.topRight,
                 child: SizedBox(
                   width: detailWidth,
                   height: constraints.maxHeight,
-                  child: Offstage(
-                    offstage: !hasDetailPane,
-                    child: TickerMode(
-                      enabled: hasDetailPane,
-                      child: ExcludeFocus(
-                        excluding: !hasDetailPane,
-                        child: _DetailPane(
-                          key: ValueKey(detail!.id),
-                          detail: detail!,
-                        ),
-                      ),
+                  child: _InactivePaneIsolation(
+                    active: hasDetailPane,
+                    child: _DetailPane(
+                      key: ValueKey(detail!.id),
+                      detail: detail!,
                     ),
                   ),
                 ),
-              ),
-            if (hasDetailPane)
-              Align(
+              );
+        final divider = !hasDetailPane
+            ? null
+            : Align(
                 key: shellDetailDividerKey,
                 alignment: Alignment.topLeft,
                 child: Padding(
@@ -160,19 +156,39 @@ class ShellPaneHost extends StatelessWidget {
                     child: ColoredBox(color: context.colors.edge),
                   ),
                 ),
-              ),
-            if (showFloatingAction)
-              Positioned(
+              );
+        final action = !showFloatingAction
+            ? null
+            : Positioned(
                 key: _floatingActionSlotKey,
                 right: _floatingActionRightInset,
                 bottom: _floatingActionBottomInset,
                 child: floatingAction!,
-              ),
-          ],
+              );
+
+        return Stack(
+          fit: StackFit.expand,
+          children: [page, ?detailSlot, ?divider, ?action],
         );
       },
     );
   }
+}
+
+class _InactivePaneIsolation extends StatelessWidget {
+  const _InactivePaneIsolation({required this.active, required this.child});
+
+  final bool active;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Offstage(
+    offstage: !active,
+    child: TickerMode(
+      enabled: active,
+      child: ExcludeFocus(excluding: !active, child: child),
+    ),
+  );
 }
 
 class _DetailPane extends StatefulWidget {
@@ -190,49 +206,8 @@ class _DetailPaneState extends State<_DetailPane> {
   @override
   Widget build(BuildContext context) {
     final detail = widget.detail;
-    final colors = context.colors;
     final textScale = MediaQuery.textScalerOf(context).scale(1.0);
-    final title = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(detail.title, style: Theme.of(context).textTheme.titleLarge),
-        if (detail.subtitle case final subtitle?) ...[
-          const SizedBox(height: _detailSubtitleGap),
-          Text(
-            subtitle,
-            style: Theme.of(context).textTheme.bodySmall
-                ?.copyWith(color: colors.subtext),
-          ),
-        ],
-      ],
-    );
-    final header = Padding(
-      padding: _detailHeaderPadding,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: title),
-              const SizedBox(width: _detailHeaderGap),
-              TextButton.icon(
-                key: shellDetailCloseKey,
-                onPressed: detail.onClose,
-                icon: Icon(Icons.close, size: _detailCloseIconSize),
-                label: const Text('Close'),
-              ),
-            ],
-          ),
-          if (detail.headerActions.isNotEmpty)
-            Wrap(
-              spacing: _detailHeaderGap,
-              runSpacing: _detailHeaderActionRunGap,
-              children: detail.headerActions,
-            ),
-        ],
-      ),
-    );
+    final header = _DetailHeader(detail: detail);
     final body = KeyedSubtree(
       key: _bodyKey,
       child: Padding(
@@ -251,25 +226,93 @@ class _DetailPaneState extends State<_DetailPane> {
               _minimumPinnedDetailPaneHeight * textScale;
           return KeyedSubtree(
             key: shellDetailPaneKey,
-            child: scrollWholePane
-                ? SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        header,
-                        SizedBox(height: constraints.maxHeight, child: body),
-                      ],
-                    ),
-                  )
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      header,
-                      Expanded(child: body),
-                    ],
-                  ),
+            child: _DetailLayout(
+              header: header,
+              body: body,
+              scrollWholePane: scrollWholePane,
+              paneHeight: constraints.maxHeight,
+            ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _DetailLayout extends StatelessWidget {
+  const _DetailLayout({
+    required this.header,
+    required this.body,
+    required this.scrollWholePane,
+    required this.paneHeight,
+  });
+
+  final Widget header;
+  final Widget body;
+  final bool scrollWholePane;
+  final double paneHeight;
+
+  @override
+  Widget build(BuildContext context) {
+    final bodySlot = scrollWholePane
+        ? SizedBox(height: paneHeight, child: body)
+        : Expanded(child: body);
+    final column = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [header, bodySlot],
+    );
+    return scrollWholePane ? SingleChildScrollView(child: column) : column;
+  }
+}
+
+class _DetailHeader extends StatelessWidget {
+  const _DetailHeader({required this.detail});
+
+  final ShellDetail detail;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final title = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(detail.title, style: Theme.of(context).textTheme.titleLarge),
+        if (detail.subtitle case final subtitle?) ...[
+          const SizedBox(height: _detailSubtitleGap),
+          Text(
+            subtitle,
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: colors.subtext),
+          ),
+        ],
+      ],
+    );
+    final closeButton = TextButton.icon(
+      key: shellDetailCloseKey,
+      onPressed: detail.onClose,
+      icon: Icon(Icons.close, size: _detailCloseIconSize),
+      label: const Text('Close'),
+    );
+    return Padding(
+      padding: _detailHeaderPadding,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: title),
+              const SizedBox(width: _detailHeaderGap),
+              closeButton,
+            ],
+          ),
+          if (detail.headerActions.isNotEmpty)
+            Wrap(
+              spacing: _detailHeaderGap,
+              runSpacing: _detailHeaderActionRunGap,
+              children: detail.headerActions,
+            ),
+        ],
       ),
     );
   }
