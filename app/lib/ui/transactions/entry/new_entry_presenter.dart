@@ -79,7 +79,7 @@ class NewEntryPresentationController {
     final session = _session;
     if (session == null) return;
     session.retire();
-    _finish(session);
+    if (!session.routeInstalled) return _finish(session);
     session.removeOutsideCallback();
   }
 

@@ -23,6 +23,9 @@ const _barrierTap = Offset(200, 20);
 const _scanSettleWait = Duration(milliseconds: 300);
 const _invalidated = 'coordinator-invalidated';
 const _closed = 'presentation-closed';
+const _routeCompleted = 'route-completed';
+const _acceptedSettled = 'accepted-settled';
+const _completedThenSettled = [_routeCompleted, _acceptedSettled];
 
 class _ScanGate {
   final gates = <Completer<void>>[];
@@ -117,6 +120,16 @@ Future<void> _openGated(
   harness.opened = harness.open();
   await tester.pump();
 }
+
+List<String> _trackOrder(EntryHarness harness, AppSheetRoute<void> route) {
+  final order = <String>[];
+  unawaited(route.completed.then((_) => order.add(_routeCompleted)));
+  unawaited(harness.opened.then((_) => order.add(_acceptedSettled)));
+  return order;
+}
+
+NewEntryPresentationController _controllerOf(EntryHarness harness) =>
+    harness.container.read(newEntryPresentationControllerProvider);
 
 Future<void> _tapShellAdd(WidgetTester tester) async {
   await tester.tap(find.byIcon(Icons.add).first);
@@ -323,6 +336,38 @@ void main() {
       expect(harness.presentation, NewEntryPresentation.closed);
     });
 
+    testWidgets('an owner signal settles the accepted request after '
+        'route.completed', (tester) async {
+      final harness = await pumpShell(tester);
+      await openAdd(tester, harness);
+      final order = _trackOrder(harness, harness.recorder.sheets.single);
+
+      _controllerOf(harness).ownerDisposed(harness.context);
+      await tester.pumpAndSettle();
+
+      expect(order, _completedThenSettled);
+      expect(harness.recorder.sheets, isEmpty);
+    });
+
+    testWidgets('an owner signal settles a suspended initialization', (
+      tester,
+    ) async {
+      final harness = await pumpShell(tester);
+      final gate = Completer<void>();
+      await _openGated(tester, harness, gate);
+      var settled = false;
+      unawaited(harness.opened.then((_) => settled = true));
+
+      _controllerOf(harness).ownerDisposed(harness.context);
+      await tester.pump();
+      await tester.pump();
+
+      expect(settled, isTrue);
+      gate.complete();
+      await tester.pumpAndSettle();
+      expect(harness.recorder.sheets, isEmpty);
+    });
+
     testWidgets('disposing the container during initialization settles', (
       tester,
     ) async {
@@ -342,53 +387,70 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('disposing the container with a surviving Navigator removes '
-        'the route', (tester) async {
+    testWidgets('disposing with a surviving Navigator settles after '
+        'route.completed', (tester) async {
       final harness = await pumpShell(tester);
       await openAdd(tester, harness);
-      var completions = 0;
-      unawaited(harness.opened.then((_) => completions++));
+      final order = _trackOrder(harness, harness.recorder.sheets.single);
 
       harness.container.dispose();
       await tester.pump();
       await tester.pump();
 
-      expect(completions, 1);
+      expect(order, _completedThenSettled);
       expect(harness.recorder.sheets, isEmpty);
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('disposing the container with Navigator teardown settles', (
-      tester,
-    ) async {
+    testWidgets('disposing with Navigator teardown settles after '
+        'route.completed', (tester) async {
       final harness = await pumpShell(tester);
       await openAdd(tester, harness);
-      var completions = 0;
-      unawaited(harness.opened.then((_) => completions++));
+      final order = _trackOrder(harness, harness.recorder.sheets.single);
 
       harness.container.dispose();
       await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
 
-      expect(completions, 1);
+      expect(order, _completedThenSettled);
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('disposing while the route is popping mutates nothing more', (
+    testWidgets('disposing during the reverse transition settles after '
+        'route.completed', (tester) async {
+      final harness = await pumpShell(tester);
+      await openAdd(tester, harness);
+      final route = harness.recorder.sheets.single;
+      final order = _trackOrder(harness, route);
+      route.navigator!.pop();
+      await tester.pump();
+      await tester.pump(halfTransition);
+      final removals = harness.recorder.removals;
+
+      harness.container.dispose();
+      await tester.pump();
+      expect(order, isEmpty);
+      await tester.pumpAndSettle();
+
+      expect(order, _completedThenSettled);
+      expect(harness.recorder.removals, removals);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('controller disposal performs no provider operations', (
       tester,
     ) async {
       final harness = await pumpShell(tester);
       await openAdd(tester, harness);
-      final navigator = harness.recorder.sheets.single.navigator!;
-      navigator.pop();
-      await tester.pump();
-      final removals = harness.recorder.removals;
+      final order = _trackOrder(harness, harness.recorder.sheets.single);
+      harness.log.events.clear();
 
-      harness.container.dispose();
+      _controllerOf(harness).dispose();
+      expect(harness.log.events, isEmpty);
       await tester.pumpAndSettle();
 
-      expect(harness.recorder.removals, removals);
-      expect(harness.recorder.sheets, isEmpty);
-      expect(tester.takeException(), isNull);
+      expect(harness.log.events, isEmpty);
+      expect(order, _completedThenSettled);
     });
 
     testWidgets('disposing beneath a picker removes only Add', (tester) async {

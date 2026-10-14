@@ -101,8 +101,9 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   no route it releases at once, so a suspended initialization cannot hold ownership and its late
   result neither pushes a route nor reports a failure. Other callers rely on the context and session
   rechecks after each await. Container disposal runs `NewEntryPresentationController.dispose`,
-  which touches only captured state: it retires, completes the accepted request, and defers removal
-  of a surviving route to a microtask. A genuine initialization or presentation failure is reported
+  which touches only captured state: it retires and defers removal of a surviving route to a
+  microtask, and the accepted request still completes at that route's `completed` (it completes
+  directly only when no route is installed). A genuine initialization or presentation failure is reported
   once; a route that was created but never installed is disposed, and an installed one is removed and
   released at `completed`. No process-global state exists.
   The session installs exactly one form Step subscription before presentation, but dispatch waits
