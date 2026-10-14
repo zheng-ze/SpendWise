@@ -56,13 +56,18 @@ class AppSheetRoute<T> extends ModalRoute<T> {
 
   late final ValueNotifier<AppSheetPresentation> effectivePresentation;
 
+  bool _disposed = false;
+
   AppSheetPresentation resolveLive(BuildContext context) =>
       presentationResolver?.call(context) ?? presentation;
 
   void updateEffective(AppSheetPresentation value) {
-    if (effectivePresentation.value != value) {
+    if (effectivePresentation.value == value) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_disposed) return;
+      if (effectivePresentation.value == value) return;
       effectivePresentation.value = value;
-    }
+    });
   }
 
   void _reportBarrierChange() => changedInternalState();
@@ -122,6 +127,7 @@ class AppSheetRoute<T> extends ModalRoute<T> {
 
   @override
   void dispose() {
+    _disposed = true;
     effectivePresentation.dispose();
     _alerts.dispose();
     _alertAction.dispose();
@@ -153,11 +159,7 @@ class _AppSheetPageState<T> extends State<_AppSheetPage<T>> {
 
   static const _openWidthDivisor = 2.0;
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    widget.route.updateEffective(widget.route.resolveLive(context));
-  }
+  static const _noTopPadding = 0.0;
 
   @override
   Widget build(BuildContext context) {
@@ -173,7 +175,7 @@ class _AppSheetPageState<T> extends State<_AppSheetPage<T>> {
         : _bottomAlignment;
     final sheet = Padding(
       padding: EdgeInsets.only(
-        top: open ? media.padding.top : 0,
+        top: open ? media.padding.top : _noTopPadding,
         bottom: media.viewInsets.bottom,
       ),
       child: Builder(builder: widget.route.builder),
@@ -182,9 +184,7 @@ class _AppSheetPageState<T> extends State<_AppSheetPage<T>> {
       alignment: alignment,
       child: SizedBox(
         width: open ? media.size.width / _openWidthDivisor : null,
-        height: open
-            ? media.size.height - media.padding.top - media.padding.bottom
-            : null,
+        height: open ? media.size.height - media.padding.bottom : null,
         child: sheet,
       ),
     );

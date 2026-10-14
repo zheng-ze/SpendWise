@@ -18,6 +18,8 @@ final newEntryPresentationProvider = StateProvider<NewEntryPresentation>(
 );
 
 // MARK: - Helpers
+const newEntryFormKey = ValueKey('new-entry-form');
+
 AppSheetPresentation _presentationForMode(ShellLayoutMode mode) =>
     switch (mode) {
       ShellLayoutMode.phone => AppSheetPresentation.phone,
@@ -67,7 +69,7 @@ Future<void> openNewEntry({
         if (mode == null) return initial;
         return _presentationForMode(mode);
       },
-      builder: (_) => const EntryForm(key: ValueKey('new-entry-form')),
+      builder: (_) => const EntryForm(key: newEntryFormKey),
     );
   } catch (error, stack) {
     FlutterError.reportError(

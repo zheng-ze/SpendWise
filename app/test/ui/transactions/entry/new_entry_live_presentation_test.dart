@@ -520,6 +520,99 @@ void main() {
 
       await closeAdd(tester);
     });
+
+    testWidgets('the barrier colour follows the live presentation across '
+        'crossings', (tester) async {
+      const dimBarrier = Color(0x52101212);
+      const openBarrier = Color(0x00000000);
+      final recorder = _RouteRecorder();
+      await pumpLiveShell(tester, size: _phoneSize, recorder: recorder);
+      await openAdd(tester);
+
+      Color? animatedBarrierColor() {
+        final found = find.byType(AnimatedModalBarrier).evaluate();
+        if (found.isEmpty) return null;
+        return tester
+            .widget<AnimatedModalBarrier>(find.byType(AnimatedModalBarrier))
+            .color
+            .value;
+      }
+
+      expect(recorder.sheets.single.barrierColor, dimBarrier);
+      expect(animatedBarrierColor(), dimBarrier);
+
+      await resize(tester, _openSize);
+      expect(find.text('Add entry'), findsOneWidget);
+      expect(recorder.sheets.single.barrierColor, openBarrier);
+      expect(find.byType(AnimatedModalBarrier), findsNothing);
+
+      await resize(tester, _phoneSize);
+      expect(find.text('Add entry'), findsOneWidget);
+      expect(recorder.sheets.single.barrierColor, dimBarrier);
+      expect(animatedBarrierColor(), dimBarrier);
+
+      await closeAdd(tester);
+    });
+
+    testWidgets('a static desktop sheet keeps a dim barrier', (tester) async {
+      const dimBarrier = Color(0x52101212);
+      tester.view.physicalSize = _openSize;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => showAppSheet<void>(
+                context,
+                presentation: AppSheetPresentation.desktop,
+                builder: (_) => const AppSheet(
+                  header: Text('Sheet title'),
+                  body: Text('Sheet body'),
+                ),
+              ),
+              child: const Text('open sheet'),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open sheet'));
+      await tester.pumpAndSettle();
+
+      final route = ModalRoute.of(
+        tester.element(find.byType(AppSheet)),
+      ) as AppSheetRoute<dynamic>;
+      expect(route.barrierColor, dimBarrier);
+      expect(
+        tester
+            .widget<AnimatedModalBarrier>(find.byType(AnimatedModalBarrier))
+            .color
+            .value,
+        dimBarrier,
+      );
+    });
+
+    testWidgets('the open sheet fills the safe right half under system '
+        'insets', (tester) async {
+      const topInset = 47.0;
+      const bottomInset = 34.0;
+      tester.view.padding = const FakeViewPadding(
+        top: topInset,
+        bottom: bottomInset,
+      );
+      addTearDown(tester.view.resetViewPadding);
+      final recorder = _RouteRecorder();
+      await pumpLiveShell(tester, size: _openSize, recorder: recorder);
+      await openAdd(tester);
+
+      final rect = tester.getRect(find.byType(AppSheet));
+      expect(rect.left, _openSize.width / 2);
+      expect(rect.right, _openSize.width);
+      expect(rect.top, topInset);
+      expect(rect.bottom, _openSize.height - bottomInset);
+
+      await closeAdd(tester);
+    });
   });
 
   group('presenter guard and teardown under resize', () {
