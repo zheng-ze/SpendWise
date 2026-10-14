@@ -29,10 +29,12 @@ void main() {
   final plist = File(_plistPath).readAsStringSync();
 
   test('iPhone is portrait only', () {
-    expect(_orientationsFor(plist, _iphoneKey), _iphoneOrientations);
+    final orientations = _orientationsFor(plist, _iphoneKey);
+    expect(orientations, _iphoneOrientations);
   });
 
   test('iPad keeps all four orientations', () {
-    expect(_orientationsFor(plist, _ipadKey), _ipadOrientations);
+    final orientations = _orientationsFor(plist, _ipadKey);
+    expect(orientations, _ipadOrientations);
   });
 }
