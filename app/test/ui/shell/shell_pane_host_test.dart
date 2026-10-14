@@ -8,6 +8,7 @@ import 'package:spendwise/ui/shell/shell_providers.dart';
 const _windowSize = Size(960, 720);
 const _selectedDetail = 'detail-selection';
 const _pageKey = ValueKey('page-child');
+const _probeWidth = 120.0;
 const _fabKey = ValueKey('floating-action');
 
 class _HostApp extends StatelessWidget {
@@ -123,6 +124,56 @@ class _PageProbeState extends State<_PageProbe> {
     },
   );
 }
+
+class _StateProbe extends StatefulWidget {
+  const _StateProbe({super.key, required this.log});
+
+  final List<String> log;
+
+  @override
+  State<_StateProbe> createState() => _StateProbeState();
+}
+
+class _StateProbeState extends State<_StateProbe>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController controller;
+  final focusNode = FocusNode();
+  int ticks = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.log.add('init');
+    controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1),
+    )..addListener(() => ticks++);
+    controller.repeat();
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: _probeWidth,
+    child: TextField(focusNode: focusNode, autofocus: true),
+  );
+}
+
+ShellDetail _probeDetail(String id, List<String> log) => ShellDetail(
+  id: id,
+  title: 'Probe $id',
+  bodyBuilder: (_) => _StateProbe(key: const ValueKey('body-probe'), log: log),
+  onClose: () {},
+);
+
+Widget _plainPage(BuildContext _, ShellPagePresentation _) =>
+    const Text('feature page');
 
 void main() {
   setUp(() => _PageProbeState.mounts = 0);
@@ -441,6 +492,11 @@ void main() {
 
     expect(find.byKey(shellDetailCloseKey), findsOneWidget);
     expect(tester.getSize(find.byKey(shellDetailPaneKey)).width, 203);
+    final closeRect = tester.getRect(find.byKey(shellDetailCloseKey));
+    final paneRect = tester.getRect(find.byKey(shellDetailPaneKey));
+    expect(closeRect.top, greaterThanOrEqualTo(safeInsets.top));
+    expect(paneRect.top, safeInsets.top);
+    expect(paneRect.bottom, smallSize.height - safeInsets.bottom);
     expect(tester.takeException(), isNull);
   });
 
@@ -490,6 +546,110 @@ void main() {
     final paneRect = tester.getRect(pane);
     expect(close.top, greaterThanOrEqualTo(paneRect.top));
     expect(close.bottom, lessThanOrEqualTo(paneRect.bottom));
+    expect(close.top, greaterThanOrEqualTo(safeInsets.top));
+    expect(
+      paneRect.bottom,
+      lessThanOrEqualTo(shortSize.height - safeInsets.bottom),
+    );
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('hidden detail neither ticks nor holds focus and resumes shown', (
+    tester,
+  ) async {
+    tester.view.physicalSize = _windowSize;
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final log = <String>[];
+    Future<void> pump(ShellLayoutMode mode) => tester.pumpWidget(
+      _HostApp(
+        mode: mode,
+        addPresented: false,
+        active: true,
+        detail: _probeDetail('A', log),
+        pageBuilder: _plainPage,
+      ),
+    );
+
+    await pump(ShellLayoutMode.phone);
+    final probe = tester.state<_StateProbeState>(
+      find.byType(_StateProbe, skipOffstage: false),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(probe.ticks, 0);
+    expect(probe.focusNode.hasFocus, isFalse);
+
+    await pump(ShellLayoutMode.open);
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(probe.ticks, greaterThan(0));
+    expect(log, ['init']);
+  });
+
+  testWidgets('floating action and detail do not remount each other', (
+    tester,
+  ) async {
+    tester.view.physicalSize = _windowSize;
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final fabLog = <String>[];
+    final bodyLog = <String>[];
+    Future<void> pump({required ShellDetail? detail, bool active = true}) =>
+        tester.pumpWidget(
+          _HostApp(
+            mode: ShellLayoutMode.open,
+            addPresented: false,
+            active: active,
+            detail: detail,
+            floatingAction: _StateProbe(key: _fabKey, log: fabLog),
+            pageBuilder: _plainPage,
+          ),
+        );
+
+    await pump(detail: null);
+    await pump(detail: _probeDetail('A', bodyLog));
+    await pump(detail: null);
+    expect(fabLog, ['init']);
+
+    bodyLog.clear();
+    await pump(detail: _probeDetail('A', bodyLog));
+    expect(bodyLog, ['init']);
+    await pump(detail: _probeDetail('A', bodyLog), active: false);
+    await pump(detail: _probeDetail('A', bodyLog));
+    expect(bodyLog, ['init']);
+  });
+
+  testWidgets('detail body state survives crossing the scroll threshold', (
+    tester,
+  ) async {
+    final log = <String>[];
+    Future<void> pump(Size size, double scale) => tester.pumpWidget(
+      _HostApp(
+        mode: ShellLayoutMode.open,
+        addPresented: false,
+        active: true,
+        size: size,
+        textScaler: TextScaler.linear(scale),
+        detail: _probeDetail('A', log),
+        pageBuilder: _plainPage,
+      ),
+    );
+
+    await pump(_windowSize, 1);
+    await tester.enterText(find.byType(TextField), 'kept');
+    await pump(const Size(960, 240), 1);
+    expect(
+      find.descendant(
+        of: find.byKey(shellDetailPaneKey),
+        matching: find.byType(SingleChildScrollView),
+      ),
+      findsOneWidget,
+    );
+    await pump(_windowSize, 1);
+    await pump(_windowSize, 2);
+    await pump(_windowSize, 1);
+    expect(find.text('kept'), findsOneWidget);
+    expect(log, ['init']);
   });
 }

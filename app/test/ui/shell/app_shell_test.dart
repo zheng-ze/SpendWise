@@ -15,7 +15,9 @@ import 'package:spendwise/ui/overview/overview_flow.dart';
 import 'package:spendwise/ui/overview/overview_view_model.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
+import 'package:spendwise/ui/shell/open_rail.dart';
 import 'package:spendwise/ui/shell/shell_binding.dart';
+import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
 import '../overview/overview_fixture.dart' show emptyState, settleAnalysis;
@@ -24,6 +26,8 @@ const _compact = Size(400, 800);
 const _wide = Size(1200, 900);
 const _openSized = Size(960, 720);
 const _openInsets = FakeViewPadding(left: 20, right: 30);
+const _rightOnlyInset = FakeViewPadding(right: 30);
+const _paneHostPageKey = ValueKey('pane-host-page');
 
 const _phoneBarKey = ValueKey('phone-bar');
 const _openRailKey = ValueKey('open-rail');
@@ -228,6 +232,52 @@ void main() {
     );
 
     expect(find.text('padding:0.0:0.0;width:838.0'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('open pane host splits the safe body around the rail gutter', (
+    tester,
+  ) async {
+    tester.view.physicalSize = _openSized;
+    tester.view.devicePixelRatio = 1;
+    tester.view.viewPadding = _rightOnlyInset;
+    tester.view.padding = _rightOnlyInset;
+    addTearDown(tester.view.reset);
+    final container = ProviderContainer(
+      overrides: [
+        hostedSyncStatusProvider.overrideWithValue(const HostedSyncReady()),
+        shellLayoutModeProvider.overrideWithValue(ShellLayoutMode.open),
+      ],
+    );
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          home: AppShell(
+            bodies: {
+              ShellDestination.overview: (context) => ShellPaneHost(
+                pageBuilder: (_, _) =>
+                    const SizedBox.expand(key: _paneHostPageKey),
+                detail: ShellDetail(
+                  id: 'selected',
+                  title: 'Selected',
+                  bodyBuilder: (_) => const SizedBox.shrink(),
+                  onClose: () {},
+                ),
+              ),
+            },
+          ),
+        ),
+      ),
+    );
+
+    const safeWidth = 960.0 - 30;
+    expect(tester.getSize(find.byKey(_paneHostPageKey)).width, safeWidth / 2);
+    expect(
+      tester.getSize(find.byKey(shellDetailPaneKey)).width,
+      safeWidth / 2 - openRailGutter,
+    );
     expect(tester.takeException(), isNull);
   });
 

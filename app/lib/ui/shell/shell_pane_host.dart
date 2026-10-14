@@ -21,10 +21,10 @@ const _detailDividerWidth = 1.0;
 const _floatingActionRightInset = 3.0;
 const _floatingActionBottomInset = 10.0;
 const _minimumPinnedDetailPaneHeight = 280.0;
-const _overflowDetailBodyHeight = 160.0;
 const _minimumDetailPaneWidth = 0.0;
-const _detailPaneTopInset = 0.0;
-const _detailPaneBottomInset = 0.0;
+const _pageSlotKey = ValueKey('shell-page-slot');
+const _detailSlotKey = ValueKey('shell-detail-slot');
+const _floatingActionSlotKey = ValueKey('shell-floating-action-slot');
 
 enum ShellPagePresentation { fullPage, singleColumn }
 
@@ -125,32 +125,45 @@ class ShellPaneHost extends StatelessWidget {
         return Stack(
           fit: StackFit.expand,
           children: [
-            Align(alignment: Alignment.topLeft, child: page),
+            Align(key: _pageSlotKey, alignment: Alignment.topLeft, child: page),
             if (detail != null)
-              Positioned(
-                left: scope.safeBodyWidth / 2,
-                top: _detailPaneTopInset,
-                bottom: _detailPaneBottomInset,
-                width: detailWidth,
-                child: Offstage(
-                  offstage: !hasDetailPane,
-                  child: _DetailPane(
-                    key: ValueKey(detail!.id),
-                    detail: detail!,
+              Align(
+                key: _detailSlotKey,
+                alignment: Alignment.topRight,
+                child: SizedBox(
+                  width: detailWidth,
+                  height: constraints.maxHeight,
+                  child: Offstage(
+                    offstage: !hasDetailPane,
+                    child: TickerMode(
+                      enabled: hasDetailPane,
+                      child: ExcludeFocus(
+                        excluding: !hasDetailPane,
+                        child: _DetailPane(
+                          key: ValueKey(detail!.id),
+                          detail: detail!,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
             if (hasDetailPane)
-              Positioned(
+              Align(
                 key: shellDetailDividerKey,
-                left: scope.safeBodyWidth / 2,
-                top: _detailPaneTopInset,
-                bottom: _detailPaneBottomInset,
-                width: _detailDividerWidth,
-                child: ColoredBox(color: context.colors.edge),
+                alignment: Alignment.topLeft,
+                child: Padding(
+                  padding: EdgeInsets.only(left: scope.safeBodyWidth / 2),
+                  child: SizedBox(
+                    width: _detailDividerWidth,
+                    height: constraints.maxHeight,
+                    child: ColoredBox(color: context.colors.edge),
+                  ),
+                ),
               ),
             if (showFloatingAction)
               Positioned(
+                key: _floatingActionSlotKey,
                 right: _floatingActionRightInset,
                 bottom: _floatingActionBottomInset,
                 child: floatingAction!,
@@ -162,13 +175,21 @@ class ShellPaneHost extends StatelessWidget {
   }
 }
 
-class _DetailPane extends StatelessWidget {
+class _DetailPane extends StatefulWidget {
   const _DetailPane({super.key, required this.detail});
 
   final ShellDetail detail;
 
   @override
+  State<_DetailPane> createState() => _DetailPaneState();
+}
+
+class _DetailPaneState extends State<_DetailPane> {
+  final _bodyKey = GlobalKey();
+
+  @override
   Widget build(BuildContext context) {
+    final detail = widget.detail;
     final colors = context.colors;
     final textScale = MediaQuery.textScalerOf(context).scale(1.0);
     final title = Column(
@@ -212,36 +233,44 @@ class _DetailPane extends StatelessWidget {
         ],
       ),
     );
+    final body = KeyedSubtree(
+      key: _bodyKey,
+      child: Padding(
+        padding: _detailBodyPadding,
+        child: detail.bodyBuilder(context),
+      ),
+    );
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final scrollWholePane =
-            constraints.maxHeight < _minimumPinnedDetailPaneHeight * textScale;
-        final body = Padding(
-          padding: _detailBodyPadding,
-          child: detail.bodyBuilder(context),
-        );
-        return KeyedSubtree(
-          key: shellDetailPaneKey,
-          child: scrollWholePane
-              ? SingleChildScrollView(
-                  child: Column(
+    return SafeArea(
+      left: false,
+      right: false,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final scrollWholePane =
+              constraints.maxHeight <
+              _minimumPinnedDetailPaneHeight * textScale;
+          return KeyedSubtree(
+            key: shellDetailPaneKey,
+            child: scrollWholePane
+                ? SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        header,
+                        SizedBox(height: constraints.maxHeight, child: body),
+                      ],
+                    ),
+                  )
+                : Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       header,
-                      SizedBox(height: _overflowDetailBodyHeight, child: body),
+                      Expanded(child: body),
                     ],
                   ),
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    header,
-                    Expanded(child: body),
-                  ],
-                ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }

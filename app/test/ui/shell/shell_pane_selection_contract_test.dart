@@ -102,7 +102,6 @@ class _SelectionFixtureFlowState extends State<_SelectionFixtureFlow> {
     onRouteRemoved: _finishManagedRoute,
     shouldDelayRemovedCompletion: () => widget.fixture.delayRouteCompletion,
   );
-  final _presentationRemovals = <Route<dynamic>>{};
   Route<dynamic>? _rootRoute;
   Route<dynamic>? _managedRoute;
   ShellLayoutMode _mode = ShellLayoutMode.phone;
@@ -150,7 +149,6 @@ class _SelectionFixtureFlowState extends State<_SelectionFixtureFlow> {
       final route = _managedRoute;
       if (route == null) return;
       _managedRoute = null;
-      _presentationRemovals.add(route);
       navigator.removeRoute(route);
       return;
     }
@@ -169,10 +167,9 @@ class _SelectionFixtureFlowState extends State<_SelectionFixtureFlow> {
   }
 
   void _finishManagedRoute(Route<dynamic> route) {
-    final presentationOnly = _presentationRemovals.remove(route);
     if (route != _managedRoute) return;
     _managedRoute = null;
-    if (!presentationOnly) widget.fixture.select(null);
+    widget.fixture.select(null);
   }
 
   Widget _buildManagedRoute(BuildContext context) => AnimatedBuilder(
@@ -358,6 +355,8 @@ void main() {
       tester.element(find.byKey(_fixtureNavigatorKey)),
       same(navigatorElement),
     );
+    container.read(selectedDestinationProvider.notifier).state =
+        ShellDestination.money;
     final managedRouteElement = tester.element(find.byKey(_managedRouteKey));
     await tester.tap(find.byKey(const ValueKey('select-B-from-detail')));
     await tester.pumpAndSettle();
@@ -374,10 +373,7 @@ void main() {
     expect(find.text('Open detail B'), findsOneWidget);
     expect(find.text('Phone detail B'), findsNothing);
     expect(fixture.selectedDetailId, 'B');
-    expect(
-      container.read(selectedDestinationProvider),
-      ShellDestination.overview,
-    );
+    expect(container.read(selectedDestinationProvider), ShellDestination.money);
     await tester.tap(find.byKey(shellDetailCloseKey));
     await tester.pumpAndSettle();
     expect(fixture.selectedDetailId, isNull);
@@ -426,6 +422,34 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Open detail A'), findsOneWidget);
       expect(find.byKey(_managedRouteKey, skipOffstage: false), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'selection made under a cover is pushed when the cover is dismissed '
+    'in phone mode',
+    (tester) async {
+      final fixture = _SelectionFixture()..setMode(ShellLayoutMode.phone);
+      addTearDown(fixture.dispose);
+      tester.view.physicalSize = _fixtureSize;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(_SelectionFixtureApp(fixture: fixture));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cover page'));
+      await tester.pumpAndSettle();
+
+      fixture.select('A');
+      fixture.select('B');
+      await tester.pumpAndSettle();
+      expect(find.byKey(_managedRouteKey, skipOffstage: false), findsNothing);
+
+      await tester.tap(find.byKey(const ValueKey('dismiss-cover')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(_managedRouteKey), findsOneWidget);
+      expect(find.text('Phone detail B'), findsOneWidget);
+      expect(find.text('Open detail B'), findsNothing);
+      expect(fixture.selectedDetailId, 'B');
     },
   );
 
