@@ -8,6 +8,7 @@ import 'package:spendwise/ui/shell/day_ticker.dart';
 import 'package:spendwise/ui/shell/desktop_sidebar.dart';
 import 'package:spendwise/ui/shell/open_rail.dart';
 import 'package:spendwise/ui/shell/phone_bar.dart';
+import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/shell/status_banner.dart';
 
@@ -21,6 +22,9 @@ const shellDestinations = [
 ];
 
 const _fallbackStackIndex = 0;
+const _noSafeLeftInset = 0.0;
+const _noRailGutter = 0.0;
+const _minimumSafeBodyWidth = 0.0;
 
 // MARK: - AppShell
 class AppShell extends ConsumerStatefulWidget {
@@ -70,6 +74,9 @@ class _AppShellState extends ConsumerState<AppShell> {
   Widget build(BuildContext context) {
     final selected = ref.watch(selectedDestinationProvider);
     final mode = ref.watch(shellLayoutModeProvider);
+    final addPresented =
+        ref.watch(newEntryPresentationProvider) ==
+        NewEntryPresentation.presented;
     _ensureTicker(ref.watch(clockProvider));
     _historyMaterialized |=
         mode == ShellLayoutMode.open || selected == ShellDestination.history;
@@ -91,6 +98,8 @@ class _AppShellState extends ConsumerState<AppShell> {
                 bodies: widget.bodies,
                 historyEnabled: true,
                 rail: null,
+                mode: mode,
+                addPresented: addPresented,
               ),
             ),
           ],
@@ -104,6 +113,8 @@ class _AppShellState extends ConsumerState<AppShell> {
         selected: selected,
         bodies: widget.bodies,
         historyEnabled: _historyMaterialized,
+        mode: mode,
+        addPresented: addPresented,
         rail: open
             ? OpenRail(
                 selected: selected,
@@ -130,12 +141,16 @@ class _ShellStack extends StatelessWidget {
     required this.bodies,
     required this.historyEnabled,
     required this.rail,
+    required this.mode,
+    required this.addPresented,
   });
 
   final ShellDestination selected;
   final Map<ShellDestination, WidgetBuilder> bodies;
   final bool historyEnabled;
   final Widget? rail;
+  final ShellLayoutMode mode;
+  final bool addPresented;
 
   @override
   Widget build(BuildContext context) {
@@ -144,12 +159,22 @@ class _ShellStack extends StatelessWidget {
       bodies: bodies,
       historyEnabled: historyEnabled,
     );
+    final padding = MediaQuery.paddingOf(context);
     final gutter = rail == null
-        ? 0.0
-        : openRailGutter + MediaQuery.paddingOf(context).right;
-    final viewport = Padding(
-      padding: EdgeInsets.only(right: gutter),
+        ? _noRailGutter
+        : openRailGutter + padding.right;
+    final viewportChild = MediaQuery.removePadding(
+      context: context,
+      removeLeft: rail != null,
+      removeRight: rail != null,
       child: stacks,
+    );
+    final viewport = Padding(
+      padding: EdgeInsets.only(
+        left: rail == null ? _noSafeLeftInset : padding.left,
+        right: gutter,
+      ),
+      child: viewportChild,
     );
     final docked = rail == null
         ? null
@@ -167,13 +192,27 @@ class _ShellStack extends StatelessWidget {
               ),
             ),
           );
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        viewport,
-        StatusBanner(rightGutter: gutter),
-        ?docked,
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final padding = MediaQuery.paddingOf(context);
+        final safeBodyWidth = (constraints.maxWidth - padding.horizontal).clamp(
+          _minimumSafeBodyWidth,
+          double.infinity,
+        );
+        return ShellPaneScope(
+          mode: mode,
+          safeBodyWidth: safeBodyWidth,
+          addPresented: addPresented,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              viewport,
+              StatusBanner(rightGutter: gutter),
+              ?docked,
+            ],
+          ),
+        );
+      },
     );
   }
 }

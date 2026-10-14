@@ -183,14 +183,35 @@ safe right half while the draft, focus and auxiliary picker routes survive the c
 Transactions has no local Add or Edit source control. It mounts one Flow per destination directly, with no
 shell-level `Navigator` of its own — each Flow already owns its own, per the Flow entry above. This
 was issue #30's last open "does `shell` need a migration ticket" question, closed by issue #39.
-The pane host contract keeps the selected page and optional detail in bounded viewports, with the
-host owning the divider, detail header and Close action while page builders own scrolling. A Flow
-reconciles its selected detail with one managed phone route across mode and selection changes;
-presentation-only removal preserves selection, while user Back or Close clears it. The shared
-`showShellConfirmation<T>` route belongs to the root Navigator. In open mode it centers a maximum
-308 dp dialog over the combined pane region, blocks the entire window with a transparent barrier,
-and dims only the pane region before the 72 dp rail gutter. Phone and desktop remain centered over
-the full window. Delete and purge helpers map dismissal to false.
+`ShellPaneScope` supplies the shell mode, safe body width and whether the existing Add route is
+presented. `ShellPaneHost` keeps its page child at one element location and calls its page builder
+with bounded constraints and `ShellPagePresentation.fullPage` or `singleColumn`. In open mode, for
+safe body width W, the page is W/2 wide when a detail or Add occupies the right half and W - 72 dp
+wide otherwise. A visible detail starts at W/2 and is W/2 - 72 dp wide; the rail gutter is reserved
+once. `ShellDetail` supplies stable identity, title, body builder and Close callback, with optional
+subtitle and header actions. The host owns the divider, pinned detail header and Close button;
+page and detail body builders own scrolling. Detail remains offstage with feature selection intact
+when hidden by mode or Add. The host never pushes or pops routes. A supplied floating action is
+visible only on the active, current open page when Add is closed, 10 dp from the bottom and 3 dp from
+the usable page's right edge (75 dp from the full body's right edge).
+
+Selected-detail state, including `selectedDetailId`, belongs to the feature ViewModel independently
+of mode. Phone and open row actions write the same selection. A retained feature Flow owns at most
+one managed phone-detail route whose content reads the current selection. After mode or selection
+changes, one post-frame reconciliation reads the latest values. Open mode removes only that Flow's
+tracked detail route as a presentation-only removal, preserving selection. Phone mode pushes one
+managed detail route when selection exists and none is present; changing selection updates its
+content instead of stacking another route. User Back or Close clears selection, while
+presentation-only removal preserves it. Route identity prevents an outgoing route from clearing a
+replacement selection. The Flow preserves unrelated routes and waits to push a missing detail until
+its page is exposed. Exactly one exposed detail matches the latest selection. Desktop detail
+presentation remains feature-owned.
+
+The shared `showShellConfirmation<T>` route belongs to the root Navigator and returns the caller's
+result; dismissal returns null. In open mode it centers a maximum 308 dp dialog over the combined
+pane region, blocks the entire window with a transparent barrier, and dims only the pane region
+before the 72 dp rail gutter. Phone and desktop remain centered over the full window. Delete and
+purge helpers map dismissal to false.
 
 A shared presentation widget (in `ui/common` or `ui/format`) is not a View in this sense and owns
 no ViewModel of its own: it takes plain values and callbacks as constructor parameters, supplied by

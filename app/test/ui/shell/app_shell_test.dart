@@ -15,7 +15,9 @@ import 'package:spendwise/ui/overview/overview_flow.dart';
 import 'package:spendwise/ui/overview/overview_view_model.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
+import 'package:spendwise/ui/shell/open_rail.dart';
 import 'package:spendwise/ui/shell/shell_binding.dart';
+import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
 import '../overview/overview_fixture.dart' show emptyState, settleAnalysis;
@@ -23,6 +25,9 @@ import '../overview/overview_fixture.dart' show emptyState, settleAnalysis;
 const _compact = Size(400, 800);
 const _wide = Size(1200, 900);
 const _openSized = Size(960, 720);
+const _openInsets = FakeViewPadding(left: 20, right: 30);
+const _rightOnlyInset = FakeViewPadding(right: 30);
+const _paneHostPageKey = ValueKey('pane-host-page');
 
 const _phoneBarKey = ValueKey('phone-bar');
 const _openRailKey = ValueKey('open-rail');
@@ -77,9 +82,12 @@ Future<ProviderContainer> _pumpShell(
   Map<ShellDestination, WidgetBuilder>? bodies,
   Ledger? ledger,
   String? Function()? moneySourceId,
+  FakeViewPadding insets = FakeViewPadding.zero,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
+  tester.view.viewPadding = insets;
+  tester.view.padding = insets;
   addTearDown(tester.view.reset);
   if (ledger != null) {
     addTearDown(() async {
@@ -188,6 +196,64 @@ void _expectBarOrder(WidgetTester tester) {
 }
 
 void main() {
+  testWidgets('open viewport applies horizontal safe insets exactly once', (
+    tester,
+  ) async {
+    Widget insetProbe(BuildContext context) => SafeArea(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final padding = MediaQuery.paddingOf(context);
+          return Text(
+            'padding:${padding.left}:${padding.right};'
+            'width:${constraints.maxWidth}',
+          );
+        },
+      ),
+    );
+
+    await _pumpShell(
+      tester,
+      size: _openSized,
+      layoutMode: ShellLayoutMode.open,
+      insets: _openInsets,
+      bodies: {ShellDestination.overview: insetProbe},
+    );
+
+    expect(find.text('padding:0.0:0.0;width:838.0'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('open pane host splits the safe body around the rail gutter', (
+    tester,
+  ) async {
+    final detail = ShellDetail(
+      id: 'selected',
+      title: 'Selected',
+      bodyBuilder: (_) => const SizedBox.shrink(),
+      onClose: () {},
+    );
+    Widget paneHost(BuildContext context) => ShellPaneHost(
+      pageBuilder: (_, _) => const SizedBox.expand(key: _paneHostPageKey),
+      detail: detail,
+    );
+
+    await _pumpShell(
+      tester,
+      size: _openSized,
+      layoutMode: ShellLayoutMode.open,
+      insets: _rightOnlyInset,
+      bodies: {ShellDestination.overview: paneHost},
+    );
+
+    const safeWidth = 960.0 - 30;
+    expect(tester.getSize(find.byKey(_paneHostPageKey)).width, safeWidth / 2);
+    expect(
+      tester.getSize(find.byKey(shellDetailPaneKey)).width,
+      safeWidth / 2 - openRailGutter,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('the shell opens on the overview destination', (tester) async {
     final container = await _pumpShell(tester, size: _compact);
 
