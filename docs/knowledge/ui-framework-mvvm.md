@@ -130,6 +130,16 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   inside Overview stays on that nested stack across resize; later Overview
   History requests push within Overview on phone and select shell History on
   open or desktop. There is no header gear and no shell Add FAB.
+  `ShellPaneHost` keeps one destination page and optional selected detail in
+  bounded viewports. In open mode it reserves the 72 dp rail gutter, splits the
+  remaining body between page and detail, and owns the detail divider, header,
+  and Close control. The page and detail builders own their scrolling. A
+  destination retains its selected detail in feature state; the active Flow
+  reconciles that selection with its one managed phone detail route after
+  selection or mode changes. Presentation-only route removal preserves
+  selection, while user Back or Close clears it. Unrelated routes remain on
+  their Flow Navigator. (`app/lib/ui/shell/shell_pane_host.dart`,
+  `app/lib/ui/common/base/flow_base.dart`)
   The desktop sidebar's sync line is a dedicated `SidebarStatusViewModel` that
   watches `hostedSyncStatusProvider`: no selection shows "Sync not configured",
   setup pending shows "Sync setup pending", ready shows "Sync ready", binding
@@ -221,8 +231,20 @@ value, which then overwrites it. (issue #38)
   next-occurrence formats; percentages via `.percent`.
 - **Neutral vs semantic color** - neutral label text uses theme `onSurface`; amount roles use the
   income, expense and text tokens through `AmountStyle`, never fixed hex or `Colors.*`.
-- **Destructive confirmations** - the confirm action is a filled button in the error token with the
-  on-action label colour; cancel stays text. (`app/lib/ui/common/feedback/delete_confirmation.dart`)
+- **Shell confirmations** - `showShellConfirmation<T>` pushes on the root
+  Navigator and returns the caller's result; dismissal returns null. Open mode
+  places the bounded dialog over the combined page and detail region, ending
+  before the 72 dp rail gutter. A transparent full-window route barrier blocks
+  the rail, while an IgnorePointer layer dims only the pane region. The open
+  dialog has a 308 dp maximum width and bounded scrolling. Phone and desktop
+  remain centred over the full window. Delete and recycle-bin purge helpers
+  use this route and map null to false, preserving their wording and results.
+  (`app/lib/ui/shell/shell_confirmation.dart`,
+  `app/lib/ui/common/feedback/delete_confirmation.dart`,
+  `app/lib/ui/settings/recycle_bin/recycle_bin_purge_dialog.dart`)
+- **Destructive confirmation styling** - the confirm action is a filled button
+  in the error token with the on-action label colour; cancel stays text.
+  (`app/lib/ui/common/feedback/delete_confirmation.dart`)
 
 ## Sheet and component kit
 

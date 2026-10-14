@@ -183,6 +183,14 @@ safe right half while the draft, focus and auxiliary picker routes survive the c
 Transactions has no local Add or Edit source control. It mounts one Flow per destination directly, with no
 shell-level `Navigator` of its own — each Flow already owns its own, per the Flow entry above. This
 was issue #30's last open "does `shell` need a migration ticket" question, closed by issue #39.
+The pane host contract keeps the selected page and optional detail in bounded viewports, with the
+host owning the divider, detail header and Close action while page builders own scrolling. A Flow
+reconciles its selected detail with one managed phone route across mode and selection changes;
+presentation-only removal preserves selection, while user Back or Close clears it. The shared
+`showShellConfirmation<T>` route belongs to the root Navigator. In open mode it centers a maximum
+308 dp dialog over the combined pane region, blocks the entire window with a transparent barrier,
+and dims only the pane region before the 72 dp rail gutter. Phone and desktop remain centered over
+the full window. Delete and purge helpers map dismissal to false.
 
 A shared presentation widget (in `ui/common` or `ui/format`) is not a View in this sense and owns
 no ViewModel of its own: it takes plain values and callbacks as constructor parameters, supplied by

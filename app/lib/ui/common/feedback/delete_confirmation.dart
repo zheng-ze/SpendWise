@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:spendwise/ui/shell/shell_confirmation.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Show
@@ -8,8 +9,8 @@ Future<bool> showDeleteConfirmation(
   BuildContext context, {
   required String itemName,
 }) async {
-  final confirmed = await showDialog<bool>(
-    context: context,
+  final confirmed = await showShellConfirmation<bool>(
+    context,
     builder: (dialogContext) => Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: _dialogMaxWidth),
@@ -50,7 +51,9 @@ class _DeleteDialog extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _DeleteTitle(itemName: itemName),
+        Flexible(
+          child: SingleChildScrollView(child: _DeleteTitle(itemName: itemName)),
+        ),
         const SizedBox(height: _contentGap),
         const _DeleteActions(),
       ],

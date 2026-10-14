@@ -5,7 +5,9 @@ Last reconciled: 2026-10-14
 ## Feature overview
 
 The Overview screen renders three read-only sections in fixed default order: Today, Recent entries
-and Coming up. It has no edit mode and no widget catalogue. No section is ever blank. Each section
+and Coming up. Open mode lays them out in a three-column grid, with Today and Recent entries each
+spanning two columns. It has no edit mode and no widget catalogue. No section is ever blank. Each
+section
 renders its own copy for an empty ledger, and a section whose read has not settled renders a
 `LoadingSkeleton`. The screen reads only through `AnalysisQueries`; widgets compute no totals.
 
@@ -46,7 +48,8 @@ its Navigator mounts. On phone (`shellLayoutModeProvider`,
 `app/lib/ui/shell/boot_chrome.dart`) the flow pushes a `MaterialPageRoute` holding one unscoped `TransactionsFlow` (back control
 labelled 'Overview') into its own nested Navigator; a route-open guard collapses duplicate
 requests. On open and desktop the same step selects the `ShellDestination.history` slot and pushes no
-route. Opening History leaves Overview selected.
+route. Opening History leaves Overview selected. The same request selects the shell History
+destination in open and desktop modes, and pushes one nested History page in phone mode.
 
 ## Read definitions
 
