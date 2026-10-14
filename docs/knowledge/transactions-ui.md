@@ -29,10 +29,10 @@ and is the only place recurring plans are created.
   It takes an optional `backLabel` passed through to the screen's back control; the phone
   shell-History slot sets it to 'Overview' with an `onEnded` that reselects Overview, the phone
   Overview-pushed History page sets it to 'Overview' with an `onEnded` that pops its containing
-  Overview route, while the open/desktop History slot and scoped lists set none. Screen-`Step`
-  consumption is gated on the enclosing `DestinationActivity`: a hidden retained History
-  instance neither acts on nor clears a shared `Step`, rechecks provider ownership of the
-  pending `Step` before handling, and picks up the current `Step` once post-frame on
+  Overview route, while the open/desktop History slot and scoped lists set none. Only the
+  destination-active `TransactionsFlow` consumes screen `Step`s: a hidden retained History
+  instance neither acts on nor clears a shared `Step`. The active Flow rechecks provider ownership
+  of the pending `Step` before handling, and picks up the current `Step` once post-frame on
   activation, so a `Step` cleared by the visible owner never replays.
 - `app/lib/ui/common/lists/day_sectioned_entry_list.dart`, `form_scaffold.dart`,
   `swipe_row.dart`, `pickers/` — shared components and picker sheets.
@@ -58,11 +58,11 @@ constructor-injected observer getter; every other destination and an unscoped Mo
 without a source. The presenter captures that source at invocation, invalidates the null-key form and
 receipt providers before opening, initializes the fresh
 form, applies the scoped prefill after initialization, maps the shell layout mode to the
-`AppSheet` presentation (phone, open or desktop), and releases
-its presentation state and subscription when the sheet completes or presentation fails. The Add
-  route re-resolves its presentation live through a resolver reading `ShellLayoutModeScope`, so a
-  phone/open resize changes only the sheet geometry, alignment and chrome around the retained
-  keyed form and never replaces the route. A late receipt finish after invalidation writes no state
+`AppSheet` presentation (phone, open or desktop), and releases its presentation state and
+subscription when the sheet completes or presentation fails. The Add route re-resolves its
+presentation live through a resolver reading `ShellLayoutModeScope`, so a
+phone/open resize changes only the sheet geometry, alignment and chrome around the retained keyed
+form and never replaces the route. A late receipt finish after invalidation writes no state
 (`ReceiptEntryCoordinator` checks `ref.mounted` in its asynchronous finally). The account-scoped
 screen reuses the same screen with a custom title and `sourceIDs` filter. Back-stack behavior per
 destination survives switching because each destination keeps its own navigator. A labelled back

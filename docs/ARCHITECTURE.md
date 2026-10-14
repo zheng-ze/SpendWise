@@ -300,6 +300,14 @@ The app is phone-first with one shell whose phone or desktop layout is chosen by
   shared `buildShellAppContent` app builder reads the root window size before `SafeArea` and
   feeds a retained binding scope, so resize keeps the selected destination and provider
   container identity.
+  The pane host owns bounded page and detail viewports, their divider, the detail header and
+  Close action; page builders own their scrolling. Each feature retains detail selection in its
+  ViewModel and reconciles it with one managed phone detail route across mode and selection
+  changes. Presentation-only route removal preserves selection; user Back or Close clears it.
+  `showShellConfirmation<T>` pushes on the root Navigator. Open mode centers a dialog up to
+  308 dp over both panes, blocks the full window with a transparent barrier, and paints dim only
+  over the pane region before the 72 dp rail gutter. Phone and desktop keep full-window centering.
+  Delete and purge helpers map dismissal to false.
 - Screen-level state — selected month, selector mode, stats kind, and similar per-tab state — lives
   in providers, never in widget-local state that a rebuild can silently recreate. Controllers that
   window on "now" take an injected clock, so statement and summary window logic can be pinned in
