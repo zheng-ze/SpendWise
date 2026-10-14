@@ -18,6 +18,7 @@ import 'package:spendwise/ui/transactions/entry/new_entry_presenter.dart';
 
 const _phoneSize = Size(400, 800);
 const _openSize = Size(960, 720);
+const _smallOpenSize = Size(600, 480);
 
 class _RouteRecorder extends NavigatorObserver {
   final routes = <Route<dynamic>>[];
@@ -751,6 +752,94 @@ void main() {
       await resize(tester, _phoneSize);
       expect(find.textContaining('Could not save entry'), findsOneWidget);
 
+      await closeAdd(tester);
+    });
+  });
+
+  group('small open window (600 x 480)', () {
+    Future<Rect> openSmallSheet(WidgetTester tester) async {
+      final recorder = _RouteRecorder();
+      await pumpLiveShell(tester, size: _smallOpenSize, recorder: recorder);
+      await openAdd(tester);
+      expect(scopeMode(tester), ShellLayoutMode.open);
+      expect(tester.takeException(), isNull);
+      return tester.getRect(find.byType(AppSheet));
+    }
+
+    Future<void> expectUsableControl(
+      WidgetTester tester,
+      Finder finder,
+      Rect sheet,
+    ) async {
+      expect(finder, findsOneWidget);
+      await tester.ensureVisible(finder);
+      await tester.pumpAndSettle();
+      expect(finder.hitTestable(), findsOneWidget);
+      final rect = tester.getRect(finder);
+      expect(rect.left, greaterThanOrEqualTo(sheet.left - 1));
+      expect(rect.right, lessThanOrEqualTo(sheet.right + 1));
+      expect(rect.top, greaterThanOrEqualTo(sheet.top - 1));
+      expect(rect.bottom, lessThanOrEqualTo(sheet.bottom + 1));
+      expect(tester.takeException(), isNull);
+    }
+
+    testWidgets('the open form fits a 600 x 480 window', (tester) async {
+      final sheet = await openSmallSheet(tester);
+      expect(sheet.left, _smallOpenSize.width / 2);
+      expect(sheet.right, _smallOpenSize.width);
+
+      await expectUsableControl(tester, find.byType(TextField).at(0), sheet);
+      for (final label in ['Expense', 'Income', 'Transfer']) {
+        await expectUsableControl(tester, find.text(label), sheet);
+      }
+      await expectUsableControl(tester, find.text('Date'), sheet);
+      await expectUsableControl(tester, find.text('Account'), sheet);
+      await expectUsableControl(tester, find.text('Save'), sheet);
+
+      expect(tester.takeException(), isNull);
+      await closeAdd(tester);
+    });
+
+    testWidgets('the open form stays usable with a keyboard and safe insets', (
+      tester,
+    ) async {
+      tester.view.padding = const FakeViewPadding(top: 24, bottom: 20);
+      addTearDown(tester.view.resetViewPadding);
+      tester.view.viewInsets = const FakeViewPadding(bottom: 250);
+      addTearDown(tester.view.resetViewInsets);
+      final sheet = await openSmallSheet(tester);
+
+      await tester.ensureVisible(find.byType(TextField).at(0));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(TextField).at(0));
+      await tester.pumpAndSettle();
+      expect(FocusManager.instance.primaryFocus, isNotNull);
+      await expectUsableControl(tester, find.byType(TextField).at(0), sheet);
+      expect(
+        tester.getRect(find.byType(TextField).at(0)).bottom,
+        lessThanOrEqualTo(_smallOpenSize.height - 250),
+      );
+
+      await tester.ensureVisible(find.byType(Switch));
+      await tester.pumpAndSettle();
+      expect(find.byType(Switch).hitTestable(), findsOneWidget);
+      await tester.tap(find.byType(Switch));
+      await tester.pumpAndSettle();
+      expect(
+        containerOfSheet(tester)
+            .read(entryFormViewModelProvider(null))
+            .value
+            ?.includeInAnalysis,
+        isFalse,
+      );
+      expect(tester.takeException(), isNull);
+      await expectUsableControl(tester, find.text('Save'), sheet);
+      expect(
+        tester.getRect(find.text('Save')).bottom,
+        lessThanOrEqualTo(_smallOpenSize.height - 250),
+      );
+
+      expect(tester.takeException(), isNull);
       await closeAdd(tester);
     });
   });
