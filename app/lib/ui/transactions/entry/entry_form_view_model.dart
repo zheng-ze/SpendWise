@@ -67,6 +67,7 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
   final String? entryId;
 
   ReceiptEntryCoordinator? _coordinator;
+  bool Function()? _isAddCurrent;
 
   Entry? get _persisted =>
       entryId == null ? null : ledger.state.entries[entryId];
@@ -83,6 +84,10 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
     final now = DateTime.now();
     return DateTime.utc(now.year, now.month, now.day);
   }
+
+  void bindAddLifetime(bool Function() isCurrent) => _isAddCurrent = isCurrent;
+
+  bool get _addActive => _isAddCurrent?.call() ?? true;
 
   @override
   Future<EntryFormViewState> build() async {
@@ -247,7 +252,7 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
   @override
   Future<void> save() async {
     final current = state.value;
-    if (current == null || !current.canSave) return;
+    if (current == null || !current.canSave || !_addActive) return;
 
     final magnitude = current.parsedAmount!.abs();
     final signedEntry = signedEntryForSave(
@@ -321,6 +326,7 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
 
   @override
   void requestScan(ReceiptScanSource source, {Uint8List? preCapturedBytes}) {
+    if (!_addActive) return;
     unawaited(
       _coordinator!.requestScan(
         source,
@@ -361,8 +367,10 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
       emitStep(DocumentCropRequested(bytes));
 
   @override
-  void applyCroppedDocument(Uint8List bytes) =>
-      _coordinator!.applyCroppedDocument(bytes, onPrefill: _applyScanResult);
+  void applyCroppedDocument(Uint8List bytes) {
+    if (!_addActive) return;
+    _coordinator!.applyCroppedDocument(bytes, onPrefill: _applyScanResult);
+  }
 
   @override
   void clearScanStop() => _coordinator!.clearScanStop();

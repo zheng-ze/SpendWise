@@ -41,9 +41,11 @@ class AppShell extends ConsumerStatefulWidget {
 class _AppShellState extends ConsumerState<AppShell> {
   DayTicker? _ticker;
   bool _historyMaterialized = false;
+  NewEntryPresentationController? _addController;
 
   @override
   void dispose() {
+    _addController?.ownerDisposed(context);
     _ticker?.dispose();
     _ticker = null;
     super.dispose();
@@ -67,6 +69,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     final sourceId = selected == ShellDestination.money
         ? widget.moneySourceId?.call()
         : null;
+    _addController = ref.read(newEntryPresentationControllerProvider);
     openNewEntry(context: context, ref: ref, sourceId: sourceId);
   }
 

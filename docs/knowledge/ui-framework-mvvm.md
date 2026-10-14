@@ -84,6 +84,27 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   which fires after the reverse transition and disposal: `newEntryPresentationProvider` stays
   `presented` through the close animation, keeping the open page left-half and single-column, then
   returns to `closed` and settles the accepted completion at `completed`.
+  Every exit converges on the session's idempotent `retire`: explicit cancel and successful save
+  (`onDismiss`), Back, barrier dismissal, external route removal, owner teardown and container
+  disposal. `retire` closes the Step subscription, marks the plain lifetime token retired so presenter,
+  picker and crop continuations stop, and schedules invalidation of
+  `receiptEntryCoordinatorProvider(null)` in a microtask outside any lifecycle or tree-finalization
+  callback. The controller releases ownership only after that invalidation has run, so a fresh Add
+  never starts before the old receipt state is discarded. The coordinator's existing captured
+  `initiatingRef.mounted` checks then reject an old scan's prefill and final state; receipt scan code
+  is unchanged. `EntryFormNotifier.bindAddLifetime` lets the presenter gate only `save`,
+  `requestScan` and `applyCroppedDocument` on the live session; an unbound form keeps its Edit and
+  view behavior. A failed Ledger save is not retirement: the session, route, draft and error stay.
+  `AppShell` captures the controller when it opens Add and calls `ownerDisposed` from `dispose`
+  without reading `WidgetRef`. Owner disposal retires the session; with an installed route it removes
+  the route without animation in a microtask (an already outgoing route is left to finish), and with
+  no route it releases at once, so a suspended initialization cannot hold ownership and its late
+  result neither pushes a route nor reports a failure. Other callers rely on the context and session
+  rechecks after each await. Container disposal runs `NewEntryPresentationController.dispose`,
+  which touches only captured state: it retires, completes the accepted request, and defers removal
+  of a surviving route to a microtask. A genuine initialization or presentation failure is reported
+  once; a route that was created but never installed is disposed, and an installed one is removed and
+  released at `completed`. No process-global state exists.
   The session installs exactly one form Step subscription before presentation, but dispatch waits
   for the Add route's first mounted frame. After that frame the session inspects the form's current
   pending Step and runs the same `consumeStep` function the subscription uses. `consumeStep`

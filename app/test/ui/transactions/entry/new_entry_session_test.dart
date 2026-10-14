@@ -1,259 +1,27 @@
 import 'dart:async';
 import 'dart:typed_data';
-import 'dart:ui' as ui;
 
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:spendwise/boot/providers.dart';
-import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/settings/settings_providers.dart';
-import 'package:spendwise/sync/hosted_sync_status.dart';
 import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
-import 'package:spendwise/ui/common/sheets/app_sheet.dart';
-import 'package:spendwise/ui/shell/app_shell.dart';
-import 'package:spendwise/ui/shell/shell_binding.dart';
-import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form.dart';
-import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/entry/new_entry_presenter.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_entry_coordinator.dart';
 
-const _phoneSize = Size(400, 800);
-const _openSize = Size(960, 720);
-const _checkingId = 'a0000000-0000-0000-0000-000000000001';
-const _coffeeId = 'c0000000-0000-0000-0000-000000000001';
-const _probeLabel = 'overview probe';
-const _decodeWait = Duration(milliseconds: 500);
-const _halfTransition = Duration(milliseconds: 100);
-
-class _RouteRecorder extends NavigatorObserver {
-  final routes = <Route<dynamic>>[];
-  int removals = 0;
-  int sheetPushes = 0;
-
-  List<AppSheetRoute<dynamic>> get sheets =>
-      routes.whereType<AppSheetRoute<dynamic>>().toList();
-
-  @override
-  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    routes.add(route);
-    if (route is AppSheetRoute) sheetPushes++;
-  }
-
-  @override
-  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    removals++;
-    routes.remove(route);
-  }
-
-  @override
-  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    removals++;
-    routes.remove(route);
-  }
-}
-
-class _CountingForm extends EntryFormNotifier {
-  _CountingForm() : super(null);
-
-  int clears = 0;
-
-  @override
-  void clearStep() {
-    clears++;
-    super.clearStep();
-  }
-}
-
-class _HookedLedger extends Ledger {
-  _HookedLedger({super.state});
-
-  VoidCallback? onNextRead;
-
-  @override
-  LedgerState get state {
-    final hook = onNextRead;
-    onNextRead = null;
-    hook?.call();
-    return super.state;
-  }
-}
-
-class _Capture extends ConsumerWidget {
-  const _Capture({required this.onBuilt, required this.child});
-
-  final void Function(BuildContext context, WidgetRef ref) onBuilt;
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    onBuilt(context, ref);
-    return child;
-  }
-}
-
-class _Harness {
-  _Harness(this.container, this.recorder, this.ledger);
-
-  final ProviderContainer container;
-  final _RouteRecorder recorder;
-  final _HookedLedger ledger;
-  late BuildContext context;
-  late WidgetRef ref;
-  late Future<void> opened;
-
-  _CountingForm get form =>
-      container.read(entryFormViewModelProvider(null).notifier)
-          as _CountingForm;
-
-  Future<void> open() => openNewEntry(context: context, ref: ref);
-
-  NewEntryPresentation get presentation =>
-      container.read(newEntryPresentationProvider);
-
-  Map<String, Object?> get draft {
-    final state = container.read(entryFormViewModelProvider(null)).value!;
-    return {
-      'amount': state.amountText,
-      'name': state.nameText,
-      'date': state.date,
-      'source': state.sourceId,
-      'destination': state.destinationId,
-      'category': state.categoryId,
-      'recurrence': state.recurrence,
-      'endDate': state.endDate,
-    };
-  }
-}
-
-_HookedLedger _buildLedger() {
-  final checking = Account(
-    id: _checkingId,
-    name: 'Checking',
-    type: AccountType.checking,
-  );
-  final coffee = TransactionCategory(
-    id: _coffeeId,
-    name: 'Coffee',
-    kind: CategoryKind.expense,
-    colorHex: '#FF0000',
-    includeInAnalysis: true,
-    parentID: null,
-    symbol: 'local_cafe',
-  );
-  return _HookedLedger(
-    state: LedgerState(
-      moneySources: {checking.id: MoneySource.account(checking)},
-      categories: {coffee.id: coffee},
-    ),
-  );
-}
-
-final _bodies = <ShellDestination, WidgetBuilder>{
-  ShellDestination.overview: (_) => ShellPaneHost(
-    pageBuilder: (_, _) => const Center(child: Text(_probeLabel)),
-  ),
-  ShellDestination.trends: (_) => const Center(child: Text('trends probe')),
-};
-
-Future<Uint8List> _solidPng() async {
-  final recorder = ui.PictureRecorder();
-  final canvas = Canvas(recorder);
-  canvas.drawRect(
-    const Rect.fromLTWH(0, 0, 20, 20),
-    Paint()..color = const Color(0xFF0000FF),
-  );
-  final image = await recorder.endRecording().toImage(20, 20);
-  final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-  return bytes!.buffer.asUint8List();
-}
+import 'new_entry_session_harness.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-
-  Future<_Harness> pumpShell(
-    WidgetTester tester, {
-    Size size = _phoneSize,
-    TargetPlatform platform = TargetPlatform.iOS,
-  }) async {
-    tester.view.physicalSize = size;
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-    final recorder = _RouteRecorder();
-    final ledger = _buildLedger();
-    final container = ProviderContainer(
-      overrides: [
-        hostedSyncStatusProvider.overrideWithValue(const HostedSyncReady()),
-        shellPlatformProvider.overrideWithValue((
-          isWeb: false,
-          targetPlatform: platform,
-        )),
-        ledgerProvider.overrideWithValue(ledger),
-        scanStripEnabledProvider.overrideWith((ref) async => false),
-        entryFormViewModelProvider(null).overrideWith(_CountingForm.new),
-      ],
-    );
-    addTearDown(container.dispose);
-    final harness = _Harness(container, recorder, ledger);
-    final shell = _Capture(
-      onBuilt: (context, ref) {
-        harness.context = context;
-        harness.ref = ref;
-      },
-      child: AppShell(bodies: _bodies),
-    );
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp(
-          builder: buildShellAppContent,
-          navigatorObservers: [recorder],
-          home: shell,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    return harness;
-  }
-
-  Future<void> openAdd(WidgetTester tester, _Harness harness) async {
-    harness.opened = harness.open();
-    await tester.pumpAndSettle();
-  }
-
-  VoidCallback addDismiss(WidgetTester tester) =>
-      tester.widget<EntryForm>(find.byType(EntryForm)).onDismiss!;
-
-  Future<void> resize(WidgetTester tester, Size size) async {
-    tester.view.physicalSize = size;
-    await tester.pumpAndSettle();
-  }
-
-  Future<void> saveEntry(WidgetTester tester, _Harness harness) async {
-    harness.form.setAmount('12.50');
-    harness.form.setName('Lunch');
-    harness.form.applyPickedSource(_checkingId);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Save'));
-    await tester.pumpAndSettle();
-  }
-
-  Future<void> cancelEntry(WidgetTester tester, _Harness harness) async {
-    await tester.tap(find.text('Cancel'));
-    await tester.pumpAndSettle();
-  }
 
   int pickerCount() => find.byType(TwoColumnPickerSheet).evaluate().length;
 
   group('Add-only dismissal closes the captured Add route', () {
     const modes = {
-      'phone': (_phoneSize, TargetPlatform.iOS),
-      'open': (_openSize, TargetPlatform.iOS),
-      'desktop': (_openSize, TargetPlatform.macOS),
+      'phone': (phoneSize, TargetPlatform.iOS),
+      'open': (openSize, TargetPlatform.iOS),
+      'desktop': (openSize, TargetPlatform.macOS),
     };
     final actions = {'cancel': cancelEntry, 'save': saveEntry};
 
@@ -315,7 +83,7 @@ void main() {
       expect(pickerCount(), 1);
       expect(unrelated.isActive, isTrue);
       final navigator = picker.navigator!;
-      navigator.removeRoute(picker, const PickerChose(_checkingId));
+      navigator.removeRoute(picker, const PickerChose(checkingId));
       await tester.pumpAndSettle();
       expect(harness.draft, before);
       expect(unrelated.isActive, isTrue);
@@ -345,8 +113,8 @@ void main() {
   testWidgets('the open page keeps its left half until the route completes', (
     tester,
   ) async {
-    final harness = await pumpShell(tester, size: _openSize);
-    final overview = find.text(_probeLabel);
+    final harness = await pumpShell(tester, size: openSize);
+    final overview = find.text(probeLabel);
     final fullPageX = tester.getCenter(overview).dx;
     await openAdd(tester, harness);
     final halfX = tester.getCenter(overview).dx;
@@ -355,7 +123,7 @@ void main() {
 
     harness.recorder.sheets.single.navigator!.pop();
     await tester.pump();
-    await tester.pump(_halfTransition);
+    await tester.pump(halfTransition);
 
     expect(harness.presentation, NewEntryPresentation.presented);
     expect(tester.getCenter(overview).dx, halfX);
@@ -458,7 +226,7 @@ void main() {
       final draft = harness.draft;
       final clears = harness.form.clears;
 
-      for (final size in [_openSize, _phoneSize, _openSize]) {
+      for (final size in [openSize, phoneSize, openSize]) {
         await resize(tester, size);
       }
 
@@ -496,32 +264,22 @@ void main() {
 
   group('results arriving after close and reopen are discarded', () {
     final markerDate = DateTime.utc(2026, 3, 4);
-    final results =
-        <String, (void Function(_CountingForm, Uint8List), Object?)>{
-          'source': ((f, _) => f.requestPickSource(), const PickerCleared()),
-          'destination': (
-            (f, _) => f.requestPickDestination(),
-            const PickerChose(_checkingId),
-          ),
-          'category': (
-            (f, _) => f.requestPickCategory(),
-            const PickerCleared(),
-          ),
-          'recurrence': ((f, _) => f.requestPickRecurrence(), null),
-          'date': ((f, _) => f.requestPickDate(), DateTime.utc(2026, 1, 2)),
-          'end date': (
-            (f, _) => f.requestPickEndDate(),
-            DateTime.utc(2026, 1, 2),
-          ),
-          'crop': (
-            (f, png) => f.requestDocumentCrop(png),
-            Uint8List.fromList([1]),
-          ),
-        };
+    final results = <String, (void Function(CountingForm, Uint8List), Object?)>{
+      'source': ((f, _) => f.requestPickSource(), const PickerCleared()),
+      'destination': (
+        (f, _) => f.requestPickDestination(),
+        const PickerChose(checkingId),
+      ),
+      'category': ((f, _) => f.requestPickCategory(), const PickerCleared()),
+      'recurrence': ((f, _) => f.requestPickRecurrence(), null),
+      'date': ((f, _) => f.requestPickDate(), DateTime.utc(2026, 1, 2)),
+      'end date': ((f, _) => f.requestPickEndDate(), DateTime.utc(2026, 1, 2)),
+      'crop': ((f, png) => f.requestDocumentCrop(png), Uint8List.fromList([1])),
+    };
 
-    void markFreshDraft(_CountingForm form) {
-      form.applyPickedSource(_checkingId);
-      form.applyPickedCategory(_coffeeId);
+    void markFreshDraft(CountingForm form) {
+      form.applyPickedSource(checkingId);
+      form.applyPickedCategory(coffeeId);
       form.applyPickedRecurrence(RecurrenceFrequency.weekly);
       form.applyPickedDate(markerDate);
       form.setEndDateEnabled(true);
@@ -533,12 +291,12 @@ void main() {
         final (request, result) = entry.value;
         final harness = await pumpShell(tester);
         await openAdd(tester, harness);
-        final png = await tester.runAsync(_solidPng);
+        final png = await tester.runAsync(solidPng);
         request(harness.form, png!);
         await tester.pump();
-        await tester.pump(_halfTransition);
-        await tester.runAsync(() => Future<void>.delayed(_decodeWait));
-        await tester.pump(_halfTransition);
+        await tester.pump(halfTransition);
+        await tester.runAsync(() => Future<void>.delayed(decodeWait));
+        await tester.pump(halfTransition);
         final covering = harness.recorder.routes.last;
         addDismiss(tester)();
         await tester.pumpAndSettle();
