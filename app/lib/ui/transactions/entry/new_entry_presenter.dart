@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
@@ -17,6 +19,13 @@ final newEntryPresentationProvider = StateProvider<NewEntryPresentation>(
   (ref) => NewEntryPresentation.closed,
 );
 
+final newEntryPresentationControllerProvider =
+    Provider<NewEntryPresentationController>((ref) {
+      final controller = NewEntryPresentationController(ref.container);
+      ref.onDispose(controller.dispose);
+      return controller;
+    });
+
 // MARK: - Helpers
 const newEntryFormKey = ValueKey('new-entry-form');
 
@@ -31,47 +40,108 @@ Future<void> openNewEntry({
   required BuildContext context,
   required WidgetRef ref,
   String? sourceId,
-}) async {
-  if (ref.read(newEntryPresentationProvider) != NewEntryPresentation.closed) {
-    return;
+}) {
+  final controller = ref.read(newEntryPresentationControllerProvider);
+  return controller.open(context: context, ref: ref, sourceId: sourceId);
+}
+
+// MARK: - Controller
+class NewEntryPresentationController {
+  NewEntryPresentationController(this._container);
+
+  final ProviderContainer _container;
+  _AddSession? _session;
+  bool _disposed = false;
+
+  Future<void> open({
+    required BuildContext context,
+    required WidgetRef ref,
+    String? sourceId,
+  }) {
+    if (_disposed || _session != null) return Future<void>.value();
+    final session = _AddSession(_container, this, context, ref);
+    _session = session;
+    _setPresentation(NewEntryPresentation.opening);
+    unawaited(_start(context, session, sourceId));
+    return session.completion.future;
   }
-  ref.read(newEntryPresentationProvider.notifier).state =
-      NewEntryPresentation.opening;
-  ProviderSubscription<AsyncValue<EntryFormViewState>>? subscription;
-  try {
-    ref.invalidate(entryFormViewModelProvider(null));
-    ref.invalidate(receiptEntryCoordinatorProvider(null));
-    await ref.read(entryFormViewModelProvider(null).future);
-    if (!context.mounted) return;
-    if (sourceId != null) {
-      ref
-          .read(entryFormViewModelProvider(null).notifier)
-          .prefillSource(sourceId);
+
+  void dispose() {
+    _disposed = true;
+    final session = _session;
+    if (session != null) _release(session);
+  }
+
+  Future<void> _start(
+    BuildContext context,
+    _AddSession session,
+    String? sourceId,
+  ) async {
+    try {
+      final presented = await _present(context, session, sourceId);
+      if (!presented) _release(session);
+    } catch (error, stack) {
+      if (!session.retired) _report(error, stack);
+      if (session.route == null) _release(session);
     }
-    final initial = _presentationForMode(ref.read(shellLayoutModeProvider));
-    subscription = ref.listenManual(entryFormViewModelProvider(null), (
-      previous,
-      next,
-    ) {
-      final step = next.value?.step;
-      if (step == null) return;
-      if (!context.mounted) return;
-      dispatchEntryFormStep(context, ref, null, step, useRootNavigator: true);
-      ref.read(entryFormViewModelProvider(null).notifier).clearStep();
-    });
-    ref.read(newEntryPresentationProvider.notifier).state =
-        NewEntryPresentation.presented;
-    await showAppSheet<void>(
-      context,
-      presentation: initial,
-      presentationResolver: (routeContext) {
-        final mode = ShellLayoutModeScope.maybeOf(routeContext);
-        if (mode == null) return initial;
-        return _presentationForMode(mode);
-      },
-      builder: (_) => const EntryForm(key: newEntryFormKey),
+  }
+
+  Future<bool> _present(
+    BuildContext context,
+    _AddSession session,
+    String? sourceId,
+  ) async {
+    final formProvider = entryFormViewModelProvider(null);
+    _container.invalidate(formProvider);
+    _container.invalidate(receiptEntryCoordinatorProvider(null));
+    await _container.read(formProvider.future);
+    if (!context.mounted || !session.eligible) return false;
+    if (sourceId != null) {
+      _container.read(formProvider.notifier).prefillSource(sourceId);
+    }
+    final initial = _presentationForMode(
+      session.ref.read(shellLayoutModeProvider),
     );
-  } catch (error, stack) {
+    session.listenForSteps();
+    _setPresentation(NewEntryPresentation.presented);
+    final resolver = _liveResolver(initial);
+    unawaited(
+      showAppSheet<void>(
+        context,
+        presentation: initial,
+        presentationResolver: resolver,
+        onRouteCreated: session.attach,
+        builder: (_) =>
+            EntryForm(key: newEntryFormKey, onDismiss: session.close),
+      ),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) => session.markMounted());
+    return true;
+  }
+
+  AppSheetPresentation Function(BuildContext) _liveResolver(
+    AppSheetPresentation initial,
+  ) => (routeContext) {
+    final mode = ShellLayoutModeScope.maybeOf(routeContext);
+    if (mode == null) return initial;
+    return _presentationForMode(mode);
+  };
+
+  bool _owns(_AddSession session) => !_disposed && identical(_session, session);
+
+  void _release(_AddSession session) {
+    session.retire();
+    if (!identical(_session, session)) return;
+    _session = null;
+    if (!_disposed) _setPresentation(NewEntryPresentation.closed);
+    if (!session.completion.isCompleted) session.completion.complete();
+  }
+
+  void _setPresentation(NewEntryPresentation value) {
+    _container.read(newEntryPresentationProvider.notifier).state = value;
+  }
+
+  void _report(Object error, StackTrace stack) {
     FlutterError.reportError(
       FlutterErrorDetails(
         exception: error,
@@ -80,9 +150,90 @@ Future<void> openNewEntry({
         context: ErrorDescription('while opening a new entry'),
       ),
     );
-  } finally {
-    subscription?.close();
-    ref.read(newEntryPresentationProvider.notifier).state =
-        NewEntryPresentation.closed;
+  }
+}
+
+// MARK: - Session
+class _AddSession {
+  _AddSession(this._container, this._controller, this.context, this.ref);
+
+  final ProviderContainer _container;
+  final NewEntryPresentationController _controller;
+  final BuildContext context;
+  final WidgetRef ref;
+  final completion = Completer<void>();
+  AppSheetRoute<void>? route;
+  ProviderSubscription<AsyncValue<EntryFormViewState>>? _subscription;
+  bool retired = false;
+  bool _mounted = false;
+
+  bool get eligible =>
+      !retired &&
+      _controller._owns(this) &&
+      context.mounted &&
+      (route?.isActive ?? true);
+
+  void listenForSteps() {
+    _subscription = _container.listen(
+      entryFormViewModelProvider(null),
+      (previous, next) => consumeStep(),
+    );
+  }
+
+  void attach(AppSheetRoute<void> created) {
+    route = created;
+    unawaited(_retireWhenPopped(created));
+    unawaited(_releaseWhenCompleted(created));
+  }
+
+  Future<void> _retireWhenPopped(AppSheetRoute<void> created) async {
+    await created.popped;
+    retire();
+  }
+
+  Future<void> _releaseWhenCompleted(AppSheetRoute<void> created) async {
+    await created.completed;
+    _controller._release(this);
+  }
+
+  void markMounted() {
+    _mounted = true;
+    consumeStep();
+  }
+
+  void consumeStep() {
+    if (!_mounted || !eligible) return;
+    final formProvider = entryFormViewModelProvider(null);
+    final step = _container.read(formProvider).value?.step;
+    if (step == null) return;
+    _container.read(formProvider.notifier).clearStep();
+    if (!eligible) return;
+    dispatchEntryFormStep(
+      context,
+      ref,
+      null,
+      step,
+      useRootNavigator: true,
+      isCurrent: () => eligible,
+    );
+  }
+
+  void retire() {
+    if (retired) return;
+    retired = true;
+    _subscription?.close();
+    _subscription = null;
+  }
+
+  void close() {
+    retire();
+    final addRoute = route;
+    final navigator = addRoute?.navigator;
+    if (addRoute == null || navigator == null || !addRoute.isActive) return;
+    if (addRoute.isCurrent) {
+      navigator.pop();
+      return;
+    }
+    navigator.removeRoute(addRoute);
   }
 }

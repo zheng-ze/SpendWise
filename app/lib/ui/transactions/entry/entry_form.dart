@@ -21,9 +21,11 @@ Future<void> showEntryFormSheet({
 
 // MARK: - EntryForm
 class EntryForm extends ConsumerWidget {
-  const EntryForm({super.key, this.entryId});
+  const EntryForm({super.key, this.entryId, this.onDismiss});
 
   final String? entryId;
+
+  final VoidCallback? onDismiss;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -34,11 +36,7 @@ class EntryForm extends ConsumerWidget {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, _) => Center(child: Text('$error')),
       data: (state) {
-        if (state.dismissed) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (Navigator.of(context).canPop()) Navigator.of(context).pop();
-          });
-        }
+        if (state.dismissed) _scheduleDismiss(context);
         return switch (state.mode) {
           EntryFormMode.viewing => ViewEntryForm(
             viewModel: viewModel,
@@ -56,5 +54,13 @@ class EntryForm extends ConsumerWidget {
         };
       },
     );
+  }
+
+  void _scheduleDismiss(BuildContext context) {
+    final onDismiss = this.onDismiss;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (onDismiss != null) return onDismiss();
+      if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+    });
   }
 }

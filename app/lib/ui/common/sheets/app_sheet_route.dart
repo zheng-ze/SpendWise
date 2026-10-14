@@ -13,15 +13,17 @@ Future<T?> showAppSheet<T>(
   BuildContext context, {
   required AppSheetPresentation presentation,
   AppSheetPresentation Function(BuildContext)? presentationResolver,
+  void Function(AppSheetRoute<T>)? onRouteCreated,
   required WidgetBuilder builder,
 }) {
-  return Navigator.of(context, rootNavigator: true).push<T>(
-    AppSheetRoute<T>(
-      presentation: presentation,
-      presentationResolver: presentationResolver,
-      builder: builder,
-    ),
+  final navigator = Navigator.of(context, rootNavigator: true);
+  final route = AppSheetRoute<T>(
+    presentation: presentation,
+    presentationResolver: presentationResolver,
+    builder: builder,
   );
+  onRouteCreated?.call(route);
+  return navigator.push<T>(route);
 }
 
 // MARK: - Route

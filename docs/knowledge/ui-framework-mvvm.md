@@ -62,17 +62,45 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   the null-key `EntryForm` (keyed `'new-entry-form'`) with `showAppSheet` on the root navigator,
   supplying a presentation resolver that re-reads the live mode through `ShellLayoutModeScope`
   in the route context and falls back to the captured presentation when no scope is bound.
-  Before opening it invalidates the null-key form and receipt
-  providers, initializes the fresh form, then applies the optional scoped source prefill. It holds
-  exactly one `ref.listenManual` subscription to the null-key form for the modal lifetime, dispatches
-  each Step through the shared entry Step handlers (`entry_step_handlers.dart`, presented above the
-  sheet through the root navigator), clears each handled Step once, and closes the subscription in
-  `finally`. A container-local `newEntryPresentationProvider` (`closed`, `opening`, `presented`)
-  drops duplicate requests while non-`closed`: `closed` becomes `opening` before asynchronous
-  initialization, `presented` is published immediately before `showAppSheet`, and the provider
-  returns to `closed` in `finally`. The provider publishes `presented` while the sheet is up so the
-  shell can narrow its page for the open right-half form. A resize neither restarts the presenter nor invalidates the form or coordinator nor
-  replaces the subscription or route, so the draft, auxiliary picker routes above the sheet and
+  The container-local `NewEntryPresentationController` (read through
+  `newEntryPresentationControllerProvider`) owns one private Add session per accepted request.
+  The session holds a unique identity, the initiating context and ref, the exact root
+  `AppSheetRoute` (exposed by the optional `showAppSheet(onRouteCreated:)`), one form Step
+  subscription and one completion `Completer`. Ownership is acquired synchronously before
+  initialization; a duplicate request, including one made while the outgoing route is still
+  animating, returns an immediate no-op `Future`, and only the accepted invocation returns the
+  session completion. The controller invalidates the null-key form and receipt providers, initializes
+  the fresh form once, applies the optional scoped source prefill once, and rechecks the owner
+  context, session identity and the Add route's `isActive` after each await. Expected retirement is
+  cancellation, not a reported failure; a real presentation or initialization failure is reported
+  once and releases ownership.
+  Add dismissal is Add-only (NG3 leaves Edit and view unchanged): the presenter passes
+  `EntryForm.onDismiss`, which calls the captured session's idempotent `close`. `close` retires the
+  session, then pops through the captured Navigator when the Add route is current, or removes only
+  that exact route with `removeRoute` when a picker or unrelated route covers it. Covering routes
+  stay intact and their later results are rejected by the retired session guard. Retirement is
+  idempotent and also runs on `route.popped` (barrier dismissal, Back) and on route removal, so a
+  Navigator teardown that skips `popped` still retires. Ownership releases at `route.completed`,
+  which fires after the reverse transition and disposal: `newEntryPresentationProvider` stays
+  `presented` through the close animation, keeping the open page left-half and single-column, then
+  returns to `closed` and settles the accepted completion at `completed`.
+  The session installs exactly one form Step subscription before presentation, but dispatch waits
+  for the Add route's first mounted frame. After that frame the session inspects the form's current
+  pending Step and runs the same `consumeStep` function the subscription uses. `consumeStep`
+  validates the session, reads the current Step, clears it once, rechecks eligibility, then
+  dispatches through `dispatchEntryFormStep`; clearing before dispatch means a replacement Step
+  emitted during dispatch stays pending for its own consumption, and a later identical user request
+  is a new occurrence. Add passes `isCurrent` to every source, destination, category, recurrence,
+  date, end-date and crop helper, which check it after each await before mutating; omitted guards
+  leave the Edit and view paths unchanged. Resize replaces neither the subscription, the mount
+  pickup nor the session identity.
+  A container-local `newEntryPresentationProvider` (`closed`, `opening`, `presented`) publishes the
+  state: `closed` becomes `opening` before asynchronous initialization, `presented` is published
+  immediately before `showAppSheet`, and the controller returns it to `closed` at release. The shell
+  reads `presented` to narrow its page for the open right-half form. The controller does not
+  depend on layout size or mode; the initial presentation comes from the caller-side ref. A resize
+  neither restarts the controller nor invalidates the form or coordinator nor replaces the
+  subscription or route, so the draft, auxiliary picker routes above the sheet and
   the captured Money source survive threshold crossings.
   `AppShell` routes its phone, open and desktop Add controls through one callback. It captures a source
   only when Money is selected, using a constructor-injected getter backed by the stable

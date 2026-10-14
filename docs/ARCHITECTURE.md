@@ -287,6 +287,10 @@ The app is phone-first with one shell whose phone or desktop layout is chosen by
   docks a full-height surface in the safe right half starting at half the window width behind a
   transparent dismissible barrier. A phone/open resize changes only sheet geometry, alignment and
   chrome, keeping the route, draft, focus and auxiliary picker routes.
+  A container-local presentation controller owns one private Add session per request: identity,
+  duplicate guard, the exact route, one mount-gated Step subscription and one completion that
+  settles at `route.completed`. Add-only `EntryForm.onDismiss` closes exactly that route even
+  beneath a picker, and retired sessions reject late picker and crop results.
   History hosts the unscoped `TransactionsFlow`; its screen-`Step` consumption is gated on the
   enclosing `DestinationActivity`, so a hidden retained instance neither acts on nor clears a
   shared `Step`. `shellLayoutModeProvider` resolves
