@@ -1,6 +1,6 @@
 # Sync: package engine
 
-Last reconciled: 2026-10-10
+Last reconciled: 2026-10-15
 
 ## Overview
 
@@ -324,6 +324,22 @@ entries exist fails at boot and is unsupported. Source:
 `app/lib/sync/sync_coordinator.dart:_currentLocalChange`; `app/lib/ledger/ledger.dart:applySyncBatch`;
 tests in `sync_coordinator_test.dart` groups `processPullPage: archived entries` and
 `pushCollection: archived entries`, and `ledger_sync_batch_test.dart` group `binned entries`.
+
+## Entry note in the version-1 payload
+
+Payload version stays 1. The entry payload map carries an optional `note` key: the encoder writes
+it only when the entry note is non-null (`packages/sync/lib/src/codec/payload_encode.dart`), and
+the decoder reads it with the existing nullable-string reader, so a missing key and an explicit
+null both mean no note while any other non-string type throws `PayloadDecodeError`
+(`packages/sync/lib/src/codec/payload_decode_entities.dart:_decodeEntry`). Decoded notes pass
+through `Entry` construction, so surrounding whitespace is trimmed and whitespace-only values
+become null. An old decoder ignores the added key, and old payloads without the key still decode.
+Sync transports whole entries, so an incoming entry without a note is a complete replacement with
+null, never a request to retain the local note: an old peer that edits a noted entry and
+republishes it drops the note, and a causally accepted replacement without note clears it, while
+concurrent replacements retain the existing conflict staging. Source: group `entry note` in
+`packages/sync/test/codec/payload_codec_test.dart`; group `reconcile: entry note identity` in
+`packages/sync/test/engine/sync_engine_test.dart`.
 
 ## Gotchas
 

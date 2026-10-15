@@ -33,6 +33,7 @@ Entry signedEntryForSave({
   required String sourceId,
   String? destinationId,
   required bool includeInAnalysis,
+  String? note,
 }) {
   final amount = kind == EntryFormKind.expense ? -magnitude : magnitude;
 
@@ -45,5 +46,6 @@ Entry signedEntryForSave({
     sourceID: sourceId,
     destinationID: kind == EntryFormKind.transfer ? destinationId : null,
     includeInAnalysis: includeInAnalysis,
+    note: note,
   );
 }

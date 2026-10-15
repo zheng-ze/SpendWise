@@ -121,5 +121,33 @@ void main() {
       );
       expect(entry.categoryID, isNull);
     });
+
+    test('forwards a note trimmed', () {
+      final entry = signedEntryForSave(
+        kind: EntryFormKind.expense,
+        magnitude: dec('5'),
+        name: 'Coffee',
+        sourceId: sourceId,
+        includeInAnalysis: true,
+        note: '  Receipt kept ',
+      );
+      expect(entry.note, 'Receipt kept');
+    });
+
+    test('defaults to no note', () {
+      expect(build(EntryFormKind.expense).note, isNull);
+    });
+
+    test('a whitespace-only note saves as no note', () {
+      final entry = signedEntryForSave(
+        kind: EntryFormKind.expense,
+        magnitude: dec('5'),
+        name: 'Coffee',
+        sourceId: sourceId,
+        includeInAnalysis: true,
+        note: '   ',
+      );
+      expect(entry.note, isNull);
+    });
   });
 }

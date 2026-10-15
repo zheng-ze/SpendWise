@@ -21,11 +21,13 @@ class Entry with HolderReferencing {
     this.includeInAnalysis = true,
     this.lifecycle = LifecycleState.active,
     this.systemKind,
+    String? note,
   }) : id = normalizedOrNewID(id),
        date = startOfDayUtc(date ?? DateTime.now()),
        categoryID = normalizedOptionalID(categoryID),
        sourceID = normalizedID(sourceID),
-       destinationID = normalizedOptionalID(destinationID);
+       destinationID = normalizedOptionalID(destinationID),
+       note = _normalizedNote(note);
 
   final String id;
   final DateTime date;
@@ -45,6 +47,12 @@ class Entry with HolderReferencing {
   final bool includeInAnalysis;
   final LifecycleState lifecycle;
   final SystemEntryKind? systemKind;
+  final String? note;
+
+  static String? _normalizedNote(String? raw) {
+    final trimmed = raw?.trim();
+    return trimmed == null || trimmed.isEmpty ? null : trimmed;
+  }
 
   // MARK: - Derivers
 
@@ -59,6 +67,7 @@ class Entry with HolderReferencing {
     includeInAnalysis: includeInAnalysis,
     lifecycle: lifecycle,
     systemKind: systemKind,
+    note: note,
   );
 
   // MARK: - Equality
@@ -75,7 +84,8 @@ class Entry with HolderReferencing {
         other.destinationID == destinationID &&
         other.includeInAnalysis == includeInAnalysis &&
         other.lifecycle == lifecycle &&
-        other.systemKind == systemKind;
+        other.systemKind == systemKind &&
+        other.note == note;
   }
 
   @override
@@ -90,5 +100,6 @@ class Entry with HolderReferencing {
     includeInAnalysis,
     lifecycle,
     systemKind,
+    note,
   );
 }

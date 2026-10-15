@@ -1,6 +1,6 @@
 # Ledger & Money Model
 
-Last reconciled: 2026-10-10
+Last reconciled: 2026-10-15
 
 ## Feature overview
 
@@ -132,8 +132,8 @@ is a no-op returning `[]`.
   swapped). The check order is observable.
 - **`updateEntry` locks system entries.** When the previous entry is a system kind, changing its
   `name`, `categoryID`, or `includeInAnalysis` throws `SystemEntryLocked(entry.id)`; amount, date,
-  and holders stay editable (`setOpeningBalance` builds a `systemKind: openingBalance` entry with
-  `includeInAnalysis: false`).
+  holders, and note stay editable (`setOpeningBalance` builds a `systemKind: openingBalance` entry with
+  `includeInAnalysis: false`). A note-only edit on a system entry passes the existing validation path.
 - **`addPocket`** rejects a non-active parent (`inactiveReference`); **`addCategory`** permits a
   non-active parent — a pocket is reached through its owning account, a category is only a naming
   ancestor.
@@ -173,6 +173,17 @@ the same helper the purge and sweep paths use, so the three can never drift.
   edit is exempt; switching to an inactive category throws.
 - **Wrong-flavor ids**: `deleteAccount(pocketID)` is a no-op, but `updateAccount` on a pocket id
   throws `unknownAccount`; `updatePocket` on an account id throws `unknownHolder`.
+- **Entry note**: `Entry` carries an optional `note` (`packages/domain/lib/src/entries/entry.dart`).
+  The constructor trims the input and stores null for null, empty and whitespace-only values, so
+  every constructed entry has `note == null` or a nonempty string equal to its own trim. The note
+  participates in `==` and `hashCode`, so entries differing only by note compare unequal and
+  note-only changes are visible through `UpsertEntry` equality. `settingLifecycle` and the
+  negative-transfer reconstruction in `_validated`
+  (`packages/domain/lib/src/ledger_state/mutators/ledger_state_entry_validation.dart`) forward the
+  note unchanged. Fresh opening balances, balance adjustments, seed entries and
+  `EntryTemplate.makeEntry` results carry no note. The note never affects balances, categories,
+  references, lifecycle eligibility, recurrence templates or accounting. (tests
+  `packages/domain/test/entries/entry_note_test.dart`)
 - **`double` anywhere in `packages/domain/lib/` is a defect**; money is `Decimal`. IDs are lowercase
   uuid strings normalized at every construction boundary. Int-coded enums (`LifecycleState`,
   `AccountType`, `CategoryKind`) carry an explicit `code`; never persist `enum.index`.

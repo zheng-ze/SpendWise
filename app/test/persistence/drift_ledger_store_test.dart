@@ -1,11 +1,12 @@
 import 'package:domain/domain.dart';
 import 'package:domain/domain.dart' as domain;
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' hide isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/persistence/store/device_identity.dart';
 import 'package:spendwise/persistence/store/drift_ledger_store.dart';
 import 'package:spendwise/persistence/database/ledger_database.dart';
+import 'package:spendwise/persistence/database/ledger_database.dart' as rows;
 import 'package:spendwise/persistence/store/ledger_store.dart';
 import 'package:spendwise/persistence/mappers/mappers.dart';
 import 'package:sync/sync.dart';
@@ -1771,5 +1772,246 @@ void main() {
       expect([for (final row in orphans) row.read<String>('row_id')], ['e1']);
       expect(await db.select(db.entries).get(), isEmpty);
     });
+  });
+
+  group('entry note persistence', () {
+    domain.Entry buildNotedEntry(
+      String id, {
+      String amount = '-12.34',
+      String name = 'Coffee',
+      String? categoryID,
+      String sourceID = 'a',
+      String? destinationID,
+      String? note,
+      bool includeInAnalysis = true,
+      domain.SystemEntryKind? systemKind,
+    }) => domain.Entry(
+      id: id,
+      date: DateTime.utc(2026, 3, 14),
+      amount: Decimal.parse(amount),
+      name: name,
+      categoryID: categoryID,
+      sourceID: sourceID,
+      destinationID: destinationID,
+      includeInAnalysis: includeInAnalysis,
+      systemKind: systemKind,
+      note: note,
+    );
+
+    Future<void> seedLedgerHolders() async {
+      store.enqueue([
+        UpsertAccount(account('a', 'wallet')),
+        UpsertAccount(account('b', 'savings')),
+        UpsertCategory(category('c1', 'food', parentID: null)),
+      ]);
+      await store.flushNow();
+    }
+
+    Map<SyncRowID, VersionVector> entryStamps(
+      LedgerChange change,
+      VersionVector stamp,
+    ) => {SyncRowID.of(collectionFor(change), change.targetID): stamp};
+
+    Future<void> writeEntryChange(
+      domain.Entry entryValue, {
+      required bool stamped,
+    }) async {
+      final change = UpsertEntry(entryValue);
+      if (stamped) {
+        store.enqueueStamped([
+          change,
+        ], entryStamps(change, VersionVector({'remote': 2})));
+      } else {
+        store.enqueue([change]);
+      }
+      await store.flushNow();
+    }
+
+    Future<rows.Entry> selectEntryRow(String id) async =>
+        (db.select(db.entries)..where((row) => row.id.equals(id))).getSingle();
+
+    test('aNotedEntryRoundTripsThroughTheStore', () async {
+      await seedLedgerHolders();
+      final noted = buildNotedEntry(
+        'e1',
+        categoryID: 'c1',
+        note: '  Receipt kept ',
+      );
+      store.enqueue([UpsertEntry(noted)]);
+      await store.flushNow();
+
+      final row = await selectEntryRow('e1');
+      expect(row.note, 'Receipt kept');
+
+      final state = await store.load();
+      expect(state.entries['e1']!.note, 'Receipt kept');
+      expect(
+        state.entries['e1'],
+        buildNotedEntry('e1', categoryID: 'c1', note: 'Receipt kept'),
+      );
+    });
+
+    test('aLegacyNullNoteLoadsWithEveryFieldUnchanged', () async {
+      await seedLedgerHolders();
+      final legacy = buildNotedEntry('e1', categoryID: 'c1');
+      await db.into(db.entries).insert(entryToRow(legacy, VersionVector.empty));
+
+      final state = await store.load();
+
+      expect(state.entries['e1']!.note, isNull);
+      expect(state.entries['e1']!.amount, Decimal.parse('-12.34'));
+      expect(state.entries['e1']!.name, 'Coffee');
+      expect(state.entries['e1']!.categoryID, 'c1');
+      expect(state.entries['e1']!.sourceID, 'a');
+      expect(state.entries['e1']!.date, DateTime.utc(2026, 3, 14));
+    });
+
+    test(
+      'replacingACategorizedExpenseWithATransferClearsTheCategory',
+      () async {
+        await seedLedgerHolders();
+        for (final stamped in [false, true]) {
+          final id = stamped ? 'e-s' : 'e-u';
+          await writeEntryChange(
+            buildNotedEntry(id, categoryID: 'c1', note: 'keep'),
+            stamped: false,
+          );
+          final before = versionFromRow((await selectEntryRow(id)).versionData);
+
+          await writeEntryChange(
+            buildNotedEntry(
+              id,
+              amount: '20',
+              sourceID: 'a',
+              destinationID: 'b',
+            ),
+            stamped: stamped,
+          );
+
+          final row = await selectEntryRow(id);
+          expect(row.categoryId, isNull);
+          expect(row.destinationId, 'b');
+          final after = versionFromRow(row.versionData);
+          if (stamped) {
+            expect(after, VersionVector({'remote': 2}));
+          } else {
+            expect(after.dominates(before), isTrue);
+          }
+          final state = await store.load();
+          expect(state.entries[id]!.categoryID, isNull);
+          expect(state.entries[id]!.destinationID, 'b');
+          expect(state.entries[id]!.note, isNull);
+        }
+      },
+    );
+
+    test(
+      'replacingATransferWithACategorizedExpenseClearsTheDestination',
+      () async {
+        await seedLedgerHolders();
+        for (final stamped in [false, true]) {
+          final id = stamped ? 'e-s' : 'e-u';
+          await writeEntryChange(
+            buildNotedEntry(id, amount: '20', destinationID: 'b', note: 'keep'),
+            stamped: false,
+          );
+
+          await writeEntryChange(
+            buildNotedEntry(id, categoryID: 'c1'),
+            stamped: stamped,
+          );
+
+          final row = await selectEntryRow(id);
+          expect(row.destinationId, isNull);
+          expect(row.categoryId, 'c1');
+          final state = await store.load();
+          expect(state.entries[id]!.destinationID, isNull);
+          expect(state.entries[id]!.categoryID, 'c1');
+          expect(state.entries[id]!.note, isNull);
+        }
+      },
+    );
+
+    test('replacingANoteWithBlankOrNullClearsTheColumn', () async {
+      await seedLedgerHolders();
+      for (final stamped in [false, true]) {
+        final suffix = stamped ? 's' : 'u';
+        await writeEntryChange(
+          buildNotedEntry('e-w$suffix', note: 'memo'),
+          stamped: stamped,
+        );
+        await writeEntryChange(
+          buildNotedEntry('e-w$suffix', note: '   '),
+          stamped: stamped,
+        );
+        expect((await selectEntryRow('e-w$suffix')).note, isNull);
+        expect((await store.load()).entries['e-w$suffix']!.note, isNull);
+
+        await writeEntryChange(
+          buildNotedEntry('e-n$suffix', note: 'memo'),
+          stamped: stamped,
+        );
+        await writeEntryChange(buildNotedEntry('e-n$suffix'), stamped: stamped);
+        expect((await selectEntryRow('e-n$suffix')).note, isNull);
+        expect((await store.load()).entries['e-n$suffix']!.note, isNull);
+      }
+    });
+
+    test('replacingASystemEntryWithAPlainEntryClearsTheKind', () async {
+      await seedLedgerHolders();
+      for (final stamped in [false, true]) {
+        final id = stamped ? 'e-s' : 'e-u';
+        await writeEntryChange(
+          buildNotedEntry(
+            id,
+            amount: '250',
+            name: 'Opening balance',
+            includeInAnalysis: false,
+            systemKind: domain.SystemEntryKind.openingBalance,
+          ),
+          stamped: false,
+        );
+
+        await writeEntryChange(
+          buildNotedEntry(
+            id,
+            amount: '250',
+            name: 'Opening balance',
+            includeInAnalysis: false,
+          ),
+          stamped: stamped,
+        );
+
+        final row = await selectEntryRow(id);
+        expect(row.systemKind, isNull);
+        expect((await store.load()).entries[id]!.systemKind, isNull);
+      }
+    });
+
+    test(
+      'aNotedArchivedEntryReloadsIntoTheBinAndKeepsItsNoteOnRestore',
+      () async {
+        await seedLedgerHolders();
+        final noted = buildNotedEntry('e1', note: 'memo');
+        store.enqueue([UpsertEntry(noted)]);
+        await store.flushNow();
+
+        store.enqueue([
+          UpsertEntry(noted.settingLifecycle(LifecycleState.archived)),
+        ]);
+        await store.flushNow();
+
+        final binned = await store.load();
+        expect(binned.entries, isEmpty);
+        expect(binned.binnedEntries['e1']!.note, 'memo');
+
+        store.enqueue([UpsertEntry(noted)]);
+        await store.flushNow();
+
+        final restored = await store.load();
+        expect(restored.binnedEntries, isEmpty);
+        expect(restored.entries['e1']!.note, 'memo');
+      },
+    );
   });
 }

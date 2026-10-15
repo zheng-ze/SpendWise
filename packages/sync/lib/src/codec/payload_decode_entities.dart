@@ -80,6 +80,7 @@ extension PayloadCodecDecodeEntities on PayloadCodec {
         lifecycle: _fromCode('lifecycle',
             () => LifecycleState.fromCode(_int(data, 'lifecycle'))),
         systemKind: systemKind,
+        note: _strNullable(data, 'note'),
       ),
     );
   }

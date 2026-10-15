@@ -44,7 +44,7 @@ TransactionCategory testCategory({
       symbol: 'food',
     );
 
-Entry testEntry({String? id, DateTime? date}) => Entry(
+Entry testEntry({String? id, DateTime? date, String? note}) => Entry(
       id: id ?? uuidEntries,
       date: date ?? DateTime.utc(2024, 3, 15),
       amount: Decimal.parse('-12.50'),
@@ -53,6 +53,7 @@ Entry testEntry({String? id, DateTime? date}) => Entry(
       sourceID: uuidAccounts,
       destinationID: null,
       includeInAnalysis: true,
+      note: note,
     );
 
 EntryTemplate testTemplate() => EntryTemplate(

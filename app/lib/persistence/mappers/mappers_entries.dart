@@ -13,6 +13,7 @@ Entry entryFromRow(rows.Entry row) => Entry(
   includeInAnalysis: row.includeInAnalysis,
   lifecycle: _lifecycle(row.lifecycle),
   systemKind: SystemEntryKind.fromCode(row.systemKind),
+  note: row.note,
 );
 
 rows.Entry entryToRow(Entry entry, VersionVector version) => rows.Entry(
@@ -27,4 +28,5 @@ rows.Entry entryToRow(Entry entry, VersionVector version) => rows.Entry(
   destinationId: entry.destinationID,
   includeInAnalysis: entry.includeInAnalysis,
   systemKind: entry.systemKind?.code,
+  note: entry.note,
 );

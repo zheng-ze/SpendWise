@@ -38,6 +38,136 @@ void main() {
     });
   });
 
+  group('entry note', () {
+    Map<String, Object?> decodedData(LedgerChange change) {
+      final decoded = jsonDecode(utf8.decode(codec.encodeChange(change)));
+      final json = (decoded as Map<Object?, Object?>).map<String, Object?>(
+        (key, value) => MapEntry(key.toString(), value),
+      );
+      expect(json['version'], 1);
+      final rawData = json['data'];
+      return (rawData as Map<Object?, Object?>).map<String, Object?>(
+        (key, value) => MapEntry(key.toString(), value),
+      );
+    }
+
+    LedgerChange decodeEntryData(Map<String, Object?> data) {
+      final payload = <String, Object?>{
+        'version': 1,
+        'entity': 'entry',
+        'data': data
+      };
+      return codec.decodeChange(utf8.encode(canonicalJson(payload)));
+    }
+
+    Map<String, Object?> entryData({String? note, bool includeNote = true}) {
+      final data = <String, Object?>{
+        'id': uuidEntries,
+        'date': '2024-03-15T00:00:00.000Z',
+        'amount': '-12.50',
+        'name': 'Coffee',
+        'categoryID': null,
+        'sourceID': uuidAccounts,
+        'destinationID': null,
+        'includeInAnalysis': true,
+        'lifecycle': 0,
+        'systemKind': null,
+      };
+      if (includeNote) data['note'] = note;
+      return data;
+    }
+
+    test('round-trips a noted active entry', () {
+      final change = UpsertEntry(testEntry(note: '  Receipt kept '));
+
+      expect(codec.decodeChange(codec.encodeChange(change)), change);
+    });
+
+    test('round-trips a noted archived entry', () {
+      final archived =
+          testEntry(note: 'memo').settingLifecycle(LifecycleState.archived);
+      final change = UpsertEntry(archived);
+
+      expect(codec.decodeChange(codec.encodeChange(change)), change);
+    });
+
+    test('round-trips a noted system entry', () {
+      final system = Entry(
+        id: uuidEntries,
+        date: DateTime.utc(2024, 3, 15),
+        amount: Decimal.parse('250'),
+        name: 'Opening balance',
+        sourceID: uuidAccounts,
+        includeInAnalysis: false,
+        systemKind: SystemEntryKind.openingBalance,
+        note: 'audited',
+      );
+
+      expect(codec.decodeChange(codec.encodeChange(UpsertEntry(system))),
+          UpsertEntry(system));
+    });
+
+    test('a non-null note is present in the encoded entry map', () {
+      final data = decodedData(UpsertEntry(testEntry(note: 'memo')));
+
+      expect(data['note'], 'memo');
+    });
+
+    test('a null note omits the key from the encoded entry map', () {
+      final data = decodedData(UpsertEntry(testEntry()));
+
+      expect(data.containsKey('note'), isFalse);
+    });
+
+    test('a whitespace-only note omits the key from the encoded entry map', () {
+      final data = decodedData(UpsertEntry(testEntry(note: '   ')));
+
+      expect(data.containsKey('note'), isFalse);
+    });
+
+    test('decodes a legacy entry payload without a note', () {
+      final change = decodeEntryData(entryData(includeNote: false));
+
+      expect((change as UpsertEntry).entry.note, isNull);
+    });
+
+    test('decodes an explicit null note as no note', () {
+      final change = decodeEntryData(entryData());
+
+      expect((change as UpsertEntry).entry.note, isNull);
+    });
+
+    test('decodes a surrounding-whitespace note trimmed', () {
+      final change = decodeEntryData(entryData(note: '  memo '));
+
+      expect((change as UpsertEntry).entry.note, 'memo');
+    });
+
+    test('decodes a whitespace-only note as no note', () {
+      final change = decodeEntryData(entryData(note: '   '));
+
+      expect((change as UpsertEntry).entry.note, isNull);
+    });
+
+    test('rejects a non-string note value', () {
+      for (final bad in <Object?>[42, true, <Object?>[], <String, Object?>{}]) {
+        expect(
+          () => decodeEntryData(entryData(note: null)..['note'] = bad),
+          throwsA(isA<PayloadDecodeError>()),
+          reason: '$bad',
+        );
+      }
+    });
+
+    test('ignores an unknown key on an entry payload', () {
+      final data = entryData(note: 'memo')..['futureField'] = 'future';
+
+      final change = decodeEntryData(data);
+
+      expect((change as UpsertEntry).entry.note, 'memo');
+    });
+  });
+
   group('tombstones', () {
     test('encodeChange for a delete is payload-free', () {
       expect(codec.encodeChange(DeleteMoneySource(uuidAccounts)), isEmpty);
