@@ -291,6 +291,9 @@ The app is phone-first with one shell whose phone or desktop layout is chosen by
   duplicate guard, the exact route, one mount-gated Step subscription and one completion that
   settles at `route.completed`. Add-only `EntryForm.onDismiss` closes exactly that route even
   beneath a picker, and retired sessions reject late picker and crop results.
+  Every exit (cancel, save, Back, barrier, route removal, `AppShell` disposal, container disposal)
+  converges on one idempotent retirement that closes the subscription, defers receipt-coordinator
+  invalidation and releases ownership only at `route.completed`.
   History hosts the unscoped `TransactionsFlow`; its screen-`Step` consumption is gated on the
   enclosing `DestinationActivity`, so a hidden retained instance neither acts on nor clears a
   shared `Step`. `shellLayoutModeProvider` resolves

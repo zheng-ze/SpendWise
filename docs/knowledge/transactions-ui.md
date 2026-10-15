@@ -24,6 +24,10 @@ and is the only place recurring plans are created.
   `AppSheetRoute`, the only null-form Step subscription, a mount-gated pending Step pickup and one
   completion that settles at `route.completed`. `EntryForm.onDismiss` is supplied only by Add and
   closes exactly that route even under a picker; Edit and view dismissal is unchanged.
+  Cancel, save, Back, barrier dismissal, route removal, `AppShell` disposal and container disposal
+  all retire the session once: the Step subscription closes, the receipt coordinator is invalidated
+  in a deferred microtask before ownership releases at `route.completed`, and a failed save keeps
+  the session and draft.
 - `app/lib/ui/transactions/entry/steps/entry_step_handlers.dart` — the shared source, destination,
   category, recurrence, date, end-date and document-crop Step handlers used by both the presenter
   and `TransactionsFlow`, presented above the sheet through the root navigator.

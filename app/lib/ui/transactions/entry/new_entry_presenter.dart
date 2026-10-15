@@ -66,10 +66,21 @@ class NewEntryPresentationController {
     return session.completion.future;
   }
 
+  void ownerDisposed(BuildContext owner) {
+    final session = _session;
+    if (session == null || !identical(session.context, owner)) return;
+    session.retire();
+    if (session.routeInstalled) return session.removeOutsideCallback();
+    _release(session);
+  }
+
   void dispose() {
     _disposed = true;
     final session = _session;
-    if (session != null) _release(session);
+    if (session == null) return;
+    session.retire();
+    if (!session.routeInstalled) return _finish(session);
+    session.removeOutsideCallback();
   }
 
   Future<void> _start(
@@ -82,8 +93,15 @@ class NewEntryPresentationController {
       if (!presented) _release(session);
     } catch (error, stack) {
       if (!session.retired) _report(error, stack);
-      if (session.route == null) _release(session);
+      _abort(session);
     }
+  }
+
+  void _abort(_AddSession session) {
+    session.close();
+    if (session.routeInstalled) return;
+    session.discardRoute();
+    _release(session);
   }
 
   Future<bool> _present(
@@ -102,6 +120,9 @@ class NewEntryPresentationController {
     final initial = _presentationForMode(
       session.ref.read(shellLayoutModeProvider),
     );
+    _container
+        .read(formProvider.notifier)
+        .bindAddLifetime(() => !session.retired);
     session.listenForSteps();
     _setPresentation(NewEntryPresentation.presented);
     final resolver = _liveResolver(initial);
@@ -131,10 +152,19 @@ class NewEntryPresentationController {
 
   void _release(_AddSession session) {
     session.retire();
+    unawaited(session.cleanedUp.then((_) => _finish(session)));
+  }
+
+  void _finish(_AddSession session) {
     if (!identical(_session, session)) return;
     _session = null;
     if (!_disposed) _setPresentation(NewEntryPresentation.closed);
     if (!session.completion.isCompleted) session.completion.complete();
+  }
+
+  void _invalidateReceiptCoordinator() {
+    if (_disposed) return;
+    _container.invalidate(receiptEntryCoordinatorProvider(null));
   }
 
   void _setPresentation(NewEntryPresentation value) {
@@ -162,6 +192,7 @@ class _AddSession {
   final BuildContext context;
   final WidgetRef ref;
   final completion = Completer<void>();
+  final _cleaned = Completer<void>();
   AppSheetRoute<void>? route;
   ProviderSubscription<AsyncValue<EntryFormViewState>>? _subscription;
   bool retired = false;
@@ -218,11 +249,21 @@ class _AddSession {
     );
   }
 
+  Future<void> get cleanedUp => _cleaned.future;
+
+  bool get routeInstalled => route?.navigator != null;
+
   void retire() {
     if (retired) return;
     retired = true;
     _subscription?.close();
     _subscription = null;
+    scheduleMicrotask(_completeCleanup);
+  }
+
+  void _completeCleanup() {
+    _controller._invalidateReceiptCoordinator();
+    _cleaned.complete();
   }
 
   void close() {
@@ -236,4 +277,18 @@ class _AddSession {
     }
     navigator.removeRoute(addRoute);
   }
+
+  void removeOutsideCallback() {
+    final addRoute = route;
+    if (addRoute == null) return;
+    scheduleMicrotask(() => _removeActive(addRoute));
+  }
+
+  void _removeActive(AppSheetRoute<void> addRoute) {
+    final navigator = addRoute.navigator;
+    if (navigator == null || !navigator.mounted || !addRoute.isActive) return;
+    navigator.removeRoute(addRoute);
+  }
+
+  void discardRoute() => route?.dispose();
 }
