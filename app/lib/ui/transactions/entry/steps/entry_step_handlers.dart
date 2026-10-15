@@ -27,6 +27,7 @@ void dispatchEntryFormStep(
   String? formKey,
   TransactionsStep step, {
   bool useRootNavigator = false,
+  bool Function()? isCurrent,
 }) {
   final form = ref.read(entryFormViewModelProvider(formKey).notifier);
   switch (step) {
@@ -37,6 +38,7 @@ void dispatchEntryFormStep(
         formKey,
         form,
         useRootNavigator: useRootNavigator,
+        isCurrent: isCurrent,
       );
     case PickDestinationRequested():
       _pickDestination(
@@ -45,6 +47,7 @@ void dispatchEntryFormStep(
         formKey,
         form,
         useRootNavigator: useRootNavigator,
+        isCurrent: isCurrent,
       );
     case PickCategoryRequested():
       _pickCategory(
@@ -53,6 +56,7 @@ void dispatchEntryFormStep(
         formKey,
         form,
         useRootNavigator: useRootNavigator,
+        isCurrent: isCurrent,
       );
     case PickRecurrenceRequested():
       _pickRecurrence(
@@ -61,6 +65,7 @@ void dispatchEntryFormStep(
         formKey,
         form,
         useRootNavigator: useRootNavigator,
+        isCurrent: isCurrent,
       );
     case PickDateRequested():
       _pickDate(
@@ -69,6 +74,7 @@ void dispatchEntryFormStep(
         formKey,
         form,
         useRootNavigator: useRootNavigator,
+        isCurrent: isCurrent,
       );
     case PickEndDateRequested():
       _pickEndDate(
@@ -77,6 +83,7 @@ void dispatchEntryFormStep(
         formKey,
         form,
         useRootNavigator: useRootNavigator,
+        isCurrent: isCurrent,
       );
     case DocumentCropRequested(:final imageBytes):
       _pushDocumentCrop(
@@ -84,11 +91,14 @@ void dispatchEntryFormStep(
         form,
         imageBytes,
         useRootNavigator: useRootNavigator,
+        isCurrent: isCurrent,
       );
     case EntryFormRequested():
       break;
   }
 }
+
+bool _isCurrent(bool Function()? isCurrent) => isCurrent?.call() ?? true;
 
 // MARK: - Source Pickers
 Future<void> _pickSource(
@@ -97,6 +107,7 @@ Future<void> _pickSource(
   String? formKey,
   EntryFormNotifier form, {
   bool useRootNavigator = false,
+  bool Function()? isCurrent,
 }) async {
   final ledger = ref.read(ledgerProvider);
   if (ledger == null) return;
@@ -108,7 +119,7 @@ Future<void> _pickSource(
     state: ledger.state,
     selectedId: formState?.sourceId,
   );
-  if (!context.mounted) return;
+  if (!context.mounted || !_isCurrent(isCurrent)) return;
   if (outcome == null) return;
   form.applyPickedSource(_idFromOutcome(outcome));
 }
@@ -119,6 +130,7 @@ Future<void> _pickDestination(
   String? formKey,
   EntryFormNotifier form, {
   bool useRootNavigator = false,
+  bool Function()? isCurrent,
 }) async {
   final ledger = ref.read(ledgerProvider);
   if (ledger == null) return;
@@ -130,7 +142,7 @@ Future<void> _pickDestination(
     state: ledger.state,
     selectedId: formState?.destinationId,
   );
-  if (!context.mounted) return;
+  if (!context.mounted || !_isCurrent(isCurrent)) return;
   if (outcome == null) return;
   form.applyPickedDestination(_idFromOutcome(outcome));
 }
@@ -142,6 +154,7 @@ Future<void> _pickCategory(
   String? formKey,
   EntryFormNotifier form, {
   bool useRootNavigator = false,
+  bool Function()? isCurrent,
 }) async {
   final ledger = ref.read(ledgerProvider);
   if (ledger == null) return;
@@ -156,7 +169,7 @@ Future<void> _pickCategory(
     kind: categoryKind,
     selectedId: formState?.categoryId,
   );
-  if (!context.mounted) return;
+  if (!context.mounted || !_isCurrent(isCurrent)) return;
   if (outcome == null) return;
   form.applyPickedCategory(_idFromOutcome(outcome));
 }
@@ -167,6 +180,7 @@ Future<void> _pickRecurrence(
   String? formKey,
   EntryFormNotifier form, {
   bool useRootNavigator = false,
+  bool Function()? isCurrent,
 }) async {
   final formState = ref.read(entryFormViewModelProvider(formKey)).value;
   final chosen = await showRecurrencePickerSheet(
@@ -174,7 +188,7 @@ Future<void> _pickRecurrence(
     useRootNavigator: useRootNavigator,
     selected: formState?.recurrence,
   );
-  if (!context.mounted) return;
+  if (!context.mounted || !_isCurrent(isCurrent)) return;
   form.applyPickedRecurrence(chosen);
 }
 
@@ -190,6 +204,7 @@ Future<void> _pickDate(
   String? formKey,
   EntryFormNotifier form, {
   bool useRootNavigator = false,
+  bool Function()? isCurrent,
 }) async {
   final formState = ref.read(entryFormViewModelProvider(formKey)).value;
   final picked = await showDatePicker(
@@ -199,7 +214,7 @@ Future<void> _pickDate(
     firstDate: DateTime.utc(_datePickerFirstYear),
     lastDate: DateTime.utc(_datePickerLastYear),
   );
-  if (!context.mounted) return;
+  if (!context.mounted || !_isCurrent(isCurrent)) return;
   if (picked == null) return;
   form.applyPickedDate(DateTime.utc(picked.year, picked.month, picked.day));
 }
@@ -210,6 +225,7 @@ Future<void> _pickEndDate(
   String? formKey,
   EntryFormNotifier form, {
   bool useRootNavigator = false,
+  bool Function()? isCurrent,
 }) async {
   final formState = ref.read(entryFormViewModelProvider(formKey)).value;
   final initial = formState?.endDate ?? formState?.date ?? DateTime.now();
@@ -220,7 +236,7 @@ Future<void> _pickEndDate(
     firstDate: formState?.date ?? DateTime.utc(_datePickerFirstYear),
     lastDate: DateTime.utc(_datePickerLastYear),
   );
-  if (!context.mounted) return;
+  if (!context.mounted || !_isCurrent(isCurrent)) return;
   if (picked == null) return;
   form.applyPickedEndDate(DateTime.utc(picked.year, picked.month, picked.day));
 }
@@ -231,6 +247,7 @@ Future<void> _pushDocumentCrop(
   EntryFormNotifier form,
   Uint8List imageBytes, {
   bool useRootNavigator = false,
+  bool Function()? isCurrent,
 }) async {
   final cropped = await Navigator.of(context, rootNavigator: useRootNavigator)
       .push<Uint8List>(
@@ -238,7 +255,7 @@ Future<void> _pushDocumentCrop(
           builder: (_) => DocumentCropScreen(imageBytes: imageBytes),
         ),
       );
-  if (!context.mounted) return;
+  if (!context.mounted || !_isCurrent(isCurrent)) return;
   if (cropped == null) return;
   form.applyCroppedDocument(cropped);
 }

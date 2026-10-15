@@ -179,7 +179,10 @@ preferred source
 only while Money is selected, through an injected `MoneyNavigatorObserver` getter; all other states
 open unscoped. The Add sheet keeps its root route and keyed form across phone/open resizes,
 re-resolving phone, open or desktop presentation live: the open surface docks full-height in the
-safe right half while the draft, focus and auxiliary picker routes survive the crossing.
+safe right half while the draft, focus and auxiliary picker routes survive the crossing. A container-local presentation controller owns one Add session
+per request: Add-only dismissal closes exactly the captured Add route, one mount-gated Step
+subscription feeds the shared handlers, and the accepted request completes when the route is
+removed.
 Transactions has no local Add or Edit source control. It mounts one Flow per destination directly, with no
 shell-level `Navigator` of its own — each Flow already owns its own, per the Flow entry above. This
 was issue #30's last open "does `shell` need a migration ticket" question, closed by issue #39.

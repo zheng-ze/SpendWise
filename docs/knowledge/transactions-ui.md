@@ -1,6 +1,6 @@
 # Transactions UI
 
-Last reconciled: 2026-10-14
+Last reconciled: 2026-10-15
 
 ## Feature overview
 
@@ -19,8 +19,11 @@ and is the only place recurring plans are created.
 - `app/lib/ui/transactions/entry/` — the entry form sheet.
 - `app/lib/ui/transactions/entry/new_entry_presenter.dart` — the shared Add presenter
   (`openNewEntry`): reads `shellLayoutModeProvider` from the caller-side ref, opens the null-key
-  entry form in `AppSheet` on the root navigator, and owns the only null-form Step subscription for
-  the modal lifetime.
+  entry form in `AppSheet` on the root navigator, and delegates to the container-local
+  `NewEntryPresentationController`. Its private Add session owns the duplicate guard, the exact
+  `AppSheetRoute`, the only null-form Step subscription, a mount-gated pending Step pickup and one
+  completion that settles at `route.completed`. `EntryForm.onDismiss` is supplied only by Add and
+  closes exactly that route even under a picker; Edit and view dismissal is unchanged.
 - `app/lib/ui/transactions/entry/steps/entry_step_handlers.dart` — the shared source, destination,
   category, recurrence, date, end-date and document-crop Step handlers used by both the presenter
   and `TransactionsFlow`, presented above the sheet through the root navigator.
