@@ -809,6 +809,103 @@ void main() {
       expect(v1.hashCode, v2.hashCode);
     });
   });
+
+  group('reconcile: entry note identity', () {
+    test('duplicate noted siblings collapse to one change preserving the note',
+        () async {
+      final noted = UpsertEntry(testEntry(id: 'row-1', note: 'memo'));
+      final v1 = VersionVector(<String, int>{'dev': 3});
+      final first = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-1',
+        version: v1,
+        lifecycle: SiblingLifecycle.live,
+        change: noted,
+      );
+      final second = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-1',
+        version: v1,
+        lifecycle: SiblingLifecycle.live,
+        change: noted,
+      );
+
+      final result = await engine().reconcile(<SyncEnvelope>[first, second]);
+
+      expect(result.changes, <LedgerChange>[noted]);
+      expect(result.stamps[SyncRowID.of(SyncCollection.entries, 'row-1')], v1);
+    });
+
+    test('same-vector siblings differing only by note throw', () async {
+      final v = VersionVector(<String, int>{'dev': 1});
+      final plain = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-1',
+        version: v,
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertEntry(testEntry(id: 'row-1')),
+      );
+      final noted = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-1',
+        version: v,
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertEntry(testEntry(id: 'row-1', note: 'memo')),
+      );
+
+      await expectLater(
+        engine().reconcile(<SyncEnvelope>[plain, noted]),
+        throwsA(isA<SyncPayloadIdentityError>()),
+      );
+    });
+
+    test('a dominating legacy payload without note replaces the note',
+        () async {
+      final earlier = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-1',
+        version: VersionVector(<String, int>{'dev': 1}),
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertEntry(testEntry(id: 'row-1', note: 'memo')),
+      );
+      final legacy = UpsertEntry(testEntry(id: 'row-1'));
+      final later = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-1',
+        version: VersionVector(<String, int>{'dev': 2}),
+        lifecycle: SiblingLifecycle.live,
+        change: legacy,
+      );
+
+      final result = await engine().reconcile(<SyncEnvelope>[earlier, later]);
+
+      expect(result.changes, <LedgerChange>[legacy]);
+      expect(result.hasConflicts, isFalse);
+    });
+
+    test('concurrent noted siblings still stage as a conflict', () async {
+      final a = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-1',
+        version: VersionVector(<String, int>{'devA': 1}),
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertEntry(testEntry(id: 'row-1', note: 'from A')),
+      );
+      final b = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-1',
+        version: VersionVector(<String, int>{'devB': 1}),
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertEntry(testEntry(id: 'row-1', note: 'from B')),
+      );
+
+      final result = await engine().reconcile(<SyncEnvelope>[a, b]);
+
+      expect(result.changes, isEmpty);
+      expect(result.stagedConflicts, hasLength(1));
+      expect(result.stagedConflicts.first.siblings, hasLength(2));
+    });
+  });
 }
 
 // Flips one byte of an AEAD frame so its tag no longer authenticates.

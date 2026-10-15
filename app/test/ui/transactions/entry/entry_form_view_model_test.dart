@@ -388,4 +388,145 @@ void main() {
       expect(state.nameText, 'Coffee run');
     });
   });
+
+  group('note preservation', () {
+    Entry notedEntry({String? id, String? note}) => Entry(
+      id: id,
+      amount: dec('-5'),
+      name: 'Coffee run',
+      sourceID: checking.id,
+      categoryID: coffee.id,
+      note: note,
+    );
+
+    Future<EntryFormNotifier> openedEditor(
+      ProviderContainer container,
+      String key,
+    ) async {
+      await stateOf(container, key);
+      final viewModel = container.read(
+        entryFormViewModelProvider(key).notifier,
+      );
+      viewModel.startEditing();
+      return viewModel;
+    }
+
+    test('editing another field keeps the persisted note', () async {
+      final entry = notedEntry(note: 'memo');
+      final ledger = buildLedger(entries: {entry.id: entry});
+      final container = containerFor(ledger);
+      final viewModel = await openedEditor(container, entry.id);
+
+      viewModel.setName('Updated name');
+      await viewModel.save();
+
+      expect(ledger.state.entries[entry.id]!.name, 'Updated name');
+      expect(ledger.state.entries[entry.id]!.note, 'memo');
+    });
+
+    test('saving picks up a note changed after the form opened', () async {
+      final entry = notedEntry(note: 'old');
+      final ledger = buildLedger(entries: {entry.id: entry});
+      final container = containerFor(ledger);
+      final viewModel = await openedEditor(container, entry.id);
+
+      ledger.updateEntry(notedEntry(id: entry.id, note: 'new'));
+      viewModel.setName('Unrelated edit');
+      await viewModel.save();
+
+      expect(ledger.state.entries[entry.id]!.name, 'Unrelated edit');
+      expect(ledger.state.entries[entry.id]!.note, 'new');
+    });
+
+    test('a new entry save produces no note beside a noted entry', () async {
+      final existing = notedEntry(note: 'memo');
+      final ledger = buildLedger(entries: {existing.id: existing});
+      final container = containerFor(ledger);
+      await stateOf(container, null);
+      final viewModel = container.read(
+        entryFormViewModelProvider(null).notifier,
+      );
+
+      viewModel.setAmount('12.50');
+      viewModel.setName('New expense');
+      viewModel.applyPickedSource(checking.id);
+      await viewModel.save();
+
+      final added = ledger.state.entries.values.singleWhere(
+        (candidate) => candidate.id != existing.id,
+      );
+      expect(added.note, isNull);
+      expect(ledger.state.entries[existing.id]!.note, 'memo');
+    });
+
+    test('a recurring-plan add resolves with no note', () async {
+      final existing = notedEntry(note: 'memo');
+      final ledger = buildLedger(entries: {existing.id: existing});
+      final container = containerFor(ledger);
+      await stateOf(container, null);
+      final viewModel = container.read(
+        entryFormViewModelProvider(null).notifier,
+      );
+
+      viewModel.setAmount('20');
+      viewModel.setName('Rent');
+      viewModel.applyPickedSource(checking.id);
+      viewModel.applyPickedRecurrence(RecurrenceFrequency.monthly);
+      await viewModel.save();
+
+      expect(ledger.state.plans.length, 1);
+      final resolved = ledger.state.entries.values.singleWhere(
+        (candidate) => candidate.id != existing.id,
+      );
+      expect(resolved.note, isNull);
+      expect(ledger.state.entries[existing.id]!.note, 'memo');
+    });
+
+    test('an add through a missing entry id keeps no note', () async {
+      const missingID = 'b0000000-0000-0000-0000-000000000009';
+      final existing = notedEntry(note: 'memo');
+      final ledger = buildLedger(entries: {existing.id: existing});
+      final container = containerFor(ledger);
+      final initial = await stateOf(container, missingID);
+      expect(initial.mode, EntryFormMode.newEntry);
+      final viewModel = container.read(
+        entryFormViewModelProvider(missingID).notifier,
+      );
+
+      viewModel.setAmount('12.50');
+      viewModel.setName('New expense');
+      viewModel.applyPickedSource(checking.id);
+      await viewModel.save();
+
+      final added = ledger.state.entries.values.singleWhere(
+        (candidate) => candidate.id != existing.id,
+      );
+      expect(added.note, isNull);
+      expect(ledger.state.entries[existing.id], existing);
+    });
+
+    test('a recurring add through a missing entry id keeps no note', () async {
+      const missingID = 'b0000000-0000-0000-0000-000000000009';
+      final existing = notedEntry(note: 'memo');
+      final ledger = buildLedger(entries: {existing.id: existing});
+      final container = containerFor(ledger);
+      await stateOf(container, missingID);
+      final viewModel = container.read(
+        entryFormViewModelProvider(missingID).notifier,
+      );
+
+      viewModel.setAmount('20');
+      viewModel.setName('Rent');
+      viewModel.applyPickedSource(checking.id);
+      viewModel.applyPickedRecurrence(RecurrenceFrequency.monthly);
+      await viewModel.save();
+
+      expect(ledger.state.plans.length, 1);
+      final resolved = ledger.state.entries.values.singleWhere(
+        (candidate) => candidate.id != existing.id,
+      );
+      expect(resolved.note, isNull);
+      expect(ledger.state.entries[existing.id], existing);
+    });
+  });
 }

@@ -58,6 +58,7 @@ extension LedgerStateEntryValidation on LedgerState {
       includeInAnalysis: entry.includeInAnalysis,
       lifecycle: entry.lifecycle,
       systemKind: entry.systemKind,
+      note: entry.note,
     );
   }
 }

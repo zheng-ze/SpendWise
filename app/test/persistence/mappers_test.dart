@@ -274,24 +274,85 @@ void main() {
       expect(row.amount, '-1234.5678');
     });
 
-    test(
-      'the note column stays unwritten, it is reserved but not used yet',
-      () {
-        final row = entryToRow(
-          Entry(
-            id: entryID,
-            date: DateTime.utc(2026, 3, 14),
-            amount: Decimal.one,
-            name: 'Coffee',
-            sourceID: accountID,
-          ),
-          version,
-        );
+    test('a noted entry round-trips with its trimmed note', () {
+      final entry = Entry(
+        id: entryID,
+        date: DateTime.utc(2026, 3, 14),
+        amount: Decimal.one,
+        name: 'Coffee',
+        sourceID: accountID,
+        note: '  Receipt kept  ',
+      );
 
-        expect(row.note, isNull);
-        expect(row.systemKind, isNull);
-      },
-    );
+      final row = entryToRow(entry, version);
+
+      expect(row.note, 'Receipt kept');
+      expect(entryFromRow(row), entry);
+      expect(entryFromRow(row).note, 'Receipt kept');
+    });
+
+    test('an entry without a note stores a null note and loads unchanged', () {
+      final entry = Entry(
+        id: entryID,
+        date: DateTime.utc(2026, 3, 14),
+        amount: Decimal.parse('-42.75'),
+        name: 'Coffee',
+        categoryID: categoryID,
+        sourceID: accountID,
+        includeInAnalysis: false,
+        lifecycle: LifecycleState.archived,
+      );
+
+      final row = entryToRow(entry, version);
+
+      expect(row.note, isNull);
+      final restored = entryFromRow(row);
+      expect(restored.note, isNull);
+      expect(restored, entry);
+    });
+
+    test('a legacy row with a null note loads with every field unchanged', () {
+      final row = entryToRow(
+        Entry(
+          id: entryID,
+          date: DateTime.utc(2026, 3, 14),
+          amount: Decimal.parse('-42.75'),
+          name: 'Coffee',
+          categoryID: categoryID,
+          sourceID: accountID,
+          includeInAnalysis: false,
+          lifecycle: LifecycleState.archived,
+        ),
+        version,
+      );
+
+      final restored = entryFromRow(row);
+
+      expect(restored.note, isNull);
+      expect(restored.amount, Decimal.parse('-42.75'));
+      expect(restored.name, 'Coffee');
+      expect(restored.categoryID, categoryID);
+      expect(restored.sourceID, accountID);
+      expect(restored.includeInAnalysis, isFalse);
+      expect(restored.lifecycle, LifecycleState.archived);
+    });
+
+    test('a whitespace-only note maps to a null column', () {
+      final row = entryToRow(
+        Entry(
+          id: entryID,
+          date: DateTime.utc(2026, 3, 14),
+          amount: Decimal.one,
+          name: 'Coffee',
+          sourceID: accountID,
+          note: '   ',
+        ),
+        version,
+      );
+
+      expect(row.note, isNull);
+      expect(entryFromRow(row).note, isNull);
+    });
 
     test('systemKind round-trips for an opening balance entry', () {
       final entry = Entry(

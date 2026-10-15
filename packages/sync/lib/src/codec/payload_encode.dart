@@ -53,6 +53,7 @@ extension PayloadCodecEncode on PayloadCodec {
               'includeInAnalysis': entry.includeInAnalysis,
               'lifecycle': entry.lifecycle.code,
               'systemKind': entry.systemKind?.code,
+              if (entry.note != null) 'note': entry.note,
             },
           ),
         UpsertPlan(:final plan) => _EncodedChange(

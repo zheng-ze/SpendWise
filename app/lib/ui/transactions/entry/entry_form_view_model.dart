@@ -255,6 +255,9 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
     if (current == null || !current.canSave || !_addActive) return;
 
     final magnitude = current.parsedAmount!.abs();
+    final preservedNote = current.mode == EntryFormMode.editing
+        ? _persisted?.note
+        : null;
     final signedEntry = signedEntryForSave(
       kind: current.kind,
       magnitude: magnitude,
@@ -265,6 +268,7 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
       sourceId: current.sourceId!,
       destinationId: current.destinationId,
       includeInAnalysis: current.includeInAnalysis,
+      note: preservedNote,
     );
 
     try {

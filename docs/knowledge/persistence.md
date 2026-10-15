@@ -1,6 +1,6 @@
 # Persistence
 
-Last reconciled: 2026-10-10
+Last reconciled: 2026-10-15
 
 ## Feature overview
 
@@ -58,8 +58,9 @@ Ledger-row conventions (tables mixing in `SyncedRow` in `tables.dart`): IDs are 
 booleans are `INTEGER` 0/1; `version_data` is a `BLOB` JSON vector and `lifecycle` is an `INTEGER`
 raw value on every such table (`store_meta` mixes in nothing and carries neither). Sync-coordination
 tables in `app/lib/sync/sync_tables.dart` follow their own keys; their table doc comments own that
-schema. The `entries` table reserves `note` and `system_kind` columns (day-one reservations,
-unused in V1). `plans` flattens the `EntryTemplate` into `template_*` scalar columns.
+schema. The `entries` table carries nullable `note` (`TEXT`) and `system_kind` (`INTEGER`)
+columns alongside the other entry fields. `plans` flattens
+the `EntryTemplate` into `template_*` scalar columns.
 
 ## Write pipeline
 
@@ -147,6 +148,25 @@ again. (`app/lib/persistence/store/drift_ledger_store.dart:loadChanges`,
 `app/lib/persistence/mappers/mappers.dart:entryToRow`; tests `anArchivedEntryPersistsAsLifecycleOneAndReloadsIntoTheBin`,
 `restoringAnArchivedEntryPersistsLifecycleZero`, `purgingAnArchivedEntryWritesTheTombstone` in
 `drift_ledger_store_test.dart`)
+
+## Entry note and complete entries-row writes
+
+`Entry.note` (`packages/domain/lib/src/entries/entry.dart`) is an optional trimmed string: the
+constructor trims the input and maps null and the empty result to null, so a stored note is
+always its own trim. `entryFromRow` maps `row.note` into `Entry` and `entryToRow` maps
+`entry.note` back (`app/lib/persistence/mappers/mappers_entries.dart`). A legacy row with SQL
+`NULL` loads as no note with every other field unchanged, and a whitespace-only note stores as
+SQL `NULL`. There is no migration: the nullable `entries.note` column already exists.
+
+Every `UpsertEntry` writes the complete mapped entries row through
+`entryToRow(entry, version).toCompanion(false)`
+(`app/lib/persistence/store/drift_store_writes.dart`). Present nullable companion values make a
+null `category_id`, `destination_id`, `note` or `system_kind` clear its SQL column on conflict
+updates, through local unstamped writes, stamped writes and orphan-version branches alike.
+Previously persisted stale values in those four columns are corrected only by a subsequent
+complete upsert; no historical repair runs. Other tables keep their current insertable and
+null-omission behavior. (tests `entry note persistence` in `drift_ledger_store_test.dart`,
+noted and absent-note mapping tests in `mappers_test.dart`)
 
 ## Seeding
 
