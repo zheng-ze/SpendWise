@@ -17,7 +17,8 @@ SpendWise is a personal finance app built in Flutter.
 - For a feature change, open `docs/knowledge/INDEX.md`, read that feature's entry, then check its
   `Last reconciled:` marker for possible staleness.
 - Read `docs/NAVIGATION.md` for the required reading order and the greenfield-design boundary.
-- See `docs/agents/issue-tracker.md` for GitHub issue conventions.
+- Work is tracked as GitHub issues. The assignee is the claim. Record decisions on
+  the issue; the PR body closes it with `Closes #<n>`.
 - See `docs/agents/domain.md` for the `CONTEXT.md` and ADR layout.
 - Read `docs/DOMAIN.md` before changing `LedgerState` or its invariants.
 - See `docs/HANDOVER.md` when continuing the repository's recorded working state.

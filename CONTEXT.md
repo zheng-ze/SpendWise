@@ -234,5 +234,3 @@ today, and any future networking.
   "what" together, not split across separate ADR and spec files.
 - **`docs/agents/domain.md`** — how an agent should consume this file and `docs/knowledge/` before
   exploring the codebase.
-- **`docs/agents/issue-tracker.md`** — how work items and open questions are tracked (GitHub
-  issues via `gh`).
