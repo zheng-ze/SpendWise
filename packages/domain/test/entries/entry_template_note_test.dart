@@ -155,6 +155,52 @@ void main() {
       );
       expect(state.entries.containsKey(firstId), isFalse);
     });
+
+    test(
+      'changing the template note leaves historical occurrences untouched',
+      () {
+        final state = stateWithHolders();
+        state.addPlan(notedPlan(note: 'original'));
+        state.resolvePlans(DateTime.utc(2026, 2, 20));
+        final februaryId = OccurrenceID.make(
+          uuid(6),
+          DateTime.utc(2026, 2, 15),
+        );
+        state.archiveEntry(februaryId);
+        state.resolvePlans(DateTime.utc(2026, 3, 20));
+        final marchId = OccurrenceID.make(uuid(6), DateTime.utc(2026, 3, 15));
+        final stored = state.plans[uuid(6)]!;
+        state.updatePlan(
+          RecurringPlan(
+            id: stored.id,
+            template: EntryTemplate(
+              amount: stored.template.amount,
+              name: stored.template.name,
+              sourceID: stored.template.sourceID,
+              note: 'updated',
+            ),
+            frequency: stored.frequency,
+            anchor: stored.anchor,
+            lastResolvedDate: DateTime.utc(2026, 1, 15),
+          ),
+        );
+
+        final result = state.resolvePlans(DateTime.utc(2026, 4, 20));
+        final aprilId = OccurrenceID.make(uuid(6), DateTime.utc(2026, 4, 15));
+
+        expect(state.binnedEntries[februaryId]!.note, 'original');
+        expect(state.entries[marchId]!.note, 'original');
+        expect(state.entries[aprilId]!.note, 'updated');
+        expect(
+          result.changes.any((change) => change.targetID == februaryId),
+          isFalse,
+        );
+        expect(
+          result.changes.any((change) => change.targetID == marchId),
+          isFalse,
+        );
+      },
+    );
   });
 
   group('resolution failure with a noted template', () {
