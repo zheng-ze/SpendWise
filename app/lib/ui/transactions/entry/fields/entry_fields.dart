@@ -16,6 +16,8 @@ import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 
 const _fieldContentPadding = EdgeInsets.zero;
 const _actionWidth = double.infinity;
+const _rowGap = 16.0;
+const _stackedValueGap = 4.0;
 
 // MARK: - EntryFields
 class EntryFields extends ConsumerStatefulWidget {
@@ -94,10 +96,9 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
     return Row(
       children: [
         Expanded(
-          child: ListTile(
-            contentPadding: _fieldContentPadding,
-            title: const Text('Date'),
-            trailing: Text(formatEntryDate(state.date)),
+          child: _EntryValueRow(
+            title: 'Date',
+            value: formatEntryDate(state.date),
             onTap: widget.readOnly ? null : widget.viewModel.requestPickDate,
           ),
         ),
@@ -128,10 +129,9 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
         onChanged: widget.viewModel.setEndDateEnabled,
       ),
       if (state.hasEndDate)
-        ListTile(
-          contentPadding: _fieldContentPadding,
-          title: const Text('End date'),
-          trailing: Text(formatEntryDate(state.endDate ?? state.date)),
+        _EntryValueRow(
+          title: 'End date',
+          value: formatEntryDate(state.endDate ?? state.date),
           onTap: widget.viewModel.requestPickEndDate,
         ),
     ];
@@ -170,25 +170,22 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
 
     final kind = state.kind;
     final sourceDestinationRows = [
-      ListTile(
-        contentPadding: _fieldContentPadding,
-        title: Text(kind == EntryFormKind.transfer ? 'From' : 'Account'),
-        trailing: Text(sourceLabel(state.sourceId) ?? 'Select'),
+      _EntryValueRow(
+        title: kind == EntryFormKind.transfer ? 'From' : 'Account',
+        value: sourceLabel(state.sourceId) ?? 'Select',
         onTap: readOnly ? null : viewModel.requestPickSource,
       ),
       if (kind == EntryFormKind.transfer)
-        ListTile(
-          contentPadding: _fieldContentPadding,
-          title: const Text('To'),
-          trailing: Text(sourceLabel(state.destinationId) ?? 'Select'),
+        _EntryValueRow(
+          title: 'To',
+          value: sourceLabel(state.destinationId) ?? 'Select',
           onTap: readOnly ? null : viewModel.requestPickDestination,
         )
       else
-        ListTile(
-          contentPadding: _fieldContentPadding,
+        _EntryValueRow(
           leading: categoryLeading(),
-          title: const Text('Category'),
-          trailing: Text(categoryLabel(state.categoryId) ?? 'None'),
+          title: 'Category',
+          value: categoryLabel(state.categoryId) ?? 'None',
           onTap: readOnly || state.isSystemEntry
               ? null
               : viewModel.requestPickCategory,
@@ -244,5 +241,89 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
         ],
       ],
     );
+  }
+}
+
+class _EntryValueRow extends StatelessWidget {
+  const _EntryValueRow({
+    required this.title,
+    required this.value,
+    this.leading,
+    this.onTap,
+  });
+
+  final String title;
+  final String value;
+  final Widget? leading;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: _fieldContentPadding,
+      leading: leading,
+      title: _TitleAndValue(title: title, value: value),
+      onTap: onTap,
+    );
+  }
+}
+
+class _TitleAndValue extends StatelessWidget {
+  const _TitleAndValue({required this.title, required this.value});
+
+  final String title;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final titleStyle = theme.textTheme.bodyLarge?.copyWith(
+      color: theme.colorScheme.onSurface,
+    );
+    final valueStyle = theme.textTheme.labelSmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+    final titleText = Text(title, style: titleStyle);
+    final valueText = Text(value, style: valueStyle, textAlign: TextAlign.end);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final titleWidth = _textWidth(context, title, titleStyle);
+        final valueWidth = _textWidth(context, value, valueStyle);
+        final fitsSideBySide =
+            titleWidth + _rowGap + valueWidth <= constraints.maxWidth;
+        if (fitsSideBySide) {
+          return Row(
+            children: [
+              titleText,
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(left: _rowGap),
+                  child: valueText,
+                ),
+              ),
+            ],
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            titleText,
+            const SizedBox(height: _stackedValueGap),
+            Align(alignment: AlignmentDirectional.centerEnd, child: valueText),
+          ],
+        );
+      },
+    );
+  }
+
+  double _textWidth(BuildContext context, String text, TextStyle? style) {
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+    )..layout();
+    final width = painter.width;
+    painter.dispose();
+    return width;
   }
 }
