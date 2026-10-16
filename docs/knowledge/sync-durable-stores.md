@@ -29,8 +29,8 @@ verifier. The composition root owns assembly, while run and scheduling remain a 
 - `app/lib/sync/post_flush_readback_verifier.dart` - `PostFlushReadbackVerifier`, which groups
   submitted stamps by collection and classifies durable readback.
 - `app/lib/sync/row_readback_outcome.dart` - The sealed readback outcome hierarchy.
-- `app/lib/persistence/database/ledger_database.dart` - Schema version 6 and the v4/v5 to v6 `sync_meta`
-  migration.
+- `app/lib/persistence/database/ledger_database.dart` - Schema version 7, the v4/v5 to v6 `sync_meta`
+  migration and the v7 `plans.template_note` column.
 - `app/test/sync/sync_metadata_store_test.dart` - Metadata defaults, round-trips, atomicity and
   rollback, secret separation, and restart durability.
 - `app/test/sync/drift_sync_staging_store_test.dart` - Staging contract, ordering, rollback,
