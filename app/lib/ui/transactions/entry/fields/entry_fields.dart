@@ -27,12 +27,14 @@ class EntryFields extends ConsumerStatefulWidget {
     required this.state,
     required this.readOnly,
     this.showDelete = false,
+    this.includeHead = true,
   });
 
   final EntryFormViewModel viewModel;
   final EntryFormViewState state;
   final bool readOnly;
   final bool showDelete;
+  final bool includeHead;
 
   @override
   ConsumerState<EntryFields> createState() => _EntryFieldsState();
@@ -54,6 +56,7 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
   @override
   void didUpdateWidget(EntryFields oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (!widget.includeHead) return;
     if (_amountController.text != widget.state.amountText) {
       _amountController.text = widget.state.amountText;
     }
@@ -64,8 +67,10 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
 
   @override
   void dispose() {
-    _amountController.dispose();
-    _nameController.dispose();
+    if (widget.includeHead) {
+      _amountController.dispose();
+      _nameController.dispose();
+    }
     super.dispose();
   }
 
@@ -195,26 +200,28 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _kindSelector(),
-        const SizedBox(height: _sectionSpacing),
-        IgnorePointer(
-          ignoring: readOnly,
-          child: AmountField(
-            controller: _amountController,
-            allowsNegative: false,
-            onChanged: viewModel.setAmount,
+        if (widget.includeHead) ...[
+          _kindSelector(),
+          const SizedBox(height: _sectionSpacing),
+          IgnorePointer(
+            ignoring: readOnly,
+            child: AmountField(
+              controller: _amountController,
+              allowsNegative: false,
+              onChanged: viewModel.setAmount,
+            ),
           ),
-        ),
-        const SizedBox(height: _sectionSpacing),
-        IgnorePointer(
-          ignoring: readOnly || state.isSystemEntry,
-          child: TextField(
-            controller: _nameController,
-            decoration: const InputDecoration(hintText: 'Name'),
-            onChanged: viewModel.setName,
+          const SizedBox(height: _sectionSpacing),
+          IgnorePointer(
+            ignoring: readOnly || state.isSystemEntry,
+            child: TextField(
+              controller: _nameController,
+              decoration: const InputDecoration(hintText: 'Name'),
+              onChanged: viewModel.setName,
+            ),
           ),
-        ),
-        const SizedBox(height: _sectionSpacing),
+          const SizedBox(height: _sectionSpacing),
+        ],
         _dateRow(isNew: isNew),
         if (isNew && state.recurrence != null) ..._recurrenceSection(),
         ...sourceDestinationRows,

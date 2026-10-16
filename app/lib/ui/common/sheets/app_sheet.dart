@@ -55,6 +55,7 @@ class AppSheet extends StatefulWidget {
     this.alert,
     this.onAlertAction,
     this.desktopMaxHeightFraction = defaultMaxHeightFraction,
+    this.dragToDismiss = false,
   });
 
   static const defaultMaxHeightFraction = 0.66;
@@ -72,6 +73,8 @@ class AppSheet extends StatefulWidget {
   final VoidCallback? onAlertAction;
 
   final double desktopMaxHeightFraction;
+
+  final bool dragToDismiss;
 
   @override
   State<AppSheet> createState() => _AppSheetState();
@@ -99,6 +102,8 @@ class _AppSheetState extends State<AppSheet> {
       _publishAlert();
     }
   }
+
+  void _dismiss() => Navigator.of(context).maybePop();
 
   void _publishAlert() {
     final alerts = _alerts;
@@ -138,7 +143,12 @@ class _AppSheetState extends State<AppSheet> {
         media.padding.bottom -
         media.viewInsets.bottom;
     final hasBottom = widget.footer != null || widget.inputSurface != null;
-    final top = _SheetTop(header: widget.header, showHandle: !open);
+    final phone = presentation == AppSheetPresentation.phone;
+    final top = _SheetTop(
+      header: widget.header,
+      showHandle: !open,
+      onDragDismiss: phone && widget.dragToDismiss ? _dismiss : null,
+    );
     final bottom = hasBottom
         ? _SheetBottom(footer: widget.footer, inputSurface: widget.inputSurface)
         : null;
@@ -164,18 +174,46 @@ class _AppSheetState extends State<AppSheet> {
 
 // MARK: - Structure
 
-class _SheetTop extends StatelessWidget {
-  const _SheetTop({required this.header, required this.showHandle});
+class _SheetTop extends StatefulWidget {
+  const _SheetTop({
+    required this.header,
+    required this.showHandle,
+    required this.onDragDismiss,
+  });
+
+  static const _dismissDistance = 80.0;
 
   final Widget header;
 
   final bool showHandle;
 
+  final VoidCallback? onDragDismiss;
+
+  @override
+  State<_SheetTop> createState() => _SheetTopState();
+}
+
+class _SheetTopState extends State<_SheetTop> {
+  double _dragged = 0;
+
+  void _onDragUpdate(DragUpdateDetails details) {
+    _dragged += details.delta.dy;
+    if (_dragged < _SheetTop._dismissDistance) return;
+    _dragged = 0;
+    widget.onDragDismiss?.call();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Column(
+    final column = Column(
       mainAxisSize: MainAxisSize.min,
-      children: [if (showHandle) const _SheetHandle(), header],
+      children: [if (widget.showHandle) const _SheetHandle(), widget.header],
+    );
+    if (widget.onDragDismiss == null) return column;
+    return GestureDetector(
+      onVerticalDragStart: (_) => _dragged = 0,
+      onVerticalDragUpdate: _onDragUpdate,
+      child: column,
     );
   }
 }
