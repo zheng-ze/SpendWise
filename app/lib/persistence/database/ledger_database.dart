@@ -28,7 +28,7 @@ class LedgerDatabase extends _$LedgerDatabase {
   LedgerDatabase(super.executor);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   // MARK: - Migration
 
@@ -64,6 +64,17 @@ class LedgerDatabase extends _$LedgerDatabase {
           "WHERE id = 0 AND backend = 'supabase' AND enrollment_phase IN "
           '(2, 3, 4)',
         );
+      }
+      if (from < 7) {
+        final columns = await m.database
+            .customSelect('PRAGMA table_info(plans)')
+            .get();
+        final names = {
+          for (final column in columns) column.read<String>('name'),
+        };
+        if (!names.contains('template_note')) {
+          await m.addColumn(plans, plans.templateNote);
+        }
       }
     },
   );

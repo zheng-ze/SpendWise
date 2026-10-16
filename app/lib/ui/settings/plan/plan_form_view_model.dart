@@ -226,6 +226,7 @@ class PlanFormNotifier extends AsyncNotifier<PlanFormViewState>
       sourceID: originalTemplate.sourceID,
       destinationID: originalTemplate.destinationID,
       includeInAnalysis: originalTemplate.includeInAnalysis,
+      note: originalTemplate.note,
     );
 
     final plan = RecurringPlan(

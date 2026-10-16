@@ -112,6 +112,7 @@ extension PayloadCodecDecodeEntities on PayloadCodec {
       sourceID: normalizedID(_str(raw, 'sourceID')),
       destinationID: normalizedOptionalID(_strNullable(raw, 'destinationID')),
       includeInAnalysis: _bool(raw, 'includeInAnalysis'),
+      note: _strNullable(raw, 'note'),
     );
   }
 

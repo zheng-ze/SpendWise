@@ -1,6 +1,7 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/persistence/database/ledger_database.dart';
+import 'package:spendwise/persistence/mappers/mappers.dart';
 import 'package:spendwise/sync/drift_sync_staging_store.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
 import 'package:sync/sync.dart';
@@ -66,6 +67,34 @@ CREATE TABLE sync_meta (
 );
 ''';
 
+const _v6Plans = '''
+CREATE TABLE plans (
+  id TEXT NOT NULL PRIMARY KEY,
+  frequency INTEGER NOT NULL,
+  anchor INTEGER NOT NULL,
+  end_date INTEGER NULL,
+  last_resolved_date INTEGER NOT NULL,
+  template_amount TEXT NOT NULL,
+  template_name TEXT NOT NULL,
+  template_category_id TEXT NULL,
+  template_source_id TEXT NOT NULL,
+  template_destination_id TEXT NULL,
+  template_include_in_analysis INTEGER NOT NULL
+    CHECK (template_include_in_analysis IN (0, 1)),
+  version_data BLOB NOT NULL,
+  lifecycle INTEGER NOT NULL
+);
+''';
+
+const _legacyPlanRow = '''
+INSERT INTO plans (id, frequency, anchor, end_date, last_resolved_date,
+template_amount, template_name, template_category_id, template_source_id,
+template_destination_id, template_include_in_analysis, version_data,
+lifecycle) VALUES ('ffffffff-0000-1111-2222-888888888888', 2, 1704067200000,
+NULL, 1717200000000, '50.00', 'Rent', NULL,
+'aaaaaaaa-0000-1111-2222-333333333333', NULL, 1, X'7B7D', 0)
+''';
+
 LedgerDatabase _openUpgradedSyncMeta({
   required int fromVersion,
   String? backend,
@@ -83,6 +112,8 @@ LedgerDatabase _openUpgradedSyncMeta({
         'write_enabled) VALUES (0, $backendSql, $endpointSql, $phase, '
         '${writeEnabled ? 1 : 0})',
       );
+      raw.execute(_v6Plans);
+      raw.execute(_legacyPlanRow);
       raw.execute('PRAGMA user_version = $fromVersion');
     },
   );
@@ -107,6 +138,24 @@ Future<void> _expectV6Columns(LedgerDatabase db) async {
   expect(byName['reauth_resume_phase']!.read<String>('type'), 'INTEGER');
   expect(byName['reauth_resume_phase']!.read<int>('notnull'), 0);
   expect(byName['reauth_resume_phase']!.read<String?>('dflt_value'), isNull);
+}
+
+Future<void> _expectTemplateNoteColumn(LedgerDatabase db) async {
+  final columns = await db.customSelect('PRAGMA table_info(plans)').get();
+  final byName = {for (final row in columns) row.read<String>('name'): row};
+  expect(byName.length, 14);
+  expect(byName['template_note']!.read<String>('type'), 'TEXT');
+  expect(byName['template_note']!.read<int>('notnull'), 0);
+}
+
+Future<void> _expectLegacyPlanRowWithNullNote(LedgerDatabase db) async {
+  final stored = await db.select(db.plans).getSingle();
+  expect(stored.id, 'ffffffff-0000-1111-2222-888888888888');
+  expect(stored.templateAmount, '50.00');
+  expect(stored.templateName, 'Rent');
+  expect(stored.templateSourceId, 'aaaaaaaa-0000-1111-2222-333333333333');
+  expect(stored.templateNote, isNull);
+  expect(planFromRow(stored).template.note, isNull);
 }
 
 Future<Map<String, Object?>> _readSyncMetaRow(LedgerDatabase db) async {
@@ -241,6 +290,7 @@ void main() {
         raw.execute(_v3Entries);
         raw.execute(_v3StoreMeta);
         raw.execute(_v5SyncMeta);
+        raw.execute(_v6Plans);
         raw.execute(
           'CREATE TABLE sync_acknowledged_vectors ('
           'collection TEXT NOT NULL, '
@@ -521,12 +571,69 @@ void main() {
       addTearDown(db.close);
 
       await _expectV6Columns(db);
+      await _expectTemplateNoteColumn(db);
       final rows = await db.customSelect('SELECT id FROM sync_meta').get();
       expect(rows, isEmpty);
       expect(
         (await SyncMetadataStore(db).snapshot()).phase,
         SyncEnrollmentPhase.notEnrolled,
       );
+    },
+  );
+
+  test('a 6-to-7 upgrade adds template_note and keeps plan rows', () async {
+    final executor = NativeDatabase.memory(
+      setup: (raw) {
+        raw.execute(_v3Accounts);
+        raw.execute(_v3Entries);
+        raw.execute(_v3StoreMeta);
+        raw.execute(_v5SyncMeta);
+        raw.execute(_v6Plans);
+        raw.execute(_legacyPlanRow);
+        raw.execute('PRAGMA user_version = 6');
+      },
+    );
+    final db = LedgerDatabase(executor);
+    addTearDown(db.close);
+
+    await _expectTemplateNoteColumn(db);
+    await _expectLegacyPlanRowWithNullNote(db);
+  });
+
+  test('a 5-to-7 upgrade adds template_note and keeps plan rows', () async {
+    final db = _openUpgradedSyncMeta(fromVersion: 5);
+    addTearDown(db.close);
+
+    await _expectTemplateNoteColumn(db);
+    await _expectLegacyPlanRowWithNullNote(db);
+  });
+
+  test('a 4-to-7 upgrade adds template_note and keeps plan rows', () async {
+    final db = _openUpgradedSyncMeta(fromVersion: 4);
+    addTearDown(db.close);
+
+    await _expectTemplateNoteColumn(db);
+    await _expectLegacyPlanRowWithNullNote(db);
+  });
+
+  test(
+    'a 3-to-7 upgrade with a legacy plans table adds the column once',
+    () async {
+      final executor = NativeDatabase.memory(
+        setup: (raw) {
+          raw.execute(_v3Accounts);
+          raw.execute(_v3Entries);
+          raw.execute(_v3StoreMeta);
+          raw.execute(_v6Plans);
+          raw.execute(_legacyPlanRow);
+          raw.execute('PRAGMA user_version = 3');
+        },
+      );
+      final db = LedgerDatabase(executor);
+      addTearDown(db.close);
+
+      await _expectTemplateNoteColumn(db);
+      await _expectLegacyPlanRowWithNullNote(db);
     },
   );
 

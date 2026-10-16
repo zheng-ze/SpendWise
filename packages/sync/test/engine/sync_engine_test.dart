@@ -906,6 +906,120 @@ void main() {
       expect(result.stagedConflicts.first.siblings, hasLength(2));
     });
   });
+
+  group('reconcile: template note identity', () {
+    RecurringPlan notedPlan(String id, String? note) => RecurringPlan(
+          id: id,
+          template: EntryTemplate(
+            amount: Decimal.parse('50.00'),
+            name: 'Rent',
+            sourceID: uuidAccounts,
+            note: note,
+          ),
+          frequency: RecurrenceFrequency.monthly,
+          anchor: anchorDate,
+          endDate: endDate,
+          lastResolvedDate: resolvedDate,
+        );
+
+    test('duplicate noted plan siblings collapse preserving the note',
+        () async {
+      final noted = UpsertPlan(notedPlan('row-1', 'memo'));
+      final v1 = VersionVector(<String, int>{'dev': 3});
+      final first = await buildEnvelope(
+        collection: SyncCollection.plans,
+        rowID: 'row-1',
+        version: v1,
+        lifecycle: SiblingLifecycle.live,
+        change: noted,
+      );
+      final second = await buildEnvelope(
+        collection: SyncCollection.plans,
+        rowID: 'row-1',
+        version: v1,
+        lifecycle: SiblingLifecycle.live,
+        change: noted,
+      );
+
+      final result = await engine().reconcile(<SyncEnvelope>[first, second]);
+
+      expect(result.changes, <LedgerChange>[noted]);
+      expect(result.stamps[SyncRowID.of(SyncCollection.plans, 'row-1')], v1);
+    });
+
+    test('same-vector plan siblings differing only by note throw', () async {
+      for (final order in [false, true]) {
+        final v = VersionVector(<String, int>{'dev': 1});
+        final plain = await buildEnvelope(
+          collection: SyncCollection.plans,
+          rowID: 'row-1',
+          version: v,
+          lifecycle: SiblingLifecycle.live,
+          change: UpsertPlan(notedPlan('row-1', null)),
+        );
+        final noted = await buildEnvelope(
+          collection: SyncCollection.plans,
+          rowID: 'row-1',
+          version: v,
+          lifecycle: SiblingLifecycle.live,
+          change: UpsertPlan(notedPlan('row-1', 'memo')),
+        );
+        final inputs = order ? [noted, plain] : [plain, noted];
+
+        await expectLater(
+          engine().reconcile(inputs),
+          throwsA(isA<SyncPayloadIdentityError>()),
+          reason: 'order $order',
+        );
+      }
+    });
+
+    test('a dominating legacy plan without note replaces the note', () async {
+      final earlier = await buildEnvelope(
+        collection: SyncCollection.plans,
+        rowID: 'row-1',
+        version: VersionVector(<String, int>{'dev': 1}),
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertPlan(notedPlan('row-1', 'memo')),
+      );
+      final legacy = UpsertPlan(notedPlan('row-1', null));
+      final later = await buildEnvelope(
+        collection: SyncCollection.plans,
+        rowID: 'row-1',
+        version: VersionVector(<String, int>{'dev': 2}),
+        lifecycle: SiblingLifecycle.live,
+        change: legacy,
+      );
+
+      final result = await engine().reconcile(<SyncEnvelope>[earlier, later]);
+
+      expect(result.changes, <LedgerChange>[legacy]);
+      expect(result.hasConflicts, isFalse);
+    });
+
+    test('concurrent noted plan siblings still stage as a conflict', () async {
+      final a = await buildEnvelope(
+        collection: SyncCollection.plans,
+        rowID: 'row-1',
+        version: VersionVector(<String, int>{'devA': 1}),
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertPlan(notedPlan('row-1', 'from A')),
+      );
+      final b = await buildEnvelope(
+        collection: SyncCollection.plans,
+        rowID: 'row-1',
+        version: VersionVector(<String, int>{'devB': 1}),
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertPlan(notedPlan('row-1', 'from B')),
+      );
+
+      final result = await engine().reconcile(<SyncEnvelope>[a, b]);
+
+      expect(result.changes, isEmpty);
+      expect(result.stagedConflicts, hasLength(1));
+      expect(result.stagedConflicts.first.siblings, hasLength(2));
+    });
+  });
 }
 
 // Flips one byte of an AEAD frame so its tag no longer authenticates.

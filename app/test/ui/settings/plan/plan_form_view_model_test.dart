@@ -15,13 +15,14 @@ void main() {
     type: AccountType.cash,
   );
 
-  RecurringPlan buildPlan({required Decimal amount}) {
+  RecurringPlan buildPlan({required Decimal amount, String? note}) {
     return RecurringPlan(
       id: 'p0000000-0000-0000-0000-000000000001',
       template: EntryTemplate(
         amount: amount,
         name: 'Rent',
         sourceID: source.id,
+        note: note,
       ),
       frequency: RecurrenceFrequency.monthly,
       anchor: DateTime.utc(2026, 1, 1),
@@ -411,5 +412,68 @@ void main() {
       container.read(planFormViewModelProvider(plan.id)).value?.step,
       isA<PlanFormSaved>(),
     );
+  });
+
+  test('saving an unrelated edit preserves the stored template note', () async {
+    final plan = buildPlan(amount: dec('-10'), note: '  memo ');
+    final ledger = buildLedger(plan);
+    final container = buildContainer(ledger);
+    await container.read(planFormViewModelProvider(plan.id).future);
+    final viewModel = container.read(
+      planFormViewModelProvider(plan.id).notifier,
+    );
+
+    viewModel.setAmount('15.00');
+    await viewModel.save();
+
+    final saved = ledger.state.plans[plan.id]!;
+    expect(saved.template.note, 'memo');
+    expect(saved.template.amount, dec('-15'));
+  });
+
+  test('saving keeps a template note that arrived after opening', () async {
+    final plan = buildPlan(amount: dec('-10'), note: 'original');
+    final ledger = buildLedger(plan);
+    final container = buildContainer(ledger);
+    await container.read(planFormViewModelProvider(plan.id).future);
+    final viewModel = container.read(
+      planFormViewModelProvider(plan.id).notifier,
+    );
+
+    final remote = ledger.state.plans[plan.id]!;
+    ledger.updatePlan(
+      RecurringPlan(
+        id: remote.id,
+        template: EntryTemplate(
+          amount: remote.template.amount,
+          name: remote.template.name,
+          sourceID: remote.template.sourceID,
+          note: 'remote',
+        ),
+        frequency: remote.frequency,
+        anchor: remote.anchor,
+        lastResolvedDate: remote.lastResolvedDate,
+      ),
+    );
+    await viewModel.save();
+
+    expect(ledger.state.plans[plan.id]!.template.note, 'remote');
+  });
+
+  test('saving a note-free plan keeps it note-free', () async {
+    final plan = buildPlan(amount: dec('-10'));
+    final ledger = buildLedger(plan);
+    final container = buildContainer(ledger);
+    await container.read(planFormViewModelProvider(plan.id).future);
+    final viewModel = container.read(
+      planFormViewModelProvider(plan.id).notifier,
+    );
+
+    viewModel.setName('Updated');
+    await viewModel.save();
+
+    final saved = ledger.state.plans[plan.id]!;
+    expect(saved.template.note, isNull);
+    expect(saved.template.name, 'Updated');
   });
 }

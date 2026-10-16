@@ -2014,4 +2014,167 @@ void main() {
       },
     );
   });
+
+  group('plan note persistence', () {
+    domain.RecurringPlan buildNotedPlan(
+      String id, {
+      String? note,
+      DateTime? endDate,
+    }) => domain.RecurringPlan(
+      id: id,
+      template: domain.EntryTemplate(
+        amount: Decimal.parse('-15.50'),
+        name: 'Gym',
+        categoryID: 'c1',
+        sourceID: 'a',
+        note: note,
+      ),
+      frequency: RecurrenceFrequency.monthly,
+      anchor: DateTime.utc(2026, 1, 5),
+      endDate: endDate,
+      lastResolvedDate: DateTime.utc(2026, 1, 5),
+    );
+
+    Future<void> seedPlanHolders() async {
+      store.enqueue([
+        UpsertAccount(account('a', 'wallet')),
+        UpsertCategory(category('c1', 'food', parentID: null)),
+      ]);
+      await store.flushNow();
+    }
+
+    Map<SyncRowID, VersionVector> planStamps(
+      LedgerChange change,
+      VersionVector stamp,
+    ) => {SyncRowID.of(collectionFor(change), change.targetID): stamp};
+
+    Future<void> writePlanChange(
+      domain.RecurringPlan planValue, {
+      required bool stamped,
+    }) async {
+      final change = UpsertPlan(planValue);
+      if (stamped) {
+        store.enqueueStamped([
+          change,
+        ], planStamps(change, VersionVector({'remote': 2})));
+      } else {
+        store.enqueue([change]);
+      }
+      await store.flushNow();
+    }
+
+    Future<rows.Plan> selectPlanRow(String id) async =>
+        (db.select(db.plans)..where((row) => row.id.equals(id))).getSingle();
+
+    test('aNotedPlanRoundTripsThroughTheStore', () async {
+      await seedPlanHolders();
+      store.enqueue([UpsertPlan(buildNotedPlan('p1', note: '  Pack shoes '))]);
+      await store.flushNow();
+
+      expect((await selectPlanRow('p1')).templateNote, 'Pack shoes');
+
+      final state = await store.load();
+      expect(state.plans['p1']!.template.note, 'Pack shoes');
+      expect(state.plans['p1'], buildNotedPlan('p1', note: 'Pack shoes'));
+    });
+
+    test('aLegacyNullNoteLoadsWithEveryFieldUnchanged', () async {
+      await seedPlanHolders();
+      final legacy = buildNotedPlan('p1', endDate: DateTime.utc(2027, 1, 5));
+      await db.into(db.plans).insert(planToRow(legacy, VersionVector.empty));
+
+      final state = await store.load();
+
+      expect(state.plans['p1']!.template.note, isNull);
+      expect(state.plans['p1']!.template.amount, Decimal.parse('-15.50'));
+      expect(state.plans['p1']!.template.name, 'Gym');
+      expect(state.plans['p1']!.template.categoryID, 'c1');
+      expect(state.plans['p1']!.endDate, DateTime.utc(2027, 1, 5));
+    });
+
+    test('replacingANoteWithBlankOrNullClearsTheColumn', () async {
+      await seedPlanHolders();
+      for (final stamped in [false, true]) {
+        final suffix = stamped ? 's' : 'u';
+        final end = DateTime.utc(2027, 1, 5);
+        await writePlanChange(
+          buildNotedPlan('p-w$suffix', note: 'memo', endDate: end),
+          stamped: false,
+        );
+        final before = versionFromRow(
+          (await selectPlanRow('p-w$suffix')).versionData,
+        );
+
+        await writePlanChange(
+          buildNotedPlan('p-w$suffix', note: '   ', endDate: end),
+          stamped: stamped,
+        );
+        final cleared = await selectPlanRow('p-w$suffix');
+        expect(cleared.templateNote, isNull);
+        expect(cleared.endDate, millisFromDay(end));
+        expect((await store.load()).plans['p-w$suffix']!.template.note, isNull);
+
+        final after = versionFromRow(cleared.versionData);
+        if (stamped) {
+          expect(after, VersionVector({'remote': 2}));
+        } else {
+          expect(after.dominates(before), isTrue);
+        }
+
+        await writePlanChange(
+          buildNotedPlan('p-n$suffix', note: 'memo'),
+          stamped: false,
+        );
+        await writePlanChange(buildNotedPlan('p-n$suffix'), stamped: stamped);
+        expect((await selectPlanRow('p-n$suffix')).templateNote, isNull);
+        expect((await store.load()).plans['p-n$suffix']!.template.note, isNull);
+      }
+    });
+
+    test('resolvingFromAReloadedNotedPlanGeneratesNotedOccurrences', () async {
+      await seedPlanHolders();
+      store.enqueue([UpsertPlan(buildNotedPlan('p1', note: 'memo'))]);
+      await store.flushNow();
+
+      final state = await store.load();
+      state.resolvePlans(DateTime.utc(2026, 4, 20));
+
+      expect(state.entries, hasLength(3));
+      for (final made in state.entries.values) {
+        expect(made.note, 'memo');
+      }
+      expect(state.plans['p1']!.template.note, 'memo');
+    });
+
+    test('coalescingKeepsTheFinalClearedNote', () async {
+      await seedPlanHolders();
+      final device = await deviceID(db);
+      for (final stamped in [false, true]) {
+        final id = stamped ? 'p-cs' : 'p-cu';
+        final noted = UpsertPlan(buildNotedPlan(id, note: 'memo'));
+        final cleared = UpsertPlan(buildNotedPlan(id));
+        if (stamped) {
+          store.enqueueStamped([
+            noted,
+          ], planStamps(noted, VersionVector({'remote': 1})));
+          store.enqueueStamped([
+            cleared,
+          ], planStamps(cleared, VersionVector({'remote': 2})));
+        } else {
+          store.enqueue([noted, cleared]);
+        }
+        await store.flushNow();
+
+        final row = await selectPlanRow(id);
+        expect(row.templateNote, isNull);
+        final version = versionFromRow(row.versionData);
+        if (stamped) {
+          expect(version, VersionVector({'remote': 2}));
+        } else {
+          expect(version.counters[device], 1);
+        }
+        expect((await store.load()).plans[id]!.template.note, isNull);
+      }
+    });
+  });
 }

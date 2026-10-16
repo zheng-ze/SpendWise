@@ -1,6 +1,6 @@
 # Recurring Plans & Accounting
 
-Last reconciled: 2026-10-10
+Last reconciled: 2026-10-16
 
 The pure-domain plan and accounting logic in `packages/domain/lib/src/plans/` and
 `packages/domain/lib/src/accounting.dart`, plus the plan mutators on `LedgerState`. Plans expand
@@ -62,6 +62,17 @@ plan it computes `occurrences(after: lastResolvedDate, upTo: now)`, builds each 
 occurrence before that failure, then still attempts later dates. A failed occurrence is recorded in
 `failures` and retried on a later sweep. The plan is retired (removed + `DeletePlan`) if exhausted, else
 upserted if due, else left alone. A `PlanResolution` carries both `changes` and `failures`.
+
+**Template note** - `EntryTemplate.note` is an optional trimmed string carried on the
+recurring plan (`packages/domain/lib/src/entries/entry_template.dart`). `makeEntry` forwards it
+into every newly generated occurrence, so a repeating entry saved with a note stamps each
+occurrence with it. An accepted whole-plan replacement without a note clears the stored value;
+existing occurrences keep their own independently stored `Entry.note` and are never rewritten.
+Changing a template note affects only subsequently generated occurrences. The note never affects
+occurrence timing, deterministic ids, plan validation or accounting. Plan edits that rebuild the
+template preserve the latest persisted note. Source:
+`packages/domain/test/entries/entry_template_note_test.dart` - all groups;
+`app/test/ui/settings/plan/plan_form_view_model_test.dart` - template-note preservation.
 
 The resolve cursor stops at the first failure because a later cursor would skip the failed
 occurrence's retry; replaying a stale window yields the same result.

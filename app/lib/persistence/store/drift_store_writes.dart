@@ -101,7 +101,15 @@ extension _DriftStoreWrites on DriftLedgerStore {
           (v) => entryToRow(entry, v).toCompanion(false),
         );
       case UpsertPlan(:final plan):
-        await _upsert(db.plans, plan.id, write, (v) => planToRow(plan, v));
+        await _upsert(
+          db.plans,
+          plan.id,
+          write,
+          (v) => planToRow(
+            plan,
+            v,
+          ).toCompanion(true).copyWith(templateNote: Value(plan.template.note)),
+        );
       case UpsertBudget(:final budget):
         await _upsert(
           db.budgets,
