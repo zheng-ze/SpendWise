@@ -54,7 +54,10 @@ class AppSheet extends StatefulWidget {
     this.inputSurface,
     this.alert,
     this.onAlertAction,
+    this.desktopMaxHeightFraction = defaultMaxHeightFraction,
   });
+
+  static const defaultMaxHeightFraction = 0.66;
 
   final Widget header;
 
@@ -68,13 +71,13 @@ class AppSheet extends StatefulWidget {
 
   final VoidCallback? onAlertAction;
 
+  final double desktopMaxHeightFraction;
+
   @override
   State<AppSheet> createState() => _AppSheetState();
 }
 
 class _AppSheetState extends State<AppSheet> {
-  static const _maxHeightFraction = 0.66;
-
   ValueNotifier<SheetAlertData?>? _alerts;
 
   ValueNotifier<VoidCallback?>? _alertAction;
@@ -122,9 +125,13 @@ class _AppSheetState extends State<AppSheet> {
     final open = presentation == AppSheetPresentation.open;
     final desktop = presentation == AppSheetPresentation.desktop;
     final media = MediaQuery.of(context);
+    final available =
+        media.size.height - media.padding.top - media.viewInsets.bottom;
     final cap =
-        _maxHeightFraction *
-        (media.size.height - media.padding.top - media.viewInsets.bottom);
+        (desktop
+            ? widget.desktopMaxHeightFraction
+            : AppSheet.defaultMaxHeightFraction) *
+        available;
     final openHeight =
         media.size.height -
         media.padding.top -
