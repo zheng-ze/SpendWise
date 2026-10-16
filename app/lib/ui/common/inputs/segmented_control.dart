@@ -118,8 +118,6 @@ class _Segment extends StatelessWidget {
     }
     final labelText = Text(
       label,
-      maxLines: 1,
-      softWrap: false,
       textAlign: TextAlign.center,
       style: TextStyle(
         fontSize: small ? _smallFontSize : _regularFontSize,
@@ -135,7 +133,7 @@ class _Segment extends StatelessWidget {
         padding: EdgeInsets.symmetric(
           vertical: small ? _smallVerticalPadding : _regularVerticalPadding,
         ),
-        child: FittedBox(fit: BoxFit.scaleDown, child: labelText),
+        child: labelText,
       ),
     );
   }

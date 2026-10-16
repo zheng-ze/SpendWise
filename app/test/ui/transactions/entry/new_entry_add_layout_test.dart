@@ -20,6 +20,8 @@ const _textScale = 1.5;
 const _keyboardHeight = 300.0;
 const _safeTop = 20.0;
 const _safeBottom = 34.0;
+const _dragUp = Offset(0, -80);
+const _dragDownward = Offset(0, 80);
 const _handleWidth = 34.0;
 const _handleHeight = 4.0;
 
@@ -69,6 +71,22 @@ ScrollPosition _scrollPosition(WidgetTester tester, int index) {
     matching: find.byType(Scrollable),
   );
   return tester.state<ScrollableState>(scrollables.at(index)).position;
+}
+
+Future<void> _dragIntoView(
+  WidgetTester tester,
+  String label,
+  Offset step,
+) async {
+  final outer = find
+      .descendant(
+        of: find.byType(AppSheet),
+        matching: find.byType(SingleChildScrollView),
+      )
+      .first;
+  await tester.dragUntilVisible(find.text(label), outer, step);
+  await tester.pumpAndSettle();
+  expect(find.text(label).hitTestable(), findsOneWidget, reason: label);
 }
 
 Future<void> _expectChromeReachable(WidgetTester tester) async {
@@ -253,18 +271,14 @@ void main() {
       final harness = await pumpShell(tester, size: _compactPhone);
       await openAdd(tester, harness);
 
-      final outer = _scrollPosition(tester, 0);
-      for (final offset in [0.0, outer.maxScrollExtent]) {
-        outer.jumpTo(offset);
-        await tester.pumpAndSettle();
-        expect(tester.takeException(), isNull);
-        expect(find.byType(NumberPad), findsOneWidget);
+      for (final label in ['Date', 'Save entry', '5']) {
+        await _dragIntoView(tester, label, _dragUp);
       }
-      for (final label in ['Cancel', 'Save entry', '5', 'Date']) {
-        await tester.ensureVisible(find.text(label));
-        await tester.pumpAndSettle();
-        expect(find.text(label).hitTestable(), findsOneWidget, reason: label);
-      }
+      await tester.tap(find.text('5'));
+      await tester.pumpAndSettle();
+      expect(harness.draft['amount'], '5');
+      await _dragIntoView(tester, 'Cancel', _dragDownward);
+      expect(tester.takeException(), isNull);
     });
   });
 

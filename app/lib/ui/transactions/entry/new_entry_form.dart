@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/common/inputs/number_pad.dart';
@@ -24,8 +25,6 @@ const _desktopMaxHeightFraction = 1.0;
 
 const _sectionGap = 12.0;
 
-const _amountRegion = 'add-amount';
-
 const _groupRadius = 12.0;
 
 const _groupBorderWidth = 1.0;
@@ -43,6 +42,7 @@ class NewEntryForm extends StatefulWidget {
     required this.formKey,
     required this.viewModel,
     required this.state,
+    this.display,
     this.alert,
     this.onAlertAction,
   });
@@ -50,6 +50,7 @@ class NewEntryForm extends StatefulWidget {
   final String? formKey;
   final EntryFormViewModel viewModel;
   final EntryFormViewState state;
+  final EntryFormDisplay? display;
 
   final SheetAlertData? alert;
 
@@ -69,6 +70,10 @@ class _NewEntryFormState extends State<NewEntryForm> {
   final _amountFocus = FocusNode();
   final _nameFocus = FocusNode();
   bool _keyboardSeen = false;
+  bool _routeWasCurrent = true;
+  Offset? _outsideDownAt;
+  FocusNode? _focusAtPointerDown;
+  FocusNode? _focusBeforeCover;
 
   @override
   void initState() {
@@ -85,6 +90,40 @@ class _NewEntryFormState extends State<NewEntryForm> {
     _keyboardSeen = keyboardUp;
     final restorePad = dismissed && _nameFocus.hasFocus && _usesPad;
     if (restorePad) _amountFocus.requestFocus();
+    _trackCover(ModalRoute.isCurrentOf(context) ?? true);
+  }
+
+  void _trackCover(bool current) {
+    if (_routeWasCurrent && !current) _focusBeforeCover = _focusAtPointerDown;
+    if (!_routeWasCurrent && current) _restoreFocusAfterCover();
+    _routeWasCurrent = current;
+  }
+
+  void _restoreFocusAfterCover() {
+    final node = _focusBeforeCover;
+    _focusBeforeCover = null;
+    if (node == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) node.requestFocus();
+    });
+  }
+
+  void _rememberFocus(PointerDownEvent event) {
+    _focusAtPointerDown = _amountFocus.hasFocus
+        ? _amountFocus
+        : _nameFocus.hasFocus
+        ? _nameFocus
+        : null;
+  }
+
+  void _outsideDown(PointerDownEvent event) => _outsideDownAt = event.position;
+
+  void _outsideUp(FocusNode node, PointerUpEvent event) {
+    final down = _outsideDownAt;
+    _outsideDownAt = null;
+    if (down == null) return;
+    if ((event.position - down).distance > kTouchSlop) return;
+    node.unfocus();
   }
 
   @override
@@ -153,6 +192,14 @@ class _NewEntryFormState extends State<NewEntryForm> {
       amountFocus: _amountFocus,
       nameFocus: _nameFocus,
       systemKeyboard: desktop,
+      display: widget.display,
+      onOutsideDown: _outsideDown,
+      onOutsideUp: _outsideUp,
+    );
+    final trackedBody = Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: _rememberFocus,
+      child: body,
     );
     final pad = padVisible
         ? NumberPad(
@@ -162,13 +209,11 @@ class _NewEntryFormState extends State<NewEntryForm> {
             onBackspace: () => _applyEdit(const AmountEdit.delete()),
           )
         : null;
-    final inputSurface = pad == null
-        ? null
-        : TapRegion(groupId: _amountRegion, child: pad);
+    final inputSurface = pad == null ? null : TextFieldTapRegion(child: pad);
 
     return AppSheet(
       header: header,
-      body: body,
+      body: trackedBody,
       footer: _NewEntrySaveFooter(onSave: save),
       inputSurface: inputSurface,
       dragToDismiss: true,
@@ -179,7 +224,6 @@ class _NewEntryFormState extends State<NewEntryForm> {
   }
 }
 
-// MARK: - NewEntryBody
 class _NewEntryBody extends StatelessWidget {
   const _NewEntryBody({
     required this.formKey,
@@ -190,6 +234,9 @@ class _NewEntryBody extends StatelessWidget {
     required this.amountFocus,
     required this.nameFocus,
     required this.systemKeyboard,
+    required this.display,
+    required this.onOutsideDown,
+    required this.onOutsideUp,
   });
 
   final String? formKey;
@@ -200,6 +247,9 @@ class _NewEntryBody extends StatelessWidget {
   final FocusNode amountFocus;
   final FocusNode nameFocus;
   final bool systemKeyboard;
+  final EntryFormDisplay? display;
+  final ValueChanged<PointerDownEvent> onOutsideDown;
+  final void Function(FocusNode, PointerUpEvent) onOutsideUp;
 
   static const _kindOptions = [
     SegmentedOption(value: EntryFormKind.expense, label: 'Expense'),
@@ -214,32 +264,29 @@ class _NewEntryBody extends StatelessWidget {
       value: state.kind,
       onChanged: viewModel.setKind,
     );
-    final amountBlock = AddAmountBlock(
+    final amount = AddAmountBlock(
       controller: amountController,
       focusNode: amountFocus,
+      kind: state.kind,
       systemKeyboard: systemKeyboard,
       onChanged: viewModel.setAmount,
-    );
-    final amount = TapRegion(
-      groupId: _amountRegion,
-      onTapOutside: (_) => amountFocus.unfocus(),
-      child: GestureDetector(
-        onTap: amountFocus.requestFocus,
-        child: amountBlock,
-      ),
+      onTapOutside: onOutsideDown,
+      onTapUpOutside: (event) => onOutsideUp(amountFocus, event),
     );
     final name = TextField(
       controller: nameController,
       focusNode: nameFocus,
       decoration: const InputDecoration(hintText: 'Name'),
       onChanged: viewModel.setName,
-      onTapOutside: (_) => nameFocus.unfocus(),
+      onTapOutside: onOutsideDown,
+      onTapUpOutside: (event) => onOutsideUp(nameFocus, event),
     );
     final rows = EntryFields(
       viewModel: viewModel,
       state: state,
       readOnly: false,
       includeHead: false,
+      display: display,
     );
     final group = _FormGroup(children: [name, rows]);
 
@@ -258,7 +305,6 @@ class _NewEntryBody extends StatelessWidget {
   }
 }
 
-// MARK: - FormGroup
 class _FormGroup extends StatelessWidget {
   const _FormGroup({required this.children});
 
@@ -307,6 +353,7 @@ class NewEntryLoadingForm extends StatelessWidget {
       header: _NewEntryHeader(onCancel: onCancel),
       body: const _NewEntryLoadingBody(),
       footer: const _NewEntrySaveFooter(onSave: null),
+      dragToDismiss: true,
       alert: alert,
       onAlertAction: onAlertAction,
       desktopMaxHeightFraction: _desktopMaxHeightFraction,
@@ -361,48 +408,27 @@ class _NewEntryHeader extends StatelessWidget {
       child: TextButton(
         style: style,
         onPressed: onCancel,
-        child: const _ActionLabel('Cancel'),
+        child: const Text('Cancel'),
       ),
     );
-    final titleText = Text(
-      'Add entry',
-      maxLines: 1,
-      softWrap: false,
-      style: Theme.of(context).textTheme.titleMedium,
+    final title = Expanded(
+      child: Text(
+        'Add entry',
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.titleMedium,
+      ),
     );
-    final title = FittedBox(fit: BoxFit.scaleDown, child: titleText);
     final saveAction = showSave
         ? Flexible(
             child: TextButton(
               style: style,
               onPressed: onSave,
-              child: const _ActionLabel('Save'),
+              child: const Text('Save'),
             ),
           )
         : const SizedBox(width: _actionMinSize);
 
-    return Row(
-      children: [
-        cancel,
-        Expanded(child: title),
-        saveAction,
-      ],
-    );
-  }
-}
-
-// MARK: - ActionLabel
-class _ActionLabel extends StatelessWidget {
-  const _ActionLabel(this.label);
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return FittedBox(
-      fit: BoxFit.scaleDown,
-      child: Text(label, maxLines: 1, softWrap: false),
-    );
+    return Row(children: [cancel, title, saveAction]);
   }
 }
 

@@ -28,6 +28,7 @@ class EntryFields extends ConsumerStatefulWidget {
     required this.readOnly,
     this.showDelete = false,
     this.includeHead = true,
+    this.display,
   });
 
   final EntryFormViewModel viewModel;
@@ -35,6 +36,7 @@ class EntryFields extends ConsumerStatefulWidget {
   final bool readOnly;
   final bool showDelete;
   final bool includeHead;
+  final EntryFormDisplay? display;
 
   @override
   ConsumerState<EntryFields> createState() => _EntryFieldsState();
@@ -147,7 +149,10 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
     final state = widget.state;
     final readOnly = widget.readOnly;
     final viewModel = widget.viewModel;
-    final ledgerState = ref.watch(ledgerProvider)?.state;
+    final display = widget.display;
+    final ledgerState = display == null
+        ? ref.watch(ledgerProvider)?.state
+        : null;
     final isNew = state.mode == EntryFormMode.newEntry;
 
     String? sourceLabel(String? id) => ledgerState?.sourceName(id);
@@ -162,6 +167,16 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
     }
 
     Widget? categoryLeading() {
+      if (display case EntryFormDisplay(
+        :final categorySymbol?,
+        :final categoryColorHex?,
+      )) {
+        return CategoryIcon(
+          symbolName: categorySymbol,
+          color: parseColorHex(categoryColorHex),
+          size: _categoryIconSize,
+        );
+      }
       final id = state.categoryId;
       if (id == null || ledgerState == null) return null;
       final category = ledgerState.categories[id];
@@ -177,51 +192,69 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
     final sourceDestinationRows = [
       _EntryValueRow(
         title: kind == EntryFormKind.transfer ? 'From' : 'Account',
-        value: sourceLabel(state.sourceId) ?? 'Select',
+        value:
+            (display == null
+                ? sourceLabel(state.sourceId)
+                : display.sourceLabel) ??
+            'Select',
         onTap: readOnly ? null : viewModel.requestPickSource,
       ),
       if (kind == EntryFormKind.transfer)
         _EntryValueRow(
           title: 'To',
-          value: sourceLabel(state.destinationId) ?? 'Select',
+          value:
+              (display == null
+                  ? sourceLabel(state.destinationId)
+                  : display.destinationLabel) ??
+              'Select',
           onTap: readOnly ? null : viewModel.requestPickDestination,
         )
       else
         _EntryValueRow(
           leading: categoryLeading(),
           title: 'Category',
-          value: categoryLabel(state.categoryId) ?? 'None',
+          value:
+              (display == null
+                  ? categoryLabel(state.categoryId)
+                  : display.categoryLabel) ??
+              'None',
           onTap: readOnly || state.isSystemEntry
               ? null
               : viewModel.requestPickCategory,
         ),
     ];
 
+    final amountField = IgnorePointer(
+      ignoring: readOnly,
+      child: AmountField(
+        controller: _amountController,
+        allowsNegative: false,
+        onChanged: viewModel.setAmount,
+      ),
+    );
+    final nameField = IgnorePointer(
+      ignoring: readOnly || state.isSystemEntry,
+      child: TextField(
+        controller: _nameController,
+        decoration: const InputDecoration(hintText: 'Name'),
+        onChanged: viewModel.setName,
+      ),
+    );
+    final head = widget.includeHead
+        ? [
+            _kindSelector(),
+            const SizedBox(height: _sectionSpacing),
+            amountField,
+            const SizedBox(height: _sectionSpacing),
+            nameField,
+            const SizedBox(height: _sectionSpacing),
+          ]
+        : const <Widget>[];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (widget.includeHead) ...[
-          _kindSelector(),
-          const SizedBox(height: _sectionSpacing),
-          IgnorePointer(
-            ignoring: readOnly,
-            child: AmountField(
-              controller: _amountController,
-              allowsNegative: false,
-              onChanged: viewModel.setAmount,
-            ),
-          ),
-          const SizedBox(height: _sectionSpacing),
-          IgnorePointer(
-            ignoring: readOnly || state.isSystemEntry,
-            child: TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(hintText: 'Name'),
-              onChanged: viewModel.setName,
-            ),
-          ),
-          const SizedBox(height: _sectionSpacing),
-        ],
+        ...head,
         _dateRow(isNew: isNew),
         if (isNew && state.recurrence != null) ..._recurrenceSection(),
         ...sourceDestinationRows,

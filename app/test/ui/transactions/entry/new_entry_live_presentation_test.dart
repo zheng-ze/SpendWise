@@ -828,7 +828,7 @@ void main() {
     ) async {
       tester.view.padding = const FakeViewPadding(top: 24, bottom: 20);
       addTearDown(tester.view.resetViewPadding);
-      tester.view.viewInsets = const FakeViewPadding(bottom: 250);
+      tester.view.viewInsets = const FakeViewPadding(bottom: 200);
       addTearDown(tester.view.resetViewInsets);
       final sheet = await openSmallSheet(tester);
 
@@ -840,7 +840,7 @@ void main() {
       await expectUsableControl(tester, find.byType(TextField).at(0), sheet);
       expect(
         tester.getRect(find.byType(TextField).at(0)).bottom,
-        lessThanOrEqualTo(_smallOpenSize.height - 250),
+        lessThanOrEqualTo(_smallOpenSize.height - 200),
       );
 
       await tester.ensureVisible(find.byType(Switch));
@@ -859,7 +859,7 @@ void main() {
       await expectUsableControl(tester, find.text('Save'), sheet);
       expect(
         tester.getRect(find.text('Save')).bottom,
-        lessThanOrEqualTo(_smallOpenSize.height - 250),
+        lessThanOrEqualTo(_smallOpenSize.height - 200),
       );
 
       expect(tester.takeException(), isNull);

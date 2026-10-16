@@ -113,6 +113,7 @@ class _AddEntryHost extends ConsumerWidget {
       formKey: null,
       viewModel: ref.read(entryFormViewModelProvider(null).notifier),
       state: state,
+      display: ref.watch(entryFormDisplayProvider(null)),
       alert: saveAlert,
     );
   }

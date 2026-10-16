@@ -1,7 +1,12 @@
+import 'dart:async';
+
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:spendwise/ui/common/sheets/app_sheet.dart';
+import 'package:spendwise/ui/transactions/entry/steps/entry_form_logic.dart';
 import 'package:spendwise/ui/common/inputs/number_pad.dart';
+import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/entry/new_entry_presenter.dart';
 
 import 'new_entry_session_harness.dart';
@@ -23,6 +28,81 @@ Future<EntryHarness> _openAdd(
 
 Future<void> _tapOutside(WidgetTester tester) async {
   await tester.tap(find.text('Add entry'));
+  await tester.pumpAndSettle();
+}
+
+const _formSwipe = Offset(0, -60);
+const _cancelPickerTap = Offset(10, 10);
+const _padKey = '5';
+
+Future<void> _pressPadKey(WidgetTester tester, PointerDeviceKind kind) async {
+  final center = tester.getCenter(find.text(_padKey));
+  final gesture = await tester.startGesture(center, kind: kind);
+  await tester.pump();
+  await gesture.up();
+  await tester.pumpAndSettle();
+}
+
+Future<void> _expectPadAcceptsPress(
+  WidgetTester tester,
+  EntryHarness harness,
+  PointerDeviceKind kind,
+) async {
+  await _pressPadKey(tester, kind);
+  expect(find.byType(NumberPad), findsOneWidget);
+  expect(harness.draft['amount'], _padKey);
+}
+
+Future<void> _swipeForm(WidgetTester tester) async {
+  await tester.drag(find.text('Expense'), _formSwipe);
+  await tester.pumpAndSettle();
+}
+
+Future<void> _expectKindTappable(
+  WidgetTester tester,
+  EntryHarness harness,
+  String label,
+  EntryFormKind kind,
+) async {
+  await tester.ensureVisible(find.text(label));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(label));
+  await tester.pumpAndSettle();
+  final state = harness.container.read(entryFormViewModelProvider(null)).value;
+  expect(state!.kind, kind);
+}
+
+Future<void> _openPendingAdd(
+  WidgetTester tester,
+  EntryHarness harness,
+  Completer<void> gate,
+) async {
+  harness.faults.initGate = gate;
+  harness.opened = harness.open();
+  await tester.pump(const Duration(milliseconds: 300));
+}
+
+Future<void> _dragSheetDown(WidgetTester tester) async {
+  await tester.drag(find.text('Add entry'), _dragDown);
+  await tester.pumpAndSettle();
+}
+
+Future<void> _pickAccountFrom(
+  WidgetTester tester,
+  Finder field,
+  Offset? cancelAt,
+) async {
+  await tester.tap(field);
+  await tester.pumpAndSettle();
+  await tester.ensureVisible(find.text('Account'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Account'));
+  await tester.pumpAndSettle();
+  if (cancelAt == null) {
+    await tester.tap(find.text('Checking'));
+  } else {
+    await tester.tapAt(cancelAt);
+  }
   await tester.pumpAndSettle();
 }
 
@@ -106,21 +186,134 @@ void main() {
     });
   });
 
-  testWidgets('segment labels stay on one line at 202 dp and 1.5x text', (
+  group('outside dismissal ignores pointer kinds and scrolling', () {
+    for (final kind in [PointerDeviceKind.mouse, PointerDeviceKind.stylus]) {
+      testWidgets('a ${kind.name} pad press keeps the pad', (tester) async {
+        final harness = await _openAdd(tester);
+
+        await _expectPadAcceptsPress(tester, harness, kind);
+      });
+    }
+
+    testWidgets('a toolbar press does not dismiss the pad', (tester) async {
+      final harness = await _openAdd(tester);
+      harness.form.setAmount('12');
+      await tester.pumpAndSettle();
+
+      await tester.longPress(_amountField);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Select all'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(NumberPad), findsOneWidget);
+    });
+
+    testWidgets('swiping the form keeps the pad', (tester) async {
+      await _openAdd(tester);
+
+      await _swipeForm(tester);
+
+      expect(find.byType(NumberPad), findsOneWidget);
+    });
+
+    testWidgets('swiping the form keeps the keyboard', (tester) async {
+      await _openAdd(tester);
+      await tester.tap(_nameField);
+      await tester.pumpAndSettle();
+
+      await _swipeForm(tester);
+
+      expect(tester.testTextInput.isVisible, isTrue);
+    });
+  });
+
+  group('loading and failed Add sheets drag down', () {
+    testWidgets('a pending initialization retires on drag', (tester) async {
+      final harness = await pumpShell(tester);
+      final gate = Completer<void>();
+      await _openPendingAdd(tester, harness, gate);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+      await _dragSheetDown(tester);
+      gate.complete();
+      await tester.pumpAndSettle();
+      await harness.opened;
+
+      expect(harness.recorder.sheets, isEmpty);
+      harness.faults.initGate = null;
+      await openAdd(tester, harness);
+      expect(find.byType(NumberPad), findsOneWidget);
+    });
+
+    testWidgets('a failed initialization retires on drag', (tester) async {
+      final harness = await pumpShell(tester);
+      harness.faults.failInit = true;
+      harness.opened = harness.open();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('Retry'), findsOneWidget);
+
+      await _dragSheetDown(tester);
+      await harness.opened;
+
+      expect(harness.recorder.sheets, isEmpty);
+      harness.faults.failInit = false;
+      await openAdd(tester, harness);
+      expect(find.byType(NumberPad), findsOneWidget);
+    });
+  });
+
+  group('input mode returns after a picker', () {
+    testWidgets('Amount focus restores the pad after a cancelled picker', (
+      tester,
+    ) async {
+      await _openAdd(tester);
+
+      await _pickAccountFrom(tester, _amountField, _cancelPickerTap);
+
+      expect(find.byType(NumberPad), findsOneWidget);
+    });
+
+    testWidgets('Name focus restores the keyboard after a completed picker', (
+      tester,
+    ) async {
+      final harness = await _openAdd(tester);
+
+      await _pickAccountFrom(tester, _nameField, null);
+
+      expect(harness.draft['source'], checkingId);
+      expect(tester.testTextInput.isVisible, isTrue);
+      expect(find.byType(NumberPad), findsNothing);
+    });
+  });
+
+  testWidgets('segments wrap, stay inside the sheet and stay tappable', (
     tester,
   ) async {
     tester.platformDispatcher.textScaleFactorTestValue = 1.5;
     addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
-    await _openAdd(tester, size: const Size(600, 480));
+    final harness = await _openAdd(tester, size: const Size(600, 480));
+    await _tapOutside(tester);
+    final sheet = tester.getRect(find.byType(AppSheet));
 
-    for (final label in ['Expense', 'Income', 'Transfer']) {
-      final paragraph = tester.renderObject<RenderParagraph>(find.text(label));
-      final selection = TextSelection(
-        baseOffset: 0,
-        extentOffset: label.length,
-      );
-      expect(paragraph.getBoxesForSelection(selection), hasLength(1));
+    for (final label in ['Income', 'Transfer', 'Expense']) {
+      final rect = tester.getRect(find.text(label));
+      expect(rect.left, greaterThanOrEqualTo(sheet.left));
+      expect(rect.right, lessThanOrEqualTo(sheet.right));
     }
+    await _expectKindTappable(tester, harness, 'Income', EntryFormKind.income);
+    await _expectKindTappable(
+      tester,
+      harness,
+      'Transfer',
+      EntryFormKind.transfer,
+    );
+    await _expectKindTappable(
+      tester,
+      harness,
+      'Expense',
+      EntryFormKind.expense,
+    );
     expect(tester.takeException(), isNull);
   });
 }
