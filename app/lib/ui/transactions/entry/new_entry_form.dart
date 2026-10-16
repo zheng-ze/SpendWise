@@ -8,6 +8,7 @@ import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
 import 'package:spendwise/ui/format/amount_input.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 import 'package:spendwise/ui/transactions/entry/add_amount_block.dart';
+import 'package:spendwise/ui/transactions/entry/animated_input_surface.dart';
 import 'package:spendwise/ui/transactions/entry/fields/entry_fields.dart';
 import 'package:spendwise/ui/transactions/entry/steps/entry_form_logic.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
@@ -71,6 +72,8 @@ class _NewEntryFormState extends State<NewEntryForm> {
   final _nameFocus = FocusNode();
   bool _keyboardSeen = false;
   bool _routeWasCurrent = true;
+  bool _dismissing = false;
+  bool _padShown = false;
   Offset? _outsideDownAt;
   FocusNode? _focusAtPointerDown;
   FocusNode? _focusBeforeCover;
@@ -91,6 +94,7 @@ class _NewEntryFormState extends State<NewEntryForm> {
     final restorePad = dismissed && _nameFocus.hasFocus && _usesPad;
     if (restorePad) _amountFocus.requestFocus();
     _trackCover(ModalRoute.isCurrentOf(context) ?? true);
+    _dismissing = ModalRoute.of(context)?.isActive == false;
   }
 
   void _trackCover(bool current) {
@@ -176,7 +180,10 @@ class _NewEntryFormState extends State<NewEntryForm> {
     final presentation = AppSheetAlertSlot.maybeOf(context)?.presentation;
     final desktop = presentation == AppSheetPresentation.desktop;
     final keyboardUp = MediaQuery.viewInsetsOf(context).bottom > 0;
-    final padVisible = !desktop && _amountFocus.hasFocus && !keyboardUp;
+    final focusedPad = !desktop && _amountFocus.hasFocus && !keyboardUp;
+    final leaving = _dismissing || state.dismissed;
+    final padVisible = leaving ? _padShown : focusedPad;
+    _padShown = padVisible;
     final save = state.canSave ? viewModel.save : null;
     final header = _NewEntryHeader(
       onCancel: viewModel.cancel,
@@ -209,7 +216,11 @@ class _NewEntryFormState extends State<NewEntryForm> {
             onBackspace: () => _applyEdit(const AmountEdit.delete()),
           )
         : null;
-    final inputSurface = pad == null ? null : TextFieldTapRegion(child: pad);
+    final surface = pad == null ? null : TextFieldTapRegion(child: pad);
+    final inputSurface = AnimatedInputSurface(
+      instant: _nameFocus.hasFocus,
+      child: surface,
+    );
 
     return AppSheet(
       header: header,

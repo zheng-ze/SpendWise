@@ -236,6 +236,7 @@ void main() {
       await tester.tap(_nameField);
       await _setKeyboard(tester, _keyboardHeight);
 
+      await tester.ensureVisible(_amountField);
       await tester.tap(_amountField);
       await tester.pump();
       expect(find.byType(NumberPad), findsNothing);
