@@ -1,6 +1,6 @@
 # Sync: package engine
 
-Last reconciled: 2026-10-15
+Last reconciled: 2026-10-16
 
 ## Overview
 
@@ -340,6 +340,30 @@ republishes it drops the note, and a causally accepted replacement without note 
 concurrent replacements retain the existing conflict staging. Source: group `entry note` in
 `packages/sync/test/codec/payload_codec_test.dart`; group `reconcile: entry note identity` in
 `packages/sync/test/engine/sync_engine_test.dart`.
+
+## Template note in the version-1 payload
+
+Payload version stays 1. The nested template object inside the plan payload map carries an
+optional `note` key: the encoder writes it only when the template note is non-null
+(`packages/sync/lib/src/codec/payload_encode.dart:_encodeTemplate`), and the decoder reads it
+with the existing nullable-string reader, so a missing key and an explicit null both mean no
+note while any other non-string type throws `PayloadDecodeError`
+(`packages/sync/lib/src/codec/payload_decode_entities.dart:_decodeTemplate`). Decoded notes
+pass through `EntryTemplate` construction, so surrounding whitespace is trimmed and
+whitespace-only values become null. An old decoder ignores the added key, and old template
+payloads without the key still decode. Sync transports whole plans, so an incoming plan without
+a note is a complete replacement with null, never a request to retain the local note: an old
+peer that edits, re-encodes, stages or cursor-advances a noted plan drops the note, and a
+causally accepted replacement without note clears it, while concurrent replacements retain the
+existing conflict staging. Source: group `template note` in
+`packages/sync/test/codec/payload_codec_test.dart`; group `reconcile: template note identity` in
+`packages/sync/test/engine/sync_engine_test.dart`.
+
+Minimum peer for template-note preservation: the first release containing template-note support.
+The repository has no version tag yet and `app/pubspec.yaml` reads `0.1.0+1`, so no version
+number identifies that capability today; record the actual first shipping release or build when
+known. A peer older than that release accepts the wire payload but cannot preserve the note. No
+wire or compatibility gate is added, and the existing archive minimum-peer rule is unchanged.
 
 ## Gotchas
 

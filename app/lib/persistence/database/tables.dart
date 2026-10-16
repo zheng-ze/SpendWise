@@ -123,6 +123,8 @@ class Plans extends Table with SyncedRow {
   BoolColumn get templateIncludeInAnalysis =>
       boolean().named('template_include_in_analysis')();
 
+  TextColumn get templateNote => text().named('template_note').nullable()();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 }

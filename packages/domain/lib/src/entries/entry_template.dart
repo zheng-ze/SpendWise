@@ -14,9 +14,11 @@ class EntryTemplate with HolderReferencing {
     required String sourceID,
     String? destinationID,
     this.includeInAnalysis = true,
+    String? note,
   }) : categoryID = normalizedOptionalID(categoryID),
        sourceID = normalizedID(sourceID),
-       destinationID = normalizedOptionalID(destinationID);
+       destinationID = normalizedOptionalID(destinationID),
+       note = _normalizedNote(note);
 
   @override
   final Decimal amount;
@@ -30,6 +32,12 @@ class EntryTemplate with HolderReferencing {
   final String? destinationID;
 
   final bool includeInAnalysis;
+  final String? note;
+
+  static String? _normalizedNote(String? raw) {
+    final trimmed = raw?.trim();
+    return trimmed == null || trimmed.isEmpty ? null : trimmed;
+  }
 
   // MARK: - Derivers
 
@@ -43,6 +51,7 @@ class EntryTemplate with HolderReferencing {
       sourceID: sourceID,
       destinationID: destinationID,
       includeInAnalysis: includeInAnalysis,
+      note: note,
     );
   }
 
@@ -56,7 +65,8 @@ class EntryTemplate with HolderReferencing {
         other.categoryID == categoryID &&
         other.sourceID == sourceID &&
         other.destinationID == destinationID &&
-        other.includeInAnalysis == includeInAnalysis;
+        other.includeInAnalysis == includeInAnalysis &&
+        other.note == note;
   }
 
   @override
@@ -67,5 +77,6 @@ class EntryTemplate with HolderReferencing {
     sourceID,
     destinationID,
     includeInAnalysis,
+    note,
   );
 }

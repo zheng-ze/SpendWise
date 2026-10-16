@@ -487,6 +487,67 @@ void main() {
 
       expect(planToRow(plan, version).lifecycle, 0);
     });
+
+    test('a noted template round-trips with its trimmed note', () {
+      final plan = RecurringPlan(
+        id: planID,
+        template: EntryTemplate(
+          amount: Decimal.parse('-15.50'),
+          name: 'Gym',
+          categoryID: categoryID,
+          sourceID: accountID,
+          note: '  Pack shoes  ',
+        ),
+        frequency: RecurrenceFrequency.monthly,
+        anchor: DateTime.utc(2026, 1, 5),
+        lastResolvedDate: DateTime.utc(2026, 1, 5),
+      );
+
+      final row = planToRow(plan, version);
+
+      expect(row.templateNote, 'Pack shoes');
+      expect(planFromRow(row), plan);
+      expect(planFromRow(row).template.note, 'Pack shoes');
+    });
+
+    test(
+      'a template without a note stores a null note and loads unchanged',
+      () {
+        final plan = RecurringPlan(
+          id: planID,
+          template: makeTemplate(),
+          frequency: RecurrenceFrequency.monthly,
+          anchor: DateTime.utc(2026, 1, 5),
+          lastResolvedDate: DateTime.utc(2026, 1, 5),
+        );
+
+        final row = planToRow(plan, version);
+
+        expect(row.templateNote, isNull);
+        expect(planFromRow(row), plan);
+        expect(planFromRow(row).template.note, isNull);
+      },
+    );
+
+    test('a whitespace-only template note maps to a null column', () {
+      final plan = RecurringPlan(
+        id: planID,
+        template: EntryTemplate(
+          amount: Decimal.parse('-15.50'),
+          name: 'Gym',
+          sourceID: accountID,
+          note: '   ',
+        ),
+        frequency: RecurrenceFrequency.monthly,
+        anchor: DateTime.utc(2026, 1, 5),
+        lastResolvedDate: DateTime.utc(2026, 1, 5),
+      );
+
+      final row = planToRow(plan, version);
+
+      expect(row.templateNote, isNull);
+      expect(planFromRow(row).template.note, isNull);
+    });
   });
 
   group('budget', () {

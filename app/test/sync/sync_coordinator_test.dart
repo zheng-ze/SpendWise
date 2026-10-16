@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
@@ -2544,6 +2545,98 @@ void main() {
       expect(ledger.state.binnedEntries, isEmpty);
       final snapshot = await setup.coordinator.metadataStore.snapshot();
       expect(snapshot.watermarks[SyncCollection.entries], isNull);
+    });
+  });
+
+  group('processPullPage: template note', () {
+    const holderID = 'aaaaaaaa-0000-1111-2222-333333333333';
+    const planID = 'ffffffff-0000-1111-2222-888888888888';
+
+    RecurringPlan notedPlan(String? note) => RecurringPlan(
+      id: planID,
+      template: EntryTemplate(
+        amount: Decimal.parse('50.00'),
+        name: 'Rent',
+        sourceID: holderID,
+        note: note,
+      ),
+      frequency: RecurrenceFrequency.monthly,
+      anchor: DateTime.utc(2024, 1, 1),
+      lastResolvedDate: DateTime.utc(2024, 1, 1),
+    );
+
+    test('a pulled noted plan keeps its note through a store restart and '
+        'resolves noted occurrences', () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'spendwise-coordinator-note-test',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      await db.close();
+      db = LedgerDatabase(NativeDatabase(File('${directory.path}/sync.db')));
+
+      final key = _freshKey();
+      final backend = _FakeSyncBackend();
+      final setup = await driftSetup(backend: backend, e2eKey: key);
+      final coordinator = setup.coordinator;
+      await seedDriftHolder(holderID, coordinator.persistenceProcessor);
+      await coordinator.metadataStore.enterReconciliationComplete();
+      await coordinator.metadataStore.enterGateEnabled();
+
+      backend.pages[SyncCollection.plans] = _pullPage(<SyncEnvelope>[
+        await _pullEnvelope(
+          key: key,
+          rowID: planID,
+          version: VersionVector(<String, int>{'remotedev': 1}),
+          change: UpsertPlan(notedPlan('  memo ')),
+          collection: SyncCollection.plans,
+        ),
+      ], 'cursor-1');
+      await coordinator.processPullPage(SyncCollection.plans);
+      await coordinator.persistenceProcessor.flush();
+
+      expect(ledger.state.plans[planID]!.template.note, 'memo');
+
+      final stored = await db.select(db.plans).getSingle();
+      expect(stored.templateNote, 'memo');
+      expect(
+        VersionVector.decode(stored.versionData),
+        VersionVector(<String, int>{'remotedev': 1}),
+      );
+
+      final reopened = LedgerDatabase(
+        NativeDatabase(File('${directory.path}/sync.db')),
+      );
+      addTearDown(reopened.close);
+      final freshStore = DriftLedgerStore(reopened);
+      final reloaded = await freshStore.load();
+      expect(reloaded.plans[planID]!.template.note, 'memo');
+
+      final reopenedRow = await reopened.select(reopened.plans).getSingle();
+      expect(
+        VersionVector.decode(reopenedRow.versionData),
+        VersionVector(<String, int>{'remotedev': 1}),
+      );
+
+      final result = reloaded.resolvePlans(DateTime.utc(2024, 4, 1));
+      expect(result.failures, isEmpty);
+      expect(reloaded.entries, hasLength(3));
+      for (final made in reloaded.entries.values) {
+        expect(made.note, 'memo');
+      }
+      expect(
+        reloaded.plans[planID]!.lastResolvedDate,
+        DateTime.utc(2024, 4, 1),
+      );
+
+      freshStore.enqueue([UpsertPlan(reloaded.plans[planID]!)]);
+      await freshStore.flushNow();
+      final bumped = await reopened.select(reopened.plans).getSingle();
+      final bumpedVersion = VersionVector.decode(bumped.versionData);
+      expect(
+        bumpedVersion.dominates(VersionVector(<String, int>{'remotedev': 1})),
+        isTrue,
+      );
+      expect(bumpedVersion.counters.keys, contains(setup.device));
     });
   });
 

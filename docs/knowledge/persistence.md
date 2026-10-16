@@ -1,6 +1,6 @@
 # Persistence
 
-Last reconciled: 2026-10-15
+Last reconciled: 2026-10-16
 
 ## Feature overview
 
@@ -60,7 +60,8 @@ raw value on every such table (`store_meta` mixes in nothing and carries neither
 tables in `app/lib/sync/sync_tables.dart` follow their own keys; their table doc comments own that
 schema. The `entries` table carries nullable `note` (`TEXT`) and `system_kind` (`INTEGER`)
 columns alongside the other entry fields. `plans` flattens
-the `EntryTemplate` into `template_*` scalar columns.
+the `EntryTemplate` into `template_*` scalar columns, including nullable
+`template_note` (`TEXT`).
 
 ## Write pipeline
 
@@ -167,6 +168,27 @@ Previously persisted stale values in those four columns are corrected only by a 
 complete upsert; no historical repair runs. Other tables keep their current insertable and
 null-omission behavior. (tests `entry note persistence` in `drift_ledger_store_test.dart`,
 noted and absent-note mapping tests in `mappers_test.dart`)
+
+## Plan template note and schema 7
+
+`EntryTemplate.note` is an optional trimmed string normalized at construction like `Entry.note`.
+`planFromRow` maps `row.templateNote` into the template and `planToRow` maps
+`plan.template.note` back (`app/lib/persistence/mappers/mappers_plans_budgets.dart`). Schema 7
+adds nullable `plans.template_note`; the migration runs after the existing upgrade branches and
+adds the column through the Drift migrator only when `PRAGMA table_info(plans)` lacks it, so an
+already-present table from an earlier branch path skips the duplicate `ALTER`
+(`app/lib/persistence/database/ledger_database.dart`). Existing rows upgrade with SQL `NULL`
+and need no backfill; the Drift row models are regenerated through `build_runner`, never edited
+by hand.
+
+Every `UpsertPlan` writes through
+`planToRow(plan, version).toCompanion(true).copyWith(templateNote: Value(plan.template.note))`
+(`app/lib/persistence/store/drift_store_writes.dart`). Only the new `template_note` value is
+explicitly present, so a null or whitespace-only note clears its SQL column on conflict updates
+while other nullable plan columns keep their existing omission behavior, through local unstamped
+writes, stamped writes and orphan-version branches alike. (tests `plan note persistence` in
+`drift_ledger_store_test.dart`, noted and absent-note plan mapping tests in `mappers_test.dart`,
+schema-7 migration tests in `sync_migration_test.dart`)
 
 ## Seeding
 

@@ -11,6 +11,7 @@ RecurringPlan planFromRow(rows.Plan row) => RecurringPlan(
     sourceID: row.templateSourceId,
     destinationID: row.templateDestinationId,
     includeInAnalysis: row.templateIncludeInAnalysis,
+    note: row.templateNote,
   ),
   frequency: _frequency(row.frequency),
   anchor: dayFromMillis(row.anchor),
@@ -32,6 +33,7 @@ rows.Plan planToRow(RecurringPlan plan, VersionVector version) => rows.Plan(
   templateSourceId: plan.template.sourceID,
   templateDestinationId: plan.template.destinationID,
   templateIncludeInAnalysis: plan.template.includeInAnalysis,
+  templateNote: plan.template.note,
 );
 
 // MARK: - Budgets

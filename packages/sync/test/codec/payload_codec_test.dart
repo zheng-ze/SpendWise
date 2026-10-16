@@ -168,6 +168,215 @@ void main() {
     });
   });
 
+  group('template note', () {
+    Map<String, Object?> decodedTemplate(LedgerChange change) {
+      final decoded = jsonDecode(utf8.decode(codec.encodeChange(change)));
+      final json = (decoded as Map<Object?, Object?>).map<String, Object?>(
+        (key, value) => MapEntry(key.toString(), value),
+      );
+      expect(json['version'], 1);
+      final rawData = json['data'];
+      final data = (rawData as Map<Object?, Object?>).map<String, Object?>(
+        (key, value) => MapEntry(key.toString(), value),
+      );
+      final rawTemplate = data['template'];
+      return (rawTemplate as Map<Object?, Object?>).map<String, Object?>(
+        (key, value) => MapEntry(key.toString(), value),
+      );
+    }
+
+    LedgerChange decodePlanData(Map<String, Object?> data) {
+      final payload = <String, Object?>{
+        'version': 1,
+        'entity': 'plan',
+        'data': data
+      };
+      return codec.decodeChange(utf8.encode(canonicalJson(payload)));
+    }
+
+    Map<String, Object?> planData({String? note, bool includeNote = true}) {
+      final template = <String, Object?>{
+        'amount': '50.00',
+        'name': 'Rent',
+        'categoryID': null,
+        'sourceID': uuidAccounts,
+        'destinationID': null,
+        'includeInAnalysis': true,
+      };
+      if (includeNote) template['note'] = note;
+      return <String, Object?>{
+        'id': uuidPlans,
+        'template': template,
+        'frequency': 2,
+        'anchor': '2024-01-01T00:00:00.000Z',
+        'endDate': '2024-12-31T00:00:00.000Z',
+        'lastResolvedDate': '2024-06-01T00:00:00.000Z',
+      };
+    }
+
+    Map<String, Object?> frozenTemplateData(EntryTemplate template) =>
+        <String, Object?>{
+          'amount': template.amount.toString(),
+          'name': template.name,
+          'categoryID': template.categoryID,
+          'sourceID': template.sourceID,
+          'destinationID': template.destinationID,
+          'includeInAnalysis': template.includeInAnalysis,
+        };
+
+    EntryTemplate frozenDecodeTemplate(Map<String, Object?> raw) =>
+        EntryTemplate(
+          amount: Decimal.parse(raw['amount'] as String),
+          name: raw['name'] as String,
+          categoryID: raw['categoryID'] as String?,
+          sourceID: raw['sourceID'] as String,
+          destinationID: raw['destinationID'] as String?,
+          includeInAnalysis: raw['includeInAnalysis'] as bool,
+        );
+
+    test('round-trips a noted plan template', () {
+      final change =
+          UpsertPlan(testPlan(template: testTemplate(note: '  memo ')));
+
+      expect(codec.decodeChange(codec.encodeChange(change)), change);
+    });
+
+    test('round-trips a noted transfer plan template', () {
+      final template = EntryTemplate(
+        amount: Decimal.parse('-25.00'),
+        name: 'Move',
+        sourceID: uuidAccounts,
+        destinationID: uuidPockets,
+        note: '  memo ',
+      );
+
+      expect(
+        codec.decodeChange(
+          codec.encodeChange(UpsertPlan(testPlan(template: template))),
+        ),
+        UpsertPlan(testPlan(template: template)),
+      );
+    });
+
+    test('a non-null note is nested under template, not the plan root', () {
+      final decoded = jsonDecode(
+        utf8.decode(
+          codec.encodeChange(
+              UpsertPlan(testPlan(template: testTemplate(note: 'memo')))),
+        ),
+      );
+      final json = (decoded as Map<Object?, Object?>).map<String, Object?>(
+        (key, value) => MapEntry(key.toString(), value),
+      );
+      final data = (json['data'] as Map<Object?, Object?>).map<String, Object?>(
+        (key, value) => MapEntry(key.toString(), value),
+      );
+
+      expect(data.containsKey('note'), isFalse);
+      final template =
+          (data['template'] as Map<Object?, Object?>).map<String, Object?>(
+        (key, value) => MapEntry(key.toString(), value),
+      );
+      expect(template['note'], 'memo');
+    });
+
+    test('a null note omits the key from the encoded template map', () {
+      expect(
+          decodedTemplate(UpsertPlan(testPlan())).containsKey('note'), isFalse);
+    });
+
+    test('a whitespace-only note omits the key from the template map', () {
+      final change = UpsertPlan(testPlan(template: testTemplate(note: '   ')));
+
+      expect(decodedTemplate(change).containsKey('note'), isFalse);
+      expect(codec.decodeChange(codec.encodeChange(change)), change);
+    });
+
+    test('decodes a legacy template payload without a note', () {
+      final change = decodePlanData(planData(includeNote: false));
+
+      expect((change as UpsertPlan).plan.template.note, isNull);
+    });
+
+    test('decodes an explicit null template note as no note', () {
+      final change = decodePlanData(planData());
+
+      expect((change as UpsertPlan).plan.template.note, isNull);
+    });
+
+    test('decodes a surrounding-whitespace template note trimmed', () {
+      final change = decodePlanData(planData(note: '  memo '));
+
+      expect((change as UpsertPlan).plan.template.note, 'memo');
+    });
+
+    test('decodes a whitespace-only template note as no note', () {
+      final change = decodePlanData(planData(note: '   '));
+
+      expect((change as UpsertPlan).plan.template.note, isNull);
+    });
+
+    test('rejects a non-string template note value', () {
+      for (final bad in <Object?>[42, true, <Object?>[], <String, Object?>{}]) {
+        final data = planData(note: null);
+        (data['template'] as Map<String, Object?>)['note'] = bad;
+        expect(
+          () => decodePlanData(data),
+          throwsA(isA<PayloadDecodeError>()),
+          reason: '$bad',
+        );
+      }
+    });
+
+    test('a null-note template keeps the frozen pre-change bytes', () {
+      final template = testTemplate();
+      final frozen = utf8.encode(
+        canonicalJson(<String, Object?>{
+          'version': 1,
+          'entity': 'plan',
+          'data': <String, Object?>{
+            'id': uuidPlans,
+            'template': frozenTemplateData(template),
+            'frequency': 2,
+            'anchor': '2024-01-01T00:00:00.000Z',
+            'endDate': '2024-12-31T00:00:00.000Z',
+            'lastResolvedDate': '2024-06-01T00:00:00.000Z',
+          },
+        }),
+      );
+
+      expect(codec.encodeChange(UpsertPlan(testPlan())), frozen);
+    });
+
+    test('a frozen old decoder ignores a new note key and drops it on save',
+        () {
+      final template = decodedTemplate(
+        UpsertPlan(testPlan(template: testTemplate(note: 'memo'))),
+      );
+
+      final recovered = frozenDecodeTemplate(template);
+
+      expect(recovered.note, isNull);
+      expect(frozenTemplateData(recovered).containsKey('note'), isFalse);
+    });
+
+    test('payload, envelope and operation versions stay 1, 1 and 2', () {
+      final decoded = jsonDecode(
+        utf8.decode(
+          codec.encodeChange(
+              UpsertPlan(testPlan(template: testTemplate(note: 'memo')))),
+        ),
+      );
+      final json = (decoded as Map<Object?, Object?>).map<String, Object?>(
+        (key, value) => MapEntry(key.toString(), value),
+      );
+
+      expect(json['version'], 1);
+      expect(syncProtocolVersion, 1);
+      expect(syncOperationMajor, 2);
+    });
+  });
+
   group('tombstones', () {
     test('encodeChange for a delete is payload-free', () {
       expect(codec.encodeChange(DeleteMoneySource(uuidAccounts)), isEmpty);

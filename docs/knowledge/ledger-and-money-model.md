@@ -1,6 +1,6 @@
 # Ledger & Money Model
 
-Last reconciled: 2026-10-15
+Last reconciled: 2026-10-16
 
 ## Feature overview
 
@@ -180,10 +180,21 @@ the same helper the purge and sweep paths use, so the three can never drift.
   note-only changes are visible through `UpsertEntry` equality. `settingLifecycle` and the
   negative-transfer reconstruction in `_validated`
   (`packages/domain/lib/src/ledger_state/mutators/ledger_state_entry_validation.dart`) forward the
-  note unchanged. Fresh opening balances, balance adjustments, seed entries and
-  `EntryTemplate.makeEntry` results carry no note. The note never affects balances, categories,
-  references, lifecycle eligibility, recurrence templates or accounting. (tests
+  note unchanged. Fresh opening balances, balance adjustments and seed entries
+  carry no note. The entry note never affects balances, categories,
+  references, lifecycle eligibility or accounting; a template note flows into
+  each generated occurrence through `makeEntry` without changing occurrence
+  timing, ids or validation. (tests
   `packages/domain/test/entries/entry_note_test.dart`)
+- **Template note**: `EntryTemplate` carries an optional `note`
+  (`packages/domain/lib/src/entries/entry_template.dart`), normalized exactly
+  like `Entry.note`: trim, null for null/empty/whitespace-only input, internal
+  whitespace and case preserved. It participates in `==` and `hashCode`, so
+  templates differing only by note compare unequal. `makeEntry` forwards the
+  note into every new occurrence. Old callers omitting note stay note-free, and
+  plan resolution skips existing active/binned occurrence ids, so a template
+  note change affects only subsequently generated occurrences. (tests
+  `packages/domain/test/entries/entry_template_note_test.dart`)
 - **`double` anywhere in `packages/domain/lib/` is a defect**; money is `Decimal`. IDs are lowercase
   uuid strings normalized at every construction boundary. Int-coded enums (`LifecycleState`,
   `AccountType`, `CategoryKind`) carry an explicit `code`; never persist `enum.index`.

@@ -100,6 +100,7 @@ extension PayloadCodecEncode on PayloadCodec {
         'sourceID': template.sourceID,
         'destinationID': template.destinationID,
         'includeInAnalysis': template.includeInAnalysis,
+        if (template.note != null) 'note': template.note,
       };
 
   Object? _encodeYearMonth(YearMonth? month) => month == null

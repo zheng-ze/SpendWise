@@ -62,8 +62,16 @@ void main() {
         'template_source_id',
         'template_destination_id',
         'template_include_in_analysis',
+        'template_note',
       ]),
     );
+  });
+
+  test('the plan template note column is nullable text', () async {
+    final rows = await db.customSelect('PRAGMA table_info(plans)').get();
+    final byName = {for (final row in rows) row.read<String>('name'): row};
+    expect(byName['template_note']!.read<String>('type'), 'TEXT');
+    expect(byName['template_note']!.read<int>('notnull'), 0);
   });
 
   test('store_meta rejects a second row', () async {

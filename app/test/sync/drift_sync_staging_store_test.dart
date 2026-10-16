@@ -1,7 +1,8 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:domain/domain.dart';
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' hide isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/persistence/database/ledger_database.dart'
@@ -312,6 +313,108 @@ void main() {
         throwsA(isA<_CommitFailure>()),
       );
       expect(await fragile.pendingConflictList(), [conflict]);
+    });
+  });
+
+  group('template note staging', () {
+    RecurringPlan notedPlan(String id, String? note) => RecurringPlan(
+      id: id,
+      template: EntryTemplate(
+        amount: Decimal.parse('50.00'),
+        name: 'Rent',
+        categoryID: null,
+        sourceID: 'aaaaaaaa-0000-1111-2222-333333333333',
+        destinationID: null,
+        includeInAnalysis: true,
+        note: note,
+      ),
+      frequency: RecurrenceFrequency.monthly,
+      anchor: DateTime.utc(2024, 1, 1),
+      endDate: null,
+      lastResolvedDate: DateTime.utc(2024, 6, 1),
+    );
+
+    DecodedSibling notedSibling(String rowID, String device, String? note) =>
+        _sibling(
+          SyncCollection.plans,
+          rowID,
+          device,
+          change: UpsertPlan(notedPlan(rowID, note)),
+        );
+
+    LedgerChange decodeFrozenLegacyPlan() {
+      final payload = <String, Object?>{
+        'version': 1,
+        'entity': 'plan',
+        'data': <String, Object?>{
+          'id': _rowC,
+          'template': <String, Object?>{
+            'amount': '50.00',
+            'name': 'Rent',
+            'categoryID': null,
+            'sourceID': 'aaaaaaaa-0000-1111-2222-333333333333',
+            'destinationID': null,
+            'includeInAnalysis': true,
+          },
+          'frequency': 2,
+          'anchor': '2024-01-01T00:00:00.000Z',
+          'endDate': null,
+          'lastResolvedDate': '2024-06-01T00:00:00.000Z',
+        },
+      };
+      return const PayloadCodec().decodeChange(
+        utf8.encode(canonicalJson(payload)),
+      );
+    }
+
+    test('staged noted plan siblings survive close and reopen', () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'spendwise-staging-note-test',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      LedgerDatabase open() => LedgerDatabase(
+        NativeDatabase(File('${directory.path}/spendwise.db')),
+      );
+
+      final first = open();
+      final writer = await DriftSyncStagingStore.open(first);
+      final noted = StagedConflict(SyncCollection.plans, _rowA, [
+        notedSibling(_rowA, 'device-a', 'from A'),
+        notedSibling(_rowA, 'device-b', 'from B'),
+      ]);
+      await writer.stageConflict(noted);
+      await first.close();
+
+      final second = open();
+      addTearDown(second.close);
+      final reader = await DriftSyncStagingStore.open(second);
+
+      final pending = await reader.pendingConflictList();
+      expect(pending, [noted]);
+      final siblings = pending.single.siblings;
+      expect(
+        (siblings.first.change as UpsertPlan).plan.template.note,
+        'from A',
+      );
+      expect((siblings.last.change as UpsertPlan).plan.template.note, 'from B');
+    });
+
+    test('a frozen legacy staged plan payload loads with no note', () async {
+      final legacy = decodeFrozenLegacyPlan();
+      expect((legacy as UpsertPlan).plan.template.note, isNull);
+
+      await store.stageConflict(
+        StagedConflict(SyncCollection.plans, _rowC, [
+          DecodedSibling(VersionVector({'device-a': 1}), legacy, 'sibling-c-a'),
+          DecodedSibling(VersionVector({'device-b': 1}), legacy, 'sibling-c-b'),
+        ]),
+      );
+
+      final pending = await store.pendingConflictList();
+      expect(pending, hasLength(1));
+      for (final sibling in pending.single.siblings) {
+        expect((sibling.change as UpsertPlan).plan.template.note, isNull);
+      }
     });
   });
 

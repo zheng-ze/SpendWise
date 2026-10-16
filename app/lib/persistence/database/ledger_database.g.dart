@@ -2440,6 +2440,17 @@ class $PlansTable extends Plans with TableInfo<$PlansTable, Plan> {
           'CHECK ("template_include_in_analysis" IN (0, 1))',
         ),
       );
+  static const VerificationMeta _templateNoteMeta = const VerificationMeta(
+    'templateNote',
+  );
+  @override
+  late final GeneratedColumn<String> templateNote = GeneratedColumn<String>(
+    'template_note',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     versionData,
@@ -2455,6 +2466,7 @@ class $PlansTable extends Plans with TableInfo<$PlansTable, Plan> {
     templateSourceId,
     templateDestinationId,
     templateIncludeInAnalysis,
+    templateNote,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2587,6 +2599,15 @@ class $PlansTable extends Plans with TableInfo<$PlansTable, Plan> {
     } else if (isInserting) {
       context.missing(_templateIncludeInAnalysisMeta);
     }
+    if (data.containsKey('template_note')) {
+      context.handle(
+        _templateNoteMeta,
+        templateNote.isAcceptableOrUnknown(
+          data['template_note']!,
+          _templateNoteMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2648,6 +2669,10 @@ class $PlansTable extends Plans with TableInfo<$PlansTable, Plan> {
         DriftSqlType.bool,
         data['${effectivePrefix}template_include_in_analysis'],
       )!,
+      templateNote: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}template_note'],
+      ),
     );
   }
 
@@ -2671,6 +2696,7 @@ class Plan extends DataClass implements Insertable<Plan> {
   final String templateSourceId;
   final String? templateDestinationId;
   final bool templateIncludeInAnalysis;
+  final String? templateNote;
   const Plan({
     required this.versionData,
     required this.lifecycle,
@@ -2685,6 +2711,7 @@ class Plan extends DataClass implements Insertable<Plan> {
     required this.templateSourceId,
     this.templateDestinationId,
     required this.templateIncludeInAnalysis,
+    this.templateNote,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2710,6 +2737,9 @@ class Plan extends DataClass implements Insertable<Plan> {
     map['template_include_in_analysis'] = Variable<bool>(
       templateIncludeInAnalysis,
     );
+    if (!nullToAbsent || templateNote != null) {
+      map['template_note'] = Variable<String>(templateNote);
+    }
     return map;
   }
 
@@ -2734,6 +2764,9 @@ class Plan extends DataClass implements Insertable<Plan> {
           ? const Value.absent()
           : Value(templateDestinationId),
       templateIncludeInAnalysis: Value(templateIncludeInAnalysis),
+      templateNote: templateNote == null && nullToAbsent
+          ? const Value.absent()
+          : Value(templateNote),
     );
   }
 
@@ -2762,6 +2795,7 @@ class Plan extends DataClass implements Insertable<Plan> {
       templateIncludeInAnalysis: serializer.fromJson<bool>(
         json['templateIncludeInAnalysis'],
       ),
+      templateNote: serializer.fromJson<String?>(json['templateNote']),
     );
   }
   @override
@@ -2785,6 +2819,7 @@ class Plan extends DataClass implements Insertable<Plan> {
       'templateIncludeInAnalysis': serializer.toJson<bool>(
         templateIncludeInAnalysis,
       ),
+      'templateNote': serializer.toJson<String?>(templateNote),
     };
   }
 
@@ -2802,6 +2837,7 @@ class Plan extends DataClass implements Insertable<Plan> {
     String? templateSourceId,
     Value<String?> templateDestinationId = const Value.absent(),
     bool? templateIncludeInAnalysis,
+    Value<String?> templateNote = const Value.absent(),
   }) => Plan(
     versionData: versionData ?? this.versionData,
     lifecycle: lifecycle ?? this.lifecycle,
@@ -2821,6 +2857,7 @@ class Plan extends DataClass implements Insertable<Plan> {
         : this.templateDestinationId,
     templateIncludeInAnalysis:
         templateIncludeInAnalysis ?? this.templateIncludeInAnalysis,
+    templateNote: templateNote.present ? templateNote.value : this.templateNote,
   );
   Plan copyWithCompanion(PlansCompanion data) {
     return Plan(
@@ -2853,6 +2890,9 @@ class Plan extends DataClass implements Insertable<Plan> {
       templateIncludeInAnalysis: data.templateIncludeInAnalysis.present
           ? data.templateIncludeInAnalysis.value
           : this.templateIncludeInAnalysis,
+      templateNote: data.templateNote.present
+          ? data.templateNote.value
+          : this.templateNote,
     );
   }
 
@@ -2871,7 +2911,8 @@ class Plan extends DataClass implements Insertable<Plan> {
           ..write('templateCategoryId: $templateCategoryId, ')
           ..write('templateSourceId: $templateSourceId, ')
           ..write('templateDestinationId: $templateDestinationId, ')
-          ..write('templateIncludeInAnalysis: $templateIncludeInAnalysis')
+          ..write('templateIncludeInAnalysis: $templateIncludeInAnalysis, ')
+          ..write('templateNote: $templateNote')
           ..write(')'))
         .toString();
   }
@@ -2891,6 +2932,7 @@ class Plan extends DataClass implements Insertable<Plan> {
     templateSourceId,
     templateDestinationId,
     templateIncludeInAnalysis,
+    templateNote,
   );
   @override
   bool operator ==(Object other) =>
@@ -2908,7 +2950,8 @@ class Plan extends DataClass implements Insertable<Plan> {
           other.templateCategoryId == this.templateCategoryId &&
           other.templateSourceId == this.templateSourceId &&
           other.templateDestinationId == this.templateDestinationId &&
-          other.templateIncludeInAnalysis == this.templateIncludeInAnalysis);
+          other.templateIncludeInAnalysis == this.templateIncludeInAnalysis &&
+          other.templateNote == this.templateNote);
 }
 
 class PlansCompanion extends UpdateCompanion<Plan> {
@@ -2925,6 +2968,7 @@ class PlansCompanion extends UpdateCompanion<Plan> {
   final Value<String> templateSourceId;
   final Value<String?> templateDestinationId;
   final Value<bool> templateIncludeInAnalysis;
+  final Value<String?> templateNote;
   final Value<int> rowid;
   const PlansCompanion({
     this.versionData = const Value.absent(),
@@ -2940,6 +2984,7 @@ class PlansCompanion extends UpdateCompanion<Plan> {
     this.templateSourceId = const Value.absent(),
     this.templateDestinationId = const Value.absent(),
     this.templateIncludeInAnalysis = const Value.absent(),
+    this.templateNote = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   PlansCompanion.insert({
@@ -2956,6 +3001,7 @@ class PlansCompanion extends UpdateCompanion<Plan> {
     required String templateSourceId,
     this.templateDestinationId = const Value.absent(),
     required bool templateIncludeInAnalysis,
+    this.templateNote = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : versionData = Value(versionData),
        lifecycle = Value(lifecycle),
@@ -2981,6 +3027,7 @@ class PlansCompanion extends UpdateCompanion<Plan> {
     Expression<String>? templateSourceId,
     Expression<String>? templateDestinationId,
     Expression<bool>? templateIncludeInAnalysis,
+    Expression<String>? templateNote,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -3000,6 +3047,7 @@ class PlansCompanion extends UpdateCompanion<Plan> {
         'template_destination_id': templateDestinationId,
       if (templateIncludeInAnalysis != null)
         'template_include_in_analysis': templateIncludeInAnalysis,
+      if (templateNote != null) 'template_note': templateNote,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3018,6 +3066,7 @@ class PlansCompanion extends UpdateCompanion<Plan> {
     Value<String>? templateSourceId,
     Value<String?>? templateDestinationId,
     Value<bool>? templateIncludeInAnalysis,
+    Value<String?>? templateNote,
     Value<int>? rowid,
   }) {
     return PlansCompanion(
@@ -3036,6 +3085,7 @@ class PlansCompanion extends UpdateCompanion<Plan> {
           templateDestinationId ?? this.templateDestinationId,
       templateIncludeInAnalysis:
           templateIncludeInAnalysis ?? this.templateIncludeInAnalysis,
+      templateNote: templateNote ?? this.templateNote,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3086,6 +3136,9 @@ class PlansCompanion extends UpdateCompanion<Plan> {
         templateIncludeInAnalysis.value,
       );
     }
+    if (templateNote.present) {
+      map['template_note'] = Variable<String>(templateNote.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3108,6 +3161,7 @@ class PlansCompanion extends UpdateCompanion<Plan> {
           ..write('templateSourceId: $templateSourceId, ')
           ..write('templateDestinationId: $templateDestinationId, ')
           ..write('templateIncludeInAnalysis: $templateIncludeInAnalysis, ')
+          ..write('templateNote: $templateNote, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -7251,6 +7305,7 @@ typedef $$PlansTableCreateCompanionBuilder = PlansCompanion Function({
   required String templateSourceId,
   Value<String?> templateDestinationId,
   required bool templateIncludeInAnalysis,
+  Value<String?> templateNote,
   Value<int> rowid,
 });
 typedef $$PlansTableUpdateCompanionBuilder = PlansCompanion Function({
@@ -7267,6 +7322,7 @@ typedef $$PlansTableUpdateCompanionBuilder = PlansCompanion Function({
   Value<String> templateSourceId,
   Value<String?> templateDestinationId,
   Value<bool> templateIncludeInAnalysis,
+  Value<String?> templateNote,
   Value<int> rowid,
 });
 
@@ -7341,6 +7397,11 @@ class $$PlansTableFilterComposer
 
   ColumnFilters<bool> get templateIncludeInAnalysis => $composableBuilder(
     column: $table.templateIncludeInAnalysis,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get templateNote => $composableBuilder(
+    column: $table.templateNote,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -7418,6 +7479,11 @@ class $$PlansTableOrderingComposer
     column: $table.templateIncludeInAnalysis,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get templateNote => $composableBuilder(
+    column: $table.templateNote,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$PlansTableAnnotationComposer
@@ -7483,6 +7549,11 @@ class $$PlansTableAnnotationComposer
     column: $table.templateIncludeInAnalysis,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get templateNote => $composableBuilder(
+    column: $table.templateNote,
+    builder: (column) => column,
+  );
 }
 
 class $$PlansTableTableManager
@@ -7526,6 +7597,7 @@ class $$PlansTableTableManager
                 Value<String> templateSourceId = const Value.absent(),
                 Value<String?> templateDestinationId = const Value.absent(),
                 Value<bool> templateIncludeInAnalysis = const Value.absent(),
+                Value<String?> templateNote = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => PlansCompanion(
                 versionData: versionData,
@@ -7541,6 +7613,7 @@ class $$PlansTableTableManager
                 templateSourceId: templateSourceId,
                 templateDestinationId: templateDestinationId,
                 templateIncludeInAnalysis: templateIncludeInAnalysis,
+                templateNote: templateNote,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -7558,6 +7631,7 @@ class $$PlansTableTableManager
                 required String templateSourceId,
                 Value<String?> templateDestinationId = const Value.absent(),
                 required bool templateIncludeInAnalysis,
+                Value<String?> templateNote = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => PlansCompanion.insert(
                 versionData: versionData,
@@ -7573,6 +7647,7 @@ class $$PlansTableTableManager
                 templateSourceId: templateSourceId,
                 templateDestinationId: templateDestinationId,
                 templateIncludeInAnalysis: templateIncludeInAnalysis,
+                templateNote: templateNote,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

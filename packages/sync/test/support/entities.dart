@@ -56,18 +56,24 @@ Entry testEntry({String? id, DateTime? date, String? note}) => Entry(
       note: note,
     );
 
-EntryTemplate testTemplate() => EntryTemplate(
+EntryTemplate testTemplate({String? note}) => EntryTemplate(
       amount: Decimal.parse('50.00'),
       name: 'Rent',
       categoryID: null,
       sourceID: uuidAccounts,
       destinationID: null,
       includeInAnalysis: true,
+      note: note,
     );
 
-RecurringPlan testPlan({DateTime? end, bool nullEnd = false}) => RecurringPlan(
+RecurringPlan testPlan({
+  DateTime? end,
+  bool nullEnd = false,
+  EntryTemplate? template,
+}) =>
+    RecurringPlan(
       id: uuidPlans,
-      template: testTemplate(),
+      template: template ?? testTemplate(),
       frequency: RecurrenceFrequency.monthly,
       anchor: anchorDate,
       endDate: nullEnd ? null : (end ?? endDate),
