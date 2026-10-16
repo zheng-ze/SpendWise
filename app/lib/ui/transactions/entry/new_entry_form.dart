@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
-import 'package:spendwise/ui/common/feedback/error_section.dart';
 import 'package:spendwise/ui/transactions/entry/fields/entry_fields.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_strip.dart';
@@ -43,7 +42,6 @@ class NewEntryForm extends StatelessWidget {
         children: [
           ReceiptScanStrip(formKey: formKey),
           EntryFields(viewModel: viewModel, state: state, readOnly: false),
-          ErrorSection(subject: 'entry', error: state.error),
         ],
       ),
       footer: _NewEntrySaveFooter(
@@ -77,23 +75,33 @@ class NewEntryLoadingForm extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppSheet(
       header: _NewEntryHeader(onCancel: onCancel),
-      body: const Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SizedBox(height: _loadingBodySpacing),
-          Center(
-            child: SizedBox(
-              width: _loadingIndicatorSize,
-              height: _loadingIndicatorSize,
-              child: CircularProgressIndicator(),
-            ),
-          ),
-          SizedBox(height: _loadingBodySpacing),
-        ],
-      ),
+      body: const _NewEntryLoadingBody(),
       footer: const _NewEntrySaveFooter(canSave: false, onSave: _disabledSave),
       alert: alert,
       onAlertAction: onAlertAction,
+    );
+  }
+}
+
+// MARK: - NewEntryLoadingBody
+class _NewEntryLoadingBody extends StatelessWidget {
+  const _NewEntryLoadingBody();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(height: _loadingBodySpacing),
+        Center(
+          child: SizedBox(
+            width: _loadingIndicatorSize,
+            height: _loadingIndicatorSize,
+            child: CircularProgressIndicator(),
+          ),
+        ),
+        SizedBox(height: _loadingBodySpacing),
+      ],
     );
   }
 }

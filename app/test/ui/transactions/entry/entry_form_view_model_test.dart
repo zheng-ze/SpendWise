@@ -801,8 +801,13 @@ void main() {
         );
         viewModel.setName('Draft');
         viewModel.applyPickedCategory(coffee.id);
-        final before = container.read(entryFormDisplayProvider(null));
-        expect(before.categoryLabel, 'Coffee');
+        final seen = <EntryFormDisplay>[];
+        final subscription = container.listen(
+          entryFormDisplayProvider(null),
+          (_, next) => seen.add(next),
+        );
+        addTearDown(subscription.close);
+        expect(seen, isEmpty);
 
         ledger.updateCategory(
           TransactionCategory(
@@ -815,10 +820,10 @@ void main() {
             symbol: coffee.symbol,
           ),
         );
-        await container.read(entryFormViewModelProvider(null).future);
+        await Future<void>.delayed(const Duration(milliseconds: 10));
 
-        final after = container.read(entryFormDisplayProvider(null));
-        expect(after.categoryLabel, 'Espresso');
+        expect(seen, hasLength(1));
+        expect(seen.single.categoryLabel, 'Espresso');
         final form = container.read(entryFormViewModelProvider(null)).value!;
         expect(form.nameText, 'Draft');
         expect(form.categoryId, coffee.id);

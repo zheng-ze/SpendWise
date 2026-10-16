@@ -115,30 +115,25 @@ class NewEntryPresentationController {
       session.ref.read(shellLayoutModeProvider),
     );
     session.listenForSteps();
-    try {
-      unawaited(
-        showAppSheet<void>(
-          context,
-          presentation: initial,
-          presentationResolver: _liveResolver(initial),
-          onRouteCreated: session.attach,
-          builder: (_) => EntryForm(
-            key: newEntryFormKey,
-            onDismiss: session.close,
-            onRetry: session.retryInitialization,
-          ),
-        ),
-      );
-    } catch (error, stack) {
-      session.abandonAttempt();
-      if (!session.retired) _report(error, stack);
-      _abort(session);
-      return false;
-    }
+    Widget buildEntryForm(BuildContext context) => EntryForm(
+      key: newEntryFormKey,
+      onDismiss: session.close,
+      onRetry: session.retryInitialization,
+    );
+    unawaited(
+      showAppSheet<void>(
+        context,
+        presentation: initial,
+        presentationResolver: _liveResolver(initial),
+        onRouteCreated: session.attach,
+        builder: buildEntryForm,
+      ),
+    );
     _setPresentation(NewEntryPresentation.presented);
     WidgetsBinding.instance.addPostFrameCallback((_) => session.markMounted());
     await session.finishAttempt(attempt);
-    return session.eligible;
+    if (!session.eligible) session.close();
+    return true;
   }
 
   AppSheetPresentation Function(BuildContext) _liveResolver(
@@ -241,8 +236,6 @@ class _AddSession {
       notifier: notifier,
     );
   }
-
-  void abandonAttempt() => _initializing = false;
 
   void retryInitialization() => unawaited(retryLoad());
 

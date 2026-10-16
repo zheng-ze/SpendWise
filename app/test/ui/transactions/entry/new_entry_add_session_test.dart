@@ -173,6 +173,63 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('failed initialization without automatic retry', () {
+    testWidgets(
+      'a second Add after a save shows the load alert, not stale state',
+      (tester) async {
+        final faults = _InitFaults();
+        final ledger = _buildLedger();
+        await _pumpSession(tester, faults, ledger);
+        await _openAdd(tester);
+        await _fillAndSave(tester, '12.50', 'Lunch');
+        expect(ledger.state.entries.length, 1);
+
+        faults.failInit = true;
+        await _openAdd(tester);
+
+        expect(find.byType(AppSheet), findsOneWidget);
+        expect(find.text("Couldn't load the entry form"), findsOneWidget);
+        expect(find.text('Retry'), findsOneWidget);
+        expect(find.byType(TextField), findsNothing);
+        expect(find.text('Lunch'), findsNothing);
+        expect(tester.takeException(), isNull);
+
+        await _closeAdd(tester);
+      },
+    );
+
+    testWidgets('a second Add with a held gate shows the loading shell', (
+      tester,
+    ) async {
+      final faults = _InitFaults();
+      final ledger = _buildLedger();
+      final container = await _pumpSession(tester, faults, ledger);
+      await _openAdd(tester);
+      await _fillAndSave(tester, '12.50', 'Lunch');
+      expect(ledger.state.entries.length, 1);
+
+      faults.initGate = Completer<void>();
+      await tester.tap(find.text('Open Add'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump();
+
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.text('Retry'), findsNothing);
+      expect(find.byType(TextField), findsNothing);
+      expect(find.text('Lunch'), findsNothing);
+
+      faults.initGate!.complete();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Add entry'), findsOneWidget);
+      expect(
+        container.read(entryFormViewModelProvider(null)).value?.amountText,
+        isEmpty,
+      );
+
+      await _closeAdd(tester);
+    });
+
     testWidgets('a custom Exception keeps the shell with a load alert', (
       tester,
     ) async {
@@ -197,44 +254,48 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('explicit Retry recovers once and ignores overlap', (
-      tester,
-    ) async {
-      final faults = _InitFaults()..failInit = true;
-      final container = await _pumpSession(
-        tester,
-        faults,
-        _buildLedger(),
-        sourceId: _checkingId,
-      );
-      await _openAdd(tester);
+    testWidgets(
+      'explicit Retry hides the alert while pending and recovers once',
+      (tester) async {
+        final faults = _InitFaults()..failInit = true;
+        final container = await _pumpSession(
+          tester,
+          faults,
+          _buildLedger(),
+          sourceId: _checkingId,
+        );
+        await _openAdd(tester);
 
-      faults.failInit = false;
-      faults.initGate = Completer<void>();
-      await tester.tap(find.text('Retry'));
-      await tester.pump();
-      expect(faults.builds, 2);
-      expect(faults.binds, 2);
+        faults.failInit = false;
+        faults.initGate = Completer<void>();
+        await tester.tap(find.text('Retry'));
+        await tester.pump();
+        await tester.pump();
+        expect(faults.builds, 2);
+        expect(faults.binds, 2);
+        expect(find.text('Retry'), findsNothing);
+        expect(find.text("Couldn't load the entry form"), findsNothing);
 
-      await tester.tap(find.text('Retry'));
-      await tester.pump();
-      expect(faults.builds, 2);
-      expect(faults.binds, 2);
-      expect(faults.prefills, 0);
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(faults.builds, 2);
+        expect(faults.binds, 2);
+        expect(faults.prefills, 0);
+        expect(find.text('Retry'), findsNothing);
 
-      faults.initGate!.complete();
-      await tester.pumpAndSettle();
+        faults.initGate!.complete();
+        await tester.pumpAndSettle();
 
-      expect(faults.prefills, 1);
-      expect(
-        container.read(entryFormViewModelProvider(null)).value?.sourceId,
-        _checkingId,
-      );
-      expect(find.text("Couldn't load the entry form"), findsNothing);
-      expect(find.text('Add entry'), findsOneWidget);
+        expect(faults.prefills, 1);
+        expect(
+          container.read(entryFormViewModelProvider(null)).value?.sourceId,
+          _checkingId,
+        );
+        expect(find.text("Couldn't load the entry form"), findsNothing);
+        expect(find.text('Add entry'), findsOneWidget);
 
-      await _closeAdd(tester);
-    });
+        await _closeAdd(tester);
+      },
+    );
 
     testWidgets('dismissing while loading discards the stale completion', (
       tester,
@@ -360,7 +421,7 @@ void main() {
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
 
-      expect(find.byType(ErrorSection), findsOneWidget);
+      expect(find.byType(ErrorSection), findsNothing);
       expect(_saveAlert(), findsOneWidget);
       expect(find.text('Add entry'), findsOneWidget);
       expect(

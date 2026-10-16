@@ -10,6 +10,7 @@ import 'package:spendwise/settings/settings_providers.dart';
 import 'package:spendwise/ui/common/feedback/error_section.dart';
 import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
+import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/entry/new_entry_presenter.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_entry_coordinator.dart';
@@ -242,6 +243,35 @@ void main() {
       },
     );
 
+    testWidgets(
+      'cancel during loading stays presented until the route closes',
+      (tester) async {
+        final harness = await pumpShell(tester);
+        final gate = Completer<void>();
+        harness.faults.initGate = gate;
+
+        harness.opened = harness.open();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pump();
+        expect(harness.recorder.sheets, hasLength(1));
+
+        await tester.tap(find.text('Cancel'));
+        await tester.pump();
+
+        expect(harness.presentation, NewEntryPresentation.presented);
+        expect(find.byType(AppSheet), findsOneWidget);
+
+        gate.complete();
+        await tester.pumpAndSettle();
+        await harness.opened;
+
+        expect(harness.presentation, NewEntryPresentation.closed);
+        expect(harness.recorder.sheets, isEmpty);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
     testWidgets('a created but uninstalled route is disposed and released', (
       tester,
     ) async {
@@ -311,7 +341,14 @@ void main() {
     expect(harness.recorder.sheets.single, same(route));
     expect(harness.presentation, NewEntryPresentation.presented);
     expect(harness.draft['name'], 'Keep');
-    expect(find.byType(ErrorSection), findsOneWidget);
+    expect(find.byType(ErrorSection), findsNothing);
+    expect(
+      find.descendant(
+        of: find.byType(SheetAlert),
+        matching: find.textContaining('Could not save entry'),
+      ),
+      findsOneWidget,
+    );
 
     harness.form.applyPickedSource(checkingId);
     await tester.pumpAndSettle();

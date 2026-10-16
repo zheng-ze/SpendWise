@@ -87,9 +87,9 @@ class _AddEntryHost extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(entryFormViewModelProvider(null));
-    final state = async.value;
+    final state = async.isLoading || async.hasError ? null : async.value;
     if (state == null) {
-      final failed = async.hasError;
+      final failed = async.hasError && !async.isLoading;
       const loadAlert = SheetAlertData(
         message: _loadErrorMessage,
         severity: SheetAlertSeverity.error,

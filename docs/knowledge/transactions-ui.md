@@ -90,7 +90,7 @@ plain back control.
   months (a spillover week appears under both months). Tap a month expands only it; tap a week jumps
   to Daily view of that week's month.
 - **Entry form** — three modes. New ("Add entry" with Cancel in the `AppSheet` header,
-  `ReceiptScanStrip` + fields + `ErrorSection` in the body, Save in the footer driven by `canSave`).
+  `ReceiptScanStrip` + fields in the body, Save in the footer driven by `canSave`).
   The Add session installs its route before the form loads: a disabled shell with loading
   placeholders while initializing, the same shell with a "Couldn't load the entry form" alert and
   Retry on failure. `entryFormViewModelProvider` opts out of automatic retry

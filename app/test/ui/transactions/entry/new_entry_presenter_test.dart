@@ -463,7 +463,7 @@ void main() {
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
 
-      expect(find.byType(ErrorSection), findsOneWidget);
+      expect(find.byType(ErrorSection), findsNothing);
       expect(
         find.descendant(
           of: find.byType(SheetAlert),

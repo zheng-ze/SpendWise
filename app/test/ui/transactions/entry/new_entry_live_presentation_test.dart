@@ -737,7 +737,7 @@ void main() {
 
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
-      expect(find.byType(ErrorSection), findsOneWidget);
+      expect(find.byType(ErrorSection), findsNothing);
       expect(
         find.descendant(
           of: find.byType(SheetAlert),
@@ -748,7 +748,7 @@ void main() {
 
       await resize(tester, _openSize);
       expect(find.text('Add entry'), findsOneWidget);
-      expect(find.byType(ErrorSection), findsOneWidget);
+      expect(find.byType(ErrorSection), findsNothing);
       expect(
         find.descendant(
           of: find.byType(SheetAlert),
@@ -766,7 +766,7 @@ void main() {
       );
 
       await resize(tester, _phoneSize);
-      expect(find.byType(ErrorSection), findsOneWidget);
+      expect(find.byType(ErrorSection), findsNothing);
       expect(
         find.descendant(
           of: find.byType(SheetAlert),
