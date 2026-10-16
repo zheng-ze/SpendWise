@@ -19,8 +19,7 @@ Planning lives in `CONTEXT.md` and `docs/knowledge/`. Read in this order.
 This repo used to plan work through OpenSpec (`openspec/`), which has been retired. `CONTEXT.md`
 plus `docs/knowledge/` replace it entirely: `CONTEXT.md` is the glossary and index, knowledge
 entries hold both the behavior contracts and the decisions behind them. Open work items — the
-equivalent of what used to be an OpenSpec change's `tasks.md` — are tracked as GitHub issues; see
-`docs/agents/issue-tracker.md`.
+equivalent of what used to be an OpenSpec change's `tasks.md` — are tracked as GitHub issues.
 
 An earlier native prototype defined the app's behavior through parity, reached at the end of the
 port (everything through `add-drift-store`). **Work past that point (starting with the budgets
