@@ -10,6 +10,7 @@ import 'package:spendwise/settings/settings_providers.dart';
 import 'package:spendwise/ui/common/feedback/error_section.dart';
 import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
+import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/entry/new_entry_presenter.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_entry_coordinator.dart';
@@ -213,26 +214,63 @@ void main() {
   });
 
   group('failures during opening', () {
-    testWidgets('failed initialization reports once and releases', (
-      tester,
-    ) async {
-      final harness = await pumpShell(tester);
-      harness.faults.failInit = true;
+    testWidgets(
+      'failed initialization keeps the route with a load alert and Retry',
+      (tester) async {
+        final harness = await pumpShell(tester);
+        harness.faults.failInit = true;
 
-      final reports = await _openCollectingReports(tester, harness);
-      await harness.opened;
+        harness.opened = harness.open();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pump();
 
-      expect(reports, hasLength(1));
-      expect(reports.single.exception, isA<StateError>());
-      expect(harness.presentation, NewEntryPresentation.closed);
-      expect(harness.recorder.sheets, isEmpty);
-      harness.faults.failInit = false;
-      await openAdd(tester, harness);
-      expect(harness.recorder.sheets, hasLength(1));
-      addDismiss(tester)();
-      await tester.pumpAndSettle();
-      await harness.opened;
-    });
+        expect(harness.recorder.sheets, hasLength(1));
+        expect(harness.presentation, NewEntryPresentation.presented);
+        expect(find.text("Couldn't load the entry form"), findsOneWidget);
+        expect(find.text('Retry'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+
+        harness.faults.failInit = false;
+        await tester.tap(find.text('Retry'));
+        await tester.pumpAndSettle();
+
+        expect(harness.recorder.sheets, hasLength(1));
+        expect(find.text("Couldn't load the entry form"), findsNothing);
+        addDismiss(tester)();
+        await tester.pumpAndSettle();
+        await harness.opened;
+      },
+    );
+
+    testWidgets(
+      'cancel during loading stays presented until the route closes',
+      (tester) async {
+        final harness = await pumpShell(tester);
+        final gate = Completer<void>();
+        harness.faults.initGate = gate;
+
+        harness.opened = harness.open();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pump();
+        expect(harness.recorder.sheets, hasLength(1));
+
+        await tester.tap(find.text('Cancel'));
+        await tester.pump();
+
+        expect(harness.presentation, NewEntryPresentation.presented);
+        expect(find.byType(AppSheet), findsOneWidget);
+
+        gate.complete();
+        await tester.pumpAndSettle();
+        await harness.opened;
+
+        expect(harness.presentation, NewEntryPresentation.closed);
+        expect(harness.recorder.sheets, isEmpty);
+        expect(tester.takeException(), isNull);
+      },
+    );
 
     testWidgets('a created but uninstalled route is disposed and released', (
       tester,
@@ -267,7 +305,7 @@ void main() {
       final gate = Completer<void>();
       harness.faults.initGate = gate;
       await _tapShellAdd(tester);
-      expect(harness.presentation, NewEntryPresentation.opening);
+      expect(harness.presentation, NewEntryPresentation.presented);
 
       harness.showShell.value = false;
       await tester.pumpAndSettle();
@@ -303,7 +341,14 @@ void main() {
     expect(harness.recorder.sheets.single, same(route));
     expect(harness.presentation, NewEntryPresentation.presented);
     expect(harness.draft['name'], 'Keep');
-    expect(find.byType(ErrorSection), findsOneWidget);
+    expect(find.byType(ErrorSection), findsNothing);
+    expect(
+      find.descendant(
+        of: find.byType(SheetAlert),
+        matching: find.textContaining('Could not save entry'),
+      ),
+      findsOneWidget,
+    );
 
     harness.form.applyPickedSource(checkingId);
     await tester.pumpAndSettle();

@@ -12,6 +12,8 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/settings/settings_providers.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
+import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
+import 'package:spendwise/ui/common/feedback/error_section.dart';
 import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/transactions/document_crop/document_crop_screen.dart';
@@ -51,6 +53,10 @@ class _DeniedPermissions extends PermissionHandlerPlatform {
   }
 }
 
+class _InitFailure implements Exception {
+  const _InitFailure();
+}
+
 class _ThrowOnceFormNotifier extends EntryFormNotifier {
   _ThrowOnceFormNotifier(this.shouldThrow) : super(null);
 
@@ -58,7 +64,7 @@ class _ThrowOnceFormNotifier extends EntryFormNotifier {
 
   @override
   Future<EntryFormViewState> build() async {
-    if (shouldThrow()) throw StateError('deliberate init failure');
+    if (shouldThrow()) throw const _InitFailure();
     return super.build();
   }
 }
@@ -457,7 +463,14 @@ void main() {
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Could not save entry'), findsOneWidget);
+      expect(find.byType(ErrorSection), findsNothing);
+      expect(
+        find.descendant(
+          of: find.byType(SheetAlert),
+          matching: find.textContaining('Could not save entry'),
+        ),
+        findsOneWidget,
+      );
       expect(find.text('Add entry'), findsOneWidget);
       expect(ledger.state.entries, isEmpty);
 
@@ -776,48 +789,47 @@ void main() {
       await closeAdd(tester);
     });
 
-    testWidgets('a throwing form provider is reported and releases the guard', (
-      tester,
-    ) async {
-      registerSheetTearDown(tester);
-      var shouldThrow = true;
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            ledgerProvider.overrideWithValue(buildLedger()),
-            scanStripEnabledProvider.overrideWith((ref) async => true),
-            entryFormViewModelProvider(null)
-                .overrideWith(() => _ThrowOnceFormNotifier(() => shouldThrow)),
-          ],
-          child: MaterialApp(home: _PresenterHost()),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final reported = <FlutterErrorDetails>[];
-      final originalOnError = FlutterError.onError;
-      FlutterError.onError = reported.add;
-      try {
-        await tester.tap(find.text('Open Add'));
+    testWidgets(
+      'a failed initialization keeps the shell with a load alert and Retry',
+      (tester) async {
+        registerSheetTearDown(tester);
+        var shouldThrow = true;
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              ledgerProvider.overrideWithValue(buildLedger()),
+              scanStripEnabledProvider.overrideWith((ref) async => true),
+              entryFormViewModelProvider(
+                null,
+              ).overrideWith(() => _ThrowOnceFormNotifier(() => shouldThrow)),
+            ],
+            child: MaterialApp(home: _PresenterHost()),
+          ),
+        );
         await tester.pumpAndSettle();
-      } finally {
-        FlutterError.onError = originalOnError;
-      }
 
-      expect(find.byType(AppSheet), findsNothing);
-      expect(reported, hasLength(1));
-      expect(reported.single.exception, isA<StateError>());
-      expect(reported.single.stack, isNotNull);
+        await tester.tap(find.text('Open Add'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pump();
 
-      shouldThrow = false;
-      await tester.tap(find.text('Open Add'));
-      await tester.pumpAndSettle();
+        expect(find.byType(AppSheet), findsOneWidget);
+        expect(find.text('Add entry'), findsOneWidget);
+        expect(find.text("Couldn't load the entry form"), findsOneWidget);
+        expect(find.text('Retry'), findsOneWidget);
+        expect(tester.takeException(), isNull);
 
-      expect(find.byType(AppSheet), findsOneWidget);
-      expect(find.text('Add entry'), findsOneWidget);
+        shouldThrow = false;
+        await tester.tap(find.text('Retry'));
+        await tester.pumpAndSettle();
 
-      await closeAdd(tester);
-    });
+        expect(find.byType(AppSheet), findsOneWidget);
+        expect(find.text('Add entry'), findsOneWidget);
+        expect(find.text("Couldn't load the entry form"), findsNothing);
+
+        await closeAdd(tester);
+      },
+    );
 
     testWidgets('reopening resets a finished receipt session', (tester) async {
       final originalPermissions = PermissionHandlerPlatform.instance;

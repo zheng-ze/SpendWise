@@ -87,6 +87,9 @@ class _RetryButton extends StatelessWidget {
 }
 
 // MARK: - Helpers
+String entrySaveErrorMessage(LedgerError error) =>
+    'Could not save entry: ${friendlyLedgerErrorMessage(error)}';
+
 String friendlyLedgerErrorMessage(LedgerError error) {
   return switch (error) {
     IdCollision() => 'that id is already in use.',

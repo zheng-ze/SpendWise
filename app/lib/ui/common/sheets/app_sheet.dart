@@ -97,13 +97,6 @@ class _AppSheetState extends State<AppSheet> {
     }
   }
 
-  @override
-  void dispose() {
-    _alerts?.value = null;
-    _alertAction?.value = null;
-    super.dispose();
-  }
-
   void _publishAlert() {
     final alerts = _alerts;
     final alertAction = _alertAction;
