@@ -1,3 +1,5 @@
+import 'dart:ui' show Tristate;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -68,5 +70,24 @@ void main() {
       );
       expect(tester.getSize(key).height, 48);
     }
+  });
+
+  testWidgets('every digit key is a labelled button, disabled keys say so', (
+    tester,
+  ) async {
+    await pumpNumberPad(tester);
+    for (final label in ['0', '5', '9']) {
+      final data = tester
+          .getSemantics(find.bySemanticsLabel(label))
+          .getSemanticsData();
+      expect(data.flagsCollection.isButton, isTrue);
+      expect(data.flagsCollection.isEnabled, Tristate.isTrue);
+    }
+
+    await pumpNumberPad(tester, enabled: false);
+    final disabled = tester
+        .getSemantics(find.bySemanticsLabel('5'))
+        .getSemanticsData();
+    expect(disabled.flagsCollection.isEnabled, Tristate.isFalse);
   });
 }

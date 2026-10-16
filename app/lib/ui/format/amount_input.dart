@@ -47,26 +47,33 @@ class AmountEdit {
   final String? text;
 }
 
+bool _dropsExistingText(String candidate, String inserted) {
+  final keptCandidate = sanitizeAmount(candidate, allowsNegative: false);
+  final keptInserted = sanitizeAmount(inserted, allowsNegative: false);
+  final expected = candidate.length - inserted.length + keptInserted.length;
+  return keptCandidate.length != expected;
+}
+
 TextEditingValue applyAmountEdit(TextEditingValue current, AmountEdit edit) {
   final length = current.text.length;
   final selection = current.selection.isValid
       ? current.selection
       : TextSelection.collapsed(offset: length);
   final inserted = edit.text;
-  var start = selection.start;
+  var start = selection.start.clamp(0, length);
+  final end = selection.end.clamp(start, length);
   if (inserted == null && selection.isCollapsed) {
     if (start == 0) return current;
     start -= 1;
   }
-  final replaced = current.text.replaceRange(
-    start,
-    selection.end,
-    inserted ?? '',
-  );
+  final replaced = current.text.replaceRange(start, end, inserted ?? '');
   final candidate = TextEditingValue(
     text: replaced,
     selection: TextSelection.collapsed(offset: start + (inserted?.length ?? 0)),
   );
+  if (inserted != null && _dropsExistingText(replaced, inserted)) {
+    return current;
+  }
   return const AmountInputFormatter(allowsNegative: false)
       .formatEditUpdate(current, candidate);
 }

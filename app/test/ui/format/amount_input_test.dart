@@ -320,4 +320,36 @@ void main() {
       }
     });
   });
+
+  group('applyAmountEdit mid-text and stale selections', () {
+    TextEditingValue at(String text, int offset) => TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: offset),
+    );
+
+    test('refuses a decimal that would shift the existing fraction', () {
+      final value = at('1.5', 0);
+      expect(applyAmountEdit(value, const AmountEdit.insert('.')), value);
+    });
+
+    test('refuses a digit that would push out a fraction digit', () {
+      final value = at('1.23', 3);
+      expect(applyAmountEdit(value, const AmountEdit.insert('5')), value);
+    });
+
+    test('accepts a mid-text digit that keeps every character', () {
+      final value = applyAmountEdit(at('1.2', 1), const AmountEdit.insert('5'));
+      expect(value.text, '15.2');
+      expect(value.selection.baseOffset, 1 + 1);
+    });
+
+    test('clamps an out-of-range selection instead of throwing', () {
+      const stale = TextEditingValue(
+        text: '12',
+        selection: TextSelection(baseOffset: 5, extentOffset: 9),
+      );
+      expect(applyAmountEdit(stale, const AmountEdit.insert('3')).text, '123');
+      expect(applyAmountEdit(stale, const AmountEdit.delete()).text, '12');
+    });
+  });
 }

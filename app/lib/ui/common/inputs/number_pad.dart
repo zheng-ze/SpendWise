@@ -46,6 +46,7 @@ class NumberPad extends StatelessWidget {
     final colors = context.colors;
     VoidCallback? guard(VoidCallback callback) => enabled ? callback : null;
     Widget digit(String value) => _PadKey(
+      semanticLabel: value,
       onTap: guard(() => onDigit(value)),
       child: Text(value, style: context.text.row),
     );
@@ -79,13 +80,17 @@ class NumberPad extends StatelessWidget {
 // MARK: - Key
 
 class _PadKey extends StatelessWidget {
-  const _PadKey({required this.onTap, required this.child, this.semanticLabel});
+  const _PadKey({
+    required this.onTap,
+    required this.child,
+    required this.semanticLabel,
+  });
 
   final VoidCallback? onTap;
 
   final Widget child;
 
-  final String? semanticLabel;
+  final String semanticLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -96,14 +101,13 @@ class _PadKey extends StatelessWidget {
         child: Center(child: child),
       ),
     );
-    final labelled = semanticLabel == null
-        ? key
-        : Semantics(
-            label: semanticLabel,
-            button: true,
-            excludeSemantics: true,
-            child: key,
-          );
+    final labelled = Semantics(
+      label: semanticLabel,
+      button: true,
+      enabled: onTap != null,
+      excludeSemantics: true,
+      child: key,
+    );
 
     return Expanded(
       child: Material(type: MaterialType.transparency, child: labelled),
