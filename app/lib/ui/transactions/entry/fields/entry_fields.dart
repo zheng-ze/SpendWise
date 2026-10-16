@@ -259,28 +259,71 @@ class _EntryValueRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final titleStyle = textTheme.bodyLarge?.copyWith(
-      color: Theme.of(context).colorScheme.onSurface,
-    );
-    final titleText = Text(title, style: titleStyle);
-    final valueText = Text(
-      value,
-      style: textTheme.bodyMedium,
-      textAlign: TextAlign.end,
-    );
-    final titleAndValue = Wrap(
-      alignment: WrapAlignment.spaceBetween,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      spacing: _rowGap,
-      runSpacing: _stackedValueGap,
-      children: [titleText, valueText],
-    );
     return ListTile(
       contentPadding: _fieldContentPadding,
       leading: leading,
-      title: titleAndValue,
+      title: _TitleAndValue(title: title, value: value),
       onTap: onTap,
     );
+  }
+}
+
+class _TitleAndValue extends StatelessWidget {
+  const _TitleAndValue({required this.title, required this.value});
+
+  final String title;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final titleStyle = theme.textTheme.bodyLarge?.copyWith(
+      color: theme.colorScheme.onSurface,
+    );
+    final valueStyle = theme.textTheme.labelSmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+    final titleText = Text(title, style: titleStyle);
+    final valueText = Text(value, style: valueStyle, textAlign: TextAlign.end);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final titleWidth = _textWidth(context, title, titleStyle);
+        final valueWidth = _textWidth(context, value, valueStyle);
+        final fitsSideBySide =
+            titleWidth + _rowGap + valueWidth <= constraints.maxWidth;
+        if (fitsSideBySide) {
+          return Row(
+            children: [
+              titleText,
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(left: _rowGap),
+                  child: valueText,
+                ),
+              ),
+            ],
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            titleText,
+            const SizedBox(height: _stackedValueGap),
+            Align(alignment: AlignmentDirectional.centerEnd, child: valueText),
+          ],
+        );
+      },
+    );
+  }
+
+  double _textWidth(BuildContext context, String text, TextStyle? style) {
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+    )..layout();
+    final width = painter.width;
+    painter.dispose();
+    return width;
   }
 }
