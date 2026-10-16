@@ -138,4 +138,218 @@ void main() {
       expect(value.selection.baseOffset, 2);
     });
   });
+
+  group('applyAmountEdit insertion', () {
+    TextEditingValue current(String text, int offset, [int? extent]) {
+      return TextEditingValue(
+        text: text,
+        selection: TextSelection(
+          baseOffset: offset,
+          extentOffset: extent ?? offset,
+        ),
+      );
+    }
+
+    test('inserts a digit at the end, middle and beginning', () {
+      expect(
+        applyAmountEdit(current('12', 2), const AmountEdit.insert('3')).text,
+        '123',
+      );
+      expect(
+        applyAmountEdit(current('12', 1), const AmountEdit.insert('3')).text,
+        '132',
+      );
+      expect(
+        applyAmountEdit(current('12', 0), const AmountEdit.insert('3')).text,
+        '312',
+      );
+    });
+
+    test('replaces the selected range with the insertion', () {
+      final value = applyAmountEdit(
+        current('123', 1, 3),
+        const AmountEdit.insert('9'),
+      );
+      expect(value.text, '19');
+      expect(value.selection.baseOffset, 2);
+    });
+
+    test('replaces the selected range with a decimal point', () {
+      final value = applyAmountEdit(
+        current('123', 1, 2),
+        const AmountEdit.insert('.'),
+      );
+      expect(value.text, '1.3');
+      expect(value.selection.baseOffset, 2);
+    });
+
+    test('drops a repeated decimal and excess fraction digits', () {
+      expect(
+        applyAmountEdit(current('1.2', 3), const AmountEdit.insert('.')).text,
+        '1.2',
+      );
+      expect(
+        applyAmountEdit(current('1.23', 4), const AmountEdit.insert('4')).text,
+        '1.23',
+      );
+    });
+
+    test('rejects a minus and strips pasted grouping characters', () {
+      expect(
+        applyAmountEdit(current('12', 2), const AmountEdit.insert('-')).text,
+        '12',
+      );
+      expect(
+        applyAmountEdit(
+          current('', 0),
+          const AmountEdit.insert(r'$1,234'),
+        ).text,
+        '1234',
+      );
+    });
+
+    test('permits transient empty, leading and trailing decimal text', () {
+      expect(
+        applyAmountEdit(current('', 0), const AmountEdit.insert('.')).text,
+        '.',
+      );
+      expect(
+        applyAmountEdit(current('12', 2), const AmountEdit.insert('.')).text,
+        '12.',
+      );
+    });
+
+    test('lands the caret after the inserted text', () {
+      final value = applyAmountEdit(
+        current('12', 2),
+        const AmountEdit.insert('34'),
+      );
+      expect(value.selection.baseOffset, 4);
+      final middle = applyAmountEdit(
+        current('12', 1),
+        const AmountEdit.insert('34'),
+      );
+      expect(middle.selection.baseOffset, 3);
+    });
+  });
+
+  group('applyAmountEdit backspace', () {
+    TextEditingValue current(String text, int offset, [int? extent]) {
+      return TextEditingValue(
+        text: text,
+        selection: TextSelection(
+          baseOffset: offset,
+          extentOffset: extent ?? offset,
+        ),
+      );
+    }
+
+    test('deletes the character before the caret', () {
+      final value = applyAmountEdit(
+        current('123', 3),
+        const AmountEdit.delete(),
+      );
+      expect(value.text, '12');
+      expect(value.selection.baseOffset, 2);
+    });
+
+    test('deletes the selected range', () {
+      final value = applyAmountEdit(
+        current('123', 1, 3),
+        const AmountEdit.delete(),
+      );
+      expect(value.text, '1');
+      expect(value.selection.baseOffset, 1);
+    });
+
+    test('leaves text and selection alone at offset zero', () {
+      const value = TextEditingValue(
+        text: '123',
+        selection: TextSelection.collapsed(offset: 0),
+      );
+      expect(applyAmountEdit(value, const AmountEdit.delete()), value);
+    });
+
+    test('leaves empty text alone', () {
+      expect(
+        applyAmountEdit(TextEditingValue.empty, const AmountEdit.delete()).text,
+        '',
+      );
+    });
+  });
+
+  group('applyAmountEdit parity', () {
+    TextEditingValue typed(String text, int offset) {
+      final incoming = TextEditingValue(
+        text: text,
+        selection: TextSelection.collapsed(offset: offset),
+      );
+      return const AmountInputFormatter(allowsNegative: false)
+          .formatEditUpdate(TextEditingValue.empty, incoming);
+    }
+
+    test('pad and typed edits agree on text and selection', () {
+      final cases = [
+        (current: '12', at: 2, key: '3'),
+        (current: '12', at: 1, key: '3'),
+        (current: '1.2', at: 3, key: '.'),
+        (current: '', at: 0, key: '.'),
+        (current: '12', at: 2, key: '-'),
+      ];
+      for (final entry in cases) {
+        final edited = applyAmountEdit(
+          TextEditingValue(
+            text: entry.current,
+            selection: TextSelection.collapsed(offset: entry.at),
+          ),
+          AmountEdit.insert(entry.key),
+        );
+        final candidate =
+            '${entry.current.substring(0, entry.at)}${entry.key}${entry.current.substring(entry.at)}';
+        final formatted = typed(candidate, entry.at + entry.key.length);
+        expect(
+          edited.text,
+          formatted.text,
+          reason: '${entry.key} in ${entry.current}',
+        );
+        expect(
+          edited.selection.baseOffset,
+          formatted.selection.baseOffset,
+          reason: '${entry.key} in ${entry.current}',
+        );
+      }
+    });
+  });
+
+  group('applyAmountEdit mid-text and stale selections', () {
+    TextEditingValue at(String text, int offset) => TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: offset),
+    );
+
+    test('refuses a decimal that would shift the existing fraction', () {
+      final value = at('1.5', 0);
+      expect(applyAmountEdit(value, const AmountEdit.insert('.')), value);
+    });
+
+    test('refuses a digit that would push out a fraction digit', () {
+      final value = at('1.23', 3);
+      expect(applyAmountEdit(value, const AmountEdit.insert('5')), value);
+    });
+
+    test('accepts a mid-text digit that keeps every character', () {
+      final value = applyAmountEdit(at('1.2', 1), const AmountEdit.insert('5'));
+      expect(value.text, '15.2');
+      expect(value.selection.baseOffset, 1 + 1);
+    });
+
+    test('clamps an out-of-range selection instead of throwing', () {
+      const stale = TextEditingValue(
+        text: '12',
+        selection: TextSelection(baseOffset: 5, extentOffset: 9),
+      );
+      expect(applyAmountEdit(stale, const AmountEdit.insert('3')).text, '123');
+      expect(applyAmountEdit(stale, const AmountEdit.delete()).text, '12');
+    });
+  });
 }

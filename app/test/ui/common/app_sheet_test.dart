@@ -24,6 +24,7 @@ AppSheet _sheet({
   SheetAlertData? alert,
   Widget? footer,
   Widget? inputSurface,
+  double? desktopMaxHeightFraction,
   required Widget body,
 }) {
   return AppSheet(
@@ -31,6 +32,8 @@ AppSheet _sheet({
     body: body,
     footer: footer,
     inputSurface: inputSurface,
+    desktopMaxHeightFraction:
+        desktopMaxHeightFraction ?? AppSheet.defaultMaxHeightFraction,
     alert: alert,
   );
 }
@@ -619,6 +622,61 @@ void main() {
 
       contract.expectAlertOutsideSheet(tester);
       expect(_sheetHeight(tester), before);
+    });
+  });
+
+  group('desktopMaxHeightFraction', () {
+    const desktop = Size(1200, 800);
+
+    Widget longBody() => Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [for (var i = 0; i < 40; i++) Text('row $i')],
+    );
+
+    test('defaults to two thirds so existing callers are unchanged', () {
+      expect(
+        const AppSheet(
+          header: Text('Sheet title'),
+          body: Text('short body'),
+        ).desktopMaxHeightFraction,
+        AppSheet.defaultMaxHeightFraction,
+      );
+      expect(AppSheet.defaultMaxHeightFraction, 0.66);
+    });
+
+    testWidgets('the default caps long desktop content at two thirds', (
+      tester,
+    ) async {
+      _useSize(tester, desktop);
+      await _openSheet(
+        tester,
+        _sheet(body: longBody()),
+        presentation: AppSheetPresentation.desktop,
+      );
+
+      expect(
+        _sheetHeight(tester),
+        lessThanOrEqualTo(0.66 * desktop.height + 1),
+      );
+    });
+
+    testWidgets('a full fraction grows past the old cap within the viewport', (
+      tester,
+    ) async {
+      _useSize(tester, desktop);
+      await _openSheet(
+        tester,
+        _sheet(body: longBody(), desktopMaxHeightFraction: 1),
+        presentation: AppSheetPresentation.desktop,
+      );
+
+      final height = _sheetHeight(tester);
+      expect(height, greaterThan(0.66 * desktop.height + 1));
+      expect(height, lessThanOrEqualTo(desktop.height + 1));
+      expect(
+        tester.getRect(find.byType(AppSheet)).width,
+        lessThanOrEqualTo(_sheetMaxWidth),
+      );
     });
   });
 }
