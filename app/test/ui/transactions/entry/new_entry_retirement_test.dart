@@ -213,26 +213,34 @@ void main() {
   });
 
   group('failures during opening', () {
-    testWidgets('failed initialization reports once and releases', (
-      tester,
-    ) async {
-      final harness = await pumpShell(tester);
-      harness.faults.failInit = true;
+    testWidgets(
+      'failed initialization keeps the route with a load alert and Retry',
+      (tester) async {
+        final harness = await pumpShell(tester);
+        harness.faults.failInit = true;
 
-      final reports = await _openCollectingReports(tester, harness);
-      await harness.opened;
+        harness.opened = harness.open();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pump();
 
-      expect(reports, hasLength(1));
-      expect(reports.single.exception, isA<StateError>());
-      expect(harness.presentation, NewEntryPresentation.closed);
-      expect(harness.recorder.sheets, isEmpty);
-      harness.faults.failInit = false;
-      await openAdd(tester, harness);
-      expect(harness.recorder.sheets, hasLength(1));
-      addDismiss(tester)();
-      await tester.pumpAndSettle();
-      await harness.opened;
-    });
+        expect(harness.recorder.sheets, hasLength(1));
+        expect(harness.presentation, NewEntryPresentation.presented);
+        expect(find.text("Couldn't load the entry form"), findsOneWidget);
+        expect(find.text('Retry'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+
+        harness.faults.failInit = false;
+        await tester.tap(find.text('Retry'));
+        await tester.pumpAndSettle();
+
+        expect(harness.recorder.sheets, hasLength(1));
+        expect(find.text("Couldn't load the entry form"), findsNothing);
+        addDismiss(tester)();
+        await tester.pumpAndSettle();
+        await harness.opened;
+      },
+    );
 
     testWidgets('a created but uninstalled route is disposed and released', (
       tester,
@@ -267,7 +275,7 @@ void main() {
       final gate = Completer<void>();
       harness.faults.initGate = gate;
       await _tapShellAdd(tester);
-      expect(harness.presentation, NewEntryPresentation.opening);
+      expect(harness.presentation, NewEntryPresentation.presented);
 
       harness.showShell.value = false;
       await tester.pumpAndSettle();

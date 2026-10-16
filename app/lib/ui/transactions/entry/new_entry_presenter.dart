@@ -109,35 +109,36 @@ class NewEntryPresentationController {
     _AddSession session,
     String? sourceId,
   ) async {
-    final formProvider = entryFormViewModelProvider(null);
-    _container.invalidate(formProvider);
-    _container.invalidate(receiptEntryCoordinatorProvider(null));
-    await _container.read(formProvider.future);
-    if (!context.mounted || !session.eligible) return false;
-    if (sourceId != null) {
-      _container.read(formProvider.notifier).prefillSource(sourceId);
-    }
+    session.beginOpening(sourceId);
+    final attempt = session.beginAttempt(resetReceipt: true);
     final initial = _presentationForMode(
       session.ref.read(shellLayoutModeProvider),
     );
-    _container
-        .read(formProvider.notifier)
-        .bindAddLifetime(() => !session.retired);
     session.listenForSteps();
+    try {
+      unawaited(
+        showAppSheet<void>(
+          context,
+          presentation: initial,
+          presentationResolver: _liveResolver(initial),
+          onRouteCreated: session.attach,
+          builder: (_) => EntryForm(
+            key: newEntryFormKey,
+            onDismiss: session.close,
+            onRetry: session.retryInitialization,
+          ),
+        ),
+      );
+    } catch (error, stack) {
+      session.abandonAttempt();
+      if (!session.retired) _report(error, stack);
+      _abort(session);
+      return false;
+    }
     _setPresentation(NewEntryPresentation.presented);
-    final resolver = _liveResolver(initial);
-    unawaited(
-      showAppSheet<void>(
-        context,
-        presentation: initial,
-        presentationResolver: resolver,
-        onRouteCreated: session.attach,
-        builder: (_) =>
-            EntryForm(key: newEntryFormKey, onDismiss: session.close),
-      ),
-    );
     WidgetsBinding.instance.addPostFrameCallback((_) => session.markMounted());
-    return true;
+    await session.finishAttempt(attempt);
+    return session.eligible;
   }
 
   AppSheetPresentation Function(BuildContext) _liveResolver(
@@ -184,6 +185,20 @@ class NewEntryPresentationController {
 }
 
 // MARK: - Session
+class _AddAttempt {
+  const _AddAttempt({
+    required this.attempt,
+    required this.future,
+    required this.notifier,
+  });
+
+  final int attempt;
+
+  final Future<EntryFormViewState> future;
+
+  final EntryFormNotifier notifier;
+}
+
 class _AddSession {
   _AddSession(this._container, this._controller, this.context, this.ref);
 
@@ -197,12 +212,63 @@ class _AddSession {
   ProviderSubscription<AsyncValue<EntryFormViewState>>? _subscription;
   bool retired = false;
   bool _mounted = false;
+  String? _sourceId;
+  int _attempt = 0;
+  bool _prefillApplied = false;
+  bool _initializing = false;
 
   bool get eligible =>
       !retired &&
       _controller._owns(this) &&
       context.mounted &&
       (route?.isActive ?? true);
+
+  void beginOpening(String? sourceId) => _sourceId = sourceId;
+
+  _AddAttempt beginAttempt({required bool resetReceipt}) {
+    final attempt = ++_attempt;
+    _initializing = true;
+    final formProvider = entryFormViewModelProvider(null);
+    _container.invalidate(formProvider);
+    if (resetReceipt) {
+      _container.invalidate(receiptEntryCoordinatorProvider(null));
+    }
+    final notifier = _container.read(formProvider.notifier);
+    notifier.bindAddLifetime(() => !retired && _attempt == attempt);
+    return _AddAttempt(
+      attempt: attempt,
+      future: _container.read(formProvider.future),
+      notifier: notifier,
+    );
+  }
+
+  void abandonAttempt() => _initializing = false;
+
+  void retryInitialization() => unawaited(retryLoad());
+
+  Future<void> retryLoad() async {
+    if (retired || _initializing) return;
+    if (!_controller._owns(this)) return;
+    final current = _container.read(entryFormViewModelProvider(null));
+    if (!current.hasError) return;
+    await finishAttempt(beginAttempt(resetReceipt: false));
+  }
+
+  Future<void> finishAttempt(_AddAttempt start) async {
+    try {
+      try {
+        await start.future;
+      } catch (_) {
+        return;
+      }
+      if (!eligible || _attempt != start.attempt || _prefillApplied) return;
+      _prefillApplied = true;
+      final sourceId = _sourceId;
+      if (sourceId != null) start.notifier.prefillSource(sourceId);
+    } finally {
+      _initializing = false;
+    }
+  }
 
   void listenForSteps() {
     _subscription = _container.listen(

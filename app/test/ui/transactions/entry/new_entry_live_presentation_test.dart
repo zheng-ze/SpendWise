@@ -8,6 +8,8 @@ import 'package:spendwise/settings/settings_providers.dart';
 import 'package:spendwise/sync/hosted_sync_status.dart';
 import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
+import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
+import 'package:spendwise/ui/common/feedback/error_section.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/entry/fields/entry_fields.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_entry_coordinator.dart';
@@ -735,11 +737,25 @@ void main() {
 
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
-      expect(find.textContaining('Could not save entry'), findsOneWidget);
+      expect(find.byType(ErrorSection), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(SheetAlert),
+          matching: find.textContaining('Could not save entry'),
+        ),
+        findsOneWidget,
+      );
 
       await resize(tester, _openSize);
       expect(find.text('Add entry'), findsOneWidget);
-      expect(find.textContaining('Could not save entry'), findsOneWidget);
+      expect(find.byType(ErrorSection), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(SheetAlert),
+          matching: find.textContaining('Could not save entry'),
+        ),
+        findsOneWidget,
+      );
       expect(
         tester.widget<TextField>(find.byType(TextField).at(0)).controller!.text,
         '12.50',
@@ -750,7 +766,14 @@ void main() {
       );
 
       await resize(tester, _phoneSize);
-      expect(find.textContaining('Could not save entry'), findsOneWidget);
+      expect(find.byType(ErrorSection), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(SheetAlert),
+          matching: find.textContaining('Could not save entry'),
+        ),
+        findsOneWidget,
+      );
 
       await closeAdd(tester);
     });

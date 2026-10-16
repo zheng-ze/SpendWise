@@ -1,6 +1,6 @@
 # Transactions UI
 
-Last reconciled: 2026-10-15
+Last reconciled: 2026-10-16
 
 ## Feature overview
 
@@ -62,9 +62,9 @@ category/source picker sheets, and the receipt scan screen. New entries open onl
 Add control and shared presenter. The Transactions screen has no local Add or Edit source control.
 When Money is selected, the shell reads the top scoped Money route's preferred source through its
 constructor-injected observer getter; every other destination and an unscoped Money route open Add
-without a source. The presenter captures that source at invocation, invalidates the null-key form and
-receipt providers before opening, initializes the fresh
-form, applies the scoped prefill after initialization, maps the shell layout mode to the
+without a source. The presenter captures that source at invocation, installs the sheet route first,
+invalidates the null-key form and receipt providers once, binds that initialization attempt to the
+session lifetime, and applies the scoped prefill once after the first successful attempt, maps the shell layout mode to the
 `AppSheet` presentation (phone, open or desktop), and releases its presentation state and
 subscription when the sheet completes or presentation fails. The Add route re-resolves its
 presentation live through a resolver reading `ShellLayoutModeScope`, so a
@@ -91,6 +91,18 @@ plain back control.
   to Daily view of that week's month.
 - **Entry form** — three modes. New ("Add entry" with Cancel in the `AppSheet` header,
   `ReceiptScanStrip` + fields + `ErrorSection` in the body, Save in the footer driven by `canSave`).
+  The Add session installs its route before the form loads: a disabled shell with loading
+  placeholders while initializing, the same shell with a "Couldn't load the entry form" alert and
+  Retry on failure. `entryFormViewModelProvider` opts out of automatic retry
+  (`retry: (_, _) => null`), so only the session's explicit Retry re-initializes; scoped source
+  prefill applies once on the first success. Save failures keep every field and project a
+  "Could not save entry" alert outside the sheet; a fresh save attempt clears a previous save
+  error, and concurrent or post-dismissal saves create no extra entry. The form state carries a
+  `noteText` draft (`setNote`); a one-time new-entry save passes it to `Entry`, while Edit saves
+  keep reading the latest persisted note. Account/category labels and icon data resolve through
+  `entryFormDisplayProvider`, an autoDispose projection of the raw draft and current ledger state
+  that listens to `Ledger` notifications without rebuilding the draft; unresolvable selections
+  show "Unavailable account" / "Unavailable category".
   View existing ("Entry", leading ‹ Back, trailing ✎ Edit). Edit existing ("Edit Entry", leading ✕
   Back reverts fields to persisted values and drops to view mode with the sheet open). Fields: kind
   segmented (changing kind clears the selected category), amount, name, date with a recurrence

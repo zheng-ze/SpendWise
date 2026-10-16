@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
+import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
 import 'package:spendwise/ui/common/feedback/error_section.dart';
 import 'package:spendwise/ui/transactions/entry/fields/entry_fields.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
@@ -10,6 +11,10 @@ import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_strip.dart';
 
 const _actionWidth = double.infinity;
 
+const _loadingIndicatorSize = 36.0;
+
+const _loadingBodySpacing = 24.0;
+
 // MARK: - NewEntryForm
 class NewEntryForm extends StatelessWidget {
   const NewEntryForm({
@@ -17,11 +22,17 @@ class NewEntryForm extends StatelessWidget {
     required this.formKey,
     required this.viewModel,
     required this.state,
+    this.alert,
+    this.onAlertAction,
   });
 
   final String? formKey;
   final EntryFormViewModel viewModel;
   final EntryFormViewState state;
+
+  final SheetAlertData? alert;
+
+  final VoidCallback? onAlertAction;
 
   @override
   Widget build(BuildContext context) {
@@ -39,6 +50,50 @@ class NewEntryForm extends StatelessWidget {
         canSave: state.canSave,
         onSave: viewModel.save,
       ),
+      alert: alert,
+      onAlertAction: onAlertAction,
+    );
+  }
+}
+
+// MARK: - NewEntryLoadingForm
+class NewEntryLoadingForm extends StatelessWidget {
+  const NewEntryLoadingForm({
+    super.key,
+    required this.onCancel,
+    this.alert,
+    this.onAlertAction,
+  });
+
+  final VoidCallback? onCancel;
+
+  final SheetAlertData? alert;
+
+  final VoidCallback? onAlertAction;
+
+  static Future<void> _disabledSave() async {}
+
+  @override
+  Widget build(BuildContext context) {
+    return AppSheet(
+      header: _NewEntryHeader(onCancel: onCancel),
+      body: const Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(height: _loadingBodySpacing),
+          Center(
+            child: SizedBox(
+              width: _loadingIndicatorSize,
+              height: _loadingIndicatorSize,
+              child: CircularProgressIndicator(),
+            ),
+          ),
+          SizedBox(height: _loadingBodySpacing),
+        ],
+      ),
+      footer: const _NewEntrySaveFooter(canSave: false, onSave: _disabledSave),
+      alert: alert,
+      onAlertAction: onAlertAction,
     );
   }
 }
@@ -47,7 +102,7 @@ class NewEntryForm extends StatelessWidget {
 class _NewEntryHeader extends StatelessWidget {
   const _NewEntryHeader({required this.onCancel});
 
-  final VoidCallback onCancel;
+  final VoidCallback? onCancel;
 
   static const _titleSpacing = 8.0;
 

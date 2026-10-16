@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:domain/domain.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/base/step_emitting.dart';
 import 'package:spendwise/ui/format/money_format.dart';
@@ -21,6 +22,7 @@ abstract class EntryFormViewModel {
   void setKind(EntryFormKind kind);
   void setAmount(String raw);
   void setName(String raw);
+  void setNote(String raw);
   void setIncludeInAnalysis(bool value);
   void setEndDateEnabled(bool value);
   void requestPickDate();
@@ -143,6 +145,10 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
       updateState((current) => current.copyWith(nameText: raw));
 
   @override
+  void setNote(String raw) =>
+      updateState((current) => current.copyWith(noteText: raw));
+
+  @override
   void setIncludeInAnalysis(bool value) =>
       updateState((current) => current.copyWith(includeInAnalysis: value));
 
@@ -249,15 +255,32 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
 
   // MARK: - Persistence
 
+  bool _saving = false;
+
   @override
   Future<void> save() async {
     final current = state.value;
-    if (current == null || !current.canSave || !_addActive) return;
+    if (current == null ||
+        !current.canSave ||
+        current.dismissed ||
+        _saving ||
+        !_addActive) {
+      return;
+    }
+    _saving = true;
+    try {
+      updateState((next) => next.copyWith(error: () => null));
+      await _persist(current);
+    } finally {
+      _saving = false;
+    }
+  }
 
+  Future<void> _persist(EntryFormViewState current) async {
     final magnitude = current.parsedAmount!.abs();
-    final preservedNote = current.mode == EntryFormMode.editing
+    final note = current.mode == EntryFormMode.editing
         ? _persisted?.note
-        : null;
+        : current.noteText;
     final signedEntry = signedEntryForSave(
       kind: current.kind,
       magnitude: magnitude,
@@ -268,7 +291,7 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
       sourceId: current.sourceId!,
       destinationId: current.destinationId,
       includeInAnalysis: current.includeInAnalysis,
-      note: preservedNote,
+      note: note,
     );
 
     try {
@@ -387,4 +410,111 @@ final entryFormViewModelProvider =
       EntryFormNotifier,
       EntryFormViewState,
       String?
-    >(EntryFormNotifier.new);
+    >(EntryFormNotifier.new, retry: (_, _) => null);
+
+// MARK: - Display Projection
+
+const unavailableAccountLabel = 'Unavailable account';
+
+const unavailableCategoryLabel = 'Unavailable category';
+
+class EntryFormDisplay {
+  const EntryFormDisplay({
+    required this.sourceLabel,
+    required this.destinationLabel,
+    required this.categoryLabel,
+    this.categorySymbol,
+    this.categoryColorHex,
+  });
+
+  final String? sourceLabel;
+
+  final String? destinationLabel;
+
+  final String? categoryLabel;
+
+  final String? categorySymbol;
+
+  final String? categoryColorHex;
+
+  @override
+  bool operator ==(Object other) =>
+      other is EntryFormDisplay &&
+      sourceLabel == other.sourceLabel &&
+      destinationLabel == other.destinationLabel &&
+      categoryLabel == other.categoryLabel &&
+      categorySymbol == other.categorySymbol &&
+      categoryColorHex == other.categoryColorHex;
+
+  @override
+  int get hashCode => Object.hash(
+    sourceLabel,
+    destinationLabel,
+    categoryLabel,
+    categorySymbol,
+    categoryColorHex,
+  );
+}
+
+String? _sourceDisplayLabel(LedgerState? ledger, String? id) {
+  if (id == null || ledger == null) return null;
+  return ledger.sourceName(id) ?? unavailableAccountLabel;
+}
+
+EntryFormDisplay _categoryDisplay(LedgerState? ledger, String? id) {
+  const empty = EntryFormDisplay(
+    sourceLabel: null,
+    destinationLabel: null,
+    categoryLabel: null,
+  );
+  if (id == null || ledger == null) return empty;
+  final category = ledger.categories[id];
+  if (category == null) {
+    return const EntryFormDisplay(
+      sourceLabel: null,
+      destinationLabel: null,
+      categoryLabel: unavailableCategoryLabel,
+    );
+  }
+  final parentID = category.parentID;
+  final parent = parentID == null ? null : ledger.categories[parentID];
+  final label = parent == null
+      ? category.name
+      : '${parent.name}/${category.name}';
+  return EntryFormDisplay(
+    sourceLabel: null,
+    destinationLabel: null,
+    categoryLabel: label,
+    categorySymbol: category.symbol,
+    categoryColorHex: category.colorHex,
+  );
+}
+
+EntryFormDisplay projectEntryFormDisplay(
+  EntryFormViewState? state,
+  LedgerState? ledger,
+) {
+  final category = _categoryDisplay(ledger, state?.categoryId);
+  return EntryFormDisplay(
+    sourceLabel: _sourceDisplayLabel(ledger, state?.sourceId),
+    destinationLabel: _sourceDisplayLabel(ledger, state?.destinationId),
+    categoryLabel: category.categoryLabel,
+    categorySymbol: category.categorySymbol,
+    categoryColorHex: category.categoryColorHex,
+  );
+}
+
+final entryFormDisplayProvider = Provider.family<EntryFormDisplay, String?>((
+  ref,
+  entryId,
+) {
+  final raw = ref.watch(entryFormViewModelProvider(entryId));
+  final ledger = ref.watch(ledgerProvider);
+  final captured = ledger;
+  if (captured != null) {
+    void onLedgerChanged() => ref.invalidateSelf();
+    captured.addListener(onLedgerChanged);
+    ref.onDispose(() => captured.removeListener(onLedgerChanged));
+  }
+  return projectEntryFormDisplay(raw.value, captured?.state);
+}, isAutoDispose: true);

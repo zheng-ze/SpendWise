@@ -29,6 +29,7 @@ class EntryFormViewState
     required this.endDate,
     required this.isSystemEntry,
     required this.entryId,
+    this.noteText = '',
     this.error,
     this.scanning = false,
     this.scanStop,
@@ -51,6 +52,8 @@ class EntryFormViewState
   final bool isSystemEntry;
 
   final String? entryId;
+
+  final String noteText;
 
   final LedgerError? error;
 
@@ -90,6 +93,7 @@ class EntryFormViewState
     RecurrenceFrequency? Function()? recurrence,
     bool? hasEndDate,
     DateTime? Function()? endDate,
+    String? noteText,
     LedgerError? Function()? error,
     bool? scanning,
     ReceiptScanStop? Function()? scanStop,
@@ -113,6 +117,7 @@ class EntryFormViewState
       endDate: endDate == null ? this.endDate : endDate(),
       isSystemEntry: isSystemEntry,
       entryId: entryId,
+      noteText: noteText ?? this.noteText,
       error: error == null ? this.error : error(),
       scanning: scanning ?? this.scanning,
       scanStop: scanStop == null ? this.scanStop : scanStop(),

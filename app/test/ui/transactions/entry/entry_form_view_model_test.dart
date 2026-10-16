@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:domain/domain.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -5,6 +7,25 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/transactions/entry/steps/entry_form_logic.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
+import 'package:spendwise/ui/transactions/receipt_scan/receipt_entry_coordinator.dart';
+import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_flow.dart';
+
+class _ImmediateScanCoordinator extends ReceiptEntryCoordinator {
+  _ImmediateScanCoordinator() : super(null);
+
+  @override
+  Future<void> requestScan(
+    ReceiptScanSource source, {
+    Uint8List? preCapturedBytes,
+    required ScanResultHandler onPrefill,
+  }) async {
+    onPrefill(
+      name: 'Scanned shop',
+      amount: Decimal.parse('9.99'),
+      date: DateTime.utc(2026, 1, 15),
+    );
+  }
+}
 
 void main() {
   Decimal dec(String value) => Decimal.parse(value);
@@ -55,6 +76,25 @@ void main() {
     String? key,
   ) async {
     return container.read(entryFormViewModelProvider(key).future);
+  }
+
+  Entry notedEntry({String? id, String? note}) => Entry(
+    id: id,
+    amount: dec('-5'),
+    name: 'Coffee run',
+    sourceID: checking.id,
+    categoryID: coffee.id,
+    note: note,
+  );
+
+  Future<EntryFormNotifier> openedEditor(
+    ProviderContainer container,
+    String key,
+  ) async {
+    await stateOf(container, key);
+    final viewModel = container.read(entryFormViewModelProvider(key).notifier);
+    viewModel.startEditing();
+    return viewModel;
   }
 
   group('new entry defaults', () {
@@ -390,27 +430,6 @@ void main() {
   });
 
   group('note preservation', () {
-    Entry notedEntry({String? id, String? note}) => Entry(
-      id: id,
-      amount: dec('-5'),
-      name: 'Coffee run',
-      sourceID: checking.id,
-      categoryID: coffee.id,
-      note: note,
-    );
-
-    Future<EntryFormNotifier> openedEditor(
-      ProviderContainer container,
-      String key,
-    ) async {
-      await stateOf(container, key);
-      final viewModel = container.read(
-        entryFormViewModelProvider(key).notifier,
-      );
-      viewModel.startEditing();
-      return viewModel;
-    }
-
     test('editing another field keeps the persisted note', () async {
       final entry = notedEntry(note: 'memo');
       final ledger = buildLedger(entries: {entry.id: entry});
@@ -528,5 +547,282 @@ void main() {
       expect(resolved.note, isNull);
       expect(ledger.state.entries[existing.id], existing);
     });
+  });
+
+  group('add note draft', () {
+    Future<EntryFormNotifier> openedAdd(ProviderContainer container) async {
+      await stateOf(container, null);
+      return container.read(entryFormViewModelProvider(null).notifier);
+    }
+
+    Future<void> fillRequired(EntryFormNotifier viewModel) async {
+      viewModel.setAmount('12.50');
+      viewModel.setName('New expense');
+      viewModel.applyPickedSource(checking.id);
+    }
+
+    test('a new form starts with an empty note draft', () async {
+      final container = containerFor(buildLedger());
+      final state = await stateOf(container, null);
+
+      expect(state.noteText, isEmpty);
+    });
+
+    test('setNote updates the draft without touching other fields', () async {
+      final container = containerFor(buildLedger());
+      final viewModel = await openedAdd(container);
+      viewModel.setAmount('12.50');
+      viewModel.setName('New expense');
+
+      viewModel.setNote('lunch receipt');
+
+      final state = container.read(entryFormViewModelProvider(null)).value!;
+      expect(state.noteText, 'lunch receipt');
+      expect(state.amountText, '12.50');
+      expect(state.nameText, 'New expense');
+    });
+
+    test('a new-entry save carries the note, trimmed', () async {
+      final ledger = buildLedger();
+      final container = containerFor(ledger);
+      final viewModel = await openedAdd(container);
+      await fillRequired(viewModel);
+      viewModel.setNote('  lunch receipt  ');
+      await viewModel.save();
+
+      final added = ledger.state.entries.values.single;
+      expect(added.note, 'lunch receipt');
+    });
+
+    test('a whitespace-only note saves as null', () async {
+      final ledger = buildLedger();
+      final container = containerFor(ledger);
+      final viewModel = await openedAdd(container);
+      await fillRequired(viewModel);
+      viewModel.setNote('   ');
+      await viewModel.save();
+
+      final added = ledger.state.entries.values.single;
+      expect(added.note, isNull);
+    });
+
+    test('setKind keeps the note draft while clearing the category', () async {
+      final container = containerFor(buildLedger());
+      final viewModel = await openedAdd(container);
+      viewModel.applyPickedCategory(coffee.id);
+      viewModel.setNote('keep me');
+
+      viewModel.setKind(EntryFormKind.income);
+
+      final state = container.read(entryFormViewModelProvider(null)).value!;
+      expect(state.noteText, 'keep me');
+      expect(state.categoryId, isNull);
+    });
+
+    test('setNote on an editing form never leaks into the edit save', () async {
+      final entry = notedEntry(note: 'memo');
+      final ledger = buildLedger(entries: {entry.id: entry});
+      final container = containerFor(ledger);
+      final viewModel = await openedEditor(container, entry.id);
+
+      viewModel.setNote('draft that must not save');
+      viewModel.setName('Updated name');
+      await viewModel.save();
+
+      expect(ledger.state.entries[entry.id]!.name, 'Updated name');
+      expect(ledger.state.entries[entry.id]!.note, 'memo');
+    });
+
+    test('receipt prefill preserves a typed note', () async {
+      final container = ProviderContainer(
+        overrides: [
+          ledgerProvider.overrideWithValue(buildLedger()),
+          receiptEntryCoordinatorProvider(null)
+              .overrideWith(_ImmediateScanCoordinator.new),
+        ],
+      );
+      addTearDown(container.dispose);
+      await stateOf(container, null);
+      final viewModel = container.read(
+        entryFormViewModelProvider(null).notifier,
+      );
+      viewModel.setNote('typed note');
+
+      viewModel.requestScan(ReceiptScanSource.gallery);
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      final state = container.read(entryFormViewModelProvider(null)).value!;
+      expect(state.noteText, 'typed note');
+      expect(state.nameText, 'Scanned shop');
+    });
+  });
+
+  group('save gating', () {
+    test('concurrent save calls create exactly one entry', () async {
+      final ledger = buildLedger();
+      final container = containerFor(ledger);
+      await stateOf(container, null);
+      final viewModel = container.read(
+        entryFormViewModelProvider(null).notifier,
+      );
+      viewModel.setAmount('12.50');
+      viewModel.setName('New expense');
+      viewModel.applyPickedSource(checking.id);
+
+      await Future.wait([viewModel.save(), viewModel.save()]);
+
+      expect(ledger.state.entries.length, 1);
+    });
+
+    test('save after dismissal is a no-op', () async {
+      final ledger = buildLedger();
+      final container = containerFor(ledger);
+      await stateOf(container, null);
+      final viewModel = container.read(
+        entryFormViewModelProvider(null).notifier,
+      );
+      viewModel.setAmount('12.50');
+      viewModel.setName('New expense');
+      viewModel.applyPickedSource(checking.id);
+      await viewModel.save();
+      expect(ledger.state.entries.length, 1);
+
+      await viewModel.save();
+
+      expect(ledger.state.entries.length, 1);
+    });
+
+    test('a fresh save attempt clears a previous save error', () async {
+      final ledger = buildLedger();
+      final container = containerFor(ledger);
+      await stateOf(container, null);
+      final viewModel = container.read(
+        entryFormViewModelProvider(null).notifier,
+      );
+      viewModel.setAmount('12.50');
+      viewModel.setName('New expense');
+      viewModel.applyPickedSource(checking.id);
+      ledger.deleteAccount(checking.id);
+      await viewModel.save();
+      expect(
+        container.read(entryFormViewModelProvider(null)).value!.error,
+        isNotNull,
+      );
+
+      viewModel.applyPickedSource(savings.id);
+      await viewModel.save();
+
+      final state = container.read(entryFormViewModelProvider(null)).value!;
+      expect(state.error, isNull);
+      expect(ledger.state.entries.length, 1);
+    });
+  });
+
+  group('display projection', () {
+    test('resolves live names and category icon data', () async {
+      final container = containerFor(buildLedger());
+      final state = await stateOf(container, null);
+
+      final display = projectEntryFormDisplay(
+        state.copyWith(
+          sourceId: () => checking.id,
+          categoryId: () => coffee.id,
+        ),
+        container.read(ledgerProvider)!.state,
+      );
+
+      expect(display.sourceLabel, 'Checking');
+      expect(display.categoryLabel, 'Coffee');
+      expect(display.categorySymbol, 'local_cafe');
+      expect(display.categoryColorHex, '#FF0000');
+    });
+
+    test('unresolvable selections use the named fallbacks', () async {
+      final container = containerFor(buildLedger());
+      final state = await stateOf(container, null);
+
+      final display = projectEntryFormDisplay(
+        state.copyWith(
+          sourceId: () => checking.id,
+          destinationId: () => 'missing-destination',
+          categoryId: () => 'missing-category',
+        ),
+        container.read(ledgerProvider)!.state,
+      );
+
+      expect(display.sourceLabel, 'Checking');
+      expect(display.destinationLabel, 'Unavailable account');
+      expect(display.categoryLabel, 'Unavailable category');
+      expect(display.categorySymbol, isNull);
+    });
+
+    test('null selections resolve to null labels', () async {
+      final container = containerFor(buildLedger());
+      final state = await stateOf(container, null);
+
+      final display = projectEntryFormDisplay(
+        state,
+        container.read(ledgerProvider)!.state,
+      );
+
+      expect(display.sourceLabel, isNull);
+      expect(display.destinationLabel, isNull);
+      expect(display.categoryLabel, isNull);
+    });
+
+    test('an archived selection keeps its latest name', () async {
+      final archived = coffee.settingLifecycle(LifecycleState.archived);
+      final ledger = Ledger(
+        state: LedgerState(
+          moneySources: {checking.id: MoneySource.account(checking)},
+          categories: {archived.id: archived},
+        ),
+      );
+      final container = containerFor(ledger);
+      final state = await stateOf(container, null);
+
+      final display = projectEntryFormDisplay(
+        state.copyWith(categoryId: () => coffee.id),
+        ledger.state,
+      );
+
+      expect(display.categoryLabel, 'Coffee');
+      expect(display.categorySymbol, 'local_cafe');
+    });
+
+    test(
+      'a ledger notification refreshes labels without rebuilding the form',
+      () async {
+        final ledger = buildLedger();
+        final container = containerFor(ledger);
+        await stateOf(container, null);
+        final viewModel = container.read(
+          entryFormViewModelProvider(null).notifier,
+        );
+        viewModel.setName('Draft');
+        viewModel.applyPickedCategory(coffee.id);
+        final before = container.read(entryFormDisplayProvider(null));
+        expect(before.categoryLabel, 'Coffee');
+
+        ledger.updateCategory(
+          TransactionCategory(
+            id: coffee.id,
+            name: 'Espresso',
+            kind: coffee.kind,
+            colorHex: coffee.colorHex,
+            includeInAnalysis: coffee.includeInAnalysis,
+            parentID: coffee.parentID,
+            symbol: coffee.symbol,
+          ),
+        );
+        await container.read(entryFormViewModelProvider(null).future);
+
+        final after = container.read(entryFormDisplayProvider(null));
+        expect(after.categoryLabel, 'Espresso');
+        final form = container.read(entryFormViewModelProvider(null)).value!;
+        expect(form.nameText, 'Draft');
+        expect(form.categoryId, coffee.id);
+      },
+    );
   });
 }
