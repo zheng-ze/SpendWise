@@ -238,6 +238,7 @@ Future<EntryHarness> pumpShell(
   Size size = phoneSize,
   TargetPlatform platform = TargetPlatform.iOS,
   bool failPush = false,
+  ThemeData? theme,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -287,6 +288,7 @@ Future<EntryHarness> pumpShell(
     UncontrolledProviderScope(
       container: container,
       child: MaterialApp(
+        theme: theme,
         builder: appContent,
         navigatorObservers: [recorder],
         home: home,

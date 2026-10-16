@@ -1,0 +1,402 @@
+import 'dart:ui' as ui;
+
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:spendwise/ui/common/inputs/number_pad.dart';
+import 'package:spendwise/ui/common/sheets/app_sheet.dart';
+import 'package:spendwise/ui/theme/spendwise_colors.dart';
+import 'package:spendwise/ui/theme/spendwise_theme.dart';
+import 'package:spendwise/ui/transactions/entry/add_amount_block.dart';
+import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
+import 'package:spendwise/ui/transactions/entry/steps/entry_form_logic.dart';
+
+import 'new_entry_session_harness.dart';
+
+const _foldBounds = Rect.fromLTWH(475, 0, 10, 720);
+const _desktopDialogMaxWidth = 440.0;
+const _compactPhone = Size(320, 560);
+const _tallPhone = Size(320, 760);
+const _textScale = 1.5;
+const _keyboardHeight = 300.0;
+const _safeTop = 20.0;
+const _safeBottom = 34.0;
+const _handleWidth = 34.0;
+const _handleHeight = 4.0;
+
+final _frameIds = {'add-expense', 'add-income', 'add-transfer', 'add-desk'};
+
+Finder _inSheet(String text) =>
+    find.descendant(of: find.byType(AppSheet), matching: find.text(text));
+
+Finder get _amountField => find.byType(TextField).first;
+
+Finder get _nameField => find.byType(TextField).at(1);
+
+Finder get _handle => find.byWidgetPredicate(
+  (widget) =>
+      widget is Container &&
+      widget.constraints ==
+          const BoxConstraints.tightFor(
+            width: _handleWidth,
+            height: _handleHeight,
+          ),
+);
+
+Future<void> _tapRailAdd(WidgetTester tester) async {
+  await tester.tap(find.text('Add'));
+  await tester.pumpAndSettle();
+}
+
+Future<void> _setKeyboard(WidgetTester tester, double height) async {
+  tester.view.viewInsets = FakeViewPadding(bottom: height);
+  await tester.pumpAndSettle();
+}
+
+void _useInsets(WidgetTester tester, {double top = 0, double bottom = 0}) {
+  tester.view.padding = FakeViewPadding(top: top, bottom: bottom);
+  addTearDown(tester.view.resetViewPadding);
+  addTearDown(tester.view.resetViewInsets);
+}
+
+void _useTextScale(WidgetTester tester, double scale) {
+  tester.platformDispatcher.textScaleFactorTestValue = scale;
+  addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+}
+
+ScrollPosition _scrollPosition(WidgetTester tester, int index) {
+  final scrollables = find.descendant(
+    of: find.byType(AppSheet),
+    matching: find.byType(Scrollable),
+  );
+  return tester.state<ScrollableState>(scrollables.at(index)).position;
+}
+
+Future<void> _expectChromeReachable(WidgetTester tester) async {
+  for (final label in ['Cancel', 'Save entry', '5']) {
+    expect(find.text(label).hitTestable(), findsOneWidget, reason: label);
+  }
+}
+
+Future<void> _expectFrame(
+  WidgetTester tester, {
+  required EntryHarness harness,
+  required EntryFormKind kind,
+  required String amount,
+  required String name,
+  required Brightness brightness,
+}) async {
+  harness.form.setKind(kind);
+  harness.form.setAmount(amount);
+  harness.form.setName(name);
+  await tester.pumpAndSettle();
+  final colors = brightness == Brightness.dark
+      ? SpendWiseColors.dark
+      : SpendWiseColors.light;
+
+  for (final label in [
+    'Cancel',
+    'Add entry',
+    'Expense',
+    'Income',
+    'Transfer',
+  ]) {
+    expect(_inSheet(label), findsOneWidget, reason: label);
+  }
+  expect(find.text('Amount / SGD'), findsOneWidget);
+  expect(tester.widget<TextField>(_amountField).controller!.text, amount);
+  expect(tester.widget<TextField>(_nameField).controller!.text, name);
+  expect(find.text('Date'), findsOneWidget);
+  final transfer = kind == EntryFormKind.transfer;
+  expect(find.text('Category'), transfer ? findsNothing : findsOneWidget);
+  expect(find.text('From'), transfer ? findsOneWidget : findsNothing);
+  expect(find.text('To'), transfer ? findsOneWidget : findsNothing);
+  expect(find.widgetWithText(FilledButton, 'Save entry'), findsOneWidget);
+  final block = find.descendant(
+    of: find.byType(AddAmountBlock),
+    matching: find.byType(Container),
+  );
+  final decoration = tester.widget<Container>(block.first).decoration;
+  expect((decoration! as BoxDecoration).color, colors.surface);
+}
+
+Future<EntryHarness> _openFrame(
+  WidgetTester tester, {
+  required Size size,
+  required Brightness brightness,
+  TargetPlatform platform = TargetPlatform.iOS,
+}) async {
+  final harness = await pumpShell(
+    tester,
+    size: size,
+    platform: platform,
+    theme: buildSpendWiseTheme(brightness),
+  );
+  await openAdd(tester, harness);
+  return harness;
+}
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  group('open fold and desktop presentation', () {
+    testWidgets('AC1 the open fold opens the right-half form with the pad', (
+      tester,
+    ) async {
+      tester.view.displayFeatures = [
+        const ui.DisplayFeature(
+          bounds: _foldBounds,
+          type: ui.DisplayFeatureType.fold,
+          state: ui.DisplayFeatureState.postureFlat,
+        ),
+      ];
+      addTearDown(tester.view.resetDisplayFeatures);
+      final harness = await pumpShell(tester, size: openSize);
+
+      await _tapRailAdd(tester);
+
+      final sheet = tester.getRect(find.byType(AppSheet));
+      expect(harness.recorder.sheets, hasLength(1));
+      expect(sheet.left, openSize.width / 2);
+      expect(sheet.right, openSize.width);
+      expect(sheet.height, openSize.height);
+      expect(find.byType(NumberPad), findsOneWidget);
+      expect(_handle, findsNothing);
+      expect(tester.getRect(find.text(probeLabel)).right, lessThan(sheet.left));
+    });
+
+    testWidgets('AC1 a desktop platform keeps the small dialog', (
+      tester,
+    ) async {
+      final harness = await pumpShell(
+        tester,
+        size: openSize,
+        platform: TargetPlatform.macOS,
+      );
+      await openAdd(tester, harness);
+
+      final sheet = tester.getRect(find.byType(AppSheet));
+      final amount = tester.widget<TextField>(_amountField);
+      expect(sheet.width, lessThanOrEqualTo(_desktopDialogMaxWidth));
+      expect(sheet.center.dx, openSize.width / 2);
+      expect(find.byType(NumberPad), findsNothing);
+      expect(amount.keyboardType, isNot(TextInputType.none));
+      expect(find.widgetWithText(FilledButton, 'Save entry'), findsOneWidget);
+      expect(find.text('Save'), findsNothing);
+
+      await tester.enterText(_amountField, '42.50');
+      expect(harness.draft['amount'], '42.50');
+    });
+  });
+
+  group('keyboard handoff reserves one input surface', () {
+    testWidgets('Back closing the keyboard restores the pad for Amount', (
+      tester,
+    ) async {
+      final harness = await pumpShell(tester);
+      _useInsets(tester);
+      await openAdd(tester, harness);
+
+      await tester.tap(_nameField);
+      await _setKeyboard(tester, _keyboardHeight);
+      expect(find.byType(NumberPad), findsNothing);
+
+      await _setKeyboard(tester, 0);
+
+      expect(find.byType(NumberPad), findsOneWidget);
+      expect(
+        tester.widget<TextField>(_amountField).focusNode!.hasFocus,
+        isTrue,
+      );
+    });
+
+    testWidgets('Amount waits for the keyboard inset before showing the pad', (
+      tester,
+    ) async {
+      final harness = await pumpShell(tester);
+      _useInsets(tester);
+      await openAdd(tester, harness);
+      await tester.tap(_nameField);
+      await _setKeyboard(tester, _keyboardHeight);
+
+      await tester.tap(_amountField);
+      await tester.pump();
+      expect(find.byType(NumberPad), findsNothing);
+      await _setKeyboard(tester, 0);
+
+      expect(find.byType(NumberPad), findsOneWidget);
+    });
+  });
+
+  group('pinned height at 320 x 560', () {
+    testWidgets('zero insets at 1.0x pins everything without a fallback', (
+      tester,
+    ) async {
+      final harness = await pumpShell(tester, size: _compactPhone);
+      await openAdd(tester, harness);
+
+      final outer = _scrollPosition(tester, 0);
+      final body = _scrollPosition(tester, 1);
+      expect(outer.maxScrollExtent, 0);
+      expect(body.viewportDimension, greaterThan(0));
+      for (final offset in [0.0, body.maxScrollExtent]) {
+        body.jumpTo(offset);
+        await tester.pumpAndSettle();
+        await _expectChromeReachable(tester);
+      }
+    });
+
+    testWidgets('safe insets at 1.5x keep every control reachable', (
+      tester,
+    ) async {
+      _useInsets(tester, top: _safeTop, bottom: _safeBottom);
+      _useTextScale(tester, _textScale);
+      final harness = await pumpShell(tester, size: _compactPhone);
+      await openAdd(tester, harness);
+
+      final outer = _scrollPosition(tester, 0);
+      for (final offset in [0.0, outer.maxScrollExtent]) {
+        outer.jumpTo(offset);
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        expect(find.byType(NumberPad), findsOneWidget);
+      }
+      for (final label in ['Cancel', 'Save entry', '5', 'Date']) {
+        await tester.ensureVisible(find.text(label));
+        await tester.pumpAndSettle();
+        expect(find.text(label).hitTestable(), findsOneWidget, reason: label);
+      }
+    });
+  });
+
+  group('taps outside the fields still act', () {
+    testWidgets('segment, row and Save entry are not swallowed', (
+      tester,
+    ) async {
+      final harness = await pumpShell(tester);
+      await openAdd(tester, harness);
+      harness.form.setAmount('12.50');
+      harness.form.setName('Lunch');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Income'));
+      await tester.pumpAndSettle();
+      expect(
+        harness.container.read(entryFormViewModelProvider(null)).value!.kind,
+        EntryFormKind.income,
+      );
+
+      await tester.tap(find.text('Account'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Checking'));
+      await tester.pumpAndSettle();
+      expect(harness.draft['source'], checkingId);
+
+      await tester.tap(_nameField);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save entry'));
+      await tester.pumpAndSettle();
+      await harness.opened;
+
+      expect(harness.recorder.sheets, isEmpty);
+      expect(harness.ledger.state.entries, hasLength(1));
+    });
+
+    testWidgets('the header Cancel acts while the pad is shown', (
+      tester,
+    ) async {
+      final harness = await pumpShell(tester);
+      await openAdd(tester, harness);
+      expect(find.byType(NumberPad), findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      await harness.opened;
+
+      expect(harness.recorder.sheets, isEmpty);
+    });
+  });
+
+  group('frame parity', () {
+    test('the registered frame ids are the ticket-owned set', () {
+      expect(_frameIds, {
+        'add-expense',
+        'add-income',
+        'add-transfer',
+        'add-desk',
+      });
+    });
+
+    for (final brightness in Brightness.values) {
+      final mode = brightness.name;
+      testWidgets('add-expense $mode', (tester) async {
+        final harness = await _openFrame(
+          tester,
+          size: _tallPhone,
+          brightness: brightness,
+        );
+        await _expectFrame(
+          tester,
+          harness: harness,
+          kind: EntryFormKind.expense,
+          amount: '42.50',
+          name: 'FairPrice groceries',
+          brightness: brightness,
+        );
+        expect(find.byType(NumberPad), findsOneWidget);
+      });
+
+      testWidgets('add-income $mode', (tester) async {
+        final harness = await _openFrame(
+          tester,
+          size: _tallPhone,
+          brightness: brightness,
+        );
+        await _expectFrame(
+          tester,
+          harness: harness,
+          kind: EntryFormKind.income,
+          amount: '3200.00',
+          name: 'Monthly salary',
+          brightness: brightness,
+        );
+        expect(find.byType(NumberPad), findsOneWidget);
+      });
+
+      testWidgets('add-transfer $mode', (tester) async {
+        final harness = await _openFrame(
+          tester,
+          size: _tallPhone,
+          brightness: brightness,
+        );
+        await _expectFrame(
+          tester,
+          harness: harness,
+          kind: EntryFormKind.transfer,
+          amount: '500.00',
+          name: 'To savings',
+          brightness: brightness,
+        );
+        expect(find.byType(NumberPad), findsOneWidget);
+      });
+
+      testWidgets('add-desk $mode', (tester) async {
+        final harness = await _openFrame(
+          tester,
+          size: const Size(1440, 900),
+          brightness: brightness,
+          platform: TargetPlatform.macOS,
+        );
+        await _expectFrame(
+          tester,
+          harness: harness,
+          kind: EntryFormKind.expense,
+          amount: '42.50',
+          name: 'FairPrice groceries',
+          brightness: brightness,
+        );
+        expect(find.byType(NumberPad), findsNothing);
+        expect(find.text('Save'), findsNothing);
+      });
+    }
+  });
+}
