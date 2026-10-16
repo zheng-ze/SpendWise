@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
+import 'package:spendwise/ui/common/sheets/sheet_drag_dismiss.dart';
 import 'package:spendwise/ui/common/sheets/sheet_pinned_layout.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
@@ -144,11 +145,7 @@ class _AppSheetState extends State<AppSheet> {
         media.viewInsets.bottom;
     final hasBottom = widget.footer != null || widget.inputSurface != null;
     final phone = presentation == AppSheetPresentation.phone;
-    final top = _SheetTop(
-      header: widget.header,
-      showHandle: !open,
-      onDragDismiss: phone && widget.dragToDismiss ? _dismiss : null,
-    );
+    final top = _SheetTop(header: widget.header, showHandle: !open);
     final bottom = hasBottom
         ? _SheetBottom(footer: widget.footer, inputSurface: widget.inputSurface)
         : null;
@@ -167,52 +164,37 @@ class _AppSheetState extends State<AppSheet> {
       bottomInset: media.padding.bottom,
       child: scrollBody,
     );
+    final sheet = ConstrainedBox(constraints: constraints, child: chrome);
+    if (!widget.dragToDismiss) return sheet;
 
-    return ConstrainedBox(constraints: constraints, child: chrome);
+    return SheetDragDismiss(enabled: phone, onDismiss: _dismiss, child: sheet);
   }
 }
 
 // MARK: - Structure
 
-class _SheetTop extends StatefulWidget {
-  const _SheetTop({
-    required this.header,
-    required this.showHandle,
-    required this.onDragDismiss,
-  });
-
-  static const _dismissDistance = 80.0;
+class _SheetTop extends StatelessWidget {
+  const _SheetTop({required this.header, required this.showHandle});
 
   final Widget header;
 
   final bool showHandle;
 
-  final VoidCallback? onDragDismiss;
-
-  @override
-  State<_SheetTop> createState() => _SheetTopState();
-}
-
-class _SheetTopState extends State<_SheetTop> {
-  double _dragged = 0;
-
-  void _onDragUpdate(DragUpdateDetails details) {
-    _dragged += details.delta.dy;
-    if (_dragged < _SheetTop._dismissDistance) return;
-    _dragged = 0;
-    widget.onDragDismiss?.call();
-  }
-
   @override
   Widget build(BuildContext context) {
     final column = Column(
       mainAxisSize: MainAxisSize.min,
-      children: [if (widget.showHandle) const _SheetHandle(), widget.header],
+      children: [if (showHandle) const _SheetHandle(), header],
     );
-    if (widget.onDragDismiss == null) return column;
+    final handle = SheetDragScope.maybeOf(context);
     return GestureDetector(
-      onVerticalDragStart: (_) => _dragged = 0,
-      onVerticalDragUpdate: _onDragUpdate,
+      behavior: HitTestBehavior.opaque,
+      onVerticalDragUpdate: handle == null
+          ? null
+          : (details) => handle.update(details.delta.dy),
+      onVerticalDragEnd: handle == null
+          ? null
+          : (details) => handle.end(details.primaryVelocity ?? 0),
       child: column,
     );
   }
@@ -249,12 +231,21 @@ class _SheetScrollBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final handle = SheetDragScope.maybeOf(context);
+    final scrollingBody = SheetBodyDrag(
+      handle: handle,
+      child: SingleChildScrollView(
+        physics: handle == null ? null : const ClampingScrollPhysics(),
+        child: body,
+      ),
+    );
+
     return LayoutBuilder(
       builder: (context, constraints) => SingleChildScrollView(
         child: SheetPinnedLayout(
           maxHeight: constraints.maxHeight,
           top: top,
-          body: SingleChildScrollView(child: body),
+          body: scrollingBody,
           bottom: bottom,
         ),
       ),
