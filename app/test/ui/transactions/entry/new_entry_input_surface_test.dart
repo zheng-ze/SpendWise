@@ -13,7 +13,6 @@ import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/entry/new_entry_presenter.dart';
 
 import 'new_entry_session_harness.dart';
-import '../../../support/ui_test_timeout.dart';
 
 const _dragDown = Offset(0, 320);
 

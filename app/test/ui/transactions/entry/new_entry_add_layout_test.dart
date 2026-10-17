@@ -17,7 +17,6 @@ import 'package:spendwise/ui/transactions/entry/steps/entry_form_logic.dart';
 
 import '../../../support/pad_probe.dart';
 import 'new_entry_session_harness.dart';
-import '../../../support/ui_test_timeout.dart';
 
 const _foldBounds = Rect.fromLTWH(475, 0, 10, 720);
 const _desktopDialogMaxWidth = 440.0;

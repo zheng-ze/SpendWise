@@ -29,8 +29,6 @@ import 'package:spendwise/ui/transactions/receipt_scan/receipt_entry_coordinator
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_flow.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
 
-import '../../../support/ui_test_timeout.dart';
-
 const _mlKitChannel = MethodChannel('spendwise/android_text_recognizer');
 const _pickerBarrierTap = Offset(5, 5);
 

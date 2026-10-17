@@ -9,7 +9,6 @@ import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 
 import 'new_entry_session_harness.dart';
-import '../../../support/ui_test_timeout.dart';
 
 const _outsideTap = Offset(5, 5);
 

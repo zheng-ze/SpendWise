@@ -17,8 +17,6 @@ import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/theme/spendwise_colors.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
-import '../../support/ui_test_timeout.dart';
-
 const _openSize = Size(960, 720);
 const _thresholdSize = Size(600, 480);
 
