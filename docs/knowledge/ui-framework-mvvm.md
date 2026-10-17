@@ -1,6 +1,6 @@
 # UI Framework (MVVM)
 
-Last reconciled: 2026-10-15
+Last reconciled: 2026-10-17
 
 ## Feature overview
 
@@ -343,10 +343,25 @@ value, which then overwrites it. (issue #38)
   a full-height surface in the safe right half starting at half the window width with an 82 dp
   right content inset reserving rail clearance, no grab handle and no height cap. Phone and
   desktop size to content up to `0.66 * (window height - top safe padding - bottom keyboard
-  inset)`. Only the body scrolls; the header, footer and input surface stay
-  pinned. The route lifts the sheet above the keyboard, and the surface keeps
+  inset)` by default. `phoneMaxHeightFraction` and `desktopMaxHeightFraction` let callers
+  change their respective caps; Add grows its phone cap to 1.0 for input and uses 1.0 on desktop.
+  When the header, footer and input surface fit, `SheetPinnedLayout` pins them and scrolls
+  only the body. If those pinned regions exceed available height, the body takes its natural
+  height and the enclosing scroller scrolls the whole sheet to keep controls reachable.
+  (`app/lib/ui/common/sheets/sheet_pinned_layout.dart`)
+  The route lifts the sheet above the keyboard, and the surface keeps
   its footer/input above the bottom safe inset while the phone background fills
   that inset.
+- **Add form surface** - `AppSheetVariant.form` is used by the Add loading and loaded forms.
+  In light mode its canvas backing uses `SpendWiseColors.base`; desktop form chrome is a 340 dp dialog with
+  no grab handle. Standard sheets retain their existing chrome. Phone Add enables
+  `dragToDismiss`; `SheetDismissPhysics` shares drag displacement between the body and enclosing
+  sheet scrollers, so handle/header drags and body drags at minimum scroll offset move the sheet.
+  `SheetDragDismiss` dismisses above 25% displacement or 700 dp/s downward velocity and otherwise
+  springs back, immediately under reduced motion. Input focus, pad animation and Add header
+  actions belong to the entry form, described in [transactions-ui.md](transactions-ui.md).
+  (`app/lib/ui/common/sheets/app_sheet.dart`, `sheet_drag_dismiss.dart`,
+  `app/lib/ui/transactions/entry/new_entry_chrome.dart`, `new_entry_form.dart`)
 - **Sheet alerts** - the presentation kit owns no Riverpod state. `AppSheetRoute` owns
   alert and action `ValueNotifier`s plus the captured presentation, exposed
   through `AppSheetAlertSlot`; `AppSheet` publishes them post-frame and clears
