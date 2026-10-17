@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/common/lists/category_icon.dart';
 import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
+import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
 
 // MARK: - Constants
@@ -18,6 +19,7 @@ Future<PickerOutcome?> showCategoryPickerSheet({
   required CategoryKind kind,
   String? selectedId,
   bool useRootNavigator = false,
+  AppSheetPresentation Function(BuildContext)? sheetPresentation,
 }) {
   final ofKind = state.categories.values.where(
     (category) => category.kind == kind && category.lifecycle.isActive,
@@ -65,7 +67,7 @@ Future<PickerOutcome?> showCategoryPickerSheet({
     title: 'Category',
     groups: groups,
     selectedId: selectedId,
-    allowsNone: true,
     useRootNavigator: useRootNavigator,
+    sheetPresentation: sheetPresentation,
   );
 }

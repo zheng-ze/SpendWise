@@ -1,8 +1,13 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 
+import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
+import 'package:spendwise/ui/common/sheets/app_sheet.dart';
+
 // MARK: - Constants
 const _oneTimeLabel = 'One time';
+
+const _titleLabel = 'Repeat';
 
 const Map<RecurrenceFrequency, String> frequencyLabels = {
   RecurrenceFrequency.weekly: 'Weekly',
@@ -18,14 +23,25 @@ Future<RecurrenceFrequency?> showRecurrencePickerSheet({
   required BuildContext context,
   RecurrenceFrequency? selected,
   bool useRootNavigator = false,
+  AppSheetPresentation Function(BuildContext)? sheetPresentation,
 }) {
-  return showModalBottomSheet<_RecurrenceOutcome>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    useRootNavigator: useRootNavigator,
-    builder: (_) => _RecurrencePickerSheet(selected: selected),
-  ).then((outcome) => outcome == null ? selected : outcome.frequency);
+  final outcome = sheetPresentation == null
+      ? showModalBottomSheet<_RecurrenceOutcome>(
+          context: context,
+          isScrollControlled: true,
+          useSafeArea: true,
+          useRootNavigator: useRootNavigator,
+          builder: (_) => _RecurrencePickerSheet(selected: selected),
+        )
+      : showPickerAppSheet<_RecurrenceOutcome>(
+          context,
+          presentation: sheetPresentation,
+          builder: (_) => AppPickerSheet(
+            title: _titleLabel,
+            body: Column(children: _recurrenceRows(selected)),
+          ),
+        );
+  return outcome.then((chosen) => chosen == null ? selected : chosen.frequency);
 }
 
 // MARK: - RecurrenceOutcome
@@ -34,6 +50,23 @@ class _RecurrenceOutcome {
   const _RecurrenceOutcome(this.frequency);
 
   final RecurrenceFrequency? frequency;
+}
+
+// MARK: - Rows
+List<Widget> _recurrenceRows(RecurrenceFrequency? selected) {
+  return [
+    _RecurrenceRow(
+      label: _oneTimeLabel,
+      selected: selected == null,
+      outcome: const _RecurrenceOutcome(null),
+    ),
+    for (final frequency in RecurrenceFrequency.values)
+      _RecurrenceRow(
+        label: frequencyLabels[frequency]!,
+        selected: selected == frequency,
+        outcome: _RecurrenceOutcome(frequency),
+      ),
+  ];
 }
 
 // MARK: - RecurrencePickerSheet
@@ -49,25 +82,12 @@ class _RecurrencePickerSheet extends StatelessWidget {
       padding: _titlePadding,
       child: Align(
         alignment: Alignment.centerLeft,
-        child: Text('Repeat', style: Theme.of(context).textTheme.titleMedium),
+        child: Text(
+          _titleLabel,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
       ),
     );
-  }
-
-  List<Widget> _rows(BuildContext context) {
-    return [
-      _RecurrenceRow(
-        label: _oneTimeLabel,
-        selected: selected == null,
-        onTap: () => Navigator.of(context).pop(const _RecurrenceOutcome(null)),
-      ),
-      for (final frequency in RecurrenceFrequency.values)
-        _RecurrenceRow(
-          label: frequencyLabels[frequency]!,
-          selected: selected == frequency,
-          onTap: () => Navigator.of(context).pop(_RecurrenceOutcome(frequency)),
-        ),
-    ];
   }
 
   @override
@@ -76,7 +96,12 @@ class _RecurrencePickerSheet extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         _title(context),
-        Flexible(child: ListView(shrinkWrap: true, children: _rows(context))),
+        Flexible(
+          child: ListView(
+            shrinkWrap: true,
+            children: _recurrenceRows(selected),
+          ),
+        ),
       ],
     );
   }
@@ -87,17 +112,17 @@ class _RecurrenceRow extends StatelessWidget {
   const _RecurrenceRow({
     required this.label,
     required this.selected,
-    required this.onTap,
+    required this.outcome,
   });
 
   final String label;
   final bool selected;
-  final VoidCallback onTap;
+  final _RecurrenceOutcome outcome;
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      onTap: onTap,
+      onTap: () => Navigator.of(context).pop(outcome),
       title: Text(label),
       trailing: selected ? const Icon(Icons.check) : null,
     );

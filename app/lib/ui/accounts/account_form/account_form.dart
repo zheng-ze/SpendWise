@@ -95,7 +95,6 @@ class _AccountFormState extends ConsumerState<AccountForm> {
     if (outcome == null) return;
     final id = switch (outcome) {
       PickerChose(:final id) => id,
-      PickerCleared() => null,
     };
     _viewModel.applyPickedParent(id);
   }

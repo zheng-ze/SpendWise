@@ -22,9 +22,8 @@ const _groups = [
 
 Future<PickerOutcome?> _openAndAct(
   WidgetTester tester,
-  Future<void> Function(WidgetTester tester) act, {
-  bool allowsNone = false,
-}) async {
+  Future<void> Function(WidgetTester tester) act,
+) async {
   PickerOutcome? outcome;
 
   await tester.pumpWidget(
@@ -37,7 +36,6 @@ Future<PickerOutcome?> _openAndAct(
                 context: context,
                 title: 'Category',
                 groups: _groups,
-                allowsNone: allowsNone,
               );
             },
             child: const Text('open'),
@@ -77,15 +75,7 @@ void main() {
     expect(outcome, isNull);
   });
 
-  testWidgets('confirming None is distinct from cancelling', (tester) async {
-    final outcome = await _openAndAct(tester, (tester) async {
-      await tester.tap(find.text('None'));
-    }, allowsNone: true);
-
-    expect(outcome, isA<PickerCleared>());
-  });
-
-  testWidgets('None is absent unless the caller allows it', (tester) async {
+  testWidgets('the sheet offers no None option', (tester) async {
     await _openAndAct(tester, (tester) async {
       expect(find.text('None'), findsNothing);
     });

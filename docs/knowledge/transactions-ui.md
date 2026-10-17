@@ -114,18 +114,24 @@ plain back control.
   Back reverts fields to persisted values and drops to view mode with the sheet open). Fields: kind
   segmented (changing kind clears the selected category), amount, name, date with a recurrence
   button (new only), optional end date, source pickers (plus a To row for transfers, else a Category
-  row), and an "Include in Analysis" toggle. `canSave` is a pure function; deeper rules are the
+  row), and an "Include in Analysis" toggle. `canSave` is a pure function that requires a category for expense and income (transfers and system entries such as an opening balance have none), so Save stays disabled until one is chosen for a user entry; deeper rules are the
   domain validator's job and surface via the `ErrorSection` ("Could not save entry: <error>"). Save
   semantics: sign is applied from kind; edit stays open and flips to read-only; new without
   recurrence calls `addEntry`; new with recurrence builds an `EntryTemplate` and calls `addPlan`
   with `anchor = date` and `lastResolvedDate = date − 1 s` so the anchor day resolves, then calls
   `resolvePlans`. A saved or cancelled new entry resets on the next open through provider
   invalidation. Cancel, barrier dismissal and Back dismiss Add without creating an entry.
-- **Picker sheets** — `TwoColumnPickerSheet` (master/detail, expands a parent into the right column,
-  selects a childless parent or a child); `SourcePickerSheet` (active accounts with active pockets as
-  children, no None); `CategoryPickerSheet` (groups from `EntryFormViewModel.categoryGroups`,
-  ordered roots-then-children A–Z, `allowsNone: true`, never shown for transfers); `RecurrencePickerSheet`
-  (One time then Weekly/Biweekly/Monthly/Quarterly/Yearly).
+- **Picker sheets** - `TwoColumnPickerSheet` expands a parent into the detail column and selects a
+  childless parent or child; side-by-side columns scroll independently, and the Add `AppSheet` variant stacks the child list under its parent for the phone presentation at any width, and for open or desktop when two columns cannot hold the longest measured word without a mid-word break. The Add picker header keeps its title centered in the sheet, and the date sheet removes ambient `MediaQuery` padding around `CalendarDatePicker`. `SourcePickerSheet` shows
+  active accounts with active pockets as children and no None option. `CategoryPickerSheet` uses
+  `EntryFormViewModel.categoryGroups`, ordered roots then children A–Z, offers no None option, and is never
+  shown for transfers. `RecurrencePickerSheet` offers One time, Weekly, Biweekly, Monthly,
+  Quarterly, and Yearly. Add passes its live sheet-presentation resolver to category, account,
+  repeat, and date pickers, which use `AppSheet`; without that resolver, category, account, and
+  repeat use their legacy modal sheets and date uses `showDatePicker` for Edit and view flows.
+  Picker option chevrons indicate parent drill-in; entry-form value rows have no trailing chevrons.
+  (`app/lib/ui/common/pickers/`, `app/lib/ui/transactions/entry/new_entry_presenter.dart`,
+  `app/lib/ui/transactions/entry/steps/entry_step_handlers.dart`)
 - **Shell Add** — phone bar, open rail and desktop sidebar share one callback to the presenter. Transactions
   retains date selection, mode switching, filtering, row view/edit and Back behavior.
 

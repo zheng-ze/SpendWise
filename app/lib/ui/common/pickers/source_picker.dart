@@ -2,6 +2,7 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
+import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 
 // MARK: - Source Picker
 Future<PickerOutcome?> showSourcePickerSheet({
@@ -10,6 +11,7 @@ Future<PickerOutcome?> showSourcePickerSheet({
   required LedgerState state,
   String? selectedId,
   bool useRootNavigator = false,
+  AppSheetPresentation Function(BuildContext)? sheetPresentation,
 }) {
   final groups = [
     for (final account in state.activeAccounts)
@@ -29,5 +31,6 @@ Future<PickerOutcome?> showSourcePickerSheet({
     groups: groups,
     selectedId: selectedId,
     useRootNavigator: useRootNavigator,
+    sheetPresentation: sheetPresentation,
   );
 }

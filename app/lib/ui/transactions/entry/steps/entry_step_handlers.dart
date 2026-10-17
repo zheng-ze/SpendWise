@@ -6,9 +6,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/common/pickers/category_picker.dart';
+import 'package:spendwise/ui/common/pickers/date_picker_sheet.dart';
 import 'package:spendwise/ui/common/pickers/recurrence_picker.dart';
 import 'package:spendwise/ui/common/pickers/source_picker.dart';
 import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
+import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/transactions/document_crop/document_crop_screen.dart';
 import 'package:spendwise/ui/transactions/entry/steps/entry_form_logic.dart'
     show EntryFormKind;
@@ -28,6 +30,7 @@ void dispatchEntryFormStep(
   TransactionsStep step, {
   bool useRootNavigator = false,
   bool Function()? isCurrent,
+  AppSheetPresentation Function(BuildContext)? sheetPresentation,
 }) {
   final form = ref.read(entryFormViewModelProvider(formKey).notifier);
   switch (step) {
@@ -39,6 +42,7 @@ void dispatchEntryFormStep(
         form,
         useRootNavigator: useRootNavigator,
         isCurrent: isCurrent,
+        sheetPresentation: sheetPresentation,
       );
     case PickDestinationRequested():
       _pickDestination(
@@ -48,6 +52,7 @@ void dispatchEntryFormStep(
         form,
         useRootNavigator: useRootNavigator,
         isCurrent: isCurrent,
+        sheetPresentation: sheetPresentation,
       );
     case PickCategoryRequested():
       _pickCategory(
@@ -57,6 +62,7 @@ void dispatchEntryFormStep(
         form,
         useRootNavigator: useRootNavigator,
         isCurrent: isCurrent,
+        sheetPresentation: sheetPresentation,
       );
     case PickRecurrenceRequested():
       _pickRecurrence(
@@ -66,6 +72,7 @@ void dispatchEntryFormStep(
         form,
         useRootNavigator: useRootNavigator,
         isCurrent: isCurrent,
+        sheetPresentation: sheetPresentation,
       );
     case PickDateRequested():
       _pickDate(
@@ -75,6 +82,7 @@ void dispatchEntryFormStep(
         form,
         useRootNavigator: useRootNavigator,
         isCurrent: isCurrent,
+        sheetPresentation: sheetPresentation,
       );
     case PickEndDateRequested():
       _pickEndDate(
@@ -84,6 +92,7 @@ void dispatchEntryFormStep(
         form,
         useRootNavigator: useRootNavigator,
         isCurrent: isCurrent,
+        sheetPresentation: sheetPresentation,
       );
     case DocumentCropRequested(:final imageBytes):
       _pushDocumentCrop(
@@ -108,6 +117,7 @@ Future<void> _pickSource(
   EntryFormNotifier form, {
   bool useRootNavigator = false,
   bool Function()? isCurrent,
+  AppSheetPresentation Function(BuildContext)? sheetPresentation,
 }) async {
   final ledger = ref.read(ledgerProvider);
   if (ledger == null) return;
@@ -115,6 +125,7 @@ Future<void> _pickSource(
   final outcome = await showSourcePickerSheet(
     context: context,
     useRootNavigator: useRootNavigator,
+    sheetPresentation: sheetPresentation,
     title: formState?.kind == EntryFormKind.transfer ? 'From' : 'Account',
     state: ledger.state,
     selectedId: formState?.sourceId,
@@ -131,6 +142,7 @@ Future<void> _pickDestination(
   EntryFormNotifier form, {
   bool useRootNavigator = false,
   bool Function()? isCurrent,
+  AppSheetPresentation Function(BuildContext)? sheetPresentation,
 }) async {
   final ledger = ref.read(ledgerProvider);
   if (ledger == null) return;
@@ -138,6 +150,7 @@ Future<void> _pickDestination(
   final outcome = await showSourcePickerSheet(
     context: context,
     useRootNavigator: useRootNavigator,
+    sheetPresentation: sheetPresentation,
     title: 'To',
     state: ledger.state,
     selectedId: formState?.destinationId,
@@ -155,6 +168,7 @@ Future<void> _pickCategory(
   EntryFormNotifier form, {
   bool useRootNavigator = false,
   bool Function()? isCurrent,
+  AppSheetPresentation Function(BuildContext)? sheetPresentation,
 }) async {
   final ledger = ref.read(ledgerProvider);
   if (ledger == null) return;
@@ -165,6 +179,7 @@ Future<void> _pickCategory(
   final outcome = await showCategoryPickerSheet(
     context: context,
     useRootNavigator: useRootNavigator,
+    sheetPresentation: sheetPresentation,
     state: ledger.state,
     kind: categoryKind,
     selectedId: formState?.categoryId,
@@ -181,23 +196,53 @@ Future<void> _pickRecurrence(
   EntryFormNotifier form, {
   bool useRootNavigator = false,
   bool Function()? isCurrent,
+  AppSheetPresentation Function(BuildContext)? sheetPresentation,
 }) async {
   final formState = ref.read(entryFormViewModelProvider(formKey)).value;
   final chosen = await showRecurrencePickerSheet(
     context: context,
     useRootNavigator: useRootNavigator,
+    sheetPresentation: sheetPresentation,
     selected: formState?.recurrence,
   );
   if (!context.mounted || !_isCurrent(isCurrent)) return;
   form.applyPickedRecurrence(chosen);
 }
 
-String? _idFromOutcome(PickerOutcome outcome) => switch (outcome) {
+String _idFromOutcome(PickerOutcome outcome) => switch (outcome) {
   PickerChose(:final id) => id,
-  PickerCleared() => null,
 };
 
 // MARK: - Date Pickers
+Future<DateTime?> _chooseDate({
+  required BuildContext context,
+  required bool useRootNavigator,
+  required AppSheetPresentation Function(BuildContext)? sheetPresentation,
+  required String title,
+  required DateTime initialDate,
+  required DateTime firstDate,
+}) {
+  final lastDate = DateTime.utc(_datePickerLastYear);
+  final presentation = sheetPresentation;
+  if (presentation == null) {
+    return showDatePicker(
+      context: context,
+      useRootNavigator: useRootNavigator,
+      initialDate: initialDate,
+      firstDate: firstDate,
+      lastDate: lastDate,
+    );
+  }
+  return showDatePickerSheet(
+    context: context,
+    presentation: presentation,
+    title: title,
+    initialDate: initialDate,
+    firstDate: firstDate,
+    lastDate: lastDate,
+  );
+}
+
 Future<void> _pickDate(
   BuildContext context,
   WidgetRef ref,
@@ -205,18 +250,20 @@ Future<void> _pickDate(
   EntryFormNotifier form, {
   bool useRootNavigator = false,
   bool Function()? isCurrent,
+  AppSheetPresentation Function(BuildContext)? sheetPresentation,
 }) async {
   final formState = ref.read(entryFormViewModelProvider(formKey)).value;
-  final picked = await showDatePicker(
+  final picked = await _chooseDate(
     context: context,
     useRootNavigator: useRootNavigator,
+    sheetPresentation: sheetPresentation,
+    title: 'Date',
     initialDate: formState?.date ?? DateTime.now(),
     firstDate: DateTime.utc(_datePickerFirstYear),
-    lastDate: DateTime.utc(_datePickerLastYear),
   );
   if (!context.mounted || !_isCurrent(isCurrent)) return;
   if (picked == null) return;
-  form.applyPickedDate(DateTime.utc(picked.year, picked.month, picked.day));
+  form.applyPickedDate(startOfDayUtc(picked));
 }
 
 Future<void> _pickEndDate(
@@ -226,19 +273,20 @@ Future<void> _pickEndDate(
   EntryFormNotifier form, {
   bool useRootNavigator = false,
   bool Function()? isCurrent,
+  AppSheetPresentation Function(BuildContext)? sheetPresentation,
 }) async {
   final formState = ref.read(entryFormViewModelProvider(formKey)).value;
-  final initial = formState?.endDate ?? formState?.date ?? DateTime.now();
-  final picked = await showDatePicker(
+  final picked = await _chooseDate(
     context: context,
     useRootNavigator: useRootNavigator,
-    initialDate: initial,
+    sheetPresentation: sheetPresentation,
+    title: 'End date',
+    initialDate: formState?.endDate ?? formState?.date ?? DateTime.now(),
     firstDate: formState?.date ?? DateTime.utc(_datePickerFirstYear),
-    lastDate: DateTime.utc(_datePickerLastYear),
   );
   if (!context.mounted || !_isCurrent(isCurrent)) return;
   if (picked == null) return;
-  form.applyPickedEndDate(DateTime.utc(picked.year, picked.month, picked.day));
+  form.applyPickedEndDate(startOfDayUtc(picked));
 }
 
 // MARK: - Document Cropping

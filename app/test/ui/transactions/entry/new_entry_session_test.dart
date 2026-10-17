@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:spendwise/ui/common/pickers/date_picker_sheet.dart';
 import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form.dart';
@@ -12,10 +13,14 @@ import 'package:spendwise/ui/transactions/receipt_scan/receipt_entry_coordinator
 
 import 'new_entry_session_harness.dart';
 
+const _staleSourceId = 'a0000000-0000-0000-0000-0000000000ff';
+
+const _staleCategoryId = 'c0000000-0000-0000-0000-0000000000ff';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  int pickerCount() => find.byType(TwoColumnPickerSheet).evaluate().length;
+  int pickerCount() => find.byType(PickerGroupBody).evaluate().length;
 
   group('Add-only dismissal closes the captured Add route', () {
     const modes = {
@@ -185,7 +190,7 @@ void main() {
 
       expect(form.clears, clearsBefore + 2);
       expect(pickerCount(), 1);
-      expect(find.byType(DatePickerDialog), findsOneWidget);
+      expect(find.byType(DatePickerSheet), findsOneWidget);
       addDismiss(tester)();
       await tester.pumpAndSettle();
       await harness.opened;
@@ -265,12 +270,18 @@ void main() {
   group('results arriving after close and reopen are discarded', () {
     final markerDate = DateTime.utc(2026, 3, 4);
     final results = <String, (void Function(CountingForm, Uint8List), Object?)>{
-      'source': ((f, _) => f.requestPickSource(), const PickerCleared()),
+      'source': (
+        (f, _) => f.requestPickSource(),
+        const PickerChose(_staleSourceId),
+      ),
       'destination': (
         (f, _) => f.requestPickDestination(),
         const PickerChose(checkingId),
       ),
-      'category': ((f, _) => f.requestPickCategory(), const PickerCleared()),
+      'category': (
+        (f, _) => f.requestPickCategory(),
+        const PickerChose(_staleCategoryId),
+      ),
       'recurrence': ((f, _) => f.requestPickRecurrence(), null),
       'date': ((f, _) => f.requestPickDate(), DateTime.utc(2026, 1, 2)),
       'end date': ((f, _) => f.requestPickEndDate(), DateTime.utc(2026, 1, 2)),

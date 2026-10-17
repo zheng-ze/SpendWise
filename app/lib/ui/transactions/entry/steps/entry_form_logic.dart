@@ -10,10 +10,14 @@ bool canSaveEntryForm({
   required String? sourceId,
   required EntryFormKind kind,
   required String? destinationId,
+  required String? categoryId,
+  required bool isSystemEntry,
 }) {
   if (amount == null || amount == Decimal.zero) return false;
   if (name.trim().isEmpty) return false;
   if (sourceId == null) return false;
+  final needsCategory = kind != EntryFormKind.transfer && !isSystemEntry;
+  if (needsCategory && categoryId == null) return false;
 
   if (kind == EntryFormKind.transfer) {
     if (destinationId == null) return false;

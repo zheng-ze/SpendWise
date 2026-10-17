@@ -149,6 +149,7 @@ void main() {
       viewModel.setAmount('12.50');
       viewModel.setName('Snacks');
       viewModel.applyPickedSource(checking.id);
+      viewModel.applyPickedCategory(coffee.id);
 
       final state = container.read(entryFormViewModelProvider(null)).value!;
       expect(state.canSave, isTrue);
@@ -211,6 +212,7 @@ void main() {
         viewModel.setAmount('12.50');
         viewModel.setName('New expense');
         viewModel.applyPickedSource(checking.id);
+        viewModel.applyPickedCategory(coffee.id);
         await viewModel.save();
 
         expect(ledger.state.entries.length, 1);
@@ -236,6 +238,7 @@ void main() {
       viewModel.setAmount('20');
       viewModel.setName('Rent');
       viewModel.applyPickedSource(checking.id);
+      viewModel.applyPickedCategory(coffee.id);
       viewModel.applyPickedRecurrence(RecurrenceFrequency.monthly);
       await viewModel.save();
 
@@ -275,6 +278,45 @@ void main() {
         expect(state.error, isA<SystemEntryLocked>());
       },
     );
+  });
+
+  group('opening balance edit', () {
+    final openingDate = DateTime.utc(2026, 1, 1);
+    final editedDate = DateTime.utc(2026, 1, 5);
+
+    test('saves a changed amount and date without a category', () async {
+      final entry = Entry(
+        date: openingDate,
+        amount: dec('250'),
+        name: 'Opening balance',
+        sourceID: checking.id,
+        includeInAnalysis: false,
+        systemKind: SystemEntryKind.openingBalance,
+      );
+      final ledger = buildLedger(entries: {entry.id: entry});
+      final container = containerFor(ledger);
+      await stateOf(container, entry.id);
+      final viewModel = container.read(
+        entryFormViewModelProvider(entry.id).notifier,
+      );
+
+      viewModel.startEditing();
+      viewModel.setAmount('300');
+      viewModel.applyPickedDate(editedDate);
+
+      final edited = container
+          .read(entryFormViewModelProvider(entry.id))
+          .value!;
+      expect(edited.categoryId, isNull);
+      expect(edited.canSave, isTrue);
+
+      await viewModel.save();
+
+      final saved = ledger.state.entries[entry.id]!;
+      expect(saved.amount, dec('300'));
+      expect(saved.date, editedDate);
+      expect(saved.categoryID, isNull);
+    });
   });
 
   group('delete', () {
@@ -469,6 +511,7 @@ void main() {
       viewModel.setAmount('12.50');
       viewModel.setName('New expense');
       viewModel.applyPickedSource(checking.id);
+      viewModel.applyPickedCategory(coffee.id);
       await viewModel.save();
 
       final added = ledger.state.entries.values.singleWhere(
@@ -490,6 +533,7 @@ void main() {
       viewModel.setAmount('20');
       viewModel.setName('Rent');
       viewModel.applyPickedSource(checking.id);
+      viewModel.applyPickedCategory(coffee.id);
       viewModel.applyPickedRecurrence(RecurrenceFrequency.monthly);
       await viewModel.save();
 
@@ -515,6 +559,7 @@ void main() {
       viewModel.setAmount('12.50');
       viewModel.setName('New expense');
       viewModel.applyPickedSource(checking.id);
+      viewModel.applyPickedCategory(coffee.id);
       await viewModel.save();
 
       final added = ledger.state.entries.values.singleWhere(
@@ -537,6 +582,7 @@ void main() {
       viewModel.setAmount('20');
       viewModel.setName('Rent');
       viewModel.applyPickedSource(checking.id);
+      viewModel.applyPickedCategory(coffee.id);
       viewModel.applyPickedRecurrence(RecurrenceFrequency.monthly);
       await viewModel.save();
 
@@ -559,6 +605,7 @@ void main() {
       viewModel.setAmount('12.50');
       viewModel.setName('New expense');
       viewModel.applyPickedSource(checking.id);
+      viewModel.applyPickedCategory(coffee.id);
     }
 
     test('a new form starts with an empty note draft', () async {
@@ -668,6 +715,7 @@ void main() {
       viewModel.setAmount('12.50');
       viewModel.setName('New expense');
       viewModel.applyPickedSource(checking.id);
+      viewModel.applyPickedCategory(coffee.id);
 
       await Future.wait([viewModel.save(), viewModel.save()]);
 
@@ -684,6 +732,7 @@ void main() {
       viewModel.setAmount('12.50');
       viewModel.setName('New expense');
       viewModel.applyPickedSource(checking.id);
+      viewModel.applyPickedCategory(coffee.id);
       await viewModel.save();
       expect(ledger.state.entries.length, 1);
 
@@ -702,6 +751,7 @@ void main() {
       viewModel.setAmount('12.50');
       viewModel.setName('New expense');
       viewModel.applyPickedSource(checking.id);
+      viewModel.applyPickedCategory(coffee.id);
       ledger.deleteAccount(checking.id);
       await viewModel.save();
       expect(

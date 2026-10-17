@@ -288,6 +288,9 @@ void main() {
       container
           .read(entryFormViewModelProvider(null).notifier)
           .applyPickedSource(checking.id);
+      container
+          .read(entryFormViewModelProvider(null).notifier)
+          .applyPickedCategory(coffee.id);
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Save entry'));
