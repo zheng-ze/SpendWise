@@ -16,6 +16,7 @@ void main() {
       EntryFormKind kind = EntryFormKind.expense,
       String? destinationId,
       String? categoryId = categoryId,
+      bool isSystemEntry = false,
     }) {
       return canSaveEntryForm(
         amount: amount,
@@ -24,6 +25,7 @@ void main() {
         kind: kind,
         destinationId: destinationId,
         categoryId: categoryId,
+        isSystemEntry: isSystemEntry,
       );
     }
 
@@ -67,6 +69,20 @@ void main() {
           categoryId: null,
         ),
         isTrue,
+      );
+    });
+
+    test('accepts a system entry without a category', () {
+      expect(
+        save(amount: dec('5'), categoryId: null, isSystemEntry: true),
+        isTrue,
+      );
+    });
+
+    test('still rejects a system entry with a zero amount', () {
+      expect(
+        save(amount: Decimal.zero, categoryId: null, isSystemEntry: true),
+        isFalse,
       );
     });
 

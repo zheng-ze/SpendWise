@@ -114,7 +114,7 @@ plain back control.
   Back reverts fields to persisted values and drops to view mode with the sheet open). Fields: kind
   segmented (changing kind clears the selected category), amount, name, date with a recurrence
   button (new only), optional end date, source pickers (plus a To row for transfers, else a Category
-  row), and an "Include in Analysis" toggle. `canSave` is a pure function that requires a category for expense and income (transfers have none), so Save stays disabled until one is chosen; deeper rules are the
+  row), and an "Include in Analysis" toggle. `canSave` is a pure function that requires a category for expense and income (transfers and system entries such as an opening balance have none), so Save stays disabled until one is chosen for a user entry; deeper rules are the
   domain validator's job and surface via the `ErrorSection` ("Could not save entry: <error>"). Save
   semantics: sign is applied from kind; edit stays open and flips to read-only; new without
   recurrence calls `addEntry`; new with recurrence builds an `EntryTemplate` and calls `addPlan`
