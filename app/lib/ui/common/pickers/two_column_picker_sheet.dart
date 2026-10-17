@@ -40,7 +40,20 @@ class PickerCleared extends PickerOutcome {
 // MARK: - Constants
 const _sheetHeightFactor = 0.7;
 
-const _sideBySideMinWidth = 400.0;
+const _compactRowHorizontalPadding = 12.0;
+
+const _compactTitleGap = 8.0;
+
+const _compactLeadingWidth = 28.0;
+
+const _compactTrailingWidth = 18.0;
+
+const _rowChromeWidth =
+    2 * _compactRowHorizontalPadding +
+    _compactLeadingWidth +
+    _compactTitleGap +
+    _compactTrailingWidth +
+    _compactTitleGap;
 
 const _stackedChildIndent = 24.0;
 
@@ -195,8 +208,10 @@ class _PickerRow extends StatelessWidget {
     required this.selected,
     required this.active,
     required this.onTap,
+    this.compact = false,
   });
 
+  final bool compact;
   final PickerOption option;
   final bool selected;
   final bool active;
@@ -219,6 +234,11 @@ class _PickerRow extends StatelessWidget {
       tileColor: background,
       selected: selected,
       onTap: onTap,
+      contentPadding: compact
+          ? const EdgeInsets.symmetric(horizontal: _compactRowHorizontalPadding)
+          : null,
+      horizontalTitleGap: compact ? _compactTitleGap : null,
+      minLeadingWidth: compact ? _compactLeadingWidth : null,
       leading: option.leading,
       title: Text(
         option.label,
@@ -278,6 +298,7 @@ class _PickerGroupBodyState extends State<PickerGroupBody> {
     final parentRows = [
       for (final group in widget.groups)
         _PickerRow(
+          compact: true,
           option: group,
           selected: group.id == widget.selectedId,
           active: group.id == _expandedId,
@@ -287,6 +308,7 @@ class _PickerGroupBodyState extends State<PickerGroupBody> {
     final childRows = [
       for (final child in children)
         _PickerRow(
+          compact: true,
           option: child,
           selected: child.id == widget.selectedId,
           active: false,
@@ -294,9 +316,13 @@ class _PickerGroupBodyState extends State<PickerGroupBody> {
         ),
     ];
 
+    final sideBySideMinWidth =
+        2 * (_rowChromeWidth + _longestWordWidth(context, widget.groups)) +
+        _columnDividerWidth;
+
     return LayoutBuilder(
       builder: (context, constraints) {
-        final narrow = constraints.maxWidth < _sideBySideMinWidth;
+        final narrow = constraints.maxWidth < sideBySideMinWidth;
         if (!narrow) {
           return _SideBySideGroups(parents: parentRows, children: childRows);
         }
@@ -370,4 +396,26 @@ class _StackedGroups extends StatelessWidget {
 
     return Column(children: rows);
   }
+}
+
+double _longestWordWidth(BuildContext context, List<PickerOption> groups) {
+  final style = Theme.of(context).textTheme.bodyLarge;
+  final scaler = MediaQuery.textScalerOf(context);
+  final labels = [
+    for (final group in groups) ...[
+      group.label,
+      for (final c in group.children) c.label,
+    ],
+  ];
+  var widest = 0.0;
+  for (final word in labels.expand((label) => label.split(' '))) {
+    final painter = TextPainter(
+      text: TextSpan(text: word, style: style),
+      textDirection: TextDirection.ltr,
+      textScaler: scaler,
+    )..layout();
+    if (painter.width > widest) widest = painter.width;
+    painter.dispose();
+  }
+  return widest;
 }

@@ -122,7 +122,7 @@ plain back control.
   `resolvePlans`. A saved or cancelled new entry resets on the next open through provider
   invalidation. Cancel, barrier dismissal and Back dismiss Add without creating an entry.
 - **Picker sheets** - `TwoColumnPickerSheet` expands a parent into the detail column and selects a
-  childless parent or child; side-by-side columns scroll independently. `SourcePickerSheet` shows
+  childless parent or child; side-by-side columns scroll independently, and the Add `AppSheet` variant stacks the child list under its parent when two columns cannot hold the longest measured word without a mid-word break. The Add picker header keeps its title centered in the sheet, and the date sheet removes ambient `MediaQuery` padding around `CalendarDatePicker`. `SourcePickerSheet` shows
   active accounts with active pockets as children and no None option. `CategoryPickerSheet` uses
   `EntryFormViewModel.categoryGroups`, ordered roots then children A–Z, allows None, and is never
   shown for transfers. `RecurrencePickerSheet` offers One time, Weekly, Biweekly, Monthly,

@@ -73,12 +73,19 @@ class _DatePickerSheetState extends State<DatePickerSheet> {
       onPressed: _todayInRange ? _selectToday : null,
       child: const Text('Today'),
     );
-    final calendar = CalendarDatePicker(
+    final picker = CalendarDatePicker(
       key: ValueKey(_calendarGeneration),
       initialDate: _draft,
       firstDate: widget.firstDate,
       lastDate: widget.lastDate,
       onDateChanged: (value) => _draft = value,
+    );
+
+    final calendar = MediaQuery.removePadding(
+      context: context,
+      removeTop: true,
+      removeBottom: true,
+      child: picker,
     );
 
     return AppPickerSheet(

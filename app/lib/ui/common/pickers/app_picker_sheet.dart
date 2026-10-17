@@ -13,7 +13,9 @@ const pickerTodayKey = ValueKey('picker-today');
 
 const _headerPadding = EdgeInsets.only(bottom: 8);
 
-const _titlePadding = EdgeInsets.symmetric(horizontal: 8);
+const _titleReservedWidth = 112.0;
+
+const _titlePadding = EdgeInsets.symmetric(horizontal: _titleReservedWidth);
 
 // MARK: - Show
 Future<T?> showPickerAppSheet<T>(
@@ -65,23 +67,26 @@ class AppPickerHeader extends StatelessWidget {
       onPressed: () => Navigator.of(context).pop(),
       child: const Text('Cancel'),
     );
-    final heading = Padding(
-      padding: _titlePadding,
-      child: Text(
-        title,
-        textAlign: TextAlign.center,
-        style: Theme.of(context).textTheme.titleMedium,
-      ),
+    final label = Text(
+      title,
+      textAlign: TextAlign.center,
+      style: Theme.of(context).textTheme.titleMedium,
+    );
+    final heading = Center(
+      child: Padding(padding: _titlePadding, child: label),
+    );
+
+    final leadingSlot = Align(alignment: Alignment.centerLeft, child: cancel);
+    final trailingSlot = Align(
+      alignment: Alignment.centerRight,
+      child: trailing,
     );
 
     return Padding(
       padding: _headerPadding,
-      child: Row(
-        children: [
-          cancel,
-          Expanded(child: heading),
-          ?trailing,
-        ],
+      child: Stack(
+        alignment: Alignment.center,
+        children: [heading, leadingSlot, trailingSlot],
       ),
     );
   }
