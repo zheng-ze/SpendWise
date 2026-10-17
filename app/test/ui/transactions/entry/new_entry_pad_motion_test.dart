@@ -51,6 +51,42 @@ void _expectNeverAdding(WidgetTester tester, double inset) {
   expect(padReservedHeight(tester) + inset, lessThanOrEqualTo(_padHeight + 1));
 }
 
+Future<void> _keepGrownSheetFormVisible(WidgetTester tester) async {
+  tester.view.padding = const FakeViewPadding(
+    top: _safeTop,
+    bottom: _safeBottom,
+  );
+  addTearDown(tester.view.resetViewPadding);
+  await _openAdd(tester, size: _liveWindow);
+
+  for (final label in ['Category', 'Account', 'Date']) {
+    final row = find.text(label).hitTestable();
+    expect(row, findsOneWidget, reason: label);
+  }
+  expect(_nameField.hitTestable(), findsOneWidget);
+  final saveFinder = find.text('Save entry');
+  final save = tester.getRect(saveFinder);
+  final padFinder = find.byType(NumberPad);
+  final pad = tester.getRect(padFinder);
+  expect(save.bottom, lessThanOrEqualTo(pad.top));
+  final date = find.text('Date');
+  expect(tester.getRect(date).bottom, lessThan(save.top));
+}
+
+Future<void> _keepPadDuringDragDismissal(WidgetTester tester) async {
+  final harness = await _openAdd(tester);
+
+  final title = find.text('Add entry');
+  await tester.drag(title, _dismissDrag);
+  await tester.pump();
+  await tester.pump(_midAnimation);
+
+  expect(padReservedHeight(tester), _padHeight);
+  await tester.pumpAndSettle();
+  await harness.opened;
+  expect(harness.recorder.sheets, isEmpty);
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -146,41 +182,16 @@ void main() {
       _expectNeverAdding(tester, _smallInset);
     });
 
-    testWidgets('a drag dismissal keeps the pad through the exit', (
-      tester,
-    ) async {
-      final harness = await _openAdd(tester);
-
-      await tester.drag(find.text('Add entry'), _dismissDrag);
-      await tester.pump();
-      await tester.pump(_midAnimation);
-
-      expect(padReservedHeight(tester), _padHeight);
-      await tester.pumpAndSettle();
-      await harness.opened;
-      expect(harness.recorder.sheets, isEmpty);
-    });
+    testWidgets(
+      'a drag dismissal keeps the pad through the exit',
+      _keepPadDuringDragDismissal,
+    );
   });
 
   group('the grown sheet keeps the form visible', () {
-    testWidgets('rows stay above Save entry with the pad at 393 x 852', (
-      tester,
-    ) async {
-      tester.view.padding = const FakeViewPadding(
-        top: _safeTop,
-        bottom: _safeBottom,
-      );
-      addTearDown(tester.view.resetViewPadding);
-      await _openAdd(tester, size: _liveWindow);
-
-      for (final label in ['Category', 'Account', 'Date']) {
-        expect(find.text(label).hitTestable(), findsOneWidget, reason: label);
-      }
-      expect(_nameField.hitTestable(), findsOneWidget);
-      final save = tester.getRect(find.text('Save entry'));
-      final pad = tester.getRect(find.byType(NumberPad));
-      expect(save.bottom, lessThanOrEqualTo(pad.top));
-      expect(tester.getRect(find.text('Date')).bottom, lessThan(save.top));
-    });
+    testWidgets(
+      'rows stay above Save entry with the pad at 393 x 852',
+      _keepGrownSheetFormVisible,
+    );
   });
 }

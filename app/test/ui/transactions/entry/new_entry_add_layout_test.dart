@@ -243,6 +243,42 @@ Future<EntryHarness> _openFrame(
   return harness;
 }
 
+Future<void> _checkFrameParity(
+  WidgetTester tester,
+  _Frame frame,
+  Brightness brightness,
+) async {
+  final harness = await _openFrame(
+    tester,
+    size: frame.desktop ? _desktopWindow : _tallPhone,
+    brightness: brightness,
+    platform: frame.desktop ? TargetPlatform.macOS : TargetPlatform.iOS,
+  );
+
+  await _expectFrame(tester, harness, frame.withBrightness(brightness));
+  final pad = frame.desktop ? findsNothing : findsOneWidget;
+  final numberPad = find.byType(NumberPad);
+  expect(numberPad, pad);
+}
+
+void _registerFrameBrightnessTests(String id, _Frame frame) {
+  for (final brightness in Brightness.values) {
+    testWidgets('$id ${brightness.name}', (tester) async {
+      await _checkFrameParity(tester, frame, brightness);
+    });
+  }
+}
+
+void _registerFrameParityTests() {
+  test('the registered frame ids are the ticket-owned set', () {
+    expect(_frames.keys.toSet(), _frameIds);
+  });
+
+  for (final entry in _frames.entries) {
+    _registerFrameBrightnessTests(entry.key, entry.value);
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -421,27 +457,5 @@ void main() {
     });
   });
 
-  group('frame parity', () {
-    test('the registered frame ids are the ticket-owned set', () {
-      expect(_frames.keys.toSet(), _frameIds);
-    });
-
-    for (final entry in _frames.entries) {
-      for (final brightness in Brightness.values) {
-        testWidgets('${entry.key} ${brightness.name}', (tester) async {
-          final frame = entry.value;
-          final harness = await _openFrame(
-            tester,
-            size: frame.desktop ? _desktopWindow : _tallPhone,
-            brightness: brightness,
-            platform: frame.desktop ? TargetPlatform.macOS : TargetPlatform.iOS,
-          );
-
-          await _expectFrame(tester, harness, frame.withBrightness(brightness));
-          final pad = frame.desktop ? findsNothing : findsOneWidget;
-          expect(find.byType(NumberPad), pad);
-        });
-      }
-    }
-  });
+  group('frame parity', _registerFrameParityTests);
 }

@@ -104,13 +104,12 @@ class _AnimatedInputSurfaceState extends State<AnimatedInputSurface>
           translation: Offset(0, _shown - factor),
           child: _lastChild,
         );
-        final surface = ClipRect(
-          child: Align(
-            alignment: _collapsedAlignment,
-            heightFactor: factor,
-            child: slid,
-          ),
+        final aligned = Align(
+          alignment: _collapsedAlignment,
+          heightFactor: factor,
+          child: slid,
         );
+        final surface = ClipRect(child: aligned);
         return widget.builder(context, surface, _growth.value);
       },
     );

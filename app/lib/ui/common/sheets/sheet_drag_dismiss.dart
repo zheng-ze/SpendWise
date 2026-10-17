@@ -13,17 +13,11 @@ const _springBackCurve = Curves.easeOut;
 const _noOffset = 0.0;
 
 class SheetDragHandle {
-  const SheetDragHandle({
-    required this.offset,
-    required this.update,
-    required this.end,
-  });
+  const SheetDragHandle({required this.offset, required this.update});
 
   final double Function() offset;
 
   final ValueChanged<double> update;
-
-  final ValueChanged<double> end;
 }
 
 class SheetDismissPhysics extends ClampingScrollPhysics {
@@ -138,11 +132,7 @@ class _SheetDragDismissState extends State<SheetDragDismiss>
 
   @override
   Widget build(BuildContext context) {
-    final handle = SheetDragHandle(
-      offset: () => _offset,
-      update: _update,
-      end: _end,
-    );
+    final handle = SheetDragHandle(offset: () => _offset, update: _update);
     final shifted = Transform.translate(
       offset: Offset(_noOffset, _offset),
       child: widget.child,

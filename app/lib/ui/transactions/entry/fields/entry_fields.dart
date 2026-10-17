@@ -293,12 +293,13 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
 }
 
 List<Widget> _withDividers(List<Widget> rows) {
-  return [
-    for (var i = 0; i < rows.length; i++) ...[
-      if (i > 0) const EntryRowDivider(),
-      rows[i],
-    ],
-  ];
+  const divider = EntryRowDivider();
+  final divided = <Widget>[];
+  for (final row in rows) {
+    if (divided.isNotEmpty) divided.add(divider);
+    divided.add(row);
+  }
+  return divided;
 }
 
 class EntryRowDivider extends StatelessWidget {
