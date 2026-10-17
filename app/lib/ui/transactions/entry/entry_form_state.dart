@@ -76,6 +76,7 @@ class EntryFormViewState
     sourceId: sourceId,
     kind: kind,
     destinationId: destinationId,
+    categoryId: categoryId,
   );
 
   // MARK: - Copy

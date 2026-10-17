@@ -8,6 +8,8 @@ import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import '../../../support/picker_sheet_harness.dart';
 
 const _duoSize = Size(466, 900);
+const _duoPortraitSize = Size(466, 678);
+const _wideOpenSize = Size(1200, 800);
 const _phoneSafeTop = 62.0;
 const _phoneSafeBottom = 34.0;
 const _maxWeekdayGap = 40.0;
@@ -44,8 +46,9 @@ const _wideWordGroups = [
 Future<void> _openGroups(
   WidgetTester tester,
   Size size,
-  List<PickerOption> groups,
-) async {
+  List<PickerOption> groups, {
+  AppSheetPresentation Function(BuildContext)? presentation,
+}) async {
   await openPicker<PickerOutcome>(
     tester,
     size: size,
@@ -53,7 +56,7 @@ Future<void> _openGroups(
       context: context,
       title: 'Category',
       groups: groups,
-      sheetPresentation: presentationFor(size),
+      sheetPresentation: presentation ?? presentationFor(size),
     ),
   );
 }
@@ -67,6 +70,12 @@ bool _childSharesParentRow(WidgetTester tester, String parent, String child) {
   return (childY - parentY).abs() <= _rowAlignTolerance;
 }
 
+double _titleOffsetFromCenter(WidgetTester tester, String title) {
+  final titleX = tester.getCenter(find.text(title)).dx;
+  final sheetX = tester.getCenter(find.byType(AppSheet)).dx;
+  return (titleX - sheetX).abs();
+}
+
 void main() {
   for (final size in [_duoSize, desktopSize]) {
     testWidgets('no word splits at ${size.width.toInt()} wide', (tester) async {
@@ -78,22 +87,48 @@ void main() {
       expect(_isOneLine(tester, 'Supermarket'), isTrue);
       expect(_isOneLine(tester, 'Transportation'), isTrue);
     });
-
-    testWidgets('columns sit side by side at ${size.width.toInt()} wide', (
-      tester,
-    ) async {
-      await _openGroups(tester, size, _groups);
-      await tester.tap(find.text('Grocery'));
-      await tester.pumpAndSettle();
-
-      expect(_childSharesParentRow(tester, 'Grocery', 'Market'), isTrue);
-    });
   }
+
+  testWidgets('desktop presentation puts columns side by side', (tester) async {
+    await _openGroups(tester, desktopSize, _groups);
+    await tester.tap(find.text('Grocery'));
+    await tester.pumpAndSettle();
+
+    expect(_childSharesParentRow(tester, 'Grocery', 'Market'), isTrue);
+  });
+
+  testWidgets('open presentation puts columns side by side when wide', (
+    tester,
+  ) async {
+    await _openGroups(
+      tester,
+      _wideOpenSize,
+      _groups,
+      presentation: (_) => AppSheetPresentation.open,
+    );
+    await tester.tap(find.text('Grocery'));
+    await tester.pumpAndSettle();
+
+    expect(_childSharesParentRow(tester, 'Grocery', 'Market'), isTrue);
+  });
+
+  testWidgets('phone presentation stacks at 466 x 678', (tester) async {
+    await _openGroups(tester, _duoPortraitSize, _groups);
+    await tester.tap(find.text('Grocery'));
+    await tester.pumpAndSettle();
+
+    expect(_childSharesParentRow(tester, 'Grocery', 'Market'), isFalse);
+  });
 
   testWidgets('a word too wide for two columns switches to stacked', (
     tester,
   ) async {
-    await _openGroups(tester, _duoSize, _wideWordGroups);
+    await _openGroups(
+      tester,
+      _wideOpenSize,
+      _wideWordGroups,
+      presentation: (_) => AppSheetPresentation.open,
+    );
     await tester.tap(find.text('Telecommunications'));
     await tester.pumpAndSettle();
 
@@ -132,26 +167,41 @@ void main() {
     expect(weekday.top - header.bottom, lessThanOrEqualTo(_maxWeekdayGap));
   });
 
-  for (final allowsNone in [false, true]) {
-    testWidgets('title is centered with allowsNone $allowsNone', (
+  testWidgets('title is centered without a trailing action', (tester) async {
+    await openPicker<PickerOutcome>(
       tester,
-    ) async {
-      await openPicker<PickerOutcome>(
-        tester,
-        size: _duoSize,
-        open: (context) => showTwoColumnPickerSheet(
-          context: context,
-          title: 'Category',
-          groups: _groups,
-          allowsNone: allowsNone,
-          sheetPresentation: presentationFor(_duoSize),
-        ),
-      );
+      size: _duoSize,
+      open: (context) => showTwoColumnPickerSheet(
+        context: context,
+        title: 'Category',
+        groups: _groups,
+        sheetPresentation: presentationFor(_duoSize),
+      ),
+    );
 
-      final title = tester.getCenter(find.text('Category')).dx;
-      final sheet = tester.getCenter(find.byType(AppSheet)).dx;
+    expect(
+      _titleOffsetFromCenter(tester, 'Category'),
+      lessThanOrEqualTo(_centerTolerance),
+    );
+  });
 
-      expect((title - sheet).abs(), lessThanOrEqualTo(_centerTolerance));
-    });
-  }
+  testWidgets('title is centered with a trailing action', (tester) async {
+    await openPicker<DateTime>(
+      tester,
+      size: _duoSize,
+      open: (context) => showDatePickerSheet(
+        context: context,
+        presentation: presentationFor(_duoSize),
+        title: 'Date',
+        initialDate: DateTime(2026, 10, 10),
+        firstDate: DateTime.utc(2000),
+        lastDate: DateTime.utc(2100),
+      ),
+    );
+
+    expect(
+      _titleOffsetFromCenter(tester, 'Date'),
+      lessThanOrEqualTo(_centerTolerance),
+    );
+  });
 }

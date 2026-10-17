@@ -136,20 +136,10 @@ void main() {
     expect(coffeeCenter.dy, lessThan(groceriesCenter.dy));
   });
 
-  testWidgets('offers a None option', (tester) async {
+  testWidgets('offers no None option', (tester) async {
     await openSheet(tester);
 
-    expect(find.text('None'), findsOneWidget);
-  });
-
-  testWidgets('tapping None clears the selection', (tester) async {
-    await openSheet(tester, selectedId: groceries.id);
-
-    await tester.tap(find.text('None'));
-    await tester.pumpAndSettle();
-
-    final result = await pendingOutcome;
-    expect(result, isA<PickerCleared>());
+    expect(find.text('None'), findsNothing);
   });
 
   testWidgets('a childless parent selects on the first tap', (tester) async {

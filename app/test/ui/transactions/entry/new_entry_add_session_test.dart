@@ -154,6 +154,15 @@ Finder _saveAlert() => find.descendant(
   matching: find.textContaining('Could not save entry'),
 );
 
+Future<void> _pickCoffee(WidgetTester tester) async {
+  await tester.ensureVisible(find.text('Category'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Category'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Coffee').last);
+  await tester.pumpAndSettle();
+}
+
 Future<void> _fillAndSave(
   WidgetTester tester,
   String amount,
@@ -168,6 +177,7 @@ Future<void> _fillAndSave(
   await tester.pumpAndSettle();
   await tester.tap(find.text('Checking'));
   await tester.pumpAndSettle();
+  await _pickCoffee(tester);
   await tester.tap(find.text('Save entry'));
   await tester.pumpAndSettle();
 }
@@ -419,6 +429,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Checking'));
       await tester.pumpAndSettle();
+      await _pickCoffee(tester);
       ledger.deleteAccount(_checkingId);
 
       await tester.tap(find.text('Save entry'));
@@ -451,7 +462,7 @@ void main() {
       container
           .read(entryFormViewModelProvider(null).notifier)
           .applyPickedSource(_savingsId);
-      await tester.pumpAndSettle();
+      await _pickCoffee(tester);
       await tester.tap(find.text('Save entry'));
       await tester.pumpAndSettle();
 

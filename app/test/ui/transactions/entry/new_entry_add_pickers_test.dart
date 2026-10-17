@@ -35,21 +35,15 @@ void main() {
     expect(find.byType(AppSheet), findsOneWidget);
   });
 
-  testWidgets('pick-category None clears and Cancel keeps the category', (
-    tester,
-  ) async {
+  testWidgets('pick-category Cancel keeps the category', (tester) async {
     final harness = await _openAdd(tester);
     harness.form.applyPickedCategory(coffeeId);
 
     await _request(tester, harness.form.requestPickCategory);
     await tester.tap(find.byKey(pickerCancelKey));
     await tester.pumpAndSettle();
-    expect(harness.draft['category'], coffeeId);
-    await _request(tester, harness.form.requestPickCategory);
-    await tester.tap(find.byKey(pickerNoneKey));
-    await tester.pumpAndSettle();
 
-    expect(harness.draft['category'], isNull);
+    expect(harness.draft['category'], coffeeId);
   });
 
   testWidgets('pick-account applies the chosen account', (tester) async {

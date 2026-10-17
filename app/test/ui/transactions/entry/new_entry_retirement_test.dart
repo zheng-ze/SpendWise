@@ -333,6 +333,7 @@ void main() {
     harness.form.setAmount('3.00');
     harness.form.setName('Keep');
     harness.form.applyPickedSource(_unknownSourceId);
+    harness.form.applyPickedCategory(coffeeId);
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Save entry'));

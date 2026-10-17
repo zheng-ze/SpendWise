@@ -178,6 +178,11 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Checking'));
     await tester.pumpAndSettle();
+    await scrollToFormRow(tester, 'Category');
+    await tester.tap(find.text('Category'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Coffee').last);
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Save entry'));
     await tester.pumpAndSettle();

@@ -325,6 +325,7 @@ Future<void> saveEntry(WidgetTester tester, EntryHarness harness) async {
   harness.form.setAmount('12.50');
   harness.form.setName('Lunch');
   harness.form.applyPickedSource(checkingId);
+  harness.form.applyPickedCategory(coffeeId);
   await tester.pumpAndSettle();
   await tester.tap(find.text('Save entry'));
   await tester.pumpAndSettle();

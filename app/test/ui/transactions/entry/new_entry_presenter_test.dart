@@ -168,6 +168,14 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  Future<void> pickCoffee(WidgetTester tester) async {
+    await revealRow(tester, 'Category');
+    await tester.tap(find.text('Category'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Coffee'));
+    await tester.pumpAndSettle();
+  }
+
   ProviderContainer containerOf(WidgetTester tester) =>
       ProviderScope.containerOf(tester.element(find.text('Add entry')));
 
@@ -438,6 +446,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Checking'));
       await tester.pumpAndSettle();
+      await pickCoffee(tester);
 
       await tester.tap(find.text('Save entry'));
       await tester.pumpAndSettle();
@@ -464,6 +473,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Checking'));
       await tester.pumpAndSettle();
+      await pickCoffee(tester);
       ledger.deleteAccount(checking.id);
 
       await tester.tap(find.text('Save entry'));
@@ -614,6 +624,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Checking'));
       await tester.pumpAndSettle();
+      await pickCoffee(tester);
       await tester.tap(find.text('Save entry'));
       await tester.pumpAndSettle();
       expect(ledger.state.entries.length, 1);

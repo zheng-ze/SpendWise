@@ -66,7 +66,6 @@ Future<PickerOutcome?> showTwoColumnPickerSheet({
   required String title,
   required List<PickerOption> groups,
   String? selectedId,
-  bool allowsNone = false,
   bool useRootNavigator = false,
   AppSheetPresentation Function(BuildContext)? sheetPresentation,
 }) {
@@ -76,7 +75,6 @@ Future<PickerOutcome?> showTwoColumnPickerSheet({
       presentation: sheetPresentation,
       builder: (_) => AppPickerSheet(
         title: title,
-        trailing: allowsNone ? const _NoneButton() : null,
         body: PickerGroupBody(groups: groups, selectedId: selectedId),
       ),
     );
@@ -91,7 +89,6 @@ Future<PickerOutcome?> showTwoColumnPickerSheet({
         title: title,
         groups: groups,
         selectedId: selectedId,
-        allowsNone: allowsNone,
       ),
     ),
   );
@@ -104,13 +101,11 @@ class TwoColumnPickerSheet extends StatefulWidget {
     required this.title,
     required this.groups,
     this.selectedId,
-    this.allowsNone = false,
   });
 
   final String title;
   final List<PickerOption> groups;
   final String? selectedId;
-  final bool allowsNone;
 
   @override
   State<TwoColumnPickerSheet> createState() => _TwoColumnPickerSheetState();
@@ -148,14 +143,6 @@ class _TwoColumnPickerSheetState extends State<TwoColumnPickerSheet> {
             child: const Text('Cancel'),
           ),
           leadingWidth: _cancelButtonWidth,
-          actions: [
-            if (widget.allowsNone)
-              TextButton(
-                onPressed: () =>
-                    Navigator.of(context).pop(const PickerCleared()),
-                child: const Text('None'),
-              ),
-          ],
         ),
         Expanded(
           child: Row(
@@ -251,20 +238,6 @@ class _PickerRow extends StatelessWidget {
   }
 }
 
-// MARK: - NoneButton
-class _NoneButton extends StatelessWidget {
-  const _NoneButton();
-
-  @override
-  Widget build(BuildContext context) {
-    return TextButton(
-      key: pickerNoneKey,
-      onPressed: () => Navigator.of(context).pop(const PickerCleared()),
-      child: const Text('None'),
-    );
-  }
-}
-
 // MARK: - PickerGroupBody
 class PickerGroupBody extends StatefulWidget {
   const PickerGroupBody({super.key, required this.groups, this.selectedId});
@@ -320,9 +293,13 @@ class _PickerGroupBodyState extends State<PickerGroupBody> {
         2 * (_rowChromeWidth + _longestWordWidth(context, widget.groups)) +
         _columnDividerWidth;
 
+    final phone =
+        AppSheetAlertSlot.maybeOf(context)?.presentation ==
+        AppSheetPresentation.phone;
+
     return LayoutBuilder(
       builder: (context, constraints) {
-        final narrow = constraints.maxWidth < sideBySideMinWidth;
+        final narrow = phone || constraints.maxWidth < sideBySideMinWidth;
         if (!narrow) {
           return _SideBySideGroups(parents: parentRows, children: childRows);
         }

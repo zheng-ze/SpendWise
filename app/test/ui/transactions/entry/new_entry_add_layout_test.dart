@@ -432,6 +432,14 @@ void main() {
       await tester.pumpAndSettle();
       expect(harness.draft['source'], checkingId);
 
+      await tester.tap(find.text('Expense'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Category'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Coffee'));
+      await tester.pumpAndSettle();
+      expect(harness.draft['category'], coffeeId);
+
       await tester.tap(_nameField);
       await tester.pumpAndSettle();
       await tester.tap(find.text('Save entry'));

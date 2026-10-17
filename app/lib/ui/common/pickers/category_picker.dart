@@ -67,7 +67,6 @@ Future<PickerOutcome?> showCategoryPickerSheet({
     title: 'Category',
     groups: groups,
     selectedId: selectedId,
-    allowsNone: true,
     useRootNavigator: useRootNavigator,
     sheetPresentation: sheetPresentation,
   );

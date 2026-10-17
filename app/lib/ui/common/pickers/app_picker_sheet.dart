@@ -5,8 +5,6 @@ import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 // MARK: - Constants
 const pickerCancelKey = ValueKey('picker-cancel');
 
-const pickerNoneKey = ValueKey('picker-none');
-
 const pickerDoneKey = ValueKey('picker-done');
 
 const pickerTodayKey = ValueKey('picker-today');

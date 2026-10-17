@@ -114,7 +114,7 @@ plain back control.
   Back reverts fields to persisted values and drops to view mode with the sheet open). Fields: kind
   segmented (changing kind clears the selected category), amount, name, date with a recurrence
   button (new only), optional end date, source pickers (plus a To row for transfers, else a Category
-  row), and an "Include in Analysis" toggle. `canSave` is a pure function; deeper rules are the
+  row), and an "Include in Analysis" toggle. `canSave` is a pure function that requires a category for expense and income (transfers have none), so Save stays disabled until one is chosen; deeper rules are the
   domain validator's job and surface via the `ErrorSection` ("Could not save entry: <error>"). Save
   semantics: sign is applied from kind; edit stays open and flips to read-only; new without
   recurrence calls `addEntry`; new with recurrence builds an `EntryTemplate` and calls `addPlan`
@@ -122,9 +122,9 @@ plain back control.
   `resolvePlans`. A saved or cancelled new entry resets on the next open through provider
   invalidation. Cancel, barrier dismissal and Back dismiss Add without creating an entry.
 - **Picker sheets** - `TwoColumnPickerSheet` expands a parent into the detail column and selects a
-  childless parent or child; side-by-side columns scroll independently, and the Add `AppSheet` variant stacks the child list under its parent when two columns cannot hold the longest measured word without a mid-word break. The Add picker header keeps its title centered in the sheet, and the date sheet removes ambient `MediaQuery` padding around `CalendarDatePicker`. `SourcePickerSheet` shows
+  childless parent or child; side-by-side columns scroll independently, and the Add `AppSheet` variant stacks the child list under its parent for the phone presentation at any width, and for open or desktop when two columns cannot hold the longest measured word without a mid-word break. The Add picker header keeps its title centered in the sheet, and the date sheet removes ambient `MediaQuery` padding around `CalendarDatePicker`. `SourcePickerSheet` shows
   active accounts with active pockets as children and no None option. `CategoryPickerSheet` uses
-  `EntryFormViewModel.categoryGroups`, ordered roots then children A–Z, allows None, and is never
+  `EntryFormViewModel.categoryGroups`, ordered roots then children A–Z, offers no None option, and is never
   shown for transfers. `RecurrencePickerSheet` offers One time, Weekly, Biweekly, Monthly,
   Quarterly, and Yearly. Add passes its live sheet-presentation resolver to category, account,
   repeat, and date pickers, which use `AppSheet`; without that resolver, category, account, and

@@ -5,6 +5,7 @@ import 'package:spendwise/ui/transactions/entry/steps/entry_form_logic.dart';
 void main() {
   Decimal dec(String value) => Decimal.parse(value);
   const sourceId = 's0000000-0000-0000-0000-000000000001';
+  const categoryId = 'c0000000-0000-0000-0000-000000000001';
   const otherId = 's0000000-0000-0000-0000-000000000002';
 
   group('canSaveEntryForm', () {
@@ -14,6 +15,7 @@ void main() {
       String? sourceId = sourceId,
       EntryFormKind kind = EntryFormKind.expense,
       String? destinationId,
+      String? categoryId = categoryId,
     }) {
       return canSaveEntryForm(
         amount: amount,
@@ -21,6 +23,7 @@ void main() {
         sourceId: sourceId,
         kind: kind,
         destinationId: destinationId,
+        categoryId: categoryId,
       );
     }
 
@@ -42,6 +45,29 @@ void main() {
 
     test('rejects no source selected', () {
       expect(save(amount: dec('5'), sourceId: null), isFalse);
+    });
+
+    test('rejects an expense without a category', () {
+      expect(save(amount: dec('5'), categoryId: null), isFalse);
+    });
+
+    test('rejects an income without a category', () {
+      expect(
+        save(amount: dec('5'), kind: EntryFormKind.income, categoryId: null),
+        isFalse,
+      );
+    });
+
+    test('accepts a transfer without a category', () {
+      expect(
+        save(
+          amount: dec('5'),
+          kind: EntryFormKind.transfer,
+          destinationId: otherId,
+          categoryId: null,
+        ),
+        isTrue,
+      );
     });
 
     test('accepts a valid expense', () {

@@ -29,9 +29,8 @@ const _sizes = [phoneTallSize, phoneShortSize, desktopSize];
 
 Future<PickerOpener<PickerOutcome>> _openGroups(
   WidgetTester tester,
-  Size size, {
-  bool allowsNone = true,
-}) {
+  Size size,
+) {
   return openPicker<PickerOutcome>(
     tester,
     size: size,
@@ -39,7 +38,6 @@ Future<PickerOpener<PickerOutcome>> _openGroups(
       context: context,
       title: 'Category',
       groups: _groups,
-      allowsNone: allowsNone,
       sheetPresentation: presentationFor(size),
     ),
   );
@@ -78,14 +76,13 @@ Future<PickerOpener<DateTime>> _openDate(WidgetTester tester, Size size) {
 void main() {
   for (final size in _sizes) {
     group('at ${size.width.toInt()} x ${size.height.toInt()}', () {
-      testWidgets('category sheet is capped with pinned Cancel and None', (
+      testWidgets('category sheet is capped with pinned Cancel', (
         tester,
       ) async {
         await _openGroups(tester, size);
 
         expectAllSheetsCapped(tester, size);
         expect(find.byKey(pickerCancelKey), findsOneWidget);
-        expect(find.byKey(pickerNoneKey), findsOneWidget);
         expect(tester.takeException(), isNull);
       });
 
@@ -162,15 +159,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect((opener.result! as PickerChose).id, 'food');
-  });
-
-  testWidgets('None returns PickerCleared', (tester) async {
-    final opener = await _openGroups(tester, phoneTallSize);
-
-    await tester.tap(find.byKey(pickerNoneKey));
-    await tester.pumpAndSettle();
-
-    expect(opener.result, isA<PickerCleared>());
   });
 
   testWidgets('Cancel returns null', (tester) async {

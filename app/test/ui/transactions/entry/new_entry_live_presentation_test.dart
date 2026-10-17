@@ -208,6 +208,14 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  Future<void> pickCoffee(WidgetTester tester) async {
+    await revealRow(tester, 'Category');
+    await tester.tap(find.text('Category'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Coffee'));
+    await tester.pumpAndSettle();
+  }
+
   Future<void> tapSegment(WidgetTester tester, String label) async {
     await tester.ensureVisible(find.text(label));
     await tester.pumpAndSettle();
@@ -744,6 +752,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Checking'));
       await tester.pumpAndSettle();
+      await pickCoffee(tester);
       ledger.deleteAccount(checkingId);
 
       await tester.tap(find.text('Save entry'));
