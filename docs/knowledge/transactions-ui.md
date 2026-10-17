@@ -121,11 +121,17 @@ plain back control.
   with `anchor = date` and `lastResolvedDate = date − 1 s` so the anchor day resolves, then calls
   `resolvePlans`. A saved or cancelled new entry resets on the next open through provider
   invalidation. Cancel, barrier dismissal and Back dismiss Add without creating an entry.
-- **Picker sheets** — `TwoColumnPickerSheet` (master/detail, expands a parent into the right column,
-  selects a childless parent or a child); `SourcePickerSheet` (active accounts with active pockets as
-  children, no None); `CategoryPickerSheet` (groups from `EntryFormViewModel.categoryGroups`,
-  ordered roots-then-children A–Z, `allowsNone: true`, never shown for transfers); `RecurrencePickerSheet`
-  (One time then Weekly/Biweekly/Monthly/Quarterly/Yearly).
+- **Picker sheets** - `TwoColumnPickerSheet` expands a parent into the detail column and selects a
+  childless parent or child; side-by-side columns scroll independently. `SourcePickerSheet` shows
+  active accounts with active pockets as children and no None option. `CategoryPickerSheet` uses
+  `EntryFormViewModel.categoryGroups`, ordered roots then children A–Z, allows None, and is never
+  shown for transfers. `RecurrencePickerSheet` offers One time, Weekly, Biweekly, Monthly,
+  Quarterly, and Yearly. Add passes its live sheet-presentation resolver to category, account,
+  repeat, and date pickers, which use `AppSheet`; without that resolver, category, account, and
+  repeat use their legacy modal sheets and date uses `showDatePicker` for Edit and view flows.
+  Picker option chevrons indicate parent drill-in; entry-form value rows have no trailing chevrons.
+  (`app/lib/ui/common/pickers/`, `app/lib/ui/transactions/entry/new_entry_presenter.dart`,
+  `app/lib/ui/transactions/entry/steps/entry_step_handlers.dart`)
 - **Shell Add** — phone bar, open rail and desktop sidebar share one callback to the presenter. Transactions
   retains date selection, mode switching, filtering, row view/edit and Back behavior.
 
