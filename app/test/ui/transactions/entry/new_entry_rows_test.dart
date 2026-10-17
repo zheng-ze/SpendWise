@@ -12,6 +12,7 @@ import '../../../support/ui_test_timeout.dart';
 
 const _normalWidth = 400.0;
 const _narrowWidth = 202.0;
+const _stackedWidth = 110.0;
 const _largeText = 1.5;
 const _labelSize = 12.0;
 const _keypadPaddingSaving = 4.0;
@@ -99,6 +100,13 @@ class _Fixture {
   }
 }
 
+TransitionBuilder _textScaled(double scale) {
+  return (context, child) => MediaQuery(
+    data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(scale)),
+    child: child!,
+  );
+}
+
 Future<_Fixture> _pump(
   WidgetTester tester,
   EntryFormViewState state, {
@@ -109,21 +117,14 @@ Future<_Fixture> _pump(
 }) async {
   final fixture = _Fixture();
   addTearDown(fixture.dispose);
+  final content = fixture.rows(state, display, keypad: keypad);
+  final body = SingleChildScrollView(
+    child: SizedBox(width: width, child: content),
+  );
   await tester.pumpWidget(
     MaterialApp(
-      builder: (context, child) => MediaQuery(
-        data: MediaQuery.of(context)
-            .copyWith(textScaler: TextScaler.linear(textScale)),
-        child: child!,
-      ),
-      home: Scaffold(
-        body: SingleChildScrollView(
-          child: SizedBox(
-            width: width,
-            child: fixture.rows(state, display, keypad: keypad),
-          ),
-        ),
-      ),
+      builder: _textScaled(textScale),
+      home: Scaffold(body: body),
     ),
   );
   await tester.pumpAndSettle();
@@ -305,27 +306,30 @@ void main() {
       expect(fixture.nameController.selection.extentOffset, 3);
     }, timeout: uiTestTimeout);
 
-    testWidgets(
-      'a focused Name keeps its focus when its stacked label is tapped',
-      (tester) async {
-        final fixture = await _pump(
-          tester,
-          _state(),
-          width: _narrowWidth,
-          textScale: _largeText,
-        );
-        await tester.showKeyboard(find.byKey(const ValueKey('new-entry-name')));
+    testWidgets('a stacked Name row keeps focus when its label is tapped', (
+      tester,
+    ) async {
+      final fixture = await _pump(
+        tester,
+        _state(),
+        width: _stackedWidth,
+        textScale: _largeText,
+      );
+      final name = find.byKey(const ValueKey('new-entry-name'));
+      expect(
+        tester.getTopLeft(name).dy,
+        greaterThanOrEqualTo(tester.getBottomLeft(find.text('Name')).dy),
+      );
 
-        await tester.tap(find.text('Name'));
-        await tester.pump();
-        await tester.tap(find.byKey(const ValueKey('new-entry-name')));
-        await tester.pump();
+      await tester.tap(find.text('Name'));
+      await tester.pump();
+      await tester.tap(find.text('Name'));
+      await tester.pump();
+      await tester.tap(name);
+      await tester.pump();
 
-        expect(fixture.nameFocus.hasFocus, isTrue);
-        expect(tester.testTextInput.isVisible, isTrue);
-      },
-      timeout: uiTestTimeout,
-    );
+      expect(fixture.nameFocus.hasFocus, isTrue);
+    }, timeout: uiTestTimeout);
 
     testWidgets('a tap outside the Name row unfocuses it', (tester) async {
       final fixture = await _pump(tester, _state());

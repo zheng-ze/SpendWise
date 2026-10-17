@@ -19,26 +19,24 @@ Future<EndsChoice?> showEndsChoiceSheet({
   required AppSheetPresentation Function(BuildContext) presentation,
   required bool hasEndDate,
 }) {
+  final never = _EndsChoiceRow(
+    label: _neverLabel,
+    choice: EndsChoice.never,
+    selected: !hasEndDate,
+  );
+  final chooseDate = _EndsChoiceRow(
+    label: _chooseDateLabel,
+    choice: EndsChoice.chooseDate,
+    selected: hasEndDate,
+  );
+  final sheet = AppPickerSheet(
+    title: _titleLabel,
+    body: Column(children: [never, chooseDate]),
+  );
   return showPickerAppSheet<EndsChoice>(
     context,
     presentation: presentation,
-    builder: (_) => AppPickerSheet(
-      title: _titleLabel,
-      body: Column(
-        children: [
-          _EndsChoiceRow(
-            label: _neverLabel,
-            choice: EndsChoice.never,
-            selected: !hasEndDate,
-          ),
-          _EndsChoiceRow(
-            label: _chooseDateLabel,
-            choice: EndsChoice.chooseDate,
-            selected: hasEndDate,
-          ),
-        ],
-      ),
-    ),
+    builder: (_) => sheet,
   );
 }
 
