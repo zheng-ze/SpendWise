@@ -90,9 +90,9 @@ class _DatePickerSheetState extends State<DatePickerSheet> {
 
     return AppPickerSheet(
       title: widget.title,
+      leading: today,
       trailing: done,
       body: calendar,
-      footer: Align(alignment: Alignment.centerLeft, child: today),
     );
   }
 }

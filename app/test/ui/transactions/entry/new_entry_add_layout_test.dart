@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../../support/add_sheet_dismiss.dart';
+import '../../../support/ui_test_timeout.dart';
 
 import 'package:spendwise/ui/common/inputs/number_pad.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
@@ -11,6 +12,7 @@ import 'package:spendwise/ui/theme/spendwise_colors.dart';
 import 'package:spendwise/ui/theme/spendwise_theme.dart';
 import 'package:spendwise/ui/transactions/entry/add_amount_block.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
+import 'package:spendwise/ui/transactions/entry/new_entry_chrome.dart';
 import 'package:spendwise/ui/transactions/entry/steps/entry_form_logic.dart';
 
 import '../../../support/pad_probe.dart';
@@ -166,7 +168,7 @@ void _expectHeader(WidgetTester tester, _Frame frame) {
   expect(title.style!.fontSize, _titleSize);
   expect(title.style!.fontWeight, FontWeight.w600);
   expect(title.style!.height, _titleLineHeight);
-  expect(_inSheet('Cancel'), frame.desktop ? findsOneWidget : findsNothing);
+  expect(_inSheet('Cancel'), findsNothing);
   expect(find.text('Save'), findsNothing);
 }
 
@@ -451,20 +453,35 @@ void main() {
       expect(harness.ledger.state.entries, hasLength(1));
     }, timeout: uiTestTimeout);
 
-    testWidgets('the open-layout Cancel acts while the pad is shown', (
-      tester,
-    ) async {
-      final harness = await pumpShell(tester, size: openSize);
-      await openAdd(tester, harness);
-      expect(find.byType(NumberPad), findsOneWidget);
+    testWidgets(
+      'the open layout dismisses by tapping outside while the pad is shown',
+      (tester) async {
+        final harness = await pumpShell(tester, size: openSize);
+        await openAdd(tester, harness);
+        expect(find.byType(NumberPad), findsOneWidget);
 
-      await dismissAddSheet(tester);
-      await tester.pumpAndSettle();
-      await harness.opened;
+        await dismissAddSheet(tester);
+        await tester.pumpAndSettle();
+        await harness.opened;
 
-      expect(harness.recorder.sheets, isEmpty);
-    }, timeout: uiTestTimeout);
+        expect(harness.recorder.sheets, isEmpty);
+      },
+      timeout: uiTestTimeout,
+    );
   });
+
+  testWidgets('the open header centers the title without Cancel', (
+    tester,
+  ) async {
+    final harness = await pumpShell(tester, size: openSize);
+    await openAdd(tester, harness);
+
+    final title = tester.getCenter(find.text('Add entry'));
+    final header = tester.getCenter(find.byType(NewEntryHeader));
+
+    expect(find.text('Cancel'), findsNothing);
+    expect(title.dx, closeTo(header.dx, 0.5));
+  }, timeout: uiTestTimeout);
 
   group('frame parity', _registerFrameParityTests);
 }

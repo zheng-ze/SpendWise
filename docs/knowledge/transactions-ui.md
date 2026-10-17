@@ -24,7 +24,7 @@ and is the only place recurring plans are created.
   `AppSheetRoute`, the only null-form Step subscription, a mount-gated pending Step pickup and one
   completion that settles at `route.completed`. `EntryForm.onDismiss` is supplied only by Add and
   closes exactly that route even under a picker; Edit and view dismissal is unchanged.
-  Cancel, save, Back, drag or barrier dismissal, route removal, `AppShell` disposal and container
+  Save, Back, drag or barrier dismissal, route removal, `AppShell` disposal and container
   disposal all retire the session once: the Step subscription closes and the receipt coordinator
   is invalidated in a deferred microtask. Route pop retires the session at `route.popped`;
   presentation ownership and its completion release at `route.completed`. A failed save keeps
@@ -93,9 +93,11 @@ plain back control.
 - **Entry form** - three modes. New uses the amount-first `NewEntryForm`: kind selector,
   `AddAmountBlock`, Name and the remaining fields, then `ReceiptScanStrip`. The grouped form rows
   have dividers between every row (`_withDividers`, `EntryRowDivider`).
-  `NewEntryHeader` shows only the title on phone, Cancel and Save in open layout, and Cancel
-  on desktop. `NewEntrySaveFooter` supplies Save entry in all layouts, driven by `canSave`.
-  Desktop uses a dialog without a grab handle; phone supports drag and barrier dismissal.
+  `NewEntryHeader` shows only the title on phone and desktop, and the title with Save in open
+  layout (a spacer of equal width keeps the title centered). There is no Cancel in any layout.
+  `NewEntrySaveFooter` supplies Save entry in all layouts, driven by `canSave`.
+  Desktop uses a dialog without a grab handle; phone supports drag and barrier dismissal, and
+  open and desktop dismiss by tapping the barrier.
   (`new_entry_form.dart`, `new_entry_chrome.dart`, `fields/entry_fields.dart`,
   `app/lib/ui/common/sheets/app_sheet.dart`)
   The Add session installs its route before the form loads: a disabled shell with loading
@@ -120,9 +122,9 @@ plain back control.
   recurrence calls `addEntry`; new with recurrence builds an `EntryTemplate` and calls `addPlan`
   with `anchor = date` and `lastResolvedDate = date − 1 s` so the anchor day resolves, then calls
   `resolvePlans`. A saved or cancelled new entry resets on the next open through provider
-  invalidation. Cancel, barrier dismissal and Back dismiss Add without creating an entry.
+  invalidation. Drag, barrier dismissal and Back dismiss Add without creating an entry.
 - **Picker sheets** - `TwoColumnPickerSheet` expands a parent into the detail column and selects a
-  childless parent or child; side-by-side columns scroll independently, and the Add `AppSheet` variant stacks the child list under its parent for the phone presentation at any width, and for open or desktop when two columns cannot hold the longest measured word without a mid-word break. The Add picker header keeps its title centered in the sheet, and the date sheet removes ambient `MediaQuery` padding around `CalendarDatePicker`. `SourcePickerSheet` shows
+  childless parent or child; side-by-side columns scroll independently, and the Add `AppSheet` variant stacks the child list under its parent for the phone presentation at any width, and for open or desktop when two columns cannot hold the longest measured word without a mid-word break. Every Add picker is an `AppSheet` with `dragToDismiss`, so it drags down to dismiss on phone and dismisses by tapping outside, and its header has no Cancel; a dismissal applies nothing. The header keeps its title centered in the sheet. The date and end-date sheet header is Today (leading), title, Done (trailing), with no bottom Today link; Done applies the draft and Today selects today. The date sheet removes ambient `MediaQuery` padding around `CalendarDatePicker`. The cancel-free sheets deliberately differ from the approved reference frames, which draw Cancel. The legacy `TwoColumnPickerSheet` modal (Account form) also has no Cancel and dismisses by the modal sheet's own drag and barrier. `SourcePickerSheet` shows
   active accounts with active pockets as children and no None option. `CategoryPickerSheet` uses
   `EntryFormViewModel.categoryGroups`, ordered roots then children A–Z, offers no None option, and is never
   shown for transfers. `RecurrencePickerSheet` offers One time, Weekly, Biweekly, Monthly,

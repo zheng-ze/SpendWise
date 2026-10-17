@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 
 // MARK: - Constants
-const pickerCancelKey = ValueKey('picker-cancel');
-
 const pickerDoneKey = ValueKey('picker-done');
 
 const pickerTodayKey = ValueKey('picker-today');
@@ -35,36 +33,48 @@ class AppPickerSheet extends StatelessWidget {
     super.key,
     required this.title,
     required this.body,
+    this.leading,
     this.trailing,
     this.footer,
   });
 
   final String title;
   final Widget body;
+  final Widget? leading;
   final Widget? trailing;
   final Widget? footer;
 
   @override
   Widget build(BuildContext context) {
-    final header = AppPickerHeader(title: title, trailing: trailing);
-    return AppSheet(header: header, body: body, footer: footer);
+    final header = AppPickerHeader(
+      title: title,
+      leading: leading,
+      trailing: trailing,
+    );
+    return AppSheet(
+      header: header,
+      body: body,
+      footer: footer,
+      dragToDismiss: true,
+    );
   }
 }
 
 // MARK: - AppPickerHeader
 class AppPickerHeader extends StatelessWidget {
-  const AppPickerHeader({super.key, required this.title, this.trailing});
+  const AppPickerHeader({
+    super.key,
+    required this.title,
+    this.leading,
+    this.trailing,
+  });
 
   final String title;
+  final Widget? leading;
   final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
-    final cancel = TextButton(
-      key: pickerCancelKey,
-      onPressed: () => Navigator.of(context).pop(),
-      child: const Text('Cancel'),
-    );
     final label = Text(
       title,
       textAlign: TextAlign.center,
@@ -74,7 +84,7 @@ class AppPickerHeader extends StatelessWidget {
       child: Padding(padding: _titlePadding, child: label),
     );
 
-    final leadingSlot = Align(alignment: Alignment.centerLeft, child: cancel);
+    final leadingSlot = Align(alignment: Alignment.centerLeft, child: leading);
     final trailingSlot = Align(
       alignment: Alignment.centerRight,
       child: trailing,

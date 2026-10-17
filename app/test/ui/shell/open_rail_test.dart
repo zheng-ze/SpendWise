@@ -2,6 +2,10 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../../support/add_sheet_dismiss.dart';
+import '../../support/ui_test_timeout.dart';
+
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/sync/hosted_sync_status.dart';
@@ -273,8 +277,7 @@ void main() {
       ShellDestination.trends,
     );
 
-    await tester.tap(find.text('Cancel'));
-    await tester.pumpAndSettle();
+    await dismissAddSheet(tester);
     expect(find.byType(AppSheet), findsNothing);
   }, timeout: uiTestTimeout);
 

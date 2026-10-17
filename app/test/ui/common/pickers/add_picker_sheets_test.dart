@@ -26,6 +26,10 @@ const _groups = [
   PickerOption(id: 'solo', label: 'Solo'),
 ];
 
+const _outsideTap = Offset(5, 5);
+
+const _dismissDrag = Offset(0, 700);
+
 const _sizes = [phoneTallSize, phoneShortSize, desktopSize];
 
 Future<PickerOpener<PickerOutcome>> _openGroups(
@@ -77,13 +81,11 @@ Future<PickerOpener<DateTime>> _openDate(WidgetTester tester, Size size) {
 void main() {
   for (final size in _sizes) {
     group('at ${size.width.toInt()} x ${size.height.toInt()}', () {
-      testWidgets('category sheet is capped with pinned Cancel', (
-        tester,
-      ) async {
+      testWidgets('category sheet is capped without Cancel', (tester) async {
         await _openGroups(tester, size);
 
         expectAllSheetsCapped(tester, size);
-        expect(find.byKey(pickerCancelKey), findsOneWidget);
+        expect(find.text('Cancel'), findsNothing);
         expect(tester.takeException(), isNull);
       }, timeout: uiTestTimeout);
 
@@ -98,11 +100,13 @@ void main() {
         expect(tester.takeException(), isNull);
       }, timeout: uiTestTimeout);
 
-      testWidgets('date sheet shows Cancel, Done and Today', (tester) async {
+      testWidgets('date sheet shows Today and Done without Cancel', (
+        tester,
+      ) async {
         await _openDate(tester, size);
 
         expectAllSheetsCapped(tester, size);
-        expect(find.byKey(pickerCancelKey), findsOneWidget);
+        expect(find.text('Cancel'), findsNothing);
         expect(find.byKey(pickerDoneKey), findsOneWidget);
         expect(find.byKey(pickerTodayKey), findsOneWidget);
         expect(tester.takeException(), isNull);
@@ -162,14 +166,46 @@ void main() {
     expect((opener.result! as PickerChose).id, 'food');
   }, timeout: uiTestTimeout);
 
-  testWidgets('Cancel returns null', (tester) async {
+  testWidgets('dragging a picker down dismisses it on phone', (tester) async {
     final opener = await _openGroups(tester, phoneTallSize);
 
-    await tester.tap(find.byKey(pickerCancelKey));
+    await tester.drag(find.text('Category'), _dismissDrag);
     await tester.pumpAndSettle();
 
     expect(opener.completed, isTrue);
     expect(opener.result, isNull);
+    expect(find.byType(AppSheet), findsNothing);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('tapping outside dismisses every picker', (tester) async {
+    final groups = await _openGroups(tester, phoneTallSize);
+    await tester.tapAt(_outsideTap);
+    await tester.pumpAndSettle();
+    final recurrence = await _openRecurrence(tester, phoneTallSize);
+    await tester.tapAt(_outsideTap);
+    await tester.pumpAndSettle();
+    final date = await _openDate(tester, phoneTallSize);
+    await tester.tapAt(_outsideTap);
+    await tester.pumpAndSettle();
+
+    expect(groups.completed, isTrue);
+    expect(recurrence.completed, isTrue);
+    expect(date.completed, isTrue);
+    expect(find.byType(AppSheet), findsNothing);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('date header orders Today, centered title, Done', (tester) async {
+    await _openDate(tester, phoneTallSize);
+
+    final today = tester.getCenter(find.byKey(pickerTodayKey));
+    final title = tester.getCenter(find.text('Date'));
+    final done = tester.getCenter(find.byKey(pickerDoneKey));
+    final sheet = tester.getCenter(find.byType(AppSheet));
+
+    expect(today.dx, lessThan(title.dx));
+    expect(title.dx, lessThan(done.dx));
+    expect(title.dx, closeTo(sheet.dx, 0.5));
+    expect(today.dy, closeTo(done.dy, 0.5));
   }, timeout: uiTestTimeout);
 
   testWidgets('recurrence choice returns the frequency', (tester) async {
@@ -181,20 +217,22 @@ void main() {
     expect(opener.result, RecurrenceFrequency.weekly);
   }, timeout: uiTestTimeout);
 
-  testWidgets('recurrence One time returns null and cancel keeps selection', (
-    tester,
-  ) async {
-    final chosen = await _openRecurrence(tester, phoneTallSize);
-    await tester.tap(find.text('One time'));
-    await tester.pumpAndSettle();
-    final cancelled = await _openRecurrence(tester, phoneTallSize);
-    await tester.tap(find.byKey(pickerCancelKey));
-    await tester.pumpAndSettle();
+  testWidgets(
+    'recurrence One time returns null and dismissal keeps selection',
+    (tester) async {
+      final chosen = await _openRecurrence(tester, phoneTallSize);
+      await tester.tap(find.text('One time'));
+      await tester.pumpAndSettle();
+      final cancelled = await _openRecurrence(tester, phoneTallSize);
+      await tester.tapAt(_outsideTap);
+      await tester.pumpAndSettle();
 
-    expect(chosen.completed, isTrue);
-    expect(chosen.result, isNull);
-    expect(cancelled.result, RecurrenceFrequency.monthly);
-  }, timeout: uiTestTimeout);
+      expect(chosen.completed, isTrue);
+      expect(chosen.result, isNull);
+      expect(cancelled.result, RecurrenceFrequency.monthly);
+    },
+    timeout: uiTestTimeout,
+  );
 
   testWidgets('date selection stays draft until Done', (tester) async {
     final opener = await _openDate(tester, phoneTallSize);
@@ -208,11 +246,11 @@ void main() {
     expect(opener.result, DateTime(2026, 3, 15));
   }, timeout: uiTestTimeout);
 
-  testWidgets('date Cancel discards the draft', (tester) async {
+  testWidgets('date dismissal discards the draft', (tester) async {
     final opener = await _openDate(tester, phoneTallSize);
 
     await tester.tap(find.text('15'));
-    await tester.tap(find.byKey(pickerCancelKey));
+    await tester.tapAt(_outsideTap);
     await tester.pumpAndSettle();
 
     expect(opener.completed, isTrue);

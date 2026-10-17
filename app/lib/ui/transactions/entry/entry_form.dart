@@ -97,7 +97,6 @@ class _AddEntryHost extends ConsumerWidget {
         actionLabel: _retryLabel,
       );
       return NewEntryLoadingForm(
-        onCancel: onDismiss,
         alert: failed ? loadAlert : null,
         onAlertAction: failed ? onRetry : null,
       );
