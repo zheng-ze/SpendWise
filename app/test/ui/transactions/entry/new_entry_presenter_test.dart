@@ -7,6 +7,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show MethodChannel;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../../../support/add_sheet_dismiss.dart';
+
 import 'package:permission_handler_platform_interface/permission_handler_platform_interface.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
@@ -155,7 +158,7 @@ void main() {
   }
 
   Future<void> closeAdd(WidgetTester tester) async {
-    await tester.tap(find.text('Cancel'));
+    await dismissAddSheet(tester);
     await tester.pumpAndSettle();
   }
 
@@ -181,8 +184,8 @@ void main() {
 
       expect(find.byType(AppSheet), findsOneWidget);
       expect(find.text('Add entry'), findsOneWidget);
-      expect(find.text('Cancel'), findsOneWidget);
-      expect(find.text('Save'), findsOneWidget);
+      expect(find.text('Cancel'), findsNothing);
+      expect(find.text('Save entry'), findsOneWidget);
       expect(
         containerOf(tester)
             .read(entryFormViewModelProvider(null))
@@ -227,6 +230,8 @@ void main() {
       final ledger = buildLedger();
       await pumpFlow(tester, ledger: ledger);
       await openAdd(tester);
+      await tester.tap(find.text('Add entry'));
+      await tester.pumpAndSettle();
 
       await tester.tapAt(const Offset(400, 30));
       await tester.pumpAndSettle();
@@ -433,7 +438,7 @@ void main() {
       await tester.tap(find.text('Checking'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Save'));
+      await tester.tap(find.text('Save entry'));
       await tester.pumpAndSettle();
 
       expect(ledger.state.entries.length, 1);
@@ -460,7 +465,7 @@ void main() {
       await tester.pumpAndSettle();
       ledger.deleteAccount(checking.id);
 
-      await tester.tap(find.text('Save'));
+      await tester.tap(find.text('Save entry'));
       await tester.pumpAndSettle();
 
       expect(find.byType(ErrorSection), findsNothing);
@@ -608,7 +613,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Checking'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Save'));
+      await tester.tap(find.text('Save entry'));
       await tester.pumpAndSettle();
       expect(ledger.state.entries.length, 1);
     }

@@ -13,11 +13,46 @@ const _springBackCurve = Curves.easeOut;
 const _noOffset = 0.0;
 
 class SheetDragHandle {
-  const SheetDragHandle({required this.update, required this.end});
+  const SheetDragHandle({
+    required this.offset,
+    required this.update,
+    required this.end,
+  });
+
+  final double Function() offset;
 
   final ValueChanged<double> update;
 
   final ValueChanged<double> end;
+}
+
+class SheetDismissPhysics extends ClampingScrollPhysics {
+  const SheetDismissPhysics({super.parent, required this.handle});
+
+  final SheetDragHandle handle;
+
+  @override
+  SheetDismissPhysics applyTo(ScrollPhysics? ancestor) =>
+      SheetDismissPhysics(parent: buildParent(ancestor), handle: handle);
+
+  @override
+  double applyPhysicsToUserOffset(ScrollMetrics position, double offset) {
+    if (offset > _noOffset) return _scrollOrDrag(position, offset);
+    final reclaimed = math.min(-offset, handle.offset());
+    if (reclaimed > _noOffset) handle.update(-reclaimed);
+    return offset + reclaimed;
+  }
+
+  double _scrollOrDrag(ScrollMetrics position, double offset) {
+    final room = math.max(
+      _noOffset,
+      position.pixels - position.minScrollExtent,
+    );
+    final scrolled = math.min(offset, room);
+    final dragged = offset - scrolled;
+    if (dragged > _noOffset) handle.update(dragged);
+    return scrolled;
+  }
 }
 
 class SheetDragScope extends InheritedWidget {
@@ -60,6 +95,14 @@ class _SheetDragDismissState extends State<SheetDragDismiss>
   double _springFrom = _noOffset;
 
   @override
+  void didUpdateWidget(SheetDragDismiss oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.enabled) return;
+    _spring.stop();
+    _offset = _noOffset;
+  }
+
+  @override
   void dispose() {
     _spring.dispose();
     super.dispose();
@@ -76,72 +119,42 @@ class _SheetDragDismissState extends State<SheetDragDismiss>
   }
 
   void _end(double velocity) {
-    if (velocity > _flingVelocity) return widget.onDismiss();
     if (_offset == _noOffset) return;
+    if (velocity > _flingVelocity) return widget.onDismiss();
     final height = context.size?.height ?? _noOffset;
     if (_offset > height * _dismissFraction) return widget.onDismiss();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      setState(() => _offset = _noOffset);
+      return;
+    }
     _springFrom = _offset;
     _spring.forward(from: _noOffset);
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final handle = SheetDragHandle(update: _update, end: _end);
-    final shifted = Transform.translate(
-      offset: Offset(_noOffset, _offset),
-      child: widget.child,
-    );
-
-    return SheetDragScope(
-      handle: widget.enabled ? handle : null,
-      child: shifted,
-    );
-  }
-}
-
-class SheetBodyDrag extends StatefulWidget {
-  const SheetBodyDrag({super.key, required this.handle, required this.child});
-
-  final SheetDragHandle? handle;
-
-  final Widget child;
-
-  @override
-  State<SheetBodyDrag> createState() => _SheetBodyDragState();
-}
-
-class _SheetBodyDragState extends State<SheetBodyDrag> {
-  bool _startedAtTop = false;
-
-  bool _onScroll(ScrollNotification notification) {
-    final handle = widget.handle;
-    if (handle == null) return false;
-    final metrics = notification.metrics;
-    if (notification is ScrollStartNotification) {
-      _startedAtTop = metrics.pixels <= metrics.minScrollExtent;
-    }
-    if (!_startedAtTop) return false;
-    if (notification is OverscrollNotification) {
-      final dragging = notification.dragDetails != null;
-      if (dragging && notification.overscroll < 0) {
-        handle.update(-notification.overscroll);
-      }
-    }
-    if (notification is ScrollUpdateNotification) {
-      handle.update(-(notification.scrollDelta ?? _noOffset));
-    }
-    if (notification is ScrollEndNotification) {
-      _startedAtTop = false;
-      handle.end(notification.dragDetails?.primaryVelocity ?? _noOffset);
-    }
+  bool _onScrollEnd(ScrollEndNotification notification) {
+    _end(notification.dragDetails?.primaryVelocity ?? _noOffset);
     return false;
   }
 
   @override
   Widget build(BuildContext context) {
-    return NotificationListener<ScrollNotification>(
-      onNotification: _onScroll,
+    final handle = SheetDragHandle(
+      offset: () => _offset,
+      update: _update,
+      end: _end,
+    );
+    final shifted = Transform.translate(
+      offset: Offset(_noOffset, _offset),
       child: widget.child,
+    );
+    final listener = NotificationListener<ScrollEndNotification>(
+      onNotification: _onScrollEnd,
+      child: shifted,
+    );
+
+    return SheetDragScope(
+      handle: widget.enabled ? handle : null,
+      child: listener,
     );
   }
 }

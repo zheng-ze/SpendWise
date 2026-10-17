@@ -2,6 +2,9 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../../../support/add_sheet_dismiss.dart';
+
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/settings/settings_providers.dart';
@@ -183,7 +186,7 @@ void main() {
   }
 
   Future<void> closeAdd(WidgetTester tester) async {
-    await tester.tap(find.text('Cancel'));
+    await dismissAddSheet(tester);
     await tester.pumpAndSettle();
   }
 
@@ -735,7 +738,7 @@ void main() {
       await tester.pumpAndSettle();
       ledger.deleteAccount(checkingId);
 
-      await tester.tap(find.text('Save'));
+      await tester.tap(find.text('Save entry'));
       await tester.pumpAndSettle();
       expect(find.byType(ErrorSection), findsNothing);
       expect(
@@ -817,7 +820,7 @@ void main() {
       }
       await expectUsableControl(tester, find.text('Date'), sheet);
       await expectUsableControl(tester, find.text('Account'), sheet);
-      await expectUsableControl(tester, find.text('Save'), sheet);
+      await expectUsableControl(tester, find.text('Save entry'), sheet);
 
       expect(tester.takeException(), isNull);
       await closeAdd(tester);
@@ -856,9 +859,9 @@ void main() {
         isFalse,
       );
       expect(tester.takeException(), isNull);
-      await expectUsableControl(tester, find.text('Save'), sheet);
+      await expectUsableControl(tester, find.text('Save entry'), sheet);
       expect(
-        tester.getRect(find.text('Save')).bottom,
+        tester.getRect(find.text('Save entry')).bottom,
         lessThanOrEqualTo(_smallOpenSize.height - 200),
       );
 

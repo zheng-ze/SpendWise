@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../../support/add_sheet_dismiss.dart';
+
 import 'package:spendwise/boot/app_boot.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/boot/seed_data.dart';
@@ -287,7 +290,7 @@ void main() {
         container.read(entryFormViewModelProvider(null)).value?.sourceId,
         expectedSourceId,
       );
-      await tester.tap(find.text('Cancel'));
+      await dismissAddSheet(tester);
       await tester.pumpAndSettle();
     }
 

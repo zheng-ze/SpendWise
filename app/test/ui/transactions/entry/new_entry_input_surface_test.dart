@@ -11,7 +11,7 @@ import 'package:spendwise/ui/transactions/entry/new_entry_presenter.dart';
 
 import 'new_entry_session_harness.dart';
 
-const _dragDown = Offset(0, 160);
+const _dragDown = Offset(0, 320);
 
 Finder get _amountField => find.byType(TextField).first;
 

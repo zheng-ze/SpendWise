@@ -1,3 +1,5 @@
+import 'dart:ui' show lerpDouble;
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
@@ -10,31 +12,30 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 import 'package:spendwise/ui/transactions/entry/add_amount_block.dart';
 import 'package:spendwise/ui/transactions/entry/animated_input_surface.dart';
 import 'package:spendwise/ui/transactions/entry/fields/entry_fields.dart';
+import 'package:spendwise/ui/transactions/entry/new_entry_chrome.dart';
 import 'package:spendwise/ui/transactions/entry/steps/entry_form_logic.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_strip.dart';
 
 // MARK: - Visual Constants
 
-const _actionWidth = double.infinity;
-
-const _loadingIndicatorSize = 36.0;
-
-const _loadingBodySpacing = 24.0;
-
 const _desktopMaxHeightFraction = 1.0;
 
-const _sectionGap = 12.0;
+const _sectionGap = 8.0;
 
-const _groupRadius = 12.0;
+const _grownHeightFraction = 1.0;
+
+const _groupRadius = 14.0;
 
 const _groupBorderWidth = 1.0;
 
 const _groupPadding = EdgeInsets.symmetric(horizontal: 10.0);
 
-const _actionPadding = EdgeInsets.symmetric(horizontal: 8.0);
+const _segmentGap = 2.0;
 
-const _actionMinSize = 48.0;
+const _segmentLabelPadding = 2.0;
+
+const _keypadSegmentPadding = 5.0;
 
 // MARK: - NewEntryForm
 class NewEntryForm extends StatefulWidget {
@@ -72,7 +73,6 @@ class _NewEntryFormState extends State<NewEntryForm> {
   final _nameFocus = FocusNode();
   bool _keyboardSeen = false;
   bool _routeWasCurrent = true;
-  bool _dismissing = false;
   bool _padShown = false;
   Offset? _outsideDownAt;
   FocusNode? _focusAtPointerDown;
@@ -94,7 +94,6 @@ class _NewEntryFormState extends State<NewEntryForm> {
     final restorePad = dismissed && _nameFocus.hasFocus && _usesPad;
     if (restorePad) _amountFocus.requestFocus();
     _trackCover(ModalRoute.isCurrentOf(context) ?? true);
-    _dismissing = ModalRoute.of(context)?.isActive == false;
   }
 
   void _trackCover(bool current) {
@@ -177,18 +176,23 @@ class _NewEntryFormState extends State<NewEntryForm> {
   Widget build(BuildContext context) {
     final viewModel = widget.viewModel;
     final state = widget.state;
-    final presentation = AppSheetAlertSlot.maybeOf(context)?.presentation;
+    final presentation =
+        AppSheetAlertSlot.maybeOf(context)?.presentation ??
+        AppSheetPresentation.phone;
     final desktop = presentation == AppSheetPresentation.desktop;
     final keyboardUp = MediaQuery.viewInsetsOf(context).bottom > 0;
-    final focusedPad = !desktop && _amountFocus.hasFocus && !keyboardUp;
-    final leaving = _dismissing || state.dismissed;
+    final focusedPad = !desktop && _amountFocus.hasFocus;
+    final route = ModalRoute.of(context);
+    final exiting = route != null && !route.isActive;
+    final leaving = exiting || state.dismissed;
     final padVisible = leaving ? _padShown : focusedPad;
     _padShown = padVisible;
+    final grown = padVisible || _nameFocus.hasFocus || keyboardUp;
     final save = state.canSave ? viewModel.save : null;
-    final header = _NewEntryHeader(
+    final header = NewEntryHeader(
+      presentation: presentation,
       onCancel: viewModel.cancel,
-      onSave: desktop ? null : save,
-      showSave: !desktop,
+      onSave: save,
     );
     final body = _NewEntryBody(
       formKey: widget.formKey,
@@ -199,6 +203,7 @@ class _NewEntryFormState extends State<NewEntryForm> {
       amountFocus: _amountFocus,
       nameFocus: _nameFocus,
       systemKeyboard: desktop,
+      keypad: padVisible,
       display: widget.display,
       onOutsideDown: _outsideDown,
       onOutsideUp: _outsideUp,
@@ -209,29 +214,36 @@ class _NewEntryFormState extends State<NewEntryForm> {
       child: body,
     );
     final pad = padVisible
-        ? NumberPad(
-            enabled: true,
-            onDigit: (digit) => _applyEdit(AmountEdit.insert(digit)),
-            onDecimal: () => _applyEdit(const AmountEdit.insert('.')),
-            onBackspace: () => _applyEdit(const AmountEdit.delete()),
+        ? TextFieldTapRegion(
+            child: NumberPad(
+              enabled: true,
+              onDigit: (digit) => _applyEdit(AmountEdit.insert(digit)),
+              onDecimal: () => _applyEdit(const AmountEdit.insert('.')),
+              onBackspace: () => _applyEdit(const AmountEdit.delete()),
+            ),
           )
         : null;
-    final surface = pad == null ? null : TextFieldTapRegion(child: pad);
-    final inputSurface = AnimatedInputSurface(
-      instant: _nameFocus.hasFocus,
-      child: surface,
-    );
+    Widget sheet(BuildContext context, Widget surface, double growth) {
+      final fraction = lerpDouble(
+        AppSheet.defaultMaxHeightFraction,
+        _grownHeightFraction,
+        growth,
+      );
+      return AppSheet(
+        header: header,
+        body: trackedBody,
+        footer: NewEntrySaveFooter(onSave: save, keypad: padVisible),
+        inputSurface: surface,
+        dragToDismiss: true,
+        variant: AppSheetVariant.form,
+        alert: widget.alert,
+        onAlertAction: widget.onAlertAction,
+        desktopMaxHeightFraction: _desktopMaxHeightFraction,
+        phoneMaxHeightFraction: fraction!,
+      );
+    }
 
-    return AppSheet(
-      header: header,
-      body: trackedBody,
-      footer: _NewEntrySaveFooter(onSave: save),
-      inputSurface: inputSurface,
-      dragToDismiss: true,
-      alert: widget.alert,
-      onAlertAction: widget.onAlertAction,
-      desktopMaxHeightFraction: _desktopMaxHeightFraction,
-    );
+    return AnimatedInputSurface(grown: grown, builder: sheet, child: pad);
   }
 }
 
@@ -245,6 +257,7 @@ class _NewEntryBody extends StatelessWidget {
     required this.amountFocus,
     required this.nameFocus,
     required this.systemKeyboard,
+    required this.keypad,
     required this.display,
     required this.onOutsideDown,
     required this.onOutsideUp,
@@ -258,6 +271,7 @@ class _NewEntryBody extends StatelessWidget {
   final FocusNode amountFocus;
   final FocusNode nameFocus;
   final bool systemKeyboard;
+  final bool keypad;
   final EntryFormDisplay? display;
   final ValueChanged<PointerDownEvent> onOutsideDown;
   final void Function(FocusNode, PointerUpEvent) onOutsideUp;
@@ -274,6 +288,9 @@ class _NewEntryBody extends StatelessWidget {
       options: _kindOptions,
       value: state.kind,
       onChanged: viewModel.setKind,
+      segmentGap: _segmentGap,
+      labelHorizontalPadding: _segmentLabelPadding,
+      labelVerticalPadding: keypad ? _keypadSegmentPadding : null,
     );
     final amount = AddAmountBlock(
       controller: amountController,
@@ -338,126 +355,6 @@ class _FormGroup extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: children,
         ),
-      ),
-    );
-  }
-}
-
-// MARK: - NewEntryLoadingForm
-class NewEntryLoadingForm extends StatelessWidget {
-  const NewEntryLoadingForm({
-    super.key,
-    required this.onCancel,
-    this.alert,
-    this.onAlertAction,
-  });
-
-  final VoidCallback? onCancel;
-
-  final SheetAlertData? alert;
-
-  final VoidCallback? onAlertAction;
-
-  @override
-  Widget build(BuildContext context) {
-    return AppSheet(
-      header: _NewEntryHeader(onCancel: onCancel),
-      body: const _NewEntryLoadingBody(),
-      footer: const _NewEntrySaveFooter(onSave: null),
-      dragToDismiss: true,
-      alert: alert,
-      onAlertAction: onAlertAction,
-      desktopMaxHeightFraction: _desktopMaxHeightFraction,
-    );
-  }
-}
-
-// MARK: - NewEntryLoadingBody
-class _NewEntryLoadingBody extends StatelessWidget {
-  const _NewEntryLoadingBody();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SizedBox(height: _loadingBodySpacing),
-        Center(
-          child: SizedBox(
-            width: _loadingIndicatorSize,
-            height: _loadingIndicatorSize,
-            child: CircularProgressIndicator(),
-          ),
-        ),
-        SizedBox(height: _loadingBodySpacing),
-      ],
-    );
-  }
-}
-
-// MARK: - NewEntryHeader
-class _NewEntryHeader extends StatelessWidget {
-  const _NewEntryHeader({
-    required this.onCancel,
-    this.onSave,
-    this.showSave = false,
-  });
-
-  final VoidCallback? onCancel;
-
-  final Future<void> Function()? onSave;
-
-  final bool showSave;
-
-  @override
-  Widget build(BuildContext context) {
-    final style = TextButton.styleFrom(
-      padding: _actionPadding,
-      minimumSize: const Size(_actionMinSize, _actionMinSize),
-    );
-    final cancel = Flexible(
-      child: TextButton(
-        style: style,
-        onPressed: onCancel,
-        child: const Text('Cancel'),
-      ),
-    );
-    final title = Expanded(
-      child: Text(
-        'Add entry',
-        textAlign: TextAlign.center,
-        style: Theme.of(context).textTheme.titleMedium,
-      ),
-    );
-    final saveAction = showSave
-        ? Flexible(
-            child: TextButton(
-              style: style,
-              onPressed: onSave,
-              child: const Text('Save'),
-            ),
-          )
-        : const SizedBox(width: _actionMinSize);
-
-    return Row(children: [cancel, title, saveAction]);
-  }
-}
-
-// MARK: - NewEntrySaveFooter
-class _NewEntrySaveFooter extends StatelessWidget {
-  const _NewEntrySaveFooter({required this.onSave});
-
-  final Future<void> Function()? onSave;
-
-  static const _saveTopSpacing = 4.0;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: _saveTopSpacing),
-      child: SizedBox(
-        width: _actionWidth,
-        child: FilledButton(onPressed: onSave, child: const Text('Save entry')),
       ),
     );
   }

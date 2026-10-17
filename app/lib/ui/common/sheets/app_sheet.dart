@@ -13,9 +13,13 @@ const _unboundedExtent = double.infinity;
 
 const _sheetMaxWidth = 440.0;
 
+const _formDesktopWidth = 340.0;
+
 // MARK: - Presentation
 
 enum AppSheetPresentation { phone, open, desktop }
+
+enum AppSheetVariant { standard, form }
 
 // MARK: - Alert Slot
 
@@ -56,7 +60,9 @@ class AppSheet extends StatefulWidget {
     this.alert,
     this.onAlertAction,
     this.desktopMaxHeightFraction = defaultMaxHeightFraction,
+    this.phoneMaxHeightFraction = defaultMaxHeightFraction,
     this.dragToDismiss = false,
+    this.variant = AppSheetVariant.standard,
   });
 
   static const defaultMaxHeightFraction = 0.66;
@@ -75,7 +81,11 @@ class AppSheet extends StatefulWidget {
 
   final double desktopMaxHeightFraction;
 
+  final double phoneMaxHeightFraction;
+
   final bool dragToDismiss;
+
+  final AppSheetVariant variant;
 
   @override
   State<AppSheet> createState() => _AppSheetState();
@@ -136,7 +146,7 @@ class _AppSheetState extends State<AppSheet> {
     final cap =
         (desktop
             ? widget.desktopMaxHeightFraction
-            : AppSheet.defaultMaxHeightFraction) *
+            : widget.phoneMaxHeightFraction) *
         available;
     final openHeight =
         media.size.height -
@@ -145,7 +155,9 @@ class _AppSheetState extends State<AppSheet> {
         media.viewInsets.bottom;
     final hasBottom = widget.footer != null || widget.inputSurface != null;
     final phone = presentation == AppSheetPresentation.phone;
-    final top = _SheetTop(header: widget.header, showHandle: !open);
+    final form = widget.variant == AppSheetVariant.form;
+    final showHandle = !open && !(desktop && form);
+    final top = _SheetTop(header: widget.header, showHandle: showHandle);
     final bottom = hasBottom
         ? _SheetBottom(footer: widget.footer, inputSurface: widget.inputSurface)
         : null;
@@ -157,10 +169,15 @@ class _AppSheetState extends State<AppSheet> {
     final constraints = open
         ? BoxConstraints(minHeight: openHeight, maxHeight: openHeight)
         : desktop
-        ? BoxConstraints(maxHeight: cap, maxWidth: _sheetMaxWidth)
+        ? BoxConstraints(
+            maxHeight: cap,
+            minWidth: form ? _formDesktopWidth : 0,
+            maxWidth: form ? _formDesktopWidth : _sheetMaxWidth,
+          )
         : BoxConstraints(maxHeight: cap, minWidth: _unboundedExtent);
     final chrome = _SheetChrome(
       presentation: presentation,
+      variant: widget.variant,
       bottomInset: media.padding.bottom,
       child: scrollBody,
     );
@@ -182,20 +199,9 @@ class _SheetTop extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final column = Column(
+    return Column(
       mainAxisSize: MainAxisSize.min,
       children: [if (showHandle) const _SheetHandle(), header],
-    );
-    final handle = SheetDragScope.maybeOf(context);
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onVerticalDragUpdate: handle == null
-          ? null
-          : (details) => handle.update(details.delta.dy),
-      onVerticalDragEnd: handle == null
-          ? null
-          : (details) => handle.end(details.primaryVelocity ?? 0),
-      child: column,
     );
   }
 }
@@ -232,16 +238,23 @@ class _SheetScrollBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final handle = SheetDragScope.maybeOf(context);
-    final scrollingBody = SheetBodyDrag(
-      handle: handle,
-      child: SingleChildScrollView(
-        physics: handle == null ? null : const ClampingScrollPhysics(),
-        child: body,
-      ),
+    final bodyPhysics = handle == null
+        ? null
+        : SheetDismissPhysics(handle: handle);
+    final sheetPhysics = handle == null
+        ? null
+        : SheetDismissPhysics(
+            parent: const AlwaysScrollableScrollPhysics(),
+            handle: handle,
+          );
+    final scrollingBody = SingleChildScrollView(
+      physics: bodyPhysics,
+      child: body,
     );
 
     return LayoutBuilder(
       builder: (context, constraints) => SingleChildScrollView(
+        physics: sheetPhysics,
         child: SheetPinnedLayout(
           maxHeight: constraints.maxHeight,
           top: top,
@@ -258,9 +271,25 @@ class _SheetScrollBody extends StatelessWidget {
 class _SheetChrome extends StatelessWidget {
   const _SheetChrome({
     required this.presentation,
+    required this.variant,
     required this.bottomInset,
     required this.child,
   });
+
+  static const _formDesktopRadius = 18.0;
+
+  static const _formDesktopPadding = EdgeInsets.symmetric(
+    vertical: 16.0,
+    horizontal: 18.0,
+  );
+
+  static const _formTopBorderWidth = 1.0;
+
+  static const _formShadow = BoxShadow(
+    color: Color(0x1A000000),
+    offset: Offset(0, -8),
+    blurRadius: 22.0,
+  );
 
   static const _desktopRadius = 16.0;
 
@@ -286,6 +315,8 @@ class _SheetChrome extends StatelessWidget {
 
   final AppSheetPresentation presentation;
 
+  final AppSheetVariant variant;
+
   final double bottomInset;
 
   final Widget child;
@@ -295,10 +326,16 @@ class _SheetChrome extends StatelessWidget {
     final colors = context.colors;
     final open = presentation == AppSheetPresentation.open;
     final desktop = presentation == AppSheetPresentation.desktop;
+    final form = variant == AppSheetVariant.form;
+    final canvas = form && Theme.of(context).brightness == Brightness.light;
+    final desktopRadius = form ? _formDesktopRadius : _desktopRadius;
+    final topBorder = canvas
+        ? BorderSide(color: colors.edge, width: _formTopBorderWidth)
+        : BorderSide(color: colors.control, width: _topBorderWidth);
     final radius = open
         ? BorderRadius.zero
         : desktop
-        ? BorderRadius.circular(_desktopRadius)
+        ? BorderRadius.circular(desktopRadius)
         : const BorderRadius.vertical(top: Radius.circular(_sheetTopRadius));
     final border = open
         ? Border(
@@ -306,11 +343,17 @@ class _SheetChrome extends StatelessWidget {
           )
         : desktop
         ? Border.all(color: colors.control)
-        : Border(
-            top: BorderSide(color: colors.control, width: _topBorderWidth),
-          );
-    final decoration = BoxDecoration(border: border, borderRadius: radius);
-    final padding = open
+        : Border(top: topBorder);
+    final shadow = canvas && !open && !desktop ? [_formShadow] : null;
+    final decoration = BoxDecoration(
+      color: canvas ? colors.base : null,
+      border: border,
+      borderRadius: radius,
+      boxShadow: shadow,
+    );
+    final padding = form && desktop
+        ? _formDesktopPadding.add(EdgeInsets.only(bottom: bottomInset))
+        : open
         ? EdgeInsets.fromLTRB(
             _openLeftPadding,
             _openTopPadding,
@@ -325,7 +368,7 @@ class _SheetChrome extends StatelessWidget {
           );
 
     return Material(
-      color: colors.raised,
+      color: canvas ? colors.base : colors.raised,
       borderRadius: radius,
       child: Container(decoration: decoration, padding: padding, child: child),
     );

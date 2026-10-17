@@ -2,6 +2,9 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../../../support/add_sheet_dismiss.dart';
+
 import 'package:spendwise/ui/common/inputs/number_pad.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/theme/spendwise_colors.dart';
@@ -10,6 +13,7 @@ import 'package:spendwise/ui/transactions/entry/add_amount_block.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/entry/steps/entry_form_logic.dart';
 
+import '../../../support/pad_probe.dart';
 import 'new_entry_session_harness.dart';
 
 const _foldBounds = Rect.fromLTWH(475, 0, 10, 720);
@@ -23,9 +27,62 @@ const _safeBottom = 34.0;
 const _dragUp = Offset(0, -80);
 const _dragDownward = Offset(0, 80);
 const _handleWidth = 34.0;
+const _titleSize = 18.0;
+const _titleLineHeight = 1.2;
+const _saveRadius = 10.0;
+const _saveLabelSize = 12.0;
+const _phoneAmountSize = 32.0;
+const _desktopAmountSize = 34.0;
+const _amountLetterSpacing = -1.0;
+const _amountLineHeight = 1.2;
+const _caretWidth = 1.5;
+const _amountLabelSize = 10.0;
 const _handleHeight = 4.0;
 
 final _frameIds = {'add-expense', 'add-income', 'add-transfer', 'add-desk'};
+
+const _desktopWindow = Size(1440, 900);
+
+extension on _Frame {
+  _Frame withBrightness(Brightness value) => (
+    kind: kind,
+    amount: amount,
+    name: name,
+    brightness: value,
+    desktop: desktop,
+  );
+}
+
+const _frames = <String, _Frame>{
+  'add-expense': (
+    kind: EntryFormKind.expense,
+    amount: '42.50',
+    name: 'FairPrice groceries',
+    brightness: Brightness.light,
+    desktop: false,
+  ),
+  'add-income': (
+    kind: EntryFormKind.income,
+    amount: '3200.00',
+    name: 'Monthly salary',
+    brightness: Brightness.light,
+    desktop: false,
+  ),
+  'add-transfer': (
+    kind: EntryFormKind.transfer,
+    amount: '500.00',
+    name: 'To savings',
+    brightness: Brightness.light,
+    desktop: false,
+  ),
+  'add-desk': (
+    kind: EntryFormKind.expense,
+    amount: '42.50',
+    name: 'FairPrice groceries',
+    brightness: Brightness.light,
+    desktop: true,
+  ),
+};
 
 Finder _inSheet(String text) =>
     find.descendant(of: find.byType(AppSheet), matching: find.text(text));
@@ -90,45 +147,78 @@ Future<void> _dragIntoView(
 }
 
 Future<void> _expectChromeReachable(WidgetTester tester) async {
-  for (final label in ['Cancel', 'Save entry', '5']) {
+  for (final label in ['Add entry', 'Save entry', '5']) {
     expect(find.text(label).hitTestable(), findsOneWidget, reason: label);
   }
 }
 
+typedef _Frame = ({
+  EntryFormKind kind,
+  String amount,
+  String name,
+  Brightness brightness,
+  bool desktop,
+});
+
+void _expectHeader(WidgetTester tester, _Frame frame) {
+  final title = tester.widget<Text>(_inSheet('Add entry'));
+  expect(title.style!.fontSize, _titleSize);
+  expect(title.style!.fontWeight, FontWeight.w600);
+  expect(title.style!.height, _titleLineHeight);
+  expect(_inSheet('Cancel'), frame.desktop ? findsOneWidget : findsNothing);
+  expect(find.text('Save'), findsNothing);
+}
+
+void _expectSaveButton(WidgetTester tester) {
+  final button = tester.widget<FilledButton>(
+    find.widgetWithText(FilledButton, 'Save entry'),
+  );
+  final shape = button.style!.shape!.resolve({}) as RoundedRectangleBorder;
+  final label = button.style!.textStyle!.resolve({})!;
+  expect(shape.borderRadius, BorderRadius.circular(_saveRadius));
+  expect(label.fontSize, _saveLabelSize);
+  expect(label.fontWeight, FontWeight.w600);
+}
+
+void _expectAmount(WidgetTester tester, _Frame frame, SpendWiseColors colors) {
+  final field = tester.widget<TextField>(_amountField);
+  final style = field.style!;
+  expect(field.controller!.text, frame.amount);
+  expect(style.fontSize, frame.desktop ? _desktopAmountSize : _phoneAmountSize);
+  expect(style.letterSpacing, _amountLetterSpacing);
+  expect(style.height, _amountLineHeight);
+  expect(field.cursorWidth, _caretWidth);
+  expect(field.cursorColor, colors.focus);
+  final label = tester.widget<Text>(find.text('Amount / SGD'));
+  expect(label.style!.fontSize, _amountLabelSize);
+  expect(label.style!.fontWeight, FontWeight.w400);
+}
+
 Future<void> _expectFrame(
-  WidgetTester tester, {
-  required EntryHarness harness,
-  required EntryFormKind kind,
-  required String amount,
-  required String name,
-  required Brightness brightness,
-}) async {
-  harness.form.setKind(kind);
-  harness.form.setAmount(amount);
-  harness.form.setName(name);
+  WidgetTester tester,
+  EntryHarness harness,
+  _Frame frame,
+) async {
+  harness.form.setKind(frame.kind);
+  harness.form.setAmount(frame.amount);
+  harness.form.setName(frame.name);
   await tester.pumpAndSettle();
-  final colors = brightness == Brightness.dark
+  final colors = frame.brightness == Brightness.dark
       ? SpendWiseColors.dark
       : SpendWiseColors.light;
 
-  for (final label in [
-    'Cancel',
-    'Add entry',
-    'Expense',
-    'Income',
-    'Transfer',
-  ]) {
+  for (final label in ['Add entry', 'Expense', 'Income', 'Transfer']) {
     expect(_inSheet(label), findsOneWidget, reason: label);
   }
-  expect(find.text('Amount / SGD'), findsOneWidget);
-  expect(tester.widget<TextField>(_amountField).controller!.text, amount);
-  expect(tester.widget<TextField>(_nameField).controller!.text, name);
+  _expectHeader(tester, frame);
+  _expectSaveButton(tester);
+  _expectAmount(tester, frame, colors);
+  expect(tester.widget<TextField>(_nameField).controller!.text, frame.name);
   expect(find.text('Date'), findsOneWidget);
-  final transfer = kind == EntryFormKind.transfer;
+  final transfer = frame.kind == EntryFormKind.transfer;
   expect(find.text('Category'), transfer ? findsNothing : findsOneWidget);
   expect(find.text('From'), transfer ? findsOneWidget : findsNothing);
   expect(find.text('To'), transfer ? findsOneWidget : findsNothing);
-  expect(find.widgetWithText(FilledButton, 'Save entry'), findsOneWidget);
   final block = find.descendant(
     of: find.byType(AddAmountBlock),
     matching: find.byType(Container),
@@ -216,7 +306,7 @@ void main() {
 
       await tester.tap(_nameField);
       await _setKeyboard(tester, _keyboardHeight);
-      expect(find.byType(NumberPad), findsNothing);
+      expect(padReservedHeight(tester), 0);
 
       await _setKeyboard(tester, 0);
 
@@ -239,7 +329,7 @@ void main() {
       await tester.ensureVisible(_amountField);
       await tester.tap(_amountField);
       await tester.pump();
-      expect(find.byType(NumberPad), findsNothing);
+      expect(padReservedHeight(tester), 0);
       await _setKeyboard(tester, 0);
 
       expect(find.byType(NumberPad), findsOneWidget);
@@ -278,7 +368,7 @@ void main() {
       await tester.tap(find.text('5'));
       await tester.pumpAndSettle();
       expect(harness.draft['amount'], '5');
-      await _dragIntoView(tester, 'Cancel', _dragDownward);
+      await _dragIntoView(tester, 'Add entry', _dragDownward);
       expect(tester.takeException(), isNull);
     });
   });
@@ -316,14 +406,14 @@ void main() {
       expect(harness.ledger.state.entries, hasLength(1));
     });
 
-    testWidgets('the header Cancel acts while the pad is shown', (
+    testWidgets('the open-layout Cancel acts while the pad is shown', (
       tester,
     ) async {
-      final harness = await pumpShell(tester);
+      final harness = await pumpShell(tester, size: openSize);
       await openAdd(tester, harness);
       expect(find.byType(NumberPad), findsOneWidget);
 
-      await tester.tap(find.text('Cancel'));
+      await dismissAddSheet(tester);
       await tester.pumpAndSettle();
       await harness.opened;
 
@@ -333,85 +423,25 @@ void main() {
 
   group('frame parity', () {
     test('the registered frame ids are the ticket-owned set', () {
-      expect(_frameIds, {
-        'add-expense',
-        'add-income',
-        'add-transfer',
-        'add-desk',
-      });
+      expect(_frames.keys.toSet(), _frameIds);
     });
 
-    for (final brightness in Brightness.values) {
-      final mode = brightness.name;
-      testWidgets('add-expense $mode', (tester) async {
-        final harness = await _openFrame(
-          tester,
-          size: _tallPhone,
-          brightness: brightness,
-        );
-        await _expectFrame(
-          tester,
-          harness: harness,
-          kind: EntryFormKind.expense,
-          amount: '42.50',
-          name: 'FairPrice groceries',
-          brightness: brightness,
-        );
-        expect(find.byType(NumberPad), findsOneWidget);
-      });
+    for (final entry in _frames.entries) {
+      for (final brightness in Brightness.values) {
+        testWidgets('${entry.key} ${brightness.name}', (tester) async {
+          final frame = entry.value;
+          final harness = await _openFrame(
+            tester,
+            size: frame.desktop ? _desktopWindow : _tallPhone,
+            brightness: brightness,
+            platform: frame.desktop ? TargetPlatform.macOS : TargetPlatform.iOS,
+          );
 
-      testWidgets('add-income $mode', (tester) async {
-        final harness = await _openFrame(
-          tester,
-          size: _tallPhone,
-          brightness: brightness,
-        );
-        await _expectFrame(
-          tester,
-          harness: harness,
-          kind: EntryFormKind.income,
-          amount: '3200.00',
-          name: 'Monthly salary',
-          brightness: brightness,
-        );
-        expect(find.byType(NumberPad), findsOneWidget);
-      });
-
-      testWidgets('add-transfer $mode', (tester) async {
-        final harness = await _openFrame(
-          tester,
-          size: _tallPhone,
-          brightness: brightness,
-        );
-        await _expectFrame(
-          tester,
-          harness: harness,
-          kind: EntryFormKind.transfer,
-          amount: '500.00',
-          name: 'To savings',
-          brightness: brightness,
-        );
-        expect(find.byType(NumberPad), findsOneWidget);
-      });
-
-      testWidgets('add-desk $mode', (tester) async {
-        final harness = await _openFrame(
-          tester,
-          size: const Size(1440, 900),
-          brightness: brightness,
-          platform: TargetPlatform.macOS,
-        );
-        await _expectFrame(
-          tester,
-          harness: harness,
-          kind: EntryFormKind.expense,
-          amount: '42.50',
-          name: 'FairPrice groceries',
-          brightness: brightness,
-        );
-        expect(find.byType(NumberPad), findsNothing);
-        expect(find.text('Save'), findsNothing);
-      });
+          await _expectFrame(tester, harness, frame.withBrightness(brightness));
+          final pad = frame.desktop ? findsNothing : findsOneWidget;
+          expect(find.byType(NumberPad), pad);
+        });
+      }
     }
   });
 }

@@ -6,6 +6,9 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../../../support/add_sheet_dismiss.dart';
+
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/settings/settings_providers.dart';
@@ -322,6 +325,6 @@ Future<void> saveEntry(WidgetTester tester, EntryHarness harness) async {
 }
 
 Future<void> cancelEntry(WidgetTester tester, EntryHarness harness) async {
-  await tester.tap(find.text('Cancel'));
+  await dismissAddSheet(tester);
   await tester.pumpAndSettle();
 }

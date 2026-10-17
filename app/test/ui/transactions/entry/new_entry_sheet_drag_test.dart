@@ -6,6 +6,7 @@ import 'package:spendwise/ui/transactions/entry/new_entry_presenter.dart';
 import 'new_entry_session_harness.dart';
 
 const _followDistance = 60.0;
+const _followStep = 40.0;
 const _shortDistance = 30.0;
 const _longDistance = 260.0;
 const _flingDistance = 100.0;
@@ -47,8 +48,12 @@ void main() {
       );
       await gesture.moveBy(const Offset(0, _followDistance));
       await tester.pump();
+      final first = _sheetTop(tester);
+      await gesture.moveBy(const Offset(0, _followStep));
+      await tester.pump();
 
-      expect(_sheetTop(tester) - top, closeTo(_followDistance, 1));
+      expect(first, greaterThan(top));
+      expect(_sheetTop(tester) - first, closeTo(_followStep, 1));
       await gesture.up();
       await tester.pumpAndSettle();
     });

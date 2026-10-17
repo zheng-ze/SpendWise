@@ -59,7 +59,7 @@ Future<void> _expectLook(
   expect(field.style!.color, look.tone(colors));
   expect(_signIn('-'), look.sign == '-' ? findsOneWidget : findsNothing);
   expect(_signIn('+'), look.sign == '+' ? findsOneWidget : findsNothing);
-  expect(_focusedUnderline(colors.action), findsOneWidget);
+  expect(_focusedUnderline(colors.focus), findsOneWidget);
 }
 
 void main() {

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show MethodChannel;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/settings/settings_providers.dart';
 import 'package:spendwise/ui/common/feedback/error_section.dart';
@@ -256,7 +257,7 @@ void main() {
         await tester.pump();
         expect(harness.recorder.sheets, hasLength(1));
 
-        await tester.tap(find.text('Cancel'));
+        await tester.drag(find.text('Add entry'), const Offset(0, 900));
         await tester.pump();
 
         expect(harness.presentation, NewEntryPresentation.presented);
@@ -334,7 +335,7 @@ void main() {
     harness.form.applyPickedSource(_unknownSourceId);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Save'));
+    await tester.tap(find.text('Save entry'));
     await tester.pumpAndSettle();
     await resize(tester, openSize);
 
@@ -352,7 +353,7 @@ void main() {
 
     harness.form.applyPickedSource(checkingId);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Save'));
+    await tester.tap(find.text('Save entry'));
     await tester.pumpAndSettle();
     await harness.opened;
     expect(harness.recorder.sheets, isEmpty);
