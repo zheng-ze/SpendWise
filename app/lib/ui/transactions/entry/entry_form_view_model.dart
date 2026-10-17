@@ -41,7 +41,6 @@ abstract class EntryFormViewModel {
   void revertToPersisted();
   Future<void> save();
   Future<void> delete();
-  void cancel();
   void requestDocumentCrop(Uint8List bytes);
 
   void prefillSource(String? id);
@@ -347,10 +346,7 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
   }
 
   @override
-  void cancel() => updateState((c) => c.copyWith(dismissed: true));
-
   // MARK: - Receipt Scan
-
   @override
   void requestScan(ReceiptScanSource source, {Uint8List? preCapturedBytes}) {
     if (!_addActive) return;

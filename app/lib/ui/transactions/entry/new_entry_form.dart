@@ -162,11 +162,7 @@ class _NewEntryFormState extends State<NewEntryForm> {
     _padShown = padVisible;
     final grown = padVisible || _nameFocus.hasFocus || keyboardUp;
     final save = state.canSave ? viewModel.save : null;
-    final header = NewEntryHeader(
-      presentation: presentation,
-      onCancel: viewModel.cancel,
-      onSave: save,
-    );
+    final header = NewEntryHeader(presentation: presentation, onSave: save);
     final body = _NewEntryBody(
       formKey: widget.formKey,
       viewModel: viewModel,

@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../../../support/ui_test_timeout.dart';
+
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/transactions/entry/steps/entry_form_logic.dart';
 import 'package:spendwise/ui/common/inputs/number_pad.dart';
@@ -10,7 +13,6 @@ import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/entry/new_entry_presenter.dart';
 
 import 'new_entry_session_harness.dart';
-import '../../../support/ui_test_timeout.dart';
 
 const _dragDown = Offset(0, 320);
 
@@ -282,7 +284,7 @@ void main() {
 
   group('input surfaces stay dismissed after a picker', () {
     testWidgets(
-      'a cancelled picker from Amount focus leaves surfaces dismissed',
+      'a dismissed picker from Amount focus leaves surfaces dismissed',
       (tester) async {
         await _openAdd(tester);
 
@@ -337,7 +339,6 @@ void main() {
       EntryFormKind.expense,
     );
     await _expectReachable(tester, sheet, [
-      'Cancel',
       'Save',
       'Date',
       'Account',

@@ -2,6 +2,10 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../../support/add_sheet_dismiss.dart';
+import '../../support/ui_test_timeout.dart';
+
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/sync/hosted_sync_status.dart';
@@ -12,8 +16,6 @@ import 'package:spendwise/ui/shell/open_rail.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/theme/spendwise_colors.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
-
-import '../../support/ui_test_timeout.dart';
 
 const _openSize = Size(960, 720);
 const _thresholdSize = Size(600, 480);
@@ -273,8 +275,7 @@ void main() {
       ShellDestination.trends,
     );
 
-    await tester.tap(find.text('Cancel'));
-    await tester.pumpAndSettle();
+    await dismissAddSheet(tester);
     expect(find.byType(AppSheet), findsNothing);
   }, timeout: uiTestTimeout);
 

@@ -116,8 +116,6 @@ class TwoColumnPickerSheet extends StatefulWidget {
 class _TwoColumnPickerSheetState extends State<TwoColumnPickerSheet> {
   String? _expandedId;
 
-  static const _cancelButtonWidth = 88.0;
-
   void _tapParent(PickerOption parent) {
     if (parent.children.isEmpty || _expandedId == parent.id) {
       Navigator.of(context).pop(PickerChose(parent.id));
@@ -139,11 +137,6 @@ class _TwoColumnPickerSheetState extends State<TwoColumnPickerSheet> {
           automaticallyImplyLeading: false,
           title: Text(widget.title),
           centerTitle: true,
-          leading: TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          leadingWidth: _cancelButtonWidth,
         ),
         Expanded(
           child: Row(

@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../../support/add_sheet_dismiss.dart';
+import '../../../support/ui_test_timeout.dart';
 
 import 'package:permission_handler_platform_interface/permission_handler_platform_interface.dart';
 import 'package:spendwise/boot/providers.dart';
@@ -28,9 +29,9 @@ import 'package:spendwise/ui/transactions/receipt_scan/receipt_entry_coordinator
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_flow.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
 
-import '../../../support/ui_test_timeout.dart';
-
 const _mlKitChannel = MethodChannel('spendwise/android_text_recognizer');
+const _pickerBarrierTap = Offset(5, 5);
+
 const _documentScannerChannel = MethodChannel('spendwise/document_scanner');
 
 class _PresenterHost extends ConsumerWidget {
@@ -208,28 +209,12 @@ void main() {
       await closeAdd(tester);
     }, timeout: uiTestTimeout);
 
-    testWidgets('Cancel dismisses without creating an entry', (tester) async {
+    testWidgets('dismissal creates no entry', (tester) async {
       final ledger = buildLedger();
       await pumpFlow(tester, ledger: ledger);
       await openAdd(tester);
 
       await closeAdd(tester);
-
-      expect(find.text('Add entry'), findsNothing);
-      expect(ledger.state.entries, isEmpty);
-    }, timeout: uiTestTimeout);
-
-    testWidgets('the ViewModel cancel closes the sheet without an entry', (
-      tester,
-    ) async {
-      final ledger = buildLedger();
-      await pumpFlow(tester, ledger: ledger);
-      await openAdd(tester);
-
-      containerOf(tester)
-          .read(entryFormViewModelProvider(null).notifier)
-          .cancel();
-      await tester.pumpAndSettle();
 
       expect(find.text('Add entry'), findsNothing);
       expect(ledger.state.entries, isEmpty);
@@ -362,12 +347,7 @@ void main() {
       expect(find.byType(DatePickerSheet), findsOneWidget);
       expect(find.byType(AppSheet), findsNWidgets(2));
 
-      await tester.tap(
-        find.descendant(
-          of: find.byType(DatePickerSheet),
-          matching: find.text('Cancel'),
-        ),
-      );
+      await tester.tapAt(_pickerBarrierTap);
       await tester.pumpAndSettle();
 
       expect(find.byType(DatePickerSheet), findsNothing);
@@ -394,12 +374,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(DatePickerSheet), findsOneWidget);
-      await tester.tap(
-        find.descendant(
-          of: find.byType(DatePickerSheet),
-          matching: find.text('Cancel'),
-        ),
-      );
+      await tester.tapAt(_pickerBarrierTap);
       await tester.pumpAndSettle();
 
       await closeAdd(tester);

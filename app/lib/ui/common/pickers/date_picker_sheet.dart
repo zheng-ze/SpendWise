@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
+import 'package:spendwise/ui/common/sheets/sheet_drag_dismiss.dart';
 
 // MARK: - Show
 Future<DateTime?> showDatePickerSheet({
@@ -85,14 +86,14 @@ class _DatePickerSheetState extends State<DatePickerSheet> {
       context: context,
       removeTop: true,
       removeBottom: true,
-      child: picker,
+      child: SheetDismissScrollConfiguration(child: picker),
     );
 
     return AppPickerSheet(
       title: widget.title,
+      leading: today,
       trailing: done,
       body: calendar,
-      footer: Align(alignment: Alignment.centerLeft, child: today),
     );
   }
 }

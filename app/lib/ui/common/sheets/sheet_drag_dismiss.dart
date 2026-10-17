@@ -31,6 +31,9 @@ class SheetDismissPhysics extends ClampingScrollPhysics {
 
   @override
   double applyPhysicsToUserOffset(ScrollMetrics position, double offset) {
+    if (position.axis != Axis.vertical) {
+      return super.applyPhysicsToUserOffset(position, offset);
+    }
     if (offset > _noOffset) return _scrollOrDrag(position, offset);
     final reclaimed = math.min(-offset, handle.offset());
     if (reclaimed > _noOffset) handle.update(-reclaimed);
@@ -59,6 +62,22 @@ class SheetDragScope extends InheritedWidget {
 
   @override
   bool updateShouldNotify(SheetDragScope oldWidget) => false;
+}
+
+class SheetDismissScrollConfiguration extends StatelessWidget {
+  const SheetDismissScrollConfiguration({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final handle = SheetDragScope.maybeOf(context);
+    if (handle == null) return child;
+    final behavior = ScrollConfiguration.of(context)
+        .copyWith(physics: SheetDismissPhysics(handle: handle));
+
+    return ScrollConfiguration(behavior: behavior, child: child);
+  }
 }
 
 class SheetDragDismiss extends StatefulWidget {

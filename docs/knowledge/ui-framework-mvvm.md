@@ -84,7 +84,7 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   which fires after the reverse transition and disposal: `newEntryPresentationProvider` stays
   `presented` through the close animation, keeping the open page left-half and single-column, then
   returns to `closed` and settles the accepted completion at `completed`.
-  Every exit converges on the session's idempotent `retire`: explicit cancel and successful save
+  Every exit converges on the session's idempotent `retire`: successful save
   (`onDismiss`), Back, barrier dismissal, external route removal, owner teardown and container
   disposal. `retire` closes the Step subscription, marks the plain lifetime token retired so presenter,
   picker and crop continuations stop, and schedules invalidation of
@@ -362,6 +362,11 @@ value, which then overwrites it. (issue #38)
   actions belong to the entry form, described in [transactions-ui.md](transactions-ui.md).
   (`app/lib/ui/common/sheets/app_sheet.dart`, `sheet_drag_dismiss.dart`,
   `app/lib/ui/transactions/entry/new_entry_chrome.dart`, `new_entry_form.dart`)
+- **Sheet dismissal** - every bottom sheet dismisses by dragging down (phone, `dragToDismiss`) and
+  by tapping outside, and carries no Cancel button; header actions only apply a choice (Done,
+  Today, Save). `AppPickerSheet` enables `dragToDismiss` for the Add pickers. This deliberately
+  differs from the approved reference frames, which draw Cancel. Dialogs (delete and purge
+  confirmations) keep their Cancel. (`app/lib/ui/common/pickers/app_picker_sheet.dart`)
 - **Sheet alerts** - the presentation kit owns no Riverpod state. `AppSheetRoute` owns
   alert and action `ValueNotifier`s plus the captured presentation, exposed
   through `AppSheetAlertSlot`; `AppSheet` publishes them post-frame and clears

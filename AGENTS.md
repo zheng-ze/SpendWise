@@ -42,6 +42,9 @@ SpendWise is a personal finance app built in Flutter.
   1px divider, transparent color, spacing, radius, and chart axis.
 - In widget code, never extract a piece as a `Widget _buildX()` method. Use a local or its own
   `StatelessWidget`.
+- Every bottom sheet is an `AppSheet` that dismisses by dragging it down (phone) and by tapping
+  outside it, and has no Cancel button. Header actions are only those that apply a choice, such as
+  Done or Today. This deliberately differs from the approved reference frames, which draw Cancel.
 
 ## Nesting
 

@@ -43,16 +43,9 @@ const _desktopMaxHeightFraction = 1.0;
 
 // MARK: - NewEntryHeader
 class NewEntryHeader extends StatelessWidget {
-  const NewEntryHeader({
-    super.key,
-    required this.presentation,
-    required this.onCancel,
-    this.onSave,
-  });
+  const NewEntryHeader({super.key, required this.presentation, this.onSave});
 
   final AppSheetPresentation presentation;
-
-  final VoidCallback? onCancel;
 
   final Future<void> Function()? onSave;
 
@@ -69,21 +62,17 @@ class NewEntryHeader extends StatelessWidget {
       ),
     );
     const bounds = BoxConstraints(minHeight: _headerMinHeight);
-    if (presentation == AppSheetPresentation.phone) {
+    if (presentation != AppSheetPresentation.open) {
       return ConstrainedBox(
         constraints: bounds,
         child: Center(child: title),
       );
     }
-    final showSave = presentation == AppSheetPresentation.open;
-    final cancel = _SideAction(label: 'Cancel', onPressed: onCancel);
-    final save = showSave
-        ? _SideAction(label: 'Save', onPressed: onSave)
-        : const SizedBox.shrink();
+    final save = _SideAction(label: 'Save', onPressed: onSave);
 
     return Row(
       children: [
-        SizedBox(width: _sideColumnWidth, child: cancel),
+        const SizedBox(width: _sideColumnWidth),
         Expanded(child: title),
         SizedBox(width: _sideColumnWidth, child: save),
       ],
@@ -154,14 +143,7 @@ class NewEntrySaveFooter extends StatelessWidget {
 
 // MARK: - NewEntryLoadingForm
 class NewEntryLoadingForm extends StatelessWidget {
-  const NewEntryLoadingForm({
-    super.key,
-    required this.onCancel,
-    this.alert,
-    this.onAlertAction,
-  });
-
-  final VoidCallback? onCancel;
+  const NewEntryLoadingForm({super.key, this.alert, this.onAlertAction});
 
   final SheetAlertData? alert;
 
@@ -172,7 +154,6 @@ class NewEntryLoadingForm extends StatelessWidget {
     final presentation = AppSheetAlertSlot.maybeOf(context)?.presentation;
     final header = NewEntryHeader(
       presentation: presentation ?? AppSheetPresentation.phone,
-      onCancel: onCancel,
     );
 
     return AppSheet(
