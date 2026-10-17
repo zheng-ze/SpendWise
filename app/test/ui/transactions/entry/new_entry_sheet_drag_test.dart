@@ -43,9 +43,8 @@ void main() {
       await _openAdd(tester);
       final top = _sheetTop(tester);
 
-      final gesture = await tester.startGesture(
-        tester.getCenter(find.text('Add entry')),
-      );
+      final title = tester.getCenter(find.text('Add entry'));
+      final gesture = await tester.startGesture(title);
       await gesture.moveBy(const Offset(0, _followDistance));
       await tester.pump();
       final first = _sheetTop(tester);

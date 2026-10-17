@@ -24,6 +24,7 @@ import 'package:spendwise/ui/transactions/entry/new_entry_presenter.dart';
 const _phoneSize = Size(400, 800);
 const _openSize = Size(960, 720);
 const _smallOpenSize = Size(600, 480);
+const _keyboardHeight = 250.0;
 
 class _RouteRecorder extends NavigatorObserver {
   final routes = <Route<dynamic>>[];
@@ -831,40 +832,33 @@ void main() {
     ) async {
       tester.view.padding = const FakeViewPadding(top: 24, bottom: 20);
       addTearDown(tester.view.resetViewPadding);
-      tester.view.viewInsets = const FakeViewPadding(bottom: 200);
+      tester.view.viewInsets = const FakeViewPadding(bottom: _keyboardHeight);
       addTearDown(tester.view.resetViewInsets);
       final sheet = await openSmallSheet(tester);
+      final name = find.byType(TextField).at(1);
 
-      await tester.ensureVisible(find.byType(TextField).at(0));
+      await tester.ensureVisible(name);
       await tester.pumpAndSettle();
-      await tester.tap(find.byType(TextField).at(0));
+      await tester.tap(name);
       await tester.pumpAndSettle();
-      expect(FocusManager.instance.primaryFocus, isNotNull);
-      await expectUsableControl(tester, find.byType(TextField).at(0), sheet);
-      expect(
-        tester.getRect(find.byType(TextField).at(0)).bottom,
-        lessThanOrEqualTo(_smallOpenSize.height - 200),
-      );
+      expect(tester.widget<TextField>(name).focusNode!.hasFocus, isTrue);
+      expect(tester.testTextInput.isVisible, isTrue);
+      await expectUsableControl(tester, name, sheet);
+      final keyboardTop = _smallOpenSize.height - _keyboardHeight;
+      expect(tester.getRect(name).bottom, lessThanOrEqualTo(keyboardTop));
 
       await tester.ensureVisible(find.byType(Switch));
       await tester.pumpAndSettle();
       expect(find.byType(Switch).hitTestable(), findsOneWidget);
       await tester.tap(find.byType(Switch));
       await tester.pumpAndSettle();
-      expect(
-        containerOfSheet(tester)
-            .read(entryFormViewModelProvider(null))
-            .value
-            ?.includeInAnalysis,
-        isFalse,
-      );
-      expect(tester.takeException(), isNull);
+      final state = containerOfSheet(tester)
+          .read(entryFormViewModelProvider(null))
+          .value;
+      expect(state?.includeInAnalysis, isFalse);
       await expectUsableControl(tester, find.text('Save entry'), sheet);
-      expect(
-        tester.getRect(find.text('Save entry')).bottom,
-        lessThanOrEqualTo(_smallOpenSize.height - 200),
-      );
-
+      final save = tester.getRect(find.text('Save entry'));
+      expect(save.bottom, lessThanOrEqualTo(keyboardTop));
       expect(tester.takeException(), isNull);
       await closeAdd(tester);
     });

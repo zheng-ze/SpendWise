@@ -106,6 +106,22 @@ Future<void> _pickAccountFrom(
   await tester.pumpAndSettle();
 }
 
+Future<void> _expectReachable(
+  WidgetTester tester,
+  Rect sheet,
+  List<String> labels,
+) async {
+  for (final label in labels) {
+    final finder = find.text(label);
+    await tester.ensureVisible(finder);
+    await tester.pumpAndSettle();
+    final rect = tester.getRect(finder);
+    expect(finder.hitTestable(), findsOneWidget, reason: label);
+    expect(rect.left, greaterThanOrEqualTo(sheet.left), reason: label);
+    expect(rect.right, lessThanOrEqualTo(sheet.right), reason: label);
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -314,6 +330,14 @@ void main() {
       'Expense',
       EntryFormKind.expense,
     );
+    await _expectReachable(tester, sheet, [
+      'Cancel',
+      'Save',
+      'Date',
+      'Account',
+      'Category',
+      'Save entry',
+    ]);
     expect(tester.takeException(), isNull);
   });
 }

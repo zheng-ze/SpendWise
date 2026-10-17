@@ -62,26 +62,29 @@ Future<void> _expectLook(
   expect(_focusedUnderline(colors.focus), findsOneWidget);
 }
 
+void _registerLookTests() {
+  for (final brightness in Brightness.values) {
+    for (final look in _looks) {
+      _registerLookTest(brightness, look);
+    }
+  }
+}
+
+void _registerLookTest(Brightness brightness, _KindLook look) {
+  final name = '${look.kind.name} look in ${brightness.name}';
+  testWidgets(name, (tester) async {
+    final theme = buildSpendWiseTheme(brightness);
+    final harness = await pumpShell(tester, theme: theme);
+    await openAdd(tester, harness);
+
+    await _expectLook(tester, harness, brightness, look);
+  });
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('amount block', () {
-    for (final brightness in Brightness.values) {
-      for (final look in _looks) {
-        testWidgets('${look.kind.name} look in ${brightness.name}', (
-          tester,
-        ) async {
-          final harness = await pumpShell(
-            tester,
-            theme: buildSpendWiseTheme(brightness),
-          );
-          await openAdd(tester, harness);
-
-          await _expectLook(tester, harness, brightness, look);
-        });
-      }
-    }
-  });
+  _registerLookTests();
 
   group('display projection in the Add rows', () {
     testWidgets('a ledger rename updates the label and keeps the draft', (
