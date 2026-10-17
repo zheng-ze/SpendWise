@@ -2,6 +2,9 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../../support/add_sheet_dismiss.dart';
+
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/settings/settings_providers.dart';
@@ -384,7 +387,7 @@ void main() {
       expect(find.byType(AppSheet), findsOneWidget);
       expect(find.text('Add entry'), findsOneWidget);
 
-      await tester.tap(find.text('Cancel'));
+      await dismissAddSheet(tester);
       await tester.pumpAndSettle();
       expect(find.byType(AppSheet), findsNothing);
     }
@@ -493,7 +496,7 @@ void main() {
       ShellDestination.history,
     );
 
-    await tester.tap(find.text('Cancel'));
+    await dismissAddSheet(tester);
     await tester.pumpAndSettle();
     expect(find.byType(AppSheet), findsNothing);
   });
@@ -531,7 +534,7 @@ void main() {
         sourceId,
       );
 
-      await tester.tap(find.text('Cancel'));
+      await dismissAddSheet(tester);
       await tester.pumpAndSettle();
     });
   }

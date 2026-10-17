@@ -5,6 +5,9 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../../support/add_sheet_dismiss.dart';
+
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/settings/settings_providers.dart';
@@ -88,9 +91,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Add entry'), findsOneWidget);
-    expect(find.text('Save'), findsOneWidget);
+    expect(find.text('Save entry'), findsOneWidget);
 
-    await tester.tap(find.text('Cancel'));
+    await dismissAddSheet(tester);
     await tester.pumpAndSettle();
     expect(find.text('Add entry'), findsNothing);
   });
@@ -112,7 +115,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Coffee run'), findsWidgets);
-    expect(find.text('Save'), findsNothing);
+    expect(find.text('Save entry'), findsNothing);
     expect(find.text('Edit'), findsOneWidget);
   });
 
@@ -135,7 +138,7 @@ void main() {
 
     expect(find.text('Checking'), findsOneWidget);
 
-    await tester.tap(find.text('Cancel'));
+    await dismissAddSheet(tester);
     await tester.pumpAndSettle();
   });
 
@@ -153,7 +156,7 @@ void main() {
 
     expect(find.text('Coffee'), findsOneWidget);
 
-    await tester.tap(find.text('Cancel'));
+    await dismissAddSheet(tester);
     await tester.pumpAndSettle();
   });
 
@@ -176,7 +179,7 @@ void main() {
     await tester.tap(find.text('Checking'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Save'));
+    await tester.tap(find.text('Save entry'));
     await tester.pumpAndSettle();
 
     expect(ledger.state.entries.length, 1);
@@ -208,7 +211,7 @@ void main() {
       );
       expect(find.text('Checking'), findsWidgets);
 
-      await tester.tap(find.text('Cancel'));
+      await dismissAddSheet(tester);
       await tester.pumpAndSettle();
     });
   });

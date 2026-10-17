@@ -26,6 +26,9 @@ class SegmentedControl<T> extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.small = false,
+    this.segmentGap = 0.0,
+    this.labelHorizontalPadding = 0.0,
+    this.labelVerticalPadding,
   });
 
   final List<SegmentedOption<T>> options;
@@ -35,6 +38,12 @@ class SegmentedControl<T> extends StatelessWidget {
   final ValueChanged<T> onChanged;
 
   final bool small;
+
+  final double segmentGap;
+
+  final double labelHorizontalPadding;
+
+  final double? labelVerticalPadding;
 
   static const _trackRadius = 10.0;
 
@@ -56,6 +65,8 @@ class SegmentedControl<T> extends StatelessWidget {
             label: option.label,
             selected: option.value == value,
             small: small,
+            horizontalPadding: labelHorizontalPadding,
+            verticalPadding: labelVerticalPadding,
             onTap: () => onChanged(option.value),
           ),
         ),
@@ -63,7 +74,7 @@ class SegmentedControl<T> extends StatelessWidget {
     return Container(
       decoration: decoration,
       padding: const EdgeInsets.all(_trackPadding),
-      child: Row(children: segments),
+      child: Row(spacing: segmentGap, children: segments),
     );
   }
 }
@@ -74,6 +85,8 @@ class _Segment extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.small,
+    required this.horizontalPadding,
+    required this.verticalPadding,
     required this.onTap,
   });
 
@@ -82,6 +95,10 @@ class _Segment extends StatelessWidget {
   final bool selected;
 
   final bool small;
+
+  final double horizontalPadding;
+
+  final double? verticalPadding;
 
   final VoidCallback onTap;
 
@@ -103,19 +120,21 @@ class _Segment extends StatelessWidget {
     final selectedColor = Theme.of(context).brightness == Brightness.light
         ? colors.action
         : colors.text;
-    BoxDecoration? decoration;
-    if (selected) {
-      decoration = BoxDecoration(
-        color: colors.raised,
-        borderRadius: BorderRadius.circular(_segmentRadius),
-        border: Border(
-          bottom: BorderSide(
-            color: colors.action,
-            width: _selectedUnderlineWidth,
-          ),
-        ),
-      );
-    }
+    final fill = selected
+        ? BoxDecoration(
+            color: colors.raised,
+            borderRadius: BorderRadius.circular(_segmentRadius),
+          )
+        : null;
+    final underline = selected
+        ? Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: _selectedUnderlineWidth,
+            child: ColoredBox(color: colors.action),
+          )
+        : null;
     final labelText = Text(
       label,
       textAlign: TextAlign.center,
@@ -125,15 +144,25 @@ class _Segment extends StatelessWidget {
         fontWeight: selected ? _semiBoldWeight : _regularWeight,
       ),
     );
+    final padding = EdgeInsets.symmetric(
+      vertical:
+          verticalPadding ??
+          (small ? _smallVerticalPadding : _regularVerticalPadding),
+      horizontal: horizontalPadding,
+    );
+    final content = Container(
+      alignment: Alignment.center,
+      decoration: fill,
+      padding: padding,
+      child: labelText,
+    );
+    final layers = Stack(children: [content, ?underline]);
     return InkWell(
       borderRadius: BorderRadius.circular(_segmentRadius),
       onTap: onTap,
-      child: Container(
-        decoration: decoration,
-        padding: EdgeInsets.symmetric(
-          vertical: small ? _smallVerticalPadding : _regularVerticalPadding,
-        ),
-        child: labelText,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(_segmentRadius),
+        child: layers,
       ),
     );
   }

@@ -6,6 +6,9 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../../../support/add_sheet_dismiss.dart';
+
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/settings/settings_providers.dart';
@@ -238,6 +241,7 @@ Future<EntryHarness> pumpShell(
   Size size = phoneSize,
   TargetPlatform platform = TargetPlatform.iOS,
   bool failPush = false,
+  ThemeData? theme,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -287,6 +291,7 @@ Future<EntryHarness> pumpShell(
     UncontrolledProviderScope(
       container: container,
       child: MaterialApp(
+        theme: theme,
         builder: appContent,
         navigatorObservers: [recorder],
         home: home,
@@ -315,11 +320,11 @@ Future<void> saveEntry(WidgetTester tester, EntryHarness harness) async {
   harness.form.setName('Lunch');
   harness.form.applyPickedSource(checkingId);
   await tester.pumpAndSettle();
-  await tester.tap(find.text('Save'));
+  await tester.tap(find.text('Save entry'));
   await tester.pumpAndSettle();
 }
 
 Future<void> cancelEntry(WidgetTester tester, EntryHarness harness) async {
-  await tester.tap(find.text('Cancel'));
+  await dismissAddSheet(tester);
   await tester.pumpAndSettle();
 }

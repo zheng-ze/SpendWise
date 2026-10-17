@@ -5,6 +5,7 @@ import 'package:spendwise/ui/common/feedback/error_section.dart';
 import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
 import 'package:spendwise/ui/transactions/entry/edit_entry_form.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
+import 'package:spendwise/ui/transactions/entry/new_entry_chrome.dart';
 import 'package:spendwise/ui/transactions/entry/new_entry_form.dart';
 import 'package:spendwise/ui/transactions/entry/view_entry_form.dart';
 
@@ -113,6 +114,7 @@ class _AddEntryHost extends ConsumerWidget {
       formKey: null,
       viewModel: ref.read(entryFormViewModelProvider(null).notifier),
       state: state,
+      display: ref.watch(entryFormDisplayProvider(null)),
       alert: saveAlert,
     );
   }

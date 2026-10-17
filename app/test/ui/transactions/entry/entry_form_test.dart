@@ -87,7 +87,7 @@ void main() {
       await pumpForm(tester, ledger: buildLedger());
 
       expect(find.text('Add entry'), findsOneWidget);
-      expect(find.text('Save'), findsOneWidget);
+      expect(find.text('Save entry'), findsOneWidget);
     });
 
     testWidgets('an existing entry opens read-only with an Edit control', (
@@ -290,7 +290,7 @@ void main() {
           .applyPickedSource(checking.id);
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Save'));
+      await tester.tap(find.text('Save entry'));
       await tester.pumpAndSettle();
 
       expect(find.text('open'), findsOneWidget);

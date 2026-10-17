@@ -4,6 +4,9 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../../../support/add_sheet_dismiss.dart';
+
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/settings/settings_providers.dart';
@@ -142,7 +145,7 @@ Future<void> _openAdd(WidgetTester tester) async {
 }
 
 Future<void> _closeAdd(WidgetTester tester) async {
-  await tester.tap(find.text('Cancel'));
+  await dismissAddSheet(tester);
   await tester.pumpAndSettle();
 }
 
@@ -165,7 +168,7 @@ Future<void> _fillAndSave(
   await tester.pumpAndSettle();
   await tester.tap(find.text('Checking'));
   await tester.pumpAndSettle();
-  await tester.tap(find.text('Save'));
+  await tester.tap(find.text('Save entry'));
   await tester.pumpAndSettle();
 }
 
@@ -418,7 +421,7 @@ void main() {
       await tester.pumpAndSettle();
       ledger.deleteAccount(_checkingId);
 
-      await tester.tap(find.text('Save'));
+      await tester.tap(find.text('Save entry'));
       await tester.pumpAndSettle();
 
       expect(find.byType(ErrorSection), findsNothing);
@@ -449,7 +452,7 @@ void main() {
           .read(entryFormViewModelProvider(null).notifier)
           .applyPickedSource(_savingsId);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Save'));
+      await tester.tap(find.text('Save entry'));
       await tester.pumpAndSettle();
 
       expect(ledger.state.entries.length, 1);

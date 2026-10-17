@@ -1,6 +1,6 @@
 # Transactions UI
 
-Last reconciled: 2026-10-16
+Last reconciled: 2026-10-17
 
 ## Feature overview
 
@@ -24,9 +24,10 @@ and is the only place recurring plans are created.
   `AppSheetRoute`, the only null-form Step subscription, a mount-gated pending Step pickup and one
   completion that settles at `route.completed`. `EntryForm.onDismiss` is supplied only by Add and
   closes exactly that route even under a picker; Edit and view dismissal is unchanged.
-  Cancel, save, Back, barrier dismissal, route removal, `AppShell` disposal and container disposal
-  all retire the session once: the Step subscription closes, the receipt coordinator is invalidated
-  in a deferred microtask before ownership releases at `route.completed`, and a failed save keeps
+  Cancel, save, Back, drag or barrier dismissal, route removal, `AppShell` disposal and container
+  disposal all retire the session once: the Step subscription closes and the receipt coordinator
+  is invalidated in a deferred microtask. Route pop retires the session at `route.popped`;
+  presentation ownership and its completion release at `route.completed`. A failed save keeps
   the session and draft.
 - `app/lib/ui/transactions/entry/steps/entry_step_handlers.dart` — the shared source, destination,
   category, recurrence, date, end-date and document-crop Step handlers used by both the presenter
@@ -89,8 +90,14 @@ plain back control.
   month, newest first, each with weeks kept at full week range even when spilling into neighboring
   months (a spillover week appears under both months). Tap a month expands only it; tap a week jumps
   to Daily view of that week's month.
-- **Entry form** — three modes. New ("Add entry" with Cancel in the `AppSheet` header,
-  `ReceiptScanStrip` + fields in the body, Save in the footer driven by `canSave`).
+- **Entry form** - three modes. New uses the amount-first `NewEntryForm`: kind selector,
+  `AddAmountBlock`, Name and the remaining fields, then `ReceiptScanStrip`. The grouped form rows
+  have dividers between every row (`_withDividers`, `EntryRowDivider`).
+  `NewEntryHeader` shows only the title on phone, Cancel and Save in open layout, and Cancel
+  on desktop. `NewEntrySaveFooter` supplies Save entry in all layouts, driven by `canSave`.
+  Desktop uses a dialog without a grab handle; phone supports drag and barrier dismissal.
+  (`new_entry_form.dart`, `new_entry_chrome.dart`, `fields/entry_fields.dart`,
+  `app/lib/ui/common/sheets/app_sheet.dart`)
   The Add session installs its route before the form loads: a disabled shell with loading
   placeholders while initializing, the same shell with a "Couldn't load the entry form" alert and
   Retry on failure. `entryFormViewModelProvider` opts out of automatic retry
@@ -121,6 +128,42 @@ plain back control.
   (One time then Weekly/Biweekly/Monthly/Quarterly/Yearly).
 - **Shell Add** — phone bar, open rail and desktop sidebar share one callback to the presenter. Transactions
   retains date selection, mode switching, filtering, row view/edit and Back behavior.
+
+## Add input and dismissal
+
+- Phone and open Add autofocus Amount and show `NumberPad` while Amount owns focus. The Amount
+  field uses `TextInputType.none`; Name uses the system keyboard. Desktop uses the system numeric
+  keyboard for Amount and never mounts the pad. A tap outside the focused field unfocuses it;
+  a drag exceeding touch slop preserves focus. Tapping anywhere in `AddAmountBlock` requests Amount
+  focus and reopens the pad. Closing Name's keyboard restores Amount focus on phone and open.
+  A picker return leaves both input surfaces dismissed until the user taps Amount or a text field.
+  (`app/lib/ui/transactions/entry/new_entry_form.dart`, `add_amount_block.dart`)
+- `AnimatedInputSurface` animates pad entry for 240 ms and exit for 200 ms, retaining the outgoing
+  pad until its exit settles. Phone Add interpolates `AppSheet.phoneMaxHeightFraction` from 0.66
+  to 1.0 while the pad or text keyboard is active, allowing the sheet to grow toward the top safe
+  area. Reduced motion settles the pad and height change immediately.
+  (`app/lib/ui/transactions/entry/animated_input_surface.dart`, `new_entry_form.dart`)
+- An outgoing pad and rising keyboard can coexist in a handoff frame. Reserved pad height is clamped
+  to `max(0, 192 - keyboardInset)` dp, so their combined reserved height stays at most one pad
+  height while the keyboard inset is at most 192 dp; larger insets reserve only keyboard space.
+  The pad remains through Add route exit to avoid collapsing the outgoing form.
+  (`AnimatedInputSurface._surfaceFactor`, `_NewEntryFormState.build`,
+  `app/test/ui/transactions/entry/new_entry_pad_motion_test.dart`)
+- Phone Add follows downward drags from the handle, header or body at its minimum scroll offset.
+  A downward body drag first consumes any remaining scroll distance. Release dismisses when the
+  sheet displacement exceeds 25% of its height or downward velocity exceeds 700 dp/s; shorter
+  drags spring back over 200 ms, settling immediately with reduced motion. Dismissal discards
+  the unsaved draft and retires the Add session; the next Add invalidates its form provider.
+  (`app/lib/ui/common/sheets/sheet_drag_dismiss.dart`, `_SheetScrollBody`,
+  `app/lib/ui/transactions/entry/new_entry_presenter.dart`,
+  `app/test/ui/transactions/entry/new_entry_sheet_drag_test.dart`)
+
+The amount-first host retains the existing field-row appearance and order. Repeat remains a
+button beside Date, and picker value rows have no trailing chevrons. Receipt input remains
+`ReceiptScanStrip` with camera/upload actions. `noteText` is draft state without a Note input.
+(`app/lib/ui/transactions/entry/new_entry_form.dart`, `fields/entry_fields.dart`,
+`entry_form_state.dart` - `EntryFormViewState.noteText`,
+`app/lib/ui/transactions/receipt_scan/receipt_scan_strip.dart`)
 
 ## Gotchas and invariants
 

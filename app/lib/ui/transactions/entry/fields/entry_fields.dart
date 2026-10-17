@@ -9,6 +9,7 @@ import 'package:spendwise/ui/common/pickers/recurrence_picker.dart'
     show frequencyLabels;
 import 'package:spendwise/ui/format/color_hex.dart';
 import 'package:spendwise/ui/format/date_format.dart';
+import 'package:spendwise/ui/theme/spendwise_text.dart';
 import 'package:spendwise/ui/transactions/entry/steps/entry_form_logic.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 
@@ -18,6 +19,7 @@ const _fieldContentPadding = EdgeInsets.zero;
 const _actionWidth = double.infinity;
 const _rowGap = 16.0;
 const _stackedValueGap = 4.0;
+const _dividerThickness = 1.0;
 
 // MARK: - EntryFields
 class EntryFields extends ConsumerStatefulWidget {
@@ -27,12 +29,16 @@ class EntryFields extends ConsumerStatefulWidget {
     required this.state,
     required this.readOnly,
     this.showDelete = false,
+    this.includeHead = true,
+    this.display,
   });
 
   final EntryFormViewModel viewModel;
   final EntryFormViewState state;
   final bool readOnly;
   final bool showDelete;
+  final bool includeHead;
+  final EntryFormDisplay? display;
 
   @override
   ConsumerState<EntryFields> createState() => _EntryFieldsState();
@@ -54,6 +60,7 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
   @override
   void didUpdateWidget(EntryFields oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (!widget.includeHead) return;
     if (_amountController.text != widget.state.amountText) {
       _amountController.text = widget.state.amountText;
     }
@@ -64,8 +71,10 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
 
   @override
   void dispose() {
-    _amountController.dispose();
-    _nameController.dispose();
+    if (widget.includeHead) {
+      _amountController.dispose();
+      _nameController.dispose();
+    }
     super.dispose();
   }
 
@@ -142,7 +151,10 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
     final state = widget.state;
     final readOnly = widget.readOnly;
     final viewModel = widget.viewModel;
-    final ledgerState = ref.watch(ledgerProvider)?.state;
+    final display = widget.display;
+    final ledgerState = display == null
+        ? ref.watch(ledgerProvider)?.state
+        : null;
     final isNew = state.mode == EntryFormMode.newEntry;
 
     String? sourceLabel(String? id) => ledgerState?.sourceName(id);
@@ -157,6 +169,16 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
     }
 
     Widget? categoryLeading() {
+      if (display case EntryFormDisplay(
+        :final categorySymbol?,
+        :final categoryColorHex?,
+      )) {
+        return CategoryIcon(
+          symbolName: categorySymbol,
+          color: parseColorHex(categoryColorHex),
+          size: _categoryIconSize,
+        );
+      }
       final id = state.categoryId;
       if (id == null || ledgerState == null) return null;
       final category = ledgerState.categories[id];
@@ -172,60 +194,86 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
     final sourceDestinationRows = [
       _EntryValueRow(
         title: kind == EntryFormKind.transfer ? 'From' : 'Account',
-        value: sourceLabel(state.sourceId) ?? 'Select',
+        value:
+            (display == null
+                ? sourceLabel(state.sourceId)
+                : display.sourceLabel) ??
+            'Select',
         onTap: readOnly ? null : viewModel.requestPickSource,
       ),
       if (kind == EntryFormKind.transfer)
         _EntryValueRow(
           title: 'To',
-          value: sourceLabel(state.destinationId) ?? 'Select',
+          value:
+              (display == null
+                  ? sourceLabel(state.destinationId)
+                  : display.destinationLabel) ??
+              'Select',
           onTap: readOnly ? null : viewModel.requestPickDestination,
         )
       else
         _EntryValueRow(
           leading: categoryLeading(),
           title: 'Category',
-          value: categoryLabel(state.categoryId) ?? 'None',
+          value:
+              (display == null
+                  ? categoryLabel(state.categoryId)
+                  : display.categoryLabel) ??
+              'None',
           onTap: readOnly || state.isSystemEntry
               ? null
               : viewModel.requestPickCategory,
         ),
     ];
 
+    final amountField = IgnorePointer(
+      ignoring: readOnly,
+      child: AmountField(
+        controller: _amountController,
+        allowsNegative: false,
+        onChanged: viewModel.setAmount,
+      ),
+    );
+    final nameField = IgnorePointer(
+      ignoring: readOnly || state.isSystemEntry,
+      child: TextField(
+        controller: _nameController,
+        decoration: const InputDecoration(hintText: 'Name'),
+        onChanged: viewModel.setName,
+      ),
+    );
+    final head = widget.includeHead
+        ? [
+            _kindSelector(),
+            const SizedBox(height: _sectionSpacing),
+            amountField,
+            const SizedBox(height: _sectionSpacing),
+            nameField,
+            const SizedBox(height: _sectionSpacing),
+          ]
+        : const <Widget>[];
+
+    final analysisSwitch = SwitchListTile(
+      contentPadding: _fieldContentPadding,
+      title: const Text('Include in Analysis'),
+      value: state.includeInAnalysis,
+      onChanged: readOnly || state.isSystemEntry
+          ? null
+          : viewModel.setIncludeInAnalysis,
+    );
+    final rows = [
+      _dateRow(isNew: isNew),
+      if (isNew && state.recurrence != null) ..._recurrenceSection(),
+      ...sourceDestinationRows,
+      analysisSwitch,
+    ];
+    final divided = widget.includeHead ? rows : _withDividers(rows);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _kindSelector(),
-        const SizedBox(height: _sectionSpacing),
-        IgnorePointer(
-          ignoring: readOnly,
-          child: AmountField(
-            controller: _amountController,
-            allowsNegative: false,
-            onChanged: viewModel.setAmount,
-          ),
-        ),
-        const SizedBox(height: _sectionSpacing),
-        IgnorePointer(
-          ignoring: readOnly || state.isSystemEntry,
-          child: TextField(
-            controller: _nameController,
-            decoration: const InputDecoration(hintText: 'Name'),
-            onChanged: viewModel.setName,
-          ),
-        ),
-        const SizedBox(height: _sectionSpacing),
-        _dateRow(isNew: isNew),
-        if (isNew && state.recurrence != null) ..._recurrenceSection(),
-        ...sourceDestinationRows,
-        SwitchListTile(
-          contentPadding: _fieldContentPadding,
-          title: const Text('Include in Analysis'),
-          value: state.includeInAnalysis,
-          onChanged: readOnly || state.isSystemEntry
-              ? null
-              : viewModel.setIncludeInAnalysis,
-        ),
+        ...head,
+        ...divided,
         if (widget.showDelete) ...[
           const SizedBox(height: _deleteSpacing),
           SizedBox(
@@ -240,6 +288,29 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
           ),
         ],
       ],
+    );
+  }
+}
+
+List<Widget> _withDividers(List<Widget> rows) {
+  const divider = EntryRowDivider();
+  final divided = <Widget>[];
+  for (final row in rows) {
+    if (divided.isNotEmpty) divided.add(divider);
+    divided.add(row);
+  }
+  return divided;
+}
+
+class EntryRowDivider extends StatelessWidget {
+  const EntryRowDivider({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Divider(
+      height: _dividerThickness,
+      thickness: _dividerThickness,
+      color: context.colors.edge,
     );
   }
 }
