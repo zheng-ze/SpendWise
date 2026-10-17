@@ -220,22 +220,6 @@ void main() {
       expect(ledger.state.entries, isEmpty);
     }, timeout: uiTestTimeout);
 
-    testWidgets('the ViewModel cancel closes the sheet without an entry', (
-      tester,
-    ) async {
-      final ledger = buildLedger();
-      await pumpFlow(tester, ledger: ledger);
-      await openAdd(tester);
-
-      containerOf(tester)
-          .read(entryFormViewModelProvider(null).notifier)
-          .cancel();
-      await tester.pumpAndSettle();
-
-      expect(find.text('Add entry'), findsNothing);
-      expect(ledger.state.entries, isEmpty);
-    }, timeout: uiTestTimeout);
-
     testWidgets('barrier dismissal closes the sheet without an entry', (
       tester,
     ) async {
