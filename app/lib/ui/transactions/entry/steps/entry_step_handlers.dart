@@ -322,8 +322,8 @@ Future<void> _pickEnds(
     presentation: presentation,
     hasEndDate: formState!.hasEndDate,
   );
-  final stillRecurring = ref.read(provider).value?.recurrence != null;
-  if (!context.mounted || !_isCurrent(isCurrent) || !stillRecurring) return;
+  if (!context.mounted || !_isCurrent(isCurrent)) return;
+  if (ref.read(provider).value?.recurrence == null) return;
   switch (choice) {
     case null:
       return;

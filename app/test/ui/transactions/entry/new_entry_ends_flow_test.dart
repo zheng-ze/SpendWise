@@ -16,6 +16,7 @@ const _outsideTap = Offset(5, 5);
 const _nameKey = ValueKey('new-entry-name');
 const _everyMonth = 'Every month';
 const _chooseDate = 'Choose date';
+const _keyboardHeight = 300.0;
 
 enum _Origin { pad, name }
 
@@ -40,7 +41,24 @@ Future<void> _tapRow(WidgetTester tester, String key) async {
   await tester.pumpAndSettle();
 }
 
-Future<void> _chooseEndsAction(WidgetTester tester, String label) async {
+Future<void> _refocus(WidgetTester tester, _Origin origin) async {
+  final target = origin == _Origin.pad
+      ? find.byType(TextField).first
+      : find.byKey(_nameKey);
+  await tester.ensureVisible(target);
+  await tester.pumpAndSettle();
+  await tester.tap(target);
+  await tester.pumpAndSettle();
+  expect(find.byType(NumberPad).evaluate().isNotEmpty, origin == _Origin.pad);
+  if (origin == _Origin.name) expect(tester.testTextInput.isVisible, isTrue);
+}
+
+Future<void> _chooseEndsAction(
+  WidgetTester tester,
+  _Origin origin,
+  String label,
+) async {
+  await _refocus(tester, origin);
   await _tapRow(tester, 'ends');
   await tester.tap(find.text(label));
   await tester.pumpAndSettle();
@@ -92,7 +110,7 @@ void main() {
         final harness = await _openAdd(tester, origin);
         await _makeRecurring(tester);
 
-        await _chooseEndsAction(tester, _chooseDate);
+        await _chooseEndsAction(tester, origin, _chooseDate);
         expect(find.byType(DatePickerSheet), findsOneWidget);
         await tester.tap(find.byKey(pickerDoneKey));
         await tester.pumpAndSettle();
@@ -108,10 +126,11 @@ void main() {
           final harness = await _openAdd(tester, origin);
           await _makeRecurring(tester);
 
+          await _refocus(tester, origin);
           await _tapRow(tester, 'ends');
           await tester.tapAt(_outsideTap);
           await tester.pumpAndSettle();
-          await _chooseEndsAction(tester, _chooseDate);
+          await _chooseEndsAction(tester, origin, _chooseDate);
           await tester.tapAt(_outsideTap);
           await tester.pumpAndSettle();
 
@@ -122,6 +141,21 @@ void main() {
         },
         timeout: uiTestTimeout,
       );
+
+      testWidgets('Ends Never keeps the date and keeps inputs down', (
+        tester,
+      ) async {
+        final harness = await _openAdd(tester, origin);
+        await _makeRecurring(tester);
+        harness.form.applyPickedEndDate(DateTime.utc(2030, 5, 1));
+        await tester.pumpAndSettle();
+
+        await _chooseEndsAction(tester, origin, 'Never');
+
+        expect(_state(harness).hasEndDate, isFalse);
+        expect(_state(harness).endDate, DateTime.utc(2030, 5, 1));
+        _expectInputsDismissed(tester);
+      }, timeout: uiTestTimeout);
     });
   }
 
@@ -188,6 +222,26 @@ void main() {
     }, timeout: uiTestTimeout);
   });
 
+  testWidgets('a removed shell leaves the open Ends choice harmless', (
+    tester,
+  ) async {
+    final harness = await _openAdd(tester, _Origin.pad);
+    await _makeRecurring(tester);
+    harness.form.applyPickedEndDate(DateTime.utc(2030, 5, 1));
+    await tester.pumpAndSettle();
+    await _tapRow(tester, 'ends');
+
+    harness.showShell.value = false;
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Never').last);
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(DatePickerSheet), findsNothing);
+    final state = harness.container.read(entryFormViewModelProvider(null));
+    expect(state.value?.hasEndDate ?? true, isTrue);
+  }, timeout: uiTestTimeout);
+
   testWidgets('tapping the Name label from the pad focuses Name only', (
     tester,
   ) async {
@@ -208,5 +262,42 @@ void main() {
     expect(name.focusNode!.hasFocus, isTrue);
     expect(find.byType(NumberPad), findsNothing);
     expect(tester.testTextInput.isVisible, isTrue);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('Name label and value taps keep focus, text and the keyboard', (
+    tester,
+  ) async {
+    await _openAdd(tester, _Origin.name);
+    tester.view.viewInsets = const FakeViewPadding(bottom: _keyboardHeight);
+    await tester.pumpAndSettle();
+    final name = tester.widget<TextField>(find.byKey(_nameKey));
+    final focus = name.focusNode!;
+    name.controller!.value = const TextEditingValue(
+      text: 'Lunch',
+      selection: TextSelection(baseOffset: 1, extentOffset: 3),
+      composing: TextRange(start: 1, end: 3),
+    );
+
+    for (final target in [find.text('Name'), find.byKey(_nameKey)]) {
+      await tester.tap(target);
+      await tester.pumpAndSettle();
+
+      expect(FocusManager.instance.primaryFocus, same(focus));
+      expect(find.byType(NumberPad), findsNothing);
+      expect(name.controller!.text, 'Lunch');
+    }
+    final label = find.text('Name');
+    name.controller!.value = name.controller!.value.copyWith(
+      selection: const TextSelection(baseOffset: 1, extentOffset: 3),
+      composing: const TextRange(start: 1, end: 3),
+    );
+    await tester.tap(label);
+    await tester.pumpAndSettle();
+    expect(name.controller!.selection.extentOffset, 3);
+    expect(name.controller!.value.composing, const TextRange(start: 1, end: 3));
+    expect(
+      MediaQuery.viewInsetsOf(tester.element(label)).bottom,
+      _keyboardHeight,
+    );
   }, timeout: uiTestTimeout);
 }
