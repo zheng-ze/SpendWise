@@ -116,4 +116,23 @@ void main() {
     expect(find.byType(AppSheet), findsNWidgets(2));
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('an open picker follows a shrink to phone width live', (
+    tester,
+  ) async {
+    final harness = await _openAdd(tester, size: openSize);
+
+    await _request(tester, harness.form.requestPickCategory);
+    final picker = find.byType(AppSheet).last;
+    final before = AppSheetAlertSlot.maybeOf(tester.element(picker));
+    await resize(tester, const Size(320, 760));
+    final after = AppSheetAlertSlot.maybeOf(
+      tester.element(find.byType(AppSheet).last),
+    );
+
+    expect(before?.presentation, AppSheetPresentation.open);
+    expect(after?.presentation, AppSheetPresentation.phone);
+    expect(find.byKey(pickerCancelKey), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

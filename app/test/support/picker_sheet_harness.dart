@@ -40,6 +40,9 @@ Future<PickerOpener<T>> openPicker<T>(
   return opener;
 }
 
-AppSheetPresentation presentationFor(Size size) => size == desktopSize
-    ? AppSheetPresentation.desktop
-    : AppSheetPresentation.phone;
+AppSheetPresentation Function(BuildContext) presentationFor(Size size) {
+  final presentation = size == desktopSize
+      ? AppSheetPresentation.desktop
+      : AppSheetPresentation.phone;
+  return (_) => presentation;
+}

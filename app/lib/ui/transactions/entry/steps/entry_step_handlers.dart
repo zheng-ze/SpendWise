@@ -30,7 +30,7 @@ void dispatchEntryFormStep(
   TransactionsStep step, {
   bool useRootNavigator = false,
   bool Function()? isCurrent,
-  AppSheetPresentation? sheetPresentation,
+  AppSheetPresentation Function(BuildContext)? sheetPresentation,
 }) {
   final form = ref.read(entryFormViewModelProvider(formKey).notifier);
   switch (step) {
@@ -117,7 +117,7 @@ Future<void> _pickSource(
   EntryFormNotifier form, {
   bool useRootNavigator = false,
   bool Function()? isCurrent,
-  AppSheetPresentation? sheetPresentation,
+  AppSheetPresentation Function(BuildContext)? sheetPresentation,
 }) async {
   final ledger = ref.read(ledgerProvider);
   if (ledger == null) return;
@@ -142,7 +142,7 @@ Future<void> _pickDestination(
   EntryFormNotifier form, {
   bool useRootNavigator = false,
   bool Function()? isCurrent,
-  AppSheetPresentation? sheetPresentation,
+  AppSheetPresentation Function(BuildContext)? sheetPresentation,
 }) async {
   final ledger = ref.read(ledgerProvider);
   if (ledger == null) return;
@@ -168,7 +168,7 @@ Future<void> _pickCategory(
   EntryFormNotifier form, {
   bool useRootNavigator = false,
   bool Function()? isCurrent,
-  AppSheetPresentation? sheetPresentation,
+  AppSheetPresentation Function(BuildContext)? sheetPresentation,
 }) async {
   final ledger = ref.read(ledgerProvider);
   if (ledger == null) return;
@@ -196,7 +196,7 @@ Future<void> _pickRecurrence(
   EntryFormNotifier form, {
   bool useRootNavigator = false,
   bool Function()? isCurrent,
-  AppSheetPresentation? sheetPresentation,
+  AppSheetPresentation Function(BuildContext)? sheetPresentation,
 }) async {
   final formState = ref.read(entryFormViewModelProvider(formKey)).value;
   final chosen = await showRecurrencePickerSheet(
@@ -218,7 +218,7 @@ String? _idFromOutcome(PickerOutcome outcome) => switch (outcome) {
 Future<DateTime?> _chooseDate({
   required BuildContext context,
   required bool useRootNavigator,
-  required AppSheetPresentation? sheetPresentation,
+  required AppSheetPresentation Function(BuildContext)? sheetPresentation,
   required String title,
   required DateTime initialDate,
   required DateTime firstDate,
@@ -251,7 +251,7 @@ Future<void> _pickDate(
   EntryFormNotifier form, {
   bool useRootNavigator = false,
   bool Function()? isCurrent,
-  AppSheetPresentation? sheetPresentation,
+  AppSheetPresentation Function(BuildContext)? sheetPresentation,
 }) async {
   final formState = ref.read(entryFormViewModelProvider(formKey)).value;
   final picked = await _chooseDate(
@@ -274,7 +274,7 @@ Future<void> _pickEndDate(
   EntryFormNotifier form, {
   bool useRootNavigator = false,
   bool Function()? isCurrent,
-  AppSheetPresentation? sheetPresentation,
+  AppSheetPresentation Function(BuildContext)? sheetPresentation,
 }) async {
   final formState = ref.read(entryFormViewModelProvider(formKey)).value;
   final picked = await _chooseDate(

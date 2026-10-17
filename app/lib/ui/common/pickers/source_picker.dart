@@ -11,7 +11,7 @@ Future<PickerOutcome?> showSourcePickerSheet({
   required LedgerState state,
   String? selectedId,
   bool useRootNavigator = false,
-  AppSheetPresentation? sheetPresentation,
+  AppSheetPresentation Function(BuildContext)? sheetPresentation,
 }) {
   final groups = [
     for (final account in state.activeAccounts)

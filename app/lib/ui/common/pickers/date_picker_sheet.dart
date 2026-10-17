@@ -6,13 +6,13 @@ import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 // MARK: - Show
 Future<DateTime?> showDatePickerSheet({
   required BuildContext context,
-  required AppSheetPresentation presentation,
+  required AppSheetPresentation Function(BuildContext) presentation,
   required String title,
   required DateTime initialDate,
   required DateTime firstDate,
   required DateTime lastDate,
 }) {
-  return showAppSheet<DateTime>(
+  return showPickerAppSheet<DateTime>(
     context,
     presentation: presentation,
     builder: (_) => DatePickerSheet(

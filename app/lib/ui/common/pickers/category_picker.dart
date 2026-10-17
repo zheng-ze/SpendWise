@@ -19,7 +19,7 @@ Future<PickerOutcome?> showCategoryPickerSheet({
   required CategoryKind kind,
   String? selectedId,
   bool useRootNavigator = false,
-  AppSheetPresentation? sheetPresentation,
+  AppSheetPresentation Function(BuildContext)? sheetPresentation,
 }) {
   final ofKind = state.categories.values.where(
     (category) => category.kind == kind && category.lifecycle.isActive,

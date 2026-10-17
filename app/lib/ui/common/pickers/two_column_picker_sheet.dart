@@ -44,6 +44,8 @@ const _sideBySideMinWidth = 400.0;
 
 const _stackedChildIndent = 24.0;
 
+const _columnsHeightFraction = 0.5;
+
 const _columnDividerWidth = 1.0;
 
 Future<PickerOutcome?> showTwoColumnPickerSheet({
@@ -53,10 +55,10 @@ Future<PickerOutcome?> showTwoColumnPickerSheet({
   String? selectedId,
   bool allowsNone = false,
   bool useRootNavigator = false,
-  AppSheetPresentation? sheetPresentation,
+  AppSheetPresentation Function(BuildContext)? sheetPresentation,
 }) {
   if (sheetPresentation != null) {
-    return showAppSheet<PickerOutcome>(
+    return showPickerAppSheet<PickerOutcome>(
       context,
       presentation: sheetPresentation,
       builder: (_) => AppPickerSheet(
@@ -323,15 +325,21 @@ class _SideBySideGroups extends StatelessWidget {
     );
     final childColumn = DecoratedBox(
       decoration: BoxDecoration(border: Border(left: divider)),
-      child: Column(children: children),
+      child: SingleChildScrollView(child: Column(children: children)),
     );
+    final height = MediaQuery.sizeOf(context).height * _columnsHeightFraction;
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(child: Column(children: parents)),
-        Expanded(child: childColumn),
-      ],
+    return SizedBox(
+      height: height,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: SingleChildScrollView(child: Column(children: parents)),
+          ),
+          Expanded(child: childColumn),
+        ],
+      ),
     );
   }
 }

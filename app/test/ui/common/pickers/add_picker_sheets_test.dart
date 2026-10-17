@@ -257,4 +257,48 @@ void main() {
     expect(find.byType(TwoColumnPickerSheet), findsOneWidget);
     expect(find.byType(AppSheet), findsNothing);
   });
+
+  testWidgets('an expanded lower parent keeps its children in view', (
+    tester,
+  ) async {
+    final groups = [
+      for (var i = 0; i < 20; i++)
+        PickerOption(
+          id: 'p$i',
+          label: 'Parent $i',
+          children: [PickerOption(id: 'c$i', label: 'Child $i')],
+        ),
+    ];
+    final opener = await openPicker<PickerOutcome>(
+      tester,
+      size: desktopSize,
+      open: (context) => showTwoColumnPickerSheet(
+        context: context,
+        title: 'Account',
+        groups: groups,
+        sheetPresentation: presentationFor(desktopSize),
+      ),
+    );
+    final parentScrollable = find
+        .descendant(
+          of: find.byType(PickerGroupBody),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+
+    await tester.scrollUntilVisible(
+      find.text('Parent 18'),
+      100,
+      scrollable: parentScrollable,
+    );
+    await tester.tap(find.text('Parent 18'));
+    await tester.pumpAndSettle();
+    final child = find.text('Child 18');
+    final viewport = Offset.zero & tester.view.physicalSize;
+
+    expect(viewport.contains(tester.getCenter(child)), isTrue);
+    await tester.tap(child);
+    await tester.pumpAndSettle();
+    expect((opener.result! as PickerChose).id, 'c18');
+  });
 }

@@ -15,6 +15,20 @@ const _headerPadding = EdgeInsets.only(bottom: 8);
 
 const _titlePadding = EdgeInsets.symmetric(horizontal: 8);
 
+// MARK: - Show
+Future<T?> showPickerAppSheet<T>(
+  BuildContext context, {
+  required AppSheetPresentation Function(BuildContext) presentation,
+  required WidgetBuilder builder,
+}) {
+  return showAppSheet<T>(
+    context,
+    presentation: presentation(context),
+    presentationResolver: presentation,
+    builder: builder,
+  );
+}
+
 // MARK: - AppPickerSheet
 class AppPickerSheet extends StatelessWidget {
   const AppPickerSheet({
