@@ -64,8 +64,6 @@ EntryFormViewState buildState({
   required EntryFormMode mode,
   EntryFormKind kind = EntryFormKind.expense,
   String? destinationId,
-  RecurrenceFrequency? recurrence,
-  bool hasEndDate = false,
 }) {
   return EntryFormViewState(
     mode: mode,
@@ -77,11 +75,11 @@ EntryFormViewState buildState({
     destinationId: destinationId,
     categoryId: groceriesId,
     includeInAnalysis: true,
-    recurrence: recurrence,
-    hasEndDate: hasEndDate,
+    recurrence: null,
+    hasEndDate: false,
     endDate: DateTime.utc(2027, 1, 16),
     isSystemEntry: false,
-    entryId: mode == EntryFormMode.newEntry ? null : 'entry-1',
+    entryId: 'entry-1',
   );
 }
 
@@ -129,25 +127,6 @@ Future<void> pumpFields(
 
 void main() {
   group('EntryFields at 202 dp and 1.5x text', () {
-    testWidgets('the add rows with recurrence and an end date lay out', (
-      tester,
-    ) async {
-      await pumpFields(
-        tester,
-        state: buildState(
-          mode: EntryFormMode.newEntry,
-          recurrence: RecurrenceFrequency.monthly,
-          hasEndDate: true,
-        ),
-        readOnly: false,
-      );
-
-      expect(tester.takeException(), isNull);
-      expect(find.text('Date'), findsOneWidget);
-      expect(find.text('End date'), findsOneWidget);
-      expect(find.text(includeInAnalysisLabel), findsOneWidget);
-    }, timeout: uiTestTimeout);
-
     testWidgets('the edit rows show the long account and category names', (
       tester,
     ) async {
@@ -203,7 +182,7 @@ void main() {
     ) async {
       await pumpFields(
         tester,
-        state: buildState(mode: EntryFormMode.newEntry),
+        state: buildState(mode: EntryFormMode.editing),
         readOnly: false,
       );
 
@@ -233,7 +212,7 @@ void main() {
     ) async {
       await pumpFields(
         tester,
-        state: buildState(mode: EntryFormMode.newEntry),
+        state: buildState(mode: EntryFormMode.editing),
         readOnly: false,
         width: normalContentWidth,
         textScale: normalTextScale,

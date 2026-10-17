@@ -320,10 +320,10 @@ void main() {
         coffee.id,
       );
 
-      await revealRow(tester, 'Date');
-      await tester.tap(find.byTooltip('Repeat'));
+      await revealRow(tester, 'Repeat');
+      await tester.tap(find.text('Repeat'));
       await tester.pumpAndSettle();
-      expect(find.text('Repeat'), findsOneWidget);
+      expect(find.text('Repeat'), findsNWidgets(2));
       await tester.tap(find.widgetWithText(ListTile, 'Every month'));
       await tester.pumpAndSettle();
       expect(
@@ -356,7 +356,7 @@ void main() {
       await closeAdd(tester);
     }, timeout: uiTestTimeout);
 
-    testWidgets('the end-date picker opens once recurrence has an end', (
+    testWidgets('Ends opens its choice and Choose date opens the end date', (
       tester,
     ) async {
       await pumpFlow(tester, ledger: buildLedger());
@@ -366,11 +366,12 @@ void main() {
         entryFormViewModelProvider(null).notifier,
       );
       viewModel.applyPickedRecurrence(RecurrenceFrequency.monthly);
-      viewModel.setEndDateEnabled(true);
       await tester.pumpAndSettle();
 
-      await revealRow(tester, 'End date');
-      await tester.tap(find.text('End date'));
+      await revealRow(tester, 'Ends');
+      await tester.tap(find.text('Ends'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Choose date'));
       await tester.pumpAndSettle();
 
       expect(find.byType(DatePickerSheet), findsOneWidget);

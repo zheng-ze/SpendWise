@@ -14,7 +14,7 @@ import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
 import 'package:spendwise/ui/common/feedback/error_section.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
-import 'package:spendwise/ui/transactions/entry/fields/entry_fields.dart';
+import 'package:spendwise/ui/transactions/entry/new_entry_form.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_entry_coordinator.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/shell_binding.dart';
@@ -297,13 +297,13 @@ void main() {
         await tester.pumpAndSettle();
         await tester.tap(find.text('Coffee'));
         await tester.pumpAndSettle();
-        await revealRow(tester, 'Date');
-        await tester.tap(find.byTooltip('Repeat'));
+        await revealRow(tester, 'Repeat');
+        await tester.tap(find.text('Repeat'));
         await tester.pumpAndSettle();
         await tester.tap(find.widgetWithText(ListTile, 'Every month'));
         await tester.pumpAndSettle();
-        await revealRow(tester, 'Include in Analysis');
-        await tester.tap(find.text('Include in Analysis'));
+        await revealRow(tester, 'Include in analysis');
+        await tester.tap(find.text('Include in analysis'));
         await tester.pumpAndSettle();
 
         final expenseDraft = draftSnapshot(containerOfSheet(tester));
@@ -343,22 +343,22 @@ void main() {
       );
       await tester.tap(find.byType(TextField).at(0));
       await tester.pump();
-      await revealRow(tester, 'Include in Analysis');
+      await revealRow(tester, 'Include in analysis');
 
-      final formStateBefore = tester.state(find.byType(EntryFields));
+      final formStateBefore = tester.state(find.byType(NewEntryForm));
       final amountControllerBefore = tester
           .widget<TextField>(find.byType(TextField).at(0))
           .controller;
       final focusedBefore = FocusManager.instance.primaryFocus;
       expect(focusedBefore, isNotNull);
       final scroller = Scrollable.of(
-        tester.element(find.text('Include in Analysis')),
+        tester.element(find.text('Include in analysis')),
       );
 
       await resize(tester, _openSize);
       expect(scopeMode(tester), ShellLayoutMode.open);
 
-      expect(tester.state(find.byType(EntryFields)), same(formStateBefore));
+      expect(tester.state(find.byType(NewEntryForm)), same(formStateBefore));
       expect(
         tester.widget<TextField>(find.byType(TextField).at(0)).controller,
         same(amountControllerBefore),
@@ -371,12 +371,12 @@ void main() {
       expect(nameController.selection.extentOffset, 3);
       expect(FocusManager.instance.primaryFocus, same(focusedBefore));
       expect(
-        Scrollable.of(tester.element(find.text('Include in Analysis'))),
+        Scrollable.of(tester.element(find.text('Include in analysis'))),
         same(scroller),
       );
 
       await resize(tester, _phoneSize);
-      expect(tester.state(find.byType(EntryFields)), same(formStateBefore));
+      expect(tester.state(find.byType(NewEntryForm)), same(formStateBefore));
       expect(
         tester.widget<TextField>(find.byType(TextField).at(1)).controller,
         same(nameController),

@@ -8,11 +8,10 @@ import 'package:spendwise/ui/common/inputs/segmented_control.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
 import 'package:spendwise/ui/format/amount_input.dart';
-import 'package:spendwise/ui/theme/spendwise_text.dart';
 import 'package:spendwise/ui/transactions/entry/add_amount_block.dart';
 import 'package:spendwise/ui/transactions/entry/animated_input_surface.dart';
-import 'package:spendwise/ui/transactions/entry/fields/entry_fields.dart';
 import 'package:spendwise/ui/transactions/entry/new_entry_chrome.dart';
+import 'package:spendwise/ui/transactions/entry/new_entry_rows.dart';
 import 'package:spendwise/ui/transactions/entry/steps/entry_form_logic.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_strip.dart';
@@ -24,12 +23,6 @@ const _desktopMaxHeightFraction = 1.0;
 const _sectionGap = 8.0;
 
 const _grownHeightFraction = 1.0;
-
-const _groupRadius = 14.0;
-
-const _groupBorderWidth = 1.0;
-
-const _groupPadding = EdgeInsets.symmetric(horizontal: 10.0);
 
 const _segmentGap = 2.0;
 
@@ -44,7 +37,7 @@ class NewEntryForm extends StatefulWidget {
     required this.formKey,
     required this.viewModel,
     required this.state,
-    this.display,
+    required this.display,
     this.alert,
     this.onAlertAction,
   });
@@ -52,7 +45,7 @@ class NewEntryForm extends StatefulWidget {
   final String? formKey;
   final EntryFormViewModel viewModel;
   final EntryFormViewState state;
-  final EntryFormDisplay? display;
+  final EntryFormDisplay display;
 
   final SheetAlertData? alert;
 
@@ -71,6 +64,7 @@ class _NewEntryFormState extends State<NewEntryForm> {
   );
   final _amountFocus = FocusNode();
   final _nameFocus = FocusNode();
+  final _nameGroupId = Object();
   bool _keyboardSeen = false;
   bool _padShown = false;
   Offset? _outsideDownAt;
@@ -171,6 +165,7 @@ class _NewEntryFormState extends State<NewEntryForm> {
       nameController: _nameController,
       amountFocus: _amountFocus,
       nameFocus: _nameFocus,
+      nameGroupId: _nameGroupId,
       systemKeyboard: desktop,
       keypad: padVisible,
       display: widget.display,
@@ -220,6 +215,7 @@ class _NewEntryBody extends StatelessWidget {
     required this.nameController,
     required this.amountFocus,
     required this.nameFocus,
+    required this.nameGroupId,
     required this.systemKeyboard,
     required this.keypad,
     required this.display,
@@ -234,9 +230,10 @@ class _NewEntryBody extends StatelessWidget {
   final TextEditingController nameController;
   final FocusNode amountFocus;
   final FocusNode nameFocus;
+  final Object nameGroupId;
   final bool systemKeyboard;
   final bool keypad;
-  final EntryFormDisplay? display;
+  final EntryFormDisplay display;
   final ValueChanged<PointerDownEvent> onOutsideDown;
   final void Function(FocusNode, PointerUpEvent) onOutsideUp;
 
@@ -265,27 +262,17 @@ class _NewEntryBody extends StatelessWidget {
       onTapOutside: onOutsideDown,
       onTapUpOutside: (event) => onOutsideUp(amountFocus, event),
     );
-    final name = TextField(
-      controller: nameController,
-      focusNode: nameFocus,
-      decoration: const InputDecoration(
-        hintText: 'Name',
-        border: InputBorder.none,
-        enabledBorder: InputBorder.none,
-        focusedBorder: InputBorder.none,
-      ),
-      onChanged: viewModel.setName,
-      onTapOutside: onOutsideDown,
-      onTapUpOutside: (event) => onOutsideUp(nameFocus, event),
-    );
-    final rows = EntryFields(
+    final group = NewEntryRows(
       viewModel: viewModel,
       state: state,
-      readOnly: false,
-      includeHead: false,
       display: display,
+      nameController: nameController,
+      nameFocus: nameFocus,
+      nameGroupId: nameGroupId,
+      keypad: keypad,
+      onOutsideDown: onOutsideDown,
+      onOutsideUp: onOutsideUp,
     );
-    final group = _FormGroup(children: [name, const EntryRowDivider(), rows]);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -298,33 +285,6 @@ class _NewEntryBody extends StatelessWidget {
         const SizedBox(height: _sectionGap),
         ReceiptScanStrip(formKey: formKey),
       ],
-    );
-  }
-}
-
-class _FormGroup extends StatelessWidget {
-  const _FormGroup({required this.children});
-
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(_groupRadius),
-      side: BorderSide(color: colors.edge, width: _groupBorderWidth),
-    );
-
-    return Material(
-      color: colors.surface,
-      shape: shape,
-      child: Padding(
-        padding: _groupPadding,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: children,
-        ),
-      ),
     );
   }
 }
