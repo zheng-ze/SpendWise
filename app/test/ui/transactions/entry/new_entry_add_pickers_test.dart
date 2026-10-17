@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import '../../../support/ui_test_timeout.dart';
 
 import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
+import 'package:spendwise/ui/common/pickers/date_picker_sheet.dart';
 import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 
@@ -49,6 +50,8 @@ void main() {
     await tester.tapAt(_outsideTap);
     await tester.pumpAndSettle();
 
+    expect(find.byType(AppSheet), findsOneWidget);
+    expect(find.byType(PickerGroupBody), findsNothing);
     expect(harness.draft['category'], coffeeId);
   }, timeout: uiTestTimeout);
 
@@ -71,9 +74,12 @@ void main() {
     await tester.tap(find.text('Weekly'));
     await tester.pumpAndSettle();
     await _request(tester, harness.form.requestPickRecurrence);
+    expect(find.byType(AppSheet), findsNWidgets(2));
     await tester.tapAt(_outsideTap);
     await tester.pumpAndSettle();
 
+    expect(find.byType(AppSheet), findsOneWidget);
+    expect(find.byType(AppPickerHeader), findsNothing);
     expect(harness.draft['recurrence'], RecurrenceFrequency.weekly);
   }, timeout: uiTestTimeout);
 
@@ -103,6 +109,8 @@ void main() {
     await tester.tapAt(_outsideTap);
     await tester.pumpAndSettle();
 
+    expect(find.byType(AppSheet), findsOneWidget);
+    expect(find.byType(DatePickerSheet), findsNothing);
     expect(harness.draft['endDate'], isNull);
   }, timeout: uiTestTimeout);
 
@@ -136,7 +144,7 @@ void main() {
     expect(tester.takeException(), isNull);
   }, timeout: uiTestTimeout);
 
-  testWidgets('every Add picker has no Cancel and drags down to dismiss', (
+  testWidgets('every Add picker drags down to dismiss from header and body', (
     tester,
   ) async {
     final harness = await _openAdd(tester);
@@ -147,14 +155,25 @@ void main() {
       harness.form.requestPickDate,
       harness.form.requestPickEndDate,
     ];
+    final pickerSheet = find.byType(AppSheet).last;
+    final header = find.descendant(
+      of: pickerSheet,
+      matching: find.byType(AppPickerHeader),
+    );
+    final body = find.descendant(
+      of: pickerSheet,
+      matching: find.byType(SingleChildScrollView),
+    );
 
     for (final request in requests) {
-      await _request(tester, request);
-      expect(find.byType(AppSheet), findsNWidgets(2));
-      expect(find.text('Cancel'), findsNothing);
-      await tester.drag(find.byType(AppPickerHeader), _dismissDrag);
-      await tester.pumpAndSettle();
-      expect(find.byType(AppSheet), findsOneWidget);
+      for (final grip in [header, body]) {
+        await _request(tester, request);
+        expect(find.byType(AppSheet), findsNWidgets(2));
+        expect(find.text('Cancel'), findsNothing);
+        await tester.drag(grip.last, _dismissDrag);
+        await tester.pumpAndSettle();
+        expect(find.byType(AppSheet), findsOneWidget);
+      }
     }
   }, timeout: uiTestTimeout);
 }
