@@ -296,7 +296,7 @@ void main() {
       harness.form.requestPickSource();
       await tester.pumpAndSettle();
       expect(harness.form.clears, clears);
-      expect(find.byType(TwoColumnPickerSheet), findsNothing);
+      expect(find.byType(PickerGroupBody), findsNothing);
     });
 
     testWidgets('a suspended initialization ends with its owner', (
@@ -511,7 +511,7 @@ void main() {
 
       expect(harness.recorder.removals, removals + 1);
       expect(harness.recorder.sheets, isEmpty);
-      expect(find.byType(TwoColumnPickerSheet), findsOneWidget);
+      expect(find.byType(PickerGroupBody), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 

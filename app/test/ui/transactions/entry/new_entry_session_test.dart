@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:spendwise/ui/common/pickers/date_picker_sheet.dart';
 import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form.dart';
@@ -15,7 +16,7 @@ import 'new_entry_session_harness.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  int pickerCount() => find.byType(TwoColumnPickerSheet).evaluate().length;
+  int pickerCount() => find.byType(PickerGroupBody).evaluate().length;
 
   group('Add-only dismissal closes the captured Add route', () {
     const modes = {
@@ -185,7 +186,7 @@ void main() {
 
       expect(form.clears, clearsBefore + 2);
       expect(pickerCount(), 1);
-      expect(find.byType(DatePickerDialog), findsOneWidget);
+      expect(find.byType(DatePickerSheet), findsOneWidget);
       addDismiss(tester)();
       await tester.pumpAndSettle();
       await harness.opened;

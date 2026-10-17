@@ -36,13 +36,19 @@ class RouteRecorder extends NavigatorObserver {
   int removals = 0;
   int sheetPushes = 0;
 
-  List<AppSheetRoute<dynamic>> get sheets =>
-      routes.whereType<AppSheetRoute<dynamic>>().toList();
+  final pickerRoutes = <Route<dynamic>>[];
+
+  List<AppSheetRoute<dynamic>> get sheets => routes
+      .whereType<AppSheetRoute<dynamic>>()
+      .where((route) => !pickerRoutes.contains(route))
+      .toList();
 
   @override
   void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
     routes.add(route);
-    if (route is AppSheetRoute) sheetPushes++;
+    if (route is! AppSheetRoute) return;
+    if (previousRoute is AppSheetRoute) return pickerRoutes.add(route);
+    sheetPushes++;
   }
 
   @override

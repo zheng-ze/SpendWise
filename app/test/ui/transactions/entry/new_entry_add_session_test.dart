@@ -347,7 +347,7 @@ void main() {
       form.requestPickSource();
       await tester.pumpAndSettle();
 
-      expect(find.byType(TwoColumnPickerSheet), findsNothing);
+      expect(find.byType(PickerGroupBody), findsNothing);
       expect(tester.takeException(), isNull);
     });
   });

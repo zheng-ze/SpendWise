@@ -305,6 +305,7 @@ class _AddSession {
       step,
       useRootNavigator: true,
       isCurrent: () => eligible,
+      sheetPresentation: route?.effectivePresentation.value,
     );
   }
 

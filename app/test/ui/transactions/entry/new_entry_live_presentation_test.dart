@@ -29,12 +29,19 @@ const _keyboardHeight = 250.0;
 class _RouteRecorder extends NavigatorObserver {
   final routes = <Route<dynamic>>[];
 
-  List<AppSheetRoute<dynamic>> get sheets =>
-      routes.whereType<AppSheetRoute<dynamic>>().toList();
+  final pickerRoutes = <Route<dynamic>>[];
+
+  List<AppSheetRoute<dynamic>> get sheets => routes
+      .whereType<AppSheetRoute<dynamic>>()
+      .where((route) => !pickerRoutes.contains(route))
+      .toList();
 
   @override
   void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
     routes.add(route);
+    if (route is AppSheetRoute && previousRoute is AppSheetRoute) {
+      pickerRoutes.add(route);
+    }
   }
 
   @override
@@ -391,7 +398,7 @@ void main() {
           .read(entryFormViewModelProvider(null).notifier)
           .requestPickSource();
       await tester.pumpAndSettle();
-      expect(find.byType(TwoColumnPickerSheet), findsOneWidget);
+      expect(find.byType(PickerGroupBody), findsOneWidget);
       await tester.tap(find.text('Checking'));
       await tester.pumpAndSettle();
       expect(
@@ -405,7 +412,7 @@ void main() {
           .read(entryFormViewModelProvider(null).notifier)
           .requestPickSource();
       await tester.pumpAndSettle();
-      expect(find.byType(TwoColumnPickerSheet), findsOneWidget);
+      expect(find.byType(PickerGroupBody), findsOneWidget);
       await tester.tap(find.text('Savings'));
       await tester.pumpAndSettle();
       expect(
@@ -441,23 +448,23 @@ void main() {
       await revealRow(tester, 'Account');
       await tester.tap(find.text('Account'));
       await tester.pumpAndSettle();
-      expect(find.byType(TwoColumnPickerSheet), findsOneWidget);
+      expect(find.byType(PickerGroupBody), findsOneWidget);
       final pickerRoute = ModalRoute.of(
-        tester.element(find.byType(TwoColumnPickerSheet)),
+        tester.element(find.byType(PickerGroupBody)),
       );
       final sheetRoute = recorder.sheets.single;
 
       await resize(tester, _openSize);
-      expect(find.byType(TwoColumnPickerSheet), findsOneWidget);
+      expect(find.byType(PickerGroupBody), findsOneWidget);
       expect(
-        ModalRoute.of(tester.element(find.byType(TwoColumnPickerSheet))),
+        ModalRoute.of(tester.element(find.byType(PickerGroupBody))),
         same(pickerRoute),
       );
       expect(recorder.sheets.single, same(sheetRoute));
 
       await tester.tap(find.text('Checking'));
       await tester.pumpAndSettle();
-      expect(find.byType(TwoColumnPickerSheet), findsNothing);
+      expect(find.byType(PickerGroupBody), findsNothing);
       expect(
         containerOfSheet(tester)
             .read(entryFormViewModelProvider(null))
@@ -700,7 +707,7 @@ void main() {
           .read(entryFormViewModelProvider(null).notifier)
           .requestPickSource();
       await tester.pumpAndSettle();
-      expect(find.byType(TwoColumnPickerSheet), findsOneWidget);
+      expect(find.byType(PickerGroupBody), findsOneWidget);
       await tester.tap(find.text('Checking'));
       await tester.pumpAndSettle();
       expect(

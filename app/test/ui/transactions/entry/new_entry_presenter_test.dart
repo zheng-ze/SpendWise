@@ -17,6 +17,7 @@ import 'package:spendwise/settings/settings_providers.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
 import 'package:spendwise/ui/common/feedback/error_section.dart';
+import 'package:spendwise/ui/common/pickers/date_picker_sheet.dart';
 import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/transactions/document_crop/document_crop_screen.dart';
@@ -250,13 +251,13 @@ void main() {
         await tester.tap(find.text('Account'));
         await tester.pumpAndSettle();
 
-        expect(find.byType(TwoColumnPickerSheet), findsOneWidget);
-        expect(find.byType(AppSheet), findsOneWidget);
+        expect(find.byType(PickerGroupBody), findsOneWidget);
+        expect(find.byType(AppSheet), findsNWidgets(2));
 
         await tester.tap(find.text('Checking'));
         await tester.pumpAndSettle();
 
-        expect(find.byType(TwoColumnPickerSheet), findsNothing);
+        expect(find.byType(PickerGroupBody), findsNothing);
         expect(find.byType(AppSheet), findsOneWidget);
         expect(
           containerOf(tester)
@@ -279,11 +280,11 @@ void main() {
       await revealRow(tester, 'Account');
       await tester.tap(find.text('Account'));
       await tester.pumpAndSettle();
-      expect(find.byType(TwoColumnPickerSheet), findsOneWidget);
+      expect(find.byType(PickerGroupBody), findsOneWidget);
 
-      await popTopSheet(tester, TwoColumnPickerSheet);
+      await popTopSheet(tester, PickerGroupBody);
 
-      expect(find.byType(TwoColumnPickerSheet), findsNothing);
+      expect(find.byType(PickerGroupBody), findsNothing);
       expect(find.text('Add entry'), findsOneWidget);
       expect(find.text('Select'), findsWidgets);
 
@@ -304,9 +305,9 @@ void main() {
       await revealRow(tester, 'To');
       await tester.tap(find.text('To'));
       await tester.pumpAndSettle();
-      expect(find.byType(TwoColumnPickerSheet), findsOneWidget);
-      expect(find.byType(AppSheet), findsOneWidget);
-      await popTopSheet(tester, TwoColumnPickerSheet);
+      expect(find.byType(PickerGroupBody), findsOneWidget);
+      expect(find.byType(AppSheet), findsNWidgets(2));
+      await popTopSheet(tester, PickerGroupBody);
 
       container
           .read(entryFormViewModelProvider(null).notifier)
@@ -347,18 +348,18 @@ void main() {
       await tester.tap(find.text('Date'));
       await tester.pumpAndSettle();
 
-      expect(find.byType(DatePickerDialog), findsOneWidget);
-      expect(find.byType(AppSheet), findsOneWidget);
+      expect(find.byType(DatePickerSheet), findsOneWidget);
+      expect(find.byType(AppSheet), findsNWidgets(2));
 
       await tester.tap(
         find.descendant(
-          of: find.byType(DatePickerDialog),
+          of: find.byType(DatePickerSheet),
           matching: find.text('Cancel'),
         ),
       );
       await tester.pumpAndSettle();
 
-      expect(find.byType(DatePickerDialog), findsNothing);
+      expect(find.byType(DatePickerSheet), findsNothing);
       expect(find.text('Add entry'), findsOneWidget);
 
       await closeAdd(tester);
@@ -381,10 +382,10 @@ void main() {
       await tester.tap(find.text('End date'));
       await tester.pumpAndSettle();
 
-      expect(find.byType(DatePickerDialog), findsOneWidget);
+      expect(find.byType(DatePickerSheet), findsOneWidget);
       await tester.tap(
         find.descendant(
-          of: find.byType(DatePickerDialog),
+          of: find.byType(DatePickerSheet),
           matching: find.text('Cancel'),
         ),
       );
@@ -547,8 +548,8 @@ void main() {
         await tester.tap(find.text('Account'));
         await tester.pumpAndSettle();
 
-        expect(find.byType(TwoColumnPickerSheet), findsOneWidget);
-        final rootPicker = tester.element(find.byType(TwoColumnPickerSheet));
+        expect(find.byType(PickerGroupBody), findsOneWidget);
+        final rootPicker = tester.element(find.byType(PickerGroupBody));
         expect(
           identical(
             Navigator.of(rootPicker),
@@ -557,7 +558,7 @@ void main() {
           isTrue,
         );
 
-        await popTopSheet(tester, TwoColumnPickerSheet);
+        await popTopSheet(tester, PickerGroupBody);
         await closeAdd(tester);
       },
     );
@@ -694,14 +695,11 @@ void main() {
         form.requestPickSource();
         await tester.pumpAndSettle();
         expect(
-          find.byType(TwoColumnPickerSheet, skipOffstage: false),
+          find.byType(PickerGroupBody, skipOffstage: false),
           findsOneWidget,
         );
-        await popTopSheet(tester, TwoColumnPickerSheet);
-        expect(
-          find.byType(TwoColumnPickerSheet, skipOffstage: false),
-          findsNothing,
-        );
+        await popTopSheet(tester, PickerGroupBody);
+        expect(find.byType(PickerGroupBody, skipOffstage: false), findsNothing);
       }
 
       await closeAdd(tester);
@@ -729,7 +727,7 @@ void main() {
           .requestPickDate();
       await tester.pumpAndSettle();
 
-      expect(find.byType(DatePickerDialog), findsNothing);
+      expect(find.byType(DatePickerSheet), findsNothing);
       expect(tester.takeException(), isNull);
     });
 
