@@ -156,9 +156,6 @@ plain back control.
   (`app/lib/ui/common/sheets/sheet_drag_dismiss.dart`, `_SheetScrollBody`,
   `app/lib/ui/transactions/entry/new_entry_presenter.dart`,
   `app/test/ui/transactions/entry/new_entry_sheet_drag_test.dart`)
-- Add golden coverage lives in `app/test/ui/transactions/entry/new_entry_visual_golden_test.dart`
-  with images under `app/test/ui/transactions/entry/goldens/`. The fixture loads the bundled
-  InstrumentSans weights and MaterialIcons through `FontLoader`.
 
 The amount-first host retains the existing field-row appearance and order. Repeat remains a
 button beside Date, and picker value rows have no trailing chevrons. Receipt input remains
