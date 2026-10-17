@@ -136,6 +136,7 @@ plain back control.
   keyboard for Amount and never mounts the pad. A tap outside the focused field unfocuses it;
   a drag exceeding touch slop preserves focus. Tapping anywhere in `AddAmountBlock` requests Amount
   focus and reopens the pad. Closing Name's keyboard restores Amount focus on phone and open.
+  A picker return leaves both input surfaces dismissed until the user taps Amount or a text field.
   (`app/lib/ui/transactions/entry/new_entry_form.dart`, `add_amount_block.dart`)
 - `AnimatedInputSurface` animates pad entry for 240 ms and exit for 200 ms, retaining the outgoing
   pad until its exit settles. Phone Add interpolates `AppSheet.phoneMaxHeightFraction` from 0.66

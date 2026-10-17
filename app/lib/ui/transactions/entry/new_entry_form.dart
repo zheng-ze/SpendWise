@@ -72,11 +72,8 @@ class _NewEntryFormState extends State<NewEntryForm> {
   final _amountFocus = FocusNode();
   final _nameFocus = FocusNode();
   bool _keyboardSeen = false;
-  bool _routeWasCurrent = true;
   bool _padShown = false;
   Offset? _outsideDownAt;
-  FocusNode? _focusAtPointerDown;
-  FocusNode? _focusBeforeCover;
 
   @override
   void initState() {
@@ -93,30 +90,6 @@ class _NewEntryFormState extends State<NewEntryForm> {
     _keyboardSeen = keyboardUp;
     final restorePad = dismissed && _nameFocus.hasFocus && _usesPad;
     if (restorePad) _amountFocus.requestFocus();
-    _trackCover(ModalRoute.isCurrentOf(context) ?? true);
-  }
-
-  void _trackCover(bool current) {
-    if (_routeWasCurrent && !current) _focusBeforeCover = _focusAtPointerDown;
-    if (!_routeWasCurrent && current) _restoreFocusAfterCover();
-    _routeWasCurrent = current;
-  }
-
-  void _restoreFocusAfterCover() {
-    final node = _focusBeforeCover;
-    _focusBeforeCover = null;
-    if (node == null) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) node.requestFocus();
-    });
-  }
-
-  void _rememberFocus(PointerDownEvent event) {
-    _focusAtPointerDown = _amountFocus.hasFocus
-        ? _amountFocus
-        : _nameFocus.hasFocus
-        ? _nameFocus
-        : null;
   }
 
   void _outsideDown(PointerDownEvent event) => _outsideDownAt = event.position;
@@ -208,11 +181,6 @@ class _NewEntryFormState extends State<NewEntryForm> {
       onOutsideDown: _outsideDown,
       onOutsideUp: _outsideUp,
     );
-    final trackedBody = Listener(
-      behavior: HitTestBehavior.translucent,
-      onPointerDown: _rememberFocus,
-      child: body,
-    );
     final pad = padVisible
         ? TextFieldTapRegion(
             child: NumberPad(
@@ -231,7 +199,7 @@ class _NewEntryFormState extends State<NewEntryForm> {
       );
       return AppSheet(
         header: header,
-        body: trackedBody,
+        body: body,
         footer: NewEntrySaveFooter(onSave: save, keypad: padVisible),
         inputSurface: surface,
         dragToDismiss: true,

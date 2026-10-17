@@ -279,28 +279,31 @@ void main() {
     });
   });
 
-  group('input mode returns after a picker', () {
-    testWidgets('Amount focus restores the pad after a cancelled picker', (
-      tester,
-    ) async {
-      await _openAdd(tester);
+  group('input surfaces stay dismissed after a picker', () {
+    testWidgets(
+      'a cancelled picker from Amount focus leaves surfaces dismissed',
+      (tester) async {
+        await _openAdd(tester);
 
-      await _pickAccountFrom(tester, _amountField, _cancelPickerTap);
+        await _pickAccountFrom(tester, _amountField, _cancelPickerTap);
 
-      expect(find.byType(NumberPad), findsOneWidget);
-    });
+        expect(find.byType(NumberPad), findsNothing);
+        expect(tester.testTextInput.isVisible, isFalse);
+      },
+    );
 
-    testWidgets('Name focus restores the keyboard after a completed picker', (
-      tester,
-    ) async {
-      final harness = await _openAdd(tester);
+    testWidgets(
+      'a completed picker from Name focus leaves surfaces dismissed',
+      (tester) async {
+        final harness = await _openAdd(tester);
 
-      await _pickAccountFrom(tester, _nameField, null);
+        await _pickAccountFrom(tester, _nameField, null);
 
-      expect(harness.draft['source'], checkingId);
-      expect(tester.testTextInput.isVisible, isTrue);
-      expect(find.byType(NumberPad), findsNothing);
-    });
+        expect(harness.draft['source'], checkingId);
+        expect(tester.testTextInput.isVisible, isFalse);
+        expect(find.byType(NumberPad), findsNothing);
+      },
+    );
   });
 
   testWidgets('segments wrap, stay inside the sheet and stay tappable', (
