@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/ui/common/pickers/symbol_picker.dart';
 
+import '../../../support/ui_test_timeout.dart';
+
 void main() {
   group('filterSymbolSections', () {
     const sections = {
@@ -60,7 +62,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(popped, 'restaurant');
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('cancelling returns null', (tester) async {
     String? popped = 'unset';
@@ -88,5 +90,5 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(popped, isNull);
-  });
+  }, timeout: uiTestTimeout);
 }

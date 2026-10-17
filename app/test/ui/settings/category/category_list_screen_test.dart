@@ -9,6 +9,7 @@ import 'package:spendwise/ui/settings/category/category_form.dart';
 import 'package:spendwise/ui/settings/category/category_list_screen.dart';
 
 import '../../../support/semantics_test_support.dart';
+import '../../../support/ui_test_timeout.dart';
 
 void main() {
   final food = TransactionCategory(
@@ -77,7 +78,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('No categories yet'), findsNWidgets(2));
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('roots list alphabetically, each followed by its own children', (
     tester,
@@ -94,7 +95,7 @@ void main() {
     expect(snacksCenter.dy, greaterThan(foodCenter.dy));
     expect(snacksCenter.dy, lessThan(giftsCenter.dy));
     expect(snacksCenter.dx, greaterThan(foodCenter.dx));
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('income and expense are separate sections', (tester) async {
     final ledger = buildLedger(categories: [food, salary]);
@@ -105,7 +106,7 @@ void main() {
     expect(find.text('Expense'), findsOneWidget);
     expect(find.text('Salary'), findsOneWidget);
     expect(find.text('Food'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('a category excluded from analysis carries a marker', (
     tester,
@@ -131,7 +132,7 @@ void main() {
       find.descendant(of: foodRow, matching: find.byIcon(Icons.bar_chart)),
       findsNothing,
     );
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('swiping a category row opens the delete confirmation', (
     tester,
@@ -144,7 +145,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Delete Gifts?'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('confirming delete archives the category', (tester) async {
     final ledger = buildLedger(categories: [gifts]);
@@ -160,7 +161,7 @@ void main() {
       ledger.state.categories[gifts.id]!.lifecycle,
       LifecycleState.archived,
     );
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('the delete custom semantic action opens the same confirm '
       'dialog as the swipe', (tester) async {
@@ -186,7 +187,7 @@ void main() {
       LifecycleState.archived,
     );
     handle.dispose();
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('tapping the add-category button opens a bare form', (
     tester,
@@ -201,7 +202,7 @@ void main() {
     final form = tester.widget<CategoryForm>(find.byType(CategoryForm));
     expect(form.category, isNull);
     expect(form.presetParentID, isNull);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('tapping a category row opens the form for that category', (
     tester,
@@ -216,7 +217,7 @@ void main() {
     final form = tester.widget<CategoryForm>(find.byType(CategoryForm));
     expect(form.category?.id, food.id);
     expect(form.presetParentID, isNull);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('tapping add-subcategory on a root opens the form preset to it', (
     tester,
@@ -231,5 +232,5 @@ void main() {
     final form = tester.widget<CategoryForm>(find.byType(CategoryForm));
     expect(form.category, isNull);
     expect(form.presetParentID, food.id);
-  });
+  }, timeout: uiTestTimeout);
 }

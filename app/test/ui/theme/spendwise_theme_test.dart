@@ -6,6 +6,8 @@ import 'package:spendwise/ui/theme/spendwise_colors.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 import 'package:spendwise/ui/theme/spendwise_theme.dart';
 
+import '../../support/ui_test_timeout.dart';
+
 void main() {
   group('SpendWiseColors', () {
     test('light tokens match the reference hex values', () {
@@ -200,6 +202,6 @@ void main() {
       final style = confirm.style!;
       expect(style.backgroundColor?.resolve({}), const Color(0xFF993F3F));
       expect(find.widgetWithText(TextButton, 'Cancel'), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
   });
 }

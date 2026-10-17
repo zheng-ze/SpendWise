@@ -12,6 +12,7 @@ import 'package:spendwise/ui/stats/stats_flow.dart';
 import 'package:spendwise/ui/stats/stats_root_screen.dart';
 
 import '../../../support/semantics_test_support.dart';
+import '../../../support/ui_test_timeout.dart';
 
 void main() {
   Decimal dec(String value) => Decimal.parse(value);
@@ -120,7 +121,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Food'), findsWidgets);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('the headline uses the expense token', (tester) async {
     final hawkerEntry = Entry(
@@ -145,7 +146,7 @@ void main() {
 
     final headline = tester.widget<Text>(find.text('S\$15.00'));
     expect(headline.style?.color, const Color(0xFF964B44));
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('range is inherited fixed: no range control is rendered', (
     tester,
@@ -155,7 +156,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byIcon(Icons.more_vert), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('date changes in the detail screen do not affect the parent', (
     tester,
@@ -191,7 +192,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(StatsFlow), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   group('subcategory table', () {
     testWidgets('the "All Food" row is always first and always 100%', (
@@ -219,7 +220,7 @@ void main() {
 
       expect(find.text('All Food'), findsOneWidget);
       expect(find.text('100%'), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('direct row appears when spending is logged on the parent', (
       tester,
@@ -245,7 +246,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Direct'), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('no direct row when every entry sits on a child', (
       tester,
@@ -271,7 +272,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Direct'), findsNothing);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('direct row ranks by amount among the children', (
       tester,
@@ -313,7 +314,7 @@ void main() {
 
       expect(hawkerCenter.dy, lessThan(directCenter.dy));
       expect(directCenter.dy, lessThan(cafeCenter.dy));
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('tapping a subcategory row changes the scope total', (
       tester,
@@ -347,7 +348,7 @@ void main() {
       expect(find.text('Food › Hawker'), findsOneWidget);
       expect(find.text('S\$10.00'), findsOneWidget);
       expect(find.text('10.00'), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('scoped entry list', () {
@@ -384,7 +385,7 @@ void main() {
 
       expect(entryText('Lunch at hawker'), findsOneWidget);
       expect(entryText('Coffee run'), findsNothing);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets(
       'an entry excluded from analysis never appears in the entry list',
@@ -403,6 +404,7 @@ void main() {
 
         expect(find.text('Excluded entry', skipOffstage: false), findsNothing);
       },
+      timeout: uiTestTimeout,
     );
 
     testWidgets(
@@ -447,6 +449,7 @@ void main() {
           findsNothing,
         );
       },
+      timeout: uiTestTimeout,
     );
 
     testWidgets('direct scope excludes children entries', (tester) async {
@@ -475,7 +478,7 @@ void main() {
 
       expect(find.text('Misc food buy', skipOffstage: false), findsOneWidget);
       expect(find.text('Lunch at hawker', skipOffstage: false), findsNothing);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets(
       'the delete custom semantic action opens the same confirm dialog as '
@@ -516,6 +519,7 @@ void main() {
         expect(ledger.state.entries.containsKey(keepEntry.id), isTrue);
         handle.dispose();
       },
+      timeout: uiTestTimeout,
     );
   });
 
@@ -543,6 +547,7 @@ void main() {
 
       expect(find.byType(CategoryDetailScreen), findsOneWidget);
     },
+    timeout: uiTestTimeout,
   );
 
   group('trend card', () {
@@ -557,7 +562,7 @@ void main() {
 
       expect(find.textContaining('trend'), findsOneWidget);
       expect(find.textContaining('last 6 months'), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('tapping a point shows that month\'s amount in the header', (
       tester,
@@ -587,6 +592,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.textContaining('last 6 months'), findsNothing);
-    });
+    }, timeout: uiTestTimeout);
   });
 }

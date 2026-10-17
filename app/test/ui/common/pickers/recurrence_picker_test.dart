@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/ui/common/pickers/recurrence_picker.dart';
 
+import '../../../support/ui_test_timeout.dart';
+
 void main() {
   late Future<RecurrenceFrequency?> pendingOutcome;
 
@@ -43,7 +45,7 @@ void main() {
     expect(find.text('Monthly'), findsOneWidget);
     expect(find.text('Quarterly'), findsOneWidget);
     expect(find.text('Yearly'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('shows a checkmark only on the selected row', (tester) async {
     await openSheet(tester, selected: RecurrenceFrequency.monthly);
@@ -65,7 +67,7 @@ void main() {
       find.descendant(of: weeklyRow, matching: find.byIcon(Icons.check)),
       findsNothing,
     );
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('null selection shows the checkmark on One time', (tester) async {
     await openSheet(tester, selected: null);
@@ -79,7 +81,7 @@ void main() {
       find.descendant(of: oneTimeRow, matching: find.byIcon(Icons.check)),
       findsOneWidget,
     );
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('tapping a row sets the frequency and dismisses', (tester) async {
     await openSheet(tester);
@@ -88,7 +90,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(await pendingOutcome, RecurrenceFrequency.biweekly);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('tapping One time clears the frequency', (tester) async {
     await openSheet(tester, selected: RecurrenceFrequency.yearly);
@@ -97,5 +99,5 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(await pendingOutcome, isNull);
-  });
+  }, timeout: uiTestTimeout);
 }

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ui/accounts/money_navigation.dart';
 
+import '../../support/ui_test_timeout.dart';
+
 void main() {
   testWidgets('Money observer follows route stack changes by route identity', (
     tester,
@@ -120,5 +122,5 @@ void main() {
       ),
     );
     expect(observer.sourceId, isNull);
-  });
+  }, timeout: uiTestTimeout);
 }

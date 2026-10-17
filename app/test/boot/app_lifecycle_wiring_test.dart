@@ -6,6 +6,7 @@ import 'package:spendwise/boot/app_phase.dart';
 import 'package:spendwise/boot/providers.dart';
 
 import '../support/recording_ledger_store.dart';
+import '../support/ui_test_timeout.dart';
 
 void main() {
   testWidgets(
@@ -33,5 +34,6 @@ void main() {
 
       expect(store.calls, contains(StoreCall.flushNow));
     },
+    timeout: uiTestTimeout,
   );
 }

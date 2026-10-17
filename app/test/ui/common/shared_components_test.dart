@@ -6,6 +6,8 @@ import 'package:spendwise/ui/common/inputs/amount_field.dart';
 import 'package:spendwise/ui/common/feedback/error_section.dart';
 import 'package:spendwise/ui/common/inputs/form_scaffold.dart';
 
+import '../../support/ui_test_timeout.dart';
+
 Widget _host(Widget child) => MaterialApp(
   home: Scaffold(body: Center(child: child)),
 );
@@ -23,7 +25,7 @@ void main() {
       );
 
       expect(find.text('S\$'), findsNothing);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('appears once text is typed and goes away when cleared', (
       tester,
@@ -40,7 +42,7 @@ void main() {
       await tester.enterText(find.byType(TextField), '');
       await tester.pump();
       expect(find.text('S\$'), findsNothing);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('drops a minus sign when negatives are not allowed', (
       tester,
@@ -54,7 +56,7 @@ void main() {
       await tester.pump();
 
       expect(controller.text, '5');
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('keeps a minus sign when negatives are allowed', (
       tester,
@@ -68,7 +70,7 @@ void main() {
       await tester.pump();
 
       expect(controller.text, '-5');
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('FormScaffold save enablement', () {
@@ -94,7 +96,7 @@ void main() {
       await tester.tap(find.text('Save'));
       await tester.pump();
       expect(saved, isFalse);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('Save runs onSave once canSave is true', (tester) async {
       var saved = false;
@@ -118,7 +120,7 @@ void main() {
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
       expect(saved, isTrue);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('tapping outside the sheet dismisses it', (tester) async {
       await tester.pumpWidget(
@@ -150,7 +152,7 @@ void main() {
       await tester.tapAt(const Offset(20, 20));
       await tester.pumpAndSettle();
       expect(find.text('form body'), findsNothing);
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('ErrorSection', () {
@@ -160,7 +162,7 @@ void main() {
       );
 
       expect(find.textContaining('Could not save'), findsNothing);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('names the subject and the friendly message after a failure', (
       tester,
@@ -177,7 +179,7 @@ void main() {
         ),
         findsOneWidget,
       );
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('inside a form it stays hidden until the save throws', (
       tester,
@@ -196,7 +198,7 @@ void main() {
         ),
         findsOneWidget,
       );
-    });
+    }, timeout: uiTestTimeout);
   });
 }
 

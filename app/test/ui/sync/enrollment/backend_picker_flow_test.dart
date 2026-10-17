@@ -8,6 +8,8 @@ import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_flow.
 import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_screen.dart';
 import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_view_model.dart';
 
+import '../../../support/ui_test_timeout.dart';
+
 final class FakeBackendSelectionWriter implements BackendSelectionWriter {
   final List<({SyncBackendKind backend, String? endpoint})> calls = [];
 
@@ -51,7 +53,7 @@ void main() {
     expect(find.byType(BackendPickerFlow), findsOneWidget);
     expect(find.byType(BackendPickerScreen), findsOneWidget);
     expect(find.byType(BackButton), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('hosted-ready invokes the hosted callback and clears the step', (
     tester,
@@ -76,7 +78,7 @@ void main() {
     );
     expect(find.byType(SnackBar), findsNothing);
     expect(find.byType(BackendPickerScreen), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('custom-unavailable shows the affordance, clears the step, '
       'and never invokes the hosted callback', (tester) async {
@@ -105,5 +107,5 @@ void main() {
       reason: 'the Flow clears the step so a rebuild never replays it',
     );
     expect(find.byType(BackendPickerScreen), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 }

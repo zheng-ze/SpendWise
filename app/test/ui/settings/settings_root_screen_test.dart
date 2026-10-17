@@ -8,6 +8,8 @@ import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/settings/app_settings.dart';
 import 'package:spendwise/ui/settings/settings_root_screen.dart';
 
+import '../../support/ui_test_timeout.dart';
+
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
@@ -37,7 +39,7 @@ void main() {
 
     final tile = tester.widget<SwitchListTile>(find.byType(SwitchListTile));
     expect(tile.value, isTrue);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('shows the fixed SGD currency row', (tester) async {
     await pumpSettings(tester);
@@ -55,7 +57,7 @@ void main() {
       ),
       findsOneWidget,
     );
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('tapping the toggle persists the new value via AppSettings', (
     tester,
@@ -68,5 +70,5 @@ void main() {
     final tile = tester.widget<SwitchListTile>(find.byType(SwitchListTile));
     expect(tile.value, isFalse);
     expect(await const AppSettings().scanStripEnabled(), isFalse);
-  });
+  }, timeout: uiTestTimeout);
 }

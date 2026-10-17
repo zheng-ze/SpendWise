@@ -22,6 +22,7 @@ import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_scr
 import '../sync/enrollment/sync_enrollment_flow_test.dart'
     show FakeSessionOpener, pumpFlowFrames;
 import 'repair_banner_test.dart' show createEnrollmentContainer, pumpShell;
+import '../../support/ui_test_timeout.dart';
 
 const _desktop = Size(1200, 800);
 const _hostedTile = Key('hostedSyncStatus');
@@ -106,14 +107,14 @@ void main() {
         ),
       );
       expect(find.text('history body'), findsNothing);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('the Settings root shows no back control', (tester) async {
       await pumpShell(tester, status: null, layoutMode: ShellLayoutMode.phone);
       await _openSettingsItem(tester);
 
       expect(find.byType(BackButton), findsNothing);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('Android back at the Settings root preserves the selection', (
       tester,
@@ -140,7 +141,7 @@ void main() {
       _expectSelectedSettings(harness.container);
       expect(find.byType(SettingsFlow), findsOneWidget);
       expect(find.text('trends detail', skipOffstage: false), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets(
       'Back pops a Settings child route and keeps Settings selected',
@@ -163,6 +164,7 @@ void main() {
         _expectSelectedSettings(harness.container);
         expect(find.byKey(_hostedTile), findsOneWidget);
       },
+      timeout: uiTestTimeout,
     );
 
     testWidgets('Plans and Recycle Bin child routes return to the root', (
@@ -187,7 +189,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(RecycleBinScreen), findsNothing);
       expect(find.byKey(_hostedTile), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets(
       'system Back with a root dialog open dismisses only the dialog',
@@ -218,6 +220,7 @@ void main() {
         expect(find.byType(CategoryListScreen), findsOneWidget);
         _expectSelectedSettings(harness.container);
       },
+      timeout: uiTestTimeout,
     );
 
     testWidgets('a fresh enrollment opens one route and closes cleanly', (
@@ -240,7 +243,7 @@ void main() {
       expect(find.byType(SyncEnrollmentFlow), findsNothing);
       expect(find.byKey(_hostedTile), findsOneWidget);
       _expectClosedCleanly(harness.container);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets(
       'completing an enrollment route refreshes status and releases the guard',
@@ -270,6 +273,7 @@ void main() {
         _expectClosedCleanly(harness.container);
         expect(find.text('Status unavailable'), findsOneWidget);
       },
+      timeout: uiTestTimeout,
     );
 
     testWidgets('selecting Settings refreshes a changed durable phase', (
@@ -305,7 +309,7 @@ void main() {
 
       await _openSettingsItem(tester);
       expect(find.text('Status unavailable'), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a repair tap selects Settings with one repair route', (
       tester,
@@ -325,7 +329,7 @@ void main() {
       expect(find.byType(SettingsFlow), findsOneWidget);
       expect(find.byType(SyncIdentifierScreen), findsOneWidget);
       expect(find.byType(SyncEnrollmentFlow), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a save problem shows above Settings', (tester) async {
       final banner = BannerState();
@@ -341,7 +345,7 @@ void main() {
       await tester.pump();
 
       expect(find.text("Couldn't save changes, retrying"), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets(
       'the repair banner stays hidden while the repair route is open',
@@ -356,6 +360,7 @@ void main() {
 
         expect(find.text(_repairLabel, skipOffstage: false), findsNothing);
       },
+      timeout: uiTestTimeout,
     );
 
     testWidgets('a repair tap while an enrollment route is already open '
@@ -377,7 +382,7 @@ void main() {
       _expectSelectedSettings(harness.container);
       expect(find.byType(SettingsFlow), findsOneWidget);
       expect(steps.whereType<RepairDeviceAccessRequested>(), isEmpty);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('switching destination during enrollment keeps the route for '
         'return', (tester) async {
@@ -402,7 +407,7 @@ void main() {
 
       expect(find.byType(SyncEnrollmentFlow), findsOneWidget);
       expect(harness.container.read(enrollmentFlowOpenProvider), isTrue);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('system Back on another destination leaves the hidden '
         'enrollment route alone', (tester) async {
@@ -431,7 +436,7 @@ void main() {
       await _openSettingsItem(tester);
 
       expect(find.byType(SyncEnrollmentFlow), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('teardown with an owned enrollment route releases the guard '
         'without emitting a step', (tester) async {
@@ -452,7 +457,7 @@ void main() {
       _expectClosedCleanly(harness.container);
       expect(steps.whereType<ResumeFreshEnrollmentRequested>(), isEmpty);
       expect(steps.whereType<RepairDeviceAccessRequested>(), isEmpty);
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('desktop', () {
@@ -488,7 +493,7 @@ void main() {
           hasFocusAction: true,
         ),
       );
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('Android back at the Settings root preserves the selection', (
       tester,
@@ -516,7 +521,7 @@ void main() {
       _expectSelectedSettings(harness.container);
       expect(find.byType(SettingsFlow), findsOneWidget);
       expect(find.text('trends detail', skipOffstage: false), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a repair tap selects Settings with one repair route', (
       tester,
@@ -537,7 +542,7 @@ void main() {
       expect(find.byType(SettingsFlow), findsOneWidget);
       expect(find.byType(SyncIdentifierScreen), findsOneWidget);
       expect(find.byType(SyncEnrollmentFlow), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('StatusBanner', () {
@@ -574,7 +579,7 @@ void main() {
       container.read(enrollmentFlowOpenProvider.notifier).state = false;
       await tester.pump();
       expect(find.text(_repairLabel), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('pending step pickup', () {
@@ -608,6 +613,7 @@ void main() {
         );
         expect(created.container.read(enrollmentFlowOpenProvider), isTrue);
       },
+      timeout: uiTestTimeout,
     );
   });
 
@@ -699,7 +705,7 @@ void main() {
       expect(find.byType(CategoryListScreen), findsNothing);
       expect(find.byKey(_hostedTile), findsOneWidget);
       _expectSelectedSettings(container);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a mobile switch retains an open enrollment route without '
         're-hosting it', (tester) async {
@@ -732,7 +738,7 @@ void main() {
       await pumpFlowFrames(tester);
       expect(find.byType(SyncEnrollmentFlow), findsNothing);
       _expectClosedCleanly(container);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('system back across a resize targets the active destination '
         'and leaves hidden stacks intact', (tester) async {
@@ -772,6 +778,6 @@ void main() {
         container.read(selectedDestinationProvider),
         ShellDestination.trends,
       );
-    });
+    }, timeout: uiTestTimeout);
   });
 }

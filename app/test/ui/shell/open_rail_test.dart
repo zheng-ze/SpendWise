@@ -13,6 +13,8 @@ import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/theme/spendwise_colors.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
+import '../../support/ui_test_timeout.dart';
+
 const _openSize = Size(960, 720);
 const _thresholdSize = Size(600, 480);
 
@@ -140,13 +142,13 @@ void main() {
     final badgeIcon = tester.widget<Icon>(find.byIcon(Icons.add));
     expect(badgeIcon.size, 22);
     expect(badgeIcon.color, SpendWiseColors.light.onAction);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('the rail exposes a main-navigation landmark', (tester) async {
     await _pumpOpen(tester);
 
     expect(find.bySemanticsLabel(openRailNavigationLabel), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('selecting a rail destination updates selection and semantics', (
     tester,
@@ -195,7 +197,7 @@ void main() {
         hasFocusAction: true,
       ),
     );
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('the rail docks bottom right with reference geometry', (
     tester,
@@ -219,7 +221,7 @@ void main() {
       decoration.borderRadius,
       BorderRadius.circular(openRailCornerRadius),
     );
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('page content reserves the rail gutter and shows no header '
       'gear', (tester) async {
@@ -231,7 +233,7 @@ void main() {
       moreOrLessEquals(_openSize.width - openRailGutter, epsilon: 0.5),
     );
     expect(find.byIcon(Icons.settings), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('a right system inset extends the content gutter clear of '
       'the rail', (tester) async {
@@ -252,7 +254,7 @@ void main() {
     );
     expect(stackWidth, lessThanOrEqualTo(railRect.left));
     expect(tester.takeException(), isNull);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('rail Add opens the shared sheet and keeps the selection', (
     tester,
@@ -274,7 +276,7 @@ void main() {
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
     expect(find.byType(AppSheet), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('the rail keeps every control reachable at the 600 x 480 '
       'threshold with safe insets', (tester) async {
@@ -301,7 +303,7 @@ void main() {
       expect(find.text(label), findsOneWidget);
     }
     expect(tester.takeException(), isNull);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('the rail scrolls instead of overflowing on short windows and '
       'large text', (tester) async {
@@ -334,7 +336,7 @@ void main() {
     }
     expect(tester.takeException(), isNull);
     expect(find.text('Settings'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('phone and desktop chrome stay untouched', (tester) async {
     await _pumpOpen(tester, layoutMode: ShellLayoutMode.phone);
@@ -344,7 +346,7 @@ void main() {
     await _pumpOpen(tester, layoutMode: ShellLayoutMode.desktop);
     expect(find.byKey(const ValueKey('sidebar')), findsOneWidget);
     expect(find.byKey(openRailKey), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('rail hit targets meet the minimum size', (tester) async {
     await _pumpOpen(tester);
@@ -361,5 +363,5 @@ void main() {
       expect(size.height, greaterThanOrEqualTo(48));
     }
     expect(tester.element(find.byKey(openRailKey)).colors.action, isNotNull);
-  });
+  }, timeout: uiTestTimeout);
 }

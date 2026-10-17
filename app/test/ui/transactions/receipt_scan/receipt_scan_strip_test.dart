@@ -18,6 +18,8 @@ import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart'
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_flow.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_strip.dart';
 
+import '../../../support/ui_test_timeout.dart';
+
 class _RecordingEntryFormNotifier extends EntryFormNotifier {
   _RecordingEntryFormNotifier() : super(null);
 
@@ -83,14 +85,14 @@ void main() {
 
     expect(find.text('Scan receipt'), findsOneWidget);
     expect(find.text('Upload photo'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('renders nothing when the setting is off', (tester) async {
     await pumpStrip(tester, enabled: false);
 
     expect(find.text('Scan receipt'), findsNothing);
     expect(find.text('Upload photo'), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('tapping Upload photo starts a gallery scan', (tester) async {
     final recorder = _RecordingEntryFormNotifier();
@@ -100,5 +102,5 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(recorder.scanSources, contains(ReceiptScanSource.gallery));
-  });
+  }, timeout: uiTestTimeout);
 }

@@ -6,6 +6,8 @@ import 'package:spendwise/sync/sync_metadata_store.dart';
 import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_screen.dart';
 import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_view_model.dart';
 
+import '../../../support/ui_test_timeout.dart';
+
 final class FakeBackendSelectionWriter implements BackendSelectionWriter {
   var calls = 0;
 
@@ -46,6 +48,7 @@ void main() {
       expect(find.byType(TextField), findsNothing);
       expect(find.text('Continue'), findsOneWidget);
     },
+    timeout: uiTestTimeout,
   );
 
   testWidgets(
@@ -61,6 +64,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(TextField), findsNothing);
     },
+    timeout: uiTestTimeout,
   );
 
   testWidgets('continue persists the hosted selection through the writer', (
@@ -73,5 +77,5 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(writer.calls, 1);
-  });
+  }, timeout: uiTestTimeout);
 }

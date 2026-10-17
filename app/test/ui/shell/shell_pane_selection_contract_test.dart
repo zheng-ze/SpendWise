@@ -5,6 +5,8 @@ import 'package:spendwise/ui/common/base/flow_base.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
+import '../../support/ui_test_timeout.dart';
+
 const _fixtureSize = Size(960, 720);
 const _fixtureViewportWidth = 888.0;
 const _rootRouteName = 'fixture-root';
@@ -379,7 +381,7 @@ void main() {
     expect(fixture.selectedDetailId, isNull);
     expect(find.text('Open detail B'), findsNothing);
     expect(tester.takeException(), isNull);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets(
     'covering routes survive resize and defer a missing phone detail',
@@ -423,6 +425,7 @@ void main() {
       expect(find.text('Open detail A'), findsOneWidget);
       expect(find.byKey(_managedRouteKey, skipOffstage: false), findsNothing);
     },
+    timeout: uiTestTimeout,
   );
 
   testWidgets(
@@ -451,6 +454,7 @@ void main() {
       expect(find.text('Open detail B'), findsNothing);
       expect(fixture.selectedDetailId, 'B');
     },
+    timeout: uiTestTimeout,
   );
 
   testWidgets(
@@ -477,6 +481,7 @@ void main() {
       expect(find.text('Phone detail B'), findsNothing);
       expect(find.text('Fixture page'), findsOneWidget);
     },
+    timeout: uiTestTimeout,
   );
 
   testWidgets(
@@ -516,5 +521,6 @@ void main() {
       expect(flowState._routeObserver.managedDetailCount, 1);
       expect(tester.takeException(), isNull);
     },
+    timeout: uiTestTimeout,
   );
 }

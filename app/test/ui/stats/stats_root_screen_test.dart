@@ -10,6 +10,8 @@ import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/stats/stats_flow.dart';
 import 'package:spendwise/ui/stats/helpers/stats_window.dart';
 
+import '../../support/ui_test_timeout.dart';
+
 Finder totalAmountText(String text) =>
     find.descendant(of: find.byType(AmountHeader), matching: find.text(text));
 
@@ -106,7 +108,7 @@ void main() {
     await pumpScreen(tester, ledger, selectedDate: DateTime.utc(2026, 3));
 
     expect(find.text('No expense in this period'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('total line sums the window\'s items for the active kind', (
     tester,
@@ -138,7 +140,7 @@ void main() {
     await pumpScreen(tester, ledger, selectedDate: DateTime.utc(2026, 3));
 
     expect(totalAmountText('S\$25.00'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('switching to Annually widens the window to the whole year', (
     tester,
@@ -176,7 +178,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(totalAmountText('S\$25.00'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('an empty window shows the empty state', (tester) async {
     final ledger = Ledger(
@@ -188,7 +190,7 @@ void main() {
     await pumpScreen(tester, ledger, selectedDate: DateTime.utc(2026, 3));
 
     expect(find.text('No expense in this period'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('the Budgets tab groups a subcategory budget next to its '
       'parent, indented and sorted', (tester) async {
@@ -213,5 +215,5 @@ void main() {
     final hawkerCenter = tester.getCenter(find.text('Hawker'));
     expect(foodCenter.dy, lessThan(hawkerCenter.dy));
     expect(hawkerCenter.dx, greaterThan(foodCenter.dx));
-  });
+  }, timeout: uiTestTimeout);
 }

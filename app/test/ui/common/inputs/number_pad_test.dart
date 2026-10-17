@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ui/common/inputs/number_pad.dart';
 
 import '../../../support/number_pad_support.dart';
+import '../../../support/ui_test_timeout.dart';
 
 void main() {
   testWidgets('digit keys report 1-9 then 0 in layout order', (tester) async {
@@ -18,7 +19,7 @@ void main() {
     expect(taps.digits, ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']);
     expect(taps.decimals, 0);
     expect(taps.backspaces, 0);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('the last row holds decimal, zero and backspace', (tester) async {
     final taps = await pumpNumberPad(tester);
@@ -36,14 +37,14 @@ void main() {
     expect(backspace.center.dy, zero.center.dy);
     expect(lastRow.center.dx, lessThan(zero.center.dx));
     expect(zero.center.dx, lessThan(backspace.center.dx));
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('decimal and backspace expose accessible labels', (tester) async {
     await pumpNumberPad(tester);
 
     expect(find.bySemanticsLabel('Decimal point'), findsOneWidget);
     expect(find.bySemanticsLabel('Backspace'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('a disabled pad emits no callbacks', (tester) async {
     final taps = await pumpNumberPad(tester, enabled: false);
@@ -56,7 +57,7 @@ void main() {
     expect(taps.digits, isEmpty);
     expect(taps.decimals, 0);
     expect(taps.backspaces, 0);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('four rows of 48 dp keys total 192 dp', (tester) async {
     await pumpNumberPad(tester);
@@ -70,7 +71,7 @@ void main() {
       );
       expect(tester.getSize(key).height, 48);
     }
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('every digit key is a labelled button, disabled keys say so', (
     tester,
@@ -89,5 +90,5 @@ void main() {
         .getSemantics(find.bySemanticsLabel('5'))
         .getSemanticsData();
     expect(disabled.flagsCollection.isEnabled, Tristate.isFalse);
-  });
+  }, timeout: uiTestTimeout);
 }

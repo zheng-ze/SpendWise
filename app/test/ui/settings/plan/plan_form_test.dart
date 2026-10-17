@@ -6,6 +6,8 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/settings/plan/plan_form.dart';
 
+import '../../../support/ui_test_timeout.dart';
+
 void main() {
   Decimal dec(String value) => Decimal.parse(value);
 
@@ -62,7 +64,7 @@ void main() {
 
     expect(find.text('Source: Wallet'), findsOneWidget);
     expect(find.byType(ListTile), findsNWidgets(3));
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('editing the amount of an expense plan preserves the negative '
       'sign on save', (tester) async {
@@ -77,7 +79,7 @@ void main() {
 
     final saved = ledger.state.plans[plan.id]!;
     expect(saved.template.amount, dec('-99'));
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('editing an income plan keeps the amount positive', (
     tester,
@@ -93,7 +95,7 @@ void main() {
 
     final saved = ledger.state.plans[plan.id]!;
     expect(saved.template.amount, dec('42'));
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('saving does not change lastResolvedDate', (tester) async {
     final plan = buildPlan(amount: dec('-10'));
@@ -107,7 +109,7 @@ void main() {
 
     final saved = ledger.state.plans[plan.id]!;
     expect(saved.lastResolvedDate, plan.lastResolvedDate);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('blank name blocks the save button', (tester) async {
     final plan = buildPlan(amount: dec('-10'));
@@ -119,7 +121,7 @@ void main() {
 
     final saveButton = tester.widget<FilledButton>(find.byType(FilledButton));
     expect(saveButton.onPressed, isNull);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('zero amount blocks the save button', (tester) async {
     final plan = buildPlan(amount: dec('-10'));
@@ -131,7 +133,7 @@ void main() {
 
     final saveButton = tester.widget<FilledButton>(find.byType(FilledButton));
     expect(saveButton.onPressed, isNull);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('picking a recurrence frequency updates the Repeat row', (
     tester,
@@ -149,7 +151,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Yearly'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('enabling end date defaults it to the first date, editable via '
       'its own picker', (tester) async {
@@ -172,5 +174,5 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(ledger.state.plans[plan.id], plan);
-  });
+  }, timeout: uiTestTimeout);
 }

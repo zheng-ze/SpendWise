@@ -7,6 +7,7 @@ import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 
 import 'new_entry_session_harness.dart';
+import '../../../support/ui_test_timeout.dart';
 
 Future<EntryHarness> _openAdd(WidgetTester tester, {Size? size}) async {
   final harness = await pumpShell(tester, size: size ?? phoneSize);
@@ -33,7 +34,7 @@ void main() {
 
     expect(harness.draft['category'], coffeeId);
     expect(find.byType(AppSheet), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('pick-category Cancel keeps the category', (tester) async {
     final harness = await _openAdd(tester);
@@ -44,7 +45,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(harness.draft['category'], coffeeId);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('pick-account applies the chosen account', (tester) async {
     final harness = await _openAdd(tester);
@@ -54,7 +55,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(harness.draft['source'], checkingId);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('pick-repeat applies a frequency and Cancel keeps it', (
     tester,
@@ -69,7 +70,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(harness.draft['recurrence'], RecurrenceFrequency.weekly);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('pick-date stores UTC midnight of the chosen day', (
     tester,
@@ -85,7 +86,7 @@ void main() {
     expect(date.isUtc, isTrue);
     expect(date, startOfDayUtc(date));
     expect(date.day, 1);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('end date picker presents on AppSheet and Cancel keeps null', (
     tester,
@@ -98,7 +99,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(harness.draft['endDate'], isNull);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('desktop Add presents the picker as a desktop AppSheet', (
     tester,
@@ -109,7 +110,7 @@ void main() {
 
     expect(find.byType(AppSheet), findsNWidgets(2));
     expect(tester.takeException(), isNull);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('an open picker follows a shrink to phone width live', (
     tester,
@@ -128,5 +129,5 @@ void main() {
     expect(after?.presentation, AppSheetPresentation.phone);
     expect(find.byKey(pickerCancelKey), findsOneWidget);
     expect(tester.takeException(), isNull);
-  });
+  }, timeout: uiTestTimeout);
 }

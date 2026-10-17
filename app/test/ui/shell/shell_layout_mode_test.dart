@@ -10,6 +10,8 @@ import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/shell_binding.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
+import '../../support/ui_test_timeout.dart';
+
 const _openSize = Size(960, 720);
 const _compactSize = Size(320, 760);
 const _landscapePhoneSize = Size(800, 400);
@@ -303,7 +305,7 @@ void main() {
 
         expect(_probedMode(tester), ShellLayoutMode.open);
         expect(_scopeMode(tester), ShellLayoutMode.open);
-      });
+      }, timeout: uiTestTimeout);
 
       testWidgets('$platform phone sizes render phone', (tester) async {
         for (final size in [
@@ -325,7 +327,7 @@ void main() {
           );
           addTearDown(tester.view.reset);
         }
-      });
+      }, timeout: uiTestTimeout);
 
       testWidgets('$platform threshold boundaries resolve inclusively', (
         tester,
@@ -355,7 +357,7 @@ void main() {
           );
           addTearDown(tester.view.reset);
         }
-      });
+      }, timeout: uiTestTimeout);
 
       testWidgets('$platform runtime resize follows the window', (
         tester,
@@ -374,7 +376,7 @@ void main() {
 
         await _resize(tester, _openSize);
         expect(_probedMode(tester), ShellLayoutMode.open);
-      });
+      }, timeout: uiTestTimeout);
     }
 
     testWidgets('logical sizing holds at a non-1 device-pixel ratio', (
@@ -390,7 +392,7 @@ void main() {
       );
 
       expect(_probedMode(tester), ShellLayoutMode.open);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('keyboard insets do not change the mode', (tester) async {
       _setLogicalSize(tester, _openSize);
@@ -407,7 +409,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(_probedMode(tester), ShellLayoutMode.open);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('injected display features do not change the mode', (
       tester,
@@ -432,7 +434,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(_probedMode(tester), ShellLayoutMode.open);
-    });
+    }, timeout: uiTestTimeout);
 
     for (final platform in [
       TargetPlatform.macOS,
@@ -456,7 +458,7 @@ void main() {
 
         await _resize(tester, _openSize);
         expect(_probedMode(tester), ShellLayoutMode.desktop);
-      });
+      }, timeout: uiTestTimeout);
     }
 
     testWidgets('injected web stays desktop across sizes and resize', (
@@ -473,7 +475,7 @@ void main() {
 
       await _resize(tester, _compactSize);
       expect(_probedMode(tester), ShellLayoutMode.desktop);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('Fuchsia falls back to desktop', (tester) async {
       _setLogicalSize(tester, _openSize);
@@ -484,7 +486,7 @@ void main() {
         logicalSize: _openSize,
       );
       expect(_probedMode(tester), ShellLayoutMode.desktop);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('an enclosing explicit mode override wins over geometry', (
       tester,
@@ -503,7 +505,7 @@ void main() {
       await _resize(tester, _compactSize);
       expect(_probedMode(tester), ShellLayoutMode.phone);
       expect(_scopeMode(tester), ShellLayoutMode.phone);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('an enclosing explicit open override wins at phone sizes', (
       tester,
@@ -518,7 +520,7 @@ void main() {
       );
       expect(_probedMode(tester), ShellLayoutMode.open);
       expect(_scopeMode(tester), ShellLayoutMode.open);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('resize retains the binding container and provider identity', (
       tester,
@@ -581,7 +583,7 @@ void main() {
         innerBefore!.read(selectedDestinationProvider),
         ShellDestination.trends,
       );
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('explicit mode-override chrome fixtures', () {
@@ -604,7 +606,7 @@ void main() {
 
       expect(find.byKey(const ValueKey('phone-bar')), findsOneWidget);
       expect(find.byKey(const ValueKey('sidebar')), findsNothing);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a provider override selects the rail on a phone width', (
       tester,
@@ -625,7 +627,7 @@ void main() {
 
       expect(find.byKey(const ValueKey('sidebar')), findsOneWidget);
       expect(find.byKey(const ValueKey('phone-bar')), findsNothing);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('an enclosing explicit open override renders the rail', (
       tester,
@@ -648,6 +650,6 @@ void main() {
       expect(find.byKey(const ValueKey('open-rail')), findsOneWidget);
       expect(find.byKey(const ValueKey('phone-bar')), findsNothing);
       expect(find.byKey(const ValueKey('sidebar')), findsNothing);
-    });
+    }, timeout: uiTestTimeout);
   });
 }

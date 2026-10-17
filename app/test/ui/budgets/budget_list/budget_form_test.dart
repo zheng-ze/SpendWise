@@ -6,6 +6,8 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_form.dart';
 
+import '../../../support/ui_test_timeout.dart';
+
 void main() {
   Decimal dec(String value) => Decimal.parse(value);
 
@@ -51,5 +53,6 @@ void main() {
       expect(find.textContaining('Could not save budget'), findsOneWidget);
       expect(find.text('250.00'), findsOneWidget);
     },
+    timeout: uiTestTimeout,
   );
 }

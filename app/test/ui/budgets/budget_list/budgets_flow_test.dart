@@ -13,6 +13,7 @@ import 'package:spendwise/ui/budgets/budget_list/budgets_flow.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
 
 import '../../../support/semantics_test_support.dart';
+import '../../../support/ui_test_timeout.dart';
 
 void main() {
   Decimal dec(String value) => Decimal.parse(value);
@@ -94,7 +95,7 @@ void main() {
       find.byType(BudgetDetailScreen),
     );
     expect(pushed.budgetID, overall.id);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('BudgetFormRequested opens the budget form sheet', (
     tester,
@@ -105,7 +106,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(BudgetForm), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('BudgetLimitEditRequested from an open detail screen pushes '
       'BudgetLimitScreen', (tester) async {
@@ -127,7 +128,7 @@ void main() {
       find.byType(BudgetLimitScreen),
     );
     expect(pushed.budgetID, overall.id);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('PickLimitRequested opens the limit-edit sheet and applies the '
       'picked amount', (tester) async {
@@ -156,7 +157,7 @@ void main() {
       dec('100'),
     );
     expect(find.text('200.00'), findsWidgets);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('PickCategoryRequested opens the category picker and applies '
       'the pick', (tester) async {
@@ -171,7 +172,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Food'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('back navigation while a pushed screen is open pops that '
       "screen, not the Flow's own root", (tester) async {
@@ -192,7 +193,7 @@ void main() {
 
     expect(find.byType(BudgetDetailScreen), findsNothing);
     expect(find.byType(BudgetsFlow), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('swiping a budget row asks for confirmation, then deletes '
       'without altering entries', (tester) async {
@@ -221,7 +222,7 @@ void main() {
 
     expect(ledger.state.budgets.containsKey(overall.id), isFalse);
     expect(ledger.state.entries.containsKey(entry.id), isTrue);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('the delete custom semantic action on a budget row opens the '
       'same confirm dialog as the swipe', (tester) async {
@@ -245,5 +246,5 @@ void main() {
 
     expect(ledger.state.budgets.containsKey(overall.id), isFalse);
     handle.dispose();
-  });
+  }, timeout: uiTestTimeout);
 }

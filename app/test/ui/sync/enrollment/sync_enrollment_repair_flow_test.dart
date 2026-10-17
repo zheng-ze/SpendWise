@@ -21,6 +21,7 @@ import '../../../support/recording_ledger_store.dart';
 import '../../../sync/in_memory_secret_store.dart';
 import 'sync_enrollment_flow_test.dart'
     show FakeSessionOpener, FakeSyncEnrollmentSession;
+import '../../../support/ui_test_timeout.dart';
 
 const _identifierField = Key('syncIdentifierField');
 const _identifierContinue = Key('syncIdentifierContinue');
@@ -147,7 +148,7 @@ void main() {
         findsOneWidget,
       );
       expect(find.byType(BackendPickerScreen), findsNothing);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('OTP entry explains replacement and gates the new-code '
         'action on the cooldown', (tester) async {
@@ -173,7 +174,7 @@ void main() {
       final released = tester.widget<TextButton>(find.byKey(_otpNewCode));
       expect(released.onPressed, isNotNull);
       expect(find.text('Send a new code'), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('repair completion', () {
@@ -216,7 +217,7 @@ void main() {
       await pumpRepairFrames(tester);
 
       expect(find.text('Device access restored'), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('identifier to OTP ends in device-access-restored '
         'completion, and Done ends the flow', (tester) async {
@@ -239,7 +240,7 @@ void main() {
       await pumpRepairFrames(tester);
 
       expect(harness.endedCalls, 1);
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('repair cancellation and routing', () {
@@ -293,7 +294,7 @@ void main() {
         final retrySnapshot = await harness.metadataStore.snapshot();
         expect(retrySnapshot.phase, phase);
         expect(retrySnapshot.writeEnabled, isFalse);
-      });
+      }, timeout: uiTestTimeout);
     }
 
     testWidgets('requesting a new code replaces the OTP route instead '
@@ -328,7 +329,7 @@ void main() {
         hasLength(1),
       );
       expect(harness.opener.openCalls, 2);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('back during a pending replacement exits the flow '
         'and cancels the session open', (tester) async {
@@ -373,7 +374,7 @@ void main() {
       final snapshot = await harness.metadataStore.snapshot();
       expect(snapshot.phase, SyncEnrollmentPhase.bindingAuthorizationRequired);
       expect(snapshot.writeEnabled, isFalse);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('back on the idle repair identifier root ends the flow '
         'without popping the root', (tester) async {
@@ -389,7 +390,7 @@ void main() {
 
       expect(harness.endedCalls, 1);
       expect(find.byKey(_identifierField), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('disposing the flow while an OTP is pending releases '
         'the guard and preserves the durable phase', (tester) async {
@@ -448,7 +449,7 @@ void main() {
 
       expect(harness.opener.session.enrollCalls, 2);
       expect(find.text('Device access restored'), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('entering with the repair phase already cleared ends '
         'the flow and refreshes status', (tester) async {
@@ -461,7 +462,7 @@ void main() {
         harness.container.read(hostedSyncStatusProvider),
         projectHostedSyncStatus(snapshot),
       );
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('backing out during the cleared-entry refresh does not '
         'end a later route', (tester) async {
@@ -482,6 +483,6 @@ void main() {
       await pumpRepairFrames(tester);
 
       expect(harness.endedCalls, 0);
-    });
+    }, timeout: uiTestTimeout);
   });
 }

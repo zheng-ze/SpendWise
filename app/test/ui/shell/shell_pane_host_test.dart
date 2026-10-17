@@ -5,6 +5,8 @@ import 'package:spendwise/ui/shell/open_rail.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
+import '../../support/ui_test_timeout.dart';
+
 const _windowSize = Size(960, 720);
 const _selectedDetail = 'detail-selection';
 const _pageKey = ValueKey('page-child');
@@ -241,7 +243,7 @@ void main() {
     );
     expect(tester.takeException(), isNull);
     semantics.dispose();
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('open selection divides the safe body and keeps bounded panes', (
     tester,
@@ -276,7 +278,7 @@ void main() {
     expect(tester.getSize(find.byKey(shellDetailPaneKey)).width, 408);
     expect(presentations.last, ShellPagePresentation.singleColumn);
     expect(tester.takeException(), isNull);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets(
     'detail remains mounted and observes current selection offstage',
@@ -329,6 +331,7 @@ void main() {
       expect(tester.getSize(find.byKey(_pageKey)).width, 480);
       expect(_PageProbeState.mounts, mounts);
     },
+    timeout: uiTestTimeout,
   );
 
   testWidgets('Close calls only the supplied callback once', (tester) async {
@@ -359,7 +362,7 @@ void main() {
 
     expect(closeCount, 1);
     expect(find.text('feature page'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('floating action uses usable edge and follows page visibility', (
     tester,
@@ -402,7 +405,7 @@ void main() {
     Navigator.of(tester.element(find.text('covering modal'))).pop();
     await tester.pumpAndSettle();
     expect(find.byKey(_fabKey), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('page and detail scroll independently at small sizes', (
     tester,
@@ -450,7 +453,7 @@ void main() {
     expect(find.text('detail 0'), findsNothing);
     expect(tester.getCenter(find.byKey(shellDetailCloseKey)).dy, closeY);
     expect(tester.takeException(), isNull);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('safe insets and larger text preserve the pinned Close control', (
     tester,
@@ -498,7 +501,7 @@ void main() {
     expect(paneRect.top, safeInsets.top);
     expect(paneRect.bottom, smallSize.height - safeInsets.bottom);
     expect(tester.takeException(), isNull);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('short scaled detail surfaces scroll to keep Close reachable', (
     tester,
@@ -552,7 +555,7 @@ void main() {
       lessThanOrEqualTo(shortSize.height - safeInsets.bottom),
     );
     expect(tester.takeException(), isNull);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('hidden detail neither ticks nor holds focus and resumes shown', (
     tester,
@@ -585,7 +588,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(probe.ticks, greaterThan(0));
     expect(log, ['init']);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('floating action and detail do not remount each other', (
     tester,
@@ -618,7 +621,7 @@ void main() {
     await pump(detail: _probeDetail('A', bodyLog), active: false);
     await pump(detail: _probeDetail('A', bodyLog));
     expect(bodyLog, ['init']);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('detail body state survives crossing the scroll threshold', (
     tester,
@@ -651,5 +654,5 @@ void main() {
     await pump(_windowSize, 1);
     expect(find.text('kept'), findsOneWidget);
     expect(log, ['init']);
-  });
+  }, timeout: uiTestTimeout);
 }

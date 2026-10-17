@@ -32,6 +32,7 @@ import 'package:spendwise/ui/theme/spendwise_colors.dart';
 import 'package:spendwise/ui/theme/spendwise_theme.dart';
 
 import '../../support/in_memory_ledger_store.dart';
+import '../../support/ui_test_timeout.dart';
 
 class _GatedStoreFactory {
   _GatedStoreFactory();
@@ -152,7 +153,7 @@ void main() {
     expect(find.bySemanticsLabel('Loading your data'), findsOneWidget);
     expectNoShellNavigation();
     semantics.dispose();
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('failure shows exact copy, wordmark and filled retry', (
     tester,
@@ -175,7 +176,7 @@ void main() {
     );
     expect(find.widgetWithText(FilledButton, 'Retry'), findsOneWidget);
     expectNoShellNavigation();
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('failure does not leak the raw exception text to the user', (
     tester,
@@ -195,7 +196,7 @@ void main() {
       findsOneWidget,
     );
     expectNoShellNavigation();
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('retry re-enters loading and re-runs boot', (tester) async {
     final factory = _GatedStoreFactory();
@@ -213,7 +214,7 @@ void main() {
     expectWordmark(tester, SpendWiseColors.light.action);
     expectNoShellNavigation();
     expect(factory.startCount, 2);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('failure retry remains reachable on a short window', (
     tester,
@@ -234,7 +235,7 @@ void main() {
     await tester.pump();
 
     expect(factory.startCount, 2);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('loading content does not overflow a short window', (
     tester,
@@ -246,7 +247,7 @@ void main() {
 
     expect(find.byType(SingleChildScrollView), findsOneWidget);
     expect(tester.takeException(), isNull);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('ready shows the shell', (tester) async {
     final factory = _GatedStoreFactory();
@@ -257,7 +258,7 @@ void main() {
 
     expect(find.byType(AppShell), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('BootChrome injects scoped Money Add source into the shell', (
     tester,
@@ -331,7 +332,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(observer.sourceId, isNull);
     await addAndExpectSource(null);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('ready shows real content in the overview tab, not an '
       'empty placeholder', (tester) async {
@@ -342,7 +343,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(OverviewScreen), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('an open overview history request selects shell history '
       'without pushing a route', (tester) async {
@@ -366,7 +367,7 @@ void main() {
     expect(find.byType(TransactionsFlow), findsOneWidget);
     expect(find.byType(OverviewScreen, skipOffstage: false), findsOneWidget);
     expect(find.byType(BackButton), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('a phone overview history request pushes onto overview '
       'without reselecting', (tester) async {
@@ -389,5 +390,5 @@ void main() {
     );
     expect(find.byType(TransactionsFlow), findsOneWidget);
     expect(find.byType(OverviewScreen, skipOffstage: false), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 }

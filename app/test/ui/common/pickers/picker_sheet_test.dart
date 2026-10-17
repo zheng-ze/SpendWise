@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
 
+import '../../../support/ui_test_timeout.dart';
+
 const _groups = [
   PickerOption(
     id: 'food',
@@ -63,7 +65,7 @@ void main() {
 
     expect(outcome, isA<PickerChose>());
     expect((outcome! as PickerChose).id, 'grocery');
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('dismissing returns cancelled, never a cleared selection', (
     tester,
@@ -73,13 +75,13 @@ void main() {
     });
 
     expect(outcome, isNull);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('the sheet offers no None option', (tester) async {
     await _openAndAct(tester, (tester) async {
       expect(find.text('None'), findsNothing);
     });
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('the selected row exposes its selected state via semantics', (
     tester,
@@ -111,5 +113,5 @@ void main() {
     );
 
     handle.dispose();
-  });
+  }, timeout: uiTestTimeout);
 }

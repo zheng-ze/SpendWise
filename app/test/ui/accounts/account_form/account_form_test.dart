@@ -7,6 +7,8 @@ import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/accounts/account_form/account_form.dart';
 import 'package:spendwise/ui/accounts/account_form/account_form_logic.dart';
 
+import '../../../support/ui_test_timeout.dart';
+
 void main() {
   Future<void> pumpForm(WidgetTester tester, Ledger ledger) async {
     await tester.pumpWidget(
@@ -38,7 +40,7 @@ void main() {
     );
     expect(segmented.onSelectionChanged, isNull);
     expect(segmented.selected, {AccountFormKind.account});
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('statement day field appears only for card type', (tester) async {
     final ledger = Ledger();
@@ -52,7 +54,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Statement Day'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('saving an account with zero opening balance posts no entry', (
     tester,
@@ -68,7 +70,7 @@ void main() {
     expect(ledger.state.entries, isEmpty);
     expect(ledger.state.activeAccounts, hasLength(1));
     expect(ledger.state.activeAccounts.single.name, 'Wallet');
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('statement day is not persisted for a non-card account', (
     tester,
@@ -82,7 +84,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(ledger.state.activeAccounts.single.statementDay, isNull);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('saving a card persists its statement day', (tester) async {
     final ledger = Ledger();
@@ -102,5 +104,5 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(ledger.state.activeAccounts.single.statementDay, 1);
-  });
+  }, timeout: uiTestTimeout);
 }

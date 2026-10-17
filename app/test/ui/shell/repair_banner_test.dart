@@ -27,6 +27,7 @@ import '../../support/recording_ledger_store.dart';
 import '../../sync/in_memory_secret_store.dart';
 import '../sync/enrollment/sync_enrollment_flow_test.dart'
     show FakeSessionOpener;
+import '../../support/ui_test_timeout.dart';
 
 const _repairLabel = 'Sync needs attention - Repair Device Access';
 
@@ -181,7 +182,7 @@ void main() {
     );
 
     expect(find.text(_repairLabel), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('session reauth shows the persistent repair banner', (
     tester,
@@ -193,7 +194,7 @@ void main() {
     );
 
     expect(find.text(_repairLabel), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('non-repair statuses show no repair banner', (tester) async {
     final cases = <HostedSyncStatus>[
@@ -211,7 +212,7 @@ void main() {
       );
       expect(find.text(_repairLabel), findsNothing);
     }
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('tapping the banner opens Repair Device Access once', (
     tester,
@@ -234,7 +235,7 @@ void main() {
     expect(find.byType(SyncIdentifierScreen), findsOneWidget);
     expect(find.byType(BackendPickerScreen), findsNothing);
     expect(container.read(settingsRootViewModelProvider).step, isNull);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('repair takes precedence over a timed banner message, '
       'which returns after repair ends', (tester) async {
@@ -259,7 +260,7 @@ void main() {
 
     expect(find.text(_repairLabel), findsNothing);
     expect(find.text("Couldn't save changes, retrying"), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('repeated taps do not stack repair routes', (tester) async {
     await pumpShell(
@@ -274,7 +275,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(SyncIdentifierScreen), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('the banner is hidden while the repair route is open and '
       'returns after the repair route closes', (tester) async {
@@ -301,7 +302,7 @@ void main() {
       ShellDestination.settings,
     );
     expect(find.text(_repairLabel), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('with the keyboard up the repair form keeps Continue '
       'tappable and the banner stays hidden', (tester) async {
@@ -321,7 +322,7 @@ void main() {
     final continueButton = find.byKey(const Key('syncIdentifierContinue'));
     expect(find.text(_repairLabel), findsNothing);
     expect(continueButton.hitTestable(), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('the banner clears the bottom safe-area inset in rail and '
       'bottom-nav layouts', (tester) async {
@@ -348,7 +349,7 @@ void main() {
     expect(find.byKey(const ValueKey('sidebar')), findsOneWidget);
     final railBanner = tester.getRect(_bannerSurface());
     expect(railBanner.bottom, lessThanOrEqualTo(800 - 34));
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('the open rail clears the repair banner and repair keeps '
       'precedence over timed messages', (tester) async {
@@ -368,7 +369,7 @@ void main() {
     final bannerRect = tester.getRect(_bannerSurface());
     final railRect = tester.getRect(find.byKey(const ValueKey('open-rail')));
     expect(bannerRect.right, lessThanOrEqualTo(railRect.left));
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('the repair banner has no dismiss affordance', (tester) async {
     await pumpShell(
@@ -381,7 +382,7 @@ void main() {
     expect(find.byIcon(Icons.close), findsNothing);
     expect(find.byIcon(Icons.clear), findsNothing);
     expect(find.text('Dismiss'), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('the repair banner exposes button semantics with its label', (
     tester,
@@ -403,5 +404,5 @@ void main() {
         hasFocusAction: true,
       ),
     );
-  });
+  }, timeout: uiTestTimeout);
 }

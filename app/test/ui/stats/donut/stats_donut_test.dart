@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ui/stats/helpers/slices.dart';
 import 'package:spendwise/ui/stats/donut/stats_donut.dart';
 
+import '../../../support/ui_test_timeout.dart';
+
 void main() {
   Decimal dec(String value) => Decimal.parse(value);
 
@@ -47,5 +49,5 @@ void main() {
     expect(semantics.label, contains('40%'));
 
     handle.dispose();
-  });
+  }, timeout: uiTestTimeout);
 }

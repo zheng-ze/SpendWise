@@ -18,6 +18,7 @@ import 'package:spendwise/ui/theme/spendwise_colors.dart';
 import 'package:spendwise/ui/theme/spendwise_theme.dart';
 
 import 'overview_fixture.dart';
+import '../../support/ui_test_timeout.dart';
 
 const _phoneSize = Size(320, 760);
 const _openSize = Size(960, 720);
@@ -286,7 +287,7 @@ void main() {
           'Coming up',
         ].map((label) => tester.getTopLeft(find.text(label)).dy).toList();
         expect(order, [...order]..sort());
-      });
+      }, timeout: uiTestTimeout);
 
       testWidgets('renders four recent rows with signed, styled amounts', (
         tester,
@@ -317,7 +318,7 @@ void main() {
         expect(_textColor(tester, income), colors.income);
         expect(_textColor(tester, spent), colors.expense);
         expect(_textColor(tester, moved), colors.text);
-      });
+      }, timeout: uiTestTimeout);
 
       testWidgets('renders the upcoming rows in date order', (tester) async {
         await _pumpOverview(tester, defaultState(), brightness: brightness);
@@ -341,7 +342,7 @@ void main() {
         expect(_inTray('Coming up', '-1,200.00'), findsOneWidget);
         expect(find.text('Oct'), findsNWidgets(3));
         expect(find.text('Nov'), findsOneWidget);
-      });
+      }, timeout: uiTestTimeout);
 
       testWidgets('asks for a monthly cap when no unscoped budget exists', (
         tester,
@@ -364,7 +365,7 @@ void main() {
         );
         expect(find.text('Set a monthly cap'), findsOneWidget);
         expect(find.textContaining('Daily guide'), findsNothing);
-      });
+      }, timeout: uiTestTimeout);
 
       testWidgets('shows an error with Retry when Today fails', (tester) async {
         var failing = true;
@@ -388,7 +389,7 @@ void main() {
 
         expect(find.text("Couldn't load today's spending"), findsNothing);
         expect(find.text('S\$45.70'), findsOneWidget);
-      });
+      }, timeout: uiTestTimeout);
 
       testWidgets('is never empty on a fresh install', (tester) async {
         await _pumpOverview(tester, LedgerState(), brightness: brightness);
@@ -402,7 +403,7 @@ void main() {
           find.text('No known dates in the next six weeks.'),
           findsOneWidget,
         );
-      });
+      }, timeout: uiTestTimeout);
 
       testWidgets('View History requests the history page', (tester) async {
         tester.view.physicalSize = _phoneSize;
@@ -437,7 +438,7 @@ void main() {
           container.read(overviewViewModelProvider).requireValue.step,
           isA<OverviewHistoryRequested>(),
         );
-      });
+      }, timeout: uiTestTimeout);
 
       testWidgets('View History is shown when recent entries are empty', (
         tester,
@@ -446,7 +447,7 @@ void main() {
 
         expect(find.text('Your entries will appear here.'), findsOneWidget);
         expect(find.widgetWithText(TextButton, 'View History'), findsOneWidget);
-      });
+      }, timeout: uiTestTimeout);
 
       testWidgets('View History is shown while the recent section loads', (
         tester,
@@ -475,7 +476,7 @@ void main() {
 
         expect(find.byType(LoadingSkeleton), findsWidgets);
         expect(find.widgetWithText(TextButton, 'View History'), findsOneWidget);
-      });
+      }, timeout: uiTestTimeout);
 
       testWidgets('open Overview uses the sparse three-column grid', (
         tester,
@@ -483,7 +484,7 @@ void main() {
         await _pumpOpenOverview(tester, defaultState(), brightness: brightness);
 
         _expectGrid(tester, _openSize.width);
-      });
+      }, timeout: uiTestTimeout);
 
       testWidgets(
         'Add or detail uses one column and closing restores the grid',
@@ -520,6 +521,7 @@ void main() {
           );
           _expectSingleColumn(tester, pageWidth);
         },
+        timeout: uiTestTimeout,
       );
 
       testWidgets('the grid switches to one column at the minimum width', (
@@ -543,7 +545,7 @@ void main() {
           size: atGrid,
         );
         _expectGrid(tester, atGrid.width);
-      });
+      }, timeout: uiTestTimeout);
 
       testWidgets('open Overview stays one column without overflow at 600', (
         tester,
@@ -560,7 +562,7 @@ void main() {
           _expectSingleColumn(tester, _narrowOpenSize.width);
           expect(tester.takeException(), isNull);
         }
-      });
+      }, timeout: uiTestTimeout);
 
       testWidgets('open grid has no overflow with large text', (tester) async {
         final state = _overviewState(
@@ -579,7 +581,7 @@ void main() {
           _expectGrid(tester, _openSize.width);
           expect(tester.takeException(), isNull);
         }
-      });
+      }, timeout: uiTestTimeout);
 
       testWidgets('row two stretches when Coming up is taller', (tester) async {
         final state = _overviewState(upcoming: List.generate(8, _upcomingRow));
@@ -594,7 +596,7 @@ void main() {
 
         expect(rects.recent.height, rects.coming.height);
         expect(rects.coming.height, greaterThan(_minimumTallRowHeight));
-      });
+      }, timeout: uiTestTimeout);
 
       testWidgets('row two stretches when Recent entries is taller', (
         tester,
@@ -611,7 +613,7 @@ void main() {
 
         expect(rects.recent.height, rects.coming.height);
         expect(rects.recent.height, greaterThan(_minimumTallRowHeight));
-      });
+      }, timeout: uiTestTimeout);
 
       testWidgets('open Overview preserves empty and loading sections', (
         tester,
@@ -635,7 +637,7 @@ void main() {
 
         expect(find.byType(LoadingSkeleton), findsNWidgets(3));
         expect(find.widgetWithText(TextButton, 'View History'), findsOneWidget);
-      });
+      }, timeout: uiTestTimeout);
 
       testWidgets('open Today error keeps Retry behavior', (tester) async {
         var failing = true;
@@ -659,7 +661,7 @@ void main() {
 
         expect(find.text("Couldn't load today's spending"), findsNothing);
         expect(find.text('S\$45.70'), findsOneWidget);
-      });
+      }, timeout: uiTestTimeout);
     });
   }
 }

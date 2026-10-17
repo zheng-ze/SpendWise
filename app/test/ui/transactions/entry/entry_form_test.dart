@@ -10,6 +10,8 @@ import 'package:spendwise/ui/transactions/entry/entry_form.dart';
 import 'package:spendwise/ui/transactions/entry/steps/entry_form_logic.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 
+import '../../../support/ui_test_timeout.dart';
+
 void main() {
   Decimal dec(String value) => Decimal.parse(value);
 
@@ -88,7 +90,7 @@ void main() {
 
       expect(find.text('Add entry'), findsOneWidget);
       expect(find.text('Save entry'), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('an existing entry opens read-only with an Edit control', (
       tester,
@@ -108,7 +110,7 @@ void main() {
       expect(find.text('Coffee run'), findsOneWidget);
       expect(find.text('Save'), findsNothing);
       expect(find.text('Edit'), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets(
       'the read-only view has no live input controls, only plain rows',
@@ -129,6 +131,7 @@ void main() {
         expect(find.byType(TextField), findsNothing);
         expect(find.byType(SwitchListTile), findsNothing);
       },
+      timeout: uiTestTimeout,
     );
 
     testWidgets('tapping Edit switches to edit mode with a Save action', (
@@ -151,7 +154,7 @@ void main() {
 
       expect(find.text('Edit Entry'), findsOneWidget);
       expect(find.text('Save'), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('while viewing, Delete Entry is unreachable', (tester) async {
       final entry = Entry(
@@ -167,7 +170,7 @@ void main() {
       );
 
       expect(find.text('Delete Entry'), findsNothing);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('tapping Edit reveals live fields not shown while viewing', (
       tester,
@@ -189,7 +192,7 @@ void main() {
 
       expect(find.text('Save'), findsOneWidget);
       expect(find.text('Delete Entry'), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('cancel from edit reverts', () {
@@ -218,7 +221,7 @@ void main() {
       expect(find.text('Changed name'), findsNothing);
       expect(find.text('Edit'), findsOneWidget);
       expect(ledger.state.entries[entry.id]!.name, 'Coffee run');
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('save paths', () {
@@ -247,6 +250,7 @@ void main() {
         expect(find.text('Updated name'), findsOneWidget);
         expect(find.text('Save'), findsNothing);
       },
+      timeout: uiTestTimeout,
     );
 
     testWidgets('a new entry without recurrence adds it and dismisses', (
@@ -301,7 +305,7 @@ void main() {
       final added = ledger.state.entries.values.first;
       expect(added.name, 'New expense');
       expect(added.amount, dec('-12.50'));
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('delete', () {
@@ -349,7 +353,7 @@ void main() {
       expect(find.text('Delete this transaction?'), findsNothing);
       expect(ledger.state.entries.containsKey(entry.id), isFalse);
       expect(find.text('open'), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('system entries', () {
@@ -372,6 +376,7 @@ void main() {
         expect(find.text('Opening balance'), findsOneWidget);
         expect(find.text('Edit'), findsOneWidget);
       },
+      timeout: uiTestTimeout,
     );
 
     testWidgets(
@@ -426,6 +431,7 @@ void main() {
 
         expect(ledger.state.entries.containsKey(entry.id), isFalse);
       },
+      timeout: uiTestTimeout,
     );
 
     testWidgets('a balance adjustment entry opens read-only the same way', (
@@ -446,7 +452,7 @@ void main() {
 
       expect(find.text('Balance adjustment'), findsOneWidget);
       expect(find.text('Edit'), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a normal entry is unaffected and still offers Edit', (
       tester,
@@ -464,6 +470,6 @@ void main() {
       );
 
       expect(find.text('Edit'), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
   });
 }

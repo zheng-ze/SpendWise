@@ -7,6 +7,7 @@ import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/settings/plan/plan_list_screen.dart';
 
 import '../../../support/semantics_test_support.dart';
+import '../../../support/ui_test_timeout.dart';
 
 void main() {
   Decimal dec(String value) => Decimal.parse(value);
@@ -45,7 +46,7 @@ void main() {
 
     expect(find.text('No recurring plans yet'), findsOneWidget);
     expect(find.text('Edit'), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('no add button is rendered anywhere', (tester) async {
     final plan = RecurringPlan(
@@ -69,7 +70,7 @@ void main() {
 
     expect(find.byIcon(Icons.add), findsNothing);
     expect(find.text('Edit'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('row caption shows frequency and source, amount colored by '
       'sign', (tester) async {
@@ -111,7 +112,7 @@ void main() {
 
     expect(incomeColor, isNot(expenseColor));
     expect(expenseColor, const Color(0xFF964B44));
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('swiping a plan and confirming removes it from plans', (
     tester,
@@ -141,7 +142,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(ledger.state.plans.containsKey(plan.id), isFalse);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets(
     'the delete custom semantic action opens the same confirm dialog as '
@@ -182,5 +183,6 @@ void main() {
       expect(ledger.state.plans.containsKey(plan.id), isFalse);
       handle.dispose();
     },
+    timeout: uiTestTimeout,
   );
 }

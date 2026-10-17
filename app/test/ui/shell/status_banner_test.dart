@@ -8,6 +8,8 @@ import 'package:spendwise/persistence/store/ledger_store.dart';
 import 'package:spendwise/sync/hosted_sync_status.dart';
 import 'package:spendwise/ui/shell/status_banner.dart';
 
+import '../../support/ui_test_timeout.dart';
+
 void main() {
   late BannerState banner;
 
@@ -37,7 +39,7 @@ void main() {
     await pumpBanner(tester);
 
     expect(find.byType(Text), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('a save problem stays visible until the store reports clear', (
     tester,
@@ -54,7 +56,7 @@ void main() {
     banner.receiveSaveState(SaveBannerState.clear);
     await tester.pumpAndSettle();
     expect(find.text("Couldn't save changes, retrying"), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('a plan error outranks a save problem', (tester) async {
     await pumpBanner(tester);
@@ -83,7 +85,7 @@ void main() {
       find.text("Couldn't save changes, will retry shortly"),
       findsOneWidget,
     );
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('the banner sits at the bottom of its stack', (tester) async {
     await pumpBanner(tester);
@@ -98,7 +100,7 @@ void main() {
       banners.center.dy,
       greaterThan(tester.getRect(find.byType(Stack).first).center.dy),
     );
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('the open gutter shifts the banner clear of the rail', (
     tester,
@@ -131,5 +133,5 @@ void main() {
       find.text("Couldn't save changes, retrying"),
     );
     expect(message.right, lessThanOrEqualTo(960 - 72));
-  });
+  }, timeout: uiTestTimeout);
 }
