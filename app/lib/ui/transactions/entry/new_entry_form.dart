@@ -304,7 +304,12 @@ class _NewEntryBody extends StatelessWidget {
     final name = TextField(
       controller: nameController,
       focusNode: nameFocus,
-      decoration: const InputDecoration(hintText: 'Name'),
+      decoration: const InputDecoration(
+        hintText: 'Name',
+        border: InputBorder.none,
+        enabledBorder: InputBorder.none,
+        focusedBorder: InputBorder.none,
+      ),
       onChanged: viewModel.setName,
       onTapOutside: onOutsideDown,
       onTapUpOutside: (event) => onOutsideUp(nameFocus, event),
@@ -316,7 +321,7 @@ class _NewEntryBody extends StatelessWidget {
       includeHead: false,
       display: display,
     );
-    final group = _FormGroup(children: [name, rows]);
+    final group = _FormGroup(children: [name, const EntryRowDivider(), rows]);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

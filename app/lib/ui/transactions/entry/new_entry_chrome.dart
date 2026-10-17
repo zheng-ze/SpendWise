@@ -136,10 +136,8 @@ class NewEntrySaveFooter extends StatelessWidget {
         vertical: keypad ? _saveKeypadVerticalPadding : _saveVerticalPadding,
         horizontal: _saveHorizontalPadding,
       ),
-      textStyle: const TextStyle(
-        fontSize: _saveLabelSize,
-        fontWeight: _saveLabelWeight,
-      ),
+      textStyle: Theme.of(context).textTheme.labelLarge
+          ?.copyWith(fontSize: _saveLabelSize, fontWeight: _saveLabelWeight),
     );
     final button = FilledButton(
       style: style,

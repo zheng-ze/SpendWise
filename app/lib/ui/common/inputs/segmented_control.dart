@@ -151,6 +151,7 @@ class _Segment extends StatelessWidget {
       horizontal: horizontalPadding,
     );
     final content = Container(
+      alignment: Alignment.center,
       decoration: fill,
       padding: padding,
       child: labelText,

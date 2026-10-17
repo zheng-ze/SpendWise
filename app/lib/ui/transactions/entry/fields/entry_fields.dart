@@ -9,6 +9,7 @@ import 'package:spendwise/ui/common/pickers/recurrence_picker.dart'
     show frequencyLabels;
 import 'package:spendwise/ui/format/color_hex.dart';
 import 'package:spendwise/ui/format/date_format.dart';
+import 'package:spendwise/ui/theme/spendwise_text.dart';
 import 'package:spendwise/ui/transactions/entry/steps/entry_form_logic.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 
@@ -18,6 +19,7 @@ const _fieldContentPadding = EdgeInsets.zero;
 const _actionWidth = double.infinity;
 const _rowGap = 16.0;
 const _stackedValueGap = 4.0;
+const _dividerThickness = 1.0;
 
 // MARK: - EntryFields
 class EntryFields extends ConsumerStatefulWidget {
@@ -251,21 +253,27 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
           ]
         : const <Widget>[];
 
+    final analysisSwitch = SwitchListTile(
+      contentPadding: _fieldContentPadding,
+      title: const Text('Include in Analysis'),
+      value: state.includeInAnalysis,
+      onChanged: readOnly || state.isSystemEntry
+          ? null
+          : viewModel.setIncludeInAnalysis,
+    );
+    final rows = [
+      _dateRow(isNew: isNew),
+      if (isNew && state.recurrence != null) ..._recurrenceSection(),
+      ...sourceDestinationRows,
+      analysisSwitch,
+    ];
+    final divided = widget.includeHead ? rows : _withDividers(rows);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         ...head,
-        _dateRow(isNew: isNew),
-        if (isNew && state.recurrence != null) ..._recurrenceSection(),
-        ...sourceDestinationRows,
-        SwitchListTile(
-          contentPadding: _fieldContentPadding,
-          title: const Text('Include in Analysis'),
-          value: state.includeInAnalysis,
-          onChanged: readOnly || state.isSystemEntry
-              ? null
-              : viewModel.setIncludeInAnalysis,
-        ),
+        ...divided,
         if (widget.showDelete) ...[
           const SizedBox(height: _deleteSpacing),
           SizedBox(
@@ -280,6 +288,28 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
           ),
         ],
       ],
+    );
+  }
+}
+
+List<Widget> _withDividers(List<Widget> rows) {
+  return [
+    for (var i = 0; i < rows.length; i++) ...[
+      if (i > 0) const EntryRowDivider(),
+      rows[i],
+    ],
+  ];
+}
+
+class EntryRowDivider extends StatelessWidget {
+  const EntryRowDivider({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Divider(
+      height: _dividerThickness,
+      thickness: _dividerThickness,
+      color: context.colors.edge,
     );
   }
 }
