@@ -300,7 +300,7 @@ void main() {
         await revealRow(tester, 'Date');
         await tester.tap(find.byTooltip('Repeat'));
         await tester.pumpAndSettle();
-        await tester.tap(find.widgetWithText(ListTile, 'Monthly'));
+        await tester.tap(find.widgetWithText(ListTile, 'Every month'));
         await tester.pumpAndSettle();
         await revealRow(tester, 'Include in Analysis');
         await tester.tap(find.text('Include in Analysis'));

@@ -28,6 +28,15 @@ const _groups = [
 
 const _outsideTap = Offset(5, 5);
 
+const addRecurrenceLabels = [
+  'Does not repeat',
+  'Every week',
+  'Every two weeks',
+  'Every month',
+  'Every three months',
+  'Every year',
+];
+
 const _dismissDrag = Offset(0, 700);
 
 const _sizes = [phoneTallSize, phoneShortSize, desktopSize];
@@ -95,7 +104,9 @@ void main() {
         await _openRecurrence(tester, size);
 
         expectAllSheetsCapped(tester, size);
-        expect(find.text('One time'), findsOneWidget);
+        for (final label in addRecurrenceLabels) {
+          expect(find.text(label), findsOneWidget);
+        }
         expect(find.byType(ListTile), findsNWidgets(6));
         expect(tester.takeException(), isNull);
       }, timeout: uiTestTimeout);
@@ -211,17 +222,17 @@ void main() {
   testWidgets('recurrence choice returns the frequency', (tester) async {
     final opener = await _openRecurrence(tester, phoneTallSize);
 
-    await tester.tap(find.text('Weekly'));
+    await tester.tap(find.text('Every week'));
     await tester.pumpAndSettle();
 
     expect(opener.result, RecurrenceFrequency.weekly);
   }, timeout: uiTestTimeout);
 
   testWidgets(
-    'recurrence One time returns null and dismissal keeps selection',
+    'recurrence Does not repeat returns null and dismissal keeps selection',
     (tester) async {
       final chosen = await _openRecurrence(tester, phoneTallSize);
-      await tester.tap(find.text('One time'));
+      await tester.tap(find.text('Does not repeat'));
       await tester.pumpAndSettle();
       final cancelled = await _openRecurrence(tester, phoneTallSize);
       await tester.tapAt(_outsideTap);

@@ -71,7 +71,7 @@ void main() {
     final harness = await _openAdd(tester);
 
     await _request(tester, harness.form.requestPickRecurrence);
-    await tester.tap(find.text('Weekly'));
+    await tester.tap(find.text('Every week'));
     await tester.pumpAndSettle();
     await _request(tester, harness.form.requestPickRecurrence);
     expect(find.byType(AppSheet), findsNWidgets(2));

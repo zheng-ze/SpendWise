@@ -324,7 +324,7 @@ void main() {
       await tester.tap(find.byTooltip('Repeat'));
       await tester.pumpAndSettle();
       expect(find.text('Repeat'), findsOneWidget);
-      await tester.tap(find.widgetWithText(ListTile, 'Monthly'));
+      await tester.tap(find.widgetWithText(ListTile, 'Every month'));
       await tester.pumpAndSettle();
       expect(
         container.read(entryFormViewModelProvider(null)).value?.recurrence,
