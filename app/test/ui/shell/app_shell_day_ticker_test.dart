@@ -6,6 +6,8 @@ import 'package:spendwise/sync/hosted_sync_status.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
+import '../../support/ui_test_timeout.dart';
+
 void main() {
   testWidgets('an app resume inside AppShell moves today into a new month', (
     tester,
@@ -40,5 +42,5 @@ void main() {
 
     expect(container.read(todayProvider), DateTime.utc(2026, 11, 2));
     expect(container.read(effectiveMonthProvider), DateTime.utc(2026, 11));
-  });
+  }, timeout: uiTestTimeout);
 }

@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ui/stats/helpers/slices.dart';
 import 'package:spendwise/ui/stats/donut/stats_legend.dart';
 
+import '../../../support/ui_test_timeout.dart';
+
 void main() {
   Decimal dec(String value) => Decimal.parse(value);
 
@@ -61,7 +63,7 @@ void main() {
     await tester.pump();
 
     expect(tapped, foodID);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('tapping the uncategorized row invokes nothing', (tester) async {
     var callCount = 0;
@@ -71,13 +73,13 @@ void main() {
     await tester.pump();
 
     expect(callCount, 0);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('the uncategorized row renders no chevron', (tester) async {
     await pump(tester, [foodSlice, uncategorizedSlice], (_) {});
 
     expect(find.byIcon(Icons.chevron_right), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('tapping a synthetic slice invokes nothing', (tester) async {
     var callCount = 0;
@@ -87,11 +89,11 @@ void main() {
     await tester.pump();
 
     expect(callCount, 0);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('the synthetic row renders no chevron', (tester) async {
     await pump(tester, [foodSlice, syntheticSlice], (_) {});
 
     expect(find.byIcon(Icons.chevron_right), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 }

@@ -8,6 +8,8 @@ import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/accounts/accounts_screen.dart';
 import 'package:spendwise/ui/accounts/accounts_view_model.dart';
 
+import '../../support/ui_test_timeout.dart';
+
 void main() {
   Decimal dec(String value) => Decimal.parse(value);
 
@@ -79,6 +81,7 @@ void main() {
 
       expect(find.text('Rent'), findsNothing);
     },
+    timeout: uiTestTimeout,
   );
 
   testWidgets('tapping the account row body emits AccountOpened scoped to '
@@ -95,7 +98,7 @@ void main() {
     final opened = step as AccountOpened;
     expect(opened.title, 'Main Checking');
     expect(opened.scopeIDs, {checking.id, rentPocket.id});
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('the excluding-subpockets row emits AccountAloneOpened', (
     tester,
@@ -115,7 +118,7 @@ void main() {
     final opened = step as AccountAloneOpened;
     expect(opened.title, 'Main Checking');
     expect(opened.scopeIDs, {checking.id});
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('a pocket row emits PocketOpened scoped to the pocket alone', (
     tester,
@@ -135,7 +138,7 @@ void main() {
     final opened = step as PocketOpened;
     expect(opened.title, 'Rent');
     expect(opened.scopeIDs, {rentPocket.id});
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('the delete confirmation names the account', (tester) async {
     final entry = Entry(amount: dec('10'), name: 'x', sourceID: savings.id);
@@ -147,7 +150,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Delete Piggy Bank?'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('deleting an expanded account collapses it', (tester) async {
     final ledger = buildLedger();
@@ -170,7 +173,7 @@ void main() {
     );
     expect(find.text('Rent'), findsNothing);
     expect(find.text('Excluding subpockets'), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('swiping an account row archives it behind a confirmation', (
     tester,
@@ -188,7 +191,7 @@ void main() {
       ledger.state.activeAccounts.map((a) => a.name),
       isNot(contains('Piggy Bank')),
     );
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('swiping a pocket row archives it behind a confirmation', (
     tester,
@@ -209,5 +212,5 @@ void main() {
       ledger.state.moneySources[rentPocket.id]!.lifecycle,
       LifecycleState.archived,
     );
-  });
+  }, timeout: uiTestTimeout);
 }

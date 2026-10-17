@@ -15,6 +15,8 @@ import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/entry/new_entry_presenter.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
 
+import '../../support/ui_test_timeout.dart';
+
 void main() {
   Decimal dec(String value) => Decimal.parse(value);
   final today = DateTime.now();
@@ -96,7 +98,7 @@ void main() {
     await dismissAddSheet(tester);
     await tester.pumpAndSettle();
     expect(find.text('Add entry'), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('tapping a row opens the entry form for it, read-only', (
     tester,
@@ -117,7 +119,7 @@ void main() {
     expect(find.text('Coffee run'), findsWidgets);
     expect(find.text('Save entry'), findsNothing);
     expect(find.text('Edit'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   Future<void> scrollToFormRow(WidgetTester tester, String label) async {
     await tester.ensureVisible(find.text(label));
@@ -140,7 +142,7 @@ void main() {
 
     await dismissAddSheet(tester);
     await tester.pumpAndSettle();
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('picking a category applies it to the open form', (tester) async {
     await pumpFlow(tester, ledger: buildLedger());
@@ -158,7 +160,7 @@ void main() {
 
     await dismissAddSheet(tester);
     await tester.pumpAndSettle();
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('a new entry saved through the flow lands in the ledger', (
     tester,
@@ -192,7 +194,7 @@ void main() {
     expect(added.name, 'New expense');
     expect(added.amount, dec('-12.50'));
     expect(find.text('Add entry'), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   group('scoped flow', () {
     testWidgets('a new entry opened with a scope prefills its account', (
@@ -218,7 +220,7 @@ void main() {
 
       await dismissAddSheet(tester);
       await tester.pumpAndSettle();
-    });
+    }, timeout: uiTestTimeout);
   });
 
   testWidgets(
@@ -237,5 +239,6 @@ void main() {
 
       expect(popScope.canPop, isFalse);
     },
+    timeout: uiTestTimeout,
   );
 }

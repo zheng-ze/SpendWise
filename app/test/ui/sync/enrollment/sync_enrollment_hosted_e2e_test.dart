@@ -23,6 +23,7 @@ import 'package:sync/sync.dart';
 
 import '../../../support/recording_ledger_store.dart';
 import '../../../sync/in_memory_secret_store.dart';
+import '../../../support/ui_test_timeout.dart';
 
 const _identifierField = Key('syncIdentifierField');
 const _identifierContinue = Key('syncIdentifierContinue');
@@ -359,6 +360,7 @@ void main() {
         'budgets',
       }, reason: 'reconciliation hashing covers all five collections');
     },
+    timeout: uiTestTimeout,
   );
 
   testWidgets('a failure before credential persistence returns to '
@@ -427,7 +429,7 @@ void main() {
       (await harness.metadataStore.snapshot()).phase,
       SyncEnrollmentPhase.gateEnabled,
     );
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('a failure after credential persistence resumes '
       'without re-authenticating', (tester) async {
@@ -475,7 +477,7 @@ void main() {
       (await harness.metadataStore.snapshot()).phase,
       SyncEnrollmentPhase.gateEnabled,
     );
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('credential and E2E key presence without reconciliation '
       'never enables writes', (tester) async {
@@ -520,7 +522,7 @@ void main() {
 
     expect(find.text('Sync enrollment complete'), findsOneWidget);
     expect((await harness.metadataStore.snapshot()).writeEnabled, isTrue);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('a deferred acknowledgement is re-polled until published', (
     tester,
@@ -547,7 +549,7 @@ void main() {
       ),
       isNull,
     );
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('a not-ready ledger surfaces an error before enrollment begins', (
     tester,
@@ -568,7 +570,7 @@ void main() {
     );
     expect(find.byKey(_identifierField), findsOneWidget);
     expect(harness.httpClient.requests, isEmpty);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('a null persistence processor surfaces a not-ready error '
       'before enrollment begins', (tester) async {
@@ -587,7 +589,7 @@ void main() {
     expect(state.inFlight, isFalse);
     expect(find.byKey(_identifierField), findsOneWidget);
     expect(harness.httpClient.requests, isEmpty);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('a genuine push is fully acknowledged and consumes '
       'the write proof', (tester) async {
@@ -620,7 +622,7 @@ void main() {
       (await harness.metadataStore.snapshot()).phase,
       SyncEnrollmentPhase.gateEnabled,
     );
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('a genuine push failure surfaces a resume error and retry '
       'succeeds without re-authenticating', (tester) async {
@@ -664,5 +666,5 @@ void main() {
     );
     expect(find.text('Sync enrollment complete'), findsOneWidget);
     expect(await harness.secrets.read(syncWriteProofSecretKey), isNull);
-  });
+  }, timeout: uiTestTimeout);
 }

@@ -10,6 +10,7 @@ import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/entry/new_entry_presenter.dart';
 
 import 'new_entry_session_harness.dart';
+import '../../../support/ui_test_timeout.dart';
 
 const _dragDown = Offset(0, 320);
 
@@ -136,7 +137,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(NumberPad), findsNothing);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('an outside tap hides the pad and Amount shows it again', (
       tester,
@@ -153,7 +154,7 @@ void main() {
       await tester.tap(_amountField);
       await tester.pumpAndSettle();
       expect(find.byType(NumberPad), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a pad tap keeps the pad', (tester) async {
       final harness = await _openAdd(tester);
@@ -163,7 +164,7 @@ void main() {
 
       expect(find.byType(NumberPad), findsOneWidget);
       expect(harness.draft['amount'], '7');
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('an outside tap dismisses the keyboard', (tester) async {
       await _openAdd(tester);
@@ -175,7 +176,7 @@ void main() {
 
       expect(tester.testTextInput.isVisible, isFalse);
       expect(find.byType(NumberPad), findsNothing);
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('drag to dismiss', () {
@@ -190,7 +191,7 @@ void main() {
 
       expect(harness.recorder.sheets, isEmpty);
       expect(harness.presentation, NewEntryPresentation.closed);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('dragging the open layout does nothing', (tester) async {
       final harness = await _openAdd(tester, size: openSize);
@@ -199,7 +200,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(harness.recorder.sheets, hasLength(1));
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('outside dismissal ignores pointer kinds and scrolling', () {
@@ -208,7 +209,7 @@ void main() {
         final harness = await _openAdd(tester);
 
         await _expectPadAcceptsPress(tester, harness, kind);
-      });
+      }, timeout: uiTestTimeout);
     }
 
     testWidgets('a toolbar press does not dismiss the pad', (tester) async {
@@ -222,7 +223,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(NumberPad), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('swiping the form keeps the pad', (tester) async {
       await _openAdd(tester);
@@ -230,7 +231,7 @@ void main() {
       await _swipeForm(tester);
 
       expect(find.byType(NumberPad), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('swiping the form keeps the keyboard', (tester) async {
       await _openAdd(tester);
@@ -240,7 +241,7 @@ void main() {
       await _swipeForm(tester);
 
       expect(tester.testTextInput.isVisible, isTrue);
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('loading and failed Add sheets drag down', () {
@@ -259,7 +260,7 @@ void main() {
       harness.faults.initGate = null;
       await openAdd(tester, harness);
       expect(find.byType(NumberPad), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a failed initialization retires on drag', (tester) async {
       final harness = await pumpShell(tester);
@@ -276,7 +277,7 @@ void main() {
       harness.faults.failInit = false;
       await openAdd(tester, harness);
       expect(find.byType(NumberPad), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('input surfaces stay dismissed after a picker', () {
@@ -290,6 +291,7 @@ void main() {
         expect(find.byType(NumberPad), findsNothing);
         expect(tester.testTextInput.isVisible, isFalse);
       },
+      timeout: uiTestTimeout,
     );
 
     testWidgets(
@@ -303,6 +305,7 @@ void main() {
         expect(tester.testTextInput.isVisible, isFalse);
         expect(find.byType(NumberPad), findsNothing);
       },
+      timeout: uiTestTimeout,
     );
   });
 
@@ -342,5 +345,5 @@ void main() {
       'Save entry',
     ]);
     expect(tester.takeException(), isNull);
-  });
+  }, timeout: uiTestTimeout);
 }

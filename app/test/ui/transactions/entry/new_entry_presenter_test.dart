@@ -28,6 +28,8 @@ import 'package:spendwise/ui/transactions/receipt_scan/receipt_entry_coordinator
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_flow.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
 
+import '../../../support/ui_test_timeout.dart';
+
 const _mlKitChannel = MethodChannel('spendwise/android_text_recognizer');
 const _documentScannerChannel = MethodChannel('spendwise/document_scanner');
 
@@ -204,7 +206,7 @@ void main() {
       );
 
       await closeAdd(tester);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('Cancel dismisses without creating an entry', (tester) async {
       final ledger = buildLedger();
@@ -215,7 +217,7 @@ void main() {
 
       expect(find.text('Add entry'), findsNothing);
       expect(ledger.state.entries, isEmpty);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('the ViewModel cancel closes the sheet without an entry', (
       tester,
@@ -231,7 +233,7 @@ void main() {
 
       expect(find.text('Add entry'), findsNothing);
       expect(ledger.state.entries, isEmpty);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('barrier dismissal closes the sheet without an entry', (
       tester,
@@ -247,7 +249,7 @@ void main() {
 
       expect(find.text('Add entry'), findsNothing);
       expect(ledger.state.entries, isEmpty);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets(
       'one source step pushes one picker above the sheet and applies it',
@@ -277,6 +279,7 @@ void main() {
 
         await closeAdd(tester);
       },
+      timeout: uiTestTimeout,
     );
 
     testWidgets('picker Back keeps the sheet with the field unchanged', (
@@ -297,7 +300,7 @@ void main() {
       expect(find.text('Select'), findsWidgets);
 
       await closeAdd(tester);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('destination, category and recurrence open above the sheet', (
       tester,
@@ -344,7 +347,7 @@ void main() {
       );
 
       await closeAdd(tester);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('the date picker opens above the sheet and cancels cleanly', (
       tester,
@@ -371,7 +374,7 @@ void main() {
       expect(find.text('Add entry'), findsOneWidget);
 
       await closeAdd(tester);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('the end-date picker opens once recurrence has an end', (
       tester,
@@ -400,7 +403,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await closeAdd(tester);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a crop request pushes the crop screen above the sheet', (
       tester,
@@ -429,7 +432,7 @@ void main() {
       expect(find.text('Add entry'), findsOneWidget);
 
       await closeAdd(tester);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a valid save adds one entry and dismisses the sheet', (
       tester,
@@ -456,7 +459,7 @@ void main() {
       expect(added.name, 'New expense');
       expect(added.amount, dec('-12.50'));
       expect(find.text('Add entry'), findsNothing);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a save failure keeps the form with its error section', (
       tester,
@@ -491,7 +494,7 @@ void main() {
       expect(ledger.state.entries, isEmpty);
 
       await closeAdd(tester);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets(
       'edit-form pickers stay nested while Add pickers use the root navigator',
@@ -571,6 +574,7 @@ void main() {
         await popTopSheet(tester, PickerGroupBody);
         await closeAdd(tester);
       },
+      timeout: uiTestTimeout,
     );
   });
 
@@ -592,7 +596,7 @@ void main() {
       expect(rect.bottom, size.height);
 
       await closeAdd(tester);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('desktop mode centres a dialog no wider than 440', (
       tester,
@@ -610,7 +614,7 @@ void main() {
       expect(rect.width, lessThanOrEqualTo(440));
 
       await closeAdd(tester);
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('reset, guard and subscription cleanup', () {
@@ -647,7 +651,7 @@ void main() {
       expect(state.sourceId, isNull);
 
       await closeAdd(tester);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('reopening after cancel starts with a fresh form', (
       tester,
@@ -665,7 +669,7 @@ void main() {
       expect(state.nameText, isEmpty);
 
       await closeAdd(tester);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('duplicate requests open a single sheet', (tester) async {
       registerSheetTearDown(tester);
@@ -723,7 +727,7 @@ void main() {
 
       await closeAdd(tester);
       await reopened;
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a step emitted after close pushes nothing', (tester) async {
       await pumpFlow(tester, ledger: buildLedger());
@@ -740,7 +744,7 @@ void main() {
 
       expect(find.byType(DatePickerSheet), findsNothing);
       expect(tester.takeException(), isNull);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a failed presentation is reported and releases the guard', (
       tester,
@@ -801,7 +805,7 @@ void main() {
       expect(find.text('Add entry'), findsOneWidget);
 
       await closeAdd(tester);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets(
       'a failed initialization keeps the shell with a load alert and Retry',
@@ -843,6 +847,7 @@ void main() {
 
         await closeAdd(tester);
       },
+      timeout: uiTestTimeout,
     );
 
     testWidgets('reopening resets a finished receipt session', (tester) async {
@@ -900,7 +905,7 @@ void main() {
       expect(fresh.scanStop, isNull);
 
       await closeAdd(tester);
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('receipt coordinator disposal', () {

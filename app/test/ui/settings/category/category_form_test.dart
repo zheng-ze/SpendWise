@@ -6,6 +6,8 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/settings/category/category_form.dart';
 
+import '../../../support/ui_test_timeout.dart';
+
 void main() {
   Future<void> pumpForm(
     WidgetTester tester,
@@ -55,7 +57,7 @@ void main() {
 
     expect(ledger.state.categories.values, hasLength(1));
     expect(ledger.state.categories.values.single.name, 'Groceries');
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('kind is locked when a parent is preset', (tester) async {
     final parent = category(name: 'Food');
@@ -67,7 +69,7 @@ void main() {
     );
     expect(segmented.onSelectionChanged, isNull);
     expect(find.text('New Subcategory'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('editing shows the delete button', (tester) async {
     final existing = category(name: 'Food');
@@ -78,7 +80,7 @@ void main() {
 
     expect(find.text('Delete Category'), findsOneWidget);
     expect(find.text('Edit Category'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('deleting a category asks for confirmation, then removes it', (
     tester,
@@ -101,7 +103,7 @@ void main() {
       ledger.state.categories[existing.id]?.lifecycle,
       LifecycleState.archived,
     );
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('backing out of the delete confirmation keeps the category', (
     tester,
@@ -118,7 +120,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(ledger.state.categories, hasLength(1));
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('picking a parent updates the parent label', (tester) async {
     final parent = category(name: 'Food');
@@ -133,5 +135,5 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Food'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 }

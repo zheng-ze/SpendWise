@@ -18,6 +18,7 @@ import 'package:spendwise/ui/transactions/receipt_scan/receipt_entry_coordinator
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_flow.dart';
 
 import 'new_entry_session_harness.dart';
+import '../../../support/ui_test_timeout.dart';
 
 const _mlKitChannel = MethodChannel('spendwise/android_text_recognizer');
 const _unknownSourceId = 'b0000000-0000-0000-0000-000000000009';
@@ -210,7 +211,7 @@ void main() {
         expect(events.first, _invalidated);
         expect(events.last, _closed);
         expect(events.where((e) => e == _closed), hasLength(1));
-      });
+      }, timeout: uiTestTimeout);
     }
   });
 
@@ -242,6 +243,7 @@ void main() {
         await tester.pumpAndSettle();
         await harness.opened;
       },
+      timeout: uiTestTimeout,
     );
 
     testWidgets(
@@ -271,6 +273,7 @@ void main() {
         expect(harness.recorder.sheets, isEmpty);
         expect(tester.takeException(), isNull);
       },
+      timeout: uiTestTimeout,
     );
 
     testWidgets('a created but uninstalled route is disposed and released', (
@@ -297,7 +300,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(harness.form.clears, clears);
       expect(find.byType(PickerGroupBody), findsNothing);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a suspended initialization ends with its owner', (
       tester,
@@ -321,7 +324,7 @@ void main() {
       expect(harness.recorder.sheets, isEmpty);
       expect(reports, isEmpty);
       expect(tester.takeException(), isNull);
-    });
+    }, timeout: uiTestTimeout);
   });
 
   testWidgets('a failed save keeps the session, draft and error', (
@@ -358,7 +361,7 @@ void main() {
     await tester.pumpAndSettle();
     await harness.opened;
     expect(harness.recorder.sheets, isEmpty);
-  });
+  }, timeout: uiTestTimeout);
 
   group('owner and container teardown', () {
     testWidgets('removing AppShell removes only its Add route', (tester) async {
@@ -381,7 +384,7 @@ void main() {
       expect(harness.recorder.sheets, isEmpty);
       expect(unrelated.isActive, isTrue);
       expect(harness.presentation, NewEntryPresentation.closed);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('an owner signal settles the accepted request after '
         'route.completed', (tester) async {
@@ -394,7 +397,7 @@ void main() {
 
       expect(order, _completedThenSettled);
       expect(harness.recorder.sheets, isEmpty);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('an owner signal settles a suspended initialization', (
       tester,
@@ -413,7 +416,7 @@ void main() {
       gate.complete();
       await tester.pumpAndSettle();
       expect(harness.recorder.sheets, isEmpty);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('disposing the container during initialization settles', (
       tester,
@@ -432,7 +435,7 @@ void main() {
       expect(completions, 1);
       expect(harness.recorder.sheets, isEmpty);
       expect(tester.takeException(), isNull);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('disposing with a surviving Navigator settles after '
         'route.completed', (tester) async {
@@ -447,7 +450,7 @@ void main() {
       expect(order, _completedThenSettled);
       expect(harness.recorder.sheets, isEmpty);
       expect(tester.takeException(), isNull);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('disposing with Navigator teardown settles after '
         'route.completed', (tester) async {
@@ -461,7 +464,7 @@ void main() {
 
       expect(order, _completedThenSettled);
       expect(tester.takeException(), isNull);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('disposing during the reverse transition settles after '
         'route.completed', (tester) async {
@@ -482,7 +485,7 @@ void main() {
       expect(order, _completedThenSettled);
       expect(harness.recorder.removals, removals);
       expect(tester.takeException(), isNull);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('controller disposal performs no provider operations', (
       tester,
@@ -498,7 +501,7 @@ void main() {
 
       expect(harness.log.events, isEmpty);
       expect(order, _completedThenSettled);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('disposing beneath a picker removes only Add', (tester) async {
       final harness = await pumpShell(tester);
@@ -514,7 +517,7 @@ void main() {
       expect(harness.recorder.sheets, isEmpty);
       expect(find.byType(PickerGroupBody), findsOneWidget);
       expect(tester.takeException(), isNull);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a new container starts with no leftover guard', (
       tester,
@@ -531,7 +534,7 @@ void main() {
       addDismiss(tester)();
       await tester.pumpAndSettle();
       await second.opened;
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('an unmounted caller settles when initialization resumes', (
       tester,
@@ -555,7 +558,7 @@ void main() {
         NewEntryPresentation.closed,
       );
       expect(tester.takeException(), isNull);
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('receipt scans after retirement', () {
@@ -581,7 +584,7 @@ void main() {
 
       expect(harness.draft, draft);
       expect(scanEvents, 0);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a scan in flight cannot touch a reopened draft', (
       tester,
@@ -610,6 +613,6 @@ void main() {
       addDismiss(tester)();
       await tester.pumpAndSettle();
       await harness.opened;
-    });
+    }, timeout: uiTestTimeout);
   });
 }

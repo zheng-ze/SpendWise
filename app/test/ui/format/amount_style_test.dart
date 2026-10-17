@@ -5,6 +5,8 @@ import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/theme/spendwise_theme.dart';
 
+import '../../support/ui_test_timeout.dart';
+
 Widget _host(Widget child, {Brightness brightness = Brightness.light}) {
   return MaterialApp(
     theme: buildSpendWiseTheme(brightness),
@@ -32,7 +34,7 @@ void main() {
 
     expect(byKind, const Color(0xFF28684F));
     expect(bySign, const Color(0xFF28684F));
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('expense and negative use the expense token', (tester) async {
     late Color byKind;
@@ -51,7 +53,7 @@ void main() {
 
     expect(byKind, const Color(0xFF964B44));
     expect(bySign, const Color(0xFF964B44));
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('transfer and zero use the text token', (tester) async {
     late Color byKind;
@@ -73,7 +75,7 @@ void main() {
     expect(byKind, const Color(0xFF25272A));
     expect(byZero, const Color(0xFF25272A));
     expect(fallback, const Color(0xFF25272A));
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('dark mode resolves the dark tokens', (tester) async {
     late Color income;
@@ -93,7 +95,7 @@ void main() {
 
     expect(income, const Color(0xFFA4D5B5));
     expect(expense, const Color(0xFFEBAEA8));
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('a negative amount is never shown in the income colour', (
     tester,
@@ -115,7 +117,7 @@ void main() {
 
     expect(negative, isNot(const Color(0xFF28684F)));
     expect(negative, const Color(0xFF964B44));
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('a negative value never takes the income colour, whatever '
       'the kind', (tester) async {
@@ -144,5 +146,5 @@ void main() {
     expect(negativeIncome, isNot(const Color(0xFF28684F)));
     expect(negativeIncome, const Color(0xFF964B44));
     expect(negativeTransfer, const Color(0xFF964B44));
-  });
+  }, timeout: uiTestTimeout);
 }

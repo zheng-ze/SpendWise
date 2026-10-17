@@ -12,6 +12,8 @@ import 'package:spendwise/ui/accounts/accounts_view_model.dart';
 import 'package:spendwise/ui/accounts/source_edit/source_edit_form.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
 
+import '../../support/ui_test_timeout.dart';
+
 void main() {
   final checking = Account(
     id: 'a0000000-0000-0000-0000-000000000001',
@@ -53,7 +55,7 @@ void main() {
 
     expect(find.byType(AccountForm), findsOneWidget);
     expect(container.read(accountsViewModelProvider).value?.step, isNull);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('SourceEditRequested opens the source edit sheet for that '
       'holder', (tester) async {
@@ -66,7 +68,7 @@ void main() {
 
     final form = tester.widget<SourceEditForm>(find.byType(SourceEditForm));
     expect(form.holderID, checking.id);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('AccountOpened pushes a TransactionsFlow scoped to the '
       'account and its pockets', (tester) async {
@@ -80,7 +82,7 @@ void main() {
     );
     expect(pushed.initialScope?.title, 'Main Checking');
     expect(pushed.initialScope?.scopeIDs, {checking.id});
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('AccountOpened pushes a TransactionsFlow whose AppBar shows a '
       'tappable back button, so a platform with no system back gesture can '
@@ -102,7 +104,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(AccountsScreen), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('back navigation while the account form sheet is open pops '
       "the sheet, not the Flow's own screen", (tester) async {
@@ -118,5 +120,5 @@ void main() {
 
     expect(find.byType(AccountForm), findsNothing);
     expect(find.byType(AccountsFlow), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 }

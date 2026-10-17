@@ -7,6 +7,7 @@ import 'package:spendwise/ui/accounts/account_sections.dart';
 import 'package:spendwise/ui/common/lists/swipe_row.dart';
 
 import '../../support/semantics_test_support.dart';
+import '../../support/ui_test_timeout.dart';
 
 void main() {
   Decimal dec(String value) => Decimal.parse(value);
@@ -73,6 +74,7 @@ void main() {
       expect(deleted, isTrue);
       handle.dispose();
     },
+    timeout: uiTestTimeout,
   );
 
   testWidgets(
@@ -114,6 +116,7 @@ void main() {
       expect(deleted, isFalse);
       handle.dispose();
     },
+    timeout: uiTestTimeout,
   );
 
   testWidgets(
@@ -156,6 +159,7 @@ void main() {
       expect(deletedPocket, isTrue);
       handle.dispose();
     },
+    timeout: uiTestTimeout,
   );
 
   testWidgets('row and pocket amounts render bare without the symbol', (
@@ -184,7 +188,7 @@ void main() {
     expect(find.text('S\$300.00'), findsNothing);
     expect(find.text('50.00'), findsOneWidget);
     expect(find.text('S\$50.00'), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('account Edit semantic action invokes edit without dismissing', (
     tester,
@@ -222,7 +226,7 @@ void main() {
     final dismissible = tester.widget<Dismissible>(find.byType(Dismissible));
     expect(dismissible.direction, DismissDirection.horizontal);
     semantics.dispose();
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('pocket Edit semantic action targets that pocket', (
     tester,
@@ -257,7 +261,7 @@ void main() {
     expect(edited?.id, rowWithPocket.pockets.single.id);
     expect(find.text('Rent'), findsOneWidget);
     semantics.dispose();
-  });
+  }, timeout: uiTestTimeout);
 
   for (final testCase in [
     (
@@ -303,7 +307,7 @@ void main() {
       expect(edited, isTrue);
       expect(find.text('Main Checking'), findsOneWidget);
       expect(find.text('Delete Main Checking?'), findsNothing);
-    });
+    }, timeout: uiTestTimeout);
   }
 
   testWidgets('Delete-only SwipeRow retains end-to-start deletion', (
@@ -334,5 +338,5 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(deleted, isTrue);
-  });
+  }, timeout: uiTestTimeout);
 }

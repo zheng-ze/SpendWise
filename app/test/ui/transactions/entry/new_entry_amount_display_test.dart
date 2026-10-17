@@ -7,6 +7,7 @@ import 'package:spendwise/ui/transactions/entry/add_amount_block.dart';
 import 'package:spendwise/ui/transactions/entry/steps/entry_form_logic.dart';
 
 import 'new_entry_session_harness.dart';
+import '../../../support/ui_test_timeout.dart';
 
 const _missingId = 'd0000000-0000-0000-0000-00000000dead';
 const _focusedUnderlineHeight = 2.0;
@@ -78,7 +79,7 @@ void _registerLookTest(Brightness brightness, _KindLook look) {
     await openAdd(tester, harness);
 
     await _expectLook(tester, harness, brightness, look);
-  });
+  }, timeout: uiTestTimeout);
 }
 
 void main() {
@@ -104,7 +105,7 @@ void main() {
 
       expect(find.text('Everyday'), findsOneWidget);
       expect(harness.draft, before);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('missing entities show the unavailable labels', (tester) async {
       final harness = await pumpShell(tester);
@@ -116,6 +117,6 @@ void main() {
 
       expect(find.text('Unavailable account'), findsOneWidget);
       expect(find.text('Unavailable category'), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
   });
 }

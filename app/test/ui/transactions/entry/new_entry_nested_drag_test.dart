@@ -4,6 +4,7 @@ import 'package:spendwise/ui/transactions/entry/new_entry_presenter.dart';
 
 import '../../../support/sheet_probe.dart';
 import 'new_entry_session_harness.dart';
+import '../../../support/ui_test_timeout.dart';
 
 const _compactPhone = Size(320, 560);
 const _safeTop = 20.0;
@@ -164,11 +165,13 @@ void main() {
     testWidgets(
       'the whole-sheet fallback dismisses from the body top',
       _dismissFallbackFromBodyTop,
+      timeout: uiTestTimeout,
     );
 
     testWidgets(
       'a form that fits dismisses once the pad is hidden',
       _dismissFittingFormWithHiddenPad,
+      timeout: uiTestTimeout,
     );
   });
 
@@ -176,11 +179,13 @@ void main() {
     testWidgets(
       'scroll up then down moves the body before the sheet',
       _scrollBodyBeforeSheet,
+      timeout: uiTestTimeout,
     );
 
     testWidgets(
       'pull down then up returns the sheet before the body',
       _returnSheetBeforeBody,
+      timeout: uiTestTimeout,
     );
   });
 
@@ -188,11 +193,13 @@ void main() {
     testWidgets(
       'a drag cut off by a resize leaves the form in place',
       _keepFormAfterResize,
+      timeout: uiTestTimeout,
     );
 
     testWidgets(
       'header and body releases settle at once without motion',
       _settleReleasesWithoutMotion,
+      timeout: uiTestTimeout,
     );
   });
 
@@ -200,6 +207,7 @@ void main() {
     testWidgets(
       'reopening after a drag starts a fresh draft',
       _reopenFreshDraft,
+      timeout: uiTestTimeout,
     );
   });
 }

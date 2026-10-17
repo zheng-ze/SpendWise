@@ -7,6 +7,7 @@ import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
 
 import '../../support/sheet_contract.dart' as contract;
+import '../../support/ui_test_timeout.dart';
 
 const _phone = Size(320, 760);
 const _compact = Size(320, 560);
@@ -122,7 +123,7 @@ void main() {
     await _openSheet(tester, _sheet(body: const Text('short body')));
 
     expect(_sheetHeight(tester), lessThan(0.66 * _phone.height));
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('short content leaves no gap between body and footer', (
     tester,
@@ -136,7 +137,7 @@ void main() {
     final bodyRect = tester.getRect(find.text('short body'));
     final footerRect = tester.getRect(find.text('Save'));
     expect(footerRect.top, bodyRect.bottom);
-  });
+  }, timeout: uiTestTimeout);
 
   for (final width in _probeWidths) {
     testWidgets('phone presentation at ${width.toInt()}px spans the full width '
@@ -152,7 +153,7 @@ void main() {
       expect(rect.left, 0);
       expect(rect.right, width);
       expect(rect.bottom, _probeHeight);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('desktop presentation at ${width.toInt()}px centres a dialog '
         'no wider than 440', (tester) async {
@@ -167,7 +168,7 @@ void main() {
       expect(rect.center, Offset(width / 2, _probeHeight / 2));
       expect(rect.width, lessThanOrEqualTo(_sheetMaxWidth));
       expect(rect.width, lessThanOrEqualTo(width));
-    });
+    }, timeout: uiTestTimeout);
   }
 
   testWidgets('resizing keeps the captured phone presentation', (tester) async {
@@ -196,7 +197,7 @@ void main() {
     await tester.tapAt(const Offset(600, 10));
     await tester.pumpAndSettle();
     expect(find.byType(AppSheet), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('resizing keeps the captured desktop presentation', (
     tester,
@@ -225,7 +226,7 @@ void main() {
     await tester.tapAt(const Offset(10, 10));
     await tester.pumpAndSettle();
     expect(find.byType(AppSheet), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets(
     'an AppSheet without its presentation slot reports a caller error',
@@ -237,6 +238,7 @@ void main() {
 
       expect(tester.takeException(), isFlutterError);
     },
+    timeout: uiTestTimeout,
   );
 
   testWidgets('a directly pushed route carries its captured presentation', (
@@ -264,7 +266,7 @@ void main() {
     final rect = tester.getRect(find.byType(AppSheet));
     expect(rect.center, Offset(_phone.width / 2, _phone.height / 2));
     expect(rect.width, lessThanOrEqualTo(_sheetMaxWidth));
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('footer and input surface stay above the bottom safe inset', (
     tester,
@@ -300,7 +302,7 @@ void main() {
           .first,
     );
     expect(background.bottom, _phone.height);
-  });
+  }, timeout: uiTestTimeout);
 
   group('root navigator', () {
     Future<void> openFromNested(
@@ -334,7 +336,7 @@ void main() {
 
       expect(tester.getRect(find.byType(AppSheet)).width, _phone.width);
       expect(barrierCovers(tester, _phone), isTrue);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('the desktop dialog centres in the window, not the pane', (
       tester,
@@ -347,7 +349,7 @@ void main() {
         Offset(desktop.width / 2, desktop.height / 2),
       );
       expect(barrierCovers(tester, desktop), isTrue);
-    });
+    }, timeout: uiTestTimeout);
   });
 
   testWidgets('the contract helper checks every drawn sheet', (tester) async {
@@ -363,7 +365,7 @@ void main() {
     contract.expectAllSheetsCapped(tester, _phone);
     expect(contract.appSheetHeight(tester, 0), greaterThan(0));
     expect(contract.appSheetHeight(tester, 1), greaterThan(0));
-  });
+  }, timeout: uiTestTimeout);
 
   for (final size in [_phone, _compact]) {
     testWidgets(
@@ -404,6 +406,7 @@ void main() {
         expect(find.text('row 39').hitTestable(), findsOneWidget);
         expect(_sheetHeight(tester), lessThanOrEqualTo(cap + 1));
       },
+      timeout: uiTestTimeout,
     );
   }
 
@@ -427,7 +430,7 @@ void main() {
       tester.getRect(find.text('Save')).bottom,
       lessThanOrEqualTo(_phone.height - 300 + 1),
     );
-  });
+  }, timeout: uiTestTimeout);
 
   for (final (label, size, keyboard) in [
     ('a landscape phone', const Size(640, 360), 0.0),
@@ -486,7 +489,7 @@ void main() {
 
       expect(keyPressed, isTrue);
       expect(saved, isTrue);
-    });
+    }, timeout: uiTestTimeout);
   }
 
   testWidgets('layered sheets push a second route', (tester) async {
@@ -505,7 +508,7 @@ void main() {
     await tester.tapAt(const Offset(10, 10));
     await tester.pumpAndSettle();
     expect(find.text('first'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   group('sheet alert slot', () {
     final alertProvider = StateProvider<SheetAlertData?>((ref) => null);
@@ -547,7 +550,7 @@ void main() {
 
       expect(find.text('Could not save entry.'), findsOneWidget);
       expect(_sheetHeight(tester), before);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('the banner renders outside the sheet subtree', (tester) async {
       _useSize(tester, _phone);
@@ -561,7 +564,7 @@ void main() {
       await tester.pumpAndSettle();
 
       contract.expectAlertOutsideSheet(tester);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('clearing the alert removes the banner', (tester) async {
       _useSize(tester, _phone);
@@ -577,7 +580,7 @@ void main() {
       container.read(alertProvider.notifier).state = null;
       await tester.pumpAndSettle();
       expect(find.byType(SheetAlert), findsNothing);
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('desktop layout', () {
@@ -593,7 +596,7 @@ void main() {
 
       final width = tester.getSize(find.byType(AppSheet)).width;
       expect(width, lessThanOrEqualTo(440));
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('the alert sits outside the dialog and changes no height', (
       tester,
@@ -622,7 +625,7 @@ void main() {
 
       contract.expectAlertOutsideSheet(tester);
       expect(_sheetHeight(tester), before);
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('desktopMaxHeightFraction', () {
@@ -658,7 +661,7 @@ void main() {
         _sheetHeight(tester),
         lessThanOrEqualTo(0.66 * desktop.height + 1),
       );
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a full fraction grows past the old cap within the viewport', (
       tester,
@@ -677,7 +680,7 @@ void main() {
         tester.getRect(find.byType(AppSheet)).width,
         lessThanOrEqualTo(_sheetMaxWidth),
       );
-    });
+    }, timeout: uiTestTimeout);
   });
 }
 

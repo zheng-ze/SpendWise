@@ -22,6 +22,7 @@ import '../../support/recording_ledger_store.dart';
 import '../../sync/in_memory_secret_store.dart';
 import '../sync/enrollment/sync_enrollment_flow_test.dart'
     show FakeSessionOpener;
+import '../../support/ui_test_timeout.dart';
 
 void main() {
   setUp(() {
@@ -97,7 +98,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Repair Device Access'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('session reauth shows its distinct explanation and one action', (
     tester,
@@ -112,7 +113,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Repair Device Access'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('non-repair statuses show read-only text with no repair action', (
     tester,
@@ -129,7 +130,7 @@ void main() {
       expect(find.text(entry.value), findsOneWidget);
       expect(find.text('Repair Device Access'), findsNothing);
     }
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('custom selection shows the unsupported-v2 notice', (
     tester,
@@ -141,7 +142,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Repair Device Access'), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('unavailable status explains that it could not be read', (
     tester,
@@ -150,7 +151,7 @@ void main() {
 
     expect(find.text('Sync status could not be read.'), findsOneWidget);
     expect(find.text('Repair Device Access'), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('tapping Repair Device Access opens the repair flow, '
       'not the backend picker', (tester) async {
@@ -167,7 +168,7 @@ void main() {
 
     expect(find.byType(SyncIdentifierScreen), findsOneWidget);
     expect(find.byType(BackendPickerScreen), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('completing repair returns to refreshed Settings', (
     tester,
@@ -213,7 +214,7 @@ void main() {
     expect(find.byType(SyncIdentifierScreen), findsNothing);
     expect(find.text('Hosted sync'), findsOneWidget);
     expect(find.text('Repair Device Access'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('mounting SettingsFlow refreshes a changed durable phase', (
     tester,
@@ -236,5 +237,5 @@ void main() {
 
     expect(find.text('Binding repair needed'), findsOneWidget);
     expect(find.text('Repair Device Access'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 }

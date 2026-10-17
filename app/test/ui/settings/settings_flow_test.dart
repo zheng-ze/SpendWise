@@ -12,6 +12,8 @@ import 'package:spendwise/ui/settings/recycle_bin/recycle_bin_screen.dart';
 import 'package:spendwise/ui/settings/settings_flow.dart';
 import 'package:spendwise/ui/settings/settings_root_view_model.dart';
 
+import '../../support/ui_test_timeout.dart';
+
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
@@ -52,7 +54,7 @@ void main() {
 
     expect(find.byType(CategoryListScreen), findsOneWidget);
     expect(container.read(settingsRootViewModelProvider).step, isNull);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('PlansRequested pushes the plan list screen', (tester) async {
     final container = await pumpFlow(tester, buildLedger());
@@ -62,7 +64,7 @@ void main() {
 
     expect(find.byType(PlanListScreen), findsOneWidget);
     expect(container.read(settingsRootViewModelProvider).step, isNull);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('RecycleBinRequested pushes the recycle bin screen', (
     tester,
@@ -74,7 +76,7 @@ void main() {
 
     expect(find.byType(RecycleBinScreen), findsOneWidget);
     expect(container.read(settingsRootViewModelProvider).step, isNull);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('back navigation while the category list screen is open pops the '
       "screen, not the Flow's own root", (tester) async {
@@ -90,5 +92,5 @@ void main() {
 
     expect(find.byType(CategoryListScreen), findsNothing);
     expect(find.byType(SettingsFlow), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 }

@@ -9,6 +9,8 @@ import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/entry/fields/entry_fields.dart';
 import 'package:spendwise/ui/transactions/entry/steps/entry_form_logic.dart';
 
+import '../../../support/ui_test_timeout.dart';
+
 const narrowContentWidth = 202.0;
 const normalContentWidth = 400.0;
 const largeTextScale = 1.5;
@@ -144,7 +146,7 @@ void main() {
       expect(find.text('Date'), findsOneWidget);
       expect(find.text('End date'), findsOneWidget);
       expect(find.text(includeInAnalysisLabel), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('the edit rows show the long account and category names', (
       tester,
@@ -160,7 +162,7 @@ void main() {
       expect(find.text('Category'), findsOneWidget);
       expect(find.text(longAccountName), findsOneWidget);
       expect(find.text(longCategoryName), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('the read-only view rows lay out and keep their values', (
       tester,
@@ -174,7 +176,7 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.text('Date'), findsOneWidget);
       expect(find.text(longCategoryName), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('the transfer rows show the long From and To names', (
       tester,
@@ -194,7 +196,7 @@ void main() {
       expect(find.text('To'), findsOneWidget);
       expect(find.text(longAccountName), findsOneWidget);
       expect(find.text(longSavingsName), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('the analysis switch label stays inside the content width', (
       tester,
@@ -208,7 +210,7 @@ void main() {
       expect(tester.takeException(), isNull);
       final labelRect = tester.getRect(find.text(includeInAnalysisLabel));
       expect(labelRect.right, lessThanOrEqualTo(narrowContentWidth));
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a value that wraps under its title stays right-aligned', (
       tester,
@@ -222,7 +224,7 @@ void main() {
       final tileRect = tester.getRect(find.widgetWithText(ListTile, 'Account'));
       final valueRect = tester.getRect(find.text(longAccountName));
       expect(valueRect.right, closeTo(tileRect.right, 0.5));
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('EntryFields value style at normal width', () {
@@ -242,6 +244,6 @@ void main() {
       final theme = Theme.of(tester.element(find.text(dateText)));
       expect(valueWidget.style?.fontSize, theme.textTheme.labelSmall?.fontSize);
       expect(valueWidget.style?.color, theme.colorScheme.onSurfaceVariant);
-    });
+    }, timeout: uiTestTimeout);
   });
 }

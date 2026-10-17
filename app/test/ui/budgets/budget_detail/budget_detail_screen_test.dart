@@ -10,6 +10,8 @@ import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_screen.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 
+import '../../../support/ui_test_timeout.dart';
+
 void main() {
   Decimal dec(String value) => Decimal.parse(value);
 
@@ -131,6 +133,7 @@ void main() {
       expect(find.text('Noodles'), findsOneWidget);
       expect(find.text('Bus'), findsNothing);
     },
+    timeout: uiTestTimeout,
   );
 
   testWidgets(
@@ -153,6 +156,7 @@ void main() {
 
       expect(find.text('Misc'), findsOneWidget);
     },
+    timeout: uiTestTimeout,
   );
 
   testWidgets(
@@ -180,6 +184,7 @@ void main() {
 
       expect(find.textContaining('of S\$250.00'), findsOneWidget);
     },
+    timeout: uiTestTimeout,
   );
 
   testWidgets('income entries never appear in a budget\'s entry list', (
@@ -202,7 +207,7 @@ void main() {
 
     expect(find.text('Salary'), findsNothing);
     expect(find.text('No entries in this period'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets(
     'an entry excluded from analysis never appears in a budget\'s entry list',
@@ -226,6 +231,7 @@ void main() {
       expect(find.text('Excluded entry'), findsNothing);
       expect(find.text('No entries in this period'), findsOneWidget);
     },
+    timeout: uiTestTimeout,
   );
 
   testWidgets(
@@ -270,6 +276,7 @@ void main() {
       expect(find.text('In excluded category'), findsNothing);
       expect(find.text('No entries in this period'), findsOneWidget);
     },
+    timeout: uiTestTimeout,
   );
 
   testWidgets(
@@ -289,6 +296,7 @@ void main() {
         expect(find.text(label), findsOneWidget);
       }
     },
+    timeout: uiTestTimeout,
   );
 
   testWidgets(
@@ -324,6 +332,7 @@ void main() {
         findsNothing,
       );
     },
+    timeout: uiTestTimeout,
   );
 
   testWidgets('a month with no spend is still tappable and becomes selected', (
@@ -348,7 +357,7 @@ void main() {
       ),
       findsOneWidget,
     );
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('changing the year keeps the same selected month', (
     tester,
@@ -369,7 +378,7 @@ void main() {
       ),
       findsOneWidget,
     );
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('the selected chart mark uses the selected-mark fill', (
     tester,
@@ -390,5 +399,5 @@ void main() {
         .toList();
     expect(selected, hasLength(1));
     expect(selected.single.borderSide.width, 0);
-  });
+  }, timeout: uiTestTimeout);
 }

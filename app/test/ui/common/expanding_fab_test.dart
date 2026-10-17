@@ -4,6 +4,8 @@ import 'package:spendwise/ui/common/navigation/expanding_fab.dart';
 import 'package:spendwise/ui/theme/spendwise_colors.dart';
 import 'package:spendwise/ui/theme/spendwise_theme.dart';
 
+import '../../support/ui_test_timeout.dart';
+
 void main() {
   Widget wrap(Widget child) => MaterialApp(
     home: Scaffold(body: Stack(children: [child])),
@@ -44,7 +46,7 @@ void main() {
 
     expect(fired, isTrue);
     expect(find.text('Add Transaction'), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('two actions expand into labelled capsules on tap', (
     tester,
@@ -59,7 +61,7 @@ void main() {
     expect(find.text('Add Transaction'), findsOneWidget);
     expect(find.text('Edit Checking'), findsOneWidget);
     expect(find.byIcon(Icons.close), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('choosing an action collapses first, then fires', (tester) async {
     var fired = false;
@@ -74,7 +76,7 @@ void main() {
     expect(fired, isTrue);
     expect(find.text('Add Transaction'), findsNothing);
     expect(find.text('Edit Checking'), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('tapping the backdrop collapses without firing either action', (
     tester,
@@ -100,7 +102,7 @@ void main() {
     expect(find.text('Add Transaction'), findsNothing);
     expect(primaryFired, isFalse);
     expect(secondaryFired, isFalse);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('a single action exposes its label via semantics', (
     tester,
@@ -113,7 +115,7 @@ void main() {
     expect(node.tooltip, 'Add Transaction');
 
     handle.dispose();
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('expanded action capsules expose their labels via semantics', (
     tester,
@@ -134,7 +136,7 @@ void main() {
     expect(editNode.getSemanticsData().flagsCollection.isButton, isTrue);
 
     handle.dispose();
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('the toggle announces its expand and collapse state', (
     tester,
@@ -155,7 +157,7 @@ void main() {
     expect(expandedNode.tooltip, 'Close menu');
 
     handle.dispose();
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('capsules use the compact rounded treatment', (tester) async {
     await tester.pumpWidget(wrap(twoActions()));
@@ -169,7 +171,7 @@ void main() {
     );
     expect(capsule.borderRadius, BorderRadius.circular(14));
     expect(tester.widget<Icon>(find.byIcon(Icons.edit)).size, 16);
-  });
+  }, timeout: uiTestTimeout);
 
   for (final brightness in Brightness.values) {
     testWidgets('capsules pair the action fill with its foreground in '
@@ -199,6 +201,6 @@ void main() {
         tester.widget<Icon>(find.byIcon(Icons.edit)).color,
         tokens.onAction,
       );
-    });
+    }, timeout: uiTestTimeout);
   }
 }

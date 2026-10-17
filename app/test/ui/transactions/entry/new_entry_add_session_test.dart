@@ -18,6 +18,8 @@ import 'package:spendwise/ui/transactions/entry/steps/entry_form_logic.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/entry/new_entry_presenter.dart';
 
+import '../../../support/ui_test_timeout.dart';
+
 class _LoadException implements Exception {
   _LoadException(this.message);
 
@@ -208,6 +210,7 @@ void main() {
 
         await _closeAdd(tester);
       },
+      timeout: uiTestTimeout,
     );
 
     testWidgets('a second Add with a held gate shows the loading shell', (
@@ -241,7 +244,7 @@ void main() {
       );
 
       await _closeAdd(tester);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a custom Exception keeps the shell with a load alert', (
       tester,
@@ -265,7 +268,7 @@ void main() {
       expect(faults.prefills, 0);
       expect(find.text("Couldn't load the entry form"), findsOneWidget);
       expect(tester.takeException(), isNull);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets(
       'explicit Retry hides the alert while pending and recovers once',
@@ -308,6 +311,7 @@ void main() {
 
         await _closeAdd(tester);
       },
+      timeout: uiTestTimeout,
     );
 
     testWidgets('dismissing while loading discards the stale completion', (
@@ -343,7 +347,7 @@ void main() {
       expect(faults.prefills, 1);
 
       await _closeAdd(tester);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a stale step from a retired session pushes nothing', (
       tester,
@@ -359,7 +363,7 @@ void main() {
 
       expect(find.byType(PickerGroupBody), findsNothing);
       expect(tester.takeException(), isNull);
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('two consecutive creations in one container', () {
@@ -409,7 +413,7 @@ void main() {
       expect(second.name, 'Coffee');
       expect(second.amount, Decimal.parse('-9.99'));
       expect(second.sourceID, _checkingId);
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('save failure alert', () {
@@ -468,6 +472,6 @@ void main() {
 
       expect(ledger.state.entries.length, 1);
       expect(find.text('Add entry'), findsNothing);
-    });
+    }, timeout: uiTestTimeout);
   });
 }

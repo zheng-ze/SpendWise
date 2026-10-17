@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ui/common/pickers/category_picker.dart';
 import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
 
+import '../../../support/ui_test_timeout.dart';
+
 void main() {
   final food = TransactionCategory(
     id: 'c0000000-0000-0000-0000-000000000001',
@@ -113,7 +115,7 @@ void main() {
     expect(find.text('Bills'), findsOneWidget);
     expect(find.text('Salary'), findsNothing);
     expect(find.text('Retired'), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('orders parents alphabetically', (tester) async {
     await openSheet(tester, kind: CategoryKind.expense);
@@ -121,7 +123,7 @@ void main() {
     final billsCenter = tester.getCenter(find.text('Bills'));
     final foodCenter = tester.getCenter(find.text('Food'));
     expect(billsCenter.dy, lessThan(foodCenter.dy));
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('orders children alphabetically under the expanded parent', (
     tester,
@@ -134,13 +136,13 @@ void main() {
     final coffeeCenter = tester.getCenter(find.text('Coffee'));
     final groceriesCenter = tester.getCenter(find.text('Groceries'));
     expect(coffeeCenter.dy, lessThan(groceriesCenter.dy));
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('offers no None option', (tester) async {
     await openSheet(tester);
 
     expect(find.text('None'), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('a childless parent selects on the first tap', (tester) async {
     await openSheet(tester);
@@ -151,7 +153,7 @@ void main() {
     final result = await pendingOutcome;
     expect(result, isA<PickerChose>());
     expect((result as PickerChose).id, bills.id);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('a second tap on the expanded parent selects the parent', (
     tester,
@@ -166,7 +168,7 @@ void main() {
     final result = await pendingOutcome;
     expect(result, isA<PickerChose>());
     expect((result as PickerChose).id, food.id);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('tapping a child selects that child', (tester) async {
     await openSheet(tester);
@@ -179,5 +181,5 @@ void main() {
     final result = await pendingOutcome;
     expect(result, isA<PickerChose>());
     expect((result as PickerChose).id, groceries.id);
-  });
+  }, timeout: uiTestTimeout);
 }

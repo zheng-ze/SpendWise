@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ui/common/lists/category_icon.dart';
 import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
 
+import '../../../support/ui_test_timeout.dart';
+
 const _word = 'Wide';
 const _childLabel = 'Kid';
 const _parentIconSize = 28.0;
@@ -68,5 +70,5 @@ void main() {
     expect(sideChildY, closeTo(sideParentY, parentHeight));
     final wordLines = tester.renderObject<RenderParagraph>(find.text(_word));
     expect(wordLines.size.height, parentHeight);
-  });
+  }, timeout: uiTestTimeout);
 }

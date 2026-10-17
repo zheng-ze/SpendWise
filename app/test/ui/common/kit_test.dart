@@ -16,6 +16,8 @@ import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/theme/spendwise_colors.dart';
 import 'package:spendwise/ui/theme/spendwise_theme.dart';
 
+import '../../support/ui_test_timeout.dart';
+
 Widget _host(Widget child, {Brightness brightness = Brightness.light}) {
   final theme = buildSpendWiseTheme(brightness);
   return MaterialApp(
@@ -43,7 +45,7 @@ void main() {
       expect(find.widgetWithText(FilledButton, 'Save entry'), findsOneWidget);
       await tester.tap(find.text('Save entry'));
       expect(fired, isTrue);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('is disabled without an action', (tester) async {
       await tester.pumpWidget(
@@ -54,7 +56,7 @@ void main() {
         find.widgetWithText(FilledButton, 'Save entry'),
       );
       expect(button.onPressed, isNull);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a destructive action fills with the error token', (
       tester,
@@ -75,7 +77,7 @@ void main() {
             .fontFamily,
         'InstrumentSans',
       );
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('uses the reference button geometry and label', (tester) async {
       await tester.pumpWidget(
@@ -93,7 +95,7 @@ void main() {
       expect(labelStyle.fontSize, 12);
       expect(labelStyle.fontWeight, FontWeight.w600);
       expect(labelStyle.fontFamily, 'InstrumentSans');
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('SecondaryButton', () {
@@ -112,7 +114,7 @@ void main() {
             .fontFamily,
         'InstrumentSans',
       );
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('renders as outline when asked', (tester) async {
       await tester.pumpWidget(
@@ -123,7 +125,7 @@ void main() {
 
       expect(find.widgetWithText(OutlinedButton, 'Today'), findsOneWidget);
       expect(find.widgetWithText(TextButton, 'Today'), findsNothing);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('the outline uses the control border', (tester) async {
       await tester.pumpWidget(
@@ -141,7 +143,7 @@ void main() {
       expect(labelStyle.fontSize, 12);
       expect(labelStyle.fontWeight, FontWeight.w600);
       expect(labelStyle.fontFamily, 'InstrumentSans');
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('Tray', () {
@@ -157,7 +159,7 @@ void main() {
       final container = tester.widget<Container>(find.byType(Container).first);
       final decoration = container.decoration! as BoxDecoration;
       expect(decoration.color, _tokens(tester).surface);
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('MedallionRow', () {
@@ -177,7 +179,7 @@ void main() {
       expect(find.text('Dining'), findsOneWidget);
       expect(find.text('3 entries'), findsOneWidget);
       expect(find.text('S\$83.90'), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('SummaryBand', () {
@@ -204,7 +206,7 @@ void main() {
 
       final cell = tester.widget<Text>(find.text('-167.40'));
       expect(cell.style?.color, _tokens(tester).expense);
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('SegmentedControl', () {
@@ -231,7 +233,7 @@ void main() {
 
       await tester.tap(find.text('Year by year'));
       expect(chosen, 'year');
-    });
+    }, timeout: uiTestTimeout);
 
     for (final brightness in Brightness.values) {
       testWidgets('uses the ${brightness.name} track and selected label', (
@@ -266,7 +268,7 @@ void main() {
           expect(decoration.border?.top.color, tokens.control);
           expect(selectedStyle.color, tokens.text);
         }
-      });
+      }, timeout: uiTestTimeout);
     }
   });
 
@@ -302,7 +304,7 @@ void main() {
             .color,
         _tokens(tester).onAction,
       );
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('reserve space keeps the fab clear of list content', (
       tester,
@@ -310,7 +312,7 @@ void main() {
       await tester.pumpWidget(_host(const FabReserveSpace()));
 
       expect(tester.getSize(find.byType(FabReserveSpace)).height, 58);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('the label keeps the theme family at 12 semibold', (
       tester,
@@ -331,7 +333,7 @@ void main() {
       expect(style.fontSize, 12);
       expect(style.fontWeight, FontWeight.w600);
       expect(style.color, _tokens(tester).onAction);
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('NoticeCard', () {
@@ -368,7 +370,7 @@ void main() {
       expect(opened, isTrue);
       await tester.tap(find.text('Dismiss'));
       expect(dismissed, isTrue);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('actions stay usable at large text scale', (tester) async {
       tester.view.physicalSize = const Size(320, 760);
@@ -394,7 +396,7 @@ void main() {
       expect(find.text('Open in Trends').hitTestable(), findsOneWidget);
       expect(find.text('Dismiss').hitTestable(), findsOneWidget);
       expect(tester.takeException(), isNull);
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('EmptyState', () {
@@ -416,7 +418,7 @@ void main() {
       expect(find.widgetWithText(FilledButton, 'Add entry'), findsOneWidget);
       await tester.tap(find.text('Add entry'));
       expect(fired, isTrue);
-    });
+    }, timeout: uiTestTimeout);
 
     for (final brightness in Brightness.values) {
       testWidgets('uses the ${brightness.name} surface treatment', (
@@ -450,7 +452,7 @@ void main() {
         } else {
           expect(cards, isEmpty);
         }
-      });
+      }, timeout: uiTestTimeout);
     }
   });
 
@@ -459,7 +461,7 @@ void main() {
       await tester.pumpWidget(_host(const LoadingTrays()));
 
       expect(find.byType(Tray), findsNWidgets(3));
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('ErrorSection', () {
@@ -479,7 +481,7 @@ void main() {
       expect(find.widgetWithText(FilledButton, 'Retry'), findsOneWidget);
       await tester.tap(find.text('Retry'));
       expect(retried, isTrue);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('renders nothing without an error', (tester) async {
       await tester.pumpWidget(
@@ -488,6 +490,6 @@ void main() {
 
       expect(find.textContaining('Could not save'), findsNothing);
       expect(find.widgetWithText(FilledButton, 'Retry'), findsNothing);
-    });
+    }, timeout: uiTestTimeout);
   });
 }

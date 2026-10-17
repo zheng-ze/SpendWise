@@ -11,6 +11,8 @@ import 'package:spendwise/ui/common/charts/week_strip.dart';
 import 'package:spendwise/ui/theme/spendwise_colors.dart';
 import 'package:spendwise/ui/theme/spendwise_theme.dart';
 
+import '../../support/ui_test_timeout.dart';
+
 Widget _host(Widget child) {
   return MaterialApp(
     theme: buildSpendWiseTheme(Brightness.light),
@@ -42,7 +44,7 @@ void main() {
       final rod = chart.data.barGroups[9].barRods[0];
       expect(rod.color, _tokens(tester).selectedMark);
       expect(rod.borderSide.width, 0);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('unselected bars keep their state colours', (tester) async {
       const slots = [
@@ -65,7 +67,7 @@ void main() {
       );
       expect(chart.data.barGroups[2].barRods[0].borderSide.color, tokens.gap);
       expect(chart.data.barGroups[3].barRods[0].toY, 0);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a selected blank slot stays at zero height', (tester) async {
       const slots = [
@@ -78,7 +80,7 @@ void main() {
 
       final chart = tester.widget<BarChart>(find.byType(BarChart));
       expect(chart.data.barGroups[1].barRods[0].toY, 0);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a gap slot draws a dashed stub', (tester) async {
       const bars = MonthBars(slots: [MonthBarSlot(status: MonthBarStatus.gap)]);
@@ -87,7 +89,7 @@ void main() {
 
       final chart = tester.widget<BarChart>(find.byType(BarChart));
       expect(chart.data.barGroups[0].barRods[0].borderDashArray, isNotNull);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('tapping a bar reports its index', (tester) async {
       var selected = -1;
@@ -108,7 +110,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(selected, 3);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a tap selects once and a drag across bars selects nothing', (
       tester,
@@ -136,7 +138,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(selections, [3]);
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('DonutChart', () {
@@ -162,7 +164,7 @@ void main() {
       expect(chart.data.sections[1].color, const Color(0xFF986421));
       expect(find.text('October'), findsOneWidget);
       expect(find.text('S\$167.40'), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets(
       'a tap selects once and a drag around the ring selects nothing',
@@ -204,6 +206,7 @@ void main() {
 
         expect(selections, [0]);
       },
+      timeout: uiTestTimeout,
     );
   });
 
@@ -272,7 +275,7 @@ void main() {
         final data = (element.widget as Text).data ?? '';
         expect(bareNumber.hasMatch(data), isFalse, reason: 'bare: $data');
       }
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('small blocks name their share beside the map', (tester) async {
       const map = SizedBox(
@@ -296,7 +299,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.textContaining('Tiny'), findsWidgets);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('labels that do not fit move beside the map', (tester) async {
       const tiles = [
@@ -338,7 +341,7 @@ void main() {
       expect(find.text('Dining 33.0%'), findsOneWidget);
       expect(find.textContaining('Healthcare\n'), findsNothing);
       expect(tester.takeException(), isNull);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('tapping an adjacent label selects its original index', (
       tester,
@@ -368,7 +371,7 @@ void main() {
       await tester.tap(find.text('Tiny 0.1%'));
       expect(selected, 1);
       expect(tester.takeException(), isNull);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('tapping a block reports its index', (tester) async {
       var selected = -1;
@@ -395,7 +398,7 @@ void main() {
 
       await tester.tap(find.textContaining('Groceries').first);
       expect(selected, 1);
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('WeekStrip', () {
@@ -417,7 +420,7 @@ void main() {
       );
       expect(stub.painter, isA<GapStubPainter>());
       expect((stub.painter! as GapStubPainter).color, _tokens(tester).gap);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('draws each day with its caption', (tester) async {
       const strip = WeekStrip(
@@ -435,6 +438,6 @@ void main() {
         expect(find.text(label), findsWidgets);
       }
       expect(find.text('S\$12'), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
   });
 }

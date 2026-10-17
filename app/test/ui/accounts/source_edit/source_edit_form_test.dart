@@ -6,6 +6,8 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/accounts/source_edit/source_edit_form.dart';
 
+import '../../../support/ui_test_timeout.dart';
+
 void main() {
   Decimal dec(String value) => Decimal.parse(value);
 
@@ -53,7 +55,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(ledger.state.entries, hasLength(1));
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('raising the balance posts one adjustment entry excluded '
       'from analysis', (tester) async {
@@ -90,7 +92,7 @@ void main() {
     expect(posted.amount, dec('50'));
     expect(posted.includeInAnalysis, isFalse);
     expect(posted.sourceID, account.id);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('lowering the balance posts a negative adjustment entry', (
     tester,
@@ -127,7 +129,7 @@ void main() {
     );
     expect(posted.amount, dec('-60'));
     expect(posted.includeInAnalysis, isFalse);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('an empty balance field counts as zero and needs no entry', (
     tester,
@@ -148,7 +150,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(ledger.state.entries, isEmpty);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('net worth toggle is hidden for a pocket', (tester) async {
     final account = Account(
@@ -175,7 +177,7 @@ void main() {
     expect(find.text('Include in net worth'), findsNothing);
     expect(find.text('Transfers in count as expenses'), findsNothing);
     expect(find.text('Type'), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('transfer toggle shows for a pocket whose parent is eligible', (
     tester,
@@ -202,7 +204,7 @@ void main() {
     await pumpForm(tester, ledger, pocket.id);
 
     expect(find.text('Transfers in count as expenses'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('switching an account to an ineligible type hides and resets the '
       'transfer toggle', (tester) async {
@@ -233,5 +235,5 @@ void main() {
 
     final stored = ledger.state.moneySources[account.id]!.asAccount!;
     expect(stored.incomingTransfersAsExpenses, isFalse);
-  });
+  }, timeout: uiTestTimeout);
 }

@@ -11,6 +11,8 @@ import 'package:spendwise/ui/stats/analysis/analysis_view_model.dart';
 import 'package:spendwise/ui/stats/category_detail/category_detail_screen.dart';
 import 'package:spendwise/ui/stats/helpers/stats_window.dart';
 
+import '../../../support/ui_test_timeout.dart';
+
 void main() {
   final account = Account(
     id: 'a0000000-0000-0000-0000-000000000001',
@@ -103,6 +105,7 @@ void main() {
         isNull,
       );
     },
+    timeout: uiTestTimeout,
   );
 
   testWidgets(
@@ -181,5 +184,6 @@ void main() {
         isNull,
       );
     },
+    timeout: uiTestTimeout,
   );
 }

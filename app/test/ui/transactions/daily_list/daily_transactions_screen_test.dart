@@ -9,6 +9,7 @@ import 'package:spendwise/ui/transactions/daily_list/daily_transactions_screen.d
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
 
 import '../../../support/semantics_test_support.dart';
+import '../../../support/ui_test_timeout.dart';
 
 void main() {
   Decimal dec(String value) => Decimal.parse(value);
@@ -62,6 +63,7 @@ void main() {
       expect(ledger.state.entries.containsKey(deleteEntry.id), isFalse);
       expect(ledger.state.entries.containsKey(keepEntry.id), isTrue);
     },
+    timeout: uiTestTimeout,
   );
 
   testWidgets(
@@ -111,6 +113,7 @@ void main() {
       expect(ledger.state.entries.containsKey(keepEntry.id), isTrue);
       handle.dispose();
     },
+    timeout: uiTestTimeout,
   );
 
   testWidgets(
@@ -150,6 +153,7 @@ void main() {
 
       expect(ledger.state.entries.containsKey(systemEntry.id), isFalse);
     },
+    timeout: uiTestTimeout,
   );
 
   testWidgets('scoped transactions have no local Add or Edit source control', (
@@ -178,7 +182,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byIcon(Icons.add), findsNothing);
     expect(find.byIcon(Icons.edit_outlined), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets(
     'unscoped transactions have no local Add or Edit source control',
@@ -205,5 +209,6 @@ void main() {
       expect(find.byIcon(Icons.add), findsNothing);
       expect(find.byIcon(Icons.edit_outlined), findsNothing);
     },
+    timeout: uiTestTimeout,
   );
 }

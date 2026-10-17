@@ -15,6 +15,7 @@ import 'package:spendwise/ui/transactions/entry/steps/entry_form_logic.dart';
 
 import '../../../support/pad_probe.dart';
 import 'new_entry_session_harness.dart';
+import '../../../support/ui_test_timeout.dart';
 
 const _foldBounds = Rect.fromLTWH(475, 0, 10, 720);
 const _desktopDialogMaxWidth = 440.0;
@@ -265,7 +266,7 @@ void _registerFrameBrightnessTests(String id, _Frame frame) {
   for (final brightness in Brightness.values) {
     testWidgets('$id ${brightness.name}', (tester) async {
       await _checkFrameParity(tester, frame, brightness);
-    });
+    }, timeout: uiTestTimeout);
   }
 }
 
@@ -306,7 +307,7 @@ void main() {
       expect(find.byType(NumberPad), findsOneWidget);
       expect(_handle, findsNothing);
       expect(tester.getRect(find.text(probeLabel)).right, lessThan(sheet.left));
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('AC1 a desktop platform keeps the small dialog', (
       tester,
@@ -329,7 +330,7 @@ void main() {
 
       await tester.enterText(_amountField, '42.50');
       expect(harness.draft['amount'], '42.50');
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('keyboard handoff reserves one input surface', () {
@@ -351,7 +352,7 @@ void main() {
         tester.widget<TextField>(_amountField).focusNode!.hasFocus,
         isTrue,
       );
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('Amount waits for the keyboard inset before showing the pad', (
       tester,
@@ -369,7 +370,7 @@ void main() {
       await _setKeyboard(tester, 0);
 
       expect(find.byType(NumberPad), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('pinned height at 320 x 560', () {
@@ -388,7 +389,7 @@ void main() {
         await tester.pumpAndSettle();
         await _expectChromeReachable(tester);
       }
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('safe insets at 1.5x keep every control reachable', (
       tester,
@@ -406,7 +407,7 @@ void main() {
       expect(harness.draft['amount'], '5');
       await _dragIntoView(tester, 'Add entry', _dragDownward);
       expect(tester.takeException(), isNull);
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('taps outside the fields still act', () {
@@ -448,7 +449,7 @@ void main() {
 
       expect(harness.recorder.sheets, isEmpty);
       expect(harness.ledger.state.entries, hasLength(1));
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('the open-layout Cancel acts while the pad is shown', (
       tester,
@@ -462,7 +463,7 @@ void main() {
       await harness.opened;
 
       expect(harness.recorder.sheets, isEmpty);
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('frame parity', _registerFrameParityTests);

@@ -7,6 +7,8 @@ import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_limit_screen.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 
+import '../../../support/ui_test_timeout.dart';
+
 void main() {
   Decimal dec(String value) => Decimal.parse(value);
 
@@ -61,6 +63,7 @@ void main() {
         findsOneWidget,
       );
     },
+    timeout: uiTestTimeout,
   );
 
   testWidgets('the year selector moves the shown months to the adjacent year', (
@@ -91,5 +94,5 @@ void main() {
       find.text(formatMonthLabel(DateTime.utc(now.year, 12))),
       findsNothing,
     );
-  });
+  }, timeout: uiTestTimeout);
 }

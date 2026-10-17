@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ui/common/pickers/source_picker.dart';
 import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
 
+import '../../../support/ui_test_timeout.dart';
+
 void main() {
   final checking = Account(
     id: 'a0000000-0000-0000-0000-000000000001',
@@ -76,13 +78,13 @@ void main() {
     expect(find.text('Checking'), findsOneWidget);
     expect(find.text('Savings'), findsOneWidget);
     expect(find.text('Closed'), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('offers no None button', (tester) async {
     await openSheet(tester);
 
     expect(find.text('None'), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('expanding an account shows only its active pockets', (
     tester,
@@ -94,7 +96,7 @@ void main() {
 
     expect(find.text('Travel'), findsOneWidget);
     expect(find.text('Binned'), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('a second tap on the expanded account selects the account', (
     tester,
@@ -109,7 +111,7 @@ void main() {
     final result = await pendingOutcome;
     expect(result, isA<PickerChose>());
     expect((result as PickerChose).id, checking.id);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('a childless account selects on the first tap', (tester) async {
     await openSheet(tester);
@@ -120,7 +122,7 @@ void main() {
     final result = await pendingOutcome;
     expect(result, isA<PickerChose>());
     expect((result as PickerChose).id, savings.id);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('tapping a pocket selects that pocket', (tester) async {
     await openSheet(tester);
@@ -133,5 +135,5 @@ void main() {
     final result = await pendingOutcome;
     expect(result, isA<PickerChose>());
     expect((result as PickerChose).id, travelPocket.id);
-  });
+  }, timeout: uiTestTimeout);
 }

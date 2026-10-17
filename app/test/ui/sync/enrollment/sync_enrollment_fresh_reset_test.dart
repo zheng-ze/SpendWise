@@ -21,6 +21,7 @@ import 'package:sync/sync.dart';
 import '../../../support/recording_ledger_store.dart';
 import 'sync_enrollment_flow_test.dart' show FakeSessionOpener, pumpFlowFrames;
 import '../../../sync/in_memory_secret_store.dart';
+import '../../../support/ui_test_timeout.dart';
 
 const _identifierField = Key('syncIdentifierField');
 const _otpField = Key('syncOtpField');
@@ -395,7 +396,7 @@ void main() {
       await tester.tap(find.byKey(_freshDone));
       await pumpFlowFrames(tester);
       expect(endedCalls, 1);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a cancelled repair enroll publishes its proof before fresh '
         'mode applies', (tester) async {
@@ -497,7 +498,7 @@ void main() {
       );
       expect(find.text('Choose sync backend'), findsOneWidget);
       expect(find.text('Hosted sync'), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a settling prior save never advances the new picker', (
       tester,
@@ -580,7 +581,7 @@ void main() {
       expect(pickerState.selectedBackend, SyncBackendKind.supabase);
       expect(pickerState.step, isNull);
       expect(writer.calls, hasLength(1));
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('fresh re-entry while a prior operation settles', () {
@@ -672,7 +673,7 @@ void main() {
       expect(opener.openCalls, 1);
       expect(opener.session.publishCalls, 0);
       expect(endedCalls, 0);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('closing the loading root ends the flow and the late reset '
         'leaves the disposed flow alone', (tester) async {
@@ -767,7 +768,7 @@ void main() {
       expect(endedCalls, 1);
       expect(opener.session.publishCalls, 0);
       expect(tester.takeException(), isNull);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a late fresh entry does not reset a repair route opened '
         'while the prior enrollment was pending', (tester) async {
@@ -869,7 +870,7 @@ void main() {
       expect(find.text('Choose sync backend'), findsNothing);
       expect(opener.session.publishCalls, 0);
       expect(tester.takeException(), isNull);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a superseded fresh entry does not reset or mount the picker', (
       tester,
@@ -966,7 +967,7 @@ void main() {
       expect(find.byType(BackendPickerScreen), findsNothing);
       expect(endedCalls, 0);
       expect(tester.takeException(), isNull);
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('fresh wait timeout', () {
@@ -1085,7 +1086,7 @@ void main() {
       expect(find.text(retryCopy), findsOneWidget);
       expect(find.byType(BackendPickerScreen), findsNothing);
       expect(tester.takeException(), isNull);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('try again re-waits and mounts the picker once settled', (
       tester,
@@ -1113,7 +1114,7 @@ void main() {
       expect(find.text(retryCopy), findsNothing);
       expect(container.read(syncEnrollmentViewModelProvider).inFlight, isFalse);
       expect(tester.takeException(), isNull);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('back ends the flow from the retry state', (tester) async {
       var endedCalls = 0;
@@ -1127,7 +1128,7 @@ void main() {
       await pumpFlowFrames(tester);
       expect(endedCalls, 1);
       expect(tester.takeException(), isNull);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('the retry wait times out again when still stalled', (
       tester,
@@ -1152,6 +1153,6 @@ void main() {
       expect(stalled.identifier, before.identifier);
       expect(stalled.inFlight, before.inFlight);
       expect(tester.takeException(), isNull);
-    });
+    }, timeout: uiTestTimeout);
   });
 }

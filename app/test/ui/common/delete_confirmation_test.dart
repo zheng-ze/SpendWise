@@ -5,6 +5,8 @@ import 'package:spendwise/ui/common/feedback/delete_confirmation.dart';
 import 'package:spendwise/ui/theme/spendwise_colors.dart';
 import 'package:spendwise/ui/theme/spendwise_theme.dart';
 
+import '../../support/ui_test_timeout.dart';
+
 Widget _host() => const MaterialApp(
   home: Scaffold(body: Builder(builder: _openButton)),
 );
@@ -29,7 +31,7 @@ void main() {
 
     await tester.tap(find.text('Cancel'));
     await future;
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('confirming returns true, cancelling returns false', (
     tester,
@@ -50,7 +52,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(await cancelled, isFalse);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('the dialog uses tokens with an error-filled confirm', (
     tester,
@@ -74,7 +76,7 @@ void main() {
 
     await tester.tap(find.text('Delete'));
     await future;
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('the dialog stays a small dialog on wide windows', (
     tester,
@@ -92,7 +94,7 @@ void main() {
 
     await tester.tap(find.text('Delete'));
     await future;
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('both actions stay usable at large text scale', (tester) async {
     tester.view.physicalSize = const Size(320, 760);
@@ -118,5 +120,5 @@ void main() {
 
     await tester.tap(find.text('Cancel'));
     expect(await future, isFalse);
-  });
+  }, timeout: uiTestTimeout);
 }

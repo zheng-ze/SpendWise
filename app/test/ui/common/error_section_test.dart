@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ui/common/feedback/error_section.dart';
 
+import '../../support/ui_test_timeout.dart';
+
 void main() {
   Future<void> pumpSection(WidgetTester tester, LedgerError? error) {
     return tester.pumpWidget(
@@ -25,7 +27,7 @@ void main() {
     expect(text.data, isNot(contains('LedgerError.')));
     expect(text.data, isNotNull);
     expect(text.data!.trim(), isNotEmpty);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('shows a plain-language message, not the raw toString, for '
       'CategoryKindMismatch', (tester) async {
@@ -35,5 +37,5 @@ void main() {
     expect(text.data, isNot(contains('LedgerError.')));
     expect(text.data, isNotNull);
     expect(text.data!.trim(), isNotEmpty);
-  });
+  }, timeout: uiTestTimeout);
 }

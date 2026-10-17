@@ -19,6 +19,8 @@ import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_scr
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart';
 import 'package:sync/sync.dart';
 
+import '../../../support/ui_test_timeout.dart';
+
 const _identifierField = Key('syncIdentifierField');
 const _identifierContinue = Key('syncIdentifierContinue');
 const _otpField = Key('syncOtpField');
@@ -183,7 +185,7 @@ void main() {
     expect(harness.writer.calls, hasLength(1));
     expect(harness.writer.calls.single.backend, SyncBackendKind.supabase);
     expect(find.byKey(_identifierField), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('identifier then OTP completes enrollment and publication', (
     tester,
@@ -212,7 +214,7 @@ void main() {
     expect(harness.opener.session.enrollCalls, 1);
     expect(harness.opener.session.publishCalls, 1);
     expect(find.text('Sync enrollment complete'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('a second action while an operation is active is ignored', (
     tester,
@@ -238,7 +240,7 @@ void main() {
 
     expect(find.text('Sync enrollment complete'), findsOneWidget);
     expect(harness.opener.session.enrollCalls, 1);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('backing out of OTP cancels, clears the guard, '
       'and accepts a fresh submission', (tester) async {
@@ -269,7 +271,7 @@ void main() {
     expect(harness.opener.session.enrollCalls, 2);
     expect(harness.opener.identifiers.last, 'fresh@example.com');
     expect(find.text('Sync enrollment complete'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('a typed failure before credential persistence '
       'is an ordinary error retried from identifier entry', (tester) async {
@@ -300,7 +302,7 @@ void main() {
     await pumpFlowFrames(tester);
 
     expect(find.text('Sync enrollment complete'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('a post-credential failure retries from the resume screen '
       'without re-collecting identifier or OTP', (tester) async {
@@ -329,7 +331,7 @@ void main() {
     expect(harness.opener.session.enrollCalls, 2);
     expect(harness.opener.session.resolveOtpCalls, 0);
     expect(find.text('Sync enrollment complete'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('completion waits until the publisher reports published', (
     tester,
@@ -360,7 +362,7 @@ void main() {
 
     expect(harness.opener.session.publishCalls, 2);
     expect(find.text('Sync enrollment complete'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('a not-ready composition surfaces an ordinary error '
       'without enrolling', (tester) async {
@@ -380,7 +382,7 @@ void main() {
     expect(find.byKey(_identifierField), findsOneWidget);
     expect(harness.opener.session.enrollCalls, 0);
     expect(harness.opener.session.publishCalls, 0);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('custom selection keeps its unavailable affordance '
       'and never opens hosted enrollment', (tester) async {
@@ -399,7 +401,7 @@ void main() {
     expect(find.text('Custom servers are not yet available.'), findsOneWidget);
     expect(find.byKey(_identifierField), findsNothing);
     expect(harness.opener.openCalls, 0);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('a persistently pending publisher gives up bounded and '
       'surfaces a retryable resume error', (tester) async {
@@ -429,7 +431,7 @@ void main() {
     final callsAfterGivingUp = harness.opener.session.publishCalls;
     await pumpFlowFrames(tester);
     expect(harness.opener.session.publishCalls, callsAfterGivingUp);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('repeated failures accumulate exactly one resume route', (
     tester,
@@ -458,7 +460,7 @@ void main() {
       harness.container.read(syncEnrollmentViewModelProvider).errorMessage,
       isNotNull,
     );
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('back from completion ends the flow without stale screens', (
     tester,
@@ -483,7 +485,7 @@ void main() {
     expect(find.byKey(_otpField), findsNothing);
     expect(find.byKey(_resumeRetry), findsNothing);
     expect(find.byType(BackendPickerScreen), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('system back at the picker root ends the flow', (tester) async {
     var endedCalls = 0;
@@ -494,7 +496,7 @@ void main() {
     await pumpFlowFrames(tester);
 
     expect(endedCalls, 1);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('picker Back button ends the flow', (tester) async {
     var endedCalls = 0;
@@ -504,7 +506,7 @@ void main() {
     await pumpFlowFrames(tester);
 
     expect(endedCalls, 1);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('picker Back is inert while a backend selection save is '
       'in flight', (tester) async {
@@ -533,7 +535,7 @@ void main() {
     await pumpFlowFrames(tester);
     expect(endedCalls, 0);
     expect(find.byKey(_identifierField), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('system back at the picker root is ignored while a backend '
       'selection save is in flight', (tester) async {
@@ -562,7 +564,7 @@ void main() {
     await pumpFlowFrames(tester);
     expect(endedCalls, 0);
     expect(find.byKey(_identifierField), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('picker Back ends the flow again after a save failure', (
     tester,
@@ -600,7 +602,7 @@ void main() {
     await pumpFlowFrames(tester);
 
     expect(endedCalls, 1);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('fresh completion Done ends the flow', (tester) async {
     var endedCalls = 0;
@@ -618,7 +620,7 @@ void main() {
     await pumpFlowFrames(tester);
 
     expect(endedCalls, 1);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('back is blocked while identifier submission is in flight '
       'and allowed again after failure', (tester) async {
@@ -666,7 +668,7 @@ void main() {
     await pumpFlowFrames(tester);
     expect(find.byType(BackendPickerScreen), findsOneWidget);
     expect(find.byKey(_identifierField), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('an opener-level throw on identifier submission surfaces '
       'an ordinary in-flow error', (tester) async {
@@ -682,7 +684,7 @@ void main() {
     expect(state.errorMessage, isNotNull);
     expect(state.inFlight, isFalse);
     expect(find.byKey(_identifierField), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('an opener-level throw on retry surfaces an ordinary '
       'in-flow error on the resume screen', (tester) async {
@@ -704,7 +706,7 @@ void main() {
     expect(state.inFlight, isFalse);
     expect(find.byKey(_resumeRetry), findsOneWidget);
     expect(harness.opener.openCalls, 2);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('disposing the flow while an OTP is pending unlocks '
       'the notifier for a fresh submission', (tester) async {
@@ -746,5 +748,5 @@ void main() {
 
     expect(harness.opener.session.enrollCalls, 2);
     expect(find.text('Sync enrollment complete'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 }

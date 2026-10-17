@@ -12,6 +12,8 @@ import 'package:spendwise/settings/display_preferences.dart';
 import 'package:spendwise/settings/display_preferences_providers.dart';
 import 'package:spendwise/settings/display_preferences_store.dart';
 
+import '../support/ui_test_timeout.dart';
+
 final _darkCustom = DisplayPreferences(
   appearance: Appearance.dark,
   overviewWidgets: [
@@ -111,7 +113,7 @@ void main() {
       ThemeMode.dark,
     );
     expect(_appBrightness(tester), Brightness.dark);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('System follows the platform', (tester) async {
     await _pumpApp(
@@ -125,7 +127,7 @@ void main() {
       ThemeMode.system,
     );
     expect(_appBrightness(tester), Brightness.dark);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('a stored Light overrides a dark platform', (tester) async {
     await _pumpApp(
@@ -139,7 +141,7 @@ void main() {
       ThemeMode.light,
     );
     expect(_appBrightness(tester), Brightness.light);
-  });
+  }, timeout: uiTestTimeout);
 
   test('a read that throws still boots with defaults', () async {
     final loaded = await loadInitialDisplayPreferences(

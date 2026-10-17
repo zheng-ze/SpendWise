@@ -15,6 +15,8 @@ import 'package:spendwise/ui/transactions/entry/entry_form.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_flow.dart';
 
+import '../../../support/ui_test_timeout.dart';
+
 const _mlKitChannel = MethodChannel('spendwise/android_text_recognizer');
 const _documentScannerChannel = MethodChannel('spendwise/document_scanner');
 
@@ -158,7 +160,7 @@ void main() {
       expect(state.nameText, 'Coffee Shop');
       expect(state.amountText, '12.50');
       expect(state.date, DateTime.utc(2026, 1, 15));
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('an uploaded (crop) receipt prefills the same fields', (
       tester,
@@ -189,7 +191,7 @@ void main() {
       expect(state.nameText, 'Coffee Shop');
       expect(state.amountText, '12.50');
       expect(state.date, DateTime.utc(2026, 1, 15));
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('the scanning indicator shows during recognition then hides', (
       tester,
@@ -233,7 +235,7 @@ void main() {
       await tester.pump();
 
       expect(find.byType(CircularProgressIndicator), findsNothing);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets(
       'a scan that ends without prefilling shows the scan-end message',
@@ -265,6 +267,7 @@ void main() {
           findsOneWidget,
         );
       },
+      timeout: uiTestTimeout,
     );
   });
 }

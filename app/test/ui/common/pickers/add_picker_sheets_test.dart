@@ -10,6 +10,7 @@ import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 
 import '../../../support/picker_sheet_harness.dart';
 import '../../../support/sheet_contract.dart';
+import '../../../support/ui_test_timeout.dart';
 
 const _longLabel = 'A very long category name that must wrap at narrow widths';
 
@@ -84,7 +85,7 @@ void main() {
         expectAllSheetsCapped(tester, size);
         expect(find.byKey(pickerCancelKey), findsOneWidget);
         expect(tester.takeException(), isNull);
-      });
+      }, timeout: uiTestTimeout);
 
       testWidgets('recurrence sheet lists every option without overflow', (
         tester,
@@ -95,7 +96,7 @@ void main() {
         expect(find.text('One time'), findsOneWidget);
         expect(find.byType(ListTile), findsNWidgets(6));
         expect(tester.takeException(), isNull);
-      });
+      }, timeout: uiTestTimeout);
 
       testWidgets('date sheet shows Cancel, Done and Today', (tester) async {
         await _openDate(tester, size);
@@ -105,7 +106,7 @@ void main() {
         expect(find.byKey(pickerDoneKey), findsOneWidget);
         expect(find.byKey(pickerTodayKey), findsOneWidget);
         expect(tester.takeException(), isNull);
-      });
+      }, timeout: uiTestTimeout);
     });
   }
 
@@ -120,7 +121,7 @@ void main() {
     final parentY = tester.getTopLeft(find.text(_longLabel)).dy;
     final childY = tester.getTopLeft(find.text('Cafe')).dy;
     expect(childY, greaterThan(parentY));
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('desktop width shows parent and child columns side by side', (
     tester,
@@ -133,7 +134,7 @@ void main() {
     final parentX = tester.getTopLeft(find.text(_longLabel)).dx;
     final childX = tester.getTopLeft(find.text('Cafe')).dx;
     expect(childX, greaterThan(parentX));
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('choosing a child returns PickerChose with the child id', (
     tester,
@@ -146,7 +147,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect((opener.result! as PickerChose).id, 'grocery');
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('tapping an expanded parent again selects the parent', (
     tester,
@@ -159,7 +160,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect((opener.result! as PickerChose).id, 'food');
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('Cancel returns null', (tester) async {
     final opener = await _openGroups(tester, phoneTallSize);
@@ -169,7 +170,7 @@ void main() {
 
     expect(opener.completed, isTrue);
     expect(opener.result, isNull);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('recurrence choice returns the frequency', (tester) async {
     final opener = await _openRecurrence(tester, phoneTallSize);
@@ -178,7 +179,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(opener.result, RecurrenceFrequency.weekly);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('recurrence One time returns null and cancel keeps selection', (
     tester,
@@ -193,7 +194,7 @@ void main() {
     expect(chosen.completed, isTrue);
     expect(chosen.result, isNull);
     expect(cancelled.result, RecurrenceFrequency.monthly);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('date selection stays draft until Done', (tester) async {
     final opener = await _openDate(tester, phoneTallSize);
@@ -205,7 +206,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(opener.result, DateTime(2026, 3, 15));
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('date Cancel discards the draft', (tester) async {
     final opener = await _openDate(tester, phoneTallSize);
@@ -216,7 +217,7 @@ void main() {
 
     expect(opener.completed, isTrue);
     expect(opener.result, isNull);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('Today then Done returns the current day', (tester) async {
     final opener = await _openDate(tester, phoneTallSize);
@@ -227,7 +228,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(opener.result, DateUtils.dateOnly(DateTime.now()));
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('without a sheet presentation the legacy sheet is used', (
     tester,
@@ -244,7 +245,7 @@ void main() {
 
     expect(find.byType(TwoColumnPickerSheet), findsOneWidget);
     expect(find.byType(AppSheet), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('an expanded lower parent keeps its children in view', (
     tester,
@@ -288,5 +289,5 @@ void main() {
     await tester.tap(child);
     await tester.pumpAndSettle();
     expect((opener.result! as PickerChose).id, 'c18');
-  });
+  }, timeout: uiTestTimeout);
 }

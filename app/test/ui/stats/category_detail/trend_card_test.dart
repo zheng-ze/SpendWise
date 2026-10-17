@@ -6,6 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ui/stats/category_detail/category_scope.dart';
 import 'package:spendwise/ui/stats/category_detail/category_trend_card.dart';
 
+import '../../../support/ui_test_timeout.dart';
+
 void main() {
   Decimal dec(String value) => Decimal.parse(value);
 
@@ -63,5 +65,5 @@ void main() {
     final dot = painter as FlDotCirclePainter;
     expect(dot.color, const Color(0xFF8B48A0));
     expect(dot.strokeWidth, 0);
-  });
+  }, timeout: uiTestTimeout);
 }

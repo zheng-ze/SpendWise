@@ -6,6 +6,7 @@ import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 
 import '../../../support/picker_sheet_harness.dart';
+import '../../../support/ui_test_timeout.dart';
 
 const _duoSize = Size(466, 900);
 const _duoPortraitSize = Size(466, 678);
@@ -86,7 +87,7 @@ void main() {
       expect(_isOneLine(tester, 'Groceries'), isTrue);
       expect(_isOneLine(tester, 'Supermarket'), isTrue);
       expect(_isOneLine(tester, 'Transportation'), isTrue);
-    });
+    }, timeout: uiTestTimeout);
   }
 
   testWidgets('desktop presentation puts columns side by side', (tester) async {
@@ -95,7 +96,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(_childSharesParentRow(tester, 'Food', 'Market'), isTrue);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('open presentation puts columns side by side when wide', (
     tester,
@@ -110,7 +111,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(_childSharesParentRow(tester, 'Food', 'Market'), isTrue);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('phone presentation stacks at 466 x 678', (tester) async {
     await _openGroups(tester, _duoPortraitSize, _groups);
@@ -118,7 +119,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(_childSharesParentRow(tester, 'Food', 'Market'), isFalse);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('a word too wide for two columns switches to stacked', (
     tester,
@@ -137,7 +138,7 @@ void main() {
       _childSharesParentRow(tester, 'Telecommunications', 'Mobile'),
       isFalse,
     );
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('date sheet keeps the weekday row near the month header', (
     tester,
@@ -165,7 +166,7 @@ void main() {
     final weekday = tester.getRect(find.text('S').first);
 
     expect(weekday.top - header.bottom, lessThanOrEqualTo(_maxWeekdayGap));
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('title is centered without a trailing action', (tester) async {
     await openPicker<PickerOutcome>(
@@ -183,7 +184,7 @@ void main() {
       _titleOffsetFromCenter(tester, 'Category'),
       lessThanOrEqualTo(_centerTolerance),
     );
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('title is centered with a trailing action', (tester) async {
     await openPicker<DateTime>(
@@ -203,5 +204,5 @@ void main() {
       _titleOffsetFromCenter(tester, 'Date'),
       lessThanOrEqualTo(_centerTolerance),
     );
-  });
+  }, timeout: uiTestTimeout);
 }

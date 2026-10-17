@@ -12,6 +12,8 @@ import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/settings/settings_root_view_model.dart';
 import 'package:spendwise/ui/theme/spendwise_theme.dart';
 
+import '../../support/ui_test_timeout.dart';
+
 // MARK: - Constants
 const _syncReadyLabel = 'Sync ready';
 const _syncUnavailableLabel = 'Sync unavailable';
@@ -101,7 +103,7 @@ void main() {
     await tester.pump();
 
     expect(find.text(_syncReadyLabel), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('sidebar sync line starts no operations or timestamp', (
     tester,
@@ -141,7 +143,7 @@ void main() {
     expect(find.text(_syncReadyLabel), findsOneWidget);
     expect(find.textContaining(RegExp(_syncTimestampPattern)), findsNothing);
     expect(operationCalls, isEmpty);
-  });
+  }, timeout: uiTestTimeout);
 
   for (final scale in [2.0, 3.0]) {
     testWidgets(
@@ -205,6 +207,7 @@ void main() {
         }
         expect(selected, ShellDestination.values);
       },
+      timeout: uiTestTimeout,
     );
   }
 }

@@ -27,6 +27,7 @@ import '../../support/recording_ledger_store.dart';
 import '../../sync/in_memory_secret_store.dart';
 import '../sync/enrollment/sync_enrollment_flow_test.dart'
     show FakeSessionOpener;
+import '../../support/ui_test_timeout.dart';
 
 const _hostedTile = Key('hostedSyncStatus');
 
@@ -132,7 +133,7 @@ void main() {
     expect(find.byType(BackendPickerScreen), findsNothing);
     expect(find.text('Not configured'), findsOneWidget);
     expect(harness.container.read(enrollmentFlowOpenProvider), isFalse);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('hosted is preselected and continuing reaches identifier entry', (
     tester,
@@ -150,7 +151,7 @@ void main() {
     await _pumpFrames(tester);
 
     expect(find.byKey(const Key('syncIdentifierField')), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('an unpersisted custom choice does not stick across reopen', (
     tester,
@@ -182,7 +183,7 @@ void main() {
     await _pumpFrames(tester);
 
     expect(find.byKey(const Key('syncIdentifierField')), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('SetupPending re-entry preserves the durable tuple and '
       'a notEnrolled phase enrolls with one OTP', (tester) async {
@@ -231,7 +232,7 @@ void main() {
 
     expect(harness.opener.openCalls, 1);
     expect(find.text('Sync enrollment complete'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('a bound in-progress phase retries from resume without '
       'another OTP', (tester) async {
@@ -277,7 +278,7 @@ void main() {
     expect(harness.opener.openCalls, 1);
     expect(harness.opener.session.resolveOtpCalls, 0);
     expect(find.text('Sync enrollment complete'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('ineligible statuses keep a passive tile with existing copy', (
     tester,
@@ -298,7 +299,7 @@ void main() {
       expect(tile.trailing, isNull);
       expect(find.byType(BackendPickerScreen), findsNothing);
     }
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('binding repair tile still opens repair identifier entry, '
       'not the picker', (tester) async {
@@ -317,7 +318,7 @@ void main() {
     expect(find.byType(BackendPickerScreen), findsNothing);
     expect(harness.container.read(enrollmentFlowOpenProvider), isTrue);
     expect(harness.container.read(settingsRootViewModelProvider).step, isNull);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('session reauth tile still opens repair identifier entry, '
       'not the picker', (tester) async {
@@ -336,7 +337,7 @@ void main() {
     expect(find.byType(BackendPickerScreen), findsNothing);
     expect(harness.container.read(enrollmentFlowOpenProvider), isTrue);
     expect(harness.container.read(settingsRootViewModelProvider).step, isNull);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('a fresh step in an ineligible status pushes no route and '
       'is consumed', (tester) async {
@@ -354,7 +355,7 @@ void main() {
     expect(find.byType(SyncIdentifierScreen), findsNothing);
     expect(harness.container.read(enrollmentFlowOpenProvider), isFalse);
     expect(harness.container.read(settingsRootViewModelProvider).step, isNull);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('persisting hosted then closing projects Setup pending', (
     tester,
@@ -378,7 +379,7 @@ void main() {
     expect(find.byType(BackendPickerScreen), findsNothing);
     expect(harness.container.read(enrollmentFlowOpenProvider), isFalse);
     expect(find.text('Setup pending'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('system back at the picker root closes the route and '
       'clears the shared flag', (tester) async {
@@ -394,7 +395,7 @@ void main() {
     expect(find.byType(BackendPickerScreen), findsNothing);
     expect(harness.container.read(enrollmentFlowOpenProvider), isFalse);
     expect(find.text('Not configured'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('the picker close control closes the route', (tester) async {
     final harness = await pumpFreshSettings(tester);
@@ -407,7 +408,7 @@ void main() {
     expect(find.byType(BackendPickerScreen), findsNothing);
     expect(harness.container.read(enrollmentFlowOpenProvider), isFalse);
     expect(find.text('Not configured'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('fresh completion Done closes the route, clears the flag, '
       'and shows Ready', (tester) async {
@@ -445,5 +446,5 @@ void main() {
     expect(find.byType(BackendPickerScreen), findsNothing);
     expect(harness.container.read(enrollmentFlowOpenProvider), isFalse);
     expect(find.text('Ready'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 }

@@ -24,6 +24,7 @@ import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
 import '../overview/overview_fixture.dart' show emptyState, settleAnalysis;
+import '../../support/ui_test_timeout.dart';
 
 const _compact = Size(400, 800);
 const _wide = Size(1200, 900);
@@ -224,7 +225,7 @@ void main() {
 
     expect(find.text('padding:0.0:0.0;width:838.0'), findsOneWidget);
     expect(tester.takeException(), isNull);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('open pane host splits the safe body around the rail gutter', (
     tester,
@@ -255,7 +256,7 @@ void main() {
       safeWidth / 2 - openRailGutter,
     );
     expect(tester.takeException(), isNull);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('the shell opens on the overview destination', (tester) async {
     final container = await _pumpShell(tester, size: _compact);
@@ -265,7 +266,7 @@ void main() {
       ShellDestination.overview,
     );
     expect(find.text('overview probe'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('phone bar shows Overview, Trends, Add, Money, Settings in '
       'order with no History item', (tester) async {
@@ -275,7 +276,7 @@ void main() {
     expect(find.byType(NavigationBar), findsNothing);
     _expectBarOrder(tester);
     expect(find.text('History'), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('Add sits at the exact bar center with equal spacing', (
     tester,
@@ -293,7 +294,7 @@ void main() {
       expect(gap, moreOrLessEquals(gaps.first, epsilon: 1));
     }
     expect(centers[2], moreOrLessEquals(barRect.center.dx, epsilon: 1));
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('Add has button semantics and is never selected', (tester) async {
     await _pumpShell(tester, size: _compact);
@@ -309,7 +310,7 @@ void main() {
         hasFocusAction: true,
       ),
     );
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('phone destinations report selected semantics on selection', (
     tester,
@@ -367,7 +368,7 @@ void main() {
         hasFocusAction: true,
       ),
     );
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('Add from every phone destination opens the shared sheet and '
       'keeps the selection', (tester) async {
@@ -396,7 +397,7 @@ void main() {
       container.read(selectedDestinationProvider),
       ShellDestination.settings,
     );
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('phone mounts no History slot while visiting every destination', (
     tester,
@@ -410,7 +411,7 @@ void main() {
 
     expect(find.text('history probe', skipOffstage: false), findsNothing);
     expect(find.text('overview probe'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('the shell shows no header gear or Add FAB', (tester) async {
     await _pumpShell(tester, size: _compact);
@@ -422,7 +423,7 @@ void main() {
       expect(find.byType(FloatingActionButton), findsNothing);
       expect(find.byIcon(Icons.settings), findsNothing);
     }
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('system insets stay outside the bar pill', (tester) async {
     await _pumpShell(tester, size: _compact);
@@ -435,7 +436,7 @@ void main() {
 
     expect(find.byKey(_phoneBarKey), findsOneWidget);
     expect(tester.getSize(find.byKey(_phoneBarKey)).height, plain);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('desktop sidebar shows the wordmark, destinations, Add entry '
       'and bottom Settings', (tester) async {
@@ -460,7 +461,7 @@ void main() {
     for (final label in ['Overview', 'History', 'Trends', 'Money']) {
       expect(tester.getCenter(find.text(label)).dy, lessThan(settingsDy));
     }
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('desktop History hosts its body with no phone back control', (
     tester,
@@ -472,7 +473,7 @@ void main() {
 
     expect(find.text('history probe'), findsOneWidget);
     expect(find.byType(BackButton), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('desktop Add entry opens the shared sheet and keeps the '
       'selection', (tester) async {
@@ -499,7 +500,7 @@ void main() {
     await dismissAddSheet(tester);
     await tester.pumpAndSettle();
     expect(find.byType(AppSheet), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   for (final layoutMode in ShellLayoutMode.values) {
     testWidgets('$layoutMode Add captures the scoped Money source', (
@@ -536,7 +537,7 @@ void main() {
 
       await dismissAddSheet(tester);
       await tester.pumpAndSettle();
-    });
+    }, timeout: uiTestTimeout);
   }
 
   for (final width in [320.0, 720.0, 1440.0]) {
@@ -548,6 +549,7 @@ void main() {
         expect(find.byKey(_phoneBarKey), findsOneWidget);
         expect(find.byKey(_sidebarKey), findsNothing);
       },
+      timeout: uiTestTimeout,
     );
 
     testWidgets(
@@ -562,6 +564,7 @@ void main() {
         expect(find.byKey(_sidebarKey), findsOneWidget);
         expect(find.byKey(_phoneBarKey), findsNothing);
       },
+      timeout: uiTestTimeout,
     );
   }
 
@@ -587,7 +590,7 @@ void main() {
       ShellDestination.trends,
     );
     expect(find.text('trends probe'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('resizing a desktop shell switches no layout', (tester) async {
     await _pumpShell(tester, size: _wide, layoutMode: ShellLayoutMode.desktop);
@@ -597,7 +600,7 @@ void main() {
       expect(find.byKey(_sidebarKey), findsOneWidget);
       expect(find.byKey(_phoneBarKey), findsNothing);
     }
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('a drilled-in destination keeps its stack across a switch', (
     tester,
@@ -638,7 +641,7 @@ void main() {
 
     expect(find.text('entry detail'), findsOneWidget);
     expect(find.text('open detail'), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('a drilled-in destination keeps its stack across a real '
       'mobile switch', (tester) async {
@@ -677,7 +680,7 @@ void main() {
 
     expect(find.text('entry detail'), findsOneWidget);
     expect(find.byKey(_phoneBarKey), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('selecting Settings shows its body and retains other stacks', (
     tester,
@@ -721,7 +724,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('entry detail'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   group('destination Back activity', () {
     Future<void> pumpProbes(WidgetTester tester) async {
@@ -763,7 +766,7 @@ void main() {
       expect(find.text('active child'), findsNothing);
       expect(find.text('active'), findsOneWidget);
       expect(find.text('hidden child', skipOffstage: false), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('Back at an active root preserves every stack', (tester) async {
       await pumpProbes(tester);
@@ -776,7 +779,7 @@ void main() {
       expect(find.text('active'), findsOneWidget);
       expect(find.text('hidden', skipOffstage: false), findsOneWidget);
       expect(find.text('hidden child', skipOffstage: false), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a standalone Flow keeps active Back behavior', (tester) async {
       await tester.pumpWidget(
@@ -790,7 +793,7 @@ void main() {
 
       expect(find.text('solo child'), findsNothing);
       expect(find.text('solo'), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
   });
 
   testWidgets('a shell rebuild keeps a non-current selected month', (
@@ -840,7 +843,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('month 2019-3'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   group('stable mobile stack', () {
     Future<void> pushChild(
@@ -927,7 +930,7 @@ void main() {
       expect(find.text('overview child'), findsNothing);
       expect(find.text('overview probe'), findsOneWidget);
       expect(find.text('trends child', skipOffstage: false), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('inactive destinations keep nested routes while open', (
       tester,
@@ -954,7 +957,7 @@ void main() {
 
       expect(find.text('trends child', skipOffstage: false), findsOneWidget);
       expect(find.text('money child', skipOffstage: false), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('shell history stays selected on phone with an overview '
         'back action', (tester) async {
@@ -1002,7 +1005,7 @@ void main() {
         ShellDestination.overview,
       );
       expect(find.text('overview probe'), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('overview-pushed history stays on the overview stack across '
         'a mobile switch', (tester) async {
@@ -1040,7 +1043,7 @@ void main() {
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       expect(find.text('Transactions'), findsNothing);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('exactly one editor opens in the visible history owner', (
       tester,
@@ -1113,7 +1116,7 @@ void main() {
       Navigator.of(tester.element(find.text('Edit'))).pop();
       await tester.pumpAndSettle();
       expect(find.text('Edit'), findsNothing);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('activation pickup consumes a pending step once and never '
         'replays it', (tester) async {
@@ -1160,6 +1163,6 @@ void main() {
           ShellDestination.history;
       await tester.pumpAndSettle();
       expect(find.text('Edit'), findsNothing);
-    });
+    }, timeout: uiTestTimeout);
   });
 }

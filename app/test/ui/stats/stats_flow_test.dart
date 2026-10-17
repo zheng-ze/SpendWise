@@ -15,6 +15,8 @@ import 'package:spendwise/ui/stats/stats_flow.dart';
 import 'package:spendwise/ui/stats/stats_root_screen.dart';
 import 'package:spendwise/ui/stats/stats_root_view_model.dart';
 
+import '../../support/ui_test_timeout.dart';
+
 void main() {
   final account = Account(
     id: 'a0000000-0000-0000-0000-000000000001',
@@ -76,7 +78,7 @@ void main() {
     await pumpFlow(tester);
 
     expect(find.byType(StatsRootScreen), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('budget detail replaces the Stats chrome', (tester) async {
     final container = await pumpFlow(tester);
@@ -94,7 +96,7 @@ void main() {
     expect(find.byType(BudgetDetailScreen), findsOneWidget);
     expect(find.byType(StatsRootScreen), findsNothing);
     expect(find.byType(TopTabBar), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('category detail replaces the Stats chrome', (tester) async {
     final container = await pumpFlow(tester);
@@ -113,5 +115,5 @@ void main() {
     expect(find.byType(CategoryDetailScreen), findsOneWidget);
     expect(find.byType(StatsRootScreen), findsNothing);
     expect(find.byType(TopTabBar), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 }

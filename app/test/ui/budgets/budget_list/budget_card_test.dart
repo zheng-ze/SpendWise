@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_card.dart';
 import 'package:spendwise/ui/theme/spendwise_theme.dart';
 
+import '../../../support/ui_test_timeout.dart';
+
 void main() {
   final category = TransactionCategory(
     id: 'c0000000-0000-0000-0000-00000000000a',
@@ -71,7 +73,7 @@ void main() {
       final scheme = buildSpendWiseTheme(brightness).colorScheme;
       expect(labelColor(tester, labels.at(0)), scheme.onSurfaceVariant);
       expect(labelColor(tester, labels.at(1)), const Color(0xFF101112));
-    });
+    }, timeout: uiTestTimeout);
   }
 
   testWidgets('the fill-coloured percentage is clipped to the filled share', (
@@ -91,5 +93,5 @@ void main() {
 
     expect(clipper.getClip(clipRect.size).width, closeTo(fillWidth, 0.01));
     expect(tester.getRect(fillLabel).left, greaterThan(fillWidth));
-  });
+  }, timeout: uiTestTimeout);
 }

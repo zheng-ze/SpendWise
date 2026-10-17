@@ -21,6 +21,8 @@ import 'package:spendwise/ui/shell/shell_binding.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/transactions/entry/new_entry_presenter.dart';
 
+import '../../../support/ui_test_timeout.dart';
+
 const _phoneSize = Size(400, 800);
 const _openSize = Size(960, 720);
 const _smallOpenSize = Size(600, 480);
@@ -320,7 +322,7 @@ void main() {
         expect(recorder.sheets.single, same(route));
 
         await closeAdd(tester);
-      });
+      }, timeout: uiTestTimeout);
     }
 
     testWidgets('form state, controllers, selection and focus survive a '
@@ -382,7 +384,7 @@ void main() {
       expect(FocusManager.instance.primaryFocus, same(focusedBefore));
 
       await closeAdd(tester);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('Add opened in open mode keeps one route and one step '
         'subscription across crossings', (tester) async {
@@ -445,7 +447,7 @@ void main() {
       expect(container.read(selectedDestinationProvider), selectionBefore);
 
       await closeAdd(tester);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('an open picker keeps its route and its result reaches the '
         'same draft across resize', (tester) async {
@@ -482,7 +484,7 @@ void main() {
       );
 
       await closeAdd(tester);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a Money scoped source is captured once and survives resize', (
       tester,
@@ -541,7 +543,7 @@ void main() {
       );
 
       await closeAdd(tester);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('the barrier colour follows the live presentation across '
         'crossings', (tester) async {
@@ -574,7 +576,7 @@ void main() {
       expect(animatedBarrierColor(), dimBarrier);
 
       await closeAdd(tester);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a static desktop sheet keeps a dim barrier', (tester) async {
       const dimBarrier = Color(0x52101212);
@@ -612,7 +614,7 @@ void main() {
             .value,
         dimBarrier,
       );
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('the open sheet fills the safe right half under system '
         'insets', (tester) async {
@@ -634,7 +636,7 @@ void main() {
       expect(rect.bottom, _openSize.height - bottomInset);
 
       await closeAdd(tester);
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('presenter guard and teardown under resize', () {
@@ -678,7 +680,7 @@ void main() {
       await openAdd(tester);
       expect(find.byType(AppSheet), findsOneWidget);
       await closeAdd(tester);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('repeated crossings add no form, coordinator, prefill or '
         'subscription work', (tester) async {
@@ -729,7 +731,7 @@ void main() {
             .read(newEntryPresentationProvider),
         NewEntryPresentation.closed,
       );
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a failed save retains values and error across resize', (
       tester,
@@ -796,7 +798,7 @@ void main() {
       );
 
       await closeAdd(tester);
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('small open window (600 x 480)', () {
@@ -841,7 +843,7 @@ void main() {
 
       expect(tester.takeException(), isNull);
       await closeAdd(tester);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('the open form stays usable with a keyboard and safe insets', (
       tester,
@@ -877,6 +879,6 @@ void main() {
       expect(save.bottom, lessThanOrEqualTo(keyboardTop));
       expect(tester.takeException(), isNull);
       await closeAdd(tester);
-    });
+    }, timeout: uiTestTimeout);
   });
 }

@@ -17,6 +17,7 @@ import 'package:spendwise/ui/transactions/transactions_flow.dart';
 
 import '../../support/in_memory_ledger_store.dart';
 import 'overview_fixture.dart';
+import '../../support/ui_test_timeout.dart';
 
 const _phoneSize = Size(400, 800);
 const _openSize = Size(960, 720);
@@ -99,7 +100,7 @@ void main() {
         container.read(overviewViewModelProvider).requireValue.step,
         isNull,
       );
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('duplicate requests open only one route', (tester) async {
       final container = await _pumpOverviewFlow(
@@ -115,7 +116,7 @@ void main() {
         container.read(overviewViewModelProvider).requireValue.step,
         isNull,
       );
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('back returns to the retained overview and allows reopening', (
       tester,
@@ -140,7 +141,7 @@ void main() {
         tester.state(find.byType(TransactionsFlow)),
         isNot(same(historyState)),
       );
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('system Back returns to Overview and allows reopening', (
       tester,
@@ -165,7 +166,7 @@ void main() {
         tester.state(find.byType(TransactionsFlow)),
         isNot(same(historyState)),
       );
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a request before mount is picked up once mounted', (
       tester,
@@ -181,7 +182,7 @@ void main() {
         container.read(overviewViewModelProvider).requireValue.step,
         isNull,
       );
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('resizing keeps the pushed route and its flow', (tester) async {
       final container = await _pumpOverviewFlow(
@@ -196,7 +197,7 @@ void main() {
 
       expect(find.byType(TransactionsFlow), findsOneWidget);
       expect(tester.state(find.byType(TransactionsFlow)), same(historyState));
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('the Overview semantics action returns and allows reopening', (
       tester,
@@ -229,7 +230,7 @@ void main() {
       } finally {
         semantics.dispose();
       }
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('desktop history selection', () {
@@ -248,7 +249,7 @@ void main() {
         container.read(overviewViewModelProvider).requireValue.step,
         isNull,
       );
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('history back label', () {
@@ -268,7 +269,7 @@ void main() {
 
       expect(find.byType(BackButton), findsOneWidget);
       expect(find.bySemanticsLabel('Overview'), findsNothing);
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('shell wiring', () {
@@ -336,7 +337,7 @@ void main() {
 
       expect(find.byType(TransactionsFlow), findsOneWidget);
       expect(tester.state(find.byType(TransactionsFlow)), same(historyState));
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('system Back preserves History in an inactive destination', (
       tester,
@@ -386,7 +387,7 @@ void main() {
         tester.state(find.byType(TransactionsFlow)),
         isNot(same(historyState)),
       );
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('desktop selects the history destination', (tester) async {
       final container = await pumpShell(tester, ShellLayoutMode.desktop);
@@ -399,7 +400,7 @@ void main() {
       );
       expect(find.byType(TransactionsFlow), findsOneWidget);
       expect(find.byType(BackButton), findsNothing);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('open mode selects the shell History destination', (
       tester,
@@ -414,7 +415,7 @@ void main() {
       );
       expect(find.byType(TransactionsFlow), findsOneWidget);
       expect(find.byType(BackButton), findsNothing);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('phone History route survives open and phone resizing', (
       tester,
@@ -464,6 +465,6 @@ void main() {
 
       expect(container.read(shellLayoutModeProvider), ShellLayoutMode.phone);
       expect(tester.state(find.byType(TransactionsFlow)), same(historyState));
-    });
+    }, timeout: uiTestTimeout);
   });
 }

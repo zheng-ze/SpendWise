@@ -5,6 +5,7 @@ import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 
 import '../../../support/pad_probe.dart';
 import 'new_entry_session_harness.dart';
+import '../../../support/ui_test_timeout.dart';
 
 const _midAnimation = Duration(milliseconds: 100);
 const _padHeight = 192.0;
@@ -110,7 +111,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(padReservedHeight(tester), _padHeight);
       expect(tester.takeException(), isNull);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('the sheet grows and shrinks with the pad', (tester) async {
       await _openAdd(tester);
@@ -125,7 +126,7 @@ void main() {
       expect(shrunk, lessThan(during));
       expect(during, lessThan(grown));
       expect(tester.takeException(), isNull);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('reduced motion swaps the pad and height at once', (
       tester,
@@ -143,7 +144,7 @@ void main() {
 
       expect(find.byType(NumberPad), findsNothing);
       expect(_sheetHeight(tester), lessThan(grown));
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('Name focus shrinks the pad while the keyboard rises', (
       tester,
@@ -164,7 +165,7 @@ void main() {
       expect(padReservedHeight(tester), 0);
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a falling keyboard hands the space back to the pad', (
       tester,
@@ -180,11 +181,12 @@ void main() {
       await tester.pump(_midAnimation);
 
       _expectNeverAdding(tester, _smallInset);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets(
       'a drag dismissal keeps the pad through the exit',
       _keepPadDuringDragDismissal,
+      timeout: uiTestTimeout,
     );
   });
 
@@ -192,6 +194,7 @@ void main() {
     testWidgets(
       'rows stay above Save entry with the pad at 393 x 852',
       _keepGrownSheetFormVisible,
+      timeout: uiTestTimeout,
     );
   });
 }

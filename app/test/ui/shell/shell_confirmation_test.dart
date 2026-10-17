@@ -16,6 +16,8 @@ import 'package:spendwise/ui/shell/shell_binding.dart';
 import 'package:spendwise/ui/shell/shell_confirmation.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
+import '../../support/ui_test_timeout.dart';
+
 const _openSize = Size(960, 720);
 const _phoneSize = Size(400, 800);
 const _shortOpenSize = Size(960, 480);
@@ -132,7 +134,7 @@ void main() {
     Navigator.of(context, rootNavigator: true).pop(true);
     await tester.pumpAndSettle();
     expect(await future, isTrue);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('the dialog lives on the root navigator from any pane', (
     tester,
@@ -193,7 +195,7 @@ void main() {
     await overviewNavigator.maybePop();
     await tester.pumpAndSettle();
     await detailRoute;
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('Add route confirmation retains its draft through resize', (
     tester,
@@ -295,7 +297,7 @@ void main() {
     Navigator.of(pageContext, rootNavigator: true).pop();
     await tester.pumpAndSettle();
     await addRoute;
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('resize keeps the dialog, future and destination', (
     tester,
@@ -347,7 +349,7 @@ void main() {
       container.read(selectedDestinationProvider),
       ShellDestination.overview,
     );
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('cancel dismisses with false and no mutation', (tester) async {
     await _pumpBoundShell(tester, size: _openSize);
@@ -369,7 +371,7 @@ void main() {
     expect(await future, isFalse);
     expect(mutated, isFalse);
     expect(find.text('Delete Groceries?'), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('barrier dismissal cancels with no mutation', (tester) async {
     await _pumpBoundShell(tester, size: _openSize);
@@ -389,7 +391,7 @@ void main() {
 
     expect(await future, isFalse);
     expect(mutated, isFalse);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('back cancels with no mutation', (tester) async {
     await _pumpBoundShell(tester, size: _openSize);
@@ -409,7 +411,7 @@ void main() {
 
     expect(await future, isFalse);
     expect(mutated, isFalse);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('a rail tap cannot change destination behind the dialog', (
     tester,
@@ -430,7 +432,7 @@ void main() {
       ShellDestination.overview,
     );
     expect(await future, isFalse);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('a rail tap behind the dim layer is inert', (tester) async {
     final container = await _pumpBoundShell(tester, size: _openSize);
@@ -456,7 +458,7 @@ void main() {
       ShellDestination.overview,
     );
     expect(await future, isFalse);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('phone keeps full-window placement', (tester) async {
     await _pumpBoundShell(tester, size: _phoneSize);
@@ -477,7 +479,7 @@ void main() {
     await tester.tap(find.text('Delete'));
     await tester.pumpAndSettle();
     expect(await future, isTrue);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('desktop keeps full-window placement', (tester) async {
     await _pumpBoundShell(
@@ -502,7 +504,7 @@ void main() {
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
     expect(await future, isFalse);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('short open windows bound and scroll large content', (
     tester,
@@ -547,7 +549,7 @@ void main() {
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
     expect(await future, isFalse);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('purge keeps its wording and maps dismissal to false', (
     tester,
@@ -582,7 +584,7 @@ void main() {
     await tester.tap(find.text('Delete'));
     await tester.pumpAndSettle();
     expect(await confirmed, isTrue);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('the open region respects the right safe inset', (tester) async {
     tester.view.padding = const FakeViewPadding(right: _rightInset);
@@ -603,7 +605,7 @@ void main() {
     Navigator.of(context, rootNavigator: true).pop(true);
     await tester.pumpAndSettle();
     expect(await future, isTrue);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('focus traversal stays inside the dialog', (tester) async {
     await _pumpBoundShell(tester, size: _openSize);
@@ -622,7 +624,7 @@ void main() {
     Navigator.of(context, rootNavigator: true).pop(false);
     await tester.pumpAndSettle();
     expect(await future, isFalse);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('the dialog inherits the caller theme', (tester) async {
     final bodies = _probeBodies()
@@ -648,7 +650,7 @@ void main() {
     Navigator.of(context, rootNavigator: true).pop(true);
     await tester.pumpAndSettle();
     expect(await future, isTrue);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('a live open to desktop resize follows the live mode', (
     tester,
@@ -680,7 +682,7 @@ void main() {
     root.pop(true);
     await tester.pumpAndSettle();
     expect(await future, isTrue);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('wide content clamps to the open maximum width', (tester) async {
     await _pumpBoundShell(tester, size: _openSize);
@@ -702,5 +704,5 @@ void main() {
     Navigator.of(context, rootNavigator: true).pop(true);
     await tester.pumpAndSettle();
     expect(await future, isTrue);
-  });
+  }, timeout: uiTestTimeout);
 }

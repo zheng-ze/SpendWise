@@ -12,6 +12,7 @@ import 'package:spendwise/ui/transactions/entry/new_entry_presenter.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_entry_coordinator.dart';
 
 import 'new_entry_session_harness.dart';
+import '../../../support/ui_test_timeout.dart';
 
 const _staleSourceId = 'a0000000-0000-0000-0000-0000000000ff';
 
@@ -56,7 +57,7 @@ void main() {
             harness.container.read(selectedDestinationProvider),
             ShellDestination.trends,
           );
-        });
+        }, timeout: uiTestTimeout);
       }
     }
   });
@@ -92,7 +93,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(harness.draft, before);
       expect(unrelated.isActive, isTrue);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('repeated dismissal and route end retire once', (tester) async {
       final harness = await pumpShell(tester);
@@ -112,7 +113,7 @@ void main() {
       expect(harness.recorder.removals, removalsBefore + 1);
       expect(harness.presentation, NewEntryPresentation.closed);
       expect(tester.takeException(), isNull);
-    });
+    }, timeout: uiTestTimeout);
   });
 
   testWidgets('the open page keeps its left half until the route completes', (
@@ -150,7 +151,7 @@ void main() {
     addDismiss(tester)();
     await tester.pumpAndSettle();
     await harness.opened;
-  });
+  }, timeout: uiTestTimeout);
 
   group('session-owned Step consumption', () {
     testWidgets('a Step emitted before the first mounted frame is picked up '
@@ -175,7 +176,7 @@ void main() {
       addDismiss(tester)();
       await tester.pumpAndSettle();
       await harness.opened;
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a replacement emitted during dispatch keeps its own '
         'consumption', (tester) async {
@@ -194,7 +195,7 @@ void main() {
       addDismiss(tester)();
       await tester.pumpAndSettle();
       await harness.opened;
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('the same request repeated after its clear stays valid', (
       tester,
@@ -216,7 +217,7 @@ void main() {
       addDismiss(tester)();
       await tester.pumpAndSettle();
       await harness.opened;
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('resizing keeps the session, routes, draft and a picker', (
       tester,
@@ -245,7 +246,7 @@ void main() {
       addDismiss(tester)();
       await tester.pumpAndSettle();
       await harness.opened;
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a retired subscription neither pushes nor clears', (
       tester,
@@ -264,7 +265,7 @@ void main() {
 
       expect(form.clears, clears);
       expect(harness.recorder.routes, hasLength(routes));
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('results arriving after close and reopen are discarded', () {
@@ -330,7 +331,7 @@ void main() {
         addDismiss(tester)();
         await tester.pumpAndSettle();
         await harness.opened;
-      });
+      }, timeout: uiTestTimeout);
     }
   });
 }

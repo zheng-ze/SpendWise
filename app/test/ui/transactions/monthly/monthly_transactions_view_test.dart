@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ui/transactions/monthly/month_summaries.dart';
 import 'package:spendwise/ui/transactions/monthly/monthly_transactions_view.dart';
 
+import '../../../support/ui_test_timeout.dart';
+
 void main() {
   final account = Account(
     id: 'a0000000-0000-0000-0000-000000000001',
@@ -56,7 +58,7 @@ void main() {
     await tester.tap(monthRows.at(1));
     await tester.pumpAndSettle();
     expect(find.textContaining(weekLabel).evaluate(), isEmpty);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets("tapping a week calls back with that week's month", (
     tester,
@@ -80,5 +82,5 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tapped, isNotNull);
-  });
+  }, timeout: uiTestTimeout);
 }

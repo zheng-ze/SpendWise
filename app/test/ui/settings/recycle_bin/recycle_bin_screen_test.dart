@@ -11,6 +11,7 @@ import 'package:spendwise/ui/symbol_map.dart';
 import 'package:spendwise/ui/theme/spendwise_colors.dart';
 
 import '../../../support/semantics_test_support.dart';
+import '../../../support/ui_test_timeout.dart';
 
 void main() {
   Decimal dec(String value) => Decimal.parse(value);
@@ -82,7 +83,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Recycle bin is empty'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('a section with no archived rows of that kind is not shown', (
     tester,
@@ -98,7 +99,7 @@ void main() {
     expect(find.text('Subpockets'), findsNothing);
     expect(find.text('Categories'), findsNothing);
     expect(find.text('Recycle bin is empty'), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('reference counts are shown per row', (tester) async {
     final acc = account('a0000000-0000-0000-0000-000000000001', 'Old Bank');
@@ -111,7 +112,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('1 reference'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('pocket qualified name shown when parent resolves', (
     tester,
@@ -133,7 +134,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Main/Rent'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('pocket unqualified name shown when parent id is not found', (
     tester,
@@ -145,7 +146,7 @@ void main() {
 
     expect(find.text('Rent'), findsOneWidget);
     expect(find.text('Main/Rent'), findsNothing);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('rows are sorted by name within a section', (tester) async {
     final zebra = account('a0000000-0000-0000-0000-000000000001', 'Zebra');
@@ -162,7 +163,7 @@ void main() {
     final alphaCenter = tester.getCenter(find.text('Alpha'));
     final zebraCenter = tester.getCenter(find.text('Zebra'));
     expect(alphaCenter.dy, lessThan(zebraCenter.dy));
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('leading swipe on an account restores it and it leaves the bin', (
     tester,
@@ -180,7 +181,7 @@ void main() {
     expect(ledger.state.moneySources[acc.id]!.lifecycle, LifecycleState.active);
     expect(find.text('Old Bank'), findsNothing);
     expect(find.text('Recycle bin is empty'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets(
     'leading swipe on a pocket under a still-archived parent is a no-op',
@@ -209,6 +210,7 @@ void main() {
       );
       expect(find.text('Main/Rent'), findsOneWidget);
     },
+    timeout: uiTestTimeout,
   );
 
   testWidgets('trailing swipe shows the purge confirmation with exact copy', (
@@ -232,7 +234,7 @@ void main() {
       ),
       findsOneWidget,
     );
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('confirming purge on an account removes it from moneySources', (
     tester,
@@ -250,7 +252,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(ledger.state.moneySources.containsKey(acc.id), isFalse);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('confirming purge on a pocket removes it from moneySources', (
     tester,
@@ -277,7 +279,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(ledger.state.moneySources.containsKey(pkt.id), isFalse);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('confirming purge on a category removes it from categories', (
     tester,
@@ -293,7 +295,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(ledger.state.categories.containsKey(cat.id), isFalse);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets('canceling the purge confirmation does not remove the row', (
     tester,
@@ -312,7 +314,7 @@ void main() {
 
     expect(ledger.state.moneySources.containsKey(acc.id), isTrue);
     expect(find.text('Old Bank'), findsOneWidget);
-  });
+  }, timeout: uiTestTimeout);
 
   testWidgets(
     'the restore custom semantic action restores it, same as the leading '
@@ -340,6 +342,7 @@ void main() {
       expect(find.text('Old Bank'), findsNothing);
       handle.dispose();
     },
+    timeout: uiTestTimeout,
   );
 
   testWidgets(
@@ -369,6 +372,7 @@ void main() {
       expect(ledger.state.moneySources.containsKey(acc.id), isFalse);
       handle.dispose();
     },
+    timeout: uiTestTimeout,
   );
 
   group('Entries section', () {
@@ -421,7 +425,7 @@ void main() {
         tester.getCenter(find.text('Older lunch')).dy,
         lessThan(tester.getCenter(find.text('Categories')).dy),
       );
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a row shows date, source name, kind-styled signed amount', (
       tester,
@@ -433,7 +437,7 @@ void main() {
       expect(find.text('3 Oct 2026 / Wallet'), findsOneWidget);
       expect(find.text('-42.50'), findsOneWidget);
       expect(find.text('Restore'), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('the section is hidden when no entry is binned', (
       tester,
@@ -446,7 +450,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Entries'), findsNothing);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('the Restore text restores the entry without confirmation', (
       tester,
@@ -461,7 +465,7 @@ void main() {
       expect(ledger.state.binnedEntries, isEmpty);
       expect(find.text('Delete permanently?'), findsNothing);
       expect(find.text('Entries'), findsNothing);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('the Restore control has a 48 wide tap target and is hidden '
         'from screen readers', (tester) async {
@@ -475,7 +479,7 @@ void main() {
       expect(tester.getSize(target).width, greaterThanOrEqualTo(48));
       expect(find.bySemanticsLabel('Restore'), findsNothing);
       handle.dispose();
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('entries on the same date list by name', (tester) async {
       await pumpWith(tester, [
@@ -487,7 +491,7 @@ void main() {
         tester.getCenter(find.text('Alpha')).dy,
         lessThan(tester.getCenter(find.text('Beta')).dy),
       );
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a leading swipe restores the entry', (tester) async {
       final entry = binned('Coffee', DateTime.utc(2026, 10, 3));
@@ -498,7 +502,7 @@ void main() {
 
       expect(ledger.state.entries.containsKey(entry.id), isTrue);
       expect(find.text('Coffee'), findsNothing);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a trailing swipe then Delete purges the entry', (
       tester,
@@ -520,7 +524,7 @@ void main() {
 
       expect(ledger.state.binnedEntries, isEmpty);
       expect(ledger.state.entries, isEmpty);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('cancelling the purge confirmation keeps the entry', (
       tester,
@@ -535,7 +539,7 @@ void main() {
 
       expect(ledger.state.binnedEntries.containsKey(entry.id), isTrue);
       expect(find.text('Coffee'), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a binned entry counts toward another row reference count', (
       tester,
@@ -554,7 +558,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('1 reference'), findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
 
     const maxMedallionRowHeight = 36.0;
     const maxEntryRowHeight = 46.0;
@@ -594,6 +598,7 @@ void main() {
         );
         expect(icon.color, const Color(0xFFFF0000));
       },
+      timeout: uiTestTimeout,
     );
 
     testWidgets('an income entry shows a plus sign in the income colour', (
@@ -605,7 +610,7 @@ void main() {
 
       expect(find.text('+100.00'), findsOneWidget);
       expect(amountColor(tester, '+100.00'), SpendWiseColors.light.income);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('an expense entry shows a minus sign in the expense colour', (
       tester,
@@ -615,7 +620,7 @@ void main() {
       ]);
 
       expect(amountColor(tester, '-5.00'), SpendWiseColors.light.expense);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets(
       'a transfer shows an unsigned amount in the neutral colour and a '
@@ -647,6 +652,7 @@ void main() {
         expect(find.text('20.00'), findsOneWidget);
         expect(amountColor(tester, '20.00'), SpendWiseColors.light.text);
       },
+      timeout: uiTestTimeout,
     );
 
     testWidgets('an entry row stays within the reference row height', (
@@ -667,6 +673,6 @@ void main() {
           .height;
       expect(height, lessThan(maxMedallionRowHeight));
       expect(rowHeight, lessThanOrEqualTo(maxEntryRowHeight));
-    });
+    }, timeout: uiTestTimeout);
   });
 }

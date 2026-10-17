@@ -6,6 +6,7 @@ import 'package:spendwise/ui/theme/spendwise_theme.dart';
 
 import '../../../support/sheet_probe.dart';
 import 'new_entry_session_harness.dart';
+import '../../../support/ui_test_timeout.dart';
 
 const _desktopWindow = Size(1440, 900);
 const _desktopDialogWidth = 340.0;
@@ -77,7 +78,7 @@ void main() {
       expect(border.top.width, _lightTopBorder);
       expect(decoration.boxShadow, isNotEmpty);
       expect(_handle, findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('dark Add sheets keep the raised backing', (tester) async {
       await _open(tester, brightness: Brightness.dark);
@@ -88,7 +89,7 @@ void main() {
         SpendWiseColors.dark.raised,
       );
       expect(decoration.boxShadow, isNull);
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('desktop dialog', () {
@@ -99,7 +100,7 @@ void main() {
       expect(tester.getSize(sheetSurface).width, _desktopDialogWidth);
       expect(radius, BorderRadius.circular(_desktopDialogRadius));
       expect(_handle, findsNothing);
-    });
+    }, timeout: uiTestTimeout);
   });
 
   group('form details', () {
@@ -112,7 +113,7 @@ void main() {
 
       expect(expense.height, income.height);
       expect(income.left - expense.right, _segmentGap);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('the form group uses the reference radius', (tester) async {
       await _open(tester);
@@ -125,13 +126,13 @@ void main() {
                 BorderRadius.circular(_groupRadius),
       );
       expect(group, findsOneWidget);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('the sheet surface is the Add form variant', (tester) async {
       await _open(tester);
 
       final sheet = tester.widget<AppSheet>(find.byType(AppSheet));
       expect(sheet.variant, AppSheetVariant.form);
-    });
+    }, timeout: uiTestTimeout);
   });
 }

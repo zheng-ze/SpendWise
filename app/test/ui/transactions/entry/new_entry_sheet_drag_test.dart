@@ -4,6 +4,7 @@ import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/transactions/entry/new_entry_presenter.dart';
 
 import 'new_entry_session_harness.dart';
+import '../../../support/ui_test_timeout.dart';
 
 const _followDistance = 60.0;
 const _followStep = 40.0;
@@ -55,7 +56,7 @@ void main() {
       expect(_sheetTop(tester) - first, closeTo(_followStep, 1));
       await gesture.up();
       await tester.pumpAndSettle();
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a short release springs back', (tester) async {
       final harness = await _openAdd(tester);
@@ -71,7 +72,7 @@ void main() {
 
       expect(_sheetTop(tester), top);
       expect(harness.recorder.sheets, hasLength(1));
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a long release dismisses and retires the session', (
       tester,
@@ -81,7 +82,7 @@ void main() {
       await tester.drag(find.text('Add entry'), const Offset(0, _longDistance));
 
       await _expectDismissed(tester, harness);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a downward fling dismisses', (tester) async {
       final harness = await _openAdd(tester);
@@ -93,7 +94,7 @@ void main() {
       );
 
       await _expectDismissed(tester, harness);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('the handle area drags the sheet', (tester) async {
       final harness = await _openAdd(tester);
@@ -105,7 +106,7 @@ void main() {
       );
 
       await _expectDismissed(tester, harness);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a body drag at offset zero dismisses', (tester) async {
       final harness = await _openAdd(tester);
@@ -113,7 +114,7 @@ void main() {
       await tester.drag(find.text('Expense'), const Offset(0, _longDistance));
 
       await _expectDismissed(tester, harness);
-    });
+    }, timeout: uiTestTimeout);
 
     testWidgets('a body drag after scrolling does not dismiss', (tester) async {
       final harness = await _openAdd(tester, size: _compactPhone);
@@ -128,6 +129,6 @@ void main() {
 
       expect(harness.recorder.sheets, hasLength(1));
       expect(_sheetTop(tester), top);
-    });
+    }, timeout: uiTestTimeout);
   });
 }
