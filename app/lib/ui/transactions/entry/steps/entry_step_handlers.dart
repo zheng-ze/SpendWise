@@ -209,9 +209,8 @@ Future<void> _pickRecurrence(
   form.applyPickedRecurrence(chosen);
 }
 
-String? _idFromOutcome(PickerOutcome outcome) => switch (outcome) {
+String _idFromOutcome(PickerOutcome outcome) => switch (outcome) {
   PickerChose(:final id) => id,
-  PickerCleared() => null,
 };
 
 // MARK: - Date Pickers

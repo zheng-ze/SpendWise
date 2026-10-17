@@ -20,7 +20,7 @@ const _singleLineMaxHeight = 30.0;
 const _groups = [
   PickerOption(
     id: 'food',
-    label: 'Grocery',
+    label: 'Food',
     children: [PickerOption(id: 'market', label: 'Market')],
   ),
   PickerOption(id: 'travel', label: 'Travel'),
@@ -91,10 +91,10 @@ void main() {
 
   testWidgets('desktop presentation puts columns side by side', (tester) async {
     await _openGroups(tester, desktopSize, _groups);
-    await tester.tap(find.text('Grocery'));
+    await tester.tap(find.text('Food'));
     await tester.pumpAndSettle();
 
-    expect(_childSharesParentRow(tester, 'Grocery', 'Market'), isTrue);
+    expect(_childSharesParentRow(tester, 'Food', 'Market'), isTrue);
   });
 
   testWidgets('open presentation puts columns side by side when wide', (
@@ -106,18 +106,18 @@ void main() {
       _groups,
       presentation: (_) => AppSheetPresentation.open,
     );
-    await tester.tap(find.text('Grocery'));
+    await tester.tap(find.text('Food'));
     await tester.pumpAndSettle();
 
-    expect(_childSharesParentRow(tester, 'Grocery', 'Market'), isTrue);
+    expect(_childSharesParentRow(tester, 'Food', 'Market'), isTrue);
   });
 
   testWidgets('phone presentation stacks at 466 x 678', (tester) async {
     await _openGroups(tester, _duoPortraitSize, _groups);
-    await tester.tap(find.text('Grocery'));
+    await tester.tap(find.text('Food'));
     await tester.pumpAndSettle();
 
-    expect(_childSharesParentRow(tester, 'Grocery', 'Market'), isFalse);
+    expect(_childSharesParentRow(tester, 'Food', 'Market'), isFalse);
   });
 
   testWidgets('a word too wide for two columns switches to stacked', (

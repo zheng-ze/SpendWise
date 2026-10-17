@@ -32,11 +32,6 @@ class PickerChose extends PickerOutcome {
   final String id;
 }
 
-// MARK: - PickerCleared
-class PickerCleared extends PickerOutcome {
-  const PickerCleared();
-}
-
 // MARK: - Constants
 const _sheetHeightFactor = 0.7;
 
@@ -48,12 +43,18 @@ const _compactLeadingWidth = 28.0;
 
 const _compactTrailingWidth = 18.0;
 
+const _listTileMinTrailingReservation = 32.0;
+
+const _compactTrailingReservation =
+    _compactTrailingWidth + _compactTitleGap > _listTileMinTrailingReservation
+    ? _compactTrailingWidth + _compactTitleGap
+    : _listTileMinTrailingReservation;
+
 const _rowChromeWidth =
     2 * _compactRowHorizontalPadding +
     _compactLeadingWidth +
     _compactTitleGap +
-    _compactTrailingWidth +
-    _compactTitleGap;
+    _compactTrailingReservation;
 
 const _stackedChildIndent = 24.0;
 
