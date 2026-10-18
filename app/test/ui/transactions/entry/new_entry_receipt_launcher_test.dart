@@ -5,13 +5,13 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show MethodChannel;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:permission_handler_platform_interface/permission_handler_platform_interface.dart';
 import 'package:spendwise/ui/common/inputs/number_pad.dart';
 import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_flow.dart';
 
+import '../../../support/image_picker_channel.dart';
 import '../../../support/ui_test_timeout.dart';
 import 'new_entry_session_harness.dart';
 
@@ -19,6 +19,7 @@ const _recognizerChannel = MethodChannel('spendwise/android_text_recognizer');
 const _scannerChannel = MethodChannel('spendwise/document_scanner');
 const _scanPoll = Duration(milliseconds: 16);
 const _scanPollLimit = 200;
+const _cameraDenied = 'camera_access_denied';
 const _permissionMessage = 'Camera or photo library access was denied.';
 const _chooserHint = 'Scanning fills in a draft. You check it before saving.';
 const _dragDown = Offset(0, 600);
@@ -29,13 +30,6 @@ const _keyboardHeight = 300.0;
 final _launcher = find.byKey(const ValueKey('new-entry-receipt'));
 final _chooserHeader = find.byType(AppPickerHeader);
 final _analysis = find.byKey(const ValueKey('new-entry-analysis'));
-
-class _FakePermissions extends PermissionHandlerPlatform {
-  @override
-  Future<Map<Permission, PermissionStatus>> requestPermissions(
-    List<Permission> permissions,
-  ) async => {permissions.first: PermissionStatus.denied};
-}
 
 Map<String, dynamic> _line(String text) => {
   'text': text,
@@ -336,9 +330,7 @@ void main() {
     testWidgets('a denied permission shows the exact message once', (
       tester,
     ) async {
-      final permissions = PermissionHandlerPlatform.instance;
-      PermissionHandlerPlatform.instance = _FakePermissions();
-      addTearDown(() => PermissionHandlerPlatform.instance = permissions);
+      mockImagePickerResult(errorCode: _cameraDenied);
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(_scannerChannel, (call) async {
             return call.method == 'isAvailable' ? false : null;
