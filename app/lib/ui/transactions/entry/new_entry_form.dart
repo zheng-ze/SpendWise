@@ -78,8 +78,6 @@ class _NewEntryFormState extends State<NewEntryForm> {
   void initState() {
     super.initState();
     _amountFocus.addListener(_refresh);
-    _nameFocus.addListener(_refresh);
-    _noteFocus.addListener(_refresh);
     WidgetsBinding.instance.addPostFrameCallback((_) => _autofocusAmount());
   }
 
@@ -121,8 +119,6 @@ class _NewEntryFormState extends State<NewEntryForm> {
   @override
   void dispose() {
     _amountFocus.removeListener(_refresh);
-    _nameFocus.removeListener(_refresh);
-    _noteFocus.removeListener(_refresh);
     _amountFocus.dispose();
     _nameFocus.dispose();
     _noteFocus.dispose();
@@ -169,8 +165,7 @@ class _NewEntryFormState extends State<NewEntryForm> {
     final leaving = exiting || state.dismissed;
     final padVisible = leaving ? _padShown : focusedPad;
     _padShown = padVisible;
-    final grown =
-        padVisible || _nameFocus.hasFocus || _noteFocus.hasFocus || keyboardUp;
+    final grown = padVisible || keyboardUp;
     final save = state.canSave ? viewModel.save : null;
     final header = NewEntryHeader(presentation: presentation, onSave: save);
     final body = _NewEntryBody(

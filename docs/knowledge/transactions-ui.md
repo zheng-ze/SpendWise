@@ -171,8 +171,9 @@ plain back control.
   (`app/lib/ui/transactions/entry/new_entry_form.dart`, `add_amount_block.dart`)
 - `AnimatedInputSurface` animates pad entry for 240 ms and exit for 200 ms, retaining the outgoing
   pad until its exit settles. Phone Add interpolates `AppSheet.phoneMaxHeightFraction` from 0.66
-  to 1.0 while the pad or text keyboard is active, allowing the sheet to grow toward the top safe
-  area. Reduced motion settles the pad and height change immediately.
+  to 1.0 only while the pad is visible or a keyboard inset (`viewInsets.bottom > 0`) is present,
+  allowing the sheet to grow toward the top safe area. Focusing Name or Note, or tapping a row,
+  with neither present leaves the height unchanged. Reduced motion settles the pad and height change immediately.
   (`app/lib/ui/transactions/entry/animated_input_surface.dart`, `new_entry_form.dart`)
 - An outgoing pad and rising keyboard can coexist in a handoff frame. Reserved pad height is clamped
   to `max(0, 192 - keyboardInset)` dp, so their combined reserved height stays at most one pad
@@ -192,7 +193,7 @@ plain back control.
 The amount-first host renders the reference row shell described under Entry form. Repeat is its
 own row, not a button beside Date. Receipt input remains
 `ReceiptScanStrip` with camera/upload actions. `noteText` is the draft behind the inline Note row; the host retains the Note controller
-and focus node beside Name's, and Note focus grows the phone sheet like Name focus.
+and focus node beside Name's; Note focus alone does not change the phone sheet height.
 (`app/lib/ui/transactions/entry/new_entry_form.dart`, `new_entry_rows.dart`,
 `entry_form_state.dart` - `EntryFormViewState.noteText`,
 `app/lib/ui/transactions/receipt_scan/receipt_scan_strip.dart`)
