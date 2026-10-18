@@ -94,10 +94,6 @@ void main() {
     );
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
-    final launcher = find.byKey(const ValueKey('new-entry-receipt'));
-    await tester.ensureVisible(launcher);
-    await tester.tap(launcher);
-    await tester.pumpAndSettle();
   }
 
   ProviderContainer containerFor(WidgetTester tester) =>

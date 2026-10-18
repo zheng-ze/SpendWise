@@ -18,7 +18,6 @@ const _labelSize = 12.0;
 const _keypadPaddingSaving = 4.0;
 const _focusUnderline = 2.0;
 const _hint = 'Saving creates a plan. Review it in Money, Plans.';
-const _stripHeight = 40.0;
 const _longValue = 'Household joint savings and everyday checking account';
 final _entryDate = DateTime.utc(2026, 10, 16);
 final _endDate = DateTime.utc(2027, 1, 16);
@@ -38,6 +37,7 @@ EntryFormViewState _state({
   RecurrenceFrequency? recurrence,
   bool hasEndDate = false,
   bool includeInAnalysis = true,
+  bool scanning = false,
 }) {
   return EntryFormViewState(
     mode: EntryFormMode.newEntry,
@@ -54,6 +54,7 @@ EntryFormViewState _state({
     endDate: _endDate,
     isSystemEntry: false,
     entryId: null,
+    scanning: scanning,
   );
 }
 
@@ -91,8 +92,7 @@ class _Fixture {
     EntryFormViewState state,
     EntryFormDisplay display, {
     bool keypad = false,
-    VoidCallback? onReceiptTap,
-    Widget? receiptStrip,
+    bool receiptEnabled = false,
   }) {
     return NewEntryRows(
       viewModel: viewModel,
@@ -107,8 +107,7 @@ class _Fixture {
       keypad: keypad,
       onOutsideDown: (_) {},
       onOutsideUp: (node, _) => node.unfocus(),
-      onReceiptTap: onReceiptTap,
-      receiptStrip: receiptStrip,
+      receiptEnabled: receiptEnabled,
     );
   }
 }
@@ -127,8 +126,7 @@ Future<_Fixture> _pump(
   double width = _normalWidth,
   double textScale = 1.0,
   bool keypad = false,
-  VoidCallback? onReceiptTap,
-  Widget? receiptStrip,
+  bool receiptEnabled = false,
 }) async {
   final fixture = _Fixture();
   addTearDown(fixture.dispose);
@@ -136,8 +134,7 @@ Future<_Fixture> _pump(
     state,
     display,
     keypad: keypad,
-    onReceiptTap: onReceiptTap,
-    receiptStrip: receiptStrip,
+    receiptEnabled: receiptEnabled,
   );
   final body = SingleChildScrollView(
     child: SizedBox(width: width, child: content),
@@ -148,7 +145,7 @@ Future<_Fixture> _pump(
       home: Scaffold(body: body),
     ),
   );
-  await tester.pumpAndSettle();
+  await (state.scanning ? tester.pump() : tester.pumpAndSettle());
   return fixture;
 }
 
@@ -310,13 +307,10 @@ void main() {
   });
 
   group('Add receipt', () {
-    const strip = SizedBox(key: ValueKey('strip'), height: _stripHeight);
-    void noop() {}
-
     testWidgets('is the last logical row with a camera icon and no chevron', (
       tester,
     ) async {
-      await _pump(tester, _state(), onReceiptTap: noop);
+      await _pump(tester, _state(), receiptEnabled: true);
 
       expect(
         _top(tester, 'Add receipt'),
@@ -324,68 +318,71 @@ void main() {
       );
       expect(find.byType(EntryRowDivider), findsNWidgets(7));
       final row = _row('receipt');
-      expect(
-        find.descendant(
-          of: row,
-          matching: find.byIcon(Icons.camera_alt_outlined),
-        ),
-        findsOneWidget,
+      final camera = find.descendant(
+        of: row,
+        matching: find.byIcon(Icons.camera_alt_outlined),
       );
-      expect(
-        find.descendant(of: row, matching: find.byIcon(Icons.chevron_right)),
-        findsNothing,
+      final chevron = find.descendant(
+        of: row,
+        matching: find.byIcon(Icons.chevron_right),
       );
+      expect(camera, findsOneWidget);
+      expect(chevron, findsNothing);
     }, timeout: uiTestTimeout);
 
-    testWidgets('is absent without a tap handler', (tester) async {
+    testWidgets('is absent when receipts are disabled', (tester) async {
       await _pump(tester, _state());
 
       expect(find.text('Add receipt'), findsNothing);
       expect(find.byType(EntryRowDivider), findsNWidgets(6));
     }, timeout: uiTestTimeout);
 
-    testWidgets('a collapsed recurring hint follows the receipt row', (
+    testWidgets('the recurring hint follows the receipt row directly', (
       tester,
     ) async {
       await _pump(
         tester,
         _state(recurrence: RecurrenceFrequency.monthly),
-        onReceiptTap: noop,
+        receiptEnabled: true,
       );
 
       expect(_top(tester, _hint), greaterThan(_top(tester, 'Add receipt')));
       expect(find.byType(EntryRowDivider), findsNWidgets(8));
     }, timeout: uiTestTimeout);
 
-    testWidgets('an expanded strip sits between the receipt row and the hint', (
+    testWidgets('tapping it unfocuses Name and requests the chooser', (
       tester,
     ) async {
-      await _pump(
-        tester,
-        _state(recurrence: RecurrenceFrequency.monthly),
-        onReceiptTap: noop,
-        receiptStrip: strip,
-      );
-
-      final stripTop = tester.getTopLeft(find.byKey(strip.key!)).dy;
-      expect(stripTop, greaterThan(_top(tester, 'Add receipt')));
-      expect(_top(tester, _hint), greaterThan(stripTop));
-      expect(find.byType(EntryRowDivider), findsNWidgets(8));
-    }, timeout: uiTestTimeout);
-
-    testWidgets('tapping it unfocuses the Name field and fires once', (
-      tester,
-    ) async {
-      var taps = 0;
-      final fixture = await _pump(tester, _state(), onReceiptTap: () => taps++);
+      final fixture = await _pump(tester, _state(), receiptEnabled: true);
       fixture.nameFocus.requestFocus();
       await tester.pump();
 
       await tester.tap(find.text('Add receipt'));
       await tester.pump();
 
-      expect(taps, 1);
+      expect(fixture.viewModel.calls, [#requestPickReceipt]);
       expect(fixture.nameFocus.hasFocus, isFalse);
+    }, timeout: uiTestTimeout);
+
+    testWidgets('while scanning it reads Reading receipt and ignores taps', (
+      tester,
+    ) async {
+      final fixture = await _pump(
+        tester,
+        _state(scanning: true),
+        receiptEnabled: true,
+      );
+
+      await tester.tap(find.text('Reading receipt'));
+      await tester.pump();
+
+      expect(find.text('Add receipt'), findsNothing);
+      final spinner = find.descendant(
+        of: _row('receipt'),
+        matching: find.byType(CircularProgressIndicator),
+      );
+      expect(spinner, findsOneWidget);
+      expect(fixture.viewModel.calls, isEmpty);
     }, timeout: uiTestTimeout);
   });
 
@@ -599,7 +596,7 @@ void main() {
         _state(),
         width: _narrowWidth,
         textScale: _largeText,
-        onReceiptTap: () {},
+        receiptEnabled: true,
       );
 
       expect(tester.takeException(), isNull);

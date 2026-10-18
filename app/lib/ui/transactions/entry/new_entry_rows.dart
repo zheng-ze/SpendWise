@@ -24,6 +24,10 @@ const _hintLineHeight = 1.4;
 
 const _hintPadding = EdgeInsets.only(top: 5.0, bottom: 4.0);
 
+const _spinnerSize = 14.0;
+
+const _spinnerStroke = 2.0;
+
 const _switchTapTarget = MaterialTapTargetSize.shrinkWrap;
 
 // MARK: - Copy
@@ -35,6 +39,8 @@ const _selectAccountLabel = 'Select';
 const _neverEndsLabel = 'Never';
 
 const _addReceiptLabel = 'Add receipt';
+
+const _readingReceiptLabel = 'Reading receipt';
 
 const _recurringHint = 'Saving creates a plan. Review it in Money, Plans.';
 
@@ -54,8 +60,7 @@ class NewEntryRows extends StatelessWidget {
     required this.keypad,
     required this.onOutsideDown,
     required this.onOutsideUp,
-    required this.onReceiptTap,
-    required this.receiptStrip,
+    required this.receiptEnabled,
   });
 
   final EntryFormViewModel viewModel;
@@ -70,12 +75,10 @@ class NewEntryRows extends StatelessWidget {
   final bool keypad;
   final ValueChanged<PointerDownEvent> onOutsideDown;
   final void Function(FocusNode, PointerUpEvent) onOutsideUp;
-  final VoidCallback? onReceiptTap;
-  final Widget? receiptStrip;
+  final bool receiptEnabled;
 
   @override
   Widget build(BuildContext context) {
-    final receiptTap = onReceiptTap;
     final transfer = state.kind == EntryFormKind.transfer;
     final recurrence = state.recurrence;
     final endDate = state.endDate;
@@ -204,14 +207,12 @@ class NewEntryRows extends StatelessWidget {
         keypad: keypad,
         onTap: () => viewModel.setIncludeInAnalysis(!state.includeInAnalysis),
       ),
-      if (receiptTap != null)
-        AddEntryRow(
+      if (receiptEnabled)
+        _ReceiptRow(
           key: const ValueKey('new-entry-receipt'),
-          label: _addReceiptLabel,
-          labelIcon: Icons.camera_alt_outlined,
-          value: const SizedBox.shrink(),
+          scanning: state.scanning,
           keypad: keypad,
-          onTap: () => open(receiptTap),
+          onTap: () => open(viewModel.requestPickReceipt),
         ),
     ];
 
@@ -228,8 +229,6 @@ class NewEntryRows extends StatelessWidget {
       }
       children.add(row);
     }
-    final strip = receiptStrip;
-    if (receiptTap != null && strip != null) children.add(strip);
     if (recurrence != null) children.add(const _RecurringHint());
 
     return _FormGroup(children: children);
@@ -322,6 +321,37 @@ class _PickerRow extends StatelessWidget {
       keypad: keypad,
       chevron: true,
       onTap: onTap,
+    );
+  }
+}
+
+class _ReceiptRow extends StatelessWidget {
+  const _ReceiptRow({
+    super.key,
+    required this.scanning,
+    required this.keypad,
+    required this.onTap,
+  });
+
+  final bool scanning;
+  final bool keypad;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    const spinner = Align(
+      alignment: AlignmentDirectional.centerEnd,
+      child: SizedBox.square(
+        dimension: _spinnerSize,
+        child: CircularProgressIndicator(strokeWidth: _spinnerStroke),
+      ),
+    );
+    return AddEntryRow(
+      label: scanning ? _readingReceiptLabel : _addReceiptLabel,
+      labelIcon: Icons.camera_alt_outlined,
+      value: scanning ? spinner : const SizedBox.shrink(),
+      keypad: keypad,
+      onTap: scanning ? null : onTap,
     );
   }
 }

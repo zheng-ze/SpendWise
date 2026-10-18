@@ -8,6 +8,7 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/common/pickers/category_picker.dart';
 import 'package:spendwise/ui/common/pickers/date_picker_sheet.dart';
 import 'package:spendwise/ui/common/pickers/ends_choice_sheet.dart';
+import 'package:spendwise/ui/common/pickers/receipt_choice_sheet.dart';
 import 'package:spendwise/ui/common/pickers/recurrence_picker.dart';
 import 'package:spendwise/ui/common/pickers/source_picker.dart';
 import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
@@ -16,6 +17,8 @@ import 'package:spendwise/ui/transactions/document_crop/document_crop_screen.dar
 import 'package:spendwise/ui/transactions/entry/steps/entry_form_logic.dart'
     show EntryFormKind;
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
+import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_flow.dart'
+    show ReceiptScanSource;
 import 'package:spendwise/ui/transactions/transactions_view_model.dart';
 
 // MARK: - Constants
@@ -32,6 +35,7 @@ void dispatchEntryFormStep(
   bool useRootNavigator = false,
   bool Function()? isCurrent,
   AppSheetPresentation Function(BuildContext)? sheetPresentation,
+  void Function(AppSheetRoute<ReceiptChoice>)? onReceiptRouteCreated,
 }) {
   final form = ref.read(entryFormViewModelProvider(formKey).notifier);
   switch (step) {
@@ -104,6 +108,16 @@ void dispatchEntryFormStep(
         useRootNavigator: useRootNavigator,
         isCurrent: isCurrent,
         sheetPresentation: sheetPresentation,
+      );
+    case PickReceiptRequested():
+      _pickReceipt(
+        context,
+        ref,
+        formKey,
+        form,
+        isCurrent: isCurrent,
+        sheetPresentation: sheetPresentation,
+        onRouteCreated: onReceiptRouteCreated,
       );
     case DocumentCropRequested(:final imageBytes):
       _pushDocumentCrop(
@@ -339,6 +353,37 @@ Future<void> _pickEnds(
         isCurrent: isCurrent,
         sheetPresentation: presentation,
       );
+  }
+}
+
+Future<void> _pickReceipt(
+  BuildContext context,
+  WidgetRef ref,
+  String? formKey,
+  EntryFormNotifier form, {
+  bool Function()? isCurrent,
+  AppSheetPresentation Function(BuildContext)? sheetPresentation,
+  void Function(AppSheetRoute<ReceiptChoice>)? onRouteCreated,
+}) async {
+  final presentation = sheetPresentation;
+  final formState = ref.read(entryFormViewModelProvider(formKey)).value;
+  final addable =
+      formState?.mode == EntryFormMode.newEntry && formState?.scanning == false;
+  if (presentation == null || !addable || !_isCurrent(isCurrent)) return;
+  if (!context.mounted) return;
+  final choice = await showReceiptChoiceSheet(
+    context: context,
+    presentation: presentation,
+    onRouteCreated: onRouteCreated,
+  );
+  if (!context.mounted || !_isCurrent(isCurrent)) return;
+  switch (choice) {
+    case null:
+      return;
+    case ReceiptChoice.scan:
+      form.requestScan(ReceiptScanSource.camera);
+    case ReceiptChoice.photo:
+      form.requestScan(ReceiptScanSource.gallery);
   }
 }
 

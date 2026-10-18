@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/gestures.dart';
@@ -17,7 +16,7 @@ import 'package:spendwise/ui/transactions/entry/new_entry_chrome.dart';
 import 'package:spendwise/ui/transactions/entry/new_entry_rows.dart';
 import 'package:spendwise/ui/transactions/entry/steps/entry_form_logic.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
-import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_strip.dart';
+import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_stop_host.dart';
 
 // MARK: - Visual Constants
 
@@ -26,11 +25,6 @@ const _desktopMaxHeightFraction = 1.0;
 const _sectionGap = 8.0;
 
 const _grownHeightFraction = 1.0;
-
-const _receiptRevealDuration = Duration(milliseconds: 200);
-
-// Longer than the pad exit, so the reveal measures the settled sheet height.
-const _receiptRevealDelay = Duration(milliseconds: 260);
 
 const _segmentGap = 2.0;
 
@@ -78,20 +72,14 @@ class _NewEntryFormState extends State<NewEntryForm> {
   final _noteFocus = FocusNode();
   final _nameGroupId = Object();
   final _noteGroupId = Object();
-  final _receiptKey = GlobalKey();
   bool _keyboardSeen = false;
   bool _padShown = false;
-  bool _receiptExpanded = false;
-  Timer? _revealTimer;
   Offset? _outsideDownAt;
 
   @override
   void initState() {
     super.initState();
     _amountFocus.addListener(_refresh);
-    for (final node in [_amountFocus, _nameFocus, _noteFocus]) {
-      node.addListener(_cancelRevealOnFocus);
-    }
     WidgetsBinding.instance.addPostFrameCallback((_) => _autofocusAmount());
   }
 
@@ -132,7 +120,6 @@ class _NewEntryFormState extends State<NewEntryForm> {
 
   @override
   void dispose() {
-    _revealTimer?.cancel();
     _amountFocus.removeListener(_refresh);
     _amountFocus.dispose();
     _nameFocus.dispose();
@@ -148,29 +135,6 @@ class _NewEntryFormState extends State<NewEntryForm> {
           .getInheritedWidgetOfExactType<AppSheetAlertSlot>()
           ?.presentation !=
       AppSheetPresentation.desktop;
-
-  void _expandReceipt() {
-    if (_receiptExpanded) return;
-    setState(() => _receiptExpanded = true);
-    _revealTimer = Timer(_receiptRevealDelay, _revealReceipt);
-  }
-
-  void _cancelRevealOnFocus() {
-    final focused =
-        _amountFocus.hasFocus || _nameFocus.hasFocus || _noteFocus.hasFocus;
-    if (focused) _revealTimer?.cancel();
-  }
-
-  void _revealReceipt() {
-    if (!mounted) return;
-    final target = _receiptKey.currentContext;
-    if (target == null) return;
-    Scrollable.ensureVisible(
-      target,
-      duration: _receiptRevealDuration,
-      alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
-    );
-  }
 
   void _refresh() {
     if (mounted) setState(() {});
@@ -223,9 +187,6 @@ class _NewEntryFormState extends State<NewEntryForm> {
       display: widget.display,
       onOutsideDown: _outsideDown,
       onOutsideUp: _outsideUp,
-      receiptKey: _receiptKey,
-      receiptExpanded: _receiptExpanded,
-      onReceiptTap: _expandReceipt,
     );
     final pad = padVisible
         ? TextFieldTapRegion(
@@ -279,9 +240,6 @@ class _NewEntryBody extends ConsumerWidget {
     required this.display,
     required this.onOutsideDown,
     required this.onOutsideUp,
-    required this.receiptKey,
-    required this.receiptExpanded,
-    required this.onReceiptTap,
   });
 
   final String? formKey;
@@ -300,9 +258,6 @@ class _NewEntryBody extends ConsumerWidget {
   final EntryFormDisplay display;
   final ValueChanged<PointerDownEvent> onOutsideDown;
   final void Function(FocusNode, PointerUpEvent) onOutsideUp;
-  final GlobalKey receiptKey;
-  final bool receiptExpanded;
-  final VoidCallback onReceiptTap;
 
   static const _kindOptions = [
     SegmentedOption(value: EntryFormKind.expense, label: 'Expense'),
@@ -343,14 +298,7 @@ class _NewEntryBody extends ConsumerWidget {
       keypad: keypad,
       onOutsideDown: onOutsideDown,
       onOutsideUp: onOutsideUp,
-      onReceiptTap: receiptEnabled ? onReceiptTap : null,
-      receiptStrip: receiptExpanded
-          ? ReceiptScanStrip(
-              key: receiptKey,
-              formKey: formKey,
-              compactActions: true,
-            )
-          : null,
+      receiptEnabled: receiptEnabled,
     );
 
     return Column(
@@ -361,6 +309,7 @@ class _NewEntryBody extends ConsumerWidget {
         amount,
         const SizedBox(height: _sectionGap),
         group,
+        ReceiptScanStopHost(formKey: formKey),
       ],
     );
   }

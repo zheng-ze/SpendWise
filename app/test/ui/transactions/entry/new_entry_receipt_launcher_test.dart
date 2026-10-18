@@ -7,34 +7,28 @@ import 'package:flutter/services.dart' show MethodChannel;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:permission_handler_platform_interface/permission_handler_platform_interface.dart';
 import 'package:spendwise/ui/common/inputs/number_pad.dart';
+import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
-import 'package:spendwise/ui/transactions/entry/add_amount_block.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
-import 'package:spendwise/ui/transactions/entry/steps/entry_form_logic.dart'
-    show EntryFormKind;
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_flow.dart';
-import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_strip.dart';
 
 import '../../../support/ui_test_timeout.dart';
 import 'new_entry_session_harness.dart';
 
 const _recognizerChannel = MethodChannel('spendwise/android_text_recognizer');
 const _scannerChannel = MethodChannel('spendwise/document_scanner');
-const _focusSettle = Duration(milliseconds: 150);
-const _frameStep = Duration(milliseconds: 16);
-const _scanPoll = Duration(milliseconds: 10);
+const _scanPoll = Duration(milliseconds: 16);
 const _scanPollLimit = 200;
 const _permissionMessage = 'Camera or photo library access was denied.';
-const _hint = 'Saving creates a plan. Review it in Money, Plans.';
+const _chooserHint = 'Scanning fills in a draft. You check it before saving.';
+const _dragDown = Offset(0, 600);
+const _outsideTap = Offset(5, 5);
 const _noteText = 'keep this note';
+const _keyboardHeight = 300.0;
 
 final _launcher = find.byKey(const ValueKey('new-entry-receipt'));
-final _strip = find.byType(ReceiptScanStrip);
-final _noteField = find.byKey(const ValueKey('new-entry-note'));
-final _amountField = find.descendant(
-  of: find.byType(AddAmountBlock),
-  matching: find.byType(TextField),
-);
+final _chooserHeader = find.byType(AppPickerHeader);
+final _analysis = find.byKey(const ValueKey('new-entry-analysis'));
 
 class _FakePermissions extends PermissionHandlerPlatform {
   @override
@@ -52,11 +46,6 @@ Map<String, dynamic> _line(String text) => {
   'confidence': 0.9,
 };
 
-Finder _action(String label) => find.ancestor(
-  of: find.text(label),
-  matching: find.bySubtype<OutlinedButton>(),
-);
-
 EntryFormViewState _state(EntryHarness harness) =>
     harness.container.read(entryFormViewModelProvider(null)).value!;
 
@@ -69,21 +58,10 @@ Future<EntryHarness> _openAdd(
   return harness;
 }
 
-List<double> _scrollOffsets(WidgetTester tester) {
-  final scrollables = find.descendant(
-    of: find.byType(AppSheet),
-    matching: find.byType(Scrollable),
-  );
-  return [
-    for (final element in scrollables.evaluate())
-      ((element as StatefulElement).state as ScrollableState).position.pixels,
-  ];
-}
-
-Future<void> _activate(WidgetTester tester) async {
+Future<void> _openChooser(WidgetTester tester) async {
   await tester.ensureVisible(_launcher);
   await tester.tap(_launcher);
-  await tester.pumpAndSettle(_frameStep);
+  await tester.pumpAndSettle();
 }
 
 Future<void> _waitForScan(
@@ -91,14 +69,15 @@ Future<void> _waitForScan(
   EntryHarness harness, {
   required bool scanning,
 }) async {
-  await tester.runAsync(() async {
-    for (var i = 0; i < _scanPollLimit; i++) {
-      await Future<void>.delayed(_scanPoll);
-      if (_state(harness).scanning == scanning) return;
-    }
-    fail('scanning never became $scanning');
-  });
   await tester.pump();
+  for (var i = 0; i < _scanPollLimit; i++) {
+    if (_state(harness).scanning == scanning) {
+      await tester.pump();
+      return;
+    }
+    await tester.pump(_scanPoll);
+  }
+  fail('scanning never became $scanning');
 }
 
 void _mockRecognizer(Future<Object?> Function() reply) {
@@ -113,152 +92,214 @@ void _mockRecognizer(Future<Object?> Function() reply) {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('launcher', () {
-    testWidgets('the strip stays hidden until Add receipt is activated', (
-      tester,
-    ) async {
-      final harness = await _openAdd(tester);
+  group('Add receipt row', () {
+    testWidgets('is the last row after Include in analysis', (tester) async {
+      await _openAdd(tester);
 
       expect(_launcher, findsOneWidget);
-      expect(_strip, findsNothing);
-      expect(find.text('Scan receipt'), findsNothing);
-      expect(harness.faults.scans, isEmpty);
+      final analysis = tester.getTopLeft(_analysis).dy;
+      expect(tester.getTopLeft(_launcher).dy, greaterThan(analysis));
     }, timeout: uiTestTimeout);
 
-    testWidgets('repeated activation shows one strip and starts no scan', (
-      tester,
-    ) async {
-      final harness = await _openAdd(tester);
-
-      await _activate(tester);
-      await _activate(tester);
-      await _activate(tester);
-
-      expect(_strip, findsOneWidget);
-      expect(find.text('Scan receipt'), findsOneWidget);
-      expect(find.text('Upload photo'), findsOneWidget);
-      expect(harness.faults.scans, isEmpty);
-    }, timeout: uiTestTimeout);
-
-    testWidgets('activation dismisses the pad', (tester) async {
-      await _openAdd(tester);
-      expect(find.byType(NumberPad), findsOneWidget);
-
-      await _activate(tester);
-
-      final amount = tester.widget<TextField>(_amountField).focusNode!;
-      expect(find.byType(NumberPad), findsNothing);
-      expect(amount.hasFocus, isFalse);
-    }, timeout: uiTestTimeout);
-
-    testWidgets('activation unfocuses the Note field', (tester) async {
-      await _openAdd(tester);
-      await tester.ensureVisible(_noteField);
-      await tester.tap(_noteField);
-      await tester.pumpAndSettle();
-      final note = tester.widget<TextField>(_noteField).focusNode!;
-      expect(note.hasFocus, isTrue);
-
-      await _activate(tester);
-
-      expect(note.hasFocus, isFalse);
-      expect(_strip, findsOneWidget);
-    }, timeout: uiTestTimeout);
-
-    testWidgets('the strip survives kind, repeat and window changes', (
-      tester,
-    ) async {
-      final harness = await _openAdd(tester);
-      await _activate(tester);
-
-      harness.form.setKind(EntryFormKind.income);
-      await tester.pumpAndSettle();
-      expect(_strip, findsOneWidget);
-
-      harness.form.applyPickedRecurrence(RecurrenceFrequency.monthly);
-      await tester.pumpAndSettle();
-      expect(_strip, findsOneWidget);
-      final hintTop = tester.getTopLeft(find.text(_hint)).dy;
-      expect(hintTop, greaterThan(tester.getBottomLeft(_strip).dy));
-
-      await resize(tester, openSize);
-      expect(_strip, findsOneWidget);
-      await resize(tester, phoneSize);
-      expect(_strip, findsOneWidget);
-    }, timeout: uiTestTimeout);
-
-    testWidgets('focusing Note before the reveal delay cancels the scroll', (
-      tester,
-    ) async {
-      await _openAdd(tester);
-      await tester.ensureVisible(_launcher);
-      await tester.tap(_launcher);
-      await tester.pump();
-      await tester.ensureVisible(_noteField);
-      await tester.tap(_noteField);
-      await tester.pump(_focusSettle);
-      final before = _scrollOffsets(tester);
-
-      await tester.pumpAndSettle(_frameStep);
-
-      expect(_scrollOffsets(tester), before);
-    }, timeout: uiTestTimeout);
-
-    testWidgets('closing Add before the reveal delay leaves no timer', (
-      tester,
-    ) async {
-      await _openAdd(tester);
-      await tester.ensureVisible(_launcher);
-      await tester.tap(_launcher);
-      await tester.pump();
-
-      await tester.pumpWidget(const SizedBox());
-
-      expect(find.byType(AppSheet), findsNothing);
-    }, timeout: uiTestTimeout);
-
-    testWidgets('a new Add starts collapsed', (tester) async {
-      final harness = await _openAdd(tester);
-      await _activate(tester);
-      await cancelEntry(tester, harness);
-
-      await openAdd(tester, harness);
-
-      expect(_launcher, findsOneWidget);
-      expect(_strip, findsNothing);
-    }, timeout: uiTestTimeout);
-
-    testWidgets('a disabled preference hides the launcher and the strip', (
-      tester,
-    ) async {
+    testWidgets('is hidden when the preference is off', (tester) async {
       await _openAdd(tester, scanEnabled: false);
 
       expect(_launcher, findsNothing);
-      expect(_strip, findsNothing);
       expect(find.text('Add receipt'), findsNothing);
     }, timeout: uiTestTimeout);
+
+    testWidgets('opening the chooser dismisses the pad for good', (
+      tester,
+    ) async {
+      await _openAdd(tester);
+      expect(find.byType(NumberPad), findsOneWidget);
+
+      await _openChooser(tester);
+      expect(find.byType(NumberPad), findsNothing);
+      await tester.tapAt(_outsideTap);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(NumberPad), findsNothing);
+    }, timeout: uiTestTimeout);
+
+    for (final field in ['name', 'note']) {
+      testWidgets(
+        'opening from $field dismisses the IME without restoring it',
+        (tester) async {
+          await _openAdd(tester);
+          final input = find.byKey(ValueKey('new-entry-$field'));
+          await tester.ensureVisible(input);
+          await tester.tap(input);
+          tester.view.viewInsets = const FakeViewPadding(
+            bottom: _keyboardHeight,
+          );
+          await tester.pumpAndSettle();
+
+          await _openChooser(tester);
+          expect(tester.widget<TextField>(input).focusNode!.hasFocus, isFalse);
+          tester.view.resetViewInsets();
+          await tester.pumpAndSettle();
+          await tester.tapAt(_outsideTap);
+          await tester.pumpAndSettle();
+
+          expect(tester.widget<TextField>(input).focusNode!.hasFocus, isFalse);
+          expect(find.byType(NumberPad), findsNothing);
+        },
+        timeout: uiTestTimeout,
+      );
+    }
   });
 
-  group('expanded actions', () {
-    testWidgets('Scan receipt and Upload photo each start one scan', (
+  group('chooser', () {
+    testWidgets('shows the header, hint and two rows with no Cancel', (
+      tester,
+    ) async {
+      final harness = await _openAdd(tester);
+
+      await _openChooser(tester);
+
+      expect(_chooserHeader, findsOneWidget);
+      expect(
+        tester.widget<AppPickerHeader>(_chooserHeader).title,
+        'Add receipt',
+      );
+      expect(find.text(_chooserHint), findsOneWidget);
+      expect(find.text('Scan receipt'), findsOneWidget);
+      expect(find.text('Choose photo'), findsOneWidget);
+      expect(find.text('Cancel'), findsNothing);
+      expect(harness.faults.scans, isEmpty);
+    }, timeout: uiTestTimeout);
+
+    testWidgets('a drag down dismisses it without a scan', (tester) async {
+      final harness = await _openAdd(tester);
+      await _openChooser(tester);
+
+      await tester.drag(_chooserHeader, _dragDown);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Choose photo'), findsNothing);
+      expect(find.text('Add entry'), findsOneWidget);
+      expect(harness.faults.scans, isEmpty);
+    }, timeout: uiTestTimeout);
+
+    testWidgets('an outside tap dismisses it without a scan', (tester) async {
+      final harness = await _openAdd(tester);
+      await _openChooser(tester);
+
+      await tester.tapAt(_outsideTap);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Choose photo'), findsNothing);
+      expect(find.text('Add entry'), findsOneWidget);
+      expect(harness.faults.scans, isEmpty);
+    }, timeout: uiTestTimeout);
+
+    testWidgets('Scan receipt requests one camera scan and closes', (
       tester,
     ) async {
       final harness = await _openAdd(tester);
       harness.faults.swallowScans = true;
-      await _activate(tester);
+      await _openChooser(tester);
 
       await tester.tap(find.text('Scan receipt'));
-      await tester.pump();
-      await tester.tap(find.text('Upload photo'));
-      await tester.pump();
+      await tester.pumpAndSettle();
 
-      expect(harness.faults.scans, [
-        ReceiptScanSource.camera,
-        ReceiptScanSource.gallery,
-      ]);
+      expect(harness.faults.scans, [ReceiptScanSource.camera]);
+      expect(find.text('Choose photo'), findsNothing);
     }, timeout: uiTestTimeout);
 
-    testWidgets('scanning disables both actions and shows progress', (
+    testWidgets('Choose photo requests one gallery scan and closes', (
+      tester,
+    ) async {
+      final harness = await _openAdd(tester);
+      harness.faults.swallowScans = true;
+      await _openChooser(tester);
+
+      await tester.tap(find.text('Choose photo'));
+      await tester.pumpAndSettle();
+
+      expect(harness.faults.scans, [ReceiptScanSource.gallery]);
+      expect(find.text('Scan receipt'), findsNothing);
+    }, timeout: uiTestTimeout);
+
+    testWidgets('a retired Add leaves no route and starts no scan', (
+      tester,
+    ) async {
+      final harness = await _openAdd(tester);
+      harness.faults.swallowScans = true;
+      await _openChooser(tester);
+
+      addDismiss(tester)();
+      await tester.pumpAndSettle();
+
+      expect(harness.faults.scans, isEmpty);
+      expect(find.text('Scan receipt'), findsNothing);
+      expect(find.byType(AppSheet), findsNothing);
+      final sheets = harness.recorder.routes
+          .whereType<AppSheetRoute<Object?>>();
+      expect(sheets, isEmpty);
+      await harness.opened;
+    }, timeout: uiTestTimeout);
+
+    testWidgets('retiring before a choice resumes starts no scan', (
+      tester,
+    ) async {
+      final harness = await _openAdd(tester);
+      harness.faults.swallowScans = true;
+      await _openChooser(tester);
+      final dismiss = addDismiss(tester);
+      final tile = tester.widget<ListTile>(
+        find.widgetWithText(ListTile, 'Scan receipt'),
+      );
+
+      tile.onTap!();
+      dismiss();
+      await tester.pumpAndSettle();
+
+      expect(harness.faults.scans, isEmpty);
+      expect(find.byType(AppSheet), findsNothing);
+      await harness.opened;
+    }, timeout: uiTestTimeout);
+
+    testWidgets('the chooser retains its root route through live resizing', (
+      tester,
+    ) async {
+      final harness = await _openAdd(tester);
+      await _openChooser(tester);
+      final route = harness.recorder.pickerRoutes.single;
+
+      await resize(tester, openSize);
+      expect(harness.recorder.pickerRoutes, [route]);
+      final openSheet = tester.getRect(find.byType(AppSheet).last);
+      expect(openSheet.left, openSize.width / 2);
+      await resize(tester, phoneSize);
+      expect(harness.recorder.pickerRoutes, [route]);
+      await tester.tapAt(_outsideTap);
+      await tester.pumpAndSettle();
+
+      expect(harness.faults.scans, isEmpty);
+      expect(find.byType(NumberPad), findsNothing);
+    }, timeout: uiTestTimeout);
+
+    testWidgets('a removed shell leaves the open chooser harmless', (
+      tester,
+    ) async {
+      final harness = await _openAdd(tester);
+      harness.faults.swallowScans = true;
+      await _openChooser(tester);
+
+      harness.showShell.value = false;
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Scan receipt').last);
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(harness.faults.scans, isEmpty);
+    }, timeout: uiTestTimeout);
+  });
+
+  group('scan results', () {
+    testWidgets('the row reads Reading receipt and ignores taps', (
       tester,
     ) async {
       final gate = Completer<void>();
@@ -267,28 +308,37 @@ void main() {
         return [_line('Coffee Shop')];
       });
       final harness = await _openAdd(tester);
-      await _activate(tester);
 
       harness.form.requestScan(
         ReceiptScanSource.gallery,
         preCapturedBytes: Uint8List(0),
       );
       await _waitForScan(tester, harness, scanning: true);
+      await tester.ensureVisible(_launcher);
+      await tester.tap(_launcher);
+      await tester.pump();
 
-      for (final label in ['Scan receipt', 'Upload photo']) {
-        final button = tester.widget<OutlinedButton>(_action(label));
-        expect(button.onPressed, isNull, reason: label);
-      }
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.text('Reading receipt'), findsOneWidget);
+      expect(find.text('Add receipt'), findsNothing);
+      final spinner = find.descendant(
+        of: _launcher,
+        matching: find.byType(CircularProgressIndicator),
+      );
+      expect(spinner, findsOneWidget);
+      expect(find.text('Choose photo'), findsNothing);
+      expect(harness.faults.scans, [ReceiptScanSource.gallery]);
 
       gate.complete();
       await _waitForScan(tester, harness, scanning: false);
+      expect(find.text('Add receipt'), findsOneWidget);
     }, timeout: uiTestTimeout);
 
     testWidgets('a denied permission shows the exact message once', (
       tester,
     ) async {
+      final permissions = PermissionHandlerPlatform.instance;
       PermissionHandlerPlatform.instance = _FakePermissions();
+      addTearDown(() => PermissionHandlerPlatform.instance = permissions);
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(_scannerChannel, (call) async {
             return call.method == 'isAvailable' ? false : null;
@@ -298,12 +348,15 @@ void main() {
             .setMockMethodCallHandler(_scannerChannel, null),
       );
       final harness = await _openAdd(tester);
-      await _activate(tester);
+      await _openChooser(tester);
 
       await tester.tap(find.text('Scan receipt'));
       await _waitForScan(tester, harness, scanning: false);
       await tester.pump();
 
+      expect(find.text(_permissionMessage), findsOneWidget);
+      expect(_state(harness).scanStop, isNull);
+      await tester.pump();
       expect(find.text(_permissionMessage), findsOneWidget);
     }, timeout: uiTestTimeout);
 
@@ -318,7 +371,6 @@ void main() {
         ],
       );
       final harness = await _openAdd(tester);
-      await _activate(tester);
       harness.form.setNote(_noteText);
       harness.form.setIncludeInAnalysis(false);
       harness.form.applyPickedRecurrence(RecurrenceFrequency.weekly);

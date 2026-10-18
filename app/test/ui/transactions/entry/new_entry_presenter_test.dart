@@ -851,6 +851,9 @@ void main() {
       await openAdd(tester);
       final container = containerOf(tester);
       ReceiptScanStop? stopAfterScan;
+      container.listen(receiptEntryCoordinatorProvider(null), (_, next) {
+        stopAfterScan = next.scanStop ?? stopAfterScan;
+      });
       await tester.runAsync(() async {
         container
             .read(entryFormViewModelProvider(null).notifier)
@@ -867,9 +870,6 @@ void main() {
             break;
           }
         }
-        stopAfterScan = container
-            .read(receiptEntryCoordinatorProvider(null))
-            .scanStop;
       });
       expect(stopAfterScan, ReceiptScanStop.permissionDenied);
       await closeAdd(tester);

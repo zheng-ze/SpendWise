@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
+import 'package:spendwise/ui/common/pickers/receipt_choice_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/shell/shell_binding.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
@@ -204,6 +205,7 @@ class _AddSession {
   final completion = Completer<void>();
   final _cleaned = Completer<void>();
   AppSheetRoute<void>? route;
+  AppSheetRoute<ReceiptChoice>? _receiptRoute;
   ProviderSubscription<AsyncValue<EntryFormViewState>>? _subscription;
   bool retired = false;
   bool _mounted = false;
@@ -306,6 +308,7 @@ class _AddSession {
       useRootNavigator: true,
       isCurrent: () => eligible,
       sheetPresentation: route?.resolveLive,
+      onReceiptRouteCreated: (created) => _receiptRoute = created,
     );
   }
 
@@ -322,6 +325,12 @@ class _AddSession {
   }
 
   void _completeCleanup() {
+    final receiptRoute = _receiptRoute;
+    _receiptRoute = null;
+    final navigator = receiptRoute?.navigator;
+    if (receiptRoute != null && navigator != null && navigator.mounted) {
+      if (receiptRoute.isActive) navigator.removeRoute(receiptRoute);
+    }
     _controller._invalidateReceiptCoordinator();
     _cleaned.complete();
   }

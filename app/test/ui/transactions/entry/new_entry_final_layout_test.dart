@@ -1,7 +1,12 @@
+import 'dart:async';
+import 'dart:typed_data';
+
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show MethodChannel;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ui/common/inputs/number_pad.dart';
+import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/transactions/entry/add_amount_block.dart';
@@ -21,7 +26,9 @@ const _contentWidth = 202.0;
 const _formEdgeWidth = 1.0;
 const _contentLeftInset = 16.0;
 const _contentRightInset = 82.0;
-const _maxActionHeight = 120.0;
+const _chooserHint = 'Scanning fills in a draft. You check it before saving.';
+const _scanPumpLimit = 200;
+const _recognizerChannel = MethodChannel('spendwise/android_text_recognizer');
 const _keyboardHeight = 200.0;
 const _frameStep = Duration(milliseconds: 16);
 const _homeId = 'a0000000-0000-0000-0000-0000000000a1';
@@ -116,11 +123,20 @@ void _expectInside(WidgetTester tester, Finder target, Rect bounds, String id) {
   expect(path, contains(tester.renderObject(target)), reason: id);
 }
 
-Future<void> _reach(WidgetTester tester, Finder target, String id) async {
+Future<void> _reach(
+  WidgetTester tester,
+  Finder target,
+  String id, {
+  bool scanning = false,
+}) async {
   await tester.ensureVisible(target);
-  await _settle(tester);
+  if (scanning) {
+    await tester.pump();
+  } else {
+    await _settle(tester);
+  }
   _expectClean(tester, id);
-  final sheet = tester.getRect(find.byType(AppSheet));
+  final sheet = tester.getRect(find.byType(AppSheet).last);
   final content = Rect.fromLTRB(
     sheet.left + _contentLeftInset,
     sheet.top,
@@ -285,31 +301,57 @@ Future<void> _reachPickerRows(WidgetTester tester, _Draft draft) async {
   expect(find.text(formatEntryDate(_endDate)), findsOneWidget);
 }
 
-Future<void> _useReceiptActions(
+Future<void> _useReceiptChooser(
   WidgetTester tester,
   EntryHarness harness,
 ) async {
   harness.faults.swallowScans = true;
-  await _tapAndSettle(tester, _row('receipt'), 'receipt');
-  for (final label in ['Scan receipt', 'Upload photo']) {
-    final action = find.ancestor(
-      of: find.text(label),
-      matching: find.bySubtype<OutlinedButton>(),
-    );
-    await _reach(tester, find.text(label), label);
-    expect(
-      tester.getSize(action).height,
-      lessThan(_maxActionHeight),
-      reason: label,
-    );
-    await tester.tap(find.text(label));
-    await _settle(tester);
-    _expectClean(tester, label);
+  final choices = {
+    'Scan receipt': ReceiptScanSource.camera,
+    'Choose photo': ReceiptScanSource.gallery,
+  };
+  for (final entry in choices.entries) {
+    await _tapAndSettle(tester, _row('receipt'), 'receipt');
+    await _reach(tester, find.byType(AppPickerHeader), 'chooser header');
+    await _reach(tester, find.text(_chooserHint), 'chooser hint');
+    final row = find.widgetWithText(ListTile, entry.key);
+    await _tapAndSettle(tester, row, entry.key);
+    expect(find.byType(AppPickerHeader), findsNothing, reason: entry.key);
   }
-  expect(harness.faults.scans, [
-    ReceiptScanSource.camera,
+  expect(harness.faults.scans, choices.values.toList());
+  harness.faults.swallowScans = false;
+}
+
+Future<void> _readReceiptRow(WidgetTester tester, EntryHarness harness) async {
+  final gate = Completer<void>();
+  final messenger =
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+  messenger.setMockMethodCallHandler(_recognizerChannel, (_) async {
+    await gate.future;
+    return <Map<String, dynamic>>[];
+  });
+  addTearDown(
+    () => messenger.setMockMethodCallHandler(_recognizerChannel, null),
+  );
+  harness.form.requestScan(
     ReceiptScanSource.gallery,
-  ]);
+    preCapturedBytes: Uint8List(0),
+  );
+  await tester.pump();
+  expect(_formState(harness).scanning, isTrue);
+  await _reach(tester, _row('receipt'), 'reading row', scanning: true);
+  expect(find.text('Reading receipt'), findsOneWidget);
+  _expectClean(tester, 'reading row');
+  await tester.tap(find.text('Reading receipt'));
+  await tester.pump();
+  expect(find.byType(AppPickerHeader), findsNothing);
+  gate.complete();
+  for (var i = 0; i < _scanPumpLimit; i++) {
+    if (!_formState(harness).scanning) break;
+    await tester.pump(_frameStep);
+  }
+  expect(_formState(harness).scanning, isFalse);
+  await _settle(tester);
 }
 
 Future<void> _saveAndExpectEntry(
@@ -360,7 +402,8 @@ Future<void> _exerciseDraft(WidgetTester tester, _Draft draft) async {
   await _editNoteWithKeyboard(tester);
   await _reopenAmountKeepingDraft(tester, harness, draft);
   await _tapAndSettle(tester, _row('analysis'), 'analysis');
-  await _useReceiptActions(tester, harness);
+  await _useReceiptChooser(tester, harness);
+  await _readReceiptRow(tester, harness);
   await _saveAndExpectEntry(tester, harness, draft);
 }
 
