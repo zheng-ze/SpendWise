@@ -210,4 +210,40 @@ extension _AnalysisMixedReads on AnalysisQueries {
       ),
     );
   }
+
+  // MARK: - Budgets
+
+  AnalysisQueryResult<BudgetsOverview> _readBudgets({required DateTime month}) {
+    final anchor = monthWindow(month).start;
+    return _readMixed<BudgetsOverview>(
+      'budgets|${anchor.toIso8601String()}',
+      () => budgetsOverview(
+        state: _ledger.state,
+        items: _cache.items,
+        month: YearMonth(anchor.year, anchor.month),
+        today: _today,
+      ),
+    );
+  }
+
+  AnalysisQueryResult<BudgetDetail> _readBudgetDetail({
+    required String budgetID,
+    required DateTime displayedYear,
+    required DateTime selectedMonth,
+  }) {
+    final id = normalizedID(budgetID);
+    final year = startOfDayUtc(displayedYear).year;
+    final anchor = monthWindow(selectedMonth).start;
+    return _readMixed<BudgetDetail>(
+      'budget-detail|$id|$year|${anchor.toIso8601String()}',
+      () => budgetDetail(
+        state: _ledger.state,
+        items: _cache.items,
+        budgetID: id,
+        displayedYear: year,
+        selectedMonth: YearMonth(anchor.year, anchor.month),
+        today: _today,
+      ),
+    );
+  }
 }

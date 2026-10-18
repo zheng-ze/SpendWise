@@ -8,7 +8,7 @@ import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/base/step_emitting.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budgets_steps.dart';
-import 'package:spendwise/ui/budgets/helpers/budget_spend.dart';
+import 'package:spendwise/ledger/analysis/budgets/budget_spend.dart';
 import 'package:spendwise/ui/stats/helpers/stats_window.dart';
 import 'package:spendwise/ui/stats/helpers/trend.dart';
 

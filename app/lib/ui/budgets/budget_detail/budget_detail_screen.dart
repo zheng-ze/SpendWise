@@ -11,7 +11,7 @@ import 'package:spendwise/ui/common/inputs/month_year_selector.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
-import 'package:spendwise/ui/budgets/helpers/budget_spend.dart';
+import 'package:spendwise/ledger/analysis/budgets/budget_spend.dart';
 import 'package:spendwise/ui/stats/helpers/stats_window.dart';
 
 // MARK: - Screen

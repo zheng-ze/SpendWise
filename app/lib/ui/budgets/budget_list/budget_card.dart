@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/color_hex.dart';
 import 'package:spendwise/ui/format/money_format.dart';
-import 'package:spendwise/ui/budgets/helpers/budget_spend.dart';
+import 'package:spendwise/ledger/analysis/budgets/budget_spend.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_card_progress_bar.dart';
 
 // MARK: - Constants
