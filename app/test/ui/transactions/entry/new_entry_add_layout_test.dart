@@ -91,6 +91,8 @@ Finder _inSheet(String text) =>
 
 Finder get _amountField => find.byType(TextField).first;
 
+Finder get _noteField => find.byKey(const ValueKey('new-entry-note'));
+
 Finder get _nameField => find.byType(TextField).at(1);
 
 Finder get _handle => find.byWidgetPredicate(
@@ -343,6 +345,27 @@ void main() {
       await openAdd(tester, harness);
 
       await tester.tap(_nameField);
+      await _setKeyboard(tester, _keyboardHeight);
+      expect(padReservedHeight(tester), 0);
+
+      await _setKeyboard(tester, 0);
+
+      expect(find.byType(NumberPad), findsOneWidget);
+      expect(
+        tester.widget<TextField>(_amountField).focusNode!.hasFocus,
+        isTrue,
+      );
+    }, timeout: uiTestTimeout);
+
+    testWidgets('Back closing the keyboard restores the pad for Note', (
+      tester,
+    ) async {
+      final harness = await pumpShell(tester);
+      _useInsets(tester);
+      await openAdd(tester, harness);
+
+      await tester.ensureVisible(_noteField);
+      await tester.tap(_noteField);
       await _setKeyboard(tester, _keyboardHeight);
       expect(padReservedHeight(tester), 0);
 

@@ -46,6 +46,9 @@ class NewEntryRows extends StatelessWidget {
     required this.nameController,
     required this.nameFocus,
     required this.nameGroupId,
+    required this.noteController,
+    required this.noteFocus,
+    required this.noteGroupId,
     required this.keypad,
     required this.onOutsideDown,
     required this.onOutsideUp,
@@ -57,6 +60,9 @@ class NewEntryRows extends StatelessWidget {
   final TextEditingController nameController;
   final FocusNode nameFocus;
   final Object nameGroupId;
+  final TextEditingController noteController;
+  final FocusNode noteFocus;
+  final Object noteGroupId;
   final bool keypad;
   final ValueChanged<PointerDownEvent> onOutsideDown;
   final void Function(FocusNode, PointerUpEvent) onOutsideUp;
@@ -85,37 +91,44 @@ class NewEntryRows extends StatelessWidget {
       onTap: () => open(request),
     );
 
-    final nameField = TextField(
-      key: const ValueKey('new-entry-name'),
-      controller: nameController,
-      focusNode: nameFocus,
-      groupId: nameGroupId,
-      textAlign: TextAlign.end,
-      keyboardType: TextInputType.text,
-      maxLines: null,
-      style: addRowValueStyle(context),
-      cursorColor: context.colors.focus,
-      decoration: const InputDecoration(
-        isDense: true,
-        contentPadding: EdgeInsets.zero,
-        border: InputBorder.none,
-        enabledBorder: InputBorder.none,
-        focusedBorder: InputBorder.none,
-      ),
-      onChanged: viewModel.setName,
-      onTapOutside: onOutsideDown,
-      onTapUpOutside: (event) => onOutsideUp(nameFocus, event),
+    _InlineTextRow textRow(
+      String key,
+      String label,
+      TextEditingController controller,
+      FocusNode focusNode,
+      Object groupId,
+      ValueChanged<String> onChanged,
+      TextInputType keyboardType,
+    ) => _InlineTextRow(
+      fieldKey: ValueKey('new-entry-$key'),
+      label: label,
+      controller: controller,
+      focusNode: focusNode,
+      groupId: groupId,
+      keyboardType: keyboardType,
+      keypad: keypad,
+      onChanged: onChanged,
+      onOutsideDown: onOutsideDown,
+      onOutsideUp: onOutsideUp,
     );
-    final nameRow = TextFieldTapRegion(
-      groupId: nameGroupId,
-      child: AddEntryRow(
-        label: 'Name',
-        value: nameField,
-        keypad: keypad,
-        onTap: () {
-          if (!nameFocus.hasFocus) nameFocus.requestFocus();
-        },
-      ),
+
+    final nameRow = textRow(
+      'name',
+      'Name',
+      nameController,
+      nameFocus,
+      nameGroupId,
+      viewModel.setName,
+      TextInputType.text,
+    );
+    final noteRow = textRow(
+      'note',
+      'Note',
+      noteController,
+      noteFocus,
+      noteGroupId,
+      viewModel.setNote,
+      TextInputType.multiline,
     );
     final analysisSwitch = Align(
       alignment: AlignmentDirectional.centerEnd,
@@ -126,6 +139,7 @@ class NewEntryRows extends StatelessWidget {
       ),
     );
     final rows = <Widget>[
+      nameRow,
       if (transfer)
         picker(
           'from',
@@ -175,6 +189,7 @@ class NewEntryRows extends StatelessWidget {
               : _neverEndsLabel,
           viewModel.requestPickEnds,
         ),
+      noteRow,
       AddEntryRow(
         key: const ValueKey('new-entry-analysis'),
         label: 'Include in analysis',
@@ -184,18 +199,85 @@ class NewEntryRows extends StatelessWidget {
       ),
     ];
 
-    final children = <Widget>[nameRow];
+    final underlined = {nameRow: nameFocus, noteRow: noteFocus};
+    final children = <Widget>[];
     for (final row in rows) {
-      children.add(
-        children.length == 1
-            ? _NameDivider(focusNode: nameFocus)
-            : const EntryRowDivider(),
-      );
+      final above = children.isEmpty ? null : underlined[children.last];
+      if (children.isNotEmpty) {
+        children.add(
+          above == null
+              ? const EntryRowDivider()
+              : _FocusDivider(focusNode: above),
+        );
+      }
       children.add(row);
     }
     if (recurrence != null) children.add(const _RecurringHint());
 
     return _FormGroup(children: children);
+  }
+}
+
+// MARK: - InlineTextRow
+class _InlineTextRow extends StatelessWidget {
+  const _InlineTextRow({
+    required this.fieldKey,
+    required this.label,
+    required this.controller,
+    required this.focusNode,
+    required this.groupId,
+    required this.keyboardType,
+    required this.keypad,
+    required this.onChanged,
+    required this.onOutsideDown,
+    required this.onOutsideUp,
+  });
+
+  final Key fieldKey;
+  final String label;
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final Object groupId;
+  final TextInputType keyboardType;
+  final bool keypad;
+  final ValueChanged<String> onChanged;
+  final ValueChanged<PointerDownEvent> onOutsideDown;
+  final void Function(FocusNode, PointerUpEvent) onOutsideUp;
+
+  @override
+  Widget build(BuildContext context) {
+    final field = TextField(
+      key: fieldKey,
+      controller: controller,
+      focusNode: focusNode,
+      groupId: groupId,
+      textAlign: TextAlign.end,
+      keyboardType: keyboardType,
+      maxLines: null,
+      style: addRowValueStyle(context),
+      cursorColor: context.colors.focus,
+      decoration: const InputDecoration(
+        isDense: true,
+        contentPadding: EdgeInsets.zero,
+        border: InputBorder.none,
+        enabledBorder: InputBorder.none,
+        focusedBorder: InputBorder.none,
+      ),
+      onChanged: onChanged,
+      onTapOutside: onOutsideDown,
+      onTapUpOutside: (event) => onOutsideUp(focusNode, event),
+    );
+    return TextFieldTapRegion(
+      groupId: groupId,
+      child: AddEntryRow(
+        label: label,
+        value: field,
+        keypad: keypad,
+        onTap: () {
+          if (!focusNode.hasFocus) focusNode.requestFocus();
+        },
+      ),
+    );
   }
 }
 
@@ -226,9 +308,9 @@ class _PickerRow extends StatelessWidget {
   }
 }
 
-// MARK: - NameDivider
-class _NameDivider extends StatelessWidget {
-  const _NameDivider({required this.focusNode});
+// MARK: - FocusDivider
+class _FocusDivider extends StatelessWidget {
+  const _FocusDivider({required this.focusNode});
 
   final FocusNode focusNode;
 

@@ -717,6 +717,45 @@ void main() {
       expect(added.note, isNull);
     });
 
+    test(
+      'a recurring save puts the note on the plan and every occurrence',
+      () async {
+        final ledger = buildLedger();
+        final container = containerFor(ledger);
+        final viewModel = await openedAdd(container);
+        await fillRequired(viewModel);
+        viewModel.applyPickedRecurrence(RecurrenceFrequency.weekly);
+        viewModel.setNote('  split\nrent  ');
+        await viewModel.save();
+        ledger.resolvePlans(
+          startOfDayUtc(DateTime.now()).add(const Duration(days: 21)),
+        );
+
+        final plan = ledger.state.plans.values.single;
+        expect(plan.template.note, 'split\nrent');
+        expect(ledger.state.entries.length, greaterThan(1));
+        for (final entry in ledger.state.entries.values) {
+          expect(entry.note, 'split\nrent');
+        }
+      },
+    );
+
+    test(
+      'a recurring save without a typed note leaves the plan note null',
+      () async {
+        final ledger = buildLedger();
+        final container = containerFor(ledger);
+        final viewModel = await openedAdd(container);
+        await fillRequired(viewModel);
+        viewModel.applyPickedRecurrence(RecurrenceFrequency.monthly);
+        viewModel.setNote('   ');
+        await viewModel.save();
+
+        expect(ledger.state.plans.values.single.template.note, isNull);
+        expect(ledger.state.entries.values.single.note, isNull);
+      },
+    );
+
     test('setKind keeps the note draft while clearing the category', () async {
       final container = containerFor(buildLedger());
       final viewModel = await openedAdd(container);

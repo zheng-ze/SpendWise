@@ -333,6 +333,7 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
       sourceID: signedEntry.sourceID,
       destinationID: signedEntry.destinationID,
       includeInAnalysis: signedEntry.includeInAnalysis,
+      note: signedEntry.note,
     );
     return RecurringPlan(
       template: template,

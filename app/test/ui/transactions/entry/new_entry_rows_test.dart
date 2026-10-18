@@ -75,10 +75,15 @@ class _Fixture {
   final nameController = TextEditingController();
   final nameFocus = FocusNode();
   final nameGroupId = Object();
+  final noteController = TextEditingController();
+  final noteFocus = FocusNode();
+  final noteGroupId = Object();
 
   void dispose() {
     nameController.dispose();
     nameFocus.dispose();
+    noteController.dispose();
+    noteFocus.dispose();
   }
 
   Widget rows(
@@ -93,6 +98,9 @@ class _Fixture {
       nameController: nameController,
       nameFocus: nameFocus,
       nameGroupId: nameGroupId,
+      noteController: noteController,
+      noteFocus: noteFocus,
+      noteGroupId: noteGroupId,
       keypad: keypad,
       onOutsideDown: (_) {},
       onOutsideUp: (node, _) => node.unfocus(),
@@ -138,26 +146,28 @@ Finder _row(String key) => find.byKey(ValueKey('new-entry-$key'));
 
 void main() {
   group('row order', () {
-    testWidgets('an expense lists its rows in order with no Note', (
-      tester,
-    ) async {
-      await _pump(tester, _state());
+    testWidgets(
+      'an expense lists its rows in order with Note before Include in analysis',
+      (tester) async {
+        await _pump(tester, _state());
 
-      final labels = [
-        'Name',
-        'Category',
-        'Account',
-        'Date',
-        'Repeat',
-        'Include in analysis',
-      ];
-      final tops = [for (final label in labels) _top(tester, label)];
-      expect(tops, orderedEquals([...tops]..sort()));
-      expect(find.text('Note'), findsNothing);
-      expect(find.byType(EntryRowDivider), findsNWidgets(labels.length - 1));
-      expect(find.text('Ends'), findsNothing);
-      expect(find.text(_hint), findsNothing);
-    }, timeout: uiTestTimeout);
+        final labels = [
+          'Name',
+          'Category',
+          'Account',
+          'Date',
+          'Repeat',
+          'Note',
+          'Include in analysis',
+        ];
+        final tops = [for (final label in labels) _top(tester, label)];
+        expect(tops, orderedEquals([...tops]..sort()));
+        expect(find.byType(EntryRowDivider), findsNWidgets(labels.length - 1));
+        expect(find.text('Ends'), findsNothing);
+        expect(find.text(_hint), findsNothing);
+      },
+      timeout: uiTestTimeout,
+    );
 
     testWidgets('a transfer swaps Category and Account for From and To', (
       tester,
@@ -176,15 +186,16 @@ void main() {
         await _pump(tester, _state(recurrence: RecurrenceFrequency.monthly));
 
         expect(_top(tester, 'Repeat'), lessThan(_top(tester, 'Ends')));
+        expect(_top(tester, 'Ends'), lessThan(_top(tester, 'Note')));
         expect(
-          _top(tester, 'Ends'),
+          _top(tester, 'Note'),
           lessThan(_top(tester, 'Include in analysis')),
         );
         expect(
           _top(tester, _hint),
           greaterThan(_top(tester, 'Include in analysis')),
         );
-        expect(find.byType(EntryRowDivider), findsNWidgets(6));
+        expect(find.byType(EntryRowDivider), findsNWidgets(7));
         final hint = tester.widget<Text>(find.text(_hint));
         expect(hint.style?.fontSize, 10);
         expect(hint.style?.height, 1.4);
@@ -203,7 +214,9 @@ void main() {
       expect(find.text('Select'), findsOneWidget);
       expect(find.text('Does not repeat'), findsOneWidget);
       expect(fixture.nameController.text, isEmpty);
+      expect(fixture.noteController.text, isEmpty);
       expect(find.text('Name'), findsOneWidget);
+      expect(find.text('Note'), findsOneWidget);
     }, timeout: uiTestTimeout);
 
     testWidgets('Repeat and Ends show the frequency and Never or the date', (
@@ -360,6 +373,106 @@ void main() {
             widget.constraints?.maxHeight == _focusUnderline,
       );
       expect(underline, findsOneWidget);
+    }, timeout: uiTestTimeout);
+  });
+
+  group('Note focus', () {
+    testWidgets('tapping the Note label focuses once and keeps its text', (
+      tester,
+    ) async {
+      final fixture = await _pump(tester, _state());
+
+      await tester.tap(find.text('Note'));
+      await tester.pump();
+      expect(fixture.noteFocus.hasFocus, isTrue);
+
+      fixture.noteController.value = const TextEditingValue(
+        text: 'Split\nbill',
+        selection: TextSelection(baseOffset: 1, extentOffset: 3),
+      );
+      await tester.tap(find.text('Note'));
+      await tester.pump();
+
+      expect(fixture.noteFocus.hasFocus, isTrue);
+      expect(fixture.noteController.text, 'Split\nbill');
+      expect(fixture.noteController.selection.baseOffset, 1);
+      expect(fixture.noteController.selection.extentOffset, 3);
+    }, timeout: uiTestTimeout);
+
+    testWidgets('a stacked Note row keeps focus when its label is tapped', (
+      tester,
+    ) async {
+      final fixture = await _pump(
+        tester,
+        _state(),
+        width: _stackedWidth,
+        textScale: _largeText,
+      );
+      final note = find.byKey(const ValueKey('new-entry-note'));
+      await tester.ensureVisible(find.text('Note'));
+      await tester.pump();
+
+      await tester.tap(find.text('Note'));
+      await tester.pump();
+      await tester.tap(find.text('Note'));
+      await tester.pump();
+      await tester.tap(note);
+      await tester.pump();
+
+      expect(fixture.noteFocus.hasFocus, isTrue);
+      expect(tester.takeException(), isNull);
+    }, timeout: uiTestTimeout);
+
+    testWidgets('a tap on another row unfocuses Note', (tester) async {
+      final fixture = await _pump(tester, _state());
+      await tester.tap(find.text('Note'));
+      await tester.pump();
+
+      await tester.tap(_row('date'));
+      await tester.pump();
+
+      expect(fixture.noteFocus.hasFocus, isFalse);
+    }, timeout: uiTestTimeout);
+
+    testWidgets('a focused Note swaps its divider for one focus underline', (
+      tester,
+    ) async {
+      final fixture = await _pump(tester, _state());
+      final dividers = find.byType(EntryRowDivider).evaluate().length;
+
+      await tester.tap(find.text('Note'));
+      await tester.pump();
+      expect(fixture.noteFocus.hasFocus, isTrue);
+
+      expect(find.byType(EntryRowDivider), findsNWidgets(dividers - 1));
+      final underline = find.byWidgetPredicate(
+        (widget) =>
+            widget is Container &&
+            widget.color == SpendWiseColors.light.focus &&
+            widget.constraints?.maxHeight == _focusUnderline,
+      );
+      expect(underline, findsOneWidget);
+    }, timeout: uiTestTimeout);
+
+    testWidgets('a long multiline Note grows the row without overflow', (
+      tester,
+    ) async {
+      final fixture = await _pump(
+        tester,
+        _state(),
+        width: _narrowWidth,
+        textScale: _largeText,
+      );
+      final before = tester.getSize(_row('note')).height;
+
+      fixture.noteController.text = List.filled(
+        8,
+        'Dinner with the team',
+      ).join('\n');
+      await tester.pump();
+
+      expect(tester.takeException(), isNull);
+      expect(tester.getSize(_row('note')).height, greaterThan(before));
     }, timeout: uiTestTimeout);
   });
 

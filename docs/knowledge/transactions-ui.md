@@ -93,17 +93,19 @@ plain back control.
 - **Entry form** - three modes. New uses the amount-first `NewEntryForm`: kind selector,
   `AddAmountBlock`, the `NewEntryRows` group, then `ReceiptScanStrip` outside the group. Edit keeps
   `EntryFields`; Add no longer uses it. `NewEntryRows` lays out Name, Category, Account (Transfer:
-  From, To), Date, Repeat, Ends (only while recurring) and Include in analysis, with one
+  From, To), Date, Repeat, Ends (only while recurring), Note and Include in analysis, with one
   `EntryRowDivider` between adjacent rows and the hint "Saving creates a plan. Review it in
   Money, Plans." after the last row of a recurring draft, without a divider. Each row is an
   `AddEntryRow` (`add_entry_row.dart`): 12 dp secondary label on the left, 12 dp w500 primary
   value on the right, 10 dp gap, 8 dp vertical padding while the pad shows and 10 dp otherwise,
   and a 13 dp trailing chevron on picker rows. A row stacks its label above the value when the
   scaled label, gap, 48 dp minimum value and chevron do not fit. Empty values read Choose
-  (Category), Select (Account, From, To), Does not repeat and Never. There is no Note row yet.
-  Name is an inline right-aligned `TextField` (key `new-entry-name`) whose label and value share
-  one `TextFieldTapRegion` group id, so tapping the focused row keeps focus; a focused Name
-  replaces the divider below it with a 2 dp focus-colour underline. Opening any picker row
+  (Category), Select (Account, From, To), Does not repeat and Never.
+  Name and Note are inline right-aligned multiline `TextField`s (keys `new-entry-name`,
+  `new-entry-note`, minLines 1, no length limit, blank with no hint text) built by one private
+  `_InlineTextRow`; each row's label and value share one `TextFieldTapRegion` group id, so tapping
+  the focused row keeps focus. A focused Name or Note replaces the divider below it with a 2 dp
+  focus-colour underline (`_FocusDivider`). Opening any picker row
   unfocuses the current field first.
   `NewEntryHeader` shows only the title on phone and desktop, and the title with Save in open
   layout (a spacer of equal width keeps the title centered). There is no Cancel in any layout.
@@ -119,8 +121,9 @@ plain back control.
   prefill applies once on the first success. Save failures keep every field and project a
   "Could not save entry" alert outside the sheet; a fresh save attempt clears a previous save
   error, and concurrent or post-dismissal saves create no extra entry. The form state carries a
-  `noteText` draft (`setNote`); a one-time new-entry save passes it to `Entry`, while Edit saves
-  keep reading the latest persisted note. Account/category labels and icon data resolve through
+  `noteText` draft (`setNote`); a one-time new-entry save passes it to `Entry`, a recurring save
+  passes `signedEntry.note` to the `EntryTemplate` in `_recurringPlanFor` so the plan and every
+  generated occurrence carry it, while Edit saves keep reading the latest persisted note. Account/category labels and icon data resolve through
   `entryFormDisplayProvider`, an autoDispose projection of the raw draft and current ledger state
   that listens to `Ledger` notifications without rebuilding the draft; unresolvable selections
   show "Unavailable account" / "Unavailable category".
@@ -163,7 +166,7 @@ plain back control.
   field uses `TextInputType.none`; Name uses the system keyboard. Desktop uses the system numeric
   keyboard for Amount and never mounts the pad. A tap outside the focused field unfocuses it;
   a drag exceeding touch slop preserves focus. Tapping anywhere in `AddAmountBlock` requests Amount
-  focus and reopens the pad. Closing Name's keyboard restores Amount focus on phone and open.
+  focus and reopens the pad. Closing the Name or Note keyboard restores Amount focus on phone and open.
   A picker return leaves both input surfaces dismissed until the user taps Amount or a text field.
   (`app/lib/ui/transactions/entry/new_entry_form.dart`, `add_amount_block.dart`)
 - `AnimatedInputSurface` animates pad entry for 240 ms and exit for 200 ms, retaining the outgoing
@@ -188,7 +191,8 @@ plain back control.
 
 The amount-first host renders the reference row shell described under Entry form. Repeat is its
 own row, not a button beside Date. Receipt input remains
-`ReceiptScanStrip` with camera/upload actions. `noteText` is draft state without a Note input.
+`ReceiptScanStrip` with camera/upload actions. `noteText` is the draft behind the inline Note row; the host retains the Note controller
+and focus node beside Name's, and Note focus grows the phone sheet like Name focus.
 (`app/lib/ui/transactions/entry/new_entry_form.dart`, `new_entry_rows.dart`,
 `entry_form_state.dart` - `EntryFormViewState.noteText`,
 `app/lib/ui/transactions/receipt_scan/receipt_scan_strip.dart`)

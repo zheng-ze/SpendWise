@@ -18,6 +18,8 @@ const _dragDown = Offset(0, 320);
 
 Finder get _amountField => find.byType(TextField).first;
 
+Finder get _noteField => find.byKey(const ValueKey('new-entry-note'));
+
 Finder get _nameField => find.byType(TextField).at(1);
 
 Future<EntryHarness> _openAdd(
@@ -179,6 +181,60 @@ void main() {
       expect(tester.testTextInput.isVisible, isFalse);
       expect(find.byType(NumberPad), findsNothing);
     }, timeout: uiTestTimeout);
+  });
+
+  group('Note in the live Add sheet', () {
+    const multiline = 'first line\nsecond line';
+
+    Future<void> typeNote(WidgetTester tester) async {
+      await tester.ensureVisible(_noteField);
+      await tester.pumpAndSettle();
+      await tester.tap(_noteField);
+      await tester.pumpAndSettle();
+      await tester.enterText(_noteField, multiline);
+      await tester.pumpAndSettle();
+    }
+
+    String noteDraft(EntryHarness harness) => harness.container
+        .read(entryFormViewModelProvider(null))
+        .value!
+        .noteText;
+
+    testWidgets(
+      'typing multiline text reaches the draft with the keyboard up',
+      (tester) async {
+        final harness = await _openAdd(tester);
+
+        await typeNote(tester);
+
+        expect(noteDraft(harness), multiline);
+        expect(tester.testTextInput.isVisible, isTrue);
+        expect(find.byType(NumberPad), findsNothing);
+        expect(find.text('Save entry').hitTestable(), findsOneWidget);
+      },
+      timeout: uiTestTimeout,
+    );
+
+    testWidgets(
+      'opening Repeat from Note keeps the draft and both surfaces down',
+      (tester) async {
+        final harness = await _openAdd(tester);
+        await typeNote(tester);
+
+        await tester.ensureVisible(find.text('Repeat'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Repeat'));
+        await tester.pumpAndSettle();
+        await tester.tapAt(_cancelPickerTap);
+        await tester.pumpAndSettle();
+
+        expect(noteDraft(harness), multiline);
+        expect(tester.testTextInput.isVisible, isFalse);
+        expect(find.byType(NumberPad), findsNothing);
+        expect(harness.recorder.sheets, hasLength(1));
+      },
+      timeout: uiTestTimeout,
+    );
   });
 
   group('drag to dismiss', () {

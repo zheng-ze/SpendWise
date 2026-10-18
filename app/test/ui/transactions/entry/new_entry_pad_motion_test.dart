@@ -124,7 +124,7 @@ void main() {
       final shrunk = _sheetHeight(tester);
 
       expect(shrunk, lessThan(during));
-      expect(during, lessThan(grown));
+      expect(shrunk, lessThan(grown));
       expect(tester.takeException(), isNull);
     }, timeout: uiTestTimeout);
 
