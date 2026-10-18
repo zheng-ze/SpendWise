@@ -170,9 +170,9 @@ plain back control.
   A picker return leaves both input surfaces dismissed until the user taps Amount or a text field.
   (`app/lib/ui/transactions/entry/new_entry_form.dart`, `add_amount_block.dart`)
 - `AnimatedInputSurface` animates pad entry for 240 ms and exit for 200 ms, retaining the outgoing
-  pad until its exit settles. Phone Add sets `AppSheet.phoneMaxHeightFraction` to 1.0, overriding
-  the 0.66 default, so the sheet is as tall as its content and changes height only when the pad
-  or the system keyboard appears or disappears. Reduced motion settles the pad change immediately.
+  pad until its exit settles. Phone Add interpolates `AppSheet.phoneMaxHeightFraction` from 0.66
+  to 1.0 while the pad or text keyboard is active, allowing the sheet to grow toward the top safe
+  area. Reduced motion settles the pad and height change immediately.
   (`app/lib/ui/transactions/entry/animated_input_surface.dart`, `new_entry_form.dart`)
 - An outgoing pad and rising keyboard can coexist in a handoff frame. Reserved pad height is clamped
   to `max(0, 192 - keyboardInset)` dp, so their combined reserved height stays at most one pad

@@ -21,16 +21,20 @@ const _shown = 1.0;
 typedef InputSurfaceBuilder = Widget Function(
   BuildContext context,
   Widget surface,
+  double growth,
 );
 
 class AnimatedInputSurface extends StatefulWidget {
   const AnimatedInputSurface({
     super.key,
     required this.child,
+    required this.grown,
     required this.builder,
   });
 
   final Widget? child;
+
+  final bool grown;
 
   final InputSurfaceBuilder builder;
 
@@ -44,11 +48,16 @@ class _AnimatedInputSurfaceState extends State<AnimatedInputSurface>
     vsync: this,
     value: widget.child == null ? _hidden : _shown,
   )..addStatusListener(_dropWhenHidden);
+  late final _growth = AnimationController(
+    vsync: this,
+    value: widget.grown ? _shown : _hidden,
+  );
   Widget? _lastChild;
 
   @override
   void dispose() {
     _surface.dispose();
+    _growth.dispose();
     super.dispose();
   }
 
@@ -62,6 +71,7 @@ class _AnimatedInputSurfaceState extends State<AnimatedInputSurface>
   void didUpdateWidget(AnimatedInputSurface oldWidget) {
     super.didUpdateWidget(oldWidget);
     _drive(_surface, widget.child != null);
+    _drive(_growth, widget.grown);
   }
 
   void _drive(AnimationController controller, bool entering) {
@@ -87,7 +97,7 @@ class _AnimatedInputSurfaceState extends State<AnimatedInputSurface>
   Widget build(BuildContext context) {
     _lastChild = widget.child ?? _lastChild;
     return ListenableBuilder(
-      listenable: _surface,
+      listenable: Listenable.merge([_surface, _growth]),
       builder: (context, _) {
         final factor = _surfaceFactor(context);
         final slid = FractionalTranslation(
@@ -100,7 +110,7 @@ class _AnimatedInputSurfaceState extends State<AnimatedInputSurface>
           child: slid,
         );
         final surface = ClipRect(child: aligned);
-        return widget.builder(context, surface);
+        return widget.builder(context, surface, _growth.value);
       },
     );
   }
