@@ -62,3 +62,6 @@ docs/HANDOVER.md
 prototypes
 .lavish
 .ticket-context/
+
+# Local macOS signing team (see README)
+app/macos/Runner/Configs/Signing.local.xcconfig
