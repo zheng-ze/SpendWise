@@ -124,7 +124,7 @@ void main() {
       await tester.pumpAndSettle();
       final top = _sheetTop(tester);
 
-      await tester.drag(find.text('Account'), _scrolledBackDown);
+      await tester.drag(find.text('Date'), _scrolledBackDown);
       await tester.pumpAndSettle();
 
       expect(harness.recorder.sheets, hasLength(1));

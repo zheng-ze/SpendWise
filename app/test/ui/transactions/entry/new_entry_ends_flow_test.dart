@@ -14,11 +14,15 @@ import 'new_entry_session_harness.dart';
 
 const _outsideTap = Offset(5, 5);
 const _nameKey = ValueKey('new-entry-name');
+const _noteKey = ValueKey('new-entry-note');
 const _everyMonth = 'Every month';
 const _chooseDate = 'Choose date';
 const _keyboardHeight = 300.0;
 
-enum _Origin { pad, name }
+enum _Origin { pad, name, note }
+
+Finder _textFinder(_Origin origin) =>
+    find.byKey(origin == _Origin.note ? _noteKey : _nameKey);
 
 EntryFormViewState _state(EntryHarness harness) =>
     harness.container.read(entryFormViewModelProvider(null)).value!;
@@ -26,10 +30,11 @@ EntryFormViewState _state(EntryHarness harness) =>
 Future<EntryHarness> _openAdd(WidgetTester tester, _Origin origin) async {
   final harness = await pumpShell(tester);
   await openAdd(tester, harness);
-  if (origin == _Origin.name) {
-    await tester.tap(find.byKey(_nameKey));
-    await tester.pumpAndSettle();
-  }
+  if (origin == _Origin.pad) return harness;
+  await tester.ensureVisible(_textFinder(origin));
+  await tester.pumpAndSettle();
+  await tester.tap(_textFinder(origin));
+  await tester.pumpAndSettle();
   return harness;
 }
 
@@ -44,13 +49,13 @@ Future<void> _tapRow(WidgetTester tester, String key) async {
 Future<void> _refocus(WidgetTester tester, _Origin origin) async {
   final target = origin == _Origin.pad
       ? find.byType(TextField).first
-      : find.byKey(_nameKey);
+      : _textFinder(origin);
   await tester.ensureVisible(target);
   await tester.pumpAndSettle();
   await tester.tap(target);
   await tester.pumpAndSettle();
   expect(find.byType(NumberPad).evaluate().isNotEmpty, origin == _Origin.pad);
-  if (origin == _Origin.name) expect(tester.testTextInput.isVisible, isTrue);
+  if (origin != _Origin.pad) expect(tester.testTextInput.isVisible, isTrue);
 }
 
 Future<void> _chooseEndsAction(
@@ -158,6 +163,19 @@ void main() {
       }, timeout: uiTestTimeout);
     });
   }
+
+  testWidgets('Ends from Note focus keeps the typed note', (tester) async {
+    final harness = await _openAdd(tester, _Origin.note);
+    await tester.enterText(_textFinder(_Origin.note), 'keep\nthis');
+    await _makeRecurring(tester);
+
+    await _chooseEndsAction(tester, _Origin.note, _chooseDate);
+    await tester.tap(find.byKey(pickerDoneKey));
+    await tester.pumpAndSettle();
+
+    expect(_state(harness).noteText, 'keep\nthis');
+    _expectInputsDismissed(tester);
+  }, timeout: uiTestTimeout);
 
   group('Ends choice', () {
     testWidgets('lists Never and Choose date with no Cancel', (tester) async {

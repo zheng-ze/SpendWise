@@ -62,9 +62,14 @@ class _NewEntryFormState extends State<NewEntryForm> {
   late final _nameController = TextEditingController(
     text: widget.state.nameText,
   );
+  late final _noteController = TextEditingController(
+    text: widget.state.noteText,
+  );
   final _amountFocus = FocusNode();
   final _nameFocus = FocusNode();
+  final _noteFocus = FocusNode();
   final _nameGroupId = Object();
+  final _noteGroupId = Object();
   bool _keyboardSeen = false;
   bool _padShown = false;
   Offset? _outsideDownAt;
@@ -73,6 +78,8 @@ class _NewEntryFormState extends State<NewEntryForm> {
   void initState() {
     super.initState();
     _amountFocus.addListener(_refresh);
+    _nameFocus.addListener(_refresh);
+    _noteFocus.addListener(_refresh);
     WidgetsBinding.instance.addPostFrameCallback((_) => _autofocusAmount());
   }
 
@@ -82,7 +89,8 @@ class _NewEntryFormState extends State<NewEntryForm> {
     final keyboardUp = MediaQuery.viewInsetsOf(context).bottom > 0;
     final dismissed = _keyboardSeen && !keyboardUp;
     _keyboardSeen = keyboardUp;
-    final restorePad = dismissed && _nameFocus.hasFocus && _usesPad;
+    final textFocused = _nameFocus.hasFocus || _noteFocus.hasFocus;
+    final restorePad = dismissed && textFocused && _usesPad;
     if (restorePad) _amountFocus.requestFocus();
   }
 
@@ -105,15 +113,22 @@ class _NewEntryFormState extends State<NewEntryForm> {
     if (_nameController.text != widget.state.nameText) {
       _nameController.text = widget.state.nameText;
     }
+    if (_noteController.text != widget.state.noteText) {
+      _noteController.text = widget.state.noteText;
+    }
   }
 
   @override
   void dispose() {
     _amountFocus.removeListener(_refresh);
+    _nameFocus.removeListener(_refresh);
+    _noteFocus.removeListener(_refresh);
     _amountFocus.dispose();
     _nameFocus.dispose();
+    _noteFocus.dispose();
     _amountController.dispose();
     _nameController.dispose();
+    _noteController.dispose();
     super.dispose();
   }
 
@@ -154,7 +169,8 @@ class _NewEntryFormState extends State<NewEntryForm> {
     final leaving = exiting || state.dismissed;
     final padVisible = leaving ? _padShown : focusedPad;
     _padShown = padVisible;
-    final grown = padVisible || _nameFocus.hasFocus || keyboardUp;
+    final grown =
+        padVisible || _nameFocus.hasFocus || _noteFocus.hasFocus || keyboardUp;
     final save = state.canSave ? viewModel.save : null;
     final header = NewEntryHeader(presentation: presentation, onSave: save);
     final body = _NewEntryBody(
@@ -166,6 +182,9 @@ class _NewEntryFormState extends State<NewEntryForm> {
       amountFocus: _amountFocus,
       nameFocus: _nameFocus,
       nameGroupId: _nameGroupId,
+      noteController: _noteController,
+      noteFocus: _noteFocus,
+      noteGroupId: _noteGroupId,
       systemKeyboard: desktop,
       keypad: padVisible,
       display: widget.display,
@@ -216,6 +235,9 @@ class _NewEntryBody extends StatelessWidget {
     required this.amountFocus,
     required this.nameFocus,
     required this.nameGroupId,
+    required this.noteController,
+    required this.noteFocus,
+    required this.noteGroupId,
     required this.systemKeyboard,
     required this.keypad,
     required this.display,
@@ -231,6 +253,9 @@ class _NewEntryBody extends StatelessWidget {
   final FocusNode amountFocus;
   final FocusNode nameFocus;
   final Object nameGroupId;
+  final TextEditingController noteController;
+  final FocusNode noteFocus;
+  final Object noteGroupId;
   final bool systemKeyboard;
   final bool keypad;
   final EntryFormDisplay display;
@@ -269,6 +294,9 @@ class _NewEntryBody extends StatelessWidget {
       nameController: nameController,
       nameFocus: nameFocus,
       nameGroupId: nameGroupId,
+      noteController: noteController,
+      noteFocus: noteFocus,
+      noteGroupId: noteGroupId,
       keypad: keypad,
       onOutsideDown: onOutsideDown,
       onOutsideUp: onOutsideUp,
