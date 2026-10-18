@@ -28,6 +28,7 @@ abstract class EntryFormViewModel {
   void requestPickDate();
   void applyPickedDate(DateTime? date);
   void requestPickEndDate();
+  void requestPickEnds();
   void applyPickedEndDate(DateTime? date);
   void requestPickSource();
   void applyPickedSource(String? id);
@@ -182,9 +183,14 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
   void requestPickEndDate() => emitStep(PickEndDateRequested());
 
   @override
+  void requestPickEnds() => emitStep(PickEndsRequested());
+
+  @override
   void applyPickedEndDate(DateTime? date) {
     if (date == null) return;
-    updateState((current) => current.copyWith(endDate: () => date));
+    updateState(
+      (current) => current.copyWith(hasEndDate: true, endDate: () => date),
+    );
   }
 
   @override

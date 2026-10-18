@@ -36,6 +36,8 @@ class PickDateRequested extends TransactionsStep {}
 
 class PickEndDateRequested extends TransactionsStep {}
 
+class PickEndsRequested extends TransactionsStep {}
+
 class DocumentCropRequested extends TransactionsStep {
   DocumentCropRequested(this.imageBytes);
 

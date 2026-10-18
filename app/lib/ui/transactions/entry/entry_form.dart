@@ -70,6 +70,7 @@ class EntryForm extends ConsumerWidget {
             formKey: key,
             viewModel: viewModel,
             state: state,
+            display: ref.watch(entryFormDisplayProvider(key)),
           ),
         };
       },

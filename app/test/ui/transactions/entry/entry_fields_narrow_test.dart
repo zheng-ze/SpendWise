@@ -7,6 +7,7 @@ import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/entry/fields/entry_fields.dart';
+import 'package:spendwise/ui/transactions/entry/view_entry_form.dart';
 import 'package:spendwise/ui/transactions/entry/steps/entry_form_logic.dart';
 
 import '../../../support/ui_test_timeout.dart';
@@ -14,6 +15,7 @@ import '../../../support/ui_test_timeout.dart';
 const narrowContentWidth = 202.0;
 const normalContentWidth = 400.0;
 const largeTextScale = 1.5;
+const viewHeight = 600.0;
 const normalTextScale = 1.0;
 const checkingId = 'a0000000-0000-0000-0000-000000000001';
 const savingsId = 'a0000000-0000-0000-0000-000000000002';
@@ -64,8 +66,6 @@ EntryFormViewState buildState({
   required EntryFormMode mode,
   EntryFormKind kind = EntryFormKind.expense,
   String? destinationId,
-  RecurrenceFrequency? recurrence,
-  bool hasEndDate = false,
 }) {
   return EntryFormViewState(
     mode: mode,
@@ -77,11 +77,11 @@ EntryFormViewState buildState({
     destinationId: destinationId,
     categoryId: groceriesId,
     includeInAnalysis: true,
-    recurrence: recurrence,
-    hasEndDate: hasEndDate,
+    recurrence: null,
+    hasEndDate: false,
     endDate: DateTime.utc(2027, 1, 16),
     isSystemEntry: false,
-    entryId: mode == EntryFormMode.newEntry ? null : 'entry-1',
+    entryId: 'entry-1',
   );
 }
 
@@ -92,29 +92,26 @@ TransitionBuilder textScaled(double scale) {
   );
 }
 
-Widget narrowBody({
-  required EntryFormViewState state,
-  required bool readOnly,
-  required double width,
-}) {
-  final fields = EntryFields(
-    viewModel: _FakeEntryFormViewModel(),
-    state: state,
-    readOnly: readOnly,
-  );
+Widget narrowBody({required Widget content, required double width}) {
   return SingleChildScrollView(
-    child: SizedBox(width: width, child: fields),
+    child: SizedBox(width: width, child: content),
   );
 }
 
 Future<void> pumpFields(
   WidgetTester tester, {
   required EntryFormViewState state,
-  required bool readOnly,
   double width = narrowContentWidth,
   double textScale = largeTextScale,
+  bool viewing = false,
 }) async {
-  final body = narrowBody(state: state, readOnly: readOnly, width: width);
+  final viewModel = _FakeEntryFormViewModel();
+  final Widget content = viewing
+      ? ViewEntryForm(viewModel: viewModel, state: state)
+      : EntryFields(viewModel: viewModel, state: state, readOnly: false);
+  final body = viewing
+      ? SizedBox(width: width, height: viewHeight, child: content)
+      : narrowBody(content: content, width: width);
   await tester.pumpWidget(
     ProviderScope(
       overrides: [ledgerProvider.overrideWithValue(buildLedger())],
@@ -129,33 +126,10 @@ Future<void> pumpFields(
 
 void main() {
   group('EntryFields at 202 dp and 1.5x text', () {
-    testWidgets('the add rows with recurrence and an end date lay out', (
-      tester,
-    ) async {
-      await pumpFields(
-        tester,
-        state: buildState(
-          mode: EntryFormMode.newEntry,
-          recurrence: RecurrenceFrequency.monthly,
-          hasEndDate: true,
-        ),
-        readOnly: false,
-      );
-
-      expect(tester.takeException(), isNull);
-      expect(find.text('Date'), findsOneWidget);
-      expect(find.text('End date'), findsOneWidget);
-      expect(find.text(includeInAnalysisLabel), findsOneWidget);
-    }, timeout: uiTestTimeout);
-
     testWidgets('the edit rows show the long account and category names', (
       tester,
     ) async {
-      await pumpFields(
-        tester,
-        state: buildState(mode: EntryFormMode.editing),
-        readOnly: false,
-      );
+      await pumpFields(tester, state: buildState(mode: EntryFormMode.editing));
 
       expect(tester.takeException(), isNull);
       expect(find.text('Account'), findsOneWidget);
@@ -164,13 +138,15 @@ void main() {
       expect(find.text(longCategoryName), findsOneWidget);
     }, timeout: uiTestTimeout);
 
-    testWidgets('the read-only view rows lay out and keep their values', (
+    testWidgets('the view form lays out at normal width and keeps its values', (
       tester,
     ) async {
       await pumpFields(
         tester,
         state: buildState(mode: EntryFormMode.viewing),
-        readOnly: true,
+        viewing: true,
+        width: normalContentWidth,
+        textScale: normalTextScale,
       );
 
       expect(tester.takeException(), isNull);
@@ -188,7 +164,6 @@ void main() {
           kind: EntryFormKind.transfer,
           destinationId: savingsId,
         ),
-        readOnly: false,
       );
 
       expect(tester.takeException(), isNull);
@@ -201,11 +176,7 @@ void main() {
     testWidgets('the analysis switch label stays inside the content width', (
       tester,
     ) async {
-      await pumpFields(
-        tester,
-        state: buildState(mode: EntryFormMode.newEntry),
-        readOnly: false,
-      );
+      await pumpFields(tester, state: buildState(mode: EntryFormMode.editing));
 
       expect(tester.takeException(), isNull);
       final labelRect = tester.getRect(find.text(includeInAnalysisLabel));
@@ -215,11 +186,7 @@ void main() {
     testWidgets('a value that wraps under its title stays right-aligned', (
       tester,
     ) async {
-      await pumpFields(
-        tester,
-        state: buildState(mode: EntryFormMode.editing),
-        readOnly: false,
-      );
+      await pumpFields(tester, state: buildState(mode: EntryFormMode.editing));
 
       final tileRect = tester.getRect(find.widgetWithText(ListTile, 'Account'));
       final valueRect = tester.getRect(find.text(longAccountName));
@@ -233,8 +200,7 @@ void main() {
     ) async {
       await pumpFields(
         tester,
-        state: buildState(mode: EntryFormMode.newEntry),
-        readOnly: false,
+        state: buildState(mode: EntryFormMode.editing),
         width: normalContentWidth,
         textScale: normalTextScale,
       );

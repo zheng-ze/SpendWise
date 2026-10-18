@@ -118,4 +118,8 @@ jobs:
 
       - name: Build macOS app
         working-directory: app
-        run: flutter build macos --debug
+        env:
+          XCODE_XCCONFIG_FILE: ${{ runner.temp }}/unsigned.xcconfig
+        run: |
+          echo 'CODE_SIGNING_ALLOWED = NO' > "$XCODE_XCCONFIG_FILE"
+          flutter build macos --debug

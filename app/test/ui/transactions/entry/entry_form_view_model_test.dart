@@ -9,6 +9,7 @@ import 'package:spendwise/ui/transactions/entry/steps/entry_form_logic.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_entry_coordinator.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_flow.dart';
+import 'package:spendwise/ui/transactions/transactions_view_model.dart';
 
 class _ImmediateScanCoordinator extends ReceiptEntryCoordinator {
   _ImmediateScanCoordinator() : super(null);
@@ -403,6 +404,69 @@ void main() {
         expect(state.endDate, DateTime.utc(2026, 6, 1));
       },
     );
+
+    test('applyPickedEndDate enables and sets the end date together', () async {
+      final container = containerFor(buildLedger());
+      await stateOf(container, null);
+      final viewModel = container.read(
+        entryFormViewModelProvider(null).notifier,
+      );
+      viewModel.applyPickedRecurrence(RecurrenceFrequency.monthly);
+
+      viewModel.applyPickedEndDate(DateTime.utc(2026, 12, 1));
+
+      final state = container.read(entryFormViewModelProvider(null)).value!;
+      expect(state.hasEndDate, isTrue);
+      expect(state.endDate, DateTime.utc(2026, 12, 1));
+    });
+
+    test('a null picked end date and Never keep the cached end date', () async {
+      final container = containerFor(buildLedger());
+      await stateOf(container, null);
+      final viewModel = container.read(
+        entryFormViewModelProvider(null).notifier,
+      );
+      viewModel.applyPickedRecurrence(RecurrenceFrequency.monthly);
+
+      viewModel.applyPickedEndDate(null);
+      var state = container.read(entryFormViewModelProvider(null)).value!;
+      expect(state.hasEndDate, isFalse);
+      expect(state.endDate, isNull);
+
+      viewModel.applyPickedEndDate(DateTime.utc(2026, 12, 1));
+      viewModel.setEndDateEnabled(false);
+      state = container.read(entryFormViewModelProvider(null)).value!;
+      expect(state.hasEndDate, isFalse);
+      expect(state.endDate, DateTime.utc(2026, 12, 1));
+    });
+
+    test('Does not repeat clears the end date and Never state', () async {
+      final container = containerFor(buildLedger());
+      await stateOf(container, null);
+      final viewModel = container.read(
+        entryFormViewModelProvider(null).notifier,
+      );
+      viewModel.applyPickedRecurrence(RecurrenceFrequency.monthly);
+      viewModel.applyPickedEndDate(DateTime.utc(2026, 12, 1));
+
+      viewModel.applyPickedRecurrence(null);
+
+      final state = container.read(entryFormViewModelProvider(null)).value!;
+      expect(state.hasEndDate, isFalse);
+      expect(state.endDate, isNull);
+    });
+
+    test('requestPickEnds emits PickEndsRequested', () async {
+      final container = containerFor(buildLedger());
+      await stateOf(container, null);
+
+      container
+          .read(entryFormViewModelProvider(null).notifier)
+          .requestPickEnds();
+
+      final state = container.read(entryFormViewModelProvider(null)).value!;
+      expect(state.step, isA<PickEndsRequested>());
+    });
 
     test('applying a late picker result after the provider is disposed is a no-op, not a throw', () async {
       final container = containerFor(buildLedger());

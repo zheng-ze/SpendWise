@@ -1,6 +1,6 @@
 # Transactions UI
 
-Last reconciled: 2026-10-17
+Last reconciled: 2026-10-18
 
 ## Feature overview
 
@@ -91,8 +91,20 @@ plain back control.
   months (a spillover week appears under both months). Tap a month expands only it; tap a week jumps
   to Daily view of that week's month.
 - **Entry form** - three modes. New uses the amount-first `NewEntryForm`: kind selector,
-  `AddAmountBlock`, Name and the remaining fields, then `ReceiptScanStrip`. The grouped form rows
-  have dividers between every row (`_withDividers`, `EntryRowDivider`).
+  `AddAmountBlock`, the `NewEntryRows` group, then `ReceiptScanStrip` outside the group. Edit keeps
+  `EntryFields`; Add no longer uses it. `NewEntryRows` lays out Name, Category, Account (Transfer:
+  From, To), Date, Repeat, Ends (only while recurring) and Include in analysis, with one
+  `EntryRowDivider` between adjacent rows and the hint "Saving creates a plan. Review it in
+  Money, Plans." after the last row of a recurring draft, without a divider. Each row is an
+  `AddEntryRow` (`add_entry_row.dart`): 12 dp secondary label on the left, 12 dp w500 primary
+  value on the right, 10 dp gap, 8 dp vertical padding while the pad shows and 10 dp otherwise,
+  and a 13 dp trailing chevron on picker rows. A row stacks its label above the value when the
+  scaled label, gap, 48 dp minimum value and chevron do not fit. Empty values read Choose
+  (Category), Select (Account, From, To), Does not repeat and Never. There is no Note row yet.
+  Name is an inline right-aligned `TextField` (key `new-entry-name`) whose label and value share
+  one `TextFieldTapRegion` group id, so tapping the focused row keeps focus; a focused Name
+  replaces the divider below it with a 2 dp focus-colour underline. Opening any picker row
+  unfocuses the current field first.
   `NewEntryHeader` shows only the title on phone and desktop, and the title with Save in open
   layout (a spacer of equal width keeps the title centered). There is no Cancel in any layout.
   `NewEntrySaveFooter` supplies Save entry in all layouts, driven by `canSave`.
@@ -114,9 +126,9 @@ plain back control.
   show "Unavailable account" / "Unavailable category".
   View existing ("Entry", leading ‹ Back, trailing ✎ Edit). Edit existing ("Edit Entry", leading ✕
   Back reverts fields to persisted values and drops to view mode with the sheet open). Fields: kind
-  segmented (changing kind clears the selected category), amount, name, date with a recurrence
-  button (new only), optional end date, source pickers (plus a To row for transfers, else a Category
-  row), and an "Include in Analysis" toggle. `canSave` is a pure function that requires a category for expense and income (transfers and system entries such as an opening balance have none), so Save stays disabled until one is chosen for a user entry; deeper rules are the
+  segmented (changing kind clears the selected category), amount, name, date, source pickers
+  (plus a To row for transfers, else a Category row), and an "Include in Analysis" toggle (Edit
+  and view; Add rows are described above, and recurrence with Ends exists only in Add). `canSave` is a pure function that requires a category for expense and income (transfers and system entries such as an opening balance have none), so Save stays disabled until one is chosen for a user entry; deeper rules are the
   domain validator's job and surface via the `ErrorSection` ("Could not save entry: <error>"). Save
   semantics: sign is applied from kind; edit stays open and flips to read-only; new without
   recurrence calls `addEntry`; new with recurrence builds an `EntryTemplate` and calls `addPlan`
@@ -128,10 +140,18 @@ plain back control.
   active accounts with active pockets as children and no None option. `CategoryPickerSheet` uses
   `EntryFormViewModel.categoryGroups`, ordered roots then children A–Z, offers no None option, and is never
   shown for transfers. `RecurrencePickerSheet` offers One time, Weekly, Biweekly, Monthly,
-  Quarterly, and Yearly. Add passes its live sheet-presentation resolver to category, account,
+  Quarterly, and Yearly; its Add presentation (`sheetPresentation` set) offers Does not repeat,
+  Every week, Every two weeks, Every month, Every three months and Every year
+  (`addFrequencyLabels`, `addNoRepeatLabel`). The Ends row calls `requestPickEnds`, which emits
+  `PickEndsRequested`; the shared handler (`_pickEnds`, Add with a live resolver and a selected
+  recurrence only) opens `showEndsChoiceSheet` (Never or Choose date, an `AppSheet` without a
+  reference frame) and Choose date awaits `_pickEndDate` directly. A dismissed choice or calendar
+  changes nothing, Never sets `hasEndDate` false and keeps the cached date, and
+  `applyPickedEndDate` sets `hasEndDate` and `endDate` together. Add passes its live sheet-presentation resolver to category, account,
   repeat, and date pickers, which use `AppSheet`; without that resolver, category, account, and
   repeat use their legacy modal sheets and date uses `showDatePicker` for Edit and view flows.
-  Picker option chevrons indicate parent drill-in; entry-form value rows have no trailing chevrons.
+  Picker option chevrons indicate parent drill-in; Add picker rows (Category, Account, From, To,
+  Date, Repeat, Ends) carry trailing chevrons, Edit rows do not.
   (`app/lib/ui/common/pickers/`, `app/lib/ui/transactions/entry/new_entry_presenter.dart`,
   `app/lib/ui/transactions/entry/steps/entry_step_handlers.dart`)
 - **Shell Add** — phone bar, open rail and desktop sidebar share one callback to the presenter. Transactions
@@ -166,10 +186,10 @@ plain back control.
   `app/lib/ui/transactions/entry/new_entry_presenter.dart`,
   `app/test/ui/transactions/entry/new_entry_sheet_drag_test.dart`)
 
-The amount-first host retains the existing field-row appearance and order. Repeat remains a
-button beside Date, and picker value rows have no trailing chevrons. Receipt input remains
+The amount-first host renders the reference row shell described under Entry form. Repeat is its
+own row, not a button beside Date. Receipt input remains
 `ReceiptScanStrip` with camera/upload actions. `noteText` is draft state without a Note input.
-(`app/lib/ui/transactions/entry/new_entry_form.dart`, `fields/entry_fields.dart`,
+(`app/lib/ui/transactions/entry/new_entry_form.dart`, `new_entry_rows.dart`,
 `entry_form_state.dart` - `EntryFormViewState.noteText`,
 `app/lib/ui/transactions/receipt_scan/receipt_scan_strip.dart`)
 

@@ -17,6 +17,16 @@ const Map<RecurrenceFrequency, String> frequencyLabels = {
   RecurrenceFrequency.yearly: 'Yearly',
 };
 
+const addNoRepeatLabel = 'Does not repeat';
+
+const Map<RecurrenceFrequency, String> addFrequencyLabels = {
+  RecurrenceFrequency.weekly: 'Every week',
+  RecurrenceFrequency.biweekly: 'Every two weeks',
+  RecurrenceFrequency.monthly: 'Every month',
+  RecurrenceFrequency.quarterly: 'Every three months',
+  RecurrenceFrequency.yearly: 'Every year',
+};
+
 // MARK: - Show
 
 Future<RecurrenceFrequency?> showRecurrencePickerSheet({
@@ -38,7 +48,13 @@ Future<RecurrenceFrequency?> showRecurrencePickerSheet({
           presentation: sheetPresentation,
           builder: (_) => AppPickerSheet(
             title: _titleLabel,
-            body: Column(children: _recurrenceRows(selected)),
+            body: Column(
+              children: _recurrenceRows(
+                selected,
+                oneTimeLabel: addNoRepeatLabel,
+                labels: addFrequencyLabels,
+              ),
+            ),
           ),
         );
   return outcome.then((chosen) => chosen == null ? selected : chosen.frequency);
@@ -53,16 +69,20 @@ class _RecurrenceOutcome {
 }
 
 // MARK: - Rows
-List<Widget> _recurrenceRows(RecurrenceFrequency? selected) {
+List<Widget> _recurrenceRows(
+  RecurrenceFrequency? selected, {
+  String oneTimeLabel = _oneTimeLabel,
+  Map<RecurrenceFrequency, String> labels = frequencyLabels,
+}) {
   return [
     _RecurrenceRow(
-      label: _oneTimeLabel,
+      label: oneTimeLabel,
       selected: selected == null,
       outcome: const _RecurrenceOutcome(null),
     ),
     for (final frequency in RecurrenceFrequency.values)
       _RecurrenceRow(
-        label: frequencyLabels[frequency]!,
+        label: labels[frequency]!,
         selected: selected == frequency,
         outcome: _RecurrenceOutcome(frequency),
       ),

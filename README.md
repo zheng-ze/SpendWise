@@ -66,6 +66,17 @@ a specific platform:
 flutter run -d macos     # or ios, android, windows, linux, chrome
 ```
 
+The macOS app declares the `keychain-access-groups` entitlement for secure storage, so a local
+build must be signed with your own Apple development team. Create the untracked file
+`app/macos/Runner/Configs/Signing.local.xcconfig`; the Runner target includes it when present:
+
+```sh
+printf 'DEVELOPMENT_TEAM = <your team id>\nCODE_SIGN_IDENTITY = Apple Development\n' \
+  > app/macos/Runner/Configs/Signing.local.xcconfig
+```
+
+CI builds macOS with code signing disabled.
+
 The app seeds sample data on first launch, so it's usable immediately without manual setup.
 
 ## Where to start

@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/common/pickers/category_picker.dart';
 import 'package:spendwise/ui/common/pickers/date_picker_sheet.dart';
+import 'package:spendwise/ui/common/pickers/ends_choice_sheet.dart';
 import 'package:spendwise/ui/common/pickers/recurrence_picker.dart';
 import 'package:spendwise/ui/common/pickers/source_picker.dart';
 import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
@@ -86,6 +87,16 @@ void dispatchEntryFormStep(
       );
     case PickEndDateRequested():
       _pickEndDate(
+        context,
+        ref,
+        formKey,
+        form,
+        useRootNavigator: useRootNavigator,
+        isCurrent: isCurrent,
+        sheetPresentation: sheetPresentation,
+      );
+    case PickEndsRequested():
+      _pickEnds(
         context,
         ref,
         formKey,
@@ -287,6 +298,48 @@ Future<void> _pickEndDate(
   if (!context.mounted || !_isCurrent(isCurrent)) return;
   if (picked == null) return;
   form.applyPickedEndDate(startOfDayUtc(picked));
+}
+
+Future<void> _pickEnds(
+  BuildContext context,
+  WidgetRef ref,
+  String? formKey,
+  EntryFormNotifier form, {
+  bool useRootNavigator = false,
+  bool Function()? isCurrent,
+  AppSheetPresentation Function(BuildContext)? sheetPresentation,
+}) async {
+  final presentation = sheetPresentation;
+  final provider = entryFormViewModelProvider(formKey);
+  final formState = ref.read(provider).value;
+  final addable =
+      formState?.mode == EntryFormMode.newEntry &&
+      formState?.recurrence != null;
+  if (presentation == null || !addable || !_isCurrent(isCurrent)) return;
+  if (!context.mounted) return;
+  final choice = await showEndsChoiceSheet(
+    context: context,
+    presentation: presentation,
+    hasEndDate: formState!.hasEndDate,
+  );
+  if (!context.mounted || !_isCurrent(isCurrent)) return;
+  if (ref.read(provider).value?.recurrence == null) return;
+  switch (choice) {
+    case null:
+      return;
+    case EndsChoice.never:
+      form.setEndDateEnabled(false);
+    case EndsChoice.chooseDate:
+      await _pickEndDate(
+        context,
+        ref,
+        formKey,
+        form,
+        useRootNavigator: useRootNavigator,
+        isCurrent: isCurrent,
+        sheetPresentation: presentation,
+      );
+  }
 }
 
 // MARK: - Document Cropping

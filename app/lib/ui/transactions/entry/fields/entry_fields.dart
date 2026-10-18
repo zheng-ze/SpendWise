@@ -5,8 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/common/inputs/amount_field.dart';
 import 'package:spendwise/ui/common/lists/category_icon.dart';
-import 'package:spendwise/ui/common/pickers/recurrence_picker.dart'
-    show frequencyLabels;
 import 'package:spendwise/ui/format/color_hex.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
@@ -29,16 +27,12 @@ class EntryFields extends ConsumerStatefulWidget {
     required this.state,
     required this.readOnly,
     this.showDelete = false,
-    this.includeHead = true,
-    this.display,
   });
 
   final EntryFormViewModel viewModel;
   final EntryFormViewState state;
   final bool readOnly;
   final bool showDelete;
-  final bool includeHead;
-  final EntryFormDisplay? display;
 
   @override
   ConsumerState<EntryFields> createState() => _EntryFieldsState();
@@ -60,7 +54,6 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
   @override
   void didUpdateWidget(EntryFields oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!widget.includeHead) return;
     if (_amountController.text != widget.state.amountText) {
       _amountController.text = widget.state.amountText;
     }
@@ -71,10 +64,8 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
 
   @override
   void dispose() {
-    if (widget.includeHead) {
-      _amountController.dispose();
-      _nameController.dispose();
-    }
+    _amountController.dispose();
+    _nameController.dispose();
     super.dispose();
   }
 
@@ -100,50 +91,12 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
     );
   }
 
-  Widget _dateRow({required bool isNew}) {
-    final state = widget.state;
-    return Row(
-      children: [
-        Expanded(
-          child: _EntryValueRow(
-            title: 'Date',
-            value: formatEntryDate(state.date),
-            onTap: widget.readOnly ? null : widget.viewModel.requestPickDate,
-          ),
-        ),
-        if (isNew)
-          IconButton(
-            onPressed: widget.viewModel.requestPickRecurrence,
-            icon: Icon(
-              Icons.repeat,
-              color: state.recurrence == null
-                  ? null
-                  : Theme.of(context).colorScheme.primary,
-            ),
-            tooltip: state.recurrence == null
-                ? 'Repeat'
-                : frequencyLabels[state.recurrence!],
-          ),
-      ],
+  Widget _dateRow() {
+    return _EntryValueRow(
+      title: 'Date',
+      value: formatEntryDate(widget.state.date),
+      onTap: widget.readOnly ? null : widget.viewModel.requestPickDate,
     );
-  }
-
-  List<Widget> _recurrenceSection() {
-    final state = widget.state;
-    return [
-      SwitchListTile(
-        contentPadding: _fieldContentPadding,
-        title: const Text('Ends'),
-        value: state.hasEndDate,
-        onChanged: widget.viewModel.setEndDateEnabled,
-      ),
-      if (state.hasEndDate)
-        _EntryValueRow(
-          title: 'End date',
-          value: formatEntryDate(state.endDate ?? state.date),
-          onTap: widget.viewModel.requestPickEndDate,
-        ),
-    ];
   }
 
   @override
@@ -151,11 +104,7 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
     final state = widget.state;
     final readOnly = widget.readOnly;
     final viewModel = widget.viewModel;
-    final display = widget.display;
-    final ledgerState = display == null
-        ? ref.watch(ledgerProvider)?.state
-        : null;
-    final isNew = state.mode == EntryFormMode.newEntry;
+    final ledgerState = ref.watch(ledgerProvider)?.state;
 
     String? sourceLabel(String? id) => ledgerState?.sourceName(id);
     String? categoryLabel(String? id) {
@@ -169,16 +118,6 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
     }
 
     Widget? categoryLeading() {
-      if (display case EntryFormDisplay(
-        :final categorySymbol?,
-        :final categoryColorHex?,
-      )) {
-        return CategoryIcon(
-          symbolName: categorySymbol,
-          color: parseColorHex(categoryColorHex),
-          size: _categoryIconSize,
-        );
-      }
       final id = state.categoryId;
       if (id == null || ledgerState == null) return null;
       final category = ledgerState.categories[id];
@@ -194,32 +133,20 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
     final sourceDestinationRows = [
       _EntryValueRow(
         title: kind == EntryFormKind.transfer ? 'From' : 'Account',
-        value:
-            (display == null
-                ? sourceLabel(state.sourceId)
-                : display.sourceLabel) ??
-            'Select',
+        value: sourceLabel(state.sourceId) ?? 'Select',
         onTap: readOnly ? null : viewModel.requestPickSource,
       ),
       if (kind == EntryFormKind.transfer)
         _EntryValueRow(
           title: 'To',
-          value:
-              (display == null
-                  ? sourceLabel(state.destinationId)
-                  : display.destinationLabel) ??
-              'Select',
+          value: sourceLabel(state.destinationId) ?? 'Select',
           onTap: readOnly ? null : viewModel.requestPickDestination,
         )
       else
         _EntryValueRow(
           leading: categoryLeading(),
           title: 'Category',
-          value:
-              (display == null
-                  ? categoryLabel(state.categoryId)
-                  : display.categoryLabel) ??
-              'None',
+          value: categoryLabel(state.categoryId) ?? 'None',
           onTap: readOnly || state.isSystemEntry
               ? null
               : viewModel.requestPickCategory,
@@ -242,16 +169,14 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
         onChanged: viewModel.setName,
       ),
     );
-    final head = widget.includeHead
-        ? [
-            _kindSelector(),
-            const SizedBox(height: _sectionSpacing),
-            amountField,
-            const SizedBox(height: _sectionSpacing),
-            nameField,
-            const SizedBox(height: _sectionSpacing),
-          ]
-        : const <Widget>[];
+    final head = [
+      _kindSelector(),
+      const SizedBox(height: _sectionSpacing),
+      amountField,
+      const SizedBox(height: _sectionSpacing),
+      nameField,
+      const SizedBox(height: _sectionSpacing),
+    ];
 
     final analysisSwitch = SwitchListTile(
       contentPadding: _fieldContentPadding,
@@ -261,19 +186,13 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
           ? null
           : viewModel.setIncludeInAnalysis,
     );
-    final rows = [
-      _dateRow(isNew: isNew),
-      if (isNew && state.recurrence != null) ..._recurrenceSection(),
-      ...sourceDestinationRows,
-      analysisSwitch,
-    ];
-    final divided = widget.includeHead ? rows : _withDividers(rows);
+    final rows = [_dateRow(), ...sourceDestinationRows, analysisSwitch];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         ...head,
-        ...divided,
+        ...rows,
         if (widget.showDelete) ...[
           const SizedBox(height: _deleteSpacing),
           SizedBox(
@@ -290,16 +209,6 @@ class _EntryFieldsState extends ConsumerState<EntryFields> {
       ],
     );
   }
-}
-
-List<Widget> _withDividers(List<Widget> rows) {
-  const divider = EntryRowDivider();
-  final divided = <Widget>[];
-  for (final row in rows) {
-    if (divided.isNotEmpty) divided.add(divider);
-    divided.add(row);
-  }
-  return divided;
 }
 
 class EntryRowDivider extends StatelessWidget {
