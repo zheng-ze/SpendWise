@@ -7,6 +7,7 @@ import 'package:flutter/services.dart' show MethodChannel;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:permission_handler_platform_interface/permission_handler_platform_interface.dart';
 import 'package:spendwise/ui/common/inputs/number_pad.dart';
+import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/transactions/entry/add_amount_block.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/entry/steps/entry_form_logic.dart'
@@ -19,6 +20,7 @@ import 'new_entry_session_harness.dart';
 
 const _recognizerChannel = MethodChannel('spendwise/android_text_recognizer');
 const _scannerChannel = MethodChannel('spendwise/document_scanner');
+const _focusSettle = Duration(milliseconds: 150);
 const _frameStep = Duration(milliseconds: 16);
 const _scanPoll = Duration(milliseconds: 10);
 const _scanPollLimit = 200;
@@ -65,6 +67,17 @@ Future<EntryHarness> _openAdd(
   final harness = await pumpShell(tester, scanEnabled: scanEnabled);
   await openAdd(tester, harness);
   return harness;
+}
+
+List<double> _scrollOffsets(WidgetTester tester) {
+  final scrollables = find.descendant(
+    of: find.byType(AppSheet),
+    matching: find.byType(Scrollable),
+  );
+  return [
+    for (final element in scrollables.evaluate())
+      ((element as StatefulElement).state as ScrollableState).position.pixels,
+  ];
 }
 
 Future<void> _activate(WidgetTester tester) async {
@@ -172,6 +185,36 @@ void main() {
       expect(_strip, findsOneWidget);
       await resize(tester, phoneSize);
       expect(_strip, findsOneWidget);
+    }, timeout: uiTestTimeout);
+
+    testWidgets('focusing Note before the reveal delay cancels the scroll', (
+      tester,
+    ) async {
+      await _openAdd(tester);
+      await tester.ensureVisible(_launcher);
+      await tester.tap(_launcher);
+      await tester.pump();
+      await tester.ensureVisible(_noteField);
+      await tester.tap(_noteField);
+      await tester.pump(_focusSettle);
+      final before = _scrollOffsets(tester);
+
+      await tester.pumpAndSettle(_frameStep);
+
+      expect(_scrollOffsets(tester), before);
+    }, timeout: uiTestTimeout);
+
+    testWidgets('closing Add before the reveal delay leaves no timer', (
+      tester,
+    ) async {
+      await _openAdd(tester);
+      await tester.ensureVisible(_launcher);
+      await tester.tap(_launcher);
+      await tester.pump();
+
+      await tester.pumpWidget(const SizedBox());
+
+      expect(find.byType(AppSheet), findsNothing);
     }, timeout: uiTestTimeout);
 
     testWidgets('a new Add starts collapsed', (tester) async {

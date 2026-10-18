@@ -25,6 +25,7 @@ const _compactPhone = Size(320, 560);
 const _tallPhone = Size(320, 760);
 const _textScale = 1.5;
 const _keyboardHeight = 300.0;
+const _focusedUnderlineHeight = 2.0;
 const _growthSettle = Duration(milliseconds: 240);
 const _safeTop = 20.0;
 const _safeBottom = 34.0;
@@ -309,9 +310,33 @@ Future<void> _checkFrameParity(
   );
 
   await _expectFrame(tester, harness, frame.withBrightness(brightness));
-  final pad = frame.desktop ? findsNothing : findsOneWidget;
-  final numberPad = find.byType(NumberPad);
-  expect(numberPad, pad);
+  final noteFocused = frame.note != null;
+  if (noteFocused) await _expectNoteFocused(tester, brightness);
+  final padShown = !frame.desktop && !noteFocused;
+  expect(find.byType(NumberPad), padShown ? findsOneWidget : findsNothing);
+}
+
+Future<void> _expectNoteFocused(
+  WidgetTester tester,
+  Brightness brightness,
+) async {
+  final colors = brightness == Brightness.dark
+      ? SpendWiseColors.dark
+      : SpendWiseColors.light;
+  await tester.ensureVisible(_noteField);
+  await tester.tap(_noteField);
+  await tester.pump();
+  await _setKeyboard(tester, _keyboardHeight);
+  final note = tester.widget<TextField>(_noteField);
+  final underline = find.byWidgetPredicate(
+    (widget) =>
+        widget is Container &&
+        widget.color == colors.focus &&
+        widget.constraints?.maxHeight == _focusedUnderlineHeight,
+  );
+  expect(note.focusNode!.hasFocus, isTrue);
+  expect(note.keyboardType, TextInputType.multiline);
+  expect(underline, findsOneWidget);
 }
 
 void _registerFrameBrightnessTests(String id, _Frame frame) {

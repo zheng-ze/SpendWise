@@ -258,13 +258,14 @@ Future<EntryHarness> pumpShell(
   TargetPlatform platform = TargetPlatform.iOS,
   bool failPush = false,
   bool scanEnabled = false,
+  HookedLedger? entryLedger,
   ThemeData? theme,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   final recorder = RouteRecorder();
-  final ledger = buildEntryLedger();
+  final ledger = entryLedger ?? buildEntryLedger();
   final faults = EntryFaults();
   final log = LifecycleLog();
   final container = ProviderContainer(

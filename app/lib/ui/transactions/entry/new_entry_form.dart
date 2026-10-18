@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/gestures.dart';
@@ -81,12 +82,16 @@ class _NewEntryFormState extends State<NewEntryForm> {
   bool _keyboardSeen = false;
   bool _padShown = false;
   bool _receiptExpanded = false;
+  Timer? _revealTimer;
   Offset? _outsideDownAt;
 
   @override
   void initState() {
     super.initState();
     _amountFocus.addListener(_refresh);
+    for (final node in [_amountFocus, _nameFocus, _noteFocus]) {
+      node.addListener(_cancelRevealOnFocus);
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) => _autofocusAmount());
   }
 
@@ -127,6 +132,7 @@ class _NewEntryFormState extends State<NewEntryForm> {
 
   @override
   void dispose() {
+    _revealTimer?.cancel();
     _amountFocus.removeListener(_refresh);
     _amountFocus.dispose();
     _nameFocus.dispose();
@@ -146,7 +152,13 @@ class _NewEntryFormState extends State<NewEntryForm> {
   void _expandReceipt() {
     if (_receiptExpanded) return;
     setState(() => _receiptExpanded = true);
-    Future<void>.delayed(_receiptRevealDelay, _revealReceipt);
+    _revealTimer = Timer(_receiptRevealDelay, _revealReceipt);
+  }
+
+  void _cancelRevealOnFocus() {
+    final focused =
+        _amountFocus.hasFocus || _nameFocus.hasFocus || _noteFocus.hasFocus;
+    if (focused) _revealTimer?.cancel();
   }
 
   void _revealReceipt() {

@@ -21,6 +21,7 @@ import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_strip.dart';
 import '../../../support/ui_test_timeout.dart';
 
 const _wideWidth = 400.0;
+const _roomyWidth = 600.0;
 const _narrowWidth = 182.0;
 const _largeText = 1.5;
 
@@ -71,35 +72,26 @@ void main() {
     double width = _wideWidth,
     double textScale = 1.0,
   }) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          ledgerProvider.overrideWithValue(buildLedger()),
-          scanStripEnabledProvider.overrideWith((ref) async => enabled),
-          if (recorder != null)
-            entryFormViewModelProvider.overrideWith2((formKey) => recorder),
-        ],
-        child: MaterialApp(
-          builder: (context, child) => MediaQuery(
-            data: MediaQuery.of(context)
-                .copyWith(textScaler: TextScaler.linear(textScale)),
-            child: child!,
-          ),
-          home: Scaffold(
-            body: Align(
-              alignment: Alignment.topLeft,
-              child: SizedBox(
-                width: width,
-                child: ReceiptScanStrip(
-                  formKey: null,
-                  compactActions: compactActions,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
+    final strip = ReceiptScanStrip(
+      formKey: null,
+      compactActions: compactActions,
     );
+    final sized = Align(
+      alignment: Alignment.topLeft,
+      child: SizedBox(width: width, child: strip),
+    );
+    final scaled = MediaQuery(
+      data: MediaQueryData(textScaler: TextScaler.linear(textScale)),
+      child: sized,
+    );
+    final app = MaterialApp(home: Scaffold(body: scaled));
+    final overrides = [
+      ledgerProvider.overrideWithValue(buildLedger()),
+      scanStripEnabledProvider.overrideWith((ref) async => enabled),
+      if (recorder != null)
+        entryFormViewModelProvider.overrideWith2((formKey) => recorder),
+    ];
+    await tester.pumpWidget(ProviderScope(overrides: overrides, child: app));
     await tester.pumpAndSettle();
   }
 
@@ -146,6 +138,21 @@ void main() {
     },
     timeout: uiTestTimeout,
   );
+
+  testWidgets('compact actions share one row at a normal width', (
+    tester,
+  ) async {
+    await pumpStrip(
+      tester,
+      enabled: true,
+      compactActions: true,
+      width: _roomyWidth,
+    );
+
+    final scan = tester.getRect(find.text('Scan receipt'));
+    final upload = tester.getRect(find.text('Upload photo'));
+    expect(upload.top, scan.top);
+  }, timeout: uiTestTimeout);
 
   testWidgets('the default actions share one row', (tester) async {
     await pumpStrip(tester, enabled: true);

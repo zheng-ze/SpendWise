@@ -273,8 +273,8 @@ toggle is off (`ReceiptScanStrip.build`, the `enabled` check).
 In the Add form the strip is not always visible: it mounts only after the Add receipt row is
 activated (`NewEntryRows`, `_NewEntryFormState._expandReceipt` in
 `app/lib/ui/transactions/entry/new_entry_form.dart`), keeps its `scanStop` listener and
-permission-denied message while expanded, and takes `compactActions: true` to stack the two
-buttons vertically. The default (`compactActions: false`) side-by-side row is unchanged for other
+permission-denied message while expanded, and takes `compactActions: true`, which stacks the two
+buttons vertically only when their measured labels do not fit one row (`_StripActions`). The default (`compactActions: false`) side-by-side row is unchanged for other
 callers.
 
 Both buttons render on every supported platform. Before issue #90 the "Scan receipt" button and its

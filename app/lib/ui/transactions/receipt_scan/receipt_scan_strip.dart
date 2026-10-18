@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -17,7 +19,6 @@ class ReceiptScanStrip extends ConsumerWidget {
   final bool compactActions;
 
   static const _stripBottomPadding = 16.0;
-  static const _buttonSpacing = 12.0;
   static const _progressSpacing = 12.0;
   static const _compactVerticalPadding = 8.0;
 
@@ -49,22 +50,11 @@ class ReceiptScanStrip extends ConsumerWidget {
       icon: const Icon(Icons.upload_outlined),
       label: const Text('Upload photo'),
     );
-    final actions = compactActions
-        ? Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              scanButton,
-              const SizedBox(height: _buttonSpacing),
-              uploadButton,
-            ],
-          )
-        : Row(
-            children: [
-              Expanded(child: scanButton),
-              const SizedBox(width: _buttonSpacing),
-              Expanded(child: uploadButton),
-            ],
-          );
+    final actions = _StripActions(
+      scanButton: scanButton,
+      uploadButton: uploadButton,
+      stackWhenCramped: compactActions,
+    );
     final padding = compactActions
         ? const EdgeInsets.symmetric(vertical: _compactVerticalPadding)
         : const EdgeInsets.only(bottom: _stripBottomPadding);
@@ -104,5 +94,77 @@ class ReceiptScanStrip extends ConsumerWidget {
         content: Text('Camera or photo library access was denied.'),
       ),
     );
+  }
+}
+
+// MARK: - StripActions
+class _StripActions extends StatelessWidget {
+  const _StripActions({
+    required this.scanButton,
+    required this.uploadButton,
+    required this.stackWhenCramped,
+  });
+
+  final Widget scanButton;
+  final Widget uploadButton;
+  final bool stackWhenCramped;
+
+  static const _scanLabel = 'Scan receipt';
+  static const _uploadLabel = 'Upload photo';
+  static const _buttonSpacing = 12.0;
+  static const _buttonIconSize = 18.0;
+  static const _buttonIconGap = 8.0;
+  static const _buttonHorizontalPadding = 28.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final sideBySide = Row(
+      children: [
+        Expanded(child: scanButton),
+        const SizedBox(width: _buttonSpacing),
+        Expanded(child: uploadButton),
+      ],
+    );
+    if (!stackWhenCramped) return sideBySide;
+
+    final stacked = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        scanButton,
+        const SizedBox(height: _buttonSpacing),
+        uploadButton,
+      ],
+    );
+    final style = Theme.of(context).textTheme.labelLarge;
+    final labelWidth = math.max(
+      _textWidth(context, _scanLabel, style),
+      _textWidth(context, _uploadLabel, style),
+    );
+    final buttonWidth =
+        labelWidth +
+        _buttonIconSize +
+        _buttonIconGap +
+        _buttonHorizontalPadding;
+    final rowWidth = 2 * buttonWidth + _buttonSpacing;
+
+    return LayoutBuilder(
+      builder: (context, constraints) =>
+          rowWidth <= constraints.maxWidth ? sideBySide : stacked,
+    );
+  }
+
+  static double _textWidth(
+    BuildContext context,
+    String text,
+    TextStyle? style,
+  ) {
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+    )..layout();
+    final width = painter.width;
+    painter.dispose();
+    return width;
   }
 }

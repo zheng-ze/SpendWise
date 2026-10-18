@@ -101,9 +101,11 @@ plain back control.
   child of a recurring draft, after the strip, without a divider. `_NewEntryFormState` keeps the
   `receiptExpanded` flag (false on each new Add, outside the form draft, retained across kind,
   repeat and presentation changes); the first Add receipt activation unfocuses Name, Note and
-  Amount, mounts exactly one strip with `compactActions: true` (the two actions stacked
-  vertically, because side by side at 202 dp and 1.5x text they wrap one character per line) and
-  scrolls it into view after the pad exit settles; later taps change nothing and no scan starts
+  Amount, mounts exactly one strip with `compactActions: true` (the two actions share a row
+  while the measured scaled labels, icons and padding fit the width and stack vertically
+  otherwise, as at 202 dp and 1.5x text where a row wraps one character per line) and scrolls it
+  into view after the pad exit settles through an owned timer that focusing Name, Note or Amount
+  or disposing the form cancels; later taps change nothing and no scan starts
   until Scan receipt or Upload photo is pressed. Each row is an
   `AddEntryRow` (`add_entry_row.dart`): 12 dp secondary label on the left, 12 dp w500 primary
   value on the right, 10 dp gap, 8 dp vertical padding while the pad shows and 10 dp otherwise,
