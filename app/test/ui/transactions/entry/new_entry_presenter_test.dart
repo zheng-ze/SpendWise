@@ -31,6 +31,7 @@ import 'package:spendwise/ui/transactions/transactions_flow.dart';
 
 const _mlKitChannel = MethodChannel('spendwise/android_text_recognizer');
 const _pickerBarrierTap = Offset(5, 5);
+const _barrierPhone = Size(400, 800);
 
 const _documentScannerChannel = MethodChannel('spendwise/document_scanner');
 
@@ -224,12 +225,12 @@ void main() {
       tester,
     ) async {
       final ledger = buildLedger();
-      await pumpFlow(tester, ledger: ledger);
+      await pumpFlow(tester, ledger: ledger, size: _barrierPhone);
       await openAdd(tester);
       await tester.tap(find.text('Add entry'));
       await tester.pumpAndSettle();
 
-      await tester.tapAt(const Offset(400, 30));
+      await tester.tapAt(_pickerBarrierTap);
       await tester.pumpAndSettle();
 
       expect(find.text('Add entry'), findsNothing);
