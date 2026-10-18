@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:crypto/crypto.dart';
+import 'package:cryptography/cryptography.dart';
 import 'package:sync/sync.dart';
 import 'package:test/test.dart';
 
@@ -26,7 +26,8 @@ List<dynamic> _loadFixtureList(String relativePath) =>
 /// `computeSnapshotHash` depend on is correct.
 String _digestOf(Object? canonicalInput) {
   final bytes = utf8.encode(canonicalJson(canonicalInput));
-  return base64UrlEncode(sha256.convert(bytes).bytes).replaceAll('=', '');
+  return base64UrlEncode(Sha256().toSync().hashSync(bytes).bytes)
+      .replaceAll('=', '');
 }
 
 void main() {

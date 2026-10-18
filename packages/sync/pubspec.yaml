@@ -7,7 +7,6 @@ environment:
   sdk: '>=3.4.0 <4.0.0'
 
 dependencies:
-  crypto: ^3.0.7
   cryptography: 2.9.0
   domain:
     path: ../domain

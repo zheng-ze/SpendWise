@@ -50,7 +50,7 @@ int _compareCodePoints(String a, String b) {
 }
 
 String _sha256Base64UrlUnpadded(String canonical) {
-  final digest = sha256.convert(utf8.encode(canonical));
+  final digest = Sha256().toSync().hashSync(utf8.encode(canonical));
   return base64UrlEncode(digest.bytes).replaceAll('=', '');
 }
 

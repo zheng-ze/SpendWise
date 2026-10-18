@@ -9,9 +9,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../../support/add_sheet_dismiss.dart';
+import '../../../support/image_picker_channel.dart';
 import '../../../support/ui_test_timeout.dart';
 
-import 'package:permission_handler_platform_interface/permission_handler_platform_interface.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/settings/settings_providers.dart';
@@ -30,6 +30,7 @@ import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_flow.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
 
 const _mlKitChannel = MethodChannel('spendwise/android_text_recognizer');
+const _cameraDenied = 'camera_access_denied';
 const _pickerBarrierTap = Offset(5, 5);
 
 const _documentScannerChannel = MethodChannel('spendwise/document_scanner');
@@ -49,15 +50,6 @@ class _PresenterHost extends ConsumerWidget {
       ],
     ),
   );
-}
-
-class _DeniedPermissions extends PermissionHandlerPlatform {
-  @override
-  Future<Map<Permission, PermissionStatus>> requestPermissions(
-    List<Permission> permissions,
-  ) async {
-    return {permissions.first: PermissionStatus.denied};
-  }
 }
 
 class _InitFailure implements Exception {
@@ -827,10 +819,8 @@ void main() {
     );
 
     testWidgets('reopening resets a finished receipt session', (tester) async {
-      final originalPermissions = PermissionHandlerPlatform.instance;
-      PermissionHandlerPlatform.instance = _DeniedPermissions();
+      mockImagePickerResult(errorCode: _cameraDenied);
       addTearDown(() {
-        PermissionHandlerPlatform.instance = originalPermissions;
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(_mlKitChannel, null);
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger

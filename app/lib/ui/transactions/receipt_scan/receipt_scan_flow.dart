@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:domain/domain.dart' show Decimal;
 import 'package:ocr/ocr.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:image_picker/image_picker.dart';
 
 import 'package:spendwise/ocr/amount_extraction.dart';
@@ -17,9 +17,6 @@ enum ReceiptScanSource { camera, gallery }
 
 // MARK: - ReceiptScanSourceMapping
 extension ReceiptScanSourceMapping on ReceiptScanSource {
-  Permission get permission =>
-      this == ReceiptScanSource.camera ? Permission.camera : Permission.photos;
-
   ImageSource get pickerSource => this == ReceiptScanSource.camera
       ? ImageSource.camera
       : ImageSource.gallery;
@@ -36,6 +33,14 @@ typedef ScanResultHandler = void Function({
 });
 
 typedef RecognizerFactory = TextRecognizer? Function();
+
+// MARK: - Constants
+const _accessDeniedCodes = {
+  'camera_access_denied',
+  'camera_access_restricted',
+  'photo_access_denied',
+  'photo_access_restricted',
+};
 
 // MARK: - Helpers
 Future<void> runReceiptScan({
@@ -60,24 +65,21 @@ Future<Uint8List?> _pickImage(
   ReceiptScanSource source,
   void Function(ReceiptScanStop stop)? onStop,
 ) async {
-  final granted = await _requestPermission(source.permission);
-  if (!granted) {
+  final XFile? picked;
+  try {
+    picked = await ImagePicker().pickImage(source: source.pickerSource);
+  } on PlatformException catch (error) {
+    if (!_accessDeniedCodes.contains(error.code)) rethrow;
     onStop?.call(ReceiptScanStop.permissionDenied);
     return null;
   }
 
-  final picked = await ImagePicker().pickImage(source: source.pickerSource);
   if (picked == null) {
     onStop?.call(ReceiptScanStop.cancelled);
     return null;
   }
 
   return picked.readAsBytes();
-}
-
-Future<bool> _requestPermission(Permission permission) async {
-  final status = await permission.request();
-  return status.isGranted || status.isLimited;
 }
 
 Future<RecognizedText> _recognize(

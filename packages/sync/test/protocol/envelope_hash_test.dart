@@ -1,6 +1,10 @@
 import 'package:sync/sync.dart';
 import 'package:test/test.dart';
 
+// SHA-256 of the two bytes "[]" is 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945.
+const _sha256OfEmptyArrayBase64Url =
+    'T1PNoYwrqgwDVLtfmj7L5e0Sq02OEbqHPC8RFhICuUU';
+
 void main() {
   test('sibling id ignores ciphertext and lifecycle', () {
     final vector = VersionVector({'device-a': 1});
@@ -48,6 +52,6 @@ void main() {
   });
 
   test('empty snapshot hashes canonical []', () {
-    expect(computeSnapshotHash(const []), isNotEmpty);
+    expect(computeSnapshotHash(const []), _sha256OfEmptyArrayBase64Url);
   });
 }

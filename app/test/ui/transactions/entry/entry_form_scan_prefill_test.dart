@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show MethodChannel;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:permission_handler_platform_interface/permission_handler_platform_interface.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/settings/settings_providers.dart';
@@ -15,21 +14,12 @@ import 'package:spendwise/ui/transactions/entry/entry_form.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_flow.dart';
 
+import '../../../support/image_picker_channel.dart';
 import '../../../support/ui_test_timeout.dart';
 
 const _mlKitChannel = MethodChannel('spendwise/android_text_recognizer');
+const _cameraDenied = 'camera_access_denied';
 const _documentScannerChannel = MethodChannel('spendwise/document_scanner');
-
-class _FakePermissionHandler extends PermissionHandlerPlatform {
-  _FakePermissionHandler(this.status);
-  final PermissionStatus status;
-  @override
-  Future<Map<Permission, PermissionStatus>> requestPermissions(
-    List<Permission> permissions,
-  ) async {
-    return {permissions.first: status};
-  }
-}
 
 Map<String, dynamic> _rect(
   double left,
@@ -122,9 +112,6 @@ void main() {
         .setMockMethodCallHandler(_mlKitChannel, null);
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(_documentScannerChannel, null);
-    PermissionHandlerPlatform.instance = _FakePermissionHandler(
-      PermissionStatus.denied,
-    );
   });
 
   group('scan -> prefill through the entry form', () {
@@ -241,9 +228,7 @@ void main() {
       'a scan that ends without prefilling shows the scan-end message',
       (tester) async {
         await pumpForm(tester);
-        PermissionHandlerPlatform.instance = _FakePermissionHandler(
-          PermissionStatus.denied,
-        );
+        mockImagePickerResult(errorCode: _cameraDenied);
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(_documentScannerChannel, (call) async {
               if (call.method == 'isAvailable') return false;

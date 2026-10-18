@@ -7,10 +7,12 @@ import 'package:flutter/foundation.dart'
 import 'package:flutter/services.dart' show MethodChannel, PlatformException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:permission_handler_platform_interface/permission_handler_platform_interface.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_entry_coordinator.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_flow.dart';
 
+import '../../../support/image_picker_channel.dart';
+
+const _cameraDenied = 'camera_access_denied';
 const _mlKitChannel = MethodChannel('spendwise/android_text_recognizer');
 const _visionChannel = MethodChannel('spendwise/vision_text_recognizer');
 const _documentScannerChannel = MethodChannel('spendwise/document_scanner');
@@ -47,29 +49,14 @@ List<Map<String, dynamic>> _recognizedResult(List<String> lines) => [
   for (final text in lines) _line(text),
 ];
 
-class _FakePermissionHandler extends PermissionHandlerPlatform {
-  _FakePermissionHandler(this.status);
-
-  final PermissionStatus status;
-
-  @override
-  Future<Map<Permission, PermissionStatus>> requestPermissions(
-    List<Permission> permissions,
-  ) async {
-    return {permissions.first: status};
-  }
-}
-
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late ProviderContainer container;
   late Completer<void>? gate;
-  late PermissionHandlerPlatform originalPermissionHandler;
 
   setUp(() {
     gate = null;
-    originalPermissionHandler = PermissionHandlerPlatform.instance;
   });
 
   tearDown(() {
@@ -79,7 +66,6 @@ void main() {
         .setMockMethodCallHandler(_visionChannel, null);
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(_documentScannerChannel, null);
-    PermissionHandlerPlatform.instance = originalPermissionHandler;
     container.dispose();
   });
 
@@ -169,9 +155,7 @@ void main() {
       'is set exactly once on a scan that ends without prefilling',
       () async {
         container = startContainer();
-        PermissionHandlerPlatform.instance = _FakePermissionHandler(
-          PermissionStatus.denied,
-        );
+        mockImagePickerResult(errorCode: _cameraDenied);
         var isAvailableCalled = false;
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(_documentScannerChannel, (call) async {
@@ -200,9 +184,7 @@ void main() {
       'clearScanStop clears a previously set scanStop exactly once',
       () async {
         container = startContainer();
-        PermissionHandlerPlatform.instance = _FakePermissionHandler(
-          PermissionStatus.denied,
-        );
+        mockImagePickerResult(errorCode: _cameraDenied);
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(_documentScannerChannel, (call) async {
               if (call.method == 'isAvailable') return false;
@@ -256,9 +238,7 @@ void main() {
 
     test('an unavailable scanner falls through to the plain picker', () async {
       container = startContainer();
-      PermissionHandlerPlatform.instance = _FakePermissionHandler(
-        PermissionStatus.denied,
-      );
+      mockImagePickerResult(errorCode: _cameraDenied);
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(_documentScannerChannel, (call) async {
             if (call.method == 'scanDocument') {
