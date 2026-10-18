@@ -1,6 +1,6 @@
 # Ledger Runtime
 
-Last reconciled: 2026-10-13
+Last reconciled: 2026-10-18
 
 ## Feature overview
 
@@ -147,10 +147,13 @@ updates the existing query object without a cache computation
 `app/test/boot/analysis_queries_provider_test.dart`).
 
 `readToday()`, `readPeriod(window:, sourceIDs:)`, `readWeeks(window:, sourceIDs:)`,
-`readCategoryBreakdown(period:, mode:, kind:, level:)`, and
-`readScopedTrend(period:, mode:, kind:, mainBucketID:, scope:)` return
+`readCategoryBreakdown(period:, mode:, kind:, level:)`,
+`readScopedTrend(period:, mode:, kind:, mainBucketID:, scope:)`, `readBudgets(month:)`, and
+`readBudgetDetail(budgetID:, displayedYear:, selectedMonth:)` return
 `AnalysisQueryResult<T>` with nullable `value`, `ready`/`loading`/`failed` state, and nullable
-`sourceRevision`. `readToday()` returns a `TodaySummary` with `spent`, `dailyGuide` and `monthlyCap`;
+`sourceRevision`. `readBudgets` returns a `BudgetsOverview` and `readBudgetDetail` a `BudgetDetail`; both normalize
+ids and dates before the memo identity is formed (see [budgets.md](budgets.md)). `readToday()`
+returns a `TodaySummary` with `spent`, `dailyGuide` and `monthlyCap`;
 the Overview consumes it (see [overview-ui.md](overview-ui.md)). These reads mix Ledger state with
 analysis items and evaluate only when `cache.itemsSourceRevision == ledger.revision`. While
 pending or failed, a previously read query retains its last successful value and that value's

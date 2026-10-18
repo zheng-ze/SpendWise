@@ -1,6 +1,6 @@
 # Budgets
 
-Last reconciled: 2026-09-02
+Last reconciled: 2026-10-18
 
 ## Feature overview
 
@@ -19,16 +19,30 @@ produce facts (entries) only indirectly, via the spend math the app layer runs a
   `LedgerState`: create, update, delete, duplicate-guard, and the category sweep.
 - `app/lib/ui/budgets/budget_list/` — budget list view model, form, card, and `budgets_flow.dart`.
 - `app/lib/ui/budgets/budget_detail/` — detail and limit screens with their view models.
-- `app/lib/ui/budgets/helpers/budget_spend.dart` — the app-layer spend math (budgets-as-stats, not
-  a shell tab).
+- `packages/domain/lib/src/budgets/budget_limits.dart` — `effectiveLimit(budget, month)`, the limit
+  that applies to a month.
+- `app/lib/ledger/analysis/budgets/budget_spend.dart` — the app-layer spend math: `budgetItems`,
+  `budgetSpend`, `monthExpenseSpend`, and `budgetBucketIDs`.
+- `app/lib/ledger/analysis/budgets/budget_overview.dart` — pure `budgetsOverview` projection (All
+  spending cap, daily pace, ranked category budgets).
+- `app/lib/ledger/analysis/budgets/budget_detail.dart` — pure `budgetDetail` projection with twelve
+  month slots.
+- `app/lib/ledger/analysis_queries.dart`, `analysis_queries_mixed_reads.dart` — `readBudgets` and
+  `readBudgetDetail`.
 
 ## Module interactions
 
 Budgets live in the domain as config and are mutated through `Ledger` like any other row, so they
-participate in the normal change stream and persistence. Spend math is **not** in the domain — it
-lives in `budget_spend.dart` in the app layer ("budget spend math stays app layer").
-The budget detail/list screens render the limit timeline and the spend-against-limit derived from
-analysis items. Budgets are a Stats-segment feature, not a shell tab.
+participate in the normal change stream and persistence. Spend math is **not** in the domain; it
+lives in the app layer under `app/lib/ledger/analysis/budgets/`, as pure functions over `LedgerState`
+and `AnalysisItem`s.
+
+`AnalysisQueries.readBudgets(month:)` and `readBudgetDetail(budgetID:, displayedYear:,
+selectedMonth:)` expose the two projections as memoised mixed reads (see
+[ledger-runtime.md](ledger-runtime.md)). Their ids and dates are normalized before the memo identity
+is formed. The budget list and detail screens still compute spend directly with `budgetSpend` and do
+not yet consume these reads. Budgets are the Budgets tab inside the Stats screen
+(`app/lib/ui/stats/stats_root_screen.dart` hosts `BudgetsFlow`), not a shell tab.
 
 ## Budget model
 
@@ -73,16 +87,43 @@ codes 0/1), a `Decimal value`, and a nullable `YearMonth? effectiveFromMonth` (n
 
 ## Spend math (app layer)
 
-`budget_spend.dart` totals analysis items against the limit timeline for the active month, applying
-rollover and the category scope (including the unscoped budget covering every category). The exact
-thresholds and the direct-matching-any-category rule are implemented in `budget_spend.dart`. Budget
-form is create-only: the limit is edited by appending events, not by editing an existing one in place.
+`budgetItems` selects the analysis items that count against a budget for a month: items dated in the
+month's half-open window whose kind is expense. An unscoped budget matches every such item. A
+category budget matches items whose bucket is its category or a direct child of it. `budgetSpend`
+sums those items and `monthExpenseSpend` sums every expense item in the month. There is no rollover
+and no threshold logic in the spend math. The budget form is create-only: the limit is edited by
+appending events, not by editing an existing one in place.
+
+## Overview projection
+
+`budgetsOverview` builds the Budgets overview for one month.
+
+- **All spending cap.** If an unscoped budget exists, the cap is its effective limit for the month.
+  Otherwise the cap is the sum of the effective limits of configured category budgets whose parent
+  category has no configured budget. With neither, the cap is null.
+- **Spent so far.** All expense items in the month, regardless of any budget scope.
+- **Daily pace.** Remaining allowance (cap minus spent, floored at zero) divided by the number of
+  calendar days after today, at a scale of 12 digits. It is null when there is no cap, when today is
+  not in the selected month, or when no days remain after today.
+- **Ranking.** Category budgets sort by exact spend/limit descending, compared by cross
+  multiplication rather than a rounded ratio. Ties break by trimmed, lowercased category name, then by
+  normalized budget id.
+- **Failure.** A budget with no applicable limit event, a nonpositive limit, or a missing category
+  makes the read fail rather than returning a partial overview.
+
+## Detail projection
+
+`budgetDetail` returns twelve month slots for the displayed year. Each slot carries the month's spend,
+effective limit, whether an override pins that month, the matching record count, and the period
+completeness. The summary reports the selected month's spend and limit along with the budget's
+category and creation month. An unknown budget id yields a detail with a null summary and no slots.
 
 ## Gotchas and invariants
 
 - Budget spend math is deliberately outside the domain; a domain change must not introduce it.
 - Deleting a budget removes the row entirely — no tombstone, no restore.
-- Rollover was designed and then removed; the timeline still records the decision..
+- There is no rollover in the budget model or the spend math.
+- The overview cap counts a category budget only when its parent category has no budget of its own, so a parent and its child are never added together.
 
 ## Requirements
 
