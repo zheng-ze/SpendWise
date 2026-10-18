@@ -1,5 +1,6 @@
 import 'dart:ui' as ui;
 
+import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -42,7 +43,14 @@ const _caretWidth = 1.5;
 const _amountLabelSize = 10.0;
 const _handleHeight = 4.0;
 
-final _frameIds = {'add-expense', 'add-income', 'add-transfer', 'add-desk'};
+final _frameIds = {
+  'add-expense',
+  'add-note',
+  'add-income',
+  'add-transfer',
+  'add-repeat',
+  'add-desk',
+};
 
 const _desktopWindow = Size(1440, 900);
 
@@ -51,6 +59,8 @@ extension on _Frame {
     kind: kind,
     amount: amount,
     name: name,
+    note: note,
+    recurrence: recurrence,
     brightness: value,
     desktop: desktop,
   );
@@ -61,6 +71,17 @@ const _frames = <String, _Frame>{
     kind: EntryFormKind.expense,
     amount: '42.50',
     name: 'FairPrice groceries',
+    note: null,
+    recurrence: null,
+    brightness: Brightness.light,
+    desktop: false,
+  ),
+  'add-note': (
+    kind: EntryFormKind.expense,
+    amount: '42.50',
+    name: 'FairPrice groceries',
+    note: 'Weekly shop for the family',
+    recurrence: null,
     brightness: Brightness.light,
     desktop: false,
   ),
@@ -68,6 +89,8 @@ const _frames = <String, _Frame>{
     kind: EntryFormKind.income,
     amount: '3200.00',
     name: 'Monthly salary',
+    note: null,
+    recurrence: null,
     brightness: Brightness.light,
     desktop: false,
   ),
@@ -75,6 +98,17 @@ const _frames = <String, _Frame>{
     kind: EntryFormKind.transfer,
     amount: '500.00',
     name: 'To savings',
+    note: null,
+    recurrence: null,
+    brightness: Brightness.light,
+    desktop: false,
+  ),
+  'add-repeat': (
+    kind: EntryFormKind.expense,
+    amount: '42.50',
+    name: 'FairPrice groceries',
+    note: null,
+    recurrence: RecurrenceFrequency.monthly,
     brightness: Brightness.light,
     desktop: false,
   ),
@@ -82,6 +116,8 @@ const _frames = <String, _Frame>{
     kind: EntryFormKind.expense,
     amount: '42.50',
     name: 'FairPrice groceries',
+    note: null,
+    recurrence: null,
     brightness: Brightness.light,
     desktop: true,
   ),
@@ -161,6 +197,8 @@ typedef _Frame = ({
   EntryFormKind kind,
   String amount,
   String name,
+  String? note,
+  RecurrenceFrequency? recurrence,
   Brightness brightness,
   bool desktop,
 });
@@ -207,6 +245,8 @@ Future<void> _expectFrame(
   harness.form.setKind(frame.kind);
   harness.form.setAmount(frame.amount);
   harness.form.setName(frame.name);
+  harness.form.setNote(frame.note ?? '');
+  harness.form.applyPickedRecurrence(frame.recurrence);
   await tester.pumpAndSettle();
   final colors = frame.brightness == Brightness.dark
       ? SpendWiseColors.dark
@@ -220,6 +260,14 @@ Future<void> _expectFrame(
   _expectAmount(tester, frame, colors);
   expect(tester.widget<TextField>(_nameField).controller!.text, frame.name);
   expect(find.text('Date'), findsOneWidget);
+  expect(
+    tester.widget<TextField>(_noteField).controller!.text,
+    frame.note ?? '',
+  );
+  expect(
+    find.text('Ends'),
+    frame.recurrence == null ? findsNothing : findsOneWidget,
+  );
   final transfer = frame.kind == EntryFormKind.transfer;
   expect(find.text('Category'), transfer ? findsNothing : findsOneWidget);
   expect(find.text('From'), transfer ? findsOneWidget : findsNothing);

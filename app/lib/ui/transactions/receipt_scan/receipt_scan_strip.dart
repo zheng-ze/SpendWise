@@ -7,13 +7,19 @@ import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_flow.dart';
 
 // MARK: - ReceiptScanStrip
 class ReceiptScanStrip extends ConsumerWidget {
-  const ReceiptScanStrip({super.key, required this.formKey});
+  const ReceiptScanStrip({
+    super.key,
+    required this.formKey,
+    this.compactActions = false,
+  });
 
   final String? formKey;
+  final bool compactActions;
 
   static const _stripBottomPadding = 16.0;
   static const _buttonSpacing = 12.0;
   static const _progressSpacing = 12.0;
+  static const _compactVerticalPadding = 8.0;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -33,29 +39,41 @@ class ReceiptScanStrip extends ConsumerWidget {
           .select((value) => value.value?.scanning ?? false),
     );
 
+    final scanButton = OutlinedButton.icon(
+      onPressed: scanning ? null : () => _scan(ref),
+      icon: const Icon(Icons.camera_alt_outlined),
+      label: const Text('Scan receipt'),
+    );
+    final uploadButton = OutlinedButton.icon(
+      onPressed: scanning ? null : () => _uploadPhoto(ref),
+      icon: const Icon(Icons.upload_outlined),
+      label: const Text('Upload photo'),
+    );
+    final actions = compactActions
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              scanButton,
+              const SizedBox(height: _buttonSpacing),
+              uploadButton,
+            ],
+          )
+        : Row(
+            children: [
+              Expanded(child: scanButton),
+              const SizedBox(width: _buttonSpacing),
+              Expanded(child: uploadButton),
+            ],
+          );
+    final padding = compactActions
+        ? const EdgeInsets.symmetric(vertical: _compactVerticalPadding)
+        : const EdgeInsets.only(bottom: _stripBottomPadding);
+
     return Padding(
-      padding: const EdgeInsets.only(bottom: _stripBottomPadding),
+      padding: padding,
       child: Column(
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: scanning ? null : () => _scan(ref),
-                  icon: const Icon(Icons.camera_alt_outlined),
-                  label: const Text('Scan receipt'),
-                ),
-              ),
-              const SizedBox(width: _buttonSpacing),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: scanning ? null : () => _uploadPhoto(ref),
-                  icon: const Icon(Icons.upload_outlined),
-                  label: const Text('Upload photo'),
-                ),
-              ),
-            ],
-          ),
+          actions,
           if (scanning) ...[
             const SizedBox(height: _progressSpacing),
             const CircularProgressIndicator(),

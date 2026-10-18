@@ -1,6 +1,6 @@
 # Receipt OCR Entry
 
-Last reconciled: fdd9adf
+Last reconciled: 7c25629
 
 _(Reconciled against `packages/ocr/lib/src/`, `app/lib/ocr/`, `app/android/app/src/main/kotlin/`,
 `app/lib/ui/transactions/receipt_scan/`, and `app/ios/Runner/` at the commit above.
@@ -269,6 +269,13 @@ for external consumers (it has exactly one consumer — this app).
 entry point into a scan from the transaction entry form. It renders two buttons, "Scan receipt" and
 "Upload photo", and hides the whole strip when `scanStripEnabledProvider` reports the settings
 toggle is off (`ReceiptScanStrip.build`, the `enabled` check).
+
+In the Add form the strip is not always visible: it mounts only after the Add receipt row is
+activated (`NewEntryRows`, `_NewEntryFormState._expandReceipt` in
+`app/lib/ui/transactions/entry/new_entry_form.dart`), keeps its `scanStop` listener and
+permission-denied message while expanded, and takes `compactActions: true` to stack the two
+buttons vertically. The default (`compactActions: false`) side-by-side row is unchanged for other
+callers.
 
 Both buttons render on every supported platform. Before issue #90 the "Scan receipt" button and its
 spacer sat behind `if (!kIsWeb)` gates; commit `8f36d8b` removed both, so the UI layer holds no

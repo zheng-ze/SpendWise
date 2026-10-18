@@ -2,7 +2,9 @@ import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:spendwise/settings/settings_providers.dart';
 import 'package:spendwise/ui/common/inputs/number_pad.dart';
 import 'package:spendwise/ui/common/inputs/segmented_control.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
@@ -23,6 +25,11 @@ const _desktopMaxHeightFraction = 1.0;
 const _sectionGap = 8.0;
 
 const _grownHeightFraction = 1.0;
+
+const _receiptRevealDuration = Duration(milliseconds: 200);
+
+// Longer than the pad exit, so the reveal measures the settled sheet height.
+const _receiptRevealDelay = Duration(milliseconds: 260);
 
 const _segmentGap = 2.0;
 
@@ -70,8 +77,10 @@ class _NewEntryFormState extends State<NewEntryForm> {
   final _noteFocus = FocusNode();
   final _nameGroupId = Object();
   final _noteGroupId = Object();
+  final _receiptKey = GlobalKey();
   bool _keyboardSeen = false;
   bool _padShown = false;
+  bool _receiptExpanded = false;
   Offset? _outsideDownAt;
 
   @override
@@ -134,6 +143,23 @@ class _NewEntryFormState extends State<NewEntryForm> {
           ?.presentation !=
       AppSheetPresentation.desktop;
 
+  void _expandReceipt() {
+    if (_receiptExpanded) return;
+    setState(() => _receiptExpanded = true);
+    Future<void>.delayed(_receiptRevealDelay, _revealReceipt);
+  }
+
+  void _revealReceipt() {
+    if (!mounted) return;
+    final target = _receiptKey.currentContext;
+    if (target == null) return;
+    Scrollable.ensureVisible(
+      target,
+      duration: _receiptRevealDuration,
+      alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+    );
+  }
+
   void _refresh() {
     if (mounted) setState(() {});
   }
@@ -185,6 +211,9 @@ class _NewEntryFormState extends State<NewEntryForm> {
       display: widget.display,
       onOutsideDown: _outsideDown,
       onOutsideUp: _outsideUp,
+      receiptKey: _receiptKey,
+      receiptExpanded: _receiptExpanded,
+      onReceiptTap: _expandReceipt,
     );
     final pad = padVisible
         ? TextFieldTapRegion(
@@ -220,7 +249,7 @@ class _NewEntryFormState extends State<NewEntryForm> {
   }
 }
 
-class _NewEntryBody extends StatelessWidget {
+class _NewEntryBody extends ConsumerWidget {
   const _NewEntryBody({
     required this.formKey,
     required this.viewModel,
@@ -238,6 +267,9 @@ class _NewEntryBody extends StatelessWidget {
     required this.display,
     required this.onOutsideDown,
     required this.onOutsideUp,
+    required this.receiptKey,
+    required this.receiptExpanded,
+    required this.onReceiptTap,
   });
 
   final String? formKey;
@@ -256,6 +288,9 @@ class _NewEntryBody extends StatelessWidget {
   final EntryFormDisplay display;
   final ValueChanged<PointerDownEvent> onOutsideDown;
   final void Function(FocusNode, PointerUpEvent) onOutsideUp;
+  final GlobalKey receiptKey;
+  final bool receiptExpanded;
+  final VoidCallback onReceiptTap;
 
   static const _kindOptions = [
     SegmentedOption(value: EntryFormKind.expense, label: 'Expense'),
@@ -264,7 +299,8 @@ class _NewEntryBody extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final receiptEnabled = ref.watch(scanStripEnabledProvider).value ?? true;
     final kind = SegmentedControl<EntryFormKind>(
       options: _kindOptions,
       value: state.kind,
@@ -295,6 +331,14 @@ class _NewEntryBody extends StatelessWidget {
       keypad: keypad,
       onOutsideDown: onOutsideDown,
       onOutsideUp: onOutsideUp,
+      onReceiptTap: receiptEnabled ? onReceiptTap : null,
+      receiptStrip: receiptExpanded
+          ? ReceiptScanStrip(
+              key: receiptKey,
+              formKey: formKey,
+              compactActions: true,
+            )
+          : null,
     );
 
     return Column(
@@ -305,8 +349,6 @@ class _NewEntryBody extends StatelessWidget {
         amount,
         const SizedBox(height: _sectionGap),
         group,
-        const SizedBox(height: _sectionGap),
-        ReceiptScanStrip(formKey: formKey),
       ],
     );
   }

@@ -34,6 +34,8 @@ const _selectAccountLabel = 'Select';
 
 const _neverEndsLabel = 'Never';
 
+const _addReceiptLabel = 'Add receipt';
+
 const _recurringHint = 'Saving creates a plan. Review it in Money, Plans.';
 
 // MARK: - NewEntryRows
@@ -52,6 +54,8 @@ class NewEntryRows extends StatelessWidget {
     required this.keypad,
     required this.onOutsideDown,
     required this.onOutsideUp,
+    required this.onReceiptTap,
+    required this.receiptStrip,
   });
 
   final EntryFormViewModel viewModel;
@@ -66,9 +70,12 @@ class NewEntryRows extends StatelessWidget {
   final bool keypad;
   final ValueChanged<PointerDownEvent> onOutsideDown;
   final void Function(FocusNode, PointerUpEvent) onOutsideUp;
+  final VoidCallback? onReceiptTap;
+  final Widget? receiptStrip;
 
   @override
   Widget build(BuildContext context) {
+    final receiptTap = onReceiptTap;
     final transfer = state.kind == EntryFormKind.transfer;
     final recurrence = state.recurrence;
     final endDate = state.endDate;
@@ -197,6 +204,15 @@ class NewEntryRows extends StatelessWidget {
         keypad: keypad,
         onTap: () => viewModel.setIncludeInAnalysis(!state.includeInAnalysis),
       ),
+      if (receiptTap != null)
+        AddEntryRow(
+          key: const ValueKey('new-entry-receipt'),
+          label: _addReceiptLabel,
+          labelIcon: Icons.camera_alt_outlined,
+          value: const SizedBox.shrink(),
+          keypad: keypad,
+          onTap: () => open(receiptTap),
+        ),
     ];
 
     final underlined = {nameRow: nameFocus, noteRow: noteFocus};
@@ -212,6 +228,8 @@ class NewEntryRows extends StatelessWidget {
       }
       children.add(row);
     }
+    final strip = receiptStrip;
+    if (receiptTap != null && strip != null) children.add(strip);
     if (recurrence != null) children.add(const _RecurringHint());
 
     return _FormGroup(children: children);

@@ -20,6 +20,10 @@ import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_strip.dart';
 
 import '../../../support/ui_test_timeout.dart';
 
+const _wideWidth = 400.0;
+const _narrowWidth = 182.0;
+const _largeText = 1.5;
+
 class _RecordingEntryFormNotifier extends EntryFormNotifier {
   _RecordingEntryFormNotifier() : super(null);
 
@@ -63,6 +67,9 @@ void main() {
     WidgetTester tester, {
     required bool enabled,
     _RecordingEntryFormNotifier? recorder,
+    bool compactActions = false,
+    double width = _wideWidth,
+    double textScale = 1.0,
   }) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -72,8 +79,24 @@ void main() {
           if (recorder != null)
             entryFormViewModelProvider.overrideWith2((formKey) => recorder),
         ],
-        child: const MaterialApp(
-          home: Scaffold(body: ReceiptScanStrip(formKey: null)),
+        child: MaterialApp(
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context)
+                .copyWith(textScaler: TextScaler.linear(textScale)),
+            child: child!,
+          ),
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                width: width,
+                child: ReceiptScanStrip(
+                  formKey: null,
+                  compactActions: compactActions,
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -102,5 +125,33 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(recorder.scanSources, contains(ReceiptScanSource.gallery));
+  }, timeout: uiTestTimeout);
+
+  testWidgets(
+    'compact actions stack at 182 dp and 1.5x text without overflow',
+    (tester) async {
+      await pumpStrip(
+        tester,
+        enabled: true,
+        compactActions: true,
+        width: _narrowWidth,
+        textScale: _largeText,
+      );
+
+      expect(tester.takeException(), isNull);
+      final scan = tester.getRect(find.text('Scan receipt'));
+      final upload = tester.getRect(find.text('Upload photo'));
+      expect(upload.top, greaterThan(scan.bottom));
+      expect(upload.right, lessThanOrEqualTo(_narrowWidth));
+    },
+    timeout: uiTestTimeout,
+  );
+
+  testWidgets('the default actions share one row', (tester) async {
+    await pumpStrip(tester, enabled: true);
+
+    final scan = tester.getRect(find.text('Scan receipt'));
+    final upload = tester.getRect(find.text('Upload photo'));
+    expect(upload.top, scan.top);
   }, timeout: uiTestTimeout);
 }

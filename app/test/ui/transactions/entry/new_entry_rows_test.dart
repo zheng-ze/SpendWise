@@ -18,6 +18,7 @@ const _labelSize = 12.0;
 const _keypadPaddingSaving = 4.0;
 const _focusUnderline = 2.0;
 const _hint = 'Saving creates a plan. Review it in Money, Plans.';
+const _stripHeight = 40.0;
 const _longValue = 'Household joint savings and everyday checking account';
 final _entryDate = DateTime.utc(2026, 10, 16);
 final _endDate = DateTime.utc(2027, 1, 16);
@@ -90,6 +91,8 @@ class _Fixture {
     EntryFormViewState state,
     EntryFormDisplay display, {
     bool keypad = false,
+    VoidCallback? onReceiptTap,
+    Widget? receiptStrip,
   }) {
     return NewEntryRows(
       viewModel: viewModel,
@@ -104,6 +107,8 @@ class _Fixture {
       keypad: keypad,
       onOutsideDown: (_) {},
       onOutsideUp: (node, _) => node.unfocus(),
+      onReceiptTap: onReceiptTap,
+      receiptStrip: receiptStrip,
     );
   }
 }
@@ -122,10 +127,18 @@ Future<_Fixture> _pump(
   double width = _normalWidth,
   double textScale = 1.0,
   bool keypad = false,
+  VoidCallback? onReceiptTap,
+  Widget? receiptStrip,
 }) async {
   final fixture = _Fixture();
   addTearDown(fixture.dispose);
-  final content = fixture.rows(state, display, keypad: keypad);
+  final content = fixture.rows(
+    state,
+    display,
+    keypad: keypad,
+    onReceiptTap: onReceiptTap,
+    receiptStrip: receiptStrip,
+  );
   final body = SingleChildScrollView(
     child: SizedBox(width: width, child: content),
   );
@@ -293,6 +306,86 @@ void main() {
         #setIncludeInAnalysis,
         #setIncludeInAnalysis,
       ]);
+    }, timeout: uiTestTimeout);
+  });
+
+  group('Add receipt', () {
+    const strip = SizedBox(key: ValueKey('strip'), height: _stripHeight);
+    void noop() {}
+
+    testWidgets('is the last logical row with a camera icon and no chevron', (
+      tester,
+    ) async {
+      await _pump(tester, _state(), onReceiptTap: noop);
+
+      expect(
+        _top(tester, 'Add receipt'),
+        greaterThan(_top(tester, 'Include in analysis')),
+      );
+      expect(find.byType(EntryRowDivider), findsNWidgets(7));
+      final row = _row('receipt');
+      expect(
+        find.descendant(
+          of: row,
+          matching: find.byIcon(Icons.camera_alt_outlined),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: row, matching: find.byIcon(Icons.chevron_right)),
+        findsNothing,
+      );
+    }, timeout: uiTestTimeout);
+
+    testWidgets('is absent without a tap handler', (tester) async {
+      await _pump(tester, _state());
+
+      expect(find.text('Add receipt'), findsNothing);
+      expect(find.byType(EntryRowDivider), findsNWidgets(6));
+    }, timeout: uiTestTimeout);
+
+    testWidgets('a collapsed recurring hint follows the receipt row', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        _state(recurrence: RecurrenceFrequency.monthly),
+        onReceiptTap: noop,
+      );
+
+      expect(_top(tester, _hint), greaterThan(_top(tester, 'Add receipt')));
+      expect(find.byType(EntryRowDivider), findsNWidgets(8));
+    }, timeout: uiTestTimeout);
+
+    testWidgets('an expanded strip sits between the receipt row and the hint', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        _state(recurrence: RecurrenceFrequency.monthly),
+        onReceiptTap: noop,
+        receiptStrip: strip,
+      );
+
+      final stripTop = tester.getTopLeft(find.byKey(strip.key!)).dy;
+      expect(stripTop, greaterThan(_top(tester, 'Add receipt')));
+      expect(_top(tester, _hint), greaterThan(stripTop));
+      expect(find.byType(EntryRowDivider), findsNWidgets(8));
+    }, timeout: uiTestTimeout);
+
+    testWidgets('tapping it unfocuses the Name field and fires once', (
+      tester,
+    ) async {
+      var taps = 0;
+      final fixture = await _pump(tester, _state(), onReceiptTap: () => taps++);
+      fixture.nameFocus.requestFocus();
+      await tester.pump();
+
+      await tester.tap(find.text('Add receipt'));
+      await tester.pump();
+
+      expect(taps, 1);
+      expect(fixture.nameFocus.hasFocus, isFalse);
     }, timeout: uiTestTimeout);
   });
 
@@ -496,6 +589,24 @@ void main() {
       for (final text in ['Every three months', 'Include in analysis']) {
         expect(find.text(text), findsOneWidget);
       }
+    }, timeout: uiTestTimeout);
+
+    testWidgets('the receipt label and icon fit the content width', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        _state(),
+        width: _narrowWidth,
+        textScale: _largeText,
+        onReceiptTap: () {},
+      );
+
+      expect(tester.takeException(), isNull);
+      final label = tester.getRect(find.text('Add receipt'));
+      expect(label.right, lessThanOrEqualTo(_narrowWidth));
+      await tester.ensureVisible(_row('receipt'));
+      expect(_row('receipt').hitTestable(), findsOneWidget);
     }, timeout: uiTestTimeout);
 
     testWidgets('the analysis label and switch fit the content width', (

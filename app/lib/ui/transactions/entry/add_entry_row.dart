@@ -18,6 +18,10 @@ const _chevronSize = 13.0;
 
 const _chevronGap = 4.0;
 
+const _labelIconSize = 14.0;
+
+const _labelIconGap = 6.0;
+
 const _keypadVerticalPadding = 8.0;
 
 const _restVerticalPadding = 10.0;
@@ -39,6 +43,7 @@ class AddEntryRow extends StatelessWidget {
     required this.value,
     required this.keypad,
     this.chevron = false,
+    this.labelIcon,
     this.onTap,
   });
 
@@ -46,6 +51,7 @@ class AddEntryRow extends StatelessWidget {
   final Widget value;
   final bool keypad;
   final bool chevron;
+  final IconData? labelIcon;
   final VoidCallback? onTap;
 
   @override
@@ -72,7 +78,18 @@ class AddEntryRow extends StatelessWidget {
       ],
     );
     final trailingWidth = chevron ? _chevronGap + _chevronSize : 0.0;
-    final labelText = Text(label, style: labelStyle);
+    final icon = labelIcon;
+    final labelIconWidth = icon == null ? 0.0 : _labelIconSize + _labelIconGap;
+    final labelText = icon == null
+        ? Text(label, style: labelStyle)
+        : Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: _labelIconSize, color: colors.subtext),
+              const SizedBox(width: _labelIconGap),
+              Flexible(child: Text(label, style: labelStyle)),
+            ],
+          );
     final padding = EdgeInsets.symmetric(
       vertical: keypad ? _keypadVerticalPadding : _restVerticalPadding,
     );
@@ -81,6 +98,7 @@ class AddEntryRow extends StatelessWidget {
       builder: (context, constraints) {
         final needed =
             _textWidth(context, label, labelStyle) +
+            labelIconWidth +
             _labelValueGap +
             _minValueWidth +
             trailingWidth;
