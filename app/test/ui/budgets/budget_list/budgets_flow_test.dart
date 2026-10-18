@@ -7,6 +7,8 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_screen.dart';
+import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
+import 'package:spendwise/ui/budgets/budget_detail/budget_limit_view_model.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_form.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_limit_screen.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_flow.dart';
@@ -247,4 +249,81 @@ void main() {
     expect(ledger.state.budgets.containsKey(overall.id), isFalse);
     handle.dispose();
   }, timeout: uiTestTimeout);
+
+  group('provider disposal', () {
+    Future<ProviderContainer> openDetail(
+      WidgetTester tester,
+      Map<String, Budget> budgets,
+      String budgetID,
+    ) async {
+      final container = await pumpFlow(tester, buildLedger(budgets: budgets));
+      container
+          .read(budgetsListViewModelProvider.notifier)
+          .requestBudgetDetail(budgetID);
+      await tester.pumpAndSettle();
+      return container;
+    }
+
+    bool detailAlive(ProviderContainer container, String id) =>
+        container.exists(budgetDetailViewModelProvider(id));
+
+    bool limitAlive(ProviderContainer container, String id) =>
+        container.exists(budgetLimitViewModelProvider(id));
+
+    testWidgets('closing the detail route disposes its detail and limit '
+        'providers', (tester) async {
+      final overall = budget(categoryID: null, id: 'b1');
+      final container = await openDetail(tester, {
+        overall.id: overall,
+      }, overall.id);
+      expect(detailAlive(container, overall.id), isTrue);
+      expect(limitAlive(container, overall.id), isTrue);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+
+      expect(detailAlive(container, overall.id), isFalse);
+      expect(limitAlive(container, overall.id), isFalse);
+    }, timeout: uiTestTimeout);
+
+    testWidgets('the detail provider stays alive under the limit screen and '
+        'is disposed once both routes close', (tester) async {
+      final overall = budget(categoryID: null, id: 'b1');
+      final container = await openDetail(tester, {
+        overall.id: overall,
+      }, overall.id);
+      await tester.tap(find.byIcon(Icons.edit_outlined));
+      await tester.pumpAndSettle();
+      expect(detailAlive(container, overall.id), isTrue);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(detailAlive(container, overall.id), isTrue);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(detailAlive(container, overall.id), isFalse);
+      expect(limitAlive(container, overall.id), isFalse);
+    }, timeout: uiTestTimeout);
+
+    testWidgets('opening another budget after closing one leaves only the '
+        'second alive', (tester) async {
+      final first = budget(categoryID: null, id: 'b1');
+      final second = budget(categoryID: food.id, id: 'b2');
+      final container = await openDetail(tester, {
+        first.id: first,
+        second.id: second,
+      }, first.id);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+
+      container
+          .read(budgetsListViewModelProvider.notifier)
+          .requestBudgetDetail(second.id);
+      await tester.pumpAndSettle();
+
+      expect(detailAlive(container, first.id), isFalse);
+      expect(detailAlive(container, second.id), isTrue);
+    }, timeout: uiTestTimeout);
+  });
 }

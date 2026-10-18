@@ -3,16 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
+import 'package:spendwise/ledger/analysis/budgets/budget_counted_entries.dart';
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ui/budgets/budget_detail/budget_counted_entry_list.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_chart.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
-import 'package:spendwise/ui/common/lists/day_sectioned_entry_list.dart';
 import 'package:spendwise/ui/common/inputs/month_year_selector.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
-import 'package:spendwise/ledger/analysis/budgets/budget_spend.dart';
-import 'package:spendwise/ui/stats/helpers/stats_window.dart';
+import 'package:spendwise/ui/stats/helpers/amount_header.dart';
 
 // MARK: - Screen
 
@@ -89,20 +89,10 @@ class _BudgetDetailBody extends StatelessWidget {
     final entriesLabel = _BudgetDetailEntriesLabel(
       selectedMonth: viewState.selectedMonth,
     );
-    final bucketIDs = viewState.scopedBucketIDs;
-    final entryList = DaySectionedEntryList(
+    final entryList = BudgetCountedEntryList(
       ledger: ledger,
       state: viewState.ledgerState,
-      window: viewState.selectedMonthWindow,
-      matching: () => viewState.ledgerState.entries.values.where((entry) {
-        if (entry.isTransfer) return false;
-        if (entry.expectedCategoryKind != CategoryKind.expense) return false;
-        if (!Accounting.includedInAnalysis(entry, viewState.ledgerState)) {
-          return false;
-        }
-        if (bucketIDs == null) return true;
-        return entry.categoryID != null && bucketIDs.contains(entry.categoryID);
-      }),
+      counted: viewState.countedEntries,
     );
 
     return Scaffold(
@@ -162,12 +152,7 @@ class _BudgetDetailHeader extends StatelessWidget {
 
     final selectedMonth = viewState.selectedYearMonth;
     final limit = effectiveLimit(budget, selectedMonth);
-    final spend = budgetSpend(
-      budget,
-      selectedMonth,
-      viewState.items,
-      viewState.ledgerState,
-    );
+    final spend = budgetCountedTotal(viewState.countedEntries);
     final overLimit = spend > limit;
 
     return Padding(

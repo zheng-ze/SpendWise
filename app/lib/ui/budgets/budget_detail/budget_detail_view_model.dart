@@ -8,8 +8,8 @@ import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/base/step_emitting.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budgets_steps.dart';
+import 'package:spendwise/ledger/analysis/budgets/budget_counted_entries.dart';
 import 'package:spendwise/ledger/analysis/budgets/budget_spend.dart';
-import 'package:spendwise/ui/stats/helpers/stats_window.dart';
 import 'package:spendwise/ui/stats/helpers/trend.dart';
 
 export 'package:spendwise/ui/budgets/budget_detail/budgets_steps.dart';
@@ -43,6 +43,7 @@ class BudgetDetailViewState
     required this.budget,
     required this.ledgerState,
     required this.items,
+    required this.countedEntries,
     required this.displayedYear,
     required this.selectedMonth,
     required this.months,
@@ -52,6 +53,7 @@ class BudgetDetailViewState
   final Budget? budget;
   final LedgerState ledgerState;
   final List<AnalysisItem> items;
+  final List<BudgetCountedEntry> countedEntries;
   final DateTime displayedYear;
   final DateTime selectedMonth;
   final List<DateTime> months;
@@ -78,14 +80,6 @@ class BudgetDetailViewState
 
   double get chartMaxYValue => chartMaxY(spendSeries, limitSeries);
 
-  DateRange get selectedMonthWindow => monthWindow(selectedMonth);
-
-  Set<String>? get scopedBucketIDs {
-    final currentBudget = budget;
-    if (currentBudget == null) return const {};
-    return budgetBucketIDs(currentBudget, ledgerState);
-  }
-
   String get title {
     final categoryID = budget?.categoryID;
     if (categoryID == null) return 'Overall';
@@ -96,6 +90,7 @@ class BudgetDetailViewState
     Budget? budget,
     LedgerState? ledgerState,
     List<AnalysisItem>? items,
+    List<BudgetCountedEntry>? countedEntries,
     DateTime? displayedYear,
     DateTime? selectedMonth,
     List<DateTime>? months,
@@ -105,6 +100,7 @@ class BudgetDetailViewState
       budget: budget ?? this.budget,
       ledgerState: ledgerState ?? this.ledgerState,
       items: items ?? this.items,
+      countedEntries: countedEntries ?? this.countedEntries,
       displayedYear: displayedYear ?? this.displayedYear,
       selectedMonth: selectedMonth ?? this.selectedMonth,
       months: months ?? this.months,
@@ -182,10 +178,18 @@ class BudgetDetailNotifier extends AsyncNotifier<BudgetDetailViewState>
     BudgetsStep? step,
   }) {
     final ledgerState = _ledger.state;
+    final budget = ledgerState.budgets[_budgetID];
     return BudgetDetailViewState(
-      budget: ledgerState.budgets[_budgetID],
+      budget: budget,
       ledgerState: ledgerState,
       items: _cache.items,
+      countedEntries: budget == null
+          ? const []
+          : budgetCountedEntries(
+              budget,
+              YearMonth(selectedMonth.year, selectedMonth.month),
+              ledgerState,
+            ),
       displayedYear: displayedYear,
       selectedMonth: selectedMonth,
       months: trendMonths(displayedYear, isYearRange: true),
@@ -234,9 +238,7 @@ class BudgetDetailNotifier extends AsyncNotifier<BudgetDetailViewState>
 }
 
 // MARK: - Constants
-final budgetDetailViewModelProvider =
-    AsyncNotifierProvider.family<
-      BudgetDetailNotifier,
-      BudgetDetailViewState,
-      String
-    >(BudgetDetailNotifier.new);
+final budgetDetailViewModelProvider = AsyncNotifierProvider.autoDispose
+    .family<BudgetDetailNotifier, BudgetDetailViewState, String>(
+      BudgetDetailNotifier.new,
+    );

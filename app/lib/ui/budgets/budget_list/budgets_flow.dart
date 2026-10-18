@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -42,8 +44,7 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
 
   @override
   void dispose() {
-    _detailSubscription?.close();
-    _limitSubscription?.close();
+    _closeBudgetSubscriptions();
     _formSubscription?.close();
     super.dispose();
   }
@@ -78,7 +79,7 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
   void handleStep(BuildContext context, BudgetsStep step) {
     switch (step) {
       case BudgetDetailRequested(:final budgetID):
-        _openBudget(context, budgetID);
+        unawaited(_openBudget(context, budgetID));
       case BudgetFormRequested():
         showBudgetFormSheet(context: context);
       case BudgetLimitEditRequested():
@@ -92,14 +93,22 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
 
   // MARK: - Budget Navigation
 
-  void _openBudget(BuildContext context, String budgetID) {
+  void _closeBudgetSubscriptions() {
     _detailSubscription?.close();
     _limitSubscription?.close();
+    _detailSubscription = null;
+    _limitSubscription = null;
+    _openBudgetID = null;
+  }
+
+  Future<void> _openBudget(BuildContext context, String budgetID) async {
+    _closeBudgetSubscriptions();
     _openBudgetID = budgetID;
-    _detailSubscription = ref.listenManual(
+    final detailSubscription = ref.listenManual(
       budgetDetailViewModelProvider(budgetID),
       (previous, next) => _handleDetailStep(budgetID, next.value?.step),
     );
+    _detailSubscription = detailSubscription;
     _limitSubscription = ref.listenManual(
       budgetLimitViewModelProvider(budgetID),
       (previous, next) => _handleLimitStep(budgetID, next.value?.step),
@@ -107,7 +116,9 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     final route = MaterialPageRoute<void>(
       builder: (_) => BudgetDetailScreen(budgetID: budgetID),
     );
-    Navigator.of(context, rootNavigator: true).push(route);
+    await Navigator.of(context, rootNavigator: true).push(route);
+    if (!identical(_detailSubscription, detailSubscription)) return;
+    _closeBudgetSubscriptions();
   }
 
   void _handleDetailStep(String budgetID, BudgetsStep? step) {
