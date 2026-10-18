@@ -7,7 +7,6 @@ import 'package:spendwise/ledger/analysis/budgets/budget_spend.dart';
 // MARK: - Constants
 
 const _divisionScale = 12;
-const _deletedCategoryName = '(category deleted)';
 
 // MARK: - Results
 
@@ -168,11 +167,14 @@ CategoryBudgetRow _row(
   LedgerState state,
 ) {
   final category = state.categories[categoryID];
-  final parentID = category?.parentID;
+  if (category == null) {
+    throw StateError('Budget ${budget.id} names a missing category.');
+  }
+  final parentID = category.parentID;
   return CategoryBudgetRow(
     budgetID: budget.id,
     categoryID: categoryID,
-    name: category?.name ?? _deletedCategoryName,
+    name: category.name,
     parentName: parentID == null ? null : state.categories[parentID]?.name,
     limit: _positiveLimit(budget, month),
     spend: budgetSpend(budget, month, items, state),

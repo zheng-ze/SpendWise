@@ -157,5 +157,35 @@ void main() {
       expect(detail?.summary?.spent, dec('83.90'));
       expect(detail?.summary?.remaining, dec('266.10'));
     });
+
+    test('an October override marks only that month', () async {
+      final ledger = seededLedger();
+      ledger.addBudget(
+        categoryNamed(ledger, 'Dining'),
+        dec('350'),
+        now: _pinnedDay,
+      );
+      final budgetID = ledger.state.budgets.values.single.id;
+      ledger.setBudgetMonthOverride(
+        budgetID,
+        const YearMonth(2026, 10),
+        dec('500'),
+      );
+      final queries = await queriesFor(ledger);
+
+      final detail = queries
+          .readBudgetDetail(
+            budgetID: budgetID,
+            displayedYear: DateTime.utc(2026),
+            selectedMonth: DateTime.utc(2026, 10),
+          )
+          .value;
+
+      final slots = detail?.slots ?? <BudgetMonthSlot>[];
+      final flags = [for (final s in slots) s.isOverride];
+      expect(flags, [for (var m = 1; m <= 12; m++) m == 10]);
+      expect(slots[9].limit, dec('500'));
+      expect(slots[8].limit, dec('350'));
+    });
   });
 }

@@ -11,6 +11,13 @@ class FrameEntry {
   final String area;
 }
 
+FrameEntry _parseRow(Object? row) {
+  if (row case {'id': final String id, 'area': final String area}) {
+    return FrameEntry(id: id, area: area);
+  }
+  throw FormatException('Bad frame row: $row');
+}
+
 class FrameManifest {
   FrameManifest(List<FrameEntry> frames) : frames = List.unmodifiable(frames);
 
@@ -19,12 +26,7 @@ class FrameManifest {
     if (decoded is! List) {
       throw FormatException('Frame manifest at $path is not a list.');
     }
-    final frames = [
-      for (final row in decoded)
-        if (row case {'id': final String id, 'area': final String area})
-          FrameEntry(id: id, area: area),
-    ];
-    return FrameManifest(frames);
+    return FrameManifest([for (final row in decoded) _parseRow(row)]);
   }
 
   final List<FrameEntry> frames;

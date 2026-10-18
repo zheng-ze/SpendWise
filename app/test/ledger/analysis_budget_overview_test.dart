@@ -157,6 +157,16 @@ void main() {
       expect(november.allSpending.cap, dec('500'));
     });
 
+    test('a budget without a default event fails the read', () {
+      final bare = Budget(
+        categoryID: _foodID,
+        limitEvents: const [],
+        createdAtMonth: _month,
+      );
+
+      expect(() => overview([bare]), throwsStateError);
+    });
+
     test('no budgets leaves the cap and allowance absent', () {
       final result = overview([], items: [spend(null, '12')]);
 
@@ -298,12 +308,10 @@ void main() {
       expect(order(reverse), order(forward));
     });
 
-    test('a deleted category keeps a deterministic label', () {
-      final result = overview([
-        budget('a0000000-0000-0000-0000-0000000000ee', '100'),
-      ]);
+    test('a budget on a missing category fails the read', () {
+      final orphan = budget('a0000000-0000-0000-0000-0000000000ee', '100');
 
-      expect(result.categoryBudgets.single.name, '(category deleted)');
+      expect(() => overview([orphan]), throwsStateError);
     });
 
     test('rows carry the parent name for subcategories', () {
@@ -366,6 +374,17 @@ void main() {
 
     test('an over cap month allows nothing more', () {
       expect(allowance(today: _october3, spent: '1300'), Decimal.zero);
+    });
+
+    test('a December date counts the days to year end', () {
+      final value = allowance(
+        today: DateTime.utc(2026, 12, 30),
+        month: const YearMonth(2026, 12),
+        cap: '1200',
+        spent: '0',
+      );
+
+      expect(value, dec('1200'));
     });
 
     test('a past or future selected month omits the allowance', () {

@@ -29,6 +29,7 @@ Future<void> pumpApp(
   ParitySize size = ParitySize.phone,
   Brightness brightness = Brightness.light,
   List<Override> overrides = const [],
+  bool settle = true,
 }) async {
   tester.view.devicePixelRatio = _devicePixelRatio;
   tester.view.physicalSize = size.size;
@@ -48,5 +49,9 @@ Future<void> pumpApp(
   await tester.pumpWidget(
     UncontrolledProviderScope(container: container, child: app),
   );
-  await tester.pumpAndSettle();
+  if (settle) {
+    await tester.pumpAndSettle();
+  } else {
+    await tester.pump();
+  }
 }

@@ -1,9 +1,27 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'frame_manifest.dart';
 import 'pump_app.dart';
 import 'ui_test_timeout.dart';
+
+Future<BuildContext> pumpProbe(
+  WidgetTester tester,
+  ParitySize size,
+  Brightness brightness,
+) async {
+  late BuildContext captured;
+  final probe = Builder(
+    builder: (context) {
+      captured = context;
+      return const SizedBox.shrink();
+    },
+  );
+  await pumpApp(tester, probe, size: size, brightness: brightness);
+  return captured;
+}
 
 void main() {
   group('pumpApp', () {
@@ -13,22 +31,24 @@ void main() {
           'pumps ${size.name} in ${brightness.name} at the parity size',
           timeout: uiTestTimeout,
           (tester) async {
-            late BuildContext captured;
-            final probe = Builder(
-              builder: (context) {
-                captured = context;
-                return const SizedBox.shrink();
-              },
-            );
+            final context = await pumpProbe(tester, size, brightness);
 
-            await pumpApp(tester, probe, size: size, brightness: brightness);
-
-            expect(MediaQuery.sizeOf(captured), size.size);
-            expect(Theme.of(captured).brightness, brightness);
+            expect(MediaQuery.sizeOf(context), size.size);
+            expect(Theme.of(context).brightness, brightness);
           },
         );
       }
     }
+
+    testWidgets(
+      'pumps an endless animation when settling is off',
+      timeout: uiTestTimeout,
+      (tester) async {
+        await pumpApp(tester, const CircularProgressIndicator(), settle: false);
+
+        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      },
+    );
   });
 
   group('FrameManifest', () {
@@ -49,6 +69,17 @@ void main() {
 
     test('lists every id once', () {
       expect(manifest.ids.length, manifest.frames.length);
+    });
+
+    test('rejects a row without a string area', () {
+      final file = File('${Directory.systemTemp.path}/bad_frames_419.json')
+        ..writeAsStringSync('[{"id": "x"}]');
+      addTearDown(file.deleteSync);
+
+      expect(
+        () => FrameManifest.load(path: file.path),
+        throwsA(isA<FormatException>()),
+      );
     });
   });
 }

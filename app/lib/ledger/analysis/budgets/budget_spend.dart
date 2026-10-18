@@ -15,8 +15,10 @@ Set<String>? budgetBucketIDs(Budget budget, LedgerState state) {
   };
 }
 
+bool _isMonthExpense(AnalysisItem item, DateRange window) =>
+    window.contains(item.date) && item.kind == CategoryKind.expense;
+
 bool _budgetMatches(Budget budget, AnalysisItem item, LedgerState state) {
-  if (item.kind != CategoryKind.expense) return false;
   if (budget.categoryID == null) return true;
 
   final bucketID = item.bucketID;
@@ -38,7 +40,8 @@ List<AnalysisItem> budgetItems(
   return items
       .where(
         (item) =>
-            window.contains(item.date) && _budgetMatches(budget, item, state),
+            _isMonthExpense(item, window) &&
+            _budgetMatches(budget, item, state),
       )
       .toList();
 }
@@ -59,9 +62,6 @@ Decimal monthExpenseSpend(YearMonth month, List<AnalysisItem> items) {
   final window = monthWindow(DateTime.utc(month.year, month.month));
 
   return items
-      .where(
-        (item) =>
-            window.contains(item.date) && item.kind == CategoryKind.expense,
-      )
+      .where((item) => _isMonthExpense(item, window))
       .fold(Decimal.zero, (sum, item) => sum + item.amount);
 }
