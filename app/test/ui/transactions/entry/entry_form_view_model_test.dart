@@ -727,9 +727,9 @@ void main() {
         viewModel.applyPickedRecurrence(RecurrenceFrequency.weekly);
         viewModel.setNote('  split\nrent  ');
         await viewModel.save();
-        ledger.resolvePlans(
-          startOfDayUtc(DateTime.now()).add(const Duration(days: 21)),
-        );
+        final today = startOfDayUtc(DateTime.now());
+        final threeWeeksOn = today.add(const Duration(days: 21));
+        ledger.resolvePlans(threeWeeksOn);
 
         final plan = ledger.state.plans.values.single;
         expect(plan.template.note, 'split\nrent');

@@ -24,6 +24,7 @@ const _compactPhone = Size(320, 560);
 const _tallPhone = Size(320, 760);
 const _textScale = 1.5;
 const _keyboardHeight = 300.0;
+const _growthSettle = Duration(milliseconds: 240);
 const _safeTop = 20.0;
 const _safeBottom = 34.0;
 const _dragUp = Offset(0, -80);
@@ -104,6 +105,13 @@ Finder get _handle => find.byWidgetPredicate(
             height: _handleHeight,
           ),
 );
+
+double _sheetHeight(WidgetTester tester) {
+  final surface = find
+      .descendant(of: find.byType(AppSheet), matching: find.byType(Material))
+      .first;
+  return tester.getSize(surface).height;
+}
 
 Future<void> _tapRailAdd(WidgetTester tester) async {
   await tester.tap(find.text('Add'));
@@ -333,6 +341,57 @@ void main() {
 
       await tester.enterText(_amountField, '42.50');
       expect(harness.draft['amount'], '42.50');
+    }, timeout: uiTestTimeout);
+  });
+
+  group('text focus without a keyboard inset', () {
+    for (final entry in {'Name': _nameField, 'Note': _noteField}.entries) {
+      testWidgets('focusing ${entry.key} grows the collapsed phone sheet', (
+        tester,
+      ) async {
+        final harness = await pumpShell(tester);
+        _useInsets(tester);
+        await openAdd(tester, harness);
+        await tester.tap(find.text('Add entry'));
+        await tester.pumpAndSettle();
+        final collapsed = _sheetHeight(tester);
+
+        await tester.ensureVisible(entry.value);
+        await tester.tap(entry.value);
+        await tester.pumpAndSettle();
+
+        expect(_sheetHeight(tester), greaterThan(collapsed));
+      }, timeout: uiTestTimeout);
+    }
+  });
+
+  group('Note with the keyboard up', () {
+    testWidgets('the Note value and Save entry stay reachable above it', (
+      tester,
+    ) async {
+      final harness = await pumpShell(tester, size: _compactPhone);
+      _useInsets(tester);
+      await openAdd(tester, harness);
+      await tester.ensureVisible(_noteField);
+      await tester.tap(_noteField);
+      await tester.pump();
+      await _setKeyboard(tester, _keyboardHeight);
+      await tester.enterText(_noteField, 'one\ntwo\nthree');
+      await tester.pump(_growthSettle);
+      await tester.pumpAndSettle();
+
+      final visibleBottom = _compactPhone.height - _keyboardHeight;
+      expect(_noteField.hitTestable(), findsOneWidget);
+      expect(
+        tester.getRect(_noteField).bottom,
+        lessThanOrEqualTo(visibleBottom),
+      );
+      expect(find.text('Save entry').hitTestable(), findsOneWidget);
+      expect(
+        tester.getRect(find.text('Save entry')).bottom,
+        lessThanOrEqualTo(visibleBottom),
+      );
+      expect(tester.takeException(), isNull);
     }, timeout: uiTestTimeout);
   });
 

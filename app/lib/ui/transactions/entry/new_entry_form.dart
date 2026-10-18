@@ -78,6 +78,8 @@ class _NewEntryFormState extends State<NewEntryForm> {
   void initState() {
     super.initState();
     _amountFocus.addListener(_refresh);
+    _nameFocus.addListener(_refresh);
+    _noteFocus.addListener(_refresh);
     WidgetsBinding.instance.addPostFrameCallback((_) => _autofocusAmount());
   }
 
@@ -119,6 +121,8 @@ class _NewEntryFormState extends State<NewEntryForm> {
   @override
   void dispose() {
     _amountFocus.removeListener(_refresh);
+    _nameFocus.removeListener(_refresh);
+    _noteFocus.removeListener(_refresh);
     _amountFocus.dispose();
     _nameFocus.dispose();
     _noteFocus.dispose();
