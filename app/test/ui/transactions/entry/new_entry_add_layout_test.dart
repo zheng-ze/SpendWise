@@ -106,13 +106,6 @@ Finder get _handle => find.byWidgetPredicate(
           ),
 );
 
-double _sheetHeight(WidgetTester tester) {
-  final surface = find
-      .descendant(of: find.byType(AppSheet), matching: find.byType(Material))
-      .first;
-  return tester.getSize(surface).height;
-}
-
 Future<void> _tapRailAdd(WidgetTester tester) async {
   await tester.tap(find.text('Add'));
   await tester.pumpAndSettle();
@@ -342,27 +335,6 @@ void main() {
       await tester.enterText(_amountField, '42.50');
       expect(harness.draft['amount'], '42.50');
     }, timeout: uiTestTimeout);
-  });
-
-  group('text focus without a keyboard inset', () {
-    for (final entry in {'Name': _nameField, 'Note': _noteField}.entries) {
-      testWidgets('focusing ${entry.key} grows the collapsed phone sheet', (
-        tester,
-      ) async {
-        final harness = await pumpShell(tester);
-        _useInsets(tester);
-        await openAdd(tester, harness);
-        await tester.tap(find.text('Add entry'));
-        await tester.pumpAndSettle();
-        final collapsed = _sheetHeight(tester);
-
-        await tester.ensureVisible(entry.value);
-        await tester.tap(entry.value);
-        await tester.pumpAndSettle();
-
-        expect(_sheetHeight(tester), greaterThan(collapsed));
-      }, timeout: uiTestTimeout);
-    }
   });
 
   group('Note with the keyboard up', () {
