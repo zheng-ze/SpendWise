@@ -79,29 +79,38 @@ class ViewEntryForm extends ConsumerWidget {
       ),
     ];
 
+    final scrollableContent = [
+      Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: _chipHorizontalPadding,
+          vertical: _chipVerticalPadding,
+        ),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(_chipBorderRadius),
+        ),
+        child: Text(_kindLabel(kind), style: theme.textTheme.labelSmall),
+      ),
+      const SizedBox(height: _headerNameGap),
+      Text(state.nameText, style: theme.textTheme.titleMedium),
+      const SizedBox(height: _nameAmountGap),
+      Text(
+        formatSignedMoney(signedAmount, kind: _amountKind),
+        style: amountStyle,
+      ),
+      const SizedBox(height: _contentGap),
+      ...detailRows,
+    ];
+
     return SheetShell(
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: _chipHorizontalPadding,
-            vertical: _chipVerticalPadding,
-          ),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(_chipBorderRadius),
-          ),
-          child: Text(_kindLabel(kind), style: theme.textTheme.labelSmall),
-        ),
-        const SizedBox(height: _headerNameGap),
-        Text(state.nameText, style: theme.textTheme.titleMedium),
-        const SizedBox(height: _nameAmountGap),
-        Text(
-          formatSignedMoney(signedAmount, kind: _amountKind),
-          style: amountStyle,
-        ),
-        const SizedBox(height: _contentGap),
         Flexible(
-          child: SingleChildScrollView(child: Column(children: detailRows)),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: scrollableContent,
+            ),
+          ),
         ),
         const SizedBox(height: _contentGap),
         SizedBox(
@@ -134,21 +143,18 @@ class _DetailRow extends StatelessWidget {
   final String value;
 
   static const _rowVerticalPadding = 8.0;
+  static const _labelValueGap = 8.0;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: _rowVerticalPadding),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label),
-          Expanded(
-            child: Text(
-              value,
-              textAlign: TextAlign.end,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
+          Flexible(child: Text(label)),
+          const SizedBox(width: _labelValueGap),
+          Expanded(child: Text(value, textAlign: TextAlign.end)),
         ],
       ),
     );
