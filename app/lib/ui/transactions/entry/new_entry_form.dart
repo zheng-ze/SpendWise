@@ -2,7 +2,9 @@ import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:spendwise/settings/settings_providers.dart';
 import 'package:spendwise/ui/common/inputs/number_pad.dart';
 import 'package:spendwise/ui/common/inputs/segmented_control.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
@@ -14,7 +16,7 @@ import 'package:spendwise/ui/transactions/entry/new_entry_chrome.dart';
 import 'package:spendwise/ui/transactions/entry/new_entry_rows.dart';
 import 'package:spendwise/ui/transactions/entry/steps/entry_form_logic.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
-import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_strip.dart';
+import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_stop_host.dart';
 
 // MARK: - Visual Constants
 
@@ -220,7 +222,7 @@ class _NewEntryFormState extends State<NewEntryForm> {
   }
 }
 
-class _NewEntryBody extends StatelessWidget {
+class _NewEntryBody extends ConsumerWidget {
   const _NewEntryBody({
     required this.formKey,
     required this.viewModel,
@@ -264,7 +266,8 @@ class _NewEntryBody extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final receiptEnabled = ref.watch(scanStripEnabledProvider).value ?? true;
     final kind = SegmentedControl<EntryFormKind>(
       options: _kindOptions,
       value: state.kind,
@@ -295,6 +298,7 @@ class _NewEntryBody extends StatelessWidget {
       keypad: keypad,
       onOutsideDown: onOutsideDown,
       onOutsideUp: onOutsideUp,
+      receiptEnabled: receiptEnabled,
     );
 
     return Column(
@@ -305,8 +309,7 @@ class _NewEntryBody extends StatelessWidget {
         amount,
         const SizedBox(height: _sectionGap),
         group,
-        const SizedBox(height: _sectionGap),
-        ReceiptScanStrip(formKey: formKey),
+        ReceiptScanStopHost(formKey: formKey),
       ],
     );
   }

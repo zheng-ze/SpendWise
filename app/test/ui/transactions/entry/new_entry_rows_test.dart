@@ -37,6 +37,7 @@ EntryFormViewState _state({
   RecurrenceFrequency? recurrence,
   bool hasEndDate = false,
   bool includeInAnalysis = true,
+  bool scanning = false,
 }) {
   return EntryFormViewState(
     mode: EntryFormMode.newEntry,
@@ -53,6 +54,7 @@ EntryFormViewState _state({
     endDate: _endDate,
     isSystemEntry: false,
     entryId: null,
+    scanning: scanning,
   );
 }
 
@@ -90,6 +92,7 @@ class _Fixture {
     EntryFormViewState state,
     EntryFormDisplay display, {
     bool keypad = false,
+    bool receiptEnabled = false,
   }) {
     return NewEntryRows(
       viewModel: viewModel,
@@ -104,6 +107,7 @@ class _Fixture {
       keypad: keypad,
       onOutsideDown: (_) {},
       onOutsideUp: (node, _) => node.unfocus(),
+      receiptEnabled: receiptEnabled,
     );
   }
 }
@@ -122,10 +126,16 @@ Future<_Fixture> _pump(
   double width = _normalWidth,
   double textScale = 1.0,
   bool keypad = false,
+  bool receiptEnabled = false,
 }) async {
   final fixture = _Fixture();
   addTearDown(fixture.dispose);
-  final content = fixture.rows(state, display, keypad: keypad);
+  final content = fixture.rows(
+    state,
+    display,
+    keypad: keypad,
+    receiptEnabled: receiptEnabled,
+  );
   final body = SingleChildScrollView(
     child: SizedBox(width: width, child: content),
   );
@@ -135,7 +145,7 @@ Future<_Fixture> _pump(
       home: Scaffold(body: body),
     ),
   );
-  await tester.pumpAndSettle();
+  await (state.scanning ? tester.pump() : tester.pumpAndSettle());
   return fixture;
 }
 
@@ -293,6 +303,86 @@ void main() {
         #setIncludeInAnalysis,
         #setIncludeInAnalysis,
       ]);
+    }, timeout: uiTestTimeout);
+  });
+
+  group('Add receipt', () {
+    testWidgets('is the last logical row with a camera icon and no chevron', (
+      tester,
+    ) async {
+      await _pump(tester, _state(), receiptEnabled: true);
+
+      expect(
+        _top(tester, 'Add receipt'),
+        greaterThan(_top(tester, 'Include in analysis')),
+      );
+      expect(find.byType(EntryRowDivider), findsNWidgets(7));
+      final row = _row('receipt');
+      final camera = find.descendant(
+        of: row,
+        matching: find.byIcon(Icons.camera_alt_outlined),
+      );
+      final chevron = find.descendant(
+        of: row,
+        matching: find.byIcon(Icons.chevron_right),
+      );
+      expect(camera, findsOneWidget);
+      expect(chevron, findsNothing);
+    }, timeout: uiTestTimeout);
+
+    testWidgets('is absent when receipts are disabled', (tester) async {
+      await _pump(tester, _state());
+
+      expect(find.text('Add receipt'), findsNothing);
+      expect(find.byType(EntryRowDivider), findsNWidgets(6));
+    }, timeout: uiTestTimeout);
+
+    testWidgets('the recurring hint follows the receipt row directly', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        _state(recurrence: RecurrenceFrequency.monthly),
+        receiptEnabled: true,
+      );
+
+      expect(_top(tester, _hint), greaterThan(_top(tester, 'Add receipt')));
+      expect(find.byType(EntryRowDivider), findsNWidgets(8));
+    }, timeout: uiTestTimeout);
+
+    testWidgets('tapping it unfocuses Name and requests the chooser', (
+      tester,
+    ) async {
+      final fixture = await _pump(tester, _state(), receiptEnabled: true);
+      fixture.nameFocus.requestFocus();
+      await tester.pump();
+
+      await tester.tap(find.text('Add receipt'));
+      await tester.pump();
+
+      expect(fixture.viewModel.calls, [#requestPickReceipt]);
+      expect(fixture.nameFocus.hasFocus, isFalse);
+    }, timeout: uiTestTimeout);
+
+    testWidgets('while scanning it reads Reading receipt and ignores taps', (
+      tester,
+    ) async {
+      final fixture = await _pump(
+        tester,
+        _state(scanning: true),
+        receiptEnabled: true,
+      );
+
+      await tester.tap(find.text('Reading receipt'));
+      await tester.pump();
+
+      expect(find.text('Add receipt'), findsNothing);
+      final spinner = find.descendant(
+        of: _row('receipt'),
+        matching: find.byType(CircularProgressIndicator),
+      );
+      expect(spinner, findsOneWidget);
+      expect(fixture.viewModel.calls, isEmpty);
     }, timeout: uiTestTimeout);
   });
 
@@ -496,6 +586,24 @@ void main() {
       for (final text in ['Every three months', 'Include in analysis']) {
         expect(find.text(text), findsOneWidget);
       }
+    }, timeout: uiTestTimeout);
+
+    testWidgets('the receipt label and icon fit the content width', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        _state(),
+        width: _narrowWidth,
+        textScale: _largeText,
+        receiptEnabled: true,
+      );
+
+      expect(tester.takeException(), isNull);
+      final label = tester.getRect(find.text('Add receipt'));
+      expect(label.right, lessThanOrEqualTo(_narrowWidth));
+      await tester.ensureVisible(_row('receipt'));
+      expect(_row('receipt').hitTestable(), findsOneWidget);
     }, timeout: uiTestTimeout);
 
     testWidgets('the analysis label and switch fit the content width', (

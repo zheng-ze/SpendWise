@@ -38,6 +38,8 @@ class PickEndDateRequested extends TransactionsStep {}
 
 class PickEndsRequested extends TransactionsStep {}
 
+class PickReceiptRequested extends TransactionsStep {}
+
 class DocumentCropRequested extends TransactionsStep {
   DocumentCropRequested(this.imageBytes);
 

@@ -29,6 +29,7 @@ abstract class EntryFormViewModel {
   void applyPickedDate(DateTime? date);
   void requestPickEndDate();
   void requestPickEnds();
+  void requestPickReceipt();
   void applyPickedEndDate(DateTime? date);
   void requestPickSource();
   void applyPickedSource(String? id);
@@ -184,6 +185,9 @@ class EntryFormNotifier extends AsyncNotifier<EntryFormViewState>
 
   @override
   void requestPickEnds() => emitStep(PickEndsRequested());
+
+  @override
+  void requestPickReceipt() => emitStep(PickReceiptRequested());
 
   @override
   void applyPickedEndDate(DateTime? date) {

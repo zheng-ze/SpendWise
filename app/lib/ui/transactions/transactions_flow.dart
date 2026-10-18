@@ -113,6 +113,7 @@ class _TransactionsFlowState
       case PickDateRequested():
       case PickEndDateRequested():
       case PickEndsRequested():
+      case PickReceiptRequested():
       case DocumentCropRequested():
         break;
     }

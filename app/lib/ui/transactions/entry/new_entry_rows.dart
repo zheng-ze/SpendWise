@@ -24,6 +24,10 @@ const _hintLineHeight = 1.4;
 
 const _hintPadding = EdgeInsets.only(top: 5.0, bottom: 4.0);
 
+const _spinnerSize = 14.0;
+
+const _spinnerStroke = 2.0;
+
 const _switchTapTarget = MaterialTapTargetSize.shrinkWrap;
 
 // MARK: - Copy
@@ -33,6 +37,10 @@ const _chooseCategoryLabel = 'Choose';
 const _selectAccountLabel = 'Select';
 
 const _neverEndsLabel = 'Never';
+
+const _addReceiptLabel = 'Add receipt';
+
+const _readingReceiptLabel = 'Reading receipt';
 
 const _recurringHint = 'Saving creates a plan. Review it in Money, Plans.';
 
@@ -52,6 +60,7 @@ class NewEntryRows extends StatelessWidget {
     required this.keypad,
     required this.onOutsideDown,
     required this.onOutsideUp,
+    required this.receiptEnabled,
   });
 
   final EntryFormViewModel viewModel;
@@ -66,6 +75,7 @@ class NewEntryRows extends StatelessWidget {
   final bool keypad;
   final ValueChanged<PointerDownEvent> onOutsideDown;
   final void Function(FocusNode, PointerUpEvent) onOutsideUp;
+  final bool receiptEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -197,6 +207,13 @@ class NewEntryRows extends StatelessWidget {
         keypad: keypad,
         onTap: () => viewModel.setIncludeInAnalysis(!state.includeInAnalysis),
       ),
+      if (receiptEnabled)
+        _ReceiptRow(
+          key: const ValueKey('new-entry-receipt'),
+          scanning: state.scanning,
+          keypad: keypad,
+          onTap: () => open(viewModel.requestPickReceipt),
+        ),
     ];
 
     final underlined = {nameRow: nameFocus, noteRow: noteFocus};
@@ -304,6 +321,37 @@ class _PickerRow extends StatelessWidget {
       keypad: keypad,
       chevron: true,
       onTap: onTap,
+    );
+  }
+}
+
+class _ReceiptRow extends StatelessWidget {
+  const _ReceiptRow({
+    super.key,
+    required this.scanning,
+    required this.keypad,
+    required this.onTap,
+  });
+
+  final bool scanning;
+  final bool keypad;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    const spinner = Align(
+      alignment: AlignmentDirectional.centerEnd,
+      child: SizedBox.square(
+        dimension: _spinnerSize,
+        child: CircularProgressIndicator(strokeWidth: _spinnerStroke),
+      ),
+    );
+    return AddEntryRow(
+      label: scanning ? _readingReceiptLabel : _addReceiptLabel,
+      labelIcon: Icons.camera_alt_outlined,
+      value: scanning ? spinner : const SizedBox.shrink(),
+      keypad: keypad,
+      onTap: scanning ? null : onTap,
     );
   }
 }

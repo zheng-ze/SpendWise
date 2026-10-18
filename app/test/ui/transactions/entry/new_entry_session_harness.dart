@@ -22,6 +22,7 @@ import 'package:spendwise/ui/transactions/entry/entry_form.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/entry/new_entry_presenter.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_entry_coordinator.dart';
+import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_flow.dart';
 
 const phoneSize = Size(400, 800);
 const openSize = Size(960, 720);
@@ -67,6 +68,8 @@ class RouteRecorder extends NavigatorObserver {
 class EntryFaults {
   bool failInit = false;
   Completer<void>? initGate;
+  bool swallowScans = false;
+  final scans = <ReceiptScanSource>[];
 }
 
 class CountingForm extends EntryFormNotifier {
@@ -88,6 +91,13 @@ class CountingForm extends EntryFormNotifier {
   void clearStep() {
     clears++;
     super.clearStep();
+  }
+
+  @override
+  void requestScan(ReceiptScanSource source, {Uint8List? preCapturedBytes}) {
+    faults.scans.add(source);
+    if (faults.swallowScans) return;
+    super.requestScan(source, preCapturedBytes: preCapturedBytes);
   }
 }
 
@@ -247,13 +257,15 @@ Future<EntryHarness> pumpShell(
   Size size = phoneSize,
   TargetPlatform platform = TargetPlatform.iOS,
   bool failPush = false,
+  bool scanEnabled = false,
+  HookedLedger? entryLedger,
   ThemeData? theme,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   final recorder = RouteRecorder();
-  final ledger = buildEntryLedger();
+  final ledger = entryLedger ?? buildEntryLedger();
   final faults = EntryFaults();
   final log = LifecycleLog();
   final container = ProviderContainer(
@@ -265,7 +277,7 @@ Future<EntryHarness> pumpShell(
         targetPlatform: platform,
       )),
       ledgerProvider.overrideWithValue(ledger),
-      scanStripEnabledProvider.overrideWith((ref) async => false),
+      scanStripEnabledProvider.overrideWith((ref) async => scanEnabled),
       entryFormViewModelProvider(null).overrideWith(() => CountingForm(faults)),
     ],
   );

@@ -91,11 +91,21 @@ plain back control.
   months (a spillover week appears under both months). Tap a month expands only it; tap a week jumps
   to Daily view of that week's month.
 - **Entry form** - three modes. New uses the amount-first `NewEntryForm`: kind selector,
-  `AddAmountBlock`, the `NewEntryRows` group, then `ReceiptScanStrip` outside the group. Edit keeps
+  `AddAmountBlock`, then the `NewEntryRows` group. Edit keeps
   `EntryFields`; Add no longer uses it. `NewEntryRows` lays out Name, Category, Account (Transfer:
-  From, To), Date, Repeat, Ends (only while recurring), Note and Include in analysis, with one
-  `EntryRowDivider` between adjacent rows and the hint "Saving creates a plan. Review it in
-  Money, Plans." after the last row of a recurring draft, without a divider. Each row is an
+  From, To), Date, Repeat, Ends (only while recurring), Note, Include in analysis and Add receipt
+  (key `new-entry-receipt`, camera icon, empty value, no chevron; hidden when
+  `scanStripEnabledProvider` is false), with one `EntryRowDivider` between adjacent rows. The
+  receipt row opens a content-height `AppSheet` chooser with the header "Add receipt", the hint
+  "Scanning fills in a draft. You check it before saving.", and plain "Scan receipt" (camera icon)
+  and "Choose photo" (image icon) rows. It has no Cancel and dismisses by dragging down on phone
+  or tapping outside. A choice closes the chooser and calls the keyed form's existing `requestScan`
+  with camera or gallery. While scanning, the final row reads "Reading receipt", shows a small
+  spinner on the right and ignores taps. The hint "Saving creates a plan. Review it in Money,
+  Plans." follows that row directly in recurring drafts, without a divider. Opening the chooser
+  unfocuses Amount, Name and Note; returning leaves the pad and IME dismissed. The chooser uses
+  the live Add presentation on the root navigator, and the Add session tracks its exact route,
+  removes it on retirement and rejects a choice that resumes after retirement. Each row is an
   `AddEntryRow` (`add_entry_row.dart`): 12 dp secondary label on the left, 12 dp w500 primary
   value on the right, 10 dp gap, 8 dp vertical padding while the pad shows and 10 dp otherwise,
   and a 13 dp trailing chevron on picker rows. A row stacks its label above the value when the
@@ -151,7 +161,7 @@ plain back control.
   reference frame) and Choose date awaits `_pickEndDate` directly. A dismissed choice or calendar
   changes nothing, Never sets `hasEndDate` false and keeps the cached date, and
   `applyPickedEndDate` sets `hasEndDate` and `endDate` together. Add passes its live sheet-presentation resolver to category, account,
-  repeat, and date pickers, which use `AppSheet`; without that resolver, category, account, and
+  repeat, receipt, and date pickers, which use `AppSheet`; without that resolver, category, account, and
   repeat use their legacy modal sheets and date uses `showDatePicker` for Edit and view flows.
   Picker option chevrons indicate parent drill-in; Add picker rows (Category, Account, From, To,
   Date, Repeat, Ends) carry trailing chevrons, Edit rows do not.
@@ -191,12 +201,19 @@ plain back control.
   `app/test/ui/transactions/entry/new_entry_sheet_drag_test.dart`)
 
 The amount-first host renders the reference row shell described under Entry form. Repeat is its
-own row, not a button beside Date. Receipt input remains
-`ReceiptScanStrip` with camera/upload actions. `noteText` is the draft behind the inline Note row; the host retains the Note controller
+own row, not a button beside Date. Receipt input uses `showReceiptChoiceSheet` and
+`PickReceiptRequested`. `ReceiptScanStopHost` stays mounted independently of the receipt preference,
+listens for `scanStop`, shows "Camera or photo library access was denied." for permission denial,
+and calls `clearScanStop` after consuming an occurrence. Scan prefill updates Name, Amount and Date
+while preserving Note, recurrence and analysis. The existing crop dispatch and coordinator's
+captured initiating-Ref guards continue to reject late results after Add retirement.
+`noteText` is the draft behind the inline Note row; the host retains the Note controller
 and focus node beside Name's; Note focus alone does not change the phone sheet height.
 (`app/lib/ui/transactions/entry/new_entry_form.dart`, `new_entry_rows.dart`,
 `entry_form_state.dart` - `EntryFormViewState.noteText`,
-`app/lib/ui/transactions/receipt_scan/receipt_scan_strip.dart`)
+`app/lib/ui/common/pickers/receipt_choice_sheet.dart`,
+`app/lib/ui/transactions/receipt_scan/receipt_scan_stop_host.dart`,
+`app/lib/ui/transactions/receipt_scan/receipt_entry_coordinator.dart`)
 
 ## Gotchas and invariants
 
