@@ -4,6 +4,8 @@ import 'package:domain/domain.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:spendwise/ledger/analysis/breakdowns/analysis_category_scope.dart';
+import 'package:spendwise/ledger/analysis/budgets/budget_detail.dart';
+import 'package:spendwise/ledger/analysis/budgets/budget_overview.dart';
 import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
 import 'package:spendwise/ledger/analysis/summaries/calendar.dart';
 import 'package:spendwise/ledger/analysis/breakdowns/category_breakdown.dart';
@@ -200,6 +202,19 @@ class AnalysisQueries extends ChangeNotifier {
       _readMatchedDayInsights();
 
   AnalysisQueryResult<WeekSoFar> readWeekSoFar() => _readWeekSoFar();
+
+  AnalysisQueryResult<BudgetsOverview> readBudgets({required DateTime month}) =>
+      _readBudgets(month: month);
+
+  AnalysisQueryResult<BudgetDetail> readBudgetDetail({
+    required String budgetID,
+    required DateTime displayedYear,
+    required DateTime selectedMonth,
+  }) => _readBudgetDetail(
+    budgetID: budgetID,
+    displayedYear: displayedYear,
+    selectedMonth: selectedMonth,
+  );
 
   // MARK: - Engine
 
