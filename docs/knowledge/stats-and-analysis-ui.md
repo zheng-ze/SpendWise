@@ -57,9 +57,9 @@ The Stats Flow owns the Trends destination's nested navigator. Category Detail i
 inherits mode fixed - the toolbar has the `MonthYearSelector` only, no range menu. The Uncategorized
 row in the legend is not navigable.
 
-The Budgets segment mounts `BudgetsFlow(host: BudgetHost.stats)`. Its list, detail, limit, and draft
-state follow the host and sheet ownership contracts in [budgets.md](budgets.md), independently of
-`BudgetHost.money`. (`app/lib/ui/stats/stats_root_screen.dart:_StatsTabContent`)
+The Budgets segment mounts `BudgetsFlow`. Its list, detail, limit, and draft state follow the
+ownership contracts in [budgets.md](budgets.md).
+(`app/lib/ui/stats/stats_root_screen.dart:_StatsTabContent`)
 
 ## Screens and flows
 

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ui/budgets/budget_host.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_form_view_model.dart';
 import 'package:spendwise/ui/common/inputs/amount_field.dart';
 import 'package:spendwise/ui/common/feedback/error_section.dart';

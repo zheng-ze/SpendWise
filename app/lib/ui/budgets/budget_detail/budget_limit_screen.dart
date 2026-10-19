@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/budgets/budget_detail/budget_limit_view_model.dart';
-import 'package:spendwise/ui/budgets/budget_host.dart';
 import 'package:spendwise/ui/common/feedback/error_section.dart';
 import 'package:spendwise/ui/common/inputs/month_year_selector.dart';
 import 'package:spendwise/ui/format/date_format.dart';
@@ -11,20 +10,18 @@ import 'package:spendwise/ui/format/money_format.dart';
 
 // MARK: - BudgetLimitScreen
 class BudgetLimitScreen extends ConsumerWidget {
-  const BudgetLimitScreen({super.key, required this.hostedBudget});
+  const BudgetLimitScreen({super.key, required this.budgetID});
 
-  final HostedBudget hostedBudget;
+  final String budgetID;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final asyncState = ref.watch(budgetLimitViewModelProvider(hostedBudget));
+    final asyncState = ref.watch(budgetLimitViewModelProvider(budgetID));
 
     return asyncState.when(
       data: (viewState) => _BudgetLimitScreenBody(
         viewState: viewState,
-        viewModel: ref.read(
-          budgetLimitViewModelProvider(hostedBudget).notifier,
-        ),
+        viewModel: ref.read(budgetLimitViewModelProvider(budgetID).notifier),
       ),
       loading: () =>
           const Scaffold(body: Center(child: CircularProgressIndicator())),

@@ -2,7 +2,6 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ui/budgets/budget_host.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_flow.dart';
 import 'package:spendwise/ui/common/inputs/month_year_selector.dart';
 import 'package:spendwise/ui/common/navigation/top_tab_bar.dart';
@@ -130,7 +129,7 @@ class _StatsTabContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (tab == StatsTab.budgets) {
-      return const BudgetsFlow(host: BudgetHost.stats);
+      return const BudgetsFlow();
     }
 
     final kind = tab == StatsTab.income

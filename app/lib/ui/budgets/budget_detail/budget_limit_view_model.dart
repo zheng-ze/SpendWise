@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart'
     show BudgetsStep, DefaultLimitTarget, MonthLimitTarget, PickLimitRequested;
-import 'package:spendwise/ui/budgets/budget_host.dart';
 import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/base/step_emitting.dart';
 
@@ -73,7 +72,7 @@ class BudgetLimitNotifier extends AsyncNotifier<BudgetLimitViewState>
         LedgerBackedNotifier<BudgetLimitViewState>,
         StepEmitting<BudgetLimitViewState, BudgetsStep>
     implements BudgetLimitViewModel {
-  BudgetLimitNotifier(HostedBudget key) : _budgetID = key.budgetID;
+  BudgetLimitNotifier(this._budgetID);
 
   final String _budgetID;
 
@@ -150,6 +149,6 @@ class BudgetLimitNotifier extends AsyncNotifier<BudgetLimitViewState>
 
 // MARK: - Constants
 final budgetLimitViewModelProvider = AsyncNotifierProvider.autoDispose
-    .family<BudgetLimitNotifier, BudgetLimitViewState, HostedBudget>(
+    .family<BudgetLimitNotifier, BudgetLimitViewState, String>(
       BudgetLimitNotifier.new,
     );

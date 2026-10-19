@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
-import 'package:spendwise/ui/budgets/budget_host.dart';
 import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/base/step_emitting.dart';
 
@@ -94,10 +93,6 @@ class BudgetsListNotifier extends AsyncNotifier<BudgetsListViewState>
         LedgerBackedNotifier<BudgetsListViewState>,
         StepEmitting<BudgetsListViewState, BudgetsStep>
     implements BudgetsListViewModel {
-  BudgetsListNotifier(this.host);
-
-  final BudgetHost host;
-
   BudgetsStep? _step;
 
   late Ledger _ledger;
@@ -156,8 +151,6 @@ class BudgetsListNotifier extends AsyncNotifier<BudgetsListViewState>
 
 // MARK: - Constants
 final budgetsListViewModelProvider =
-    AsyncNotifierProvider.family<
-      BudgetsListNotifier,
-      BudgetsListViewState,
-      BudgetHost
-    >(BudgetsListNotifier.new);
+    AsyncNotifierProvider<BudgetsListNotifier, BudgetsListViewState>(
+      BudgetsListNotifier.new,
+    );

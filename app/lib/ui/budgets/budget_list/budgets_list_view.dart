@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/budgets/budget_list/budget_card.dart';
-import 'package:spendwise/ui/budgets/budget_host.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_empty_state.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
 import 'package:spendwise/ui/common/navigation/expanding_fab.dart';
@@ -13,14 +12,12 @@ import 'package:spendwise/ui/shell/shell_providers.dart';
 // MARK: - Root
 
 class BudgetsRoot extends ConsumerWidget {
-  const BudgetsRoot({super.key, required this.host});
-
-  final BudgetHost host;
+  const BudgetsRoot({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final asyncState = ref.watch(budgetsListViewModelProvider(host));
-    final viewModel = ref.watch(budgetsListViewModelProvider(host).notifier);
+    final asyncState = ref.watch(budgetsListViewModelProvider);
+    final viewModel = ref.watch(budgetsListViewModelProvider.notifier);
     final month = YearMonth.fromUtc(ref.watch(effectiveMonthProvider));
 
     return asyncState.when(

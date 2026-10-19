@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart'
     show BudgetFormSaved, BudgetsStep, PickCategoryRequested;
-import 'package:spendwise/ui/budgets/budget_host.dart';
 import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/base/step_emitting.dart';
 import 'package:spendwise/ui/format/amount_parse.dart';
@@ -97,6 +96,11 @@ class BudgetFormViewState implements HasStep<BudgetFormViewState, BudgetsStep> {
   @override
   BudgetFormViewState withStep(BudgetsStep? Function() step) =>
       copyWith(step: step);
+}
+
+// MARK: - BudgetDraftKey
+class BudgetDraftKey {
+  BudgetDraftKey();
 }
 
 // MARK: - BudgetFormViewModel

@@ -7,7 +7,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/budgets/budget_host.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_screen.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 
@@ -97,11 +96,7 @@ void main() {
     return tester.pumpWidget(
       ProviderScope(
         overrides: overridesFor(ledger),
-        child: MaterialApp(
-          home: BudgetDetailScreen(
-            hostedBudget: (host: BudgetHost.stats, budgetID: b.id),
-          ),
-        ),
+        child: MaterialApp(home: BudgetDetailScreen(budgetID: b.id)),
       ),
     );
   }

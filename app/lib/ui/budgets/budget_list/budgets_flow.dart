@@ -8,7 +8,6 @@ import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart
 import 'package:spendwise/ui/budgets/budget_detail/budget_limit_edit_sheet.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_limit_screen.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_limit_view_model.dart';
-import 'package:spendwise/ui/budgets/budget_host.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_category_picker.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_form.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_form_view_model.dart';
@@ -18,9 +17,7 @@ import 'package:spendwise/ui/common/base/flow_base.dart';
 
 // MARK: - BudgetsFlow
 class BudgetsFlow extends FlowBase<BudgetsStep> {
-  const BudgetsFlow({super.key, required this.host});
-
-  final BudgetHost host;
+  const BudgetsFlow({super.key});
 
   @override
   ConsumerState<BudgetsFlow> createState() => _BudgetsFlowState();
@@ -58,24 +55,21 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     if (!mounted) return;
     final navContext = navigatorContext;
     if (navContext == null) return;
-    final pending = ref.read(budgetsListViewModelProvider(widget.host)).value;
+    final pending = ref.read(budgetsListViewModelProvider).value;
     final step = pending?.step;
     if (step != null) handleStep(navContext, step);
   }
 
   // MARK: - View Model Contracts
 
-  HostedBudget _hosted(String budgetID) =>
-      (host: widget.host, budgetID: budgetID);
-
   BudgetsListViewModel get _listViewModel =>
-      ref.read(budgetsListViewModelProvider(widget.host).notifier);
+      ref.read(budgetsListViewModelProvider.notifier);
 
   BudgetDetailViewModel _detailViewModel(String budgetID) =>
-      ref.read(budgetDetailViewModelProvider(_hosted(budgetID)).notifier);
+      ref.read(budgetDetailViewModelProvider(budgetID).notifier);
 
   BudgetLimitViewModel _limitViewModel(String budgetID) =>
-      ref.read(budgetLimitViewModelProvider(_hosted(budgetID)).notifier);
+      ref.read(budgetLimitViewModelProvider(budgetID).notifier);
 
   BudgetFormViewModel _formViewModel(BudgetDraftKey draftKey) =>
       ref.read(budgetFormViewModelProvider(draftKey).notifier);
@@ -86,7 +80,7 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
   void Function() subscribeToStep(void Function(BudgetsStep? step) handle) =>
       ref
           .listenManual(
-            budgetsListViewModelProvider(widget.host),
+            budgetsListViewModelProvider,
             (previous, AsyncValue<BudgetsListViewState> next) =>
                 handle(next.value?.step),
           )
@@ -95,10 +89,7 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
   @override
   void handleStep(BuildContext context, BudgetsStep step) {
     if (!DestinationActivity.of(context)) return;
-    final current = ref
-        .read(budgetsListViewModelProvider(widget.host))
-        .value
-        ?.step;
+    final current = ref.read(budgetsListViewModelProvider).value?.step;
     if (!identical(current, step)) return;
     switch (step) {
       case BudgetDetailRequested(:final budgetID):
@@ -128,16 +119,16 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     _closeBudgetSubscriptions();
     _openBudgetID = budgetID;
     final detailSubscription = ref.listenManual(
-      budgetDetailViewModelProvider(_hosted(budgetID)),
+      budgetDetailViewModelProvider(budgetID),
       (previous, next) => _handleDetailStep(budgetID, next.value?.step),
     );
     _detailSubscription = detailSubscription;
     _limitSubscription = ref.listenManual(
-      budgetLimitViewModelProvider(_hosted(budgetID)),
+      budgetLimitViewModelProvider(budgetID),
       (previous, next) => _handleLimitStep(budgetID, next.value?.step),
     );
     final route = MaterialPageRoute<void>(
-      builder: (_) => BudgetDetailScreen(hostedBudget: _hosted(budgetID)),
+      builder: (_) => BudgetDetailScreen(budgetID: budgetID),
     );
     unawaited(Navigator.of(context, rootNavigator: true).push(route));
     await route.completed;
@@ -154,7 +145,7 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     switch (step) {
       case BudgetLimitEditRequested():
         final route = MaterialPageRoute<void>(
-          builder: (_) => BudgetLimitScreen(hostedBudget: _hosted(budgetID)),
+          builder: (_) => BudgetLimitScreen(budgetID: budgetID),
         );
         Navigator.of(context, rootNavigator: true).push(route);
       case BudgetDetailRequested():
@@ -234,5 +225,5 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
   }
 
   @override
-  Widget buildRoot(BuildContext context) => BudgetsRoot(host: widget.host);
+  Widget buildRoot(BuildContext context) => const BudgetsRoot();
 }
