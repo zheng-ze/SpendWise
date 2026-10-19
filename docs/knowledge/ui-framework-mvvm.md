@@ -1,6 +1,6 @@
 # UI Framework (MVVM)
 
-Last reconciled: 2026-10-17
+Last reconciled: 2026-10-19
 
 ## Feature overview
 
@@ -249,6 +249,10 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   clears a shared `Step`, rechecks that the provider still holds the same pending `Step` before
   handling, and schedules one post-frame pickup of the current `Step` on activation with the same
   recheck, so a `Step` cleared by the visible owner never replays. (`app/lib/ui/transactions/transactions_flow.dart`)
+  `BudgetsFlow` applies the same activity and identity checks to its host-keyed list Step, leaving
+  it pending while inactive and picking it up after activation. Its providers and subscriptions
+  isolate Steps, selection, and drafts by host or sheet identity, as described in
+  [budgets.md](budgets.md). (`app/lib/ui/budgets/budget_list/budgets_flow.dart`)
 - **Settings teardown** - `SettingsFlow.dispose` performs terminal cleanup only through one
   disposal-safe microtask using the captured `ProviderContainer` and guard controller: it releases
   `enrollmentFlowOpenProvider` when this Flow owned the route and clears any pending navigation

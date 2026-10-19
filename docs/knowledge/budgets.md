@@ -19,6 +19,8 @@ produce facts (entries) only indirectly, via the spend math the app layer runs a
   `LedgerState`: create, update, delete, duplicate-guard, and the category sweep.
 - `app/lib/ui/budgets/budget_list/` - budget list view model, form, card, and `budgets_flow.dart`.
 - `app/lib/ui/budgets/budget_detail/` - detail and limit screens with their view models.
+- `app/lib/ui/budgets/budget_host.dart` - host keys, hosted budget identity, and per-sheet draft
+  identity.
 - `packages/domain/lib/src/budgets/budget_limits.dart` - `effectiveLimit(budget, month)`, the limit
   that applies to a month.
 - `app/lib/ledger/analysis/budgets/budget_spend.dart` - the app-layer spend math: `budgetItems`,
@@ -49,7 +51,8 @@ is formed. The budget screens do not yet consume these reads. The detail screen 
 month's headline spend from `budgetCountedTotal(viewState.countedEntries)`; its twelve-month chart
 uses `budgetSpend` over cached analysis items (`BudgetDetailViewState.spendSeries`,
 `_BudgetDetailHeader`). Budgets are the Budgets tab inside the Stats screen
-(`app/lib/ui/stats/stats_root_screen.dart` hosts `BudgetsFlow`), not a shell tab.
+(`app/lib/ui/stats/stats_root_screen.dart` supplies `BudgetHost.stats` to `BudgetsFlow`), not a shell
+tab.
 
 ## Budget model
 
@@ -132,15 +135,45 @@ while contributing to a negative expense day total. (`budget_counted_entry_list.
 
 ## Provider and subscription lifetime
 
+`BudgetsFlow` requires a `BudgetHost`, either `money` or `stats`.
+`budgetsListViewModelProvider` is a non-auto-disposing family keyed by that host.
 `budgetDetailViewModelProvider` and `budgetLimitViewModelProvider` are `autoDispose` families keyed
-by budget id. `BudgetsFlow` opens manual subscriptions to both before pushing the detail route and
-retains them while the limit screen is above it. During normal detail closure, it waits for
+by `HostedBudget`, the record `({BudgetHost host, String budgetID})`. The same budget id in different
+hosts therefore has separate selected-month, displayed-year, and pending Step state. The keys scope
+presentation state; both hosts still read and mutate the same Ledger budgets.
+(`budget_host.dart`, `budgets_list_view_model.dart`, `budget_detail_view_model.dart`,
+`budget_limit_view_model.dart`)
+
+`BudgetsFlow` opens manual subscriptions to the hosted detail and limit providers before pushing
+the detail route and retains them while the limit screen is above it. During normal detail closure, it waits for
 `route.completed` before closing both subscriptions, keeping the providers alive through the exit
 transition. It also closes subscriptions when the Flow is disposed or another budget is opened.
 The completion callback checks subscription identity so completion of an older route cannot close
 the current budget's subscriptions. (`budget_detail_view_model.dart`, `budget_limit_view_model.dart`,
 `app/lib/ui/budgets/budget_list/budgets_flow.dart`,
 `app/test/ui/budgets/budget_list/budgets_flow_test.dart`)
+
+`budgetFormViewModelProvider` is an `autoDispose` family keyed by `BudgetDraftKey`, which uses object
+identity equality. Each Add sheet receives a fresh key, including successive sheets within one
+host. The Flow subscribes to that draft before presenting the sheet and releases its subscription
+when the sheet's returned Future completes, when another draft opens, or when the Flow is disposed.
+The form watches the same key, so auto-disposal releases the draft after its listeners are gone.
+The completion callback checks draft identity before releasing the subscription. Category-picker
+results apply only while the initiating context is mounted and the same draft remains open.
+(`budget_host.dart`, `budget_form.dart`, `budget_form_view_model.dart`,
+`budgets_flow.dart:_openBudgetForm`, `_handleFormStep`)
+
+## Step ownership
+
+The list Step belongs to the host-keyed list provider. `BudgetsFlow.handleStep` handles and clears it
+only while `DestinationActivity` is active and the provider still holds that exact Step object.
+An inactive host leaves its Step pending. Activation schedules a post-frame pickup that reads the
+current Step and applies the same checks, so a stale callback cannot replay a consumed Step.
+Detail and limit Steps belong to the open `HostedBudget`; form Steps and category-picker
+continuations belong to the open `BudgetDraftKey`. Another host has separate subscriptions,
+selection, Steps, and drafts. (`budgets_flow.dart:handleStep`, `_pickUpStep`, `_handleDetailStep`,
+`_handleLimitStep`, `_handleFormStep`,
+`app/test/ui/budgets/budget_list/budgets_flow_hosts_test.dart`)
 
 ## Overview projection
 
