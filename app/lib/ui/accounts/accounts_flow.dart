@@ -24,26 +24,10 @@ class _AccountsFlowState extends FlowBaseState<AccountsStep, AccountsFlow> {
   late final List<NavigatorObserver> _navigatorObservers = [
     ?widget.moneyObserver,
   ];
-  bool _active = false;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final active = DestinationActivity.of(context);
-    final activated = active && !_active;
-    _active = active;
-    if (activated) WidgetsBinding.instance.addPostFrameCallback(_pickUpStep);
-  }
-
-  void _pickUpStep(Duration _) {
-    if (!mounted) return;
-    final context = navigatorContext;
-    final step = ref.read(accountsViewModelProvider).value?.step;
-    if (context != null && step != null) handleStep(context, step);
-  }
 
   @override
   List<NavigatorObserver> get navigatorObservers => _navigatorObservers;
+
   AccountsViewModel get _screenViewModel =>
       ref.read(accountsViewModelProvider.notifier);
 
@@ -59,11 +43,6 @@ class _AccountsFlowState extends FlowBaseState<AccountsStep, AccountsFlow> {
 
   @override
   void handleStep(BuildContext context, AccountsStep step) {
-    if (!DestinationActivity.of(context)) return;
-    if (!identical(ref.read(accountsViewModelProvider).value?.step, step)) {
-      return;
-    }
-    _screenViewModel.clearStep();
     switch (step) {
       case AccountFormRequested():
         showAccountFormSheet(context: context);
@@ -81,6 +60,7 @@ class _AccountsFlowState extends FlowBaseState<AccountsStep, AccountsFlow> {
       case SourceEditFormSaved():
         break;
     }
+    _screenViewModel.clearStep();
   }
 
   void _pushTransactions(

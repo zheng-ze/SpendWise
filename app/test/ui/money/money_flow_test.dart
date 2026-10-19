@@ -17,14 +17,11 @@ import 'package:spendwise/ui/common/inputs/segmented_control.dart';
 import 'package:spendwise/ui/money/money_flow.dart';
 import 'package:spendwise/ui/settings/plan/plan_list_screen.dart';
 import 'package:spendwise/ui/settings/plan/plan_list_view_model.dart';
-import 'package:spendwise/ui/settings/plan/plan_form.dart';
 import 'package:spendwise/ui/settings/settings_flow.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/shell_binding.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
-import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
-import 'package:spendwise/ui/budgets/budget_detail/budget_detail_screen.dart';
 import 'package:spendwise/ui/stats/stats_root_view_model.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/stats/stats_flow.dart';
@@ -349,97 +346,28 @@ void main() {
     timeout: uiTestTimeout,
   );
 
-  testWidgets(
-    'Inactive Accounts and Plans preserve pending navigation until activation',
-    (tester) async {
-      final ledger = _seedLedger();
-      final container = await _pumpMoney(tester, ledger);
-      await _segment(tester, 'Accounts');
-      await _segment(tester, 'Plans');
-      await _segment(tester, 'Budgets');
-      final accounts = container.read(accountsViewModelProvider.notifier);
-      accounts.requestNewAccount();
-      final accountStep = container.read(accountsViewModelProvider).value?.step;
-      ledger.addAccount(Account(name: 'First update', type: AccountType.cash));
-      expect(
-        container.read(accountsViewModelProvider).value?.step,
-        same(accountStep),
-      );
-      final plans = container.read(planListViewModelProvider.notifier);
-      plans.requestEditPlan(ledger.state.plans.values.first);
-      final planStep = container.read(planListViewModelProvider).value?.step;
-      ledger.addAccount(Account(name: 'Second update', type: AccountType.cash));
-      expect(
-        container.read(planListViewModelProvider).value?.step,
-        same(planStep),
-      );
-      await tester.pumpAndSettle();
-      expect(find.byType(AccountForm, skipOffstage: false), findsNothing);
-      expect(find.byType(PlanForm, skipOffstage: false), findsNothing);
-      expect(
-        container.read(accountsViewModelProvider).value?.step,
-        same(accountStep),
-      );
-      expect(
-        container.read(planListViewModelProvider).value?.step,
-        same(planStep),
-      );
-      await _segment(tester, 'Accounts');
-      expect(find.byType(AccountForm, skipOffstage: false), findsOneWidget);
-      await tester.binding.handlePopRoute();
-      await tester.pumpAndSettle();
-      await _segment(tester, 'Plans');
-      expect(find.byType(PlanForm, skipOffstage: false), findsOneWidget);
-      await tester.binding.handlePopRoute();
-      await tester.pumpAndSettle();
-      await _segment(tester, 'Accounts');
-      expect(find.byType(AccountForm, skipOffstage: false), findsNothing);
-      await _segment(tester, 'Plans');
-      expect(find.byType(PlanForm, skipOffstage: false), findsNothing);
-      await _destination(tester, container, ShellDestination.settings);
-      accounts.requestNewAccount();
-      await tester.pumpAndSettle();
-      expect(find.byType(AccountForm, skipOffstage: false), findsNothing);
-      await _selectRetained(tester, container, MoneySegment.accounts);
-      expect(find.byType(AccountForm, skipOffstage: false), findsNothing);
-      await _destination(tester, container, ShellDestination.money);
-      expect(find.byType(AccountForm, skipOffstage: false), findsOneWidget);
-    },
-    timeout: uiTestTimeout,
-  );
-
-  testWidgets(
-    'Money and temporary Stats Budgets share root month and consume one active detail step',
-    (tester) async {
-      final ledger = _seedLedger();
-      ledger.addBudget(null, Decimal.parse('1200'), now: _today);
-      final container = await _pumpMoney(tester, ledger);
-      final money = tester.state(find.byType(BudgetsFlow));
-      await tester.tap(find.byTooltip('Previous month'));
-      await tester.pumpAndSettle();
-      expect(container.read(effectiveMonthProvider), DateTime.utc(2026, 9));
-      await _destination(tester, container, ShellDestination.trends);
-      container
-          .read(statsRootViewModelProvider.notifier)
-          .setTab(StatsTab.budgets);
-      await tester.pumpAndSettle();
-      expect(find.byType(BudgetsFlow, skipOffstage: false), findsNWidgets(2));
-      expect(container.read(effectiveMonthProvider), DateTime.utc(2026, 9));
-      await tester.tap(find.byTooltip('Next month'));
-      await tester.pumpAndSettle();
-      expect(container.read(effectiveMonthProvider), DateTime.utc(2026, 10));
-      container
-          .read(budgetsListViewModelProvider.notifier)
-          .requestBudgetDetail(ledger.state.budgets.keys.single);
-      await tester.pumpAndSettle();
-      expect(find.byType(BudgetDetailScreen), findsOneWidget);
-      await tester.binding.handlePopRoute();
-      await tester.pumpAndSettle();
-      await _destination(tester, container, ShellDestination.money);
-      expect(tester.state(find.byType(BudgetsFlow)), same(money));
-      expect(find.byType(BudgetDetailScreen), findsNothing);
-      expect(container.read(effectiveMonthProvider), DateTime.utc(2026, 10));
-    },
-    timeout: uiTestTimeout,
-  );
+  testWidgets('Money and temporary Stats Budgets share root month', (
+    tester,
+  ) async {
+    final ledger = _seedLedger();
+    ledger.addBudget(null, Decimal.parse('1200'), now: _today);
+    final container = await _pumpMoney(tester, ledger);
+    final money = tester.state(find.byType(BudgetsFlow));
+    await tester.tap(find.byTooltip('Previous month'));
+    await tester.pumpAndSettle();
+    expect(container.read(effectiveMonthProvider), DateTime.utc(2026, 9));
+    await _destination(tester, container, ShellDestination.trends);
+    container
+        .read(statsRootViewModelProvider.notifier)
+        .setTab(StatsTab.budgets);
+    await tester.pumpAndSettle();
+    expect(find.byType(BudgetsFlow, skipOffstage: false), findsNWidgets(2));
+    expect(container.read(effectiveMonthProvider), DateTime.utc(2026, 9));
+    await tester.tap(find.byTooltip('Next month'));
+    await tester.pumpAndSettle();
+    expect(container.read(effectiveMonthProvider), DateTime.utc(2026, 10));
+    await _destination(tester, container, ShellDestination.money);
+    expect(tester.state(find.byType(BudgetsFlow)), same(money));
+    expect(container.read(effectiveMonthProvider), DateTime.utc(2026, 10));
+  }, timeout: uiTestTimeout);
 }

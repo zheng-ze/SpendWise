@@ -13,7 +13,6 @@ import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/common/base/flow_base.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
-import 'package:spendwise/ui/transactions/transactions_view_model.dart';
 import 'package:spendwise/ui/overview/overview_flow.dart';
 import 'package:spendwise/ui/overview/overview_view_model.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
@@ -1043,126 +1042,6 @@ void main() {
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       expect(find.text('Transactions'), findsNothing);
-    }, timeout: uiTestTimeout);
-
-    testWidgets('exactly one editor opens in the visible history owner', (
-      tester,
-    ) async {
-      final entryIds = StringBuffer();
-      final ledger = _ledgerWithEntry(entryIds);
-      final entryId = entryIds.toString();
-      TransactionsViewModel historyViewModel(ProviderContainer container) =>
-          container.read(transactionsViewModelProvider(null).notifier);
-      final container = await _pumpBoundShell(
-        tester,
-        size: _openSized,
-        bodies: {
-          ..._probeBodies(),
-          ShellDestination.overview: (_) => Navigator(
-            onGenerateRoute: (settings) => MaterialPageRoute<void>(
-              settings: settings,
-              builder: (context) => Center(
-                child: TextButton(
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const TransactionsFlow(),
-                    ),
-                  ),
-                  child: const Text('open history'),
-                ),
-              ),
-            ),
-          ),
-          ShellDestination.history: (_) => const TransactionsFlow(),
-        },
-        ledger: ledger,
-      );
-      container.read(selectedDestinationProvider.notifier).state =
-          ShellDestination.history;
-      await tester.pumpAndSettle();
-      expect(find.text('Transactions'), findsOneWidget);
-
-      container.read(selectedDestinationProvider.notifier).state =
-          ShellDestination.overview;
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('open history'));
-      await tester.pumpAndSettle();
-      expect(find.text('Transactions'), findsOneWidget);
-
-      historyViewModel(container).openEntry(entryId);
-      await tester.pumpAndSettle();
-      expect(find.text('Edit'), findsOneWidget);
-
-      container.read(selectedDestinationProvider.notifier).state =
-          ShellDestination.history;
-      await tester.pumpAndSettle();
-      expect(find.text('Transactions'), findsOneWidget);
-      expect(find.text('Edit'), findsNothing);
-
-      container.read(selectedDestinationProvider.notifier).state =
-          ShellDestination.overview;
-      await tester.pumpAndSettle();
-      Navigator.of(tester.element(find.text('Edit'))).pop();
-      await tester.pumpAndSettle();
-      expect(find.text('Edit'), findsNothing);
-
-      container.read(selectedDestinationProvider.notifier).state =
-          ShellDestination.history;
-      await tester.pumpAndSettle();
-      historyViewModel(container).openEntry(entryId);
-      await tester.pumpAndSettle();
-      expect(find.text('Edit'), findsOneWidget);
-      expect(find.text('Transactions', skipOffstage: false), findsNWidgets(2));
-      Navigator.of(tester.element(find.text('Edit'))).pop();
-      await tester.pumpAndSettle();
-      expect(find.text('Edit'), findsNothing);
-    }, timeout: uiTestTimeout);
-
-    testWidgets('activation pickup consumes a pending step once and never '
-        'replays it', (tester) async {
-      final entryIds = StringBuffer();
-      final ledger = _ledgerWithEntry(entryIds);
-      final entryId = entryIds.toString();
-      final container = await _pumpBoundShell(
-        tester,
-        size: _openSized,
-        bodies: {
-          ..._probeBodies(),
-          ShellDestination.history: (_) => const TransactionsFlow(),
-        },
-        ledger: ledger,
-      );
-      container.read(selectedDestinationProvider.notifier).state =
-          ShellDestination.trends;
-      await tester.pumpAndSettle();
-      container
-          .read(transactionsViewModelProvider(null).notifier)
-          .openEntry(entryId);
-      await tester.pumpAndSettle();
-      expect(find.text('Edit'), findsNothing);
-      expect(
-        container.read(transactionsViewModelProvider(null)).value?.step,
-        isNotNull,
-      );
-
-      container.read(selectedDestinationProvider.notifier).state =
-          ShellDestination.history;
-      await tester.pumpAndSettle();
-      expect(find.text('Edit'), findsOneWidget);
-      expect(
-        container.read(transactionsViewModelProvider(null)).value?.step,
-        isNull,
-      );
-      Navigator.of(tester.element(find.text('Edit'))).pop();
-      await tester.pumpAndSettle();
-
-      container.read(selectedDestinationProvider.notifier).state =
-          ShellDestination.overview;
-      await tester.pumpAndSettle();
-      container.read(selectedDestinationProvider.notifier).state =
-          ShellDestination.history;
-      await tester.pumpAndSettle();
-      expect(find.text('Edit'), findsNothing);
     }, timeout: uiTestTimeout);
   });
 }

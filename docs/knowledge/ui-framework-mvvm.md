@@ -244,14 +244,9 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   wraps its destination with the flag derived from the selected destination. An inactive `FlowBase`
   `PopScope` permits propagation and ignores its callback; the active Flow delegates Back through
   its own nested `Navigator`. `FlowBase` reads no shell providers. Nested enrollment and scoped
-  Flows inherit their host destination's activity. `TransactionsFlow` additionally gates its
-  screen-`Step` consumption on that flag: a hidden retained History instance neither acts on nor
-  clears a shared `Step`, rechecks that the provider still holds the same pending `Step` before
-  handling, and schedules one post-frame pickup of the current `Step` on activation with the same
-  recheck, so a `Step` cleared by the visible owner never replays. (`app/lib/ui/transactions/transactions_flow.dart`)
-  `BudgetsFlow` applies the same activity and identity checks to its list Step, leaving
-  it pending while inactive and picking it up after activation. Add drafts are scoped to their
-  sheet, as described in [budgets.md](budgets.md). (`app/lib/ui/budgets/budget_list/budgets_flow.dart`)
+  Flows inherit their host destination's activity. Screen `Step`s are produced only by user
+  actions on the visible screen, so no Flow gates `Step` handling on the flag. Add drafts are scoped
+  to their sheet, as described in [budgets.md](budgets.md).
 - **Settings teardown** - `SettingsFlow.dispose` performs terminal cleanup only through one
   disposal-safe microtask using the captured `ProviderContainer` and guard controller: it releases
   `enrollmentFlowOpenProvider` when this Flow owned the route and clears any pending navigation

@@ -2,7 +2,6 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ui/common/base/flow_base.dart';
 import 'package:spendwise/ui/common/feedback/delete_confirmation.dart';
 import 'package:spendwise/ui/common/lists/swipe_row.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
@@ -35,22 +34,6 @@ class PlanListScreen extends ConsumerStatefulWidget {
 class _PlanListScreenState extends ConsumerState<PlanListScreen> {
   ProviderSubscription<AsyncValue<PlanListViewState>>? _stepSubscription;
 
-  bool _active = false;
-  PlanListStep? _presentingStep;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final active = DestinationActivity.of(context);
-    final activated = active && !_active;
-    _active = active;
-    if (activated) WidgetsBinding.instance.addPostFrameCallback(_pickUpStep);
-  }
-
-  void _pickUpStep(Duration _) {
-    if (mounted) _handleStep(ref.read(planListViewModelProvider).value?.step);
-  }
-
   @override
   void initState() {
     super.initState();
@@ -70,37 +53,28 @@ class _PlanListScreenState extends ConsumerState<PlanListScreen> {
       ref.read(planListViewModelProvider.notifier);
 
   void _handleStep(PlanListStep? step) {
-    if (step == null || !DestinationActivity.of(context)) return;
-    if (!identical(ref.read(planListViewModelProvider).value?.step, step)) {
-      return;
-    }
-    if (identical(_presentingStep, step)) return;
+    if (step == null) return;
 
     switch (step) {
       case PlanFormRequested(:final plan):
-        _viewModel.clearStep();
         _openPlanForm(plan);
-      case DeleteConfirmationRequested():
-        _presentingStep = step;
-        _confirmDelete(step);
+      case DeleteConfirmationRequested(:final plan):
+        _confirmDelete(plan);
     }
   }
 
   Future<void> _openPlanForm(RecurringPlan plan) async {
+    _viewModel.clearStep();
     await showPlanFormSheet(context: context, plan: plan);
   }
 
-  Future<void> _confirmDelete(DeleteConfirmationRequested step) async {
+  Future<void> _confirmDelete(RecurringPlan plan) async {
     final confirmed = await showDeleteConfirmation(
       context,
-      itemName: step.plan.template.name,
+      itemName: plan.template.name,
     );
-    if (!mounted) return;
-    if (identical(ref.read(planListViewModelProvider).value?.step, step)) {
-      _viewModel.applyDeleteConfirmed(confirmed);
-      _viewModel.clearStep();
-    }
-    _presentingStep = null;
+    _viewModel.applyDeleteConfirmed(confirmed);
+    _viewModel.clearStep();
   }
 
   @override

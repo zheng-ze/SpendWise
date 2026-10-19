@@ -21,10 +21,8 @@ their own. The Money header always renders for the selected segment; a nested Ac
 currently shows beneath it until the Accounts restyle (#304). (`app/lib/ui/money/money_flow.dart`,
 `accounts_flow.dart`, `accounts_screen.dart`, `app/lib/ui/settings/plan/plan_list_screen.dart`)
 
-`DestinationActivity` combines the selected shell destination with the selected Money segment.
-Inactive Accounts and Plans leave pending navigation Steps untouched and pick them up once on
-activation. Budgets retains its existing activity checks. Plans now has one presentation owner in
-Money; Settings has no recurring-plan entry. (`money_flow.dart`, `accounts_flow.dart`, `plan_list_screen.dart`)
+`DestinationActivity` combines the selected shell destination with the selected Money segment and
+only stops an inactive child's Back handling. Plans now has one presentation owner in Money; Settings has no recurring-plan entry. (`money_flow.dart`, `accounts_flow.dart`, `plan_list_screen.dart`)
 
 ## Key files
 

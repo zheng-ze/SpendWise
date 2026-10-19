@@ -1,6 +1,6 @@
 # Transactions UI
 
-Last reconciled: 2026-10-18
+Last reconciled: 2026-10-20
 
 ## Feature overview
 
@@ -37,11 +37,8 @@ and is the only place recurring plans are created.
   It takes an optional `backLabel` passed through to the screen's back control; the phone
   shell-History slot sets it to 'Overview' with an `onEnded` that reselects Overview, the phone
   Overview-pushed History page sets it to 'Overview' with an `onEnded` that pops its containing
-  Overview route, while the open/desktop History slot and scoped lists set none. Only the
-  destination-active `TransactionsFlow` consumes screen `Step`s: a hidden retained History
-  instance neither acts on nor clears a shared `Step`. The active Flow rechecks provider ownership
-  of the pending `Step` before handling, and picks up the current `Step` once post-frame on
-  activation, so a `Step` cleared by the visible owner never replays.
+  Overview route, while the open/desktop History slot and scoped lists set none. `TransactionsFlow`
+  handles and clears its screen `Step`s directly.
 - `app/lib/ui/common/lists/day_sectioned_entry_list.dart`, `form_scaffold.dart`,
   `swipe_row.dart`, `pickers/` — shared components and picker sheets.
 - `app/lib/ui/symbol_map.dart` — symbol-to-IconData mapping.

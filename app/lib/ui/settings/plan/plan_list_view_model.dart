@@ -107,13 +107,7 @@ class PlanListNotifier extends AsyncNotifier<PlanListViewState>
 
   void _onLedgerChanged() {
     final current = state.value;
-    state = AsyncData(
-      _buildState(
-        ledger,
-        editing: current?.editing ?? false,
-        step: current?.step,
-      ),
-    );
+    state = AsyncData(_buildState(ledger, editing: current?.editing ?? false));
   }
 
   PlanListViewState _buildState(
