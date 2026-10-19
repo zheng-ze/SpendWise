@@ -305,8 +305,6 @@ void main() {
           .openAccount(account.id);
       await tester.pumpAndSettle();
       final scoped = tester.state(find.byType(TransactionsFlow));
-      expect(find.byType(SegmentedControl<MoneySegment>), findsNothing);
-      expect(find.byTooltip('Add account'), findsNothing);
       expect(observer.sourceId, account.id);
       await _addSource(tester, container, account.id);
       await _selectRetained(tester, container, MoneySegment.budgets);

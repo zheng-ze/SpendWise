@@ -17,8 +17,8 @@ Each segment mounts on its first visit and retains its child state across segmen
 and phone/open layout changes. The shared root header shows Money and one segmented control;
 only Budgets shows the shared month selector. Accounts adds its Add account action to this header,
 and Plans adds its existing Edit/Done action. The Accounts and Plans roots have no header of
-their own. Nested Accounts pages retain their own back, title and actions
-and hide the Money root header until returning. (`app/lib/ui/money/money_flow.dart`,
+their own. The Money header always renders for the selected segment; a nested Accounts page
+currently shows beneath it until the Accounts restyle (#304). (`app/lib/ui/money/money_flow.dart`,
 `accounts_flow.dart`, `accounts_screen.dart`, `app/lib/ui/settings/plan/plan_list_screen.dart`)
 
 `DestinationActivity` combines the selected shell destination with the selected Money segment.

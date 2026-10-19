@@ -50,29 +50,18 @@ class MoneyFlow extends ConsumerStatefulWidget {
 
 class _MoneyFlowState extends ConsumerState<MoneyFlow> {
   final _visited = <MoneySegment>{MoneySegment.budgets};
-  bool _accountsRoot = true;
-  late final _rootObserver = _RootObserver(_rootChanged);
-
-  void _rootChanged(bool root) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || root == _accountsRoot) return;
-      setState(() => _accountsRoot = root);
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
     final segment = ref.watch(moneySegmentProvider);
     _visited.add(segment);
     final active = DestinationActivity.of(context);
-    final atRoot = segment != MoneySegment.accounts || _accountsRoot;
     final children = MoneySegment.values.map((value) {
       final child = switch (value) {
         _ when !_visited.contains(value) => const SizedBox.shrink(),
         MoneySegment.budgets => const BudgetsFlow(),
         MoneySegment.accounts => AccountsFlow(
           moneyObserver: widget.moneyObserver,
-          rootObserver: _rootObserver,
         ),
         MoneySegment.plans => const PlanListScreen(),
       };
@@ -83,12 +72,9 @@ class _MoneyFlowState extends ConsumerState<MoneyFlow> {
       );
     }).toList();
     final stack = IndexedStack(index: segment.index, children: children);
-    final header = atRoot
-        ? _MoneyHeader(segment: segment)
-        : const SizedBox.shrink();
     final body = Column(
       children: [
-        header,
+        _MoneyHeader(segment: segment),
         Expanded(child: stack),
       ],
     );
@@ -162,19 +148,5 @@ class _MoneyAction extends ConsumerWidget {
       onPressed: ref.read(planListViewModelProvider.notifier).toggleEditing,
       child: Text(state.editing ? 'Done' : 'Edit'),
     );
-  }
-}
-
-class _RootObserver extends NavigatorObserver {
-  _RootObserver(this.onChanged);
-
-  final ValueChanged<bool> onChanged;
-
-  @override
-  void didChangeTop(
-    Route<Object?>? topRoute,
-    Route<Object?>? previousTopRoute,
-  ) {
-    onChanged(topRoute?.isFirst ?? true);
   }
 }
