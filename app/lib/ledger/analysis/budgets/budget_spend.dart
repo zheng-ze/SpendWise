@@ -2,19 +2,6 @@ import 'package:domain/domain.dart';
 
 import 'package:spendwise/ledger/analysis/insights/completeness.dart';
 
-// MARK: - Category Scope
-
-Set<String>? budgetBucketIDs(Budget budget, LedgerState state) {
-  final categoryID = budget.categoryID;
-  if (categoryID == null) return null;
-
-  return {
-    categoryID,
-    for (final category in state.categories.values)
-      if (category.parentID == categoryID) category.id,
-  };
-}
-
 bool _isMonthExpense(AnalysisItem item, DateRange window) =>
     window.contains(item.date) && item.kind == CategoryKind.expense;
 
@@ -29,22 +16,24 @@ bool _budgetMatches(Budget budget, AnalysisItem item, LedgerState state) {
 
 // MARK: - Spending
 
+bool budgetCountsItem(
+  Budget budget,
+  YearMonth month,
+  AnalysisItem item,
+  LedgerState state,
+) =>
+    _isMonthExpense(item, monthWindow(DateTime.utc(month.year, month.month))) &&
+    _budgetMatches(budget, item, state);
+
 List<AnalysisItem> budgetItems(
   Budget budget,
   YearMonth month,
   List<AnalysisItem> items,
   LedgerState state,
-) {
-  final window = monthWindow(DateTime.utc(month.year, month.month));
-
-  return items
-      .where(
-        (item) =>
-            _isMonthExpense(item, window) &&
-            _budgetMatches(budget, item, state),
-      )
-      .toList();
-}
+) => [
+  for (final item in items)
+    if (budgetCountsItem(budget, month, item, state)) item,
+];
 
 Decimal budgetSpend(
   Budget budget,

@@ -148,9 +148,7 @@ class BudgetLimitNotifier extends AsyncNotifier<BudgetLimitViewState>
 }
 
 // MARK: - Constants
-final budgetLimitViewModelProvider =
-    AsyncNotifierProvider.family<
-      BudgetLimitNotifier,
-      BudgetLimitViewState,
-      String
-    >(BudgetLimitNotifier.new);
+final budgetLimitViewModelProvider = AsyncNotifierProvider.autoDispose
+    .family<BudgetLimitNotifier, BudgetLimitViewState, String>(
+      BudgetLimitNotifier.new,
+    );
