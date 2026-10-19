@@ -27,11 +27,6 @@ class SettingsScreen extends ConsumerWidget {
             label: 'Categories',
             onTap: viewModel.requestCategories,
           ),
-          _SettingsLink(
-            icon: Icons.repeat,
-            label: 'Recurring Plans',
-            onTap: viewModel.requestPlans,
-          ),
           const Divider(height: _dividerHeight),
           const _SectionHeader('Hosted Sync'),
           const _HostedSyncSection(),

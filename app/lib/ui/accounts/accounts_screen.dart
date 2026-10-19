@@ -40,8 +40,6 @@ class _AccountsBody extends StatelessWidget {
   final AccountsViewState viewState;
   final AccountsViewModel viewModel;
 
-  static const _headerLeftInset = 16.0;
-  static const _headerEdgePadding = 8.0;
   static const _summaryHorizontalPadding = 16.0;
   static const _summarySectionsGap = 8.0;
   static const _dividerHeight = 1.0;
@@ -50,28 +48,6 @@ class _AccountsBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final netWorth = viewState.netWorth;
 
-    final header = Padding(
-      padding: const EdgeInsets.fromLTRB(
-        _headerLeftInset,
-        _headerEdgePadding,
-        _headerEdgePadding,
-        _headerEdgePadding,
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              'Accounts',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: viewModel.requestNewAccount,
-          ),
-        ],
-      ),
-    );
     final summary = Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: _summaryHorizontalPadding,
@@ -116,7 +92,6 @@ class _AccountsBody extends StatelessWidget {
 
     return Column(
       children: [
-        header,
         summary,
         const SizedBox(height: _summarySectionsGap),
         const Divider(height: _dividerHeight),

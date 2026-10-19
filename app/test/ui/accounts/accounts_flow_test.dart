@@ -108,10 +108,10 @@ void main() {
 
   testWidgets('back navigation while the account form sheet is open pops '
       "the sheet, not the Flow's own screen", (tester) async {
-    await pumpFlow(tester, buildLedger());
+    final container = await pumpFlow(tester, buildLedger());
     expect(find.byType(AccountForm), findsNothing);
 
-    await tester.tap(find.byIcon(Icons.add));
+    container.read(accountsViewModelProvider.notifier).requestNewAccount();
     await tester.pumpAndSettle();
     expect(find.byType(AccountForm), findsOneWidget);
 

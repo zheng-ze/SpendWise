@@ -105,16 +105,6 @@ class _PlanListScreenBody extends StatelessWidget {
     final plans = viewState.plans;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Recurring Plans'),
-        actions: [
-          if (plans.isNotEmpty)
-            TextButton(
-              onPressed: viewModel.toggleEditing,
-              child: Text(viewState.editing ? 'Done' : 'Edit'),
-            ),
-        ],
-      ),
       body: plans.isEmpty
           ? const Center(child: Text('No recurring plans yet'))
           : ListView(

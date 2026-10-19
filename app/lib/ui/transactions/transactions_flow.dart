@@ -48,34 +48,11 @@ class _TransactionsFlowState
   ProviderSubscription<AsyncValue<EntryFormViewState>>? _formSubscription;
   String? _openFormKey;
   bool _formKeyIsSet = false;
-  bool _active = false;
 
   @override
   void dispose() {
     _formSubscription?.close();
     super.dispose();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final active = DestinationActivity.of(context);
-    final becameActive = active && !_active;
-    _active = active;
-    if (becameActive) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        final navContext = navigatorContext;
-        if (navContext == null) return;
-        if (!DestinationActivity.of(navContext)) return;
-        final pending = ref
-            .read(transactionsViewModelProvider(widget.initialScope))
-            .value
-            ?.step;
-        if (pending == null) return;
-        handleStep(navContext, pending);
-      });
-    }
   }
 
   TransactionsViewModel get _screenViewModel =>
@@ -97,12 +74,6 @@ class _TransactionsFlowState
 
   @override
   void handleStep(BuildContext context, TransactionsStep step) {
-    if (!DestinationActivity.of(context)) return;
-    final current = ref
-        .read(transactionsViewModelProvider(widget.initialScope))
-        .value
-        ?.step;
-    if (!identical(current, step)) return;
     switch (step) {
       case EntryFormRequested(:final entry):
         _openEntryForm(context, entry.id);

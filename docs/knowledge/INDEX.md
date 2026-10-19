@@ -1,5 +1,7 @@
 # Knowledge Base Index
 
+Last reconciled: 2026-10-19
+
 One comprehensive entry per feature. Read the relevant entry before planning or changing a
 feature; it records the final implementation, key files, interactions, navigation, APIs, gotchas,
 and requirements from the current diff rather than requiring a scan of the whole codebase.
@@ -22,13 +24,13 @@ themselves. Feature entries fold in still-current legacy material when a feature
 | Hosted sync enrollment Flow, OTP interaction, and publication retry | [sync-enrollment-flow.md](sync-enrollment-flow.md) |
 | Sync enrollment backend picker | [sync-enrollment-backend-picker.md](sync-enrollment-backend-picker.md) |
 | Recurring plans, occurrences, accounting, analysis | [recurring-plans-and-accounting.md](recurring-plans-and-accounting.md) |
-| Budgets | [budgets.md](budgets.md) |
+| Money Budgets with temporary Stats Budgets hosting | [budgets.md](budgets.md) |
 | Categories and the on-device category classifier | [categories-and-classification.md](categories-and-classification.md) |
 | Transactions list (shell History destination; scoped lists in Money) and entry form | [transactions-ui.md](transactions-ui.md) |
 | Stats screen (Trends destination) and category drill-down | [stats-and-analysis-ui.md](stats-and-analysis-ui.md) |
 | Overview screen: Today, Recent entries, Coming up | [overview-ui.md](overview-ui.md) |
-| Accounts screen (Money destination) and account/pocket forms | [accounts-ui.md](accounts-ui.md) |
-| Settings: categories, recurring plans, recycle bin, Hosted Sync enrollment and repair, device-local display preferences | [settings-ui.md](settings-ui.md) |
+| Money host with Accounts and Plans segments, and account/pocket forms | [accounts-ui.md](accounts-ui.md) |
+| Settings: categories, recycle bin, Hosted Sync enrollment and repair, device-local display preferences | [settings-ui.md](settings-ui.md) |
 | Receipt OCR entry | [ocr-receipt-entry.md](ocr-receipt-entry.md) |
 | UI framework (MVVM, Flow, Step, notifiers, theme, shared sheets and component kit) | [ui-framework-mvvm.md](ui-framework-mvvm.md) |
 

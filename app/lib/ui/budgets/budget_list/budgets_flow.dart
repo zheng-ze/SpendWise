@@ -31,33 +31,14 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
 
   ProviderSubscription<AsyncValue<BudgetFormViewState>>? _formSubscription;
   BudgetDraftKey? _openDraftKey;
-  bool _active = false;
 
   // MARK: - Lifecycle
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final active = DestinationActivity.of(context);
-    final becameActive = active && !_active;
-    _active = active;
-    if (becameActive) WidgetsBinding.instance.addPostFrameCallback(_pickUpStep);
-  }
 
   @override
   void dispose() {
     _closeBudgetSubscriptions();
     _closeFormSubscription();
     super.dispose();
-  }
-
-  void _pickUpStep(Duration _) {
-    if (!mounted) return;
-    final navContext = navigatorContext;
-    if (navContext == null) return;
-    final pending = ref.read(budgetsListViewModelProvider).value;
-    final step = pending?.step;
-    if (step != null) handleStep(navContext, step);
   }
 
   // MARK: - View Model Contracts
@@ -88,9 +69,6 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
 
   @override
   void handleStep(BuildContext context, BudgetsStep step) {
-    if (!DestinationActivity.of(context)) return;
-    final current = ref.read(budgetsListViewModelProvider).value?.step;
-    if (!identical(current, step)) return;
     switch (step) {
       case BudgetDetailRequested(:final budgetID):
         unawaited(_openBudget(context, budgetID));

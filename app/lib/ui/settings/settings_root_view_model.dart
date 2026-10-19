@@ -7,8 +7,6 @@ sealed class SettingsStep {}
 
 class CategoriesRequested extends SettingsStep {}
 
-class PlansRequested extends SettingsStep {}
-
 class RecycleBinRequested extends SettingsStep {}
 
 class RepairDeviceAccessRequested extends SettingsStep {}
@@ -37,7 +35,6 @@ class SettingsRootViewState
 // MARK: - SettingsRootViewModel
 abstract class SettingsRootViewModel {
   void requestCategories();
-  void requestPlans();
   void requestRecycleBin();
   void requestRepair();
   void requestStartHostedEnrollment();
@@ -59,9 +56,6 @@ class SettingsRootNotifier extends Notifier<SettingsRootViewState>
 
   @override
   void requestCategories() => emitStep(CategoriesRequested());
-
-  @override
-  void requestPlans() => emitStep(PlansRequested());
 
   @override
   void requestRecycleBin() => emitStep(RecycleBinRequested());

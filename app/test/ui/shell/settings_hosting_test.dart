@@ -167,18 +167,13 @@ void main() {
       timeout: uiTestTimeout,
     );
 
-    testWidgets('Plans and Recycle Bin child routes return to the root', (
+    testWidgets('Settings omits Plans and Recycle Bin returns to the root', (
       tester,
     ) async {
       await pumpShell(tester, status: null, layoutMode: ShellLayoutMode.phone);
       await _openSettingsItem(tester);
 
-      await tester.tap(find.text('Recurring Plans'));
-      await tester.pumpAndSettle();
-      expect(find.byType(PlanListScreen), findsOneWidget);
-
-      await tester.binding.handlePopRoute();
-      await tester.pumpAndSettle();
+      expect(find.text('Recurring Plans'), findsNothing);
       expect(find.byType(PlanListScreen), findsNothing);
 
       await tester.tap(find.text('Recycle Bin'));

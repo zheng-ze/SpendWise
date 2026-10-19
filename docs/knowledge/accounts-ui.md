@@ -1,14 +1,28 @@
 # Accounts UI
 
-Last reconciled: 2026-10-13
+Last reconciled: 2026-10-19
 
 ## Feature overview
 
-The Accounts screen, hosted by the Money destination, and its account/pocket forms. The screen groups active accounts by type with pockets
-nested under their parent, shows card accounts as payable/outstanding two columns, and derives net
+The Accounts screen, hosted by the Accounts segment of Money, and its account/pocket forms.
+The screen groups active accounts by type with pockets nested under their parent, shows card accounts as payable/outstanding two columns, and derives net
 worth from `Accounting.netWorth`. Tapping an account row pushes the Transactions screen scoped to
 that account and its pockets. Forms exist for creating accounts and pockets and for editing a source,
 including posting a balance-adjustment delta entry.
+
+## Money host
+
+`MoneyFlow` hosts Budgets, Accounts and Plans in that order, with Budgets selected initially.
+Each segment mounts on its first visit and retains its child state across segment, destination
+and phone/open layout changes. The shared root header shows Money and one segmented control;
+only Budgets shows the shared month selector. Accounts adds its Add account action to this header,
+and Plans adds its existing Edit/Done action. The Accounts and Plans roots have no header of
+their own. The Money header always renders for the selected segment; a nested Accounts page
+currently shows beneath it until the Accounts restyle (#304). (`app/lib/ui/money/money_flow.dart`,
+`accounts_flow.dart`, `accounts_screen.dart`, `app/lib/ui/settings/plan/plan_list_screen.dart`)
+
+`DestinationActivity` combines the selected shell destination with the selected Money segment and
+only stops an inactive child's Back handling. Plans now has one presentation owner in Money; Settings has no recurring-plan entry. (`money_flow.dart`, `accounts_flow.dart`, `plan_list_screen.dart`)
 
 ## Key files
 
@@ -40,18 +54,23 @@ cycle charges through the named day. Its contracts live in
 
 ## Navigation
 
-The Accounts Flow owns the Money destination's nested navigator, and the screen additionally owns its own stack
-internally (path-based). Tapping an account row pushes the scoped Transactions screen; the
+The Accounts Flow owns the Accounts segment's nested navigator. Tapping an account row pushes the
+scoped Transactions screen; the
 "Excluding subpockets" and per-pocket expanded rows push narrower scopes. Account headers and pocket
 rows offer Edit by swiping start-to-end or using the Edit custom semantic action; it opens the
 source-edit form for that exact holder ID. AccountsFlow tags each scoped Transactions route with its
 preferred source, and its constructor-injected MoneyNavigatorObserver lets shell Add prefill the top
-scoped route while Money is selected. Root and untagged Money routes remain unscoped.
+scoped route only while Money and its Accounts segment are selected. Budgets, Plans, other
+destinations, roots and untagged routes return no source, even when Accounts retains a scoped
+stack. The boot-created observer remains attached to that same Accounts navigator across resize.
+(`app/lib/ui/money/money_flow.dart`: `activeMoneySourceProvider`,
+`app/lib/ui/accounts/money_navigation.dart`)
 
 ## Screens and flows
 
-- **Accounts root** — custom header row ("Accounts" headline + trailing `+` opening the account
-  form), a summary bar (Assets income token / Liabilities expense token / Total = assets − liabilities from
+- **Accounts root** - no header row (the Money header owns the title and the `+` that opens the account
+  form); a summary bar (Assets income token /
+  Liabilities expense token / Total = assets − liabilities from
   `netWorth`), and a grouped list. Sections group active accounts by `AccountType` in the fixed enum
   order Cash, Checking, Savings, Cards, Prepaid, Investment, Insurance, Other, skipping empty types.
   Non-card rows show `accountTotal`; card rows show payable (`max(0, −accountTotal)`) and outstanding

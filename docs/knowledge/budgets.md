@@ -157,12 +157,9 @@ results apply only while the initiating context is mounted and the same draft re
 
 ## Step ownership
 
-The list Step belongs to the list provider. `BudgetsFlow.handleStep` handles and clears it
-only while `DestinationActivity` is active and the provider still holds that exact Step object.
-An inactive destination leaves the Step pending. Activation schedules a post-frame pickup that reads the
-current Step and applies the same checks, so a stale callback cannot replay a consumed Step.
+The list Step belongs to the list provider. `BudgetsFlow.handleStep` handles and clears it.
 Detail and limit Steps belong to the open budget; form Steps and category-picker
-continuations belong to the open `BudgetDraftKey`. (`budgets_flow.dart:handleStep`, `_pickUpStep`,
+continuations belong to the open `BudgetDraftKey`. (`budgets_flow.dart:handleStep`,
 `_handleDetailStep`, `_handleLimitStep`, `_handleFormStep`,
 `app/test/ui/budgets/budget_list/budgets_flow_test.dart`)
 

@@ -1,20 +1,20 @@
 # Settings UI
 
-Last reconciled: 2026-10-14
+Last reconciled: 2026-10-19
 
 ## Feature overview
 
-Settings contains category management (list, form, symbol picker), recurring-plan management
-(list, form), the Recycle Bin for archived rows, and Hosted Sync status, enrollment, and device-access
-repair. The ledger screens are mostly stateless facades over `Ledger`, with per-sheet `autoDispose`
-form controllers.
+Settings contains category management (list, form, symbol picker), the Recycle Bin for archived
+rows, and Hosted Sync status, enrollment, and device-access repair. Recurring-plan management lives
+in the Money Plans segment; its list and form modules remain under `ui/settings/plan/`. The ledger
+screens are mostly stateless facades over `Ledger`, with per-sheet `autoDispose` form controllers.
 
 ## Key files
 
 - `app/lib/ui/settings/settings_root_view_model.dart`, `settings_root_screen.dart`,
   `settings_flow.dart` - the root list of navigation links.
 - `app/lib/ui/settings/category/` - category list, form, and the symbol picker.
-- `app/lib/ui/settings/plan/` - plan list and form.
+- `app/lib/ui/settings/plan/` - plan list and form, hosted by Money Plans.
 - `app/lib/ui/settings/recycle_bin/` - the recycle bin.
 - `app/lib/boot/providers.dart`, `app/lib/sync/hosted_sync_status.dart` - the Hosted Sync status
   provider and durable-metadata projection.
@@ -45,10 +45,14 @@ The Settings Flow owns Settings' nested navigator; `AppShell` mounts it once as 
 `settings` destination in its `IndexedStack` (see `ui-framework-mvvm.md`). The root screen shows no
 back control. Back pops child routes and preserves the destination selection at the root. Phone/open
 resize retains the mounted flow and its open enrollment route in place, without re-hosting the
-enrollment flow. Rows push
-the category/plan edit sheets and the
-symbol picker; forms open as sheets via `FormScaffold`. The recycle bin lists binned items in
-four sections (Entries, Accounts, Subpockets, Categories), each hidden when empty.
+enrollment flow. The Categories row opens category management, whose forms and symbol picker
+retain their existing navigation. Settings has no Recurring Plans row, request Step or Plans route.
+`MoneyFlow` hosts the existing plan list, which has no app bar of its own, and exposes Edit/Done
+in the Money header. Plan forms still open as sheets via `FormScaffold`.
+(`app/lib/ui/settings/settings_root_screen.dart`, `settings_root_view_model.dart`,
+`settings_flow.dart`, `app/lib/ui/money/money_flow.dart`)
+
+The recycle bin lists binned items in four sections (Entries, Accounts, Subpockets, Categories), each hidden when empty.
 
 ## Hosted Sync
 
@@ -129,7 +133,7 @@ platform. The receipt scan-strip switch stays in `AppSettings`. Source:
 - **Symbol picker** - searchable sectioned grid (6 columns) of the `CategorySymbols` catalog,
   rendered as `CategoryIcon`s in the form's color; search filters names by substring, empty sections
   drop out, section headers are sticky.
-- **Plan list** - rows sorted by next occurrence ascending, ended plans (nil next) last, with name
+- **Plan list (Money Plans)** - rows sorted by next occurrence ascending, ended plans (nil next) last, with name
   as the deterministic tiebreak (including between two ended plans). Amount is bare (no symbol) in
   the income token when the template amount is income and in the expense token when it is an
   expense. No add button - plans are created from the entry
