@@ -16,6 +16,7 @@ import 'package:spendwise/ui/overview/overview_flow.dart';
 import 'package:spendwise/ui/overview/overview_view_model.dart';
 import 'package:spendwise/ui/accounts/accounts_view_model.dart';
 import 'package:spendwise/ui/accounts/accounts_flow.dart';
+import 'package:spendwise/ui/money/money_flow.dart';
 import 'package:spendwise/boot/money_navigation_provider.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
@@ -277,6 +278,10 @@ void main() {
     final observer = container.read(moneyNavigatorObserverProvider);
     container.read(selectedDestinationProvider.notifier).state =
         ShellDestination.money;
+    await tester.pumpAndSettle();
+    expect(find.byType(MoneyFlow), findsOneWidget);
+    await tester.tap(find.text('Accounts'));
+    await tester.pumpAndSettle();
     container.read(accountsViewModelProvider.notifier).openAccount(account.id);
     await tester.pumpAndSettle();
     expect(observer.sourceId, account.id);

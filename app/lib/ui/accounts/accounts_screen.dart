@@ -12,7 +12,9 @@ import 'package:spendwise/ui/format/money_format.dart';
 
 // MARK: - AccountsScreen
 class AccountsScreen extends ConsumerWidget {
-  const AccountsScreen({super.key});
+  const AccountsScreen({super.key, this.embeddedRoot = false});
+
+  final bool embeddedRoot;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -22,7 +24,11 @@ class AccountsScreen extends ConsumerWidget {
     return asyncState.when(
       data: (viewState) => Scaffold(
         body: SafeArea(
-          child: _AccountsBody(viewState: viewState, viewModel: viewModel),
+          child: _AccountsBody(
+            viewState: viewState,
+            viewModel: viewModel,
+            embeddedRoot: embeddedRoot,
+          ),
         ),
       ),
       loading: () =>
@@ -35,7 +41,13 @@ class AccountsScreen extends ConsumerWidget {
 
 // MARK: - AccountsBody
 class _AccountsBody extends StatelessWidget {
-  const _AccountsBody({required this.viewState, required this.viewModel});
+  const _AccountsBody({
+    required this.viewState,
+    required this.viewModel,
+    required this.embeddedRoot,
+  });
+
+  final bool embeddedRoot;
 
   final AccountsViewState viewState;
   final AccountsViewModel viewModel;
@@ -116,7 +128,7 @@ class _AccountsBody extends StatelessWidget {
 
     return Column(
       children: [
-        header,
+        if (!embeddedRoot) header,
         summary,
         const SizedBox(height: _summarySectionsGap),
         const Divider(height: _dividerHeight),

@@ -56,14 +56,13 @@ void main() {
     expect(container.read(settingsRootViewModelProvider).step, isNull);
   }, timeout: uiTestTimeout);
 
-  testWidgets('PlansRequested pushes the plan list screen', (tester) async {
-    final container = await pumpFlow(tester, buildLedger());
-
-    container.read(settingsRootViewModelProvider.notifier).requestPlans();
-    await tester.pumpAndSettle();
-
-    expect(find.byType(PlanListScreen), findsOneWidget);
-    expect(container.read(settingsRootViewModelProvider).step, isNull);
+  testWidgets('Settings omits the relocated recurring plans entry', (
+    tester,
+  ) async {
+    await pumpFlow(tester, buildLedger());
+    expect(find.text('Recurring Plans'), findsNothing);
+    expect(find.byType(PlanListScreen), findsNothing);
+    expect(find.text('Categories'), findsOneWidget);
   }, timeout: uiTestTimeout);
 
   testWidgets('RecycleBinRequested pushes the recycle bin screen', (

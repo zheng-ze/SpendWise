@@ -2,6 +2,7 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:spendwise/ui/common/base/flow_base.dart';
 import 'package:spendwise/ui/common/feedback/delete_confirmation.dart';
 import 'package:spendwise/ui/common/lists/swipe_row.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
@@ -24,7 +25,9 @@ const Map<RecurrenceFrequency, String> _frequencyLabels = {
 
 // MARK: - PlanListScreen
 class PlanListScreen extends ConsumerStatefulWidget {
-  const PlanListScreen({super.key});
+  const PlanListScreen({super.key, this.embeddedRoot = false});
+
+  final bool embeddedRoot;
 
   @override
   ConsumerState<PlanListScreen> createState() => _PlanListScreenState();
@@ -33,6 +36,22 @@ class PlanListScreen extends ConsumerStatefulWidget {
 // MARK: - PlanListScreenState
 class _PlanListScreenState extends ConsumerState<PlanListScreen> {
   ProviderSubscription<AsyncValue<PlanListViewState>>? _stepSubscription;
+
+  bool _active = false;
+  PlanListStep? _presentingStep;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final active = DestinationActivity.of(context);
+    final activated = active && !_active;
+    _active = active;
+    if (activated) WidgetsBinding.instance.addPostFrameCallback(_pickUpStep);
+  }
+
+  void _pickUpStep(Duration _) {
+    if (mounted) _handleStep(ref.read(planListViewModelProvider).value?.step);
+  }
 
   @override
   void initState() {
@@ -53,26 +72,36 @@ class _PlanListScreenState extends ConsumerState<PlanListScreen> {
       ref.read(planListViewModelProvider.notifier);
 
   void _handleStep(PlanListStep? step) {
-    if (step == null) return;
+    if (step == null || !DestinationActivity.of(context)) return;
+    if (!identical(ref.read(planListViewModelProvider).value?.step, step)) {
+      return;
+    }
+    if (identical(_presentingStep, step)) return;
 
     switch (step) {
       case PlanFormRequested(:final plan):
+        _viewModel.clearStep();
         _openPlanForm(plan);
-      case DeleteConfirmationRequested(:final plan):
-        _confirmDelete(plan);
+      case DeleteConfirmationRequested():
+        _presentingStep = step;
+        _confirmDelete(step);
     }
   }
 
   Future<void> _openPlanForm(RecurringPlan plan) async {
-    _viewModel.clearStep();
     await showPlanFormSheet(context: context, plan: plan);
   }
 
-  Future<void> _confirmDelete(RecurringPlan plan) async {
+  Future<void> _confirmDelete(DeleteConfirmationRequested step) async {
     final confirmed = await showDeleteConfirmation(
       context,
-      itemName: plan.template.name,
+      itemName: step.plan.template.name,
     );
+    if (!mounted) return;
+    _presentingStep = null;
+    if (!identical(ref.read(planListViewModelProvider).value?.step, step)) {
+      return;
+    }
     _viewModel.applyDeleteConfirmed(confirmed);
     _viewModel.clearStep();
   }
@@ -83,8 +112,11 @@ class _PlanListScreenState extends ConsumerState<PlanListScreen> {
     final viewModel = ref.watch(planListViewModelProvider.notifier);
 
     return asyncState.when(
-      data: (viewState) =>
-          _PlanListScreenBody(viewState: viewState, viewModel: viewModel),
+      data: (viewState) => _PlanListScreenBody(
+        viewState: viewState,
+        viewModel: viewModel,
+        embeddedRoot: widget.embeddedRoot,
+      ),
       loading: () =>
           const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (error, stackTrace) =>
@@ -95,7 +127,13 @@ class _PlanListScreenState extends ConsumerState<PlanListScreen> {
 
 // MARK: - PlanListScreenBody
 class _PlanListScreenBody extends StatelessWidget {
-  const _PlanListScreenBody({required this.viewState, required this.viewModel});
+  const _PlanListScreenBody({
+    required this.viewState,
+    required this.viewModel,
+    required this.embeddedRoot,
+  });
+
+  final bool embeddedRoot;
 
   final PlanListViewState viewState;
   final PlanListViewModel viewModel;
@@ -104,17 +142,21 @@ class _PlanListScreenBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final plans = viewState.plans;
 
+    final actions = <Widget>[];
+    if (plans.isNotEmpty) {
+      actions.add(
+        TextButton(
+          onPressed: viewModel.toggleEditing,
+          child: Text(viewState.editing ? 'Done' : 'Edit'),
+        ),
+      );
+    }
+    final appBar = embeddedRoot
+        ? null
+        : AppBar(title: const Text('Recurring Plans'), actions: actions);
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Recurring Plans'),
-        actions: [
-          if (plans.isNotEmpty)
-            TextButton(
-              onPressed: viewModel.toggleEditing,
-              child: Text(viewState.editing ? 'Done' : 'Edit'),
-            ),
-        ],
-      ),
+      appBar: appBar,
       body: plans.isEmpty
           ? const Center(child: Text('No recurring plans yet'))
           : ListView(

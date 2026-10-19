@@ -11,9 +11,16 @@ import 'package:spendwise/ui/transactions/transactions_flow.dart';
 
 // MARK: - AccountsFlow
 class AccountsFlow extends FlowBase<AccountsStep> {
-  const AccountsFlow({super.key, this.moneyObserver});
+  const AccountsFlow({
+    super.key,
+    this.moneyObserver,
+    this.rootObserver,
+    this.embeddedRoot = false,
+  });
 
   final MoneyNavigatorObserver? moneyObserver;
+  final NavigatorObserver? rootObserver;
+  final bool embeddedRoot;
 
   @override
   ConsumerState<AccountsFlow> createState() => _AccountsFlowState();
@@ -21,11 +28,27 @@ class AccountsFlow extends FlowBase<AccountsStep> {
 
 // MARK: - AccountsFlowState
 class _AccountsFlowState extends FlowBaseState<AccountsStep, AccountsFlow> {
-  late final List<NavigatorObserver> _navigatorObservers =
-      switch (widget.moneyObserver) {
-        null => const [],
-        final observer => [observer],
-      };
+  late final List<NavigatorObserver> _navigatorObservers = [
+    ?widget.moneyObserver,
+    ?widget.rootObserver,
+  ];
+  bool _active = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final active = DestinationActivity.of(context);
+    final activated = active && !_active;
+    _active = active;
+    if (activated) WidgetsBinding.instance.addPostFrameCallback(_pickUpStep);
+  }
+
+  void _pickUpStep(Duration _) {
+    if (!mounted) return;
+    final context = navigatorContext;
+    final step = ref.read(accountsViewModelProvider).value?.step;
+    if (context != null && step != null) handleStep(context, step);
+  }
 
   @override
   List<NavigatorObserver> get navigatorObservers => _navigatorObservers;
@@ -44,6 +67,11 @@ class _AccountsFlowState extends FlowBaseState<AccountsStep, AccountsFlow> {
 
   @override
   void handleStep(BuildContext context, AccountsStep step) {
+    if (!DestinationActivity.of(context)) return;
+    if (!identical(ref.read(accountsViewModelProvider).value?.step, step)) {
+      return;
+    }
+    _screenViewModel.clearStep();
     switch (step) {
       case AccountFormRequested():
         showAccountFormSheet(context: context);
@@ -61,7 +89,6 @@ class _AccountsFlowState extends FlowBaseState<AccountsStep, AccountsFlow> {
       case SourceEditFormSaved():
         break;
     }
-    _screenViewModel.clearStep();
   }
 
   void _pushTransactions(
@@ -83,5 +110,6 @@ class _AccountsFlowState extends FlowBaseState<AccountsStep, AccountsFlow> {
   }
 
   @override
-  Widget buildRoot(BuildContext context) => const AccountsScreen();
+  Widget buildRoot(BuildContext context) =>
+      AccountsScreen(embeddedRoot: widget.embeddedRoot);
 }

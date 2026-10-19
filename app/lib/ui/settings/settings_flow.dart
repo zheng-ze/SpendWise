@@ -8,7 +8,6 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/sync/hosted_sync_status.dart';
 import 'package:spendwise/ui/common/base/flow_base.dart';
 import 'package:spendwise/ui/settings/category/category_list_screen.dart';
-import 'package:spendwise/ui/settings/plan/plan_list_screen.dart';
 import 'package:spendwise/ui/settings/recycle_bin/recycle_bin_screen.dart';
 import 'package:spendwise/ui/settings/settings_root_screen.dart';
 import 'package:spendwise/ui/settings/settings_root_view_model.dart';
@@ -93,10 +92,6 @@ class _SettingsFlowState extends FlowBaseState<SettingsStep, SettingsFlow> {
         Navigator.of(context).push(
           MaterialPageRoute<void>(builder: (_) => const CategoryListScreen()),
         );
-      case PlansRequested():
-        Navigator.of(
-          context,
-        ).push(MaterialPageRoute<void>(builder: (_) => const PlanListScreen()));
       case RecycleBinRequested():
         Navigator.of(context).push(
           MaterialPageRoute<void>(builder: (_) => const RecycleBinScreen()),
