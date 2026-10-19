@@ -116,7 +116,8 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     final route = MaterialPageRoute<void>(
       builder: (_) => BudgetDetailScreen(budgetID: budgetID),
     );
-    await Navigator.of(context, rootNavigator: true).push(route);
+    unawaited(Navigator.of(context, rootNavigator: true).push(route));
+    await route.completed;
     if (!identical(_detailSubscription, detailSubscription)) return;
     _closeBudgetSubscriptions();
   }

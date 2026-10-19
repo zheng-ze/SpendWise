@@ -286,6 +286,26 @@ void main() {
       expect(limitAlive(container, overall.id), isFalse);
     }, timeout: uiTestTimeout);
 
+    testWidgets('providers stay alive until the closing detail route finishes '
+        'its exit transition', (tester) async {
+      final overall = budget(categoryID: null, id: 'b1');
+      final container = await openDetail(tester, {
+        overall.id: overall,
+      }, overall.id);
+
+      await tester.pageBack();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(detailAlive(container, overall.id), isTrue);
+      expect(limitAlive(container, overall.id), isTrue);
+
+      await tester.pumpAndSettle();
+
+      expect(detailAlive(container, overall.id), isFalse);
+      expect(limitAlive(container, overall.id), isFalse);
+    }, timeout: uiTestTimeout);
+
     testWidgets('the detail provider stays alive under the limit screen and '
         'is disposed once both routes close', (tester) async {
       final overall = budget(categoryID: null, id: 'b1');
