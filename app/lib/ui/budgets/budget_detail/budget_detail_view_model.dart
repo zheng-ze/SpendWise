@@ -8,6 +8,7 @@ import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/base/step_emitting.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budgets_steps.dart';
+import 'package:spendwise/ui/budgets/budget_host.dart';
 import 'package:spendwise/ledger/analysis/budgets/budget_counted_entries.dart';
 import 'package:spendwise/ledger/analysis/budgets/budget_spend.dart';
 import 'package:spendwise/ui/stats/helpers/trend.dart';
@@ -127,7 +128,7 @@ class BudgetDetailNotifier extends AsyncNotifier<BudgetDetailViewState>
         LedgerBackedNotifier<BudgetDetailViewState>,
         StepEmitting<BudgetDetailViewState, BudgetsStep>
     implements BudgetDetailViewModel {
-  BudgetDetailNotifier(this._budgetID);
+  BudgetDetailNotifier(HostedBudget key) : _budgetID = key.budgetID;
 
   final String _budgetID;
 
@@ -239,6 +240,6 @@ class BudgetDetailNotifier extends AsyncNotifier<BudgetDetailViewState>
 
 // MARK: - Constants
 final budgetDetailViewModelProvider = AsyncNotifierProvider.autoDispose
-    .family<BudgetDetailNotifier, BudgetDetailViewState, String>(
+    .family<BudgetDetailNotifier, BudgetDetailViewState, HostedBudget>(
       BudgetDetailNotifier.new,
     );

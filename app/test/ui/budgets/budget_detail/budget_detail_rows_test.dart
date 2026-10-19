@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ui/budgets/budget_host.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_screen.dart';
 
 import '../../../support/ui_test_timeout.dart';
@@ -57,7 +58,11 @@ void main() {
           ledgerProvider.overrideWithValue(ledger),
           analysisComputeRunnerProvider.overrideWithValue(syncComputeRunner),
         ],
-        child: MaterialApp(home: BudgetDetailScreen(budgetID: overall.id)),
+        child: MaterialApp(
+          home: BudgetDetailScreen(
+            hostedBudget: (host: BudgetHost.stats, budgetID: overall.id),
+          ),
+        ),
       ),
     );
   }
@@ -126,7 +131,11 @@ void main() {
             ledgerProvider.overrideWithValue(ledger),
             analysisComputeRunnerProvider.overrideWithValue(syncComputeRunner),
           ],
-          child: MaterialApp(home: BudgetDetailScreen(budgetID: overall.id)),
+          child: MaterialApp(
+            home: BudgetDetailScreen(
+              hostedBudget: (host: BudgetHost.stats, budgetID: overall.id),
+            ),
+          ),
         ),
       );
       await tester.pumpAndSettle();

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ui/budgets/budget_host.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
 
@@ -77,12 +78,19 @@ void main() {
     'requestBudgetDetail emits BudgetDetailRequested carrying the budget id',
     () async {
       final container = buildContainer(buildLedger());
-      await container.read(budgetsListViewModelProvider.future);
-      final viewModel = container.read(budgetsListViewModelProvider.notifier);
+      await container.read(
+        budgetsListViewModelProvider(BudgetHost.stats).future,
+      );
+      final viewModel = container.read(
+        budgetsListViewModelProvider(BudgetHost.stats).notifier,
+      );
 
       viewModel.requestBudgetDetail('b1');
 
-      final step = container.read(budgetsListViewModelProvider).value?.step;
+      final step = container
+          .read(budgetsListViewModelProvider(BudgetHost.stats))
+          .value
+          ?.step;
       expect(step, isA<BudgetDetailRequested>());
       expect((step as BudgetDetailRequested).budgetID, 'b1');
     },
@@ -90,37 +98,61 @@ void main() {
 
   test('requestNewBudget emits BudgetFormRequested', () async {
     final container = buildContainer(buildLedger());
-    await container.read(budgetsListViewModelProvider.future);
-    final viewModel = container.read(budgetsListViewModelProvider.notifier);
+    await container.read(budgetsListViewModelProvider(BudgetHost.stats).future);
+    final viewModel = container.read(
+      budgetsListViewModelProvider(BudgetHost.stats).notifier,
+    );
 
     viewModel.requestNewBudget();
 
     expect(
-      container.read(budgetsListViewModelProvider).value?.step,
+      container
+          .read(budgetsListViewModelProvider(BudgetHost.stats))
+          .value
+          ?.step,
       isA<BudgetFormRequested>(),
     );
   });
 
   test('clearStep resets the step to null', () async {
     final container = buildContainer(buildLedger());
-    await container.read(budgetsListViewModelProvider.future);
-    final viewModel = container.read(budgetsListViewModelProvider.notifier);
+    await container.read(budgetsListViewModelProvider(BudgetHost.stats).future);
+    final viewModel = container.read(
+      budgetsListViewModelProvider(BudgetHost.stats).notifier,
+    );
 
     viewModel.requestNewBudget();
-    expect(container.read(budgetsListViewModelProvider).value?.step, isNotNull);
+    expect(
+      container
+          .read(budgetsListViewModelProvider(BudgetHost.stats))
+          .value
+          ?.step,
+      isNotNull,
+    );
 
     viewModel.clearStep();
-    expect(container.read(budgetsListViewModelProvider).value?.step, isNull);
+    expect(
+      container
+          .read(budgetsListViewModelProvider(BudgetHost.stats))
+          .value
+          ?.step,
+      isNull,
+    );
   });
 
   test('deleteBudget removes the budget from the ledger', () async {
     final overall = budget(categoryID: null, id: 'b1');
     final ledger = buildLedger(budgets: {overall.id: overall});
     final container = buildContainer(ledger);
-    await container.read(budgetsListViewModelProvider.future);
-    final viewModel = container.read(budgetsListViewModelProvider.notifier);
+    await container.read(budgetsListViewModelProvider(BudgetHost.stats).future);
+    final viewModel = container.read(
+      budgetsListViewModelProvider(BudgetHost.stats).notifier,
+    );
     expect(
-      container.read(budgetsListViewModelProvider).value?.budgets,
+      container
+          .read(budgetsListViewModelProvider(BudgetHost.stats))
+          .value
+          ?.budgets,
       hasLength(1),
     );
 
@@ -128,7 +160,10 @@ void main() {
 
     expect(ledger.state.budgets.containsKey(overall.id), isFalse);
     expect(
-      container.read(budgetsListViewModelProvider).value?.budgets,
+      container
+          .read(budgetsListViewModelProvider(BudgetHost.stats))
+          .value
+          ?.budgets,
       isEmpty,
     );
   });
@@ -150,8 +185,10 @@ void main() {
       ),
     );
     final container = buildContainer(ledger);
-    await container.read(budgetsListViewModelProvider.future);
-    final viewModel = container.read(budgetsListViewModelProvider.notifier);
+    await container.read(budgetsListViewModelProvider(BudgetHost.stats).future);
+    final viewModel = container.read(
+      budgetsListViewModelProvider(BudgetHost.stats).notifier,
+    );
 
     viewModel.deleteBudget(overall.id);
 
@@ -168,7 +205,9 @@ void main() {
       );
       final container = buildContainer(ledger);
 
-      final state = await container.read(budgetsListViewModelProvider.future);
+      final state = await container.read(
+        budgetsListViewModelProvider(BudgetHost.stats).future,
+      );
 
       expect(state.budgets.map((b) => b.id), [parentBudget.id, childBudget.id]);
       expect(state.isSubcategoryBudget(parentBudget), isFalse);

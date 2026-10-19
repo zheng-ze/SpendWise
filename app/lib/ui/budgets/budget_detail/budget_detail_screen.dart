@@ -8,6 +8,7 @@ import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_counted_entry_list.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_chart.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
+import 'package:spendwise/ui/budgets/budget_host.dart';
 import 'package:spendwise/ui/common/inputs/month_year_selector.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/date_format.dart';
@@ -17,13 +18,13 @@ import 'package:spendwise/ui/stats/helpers/amount_header.dart';
 // MARK: - Screen
 
 class BudgetDetailScreen extends ConsumerWidget {
-  const BudgetDetailScreen({super.key, required this.budgetID});
+  const BudgetDetailScreen({super.key, required this.hostedBudget});
 
-  final String budgetID;
+  final HostedBudget hostedBudget;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final asyncState = ref.watch(budgetDetailViewModelProvider(budgetID));
+    final asyncState = ref.watch(budgetDetailViewModelProvider(hostedBudget));
     final ledger = ref.watch(ledgerProvider);
 
     return asyncState.when(
@@ -32,7 +33,7 @@ class BudgetDetailScreen extends ConsumerWidget {
           : _BudgetDetailBody(
               viewState: viewState,
               viewModel: ref.read(
-                budgetDetailViewModelProvider(budgetID).notifier,
+                budgetDetailViewModelProvider(hostedBudget).notifier,
               ),
               ledger: ledger,
             ),

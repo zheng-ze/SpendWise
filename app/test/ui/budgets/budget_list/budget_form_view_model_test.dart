@@ -4,10 +4,13 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ui/budgets/budget_host.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_form_view_model.dart';
 
 void main() {
+  final draftKey = BudgetDraftKey();
+
   Decimal dec(String value) => Decimal.parse(value);
 
   Budget buildBudget({String? categoryID, String id = 'stale'}) {
@@ -36,7 +39,9 @@ void main() {
   test('build starts with an empty amount and Overall selected', () async {
     final container = buildContainer(Ledger(state: LedgerState()));
 
-    final state = await container.read(budgetFormViewModelProvider.future);
+    final state = await container.read(
+      budgetFormViewModelProvider(draftKey).future,
+    );
 
     expect(state.categoryID, isNull);
     expect(state.amountText, '');
@@ -45,38 +50,44 @@ void main() {
 
   test('setAmount updates the amount text and recomputes canSave', () async {
     final container = buildContainer(Ledger(state: LedgerState()));
-    await container.read(budgetFormViewModelProvider.future);
-    final viewModel = container.read(budgetFormViewModelProvider.notifier);
+    await container.read(budgetFormViewModelProvider(draftKey).future);
+    final viewModel = container.read(
+      budgetFormViewModelProvider(draftKey).notifier,
+    );
 
     viewModel.setAmount('250.00');
 
-    final state = container.read(budgetFormViewModelProvider).value;
+    final state = container.read(budgetFormViewModelProvider(draftKey)).value;
     expect(state?.amountText, '250.00');
     expect(state?.canSave, isTrue);
   });
 
   test('requestPickCategory emits PickCategoryRequested', () async {
     final container = buildContainer(Ledger(state: LedgerState()));
-    await container.read(budgetFormViewModelProvider.future);
-    final viewModel = container.read(budgetFormViewModelProvider.notifier);
+    await container.read(budgetFormViewModelProvider(draftKey).future);
+    final viewModel = container.read(
+      budgetFormViewModelProvider(draftKey).notifier,
+    );
 
     viewModel.requestPickCategory();
 
     expect(
-      container.read(budgetFormViewModelProvider).value?.step,
+      container.read(budgetFormViewModelProvider(draftKey)).value?.step,
       isA<PickCategoryRequested>(),
     );
   });
 
   test('applyPickedCategory sets the category and clears the step', () async {
     final container = buildContainer(Ledger(state: LedgerState()));
-    await container.read(budgetFormViewModelProvider.future);
-    final viewModel = container.read(budgetFormViewModelProvider.notifier);
+    await container.read(budgetFormViewModelProvider(draftKey).future);
+    final viewModel = container.read(
+      budgetFormViewModelProvider(draftKey).notifier,
+    );
 
     viewModel.requestPickCategory();
     viewModel.applyPickedCategory('c1');
 
-    final state = container.read(budgetFormViewModelProvider).value;
+    final state = container.read(budgetFormViewModelProvider(draftKey)).value;
     expect(state?.categoryID, 'c1');
     expect(state?.step, isNull);
   });
@@ -89,13 +100,15 @@ void main() {
         state: LedgerState(budgets: {existingOverall.id: existingOverall}),
       );
       final container = buildContainer(ledger);
-      await container.read(budgetFormViewModelProvider.future);
-      final viewModel = container.read(budgetFormViewModelProvider.notifier);
+      await container.read(budgetFormViewModelProvider(draftKey).future);
+      final viewModel = container.read(
+        budgetFormViewModelProvider(draftKey).notifier,
+      );
 
       viewModel.setAmount('250.00');
       await viewModel.save();
 
-      final state = container.read(budgetFormViewModelProvider).value;
+      final state = container.read(budgetFormViewModelProvider(draftKey)).value;
       expect(state?.error, isA<LedgerError>());
       expect(state?.amountText, '250.00');
       expect(state?.step, isNull);
@@ -105,27 +118,37 @@ void main() {
   test('save adds the budget and emits BudgetFormSaved on success', () async {
     final ledger = Ledger(state: LedgerState());
     final container = buildContainer(ledger);
-    await container.read(budgetFormViewModelProvider.future);
-    final viewModel = container.read(budgetFormViewModelProvider.notifier);
+    await container.read(budgetFormViewModelProvider(draftKey).future);
+    final viewModel = container.read(
+      budgetFormViewModelProvider(draftKey).notifier,
+    );
 
     viewModel.setAmount('250.00');
     await viewModel.save();
 
     expect(ledger.state.budgets, hasLength(1));
-    final state = container.read(budgetFormViewModelProvider).value;
+    final state = container.read(budgetFormViewModelProvider(draftKey)).value;
     expect(state?.step, isA<BudgetFormSaved>());
     expect(state?.error, isNull);
   });
 
   test('clearStep resets the step to null', () async {
     final container = buildContainer(Ledger(state: LedgerState()));
-    await container.read(budgetFormViewModelProvider.future);
-    final viewModel = container.read(budgetFormViewModelProvider.notifier);
+    await container.read(budgetFormViewModelProvider(draftKey).future);
+    final viewModel = container.read(
+      budgetFormViewModelProvider(draftKey).notifier,
+    );
 
     viewModel.requestPickCategory();
-    expect(container.read(budgetFormViewModelProvider).value?.step, isNotNull);
+    expect(
+      container.read(budgetFormViewModelProvider(draftKey)).value?.step,
+      isNotNull,
+    );
 
     viewModel.clearStep();
-    expect(container.read(budgetFormViewModelProvider).value?.step, isNull);
+    expect(
+      container.read(budgetFormViewModelProvider(draftKey)).value?.step,
+      isNull,
+    );
   });
 }

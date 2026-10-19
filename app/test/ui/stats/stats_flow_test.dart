@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ui/budgets/budget_host.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_screen.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
 import 'package:spendwise/ui/common/navigation/top_tab_bar.dart';
@@ -89,7 +90,7 @@ void main() {
         .setTab(StatsTab.budgets);
     await tester.pumpAndSettle();
     container
-        .read(budgetsListViewModelProvider.notifier)
+        .read(budgetsListViewModelProvider(BudgetHost.stats).notifier)
         .requestBudgetDetail(budgetID);
     await tester.pumpAndSettle();
 

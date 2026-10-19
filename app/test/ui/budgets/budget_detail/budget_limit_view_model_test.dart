@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ui/budgets/budget_host.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_limit_view_model.dart';
 
@@ -40,7 +41,10 @@ void main() {
     final now = DateTime.now().toUtc();
 
     final state = await container.read(
-      budgetLimitViewModelProvider(budget.id).future,
+      budgetLimitViewModelProvider((
+        host: BudgetHost.stats,
+        budgetID: budget.id,
+      )).future,
     );
 
     expect(state.defaultLimit, dec('100'));
@@ -52,9 +56,17 @@ void main() {
     final budget = buildBudget();
     final ledger = Ledger(state: LedgerState(budgets: {budget.id: budget}));
     final container = buildContainer(ledger);
-    await container.read(budgetLimitViewModelProvider(budget.id).future);
+    await container.read(
+      budgetLimitViewModelProvider((
+        host: BudgetHost.stats,
+        budgetID: budget.id,
+      )).future,
+    );
     final viewModel = container.read(
-      budgetLimitViewModelProvider(budget.id).notifier,
+      budgetLimitViewModelProvider((
+        host: BudgetHost.stats,
+        budgetID: budget.id,
+      )).notifier,
     );
     final now = DateTime.now().toUtc();
 
@@ -62,7 +74,12 @@ void main() {
 
     expect(
       container
-          .read(budgetLimitViewModelProvider(budget.id))
+          .read(
+            budgetLimitViewModelProvider((
+              host: BudgetHost.stats,
+              budgetID: budget.id,
+            )),
+          )
           .value
           ?.displayedYear,
       DateTime.utc(now.year + 1),
@@ -75,9 +92,17 @@ void main() {
       final budget = buildBudget();
       final ledger = Ledger(state: LedgerState(budgets: {budget.id: budget}));
       final container = buildContainer(ledger);
-      await container.read(budgetLimitViewModelProvider(budget.id).future);
+      await container.read(
+        budgetLimitViewModelProvider((
+          host: BudgetHost.stats,
+          budgetID: budget.id,
+        )).future,
+      );
       final viewModel = container.read(
-        budgetLimitViewModelProvider(budget.id).notifier,
+        budgetLimitViewModelProvider((
+          host: BudgetHost.stats,
+          budgetID: budget.id,
+        )).notifier,
       );
       final now = DateTime.now().toUtc();
       final expectedMonth = YearMonth.fromUtc(
@@ -87,7 +112,12 @@ void main() {
       viewModel.requestEditDefault();
 
       final step = container
-          .read(budgetLimitViewModelProvider(budget.id))
+          .read(
+            budgetLimitViewModelProvider((
+              host: BudgetHost.stats,
+              budgetID: budget.id,
+            )),
+          )
           .value
           ?.step;
       expect(step, isA<PickLimitRequested>());
@@ -102,16 +132,29 @@ void main() {
     final budget = buildBudget();
     final ledger = Ledger(state: LedgerState(budgets: {budget.id: budget}));
     final container = buildContainer(ledger);
-    await container.read(budgetLimitViewModelProvider(budget.id).future);
+    await container.read(
+      budgetLimitViewModelProvider((
+        host: BudgetHost.stats,
+        budgetID: budget.id,
+      )).future,
+    );
     final viewModel = container.read(
-      budgetLimitViewModelProvider(budget.id).notifier,
+      budgetLimitViewModelProvider((
+        host: BudgetHost.stats,
+        budgetID: budget.id,
+      )).notifier,
     );
     const month = YearMonth(2026, 6);
 
     viewModel.requestEditMonth(month);
 
     final step = container
-        .read(budgetLimitViewModelProvider(budget.id))
+        .read(
+          budgetLimitViewModelProvider((
+            host: BudgetHost.stats,
+            budgetID: budget.id,
+          )),
+        )
         .value
         ?.step;
     expect(step, isA<PickLimitRequested>());
@@ -126,9 +169,17 @@ void main() {
     final budget = buildBudget();
     final ledger = Ledger(state: LedgerState(budgets: {budget.id: budget}));
     final container = buildContainer(ledger);
-    await container.read(budgetLimitViewModelProvider(budget.id).future);
+    await container.read(
+      budgetLimitViewModelProvider((
+        host: BudgetHost.stats,
+        budgetID: budget.id,
+      )).future,
+    );
     final viewModel = container.read(
-      budgetLimitViewModelProvider(budget.id).notifier,
+      budgetLimitViewModelProvider((
+        host: BudgetHost.stats,
+        budgetID: budget.id,
+      )).notifier,
     );
     final now = DateTime.now().toUtc();
     final currentMonth = YearMonth(now.year, now.month);
@@ -141,7 +192,15 @@ void main() {
       dec('100'),
     );
     expect(
-      container.read(budgetLimitViewModelProvider(budget.id)).value?.step,
+      container
+          .read(
+            budgetLimitViewModelProvider((
+              host: BudgetHost.stats,
+              budgetID: budget.id,
+            )),
+          )
+          .value
+          ?.step,
       isNull,
     );
   });
@@ -150,9 +209,17 @@ void main() {
     final budget = buildBudget();
     final ledger = Ledger(state: LedgerState(budgets: {budget.id: budget}));
     final container = buildContainer(ledger);
-    await container.read(budgetLimitViewModelProvider(budget.id).future);
+    await container.read(
+      budgetLimitViewModelProvider((
+        host: BudgetHost.stats,
+        budgetID: budget.id,
+      )).future,
+    );
     final viewModel = container.read(
-      budgetLimitViewModelProvider(budget.id).notifier,
+      budgetLimitViewModelProvider((
+        host: BudgetHost.stats,
+        budgetID: budget.id,
+      )).notifier,
     );
     const month = YearMonth(2026, 6);
 
@@ -168,9 +235,17 @@ void main() {
       final budget = buildBudget();
       final ledger = Ledger(state: LedgerState(budgets: {budget.id: budget}));
       final container = buildContainer(ledger);
-      await container.read(budgetLimitViewModelProvider(budget.id).future);
+      await container.read(
+        budgetLimitViewModelProvider((
+          host: BudgetHost.stats,
+          budgetID: budget.id,
+        )).future,
+      );
       final viewModel = container.read(
-        budgetLimitViewModelProvider(budget.id).notifier,
+        budgetLimitViewModelProvider((
+          host: BudgetHost.stats,
+          budgetID: budget.id,
+        )).notifier,
       );
 
       viewModel.requestEditMonth(const YearMonth(2026, 6));
@@ -184,7 +259,15 @@ void main() {
         dec('100'),
       );
       expect(
-        container.read(budgetLimitViewModelProvider(budget.id)).value?.step,
+        container
+            .read(
+              budgetLimitViewModelProvider((
+                host: BudgetHost.stats,
+                budgetID: budget.id,
+              )),
+            )
+            .value
+            ?.step,
         isNull,
       );
     },
@@ -196,9 +279,17 @@ void main() {
       final budget = buildBudget();
       final ledger = Ledger(state: LedgerState(budgets: {budget.id: budget}));
       final container = buildContainer(ledger);
-      await container.read(budgetLimitViewModelProvider(budget.id).future);
+      await container.read(
+        budgetLimitViewModelProvider((
+          host: BudgetHost.stats,
+          budgetID: budget.id,
+        )).future,
+      );
       final viewModel = container.read(
-        budgetLimitViewModelProvider(budget.id).notifier,
+        budgetLimitViewModelProvider((
+          host: BudgetHost.stats,
+          budgetID: budget.id,
+        )).notifier,
       );
 
       viewModel.applyPickedLimit(dec('999'));
@@ -218,20 +309,44 @@ void main() {
     final budget = buildBudget();
     final ledger = Ledger(state: LedgerState(budgets: {budget.id: budget}));
     final container = buildContainer(ledger);
-    await container.read(budgetLimitViewModelProvider(budget.id).future);
+    await container.read(
+      budgetLimitViewModelProvider((
+        host: BudgetHost.stats,
+        budgetID: budget.id,
+      )).future,
+    );
     final viewModel = container.read(
-      budgetLimitViewModelProvider(budget.id).notifier,
+      budgetLimitViewModelProvider((
+        host: BudgetHost.stats,
+        budgetID: budget.id,
+      )).notifier,
     );
 
     viewModel.requestEditMonth(const YearMonth(2026, 6));
     expect(
-      container.read(budgetLimitViewModelProvider(budget.id)).value?.step,
+      container
+          .read(
+            budgetLimitViewModelProvider((
+              host: BudgetHost.stats,
+              budgetID: budget.id,
+            )),
+          )
+          .value
+          ?.step,
       isNotNull,
     );
 
     viewModel.clearStep();
     expect(
-      container.read(budgetLimitViewModelProvider(budget.id)).value?.step,
+      container
+          .read(
+            budgetLimitViewModelProvider((
+              host: BudgetHost.stats,
+              budgetID: budget.id,
+            )),
+          )
+          .value
+          ?.step,
       isNull,
     );
   });

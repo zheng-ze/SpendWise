@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart'
     show BudgetFormSaved, BudgetsStep, PickCategoryRequested;
+import 'package:spendwise/ui/budgets/budget_host.dart';
 import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/base/step_emitting.dart';
 import 'package:spendwise/ui/format/amount_parse.dart';
@@ -113,6 +114,10 @@ class BudgetFormNotifier extends AsyncNotifier<BudgetFormViewState>
         LedgerBackedNotifier<BudgetFormViewState>,
         StepEmitting<BudgetFormViewState, BudgetsStep>
     implements BudgetFormViewModel {
+  BudgetFormNotifier(this.draftKey);
+
+  final BudgetDraftKey draftKey;
+
   @override
   Future<BudgetFormViewState> build() async {
     return BudgetFormViewState(
@@ -159,7 +164,7 @@ class BudgetFormNotifier extends AsyncNotifier<BudgetFormViewState>
 }
 
 // MARK: - Constants
-final budgetFormViewModelProvider =
-    AsyncNotifierProvider<BudgetFormNotifier, BudgetFormViewState>(
+final budgetFormViewModelProvider = AsyncNotifierProvider.autoDispose
+    .family<BudgetFormNotifier, BudgetFormViewState, BudgetDraftKey>(
       BudgetFormNotifier.new,
     );

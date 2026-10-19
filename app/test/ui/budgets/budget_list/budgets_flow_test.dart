@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ui/budgets/budget_host.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_screen.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_limit_view_model.dart';
@@ -73,7 +74,7 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: const MaterialApp(home: BudgetsFlow()),
+        child: const MaterialApp(home: BudgetsFlow(host: BudgetHost.stats)),
       ),
     );
     await tester.pumpAndSettle();
@@ -89,14 +90,14 @@ void main() {
     );
 
     container
-        .read(budgetsListViewModelProvider.notifier)
+        .read(budgetsListViewModelProvider(BudgetHost.stats).notifier)
         .requestBudgetDetail(overall.id);
     await tester.pumpAndSettle();
 
     final pushed = tester.widget<BudgetDetailScreen>(
       find.byType(BudgetDetailScreen),
     );
-    expect(pushed.budgetID, overall.id);
+    expect(pushed.hostedBudget.budgetID, overall.id);
   }, timeout: uiTestTimeout);
 
   testWidgets('BudgetFormRequested opens the budget form sheet', (
@@ -104,7 +105,9 @@ void main() {
   ) async {
     final container = await pumpFlow(tester, buildLedger());
 
-    container.read(budgetsListViewModelProvider.notifier).requestNewBudget();
+    container
+        .read(budgetsListViewModelProvider(BudgetHost.stats).notifier)
+        .requestNewBudget();
     await tester.pumpAndSettle();
 
     expect(find.byType(BudgetForm), findsOneWidget);
@@ -119,7 +122,7 @@ void main() {
     );
 
     container
-        .read(budgetsListViewModelProvider.notifier)
+        .read(budgetsListViewModelProvider(BudgetHost.stats).notifier)
         .requestBudgetDetail(overall.id);
     await tester.pumpAndSettle();
 
@@ -129,7 +132,7 @@ void main() {
     final pushed = tester.widget<BudgetLimitScreen>(
       find.byType(BudgetLimitScreen),
     );
-    expect(pushed.budgetID, overall.id);
+    expect(pushed.hostedBudget.budgetID, overall.id);
   }, timeout: uiTestTimeout);
 
   testWidgets('PickLimitRequested opens the limit-edit sheet and applies the '
@@ -139,7 +142,7 @@ void main() {
     final container = await pumpFlow(tester, ledger);
 
     container
-        .read(budgetsListViewModelProvider.notifier)
+        .read(budgetsListViewModelProvider(BudgetHost.stats).notifier)
         .requestBudgetDetail(overall.id);
     await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.edit_outlined));
@@ -165,7 +168,9 @@ void main() {
       'the pick', (tester) async {
     final container = await pumpFlow(tester, buildLedger());
 
-    container.read(budgetsListViewModelProvider.notifier).requestNewBudget();
+    container
+        .read(budgetsListViewModelProvider(BudgetHost.stats).notifier)
+        .requestNewBudget();
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Category'));
@@ -185,7 +190,7 @@ void main() {
     );
 
     container
-        .read(budgetsListViewModelProvider.notifier)
+        .read(budgetsListViewModelProvider(BudgetHost.stats).notifier)
         .requestBudgetDetail(overall.id);
     await tester.pumpAndSettle();
     expect(find.byType(BudgetDetailScreen), findsOneWidget);
@@ -258,17 +263,20 @@ void main() {
     ) async {
       final container = await pumpFlow(tester, buildLedger(budgets: budgets));
       container
-          .read(budgetsListViewModelProvider.notifier)
+          .read(budgetsListViewModelProvider(BudgetHost.stats).notifier)
           .requestBudgetDetail(budgetID);
       await tester.pumpAndSettle();
       return container;
     }
 
     bool detailAlive(ProviderContainer container, String id) =>
-        container.exists(budgetDetailViewModelProvider(id));
+        container.exists(
+          budgetDetailViewModelProvider((host: BudgetHost.stats, budgetID: id)),
+        );
 
-    bool limitAlive(ProviderContainer container, String id) =>
-        container.exists(budgetLimitViewModelProvider(id));
+    bool limitAlive(ProviderContainer container, String id) => container.exists(
+      budgetLimitViewModelProvider((host: BudgetHost.stats, budgetID: id)),
+    );
 
     testWidgets('closing the detail route disposes its detail and limit '
         'providers', (tester) async {
@@ -338,7 +346,7 @@ void main() {
       await tester.pumpAndSettle();
 
       container
-          .read(budgetsListViewModelProvider.notifier)
+          .read(budgetsListViewModelProvider(BudgetHost.stats).notifier)
           .requestBudgetDetail(second.id);
       await tester.pumpAndSettle();
 
