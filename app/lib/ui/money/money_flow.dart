@@ -73,9 +73,8 @@ class _MoneyFlowState extends ConsumerState<MoneyFlow> {
         MoneySegment.accounts => AccountsFlow(
           moneyObserver: widget.moneyObserver,
           rootObserver: _rootObserver,
-          embeddedRoot: true,
         ),
-        MoneySegment.plans => const PlanListScreen(embeddedRoot: true),
+        MoneySegment.plans => const PlanListScreen(),
       };
       return DestinationActivity(
         key: ValueKey(value),

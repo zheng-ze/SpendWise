@@ -11,16 +11,10 @@ import 'package:spendwise/ui/transactions/transactions_flow.dart';
 
 // MARK: - AccountsFlow
 class AccountsFlow extends FlowBase<AccountsStep> {
-  const AccountsFlow({
-    super.key,
-    this.moneyObserver,
-    this.rootObserver,
-    this.embeddedRoot = false,
-  });
+  const AccountsFlow({super.key, this.moneyObserver, this.rootObserver});
 
   final MoneyNavigatorObserver? moneyObserver;
   final NavigatorObserver? rootObserver;
-  final bool embeddedRoot;
 
   @override
   ConsumerState<AccountsFlow> createState() => _AccountsFlowState();
@@ -110,6 +104,5 @@ class _AccountsFlowState extends FlowBaseState<AccountsStep, AccountsFlow> {
   }
 
   @override
-  Widget buildRoot(BuildContext context) =>
-      AccountsScreen(embeddedRoot: widget.embeddedRoot);
+  Widget buildRoot(BuildContext context) => const AccountsScreen();
 }

@@ -25,9 +25,7 @@ const Map<RecurrenceFrequency, String> _frequencyLabels = {
 
 // MARK: - PlanListScreen
 class PlanListScreen extends ConsumerStatefulWidget {
-  const PlanListScreen({super.key, this.embeddedRoot = false});
-
-  final bool embeddedRoot;
+  const PlanListScreen({super.key});
 
   @override
   ConsumerState<PlanListScreen> createState() => _PlanListScreenState();
@@ -111,11 +109,8 @@ class _PlanListScreenState extends ConsumerState<PlanListScreen> {
     final viewModel = ref.watch(planListViewModelProvider.notifier);
 
     return asyncState.when(
-      data: (viewState) => _PlanListScreenBody(
-        viewState: viewState,
-        viewModel: viewModel,
-        embeddedRoot: widget.embeddedRoot,
-      ),
+      data: (viewState) =>
+          _PlanListScreenBody(viewState: viewState, viewModel: viewModel),
       loading: () =>
           const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (error, stackTrace) =>
@@ -126,13 +121,7 @@ class _PlanListScreenState extends ConsumerState<PlanListScreen> {
 
 // MARK: - PlanListScreenBody
 class _PlanListScreenBody extends StatelessWidget {
-  const _PlanListScreenBody({
-    required this.viewState,
-    required this.viewModel,
-    required this.embeddedRoot,
-  });
-
-  final bool embeddedRoot;
+  const _PlanListScreenBody({required this.viewState, required this.viewModel});
 
   final PlanListViewState viewState;
   final PlanListViewModel viewModel;
@@ -141,21 +130,7 @@ class _PlanListScreenBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final plans = viewState.plans;
 
-    final actions = <Widget>[];
-    if (plans.isNotEmpty) {
-      actions.add(
-        TextButton(
-          onPressed: viewModel.toggleEditing,
-          child: Text(viewState.editing ? 'Done' : 'Edit'),
-        ),
-      );
-    }
-    final appBar = embeddedRoot
-        ? null
-        : AppBar(title: const Text('Recurring Plans'), actions: actions);
-
     return Scaffold(
-      appBar: appBar,
       body: plans.isEmpty
           ? const Center(child: Text('No recurring plans yet'))
           : ListView(

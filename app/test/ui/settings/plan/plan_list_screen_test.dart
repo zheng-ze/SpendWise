@@ -48,7 +48,7 @@ void main() {
     expect(find.text('Edit'), findsNothing);
   }, timeout: uiTestTimeout);
 
-  testWidgets('no add button is rendered anywhere', (tester) async {
+  testWidgets('root renders no header actions of its own', (tester) async {
     final plan = RecurringPlan(
       template: EntryTemplate(
         amount: dec('-10'),
@@ -69,7 +69,8 @@ void main() {
     await pumpScreen(tester, ledger);
 
     expect(find.byIcon(Icons.add), findsNothing);
-    expect(find.text('Edit'), findsOneWidget);
+    expect(find.text('Edit'), findsNothing);
+    expect(find.byType(AppBar), findsNothing);
   }, timeout: uiTestTimeout);
 
   testWidgets('row caption shows frequency and source, amount colored by '

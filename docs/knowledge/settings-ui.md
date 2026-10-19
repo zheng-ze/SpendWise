@@ -47,7 +47,7 @@ back control. Back pops child routes and preserves the destination selection at 
 resize retains the mounted flow and its open enrollment route in place, without re-hosting the
 enrollment flow. The Categories row opens category management, whose forms and symbol picker
 retain their existing navigation. Settings has no Recurring Plans row, request Step or Plans route.
-`MoneyFlow` hosts the existing plan list, suppresses its standalone app bar, and exposes Edit/Done
+`MoneyFlow` hosts the existing plan list, which has no app bar of its own, and exposes Edit/Done
 in the Money header. Plan forms still open as sheets via `FormScaffold`.
 (`app/lib/ui/settings/settings_root_screen.dart`, `settings_root_view_model.dart`,
 `settings_flow.dart`, `app/lib/ui/money/money_flow.dart`)

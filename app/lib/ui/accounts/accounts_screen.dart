@@ -12,9 +12,7 @@ import 'package:spendwise/ui/format/money_format.dart';
 
 // MARK: - AccountsScreen
 class AccountsScreen extends ConsumerWidget {
-  const AccountsScreen({super.key, this.embeddedRoot = false});
-
-  final bool embeddedRoot;
+  const AccountsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -24,11 +22,7 @@ class AccountsScreen extends ConsumerWidget {
     return asyncState.when(
       data: (viewState) => Scaffold(
         body: SafeArea(
-          child: _AccountsBody(
-            viewState: viewState,
-            viewModel: viewModel,
-            embeddedRoot: embeddedRoot,
-          ),
+          child: _AccountsBody(viewState: viewState, viewModel: viewModel),
         ),
       ),
       loading: () =>
@@ -41,19 +35,11 @@ class AccountsScreen extends ConsumerWidget {
 
 // MARK: - AccountsBody
 class _AccountsBody extends StatelessWidget {
-  const _AccountsBody({
-    required this.viewState,
-    required this.viewModel,
-    required this.embeddedRoot,
-  });
-
-  final bool embeddedRoot;
+  const _AccountsBody({required this.viewState, required this.viewModel});
 
   final AccountsViewState viewState;
   final AccountsViewModel viewModel;
 
-  static const _headerLeftInset = 16.0;
-  static const _headerEdgePadding = 8.0;
   static const _summaryHorizontalPadding = 16.0;
   static const _summarySectionsGap = 8.0;
   static const _dividerHeight = 1.0;
@@ -62,28 +48,6 @@ class _AccountsBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final netWorth = viewState.netWorth;
 
-    final header = Padding(
-      padding: const EdgeInsets.fromLTRB(
-        _headerLeftInset,
-        _headerEdgePadding,
-        _headerEdgePadding,
-        _headerEdgePadding,
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              'Accounts',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: viewModel.requestNewAccount,
-          ),
-        ],
-      ),
-    );
     final summary = Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: _summaryHorizontalPadding,
@@ -128,7 +92,6 @@ class _AccountsBody extends StatelessWidget {
 
     return Column(
       children: [
-        if (!embeddedRoot) header,
         summary,
         const SizedBox(height: _summarySectionsGap),
         const Divider(height: _dividerHeight),
