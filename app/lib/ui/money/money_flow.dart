@@ -30,6 +30,7 @@ final activeMoneySourceProvider = Provider<String? Function()>((ref) {
   };
 });
 
+const _headerRowMinHeight = 48.0;
 const _headerPadding = EdgeInsets.symmetric(horizontal: 16, vertical: 8);
 const _segmentPadding = EdgeInsets.symmetric(horizontal: 16);
 const _options = [
@@ -106,15 +107,17 @@ class _MoneyHeader extends ConsumerWidget {
     final title = Expanded(
       child: Text('Money', style: Theme.of(context).textTheme.headlineSmall),
     );
-    final header = Padding(
-      padding: _headerPadding,
-      child: Row(
-        children: [
-          title,
-          _MoneyAction(segment: segment),
-        ],
-      ),
+    final row = Row(
+      children: [
+        title,
+        _MoneyAction(segment: segment),
+      ],
     );
+    final titleRow = ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: _headerRowMinHeight),
+      child: row,
+    );
+    final header = Padding(padding: _headerPadding, child: titleRow);
     final control = SegmentedControl(
       options: _options,
       value: segment,

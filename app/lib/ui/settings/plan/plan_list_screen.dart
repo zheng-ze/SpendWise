@@ -98,12 +98,11 @@ class _PlanListScreenState extends ConsumerState<PlanListScreen> {
       itemName: step.plan.template.name,
     );
     if (!mounted) return;
-    _presentingStep = null;
-    if (!identical(ref.read(planListViewModelProvider).value?.step, step)) {
-      return;
+    if (identical(ref.read(planListViewModelProvider).value?.step, step)) {
+      _viewModel.applyDeleteConfirmed(confirmed);
+      _viewModel.clearStep();
     }
-    _viewModel.applyDeleteConfirmed(confirmed);
-    _viewModel.clearStep();
+    _presentingStep = null;
   }
 
   @override

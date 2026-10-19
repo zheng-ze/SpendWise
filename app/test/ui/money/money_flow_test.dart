@@ -34,6 +34,7 @@ import '../../support/ui_test_timeout.dart';
 import '../../support/add_sheet_dismiss.dart';
 
 const _phoneSize = Size(480, 844);
+const _geometryPhoneSize = Size(402, 874);
 const _pixelRatio = 1.0;
 const _openSize = Size(960, 844);
 final _today = DateTime.utc(2026, 10, 3);
@@ -64,9 +65,13 @@ class _MoneyShell extends ConsumerWidget {
   }
 }
 
-Future<ProviderContainer> _pumpMoney(WidgetTester tester, Ledger ledger) async {
+Future<ProviderContainer> _pumpMoney(
+  WidgetTester tester,
+  Ledger ledger, {
+  Size size = _phoneSize,
+}) async {
   tester.view.devicePixelRatio = _pixelRatio;
-  tester.view.physicalSize = _phoneSize;
+  tester.view.physicalSize = size;
   addTearDown(tester.view.reset);
   final container = ProviderContainer(
     overrides: [
@@ -148,8 +153,62 @@ void _expectRoot({required bool month}) {
   expect(find.byType(MonthYearSelector), month ? findsOneWidget : findsNothing);
 }
 
+Ledger _geometryLedger() {
+  final account = Account(name: 'Wallet', type: AccountType.cash);
+  final plan = RecurringPlan(
+    template: EntryTemplate(
+      amount: Decimal.parse('-10'),
+      name: 'Rent',
+      sourceID: account.id,
+    ),
+    frequency: RecurrenceFrequency.monthly,
+    anchor: _today,
+    lastResolvedDate: _today,
+  );
+  final state = LedgerState(
+    moneySources: {account.id: MoneySource.account(account)},
+    plans: {plan.id: plan},
+  );
+  return Ledger(state: state);
+}
+
+double _segmentTop(WidgetTester tester) =>
+    tester.getTopLeft(find.byType(SegmentedControl<MoneySegment>)).dy;
+
+Future<double> _rootGeometry(WidgetTester tester, Ledger ledger) async {
+  await _pumpMoney(tester, ledger, size: _geometryPhoneSize);
+  final top = _segmentTop(tester);
+  await _segment(tester, 'Accounts');
+  expect(_segmentTop(tester), top);
+  await _segment(tester, 'Plans');
+  expect(_segmentTop(tester), top);
+  return top;
+}
+
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  testWidgets(
+    'Money header keeps its segment top at 402 points with empty Plans',
+    (tester) async {
+      await _rootGeometry(tester, Ledger());
+      expect(find.text('Edit'), findsNothing);
+      expect(find.text('No recurring plans yet'), findsOneWidget);
+    },
+    timeout: uiTestTimeout,
+  );
+
+  testWidgets(
+    'Money header keeps its segment top at 402 points through Plans Edit and Done',
+    (tester) async {
+      final top = await _rootGeometry(tester, _geometryLedger());
+      await _segment(tester, 'Edit');
+      expect(_segmentTop(tester), top);
+      await _segment(tester, 'Done');
+      expect(_segmentTop(tester), top);
+    },
+    timeout: uiTestTimeout,
+  );
 
   testWidgets('Money roots share chrome and lazily retain existing children', (
     tester,
@@ -201,7 +260,7 @@ void main() {
     'Money Plans Edit delete preserves existing confirmation contract',
     (tester) async {
       final ledger = _seedLedger();
-      await _pumpMoney(tester, ledger);
+      final container = await _pumpMoney(tester, ledger);
       await _segment(tester, 'Plans');
       final plan = ledger.state.plans.values.first;
       await _segment(tester, 'Edit');
@@ -213,6 +272,18 @@ void main() {
       expect(find.text('Delete ${plan.template.name}?'), findsOneWidget);
       await _segment(tester, 'Delete');
       expect(ledger.state.plans.containsKey(plan.id), isFalse);
+      expect(
+        find.text('Delete ${plan.template.name}?', skipOffstage: false),
+        findsNothing,
+      );
+      expect(container.read(planListViewModelProvider).value?.step, isNull);
+      await _segment(tester, 'Accounts');
+      expect(container.read(moneySegmentProvider), MoneySegment.accounts);
+      await _segment(tester, 'Plans');
+      expect(
+        find.text('Delete ${plan.template.name}?', skipOffstage: false),
+        findsNothing,
+      );
     },
     timeout: uiTestTimeout,
   );
@@ -291,12 +362,22 @@ void main() {
       final accounts = container.read(accountsViewModelProvider.notifier);
       accounts.requestNewAccount();
       final accountStep = container.read(accountsViewModelProvider).value?.step;
+      ledger.addAccount(Account(name: 'First update', type: AccountType.cash));
+      expect(
+        container.read(accountsViewModelProvider).value?.step,
+        same(accountStep),
+      );
       final plans = container.read(planListViewModelProvider.notifier);
       plans.requestEditPlan(ledger.state.plans.values.first);
       final planStep = container.read(planListViewModelProvider).value?.step;
+      ledger.addAccount(Account(name: 'Second update', type: AccountType.cash));
+      expect(
+        container.read(planListViewModelProvider).value?.step,
+        same(planStep),
+      );
       await tester.pumpAndSettle();
-      expect(find.byType(AccountForm), findsNothing);
-      expect(find.byType(PlanForm), findsNothing);
+      expect(find.byType(AccountForm, skipOffstage: false), findsNothing);
+      expect(find.byType(PlanForm, skipOffstage: false), findsNothing);
       expect(
         container.read(accountsViewModelProvider).value?.step,
         same(accountStep),
@@ -306,25 +387,25 @@ void main() {
         same(planStep),
       );
       await _segment(tester, 'Accounts');
-      expect(find.byType(AccountForm), findsOneWidget);
+      expect(find.byType(AccountForm, skipOffstage: false), findsOneWidget);
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       await _segment(tester, 'Plans');
-      expect(find.byType(PlanForm), findsOneWidget);
+      expect(find.byType(PlanForm, skipOffstage: false), findsOneWidget);
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       await _segment(tester, 'Accounts');
-      expect(find.byType(AccountForm), findsNothing);
+      expect(find.byType(AccountForm, skipOffstage: false), findsNothing);
       await _segment(tester, 'Plans');
-      expect(find.byType(PlanForm), findsNothing);
+      expect(find.byType(PlanForm, skipOffstage: false), findsNothing);
       await _destination(tester, container, ShellDestination.settings);
       accounts.requestNewAccount();
       await tester.pumpAndSettle();
-      expect(find.byType(AccountForm), findsNothing);
+      expect(find.byType(AccountForm, skipOffstage: false), findsNothing);
       await _selectRetained(tester, container, MoneySegment.accounts);
-      expect(find.byType(AccountForm), findsNothing);
+      expect(find.byType(AccountForm, skipOffstage: false), findsNothing);
       await _destination(tester, container, ShellDestination.money);
-      expect(find.byType(AccountForm), findsOneWidget);
+      expect(find.byType(AccountForm, skipOffstage: false), findsOneWidget);
     },
     timeout: uiTestTimeout,
   );
