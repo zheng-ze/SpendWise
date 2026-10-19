@@ -21,13 +21,14 @@ class AccountsFlow extends FlowBase<AccountsStep> {
 
 // MARK: - AccountsFlowState
 class _AccountsFlowState extends FlowBaseState<AccountsStep, AccountsFlow> {
-  late final List<NavigatorObserver> _navigatorObservers = [
-    ?widget.moneyObserver,
-  ];
+  late final List<NavigatorObserver> _navigatorObservers =
+      switch (widget.moneyObserver) {
+        null => const [],
+        final observer => [observer],
+      };
 
   @override
   List<NavigatorObserver> get navigatorObservers => _navigatorObservers;
-
   AccountsViewModel get _screenViewModel =>
       ref.read(accountsViewModelProvider.notifier);
 
