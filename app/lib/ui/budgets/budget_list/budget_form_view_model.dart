@@ -98,6 +98,11 @@ class BudgetFormViewState implements HasStep<BudgetFormViewState, BudgetsStep> {
       copyWith(step: step);
 }
 
+// MARK: - BudgetDraftKey
+class BudgetDraftKey {
+  BudgetDraftKey();
+}
+
 // MARK: - BudgetFormViewModel
 abstract class BudgetFormViewModel {
   void setAmount(String raw);
@@ -113,6 +118,10 @@ class BudgetFormNotifier extends AsyncNotifier<BudgetFormViewState>
         LedgerBackedNotifier<BudgetFormViewState>,
         StepEmitting<BudgetFormViewState, BudgetsStep>
     implements BudgetFormViewModel {
+  BudgetFormNotifier(this.draftKey);
+
+  final BudgetDraftKey draftKey;
+
   @override
   Future<BudgetFormViewState> build() async {
     return BudgetFormViewState(
@@ -159,7 +168,7 @@ class BudgetFormNotifier extends AsyncNotifier<BudgetFormViewState>
 }
 
 // MARK: - Constants
-final budgetFormViewModelProvider =
-    AsyncNotifierProvider<BudgetFormNotifier, BudgetFormViewState>(
+final budgetFormViewModelProvider = AsyncNotifierProvider.autoDispose
+    .family<BudgetFormNotifier, BudgetFormViewState, BudgetDraftKey>(
       BudgetFormNotifier.new,
     );

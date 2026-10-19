@@ -11,18 +11,23 @@ import 'package:spendwise/ui/common/inputs/form_scaffold.dart';
 const _fieldContentPadding = EdgeInsets.zero;
 
 // MARK: - Sheet Presenter
-Future<void> showBudgetFormSheet({required BuildContext context}) {
+Future<void> showBudgetFormSheet({
+  required BuildContext context,
+  required BudgetDraftKey draftKey,
+}) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    builder: (_) => const BudgetForm(),
+    builder: (_) => BudgetForm(draftKey: draftKey),
   );
 }
 
 // MARK: - BudgetForm
 class BudgetForm extends ConsumerStatefulWidget {
-  const BudgetForm({super.key});
+  const BudgetForm({super.key, required this.draftKey});
+
+  final BudgetDraftKey draftKey;
 
   @override
   ConsumerState<BudgetForm> createState() => _BudgetFormState();
@@ -40,12 +45,14 @@ class _BudgetFormState extends ConsumerState<BudgetForm> {
 
   @override
   Widget build(BuildContext context) {
-    final asyncState = ref.watch(budgetFormViewModelProvider);
+    final asyncState = ref.watch(budgetFormViewModelProvider(widget.draftKey));
 
     return asyncState.when(
       data: (formState) => _BudgetFormBody(
         formState: formState,
-        viewModel: ref.read(budgetFormViewModelProvider.notifier),
+        viewModel: ref.read(
+          budgetFormViewModelProvider(widget.draftKey).notifier,
+        ),
         amountController: _amountController,
       ),
       loading: () => const Center(child: CircularProgressIndicator()),

@@ -13,6 +13,8 @@ import 'package:spendwise/ui/budgets/budget_list/budget_form.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_limit_screen.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_flow.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
+import 'package:spendwise/ui/budgets/budget_list/budget_form_view_model.dart';
+import 'package:spendwise/ui/common/base/flow_base.dart';
 
 import '../../../support/semantics_test_support.dart';
 import '../../../support/ui_test_timeout.dart';
@@ -248,6 +250,68 @@ void main() {
 
     expect(ledger.state.budgets.containsKey(overall.id), isFalse);
     handle.dispose();
+  }, timeout: uiTestTimeout);
+
+  testWidgets('an inactive destination leaves the list Step pending until it '
+      'becomes active', (tester) async {
+    final overall = budget(categoryID: null, id: 'b1');
+    final container = ProviderContainer(
+      overrides: [
+        ledgerProvider.overrideWithValue(
+          buildLedger(budgets: {overall.id: overall}),
+        ),
+        analysisComputeRunnerProvider.overrideWithValue(syncComputeRunner),
+      ],
+    );
+    addTearDown(container.dispose);
+    Future<void> pumpActive({required bool active}) async {
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: DestinationActivity(
+              active: active,
+              child: const BudgetsFlow(),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    await pumpActive(active: false);
+    container
+        .read(budgetsListViewModelProvider.notifier)
+        .requestBudgetDetail(overall.id);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(BudgetDetailScreen), findsNothing);
+    expect(container.read(budgetsListViewModelProvider).value?.step, isNotNull);
+
+    await pumpActive(active: true);
+
+    expect(find.byType(BudgetDetailScreen), findsOneWidget);
+    expect(container.read(budgetsListViewModelProvider).value?.step, isNull);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('each budget form draft is a fresh identity disposed with its '
+      'route', (tester) async {
+    final container = await pumpFlow(tester, buildLedger());
+    BudgetDraftKey openDraft() =>
+        tester.widget<BudgetForm>(find.byType(BudgetForm)).draftKey;
+
+    container.read(budgetsListViewModelProvider.notifier).requestNewBudget();
+    await tester.pumpAndSettle();
+    final first = openDraft();
+    expect(container.exists(budgetFormViewModelProvider(first)), isTrue);
+
+    Navigator.of(tester.element(find.byType(BudgetForm))).pop();
+    await tester.pumpAndSettle();
+    expect(container.exists(budgetFormViewModelProvider(first)), isFalse);
+
+    container.read(budgetsListViewModelProvider.notifier).requestNewBudget();
+    await tester.pumpAndSettle();
+    expect(openDraft(), isNot(same(first)));
   }, timeout: uiTestTimeout);
 
   group('provider disposal', () {

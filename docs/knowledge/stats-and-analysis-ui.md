@@ -1,6 +1,6 @@
 # Stats & Analysis UI
 
-Last reconciled: c06d3fb
+Last reconciled: 2026-10-19
 
 ## Feature overview
 
@@ -57,12 +57,19 @@ The Stats Flow owns the Trends destination's nested navigator. Category Detail i
 inherits mode fixed - the toolbar has the `MonthYearSelector` only, no range menu. The Uncategorized
 row in the legend is not navigable.
 
+The Budgets segment mounts `BudgetsFlow`. Its list, detail, limit, and draft state follow the
+ownership contracts in [budgets.md](budgets.md).
+(`app/lib/ui/stats/stats_root_screen.dart:_StatsTabContent`)
+
 ## Screens and flows
 
-- **Stats tab** - `TopTabBar` (Income | Expense, default Expense), a total line (Instrument Sans
+- **Stats tab** - `TopTabBar` (Income | Expense | Budgets, default Expense). Income and Expense show
+  a total line (Instrument Sans
   headline, income token / expense token = Σ analysis items of the active kind in the window), a donut, and a category
   legend. App bar: `MonthYearSelector` leading and a range menu dropdown (Monthly | Annually)
-  trailing that renders on every platform, desktop and web included. Slices: filter, roll up, sort
+  trailing that renders on every platform, desktop and web included. The Budgets segment uses a
+  monthly selector and hides the range menu (`stats_root_screen.dart:_StatsRootBody`). Slices:
+  filter, roll up, sort
   descending; donut ring starts at 12 o'clock clockwise with a 1.5° gap and leader-line labels
   (`Name  NN%`). Empty state: `chart.pie` glyph + "No income/expense in this period", replacing the
   donut and list while the total still shows `S$0.00`.

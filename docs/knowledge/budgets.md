@@ -132,14 +132,38 @@ while contributing to a negative expense day total. (`budget_counted_entry_list.
 
 ## Provider and subscription lifetime
 
+`budgetsListViewModelProvider` is a non-auto-disposing provider.
 `budgetDetailViewModelProvider` and `budgetLimitViewModelProvider` are `autoDispose` families keyed
-by budget id. `BudgetsFlow` opens manual subscriptions to both before pushing the detail route and
-retains them while the limit screen is above it. During normal detail closure, it waits for
+by budget id. (`budgets_list_view_model.dart`, `budget_detail_view_model.dart`,
+`budget_limit_view_model.dart`)
+
+`BudgetsFlow` opens manual subscriptions to the detail and limit providers before pushing
+the detail route and retains them while the limit screen is above it. During normal detail closure, it waits for
 `route.completed` before closing both subscriptions, keeping the providers alive through the exit
 transition. It also closes subscriptions when the Flow is disposed or another budget is opened.
 The completion callback checks subscription identity so completion of an older route cannot close
 the current budget's subscriptions. (`budget_detail_view_model.dart`, `budget_limit_view_model.dart`,
 `app/lib/ui/budgets/budget_list/budgets_flow.dart`,
+`app/test/ui/budgets/budget_list/budgets_flow_test.dart`)
+
+`budgetFormViewModelProvider` is an `autoDispose` family keyed by `BudgetDraftKey`, which uses object
+identity equality. Each Add sheet receives a fresh key. The Flow subscribes to that draft before presenting the sheet and releases its subscription
+when the sheet's returned Future completes, when another draft opens, or when the Flow is disposed.
+The form watches the same key, so auto-disposal releases the draft after its listeners are gone.
+The completion callback checks draft identity before releasing the subscription. Category-picker
+results apply only while the initiating context is mounted and the same draft remains open.
+(`budget_form.dart`, `budget_form_view_model.dart`,
+`budgets_flow.dart:_openBudgetForm`, `_handleFormStep`)
+
+## Step ownership
+
+The list Step belongs to the list provider. `BudgetsFlow.handleStep` handles and clears it
+only while `DestinationActivity` is active and the provider still holds that exact Step object.
+An inactive destination leaves the Step pending. Activation schedules a post-frame pickup that reads the
+current Step and applies the same checks, so a stale callback cannot replay a consumed Step.
+Detail and limit Steps belong to the open budget; form Steps and category-picker
+continuations belong to the open `BudgetDraftKey`. (`budgets_flow.dart:handleStep`, `_pickUpStep`,
+`_handleDetailStep`, `_handleLimitStep`, `_handleFormStep`,
 `app/test/ui/budgets/budget_list/budgets_flow_test.dart`)
 
 ## Overview projection

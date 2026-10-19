@@ -30,23 +30,34 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
   String? _openBudgetID;
 
   ProviderSubscription<AsyncValue<BudgetFormViewState>>? _formSubscription;
+  BudgetDraftKey? _openDraftKey;
+  bool _active = false;
 
   // MARK: - Lifecycle
 
   @override
-  void initState() {
-    super.initState();
-    _formSubscription = ref.listenManual(
-      budgetFormViewModelProvider,
-      (previous, next) => _handleFormStep(next.value?.step),
-    );
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final active = DestinationActivity.of(context);
+    final becameActive = active && !_active;
+    _active = active;
+    if (becameActive) WidgetsBinding.instance.addPostFrameCallback(_pickUpStep);
   }
 
   @override
   void dispose() {
     _closeBudgetSubscriptions();
-    _formSubscription?.close();
+    _closeFormSubscription();
     super.dispose();
+  }
+
+  void _pickUpStep(Duration _) {
+    if (!mounted) return;
+    final navContext = navigatorContext;
+    if (navContext == null) return;
+    final pending = ref.read(budgetsListViewModelProvider).value;
+    final step = pending?.step;
+    if (step != null) handleStep(navContext, step);
   }
 
   // MARK: - View Model Contracts
@@ -60,8 +71,8 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
   BudgetLimitViewModel _limitViewModel(String budgetID) =>
       ref.read(budgetLimitViewModelProvider(budgetID).notifier);
 
-  BudgetFormViewModel get _formViewModel =>
-      ref.read(budgetFormViewModelProvider.notifier);
+  BudgetFormViewModel _formViewModel(BudgetDraftKey draftKey) =>
+      ref.read(budgetFormViewModelProvider(draftKey).notifier);
 
   // MARK: - List Navigation
 
@@ -77,11 +88,14 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
 
   @override
   void handleStep(BuildContext context, BudgetsStep step) {
+    if (!DestinationActivity.of(context)) return;
+    final current = ref.read(budgetsListViewModelProvider).value?.step;
+    if (!identical(current, step)) return;
     switch (step) {
       case BudgetDetailRequested(:final budgetID):
         unawaited(_openBudget(context, budgetID));
       case BudgetFormRequested():
-        showBudgetFormSheet(context: context);
+        _openBudgetForm(context);
       case BudgetLimitEditRequested():
       case PickLimitRequested():
       case PickCategoryRequested():
@@ -160,26 +174,48 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
 
   // MARK: - Form Navigation
 
-  Future<void> _handleFormStep(BudgetsStep? step) async {
+  void _closeFormSubscription() {
+    _formSubscription?.close();
+    _formSubscription = null;
+    _openDraftKey = null;
+  }
+
+  void _openBudgetForm(BuildContext context) {
+    _closeFormSubscription();
+    final draftKey = BudgetDraftKey();
+    _openDraftKey = draftKey;
+    _formSubscription = ref.listenManual(
+      budgetFormViewModelProvider(draftKey),
+      (previous, next) => _handleFormStep(draftKey, next.value?.step),
+    );
+    showBudgetFormSheet(context: context, draftKey: draftKey).whenComplete(() {
+      if (identical(_openDraftKey, draftKey)) _closeFormSubscription();
+    });
+  }
+
+  Future<void> _handleFormStep(
+    BudgetDraftKey draftKey,
+    BudgetsStep? step,
+  ) async {
     if (step == null) return;
     final context = navigatorContext;
     if (context == null) return;
 
     switch (step) {
       case PickCategoryRequested():
-        final formState = ref.read(budgetFormViewModelProvider).value;
+        final formState = ref.read(budgetFormViewModelProvider(draftKey)).value;
         if (formState == null) return;
         final chosen = await showBudgetCategoryPickerSheet(
           context: context,
           formState: formState,
         );
-        if (!context.mounted) return;
-        _formViewModel.applyPickedCategory(
+        if (!context.mounted || !identical(_openDraftKey, draftKey)) return;
+        _formViewModel(draftKey).applyPickedCategory(
           chosen == budgetFormOverallSentinel ? null : chosen,
         );
       case BudgetFormSaved():
         if (Navigator.of(context).canPop()) Navigator.of(context).pop();
-        _formViewModel.clearStep();
+        _formViewModel(draftKey).clearStep();
       case BudgetDetailRequested():
       case BudgetFormRequested():
       case BudgetLimitEditRequested():

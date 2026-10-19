@@ -5,10 +5,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_form.dart';
+import 'package:spendwise/ui/budgets/budget_list/budget_form_view_model.dart';
 
 import '../../../support/ui_test_timeout.dart';
 
 void main() {
+  final draftKey = BudgetDraftKey();
+
   Decimal dec(String value) => Decimal.parse(value);
 
   Budget buildBudget({String? categoryID, String id = 'stale'}) {
@@ -30,7 +33,9 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [ledgerProvider.overrideWithValue(ledger)],
-        child: const MaterialApp(home: Scaffold(body: BudgetForm())),
+        child: MaterialApp(
+          home: Scaffold(body: BudgetForm(draftKey: draftKey)),
+        ),
       ),
     );
     await tester.pump();
