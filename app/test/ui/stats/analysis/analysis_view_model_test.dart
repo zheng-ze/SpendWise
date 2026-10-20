@@ -52,70 +52,6 @@ void main() {
     );
 
     expect(state.kind, CategoryKind.expense);
-    expect(state.step, isNull);
-  });
-
-  test(
-    'requestCategoryDetail emits CategoryDetailRequested with the given args',
-    () async {
-      final container = buildContainer(buildLedger());
-      await container.read(
-        analysisViewModelProvider(CategoryKind.expense).future,
-      );
-      final viewModel = container.read(
-        analysisViewModelProvider(CategoryKind.expense).notifier,
-      );
-      final now = DateTime.utc(2026, 3);
-
-      viewModel.requestCategoryDetail(
-        mainID: food.id,
-        isYearRange: false,
-        initialDate: now,
-      );
-
-      final step = container
-          .read(analysisViewModelProvider(CategoryKind.expense))
-          .value
-          ?.step;
-      expect(step, isA<CategoryDetailRequested>());
-      final requested = step as CategoryDetailRequested;
-      expect(requested.mainID, food.id);
-      expect(requested.isYearRange, isFalse);
-      expect(requested.initialDate, now);
-    },
-  );
-
-  test('clearStep resets the step to null', () async {
-    final container = buildContainer(buildLedger());
-    await container.read(
-      analysisViewModelProvider(CategoryKind.expense).future,
-    );
-    final viewModel = container.read(
-      analysisViewModelProvider(CategoryKind.expense).notifier,
-    );
-    final now = DateTime.utc(2026, 3);
-
-    viewModel.requestCategoryDetail(
-      mainID: food.id,
-      isYearRange: false,
-      initialDate: now,
-    );
-    expect(
-      container
-          .read(analysisViewModelProvider(CategoryKind.expense))
-          .value
-          ?.step,
-      isNotNull,
-    );
-
-    viewModel.clearStep();
-    expect(
-      container
-          .read(analysisViewModelProvider(CategoryKind.expense))
-          .value
-          ?.step,
-      isNull,
-    );
   });
 
   test(
@@ -131,29 +67,6 @@ void main() {
 
       expect(incomeState.kind, CategoryKind.income);
       expect(expenseState.kind, CategoryKind.expense);
-
-      container
-          .read(analysisViewModelProvider(CategoryKind.expense).notifier)
-          .requestCategoryDetail(
-            mainID: food.id,
-            isYearRange: false,
-            initialDate: DateTime.utc(2026, 3),
-          );
-
-      expect(
-        container
-            .read(analysisViewModelProvider(CategoryKind.income))
-            .value
-            ?.step,
-        isNull,
-      );
-      expect(
-        container
-            .read(analysisViewModelProvider(CategoryKind.expense))
-            .value
-            ?.step,
-        isNotNull,
-      );
     },
   );
 }

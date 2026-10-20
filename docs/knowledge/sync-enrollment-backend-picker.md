@@ -65,8 +65,8 @@ Source:
   `BackendPickerNotifier.resetForFreshEntry`.
 - `BackendPickerFlow` passes `goBack` to the picker's leading Back button only
   when it has an `onEnded` callback. Fresh `SyncEnrollmentFlow` forwards its
-  `onEnded` callback to the nested picker, so Back at the picker root invokes
-  that callback. A standalone picker without `onEnded` has no Back button.
+  `onEnded` callback to the nested picker, so the Back arrow at the picker root invokes
+  that callback, while system Back at the root pops the hosting route (a `PopScope` blocks it during a selection save). A standalone picker without `onEnded` has no Back button.
   Source: `app/lib/ui/sync/enrollment/backend_picker/backend_picker_flow.dart` -
   `_BackendPickerFlowState.buildRoot`;
   `app/lib/ui/sync/enrollment/backend_picker/backend_picker_screen.dart` -

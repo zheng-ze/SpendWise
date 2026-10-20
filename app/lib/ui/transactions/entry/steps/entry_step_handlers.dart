@@ -128,6 +128,7 @@ void dispatchEntryFormStep(
         isCurrent: isCurrent,
       );
     case EntryFormRequested():
+    case HistoryTrendsRequested():
       break;
   }
 }

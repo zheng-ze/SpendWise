@@ -81,6 +81,17 @@ class _SyncEnrollmentFlowState
   }
 
   @override
+  Widget build(BuildContext context) {
+    final saving = ref.watch(
+      backendPickerViewModelProvider.select((state) => state.saving),
+    );
+    // NavigatorPopHandler only passes a root pop through and cannot block it, and
+    // goBack's saving guard is bypassed by root system Back, so this keeps the
+    // rule that the flow cannot be left while saving.
+    return PopScope(canPop: !saving, child: super.build(context));
+  }
+
+  @override
   Future<void> goBack() async {
     if (ref.read(backendPickerViewModelProvider).saving) return;
     await super.goBack();

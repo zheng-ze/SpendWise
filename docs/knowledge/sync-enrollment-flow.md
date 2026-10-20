@@ -198,8 +198,8 @@ or reopening one with an OTP-rejecting resolver. Source:
   `SyncEnrollmentNotifier.enterRepairMode`, `submitOtp`, `requestNewCode`.
 - `ShowProgressResume` first pops to the Flow root, then pushes resume. Repeated
   failures therefore keep one resume route. `ShowEnrollmentCompleted` removes
-  every earlier route, so Back delegates to `FlowBaseState.goBack()` and then
-  `onEnded` instead of returning to stale enrollment screens. Fresh completion's
+  every earlier route, so the Back arrow delegates to `FlowBaseState.goBack()` and then
+  `onEnded`, and system Back at the root passes to the hosting route (which pops), instead of returning to stale enrollment screens. Fresh completion's
   Done button emits `DismissEnrollmentFlow`; repair Done emits its subtype
   `DismissRepairFlow`. Both use the enclosing Flow's `goBack()` to end it.
   Source:

@@ -4,7 +4,7 @@ Last reconciled: 2026-10-20
 
 ## Feature overview
 
-The Stats screen and its category drill-down. The shell no longer has a Trends destination, so `StatsFlow` has no production host until the History Trends page lands. Stats renders analysis items (post-analysis-gate:
+The Stats screen and its category drill-down. The shell has no Trends destination; Trends (`StatsFlow`) is a page pushed over History. Stats renders analysis items (post-analysis-gate:
 category include-gates and treat-as-expense transfer reclassification) as a donut with leader-line
 labels and a category legend, and Category Detail drills into a main category with a subcategory
 table, a trend card, and a scoped entry list. Data comes from the ready Ledger's `AnalysisCache`;
@@ -14,7 +14,7 @@ notifications (`app/lib/ui/stats/analysis/analysis_view_model.dart`,
 
 ## Key files
 
-- `app/lib/ui/stats/stats_root_view_model.dart`, `stats_flow.dart` - the screen view model and Flow.
+- `app/lib/ui/stats/stats_root_view_model.dart` - the screen view model; `stats_root_screen.dart` - the Trends root screen, with an optional `onBackPressed` that renders a back control labelled 'History'; `stats_flow.dart` - the Flow; `analysis/analysis_body.dart` - the per-kind donut and legend body, fed by `AnalysisNotifier` and not a Flow.
 - `app/lib/ui/stats/donut/` - the donut chart (leader-line labels).
 - `app/lib/ui/stats/analysis/` - slice/roll-up helpers.
 - `app/lib/ui/stats/category_detail/` - the drill-down screen and view model.
@@ -52,13 +52,20 @@ replacement Ledger's cache restarts `itemsRevision`, which can equal the previou
 
 ## Navigation
 
-The Stats Flow owns the Trends destination's nested navigator. Category Detail is pushed with
+`StatsFlow` owns the whole Trends screen: its nested Navigator is full screen, its root route
+is `StatsRootScreen` (app bar with `MonthYearSelector`, Income/Expense tabs, `AnalysisBody`), and
+Category Detail is an ordinary push on that Navigator with its own app bar, covering Trends. The
+Flow subscribes to the one `StatsRootNotifier` Step; `CategoryDetailRequested` is emitted from either tab's legend and carries its kind. The per-kind `AnalysisNotifier` only feeds the body.
+Unscoped History's `TransactionsFlow` pushes a route holding `StatsFlow(onEnded: ...)`
+(`transactions-ui.md`); the History back control calls `goBack`, which ends the Flow and pops that
+route. System Back and the iOS edge swipe pop Category Detail first, then the Trends route.
+Category Detail is pushed with
 `(mainID, kind, mode, initialDate)`; it has its own date state (seeded from Stats' date) but
 inherits mode fixed - the toolbar has the `MonthYearSelector` only, no range menu. The Uncategorized
 row in the legend is not navigable.
 
-The Stats root has Income and Expense tabs. Budgets live in the Money Budgets segment; the Stats
-Flow does not mount `BudgetsFlow`. (`stats_root_screen.dart`, `app/lib/ui/money/money_flow.dart`)
+The Stats root has Income and Expense tabs. Budgets live in the Money Budgets segment; Stats
+does not mount `BudgetsFlow`. (`stats_root_screen.dart`, `app/lib/ui/money/money_flow.dart`)
 
 ## Screens and flows
 

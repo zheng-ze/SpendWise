@@ -137,7 +137,7 @@ void main() {
       final handled = await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
 
-      expect(handled, isTrue);
+      expect(handled, isFalse);
       _expectSelectedSettings(harness.container);
       expect(find.byType(SettingsFlow), findsOneWidget);
       expect(find.text('history detail', skipOffstage: false), findsOneWidget);
@@ -512,7 +512,7 @@ void main() {
       final handled = await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
 
-      expect(handled, isTrue);
+      expect(handled, isFalse);
       _expectSelectedSettings(harness.container);
       expect(find.byType(SettingsFlow), findsOneWidget);
       expect(find.text('history detail', skipOffstage: false), findsOneWidget);

@@ -165,12 +165,12 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: overridesFor(ledger),
-        child: const MaterialApp(home: StatsFlow()),
+        child: const MaterialApp(home: StatsRootScreen()),
       ),
     );
     await tester.pumpAndSettle();
 
-    final buildContext = tester.element(find.byType(StatsFlow));
+    final buildContext = tester.element(find.byType(StatsRootScreen));
     Navigator.of(buildContext).push(
       MaterialPageRoute<void>(
         builder: (_) => CategoryDetailScreen(
@@ -191,7 +191,7 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
 
-    expect(find.byType(StatsFlow), findsOneWidget);
+    expect(find.byType(StatsRootScreen), findsOneWidget);
   }, timeout: uiTestTimeout);
 
   group('subcategory table', () {
@@ -523,32 +523,30 @@ void main() {
     );
   });
 
-  testWidgets(
-    'tapping a legend row in StatsRootScreen pushes the detail screen',
-    (tester) async {
-      final hawkerEntry = Entry(
-        amount: dec('-10'),
-        name: 'Lunch',
-        sourceID: account.id,
-        categoryID: hawkerID,
-        date: day(1),
-      );
-      final ledger = buildLedger(entries: {hawkerEntry.id: hawkerEntry});
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: overridesFor(ledger),
-          child: const MaterialApp(home: StatsRootScreen()),
-        ),
-      );
-      await tester.pumpAndSettle();
+  testWidgets('tapping a legend row in StatsFlow pushes the detail screen', (
+    tester,
+  ) async {
+    final hawkerEntry = Entry(
+      amount: dec('-10'),
+      name: 'Lunch',
+      sourceID: account.id,
+      categoryID: hawkerID,
+      date: day(1),
+    );
+    final ledger = buildLedger(entries: {hawkerEntry.id: hawkerEntry});
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: overridesFor(ledger),
+        child: const MaterialApp(home: StatsFlow()),
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Food'));
-      await tester.pumpAndSettle();
+    await tester.tap(find.text('Food'));
+    await tester.pumpAndSettle();
 
-      expect(find.byType(CategoryDetailScreen), findsOneWidget);
-    },
-    timeout: uiTestTimeout,
-  );
+    expect(find.byType(CategoryDetailScreen), findsOneWidget);
+  }, timeout: uiTestTimeout);
 
   group('trend card', () {
     testWidgets('renders month labels for a January selection', (tester) async {

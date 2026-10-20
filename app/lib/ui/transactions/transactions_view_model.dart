@@ -24,6 +24,8 @@ class EntryFormRequested extends TransactionsStep {
   final Entry entry;
 }
 
+class HistoryTrendsRequested extends TransactionsStep {}
+
 class PickSourceRequested extends TransactionsStep {}
 
 class PickDestinationRequested extends TransactionsStep {}
@@ -105,6 +107,7 @@ abstract class TransactionsViewModel {
   Future<void> deleteEntry(String id);
   void switchToDaily(DateTime month);
   void openEntry(String id);
+  void requestTrends();
   void clearStep();
 }
 
@@ -223,6 +226,9 @@ class TransactionsNotifier extends AsyncNotifier<TransactionsViewState>
     if (entry == null) return;
     emitStep(EntryFormRequested(entry));
   }
+
+  @override
+  void requestTrends() => emitStep(HistoryTrendsRequested());
 }
 
 // MARK: - Constants
