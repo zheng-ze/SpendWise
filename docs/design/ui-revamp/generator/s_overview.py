@@ -7,6 +7,10 @@ NEW_WIDGET_CHOICES = [("Safe to spend", "How much can I spend safely?"), ("Pace 
 NEW8 = "New screen: Overview (round 8); no current app route"
 
 
+OPEN_TRENDS_NOTE = " Open Trends selects History and opens Trends on top of it; Back returns to History."
+OPEN_IN_TRENDS_NOTE = OPEN_TRENDS_NOTE.replace("Open Trends", "Open in Trends")
+
+
 def default_body(notices=""):
     return overview_head() + notices + w_today() + w_recent() + w_coming()
 
@@ -28,7 +32,7 @@ def build():
         f"Pace vs usual: {tiles.money(actual[-1])} spent by 3 October against {tiles.money(usual[tiles.DAYS_ELAPSED - 1][1])} for a usual month by then. "
         f"Subscriptions: Netflix {f2(subscriptions[0][4])} + Gym membership {f2(subscriptions[1][4])} = {tiles.money(monthly)} a month. "
         "Sample: cap, budget limits 450/350/120, the Netflix previous price, the Gym plan, a held import and a paused sync; Budget watch draws each limit with its month-end forecast." + tiles.sample_note(week=False)
-        + " Full scroll shown.",
+        + OPEN_TRENDS_NOTE + " Full scroll shown.",
         NEW8)
 
     ins = overview_head() + w_today() + w_insights("shown") + w_recent()
@@ -37,7 +41,7 @@ def build():
         "Sample history (round 4 matched windows): with the three previous months complete, at most two category changes appear, each dismissible for the month. Groceries 73.50 against a usual 45.00; Dining 83.90 against 58.00. Transport is unchanged and stays out. Seed-only history shows the More daily history needed state instead.",
         NEW8)
 
-    ev = (header("Groceries compared", "1-3 October / Usual start", back="Overview", gear=False)
+    ev = (header("Groceries compared", "1-3 October / Usual start", back="Overview")
           + tray("", '<div class="split"><div><span class="lab">Recorded</span><b>S$73.50</b></div><div><span class="lab">Usual 1-3</span><b>S$45.00</b></div></div>'
                      '<div class="guide" style="margin-top:8px">S$28.50 higher / 63.3%</div><div class="lab">Same elapsed days, not whole months.</div>')
           + tray("Usual start", '<div class="kv"><span>1-3 July</span><b>40.00</b></div><div class="kv"><span>1-3 August</span><b>50.00</b></div>'
@@ -48,7 +52,7 @@ def build():
           + btn("Open in Trends") + btn("Dismiss for October", "quiet"))
     reg("ov-evidence", A, "Home", "Insight evidence",
         phone(ev, "Overview", "long"),
-        "Opened from See comparison. Sample baseline windows: July 40.00, August 50.00, September 45.00, the three months before October. Current entries 42.50 + 18.60 + 12.40 = 73.50; 73.50 - 45.00 = 28.50; 28.50 / 45.00 = 63.3%. Dismiss hides it for October only.",
+        "Opened from See comparison. Sample baseline windows: July 40.00, August 50.00, September 45.00, the three months before October. Current entries 42.50 + 18.60 + 12.40 = 73.50; 73.50 - 45.00 = 28.50; 28.50 / 45.00 = 63.3%. Dismiss hides it for October only." + OPEN_IN_TRENDS_NOTE,
         NEW8)
 
     sync = notice("Sync is paused", "Reconnect to send your latest entries. Your entries are saved on this device.", ["Reconnect sync"])
@@ -119,7 +123,7 @@ def build():
     reg("ov-desk", A, "Desktop", "Overview, desktop",
         desktop("Overview", content, "Overview", "Saturday, 3 October 2026",
                 acts=f'<span>Edit Overview</span><span class="sbtn">{ic("search","s")}Search</span><span class="pbtn">{ic("plus","s")}Add entry</span>'),
-        "One shared macOS and Windows window. The same sixteen-widget order fills three columns at wide sizes and two below 1250 px, with Safe to spend, Pace vs usual, Subscriptions and Needs attention last. Same seed values and samples as the phone." + tiles.sample_note(week=False),
+        "One shared macOS and Windows window. The same sixteen-widget order fills three columns at wide sizes and two below 1250 px, with Safe to spend, Pace vs usual, Subscriptions and Needs attention last. Same seed values and samples as the phone." + OPEN_TRENDS_NOTE + tiles.sample_note(week=False),
         "app/lib/ui/shell/app_shell.dart; app/lib/ui/shell/layout_breakpoints.dart", kind="desktop")
 
     shown_d = erow("Today", "Spending and daily guide", first=True) + erow("Recent entries", "Your latest entries") + erow("Coming up", "Plans, entries dated ahead and statement cuts", last=True)
@@ -168,10 +172,10 @@ def catalogue():
         "Coming up": "Default. Plans, entries dated ahead and card cuts in the next six weeks.",
         "This month": "Spent, income and net, transfers excluded.",
         "Budget watch": "Every budget with its spending, limit and a month-end forecast line: the spent so far plus the category's monthly average over the remaining 28 of 31 days. The chip says On pace or Over by the amount at this pace. Sample limits: Groceries 450, Dining 350, Transport 120.",
-        "Top categories": "Three largest categories this month.",
+        "Top categories": "Three largest categories this month. Open Trends selects History and opens Trends on top of it; Back returns to History.",
         "Account balances": "Chosen accounts; pockets counted once.",
         "Card statement": "Payable, this cycle and days to the cut. Not a due date.",
-        "Spending over time": "Last 12 months from revision 2 sample history, with a gap stub and a pale incomplete bar.",
+        "Spending over time": "Last 12 months from revision 2 sample history, with a gap stub and a pale incomplete bar. Open Trends selects History and opens Trends on top of it; Back returns to History.",
         "Insights": "At most two changes with evidence. Normal state uses round 4 sample windows.",
         "Savings pocket": "A target is new; Holiday has none yet, so it asks for one.",
         "Week so far": "Compares with the previous three weeks; says when there is too little history instead of guessing.",
