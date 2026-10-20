@@ -20,14 +20,7 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 const _openSize = Size(960, 720);
 const _thresholdSize = Size(600, 480);
 
-const _railLabels = [
-  'Overview',
-  'History',
-  'Trends',
-  'Money',
-  'Settings',
-  'Add',
-];
+const _railLabels = ['Overview', 'History', 'Money', 'Settings', 'Add'];
 
 Ledger _buildLedger() {
   final checking = Account(name: 'Checking', type: AccountType.checking);
@@ -157,17 +150,14 @@ void main() {
   ) async {
     final container = await _pumpOpen(tester);
 
-    await tester.tap(find.text('Trends'));
+    await tester.tap(find.text('Money'));
     await tester.pumpAndSettle();
 
+    expect(container.read(selectedDestinationProvider), ShellDestination.money);
     expect(
-      container.read(selectedDestinationProvider),
-      ShellDestination.trends,
-    );
-    expect(
-      tester.getSemantics(find.text('Trends')),
+      tester.getSemantics(find.text('Money')),
       matchesSemantics(
-        label: 'Trends',
+        label: 'Money',
         isButton: true,
         hasSelectedState: true,
         isSelected: true,
@@ -263,17 +253,14 @@ void main() {
   ) async {
     final container = await _pumpOpen(tester, ledger: _buildLedger());
 
-    await tester.tap(find.text('Trends'));
+    await tester.tap(find.text('Money'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Add'));
     await tester.pumpAndSettle();
 
     expect(find.byType(AppSheet), findsOneWidget);
     expect(find.text('Add entry'), findsOneWidget);
-    expect(
-      container.read(selectedDestinationProvider),
-      ShellDestination.trends,
-    );
+    expect(container.read(selectedDestinationProvider), ShellDestination.money);
 
     await dismissAddSheet(tester);
     expect(find.byType(AppSheet), findsNothing);

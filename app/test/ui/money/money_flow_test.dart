@@ -24,7 +24,7 @@ import 'package:spendwise/ui/shell/shell_binding.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
-import 'package:spendwise/ui/stats/stats_flow.dart';
+import 'package:spendwise/ui/stats/stats_root_screen.dart';
 import 'package:spendwise/ui/theme/spendwise_theme.dart';
 
 import '../../support/ui_test_timeout.dart';
@@ -49,7 +49,7 @@ class _MoneyShell extends ConsumerWidget {
     final bodies = <ShellDestination, WidgetBuilder>{
       ShellDestination.money: (_) =>
           MoneyFlow(moneyObserver: ref.read(moneyNavigatorObserverProvider)),
-      ShellDestination.trends: (_) => const StatsFlow(),
+      ShellDestination.history: (_) => const StatsRootScreen(),
       ShellDestination.settings: (_) => const SettingsFlow(),
     };
     return HeroMode(
@@ -340,8 +340,6 @@ void main() {
       await _addSource(tester, container, account.pockets.first.id);
       await _destination(tester, container, ShellDestination.history);
       await _addSource(tester, container, null);
-      await _destination(tester, container, ShellDestination.trends);
-      await _addSource(tester, container, null);
     },
     timeout: uiTestTimeout,
   );
@@ -363,7 +361,7 @@ void main() {
     await tester.tap(find.byTooltip('Previous month'));
     await tester.pumpAndSettle();
     expect(container.read(effectiveMonthProvider), DateTime.utc(2026, 9));
-    await _destination(tester, container, ShellDestination.trends);
+    await _destination(tester, container, ShellDestination.history);
     expect(container.read(effectiveMonthProvider), DateTime.utc(2026, 9));
     await _destination(tester, container, ShellDestination.money);
     expect(tester.state(find.byType(BudgetsFlow)), same(money));

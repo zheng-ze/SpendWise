@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/legacy.dart';
 import 'package:spendwise/boot/providers.dart';
 
 // MARK: - ShellDestination
-enum ShellDestination { overview, history, trends, money, settings }
+enum ShellDestination { overview, history, money, settings }
 
 // MARK: - ShellLayoutMode
 enum ShellLayoutMode { phone, open, desktop }

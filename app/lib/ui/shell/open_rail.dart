@@ -33,7 +33,6 @@ const _railAddLabel = 'Add';
 const _openRailOrder = [
   ShellDestination.overview,
   ShellDestination.history,
-  ShellDestination.trends,
   ShellDestination.money,
   ShellDestination.settings,
 ];

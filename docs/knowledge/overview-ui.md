@@ -1,6 +1,6 @@
 # Overview UI
 
-Last reconciled: 2026-10-15
+Last reconciled: 2026-10-20
 
 ## Feature overview
 
@@ -27,8 +27,7 @@ section whose read has not settled renders a `LoadingSkeleton`. The screen reads
   standalone section widgets. The Recent entries tray ends in a `TextButton` action labelled 'View
   History' with a chevron, shown for nonempty, empty and section-loading rows.
 - `app/lib/ui/overview/overview_flow.dart` - `OverviewFlow` (`FlowBase`) subscribing to
-  `OverviewStep` once, with an optional phone `historyRouteBuilder` and an optional desktop
-  `onHistorySelected` callback, plus a route-open guard. When hosted in the shell it supplies its
+  `OverviewStep` once and calling its required `onHistorySelected` callback. When hosted in the shell it supplies its
   page through `ShellPaneHost`, which provides bounded width and full-page or single-column
   presentation.
 - `app/lib/ledger/analysis/summaries/today_summary.dart` - `TodaySummary` carries `spent`, `dailyGuide` and
@@ -52,14 +51,9 @@ spending' and a filled Retry in the Today tray; Retry calls `AnalysisQueries.ret
 read only beside a current Today summary, so the empty headline never appears over stale data.
 Tapping 'View History' calls `OverviewViewModel.requestHistory`; `OverviewFlow` consumes the
 resulting `OverviewHistoryRequested` exactly once and clears it, including requests made before its
-Navigator mounts. On phone (`shellLayoutModeProvider`, `app/lib/ui/shell/boot_chrome.dart`) the flow
-pushes a `MaterialPageRoute` holding one unscoped `TransactionsFlow` (back control labelled
-'Overview') into its own nested Navigator; a route-open guard collapses duplicate requests. On open
-and desktop the same step selects the `ShellDestination.history` slot and pushes no route. Opening
-History leaves Overview selected. If shell History remains selected through a switch to phone mode,
-it remains visible with its root back control; that explicit back action selects Overview. A History
-route pushed inside Overview on phone remains on its retained nested Navigator when the shell
-switches between phone and open modes.
+Navigator mounts. On every layout `BootChrome` supplies a callback that selects the
+`ShellDestination.history` slot (`app/lib/ui/shell/boot_chrome.dart`); the flow pushes no route and
+the retained History flow keeps its stack, date and mode. History has no back-to-Overview control.
 
 ## Read definitions
 

@@ -16,7 +16,6 @@ import 'package:spendwise/ui/shell/status_banner.dart';
 const shellDestinations = [
   ShellDestination.overview,
   ShellDestination.history,
-  ShellDestination.trends,
   ShellDestination.money,
   ShellDestination.settings,
 ];
@@ -25,6 +24,8 @@ const _fallbackStackIndex = 0;
 const _noSafeLeftInset = 0.0;
 const _noRailGutter = 0.0;
 const _minimumSafeBodyWidth = 0.0;
+
+Widget _emptyBody(BuildContext context) => const SizedBox.shrink();
 
 // MARK: - AppShell
 class AppShell extends ConsumerStatefulWidget {
@@ -40,7 +41,6 @@ class AppShell extends ConsumerStatefulWidget {
 // MARK: - AppShellState
 class _AppShellState extends ConsumerState<AppShell> {
   DayTicker? _ticker;
-  bool _historyMaterialized = false;
   NewEntryPresentationController? _addController;
 
   @override
@@ -81,8 +81,6 @@ class _AppShellState extends ConsumerState<AppShell> {
         ref.watch(newEntryPresentationProvider) ==
         NewEntryPresentation.presented;
     _ensureTicker(ref.watch(clockProvider));
-    _historyMaterialized |=
-        mode == ShellLayoutMode.open || selected == ShellDestination.history;
 
     if (mode == ShellLayoutMode.desktop) {
       return Scaffold(
@@ -99,7 +97,6 @@ class _AppShellState extends ConsumerState<AppShell> {
               child: _ShellStack(
                 selected: selected,
                 bodies: widget.bodies,
-                historyEnabled: true,
                 rail: null,
                 mode: mode,
                 addPresented: addPresented,
@@ -115,7 +112,6 @@ class _AppShellState extends ConsumerState<AppShell> {
       body: _ShellStack(
         selected: selected,
         bodies: widget.bodies,
-        historyEnabled: _historyMaterialized,
         mode: mode,
         addPresented: addPresented,
         rail: open
@@ -142,7 +138,6 @@ class _ShellStack extends StatelessWidget {
   const _ShellStack({
     required this.selected,
     required this.bodies,
-    required this.historyEnabled,
     required this.rail,
     required this.mode,
     required this.addPresented,
@@ -150,18 +145,13 @@ class _ShellStack extends StatelessWidget {
 
   final ShellDestination selected;
   final Map<ShellDestination, WidgetBuilder> bodies;
-  final bool historyEnabled;
   final Widget? rail;
   final ShellLayoutMode mode;
   final bool addPresented;
 
   @override
   Widget build(BuildContext context) {
-    final stacks = _DestinationStacks(
-      selected: selected,
-      bodies: bodies,
-      historyEnabled: historyEnabled,
-    );
+    final stacks = _DestinationStacks(selected: selected, bodies: bodies);
     final padding = MediaQuery.paddingOf(context);
     final gutter = rail == null
         ? _noRailGutter
@@ -222,17 +212,11 @@ class _ShellStack extends StatelessWidget {
 
 // MARK: - DestinationStacks
 class _DestinationStacks extends StatelessWidget {
-  const _DestinationStacks({
-    required this.selected,
-    required this.bodies,
-    required this.historyEnabled,
-  });
+  const _DestinationStacks({required this.selected, required this.bodies});
 
   final ShellDestination selected;
 
   final Map<ShellDestination, WidgetBuilder> bodies;
-
-  final bool historyEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -245,10 +229,7 @@ class _DestinationStacks extends StatelessWidget {
             key: ValueKey(destination),
             child: DestinationActivity(
               active: destination == selected,
-              child: destination == ShellDestination.history && !historyEnabled
-                  ? const SizedBox.shrink()
-                  : (bodies[destination] ??
-                        (context) => const SizedBox.shrink())(context),
+              child: (bodies[destination] ?? _emptyBody)(context),
             ),
           ),
       ],

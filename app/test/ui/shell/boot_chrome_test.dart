@@ -374,8 +374,8 @@ void main() {
     expect(find.byType(BackButton), findsNothing);
   }, timeout: uiTestTimeout);
 
-  testWidgets('a phone overview history request pushes onto overview '
-      'without reselecting', (tester) async {
+  testWidgets('a phone overview history request selects the History tab '
+      'with no back control', (tester) async {
     final factory = _GatedStoreFactory();
     final container = containerWith(factory);
     await tester.pumpWidget(
@@ -391,9 +391,10 @@ void main() {
 
     expect(
       container.read(selectedDestinationProvider),
-      ShellDestination.overview,
+      ShellDestination.history,
     );
     expect(find.byType(TransactionsFlow), findsOneWidget);
     expect(find.byType(OverviewScreen, skipOffstage: false), findsOneWidget);
+    expect(find.byType(BackButton), findsNothing);
   }, timeout: uiTestTimeout);
 }

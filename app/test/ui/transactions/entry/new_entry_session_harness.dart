@@ -237,7 +237,7 @@ final entryShellBodies = <ShellDestination, WidgetBuilder>{
   ShellDestination.overview: (_) => ShellPaneHost(
     pageBuilder: (_, _) => const Center(child: Text(probeLabel)),
   ),
-  ShellDestination.trends: (_) => const Center(child: Text('trends probe')),
+  ShellDestination.history: (_) => const Center(child: Text('history probe')),
 };
 
 Future<Uint8List> solidPng() async {

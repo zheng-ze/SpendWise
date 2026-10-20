@@ -10,7 +10,6 @@ import 'package:spendwise/ui/settings/settings_flow.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/shell/spendwise_wordmark.dart';
-import 'package:spendwise/ui/stats/stats_flow.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
@@ -28,7 +27,6 @@ class BootChrome extends ConsumerWidget {
         bodies: {
           ShellDestination.overview: _buildOverviewTab,
           ShellDestination.history: _buildHistoryTab,
-          ShellDestination.trends: _buildTrendsTab,
           ShellDestination.money: (context) => MoneyFlow(
             moneyObserver: ref.read(moneyNavigatorObserverProvider),
           ),
@@ -42,7 +40,6 @@ class BootChrome extends ConsumerWidget {
 Widget _buildOverviewTab(BuildContext context) => const _OverviewTabEntry();
 
 // MARK: - Constants
-const _overviewBackLabel = 'Overview';
 const _bootPagePadding = EdgeInsets.all(30);
 const _bootContentGap = 14.0;
 const _bootWordmarkFontSize = 26.0;
@@ -64,9 +61,6 @@ class _OverviewTabEntry extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (ref.watch(shellLayoutModeProvider) == ShellLayoutMode.phone) {
-      return OverviewFlow(historyRouteBuilder: _buildHistoryPage);
-    }
     return OverviewFlow(
       onHistorySelected: () =>
           ref.read(selectedDestinationProvider.notifier).state =
@@ -76,31 +70,7 @@ class _OverviewTabEntry extends ConsumerWidget {
 }
 
 // MARK: - Tab Builders
-Widget _buildHistoryPage(BuildContext routeContext) => TransactionsFlow(
-  backLabel: _overviewBackLabel,
-  onEnded: () => Navigator.of(routeContext).pop(),
-);
-
-// MARK: - HistoryTabEntry
-class _HistoryTabEntry extends ConsumerWidget {
-  const _HistoryTabEntry();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    if (ref.watch(shellLayoutModeProvider) == ShellLayoutMode.phone) {
-      return TransactionsFlow(
-        backLabel: _overviewBackLabel,
-        onEnded: () => ref.read(selectedDestinationProvider.notifier).state =
-            ShellDestination.overview,
-      );
-    }
-    return const TransactionsFlow();
-  }
-}
-
-Widget _buildHistoryTab(BuildContext context) => const _HistoryTabEntry();
-
-Widget _buildTrendsTab(BuildContext context) => const StatsFlow();
+Widget _buildHistoryTab(BuildContext context) => const TransactionsFlow();
 
 Widget _buildSettingsTab(BuildContext context) => const SettingsFlow();
 

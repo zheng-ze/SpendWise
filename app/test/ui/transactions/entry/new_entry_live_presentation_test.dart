@@ -89,7 +89,6 @@ class _BuildProbe extends ConsumerWidget {
 Map<ShellDestination, WidgetBuilder> _probeBodies() => {
   ShellDestination.overview: (_) => const _Probe('overview probe'),
   ShellDestination.history: (_) => const _Probe('history probe'),
-  ShellDestination.trends: (_) => const _Probe('trends probe'),
   ShellDestination.money: (_) => const _Probe('money probe'),
   ShellDestination.settings: (_) => const _Probe('settings probe'),
 };
@@ -519,7 +518,7 @@ void main() {
       );
 
       container.read(selectedDestinationProvider.notifier).state =
-          ShellDestination.trends;
+          ShellDestination.history;
       await tester.pumpAndSettle();
       expect(
         containerOfSheet(tester)

@@ -4,7 +4,7 @@ Last reconciled: 2026-10-20
 
 ## Feature overview
 
-The Stats screen, hosted by the Trends destination, and its category drill-down. Stats renders analysis items (post-analysis-gate:
+The Stats screen and its category drill-down. The shell no longer has a Trends destination, so `StatsFlow` has no production host until the History Trends page lands. Stats renders analysis items (post-analysis-gate:
 category include-gates and treat-as-expense transfer reclassification) as a donut with leader-line
 labels and a category legend, and Category Detail drills into a main category with a subcategory
 table, a trend card, and a scoped entry list. Data comes from the ready Ledger's `AnalysisCache`;

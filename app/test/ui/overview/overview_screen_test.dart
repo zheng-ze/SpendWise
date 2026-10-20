@@ -23,6 +23,8 @@ import '../../support/ui_test_timeout.dart';
 const _phoneSize = Size(320, 760);
 const _openSize = Size(960, 720);
 const _testDevicePixelRatio = 1.0;
+
+void _ignoreHistory() {}
 const _geometryTolerance = 0.01;
 const _minimumTallRowHeight = 200.0;
 const _narrowOpenSize = Size(600, 480);
@@ -49,7 +51,7 @@ Future<ProviderContainer> _pumpOverview(
       container: container,
       child: MaterialApp(
         theme: buildSpendWiseTheme(brightness),
-        home: const OverviewFlow(),
+        home: OverviewFlow(onHistorySelected: _ignoreHistory),
       ),
     ),
   );
@@ -100,7 +102,7 @@ Future<ProviderContainer> _pumpOpenOverview(
           ? overviewContainer(ledger, runner: runner)
           : _fixedContainer(viewState));
   final overview = detail == null
-      ? const OverviewFlow()
+      ? OverviewFlow(onHistorySelected: _ignoreHistory)
       : _HostedOverviewScreen(detail: detail);
   await tester.pumpWidget(
     _OpenApp(
@@ -468,7 +470,7 @@ void main() {
             container: container,
             child: MaterialApp(
               theme: buildSpendWiseTheme(brightness),
-              home: const OverviewFlow(),
+              home: OverviewFlow(onHistorySelected: _ignoreHistory),
             ),
           ),
         );

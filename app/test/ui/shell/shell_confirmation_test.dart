@@ -55,7 +55,6 @@ Map<ShellDestination, WidgetBuilder> _probeBodies() => {
       const _ProbeFlow(label: 'overview probe'),
   ShellDestination.history: (context) =>
       const _ProbeFlow(label: 'history probe'),
-  ShellDestination.trends: (context) => const _ProbeFlow(label: 'trends probe'),
   ShellDestination.money: (context) => const _ProbeFlow(label: 'money probe'),
   ShellDestination.settings: (context) =>
       const _ProbeFlow(label: 'settings probe'),

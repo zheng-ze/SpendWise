@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -9,7 +8,6 @@ import 'package:spendwise/boot/seed_data.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/overview/overview_flow.dart';
-import 'package:spendwise/ui/overview/overview_screen.dart';
 import 'package:spendwise/ui/overview/overview_view_model.dart';
 import 'package:spendwise/ui/shell/boot_chrome.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
@@ -27,8 +25,7 @@ final _responsiveWindowSizeProvider = StateProvider<Size>((ref) => _phoneSize);
 
 Future<ProviderContainer> _pumpOverviewFlow(
   WidgetTester tester, {
-  WidgetBuilder? historyRouteBuilder,
-  VoidCallback? onHistorySelected,
+  required VoidCallback onHistorySelected,
   bool requestBeforeMount = false,
 }) async {
   tester.view.physicalSize = _phoneSize;
@@ -52,10 +49,7 @@ Future<ProviderContainer> _pumpOverviewFlow(
     UncontrolledProviderScope(
       container: container,
       child: MaterialApp(
-        home: OverviewFlow(
-          historyRouteBuilder: historyRouteBuilder,
-          onHistorySelected: onHistorySelected,
-        ),
+        home: OverviewFlow(onHistorySelected: onHistorySelected),
       ),
     ),
   );
@@ -66,12 +60,6 @@ Future<ProviderContainer> _pumpOverviewFlow(
   return container;
 }
 
-WidgetBuilder _phoneHistoryBuilder() =>
-    (routeContext) => TransactionsFlow(
-      backLabel: 'Overview',
-      onEnded: () => Navigator.of(routeContext).pop(),
-    );
-
 Future<void> _requestHistory(
   WidgetTester tester,
   ProviderContainer container,
@@ -81,170 +69,50 @@ Future<void> _requestHistory(
 }
 
 void main() {
-  group('phone history route', () {
-    testWidgets('pushes one unscoped history flow and clears the step', (
+  group('history selection', () {
+    testWidgets('requests select History once and clear the step', (
       tester,
     ) async {
+      var selections = 0;
       final container = await _pumpOverviewFlow(
         tester,
-        historyRouteBuilder: _phoneHistoryBuilder(),
+        onHistorySelected: () => selections++,
       );
-      expect(find.byType(TransactionsFlow), findsNothing);
 
       await _requestHistory(tester, container);
 
-      expect(find.byType(TransactionsFlow), findsOneWidget);
-      expect(find.text('Transactions'), findsOneWidget);
-      expect(find.byType(OverviewScreen, skipOffstage: false), findsOneWidget);
+      expect(selections, 1);
+      expect(find.byType(TransactionsFlow), findsNothing);
       expect(
         container.read(overviewViewModelProvider).requireValue.step,
         isNull,
       );
     }, timeout: uiTestTimeout);
 
-    testWidgets('duplicate requests open only one route', (tester) async {
+    testWidgets('a repeated request selects History again', (tester) async {
+      var selections = 0;
       final container = await _pumpOverviewFlow(
         tester,
-        historyRouteBuilder: _phoneHistoryBuilder(),
+        onHistorySelected: () => selections++,
       );
 
       await _requestHistory(tester, container);
       await _requestHistory(tester, container);
 
-      expect(find.byType(TransactionsFlow), findsOneWidget);
-      expect(
-        container.read(overviewViewModelProvider).requireValue.step,
-        isNull,
-      );
-    }, timeout: uiTestTimeout);
-
-    testWidgets('back returns to the retained overview and allows reopening', (
-      tester,
-    ) async {
-      final container = await _pumpOverviewFlow(
-        tester,
-        historyRouteBuilder: _phoneHistoryBuilder(),
-      );
-      await _requestHistory(tester, container);
-      final historyState = tester.state(find.byType(TransactionsFlow));
-
-      await tester.tap(find.byType(BackButton));
-      await tester.pumpAndSettle();
-
-      expect(find.byType(TransactionsFlow), findsNothing);
-      expect(find.text('Recent entries'), findsOneWidget);
-
-      await _requestHistory(tester, container);
-
-      expect(find.byType(TransactionsFlow), findsOneWidget);
-      expect(
-        tester.state(find.byType(TransactionsFlow)),
-        isNot(same(historyState)),
-      );
-    }, timeout: uiTestTimeout);
-
-    testWidgets('system Back returns to Overview and allows reopening', (
-      tester,
-    ) async {
-      final container = await _pumpOverviewFlow(
-        tester,
-        historyRouteBuilder: _phoneHistoryBuilder(),
-      );
-      await _requestHistory(tester, container);
-      final historyState = tester.state(find.byType(TransactionsFlow));
-
-      await tester.binding.handlePopRoute();
-      await tester.pumpAndSettle();
-
-      expect(find.byType(TransactionsFlow), findsNothing);
-      expect(find.text('Recent entries'), findsOneWidget);
-
-      await _requestHistory(tester, container);
-
-      expect(find.byType(TransactionsFlow), findsOneWidget);
-      expect(
-        tester.state(find.byType(TransactionsFlow)),
-        isNot(same(historyState)),
-      );
+      expect(selections, 2);
     }, timeout: uiTestTimeout);
 
     testWidgets('a request before mount is picked up once mounted', (
       tester,
     ) async {
+      var selections = 0;
       final container = await _pumpOverviewFlow(
         tester,
-        historyRouteBuilder: _phoneHistoryBuilder(),
+        onHistorySelected: () => selections++,
         requestBeforeMount: true,
       );
 
-      expect(find.byType(TransactionsFlow), findsOneWidget);
-      expect(
-        container.read(overviewViewModelProvider).requireValue.step,
-        isNull,
-      );
-    }, timeout: uiTestTimeout);
-
-    testWidgets('resizing keeps the pushed route and its flow', (tester) async {
-      final container = await _pumpOverviewFlow(
-        tester,
-        historyRouteBuilder: _phoneHistoryBuilder(),
-      );
-      await _requestHistory(tester, container);
-      final historyState = tester.state(find.byType(TransactionsFlow));
-
-      tester.view.physicalSize = const Size(800, 400);
-      await tester.pumpAndSettle();
-
-      expect(find.byType(TransactionsFlow), findsOneWidget);
-      expect(tester.state(find.byType(TransactionsFlow)), same(historyState));
-    }, timeout: uiTestTimeout);
-
-    testWidgets('the Overview semantics action returns and allows reopening', (
-      tester,
-    ) async {
-      final container = await _pumpOverviewFlow(
-        tester,
-        historyRouteBuilder: _phoneHistoryBuilder(),
-      );
-      await _requestHistory(tester, container);
-
-      final semantics = tester.ensureSemantics();
-      try {
-        final backControl = find.descendant(
-          of: find.byType(AppBar),
-          matching: find.bySemanticsLabel('Overview'),
-        );
-        expect(backControl, findsOneWidget);
-        final node = tester.getSemantics(backControl);
-        expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
-
-        node.owner!.performAction(node.id, SemanticsAction.tap);
-        await tester.pumpAndSettle();
-
-        expect(find.byType(TransactionsFlow), findsNothing);
-        expect(find.text('Recent entries'), findsOneWidget);
-
-        await _requestHistory(tester, container);
-
-        expect(find.byType(TransactionsFlow), findsOneWidget);
-      } finally {
-        semantics.dispose();
-      }
-    }, timeout: uiTestTimeout);
-  });
-
-  group('desktop history selection', () {
-    testWidgets('selects history without pushing a route', (tester) async {
-      var selected = false;
-      final container = await _pumpOverviewFlow(
-        tester,
-        onHistorySelected: () => selected = true,
-      );
-
-      await _requestHistory(tester, container);
-
-      expect(selected, isTrue);
-      expect(find.byType(TransactionsFlow), findsNothing);
+      expect(selections, 1);
       expect(
         container.read(overviewViewModelProvider).requireValue.step,
         isNull,
@@ -314,79 +182,61 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('phone pushes history inside overview and keeps it selected', (
-      tester,
-    ) async {
+    testWidgets('phone selects the History destination', (tester) async {
       final container = await pumpShell(tester, ShellLayoutMode.phone);
 
       await tapViewHistory(tester);
 
-      expect(find.byType(TransactionsFlow), findsOneWidget);
       expect(
         container.read(selectedDestinationProvider),
-        ShellDestination.overview,
+        ShellDestination.history,
       );
+      expect(find.byType(TransactionsFlow), findsOneWidget);
+      expect(find.byType(BackButton), findsNothing);
+    }, timeout: uiTestTimeout);
+
+    for (final mode in ShellLayoutMode.values) {
+      testWidgets('$mode mounts exactly one unscoped History flow', (
+        tester,
+      ) async {
+        await pumpShell(tester, mode);
+
+        expect(
+          find.byType(TransactionsFlow, skipOffstage: false),
+          findsOneWidget,
+        );
+      }, timeout: uiTestTimeout);
+    }
+
+    testWidgets('View History reveals the retained History flow', (
+      tester,
+    ) async {
+      final container = await pumpShell(tester, ShellLayoutMode.phone);
+      await tapViewHistory(tester);
       final historyState = tester.state(find.byType(TransactionsFlow));
 
       container.read(selectedDestinationProvider.notifier).state =
-          ShellDestination.trends;
-      await tester.pumpAndSettle();
-      container.read(selectedDestinationProvider.notifier).state =
           ShellDestination.overview;
       await tester.pumpAndSettle();
+      await tapViewHistory(tester);
 
-      expect(find.byType(TransactionsFlow), findsOneWidget);
       expect(tester.state(find.byType(TransactionsFlow)), same(historyState));
     }, timeout: uiTestTimeout);
 
-    testWidgets('system Back preserves History in an inactive destination', (
+    testWidgets('system Back at the History root keeps History selected', (
       tester,
     ) async {
       final container = await pumpShell(tester, ShellLayoutMode.phone);
       await tapViewHistory(tester);
-      final historyState = tester.state(find.byType(TransactionsFlow));
-
-      container.read(selectedDestinationProvider.notifier).state =
-          ShellDestination.trends;
-      await tester.pumpAndSettle();
 
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
 
       expect(
         container.read(selectedDestinationProvider),
-        ShellDestination.trends,
+        ShellDestination.history,
       );
-      expect(find.byType(TransactionsFlow), findsNothing);
-      expect(
-        tester.state(find.byType(TransactionsFlow, skipOffstage: false)),
-        same(historyState),
-      );
-
-      container.read(selectedDestinationProvider.notifier).state =
-          ShellDestination.overview;
-      await tester.pumpAndSettle();
-
       expect(find.byType(TransactionsFlow), findsOneWidget);
-      expect(tester.state(find.byType(TransactionsFlow)), same(historyState));
-
-      await tester.binding.handlePopRoute();
-      await tester.pumpAndSettle();
-
-      expect(find.byType(TransactionsFlow), findsNothing);
-      expect(find.text('Recent entries'), findsOneWidget);
-      expect(
-        container.read(selectedDestinationProvider),
-        ShellDestination.overview,
-      );
-
-      await tapViewHistory(tester);
-
-      expect(find.byType(TransactionsFlow), findsOneWidget);
-      expect(
-        tester.state(find.byType(TransactionsFlow)),
-        isNot(same(historyState)),
-      );
     }, timeout: uiTestTimeout);
 
     testWidgets('desktop selects the history destination', (tester) async {
@@ -417,7 +267,7 @@ void main() {
       expect(find.byType(BackButton), findsNothing);
     }, timeout: uiTestTimeout);
 
-    testWidgets('phone History route survives open and phone resizing', (
+    testWidgets('selected History survives open and phone resizing', (
       tester,
     ) async {
       tester.view.physicalSize = _phoneSize;

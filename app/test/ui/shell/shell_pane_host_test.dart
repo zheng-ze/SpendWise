@@ -206,14 +206,7 @@ void main() {
     expect(rail.bottom, 710);
     expect(tester.getSize(find.byKey(_pageKey)).width, 888);
     var previousDy = double.negativeInfinity;
-    for (final label in [
-      'Overview',
-      'History',
-      'Trends',
-      'Money',
-      'Settings',
-      'Add',
-    ]) {
+    for (final label in ['Overview', 'History', 'Money', 'Settings', 'Add']) {
       final dy = tester.getCenter(find.text(label)).dy;
       expect(dy, greaterThan(previousDy), reason: label);
       previousDy = dy;
