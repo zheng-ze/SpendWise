@@ -31,7 +31,6 @@ const _syncStatusPadding = EdgeInsets.fromLTRB(10, 8, 10, 0);
 const _loopDestinations = [
   ShellDestination.overview,
   ShellDestination.history,
-  ShellDestination.trends,
   ShellDestination.money,
 ];
 

@@ -551,7 +551,7 @@ void main() {
       expect(_probedMode(tester), ShellLayoutMode.open);
       final selectedBefore = innerBefore!.read(selectedDestinationProvider);
       innerBefore!.read(selectedDestinationProvider.notifier).state =
-          ShellDestination.trends;
+          ShellDestination.history;
       await tester.pumpAndSettle();
 
       await _resize(tester, _compactSize);
@@ -566,7 +566,7 @@ void main() {
       );
       expect(
         innerAfter.read(selectedDestinationProvider),
-        ShellDestination.trends,
+        ShellDestination.history,
       );
       expect(selectedBefore, ShellDestination.overview);
 
@@ -581,7 +581,7 @@ void main() {
       );
       expect(
         innerBefore!.read(selectedDestinationProvider),
-        ShellDestination.trends,
+        ShellDestination.history,
       );
     }, timeout: uiTestTimeout);
   });

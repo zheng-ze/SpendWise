@@ -23,7 +23,7 @@ const _addLabel = 'Add';
 
 const _destinationsBeforeAdd = [
   ShellDestination.overview,
-  ShellDestination.trends,
+  ShellDestination.history,
 ];
 
 const _destinationsAfterAdd = [

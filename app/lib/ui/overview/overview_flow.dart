@@ -8,14 +8,9 @@ import 'package:spendwise/ui/shell/shell_pane_host.dart';
 
 // MARK: - OverviewFlow
 class OverviewFlow extends FlowBase<OverviewStep> {
-  const OverviewFlow({
-    super.key,
-    this.historyRouteBuilder,
-    this.onHistorySelected,
-  });
+  const OverviewFlow({super.key, required this.onHistorySelected});
 
-  final WidgetBuilder? historyRouteBuilder;
-  final VoidCallback? onHistorySelected;
+  final VoidCallback onHistorySelected;
 
   @override
   ConsumerState<OverviewFlow> createState() => _OverviewFlowState();
@@ -23,8 +18,6 @@ class OverviewFlow extends FlowBase<OverviewStep> {
 
 // MARK: - OverviewFlowState
 class _OverviewFlowState extends FlowBaseState<OverviewStep, OverviewFlow> {
-  bool _historyRouteOpen = false;
-
   @override
   void initState() {
     super.initState();
@@ -52,24 +45,9 @@ class _OverviewFlowState extends FlowBaseState<OverviewStep, OverviewFlow> {
   void handleStep(BuildContext context, OverviewStep step) {
     switch (step) {
       case OverviewHistoryRequested():
-        final historyRouteBuilder = widget.historyRouteBuilder;
-        if (historyRouteBuilder != null) {
-          _pushHistory(context, historyRouteBuilder);
-        } else {
-          widget.onHistorySelected?.call();
-        }
+        widget.onHistorySelected();
     }
     ref.read(overviewViewModelProvider.notifier).clearStep();
-  }
-
-  void _pushHistory(BuildContext context, WidgetBuilder historyRouteBuilder) {
-    if (_historyRouteOpen) return;
-    _historyRouteOpen = true;
-    Navigator.of(context)
-        .push(MaterialPageRoute<void>(builder: historyRouteBuilder))
-        .then((_) {
-          _historyRouteOpen = false;
-        });
   }
 
   @override

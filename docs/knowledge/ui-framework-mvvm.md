@@ -1,6 +1,6 @@
 # UI Framework (MVVM)
 
-Last reconciled: 2026-10-19
+Last reconciled: 2026-10-20
 
 ## Feature overview
 
@@ -148,19 +148,19 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   size changes at runtime in both directions with no hysteresis. Phones are locked to portrait where the platform honours the request (iPhone `UISupportedInterfaceOrientations` lists portrait only; Android `MainActivity` requests portrait through `requestedOrientation` while `smallestScreenWidthDp` is below 600 and re-applies on configuration change), but Android multi-window can ignore the request and still present a landscape-shaped window; tablets and unfolded foldables keep every orientation, and the 600 x 480 dp rule and its landscape-window tests are unchanged and still cover those cases. The
   inspected Flutter 3.47.4 iOS embedder reports no display features, and the
   rule ignores display features on every platform. Phone and open share one
-  stable Scaffold, content Stack and keyed `IndexedStack` with five fixed
-  destination positions (overview, history, trends, money, settings) resolved
+  stable Scaffold, content Stack and keyed `IndexedStack` with four fixed
+  destination positions (overview, history, money, settings) resolved
   through one explicit destination list, never `enum.index`; only chrome and
   the content gutter change between them, so a phone/open switch keeps the
   selected destination, every Flow State, Navigator State and nested route.
-  Desktop keeps its own scaffold with the same five slots.
-  `ShellDestination` (`overview`, `history`, `trends`, `money`, `settings`)
+  Desktop keeps its own scaffold with the same four slots.
+  `ShellDestination` (`overview`, `history`, `money`, `settings`)
   defaults to `overview`. Phone shows a rounded five-position bar in exactly
-  this order: Overview, Trends, Add, Money, Settings. Add is the exact-centre
+  this order: Overview, History, Add, Money, Settings. Add is the exact-centre
   action: an action control with button semantics that opens the shared
   `openNewEntry` presenter without changing the selection and is never
   selected. Open shows a vertical rail docked bottom right in the order
-  Overview, History, Trends, Money, Settings, Add (`openRailWidth` 54,
+  Overview, History, Money, Settings, Add (`openRailWidth` 54,
   `openRailRightInset` 9, `openRailBottomInset` 10, `openRailCornerRadius` 18,
   all dp); Add is a filled accent action that is never selected and opens the
   same presenter. The rail keeps labelled button semantics with 48 dp minimum
@@ -168,18 +168,15 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   renders no header gear. Open content reserves an `openRailGutter` of 72 dp
   for existing single pages, and `StatusBanner` shifts by the same gutter.
   Desktop shows a sidebar with the SpendWise wordmark, Overview,
-  History, Trends, Money, an Add entry button, flexible separation and
-  Settings at the bottom. Overview hosts `OverviewFlow`,
-  Trends hosts `StatsFlow`, Money hosts `AccountsFlow`, History hosts
-  the unscoped `TransactionsFlow`, Settings hosts `SettingsFlow`. The mobile
-  History slot materializes lazily on first open-mode use or explicit History
-  selection and is retained afterwards; the phone bar still shows no History
-  item. If shell History is selected when the window becomes phone-sized, it
-  stays selected and visible with a root back control labelled Overview whose
-  explicit back action reselects Overview. A History page already pushed
-  inside Overview stays on that nested stack across resize; later Overview
-  History requests push within Overview on phone and select shell History on
-  open or desktop. There is no header gear and no shell Add FAB.
+  History, Money, an Add entry button, flexible separation and
+  Settings at the bottom. Overview hosts `OverviewFlow`, Money hosts
+  `MoneyFlow`, History hosts the unscoped `TransactionsFlow`, Settings hosts
+  `SettingsFlow`. History is mounted eagerly in the keyed stack on every
+  layout, with no lazy materialization, no back label and no phone
+  back-to-Overview control; its Navigator, selected date and list mode survive
+  destination switches and resizes. Overview's View History selects History
+  on every layout and pushes no route. There is no Trends destination in the
+  shell. There is no header gear and no shell Add FAB.
   `ShellPaneScope` supplies the mode, safe body width and whether Add is
   presented. `ShellPaneHost` calls `pageBuilder(context, presentation)` with
   bounded page constraints and either `ShellPagePresentation.fullPage` or
@@ -225,7 +222,7 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   refresh, polling, enrollment or repair operation and shows no synchronization
   timestamp. Phone chrome has no sync line.
   Every visual value in the shell chrome is a named constant.
-  `BootChrome` supplies the five feature builders and only the selected
+  `BootChrome` supplies the four feature builders and only the selected
   layout invokes the builders it needs.
    (`app/lib/ui/shell/app_shell.dart`, `app/lib/ui/shell/shell_providers.dart`,
    `app/lib/ui/shell/boot_chrome.dart`)

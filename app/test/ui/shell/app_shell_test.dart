@@ -36,7 +36,9 @@ const _phoneBarKey = ValueKey('phone-bar');
 const _openRailKey = ValueKey('open-rail');
 const _sidebarKey = ValueKey('sidebar');
 
-const _barLabels = ['Overview', 'Trends', 'Add', 'Money', 'Settings'];
+const _destinationCount = 4;
+
+const _barLabels = ['Overview', 'History', 'Add', 'Money', 'Settings'];
 
 class _ProbeFlow extends FlowBase<String> {
   const _ProbeFlow({super.key, required this.label});
@@ -72,7 +74,6 @@ Map<ShellDestination, WidgetBuilder> _probeBodies() => {
       const _ProbeFlow(label: 'overview probe'),
   ShellDestination.history: (context) =>
       const _ProbeFlow(label: 'history probe'),
-  ShellDestination.trends: (context) => const _ProbeFlow(label: 'trends probe'),
   ShellDestination.money: (context) => const _ProbeFlow(label: 'money probe'),
   ShellDestination.settings: (context) =>
       const _ProbeFlow(label: 'settings probe'),
@@ -267,14 +268,33 @@ void main() {
     expect(find.text('overview probe'), findsOneWidget);
   }, timeout: uiTestTimeout);
 
-  testWidgets('phone bar shows Overview, Trends, Add, Money, Settings in '
-      'order with no History item', (tester) async {
+  testWidgets('phone bar shows Overview, History, Add, Money, Settings in '
+      'order', (tester) async {
     await _pumpShell(tester, size: _compact);
 
     expect(find.byKey(_phoneBarKey), findsOneWidget);
     expect(find.byType(NavigationBar), findsNothing);
     _expectBarOrder(tester);
-    expect(find.text('History'), findsNothing);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('every layout mounts four keyed stack slots with History built '
+      'once', (tester) async {
+    for (final layoutMode in ShellLayoutMode.values) {
+      await _pumpShell(
+        tester,
+        size: layoutMode == ShellLayoutMode.phone ? _compact : _wide,
+        layoutMode: layoutMode,
+      );
+
+      for (final destination in shellDestinations) {
+        expect(
+          find.byKey(ValueKey(destination), skipOffstage: false),
+          findsOneWidget,
+        );
+      }
+      expect(shellDestinations, hasLength(_destinationCount));
+      expect(find.text('history probe', skipOffstage: false), findsOneWidget);
+    }
   }, timeout: uiTestTimeout);
 
   testWidgets('Add sits at the exact bar center with equal spacing', (
@@ -329,13 +349,13 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('Trends'));
+    await tester.tap(find.text('History'));
     await tester.pumpAndSettle();
 
     expect(
-      tester.getSemantics(find.text('Trends')),
+      tester.getSemantics(find.text('History')),
       matchesSemantics(
-        label: 'Trends',
+        label: 'History',
         isButton: true,
         hasSelectedState: true,
         isSelected: true,
@@ -377,7 +397,7 @@ void main() {
       ledger: _buildLedger(),
     );
 
-    for (final destination in ['Overview', 'Trends', 'Money', 'Settings']) {
+    for (final destination in ['Overview', 'History', 'Money', 'Settings']) {
       await tester.tap(find.text(destination));
       await tester.pumpAndSettle();
 
@@ -398,24 +418,24 @@ void main() {
     );
   }, timeout: uiTestTimeout);
 
-  testWidgets('phone mounts no History slot while visiting every destination', (
+  testWidgets('phone keeps one History host while visiting every destination', (
     tester,
   ) async {
     await _pumpShell(tester, size: _compact);
 
-    for (final destination in ['Trends', 'Money', 'Settings', 'Overview']) {
+    for (final destination in ['History', 'Money', 'Settings', 'Overview']) {
       await tester.tap(find.text(destination));
       await tester.pumpAndSettle();
     }
 
-    expect(find.text('history probe', skipOffstage: false), findsNothing);
+    expect(find.text('history probe', skipOffstage: false), findsOneWidget);
     expect(find.text('overview probe'), findsOneWidget);
   }, timeout: uiTestTimeout);
 
   testWidgets('the shell shows no header gear or Add FAB', (tester) async {
     await _pumpShell(tester, size: _compact);
 
-    for (final destination in ['Overview', 'Trends', 'Money', 'Settings']) {
+    for (final destination in ['Overview', 'History', 'Money', 'Settings']) {
       await tester.tap(find.text(destination));
       await tester.pumpAndSettle();
 
@@ -445,19 +465,13 @@ void main() {
     expect(find.byType(NavigationBar), findsNothing);
     expect(find.byType(NavigationRail), findsNothing);
     expect(find.text('SpendWise', findRichText: true), findsOneWidget);
-    for (final label in [
-      'Overview',
-      'History',
-      'Trends',
-      'Money',
-      'Settings',
-    ]) {
+    for (final label in ['Overview', 'History', 'Money', 'Settings']) {
       expect(find.text(label), findsOneWidget);
     }
     expect(find.text('Add entry'), findsOneWidget);
 
     final settingsDy = tester.getCenter(find.text('Settings')).dy;
-    for (final label in ['Overview', 'History', 'Trends', 'Money']) {
+    for (final label in ['Overview', 'History', 'Money']) {
       expect(tester.getCenter(find.text(label)).dy, lessThan(settingsDy));
     }
   }, timeout: uiTestTimeout);
@@ -570,7 +584,7 @@ void main() {
   testWidgets('resizing phone to open and back switches chrome and keeps '
       'the selection', (tester) async {
     final container = await _pumpBoundShell(tester, size: _compact);
-    await tester.tap(find.text('Trends'));
+    await tester.tap(find.text('History'));
     await tester.pumpAndSettle();
 
     await _resize(tester, _openSized);
@@ -578,7 +592,7 @@ void main() {
     expect(find.byKey(_phoneBarKey), findsNothing);
     expect(
       container.read(selectedDestinationProvider),
-      ShellDestination.trends,
+      ShellDestination.history,
     );
 
     await _resize(tester, _compact);
@@ -586,9 +600,9 @@ void main() {
     expect(find.byKey(_openRailKey), findsNothing);
     expect(
       container.read(selectedDestinationProvider),
-      ShellDestination.trends,
+      ShellDestination.history,
     );
-    expect(find.text('trends probe'), findsOneWidget);
+    expect(find.text('history probe'), findsOneWidget);
   }, timeout: uiTestTimeout);
 
   testWidgets('resizing a desktop shell switches no layout', (tester) async {
@@ -631,7 +645,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('entry detail'), findsOneWidget);
 
-    await tester.tap(find.text('Trends'));
+    await tester.tap(find.text('History'));
     await tester.pumpAndSettle();
     expect(find.text('entry detail'), findsNothing);
 
@@ -928,7 +942,7 @@ void main() {
 
       expect(find.text('overview child'), findsNothing);
       expect(find.text('overview probe'), findsOneWidget);
-      expect(find.text('trends child', skipOffstage: false), findsOneWidget);
+      expect(find.text('history child', skipOffstage: false), findsOneWidget);
     }, timeout: uiTestTimeout);
 
     testWidgets('inactive destinations keep nested routes while open', (
@@ -936,7 +950,7 @@ void main() {
     ) async {
       final container = await _pumpBoundShell(tester, size: _compact);
       for (final destination in [
-        ShellDestination.trends,
+        ShellDestination.history,
         ShellDestination.money,
       ]) {
         await pushChild(tester, destination, container);
@@ -948,18 +962,18 @@ void main() {
       await _resize(tester, _openSized);
 
       expect(find.text('overview probe'), findsOneWidget);
-      expect(find.text('trends child'), findsNothing);
-      expect(find.text('trends child', skipOffstage: false), findsOneWidget);
+      expect(find.text('history child'), findsNothing);
+      expect(find.text('history child', skipOffstage: false), findsOneWidget);
       expect(find.text('money child', skipOffstage: false), findsOneWidget);
 
       await _resize(tester, _compact);
 
-      expect(find.text('trends child', skipOffstage: false), findsOneWidget);
+      expect(find.text('history child', skipOffstage: false), findsOneWidget);
       expect(find.text('money child', skipOffstage: false), findsOneWidget);
     }, timeout: uiTestTimeout);
 
-    testWidgets('shell history stays selected on phone with an overview '
-        'back action', (tester) async {
+    testWidgets('shell history keeps its flow on phone with no Overview back '
+        'control', (tester) async {
       final historyFlowKey = GlobalKey();
       final entryIds = StringBuffer();
       final container = await _pumpBoundShell(
@@ -967,15 +981,8 @@ void main() {
         size: _openSized,
         bodies: {
           ..._probeBodies(),
-          ShellDestination.history: (context) => TransactionsFlow(
-            key: historyFlowKey,
-            backLabel: 'Overview',
-            onEnded: () =>
-                ProviderScope.containerOf(context)
-                        .read(selectedDestinationProvider.notifier)
-                        .state =
-                    ShellDestination.overview,
-          ),
+          ShellDestination.history: (_) =>
+              TransactionsFlow(key: historyFlowKey),
         },
         ledger: _ledgerWithEntry(entryIds),
       );
@@ -987,61 +994,58 @@ void main() {
 
       await _resize(tester, _compact);
 
+      expect(find.text('Transactions'), findsOneWidget);
+      expect(identical(historyFlowKey.currentState, flowState), isTrue);
+      expect(find.byType(BackButton), findsNothing);
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+
       expect(
         container.read(selectedDestinationProvider),
         ShellDestination.history,
       );
       expect(find.text('Transactions'), findsOneWidget);
-      expect(find.text('History'), findsNothing);
-      expect(identical(historyFlowKey.currentState, flowState), isTrue);
-      expect(tester.getSemantics(find.byType(BackButton)).label, 'Overview');
-
-      await tester.tap(find.byType(BackButton));
-      await tester.pumpAndSettle();
-
-      expect(
-        container.read(selectedDestinationProvider),
-        ShellDestination.overview,
-      );
-      expect(find.text('overview probe'), findsOneWidget);
     }, timeout: uiTestTimeout);
 
-    testWidgets('overview-pushed history stays on the overview stack across '
-        'a mobile switch', (tester) async {
-      final owned = Ledger(state: emptyState());
+    testWidgets('Overview history request selects the retained History tab '
+        'without pushing a route', (tester) async {
+      final historyFlowKey = GlobalKey();
       final container = await _pumpBoundShell(
         tester,
         size: _compact,
         bodies: {
           ..._probeBodies(),
-          ShellDestination.overview: (_) => OverviewFlow(
-            historyRouteBuilder: (routeContext) => TransactionsFlow(
-              backLabel: 'Overview',
-              onEnded: () => Navigator.of(routeContext).pop(),
-            ),
+          ShellDestination.overview: (context) => OverviewFlow(
+            onHistorySelected: () =>
+                ProviderScope.containerOf(context)
+                        .read(selectedDestinationProvider.notifier)
+                        .state =
+                    ShellDestination.history,
           ),
+          ShellDestination.history: (_) =>
+              TransactionsFlow(key: historyFlowKey),
         },
-        ledger: owned,
+        ledger: Ledger(state: emptyState()),
         settleAnalysisCache: true,
       );
+      final flowState = historyFlowKey.currentState;
+
       container.read(overviewViewModelProvider.notifier).requestHistory();
       await tester.pumpAndSettle();
-      expect(find.text('Transactions'), findsOneWidget);
+
       expect(
         container.read(selectedDestinationProvider),
-        ShellDestination.overview,
+        ShellDestination.history,
       );
+      expect(find.text('Transactions'), findsOneWidget);
+      expect(identical(historyFlowKey.currentState, flowState), isTrue);
 
       await _resize(tester, _openSized);
-      expect(find.text('Transactions'), findsOneWidget);
-      expect(find.byKey(_openRailKey), findsOneWidget);
-
       await _resize(tester, _compact);
-      expect(find.text('Transactions'), findsOneWidget);
 
-      await tester.binding.handlePopRoute();
-      await tester.pumpAndSettle();
-      expect(find.text('Transactions'), findsNothing);
+      expect(find.text('Transactions'), findsOneWidget);
+      expect(find.byType(BackButton), findsNothing);
     }, timeout: uiTestTimeout);
   });
 }

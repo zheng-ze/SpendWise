@@ -123,14 +123,14 @@ void main() {
         tester,
         status: null,
         layoutMode: ShellLayoutMode.phone,
-        bodies: {ShellDestination.trends: (context) => const _HoldingFlow()},
+        bodies: {ShellDestination.history: (context) => const _HoldingFlow()},
       );
       await _openSettingsItem(tester);
       final holdingRoot = tester.element(
         find.text('holding body', skipOffstage: false),
       );
       Navigator.of(holdingRoot).push(
-        MaterialPageRoute<void>(builder: (_) => const Text('trends detail')),
+        MaterialPageRoute<void>(builder: (_) => const Text('history detail')),
       );
       await tester.pumpAndSettle();
 
@@ -140,7 +140,7 @@ void main() {
       expect(handled, isTrue);
       _expectSelectedSettings(harness.container);
       expect(find.byType(SettingsFlow), findsOneWidget);
-      expect(find.text('trends detail', skipOffstage: false), findsOneWidget);
+      expect(find.text('history detail', skipOffstage: false), findsOneWidget);
     }, timeout: uiTestTimeout);
 
     testWidgets(
@@ -286,7 +286,7 @@ void main() {
       );
       await harness.metadataStore.enterBindingAuthorizationRequired();
 
-      await tester.tap(find.text('Trends'));
+      await tester.tap(find.text('History'));
       await tester.pumpAndSettle();
       expect(find.text('Not configured', skipOffstage: false), findsOneWidget);
 
@@ -295,7 +295,7 @@ void main() {
 
       await harness.metadataStore.clearBackendSelection();
 
-      await tester.tap(find.text('Trends'));
+      await tester.tap(find.text('History'));
       await tester.pumpAndSettle();
       expect(
         find.text('Binding repair needed', skipOffstage: false),
@@ -389,7 +389,7 @@ void main() {
       await _openSettingsItem(tester);
       await _openFreshEnrollment(tester);
 
-      await tester.tap(find.text('Trends'));
+      await tester.tap(find.text('History'));
       await tester.pumpAndSettle();
 
       expect(
@@ -410,12 +410,12 @@ void main() {
         tester,
         status: null,
         layoutMode: ShellLayoutMode.phone,
-        bodies: {ShellDestination.trends: (context) => const _HoldingFlow()},
+        bodies: {ShellDestination.history: (context) => const _HoldingFlow()},
       );
       await _openSettingsItem(tester);
       await _openFreshEnrollment(tester);
 
-      await tester.tap(find.text('Trends'));
+      await tester.tap(find.text('History'));
       await tester.pumpAndSettle();
 
       await tester.binding.handlePopRoute();
@@ -498,14 +498,14 @@ void main() {
         status: null,
         size: _desktop,
         layoutMode: ShellLayoutMode.desktop,
-        bodies: {ShellDestination.trends: (context) => const _HoldingFlow()},
+        bodies: {ShellDestination.history: (context) => const _HoldingFlow()},
       );
       await _openSettingsItem(tester);
       final holdingRoot = tester.element(
         find.text('holding body', skipOffstage: false),
       );
       Navigator.of(holdingRoot).push(
-        MaterialPageRoute<void>(builder: (_) => const Text('trends detail')),
+        MaterialPageRoute<void>(builder: (_) => const Text('history detail')),
       );
       await tester.pumpAndSettle();
 
@@ -515,7 +515,7 @@ void main() {
       expect(handled, isTrue);
       _expectSelectedSettings(harness.container);
       expect(find.byType(SettingsFlow), findsOneWidget);
-      expect(find.text('trends detail', skipOffstage: false), findsOneWidget);
+      expect(find.text('history detail', skipOffstage: false), findsOneWidget);
     }, timeout: uiTestTimeout);
 
     testWidgets('a repair tap selects Settings with one repair route', (
@@ -739,7 +739,7 @@ void main() {
         'and leaves hidden stacks intact', (tester) async {
       final harness = await pumpBoundShell(
         tester,
-        bodies: {ShellDestination.trends: (context) => const _HoldingFlow()},
+        bodies: {ShellDestination.history: (context) => const _HoldingFlow()},
       );
       final container = harness.container;
       await _openSettingsItem(tester);
@@ -747,13 +747,13 @@ void main() {
       await tester.pumpAndSettle();
 
       container.read(selectedDestinationProvider.notifier).state =
-          ShellDestination.trends;
+          ShellDestination.history;
       await tester.pumpAndSettle();
       final holdingRoot = tester.element(
         find.text('holding body', skipOffstage: false),
       );
       Navigator.of(holdingRoot).push(
-        MaterialPageRoute<void>(builder: (_) => const Text('trends detail')),
+        MaterialPageRoute<void>(builder: (_) => const Text('history detail')),
       );
       await tester.pumpAndSettle();
 
@@ -763,7 +763,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(handled, isTrue);
-      expect(find.text('trends detail'), findsNothing);
+      expect(find.text('history detail'), findsNothing);
       expect(find.text('holding body'), findsOneWidget);
       expect(
         find.byType(CategoryListScreen, skipOffstage: false),
@@ -771,7 +771,7 @@ void main() {
       );
       expect(
         container.read(selectedDestinationProvider),
-        ShellDestination.trends,
+        ShellDestination.history,
       );
     }, timeout: uiTestTimeout);
   });

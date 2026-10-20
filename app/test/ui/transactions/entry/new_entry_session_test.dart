@@ -43,7 +43,7 @@ void main() {
             platform: platform,
           );
           harness.container.read(selectedDestinationProvider.notifier).state =
-              ShellDestination.trends;
+              ShellDestination.history;
           await tester.pumpAndSettle();
           await openAdd(tester, harness);
           expect(harness.recorder.sheets, hasLength(1));
@@ -55,7 +55,7 @@ void main() {
           expect(harness.presentation, NewEntryPresentation.closed);
           expect(
             harness.container.read(selectedDestinationProvider),
-            ShellDestination.trends,
+            ShellDestination.history,
           );
         }, timeout: uiTestTimeout);
       }
