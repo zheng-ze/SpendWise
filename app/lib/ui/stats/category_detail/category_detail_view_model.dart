@@ -115,6 +115,7 @@ class CategoryDetailNotifier extends AsyncNotifier<CategoryDetailViewState>
   }
 
   void _onChanged() {
+    if (!ref.mounted) return;
     unawaited(_cache.refresh(_ledger.state));
     state = AsyncData(_buildState(detailDate: _detailDate, scope: _scope));
   }
@@ -193,8 +194,8 @@ class CategoryDetailNotifier extends AsyncNotifier<CategoryDetailViewState>
 }
 
 // MARK: - Constants
-final categoryDetailViewModelProvider =
-    AsyncNotifierProvider.family<
+final categoryDetailViewModelProvider = AsyncNotifierProvider.autoDispose
+    .family<
       CategoryDetailNotifier,
       CategoryDetailViewState,
       CategoryDetailArgs
