@@ -65,12 +65,17 @@ void main() {
     initialDate: DateTime.utc(2026, 3, 15),
   );
 
+  Future<CategoryDetailViewState> openDetail(ProviderContainer container) {
+    final provider = categoryDetailViewModelProvider(args);
+    final subscription = container.listen(provider, (_, _) {});
+    addTearDown(subscription.close);
+    return container.read(provider.future);
+  }
+
   test('build starts on the initial month with the All scope', () async {
     final container = buildContainer(buildLedger());
 
-    final state = await container.read(
-      categoryDetailViewModelProvider(args).future,
-    );
+    final state = await openDetail(container);
 
     expect(state.detailDate, DateTime.utc(2026, 3));
     expect(state.scope, const AllScope());
@@ -81,7 +86,7 @@ void main() {
 
   test('setDate moves the detail date without changing the scope', () async {
     final container = buildContainer(buildLedger());
-    await container.read(categoryDetailViewModelProvider(args).future);
+    await openDetail(container);
     final viewModel = container.read(
       categoryDetailViewModelProvider(args).notifier,
     );
@@ -114,7 +119,7 @@ void main() {
       entries: {hawkerEntry.id: hawkerEntry, directEntry.id: directEntry},
     );
     final container = buildContainer(ledger);
-    await container.read(categoryDetailViewModelProvider(args).future);
+    await openDetail(container);
     final viewModel = container.read(
       categoryDetailViewModelProvider(args).notifier,
     );

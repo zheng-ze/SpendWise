@@ -86,6 +86,12 @@ void main() {
       initialDate: DateTime.utc(2026, 4, 15),
     );
 
+    final subscription = container.listen(
+      categoryDetailViewModelProvider(args),
+      (_, _) {},
+    );
+    addTearDown(subscription.close);
+
     final before = await container.read(
       categoryDetailViewModelProvider(args).future,
     );
