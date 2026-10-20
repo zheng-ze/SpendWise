@@ -143,6 +143,24 @@ void main() {
     return container;
   }
 
+  Future<void> pumpRoute(WidgetTester tester, ProviderContainer container) {
+    MaterialPageRoute<void> detailRoute() => MaterialPageRoute<void>(
+      builder: (_) => CategoryDetailScreen(args: args),
+    );
+    final home = Builder(
+      builder: (context) => TextButton(
+        onPressed: () => Navigator.of(context).push(detailRoute()),
+        child: const Text('open'),
+      ),
+    );
+    return tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(home: home),
+      ),
+    );
+  }
+
   testWidgets(
     'closing the route releases listeners and reopening still updates',
     (tester) async {
@@ -150,23 +168,7 @@ void main() {
       final container = containerFor(() => env.session);
       final baselineLedger = env.ledger.listeners;
       final baselineCache = env.cache.listeners;
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            home: Builder(
-              builder: (context) => TextButton(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => CategoryDetailScreen(args: args),
-                  ),
-                ),
-                child: const Text('open'),
-              ),
-            ),
-          ),
-        ),
-      );
+      await pumpRoute(tester, container);
 
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
@@ -220,7 +222,11 @@ void main() {
       final replacement = counted(entries: {lunch('-7').id: lunch('-7')});
       final container = containerFor(() => old.session);
       final provider = categoryDetailViewModelProvider(args);
-      final subscription = container.listen(provider, (_, _) {});
+      final emissions = <AsyncValue<CategoryDetailViewState>>[];
+      final subscription = container.listen(
+        provider,
+        (_, next) => emissions.add(next),
+      );
       addTearDown(subscription.close);
       await pumpEventQueue();
       expect(oldRunner.pending, hasLength(1));
@@ -231,8 +237,10 @@ void main() {
       await pumpEventQueue();
       old.ledger.addEntry(lunch('-1'));
       oldRunner.pending.single.complete(const []);
+      await pumpEventQueue();
       final state = await container.read(provider.future);
 
+      expect(emissions.any((value) => value is AsyncError), isFalse);
       expect(old.ledger.listeners, 0);
       expect(old.cache.listeners, 0);
       expect(replacement.ledger.listeners, 1);
