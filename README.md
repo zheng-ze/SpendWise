@@ -4,9 +4,9 @@ A personal finance app built in Flutter. SpendWise tracks accounts, transactions
 domain-driven ledger, and runs on Android, iOS, macOS, Windows, Linux, and the web from one
 codebase.
 
-| Transactions | Stats | Accounts |
-|---|---|---|
-| ![Transactions screen](docs/screenshots/transactions.png) | ![Stats screen](docs/screenshots/stats.png) | ![Accounts screen](docs/screenshots/accounts.png) |
+| Transactions | Accounts |
+|---|---|
+| ![Transactions screen](docs/screenshots/transactions.png) | ![Accounts screen](docs/screenshots/accounts.png) |
 
 ## Features
 
@@ -14,8 +14,8 @@ codebase.
   summaries.
 - **Accounts** — accounts and pockets grouped by type, with card statement balances and per-account
   net-worth inclusion.
-- **Stats** — a donut chart of spending by category, with drill-down into each category's
-  transactions and a trend view over time.
+- **Trends** — opened from History's See more detail action; the page is being rebuilt and
+  currently shows only its header.
 - **Budgets** — per-category budget limits with spend tracking against the current period.
 - **Settings** — category management, recurring plans, and a recycle bin for archived accounts,
   pockets, and categories.

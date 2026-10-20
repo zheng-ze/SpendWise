@@ -6,8 +6,8 @@ Last reconciled: 2026-10-21
 
 History opens a full-screen Trends page through its own `TransactionsFlow` navigator. Trends currently
 shows a header and empty content area. It has no period controls, analysis presentation, or category
-drill-down entry point. Category Detail has no production entry point until Trends gains category navigation, and shows a
-main category's subcategory table, trend card, and scoped entry list. Its analysis data comes from
+drill-down entry point. The retained Category Detail implementation has no production entry point.
+It renders a main category's subcategory table, trend card, and scoped entry list. Its data comes from
 the ready Ledger's `AnalysisCache` (`app/lib/ui/stats/category_detail/category_detail_view_model.dart`).
 
 ## Key files
@@ -17,7 +17,7 @@ the ready Ledger's `AnalysisCache` (`app/lib/ui/stats/category_detail/category_d
 - `app/lib/ui/stats/category_detail/` - the retained category drill-down screen and view model.
 - `app/lib/ui/stats/analysis/analysis_scan.dart` - memoized category-detail filtering.
 - `app/lib/ui/stats/helpers/slices.dart` - category slice and roll-up helpers referenced only by tests,
-  retained for the Transactions/Stats accounting-parity contract.
+  retained for the Transactions versus analysis accounting contract.
 - `app/lib/ui/common/lists/day_sectioned_entry_list.dart` - reused entry list with tap-to-view and
   swipe-delete.
 - `packages/domain/lib/src/accounting.dart` - `rollUp`, `fraction`, and filtering (see
@@ -45,8 +45,9 @@ hold an explicit `container.listen` subscription to keep the provider alive
 
 Slices filter cache items by kind and window, roll up to main-category buckets with
 `Accounting.rollUp`, and sort by amount descending. Slice color comes from the category's
-`colorHex`; Uncategorized is gray and includes treat-as-expense transfers
-(`app/lib/ui/stats/helpers/slices.dart`). Category Detail's `AnalysisScan` memoizes filtering by
+`colorHex`; Uncategorized and synthetic transfer buckets use the gray fallback. Treat-as-expense
+transfers use synthetic buckets by destination account type (`app/lib/ui/stats/helpers/slices.dart`,
+`packages/domain/lib/src/accounting.dart:Accounting.classify`). Category Detail's `AnalysisScan` memoizes filtering by
 cache identity, `itemsRevision`, kind, and bucket set. Cache identity matters because a replacement
 Ledger's cache restarts `itemsRevision` and can match the previous cache's revision
 (`app/lib/ui/stats/analysis/analysis_scan.dart:AnalysisScan.scan`,
@@ -65,7 +66,7 @@ single-route guard until the matching route's `completed` future (`transactions-
 `app/lib/ui/transactions/transactions_flow.dart`, `app/lib/ui/common/base/flow_base.dart`).
 
 Trends currently has no category navigation. Category Detail retains its own date state, seeded by
-its future caller, and inherits a fixed month or year mode. Its toolbar has the `MonthYearSelector` only;
+its arguments, and inherits a fixed month or year mode. Its toolbar has the `MonthYearSelector` only;
 it has no range menu.
 
 Budgets live in the Money Budgets segment. Trends does not mount `BudgetsFlow`
@@ -89,10 +90,13 @@ Budgets live in the Money Budgets segment. Trends does not mount `BudgetsFlow`
 
 ## Gotchas and invariants
 
-- Analysis-driven totals can differ from Transactions for the same month because analysis applies
-  category include-gates and treat-as-expense transfer reclassification; Transactions applies only
-  entry-level `includeInAnalysis`. This is a ruled behavior.
-- Treat-as-expense transfers land in Uncategorized; account-type bucketing belongs to the domain.
+- Analysis-driven totals can differ from Transactions for the same month because analysis also
+  applies category inclusion gates. Both totals respect entry-level `includeInAnalysis` and count
+  treat-as-expense transfers (`Accounting.classify`, `Accounting.totals`,
+  `app/test/ui/transactions_stats_totals_parity_test.dart`).
+- The domain classifies treat-as-expense transfers into synthetic account-type buckets; retained
+  slice helpers label those buckets and keep them non-navigable (`Accounting.classify`,
+  `app/lib/ui/stats/helpers/slices.dart:Slice.isNavigable`).
 - Slice fractions guard zero totals.
 
 ## Requirements
@@ -100,7 +104,7 @@ Budgets live in the Money Budgets segment. Trends does not mount `BudgetsFlow`
 - Category Detail captures the ready session's Ledger and cache during build, uses that cache for
   listener removal and later refreshes, and scopes memoized scans to cache identity
   (`CategoryDetailNotifier.build`, `AnalysisScan.scan`).
-- Slices roll up to main buckets; Uncategorized includes treat-as-expense transfers; slices sort by
-  amount descending.
+- Slices roll categories up to main buckets, preserve synthetic transfer buckets, and sort by
+  amount descending (`Accounting.rollUp`, `app/lib/ui/stats/helpers/slices.dart:slices`).
 - Category Detail scope selection, subcategory Direct-bucket threshold (`> 0`), trend windows in
   both modes, and `matchingCategoryIDs` are pure, tested functions.

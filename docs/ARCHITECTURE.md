@@ -55,9 +55,8 @@ document is the wide-angle view that ties those entries together.
   reclassification for transfers. Category totals roll up to their parent bucket.
   `AnalysisCache` recomputes this off the main isolate, guarded by a generation counter so a stale
   result is discarded if a newer mutation has already superseded it.
-- **Budgets** — a monthly spending cap rendered as a tab inside Stats, not a shell destination
-  (ADR-0044). A budget attaches to at most one category (a null category means "overall", spanning
-  every category); its limit is an append-only timeline of `LimitEvent`s — a default plus optional
+- **Budgets** - a monthly spending cap hosted by the Money Budgets segment. A budget attaches to at most one
+  category (a null category means "overall", spanning every category); its limit is an append-only timeline of `LimitEvent`s — a default plus optional
   per-month `override`s — and `effectiveLimit` resolves the limit for a month by taking a matching
   override or, if none applies, the latest default at or before that month. Budget spend math lives
   in the app layer, not the domain (ADR-0042). A budget is created only from its form (ADR-0046),
@@ -80,11 +79,12 @@ document is the wide-angle view that ties those entries together.
   engine; full merge logic is deferred to that engine, while the store already computes the carried
   pointwise maximum for stamped ingestion. Store metadata tracks a per-device id and
   whether the store has been seeded.
-- **UI** — five top-level destinations: Overview, History, Trends, Money, and Settings. Overview
+- **UI** - four top-level destinations: Overview, History, Money, and Settings. Overview
   shows Today, Recent entries and Coming up. History shows a month-navigated list grouped into day
-  sections, with month and week summaries. Trends
-  shows Income and Expense donut charts with category drill-down, plus a Budgets tab. Money groups money sources by account type, with
-  pockets nested under their parent and card accounts showing payable and outstanding balances.
+  sections, with month and week summaries. Its See more detail action pushes Trends, which currently
+  has a Trends header, a History back control, and an empty body. Money hosts Budgets, Accounts,
+  and Plans, defaulting to Budgets. Accounts groups money sources by account type, with pockets
+  nested under their parent and card accounts showing payable and outstanding balances.
   Forms exist for entries, accounts, pockets, categories, and plans, plus a category picker, a
   recurrence picker, and a recycle bin for restoring or purging archived rows. The app seeds sample
   data on first launch and shows save-error and plan-error banners plus a retry screen on load
@@ -135,7 +135,7 @@ Core domain types: `LedgerState`, `LedgerChange`, `Entry`, `MoneySource`, `Accou
 | OCR recognition | `packages/ocr` (platform channel) | On-device text recognition behind a per-platform seam (native scanner on Android, ML Kit on iOS); the package is pure Dart and testable without a device |
 | Money | `decimal` package | `double` is never precise enough for currency; stored as `TEXT` in SQLite |
 | IDs | `String` (lowercase uuid), `uuid` package | Dart represents uuids natively as strings; the package supports v5 out of the box for occurrence ids |
-| Charts | `fl_chart` (or a custom painter) | Donut chart with drill-down |
+| Charts | `fl_chart` and custom painters | Shared chart components and retained Category Detail trends |
 | Icons | Material Icons, with a stored-symbol-name mapping table | A category's stored icon name is remapped to a `IconData` once at read time, never re-stored |
 | Codegen | Drift and `build_runner` only | No codegen for the domain package: hand-written immutable-by-discipline classes keep the package dependency-light and readable; equality is implemented by hand or with `equatable` where tests need it |
 | Off-main compute | `Isolate.run` / `compute()` | Used for analysis recompute; tests inject a synchronous runner instead, so a widget pump sees the result without waiting on a real isolate |
@@ -267,20 +267,17 @@ separator input is a recorded non-goal until localization work begins.
 
 The app is phone-first with one shell whose phone or desktop layout is chosen by platform:
 
-- Phone shows a rounded five-position bar (Overview, Trends, centred Add, Money, Settings;
-  Add is a never-selected action opening the shared entry presenter). Open shows a vertical
-  rail docked bottom right (Overview, History, Trends, Money, Settings, filled Add; 54 dp wide
-  with 9 dp right and 10 dp bottom insets, 18 dp radius) over content reserving a 72 dp gutter,
-  with the status banner clearing the same gutter. Phone and open share one stable Scaffold,
-  content Stack and keyed `IndexedStack` with five fixed destination positions; only chrome and
-  the content gutter change between them, so a phone/open switch keeps the selected destination,
-  every Flow State, Navigator State and nested route. The mobile History slot materializes
-  lazily on first open-mode use or explicit History selection and is retained after; the phone
-  bar still shows no History item, and a shell History selected at an open-to-phone switch stays
-  selected and visible with a root back control labelled Overview. A History page already pushed
-  inside Overview stays on that nested stack across resize. Desktop shows a sidebar (wordmark,
-  Overview, History, Trends, Money, an Add entry button, Settings at the bottom) over the same
-  five slots. All Add controls open the shared entry presenter; the
+- Phone shows a rounded five-position bar (Overview, History, centred Add, Money, Settings;
+  Add opens the shared entry presenter). Open shows a vertical rail docked bottom right
+  (Overview, History, Money, Settings, filled Add; 54 dp wide with 9 dp right and 10 dp bottom
+  insets, 18 dp radius) over content reserving a 72 dp gutter, with the status banner clearing
+  the same gutter. Phone and open share one stable Scaffold, content Stack and keyed
+  `IndexedStack` with four fixed destination positions. Only chrome and the content gutter
+  change between them, preserving the selected destination, every Flow State, Navigator State
+  and nested route. History is always mounted on every layout. Overview's View History action
+  selects it without pushing a route. Desktop shows a sidebar with Overview, History, Money,
+  an Add entry button, and Settings over the same four slots. Trends is pushed inside History;
+  it is not a shell destination. All Add controls open the shared entry presenter; the
   shell captures the top scoped Money route's preferred source only while Money is selected.
   The shared Add presenter opens one root `AppSheetRoute` with a keyed entry form and a live
   presentation resolver: phone spans the bottom at full width, desktop centres a dialog, and open
@@ -333,7 +330,7 @@ The app is phone-first with one shell whose phone or desktop layout is chosen by
   with a transparent barrier, and paints dim only over the pane region before the 72 dp rail
   gutter. Phone and desktop keep full-window centering. Delete and purge helpers map dismissal to
   false.
-- Screen-level state — selected month, selector mode, stats kind, and similar per-tab state — lives
+- Screen-level state - selected month, selector mode, and similar per-screen state - lives
   in providers, never in widget-local state that a rebuild can silently recreate. Controllers that
   window on "now" take an injected clock, so statement and summary window logic can be pinned in
   tests.
@@ -354,15 +351,17 @@ The app is phone-first with one shell whose phone or desktop layout is chosen by
 - Entry form: an amount field, an income/expense/transfer segmented control, source and destination
   pickers, a two-column category picker sheet, a recurrence picker, and an `includeInAnalysis`
   toggle. Read-only-first detail view, with a separate edit mode.
-- Stats: three tabs — Income and Expense, each a donut chart (`fl_chart`) with a legend, month
-  navigation, and per-category drill-down showing a trend and an entry list, and Budgets, which
-  renders the budget list, form, and detail.
+- Trends: History's See more detail action pushes `TrendsFlow`, whose root `TrendsScreen` has a
+  Trends title, a History-labelled back control, and an empty body. Category Detail's subcategory
+  table, trend card, and entry list remain implemented without a production entry point.
+- Money: Budgets, Accounts, and Plans segments, defaulting to Budgets. Budgets hosts its list,
+  form, and detail.
 - Accounts: grouped by account type, with account rows showing pocket sub-rows, card accounts
   showing payable versus outstanding (statement-day clamped per §5 rule 1), account and pocket
   forms, and the opening-balance flow.
 - Settings: category management (list, form, color and icon pickers, one level of nesting),
-  recurring-plan list and form, and the recycle bin (restore, or purge with a reference-count
-  message).
+  receipt scan and sync preferences, and the recycle bin (restore, or purge with a reference-count
+  message). Recurring plans are managed in Money.
 - Boot: a sealed `AppPhase` machine (`Loading` / `Ready` / `Failed`) living in `boot/`, with
   `Ready` carrying the `Ledger` and `PersistenceProcessor`; sample-data seeding gated on
   `hasSeeded`; a retry that invalidates the prior provider (ADR-0047); and save/plan-error banners

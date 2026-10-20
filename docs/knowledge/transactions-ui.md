@@ -55,8 +55,11 @@ and is the only place recurring plans are created.
 The view model calls `Ledger` query/mutation methods and reads `AnalysisCache` where totals apply;
 it never holds a `LedgerState` reference. Row resolution and section grouping are pure Dart
 functions in the application layer, unit-tested independently of any widget. Totals apply only
-entry-level `includeInAnalysis`, so Transactions and Stats can diverge for the same month — a ruled
-decision, not a bug.
+entry-level `includeInAnalysis`, so Transactions and analysis-driven totals can diverge for the
+same month when category inclusion gates exclude entries from analysis
+(`packages/domain/lib/src/accounting.dart:Accounting.resolveCategory`). Treat-as-expense transfers
+contribute equally to both expense totals, as covered by
+`app/test/ui/transactions_stats_totals_parity_test.dart`.
 
 ## Navigation
 
@@ -227,8 +230,8 @@ and focus node beside Name's; Note focus alone does not change the phone sheet h
   the balance field allows a leading `-`.
 - Malformed `colorHex` falls back to gray; writing back emits `#RRGGBB` uppercase, components
   clamped 0–255.
-- Transactions/Stats totals divergence is ruled, not a bug; a single shared totals function keeps a
-  future unification a one-line swap.
+- Transactions totals and analysis-driven totals intentionally use different inclusion rules;
+  analysis also applies category inclusion gates.
 
 ## Requirements
 
