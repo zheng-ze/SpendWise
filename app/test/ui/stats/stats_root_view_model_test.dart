@@ -19,8 +19,10 @@ void main() {
     addTearDown(container.dispose);
     final viewModel = container.read(statsRootViewModelProvider.notifier);
 
-    viewModel.setTab(StatsTab.budgets);
-    expect(container.read(statsRootViewModelProvider).tab, StatsTab.budgets);
+    viewModel.setTab(StatsTab.income);
+    expect(container.read(statsRootViewModelProvider).tab, StatsTab.income);
+    viewModel.setTab(StatsTab.expense);
+    expect(container.read(statsRootViewModelProvider).tab, StatsTab.expense);
 
     viewModel.setRange(StatsRangeMode.year);
     expect(

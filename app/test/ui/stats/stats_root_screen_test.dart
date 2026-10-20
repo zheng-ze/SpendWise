@@ -6,8 +6,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ui/common/navigation/top_tab_bar.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/stats/stats_flow.dart';
+import 'package:spendwise/ui/stats/stats_root_view_model.dart';
 import 'package:spendwise/ui/stats/helpers/stats_window.dart';
 
 import '../../support/ui_test_timeout.dart';
@@ -34,30 +36,15 @@ void main() {
     symbol: 'restaurant',
   );
 
-  final hawker = TransactionCategory(
+  final salary = TransactionCategory(
     id: 'c0000000-0000-0000-0000-000000000002',
-    name: 'Hawker',
-    kind: CategoryKind.expense,
+    name: 'Salary',
+    kind: CategoryKind.income,
     colorHex: '#00BB00',
     includeInAnalysis: true,
-    parentID: food.id,
-    symbol: 'set_meal',
+    parentID: null,
+    symbol: 'payments',
   );
-
-  Budget budget({String? categoryID, required String id}) {
-    return Budget(
-      id: id,
-      categoryID: categoryID,
-      limitEvents: [
-        LimitEvent(
-          effectiveFromMonth: null,
-          value: dec('100'),
-          kind: LimitEventKind.defaultLimit,
-        ),
-      ],
-      createdAtMonth: const YearMonth(2026, 1),
-    );
-  }
 
   Future<void> pumpScreen(
     WidgetTester tester,
@@ -108,6 +95,13 @@ void main() {
     await pumpScreen(tester, ledger, selectedDate: DateTime.utc(2026, 3));
 
     expect(find.text('No expense in this period'), findsOneWidget);
+    expect(tester.widget<TopTabBar>(find.byType(TopTabBar)).titles, [
+      'Income',
+      'Expense',
+    ]);
+    expect(find.byTooltip('Previous month'), findsOneWidget);
+    expect(find.byTooltip('Previous year'), findsNothing);
+    expect(find.byType(PopupMenuButton<StatsRangeMode>), findsOneWidget);
   }, timeout: uiTestTimeout);
 
   testWidgets('total line sums the window\'s items for the active kind', (
@@ -116,7 +110,7 @@ void main() {
     final ledger = Ledger(
       state: LedgerState(
         moneySources: {account.id: MoneySource.account(account)},
-        categories: {food.id: food},
+        categories: {food.id: food, salary.id: salary},
         entries: {
           for (final e in [
             expenseEntry(
@@ -131,6 +125,12 @@ void main() {
               DateTime.utc(2026, 3, 10),
               categoryID: food.id,
             ),
+            expenseEntry(
+              'Salary',
+              '50',
+              DateTime.utc(2026, 3, 15),
+              categoryID: salary.id,
+            ),
           ])
             e.id: e,
         },
@@ -139,6 +139,12 @@ void main() {
 
     await pumpScreen(tester, ledger, selectedDate: DateTime.utc(2026, 3));
 
+    expect(totalAmountText('S\$25.00'), findsOneWidget);
+    await tester.tap(find.text('Income'));
+    await tester.pumpAndSettle();
+    expect(totalAmountText('S\$50.00'), findsOneWidget);
+    await tester.tap(find.text('Expense'));
+    await tester.pumpAndSettle();
     expect(totalAmountText('S\$25.00'), findsOneWidget);
   }, timeout: uiTestTimeout);
 
@@ -192,28 +198,27 @@ void main() {
     expect(find.text('No expense in this period'), findsOneWidget);
   }, timeout: uiTestTimeout);
 
-  testWidgets('the Budgets tab groups a subcategory budget next to its '
-      'parent, indented and sorted', (tester) async {
-    final parentBudget = budget(categoryID: food.id, id: 'b1');
-    final childBudget = budget(categoryID: hawker.id, id: 'b2');
+  testWidgets('range menu selects yearly and monthly ranges', (tester) async {
     final ledger = Ledger(
       state: LedgerState(
         moneySources: {account.id: MoneySource.account(account)},
-        categories: {food.id: food, hawker.id: hawker},
-        budgets: {parentBudget.id: parentBudget, childBudget.id: childBudget},
       ),
     );
 
     await pumpScreen(tester, ledger, selectedDate: DateTime.utc(2026, 3));
-    await tester.tap(find.text('Budgets'));
+    await tester.tap(find.text('Income'));
     await tester.pumpAndSettle();
+    expect(find.byType(PopupMenuButton<StatsRangeMode>), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Annually'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Previous year'), findsOneWidget);
 
-    expect(find.text('Food'), findsOneWidget);
-    expect(find.text('Hawker'), findsOneWidget);
-
-    final foodCenter = tester.getCenter(find.text('Food'));
-    final hawkerCenter = tester.getCenter(find.text('Hawker'));
-    expect(foodCenter.dy, lessThan(hawkerCenter.dy));
-    expect(hawkerCenter.dx, greaterThan(foodCenter.dx));
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Monthly'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Previous month'), findsOneWidget);
   }, timeout: uiTestTimeout);
 }

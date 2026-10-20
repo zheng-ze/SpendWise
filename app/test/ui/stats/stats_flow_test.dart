@@ -6,14 +6,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/budgets/budget_detail/budget_detail_screen.dart';
-import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
 import 'package:spendwise/ui/common/navigation/top_tab_bar.dart';
 import 'package:spendwise/ui/stats/analysis/analysis_view_model.dart';
 import 'package:spendwise/ui/stats/category_detail/category_detail_screen.dart';
 import 'package:spendwise/ui/stats/stats_flow.dart';
 import 'package:spendwise/ui/stats/stats_root_screen.dart';
-import 'package:spendwise/ui/stats/stats_root_view_model.dart';
 
 import '../../support/ui_test_timeout.dart';
 
@@ -34,23 +31,10 @@ void main() {
       parentID: null,
       symbol: 'restaurant',
     );
-    final budget = Budget(
-      id: 'b0000000-0000-0000-0000-000000000001',
-      categoryID: category.id,
-      limitEvents: [
-        LimitEvent(
-          effectiveFromMonth: null,
-          value: Decimal.parse('100'),
-          kind: LimitEventKind.defaultLimit,
-        ),
-      ],
-      createdAtMonth: const YearMonth(2026, 1),
-    );
     return Ledger(
       state: LedgerState(
         moneySources: {account.id: MoneySource.account(account)},
         categories: {category.id: category},
-        budgets: {budget.id: budget},
       ),
     );
   }
@@ -78,24 +62,6 @@ void main() {
     await pumpFlow(tester);
 
     expect(find.byType(StatsRootScreen), findsOneWidget);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('budget detail replaces the Stats chrome', (tester) async {
-    final container = await pumpFlow(tester);
-    const budgetID = 'b0000000-0000-0000-0000-000000000001';
-
-    container
-        .read(statsRootViewModelProvider.notifier)
-        .setTab(StatsTab.budgets);
-    await tester.pumpAndSettle();
-    container
-        .read(budgetsListViewModelProvider.notifier)
-        .requestBudgetDetail(budgetID);
-    await tester.pumpAndSettle();
-
-    expect(find.byType(BudgetDetailScreen), findsOneWidget);
-    expect(find.byType(StatsRootScreen), findsNothing);
-    expect(find.byType(TopTabBar), findsNothing);
   }, timeout: uiTestTimeout);
 
   testWidgets('category detail replaces the Stats chrome', (tester) async {

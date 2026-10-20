@@ -1,6 +1,6 @@
 # Knowledge Base Index
 
-Last reconciled: 2026-10-19
+Last reconciled: 2026-10-20
 
 One comprehensive entry per feature. Read the relevant entry before planning or changing a
 feature; it records the final implementation, key files, interactions, navigation, APIs, gotchas,
@@ -24,7 +24,7 @@ themselves. Feature entries fold in still-current legacy material when a feature
 | Hosted sync enrollment Flow, OTP interaction, and publication retry | [sync-enrollment-flow.md](sync-enrollment-flow.md) |
 | Sync enrollment backend picker | [sync-enrollment-backend-picker.md](sync-enrollment-backend-picker.md) |
 | Recurring plans, occurrences, accounting, analysis | [recurring-plans-and-accounting.md](recurring-plans-and-accounting.md) |
-| Money Budgets with temporary Stats Budgets hosting | [budgets.md](budgets.md) |
+| Budgets hosted by the Money Budgets segment | [budgets.md](budgets.md) |
 | Categories and the on-device category classifier | [categories-and-classification.md](categories-and-classification.md) |
 | Transactions list (shell History destination; scoped lists in Money) and entry form | [transactions-ui.md](transactions-ui.md) |
 | Stats screen (Trends destination) and category drill-down | [stats-and-analysis-ui.md](stats-and-analysis-ui.md) |

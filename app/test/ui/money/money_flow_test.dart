@@ -11,6 +11,7 @@ import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/accounts/accounts_flow.dart';
 import 'package:spendwise/ui/accounts/accounts_view_model.dart';
 import 'package:spendwise/ui/accounts/account_form/account_form.dart';
+import 'package:spendwise/ui/budgets/budget_detail/budget_detail_screen.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_flow.dart';
 import 'package:spendwise/ui/common/inputs/month_year_selector.dart';
 import 'package:spendwise/ui/common/inputs/segmented_control.dart';
@@ -22,7 +23,6 @@ import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/shell_binding.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
-import 'package:spendwise/ui/stats/stats_root_view_model.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/stats/stats_flow.dart';
 import 'package:spendwise/ui/theme/spendwise_theme.dart';
@@ -346,28 +346,27 @@ void main() {
     timeout: uiTestTimeout,
   );
 
-  testWidgets('Money and temporary Stats Budgets share root month', (
+  testWidgets('Money keeps Budgets access and selected month across Trends', (
     tester,
   ) async {
     final ledger = _seedLedger();
     ledger.addBudget(null, Decimal.parse('1200'), now: _today);
     final container = await _pumpMoney(tester, ledger);
     final money = tester.state(find.byType(BudgetsFlow));
+    expect(find.text('Overall'), findsOneWidget);
+    await tester.tap(find.text('Overall'));
+    await tester.pumpAndSettle();
+    expect(find.byType(BudgetDetailScreen), findsOneWidget);
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
     await tester.tap(find.byTooltip('Previous month'));
     await tester.pumpAndSettle();
     expect(container.read(effectiveMonthProvider), DateTime.utc(2026, 9));
     await _destination(tester, container, ShellDestination.trends);
-    container
-        .read(statsRootViewModelProvider.notifier)
-        .setTab(StatsTab.budgets);
-    await tester.pumpAndSettle();
-    expect(find.byType(BudgetsFlow, skipOffstage: false), findsNWidgets(2));
     expect(container.read(effectiveMonthProvider), DateTime.utc(2026, 9));
-    await tester.tap(find.byTooltip('Next month'));
-    await tester.pumpAndSettle();
-    expect(container.read(effectiveMonthProvider), DateTime.utc(2026, 10));
     await _destination(tester, container, ShellDestination.money);
     expect(tester.state(find.byType(BudgetsFlow)), same(money));
-    expect(container.read(effectiveMonthProvider), DateTime.utc(2026, 10));
+    expect(container.read(effectiveMonthProvider), DateTime.utc(2026, 9));
   }, timeout: uiTestTimeout);
 }
