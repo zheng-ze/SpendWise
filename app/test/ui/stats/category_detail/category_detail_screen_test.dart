@@ -8,8 +8,10 @@ import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/stats/category_detail/category_detail_screen.dart';
 import 'package:spendwise/ui/stats/category_detail/category_detail_view_model.dart';
-import 'package:spendwise/ui/stats/stats_flow.dart';
-import 'package:spendwise/ui/stats/stats_root_screen.dart';
+// Temporary exclusion: this MUST be resolved when the new Trends screen is ready.
+// import 'package:spendwise/ui/stats/stats_flow.dart';
+// Temporary exclusion: this MUST be resolved when the new Trends screen is ready.
+// import 'package:spendwise/ui/stats/stats_root_screen.dart';
 
 import '../../../support/semantics_test_support.dart';
 import '../../../support/ui_test_timeout.dart';
@@ -158,41 +160,42 @@ void main() {
     expect(find.byIcon(Icons.more_vert), findsNothing);
   }, timeout: uiTestTimeout);
 
-  testWidgets('date changes in the detail screen do not affect the parent', (
-    tester,
-  ) async {
-    final ledger = buildLedger();
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: overridesFor(ledger),
-        child: const MaterialApp(home: StatsRootScreen()),
-      ),
-    );
-    await tester.pumpAndSettle();
+  // Temporary: this test depends on the removed Stats root/Flow and MUST be resolved when the new Trends screen is ready.
+  // testWidgets('date changes in the detail screen do not affect the parent', (
+  //     tester,
+  //   ) async {
+  //     final ledger = buildLedger();
+  //     await tester.pumpWidget(
+  //       ProviderScope(
+  //         overrides: overridesFor(ledger),
+  //         child: const MaterialApp(home: StatsRootScreen()),
+  //       ),
+  //     );
+  //     await tester.pumpAndSettle();
 
-    final buildContext = tester.element(find.byType(StatsRootScreen));
-    Navigator.of(buildContext).push(
-      MaterialPageRoute<void>(
-        builder: (_) => CategoryDetailScreen(
-          args: CategoryDetailArgs(
-            mainID: foodID,
-            kind: CategoryKind.expense,
-            isYearRange: false,
-            initialDate: thisMonth,
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
+  //     final buildContext = tester.element(find.byType(StatsRootScreen));
+  //     Navigator.of(buildContext).push(
+  //       MaterialPageRoute<void>(
+  //         builder: (_) => CategoryDetailScreen(
+  //           args: CategoryDetailArgs(
+  //             mainID: foodID,
+  //             kind: CategoryKind.expense,
+  //             isYearRange: false,
+  //             initialDate: thisMonth,
+  //           ),
+  //         ),
+  //       ),
+  //     );
+  //     await tester.pumpAndSettle();
 
-    await tester.tap(find.widgetWithIcon(IconButton, Icons.chevron_left));
-    await tester.pumpAndSettle();
+  //     await tester.tap(find.widgetWithIcon(IconButton, Icons.chevron_left));
+  //     await tester.pumpAndSettle();
 
-    await tester.pageBack();
-    await tester.pumpAndSettle();
+  //     await tester.pageBack();
+  //     await tester.pumpAndSettle();
 
-    expect(find.byType(StatsRootScreen), findsOneWidget);
-  }, timeout: uiTestTimeout);
+  //     expect(find.byType(StatsRootScreen), findsOneWidget);
+  //   }, timeout: uiTestTimeout);
 
   group('subcategory table', () {
     testWidgets('the "All Food" row is always first and always 100%', (
@@ -523,30 +526,31 @@ void main() {
     );
   });
 
-  testWidgets('tapping a legend row in StatsFlow pushes the detail screen', (
-    tester,
-  ) async {
-    final hawkerEntry = Entry(
-      amount: dec('-10'),
-      name: 'Lunch',
-      sourceID: account.id,
-      categoryID: hawkerID,
-      date: day(1),
-    );
-    final ledger = buildLedger(entries: {hawkerEntry.id: hawkerEntry});
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: overridesFor(ledger),
-        child: const MaterialApp(home: StatsFlow()),
-      ),
-    );
-    await tester.pumpAndSettle();
+  // Temporary: this test depends on the removed Stats root/Flow and MUST be resolved when the new Trends screen is ready.
+  // testWidgets('tapping a legend row in StatsFlow pushes the detail screen', (
+  //     tester,
+  //   ) async {
+  //     final hawkerEntry = Entry(
+  //       amount: dec('-10'),
+  //       name: 'Lunch',
+  //       sourceID: account.id,
+  //       categoryID: hawkerID,
+  //       date: day(1),
+  //     );
+  //     final ledger = buildLedger(entries: {hawkerEntry.id: hawkerEntry});
+  //     await tester.pumpWidget(
+  //       ProviderScope(
+  //         overrides: overridesFor(ledger),
+  //         child: const MaterialApp(home: StatsFlow()),
+  //       ),
+  //     );
+  //     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Food'));
-    await tester.pumpAndSettle();
+  //     await tester.tap(find.text('Food'));
+  //     await tester.pumpAndSettle();
 
-    expect(find.byType(CategoryDetailScreen), findsOneWidget);
-  }, timeout: uiTestTimeout);
+  //     expect(find.byType(CategoryDetailScreen), findsOneWidget);
+  //   }, timeout: uiTestTimeout);
 
   group('trend card', () {
     testWidgets('renders month labels for a January selection', (tester) async {

@@ -1,6 +1,6 @@
 # Knowledge Base Index
 
-Last reconciled: 2026-10-20
+Last reconciled: 2026-10-21
 
 One comprehensive entry per feature. Read the relevant entry before planning or changing a
 feature; it records the final implementation, key files, interactions, navigation, APIs, gotchas,
@@ -27,7 +27,7 @@ themselves. Feature entries fold in still-current legacy material when a feature
 | Budgets hosted by the Money Budgets segment | [budgets.md](budgets.md) |
 | Categories and the on-device category classifier | [categories-and-classification.md](categories-and-classification.md) |
 | Transactions list (shell History destination; scoped lists in Money) and entry form | [transactions-ui.md](transactions-ui.md) |
-| Stats screen (no shell destination) and category drill-down | [stats-and-analysis-ui.md](stats-and-analysis-ui.md) |
+| Trends page hosted by History and category drill-down | [stats-and-analysis-ui.md](stats-and-analysis-ui.md) |
 | Overview screen: Today, Recent entries, Coming up | [overview-ui.md](overview-ui.md) |
 | Money host with Accounts and Plans segments, and account/pocket forms | [accounts-ui.md](accounts-ui.md) |
 | Settings: categories, recycle bin, Hosted Sync enrollment and repair, device-local display preferences | [settings-ui.md](settings-ui.md) |

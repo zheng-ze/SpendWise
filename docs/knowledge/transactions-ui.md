@@ -1,6 +1,6 @@
 # Transactions UI
 
-Last reconciled: 2026-10-20
+Last reconciled: 2026-10-21
 
 ## Feature overview
 
@@ -37,16 +37,15 @@ and is the only place recurring plans are created.
   It takes an optional `backLabel` passed through to the screen's back control; the shell
   History slot (always mounted, every layout) and scoped lists set none. `TransactionsFlow`
   handles and clears its screen `Step`s directly. `HistoryTrendsRequested` pushes one tracked
-  `MaterialPageRoute` holding `StatsFlow(onEnded: ...)` onto the Flow's navigator, where `onEnded` pops that route; the guard releases at
-  `route.completed`. Each accepted push invalidates `statsRootViewModelProvider` (fresh Expense and
-  Monthly) and seeds `selectedMonthProvider` from History's `selectedDate` at UTC month start. The
+  `MaterialPageRoute` holding `TrendsFlow(onEnded: ...)` onto the Flow's navigator, where `onEnded` pops that route; the guard releases at
+  `route.completed`. Each accepted push seeds `selectedMonthProvider` from History's `selectedDate` at UTC month start. The
   route is retained across destination switches and resizes because the always-mounted Flow state
   persists.
 - `app/lib/ui/transactions/trends_detail_action.dart` - 'See more detail', a muted trailing text
   action with chevron and a 48 dp invisible hit height (`trendsDetailActionHitHeight`), rendered
   below the totals bar in unscoped History only, including empty months.
 - `app/lib/ui/common/navigation/labelled_back_button.dart` - the back control with an optional
-  accessible label, shared by `TransactionsScreen` and `StatsRootScreen`.
+  accessible label, shared by `TransactionsScreen` and `TrendsScreen`.
 - `app/lib/ui/common/lists/day_sectioned_entry_list.dart`, `form_scaffold.dart`,
   `swipe_row.dart`, `pickers/` — shared components and picker sheets.
 - `app/lib/ui/symbol_map.dart` — symbol-to-IconData mapping.
