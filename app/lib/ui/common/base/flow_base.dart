@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -75,20 +77,19 @@ abstract class FlowBaseState<S, T extends FlowBase<S>>
   @override
   Widget build(BuildContext context) {
     final active = DestinationActivity.of(context);
-    return PopScope(
-      canPop: !active,
-      onPopInvokedWithResult: (didPop, _) async {
-        if (didPop || !active) return;
-        await goBack();
-      },
-      child: Navigator(
-        key: _navigatorKey,
-        observers: navigatorObservers,
-        onGenerateRoute: (settings) => MaterialPageRoute(
-          settings: settings,
-          builder: (_) => buildRoot(context),
-        ),
+    final navigator = Navigator(
+      key: _navigatorKey,
+      observers: navigatorObservers,
+      onGenerateRoute: (settings) => MaterialPageRoute(
+        settings: settings,
+        builder: (_) => buildRoot(context),
       ),
+    );
+
+    return NavigatorPopHandler(
+      enabled: active,
+      onPopWithResult: (_) => active ? unawaited(goBack()) : null,
+      child: navigator,
     );
   }
 }

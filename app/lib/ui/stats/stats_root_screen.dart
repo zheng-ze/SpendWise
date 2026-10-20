@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/common/inputs/month_year_selector.dart';
+import 'package:spendwise/ui/common/navigation/labelled_back_button.dart';
 import 'package:spendwise/ui/common/navigation/top_tab_bar.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
-import 'package:spendwise/ui/stats/analysis/analysis_flow.dart';
+import 'package:spendwise/ui/stats/analysis/analysis_body.dart';
 import 'package:spendwise/ui/stats/stats_root_view_model.dart';
 import 'package:spendwise/ui/stats/helpers/stats_window.dart';
 
@@ -13,10 +14,13 @@ import 'package:spendwise/ui/stats/helpers/stats_window.dart';
 const _tabTitles = ['Income', 'Expense'];
 const _incomeTabIndex = 0;
 const _expenseTabIndex = 1;
+const _backLabel = 'History';
 
 // MARK: - StatsRootScreen
 class StatsRootScreen extends ConsumerWidget {
-  const StatsRootScreen({super.key});
+  const StatsRootScreen({super.key, this.onBackPressed});
+
+  final VoidCallback? onBackPressed;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -28,6 +32,7 @@ class StatsRootScreen extends ConsumerWidget {
       viewState: viewState,
       viewModel: viewModel,
       selectedDate: selectedDate,
+      onBackPressed: onBackPressed,
       onDateChanged: (value) =>
           ref.read(selectedMonthProvider.notifier).state = value,
     );
@@ -41,12 +46,14 @@ class _StatsRootBody extends StatelessWidget {
     required this.viewModel,
     required this.selectedDate,
     required this.onDateChanged,
+    required this.onBackPressed,
   });
 
   final StatsRootViewState viewState;
   final StatsRootViewModel viewModel;
   final DateTime selectedDate;
   final ValueChanged<DateTime> onDateChanged;
+  final VoidCallback? onBackPressed;
 
   static const _dividerHeight = 1.0;
 
@@ -63,9 +70,13 @@ class _StatsRootBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final tab = viewState.tab;
     final range = viewState.range;
+    final onBackPressed = this.onBackPressed;
 
     return Scaffold(
       appBar: AppBar(
+        leading: onBackPressed == null
+            ? null
+            : LabelledBackButton(onPressed: onBackPressed, label: _backLabel),
         title: MonthYearSelector(
           value: selectedDate,
           step: range == StatsRangeMode.month
@@ -132,7 +143,7 @@ class _StatsTabContent extends StatelessWidget {
         : CategoryKind.expense;
     final isYearRange = range == StatsRangeMode.year;
 
-    return AnalysisFlow(
+    return AnalysisBody(
       key: ValueKey(kind),
       kind: kind,
       window: isYearRange

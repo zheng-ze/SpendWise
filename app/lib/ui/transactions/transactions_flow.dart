@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/common/base/flow_base.dart';
+import 'package:spendwise/ui/shell/shell_providers.dart';
+import 'package:spendwise/ui/stats/stats_flow.dart';
+import 'package:spendwise/ui/stats/stats_root_view_model.dart';
 import 'package:spendwise/ui/transactions/daily_list/daily_transactions_screen.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
@@ -48,6 +51,7 @@ class _TransactionsFlowState
   ProviderSubscription<AsyncValue<EntryFormViewState>>? _formSubscription;
   String? _openFormKey;
   bool _formKeyIsSet = false;
+  Route<void>? _trendsRoute;
 
   @override
   void dispose() {
@@ -77,6 +81,8 @@ class _TransactionsFlowState
     switch (step) {
       case EntryFormRequested(:final entry):
         _openEntryForm(context, entry.id);
+      case HistoryTrendsRequested():
+        _openTrends(context);
       case PickSourceRequested():
       case PickDestinationRequested():
       case PickCategoryRequested():
@@ -89,6 +95,32 @@ class _TransactionsFlowState
         break;
     }
     _screenViewModel.clearStep();
+  }
+
+  void _openTrends(BuildContext context) {
+    if (_trendsRoute != null) return;
+    final historyDate = ref
+        .read(transactionsViewModelProvider(widget.initialScope))
+        .value
+        ?.selectedDate;
+    ref.invalidate(statsRootViewModelProvider);
+    ref.read(selectedMonthProvider.notifier).state = startOfMonthUtc(
+      historyDate ?? ref.read(effectiveMonthProvider),
+    );
+    final route = MaterialPageRoute<void>(
+      builder: (_) => StatsFlow(onEnded: _closeTrends),
+    );
+    _trendsRoute = route;
+    Navigator.of(context).push(route);
+    route.completed.whenComplete(() {
+      if (identical(_trendsRoute, route)) _trendsRoute = null;
+    });
+  }
+
+  void _closeTrends() {
+    final context = navigatorContext;
+    if (context == null) return;
+    Navigator.of(context).pop();
   }
 
   void _openEntryForm(BuildContext context, String entryId) {

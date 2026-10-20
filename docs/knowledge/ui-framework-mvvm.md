@@ -238,11 +238,15 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   `app/lib/ui/settings/settings_flow.dart`)
 - **Destination Back activity** - `DestinationActivity` (`app/lib/ui/common/base/flow_base.dart`) is a
   pure inherited active flag defaulting to active for standalone Flows. Each `IndexedStack` slot
-  wraps its destination with the flag derived from the selected destination. An inactive `FlowBase`
-  `PopScope` permits propagation and ignores its callback; the active Flow delegates Back through
-  its own nested `Navigator`. `FlowBase` reads no shell providers. Nested enrollment and scoped
-  Flows inherit their host destination's activity. Screen `Step`s are produced only by user
-  actions on the visible screen, so no Flow gates `Step` handling on the flag. Add drafts are scoped
+  wraps its destination with the flag derived from the selected destination. `FlowBaseState` wraps its
+  nested `Navigator` in Flutter's `NavigatorPopHandler`, enabled only while the destination is
+  active: with depth, system Back and the iOS edge swipe pop the Flow's own `Navigator` (`goBack`);
+  at the Flow's root they pass to the enclosing route, so a route-hosted Flow's route pops
+  directly and a shell tab Flow's root hands Back to the shell (the system may close the app).
+  `goBack` (the on-screen back control when `showsOwnBackButton`, and other direct callers) still calls `onEnded` at the root, but root system Back and the swipe bypass `onEnded` because the enclosing route pops directly.
+  An inactive Flow ignores the callback. A Flow that must refuse Back wraps `super.build` in its
+  own `PopScope` (the enrollment Flows during a backend save). `FlowBase` reads no shell providers.
+  Nested enrollment and scoped Flows inherit their host destination's activity. Add drafts are scoped
   to their sheet, as described in [budgets.md](budgets.md).
 - **Settings teardown** - `SettingsFlow.dispose` performs terminal cleanup only through one
   disposal-safe microtask using the captured `ProviderContainer` and guard controller: it releases

@@ -6,11 +6,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/common/navigation/top_tab_bar.dart';
-import 'package:spendwise/ui/stats/analysis/analysis_view_model.dart';
-import 'package:spendwise/ui/stats/category_detail/category_detail_screen.dart';
 import 'package:spendwise/ui/stats/stats_flow.dart';
-import 'package:spendwise/ui/stats/stats_root_screen.dart';
+import 'package:spendwise/ui/stats/stats_root_view_model.dart';
+import 'package:spendwise/ui/stats/category_detail/category_detail_screen.dart';
 
 import '../../support/ui_test_timeout.dart';
 
@@ -21,28 +19,29 @@ void main() {
     type: AccountType.checking,
   );
 
+  final food = TransactionCategory(
+    id: 'c0000000-0000-0000-0000-000000000001',
+    name: 'Food',
+    kind: CategoryKind.expense,
+    colorHex: '#00AA00',
+    includeInAnalysis: true,
+    parentID: null,
+    symbol: 'restaurant',
+  );
+
   Ledger buildLedger() {
-    final category = TransactionCategory(
-      id: 'c0000000-0000-0000-0000-000000000001',
-      name: 'Food',
-      kind: CategoryKind.expense,
-      colorHex: '#00AA00',
-      includeInAnalysis: true,
-      parentID: null,
-      symbol: 'restaurant',
-    );
     return Ledger(
       state: LedgerState(
         moneySources: {account.id: MoneySource.account(account)},
-        categories: {category.id: category},
+        categories: {food.id: food},
       ),
     );
   }
 
-  Future<ProviderContainer> pumpFlow(WidgetTester tester) async {
+  Future<ProviderContainer> pumpFlow(WidgetTester tester, Ledger ledger) async {
     final container = ProviderContainer(
       overrides: [
-        ledgerProvider.overrideWithValue(buildLedger()),
+        ledgerProvider.overrideWithValue(ledger),
         analysisComputeRunnerProvider.overrideWithValue(syncComputeRunner),
       ],
     );
@@ -58,28 +57,71 @@ void main() {
     return container;
   }
 
-  testWidgets('StatsFlow renders StatsRootScreen as its root', (tester) async {
-    await pumpFlow(tester);
+  testWidgets(
+    'CategoryDetailRequested pushes CategoryDetailScreen with matching args',
+    (tester) async {
+      final container = await pumpFlow(tester, buildLedger());
+      final now = DateTime.utc(2026, 3);
 
-    expect(find.byType(StatsRootScreen), findsOneWidget);
-  }, timeout: uiTestTimeout);
+      container
+          .read(statsRootViewModelProvider.notifier)
+          .requestCategoryDetail(
+            kind: CategoryKind.expense,
+            mainID: food.id,
+            isYearRange: false,
+            initialDate: now,
+          );
+      await tester.pumpAndSettle();
 
-  testWidgets('category detail replaces the Stats chrome', (tester) async {
-    final container = await pumpFlow(tester);
-    const categoryID = 'c0000000-0000-0000-0000-000000000001';
-    final selectedDate = DateTime.utc(2026, 3);
+      final pushed = tester.widget<CategoryDetailScreen>(
+        find.byType(CategoryDetailScreen),
+      );
+      expect(pushed.args.mainID, food.id);
+      expect(pushed.args.kind, CategoryKind.expense);
+      expect(pushed.args.isYearRange, isFalse);
+      expect(pushed.args.initialDate, now);
+      expect(container.read(statsRootViewModelProvider).step, isNull);
+    },
+    timeout: uiTestTimeout,
+  );
 
-    container
-        .read(analysisViewModelProvider(CategoryKind.expense).notifier)
-        .requestCategoryDetail(
-          mainID: categoryID,
-          isYearRange: false,
-          initialDate: selectedDate,
-        );
-    await tester.pumpAndSettle();
+  testWidgets(
+    'an income request pushes detail scoped to income on the same Flow',
+    (tester) async {
+      final salary = TransactionCategory(
+        id: 'c0000000-0000-0000-0000-000000000002',
+        name: 'Salary',
+        kind: CategoryKind.income,
+        colorHex: '#0000AA',
+        includeInAnalysis: true,
+        parentID: null,
+        symbol: 'payments',
+      );
+      final ledger = Ledger(
+        state: LedgerState(
+          moneySources: {account.id: MoneySource.account(account)},
+          categories: {food.id: food, salary.id: salary},
+        ),
+      );
+      final container = await pumpFlow(tester, ledger);
 
-    expect(find.byType(CategoryDetailScreen), findsOneWidget);
-    expect(find.byType(StatsRootScreen), findsNothing);
-    expect(find.byType(TopTabBar), findsNothing);
-  }, timeout: uiTestTimeout);
+      container
+          .read(statsRootViewModelProvider.notifier)
+          .requestCategoryDetail(
+            kind: CategoryKind.income,
+            mainID: salary.id,
+            isYearRange: false,
+            initialDate: DateTime.utc(2026, 3),
+          );
+      await tester.pumpAndSettle();
+
+      final pushed = tester.widget<CategoryDetailScreen>(
+        find.byType(CategoryDetailScreen),
+      );
+      expect(pushed.args.kind, CategoryKind.income);
+      expect(pushed.args.mainID, salary.id);
+      expect(container.read(statsRootViewModelProvider).step, isNull);
+    },
+    timeout: uiTestTimeout,
+  );
 }

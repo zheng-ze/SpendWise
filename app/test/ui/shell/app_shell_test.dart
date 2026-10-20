@@ -23,6 +23,7 @@ import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
 import '../overview/overview_fixture.dart' show emptyState, settleAnalysis;
+import '../../support/pushed_flow_host.dart';
 import '../../support/ui_test_timeout.dart';
 
 const _compact = Size(400, 800);
@@ -781,17 +782,38 @@ void main() {
       expect(find.text('hidden child', skipOffstage: false), findsOneWidget);
     }, timeout: uiTestTimeout);
 
-    testWidgets('Back at an active root preserves every stack', (tester) async {
+    testWidgets('Back at an active root passes to the enclosing route and '
+        'preserves every stack', (tester) async {
       await pumpProbes(tester);
       await pushProbeChild(tester, 'hidden');
 
       final handled = await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
 
-      expect(handled, isTrue);
+      expect(handled, isFalse);
       expect(find.text('active'), findsOneWidget);
       expect(find.text('hidden', skipOffstage: false), findsOneWidget);
       expect(find.text('hidden child', skipOffstage: false), findsOneWidget);
+    }, timeout: uiTestTimeout);
+
+    testWidgets('Back at the root of a route-hosted Flow pops the route', (
+      tester,
+    ) async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      await pumpFlowInPushedRoute(
+        tester,
+        container: container,
+        flow: const _ProbeFlow(label: 'hosted'),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('hosted'), findsOneWidget);
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+
+      expect(find.text('hosted'), findsNothing);
+      expect(find.text(flowHostMarker), findsOneWidget);
     }, timeout: uiTestTimeout);
 
     testWidgets('a standalone Flow keeps active Back behavior', (tester) async {

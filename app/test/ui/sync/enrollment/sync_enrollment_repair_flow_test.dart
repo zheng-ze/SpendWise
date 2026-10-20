@@ -21,6 +21,7 @@ import '../../../support/recording_ledger_store.dart';
 import '../../../sync/in_memory_secret_store.dart';
 import 'sync_enrollment_flow_test.dart'
     show FakeSessionOpener, FakeSyncEnrollmentSession;
+import '../../../support/pushed_flow_host.dart';
 import '../../../support/ui_test_timeout.dart';
 
 const _identifierField = Key('syncIdentifierField');
@@ -86,16 +87,10 @@ final class _Harness {
     addTearDown(container.dispose);
     clock = now;
 
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp(
-          home: SyncEnrollmentFlow(
-            repairMode: true,
-            onEnded: () => endedCalls++,
-          ),
-        ),
-      ),
+    await pumpFlowInPushedRoute(
+      tester,
+      container: container,
+      flow: SyncEnrollmentFlow(repairMode: true, onEnded: () => endedCalls++),
     );
     await pumpRepairFrames(tester);
   }
@@ -351,12 +346,15 @@ void main() {
       await tester.binding.handlePopRoute();
       await pumpRepairFrames(tester);
 
-      expect(harness.endedCalls, 1);
+      expect(find.text(flowHostMarker), findsOneWidget);
 
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: harness.container,
-          child: const MaterialApp(home: Scaffold(body: Text('flow gone'))),
+          child: MaterialApp(
+            key: UniqueKey(),
+            home: const Scaffold(body: Text('flow gone')),
+          ),
         ),
       );
       await pumpRepairFrames(tester);
@@ -376,8 +374,9 @@ void main() {
       expect(snapshot.writeEnabled, isFalse);
     }, timeout: uiTestTimeout);
 
-    testWidgets('back on the idle repair identifier root ends the flow '
-        'without popping the root', (tester) async {
+    testWidgets('back on the idle repair identifier root pops the flow route', (
+      tester,
+    ) async {
       final harness = _Harness();
       await harness.pumpRepairFlow(
         tester,
@@ -388,8 +387,8 @@ void main() {
       await tester.binding.handlePopRoute();
       await pumpRepairFrames(tester);
 
-      expect(harness.endedCalls, 1);
-      expect(find.byKey(_identifierField), findsOneWidget);
+      expect(find.text(flowHostMarker), findsOneWidget);
+      expect(find.byKey(_identifierField), findsNothing);
     }, timeout: uiTestTimeout);
 
     testWidgets('disposing the flow while an OTP is pending releases '
@@ -408,7 +407,10 @@ void main() {
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: harness.container,
-          child: const MaterialApp(home: Scaffold(body: Text('flow gone'))),
+          child: MaterialApp(
+            key: UniqueKey(),
+            home: const Scaffold(body: Text('flow gone')),
+          ),
         ),
       );
       await pumpRepairFrames(tester);
@@ -474,7 +476,10 @@ void main() {
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: harness.container,
-          child: const MaterialApp(home: Scaffold(body: Text('flow gone'))),
+          child: MaterialApp(
+            key: UniqueKey(),
+            home: const Scaffold(body: Text('flow gone')),
+          ),
         ),
       );
       await pumpRepairFrames(tester);

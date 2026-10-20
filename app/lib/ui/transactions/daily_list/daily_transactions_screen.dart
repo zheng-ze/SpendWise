@@ -5,6 +5,7 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/common/lists/column_text.dart';
 import 'package:spendwise/ui/common/inputs/month_year_selector.dart';
 import 'package:spendwise/ui/common/lists/swipe_row.dart';
+import 'package:spendwise/ui/common/navigation/labelled_back_button.dart';
 import 'package:spendwise/ui/common/navigation/top_tab_bar.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
@@ -14,6 +15,7 @@ import 'package:spendwise/ui/transactions/daily_list/empty_state.dart';
 import 'package:spendwise/ui/transactions/monthly/monthly_transactions_view.dart';
 import 'package:spendwise/ui/transactions/daily_list/transaction_cell.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
+import 'package:spendwise/ui/transactions/trends_detail_action.dart';
 import 'package:spendwise/ui/transactions/transactions_view_model.dart';
 
 // MARK: - Constants
@@ -51,6 +53,7 @@ class TransactionsScreen extends ConsumerWidget {
         viewModel: viewModel,
         onBackPressed: onBackPressed,
         backLabel: backLabel,
+        showsTrendsAction: scope == null,
       ),
     );
   }
@@ -61,6 +64,7 @@ class _TransactionsScreenBody extends StatelessWidget {
   const _TransactionsScreenBody({
     required this.state,
     required this.viewModel,
+    required this.showsTrendsAction,
     this.onBackPressed,
     this.backLabel,
   });
@@ -69,6 +73,7 @@ class _TransactionsScreenBody extends StatelessWidget {
   final TransactionsViewModel viewModel;
   final VoidCallback? onBackPressed;
   final String? backLabel;
+  final bool showsTrendsAction;
 
   static const _dividerHeight = 1.0;
 
@@ -96,6 +101,8 @@ class _TransactionsScreenBody extends StatelessWidget {
         const Divider(height: _dividerHeight),
         _TotalsBar(state: state),
         const Divider(height: _dividerHeight),
+        if (showsTrendsAction)
+          TrendsDetailAction(onPressed: viewModel.requestTrends),
         Expanded(child: content),
       ],
     );
@@ -104,16 +111,10 @@ class _TransactionsScreenBody extends StatelessWidget {
       appBar: AppBar(
         leading: switch (onBackPressed) {
           null => null,
-          final pressed =>
-            backLabel == null
-                ? BackButton(onPressed: pressed)
-                : Semantics(
-                    label: backLabel,
-                    button: true,
-                    onTap: pressed,
-                    excludeSemantics: true,
-                    child: BackButton(onPressed: pressed),
-                  ),
+          final pressed => LabelledBackButton(
+            onPressed: pressed,
+            label: backLabel,
+          ),
         },
         title: Text(state.title),
         actions: [

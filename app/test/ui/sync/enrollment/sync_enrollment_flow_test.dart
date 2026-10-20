@@ -19,6 +19,7 @@ import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_scr
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart';
 import 'package:sync/sync.dart';
 
+import '../../../support/pushed_flow_host.dart';
 import '../../../support/ui_test_timeout.dart';
 
 const _identifierField = Key('syncIdentifierField');
@@ -127,11 +128,10 @@ pumpEnrollmentFlow(
   );
   addTearDown(container.dispose);
 
-  await tester.pumpWidget(
-    UncontrolledProviderScope(
-      container: container,
-      child: MaterialApp(home: SyncEnrollmentFlow(onEnded: onEnded)),
-    ),
+  await pumpFlowInPushedRoute(
+    tester,
+    container: container,
+    flow: SyncEnrollmentFlow(onEnded: onEnded),
   );
   await pumpFlowFrames(tester);
   return (
@@ -480,22 +480,23 @@ void main() {
     await tester.binding.handlePopRoute();
     await pumpFlowFrames(tester);
 
-    expect(endedCalls, 1);
+    expect(find.text(flowHostMarker), findsOneWidget);
     expect(find.byKey(_identifierField), findsNothing);
     expect(find.byKey(_otpField), findsNothing);
     expect(find.byKey(_resumeRetry), findsNothing);
     expect(find.byType(BackendPickerScreen), findsNothing);
   }, timeout: uiTestTimeout);
 
-  testWidgets('system back at the picker root ends the flow', (tester) async {
-    var endedCalls = 0;
-    await pumpEnrollmentFlow(tester, onEnded: () => endedCalls++);
+  testWidgets('system back at the picker root pops the flow route', (
+    tester,
+  ) async {
+    await pumpEnrollmentFlow(tester);
 
     expect(find.byType(BackendPickerScreen), findsOneWidget);
     await tester.binding.handlePopRoute();
     await pumpFlowFrames(tester);
 
-    expect(endedCalls, 1);
+    expect(find.text(flowHostMarker), findsOneWidget);
   }, timeout: uiTestTimeout);
 
   testWidgets('picker Back button ends the flow', (tester) async {
@@ -722,7 +723,10 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: harness.container,
-        child: const MaterialApp(home: Scaffold(body: Text('flow host gone'))),
+        child: MaterialApp(
+          key: UniqueKey(),
+          home: const Scaffold(body: Text('flow host gone')),
+        ),
       ),
     );
     await pumpFlowFrames(tester);

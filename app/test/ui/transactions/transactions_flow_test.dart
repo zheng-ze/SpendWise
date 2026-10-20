@@ -222,23 +222,4 @@ void main() {
       await tester.pumpAndSettle();
     }, timeout: uiTestTimeout);
   });
-
-  testWidgets(
-    'PopScope refuses to let the flow itself be popped, so back-gesture '
-    'handling stays with the flow rather than the host route',
-    (tester) async {
-      await pumpFlow(tester, ledger: buildLedger());
-
-      final popScope =
-          find
-                  .byWidgetPredicate((widget) => widget is PopScope)
-                  .evaluate()
-                  .single
-                  .widget
-              as PopScope;
-
-      expect(popScope.canPop, isFalse);
-    },
-    timeout: uiTestTimeout,
-  );
 }
