@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // MARK: - StatsTab
-enum StatsTab { income, expense, budgets }
+enum StatsTab { income, expense }
 
 // MARK: - StatsRangeMode
 enum StatsRangeMode { month, year }

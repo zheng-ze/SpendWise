@@ -1,6 +1,6 @@
 # Budgets
 
-Last reconciled: 2026-10-19
+Last reconciled: 2026-10-20
 
 ## Feature overview
 
@@ -48,8 +48,8 @@ selectedMonth:)` expose the two projections as memoised mixed reads (see
 is formed. The budget screens do not yet consume these reads. The detail screen derives the selected
 month's headline spend from `budgetCountedTotal(viewState.countedEntries)`; its twelve-month chart
 uses `budgetSpend` over cached analysis items (`BudgetDetailViewState.spendSeries`,
-`_BudgetDetailHeader`). Budgets are the Budgets tab inside the Stats screen
-(`app/lib/ui/stats/stats_root_screen.dart` hosts `BudgetsFlow`), not a shell tab.
+`_BudgetDetailHeader`). `MoneyFlow` hosts `BudgetsFlow` in the Money Budgets segment
+(`app/lib/ui/money/money_flow.dart`).
 
 ## Budget model
 

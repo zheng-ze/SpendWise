@@ -2,7 +2,6 @@ import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ui/budgets/budget_list/budgets_flow.dart';
 import 'package:spendwise/ui/common/inputs/month_year_selector.dart';
 import 'package:spendwise/ui/common/navigation/top_tab_bar.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
@@ -11,7 +10,7 @@ import 'package:spendwise/ui/stats/stats_root_view_model.dart';
 import 'package:spendwise/ui/stats/helpers/stats_window.dart';
 
 // MARK: - Constants
-const _tabTitles = ['Income', 'Expense', 'Budgets'];
+const _tabTitles = ['Income', 'Expense'];
 const _incomeTabIndex = 0;
 const _expenseTabIndex = 1;
 
@@ -52,11 +51,12 @@ class _StatsRootBody extends StatelessWidget {
   static const _dividerHeight = 1.0;
 
   void _setTab(int tabIndex) {
-    viewModel.setTab(switch (tabIndex) {
-      _incomeTabIndex => StatsTab.income,
-      _expenseTabIndex => StatsTab.expense,
-      _ => StatsTab.budgets,
-    });
+    switch (tabIndex) {
+      case _incomeTabIndex:
+        viewModel.setTab(StatsTab.income);
+      case _expenseTabIndex:
+        viewModel.setTab(StatsTab.expense);
+    }
   }
 
   @override
@@ -68,26 +68,25 @@ class _StatsRootBody extends StatelessWidget {
       appBar: AppBar(
         title: MonthYearSelector(
           value: selectedDate,
-          step: tab == StatsTab.budgets || range == StatsRangeMode.month
+          step: range == StatsRangeMode.month
               ? MonthYearStep.month
               : MonthYearStep.year,
           onChanged: onDateChanged,
         ),
         actions: [
-          if (tab != StatsTab.budgets)
-            PopupMenuButton<StatsRangeMode>(
-              onSelected: viewModel.setRange,
-              itemBuilder: (context) => const [
-                PopupMenuItem(
-                  value: StatsRangeMode.month,
-                  child: Text('Monthly'),
-                ),
-                PopupMenuItem(
-                  value: StatsRangeMode.year,
-                  child: Text('Annually'),
-                ),
-              ],
-            ),
+          PopupMenuButton<StatsRangeMode>(
+            onSelected: viewModel.setRange,
+            itemBuilder: (context) => const [
+              PopupMenuItem(
+                value: StatsRangeMode.month,
+                child: Text('Monthly'),
+              ),
+              PopupMenuItem(
+                value: StatsRangeMode.year,
+                child: Text('Annually'),
+              ),
+            ],
+          ),
         ],
         centerTitle: false,
       ),
@@ -128,10 +127,6 @@ class _StatsTabContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (tab == StatsTab.budgets) {
-      return const BudgetsFlow();
-    }
-
     final kind = tab == StatsTab.income
         ? CategoryKind.income
         : CategoryKind.expense;
