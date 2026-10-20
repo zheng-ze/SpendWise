@@ -6,7 +6,7 @@ Last reconciled: 2026-10-21
 
 History opens a full-screen Trends page through its own `TransactionsFlow` navigator. Trends currently
 shows a header and empty content area. It has no period controls, analysis presentation, or category
-drill-down entry point. Category Detail remains available to its retained consumers and shows a
+drill-down entry point. Category Detail has no production entry point until Trends gains category navigation, and shows a
 main category's subcategory table, trend card, and scoped entry list. Its analysis data comes from
 the ready Ledger's `AnalysisCache` (`app/lib/ui/stats/category_detail/category_detail_view_model.dart`).
 
@@ -16,8 +16,8 @@ the ready Ledger's `AnalysisCache` (`app/lib/ui/stats/category_detail/category_d
   page; the optional `onBackPressed` callback controls the History-labelled back button.
 - `app/lib/ui/stats/category_detail/` - the retained category drill-down screen and view model.
 - `app/lib/ui/stats/analysis/analysis_scan.dart` - memoized category-detail filtering.
-- `app/lib/ui/stats/helpers/slices.dart` - category slice and roll-up helpers used by retained
-  consumers.
+- `app/lib/ui/stats/helpers/slices.dart` - category slice and roll-up helpers referenced only by tests,
+  retained for the Transactions/Stats accounting-parity contract.
 - `app/lib/ui/common/lists/day_sectioned_entry_list.dart` - reused entry list with tap-to-view and
   swipe-delete.
 - `packages/domain/lib/src/accounting.dart` - `rollUp`, `fraction`, and filtering (see
@@ -41,7 +41,7 @@ owns cache disposal, and replacement Ledger identity rebuilds the session and it
 route consumer, `CategoryDetailScreen`. Closing the route disposes the notifier and removes its
 captured Ledger/cache listeners. After disposal, `_onChanged` returns without touching state. Tests
 hold an explicit `container.listen` subscription to keep the provider alive
-(`app/lib/ui/stats/category_detail/category_detail_lifecycle_test.dart`).
+(`app/test/ui/stats/category_detail/category_detail_lifecycle_test.dart`).
 
 Slices filter cache items by kind and window, roll up to main-category buckets with
 `Accounting.rollUp`, and sort by amount descending. Slice color comes from the category's
@@ -65,7 +65,7 @@ single-route guard until the matching route's `completed` future (`transactions-
 `app/lib/ui/transactions/transactions_flow.dart`, `app/lib/ui/common/base/flow_base.dart`).
 
 Trends currently has no category navigation. Category Detail retains its own date state, seeded by
-its caller, and inherits a fixed month or year mode. Its toolbar has the `MonthYearSelector` only;
+its future caller, and inherits a fixed month or year mode. Its toolbar has the `MonthYearSelector` only;
 it has no range menu.
 
 Budgets live in the Money Budgets segment. Trends does not mount `BudgetsFlow`
