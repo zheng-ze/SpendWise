@@ -216,7 +216,7 @@ def build():
         rows.append(f'<tr class="{cls}"><td>{d} Oct</td><td><b>{n}</b></td><td>{cat}</td><td>{acct}</td><td class="r">{amt(v, mv)}</td></tr>')
     reg_table = ('<table class="reg"><thead><tr><th>Date</th><th>Entry</th><th>Category</th><th>Account</th><th class="r">Amount</th></tr></thead><tbody>'
                  + "".join(rows) + "</tbody></table>")
-    left = (f'<div class="pane">{period("October 2026")}{seg(["List", "Calendar"], "List")}{band(3032.60, 167.40, 3200.00, 500.00)}{reg_table}</div>')
+    left = (f'<div class="pane">{period("October 2026")}{seg(["List", "Calendar"], "List")}{band(3032.60, 167.40, 3200.00, 500.00)}{top_categories(OCT)}{reg_table}</div>')
     right = ('<div class="pane raised">' + '<div class="th" style="font-size:14px;font-weight:600;display:flex;justify-content:space-between"><span>Edit entry</span><span class="sub">3 October</span></div>'
              + seg(["Expense", "Income", "Transfer"], "Expense") + amount_field("-42.50", False) + light_card(expense_fields(), "form-card") + btn("Update entry") + btn("Delete entry", "danger") + "</div>")
     reg("hi-desk", "history", "Desktop", "History with selected entry, desktop",

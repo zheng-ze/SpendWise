@@ -8,6 +8,7 @@ from tokens import TOKENS
 from comp import *
 import data
 import tiles
+import foldables
 import s_overview, s_history_trends, s_add, s_money, s_settings, s_states
 
 BASE = Path(__file__).resolve().parent
@@ -25,18 +26,23 @@ s_states.build_fresh()
 s_states.build_states()
 FR = data.FRAMES
 tiles.assert_seed_figures(s_money.accounts_body())
+FOLD = foldables.build({f["id"]: f for f in FR})
+FOLD_FRAMES = foldables.frames_of(FOLD)
 
 AREAS = [
     ("overview", "Overview", "Today, recent entries and what is coming up. Notices sit above the widgets; Edit Overview chooses the rest."),
-    ("history", "History", "The dense record: month list with signed day totals, week totals, calendar and search."),
-    ("trends", "Trends", "Month by month or year by year, one spread per arrow, and the selected period's expense or income breakdown. Chart and level come from Settings."),
+    ("history", "History", "The dense record: month list with signed day totals, a Top categories card below the summary band that opens Trends, week totals, calendar and search."),
+    ("trends", "Trends", "Opened from History, which stays the selected destination; Back returns to History. Month by month or year by year, one spread per arrow, and the selected period's expense or income breakdown. Chart and level come from Settings."),
     ("add", "Add and edit", "The Add sheet from the tab bar, the receipt path, pickers and editing. Amount first; Update before Delete; Undo after."),
     ("money", "Money", "Budgets, accounts and plans, kept separate. Pockets are counted once; card statement cuts are not due dates."),
-    ("settings", "Settings", "Reached from the gear. Appearance, the Trends breakdown choices, categories and the recycle bin."),
+    ("settings", "Settings", "The fifth tab and its own destination. Appearance, the Trends breakdown choices, categories and the recycle bin."),
     ("sync", "Sync", "Hosted sync by default: email and a code. Repair, renewal and the own-server path keep the app's fixed messages."),
     ("fresh", "Fresh install", "Every empty screen offers one next step and never draws unknown spending as zero."),
     ("states", "Loading, errors and app start", "Skeletons while loading, a named failure with Try again, save failures in transient sheet banners and the boot screens."),
 ]
+
+FOLD_AREA = ("foldables", "Foldables", foldables.INTRO)
+ALL_AREAS = AREAS + [FOLD_AREA]
 
 NOT_DRAWN = {
     "Add account, no pocketable parents": "Not drawn: pockets are now added from an everyday account's page, so the locked state cannot occur.",
@@ -67,7 +73,7 @@ missing = [r[0] for r in inv if r[0] not in covered and r[0] not in NOT_DRAWN]
 if missing:
     print("UNMAPPED:", missing)
     sys.exit(1)
-ids = [f["id"] for f in FR]
+ids = [f["id"] for f in FR] + [f["id"] for f in FOLD_FRAMES]
 assert len(ids) == len(set(ids)), "duplicate ids"
 extra_inv = {}
 for n, fid in EXTRA_MAP.items():
@@ -115,6 +121,9 @@ def inventory_table():
             e = escape(", ".join(earlier)) if earlier else "New in the approved design"
             kind = " (desktop)" if f["kind"] == "desktop" else ""
             rows.append(f'<tr><td><a href="#{f["id"]}">{f["title"]}</a>{kind}</td><td>{title} / {f["group"]}</td><td>{escape(f["code"])}</td><td>{e}</td></tr>')
+    rows.append('<tr class="areahead"><td colspan="4">Foldables</td></tr>')
+    for section, _, frames in FOLD:
+        rows.extend(f'<tr><td><a href="#{f["id"]}">{escape(f["title"])}</a> (foldable)</td><td>Foldables / {section}</td><td>Foldables mockup; no current code route</td><td>New in the approved design</td></tr>' for f in frames)
     rows.append('<tr class="areahead"><td colspan="4">Listed in the earlier inventory, not drawn</td></tr>')
     for r in inv:
         if r[0] in NOT_DRAWN and r[0] not in covered:
@@ -178,7 +187,7 @@ def appendix():
 
 
 def feedback():
-    areas = [a[1] for a in AREAS] + ["Design tokens and components"]
+    areas = [a[1] for a in ALL_AREAS] + ["Design tokens and components"]
     boxes = "".join(f'<label>{a}<textarea data-area="{a}" placeholder="A correction for {a}"></textarea></label>' for a in areas)
     return (f'<section class="area" id="feedback"><header><h2>Flag a correction</h2><p>One note per area, then an overall note. Prepare feedback collects them into one message to copy.</p></header>'
             f'<div class="feedback"><div class="fbgrid">{boxes}</div><label style="display:block;margin-top:16px;font-size:13px;font-weight:600">Overall<textarea id="fb-overall" placeholder="Overall note"></textarea></label>'
@@ -241,12 +250,12 @@ def page():
     desks = sum(1 for f in FR if f["kind"] == "desktop")
     nd = sum(1 for r in inv if r[0] in NOT_DRAWN and r[0] not in covered)
     earlier_cov = sum(1 for r in inv if r[0] in covered)
-    toc = "".join(f'<a href="#area-{k}">{t}</a>' for k, t, _ in AREAS)
+    toc = "".join(f'<a href="#area-{k}">{t}</a>' for k, t, _ in ALL_AREAS)
     head = f"""<!doctype html><html lang="en" data-page="light" data-app="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SpendWise reference</title><meta name="description" content="Final reference draft of every SpendWise screen in Harbour glass, light and dark, phone and desktop.">
-<style>{PAGE_CSS}{APP_CSS}{EXTRA_CSS}{tiles.TILE_CSS}</style></head><body>{sprite()}<main>"""
+<style>{PAGE_CSS}{APP_CSS}{EXTRA_CSS}{tiles.TILE_CSS}{foldables.FOLDABLE_CSS}</style></head><body>{sprite()}<main>"""
     mast = f"""<header class="masthead"><div><h1>Every SpendWise screen.<span>Harbour glass, light and dark.</span></h1>
-<p>The implementation reference for the approved Daylight structure: Overview, History, Trends and Money, with Add in the tab bar and Settings behind the gear. Every frame below is drawn from one token table and follows the app theme switch.</p></div>
+<p>The implementation reference for the approved Daylight structure: Overview, History, Money and Settings, with Add centred in the tab bar and Trends opened from History. Every frame below is drawn from one token table and follows the app theme switch.</p></div>
 <div class="controlbox"><div class="ctl"><b>App theme<small>Switches every drawn app frame. The side-by-side pairs stay fixed.</small></b><span class="toggle-group" role="group" aria-label="App theme"><button type="button" data-set-app="light" aria-pressed="true">Light</button><button type="button" data-set-app="dark" aria-pressed="false">Dark</button></span></div>
 <div class="ctl"><b>Page background<small>Changes only this page around the frames.</small></b><span class="toggle-group" role="group" aria-label="Page background"><button type="button" data-set-page="light" aria-pressed="true">Light</button><button type="button" data-set-page="dark" aria-pressed="false">Dark</button></span></div></div></header>
 <nav class="toc" aria-label="Sections"><a href="#inventory">Screen inventory</a><a href="#side-by-side">Light and dark side by side</a>{toc}<a href="#appendix">Design tokens</a><a href="#feedback">Flag a correction</a></nav>
@@ -254,22 +263,25 @@ def page():
 <div><b>Labelled samples</b>Monthly history January 2024 to July 2026 (August missing; September is the four seed entries plus three sample entries on 28-30 September), the 48 / 36 / 16 category split for sample months, matched-day windows for insights (1-3 July, August and September, a separate sample from the monthly history), the S$1,200 cap, the 450 / 350 / 120 budget limits and the three sample September entries (S$74.50, Amex Card). Captions name every sample.</div>
 <div><b>How to read</b>Phone frames show the whole scroll where a caption says so. Desktop windows share one neutral macOS and Windows frame. Captions carry the arithmetic and the code location; nothing inside a drawn screen is an annotation.</div></div>"""
     inv_sec = f"""<section class="area" id="inventory"><header><h2>Screen inventory</h2><p>Every drawn screen, its section, its code location from the earlier atlas inventory and the earlier rows it covers. New Daylight screens have no current code route.</p></header>
-<div class="counts"><span><b>{len(FR)}</b>screens drawn ({phones} phone, {desks} desktop)</span><span><b>{len(FR) + nd}</b>listed, including {nd} not drawn</span><span><b>{earlier_cov}</b>of 177 earlier rows covered</span><span><b>{len(tiles.ALL_WIDGETS)}</b>widgets in the catalogue</span></div>
+<div class="counts"><span><b>{len(FR)}</b>screens drawn ({phones} phone, {desks} desktop)</span><span><b>{len(FR) + nd}</b>listed, including {nd} not drawn</span><span><b>{earlier_cov}</b>of 177 earlier rows covered</span><span><b>{len(tiles.ALL_WIDGETS)}</b>widgets in the catalogue</span><span><b>{len(FOLD_FRAMES)}</b>foldable frames, listed under Foldables</span></div>
 {inventory_table()}</section>"""
     sbs = f"""<section class="area" id="side-by-side"><header><h2>Light and dark side by side</h2><p>The main screens with both appearances fixed, for direct comparison. These frames do not follow the app theme switch.</p></header>{side_by_side()}</section>"""
-    areas = "".join(render_area(*a) for a in AREAS)
+    areas = "".join(render_area(*a) for a in AREAS) + FOLD_HTML
     foot = '<p class="footer">Static, portable reference. Inline CSS and JavaScript; Instrument Sans from Google Fonts with Arial as fallback. Drawn controls are static; only the two theme switches and the feedback form work.</p>'
     return head + mast + inv_sec + sbs + areas + appendix() + feedback() + foot + f"</main><script>{JS}</script></body></html>"
 
 
+FOLD_HTML = foldables.render(FOLD)
+foldables.check_foldables(FOLD, FOLD_HTML)
 html = page()
 for bad in [chr(0x2014)]:
     assert bad not in html, "em dash found"
 OUT.write_text(html, encoding="utf-8")
 manifest = [dict(id=f["id"], area=f["area"], inventory_rows=f["inv"] + extra_inv.get(f["id"], []),
                       form_factor="desktop" if f["kind"] == "desktop" else "phone") for f in FR]
+manifest += [dict(id=f["id"], area=FOLD_AREA[0], inventory_rows=[], form_factor="foldable") for f in FOLD_FRAMES]
 for bad in [chr(0x2014)]:
     assert bad not in json.dumps(manifest), "em dash found"
 FRAMES_JSON.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
-print("frames", len(FR), "bytes", len(html))
+print("frames", len(FR), "foldable", len(FOLD_FRAMES), "bytes", len(html))
 print("inventory", sum(1 for r in inv if r[0] in covered), "of", len(inv))

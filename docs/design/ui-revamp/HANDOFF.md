@@ -6,15 +6,24 @@ Generator: `/Users/macbook/Desktop/SpendWise/.lavish/reference-src/`.
 
 The reference page is rebuilt from the current generator. The light theme now uses a light blue canvas with white content cards, neutral separation and blue accents. The owner reviews the generated result; browser and screenshot verification are excluded from this revision. Earlier layout evidence below remains historical static evidence.
 
+## 2026-10-20: History-first navigation and one consolidated reference
+
+`spendwise-reference.html` now holds the phone, desktop and foldable frames. `generator/foldables.py` builds the foldable frames, and `build.py` renders them as the Foldables area. No separate foldables page or builder remains. Frame ids are unchanged, and the 22 foldable ids are checked for uniqueness against the reference ids. `frames.json` lists the foldable frames with form factor `foldable` and no inventory rows. The foldable checks run in the same build: 22 frames, 7 folded, equality with the reference Budgets, Accounts and Plans frames, device names once, no em dash.
+
+- Navigation: the phone bar is Overview, History, Add (centred), Money, Settings. The desktop sidebar lists Overview, History, a Money group (Budgets, Accounts, Plans) and Settings. The foldable rail lists the four destinations, then Add. No page header draws a gear. The Settings root has no back control; its sub-pages keep Back to Settings with Settings selected.
+- Trends is opened from History. Trends and category frames select History in the tab bar, sidebar and rail, and the Trends header back control reads History. Category detail keeps Back to Trends. Overview widget and insight evidence captions state that Open Trends selects History and opens Trends on top, and Back returns to History.
+- Top categories card: unscoped History frames draw it directly below the summary band and above By week: up to three category rows from the existing seed (October Dining 83.90, Groceries 73.50, Transport 10.00; September from the September entries) and a muted See more detail action. A period with no entries draws only the action row. Calendar mode and search draw no card. The action keeps a 48 px invisible hit region (`--hit-target`) with the visible padding unchanged. Monthly mode would cover the selected year; no Monthly frame exists.
+- Dining medallion in the card takes the notice tint, as in the approved card mockup.
+
 ## 2026-10-08: shared tiles and the foldables page
 
-The 14 foldables tiles now live in `generator/tiles.py`, and both pages draw them from one dataset in `generator/data.py`. The foldables page moved here as `generator/build_foldables.py` and `generator/foldable_frames.py`, and writes `spendwise-foldables.html`. The `.lavish/` copy of the foldables generator is superseded.
+The 14 foldables tiles now live in `generator/tiles.py`, and both pages draw them from one dataset in `generator/data.py`. The foldables page moved here as a separate builder; it is now folded into `generator/foldables.py` and the one reference page (see the 2026-10-20 section). The `.lavish/` copy of the foldables generator is superseded.
 
 ### Tile integration
 
 - `tiles.py` holds Safe to spend, Pace vs usual, Subscriptions, Needs attention, Biggest entries, By account, Category movers, Day-of-week pattern, Fixed vs flexible, Savings rate, Net worth trend, Card utilisation, Plans cash flow and the budget forecast row (fill is spent, a vertical line is the month-end forecast, a chip says On pace or Over by the amount at this pace), plus `TILE_CSS`. `data.py` no longer defines `w_budgetwatch` or `ALL_WIDGETS`; `tiles.ALL_WIDGETS` is the 16-widget order and `tiles.w_budgetwatch` is the one Budget watch.
 - One September. `data.SEP` is the four seed entries (`SEP_SEED`) plus the three sample entries (`SEP_SAMPLE`), and `MONTHS` carries the same September total (263.20, asserted). Every September figure on both pages comes from it: the History September band, list and By week, every 12-month chart and spread, the Dining and Groceries category views, search, and the Amex card page. Because the sample entries are on Amex Card, the card figures derive from the entries too: owed 399.60, this cycle 285.10, net worth 20,819.40 (`AMEX_OWED`, `AMEX_CYCLE`, `NET_WORTH_NOW` in `data.py`).
-- Every figure is computed from `data.py`: the seed entries `OCT` and `SEP`, the three sample entries `SEP_SAMPLE`, the monthly history `MONTHS`, `COMPLETE_MONTHS` and the sample values below. `tiles.py` asserts the ties between tiles: the October spend equals the seed figure and the Money and Top categories text, the account split adds to the October spend, the category averages add to the usual month, Fixed vs flexible and Day-of-week take the same period total as the whole-period breakdown, and the three-week usual windows end before the current week. `build_foldables.py` asserts that its phone Budgets, Accounts and Plans frames equal the reference frames `mo-budgets`, `mo-accounts` and `mo-plans-attention`.
+- Every figure is computed from `data.py`: the seed entries `OCT` and `SEP`, the three sample entries `SEP_SAMPLE`, the monthly history `MONTHS`, `COMPLETE_MONTHS` and the sample values below. `tiles.py` asserts the ties between tiles: the October spend equals the seed figure and the Money and Top categories text, the account split adds to the October spend, the category averages add to the usual month, Fixed vs flexible and Day-of-week take the same period total as the whole-period breakdown, and the three-week usual windows end before the current week. `foldables.py` asserts that its phone Budgets, Accounts and Plans frames equal the reference frames `mo-budgets`, `mo-accounts` and `mo-plans-attention`.
 - Reference placement (frame ids). Overview: the four new widgets close `ov-custom` (now "all 16 widgets") and `ov-desk`, fill the widget catalogue (16 cells, each with a usual and a sparse state), and join the Edit Overview lists in `ov-edit`, `ov-addwidgets` and `ov-desk-edit`. History: Biggest entries and By account follow By week in `hi-oct` (and under `hi-period` and the three Edit entry sheets) and sit below the register in `hi-desk`. Trends: the four tiles follow the breakdown in `tr-july`, `tr-oct-map`, `tr-oct-sub-donut`, `tr-oct-sub-map` and `tr-desk`. Money: the forecast line and chip are on every Category budgets row in `mo-budgets` (and under `mo-budget-add`, `mo-budget-pick`, `mo-desk-budgets`), with the legend in All spending; Net worth trend follows the summary band and Card utilisation follows Credit cards in `mo-accounts`, `mo-desk-accounts` and the account sheets drawn over it; Plans cash flow follows Next up in `mo-plans`, `mo-plans-attention` and `mo-desk-plans`. No frame id was added or removed; `frames.json` is unchanged.
 - Sparse specimens stay sparse: Week so far and Insights keep the history-needed state in `ov-custom` and the catalogue. The four new widgets have sparse catalogue states (choose accounts, more complete months needed, no recurring plans, nothing needs attention).
 
@@ -73,10 +82,9 @@ From the repository root:
 
 ```sh
 PYTHONDONTWRITEBYTECODE=1 python3 docs/design/ui-revamp/generator/build.py
-PYTHONDONTWRITEBYTECODE=1 python3 docs/design/ui-revamp/generator/build_foldables.py
 ```
 
-The reference reports 184 frames and 168 of 177 inventory rows (173 phone, 11 desktop). The foldables page reports 22 frames (7 folded, 15 open).
+The build reports 184 reference frames and 168 of 177 inventory rows (173 phone, 11 desktop), and 22 foldable frames (7 folded, 15 open).
 
 ## 2026-10-06: tracked copy with D8 captions and relative paths
 

@@ -9,7 +9,7 @@ Write one new file, `/Users/macbook/Desktop/SpendWise/.lavish/spendwise-referenc
 Read these fully before building. Later items override earlier ones where they conflict.
 
 1. `.lavish/ui-redesign-app.html` and its screen inventory table (177 screens and states taken from `app/lib/ui/`). Use it as the checklist of what the app contains. Its visual style is superseded.
-2. `.lavish/ux-ideation-4.html`: the Daylight structure. Tabs are Overview, History, Trends and Money, with Add in the tab bar and Settings reached from the gear. Desktop uses a sidebar. Overview insights follow the rules stated in round 4.
+2. `.lavish/ux-ideation-4.html`: the Daylight structure. Destinations are Overview, History, Money and Settings; the phone tab bar is Overview, History, Add (centred), Money, Settings. Trends is opened from History and keeps History selected, and no page header draws a gear. Desktop uses a sidebar with the same four destinations, Budgets, Accounts and Plans grouped under Money. Amended by the Trends-behind-History decision (#434). Overview insights follow the rules stated in round 4.
 3. `.lavish/ux-ideation-6.html` and `.lavish/ux-ideation-7.html`:
    - the coverage map placing all 24 previously missing features (visible, one tap in, only when needed, under More options, hidden);
    - the six feature screens: History week totals, Add account kinds, the Money Plans tab, Category More options, Sync setup, and Overview notices;
@@ -36,7 +36,7 @@ Also follow the approved base rules in `.lavish/ui-redesign.html`, Decisions sec
 ## What to build
 
 - Every screen and significant state in the app, including:
-  - the four tabs and their sub-screens;
+  - the four destinations (Overview, History, Money, Settings) and their sub-screens, with Trends opened from History;
   - Add, Edit and receipt flows;
   - pickers and dialogs;
   - every Settings page, including Appearance (Light, Dark, System) and the new Trends breakdown settings;

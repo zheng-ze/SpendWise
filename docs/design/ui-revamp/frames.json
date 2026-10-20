@@ -1427,5 +1427,137 @@
       "Budget limit, save failure"
     ],
     "form_factor": "phone"
+  },
+  {
+    "id": "overview-light",
+    "area": "foldables",
+    "inventory_rows": [],
+    "form_factor": "foldable"
+  },
+  {
+    "id": "overview-dark",
+    "area": "foldables",
+    "inventory_rows": [],
+    "form_factor": "foldable"
+  },
+  {
+    "id": "history-full",
+    "area": "foldables",
+    "inventory_rows": [],
+    "form_factor": "foldable"
+  },
+  {
+    "id": "history-selected",
+    "area": "foldables",
+    "inventory_rows": [],
+    "form_factor": "foldable"
+  },
+  {
+    "id": "trends-full",
+    "area": "foldables",
+    "inventory_rows": [],
+    "form_factor": "foldable"
+  },
+  {
+    "id": "trends-selected",
+    "area": "foldables",
+    "inventory_rows": [],
+    "form_factor": "foldable"
+  },
+  {
+    "id": "money-full",
+    "area": "foldables",
+    "inventory_rows": [],
+    "form_factor": "foldable"
+  },
+  {
+    "id": "money-selected",
+    "area": "foldables",
+    "inventory_rows": [],
+    "form_factor": "foldable"
+  },
+  {
+    "id": "money-accounts",
+    "area": "foldables",
+    "inventory_rows": [],
+    "form_factor": "foldable"
+  },
+  {
+    "id": "money-plans",
+    "area": "foldables",
+    "inventory_rows": [],
+    "form_factor": "foldable"
+  },
+  {
+    "id": "settings-full",
+    "area": "foldables",
+    "inventory_rows": [],
+    "form_factor": "foldable"
+  },
+  {
+    "id": "settings-selected",
+    "area": "foldables",
+    "inventory_rows": [],
+    "form_factor": "foldable"
+  },
+  {
+    "id": "add-entry",
+    "area": "foldables",
+    "inventory_rows": [],
+    "form_factor": "foldable"
+  },
+  {
+    "id": "phone-overview",
+    "area": "foldables",
+    "inventory_rows": [],
+    "form_factor": "foldable"
+  },
+  {
+    "id": "phone-history",
+    "area": "foldables",
+    "inventory_rows": [],
+    "form_factor": "foldable"
+  },
+  {
+    "id": "phone-trends",
+    "area": "foldables",
+    "inventory_rows": [],
+    "form_factor": "foldable"
+  },
+  {
+    "id": "phone-budgets",
+    "area": "foldables",
+    "inventory_rows": [],
+    "form_factor": "foldable"
+  },
+  {
+    "id": "phone-accounts",
+    "area": "foldables",
+    "inventory_rows": [],
+    "form_factor": "foldable"
+  },
+  {
+    "id": "phone-plans",
+    "area": "foldables",
+    "inventory_rows": [],
+    "form_factor": "foldable"
+  },
+  {
+    "id": "confirmation",
+    "area": "foldables",
+    "inventory_rows": [],
+    "form_factor": "foldable"
+  },
+  {
+    "id": "continuity-folded",
+    "area": "foldables",
+    "inventory_rows": [],
+    "form_factor": "foldable"
+  },
+  {
+    "id": "continuity-open",
+    "area": "foldables",
+    "inventory_rows": [],
+    "form_factor": "foldable"
   }
 ]

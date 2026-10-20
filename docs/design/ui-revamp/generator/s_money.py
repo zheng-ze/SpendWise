@@ -49,7 +49,7 @@ def plans_body(attention=False, with_tile=True):
 
 def acct_page(title, sub, balance, bal_label, entries, extra="", chips_html="", back="Money", menu=True):
     acts = ic("more") if menu else ""
-    return (header(title, sub, acts=acts, gear=False, back=back) + chips_html
+    return (header(title, sub, acts=acts, back=back) + chips_html
             + tray("", f'<div class="lab">{bal_label}</div><div class="hero" style="font-size:30px">{balance}</div>{extra}')
             + entries)
 
@@ -104,7 +104,7 @@ def build():
         bars.append(f'<div class="b {kind}{" sel" if m == 9 else ""}" style="position:relative"><i{h}></i>{limit}</div>')
         axis.append(f'<span class="{"sel" if m == 9 else ""}">{MSHORT[m][0]}</span>')
     chart = f'<div class="bars mini" style="height:80px">{"".join(bars)}</div><div class="axis mini">{"".join(axis)}</div>'
-    detail = (header("Dining", "October 2026", acts="<span>Edit</span>", gear=False, back="Budgets")
+    detail = (header("Dining", "October 2026", acts="<span>Edit</span>", back="Budgets")
               + tray("", '<div class="big">S$266.10 left</div><div class="lab">Spent S$83.90 of S$350.00</div><div class="ctrack" style="--c:var(--dining)"><i style="width:24%"></i></div>')
               + tray("2026 at a glance", chart + '<div class="qual">Dashed marks show the S$350.00 limit from September. August has no records; October is incomplete.</div>')
               + '<div class="tray" style="padding:0 12px">' + setrow("Limit changes", "Default S$350.00 from September 2026") + "</div>"
@@ -118,7 +118,7 @@ def build():
     months = "".join(
         f'<div class="kv"><span>{MLONG[m]} 2026</span><b style="{"color:var(--subtext);font-weight:400" if m < 8 else ""}">{"No budget" if m < 8 else "S$350.00"}</b></div>'
         for m in range(12))
-    lim = (header("Limit changes", "Dining", gear=False, back="Dining")
+    lim = (header("Limit changes", "Dining", back="Dining")
            + tray("Default limit", '<div class="kv"><span>From September 2026 onward</span><b>S$350.00</b></div><div class="link">Change default</div>')
            + period("2026", next_off=True) + tray("", months))
     reg("mo-budget-limits", M, "Budgets", "Budget limit changes",
@@ -145,7 +145,7 @@ def build():
         "Delete budget is reached from Edit on the budget page. Shared confirmation pattern. The underlying detail uses the sample S$350 limit and revision 2 monthly history with September (120.80) and October Dining amounts.",
         "app/lib/ui/common/delete_confirmation.dart", ["Delete budget confirmation"])
 
-    body = header("Dining", "", gear=False, back="Budgets") + empty("gauge", "This budget was deleted", "It was removed on another screen or device.", "Back to Budgets")
+    body = header("Dining", "", back="Budgets") + empty("gauge", "This budget was deleted", "It was removed on another screen or device.", "Back to Budgets")
     reg("mo-budget-deleted", M, "Budgets", "Budget deleted elsewhere",
         phone(body, "Money"),
         "Shown when the open budget is deleted elsewhere, on the detail or limit page.",
@@ -318,7 +318,7 @@ def build():
         "Sample: Gym membership (-98.00, Fitness) could not add its 1 October entry because Fitness is in the recycle bin. The notice states the reason and one fix, and stays until fixed. Plans cash flow follows Next up and counts the Gym membership plan on 1 November (" + sm(GYM_MONTHLY_PLAN[4]) + ", charged to " + GYM_PLAN_ACCOUNT + ", sample) alongside Monthly salary; Netflix is charged to Amex and does not move it.",
         "app/lib/ui/settings/plan/plan_list_screen.dart; app/lib/ui/shell/banner_state.dart")
 
-    pdet = (header("Netflix", "Plan", gear=False, back="Plans", acts="")
+    pdet = (header("Netflix", "Plan", back="Plans", acts="")
             + tray("", '<div class="big exp">-S$19.98</div><div class="lab">Every month</div>'
                    '<div class="kv" style="margin-top:6px"><span>Next</span><b>20 October 2026</b></div><div class="kv"><span>Account</span><b>Amex Card</b></div>'
                    '<div class="kv"><span>Category</span><b>Dining</b></div><div class="kv"><span>Started</span><b>20 October 2026</b></div>'
@@ -351,16 +351,16 @@ def build():
 
     # Desktop
     bl = budgets_body().replace(fab("Add budget"), "").replace(money_head("Budgets"), "")
-    right = detail.replace(header("Dining", "October 2026", acts="<span>Edit</span>", gear=False, back="Budgets"),
+    right = detail.replace(header("Dining", "October 2026", acts="<span>Edit</span>", back="Budgets"),
                            '<div class="th" style="font-size:18px;font-weight:600;display:flex;justify-content:space-between;margin-bottom:8px"><span>Dining</span><span class="link" style="margin:0">Edit</span></div>')
     reg("mo-desk-budgets", M, "Desktop", "Budgets, desktop",
         desktop("Budgets", f'<div class="dg2e"><div>{bl}</div><div class="pane raised">{right}</div></div>', "Budgets", "October 2026",
                 acts=f'<span class="sbtn">{ic("plus","s")}Add budget</span><span class="pbtn">{ic("plus","s")}Add entry</span>'),
-        "Budgets, Accounts and Plans each have a sidebar place on desktop. The selected budget opens beside the list. Same sample limits and seed spending; the category bars carry the month-end forecast line and chip as on the phone.",
+        "Budgets, Accounts and Plans sit under a Money group in the desktop sidebar. The selected budget opens beside the list. Same sample limits and seed spending; the category bars carry the month-end forecast line and chip as on the phone.",
         "app/lib/ui/budgets/budget_list/budgets_flow.dart", kind="desktop")
 
     al = accounts_body().replace(fab("Add account"), "").replace(money_head("Accounts"), "")
-    amex_side = amex.replace(header("Amex Card", "Credit card", acts=ic("more"), gear=False, back="Money"),
+    amex_side = amex.replace(header("Amex Card", "Credit card", acts=ic("more"), back="Money"),
                              '<div class="th" style="font-size:18px;font-weight:600;display:flex;justify-content:space-between;margin-bottom:8px"><span>Amex Card</span><span class="link" style="margin:0">Edit</span></div>')
     reg("mo-desk-accounts", M, "Desktop", "Accounts with card page, desktop",
         desktop("Accounts", f'<div class="dg2e"><div>{al}</div><div class="pane raised">{amex_side}</div></div>', "Accounts", "Balances through 3 October 2026",
@@ -369,7 +369,7 @@ def build():
         "app/lib/ui/accounts/accounts_screen.dart; app/lib/ui/shell/app_shell.dart", ["Accounts, macOS"], kind="desktop")
 
     pl = plans_body().replace(money_head("Plans"), "")
-    pd = pdet.replace(header("Netflix", "Plan", gear=False, back="Plans", acts=""), '<div class="th" style="font-size:18px;font-weight:600;margin-bottom:8px">Netflix</div>')
+    pd = pdet.replace(header("Netflix", "Plan", back="Plans", acts=""), '<div class="th" style="font-size:18px;font-weight:600;margin-bottom:8px">Netflix</div>')
     reg("mo-desk-plans", M, "Desktop", "Plans, desktop",
         desktop("Plans", f'<div class="dg2e"><div>{pl}</div><div class="pane raised">{pd}</div></div>', "Plans", "Sorted by next date"),
         "The plan list with the selected plan beside it. Seeded plans only; Plans cash flow below the list follows them.",

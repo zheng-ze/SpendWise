@@ -147,23 +147,21 @@ def statusbar():
     return '<div class="st"><span>9:41</span><span>5G</span></div>'
 
 
-TABS = [("Overview", "home"), ("History", "history"), ("Trends", "trends"), ("Money", "money")]
+TABS = [("Overview", "home"), ("History", "history"), ("Add", "plus"), ("Money", "money"), ("Settings", "gear")]
 
 
 def tabbar(active):
     parts = []
     for name, icon in TABS:
-        on = " on" if name == active else ""
-        parts.append(f'<span class="{on.strip()}">{ic(icon)}{name}</span>')
-    parts.append(f'<span class="add">{ic("plus")}Add</span>')
+        state = "add" if name == "Add" else ("on" if name == active else "")
+        parts.append(f'<span class="{state}">{ic(icon)}{name}</span>')
     return f'<div class="tabbar">{"".join(parts)}</div>'
 
 
-def header(title, date=None, acts="", gear=True, back=None):
+def header(title, date=None, acts="", back=None):
     b = f'<div class="back">{ic("left")}{back}</div>' if back else ""
     d = f'<div class="dl">{date}</div>' if date else ""
-    g = ic("gear") if gear else ""
-    return f'<div class="hd">{b}{d}<div class="tr"><h4>{title}</h4><div class="acts">{acts}{g}</div></div></div>'
+    return f'<div class="hd">{b}{d}<div class="tr"><h4>{title}</h4><div class="acts">{acts}</div></div></div>'
 
 
 def phone(body, tab=None, cls="", force="", extra="", body_cls=""):
@@ -472,12 +470,13 @@ def cattrack(name, value, pct, color, right_text=None, over=False):
 
 # ---------- desktop ----------
 
-SIDE = [("Overview", "home"), ("History", "history"), ("Trends", "trends"), ("Budgets", "gauge"), ("Accounts", "bank"), ("Plans", "repeat")]
+SIDE = [("Overview", "home", False), ("History", "history", False), ("Money", None, False), ("Budgets", "gauge", True), ("Accounts", "bank", True), ("Plans", "repeat", True)]
 
 
 def desktop(active, content, title, sub="", acts=None, force="", overlay="", sync="Sync on"):
     items = "".join(
-        f'<span class="{"on" if n == active else ""}">{ic(i, "s")}{n}</span>' for n, i in SIDE
+        f'<small class="grp">{n}</small>' if i is None else f'<span class="{"on" if n == active else ""}{" child" if child else ""}">{ic(i, "s")}{n}</span>'
+        for n, i, child in SIDE
     )
     settings = f'<span class="{"on" if active == "Settings" else ""}">{ic("gear", "s")}Settings</span>'
     acts = acts if acts is not None else (

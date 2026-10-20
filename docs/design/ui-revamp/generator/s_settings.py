@@ -41,7 +41,7 @@ SYNC = {
 
 
 def settings_body(sync="off", chart="Donut", level="Categories"):
-    return (header("Settings", back="Overview", gear=False) + appearance_tray()
+    return (header("Settings") + appearance_tray()
             + tray("Sync", SYNC[sync]) + breakdown_tray(chart, level)
             + tray("Overview", setrow("Overview insights", "Category changes and usual pace") + setrow("Edit Overview", "Choose and order widgets"))
             + tray("Manage", setrow("Categories", "Income and expense groups") + setrow("Receipt entry", "Show scan and upload when adding", switch=True))
@@ -50,13 +50,13 @@ def settings_body(sync="off", chart="Donut", level="Categories"):
 
 
 def settings_phone(body, long=True):
-    return phone(body, "none", "long" if long else "")
+    return phone(body, "Settings", "long" if long else "")
 
 
 def build_settings():
     reg("st-root", S, "Settings", "Settings",
         settings_phone(settings_body()),
-        "Reached from the gear on every tab. Appearance offers Light, Dark and System; the drawn selection follows this page's app theme switch. Trends breakdown holds both choices that left the Trends screen: Chart (Donut or Category map) and Breakdown level (Categories or Subcategories). Full scroll shown.",
+        "Settings is the fifth tab and the root of its own destination, so it has no back control. Appearance offers Light, Dark and System; the drawn selection follows this page's app theme switch. Trends breakdown holds both choices that left the Trends screen: Chart (Donut or Category map) and Breakdown level (Categories or Subcategories). Full scroll shown.",
         ROOT, ["Settings", "Appearance settings", "Settings, Evergreen dark"])
 
     def prev(kind, on):
@@ -74,7 +74,7 @@ def build_settings():
             for n, d in [("Categories", "Dining, Groceries, Transport"), ("Subcategories", "Supermarket and Fresh Market on their own")])
 
     def trends_page(chart, level):
-        return (header("Trends breakdown", back="Settings", gear=False)
+        return (header("Trends breakdown", back="Settings")
                 + '<div class="lab" style="margin:-6px 0 6px">Trends shows the selected month or year this way. Tapping a category still opens its subcategories and entries.</div>'
                 + '<div class="setlab">Chart</div><div class="prevs">' + prev("Donut", chart == "Donut") + prev("Category map", chart == "Category map") + "</div>"
                 + '<div class="setlab">Breakdown level</div>' + tray("", levels(level))
@@ -92,7 +92,7 @@ def build_settings():
         "The other combination. With these choices Trends draws the subcategory map (see Trends, October, subcategories, category map).",
         ROOT)
 
-    ins = (header("Overview insights", back="Settings", gear=False)
+    ins = (header("Overview insights", back="Settings")
            + tray("", toggle_fld("Category changes", True, "Compare the same days in earlier months") + toggle_fld("Usual pace", True, "Compare with the previous 3 weeks"))
            + '<div class="lab">Insights need the three previous months to be complete. They report a difference and never forecast. Dismissing one hides it for that month.</div>')
     reg("st-insights", S, "Settings", "Overview insights",
@@ -104,7 +104,7 @@ def build_settings():
     def catline(name, cat, sub="", indent=False):
         st = ' style="padding-left:22px"' if indent else ""
         return f'<div class="row"{st}>{med(cat)}<div class="rc"><b>{name}</b><small>{sub}</small></div>{ic("right","s")}</div>'
-    cats = (header("Categories", back="Settings", gear=False)
+    cats = (header("Categories", back="Settings")
             + tray("Expense", catline("Dining", "Dining") + catline("Groceries", "Groceries", "2 subcategories") + catline("Supermarket", "Supermarket", "", True)
                    + catline("Fresh Market", "Fresh Market", "", True) + catline("Transport", "Transport"))
             + tray("Income", catline("Salary", "Salary")) + '<div class="reserve"></div>' + fab("Add category"))
@@ -174,7 +174,7 @@ def build_settings():
     def binrow(name, sub, cat, value=None):
         right = f'<span class="amt exp">{sm(value)}</span>' if value is not None else ""
         return f'<div class="row">{med(cat)}<div class="rc"><b>{name}</b><small>{sub}</small></div>{right}<span class="link" style="margin:0 0 0 6px">Restore</span></div>'
-    binb = (header("Recycle bin", back="Settings", gear=False)
+    binb = (header("Recycle bin", back="Settings")
             + tray("Entries", binrow("FairPrice groceries", "3 Oct 2026 / Amex Card", "Supermarket", -42.50))
             + tray("Accounts", binrow("DBS Checking", "Used by 7 entries", "Transfer").replace('--c:var(--subtext)', '--c:var(--action)'))
             + tray("Pockets", binrow("Holiday", "Used by 1 entry", "Transfer").replace('--c:var(--subtext)', '--c:var(--action)'))
@@ -185,14 +185,14 @@ def build_settings():
         "Illustrative archived items using seed names and their real entry counts. The Entries section is the approved entry-restoration proposal and needs implementation; accounts, pockets and categories restore today.",
         "app/lib/ui/settings/recycle_bin/recycle_bin_screen.dart", ["Recycle bin", "Recycle bin, entry restoration"])
 
-    sw_restore = (header("Recycle bin", back="Settings", gear=False) + '<div class="setlab">Pockets</div>'
+    sw_restore = (header("Recycle bin", back="Settings") + '<div class="setlab">Pockets</div>'
                   + f'<div class="swipe"><span class="act r">{ic("restore","s")}Restore</span><div class="row"><div class="rc"><b>Holiday</b><small>Used by 1 entry</small></div></div></div>')
     reg("st-bin-restore", S, "Recycle bin", "Recycle bin, swipe to restore",
         settings_phone(sw_restore, False),
         "A leading swipe restores at once, with no extra confirmation, as today. The Restore text on each row does the same without a gesture.",
         "app/lib/ui/settings/recycle_bin/recycle_bin_screen.dart", ["Recycle bin, restore gesture"])
 
-    sw_purge = (header("Recycle bin", back="Settings", gear=False) + '<div class="setlab">Categories</div>'
+    sw_purge = (header("Recycle bin", back="Settings") + '<div class="setlab">Categories</div>'
                 + f'<div class="swipe"><div class="row"><div class="rc"><b>Groceries</b><small>Used by 3 entries</small></div></div><span class="act d">{ic("trash","s")}Delete</span></div>')
     reg("st-bin-purge", S, "Recycle bin", "Recycle bin, swipe to delete",
         settings_phone(sw_purge, False),
@@ -217,8 +217,8 @@ def build_settings():
             cap + " Status lives inline in Settings; there is no separate status page. Full scroll shown.", ROOT, [inv])
 
     # Desktop settings
-    left = settings_body().replace(header("Settings", back="Overview", gear=False), "")
-    right = trends_page("Donut", "Categories").replace(header("Trends breakdown", back="Settings", gear=False), '<div class="th" style="font-size:18px;font-weight:600;margin-bottom:8px">Trends breakdown</div>')
+    left = settings_body().replace(header("Settings"), "")
+    right = trends_page("Donut", "Categories").replace(header("Trends breakdown", back="Settings"), '<div class="th" style="font-size:18px;font-weight:600;margin-bottom:8px">Trends breakdown</div>')
     reg("st-desk", S, "Desktop", "Settings, desktop",
         desktop("Settings", f'<div class="dg2e"><div>{left}</div><div class="pane raised">{right}</div></div>', "Settings", "", acts=""),
         "Settings opens from the sidebar. The list stays on the left and the chosen page opens beside it, here Trends breakdown.",

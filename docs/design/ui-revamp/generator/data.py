@@ -181,6 +181,33 @@ def band(net, spent, income, moved, lead_label="Net"):
     )
 
 
+TOP_CATEGORY_COUNT = 3
+
+
+def see_more_detail(under_band):
+    placement = " under-band" if under_band else ""
+    return f'<div class="category-action{placement}"><button type="button" class="detail">See more detail{ic("right")}</button></div>'
+
+
+def category_row(name, value, share):
+    color = CAT[name][1]
+    return (
+        f'<div class="category {name.lower()}" style="--c:var(--{color});--share:{share:.1f}%">{med(name)}'
+        f'<div class="category-data"><div class="category-title"><span>{name}</span><span class="amt">S${f2(value)}</span></div>'
+        '<div class="share-track" aria-hidden="true"><i></i></div></div></div>'
+    )
+
+
+def top_categories(entries, under_band=True):
+    spend = category_spend(entries)
+    total = sum(spend.values())
+    if not total:
+        return see_more_detail(under_band)
+    ranked = sorted(((name, value) for name, value in spend.items() if value), key=lambda item: -item[1])[:TOP_CATEGORY_COUNT]
+    rows = "".join(category_row(name, value, value / total * 100) for name, value in ranked)
+    return tray("Top categories", rows + see_more_detail(False), "top-categories")
+
+
 # ---------- Overview widgets ----------
 
 def w_today(cap=True, desktop=False):
