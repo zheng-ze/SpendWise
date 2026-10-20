@@ -110,17 +110,9 @@ class CategoryDetailNotifier extends AsyncNotifier<CategoryDetailViewState>
     _scope = const AllScope();
 
     await cache.refresh(currentLedger.state);
-    if (!_isCurrentSession(currentLedger, cache)) {
-      throw StateError('Category detail session ended during build.');
-    }
 
     return _buildState(detailDate: _detailDate, scope: _scope);
   }
-
-  bool _isCurrentSession(Ledger builtLedger, AnalysisCache builtCache) =>
-      ref.mounted &&
-      identical(_ledger, builtLedger) &&
-      identical(_cache, builtCache);
 
   void _onChanged() {
     if (!ref.mounted) return;

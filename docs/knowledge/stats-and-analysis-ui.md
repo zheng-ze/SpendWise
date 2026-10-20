@@ -39,7 +39,7 @@ disposal, and replacement Ledger identity rebuilds the session and its consumers
 `app/lib/ui/stats/analysis/analysis_view_model.dart`,
 `app/lib/ui/stats/category_detail/category_detail_view_model.dart`).
 
-In `app/lib/ui/stats/category_detail/category_detail_view_model.dart`, `categoryDetailViewModelProvider` is an `AsyncNotifierProvider.autoDispose.family` owned by its route consumer, `CategoryDetailScreen` (`app/lib/ui/stats/category_detail/category_detail_screen.dart`), so closing the route disposes the notifier and removes its captured Ledger/cache listeners. After disposal, `_onChanged` returns without touching state, and after awaiting `cache.refresh`, `build()` throws a `StateError` if the provider is unmounted or the captured Ledger/cache is no longer the notifier's current pair. Tests must hold an explicit `container.listen` subscription to keep the provider alive (`app/test/ui/stats/category_detail/category_detail_lifecycle_test.dart`).
+In `app/lib/ui/stats/category_detail/category_detail_view_model.dart`, `categoryDetailViewModelProvider` is an `AsyncNotifierProvider.autoDispose.family` owned by its route consumer, `CategoryDetailScreen` (`app/lib/ui/stats/category_detail/category_detail_screen.dart`), so closing the route disposes the notifier and removes its captured Ledger/cache listeners. After disposal, `_onChanged` returns without touching state. Tests must hold an explicit `container.listen` subscription to keep the provider alive (`app/test/ui/stats/category_detail/category_detail_lifecycle_test.dart`).
 
 Slices filter cache items by kind and window, roll up to main-category buckets with
 `Accounting.rollUp`, and sort by amount descending. Slice color comes from the category's
