@@ -1,6 +1,6 @@
 # Ledger Runtime
 
-Last reconciled: 2026-10-18
+Last reconciled: 2026-10-21
 
 ## Feature overview
 
@@ -91,12 +91,12 @@ current bus and rejects rebinding to a different bus (`analysis_cache.dart:Analy
 `LedgerBackedNotifier` watches `ledgerSessionProvider`, throws `StateError` when the session is
 null, and exposes the Ledger and cache from that same session
 (`app/lib/ui/common/base/ledger_backed_notifier.dart`).
-`AnalysisNotifier.build`, `CategoryDetailNotifier.build`, `BudgetsListNotifier.build`, and
-`BudgetDetailNotifier.build` capture that Ledger and cache in `_ledger` and `_cache`. Each build
+`CategoryDetailNotifier.build`, `BudgetsListNotifier.build`, and `BudgetDetailNotifier.build` capture
+that Ledger and cache in `_ledger` and `_cache`. Each build
 attaches listeners, registers removal against the captured instances, and awaits the initial
 cache refresh. Later notifications refresh the captured `_cache`; session replacement rebuilds
-the consumers through their watched dependency (`app/lib/ui/stats/analysis/analysis_view_model.dart`,
-`app/lib/ui/stats/category_detail/category_detail_view_model.dart`,
+the consumers through their watched dependency
+(`app/lib/ui/stats/category_detail/category_detail_view_model.dart`,
 `app/lib/ui/budgets/budget_list/budgets_list_view_model.dart`,
 `app/lib/ui/budgets/budget_detail/budget_detail_view_model.dart`).
 

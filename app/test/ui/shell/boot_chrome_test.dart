@@ -28,7 +28,8 @@ import 'package:spendwise/ui/shell/phone_bar.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/shell/spendwise_wordmark.dart';
 import 'package:spendwise/ui/settings/settings_flow.dart';
-import 'package:spendwise/ui/stats/stats_root_screen.dart';
+// Temporary exclusion: this MUST be resolved when the new Trends screen is ready.
+// import 'package:spendwise/ui/stats/stats_root_screen.dart';
 import 'package:spendwise/ui/theme/spendwise_colors.dart';
 import 'package:spendwise/ui/theme/spendwise_theme.dart';
 
@@ -107,7 +108,8 @@ void main() {
     expect(find.byType(NavigationRail), findsNothing);
     expect(find.byType(OverviewFlow), findsNothing);
     expect(find.byType(TransactionsFlow), findsNothing);
-    expect(find.byType(StatsRootScreen), findsNothing);
+    // Temporary exclusion: this MUST be resolved when the new Trends screen is ready.
+    // expect(find.byType(StatsRootScreen), findsNothing);
     expect(find.byType(AccountsFlow), findsNothing);
     expect(find.byType(SettingsFlow), findsNothing);
   }

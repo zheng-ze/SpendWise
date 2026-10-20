@@ -1,6 +1,6 @@
 # Transactions UI
 
-Last reconciled: 2026-10-20
+Last reconciled: 2026-10-21
 
 ## Feature overview
 
@@ -37,16 +37,15 @@ and is the only place recurring plans are created.
   It takes an optional `backLabel` passed through to the screen's back control; the shell
   History slot (always mounted, every layout) and scoped lists set none. `TransactionsFlow`
   handles and clears its screen `Step`s directly. `HistoryTrendsRequested` pushes one tracked
-  `MaterialPageRoute` holding `StatsFlow(onEnded: ...)` onto the Flow's navigator, where `onEnded` pops that route; the guard releases at
-  `route.completed`. Each accepted push invalidates `statsRootViewModelProvider` (fresh Expense and
-  Monthly) and seeds `selectedMonthProvider` from History's `selectedDate` at UTC month start. The
+  `MaterialPageRoute` holding `TrendsFlow(onEnded: ...)` onto the Flow's navigator, where `onEnded` pops that route; the guard releases at
+  `route.completed`. Each accepted push seeds `selectedMonthProvider` from History's `selectedDate` at UTC month start. The
   route is retained across destination switches and resizes because the always-mounted Flow state
   persists.
 - `app/lib/ui/transactions/trends_detail_action.dart` - 'See more detail', a muted trailing text
   action with chevron and a 48 dp invisible hit height (`trendsDetailActionHitHeight`), rendered
   below the totals bar in unscoped History only, including empty months.
 - `app/lib/ui/common/navigation/labelled_back_button.dart` - the back control with an optional
-  accessible label, shared by `TransactionsScreen` and `StatsRootScreen`.
+  accessible label, shared by `TransactionsScreen` and `TrendsScreen`.
 - `app/lib/ui/common/lists/day_sectioned_entry_list.dart`, `form_scaffold.dart`,
   `swipe_row.dart`, `pickers/` — shared components and picker sheets.
 - `app/lib/ui/symbol_map.dart` — symbol-to-IconData mapping.
@@ -56,8 +55,11 @@ and is the only place recurring plans are created.
 The view model calls `Ledger` query/mutation methods and reads `AnalysisCache` where totals apply;
 it never holds a `LedgerState` reference. Row resolution and section grouping are pure Dart
 functions in the application layer, unit-tested independently of any widget. Totals apply only
-entry-level `includeInAnalysis`, so Transactions and Stats can diverge for the same month — a ruled
-decision, not a bug.
+entry-level `includeInAnalysis`, so Transactions and analysis-driven totals can diverge for the
+same month when category inclusion gates exclude entries from analysis
+(`packages/domain/lib/src/accounting.dart:Accounting.resolveCategory`). Treat-as-expense transfers
+contribute equally to both expense totals, as covered by
+`app/test/ui/transactions_stats_totals_parity_test.dart`.
 
 ## Navigation
 
@@ -228,8 +230,8 @@ and focus node beside Name's; Note focus alone does not change the phone sheet h
   the balance field allows a leading `-`.
 - Malformed `colorHex` falls back to gray; writing back emits `#RRGGBB` uppercase, components
   clamped 0–255.
-- Transactions/Stats totals divergence is ruled, not a bug; a single shared totals function keeps a
-  future unification a one-line swap.
+- Transactions totals and analysis-driven totals intentionally use different inclusion rules;
+  analysis also applies category inclusion gates.
 
 ## Requirements
 

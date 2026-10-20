@@ -1,6 +1,6 @@
 # Recurring Plans & Accounting
 
-Last reconciled: 2026-10-16
+Last reconciled: 2026-10-21
 
 The pure-domain plan and accounting logic in `packages/domain/lib/src/plans/` and
 `packages/domain/lib/src/accounting.dart`, plus the plan mutators on `LedgerState`. Plans expand
@@ -25,9 +25,9 @@ classification from the entry log as pure static functions.
 
 `Ledger.resolvePlans(now)` runs `state.resolvePlans(now)` inside `mutate` and reports failures
 through `onPlanError` (`app/lib/ledger/ledger.dart`; [ledger-runtime.md](ledger-runtime.md)).
-`AnalysisCache` caches `Accounting.analysisItems` so the Stats surface avoids a full-ledger scan
-per frame. Accounting is pure and reads
-`LedgerState`; it never mutates it.
+`AnalysisCache` caches `Accounting.analysisItems` for analysis consumers, including Budgets and
+the retained Category Detail implementation, avoiding a full-ledger scan per frame. Accounting is
+pure and reads `LedgerState`; it never mutates it.
 
 ## RecurringPlan
 
