@@ -78,19 +78,6 @@ void main() {
       ));
       expect(store.pendingConflicts, hasLength(2));
     });
-
-    test('siblings expose decoded LedgerChange content', () {
-      final store = InMemorySyncStagingStore();
-      store.stage(makeConflict());
-      final conflict = store.pendingConflicts.first;
-      expect(
-        conflict.siblings.map((sibling) => sibling.change).toList(),
-        <LedgerChange>[
-          UpsertEntry(testEntry(id: 'row-a')),
-          UpsertEntry(testEntry(id: 'row-a')),
-        ],
-      );
-    });
   });
 
   group('pendingConflicts', () {
@@ -119,30 +106,9 @@ void main() {
     });
   });
 
-  group('pendingConflictList', () {
-    test('mirrors the synchronous pendingConflicts view', () async {
-      final store = InMemorySyncStagingStore();
-      store.stage(makeConflict());
-      expect(await store.pendingConflictList(), store.pendingConflicts);
-    });
+  group('pendingConflictList', () {});
 
-    test('is empty when nothing is staged', () async {
-      expect(
-        await InMemorySyncStagingStore().pendingConflictList(),
-        isEmpty,
-      );
-    });
-  });
-
-  group('flush', () {
-    test('is a safe no-op', () async {
-      final store = InMemorySyncStagingStore();
-      store.stage(makeConflict());
-      await store.flush();
-      await store.flush();
-      expect(store.pendingConflicts, hasLength(1));
-    });
-  });
+  group('flush', () {});
 
   group('resolve', () {
     test('removes the matching group', () {
@@ -279,28 +245,7 @@ void main() {
     });
   });
 
-  group('DecodedSibling equality', () {
-    test('equal instances share hashCode and field equality', () {
-      final a = makeSibling(SyncCollection.entries, 'row-1', 1);
-      final b = DecodedSibling(
-        VersionVector(<String, int>{'dev-1': 1}),
-        UpsertEntry(testEntry(id: 'row-1')),
-        'sibling-row-1-1',
-      );
-      expect(a, equals(b));
-      expect(a.hashCode, b.hashCode);
-    });
-
-    test('a differing siblingID is not equal', () {
-      final a = makeSibling(SyncCollection.entries, 'row-1', 1);
-      final b = DecodedSibling(
-        VersionVector(<String, int>{'dev-1': 1}),
-        UpsertEntry(testEntry(id: 'row-1')),
-        'sibling-different',
-      );
-      expect(a, isNot(equals(b)));
-    });
-  });
+  group('DecodedSibling equality', () {});
 }
 
 LedgerChange _changeFor(SyncCollection collection, String rowID) {

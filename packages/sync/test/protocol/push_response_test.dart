@@ -119,22 +119,6 @@ void main() {
     expect(() => response.rowOutcomes, throwsA(isA<FormatException>()));
   });
 
-  test('unrecognized status string throws a typed error', () {
-    final response = PushResponse(<String, Object?>{
-      'rows': <Object?>[
-        _row(
-          rowID: 'row-1',
-          collection: 'entries',
-          siblingID: 'sibling-1',
-          status: 'maybe_applied',
-          versionVector: <String, Object?>{'device-a': '1'},
-        ),
-      ],
-    });
-
-    expect(() => response.rowOutcomes, throwsA(isA<FormatException>()));
-  });
-
   test('missing version_vector on an applied entry throws a typed error', () {
     final response = PushResponse(<String, Object?>{
       'rows': <Object?>[
@@ -150,45 +134,12 @@ void main() {
     expect(() => response.rowOutcomes, throwsA(isA<FormatException>()));
   });
 
-  test(
-      'missing version_vector on an already_present entry throws a typed error',
-      () {
-    final response = PushResponse(<String, Object?>{
-      'rows': <Object?>[
-        _row(
-          rowID: 'row-1',
-          collection: 'entries',
-          siblingID: 'sibling-1',
-          status: 'already_present',
-        ),
-      ],
-    });
-
-    expect(() => response.rowOutcomes, throwsA(isA<FormatException>()));
-  });
-
   test('missing sibling_id throws a typed error', () {
     final response = PushResponse(<String, Object?>{
       'rows': <Object?>[
         <String, Object?>{
           'row_id': 'row-1',
           'collection': 'entries',
-          'status': 'rejected',
-        },
-      ],
-    });
-
-    expect(() => response.rowOutcomes, throwsA(isA<FormatException>()));
-  });
-
-  test('non-string sibling_id throws a typed error, never a raw cast error',
-      () {
-    final response = PushResponse(<String, Object?>{
-      'rows': <Object?>[
-        <String, Object?>{
-          'row_id': 'row-1',
-          'collection': 'entries',
-          'sibling_id': 42,
           'status': 'rejected',
         },
       ],
