@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/common/navigation/labelled_back_button.dart';
 import 'package:spendwise/ui/stats/trends/trends_body.dart';
+import 'package:spendwise/ui/stats/trends/trends_breakdown_section.dart';
 import 'package:spendwise/ui/stats/trends/trends_controls.dart';
 import 'package:spendwise/ui/stats/trends/trends_intent.dart';
 import 'package:spendwise/ui/stats/trends/trends_period_card.dart';
@@ -135,7 +136,7 @@ class _ReadyView extends StatelessWidget {
       selectedIndex: body.selectedIndex,
       onSelect: viewModel.selectSlot,
     );
-    return TrendsCard(
+    final periodCard = TrendsCard(
       children: [
         modeControl,
         period,
@@ -143,6 +144,14 @@ class _ReadyView extends StatelessWidget {
         TrendsHeadlineView(headline: body.headline),
         if (usual != null) TrendsUsualView(usual: usual),
       ],
+    );
+    final breakdown = TrendsBreakdownSection(
+      breakdown: body.breakdown,
+      amountKind: body.headline.amountKind,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [periodCard, breakdown],
     );
   }
 }

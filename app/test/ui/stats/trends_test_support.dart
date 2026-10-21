@@ -8,6 +8,8 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/boot/seed_data.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/settings/display_preferences.dart';
+import 'package:spendwise/settings/display_preferences_providers.dart';
 import 'package:spendwise/ui/stats/trends/trends_body.dart';
 import 'package:spendwise/ui/stats/trends_screen.dart';
 import 'package:spendwise/ui/theme/spendwise_theme.dart';
@@ -93,10 +95,13 @@ class TrendsHarness {
     required this.ledger,
     required this.today,
     ComputeRunner? runner,
+    DisplayPreferences? preferences,
     List<Override> overrides = const [],
   }) {
     container = ProviderContainer(
       overrides: [
+        if (preferences != null)
+          initialDisplayPreferencesProvider.overrideWithValue(preferences),
         ledgerProvider.overrideWithValue(ledger),
         clockProvider.overrideWithValue(() => today),
         analysisComputeRunnerProvider.overrideWithValue(
@@ -157,6 +162,7 @@ Future<void> pumpTrends(
   required Ledger? ledger,
   required DateTime today,
   ComputeRunner? runner,
+  DisplayPreferences? preferences,
   Widget home = const TrendsScreen(),
   Size size = trendsPhoneSize,
   Brightness brightness = Brightness.light,
@@ -167,6 +173,8 @@ Future<void> pumpTrends(
   addTearDown(tester.view.reset);
   final container = ProviderContainer(
     overrides: [
+      if (preferences != null)
+        initialDisplayPreferencesProvider.overrideWithValue(preferences),
       ledgerProvider.overrideWithValue(ledger),
       clockProvider.overrideWithValue(() => today),
       analysisComputeRunnerProvider.overrideWithValue(
