@@ -58,6 +58,8 @@ class _ScriptedQueries extends AnalysisQueries {
     AnalysisQueryResult<ComparedWithUsual>,
   )?
   usual;
+  AnalysisQueryResult<YearSpread> Function(AnalysisQueryResult<YearSpread>)?
+  yearSpread;
 
   @override
   AnalysisQueryResult<MonthTrendsPeriod> readTrendsPeriod({
@@ -75,7 +77,8 @@ class _ScriptedQueries extends AnalysisQueries {
     required CategoryKind kind,
   }) {
     reads.add('year-spread');
-    return super.readYearSpread(endYear: endYear, kind: kind);
+    final real = super.readYearSpread(endYear: endYear, kind: kind);
+    return yearSpread?.call(real) ?? real;
   }
 
   @override
@@ -141,6 +144,20 @@ AnalysisQueryResult<T> _with<T>(
 }
 
 const _keep = Object();
+
+AnalysisQueryResult<YearSpread> _spreadForOtherYear(
+  AnalysisQueryResult<YearSpread> real,
+) {
+  final spread = real.value!;
+  final other = YearSpread(
+    endYear: spread.endYear,
+    kind: spread.kind,
+    currentYear: 2025,
+    earliestSpreadEndYear: spread.earliestSpreadEndYear,
+    slots: spread.slots,
+  );
+  return _with(real, value: other);
+}
 
 TrendsIntent _yearIntent() {
   return TrendsIntent.initial(
@@ -349,6 +366,15 @@ void main() {
       scripted.queries.usual = (real) => _with(real, value: null);
 
       expect(scripted.project(_today), isA<TrendsErrorBody>());
+    });
+
+    test('a year spread built for another current year is loading', () async {
+      final scripted = await _scripted(_today);
+      scripted.queries.yearSpread = _spreadForOtherYear;
+
+      final body = scripted.project(_today, intent: _yearIntent());
+
+      expect(body, isA<TrendsLoadingBody>());
     });
 
     test('year mode does not read the monthly usual', () async {

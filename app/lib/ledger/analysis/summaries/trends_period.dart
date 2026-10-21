@@ -6,6 +6,8 @@ import 'package:spendwise/ledger/analysis/breakdowns/category_breakdown.dart';
 import 'package:spendwise/ledger/analysis/insights/completeness.dart';
 import 'package:spendwise/ledger/analysis/summaries/month_spread.dart';
 
+const _meanScale = 12;
+
 @immutable
 class CategoryPeriodAverage {
   const CategoryPeriodAverage({
@@ -178,7 +180,9 @@ CategoryPeriodAverage _averageRow(
   Decimal divisor,
 ) {
   final numerator = numerators[(row.bucketID, row.isDirect)] ?? Decimal.zero;
-  final mean = (numerator / divisor).toDecimal(scaleOnInfinitePrecision: 12);
+  final mean = (numerator / divisor).toDecimal(
+    scaleOnInfinitePrecision: _meanScale,
+  );
   return CategoryPeriodAverage(
     bucketID: row.bucketID,
     mainBucketID: row.mainBucketID,
