@@ -39,13 +39,13 @@ class _TrendsFlowState extends FlowBaseState<TrendsStep, TrendsFlow> {
     _viewModel.clearStep();
     switch (step) {
       case TrendsCategoryDetailRequested(:final args):
-        _openCategoryDetail(args);
+        _openCategoryDetail(context, args);
     }
   }
 
-  void _openCategoryDetail(CategoryDetailArgs args) {
-    final navigator = this.navigator;
-    if (navigator == null || _detailRoute != null) return;
+  void _openCategoryDetail(BuildContext context, CategoryDetailArgs args) {
+    if (_detailRoute != null) return;
+    final navigator = Navigator.of(context);
     final route = MaterialPageRoute<void>(
       builder: (_) => CategoryDetailScreen(args: args),
     );

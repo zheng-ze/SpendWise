@@ -128,7 +128,7 @@ have no target and are inert; an unresolved non-null bucket ID stays navigable a
 Uncategorized. The notifier keeps the pending step in a private field so clock, preference, query and
 Ledger rebuilds preserve it until `clearStep`. `TrendsFlow` listens with `ref.listenManual`, also picks
 up a step pending at mount after the first frame, clears the step before dispatching, and pushes
-`CategoryDetailScreen` on its own navigator through `FlowBaseState.navigator`. It holds a single-route
+`CategoryDetailScreen` on its own nested navigator. It holds a single-route
 guard until that route's `completed` future, so repeated taps and taps during the reverse transition
 open no second route. Returning performs no intent update or invalidation.
 (`app/lib/ui/stats/trends_flow.dart`, `trends/trends_view_model.dart`,

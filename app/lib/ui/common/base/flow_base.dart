@@ -40,8 +40,6 @@ abstract class FlowBaseState<S, T extends FlowBase<S>>
 
   BuildContext? get navigatorContext => _navigatorKey.currentContext;
 
-  NavigatorState? get navigator => _navigatorKey.currentState;
-
   bool get showsOwnBackButton => widget.onEnded != null;
 
   Future<void> goBack() async {

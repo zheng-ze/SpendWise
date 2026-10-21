@@ -64,24 +64,22 @@ class TrendsBreakdownSection extends StatelessWidget {
       income: amountKind == AmountKind.income,
       level: breakdown.level,
     );
-    final content = rows.isEmpty
-        ? [_EmptyBreakdown(income: amountKind == AmountKind.income)]
-        : <Widget>[
-            _BreakdownChart(
-              rows: rows,
-              chart: breakdown.chart,
-              onSelect: onOpenCategory,
-            ),
-            for (var i = 0; i < rows.length; i++)
-              _BreakdownRow(
-                entry: rows[i],
-                amountKind: amountKind,
-                divided: i < rows.length - 1,
-                onTap: rows[i].row.navigationTarget == null
-                    ? null
-                    : () => onOpenCategory(i),
-              ),
-          ];
+    final chart = _BreakdownChart(
+      rows: rows,
+      chart: breakdown.chart,
+      onSelect: onOpenCategory,
+    );
+    final rowWidgets = [
+      for (var i = 0; i < rows.length; i++)
+        _BreakdownRow(
+          entry: rows[i],
+          amountKind: amountKind,
+          divided: i < rows.length - 1,
+          onTap: _opener(rows[i].row, i, onOpenCategory),
+        ),
+    ];
+    final empty = _EmptyBreakdown(income: amountKind == AmountKind.income);
+    final content = rows.isEmpty ? [empty] : [chart, ...rowWidgets];
     final card = TrendsCard(
       children: [
         heading,
@@ -95,6 +93,12 @@ class TrendsBreakdownSection extends StatelessWidget {
     );
   }
 }
+
+VoidCallback? _opener(
+  TrendsBreakdownRow row,
+  int index,
+  ValueChanged<int> open,
+) => row.navigationTarget == null ? null : () => open(index);
 
 class _BreakdownHeading extends StatelessWidget {
   const _BreakdownHeading({required this.income, required this.level});

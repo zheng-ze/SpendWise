@@ -131,8 +131,8 @@ void main() {
       final groceries = _categoryID(harness.ledger, 'Groceries');
       final rows = harness.ready.breakdown.rows;
       final children = [
-        for (var i = 0; i < rows.length; i++)
-          if (rows[i].parentContext == 'Groceries') i,
+        for (final (index, row) in rows.indexed)
+          if (row.parentContext == 'Groceries') index,
       ];
 
       expect(children, hasLength(3));
@@ -146,11 +146,8 @@ void main() {
     test('Uncategorized and synthetic buckets are inert', () async {
       final harness = await _controlled([null, _syntheticBucket]);
 
-      for (
-        var index = 0;
-        index < harness.ready.breakdown.rows.length;
-        index++
-      ) {
+      final count = harness.ready.breakdown.rows.length;
+      for (var index = 0; index < count; index++) {
         harness.viewModel.requestCategoryDetail(index);
       }
 

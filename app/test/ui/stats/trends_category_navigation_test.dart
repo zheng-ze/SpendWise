@@ -32,6 +32,7 @@ const _unknownBucket = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 const _syntheticBucket = 'transfer-expense:savings';
 const _itemAmount = '10';
 const _flowSize = Size(500, 1000);
+const _transitionStep = Duration(milliseconds: 300);
 const _diningAmount = '-83.90';
 const _donutCenterRadiusFactor = 0.34;
 const _donutRingFactor = 0.17;
@@ -55,6 +56,14 @@ Finder get _detailRoutes =>
 Finder _row(String amount) => find.descendant(
   of: find.byType(TrendsBreakdownSection),
   matching: find.text(amount),
+);
+
+Entry _snack(Ledger ledger) => Entry(
+  amount: -Decimal.one,
+  name: 'Snack',
+  sourceID: ledger.state.activeAccounts.first.id,
+  categoryID: _categoryID(ledger, 'Dining'),
+  date: _today,
 );
 
 String _categoryID(Ledger ledger, String name) =>
@@ -85,11 +94,20 @@ AnalysisItem _item(String? bucketID) => AnalysisItem(
   bucketID: bucketID,
 );
 
-Future<void> _pumpControlled(WidgetTester tester, List<String?> buckets) async {
+Future<void> _pumpControlled(
+  WidgetTester tester,
+  List<String?> buckets, {
+  DisplayPreferences? preferences,
+}) async {
   final ledger = emptyTrendsLedger();
   addTrendsEntry(ledger, '-1', _today);
   final items = [for (final bucket in buckets) _item(bucket)];
-  await _pumpFlow(tester, ledger: ledger, runner: (_) async => items);
+  await _pumpFlow(
+    tester,
+    ledger: ledger,
+    runner: (_) async => items,
+    preferences: preferences,
+  );
 }
 
 Future<void> _tapRow(WidgetTester tester, String amount) async {
@@ -348,6 +366,33 @@ void main() {
       expect(find.byType(CategoryDetailScreen), findsNothing);
     }, timeout: uiTestTimeout);
 
+    testWidgets('inert map blocks and adjacent labels open nothing', (
+      tester,
+    ) async {
+      await _pumpControlled(
+        tester,
+        [null, _syntheticBucket],
+        preferences: DisplayPreferences(
+          breakdownChart: BreakdownChart.categoryMap,
+        ),
+      );
+      expect(_mapBlocks, findsNWidgets(2));
+
+      for (var i = 0; i < 2; i++) {
+        await tester.tapAt(tester.getCenter(_mapBlocks.at(i)));
+      }
+      final labels = find.descendant(
+        of: find.byType(CategoryMap),
+        matching: find.textContaining('transfers'),
+      );
+      for (var i = 0; i < labels.evaluate().length; i++) {
+        await tester.tap(labels.at(i));
+      }
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CategoryDetailScreen), findsNothing);
+    }, timeout: uiTestTimeout);
+
     testWidgets('charts never receive a selected index', (tester) async {
       await _pumpFlow(tester);
 
@@ -412,9 +457,6 @@ void main() {
     testWidgets('a step pending before the flow mounts opens once', (
       tester,
     ) async {
-      tester.view.devicePixelRatio = 1.0;
-      tester.view.physicalSize = _flowSize;
-      addTearDown(tester.view.reset);
       final harness = TrendsHarness(
         ledger: seededTrendsLedger(_today),
         today: _today,
@@ -423,13 +465,12 @@ void main() {
       harness.viewModel.requestCategoryDetail(0);
       expect(harness.step, isNotNull);
 
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: harness.container,
-          child: const MaterialApp(home: TrendsFlow()),
-        ),
+      await pumpTrendsApp(
+        tester,
+        harness.container,
+        home: const TrendsFlow(),
+        size: _flowSize,
       );
-      await tester.pumpAndSettle();
 
       expect(_detailRoutes, findsOneWidget);
       expect(harness.step, isNull);
@@ -444,20 +485,16 @@ void main() {
       WidgetTester tester,
       Counted env,
     ) async {
-      tester.view.devicePixelRatio = 1.0;
-      tester.view.physicalSize = _flowSize;
-      addTearDown(tester.view.reset);
       final container = containerFor(
         () => env.session,
         overrides: [clockProvider.overrideWithValue(() => _today)],
       );
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: const MaterialApp(home: TrendsFlow()),
-        ),
+      await pumpTrendsApp(
+        tester,
+        container,
+        home: const TrendsFlow(),
+        size: _flowSize,
       );
-      await tester.pumpAndSettle();
       return container;
     }
 
@@ -491,7 +528,9 @@ void main() {
       expect(find.text(_extraDiningTotal), findsWidgets);
     }, timeout: uiTestTimeout);
 
-    testWidgets('closing during a delayed refresh stays inert', (tester) async {
+    testWidgets('closing while a refresh is pending stays inert', (
+      tester,
+    ) async {
       final runner = ManualRunner();
       final env = counted(runner: runner.call);
       await pumpCounted(tester, env);
@@ -500,17 +539,14 @@ void main() {
       final baselineLedger = env.ledger.listeners;
       final baselineCache = env.cache.listeners;
       await _tapRow(tester, _diningAmount);
+      final settledRuns = runner.calls;
 
-      await _back(tester);
-      env.ledger.addEntry(
-        Entry(
-          amount: -Decimal.one,
-          name: 'Snack',
-          sourceID: env.ledger.state.activeAccounts.first.id,
-          categoryID: _categoryID(env.ledger, 'Dining'),
-          date: _today,
-        ),
-      );
+      env.ledger.addEntry(_snack(env.ledger));
+      await tester.pump();
+      expect(runner.calls, settledRuns + 1);
+      await tester.pageBack();
+      await tester.pump(_transitionStep);
+      await tester.pump(_transitionStep);
       runner.pending.last.complete(Accounting.analysisItems(env.ledger.state));
       await tester.pumpAndSettle();
 
