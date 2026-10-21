@@ -1,13 +1,48 @@
+import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
+import 'package:spendwise/ui/theme/spendwise_colors.dart';
 import 'package:spendwise/ui/stats/trends/trends_body.dart';
 import 'package:spendwise/ui/stats/trends/trends_intent.dart';
 
+import '../../support/ui_test_timeout.dart';
 import 'trends_test_support.dart';
 
 final _today = DateTime.utc(2026, 10, 15);
+const _monthCount = 12;
+const _julyIndex = 8;
+const _decemberIndex = 1;
+const _centreTolerance = 0.5;
+const _baselineInset = 1.0;
+const _axisNames = [
+  'November 2025',
+  'December 2025',
+  'January 2026',
+  'February 2026',
+  'March 2026',
+  'April 2026',
+  'May 2026',
+  'June 2026',
+  'July 2026',
+  'August 2026',
+  'September 2026',
+  'October 2026',
+];
+
+List<BarChartRodData> _rods(WidgetTester tester) {
+  final chart = tester.widget<BarChart>(find.byType(BarChart));
+  return [for (final group in chart.data.barGroups) group.barRods.single];
+}
+
+Future<void> _tapRod(WidgetTester tester, int index) async {
+  final chart = tester.getRect(find.byType(BarChart));
+  final x = chart.left + (index + 0.5) * chart.width / _monthCount;
+  await tester.tapAt(Offset(x, chart.bottom - _baselineInset));
+  await tester.pumpAndSettle();
+}
 
 class _History {
   const _History(this.ledger, this.firstEntryID);
@@ -347,4 +382,110 @@ void main() {
       expect(harness.ready.headline.amount, isNull);
     });
   });
+
+  group('chart', () {
+    Brightness.values.forEach(_registerThemedChartTests);
+    testWidgets(
+      'axis labels sit under the rod centres at 320 dp',
+      _axisLabelsAlignWithRods,
+      timeout: uiTestTimeout,
+    );
+    testWidgets(
+      'an empty month is selectable through its label and draws no rod',
+      _emptyMonthSelectsThroughLabel,
+      timeout: uiTestTimeout,
+    );
+    testWidgets(
+      'shows no completeness styling or qualifier text',
+      _showsNoQualifiers,
+      timeout: uiTestTimeout,
+    );
+  });
+}
+
+Future<void> _pumpHistory(
+  WidgetTester tester, {
+  Brightness brightness = Brightness.light,
+}) {
+  return pumpTrends(
+    tester,
+    ledger: _history().ledger,
+    today: _today,
+    brightness: brightness,
+  );
+}
+
+void _registerThemedChartTests(Brightness brightness) {
+  final colors = brightness == Brightness.light
+      ? SpendWiseColors.light
+      : SpendWiseColors.dark;
+  testWidgets(
+    'taps on the tallest and smallest rods select them in ${brightness.name} mode',
+    (tester) => _tapsSelectRods(tester, brightness),
+    timeout: uiTestTimeout,
+  );
+  testWidgets(
+    'the selected rod is filled with the selected mark and has no stroke in ${brightness.name} mode',
+    (tester) => _selectedRodStyle(tester, brightness, colors),
+    timeout: uiTestTimeout,
+  );
+}
+
+Future<void> _tapsSelectRods(WidgetTester tester, Brightness brightness) async {
+  await _pumpHistory(tester, brightness: brightness);
+
+  await _tapRod(tester, _julyIndex);
+  expect(find.text('July 2026'), findsOneWidget);
+  await _tapRod(tester, _decemberIndex);
+  expect(find.text('December 2025'), findsOneWidget);
+  expect(find.text('-S\$30.00'), findsOneWidget);
+}
+
+Future<void> _selectedRodStyle(
+  WidgetTester tester,
+  Brightness brightness,
+  SpendWiseColors colors,
+) async {
+  await _pumpHistory(tester, brightness: brightness);
+  await _tapRod(tester, _julyIndex);
+
+  final rods = _rods(tester);
+
+  expect(rods[_julyIndex].color, colors.selectedMark);
+  expect(rods[_julyIndex].borderSide.width, 0);
+  expect(rods[_decemberIndex].color, colors.action);
+}
+
+Future<void> _axisLabelsAlignWithRods(WidgetTester tester) async {
+  final semantics = tester.ensureSemantics();
+  await _pumpHistory(tester);
+  final chart = tester.getRect(find.byType(BarChart));
+
+  for (var i = 0; i < _monthCount; i++) {
+    final label = find.bySemanticsLabel(_axisNames[i]).first;
+    final rodCentre = chart.left + (i + 0.5) * chart.width / _monthCount;
+    expect(tester.getCenter(label).dx, closeTo(rodCentre, _centreTolerance));
+  }
+  semantics.dispose();
+}
+
+Future<void> _emptyMonthSelectsThroughLabel(WidgetTester tester) async {
+  final semantics = tester.ensureSemantics();
+  await _pumpHistory(tester);
+
+  await tester.tap(find.bySemanticsLabel('June 2026'));
+  await tester.pumpAndSettle();
+
+  expect(find.text('June 2026'), findsOneWidget);
+  expect(find.text('No expenses recorded'), findsOneWidget);
+  expect(_rods(tester)[7].toY, 0);
+  semantics.dispose();
+}
+
+Future<void> _showsNoQualifiers(WidgetTester tester) async {
+  await _pumpHistory(tester);
+
+  expect(find.textContaining('incomplete'), findsNothing);
+  expect(find.textContaining('Recorded so far'), findsNothing);
+  expect(find.textContaining('no records'), findsNothing);
 }

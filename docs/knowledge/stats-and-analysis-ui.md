@@ -4,16 +4,22 @@ Last reconciled: 2026-10-21
 
 ## Feature overview
 
-History opens a full-screen Trends page through its own `TransactionsFlow` navigator. Trends currently
-shows a header and empty content area. It has no period controls, analysis presentation, or category
-drill-down entry point. The retained Category Detail implementation has no production entry point.
+History opens a full-screen Trends page through its own `TransactionsFlow` navigator. Trends shows an
+Expense/Income control, a Month by month/Year by year control, a period row with previous/next arrows,
+a bar chart with selectable axis labels, a selected-period headline, and (month mode only) a Compared
+with usual row. It has no category drill-down entry point. The retained Category Detail implementation has no production entry point.
 It renders a main category's subcategory table, trend card, and scoped entry list. Its data comes from
 the ready Ledger's `AnalysisCache` (`app/lib/ui/stats/category_detail/category_detail_view_model.dart`).
 
 ## Key files
 
-- `app/lib/ui/stats/trends_flow.dart` and `trends_screen.dart` - the hosted Flow and blank Trends
-  page; the optional `onBackPressed` callback controls the History-labelled back button.
+- `app/lib/ui/stats/trends_flow.dart` and `trends_screen.dart` - the hosted Flow and the Trends page;
+  the optional `onBackPressed` callback controls the History-labelled back button.
+- `app/lib/ui/stats/trends/` - `trends_intent.dart` (route-owned intent, grid/page arithmetic, intent
+  notifier), `trends_projection.dart` (day-aligned, revision-coherent projection of the analysis reads),
+  `trends_usual.dart` (Compared with usual copy), `trends_body.dart` (presentation variants),
+  `trends_view_model.dart` (`TrendsViewModel` interface and `LedgerBackedNotifier`), and the
+  `trends_controls`, `trends_period_card`, `trends_state_views` widgets.
 - `app/lib/ui/stats/category_detail/` - the retained category drill-down screen and view model.
 - `app/lib/ui/stats/analysis/analysis_scan.dart` - memoized category-detail filtering.
 - `app/lib/ui/stats/helpers/slices.dart` - category slice and roll-up helpers referenced only by tests,
@@ -55,6 +61,25 @@ Ledger's cache restarts `itemsRevision` and can match the previous cache's revis
 `app/test/ui/stats/analysis/analysis_scan_test.dart`,
 `app/test/boot/category_detail_cache_retry_test.dart`).
 
+## Trends period state
+
+`trendsIntentProvider` (auto-dispose `Notifier<TrendsIntent>`, no watched dependencies) owns kind, mode,
+requested spread end, requested selected period, remembered month and `followsCurrent`. It starts on
+expense, month mode and the current month, ignoring History's selected month, and survives analysis
+notifications, failures and Retry within one route lifetime. `trendsViewModelProvider` is an
+auto-dispose `AsyncNotifier` using `LedgerBackedNotifier`; it watches the intent, `analysisQueriesProvider`
+and `todayProvider` and returns a `TrendsBody`: loading, error, empty (ledger has no records) or ready.
+Spreads are rolling 12-month windows and 3 calendar-year windows anchored at the current period.
+Computed clamps to the earliest spread never rewrite stored intent: a genuine action adopts the displayed
+basis first. Month to Year clamps to the earliest yearly slot; Year to Month applies the remembered month,
+clamped to the current month and the earliest monthly slot. A projection first reads month completeness
+for the current month and requires its `today` to equal `todayProvider` (otherwise loading), then requires
+first-record, spread and usual reads to be ready with one `sourceRevision` equal to the Ledger revision;
+failed reads give the error body, pending or mismatched ones the skeleton. Compared with usual copy
+(higher, lower, same, zero baseline, elapsed-day and cross-year wording) is built in `trends_usual.dart`.
+Retry calls `AnalysisQueries.retry()` only. (`app/lib/ui/stats/trends/`,
+`app/test/ui/stats/trends_period_test.dart`, `trends_states_test.dart`, `trends_usual_test.dart`)
+
 ## Navigation
 
 `TransactionsFlow` handles `HistoryTrendsRequested`, seeds `selectedMonthProvider` from History's
@@ -65,7 +90,7 @@ route. System Back and the iOS edge swipe pop the enclosing route. `Transactions
 single-route guard until the matching route's `completed` future (`transactions-ui.md`,
 `app/lib/ui/transactions/transactions_flow.dart`, `app/lib/ui/common/base/flow_base.dart`).
 
-Trends currently has no category navigation. Category Detail retains its own date state, seeded by
+Trends has no category navigation. Category Detail retains its own date state, seeded by
 its arguments, and inherits a fixed month or year mode. Its toolbar has the `MonthYearSelector` only;
 it has no range menu.
 
@@ -74,8 +99,9 @@ Budgets live in the Money Budgets segment. Trends does not mount `BudgetsFlow`
 
 ## Screens and flows
 
-- **Trends** - app bar titled "Trends", optional History-labelled back control, and empty expanded
-  content. It has no Income/Expense tabs, date or range selector, analysis body, or category
+- **Trends** - app bar titled "Trends", optional History-labelled back control, the kind and mode
+  controls (always mounted), and a body that is skeleton trays, an error box with a filled Retry, the
+  fresh-ledger empty state with a disabled period row, or the period card. It has no category
   drill-down (`app/lib/ui/stats/trends_screen.dart`).
 - **Category Detail** - a `TransactionsTableView` whose header stack is scope total, subcategory
   table (only when the category has children), trend card, and "ENTRIES"; the day-sectioned entry
