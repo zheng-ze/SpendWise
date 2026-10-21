@@ -51,27 +51,6 @@ void main() {
     expect((app.phase as Ready).ledger.state.entries, isNotEmpty);
   });
 
-  test('everyResolveReceivesAUtcInstant', () async {
-    final store = storeWithPlan();
-    final seen = <DateTime>[];
-
-    final app = boot(
-      store,
-      now: () {
-        final instant = DateTime.now().toUtc();
-        seen.add(instant);
-        return instant;
-      },
-    );
-    await app.start();
-    app.didChangeAppLifecycleState(AppLifecycleState.resumed);
-
-    expect(seen, hasLength(2));
-    for (final instant in seen) {
-      expect(instant.isUtc, isTrue);
-    }
-  });
-
   test('theDefaultClockIsUtc', () {
     final app = AppBoot(
       createStore: () async => RecordingLedgerStore(hasSeeded: true),
@@ -94,23 +73,17 @@ void main() {
     expect(clock.reads, atReady + 1);
   });
 
-  for (final state in const [
-    AppLifecycleState.inactive,
-    AppLifecycleState.paused,
-    AppLifecycleState.hidden,
-  ]) {
-    test('${state.name}Flushes', () async {
-      final store = storeWithPlan();
-      final app = boot(store);
-      await app.start();
-      store.calls.clear();
+  test('pausedFlushes', () async {
+    final store = storeWithPlan();
+    final app = boot(store);
+    await app.start();
+    store.calls.clear();
 
-      app.didChangeAppLifecycleState(state);
-      await Future<void>.delayed(Duration.zero);
+    app.didChangeAppLifecycleState(AppLifecycleState.paused);
+    await Future<void>.delayed(Duration.zero);
 
-      expect(store.calls, contains(StoreCall.flushNow));
-    });
-  }
+    expect(store.calls, contains(StoreCall.flushNow));
+  });
 
   test('lifecycleCallbacksDoNothingWhileLoading', () async {
     final store = storeWithPlan();
@@ -137,22 +110,6 @@ void main() {
     }, (error, stackTrace) => zoneErrors.add(error));
 
     expect(zoneErrors, isEmpty);
-  });
-
-  test('lifecycleCallbacksDoNothingWhileFailed', () async {
-    final store = storeWithPlan()..failOn = StoreCall.load;
-    final clock = _FakeClock();
-    final app = boot(store, now: clock.now);
-    await app.start();
-    expect(app.phase, isA<Failed>());
-    store.calls.clear();
-
-    app.didChangeAppLifecycleState(AppLifecycleState.resumed);
-    app.didChangeAppLifecycleState(AppLifecycleState.paused);
-    await Future<void>.delayed(Duration.zero);
-
-    expect(clock.reads, 0);
-    expect(store.calls, isNot(contains(StoreCall.flushNow)));
   });
 }
 

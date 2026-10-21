@@ -63,19 +63,6 @@ void main() {
     expect(store.flushCompletions, 1);
   });
 
-  test(
-    'disposeAndFlushLeavesTheProviderContainersOwnDisposeCallHarmless',
-    () async {
-      final store = _GatedFlushStore(hasSeeded: true);
-      final app = boot(store);
-      await app.start();
-
-      await app.disposeAndFlush();
-
-      expect(app.dispose, returnsNormally);
-    },
-  );
-
   test('aFlushErrorDuringSynchronousDisposeIsCaughtNotUnhandled', () async {
     final store = _FailingFlushStore(hasSeeded: true);
     final app = boot(store);

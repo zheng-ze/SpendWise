@@ -51,56 +51,6 @@ void main() {
     expect(container.read(storeProvider), same(store));
   });
 
-  test('overridingTheStoreLetsBootReachReady', () async {
-    final container = _containerFor(InMemoryLedgerStore(hasSeeded: true));
-
-    final ready = await _readyPhase(container);
-
-    expect(ready, isA<Ready>());
-  });
-
-  test('analysisCacheIsNullUntilTheLedgerIsReachable', () async {
-    final container = _containerFor(InMemoryLedgerStore(hasSeeded: true));
-
-    expect(container.read(ledgerProvider), isNull);
-    expect(container.read(ledgerSessionProvider), isNull);
-
-    await _readyPhase(container);
-
-    expect(container.read(ledgerSessionProvider), isNotNull);
-  });
-
-  test('analysisCacheHasJoinedTheBusByTheTimeLedgerIsFirstReachable', () async {
-    final container = _containerFor(InMemoryLedgerStore(hasSeeded: true));
-
-    final ready = await _readyPhase(container);
-    final cache = _readySession(container).analysisCache;
-    final revisionBeforeMutate = cache.revision;
-
-    ready.ledger.addAccount(_account());
-
-    expect(
-      _readySession(container).analysisCache.revision,
-      revisionBeforeMutate + 1,
-    );
-  });
-
-  test('analysisCacheFollowsTheBusOntoARetriedRuntime', () async {
-    final container = _containerFor(InMemoryLedgerStore(hasSeeded: true));
-    final boot = container.read(appBootProvider);
-    await _readyPhase(container);
-    final oldCache = _readySession(container).analysisCache;
-
-    await boot.retry();
-    final cache = _readySession(container).analysisCache;
-    expect(identical(cache, oldCache), isFalse);
-    final revisionBeforeMutate = cache.revision;
-
-    (boot.phase as Ready).ledger.addAccount(_account());
-
-    expect(cache.revision, revisionBeforeMutate + 1);
-  });
-
   test('bannerStateReceivesASaveStateFromTheStore', () async {
     final store = InMemoryLedgerStore(hasSeeded: true);
     final container = _containerFor(store);

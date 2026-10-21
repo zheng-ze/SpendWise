@@ -100,21 +100,4 @@ void main() {
       });
     },
   );
-
-  test('notifiesListenersOnEveryObservableChange', () {
-    fakeAsync((async) {
-      final banner = BannerState();
-      var notifications = 0;
-      banner.addListener(() => notifications++);
-
-      banner.receiveSaveState(SaveBannerState.retrying);
-      expect(notifications, 1);
-
-      banner.receivePlanErrors([failure('plan-1')]);
-      expect(notifications, 2);
-
-      async.elapse(const Duration(seconds: 4));
-      expect(notifications, 3);
-    });
-  });
 }

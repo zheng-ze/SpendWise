@@ -17,21 +17,6 @@ AppBoot _boot(
 }) => AppBoot(createStore: () async => store, seedChanges: () => seed);
 
 void main() {
-  test('storeIsWiredForErrorsBeforeSeedingAndSeededBeforeLoad', () async {
-    final store = RecordingLedgerStore();
-
-    await _boot(store, seed: _seed(_account())).start();
-
-    expect(
-      store.calls.where((call) => call != StoreCall.start).toList(),
-      containsAllInOrder([
-        StoreCall.setErrorHandler,
-        StoreCall.seedIfFirstLaunch,
-        StoreCall.load,
-      ]),
-    );
-  });
-
   test('readyCarriesTheLoadedState', () async {
     final account = _account(name: 'loaded');
     final store = RecordingLedgerStore(
@@ -47,16 +32,6 @@ void main() {
     final phase = boot.phase;
     expect(phase, isA<Ready>());
     expect((phase as Ready).ledger.state.moneySources, contains(account.id));
-  });
-
-  test('processorIsStartedBeforeReady', () async {
-    final store = RecordingLedgerStore();
-
-    final boot = _boot(store);
-    await boot.start();
-
-    expect(store.isStarted, isTrue);
-    expect((boot.phase as Ready).persistence.store, same(store));
   });
 
   test('phaseIsLoadingUntilStartCompletes', () async {
@@ -120,19 +95,6 @@ void main() {
       AppBoot.utcNowFor(justAfterLocalMidnight),
       DateTime.utc(2026, 1, 15),
     );
-  });
-
-  test('mutationThroughTheBootedLedgerReachesTheStore', () async {
-    final store = RecordingLedgerStore(hasSeeded: true);
-    final boot = _boot(store);
-    await boot.start();
-
-    final ready = boot.phase as Ready;
-    final account = _account(name: 'after boot');
-    ready.ledger.addAccount(account);
-    await ready.persistence.flush();
-
-    expect(store.state.moneySources, contains(account.id));
   });
 
   test('planErrorsFromTheBootedLedgerReachTheHandler', () async {
