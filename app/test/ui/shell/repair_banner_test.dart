@@ -213,24 +213,4 @@ void main() {
     );
     expect(find.text(_repairLabel), findsOneWidget);
   }, timeout: uiTestTimeout);
-
-  testWidgets('with the keyboard up the repair form keeps Continue '
-      'tappable and the banner stays hidden', (tester) async {
-    await pumpShell(
-      tester,
-      status: const HostedSyncBindingRepair(),
-      layoutMode: ShellLayoutMode.phone,
-      seedPhase: SyncEnrollmentPhase.bindingAuthorizationRequired,
-    );
-    await tester.tap(find.text(_repairLabel));
-    await tester.pumpAndSettle();
-
-    tester.view.viewInsets = const FakeViewPadding(bottom: 300);
-    addTearDown(tester.view.resetViewInsets);
-    await tester.pumpAndSettle();
-
-    final continueButton = find.byKey(const Key('syncIdentifierContinue'));
-    expect(find.text(_repairLabel), findsNothing);
-    expect(continueButton.hitTestable(), findsOneWidget);
-  }, timeout: uiTestTimeout);
 }

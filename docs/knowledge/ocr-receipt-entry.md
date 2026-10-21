@@ -135,10 +135,7 @@ Implemented today:
   unlike the removed plugin's own already-list-shaped field. `dispose()` is an intentional no-op:
   the underlying ML Kit recognizer is process-scoped and owned by the native
   `TextRecognizerChannel` (closed once, from `MainActivity.onDestroy()`), not per-recognizer-
-  instance like the removed plugin wrapper was. Tested in
-  `packages/ocr/test/android_text_recognizer_test.dart` (mapping, confidence and language
-  passthrough including their absent cases, the empty-vs-failure distinction, dispose-is-truly-a-
-  no-op, and a `PluginAndroidEngine`-focused mocked-channel test proving the null-response throw).
+  instance like the removed plugin wrapper was.
 - **`VisionTextRecognizer`** (`packages/ocr/lib/src/vision/vision_text_recognizer.dart`), wraps Apple's
   Vision framework for iOS via `VisionEngine`/`PluginVisionEngine`
   (`packages/ocr/lib/src/vision/vision_engine.dart`), reaching the native bridge over the

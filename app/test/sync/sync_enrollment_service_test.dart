@@ -552,6 +552,54 @@ void main() {
     },
   );
 
+  test(
+    'lost authorized-Begin response retries with a fresh challenge',
+    () async {
+      await metadataStore.enterBindingAuthorizationRequired();
+      await secrets.write(syncE2EKeySecretKey, base64Url.encode(validE2EKey()));
+      final wrapper = DelegatingBackend(backend);
+      var authorizedAttempts = 0;
+      wrapper.onAuthorizedBegin = (credential, request) async {
+        authorizedAttempts++;
+        if (authorizedAttempts == 1) {
+          await wrapper.inner.reconcile(credential, request);
+          return const DeviceAuthorizationRequired<ReconcileResponse>(
+            message: 'response lost',
+          );
+        }
+        return wrapper.inner.reconcile(credential, request);
+      };
+
+      final firstError = await enrollError(
+        () => service(backendOverride: wrapper).enroll(),
+      );
+
+      expect(firstError.step, 'reconcileBegin');
+      expect(firstError.code, 'device_authorization_required');
+      expect(
+        (await metadataStore.snapshot()).phase,
+        SyncEnrollmentPhase.bindingAuthorizationRequired,
+      );
+
+      await service(backendOverride: wrapper).enroll();
+
+      expect(authorizedAttempts, 2);
+      expect(wrapper.authorizedBegins, hasLength(2));
+      expect(
+        backend.calls.where((call) => call == 'startBinding'),
+        hasLength(2),
+      );
+      expect(
+        backend.calls.where((call) => call == 'verifyBinding'),
+        hasLength(2),
+      );
+      expect(
+        (await metadataStore.snapshot()).phase,
+        SyncEnrollmentPhase.gateEnabled,
+      );
+    },
+  );
+
   test('authorized-Begin CredentialExpired stays in binding repair', () async {
     await metadataStore.enterBindingAuthorizationRequired();
     await secrets.write(syncE2EKeySecretKey, base64Url.encode(validE2EKey()));
@@ -1122,6 +1170,45 @@ void main() {
     expect(snapshot.reauthResumePhase, isNull);
   });
 
+  test(
+    'stale secret is deleted even when entering binding authorization fails',
+    () async {
+      await secrets.write(syncDeviceSecretKey, validDeviceSecret());
+      await db.customStatement(
+        'CREATE TRIGGER fail_binding_enter BEFORE UPDATE ON sync_meta '
+        'WHEN NEW.device_binding_state = 1 '
+        'BEGIN SELECT RAISE(ABORT, \'boom\'); END',
+      );
+
+      Object? thrown;
+      try {
+        await service().enroll();
+      } catch (error) {
+        thrown = error;
+      }
+
+      expect(thrown, isNotNull);
+      expect(await secrets.read(syncDeviceSecretKey), isNull);
+      expect(
+        (await metadataStore.snapshot()).phase,
+        SyncEnrollmentPhase.notEnrolled,
+      );
+
+      await db.customStatement('DROP TRIGGER fail_binding_enter');
+
+      await service().enroll();
+
+      expect(
+        backend.calls.where((call) => call == 'startBinding'),
+        hasLength(1),
+      );
+      expect(
+        (await metadataStore.snapshot()).phase,
+        SyncEnrollmentPhase.gateEnabled,
+      );
+    },
+  );
+
   test('valid secret with an absent bearer enters session reauth', () async {
     final id = await deviceID(db);
     backend.provisionBoundDevice(
@@ -1171,6 +1258,25 @@ void main() {
     expect(snapshot.phase, SyncEnrollmentPhase.snapshotInProgress);
   });
 
+  test('complete reconcile carries the hashed empty snapshot', () async {
+    await seedBoundDevice(database: db, store: secrets, target: backend);
+    await metadataStore.enterSnapshotInProgress();
+    Map<SyncCollection, String>? sentHashes;
+    final wrapper = DelegatingBackend(backend);
+    wrapper.onComplete = (credential, request) {
+      sentHashes = (request as CompleteReconcile).collectionHashes;
+      return SyncSuccess(ReconcileResponse(const {}));
+    };
+
+    await service(backendOverride: wrapper).enroll();
+
+    expect(sentHashes, {
+      for (final collection in SyncCollection.values)
+        collection: computeSnapshotHash(const <SyncEnvelope>[]),
+    });
+    expect(sentHashes!.keys.toSet(), SyncCollection.values.toSet());
+  });
+
   test(
     'snapshot pulls carry the begin-reconcile context, never a cursor',
     () async {
@@ -1196,6 +1302,22 @@ void main() {
         expect(context!.snapshotWatermark, isNotEmpty);
       }
       expect(wrapper.operationCredentials.toSet(), hasLength(1));
+    },
+  );
+
+  test(
+    'a complete-reconcile response without a write proof leaves none stored',
+    () async {
+      await seedBoundDevice(database: db, store: secrets, target: backend);
+      await metadataStore.enterSnapshotInProgress();
+
+      await service().enroll();
+
+      expect(await secrets.read(syncWriteProofSecretKey), isNull);
+      expect(
+        (await metadataStore.snapshot()).phase,
+        SyncEnrollmentPhase.gateEnabled,
+      );
     },
   );
 

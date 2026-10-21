@@ -510,8 +510,8 @@ fixtures; mockup and sample-seed figures are not calculation targets
   (`app/test/boot/clock_test.dart`)
 - `Ledger` is the only object allowed to touch `LedgerState`; views never hold a `LedgerState`
   reference. (`ledger.dart`)
-- Local and stamped sync commits increment `Ledger.revision` once before publication and listener
-  notification; rejected sync batches leave it unchanged
+- Every successful non-empty commit increments `Ledger.revision` before publication and listener
+  notification; rejected and empty commits leave all three unchanged
   (`app/lib/ledger/ledger.dart:_commit`, `app/test/ledger/ledger_revision_test.dart`).
 - Persistence attaches during boot; the nullable session provider owns and attaches the cache
   on acquisition for its ready Ledger and obtains source revisions from that Ledger

@@ -324,6 +324,15 @@ void main() {
     );
   });
 
+  test(
+    'production E2E resolver produces SyncCipher.keyByteCount bytes',
+    () async {
+      final key = await resolveProductionSyncE2EKey();
+
+      expect(key.length, SyncCipher.keyByteCount);
+    },
+  );
+
   test('injected deterministic key is durably stored and validates', () async {
     final key = Uint8List.fromList(
       List<int>.generate(SyncCipher.keyByteCount, (index) => 255 - index),

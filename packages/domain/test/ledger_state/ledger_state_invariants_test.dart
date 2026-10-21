@@ -536,6 +536,15 @@ void main() {
       expect(state.moneySources[accountID]!.asAccount!.name, 'Renamed');
     });
 
+    test('an edit may not write the persistence-only tombstoned state', () {
+      final state = LedgerState();
+      state.addAccount(account());
+
+      state.updateAccount(account(lifecycle: LifecycleState.tombstoned));
+
+      expect(state.moneySources[accountID]!.lifecycle, LifecycleState.active);
+    });
+
     test('an edit cannot move an active, unreferenced account to '
         'referenceOnly', () {
       final state = LedgerState();
