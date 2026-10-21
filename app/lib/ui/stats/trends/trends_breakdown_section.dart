@@ -110,6 +110,28 @@ class _BreakdownHeading extends StatelessWidget {
   }
 }
 
+List<DonutSegment> _donutSegments(List<_ColoredRow> rows) {
+  return [
+    for (final entry in rows)
+      DonutSegment(
+        label: entry.row.name,
+        value: entry.row.amount.toDouble(),
+        color: entry.color,
+      ),
+  ];
+}
+
+List<CategoryMapTile> _mapTiles(List<_ColoredRow> rows) {
+  return [
+    for (final entry in rows)
+      CategoryMapTile(
+        label: entry.row.name,
+        share: entry.row.sharePercent.toDouble() / _percentFactor,
+        color: entry.color,
+      ),
+  ];
+}
+
 class _BreakdownChart extends StatelessWidget {
   const _BreakdownChart({required this.rows, required this.chart});
 
@@ -121,31 +143,15 @@ class _BreakdownChart extends StatelessWidget {
     final Widget visual;
     switch (chart) {
       case BreakdownChart.donut:
-        final segments = [
-          for (final entry in rows)
-            DonutSegment(
-              label: entry.row.name,
-              value: entry.row.amount.toDouble(),
-              color: entry.color,
-            ),
-        ];
         visual = Center(
           child: DonutChart(
-            segments: segments,
+            segments: _donutSegments(rows),
             centerLabel: rows.first.row.formattedShare,
             centerValue: rows.first.row.name,
           ),
         );
       case BreakdownChart.categoryMap:
-        final tiles = [
-          for (final entry in rows)
-            CategoryMapTile(
-              label: entry.row.name,
-              share: entry.row.sharePercent.toDouble() / _percentFactor,
-              color: entry.color,
-            ),
-        ];
-        visual = CategoryMap(tiles: tiles);
+        visual = CategoryMap(tiles: _mapTiles(rows));
     }
     return Padding(padding: _chartPadding, child: visual);
   }

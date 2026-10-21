@@ -29,6 +29,7 @@ void main() {
   _preferenceTests();
   _boundaryTests();
   _rankTests();
+  _longNameTests();
   testWidgets('tr-oct-map shows ranked categories and tiny map labels', (
     tester,
   ) async {
@@ -735,5 +736,93 @@ void _expectAmountColor(WidgetTester tester, Color color) {
   for (final row in _ready(tester).breakdown.rows) {
     final amount = _inSection(find.text(row.formattedAmount));
     expect(tester.widget<Text>(amount).style?.color, color);
+  }
+}
+
+const _longName = 'Household essentials and other long running subscriptions';
+const _longAmount = '-123456.78';
+const _holeDiameterFraction = 0.68;
+const _rectTolerance = 0.5;
+
+Ledger _longNameLedger() {
+  final ledger = emptyTrendsLedger();
+  ledger.updateCategory(
+    TransactionCategory(
+      id: foodCategoryID,
+      name: _longName,
+      kind: CategoryKind.expense,
+      colorHex: '#000000',
+      includeInAnalysis: true,
+      parentID: null,
+      symbol: 'tag',
+    ),
+  );
+  addTrendsEntry(ledger, _longAmount, _today);
+  return ledger;
+}
+
+Rect _rect(WidgetTester tester, Finder finder) => tester.getRect(finder);
+
+void _expectInside(Rect inner, Rect outer, String what) {
+  final bounds = outer.inflate(_rectTolerance);
+  expect(bounds.contains(inner.topLeft), isTrue, reason: '$what top left');
+  expect(
+    bounds.contains(inner.bottomRight),
+    isTrue,
+    reason: '$what bottom right',
+  );
+}
+
+void _expectInsideHole(WidgetTester tester) {
+  final chart = _rect(tester, find.byType(DonutChart));
+  final radius = chart.width * _holeDiameterFraction / 2 + _rectTolerance;
+  final texts = find.descendant(
+    of: find.byType(DonutChart),
+    matching: find.byType(Text),
+  );
+  expect(texts, findsNWidgets(2));
+  for (final text in texts.evaluate().map((e) => e.widget)) {
+    final rect = _rect(tester, find.byWidget(text));
+    final corners = [
+      rect.topLeft,
+      rect.topRight,
+      rect.bottomLeft,
+      rect.bottomRight,
+    ];
+    for (final corner in corners) {
+      expect((corner - chart.center).distance, lessThanOrEqualTo(radius));
+    }
+  }
+}
+
+void _expectRowInsideCard(WidgetTester tester) {
+  final breakdown = _ready(tester).breakdown;
+  final row = breakdown.rows.first;
+  final card = _rect(tester, _inSection(find.byType(TrendsCard)));
+  final label = _rect(tester, find.text(_longName).last);
+  final share = _rect(tester, find.text(row.formattedShare).last);
+  final amount = _rect(tester, find.text(row.formattedAmount));
+  _expectInside(label, card, 'label');
+  _expectInside(share, card, 'share');
+  _expectInside(amount, card, 'amount');
+  expect(label.right, lessThanOrEqualTo(amount.left + _rectTolerance));
+}
+
+void _longNameTests() {
+  for (final chart in BreakdownChart.values) {
+    testWidgets('a very long category name stays inside the $chart section', (
+      tester,
+    ) async {
+      await pumpTrends(
+        tester,
+        ledger: _longNameLedger(),
+        today: _today,
+        preferences: DisplayPreferences(breakdownChart: chart),
+      );
+
+      expect(tester.takeException(), isNull);
+      _expectRowInsideCard(tester);
+      if (chart == BreakdownChart.donut) _expectInsideHole(tester);
+    }, timeout: uiTestTimeout);
   }
 }
