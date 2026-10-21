@@ -124,7 +124,11 @@ class TrendsHarness {
 
   TrendsIntent get intent => container.read(trendsIntentProvider);
 
-  TrendsBody get body => container.read(trendsViewModelProvider).requireValue;
+  TrendsBody get body =>
+      container.read(trendsViewModelProvider).requireValue.body;
+
+  TrendsStep? get step =>
+      container.read(trendsViewModelProvider).requireValue.step;
 
   TrendsReadyBody get ready => body as TrendsReadyBody;
 
@@ -168,9 +172,6 @@ Future<void> pumpTrends(
   Brightness brightness = Brightness.light,
   bool settle = true,
 }) async {
-  tester.view.devicePixelRatio = 1.0;
-  tester.view.physicalSize = size;
-  addTearDown(tester.view.reset);
   final container = ProviderContainer(
     overrides: [
       if (preferences != null)
@@ -183,6 +184,27 @@ Future<void> pumpTrends(
     ],
   );
   addTearDown(container.dispose);
+  await pumpTrendsApp(
+    tester,
+    container,
+    home: home,
+    size: size,
+    brightness: brightness,
+    settle: settle,
+  );
+}
+
+Future<void> pumpTrendsApp(
+  WidgetTester tester,
+  ProviderContainer container, {
+  Widget home = const TrendsScreen(),
+  Size size = trendsPhoneSize,
+  Brightness brightness = Brightness.light,
+  bool settle = true,
+}) async {
+  tester.view.devicePixelRatio = 1.0;
+  tester.view.physicalSize = size;
+  addTearDown(tester.view.reset);
   final app = MaterialApp(theme: buildSpendWiseTheme(brightness), home: home);
   await tester.pumpWidget(
     UncontrolledProviderScope(container: container, child: app),

@@ -1,12 +1,40 @@
+import 'package:flutter/foundation.dart' show immutable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/settings/display_preferences_providers.dart';
 import 'package:spendwise/ui/stats/trends/trends_breakdown.dart';
 import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
+import 'package:spendwise/ui/common/base/step_emitting.dart';
+import 'package:spendwise/ui/stats/category_detail/category_detail_view_model.dart';
 import 'package:spendwise/ui/stats/trends/trends_body.dart';
 import 'package:spendwise/ui/stats/trends/trends_intent.dart';
 import 'package:spendwise/ui/stats/trends/trends_projection.dart';
+
+// MARK: - Step
+sealed class TrendsStep {
+  const TrendsStep();
+}
+
+final class TrendsCategoryDetailRequested extends TrendsStep {
+  const TrendsCategoryDetailRequested(this.args);
+
+  final CategoryDetailArgs args;
+}
+
+// MARK: - ViewState
+@immutable
+class TrendsViewState implements HasStep<TrendsViewState, TrendsStep> {
+  const TrendsViewState({required this.body, this.step});
+
+  final TrendsBody body;
+  @override
+  final TrendsStep? step;
+
+  @override
+  TrendsViewState withStep(TrendsStep? Function() step) =>
+      TrendsViewState(body: body, step: step());
+}
 
 // MARK: - ViewModel
 abstract class TrendsViewModel {
@@ -16,14 +44,20 @@ abstract class TrendsViewModel {
   void previousPage();
   void nextPage();
   void retry();
+  void requestCategoryDetail(int rowIndex);
+  void clearStep();
 }
 
 // MARK: - Notifier
-class TrendsNotifier extends AsyncNotifier<TrendsBody>
-    with LedgerBackedNotifier<TrendsBody>
+class TrendsNotifier extends AsyncNotifier<TrendsViewState>
+    with
+        LedgerBackedNotifier<TrendsViewState>,
+        StepEmitting<TrendsViewState, TrendsStep>
     implements TrendsViewModel {
+  TrendsStep? _step;
+
   @override
-  TrendsBody build() {
+  TrendsViewState build() {
     final readyLedger = ledger;
     final revision = readyLedger.revision;
     final categories = Map<String, TrendsCategory>.unmodifiable({
@@ -47,7 +81,7 @@ class TrendsNotifier extends AsyncNotifier<TrendsBody>
     if (queries == null) {
       throw StateError('$runtimeType requires analysis queries.');
     }
-    return projectTrends(
+    final body = projectTrends(
       queries: queries,
       intent: ref.watch(trendsIntentProvider),
       today: ref.watch(todayProvider),
@@ -55,6 +89,7 @@ class TrendsNotifier extends AsyncNotifier<TrendsBody>
       categories: categories,
       preferences: preferences,
     );
+    return TrendsViewState(body: body, step: _step);
   }
 
   @override
@@ -75,11 +110,34 @@ class TrendsNotifier extends AsyncNotifier<TrendsBody>
   @override
   void retry() => ref.read(analysisQueriesProvider)?.retry();
 
+  @override
+  void requestCategoryDetail(int rowIndex) {
+    if (!ref.mounted) return;
+    final body = switch (state) {
+      AsyncData(:final value) => value.body,
+      _ => null,
+    };
+    if (body is! TrendsReadyBody) return;
+    final rows = body.breakdown.rows;
+    if (rowIndex < 0 || rowIndex >= rows.length) return;
+    final target = rows[rowIndex].navigationTarget;
+    if (target == null) return;
+    final step = TrendsCategoryDetailRequested(target);
+    _step = step;
+    emitStep(step);
+  }
+
+  @override
+  void clearStep() {
+    _step = null;
+    super.clearStep();
+  }
+
   TrendsIntentNotifier get _intent => ref.read(trendsIntentProvider.notifier);
 
   TrendsContext _context() {
     final bounds = switch (state) {
-      AsyncData(:final value) => value.bounds,
+      AsyncData(:final value) => value.body.bounds,
       _ => null,
     };
     return TrendsContext(
@@ -90,6 +148,6 @@ class TrendsNotifier extends AsyncNotifier<TrendsBody>
 }
 
 final trendsViewModelProvider =
-    AsyncNotifierProvider.autoDispose<TrendsNotifier, TrendsBody>(
+    AsyncNotifierProvider.autoDispose<TrendsNotifier, TrendsViewState>(
       TrendsNotifier.new,
     );

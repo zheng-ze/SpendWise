@@ -213,9 +213,10 @@ class _TrendsSubscriptions {
       _body = container.listen(trendsViewModelProvider, (_, _) {});
 
   final ProviderSubscription<TrendsIntent> _intent;
-  final ProviderSubscription<AsyncValue<TrendsBody>> _body;
+  final ProviderSubscription<AsyncValue<TrendsViewState>> _body;
 
-  TrendsReadyBody get value => _body.read().requireValue as TrendsReadyBody;
+  TrendsReadyBody get value =>
+      _body.read().requireValue.body as TrendsReadyBody;
 
   Future<void> close() async {
     _intent.close();

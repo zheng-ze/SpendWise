@@ -26,6 +26,9 @@ const _swatchSize = 10.0;
 const _swatchRadius = 3.0;
 const _dividerWidth = 1.0;
 const _emptyIcon = Icons.attach_money;
+const _chevron = Icons.chevron_right;
+const _chevronSize = 14.0;
+const _chevronPadding = EdgeInsets.only(left: 4);
 const _percentFactor = 100;
 
 typedef _ColoredRow = ({TrendsBreakdownRow row, Color color});
@@ -35,10 +38,12 @@ class TrendsBreakdownSection extends StatelessWidget {
     super.key,
     required this.breakdown,
     required this.amountKind,
+    required this.onOpenCategory,
   });
 
   final TrendsBreakdown breakdown;
   final AmountKind amountKind;
+  final ValueChanged<int> onOpenCategory;
 
   @override
   Widget build(BuildContext context) {
@@ -59,17 +64,22 @@ class TrendsBreakdownSection extends StatelessWidget {
       income: amountKind == AmountKind.income,
       level: breakdown.level,
     );
-    final content = rows.isEmpty
-        ? [_EmptyBreakdown(income: amountKind == AmountKind.income)]
-        : <Widget>[
-            _BreakdownChart(rows: rows, chart: breakdown.chart),
-            for (var i = 0; i < rows.length; i++)
-              _BreakdownRow(
-                entry: rows[i],
-                amountKind: amountKind,
-                divided: i < rows.length - 1,
-              ),
-          ];
+    final chart = _BreakdownChart(
+      rows: rows,
+      chart: breakdown.chart,
+      onSelect: onOpenCategory,
+    );
+    final rowWidgets = [
+      for (var i = 0; i < rows.length; i++)
+        _BreakdownRow(
+          entry: rows[i],
+          amountKind: amountKind,
+          divided: i < rows.length - 1,
+          onTap: _opener(rows[i].row, i, onOpenCategory),
+        ),
+    ];
+    final empty = _EmptyBreakdown(income: amountKind == AmountKind.income);
+    final content = rows.isEmpty ? [empty] : [chart, ...rowWidgets];
     final card = TrendsCard(
       children: [
         heading,
@@ -83,6 +93,12 @@ class TrendsBreakdownSection extends StatelessWidget {
     );
   }
 }
+
+VoidCallback? _opener(
+  TrendsBreakdownRow row,
+  int index,
+  ValueChanged<int> open,
+) => row.navigationTarget == null ? null : () => open(index);
 
 class _BreakdownHeading extends StatelessWidget {
   const _BreakdownHeading({required this.income, required this.level});
@@ -133,10 +149,15 @@ List<CategoryMapTile> _mapTiles(List<_ColoredRow> rows) {
 }
 
 class _BreakdownChart extends StatelessWidget {
-  const _BreakdownChart({required this.rows, required this.chart});
+  const _BreakdownChart({
+    required this.rows,
+    required this.chart,
+    required this.onSelect,
+  });
 
   final List<_ColoredRow> rows;
   final BreakdownChart chart;
+  final ValueChanged<int> onSelect;
 
   @override
   Widget build(BuildContext context) {
@@ -148,10 +169,11 @@ class _BreakdownChart extends StatelessWidget {
             segments: _donutSegments(rows),
             centerLabel: rows.first.row.formattedShare,
             centerValue: rows.first.row.name,
+            onSelect: onSelect,
           ),
         );
       case BreakdownChart.categoryMap:
-        visual = CategoryMap(tiles: _mapTiles(rows));
+        visual = CategoryMap(tiles: _mapTiles(rows), onSelect: onSelect);
     }
     return Padding(padding: _chartPadding, child: visual);
   }
@@ -162,11 +184,13 @@ class _BreakdownRow extends StatelessWidget {
     required this.entry,
     required this.amountKind,
     required this.divided,
+    required this.onTap,
   });
 
   final _ColoredRow entry;
   final AmountKind amountKind;
   final bool divided;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -204,6 +228,12 @@ class _BreakdownRow extends StatelessWidget {
         color: AmountStyle.of(context, kind: amountKind).color,
       ),
     );
+    final chevron = onTap == null
+        ? null
+        : Padding(
+            padding: _chevronPadding,
+            child: Icon(_chevron, size: _chevronSize, color: colors.subtext),
+          );
     final content = Row(
       children: [
         swatch,
@@ -211,6 +241,7 @@ class _BreakdownRow extends StatelessWidget {
         Expanded(child: label),
         const SizedBox(width: _rowGap),
         amount,
+        ?chevron,
       ],
     );
     final border = divided
@@ -218,11 +249,12 @@ class _BreakdownRow extends StatelessWidget {
             bottom: BorderSide(color: colors.edge, width: _dividerWidth),
           )
         : null;
-    return Container(
+    final surface = Container(
       padding: _rowPadding,
       decoration: BoxDecoration(border: border),
       child: content,
     );
+    return onTap == null ? surface : InkWell(onTap: onTap, child: surface);
   }
 }
 

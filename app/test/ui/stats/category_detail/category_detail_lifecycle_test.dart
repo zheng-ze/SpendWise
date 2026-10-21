@@ -1,85 +1,15 @@
-import 'dart:async';
-
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
-import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ledger/ledger_session.dart';
 import 'package:spendwise/ui/stats/category_detail/category_detail_screen.dart';
 import 'package:spendwise/ui/stats/category_detail/category_detail_view_model.dart';
 
+import '../../../ledger/analysis_test_support.dart';
+import '../../../support/counting_ledger_session.dart';
 import '../../../support/ui_test_timeout.dart';
-
-class _CountingLedger extends Ledger {
-  _CountingLedger({super.state});
-
-  int listeners = 0;
-
-  @override
-  void addListener(VoidCallback listener) {
-    listeners++;
-    super.addListener(listener);
-  }
-
-  @override
-  void removeListener(VoidCallback listener) {
-    listeners--;
-    super.removeListener(listener);
-  }
-}
-
-class _CountingCache extends AnalysisCache {
-  _CountingCache({super.runner});
-
-  int listeners = 0;
-
-  @override
-  void addListener(VoidCallback listener) {
-    listeners++;
-    super.addListener(listener);
-  }
-
-  @override
-  void removeListener(VoidCallback listener) {
-    listeners--;
-    super.removeListener(listener);
-  }
-}
-
-class _SessionHolder extends Notifier<LedgerSession?> {
-  @override
-  LedgerSession? build() => null;
-
-  void replace(LedgerSession session) => state = session;
-}
-
-final _sessionHolderProvider = NotifierProvider<_SessionHolder, LedgerSession?>(
-  _SessionHolder.new,
-);
-
-class _ManualRunner {
-  final List<Completer<List<AnalysisItem>>> pending = [];
-
-  Future<List<AnalysisItem>> call(LedgerState state) {
-    final completer = Completer<List<AnalysisItem>>();
-    pending.add(completer);
-    return completer.future;
-  }
-}
-
-class _Counted {
-  _Counted(this.ledger, this.cache);
-
-  final _CountingLedger ledger;
-  final _CountingCache cache;
-
-  LedgerSession get session =>
-      LedgerSession(ledger: ledger, analysisCache: cache);
-}
 
 void main() {
   final account = Account(
@@ -110,37 +40,18 @@ void main() {
     date: DateTime.utc(2026, 3, 5),
   );
 
-  _Counted counted({
+  Counted counted({
     ComputeRunner runner = syncComputeRunner,
     Map<String, Entry> entries = const {},
   }) {
-    final ledger = _CountingLedger(
+    return countedSession(
       state: LedgerState(
         moneySources: {account.id: MoneySource.account(account)},
         categories: {food.id: food},
         entries: entries,
       ),
+      runner: runner,
     );
-    final cache = _CountingCache(runner: runner);
-    cache.start(ledger.bus, sourceRevision: () => ledger.revision);
-    addTearDown(cache.dispose);
-    return _Counted(ledger, cache);
-  }
-
-  ProviderContainer containerFor(LedgerSession Function() session) {
-    final container = ProviderContainer(
-      overrides: [
-        ledgerProvider.overrideWith(
-          (ref) => ref.watch(_sessionHolderProvider)?.ledger,
-        ),
-        ledgerSessionProvider.overrideWith(
-          (ref) => ref.watch(_sessionHolderProvider),
-        ),
-      ],
-    );
-    addTearDown(container.dispose);
-    container.read(_sessionHolderProvider.notifier).replace(session());
-    return container;
   }
 
   Future<void> pumpRoute(WidgetTester tester, ProviderContainer container) {
@@ -192,7 +103,7 @@ void main() {
   test(
     'closing during a delayed refresh then mutating the ledger is inert',
     () async {
-      final runner = _ManualRunner();
+      final runner = ManualRunner();
       final env = counted(runner: runner.call);
       final container = containerFor(() => env.session);
       final subscription = container.listen(
@@ -217,7 +128,7 @@ void main() {
   test(
     'session replacement ignores the old instances and rebuilds on the new',
     () async {
-      final oldRunner = _ManualRunner();
+      final oldRunner = ManualRunner();
       final old = counted(runner: oldRunner.call);
       final replacement = counted(entries: {lunch('-7').id: lunch('-7')});
       final container = containerFor(() => old.session);
@@ -232,7 +143,7 @@ void main() {
       expect(oldRunner.pending, hasLength(1));
 
       container
-          .read(_sessionHolderProvider.notifier)
+          .read(sessionHolderProvider.notifier)
           .replace(replacement.session);
       await pumpEventQueue();
       old.ledger.addEntry(lunch('-1'));
