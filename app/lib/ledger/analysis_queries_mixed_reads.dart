@@ -101,6 +101,34 @@ extension _AnalysisMixedReads on AnalysisQueries {
     });
   }
 
+  AnalysisQueryResult<MonthTrendsPeriod> _readTrendsPeriod({
+    required DateTime endMonth,
+    required CategoryKind kind,
+    required BreakdownLevel level,
+  }) {
+    final anchor = monthWindow(endMonth).start;
+    final identity =
+        'trends-period|month|${anchor.toIso8601String()}|'
+        '${kind.name}|${level.name}';
+    return _readMixed<MonthTrendsPeriod>(identity, () {
+      if (anchor.isAfter(monthWindow(_today).start)) {
+        throw ArgumentError.value(
+          endMonth,
+          'endMonth',
+          'Month is in the future.',
+        );
+      }
+      return trendsPeriod(
+        items: _cache.items,
+        state: _ledger.state,
+        endMonth: anchor,
+        kind: kind,
+        level: level,
+        today: _today,
+      );
+    });
+  }
+
   // MARK: - Breakdowns
 
   AnalysisQueryResult<PeriodBreakdown> _readCategoryBreakdown({

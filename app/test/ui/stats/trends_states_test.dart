@@ -5,8 +5,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/settings/display_preferences.dart' as settings;
 import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
+import 'package:spendwise/ledger/analysis/breakdowns/category_breakdown.dart'
+    as analysis;
 import 'package:spendwise/ledger/analysis/breakdowns/compared_with_usual.dart';
-import 'package:spendwise/ledger/analysis/summaries/month_spread.dart';
+import 'package:spendwise/ledger/analysis/summaries/trends_period.dart';
 import 'package:spendwise/ledger/analysis/summaries/year_spread.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/analysis_queries.dart';
@@ -52,23 +54,19 @@ class _ScriptedQueries extends AnalysisQueries {
   });
 
   final List<String> reads = [];
-  AnalysisQueryResult<MonthSpread> Function(AnalysisQueryResult<MonthSpread>)?
-  monthSpread;
-  AnalysisQueryResult<YearSpread> Function(AnalysisQueryResult<YearSpread>)?
-  yearSpread;
   AnalysisQueryResult<ComparedWithUsual> Function(
     AnalysisQueryResult<ComparedWithUsual>,
   )?
   usual;
 
   @override
-  AnalysisQueryResult<MonthSpread> readMonthSpread({
+  AnalysisQueryResult<MonthTrendsPeriod> readTrendsPeriod({
     required DateTime endMonth,
     required CategoryKind kind,
+    required analysis.BreakdownLevel level,
   }) {
-    reads.add('month-spread');
-    final real = super.readMonthSpread(endMonth: endMonth, kind: kind);
-    return monthSpread?.call(real) ?? real;
+    reads.add('trends-period');
+    return super.readTrendsPeriod(endMonth: endMonth, kind: kind, level: level);
   }
 
   @override
@@ -77,8 +75,7 @@ class _ScriptedQueries extends AnalysisQueries {
     required CategoryKind kind,
   }) {
     reads.add('year-spread');
-    final real = super.readYearSpread(endYear: endYear, kind: kind);
-    return yearSpread?.call(real) ?? real;
+    return super.readYearSpread(endYear: endYear, kind: kind);
   }
 
   @override
@@ -149,34 +146,6 @@ TrendsIntent _yearIntent() {
   return TrendsIntent.initial(
     _today,
   ).withMode(TrendsMode.year, TrendsContext(currentMonth: monthSerial(_today)));
-}
-
-AnalysisQueryResult<MonthSpread> _spreadForOtherMonth(
-  AnalysisQueryResult<MonthSpread> real,
-) {
-  final spread = real.value!;
-  final other = MonthSpread(
-    endMonth: spread.endMonth,
-    kind: spread.kind,
-    currentMonth: DateTime.utc(2026, 9, 1),
-    earliestSpreadEndMonth: spread.earliestSpreadEndMonth,
-    slots: spread.slots,
-  );
-  return _with(real, value: other);
-}
-
-AnalysisQueryResult<YearSpread> _spreadForOtherYear(
-  AnalysisQueryResult<YearSpread> real,
-) {
-  final spread = real.value!;
-  final other = YearSpread(
-    endYear: spread.endYear,
-    kind: spread.kind,
-    currentYear: 2025,
-    earliestSpreadEndYear: spread.earliestSpreadEndYear,
-    slots: spread.slots,
-  );
-  return _with(real, value: other);
 }
 
 void main() {
@@ -375,21 +344,6 @@ void main() {
   });
 
   group('coherence', () {
-    test('a spread from another revision is loading', () async {
-      final scripted = await _scripted(_today);
-      final stale = scripted.ledger.revision - 1;
-      scripted.queries.monthSpread = (real) => _with(real, revision: stale);
-
-      expect(scripted.project(_today), isA<TrendsLoadingBody>());
-    });
-
-    test('a ready spread without a payload is an error', () async {
-      final scripted = await _scripted(_today);
-      scripted.queries.monthSpread = (real) => _with(real, value: null);
-
-      expect(scripted.project(_today), isA<TrendsErrorBody>());
-    });
-
     test('a ready usual without a payload is an error', () async {
       final scripted = await _scripted(_today);
       scripted.queries.usual = (real) => _with(real, value: null);
@@ -397,20 +351,11 @@ void main() {
       expect(scripted.project(_today), isA<TrendsErrorBody>());
     });
 
-    test('a spread built for another current month is loading', () async {
+    test('year mode does not read the monthly usual', () async {
       final scripted = await _scripted(_today);
-      scripted.queries.monthSpread = _spreadForOtherMonth;
+      scripted.project(_today, intent: _yearIntent());
 
-      expect(scripted.project(_today), isA<TrendsLoadingBody>());
-    });
-
-    test('a year spread built for another current year is loading', () async {
-      final scripted = await _scripted(_today);
-      scripted.queries.yearSpread = _spreadForOtherYear;
-
-      final body = scripted.project(_today, intent: _yearIntent());
-
-      expect(body, isA<TrendsLoadingBody>());
+      expect(scripted.queries.reads, ['year-spread']);
     });
   });
 

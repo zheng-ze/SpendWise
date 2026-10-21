@@ -2,6 +2,7 @@ import 'package:domain/domain.dart';
 
 import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
 import 'package:spendwise/ledger/analysis_queries.dart';
+import 'package:spendwise/ledger/analysis/summaries/trends_period.dart';
 import 'package:spendwise/ledger/analysis/breakdowns/category_breakdown.dart'
     as analysis;
 import 'package:spendwise/ledger/analysis/breakdowns/scoped_trend.dart';
@@ -23,6 +24,8 @@ const _pagePrevious = -1;
 const _pageNext = 1;
 const _fullSharePercent = 100;
 const _nextCalendarPeriod = 1;
+const _monthsInSpread = 12;
+const _monthsBeforeCurrentMonth = 11;
 
 // MARK: - Projection
 TrendsBody projectTrends({
@@ -49,11 +52,13 @@ TrendsBody projectTrends({
   final context = TrendsContext(currentMonth: currentMonth, bounds: bounds);
   final projection = _Projection(
     queries: queries,
+    today: today,
     intent: intent,
     context: context,
     bounds: bounds,
     basis: intent.effective(context),
     reads: [preflight, first],
+    firstRecordMonth: first.value,
     isEmpty: first.value == null,
     revision: ledgerRevision,
     categories: categories,
@@ -80,11 +85,13 @@ TrendsBody? _unready(List<AnalysisQueryResult<Object?>> reads, int revision) {
 class _Projection {
   const _Projection({
     required this.queries,
+    required this.today,
     required this.intent,
     required this.context,
     required this.bounds,
     required this.basis,
     required this.reads,
+    required this.firstRecordMonth,
     required this.isEmpty,
     required this.revision,
     required this.categories,
@@ -92,11 +99,13 @@ class _Projection {
   });
 
   final AnalysisQueries queries;
+  final DateTime today;
   final TrendsIntent intent;
   final TrendsContext context;
   final TrendsBounds bounds;
   final TrendsBasis basis;
   final List<AnalysisQueryResult<Object?>> reads;
+  final DateTime? firstRecordMonth;
   final bool isEmpty;
   final int revision;
   final Map<String, TrendsCategory> categories;
@@ -108,9 +117,10 @@ class _Projection {
   };
 
   TrendsBody months() {
-    final spread = queries.readMonthSpread(
+    final summary = queries.readTrendsPeriod(
       endMonth: monthStartOf(basis.end),
       kind: _kind,
+      level: _level,
     );
     final usual = isEmpty
         ? null
@@ -119,17 +129,29 @@ class _Projection {
             kind: _kind,
           );
     final breakdown = _readBreakdown();
-    final unready = _unready([...reads, spread, ?usual, breakdown], revision);
+    final unready = _unready([...reads, summary, ?usual, breakdown], revision);
     if (unready != null) return unready;
-    final value = spread.value;
+    final value = summary.value;
     final usualValue = usual?.value;
     if (value == null || (usual != null && usualValue == null)) {
       return const TrendsErrorBody();
     }
     final current = monthStartOf(context.currentMonth);
-    if (value.currentMonth != current) return const TrendsLoadingBody();
+    if (value.today != today || value.spread.currentMonth != current) {
+      return const TrendsLoadingBody();
+    }
+    if (!_monthSummaryMatches(
+      value,
+      basis,
+      monthStartOf(bounds.earliestMonthEnd),
+      firstRecordMonth,
+      _kind,
+      _level,
+    )) {
+      return const TrendsErrorBody();
+    }
 
-    final slots = value.slots;
+    final slots = value.spread.slots;
     final period = _periodRow(
       '${formatMonthLabel(slots.first.month)}$_rangeSeparator'
       '${formatMonthLabel(slots.last.month)}',
@@ -162,7 +184,59 @@ class _Projection {
         currentMonth: usualValue.selectedMonth == current,
       ),
       bounds: bounds,
+      periodSummary: value,
     );
+  }
+
+  bool _monthSummaryMatches(
+    MonthTrendsPeriod summary,
+    TrendsBasis basis,
+    DateTime earliestMonthEnd,
+    DateTime? firstRecordMonth,
+    CategoryKind kind,
+    analysis.BreakdownLevel level,
+  ) {
+    final slots = summary.spread.slots;
+    final breakdown = summary.breakdown;
+    final spreadTotal = slots.fold(
+      Decimal.zero,
+      (total, slot) => total + slot.total,
+    );
+    final endMonth = monthStartOf(basis.end);
+    return slots.length == _monthsInSpread &&
+        slots.first.month ==
+            DateTime.utc(
+              endMonth.year,
+              endMonth.month - _monthsBeforeCurrentMonth,
+            ) &&
+        slots.last.month == endMonth &&
+        (summary.highestMonth == null ||
+            slots.contains(summary.highestMonth)) &&
+        summary.averages.completePeriodCount <= slots.length &&
+        _averagesMatchBreakdown(summary) &&
+        summary.spread.endMonth == endMonth &&
+        summary.spread.kind == kind &&
+        summary.spread.earliestSpreadEndMonth == earliestMonthEnd &&
+        summary.firstRecordMonth == firstRecordMonth &&
+        breakdown.window ==
+            DateRange(slots.first.window.start, slots.last.window.end) &&
+        breakdown.kind == kind &&
+        breakdown.level == level &&
+        breakdown.total == spreadTotal;
+  }
+
+  bool _averagesMatchBreakdown(MonthTrendsPeriod summary) {
+    final rows = summary.breakdown.rows;
+    final averages = summary.averages.rows;
+    if (rows.length != averages.length) return false;
+    for (var index = 0; index < rows.length; index++) {
+      if (rows[index].bucketID != averages[index].bucketID ||
+          rows[index].mainBucketID != averages[index].mainBucketID ||
+          rows[index].isDirect != averages[index].isDirect) {
+        return false;
+      }
+    }
+    return true;
   }
 
   TrendsBody years() {
