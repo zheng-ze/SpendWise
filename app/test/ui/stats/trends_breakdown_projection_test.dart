@@ -323,6 +323,69 @@ void main() {
     },
   );
   test(
+    'breakdown row amounts must reconcile with the unchanged total',
+    () async {
+      final fixture = await _scripted();
+      final real = _readBreakdown(fixture.queries).value;
+      expect(real, isNotNull);
+      if (real == null) return;
+      final row = _rowPayload(real.rows.single, amount: Decimal.fromInt(9));
+      final value = _payload(real, rows: [row]);
+      expect(value.total, real.total);
+      fixture.queries.replacement = _result(
+        value,
+        AnalysisQueryState.ready,
+        fixture.ledger.revision,
+      );
+      expect(_project(fixture.queries, fixture.ledger), isA<TrendsErrorBody>());
+    },
+  );
+
+  test('breakdown row shares must reconcile to 100 percent', () async {
+    final fixture = await _scripted();
+    final real = _readBreakdown(fixture.queries).value;
+    expect(real, isNotNull);
+    if (real == null) return;
+    final row = _rowPayload(
+      real.rows.single,
+      sharePercent: Decimal.fromInt(99),
+    );
+    final value = _payload(real, rows: [row]);
+    fixture.queries.replacement = _result(
+      value,
+      AnalysisQueryState.ready,
+      fixture.ledger.revision,
+    );
+    expect(_project(fixture.queries, fixture.ledger), isA<TrendsErrorBody>());
+  });
+
+  test('year breakdown window mismatch produces an error', () async {
+    final fixture = await _scripted();
+    final context = TrendsContext(currentMonth: monthSerial(_today));
+    final intent = TrendsIntent.initial(_today)
+        .withMode(TrendsMode.year, context);
+    final real = fixture.queries
+        .readCategoryBreakdown(
+          period: DateTime.utc(2026),
+          mode: AnalysisPeriodMode.year,
+          kind: CategoryKind.expense,
+          level: analysis.BreakdownLevel.categories,
+        )
+        .value;
+    expect(real, isNotNull);
+    if (real == null) return;
+    final window = DateRange(DateTime.utc(2026), DateTime.utc(2026, 12));
+    final value = _payload(real, window: window);
+    fixture.queries.replacement = _result(
+      value,
+      AnalysisQueryState.ready,
+      fixture.ledger.revision,
+    );
+    final body = _project(fixture.queries, fixture.ledger, intent: intent);
+    expect(body, isA<TrendsErrorBody>());
+  });
+
+  test(
     'breakdown reads wait for day alignment and use the effective clamp',
     () async {
       final fixture = await _scripted();
@@ -509,6 +572,18 @@ analysis.PeriodBreakdown _payload(
   level: level ?? real.level,
   total: total ?? real.total,
   rows: rows ?? real.rows,
+);
+
+analysis.BreakdownRow _rowPayload(
+  analysis.BreakdownRow real, {
+  Decimal? amount,
+  Decimal? sharePercent,
+}) => analysis.BreakdownRow(
+  bucketID: real.bucketID,
+  mainBucketID: real.mainBucketID,
+  isDirect: real.isDirect,
+  amount: amount ?? real.amount,
+  sharePercent: sharePercent ?? real.sharePercent,
 );
 
 class _BreakdownQueries extends AnalysisQueries {

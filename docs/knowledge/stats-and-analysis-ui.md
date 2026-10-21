@@ -72,16 +72,29 @@ expense, month mode and the current month, ignoring History's selected month, an
 notifications, failures and Retry within one route lifetime. `trendsViewModelProvider` is an
 auto-dispose `AsyncNotifier` using `LedgerBackedNotifier`; it watches the intent, `analysisQueriesProvider`
 and `todayProvider` and returns a `TrendsBody`: loading, error, empty (ledger has no records) or ready.
+It reactively watches `breakdownChart`, `breakdownLevel` and `chartColours` through a selection of
+`displayPreferencesProvider`. Each build copies category names, parent IDs and saved hex colours
+from the ready Ledger into an immutable map for that revision (`TrendsNotifier.build`).
 Spreads are rolling 12-month windows and 3 calendar-year windows anchored at the current period.
 Computed clamps to the earliest spread never rewrite stored intent: a genuine action adopts the displayed
 basis first. Month to Year clamps to the earliest yearly slot; Year to Month applies the remembered month,
 clamped to the current month and the earliest monthly slot. A projection first reads month completeness
 for the current month and requires its `today` to equal `todayProvider` (otherwise loading), then requires
-first-record, spread and usual reads to be ready with one `sourceRevision` equal to the Ledger revision;
+first-record, spread, usual and category-breakdown reads to be ready with one `sourceRevision` equal
+to the Ledger revision;
 failed reads give the error body, pending or mismatched ones the skeleton. Compared with usual copy
 (higher, lower, same, zero baseline, elapsed-day and cross-year wording) is built in `trends_usual.dart`.
 Retry calls `AnalysisQueries.retry()` only. (`app/lib/ui/stats/trends/`,
 `app/test/ui/stats/trends_period_test.dart`, `trends_states_test.dart`, `trends_usual_test.dart`)
+
+The category breakdown uses the selected period, kind and level. The projection explicitly maps the
+settings `BreakdownLevel` to the analysis `BreakdownLevel`. A failed breakdown read gives the error
+body; pending reads or stale revisions give loading. A ready breakdown with no rows produces
+`TrendsEmptyBreakdown` within the ready body, while an empty ledger has no breakdown in its empty
+body. The breakdown window, kind, level and total must match the selected period. Row amounts must
+sum to the total; nonempty rows' shares must sum to 100 percent. The projection carries the breakdown data,
+but no widget renders it (`trends_projection.dart:_readBreakdown`, `_breakdown`,
+`trends_body.dart`, `trends_screen.dart`, `app/test/ui/stats/trends_breakdown_projection_test.dart`).
 
 ## Navigation
 
