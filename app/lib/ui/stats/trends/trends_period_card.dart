@@ -103,6 +103,7 @@ class _TrendsAxis extends StatelessWidget {
   final ValueChanged<int> onSelect;
 
   static const _cellHeight = 28.0;
+  static const _labelTopPadding = 4.0;
   static const _monthFontSize = 10.0;
   static const _yearFontSize = 12.0;
   static const _yearLabelLength = 4;
@@ -119,6 +120,7 @@ class _TrendsAxis extends StatelessWidget {
                 ? _yearFontSize
                 : _monthFontSize,
             height: _cellHeight,
+            topPadding: _labelTopPadding,
             onTap: () => onSelect(i),
           ),
         ),
@@ -134,6 +136,7 @@ class _AxisCell extends StatelessWidget {
     required this.selected,
     required this.fontSize,
     required this.height,
+    required this.topPadding,
     required this.onTap,
   });
 
@@ -141,6 +144,7 @@ class _AxisCell extends StatelessWidget {
   final bool selected;
   final double fontSize;
   final double height;
+  final double topPadding;
   final VoidCallback onTap;
 
   @override
@@ -166,7 +170,10 @@ class _AxisCell extends StatelessWidget {
         onTap: onTap,
         child: SizedBox(
           height: height,
-          child: Align(alignment: Alignment.topCenter, child: label),
+          child: Padding(
+            padding: EdgeInsets.only(top: topPadding),
+            child: Align(alignment: Alignment.topCenter, child: label),
+          ),
         ),
       ),
     );
@@ -179,7 +186,6 @@ class TrendsHeadlineView extends StatelessWidget {
 
   final TrendsHeadline headline;
 
-  static const _topMargin = 12.0;
   static const _amountFontSize = 24.0;
   static const _trailingGap = 8.0;
 
@@ -218,18 +224,15 @@ class TrendsHeadlineView extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(fontSize: _labelFontSize, color: colors.subtext),
           );
-    return Padding(
-      padding: const EdgeInsets.only(top: _topMargin),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.baseline,
-        textBaseline: TextBaseline.alphabetic,
-        children: [
-          label,
-          const SizedBox(width: _trailingGap),
-          Flexible(child: trailing),
-        ],
-      ),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
+      children: [
+        label,
+        const SizedBox(width: _trailingGap),
+        Flexible(child: trailing),
+      ],
     );
   }
 }
