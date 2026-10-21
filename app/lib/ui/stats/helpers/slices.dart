@@ -5,19 +5,11 @@ import 'package:domain/domain.dart';
 import 'package:flutter/foundation.dart' show immutable;
 
 import 'package:spendwise/ui/format/color_hex.dart';
+import 'package:spendwise/ui/format/analysis_bucket_name.dart';
 
 // MARK: - Constants
 const _uncategorizedSymbol = 'help_outline';
 const _syntheticTransferSymbol = 'swap_horiz';
-
-const _syntheticTransferNames = <AccountType, String>{
-  AccountType.savings: 'Savings transfers',
-  AccountType.investment: 'Investment transfers',
-  AccountType.insurance: 'Insurance transfers',
-  AccountType.other: 'Other transfers',
-  AccountType.loan: 'Loan transfers',
-  AccountType.overdraft: 'Overdraft transfers',
-};
 
 const _fractionScale = 12;
 
@@ -93,11 +85,11 @@ Slice _slice(
     symbolName = category.symbol;
     color = parseColorHex(category.colorHex);
   } else if (syntheticType != null) {
-    name = _syntheticTransferNames[syntheticType]!;
+    name = analysisBucketName(bucketID);
     symbolName = _syntheticTransferSymbol;
     color = colorHexFallback;
   } else {
-    name = 'Uncategorized';
+    name = uncategorizedName;
     symbolName = _uncategorizedSymbol;
     color = colorHexFallback;
   }
