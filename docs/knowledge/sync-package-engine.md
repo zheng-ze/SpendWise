@@ -161,8 +161,7 @@ the corresponding authorization-bearing `BeginReconcile` through `authorizeBegin
   returns this context from `BeginReconcile`. Source:
   `packages/sync/lib/src/protocol/requests.dart` - `PullRequest.reconciliation`,
   `ReconciliationContext`, `ReconciliationContext.withContinuation`,
-  `ReconcileResponse.reconciliationContext`;
-  `packages/sync/test/protocol/reconciliation_context_test.dart`.
+  `ReconcileResponse.reconciliationContext`.
 - `SnapshotHashMismatch.mismatchedCollection` names the first differing `SyncCollection`, in fixed
   order, when the backend's failure response includes one; it stays null for a failure with no (or
   an unrecognized) `mismatched_collection`, or for a generic `SnapshotHashMismatch` outside
@@ -255,9 +254,8 @@ the corresponding authorization-bearing `BeginReconcile` through `authorizeBegin
   `SyncPayloadIdentityError` for either input order. Source:
   `packages/sync/lib/src/engine/sync_engine.dart` - `SyncEngine._nonDominatedFrontier`;
   `packages/sync/test/engine/sync_engine_test.dart` - tests
-  `divergent live content under an identical version vector throws, first-argument order`,
-  `divergent live content under an identical version vector throws, reversed order`, and
-  `a live sibling and a tombstone sibling sharing a version vector throws`.
+  `divergent live content under an identical version vector throws, first-argument order`
+  (checks both input orders), and `a live sibling and a tombstone sibling sharing a version vector throws`.
 - A live payload must decode to the envelope's collection and normalized row ID. Tombstone
   ciphertext is authenticated before its deletion is trusted, and authenticated non-empty
   tombstone plaintext throws `SyncPayloadIdentityError`. Source:
