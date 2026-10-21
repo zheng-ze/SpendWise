@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/common/charts/category_map_layout.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
+import 'package:spendwise/ui/theme/spendwise_colors.dart';
 
 export 'package:spendwise/ui/common/charts/category_map_layout.dart';
 

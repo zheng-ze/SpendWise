@@ -25,10 +25,11 @@ class _MapBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final label = labelInside ? _MapLabel(tile: tile) : null;
+    final fill = _selectionFill(selected, colors.selectedMark, tile.color);
+    final label = labelInside ? _MapLabel(tile: tile, fill: fill) : null;
     final body = Container(
       decoration: BoxDecoration(
-        color: _selectionFill(selected, colors.selectedMark, tile.color),
+        color: fill,
         borderRadius: BorderRadius.circular(_blockRadius),
       ),
       padding: const EdgeInsets.all(_blockPadding),
@@ -40,13 +41,15 @@ class _MapBlock extends StatelessWidget {
 }
 
 class _MapLabel extends StatelessWidget {
-  const _MapLabel({required this.tile});
+  const _MapLabel({required this.tile, required this.fill});
 
   static const _labelMaxLines = 3;
 
   static const _labelLineHeight = 1.2;
 
   final CategoryMapTile tile;
+
+  final Color fill;
 
   @override
   Widget build(BuildContext context) {
@@ -55,7 +58,7 @@ class _MapLabel extends StatelessWidget {
       style: TextStyle(
         fontSize: _labelFontSize,
         fontWeight: _semiBoldWeight,
-        color: context.colors.onCategory,
+        color: foregroundOn(fill),
         height: _labelLineHeight,
       ),
       maxLines: _labelMaxLines,
