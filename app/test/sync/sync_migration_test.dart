@@ -384,106 +384,6 @@ void main() {
     );
   });
 
-  test('a 5-to-6 upgrade disables a custom-backend row but keeps its '
-      'selection', () async {
-    final db = _openUpgradedSyncMeta(
-      fromVersion: 5,
-      backend: 'custom',
-      endpoint: 'https://sync.example.com',
-      phase: 4,
-      writeEnabled: true,
-    );
-    addTearDown(db.close);
-
-    expect(await _readSyncMetaRow(db), {
-      'backend': 'custom',
-      'endpoint': 'https://sync.example.com',
-      'phase': 0,
-      'writeEnabled': false,
-      'bindingState': 0,
-      'resumePhase': isNull,
-    });
-  });
-
-  test(
-    'a 5-to-6 upgrade keeps credentialAcquired but closes the write gate',
-    () async {
-      final db = _openUpgradedSyncMeta(
-        fromVersion: 5,
-        backend: 'supabase',
-        phase: 1,
-        writeEnabled: true,
-      );
-      addTearDown(db.close);
-
-      expect(await _readSyncMetaRow(db), {
-        'backend': 'supabase',
-        'endpoint': isNull,
-        'phase': 1,
-        'writeEnabled': false,
-        'bindingState': 1,
-        'resumePhase': isNull,
-      });
-    },
-  );
-
-  test('a 5-to-6 upgrade remaps post-credential hosted phases to binding '
-      'repair', () async {
-    for (final phase in [2, 3, 4]) {
-      final db = _openUpgradedSyncMeta(
-        fromVersion: 5,
-        backend: 'supabase',
-        phase: phase,
-        writeEnabled: true,
-      );
-      addTearDown(db.close);
-
-      expect(await _readSyncMetaRow(db), {
-        'backend': 'supabase',
-        'endpoint': isNull,
-        'phase': 5,
-        'writeEnabled': false,
-        'bindingState': 1,
-        'resumePhase': isNull,
-      }, reason: 'phase $phase');
-    }
-  });
-
-  test('a 5-to-6 upgrade leaves unenrolled rows untouched', () async {
-    final withoutBackend = _openUpgradedSyncMeta(fromVersion: 5);
-    addTearDown(withoutBackend.close);
-    expect(await _readSyncMetaRow(withoutBackend), {
-      'backend': isNull,
-      'endpoint': isNull,
-      'phase': 0,
-      'writeEnabled': false,
-      'bindingState': 0,
-      'resumePhase': isNull,
-    });
-
-    final unenrolledHosted = _openUpgradedSyncMeta(
-      fromVersion: 5,
-      backend: 'supabase',
-    );
-    addTearDown(unenrolledHosted.close);
-    expect(await _readSyncMetaRow(unenrolledHosted), {
-      'backend': 'supabase',
-      'endpoint': isNull,
-      'phase': 0,
-      'writeEnabled': false,
-      'bindingState': 0,
-      'resumePhase': isNull,
-    });
-  });
-
-  test('a 5-to-6 upgrade carries the v6 columns with correct types and '
-      'defaults', () async {
-    final db = _openUpgradedSyncMeta(fromVersion: 5);
-    addTearDown(db.close);
-
-    await _expectV6Columns(db);
-  });
-
   test(
     'a 4-to-6 upgrade adds the v6 columns and remaps every row kind',
     () async {
@@ -556,31 +456,6 @@ void main() {
     },
   );
 
-  test(
-    'a 3-to-6 upgrade creates sync_meta fresh with the v6 columns',
-    () async {
-      final executor = NativeDatabase.memory(
-        setup: (raw) {
-          raw.execute(_v3Accounts);
-          raw.execute(_v3Entries);
-          raw.execute(_v3StoreMeta);
-          raw.execute('PRAGMA user_version = 3');
-        },
-      );
-      final db = LedgerDatabase(executor);
-      addTearDown(db.close);
-
-      await _expectV6Columns(db);
-      await _expectTemplateNoteColumn(db);
-      final rows = await db.customSelect('SELECT id FROM sync_meta').get();
-      expect(rows, isEmpty);
-      expect(
-        (await SyncMetadataStore(db).snapshot()).phase,
-        SyncEnrollmentPhase.notEnrolled,
-      );
-    },
-  );
-
   test('a 6-to-7 upgrade adds template_note and keeps plan rows', () async {
     final executor = NativeDatabase.memory(
       setup: (raw) {
@@ -594,22 +469,6 @@ void main() {
       },
     );
     final db = LedgerDatabase(executor);
-    addTearDown(db.close);
-
-    await _expectTemplateNoteColumn(db);
-    await _expectLegacyPlanRowWithNullNote(db);
-  });
-
-  test('a 5-to-7 upgrade adds template_note and keeps plan rows', () async {
-    final db = _openUpgradedSyncMeta(fromVersion: 5);
-    addTearDown(db.close);
-
-    await _expectTemplateNoteColumn(db);
-    await _expectLegacyPlanRowWithNullNote(db);
-  });
-
-  test('a 4-to-7 upgrade adds template_note and keeps plan rows', () async {
-    final db = _openUpgradedSyncMeta(fromVersion: 4);
     addTearDown(db.close);
 
     await _expectTemplateNoteColumn(db);

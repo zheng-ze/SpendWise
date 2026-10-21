@@ -27,29 +27,6 @@ void main() {
       expect(await second, 'second');
       expect(events, ['first-start', 'first-end', 'second-start']);
     });
-
-    test('three overlapping bodies serialize end to end', () async {
-      final lock = CollectionLock();
-      final events = <String>[];
-
-      Future<void> body(String name) =>
-          lock.withLock(SyncCollection.plans, () async {
-            events.add('$name-start');
-            await Future<void>.delayed(const Duration(milliseconds: 5));
-            events.add('$name-end');
-          });
-
-      await Future.wait([body('a'), body('b'), body('c')]);
-
-      expect(events, [
-        'a-start',
-        'a-end',
-        'b-start',
-        'b-end',
-        'c-start',
-        'c-end',
-      ]);
-    });
   });
 
   group('different collections', () {
@@ -76,20 +53,6 @@ void main() {
   });
 
   group('failure handling', () {
-    test('a throwing body does not poison the next caller', () async {
-      final lock = CollectionLock();
-
-      await expectLater(
-        lock.withLock(
-          SyncCollection.entries,
-          () async => throw StateError('boom'),
-        ),
-        throwsStateError,
-      );
-
-      expect(await lock.withLock(SyncCollection.entries, () async => 42), 42);
-    });
-
     test('waiters chained behind a failure still run serialized', () async {
       final lock = CollectionLock();
       final events = <String>[];

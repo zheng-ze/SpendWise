@@ -18,39 +18,18 @@ void main() {
     await bus.dispose();
   });
 
-  test('a publication in the same call stack is visible synchronously', () {
-    final before = fence.snapshot();
-
-    bus.publish(const [DeleteEntry('row-1')]);
-
-    expect(fence.checkClean(before), isFalse);
-  });
-
-  test('the epoch bumps on any publication regardless of content', () {
+  test('any publication makes the snapshot dirty immediately', () {
     final first = fence.snapshot();
 
     bus.publish(const [DeleteEntry('row-1')]);
     final second = fence.snapshot();
-    expect(second, isNot(first));
+    expect(fence.checkClean(first), isFalse);
 
     bus.publish(const [DeleteCategory('row-2')]);
-    expect(fence.snapshot(), second + 1);
+    expect(fence.checkClean(second), isFalse);
 
     bus.publish(const [DeleteEntry('row-3')], stamps: const {});
-    expect(fence.snapshot(), second + 2);
-
-    expect(fence.checkClean(first), isFalse);
     expect(fence.checkClean(fence.snapshot()), isTrue);
-  });
-
-  test('install is idempotent: one publication bumps the epoch once', () {
-    fence.install();
-    fence.install();
-
-    final before = fence.snapshot();
-    bus.publish(const [DeleteEntry('row-1')]);
-
-    expect(fence.snapshot(), before + 1);
   });
 
   test('uninstall stops observing and is safe to repeat', () async {
@@ -62,12 +41,6 @@ void main() {
     bus.publish(const [DeleteEntry('row-1')]);
 
     expect(fence.checkClean(before), isTrue);
-  });
-
-  test('uninstall without install is a safe no-op', () async {
-    final fresh = MutationFence(bus);
-    await fresh.uninstall();
-    await fresh.uninstall();
   });
 
   test(

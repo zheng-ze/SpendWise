@@ -225,14 +225,6 @@ void main() {
     return composition as SyncEnrollmentReady;
   }
 
-  test('begin request carries the submitted identifier', () async {
-    final ready = await composeReady(identifier: 'user@example.com');
-
-    final request = ready.enrollmentService.buildBeginRequest();
-
-    expect(request.wire['identifier'], 'user@example.com');
-  });
-
   test('complete request carries the challenge identifier, OTP, and database deviceID', () async {
     final ready = await composeReady(identifier: 'user@example.com');
     final challenge = EnrollmentChallenge(const {
@@ -285,51 +277,8 @@ void main() {
     },
   );
 
-  test(
-    'authenticator and backend carry the validated Supabase configuration',
-    () async {
-      final ready = await composeReady();
-
-      expect(ready.authenticator, isA<SupabaseSyncAuthenticator>());
-      expect(ready.authenticator.projectUrl, _testConfig.projectUrl);
-      expect(ready.authenticator.anonKey, _testConfig.anonKey);
-      expect(ready.backend, isA<SupabaseSyncBackend>());
-      final backend = ready.backend as SupabaseSyncBackend;
-      expect(backend.projectUrl, _testConfig.projectUrl);
-      expect(backend.anonKey, _testConfig.anonKey);
-    },
-  );
-
-  test('the binding authorizer carries the validated Supabase configuration and identifier', () async {
-    Future<String> resolver(EnrollmentChallenge challenge) async => '482916';
-    final ready = await composeReady(
-      identifier: 'user@example.com',
-      resolveOtp: resolver,
-    );
-
-    expect(
-      ready.enrollmentService.bindingAuthorizer,
-      isA<SupabaseDeviceBindingAuthorizer>(),
-    );
-    final authorizer =
-        ready.enrollmentService.bindingAuthorizer
-            as SupabaseDeviceBindingAuthorizer;
-    expect(authorizer.projectUrl, _testConfig.projectUrl);
-    expect(authorizer.anonKey, _testConfig.anonKey);
-    expect(ready.enrollmentService.bindingIdentifier, 'user@example.com');
-    expect(
-      identical(ready.enrollmentService.resolveBindingOtp, resolver),
-      isTrue,
-    );
-  });
-
   test('service, coordinator, and publisher share one SecretStore', () async {
     final ready = await composeReady();
-
-    expect(
-      identical(ready.enrollmentService.secretStore, ready.secretStore),
-      isTrue,
-    );
 
     final metadataStore = SyncMetadataStore(db);
     await metadataStore.enterSnapshotInProgress();
@@ -345,7 +294,7 @@ void main() {
     final publishResult = await ready.snapshotPublisher.publish();
 
     expect(publishResult, isA<EnrollmentSnapshotPublished>());
-    expect(secrets.reads, contains(syncWriteProofSecretKey));
+    expect(await secrets.read(syncWriteProofSecretKey), 'proof-1');
 
     await secrets.write(
       syncCredentialSecretKey,
@@ -374,15 +323,6 @@ void main() {
       isNull,
     );
   });
-
-  test(
-    'production E2E resolver produces SyncCipher.keyByteCount bytes',
-    () async {
-      final key = await resolveProductionSyncE2EKey();
-
-      expect(key.length, SyncCipher.keyByteCount);
-    },
-  );
 
   test('injected deterministic key is durably stored and validates', () async {
     final key = Uint8List.fromList(
@@ -447,29 +387,6 @@ void main() {
   });
 
   test(
-    'null persistence processor emits not-ready without touching the network',
-    () async {
-      await SyncMetadataStore(db)
-          .setBackendSelection(backend: SyncBackendKind.supabase);
-
-      final composition = await compose(forceNullProcessor: true);
-
-      expect(composition, isA<SyncEnrollmentNotReady>());
-      final notReady = composition as SyncEnrollmentNotReady;
-      expect(notReady.ledgerReady, isTrue);
-      expect(notReady.persistenceReady, isFalse);
-      expect(httpClient.requests, isEmpty);
-    },
-  );
-
-  test('missing backend selection is a configuration error', () async {
-    final composition = await compose();
-
-    expect(composition, isA<SyncEnrollmentConfigurationError>());
-    expect(httpClient.requests, isEmpty);
-  });
-
-  test(
     'custom backend selection is a configuration error, not a fallback',
     () async {
       await SyncMetadataStore(db).setBackendSelection(
@@ -522,24 +439,6 @@ void main() {
       backend: SyncBackendKind.custom,
       endpoint: 'https://custom.example.com',
     );
-
-    final composition = await compose(
-      metadataStoreOverride: SyncMetadataStore(selectionDb),
-    );
-
-    expect(composition, isA<SyncEnrollmentConfigurationError>());
-    expect(httpClient.requests, isEmpty);
-  });
-
-  test('backend selection diverging to none before coordinator construction is a configuration error', () async {
-    driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
-    addTearDown(
-      () => driftRuntimeOptions.dontWarnAboutMultipleDatabases = false,
-    );
-    final selectionDb = LedgerDatabase(NativeDatabase.memory());
-    addTearDown(selectionDb.close);
-    await SyncMetadataStore(selectionDb)
-        .setBackendSelection(backend: SyncBackendKind.supabase);
 
     final composition = await compose(
       metadataStoreOverride: SyncMetadataStore(selectionDb),

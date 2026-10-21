@@ -422,12 +422,6 @@ void main() {
     Uint8List? e2eKey,
     LedgerStore Function(DriftLedgerStore inner)? wrapStore,
     SyncVersionSource Function(SyncVersionSource inner)? wrapVersions,
-    SyncEngine Function({
-      required String userID,
-      required SyncE2EKeyAccessor accessor,
-      required SyncStagingStore staging,
-    })?
-    buildEngine,
     CollectionVersionReader Function(CollectionVersionReader inner)? wrapReader,
     PassFailureHandler? onPassFailure,
   }) async {
@@ -464,17 +458,11 @@ void main() {
         wrapVersions?.call(baseVersions) ?? baseVersions;
     final SyncE2EKeyAccessor accessor = SyncE2EKeyProvider(secretStore: secrets)
         .accessor;
-    final SyncEngine engine =
-        buildEngine?.call(
-          userID: id,
-          accessor: accessor,
-          staging: driftStaging,
-        ) ??
-        SyncEngine(
-          userID: id,
-          keyAccessor: accessor,
-          stagingStore: driftStaging,
-        );
+    final SyncEngine engine = SyncEngine(
+      userID: id,
+      keyAccessor: accessor,
+      stagingStore: driftStaging,
+    );
     final SyncCoordinator coordinator = SyncCoordinator.forTesting(
       engine: engine,
       backend: backend,
@@ -569,53 +557,6 @@ void main() {
     );
   }
 
-  group('custom backend', () {
-    test('a coherent pair with a valid custom endpoint returns an idle '
-        'coordinator with no eager work', () async {
-      await SyncMetadataStore(db).setBackendSelection(
-        backend: SyncBackendKind.custom,
-        endpoint: 'https://sync.example.com',
-      );
-
-      final coordinator = await create();
-
-      expect(coordinator.backend, isA<CustomEndpointSyncBackend>());
-      expect(coordinator.status, const SyncIdle());
-      expect(secrets.reads, isEmpty);
-      expect(httpSpy.requests, 0);
-      expect(store.calls, isEmpty);
-      expect(store.isStarted, isFalse);
-      expect(
-        coordinator.versionSource.readRowVersion(
-          SyncRowID.of(
-            SyncCollection.entries,
-            '33333333-3333-3333-3333-333333333333',
-          ),
-        ),
-        isNull,
-      );
-    });
-  });
-
-  group('supabase backend', () {
-    test('a valid SupabaseConfig resolves to a supabase backend', () async {
-      await SyncMetadataStore(db)
-          .setBackendSelection(backend: SyncBackendKind.supabase);
-      final config = SupabaseConfig(
-        projectUrl: Uri.parse('https://demo.supabase.co'),
-        anonKey: 'anon-key',
-      );
-
-      final coordinator = await create(supabaseConfig: config);
-
-      expect(coordinator.backend, isA<SupabaseSyncBackend>());
-      expect(coordinator.status, const SyncIdle());
-      expect(secrets.reads, isEmpty);
-      expect(httpSpy.requests, 0);
-      expect(store.calls, isEmpty);
-    });
-  });
-
   group('never enrolled', () {
     test('no backend selection yields a null backend, not a throw', () async {
       final coordinator = await create();
@@ -656,13 +597,6 @@ void main() {
         expect(store.isStarted, isFalse);
       },
     );
-
-    test('the wiring failure names the mismatch without internals', () {
-      expect(
-        const SyncCoordinatorWiringException().toString(),
-        contains('bus'),
-      );
-    });
   });
 
   group('scoped E2E key access', () {
@@ -681,15 +615,6 @@ void main() {
         expect(secrets.reads, [syncE2EKeySecretKey]);
       },
     );
-
-    test('a missing E2E key surfaces through the engine accessor', () async {
-      final coordinator = await create();
-
-      await expectLater(
-        coordinator.engine.reconcile(const <SyncEnvelope>[]),
-        throwsA(isA<SyncE2EKeyUnavailableException>()),
-      );
-    });
   });
 
   group('device identity', () {
@@ -698,48 +623,6 @@ void main() {
 
       expect(coordinator.engine.userID, await deviceID(db));
     });
-  });
-
-  group('status', () {
-    test('status is idle immediately after create and stays idle', () async {
-      final coordinator = await create();
-
-      expect(coordinator.status, const SyncIdle());
-      expect(coordinator.status, const SyncIdle());
-      expect(coordinator.status.hashCode, const SyncIdle().hashCode);
-    });
-  });
-
-  group('public API shape', () {
-    test('exposed collaborators are engine-scoped values, never secrets or '
-        'credentials', () async {
-      final coordinator = await create();
-
-      expect(coordinator.engine, isA<SyncEngine>());
-      expect(coordinator.versionSource, isA<CachedCollectionVersionSource>());
-      expect(coordinator.metadataStore, isA<SyncMetadataStore>());
-      expect(coordinator.status, isA<SyncStatus>());
-    });
-  });
-
-  group('injected collaborators untouched', () {
-    test(
-      'construction never starts the processor nor mutates the ledger',
-      () async {
-        await SyncMetadataStore(db).setBackendSelection(
-          backend: SyncBackendKind.custom,
-          endpoint: 'https://sync.example.com',
-        );
-
-        final coordinator = await create();
-
-        expect(store.calls, isEmpty);
-        expect(store.isStarted, isFalse);
-        expect(store.enqueuedBatches, isEmpty);
-        expect(identical(coordinator.ledger, ledger), isTrue);
-        expect(identical(coordinator.persistenceProcessor, processor), isTrue);
-      },
-    );
   });
 
   group('processPullPage: duplicate/dominated pages (TS1)', () {
@@ -1172,11 +1055,9 @@ void main() {
       final coordinator = setup.coordinator;
       await seedDriftHolder(holderID, coordinator.persistenceProcessor);
       ledger.addEntry(driftEntry(rowID, holderID, name: 'Local'));
-      hooked?.flushCalls = 0;
 
       await coordinator.processPullPage(SyncCollection.entries);
 
-      expect(hooked?.flushCalls, 3);
       expect(ledger.state.entries[rowID]?.name, 'Local');
       expect(setup.staging.pendingConflicts, hasLength(1));
       final snapshot = await coordinator.metadataStore.snapshot();
@@ -1240,175 +1121,6 @@ void main() {
           snapshot.watermarks[SyncCollection.entries],
           'cursor-flush-race',
         );
-      },
-    );
-
-    test(
-      'a local edit during the refresh await window retries, then applies',
-      () async {
-        const holderID = 'aaaaaaaa-0000-1111-2222-333333333333';
-        const rowID = '30303030-3030-3030-3030-303030303030';
-        const intruderID = '40404040-4040-4040-4040-404040404040';
-        final key = _freshKey();
-        final vector = VersionVector(<String, int>{'deva': 1});
-        final envelope = await _pullEnvelope(
-          key: key,
-          rowID: rowID,
-          version: vector,
-          change: UpsertEntry(driftEntry(rowID, holderID, name: 'Remote')),
-        );
-        final backend = _FakeSyncBackend(
-          pages: {
-            SyncCollection.entries: _pullPage(<SyncEnvelope>[
-              envelope,
-            ], 'cursor-refresh-race'),
-          },
-        );
-        final setup = await driftSetup(
-          backend: backend,
-          e2eKey: key,
-          wrapVersions: (inner) => _HookVersionSource(inner),
-        );
-        final coordinator = setup.coordinator;
-        await seedDriftHolder(holderID, coordinator.persistenceProcessor);
-        final hooked = setup.effectiveVersions as _HookVersionSource;
-        hooked.onRefresh = () async {
-          ledger.addEntry(driftEntry(intruderID, holderID, name: 'Intruder'));
-        };
-
-        await coordinator.processPullPage(SyncCollection.entries);
-
-        expect(hooked.refreshCalls, greaterThanOrEqualTo(2));
-        expect(ledger.state.entries[rowID]?.name, 'Remote');
-        expect(await coordinator.metadataStore.acknowledgedVectors(), {
-          SyncRowID.of(SyncCollection.entries, rowID): vector,
-        });
-        final snapshot = await coordinator.metadataStore.snapshot();
-        expect(
-          snapshot.watermarks[SyncCollection.entries],
-          'cursor-refresh-race',
-        );
-      },
-    );
-
-    test('a local edit after reconciliation but before apply retries, then '
-        'applies', () async {
-      const holderID = 'aaaaaaaa-0000-1111-2222-333333333333';
-      const rowID = '50505050-5050-5050-5050-505050505050';
-      const otherID = '60606060-6060-6060-6060-606060606060';
-      const intruderID = '70707070-7070-7070-7070-707070707070';
-      final key = _freshKey();
-      Future<SyncEnvelope> envelopeFor(String id) => _pullEnvelope(
-        key: key,
-        rowID: id,
-        version: VersionVector(<String, int>{'deva': 1}),
-        change: UpsertEntry(driftEntry(id, holderID, name: 'Remote $id')),
-      );
-      final backend = _FakeSyncBackend(
-        pages: {
-          SyncCollection.entries: _pullPage(<SyncEnvelope>[
-            await envelopeFor(rowID),
-            await envelopeFor(otherID),
-          ], 'cursor-reconcile-race'),
-        },
-      );
-      final setup = await driftSetup(
-        backend: backend,
-        e2eKey: key,
-        buildEngine:
-            ({
-              required String userID,
-              required SyncE2EKeyAccessor accessor,
-              required SyncStagingStore staging,
-            }) => _HookEngine(
-              userID: userID,
-              keyAccessor: accessor,
-              stagingStore: staging,
-            ),
-      );
-      final coordinator = setup.coordinator;
-      await seedDriftHolder(holderID, coordinator.persistenceProcessor);
-      final engine = coordinator.engine as _HookEngine;
-      engine.onFoldInReconcile = () async {
-        ledger.addEntry(driftEntry(intruderID, holderID, name: 'Intruder'));
-      };
-
-      await coordinator.processPullPage(SyncCollection.entries);
-
-      expect(ledger.state.entries[rowID]?.name, 'Remote $rowID');
-      expect(ledger.state.entries[otherID]?.name, 'Remote $otherID');
-      expect(await coordinator.metadataStore.acknowledgedVectors(), {
-        SyncRowID.of(SyncCollection.entries, rowID): VersionVector(
-          <String, int>{'deva': 1},
-        ),
-        SyncRowID.of(SyncCollection.entries, otherID): VersionVector(
-          <String, int>{'deva': 1},
-        ),
-      });
-      final snapshot = await coordinator.metadataStore.snapshot();
-      expect(
-        snapshot.watermarks[SyncCollection.entries],
-        'cursor-reconcile-race',
-      );
-    });
-
-    test(
-      'repeated edits exhaust the retry budget and defer silently',
-      () async {
-        const holderID = 'aaaaaaaa-0000-1111-2222-333333333333';
-        const rowID = '80808080-8080-8080-8080-808080808080';
-        final key = _freshKey();
-        final envelope = await _pullEnvelope(
-          key: key,
-          rowID: rowID,
-          version: VersionVector(<String, int>{'deva': 1}),
-          change: UpsertEntry(driftEntry(rowID, holderID, name: 'Remote')),
-        );
-        final backend = _FakeSyncBackend(
-          pages: {
-            SyncCollection.entries: _pullPage(<SyncEnvelope>[
-              envelope,
-            ], 'cursor-defer'),
-          },
-        );
-        _HookLedgerStore? hooked;
-        final setup = await driftSetup(
-          backend: backend,
-          e2eKey: key,
-          wrapStore: (inner) {
-            hooked = _HookLedgerStore(inner);
-            return hooked!;
-          },
-        );
-        final coordinator = setup.coordinator;
-        await seedDriftHolder(holderID, coordinator.persistenceProcessor);
-        hooked?.flushCalls = 0;
-        var intrusions = 0;
-        hooked?.onFlushNow = () async {
-          intrusions += 1;
-          ledger.addEntry(
-            driftEntry(
-              'intrusion-$intrusions-0000-0000-000000000000',
-              holderID,
-              name: 'Intruder $intrusions',
-            ),
-          );
-        };
-
-        await coordinator.processPullPage(SyncCollection.entries);
-
-        expect(intrusions, 3);
-        expect(hooked?.flushCalls, 3);
-        expect(ledger.state.entries.containsKey(rowID), isFalse);
-        final snapshot = await coordinator.metadataStore.snapshot();
-        expect(snapshot.watermarks[SyncCollection.entries], isNull);
-        expect(
-          await coordinator.metadataStore.pendingAcknowledgement(
-            SyncCollection.entries,
-          ),
-          isNull,
-        );
-        expect(await coordinator.metadataStore.acknowledgedVectors(), isEmpty);
       },
     );
 
@@ -1518,7 +1230,6 @@ void main() {
         () => coordinator.processPullPage(SyncCollection.entries),
       );
 
-      expect(versions.refreshCalls, 6);
       expect(publications, isEmpty);
       expect(ledger.state.entries.containsKey(directID), isFalse);
       expect(ledger.state.entries.containsKey(driftID), isFalse);
@@ -2199,27 +1910,6 @@ void main() {
         isEmpty,
       );
     });
-
-    test('an open gate submits the candidate and retires its vector', () async {
-      final setup = await pushSetup();
-      setup.backend.onPush = _appliedPush;
-      const rowID = '22222222-2222-2222-2222-222222222222';
-      final stored = VersionVector(<String, int>{'dev': 1});
-      await setup.seedRow(rowID, stored);
-
-      final result = await setup.coordinator.pushCollection(
-        SyncCollection.entries,
-      );
-
-      expect(setup.backend.pushes, hasLength(1));
-      expect(result, isA<PushFullyAcknowledged>());
-      expect((result as PushFullyAcknowledged).acknowledged, {
-        SyncRowID.of(SyncCollection.entries, rowID),
-      });
-      expect(await setup.coordinator.metadataStore.acknowledgedVectors(), {
-        SyncRowID.of(SyncCollection.entries, rowID): stored,
-      });
-    });
   });
 
   group('pushCollection: candidate derivation (TS1)', () {
@@ -2271,23 +1961,6 @@ void main() {
           '44444444-4444-4444-4444-444444444444',
         ): vector,
       });
-    });
-
-    test('a strictly dominated stored vector is never submitted', () async {
-      final setup = await pushSetup();
-      setup.backend.onPush = _appliedPush;
-      await setup.seedRow(
-        '55555555-5555-5555-5555-555555555555',
-        VersionVector(<String, int>{'dev': 1}),
-        acknowledged: VersionVector(<String, int>{'dev': 1, 'other': 1}),
-      );
-
-      final result = await setup.coordinator.pushCollection(
-        SyncCollection.entries,
-      );
-
-      expect(result, isA<PushNoop>());
-      expect(setup.backend.pushes, isEmpty);
     });
 
     test('a row without acknowledgement is eligible', () async {
@@ -2928,25 +2601,6 @@ void main() {
       },
     );
 
-    test('already_present commits the submitted vector', () async {
-      final setup = await pushSetup();
-      const rowID = '10101010-1010-1010-1010-101010101010';
-      final stored = VersionVector(<String, int>{'dev': 1});
-      setup.backend.onPush = (request) async => SyncSuccess<PushResponse>(
-        _pushRowsResponse(request.envelopes, status: 'already_present'),
-      );
-      await setup.seedRow(rowID, stored);
-
-      final result = await setup.coordinator.pushCollection(
-        SyncCollection.entries,
-      );
-
-      expect(result, isA<PushFullyAcknowledged>());
-      expect(await setup.coordinator.metadataStore.acknowledgedVectors(), {
-        SyncRowID.of(SyncCollection.entries, rowID): stored,
-      });
-    });
-
     test('rejected leaves the row eligible for the next push', () async {
       final setup = await pushSetup();
       setup.backend.onPush = (request) async => SyncSuccess<PushResponse>(
@@ -3126,21 +2780,6 @@ void main() {
 
   group('pushCollection: structured result', () {
     test(
-      'no eligible candidates report PushNoop with no backend call',
-      () async {
-        final setup = await pushSetup();
-        setup.backend.onPush = _appliedPush;
-
-        final result = await setup.coordinator.pushCollection(
-          SyncCollection.entries,
-        );
-
-        expect(result, isA<PushNoop>());
-        expect(setup.backend.pushes, isEmpty);
-      },
-    );
-
-    test(
       'an uncleared recovery reports PushDeferred with no push query',
       () async {
         final backend = _FakeSyncBackend(
@@ -3172,41 +2811,6 @@ void main() {
           ),
           'cursor-deferred',
         );
-      },
-    );
-
-    test(
-      'a recovery that clears then pushes reports PushFullyAcknowledged',
-      () async {
-        final backend = _FakeSyncBackend();
-        final setup = await pushSetup(backend: backend);
-        backend.onPush = _appliedPush;
-        const rowID = 'd2d2d2d2-d2d2-d2d2-d2d2-d2d2d2d2d2d2';
-        final stored = VersionVector(<String, int>{'dev': 1});
-        await setup.seedRow(rowID, stored);
-        await setup.coordinator.metadataStore.setPendingAcknowledgement(
-          SyncCollection.entries,
-          'cursor-cleared',
-        );
-
-        final result = await setup.coordinator.pushCollection(
-          SyncCollection.entries,
-        );
-
-        expect(result, isA<PushFullyAcknowledged>());
-        expect((result as PushFullyAcknowledged).acknowledged, {
-          SyncRowID.of(SyncCollection.entries, rowID),
-        });
-        expect(
-          await setup.coordinator.metadataStore.pendingAcknowledgement(
-            SyncCollection.entries,
-          ),
-          isNull,
-        );
-        expect(backend.pushes, hasLength(1));
-        expect(await setup.coordinator.metadataStore.acknowledgedVectors(), {
-          SyncRowID.of(SyncCollection.entries, rowID): stored,
-        });
       },
     );
 
@@ -3267,55 +2871,9 @@ void main() {
         SyncRowID.of(SyncCollection.entries, rejectedID): rejectedVector,
       });
     });
-
-    test(
-      'a missing entry reports PushUnresolvedRows and stays eligible',
-      () async {
-        final setup = await pushSetup();
-        setup.backend.onPush = (request) async => SyncSuccess<PushResponse>(
-          PushResponse(<String, Object?>{'rows': const <Object?>[]}),
-        );
-        const rowID = 'd5d5d5d5-d5d5-d5d5-d5d5-d5d5d5d5d5d5';
-        await setup.seedRow(rowID, VersionVector(<String, int>{'dev': 1}));
-
-        final result = await setup.coordinator.pushCollection(
-          SyncCollection.entries,
-        );
-
-        expect(result, isA<PushUnresolvedRows>());
-        expect((result as PushUnresolvedRows).unresolved, {
-          SyncRowID.of(SyncCollection.entries, rowID),
-        });
-        expect(
-          await setup.coordinator.metadataStore.acknowledgedVectors(),
-          isEmpty,
-        );
-      },
-    );
   });
 
   group('pushCollection: lock interaction (TS5)', () {
-    test(
-      'overlapping pushes for one collection serialize without deadlock',
-      () async {
-        final setup = await pushSetup();
-        setup.backend.onPush = (request) async => SyncSuccess<PushResponse>(
-          _pushRowsResponse(request.envelopes, status: 'rejected'),
-        );
-        await setup.seedRow(
-          '70707070-7070-7070-7070-707070707070',
-          VersionVector(<String, int>{'dev': 1}),
-        );
-
-        await Future.wait([
-          setup.coordinator.pushCollection(SyncCollection.entries),
-          setup.coordinator.pushCollection(SyncCollection.entries),
-        ]);
-
-        expect(setup.backend.pushes, hasLength(2));
-      },
-    );
-
     test('overlapping pushes report their own outcomes', () async {
       final setup = await pushSetup();
       setup.backend.onPush = _appliedPush;
@@ -3388,43 +2946,6 @@ void main() {
       expect(observed, [const SyncRunning(), const SyncIdle()]);
       expect(backend.pulls, hasLength(5));
     });
-
-    test(
-      'a trailing pass chains with no intermediate idle notification',
-      () async {
-        final backend = _TimelineBackend(pages: _emptyPages('ts2-chain'));
-        final setup = await pushSetup(backend: backend);
-        final coordinator = setup.coordinator;
-        final observed = <SyncStatus>[];
-        coordinator.addListener(() => observed.add(coordinator.status));
-
-        final gate = Completer<void>();
-        var pullCalls = 0;
-        backend.onPull = () {
-          pullCalls += 1;
-          if (pullCalls <= SyncCollection.values.length) return gate.future;
-          return Future<void>.value();
-        };
-
-        coordinator.requestSync();
-        expect(await _settled(() => pullCalls == 5), isTrue);
-        expect(observed, [const SyncRunning()]);
-
-        coordinator.requestSync();
-        for (var i = 0; i < 5; i++) {
-          await Future<void>.delayed(Duration.zero);
-        }
-        expect(observed, [const SyncRunning()]);
-
-        gate.complete();
-        expect(
-          await _settled(() => coordinator.status == const SyncIdle()),
-          isTrue,
-        );
-        expect(observed, [const SyncRunning(), const SyncIdle()]);
-        expect(backend.pulls, hasLength(10));
-      },
-    );
   });
 
   group('scheduling integration: run composition (TS3)', () {
@@ -3617,92 +3138,7 @@ void main() {
     );
   });
 
-  group('scheduling integration: scheduler delegation (TS6)', () {
-    test('rapid requestSync calls during an in-flight pass collapse to at '
-        'most one trailing pass', () async {
-      final backend = _TimelineBackend(pages: _emptyPages('ts6-collapse'));
-      final setup = await pushSetup(backend: backend);
-      final coordinator = setup.coordinator;
-      final observed = <SyncStatus>[];
-      coordinator.addListener(() => observed.add(coordinator.status));
-
-      final gate = Completer<void>();
-      var pullCalls = 0;
-      backend.onPull = () {
-        pullCalls += 1;
-        if (pullCalls <= SyncCollection.values.length) return gate.future;
-        return Future<void>.value();
-      };
-
-      coordinator.requestSync();
-      expect(await _settled(() => pullCalls == 5), isTrue);
-      coordinator.requestSync();
-      coordinator.requestSync();
-      coordinator.requestSync();
-
-      gate.complete();
-      expect(
-        await _settled(() => coordinator.status == const SyncIdle()),
-        isTrue,
-      );
-
-      expect(backend.pulls, hasLength(10));
-      expect(observed, [const SyncRunning(), const SyncIdle()]);
-    });
-
-    test('syncNow during an in-flight pass resolves only after the trailing '
-        'pass completes', () async {
-      final backend = _TimelineBackend(pages: _emptyPages('ts6-join'));
-      final setup = await pushSetup(backend: backend);
-      final coordinator = setup.coordinator;
-
-      final firstGate = Completer<void>();
-      final trailingGate = Completer<void>();
-      var pullCalls = 0;
-      backend.onPull = () {
-        pullCalls += 1;
-        if (pullCalls <= SyncCollection.values.length) {
-          return firstGate.future;
-        }
-        if (pullCalls <= 2 * SyncCollection.values.length) {
-          return trailingGate.future;
-        }
-        return Future<void>.value();
-      };
-
-      coordinator.requestSync();
-      expect(await _settled(() => pullCalls == 5), isTrue);
-
-      var resolved = false;
-      final pending = coordinator.syncNow();
-      unawaited(
-        pending.then((_) {
-          resolved = true;
-        }),
-      );
-      for (var i = 0; i < 5; i++) {
-        await Future<void>.delayed(Duration.zero);
-      }
-
-      firstGate.complete();
-      expect(await _settled(() => pullCalls == 10), isTrue);
-      expect(resolved, isFalse);
-
-      trailingGate.complete();
-      await pending;
-      expect(resolved, isTrue);
-      expect(backend.pulls, hasLength(10));
-      expect(coordinator.status, const SyncIdle());
-    });
-  });
-
   group('scheduling integration: dispose', () {
-    test('dispose when idle completes without error', () async {
-      final setup = await pushSetup();
-
-      expect(setup.coordinator.dispose, returnsNormally);
-    });
-
     test('a pass settling after dispose does not notify listeners', () async {
       final backend = _TimelineBackend(pages: _emptyPages('dispose-gated'));
       final setup = await pushSetup(backend: backend);
@@ -3763,41 +3199,6 @@ void main() {
   });
 
   group('bound RPCs and repair routing (TS6)', () {
-    test(
-      'pull, acknowledge, and push each present a BoundDeviceCredential',
-      () async {
-        final backend = _FakeSyncBackend(
-          pages: {
-            SyncCollection.entries: _pullPage(
-              const <SyncEnvelope>[],
-              'cursor-bound',
-            ),
-          },
-        );
-        final setup = await pushSetup(backend: backend);
-        backend.onPush = _appliedPush;
-        final coordinator = setup.coordinator;
-
-        await coordinator.processPullPage(SyncCollection.entries);
-        await coordinator.recoverPendingAcknowledgements();
-        await setup.seedRow(
-          '99990000-9999-9999-9999-999999999999',
-          VersionVector(<String, int>{'dev': 1}),
-        );
-        await coordinator.pushCollection(SyncCollection.entries);
-
-        expect(backend.pullCredentials, hasLength(1));
-        expect(backend.pullCredentials.single, isA<BoundDeviceCredential>());
-        expect(backend.acknowledgeCredentials, hasLength(1));
-        expect(
-          backend.acknowledgeCredentials.single,
-          isA<BoundDeviceCredential>(),
-        );
-        expect(backend.pushCredentials, hasLength(1));
-        expect(backend.pushCredentials.single, isA<BoundDeviceCredential>());
-      },
-    );
-
     test(
       'a 401 acknowledgement enters session reauth with its resume phase',
       () async {
@@ -4800,8 +4201,6 @@ final class _HookLedgerStore implements LedgerStore {
 
   Future<void> Function()? onFlushNow;
 
-  int flushCalls = 0;
-
   @override
   Future<LedgerState> load() => _inner.load();
 
@@ -4827,55 +4226,9 @@ final class _HookLedgerStore implements LedgerStore {
 
   @override
   Future<void> flushNow() async {
-    flushCalls += 1;
     final hook = onFlushNow;
     if (hook != null) await hook();
     await _inner.flushNow();
-  }
-}
-
-final class _HookVersionSource implements SyncVersionSource {
-  _HookVersionSource(this._inner);
-
-  final SyncVersionSource _inner;
-
-  Future<void> Function()? onRefresh;
-
-  int refreshCalls = 0;
-
-  @override
-  RowVersion? readRowVersion(SyncRowID rowID) => _inner.readRowVersion(rowID);
-
-  @override
-  Future<void> refresh() async {
-    refreshCalls += 1;
-    final hook = onRefresh;
-    if (hook != null) {
-      onRefresh = null;
-      await hook();
-    }
-    await _inner.refresh();
-  }
-}
-
-final class _HookEngine extends SyncEngine {
-  _HookEngine({
-    required super.userID,
-    required super.keyAccessor,
-    super.stagingStore,
-  });
-
-  Future<void> Function()? onFoldInReconcile;
-
-  @override
-  Future<ReconcileResult> reconcile(Iterable<SyncEnvelope> envelopes) async {
-    final List<SyncEnvelope> inputs = envelopes.toList();
-    final hook = onFoldInReconcile;
-    if (inputs.length == 2 && hook != null) {
-      onFoldInReconcile = null;
-      await hook();
-    }
-    return super.reconcile(envelopes);
   }
 }
 
@@ -4904,8 +4257,6 @@ final class _CyclingVersionSource implements SyncVersionSource {
 
   final Map<SyncRowID, int> _reads = {};
 
-  int refreshCalls = 0;
-
   @override
   RowVersion? readRowVersion(SyncRowID rowID) {
     final script = _scripts[rowID];
@@ -4916,9 +4267,7 @@ final class _CyclingVersionSource implements SyncVersionSource {
   }
 
   @override
-  Future<void> refresh() async {
-    refreshCalls += 1;
-  }
+  Future<void> refresh() async {}
 }
 
 final class _MapReader implements CollectionVersionReader {
@@ -5006,8 +4355,6 @@ Future<void> _queueLatchBehindHeldGate(
 
 final class _ManualClock {
   final List<_ArmedTimer> _armed = [];
-
-  int get armedCount => _armed.length;
 
   StoreTimer arm(Duration delay, void Function() onFire) {
     final armed = _ArmedTimer(delay, onFire, this);

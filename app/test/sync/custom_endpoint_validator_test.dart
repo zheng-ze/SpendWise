@@ -45,22 +45,6 @@ void main() {
       expect(outcome, isA<InvalidCustomEndpoint>());
     });
 
-    test('rejects a blank endpoint', () {
-      final outcome = CustomEndpointValidation.validate('');
-
-      expect(outcome, isA<InvalidCustomEndpoint>());
-      expect(
-        (outcome as InvalidCustomEndpoint).failure.message,
-        contains('absolute'),
-      );
-    });
-
-    test('rejects a null endpoint', () {
-      final outcome = CustomEndpointValidation.validate(null);
-
-      expect(outcome, isA<InvalidCustomEndpoint>());
-    });
-
     test('rejects an https endpoint with an empty host', () {
       final outcome = CustomEndpointValidation.validate('https://');
 

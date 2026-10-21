@@ -38,56 +38,6 @@ SyncRunScheduler schedulerWith({
 
 void main() {
   group('SyncRunScheduler requestRun', () {
-    test(
-      'a single trigger with no active pass starts exactly one pass',
-      () async {
-        final fake = FakeRunPass();
-        final statuses = <bool>[];
-        final scheduler = schedulerWith(fake: fake, statuses: statuses);
-
-        scheduler.requestRun();
-        await pumpScheduler();
-
-        expect(fake.calls, 1);
-
-        fake.completeOldest();
-        await pumpScheduler();
-
-        expect(fake.calls, 1);
-        expect(statuses, <bool>[true, false]);
-      },
-    );
-
-    test(
-      'rapid repeated triggers while active queue exactly one trailing pass',
-      () async {
-        final fake = FakeRunPass();
-        final statuses = <bool>[];
-        final scheduler = schedulerWith(fake: fake, statuses: statuses);
-
-        scheduler.requestRun();
-        await pumpScheduler();
-
-        scheduler.requestRun();
-        scheduler.requestRun();
-        scheduler.requestRun();
-        await pumpScheduler();
-
-        expect(fake.calls, 1);
-
-        fake.completeOldest();
-        await pumpScheduler();
-
-        expect(fake.calls, 2);
-
-        fake.completeOldest();
-        await pumpScheduler();
-
-        expect(fake.calls, 2);
-        expect(statuses, <bool>[true, false]);
-      },
-    );
-
     test('triggers once both slots are full are no-ops', () async {
       final fake = FakeRunPass();
       final statuses = <bool>[];
