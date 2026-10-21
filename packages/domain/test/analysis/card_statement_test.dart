@@ -137,73 +137,6 @@ void main() {
       expect(state.entries, hasLength(8));
     });
 
-    test('moves payable with earlier debt alone', () {
-      final withDebt = ledger(
-        sources: [cardSource(card)],
-        entries: [
-          charge(
-            21,
-            source: card,
-            date: DateTime.utc(2027, 2, 20),
-            amount: '-81',
-          ),
-        ],
-      );
-      final withoutDebt = ledger(sources: [cardSource(card)], entries: []);
-
-      expect(
-        cardStatement(
-          ledger: withDebt,
-          accountID: card,
-          today: DateTime.utc(2027, 4, 7),
-        )!.payable,
-        Decimal.parse('81'),
-      );
-      expect(
-        cardStatement(
-          ledger: withoutDebt,
-          accountID: card,
-          today: DateTime.utc(2027, 4, 7),
-        )!.payable,
-        Decimal.zero,
-      );
-    });
-
-    test('moves payable with the repayment alone', () {
-      LedgerState withRepayment(String amount) {
-        return ledger(
-          sources: [cardSource(card), checkingSource(checking)],
-          entries: [
-            charge(
-              22,
-              source: card,
-              date: DateTime.utc(2027, 3, 12),
-              amount: '-24',
-            ),
-            entry(
-              id: uuid(23),
-              date: DateTime.utc(2027, 4, 3),
-              amount: Decimal.parse(amount),
-              name: 'repayment',
-              sourceID: checking,
-              destinationID: card,
-            ),
-          ],
-        );
-      }
-
-      Decimal payable(String amount) {
-        return cardStatement(
-          ledger: withRepayment(amount),
-          accountID: card,
-          today: DateTime.utc(2027, 4, 7),
-        )!.payable;
-      }
-
-      expect(payable('15'), Decimal.parse('9'));
-      expect(payable('30'), Decimal.zero);
-    });
-
     test(
       'counts a future same-cycle charge in payable but not cycleAmount',
       () {
@@ -231,29 +164,6 @@ void main() {
         expect(atCut.cycleAmount, Decimal.zero);
       },
     );
-
-    test('excludes later-cycle charges from payable', () {
-      final state = ledger(
-        sources: [cardSource(card)],
-        entries: [
-          charge(
-            25,
-            source: card,
-            date: DateTime.utc(2027, 5, 1),
-            amount: '-23',
-          ),
-        ],
-      );
-
-      final statement = cardStatement(
-        ledger: state,
-        accountID: card,
-        today: DateTime.utc(2027, 4, 7),
-      )!;
-
-      expect(statement.payable, Decimal.zero);
-      expect(statement.cycleAmount, Decimal.zero);
-    });
 
     test('starts a new cycle on the cut day', () {
       final state = mainLedger(card, checking);

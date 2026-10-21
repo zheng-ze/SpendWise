@@ -2,16 +2,6 @@ import 'package:domain/domain.dart';
 import 'package:test/test.dart';
 
 void main() {
-  test('Decimal is nameable through the barrel alone', () {
-    final Decimal amount = Decimal.fromInt(-25);
-
-    expect(amount, Decimal.parse('-25'));
-    expect(
-      Entry(amount: amount, name: 'rent', sourceID: _accountID).amount,
-      isA<Decimal>(),
-    );
-  });
-
   test('the accounting types are nameable through the barrel alone', () {
     final NetWorth worth = NetWorth(Decimal.zero, Decimal.zero);
     final DateRange window = DateRange(

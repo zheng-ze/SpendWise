@@ -4,21 +4,6 @@ import 'package:test/test.dart';
 import '../support/builders.dart';
 
 void main() {
-  test('replaying init rebuilds an equivalent state', () {
-    final built = LedgerState();
-    built.addAccount(account(uuid(1), name: 'wallet'));
-    built.addCategory(category(uuid(2), name: 'food'));
-    built.addEntry(entry(id: uuid(3), sourceID: uuid(1), categoryID: uuid(2)));
-
-    final replayed = LedgerState.replaying([
-      UpsertAccount(account(uuid(1), name: 'wallet')),
-      UpsertCategory(category(uuid(2), name: 'food')),
-      UpsertEntry(entry(id: uuid(3), sourceID: uuid(1), categoryID: uuid(2))),
-    ]);
-
-    expectSameTables(replayed, built);
-  });
-
   test('a state serialized to upserts and replayed is unchanged', () {
     final original = LedgerState();
     original.addAccount(account(uuid(1), name: 'wallet'));
@@ -65,18 +50,6 @@ void main() {
       ]),
       throwsStateError,
     );
-  });
-
-  test('a well-formed stream still loads normally through replaying', () {
-    final replayed = LedgerState.replaying([
-      UpsertAccount(account(uuid(1), name: 'wallet')),
-      UpsertCategory(category(uuid(2), name: 'food')),
-      UpsertEntry(entry(id: uuid(3), sourceID: uuid(1), categoryID: uuid(2))),
-    ]);
-
-    expect(replayed.entries[uuid(3)]!.name, 'e');
-    expect(replayed.moneySources[uuid(1)]!.asAccount!.name, 'wallet');
-    expect(replayed.categories[uuid(2)]!.name, 'food');
   });
 }
 

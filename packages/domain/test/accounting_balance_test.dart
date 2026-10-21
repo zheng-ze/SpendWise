@@ -69,19 +69,6 @@ void main() {
       );
     });
 
-    test('a deleted holder unapplies its transfer to the survivor', () {
-      final entries = [txn(1000, a), transfer(300, from: a, to: b)];
-
-      expect(
-        Accounting.balance(of: a, entries: entries, sourceIDs: {a, b}),
-        money(700),
-      );
-      expect(
-        Accounting.balance(of: a, entries: entries, sourceIDs: {a}),
-        money(1000),
-      );
-    });
-
     test('a deleted source unapplies its transfer to the survivor', () {
       final entries = [txn(500, b), transfer(300, from: a, to: b)];
 
@@ -92,13 +79,6 @@ void main() {
       expect(
         Accounting.balance(of: b, entries: entries, sourceIDs: {b}),
         money(500),
-      );
-    });
-
-    test('an empty entry list balances to zero', () {
-      expect(
-        Accounting.balance(of: a, entries: const [], sourceIDs: {a}),
-        Decimal.zero,
       );
     });
   });

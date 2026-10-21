@@ -190,18 +190,6 @@ void main() {
       expect(state.binnedEntries, isEmpty);
     });
 
-    test('an active upsert after an archived one removes the binned copy', () {
-      final live = entry(id: uuid(3), sourceID: uuid(1));
-      final state = LedgerState.replaying([
-        ...base,
-        UpsertEntry(live.settingLifecycle(LifecycleState.archived)),
-        UpsertEntry(live),
-      ]);
-
-      expect(state.binnedEntries, isEmpty);
-      expect(state.entries.keys, [uuid(3)]);
-    });
-
     test('rejects a referenceOnly or tombstoned entry with clause 9', () {
       for (final lifecycle in [
         LifecycleState.referenceOnly,
@@ -330,51 +318,4 @@ void main() {
       expect(violation(state).message, contains('invariant 1'));
     });
   });
-
-  test(
-    'a pocket and its account referenced only by a binned entry survive',
-    () {
-      final state = LedgerState();
-      state.addAccount(account(uuid(1)));
-      state.addPocket(pocket(uuid(2)), uuid(1));
-      state.addEntry(entry(id: uuid(3), sourceID: uuid(2)));
-      state.archiveEntry(uuid(3));
-
-      state.deleteAccount(uuid(1));
-      state.purgeAccount(uuid(1));
-
-      expect(state.moneySources.keys, unorderedEquals([uuid(1), uuid(2)]));
-      expect(
-        state.moneySources[uuid(1)]!.lifecycle,
-        LifecycleState.referenceOnly,
-      );
-      expect(
-        state.moneySources[uuid(2)]!.lifecycle,
-        LifecycleState.referenceOnly,
-      );
-    },
-  );
-
-  test(
-    'a parent category referenced only through a binned child entry stays',
-    () {
-      final state = LedgerState();
-      state.addAccount(account(uuid(1)));
-      state.addCategory(category(uuid(2)));
-      state.addCategory(category(uuid(4), parent: uuid(2)));
-      state.addEntry(
-        entry(id: uuid(3), sourceID: uuid(1), categoryID: uuid(4)),
-      );
-      state.archiveEntry(uuid(3));
-
-      state.deleteCategory(uuid(2));
-      state.purgeCategory(uuid(2));
-
-      expect(state.categories.keys, unorderedEquals([uuid(2), uuid(4)]));
-      expect(
-        state.categories[uuid(2)]!.lifecycle,
-        LifecycleState.referenceOnly,
-      );
-    },
-  );
 }

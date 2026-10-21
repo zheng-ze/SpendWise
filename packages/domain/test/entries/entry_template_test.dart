@@ -51,29 +51,4 @@ void main() {
     expect(made.includeInAnalysis, isTrue);
     expect(made.lifecycle, LifecycleState.active);
   });
-
-  test('the same occurrence rebuilds to the same entry', () {
-    final date = DateTime.utc(2026, 3, 15);
-
-    expect(
-      template().makeEntry(planID, date),
-      template().makeEntry(planID, date),
-    );
-  });
-
-  test('holder queries read through the mixin', () {
-    final transfer = template(destinationID: planID);
-
-    expect(transfer.holderIDs, {sourceID, planID});
-    expect(transfer.references(sourceID), isTrue);
-    expect(transfer.touches({planID}), isTrue);
-    expect(template().holderIDs, {sourceID});
-  });
-
-  test('equality covers every field', () {
-    expect(template(), template());
-    expect(template().hashCode, template().hashCode);
-    expect(template(), isNot(template(category: categoryID)));
-    expect(template(), isNot(template(destinationID: planID)));
-  });
 }

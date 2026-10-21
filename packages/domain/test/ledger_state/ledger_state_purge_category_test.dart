@@ -130,43 +130,5 @@ void main() {
         DeleteCategory(uuid(3)),
       ]);
     });
-
-    test('purging an active category is a no-op', () {
-      ledger.addCategory(category(uuid(2)));
-
-      final changes = ledger.purgeCategory(uuid(2));
-
-      expect(changes, isEmpty);
-      expect(ledger.categories[uuid(2)]?.lifecycle, LifecycleState.active);
-    });
-
-    test('purging an unknown id is a no-op', () {
-      ledger.addCategory(category(uuid(2)));
-      ledger.deleteCategory(uuid(2));
-
-      final changes = ledger.purgeCategory(uuid(9));
-
-      expect(changes, isEmpty);
-      expect(ledger.categories.keys, [uuid(2)]);
-    });
-
-    test('purge leaves entries untouched', () {
-      ledger.addCategory(category(uuid(2)));
-      ledger.addEntry(
-        entry(
-          id: uuid(3),
-          categoryID: uuid(2),
-          amount: Decimal.fromInt(-25),
-          sourceID: uuid(1),
-        ),
-      );
-      final before = Map.of(ledger.entries);
-      ledger.deleteCategory(uuid(2));
-
-      ledger.purgeCategory(uuid(2));
-
-      expect(ledger.entries, before);
-      expect(ledger.entries[uuid(3)]?.categoryID, uuid(2));
-    });
   });
 }

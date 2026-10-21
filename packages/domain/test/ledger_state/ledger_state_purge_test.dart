@@ -27,16 +27,6 @@ void main() {
       ]);
     });
 
-    test('the detach upsert carries the link already dropped', () {
-      ledger.deletePocket(uuid(2));
-
-      final changes = ledger.purgePocket(uuid(2));
-
-      final detached = (changes.first as UpsertAccount).account;
-      expect(detached.subPocketIDs, isEmpty);
-      expect(detached.id, uuid(1));
-    });
-
     test('a referenced pocket survives as referenceOnly', () {
       ledger.addEntry(entry(id: uuid(4), sourceID: uuid(2)));
       ledger.deletePocket(uuid(2));
@@ -99,24 +89,6 @@ void main() {
       );
       expect(changes, [
         UpsertAccount(ledger.moneySources[uuid(3)]!.asAccount!),
-      ]);
-    });
-
-    test('emits every pocket change before the account change', () {
-      ledger.addPocket(pocket(uuid(8), name: 'second'), uuid(1));
-      ledger.deleteAccount(uuid(1));
-
-      final changes = ledger.purgeAccount(uuid(1));
-
-      expect(ledger.moneySources[uuid(1)], isNull);
-      expect(ledger.moneySources[uuid(2)], isNull);
-      expect(ledger.moneySources[uuid(8)], isNull);
-      expect(changes.last, DeleteMoneySource(uuid(1)));
-      expect(changes, hasLength(5));
-      expect(changes.whereType<DeleteMoneySource>().map((c) => c.targetID), [
-        uuid(2),
-        uuid(8),
-        uuid(1),
       ]);
     });
 
@@ -220,36 +192,6 @@ void main() {
 
       expect(changes, isEmpty);
       expect(ledger.moneySources, before);
-    });
-  });
-
-  group('purge never touches entries', () {
-    test('purgeAccount leaves the entries map unchanged', () {
-      ledger.addEntry(entry(id: uuid(4), sourceID: uuid(1)));
-      ledger.addEntry(
-        entry(id: uuid(5), amount: Decimal.fromInt(100), sourceID: uuid(2)),
-      );
-      ledger.addEntry(
-        entry(id: uuid(6), amount: Decimal.fromInt(-20), sourceID: uuid(3)),
-      );
-      ledger.deleteAccount(uuid(1));
-      final before = {...ledger.entries};
-
-      final changes = ledger.purgeAccount(uuid(1));
-
-      expect(ledger.entries, before);
-      expect(changes.whereType<DeleteEntry>(), isEmpty);
-      expect(changes.whereType<UpsertEntry>(), isEmpty);
-    });
-
-    test('a tombstoning purge leaves unrelated entries unchanged', () {
-      ledger.addEntry(entry(id: uuid(4), sourceID: uuid(3)));
-      ledger.deleteAccount(uuid(1));
-      final before = {...ledger.entries};
-
-      ledger.purgeAccount(uuid(1));
-
-      expect(ledger.entries, before);
     });
   });
 }

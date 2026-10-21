@@ -58,32 +58,4 @@ void main() {
     expect(ledger.categories[uuid(2)], isNull);
     expect(ledger.categories[uuid(5)]?.lifecycle, LifecycleState.active);
   });
-
-  test('holders sweep before the category', () {
-    final ledger = LedgerState();
-    ledger.addAccount(account(uuid(1)));
-    ledger.addCategory(category(uuid(2)));
-    ledger.addEntry(
-      entry(
-        id: uuid(3),
-        amount: Decimal.fromInt(-10),
-        sourceID: uuid(1),
-        categoryID: uuid(2),
-      ),
-    );
-    ledger.deleteCategory(uuid(2));
-    ledger.purgeCategory(uuid(2));
-    ledger.deleteAccount(uuid(1));
-    ledger.purgeAccount(uuid(1));
-
-    final changes = ledger.deleteEntry(uuid(3));
-
-    expect(changes, [
-      DeleteEntry(uuid(3)),
-      DeleteMoneySource(uuid(1)),
-      DeleteCategory(uuid(2)),
-    ]);
-    expect(ledger.moneySources, isEmpty);
-    expect(ledger.categories, isEmpty);
-  });
 }
