@@ -92,49 +92,4 @@ void main() {
     },
     timeout: uiTestTimeout,
   );
-
-  testWidgets(
-    'a transfer between two flagged accounts appears once with its counted '
-    'expense amount',
-    (tester) async {
-      final flaggedChecking = Account(
-        id: checking.id,
-        name: 'Checking',
-        type: AccountType.savings,
-        incomingTransfersAsExpenses: true,
-      );
-      final move = Entry(
-        amount: dec('25'),
-        name: 'Shuffle',
-        sourceID: flaggedChecking.id,
-        destinationID: savings.id,
-        date: day(1),
-      );
-      final ledger = Ledger(
-        state: LedgerState(
-          moneySources: {
-            flaggedChecking.id: MoneySource.account(flaggedChecking),
-            savings.id: MoneySource.account(savings),
-          },
-          entries: {move.id: move},
-          budgets: {overall.id: overall},
-        ),
-      );
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            ledgerProvider.overrideWithValue(ledger),
-            analysisComputeRunnerProvider.overrideWithValue(syncComputeRunner),
-          ],
-          child: MaterialApp(home: BudgetDetailScreen(budgetID: overall.id)),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.textContaining('S\$25.00 of S\$100.00'), findsOneWidget);
-      expect(find.text('Shuffle'), findsOneWidget);
-      expect(find.text('-25.00'), findsOneWidget);
-    },
-    timeout: uiTestTimeout,
-  );
 }

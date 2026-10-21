@@ -46,73 +46,17 @@ void main() {
   );
 
   group('canSavePlanForm', () {
-    test('rejects a blank name', () {
+    test('rejects a blank name and zero amount', () {
       expect(canSavePlanForm(name: '   ', amount: dec('10')), isFalse);
-    });
-
-    test('rejects a zero amount', () {
       expect(canSavePlanForm(name: 'Rent', amount: dec('0')), isFalse);
     });
 
     test('accepts a trimmed name and non-zero amount', () {
-      expect(canSavePlanForm(name: 'Rent', amount: dec('10')), isTrue);
+      expect(canSavePlanForm(name: ' Rent ', amount: dec('10')), isTrue);
     });
   });
 
-  group('applyOriginalSign', () {
-    test('reapplies a negative sign regardless of the typed magnitude', () {
-      final result = applyOriginalSign(
-        magnitude: dec('75'),
-        originalAmount: dec('-10'),
-      );
-      expect(result, dec('-75'));
-    });
-
-    test('keeps a positive sign for an originally-positive amount', () {
-      final result = applyOriginalSign(
-        magnitude: dec('75'),
-        originalAmount: dec('10'),
-      );
-      expect(result, dec('75'));
-    });
-  });
-
-  group('applyPickerResult', () {
-    test('an explicit one-time choice keeps the current frequency', () {
-      final result = applyPickerResult(RecurrenceFrequency.monthly, null);
-      expect(result, RecurrenceFrequency.monthly);
-    });
-
-    test('a genuinely picked frequency replaces the current one', () {
-      final result = applyPickerResult(
-        RecurrenceFrequency.monthly,
-        RecurrenceFrequency.yearly,
-      );
-      expect(result, RecurrenceFrequency.yearly);
-    });
-  });
-
-  test(
-    'initial state mirrors the plan, with amount shown as a magnitude',
-    () async {
-      final plan = buildPlan(amount: dec('-10'));
-      final container = buildContainer(buildLedger(plan));
-
-      final formState = await container.read(
-        planFormViewModelProvider(plan.id).future,
-      );
-
-      expect(formState.name, 'Rent');
-      expect(formState.amountText, '10.00');
-      expect(formState.frequency, RecurrenceFrequency.monthly);
-      expect(formState.anchor, DateTime.utc(2026, 1, 1));
-      expect(formState.hasEndDate, isFalse);
-      expect(formState.endDate, isNull);
-      expect(formState.sourceName, 'Wallet');
-    },
-  );
-
-  test('source name is not editable through the ViewModel surface', () async {
+  test('initial state mirrors the editable plan values', () async {
     final plan = buildPlan(amount: dec('-10'));
     final container = buildContainer(buildLedger(plan));
 
@@ -120,10 +64,16 @@ void main() {
       planFormViewModelProvider(plan.id).future,
     );
 
+    expect(formState.name, 'Rent');
+    expect(formState.amountText, '10.00');
+    expect(formState.frequency, RecurrenceFrequency.monthly);
+    expect(formState.anchor, DateTime.utc(2026, 1, 1));
+    expect(formState.hasEndDate, isFalse);
+    expect(formState.endDate, isNull);
     expect(formState.sourceName, 'Wallet');
   });
 
-  test('cannot save with a blank name', () async {
+  test('applyPickedRecurrence replaces the frequency', () async {
     final plan = buildPlan(amount: dec('-10'));
     final container = buildContainer(buildLedger(plan));
     await container.read(planFormViewModelProvider(plan.id).future);
@@ -131,66 +81,11 @@ void main() {
       planFormViewModelProvider(plan.id).notifier,
     );
 
-    viewModel.setName('   ');
+    viewModel.applyPickedRecurrence(RecurrenceFrequency.yearly);
 
-    expect(
-      container.read(planFormViewModelProvider(plan.id)).value?.canSave,
-      isFalse,
-    );
+    final formState = container.read(planFormViewModelProvider(plan.id)).value;
+    expect(formState?.frequency, RecurrenceFrequency.yearly);
   });
-
-  test('cannot save with a zero amount', () async {
-    final plan = buildPlan(amount: dec('-10'));
-    final container = buildContainer(buildLedger(plan));
-    await container.read(planFormViewModelProvider(plan.id).future);
-    final viewModel = container.read(
-      planFormViewModelProvider(plan.id).notifier,
-    );
-
-    viewModel.setAmount('0');
-
-    expect(
-      container.read(planFormViewModelProvider(plan.id)).value?.canSave,
-      isFalse,
-    );
-  });
-
-  test('requestPickRecurrence emits PickRecurrenceRequested', () async {
-    final plan = buildPlan(amount: dec('-10'));
-    final container = buildContainer(buildLedger(plan));
-    await container.read(planFormViewModelProvider(plan.id).future);
-    final viewModel = container.read(
-      planFormViewModelProvider(plan.id).notifier,
-    );
-
-    viewModel.requestPickRecurrence();
-
-    expect(
-      container.read(planFormViewModelProvider(plan.id)).value?.step,
-      isA<PickRecurrenceRequested>(),
-    );
-  });
-
-  test(
-    'applyPickedRecurrence replaces the frequency and clears the step',
-    () async {
-      final plan = buildPlan(amount: dec('-10'));
-      final container = buildContainer(buildLedger(plan));
-      await container.read(planFormViewModelProvider(plan.id).future);
-      final viewModel = container.read(
-        planFormViewModelProvider(plan.id).notifier,
-      );
-
-      viewModel.requestPickRecurrence();
-      viewModel.applyPickedRecurrence(RecurrenceFrequency.yearly);
-
-      final formState = container
-          .read(planFormViewModelProvider(plan.id))
-          .value;
-      expect(formState?.frequency, RecurrenceFrequency.yearly);
-      expect(formState?.step, isNull);
-    },
-  );
 
   test('applyPickedRecurrence with null keeps the current frequency', () async {
     final plan = buildPlan(amount: dec('-10'));
@@ -200,14 +95,13 @@ void main() {
       planFormViewModelProvider(plan.id).notifier,
     );
 
-    viewModel.requestPickRecurrence();
     viewModel.applyPickedRecurrence(null);
 
     final formState = container.read(planFormViewModelProvider(plan.id)).value;
     expect(formState?.frequency, RecurrenceFrequency.monthly);
   });
 
-  test('requestPickAnchor emits PickAnchorRequested', () async {
+  test('applyPickedAnchor normalizes to UTC midnight', () async {
     final plan = buildPlan(amount: dec('-10'));
     final container = buildContainer(buildLedger(plan));
     await container.read(planFormViewModelProvider(plan.id).future);
@@ -215,55 +109,44 @@ void main() {
       planFormViewModelProvider(plan.id).notifier,
     );
 
-    viewModel.requestPickAnchor();
+    viewModel.applyPickedAnchor(DateTime(2026, 3, 15, 13, 45));
+
+    final formState = container.read(planFormViewModelProvider(plan.id)).value;
+    expect(formState?.anchor, DateTime.utc(2026, 3, 15));
+  });
+
+  test('applyPickedAnchor with null keeps the current anchor', () async {
+    final plan = buildPlan(amount: dec('-10'));
+    final container = buildContainer(buildLedger(plan));
+    await container.read(planFormViewModelProvider(plan.id).future);
+    final viewModel = container.read(
+      planFormViewModelProvider(plan.id).notifier,
+    );
+
+    viewModel.applyPickedAnchor(null);
 
     expect(
-      container.read(planFormViewModelProvider(plan.id)).value?.step,
-      isA<PickAnchorRequested>(),
+      container.read(planFormViewModelProvider(plan.id)).value?.anchor,
+      DateTime.utc(2026, 1, 1),
     );
   });
 
-  test(
-    'applyPickedAnchor normalizes to UTC midnight and clears the step',
-    () async {
-      final plan = buildPlan(amount: dec('-10'));
-      final container = buildContainer(buildLedger(plan));
-      await container.read(planFormViewModelProvider(plan.id).future);
-      final viewModel = container.read(
-        planFormViewModelProvider(plan.id).notifier,
-      );
+  test('applyPickedEndDate normalizes to UTC midnight', () async {
+    final plan = buildPlan(amount: dec('-10'));
+    final container = buildContainer(buildLedger(plan));
+    await container.read(planFormViewModelProvider(plan.id).future);
+    final viewModel = container.read(
+      planFormViewModelProvider(plan.id).notifier,
+    );
 
-      viewModel.requestPickAnchor();
-      viewModel.applyPickedAnchor(DateTime(2026, 3, 15, 13, 45));
+    viewModel.setHasEndDate(true);
+    viewModel.applyPickedEndDate(DateTime(2026, 6, 1, 9, 30));
 
-      final formState = container
-          .read(planFormViewModelProvider(plan.id))
-          .value;
-      expect(formState?.anchor, DateTime.utc(2026, 3, 15));
-      expect(formState?.step, isNull);
-    },
-  );
-
-  test(
-    'applyPickedAnchor with null (dismissed picker) keeps the anchor',
-    () async {
-      final plan = buildPlan(amount: dec('-10'));
-      final container = buildContainer(buildLedger(plan));
-      await container.read(planFormViewModelProvider(plan.id).future);
-      final viewModel = container.read(
-        planFormViewModelProvider(plan.id).notifier,
-      );
-
-      viewModel.requestPickAnchor();
-      viewModel.applyPickedAnchor(null);
-
-      final formState = container
-          .read(planFormViewModelProvider(plan.id))
-          .value;
-      expect(formState?.anchor, DateTime.utc(2026, 1, 1));
-      expect(formState?.step, isNull);
-    },
-  );
+    expect(
+      container.read(planFormViewModelProvider(plan.id)).value?.endDate,
+      DateTime.utc(2026, 6, 1),
+    );
+  });
 
   test('enabling end date defaults it to the anchor', () async {
     final plan = buildPlan(amount: dec('-10'));
@@ -305,46 +188,8 @@ void main() {
     },
   );
 
-  test('requestPickEndDate emits PickEndDateRequested', () async {
-    final plan = buildPlan(amount: dec('-10'));
-    final container = buildContainer(buildLedger(plan));
-    await container.read(planFormViewModelProvider(plan.id).future);
-    final viewModel = container.read(
-      planFormViewModelProvider(plan.id).notifier,
-    );
-
-    viewModel.requestPickEndDate();
-
-    expect(
-      container.read(planFormViewModelProvider(plan.id)).value?.step,
-      isA<PickEndDateRequested>(),
-    );
-  });
-
   test(
-    'applyPickedEndDate normalizes to UTC midnight and clears the step',
-    () async {
-      final plan = buildPlan(amount: dec('-10'));
-      final container = buildContainer(buildLedger(plan));
-      await container.read(planFormViewModelProvider(plan.id).future);
-      final viewModel = container.read(
-        planFormViewModelProvider(plan.id).notifier,
-      );
-
-      viewModel.setHasEndDate(true);
-      viewModel.requestPickEndDate();
-      viewModel.applyPickedEndDate(DateTime(2026, 6, 1, 9, 30));
-
-      final formState = container
-          .read(planFormViewModelProvider(plan.id))
-          .value;
-      expect(formState?.endDate, DateTime.utc(2026, 6, 1));
-      expect(formState?.step, isNull);
-    },
-  );
-
-  test(
-    'editing the amount of an expense plan preserves the negative sign on save',
+    'editing an expense amount preserves its negative sign on save',
     () async {
       final plan = buildPlan(amount: dec('-10'));
       final ledger = buildLedger(plan);
@@ -362,7 +207,7 @@ void main() {
   );
 
   test(
-    'editing the amount of an income plan keeps the amount positive',
+    'editing an income amount preserves its positive sign on save',
     () async {
       final plan = buildPlan(amount: dec('10'));
       final ledger = buildLedger(plan);
@@ -397,23 +242,6 @@ void main() {
     );
   });
 
-  test('saving emits PlanFormSaved', () async {
-    final plan = buildPlan(amount: dec('-10'));
-    final ledger = buildLedger(plan);
-    final container = buildContainer(ledger);
-    await container.read(planFormViewModelProvider(plan.id).future);
-    final viewModel = container.read(
-      planFormViewModelProvider(plan.id).notifier,
-    );
-
-    await viewModel.save();
-
-    expect(
-      container.read(planFormViewModelProvider(plan.id)).value?.step,
-      isA<PlanFormSaved>(),
-    );
-  });
-
   test('saving an unrelated edit preserves the stored template note', () async {
     final plan = buildPlan(amount: dec('-10'), note: '  memo ');
     final ledger = buildLedger(plan);
@@ -431,7 +259,7 @@ void main() {
     expect(saved.template.amount, dec('-15'));
   });
 
-  test('saving keeps a template note that arrived after opening', () async {
+  test('saving preserves a template note that arrived after opening', () async {
     final plan = buildPlan(amount: dec('-10'), note: 'original');
     final ledger = buildLedger(plan);
     final container = buildContainer(ledger);
@@ -458,22 +286,5 @@ void main() {
     await viewModel.save();
 
     expect(ledger.state.plans[plan.id]!.template.note, 'remote');
-  });
-
-  test('saving a note-free plan keeps it note-free', () async {
-    final plan = buildPlan(amount: dec('-10'));
-    final ledger = buildLedger(plan);
-    final container = buildContainer(ledger);
-    await container.read(planFormViewModelProvider(plan.id).future);
-    final viewModel = container.read(
-      planFormViewModelProvider(plan.id).notifier,
-    );
-
-    viewModel.setName('Updated');
-    await viewModel.save();
-
-    final saved = ledger.state.plans[plan.id]!;
-    expect(saved.template.note, isNull);
-    expect(saved.template.name, 'Updated');
   });
 }

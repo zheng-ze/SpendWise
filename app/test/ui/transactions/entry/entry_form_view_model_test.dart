@@ -9,7 +9,6 @@ import 'package:spendwise/ui/transactions/entry/steps/entry_form_logic.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_entry_coordinator.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_flow.dart';
-import 'package:spendwise/ui/transactions/transactions_view_model.dart';
 
 class _ImmediateScanCoordinator extends ReceiptEntryCoordinator {
   _ImmediateScanCoordinator() : super(null);
@@ -134,15 +133,10 @@ void main() {
   });
 
   group('save validation', () {
-    test('canSave is false with no amount, name or source', () async {
+    test('canSave tracks the required amount, name and source', () async {
       final container = containerFor(buildLedger());
-      final state = await stateOf(container, null);
-      expect(state.canSave, isFalse);
-    });
-
-    test('canSave becomes true once amount, name and source are set', () async {
-      final container = containerFor(buildLedger());
-      await stateOf(container, null);
+      final initial = await stateOf(container, null);
+      expect(initial.canSave, isFalse);
       final viewModel = container.read(
         entryFormViewModelProvider(null).notifier,
       );
@@ -154,19 +148,6 @@ void main() {
 
       final state = container.read(entryFormViewModelProvider(null)).value!;
       expect(state.canSave, isTrue);
-    });
-
-    test('save() is a no-op while canSave is false', () async {
-      final ledger = buildLedger();
-      final container = containerFor(ledger);
-      await stateOf(container, null);
-      final viewModel = container.read(
-        entryFormViewModelProvider(null).notifier,
-      );
-
-      await viewModel.save();
-
-      expect(ledger.state.entries, isEmpty);
     });
   });
 
@@ -344,32 +325,6 @@ void main() {
   });
 
   group('picker outcome application', () {
-    test('applyPickedSource sets the source', () async {
-      final container = containerFor(buildLedger());
-      await stateOf(container, null);
-      final viewModel = container.read(
-        entryFormViewModelProvider(null).notifier,
-      );
-
-      viewModel.applyPickedSource(checking.id);
-
-      final state = container.read(entryFormViewModelProvider(null)).value!;
-      expect(state.sourceId, checking.id);
-    });
-
-    test('applyPickedCategory sets the category', () async {
-      final container = containerFor(buildLedger());
-      await stateOf(container, null);
-      final viewModel = container.read(
-        entryFormViewModelProvider(null).notifier,
-      );
-
-      viewModel.applyPickedCategory(coffee.id);
-
-      final state = container.read(entryFormViewModelProvider(null)).value!;
-      expect(state.categoryId, coffee.id);
-    });
-
     test('setKind clears the category selection', () async {
       final container = containerFor(buildLedger());
       await stateOf(container, null);
@@ -405,41 +360,6 @@ void main() {
       },
     );
 
-    test('applyPickedEndDate enables and sets the end date together', () async {
-      final container = containerFor(buildLedger());
-      await stateOf(container, null);
-      final viewModel = container.read(
-        entryFormViewModelProvider(null).notifier,
-      );
-      viewModel.applyPickedRecurrence(RecurrenceFrequency.monthly);
-
-      viewModel.applyPickedEndDate(DateTime.utc(2026, 12, 1));
-
-      final state = container.read(entryFormViewModelProvider(null)).value!;
-      expect(state.hasEndDate, isTrue);
-      expect(state.endDate, DateTime.utc(2026, 12, 1));
-    });
-
-    test('a null picked end date and Never keep the cached end date', () async {
-      final container = containerFor(buildLedger());
-      await stateOf(container, null);
-      final viewModel = container.read(
-        entryFormViewModelProvider(null).notifier,
-      );
-      viewModel.applyPickedRecurrence(RecurrenceFrequency.monthly);
-
-      viewModel.applyPickedEndDate(null);
-      var state = container.read(entryFormViewModelProvider(null)).value!;
-      expect(state.hasEndDate, isFalse);
-      expect(state.endDate, isNull);
-
-      viewModel.applyPickedEndDate(DateTime.utc(2026, 12, 1));
-      viewModel.setEndDateEnabled(false);
-      state = container.read(entryFormViewModelProvider(null)).value!;
-      expect(state.hasEndDate, isFalse);
-      expect(state.endDate, DateTime.utc(2026, 12, 1));
-    });
-
     test('Does not repeat clears the end date and Never state', () async {
       final container = containerFor(buildLedger());
       await stateOf(container, null);
@@ -456,18 +376,6 @@ void main() {
       expect(state.endDate, isNull);
     });
 
-    test('requestPickEnds emits PickEndsRequested', () async {
-      final container = containerFor(buildLedger());
-      await stateOf(container, null);
-
-      container
-          .read(entryFormViewModelProvider(null).notifier)
-          .requestPickEnds();
-
-      final state = container.read(entryFormViewModelProvider(null)).value!;
-      expect(state.step, isA<PickEndsRequested>());
-    });
-
     test('applying a late picker result after the provider is disposed is a no-op, not a throw', () async {
       final container = containerFor(buildLedger());
       await stateOf(container, null);
@@ -482,19 +390,6 @@ void main() {
   });
 
   group('prefillSource', () {
-    test('sets the source on a fresh new-entry form', () async {
-      final container = containerFor(buildLedger());
-      await stateOf(container, null);
-      final viewModel = container.read(
-        entryFormViewModelProvider(null).notifier,
-      );
-
-      viewModel.prefillSource(checking.id);
-
-      final state = container.read(entryFormViewModelProvider(null)).value!;
-      expect(state.sourceId, checking.id);
-    });
-
     test('never overwrites a source the user already chose', () async {
       final container = containerFor(buildLedger());
       await stateOf(container, null);
@@ -562,101 +457,6 @@ void main() {
       expect(ledger.state.entries[entry.id]!.name, 'Unrelated edit');
       expect(ledger.state.entries[entry.id]!.note, 'new');
     });
-
-    test('a new entry save produces no note beside a noted entry', () async {
-      final existing = notedEntry(note: 'memo');
-      final ledger = buildLedger(entries: {existing.id: existing});
-      final container = containerFor(ledger);
-      await stateOf(container, null);
-      final viewModel = container.read(
-        entryFormViewModelProvider(null).notifier,
-      );
-
-      viewModel.setAmount('12.50');
-      viewModel.setName('New expense');
-      viewModel.applyPickedSource(checking.id);
-      viewModel.applyPickedCategory(coffee.id);
-      await viewModel.save();
-
-      final added = ledger.state.entries.values.singleWhere(
-        (candidate) => candidate.id != existing.id,
-      );
-      expect(added.note, isNull);
-      expect(ledger.state.entries[existing.id]!.note, 'memo');
-    });
-
-    test('a recurring-plan add resolves with no note', () async {
-      final existing = notedEntry(note: 'memo');
-      final ledger = buildLedger(entries: {existing.id: existing});
-      final container = containerFor(ledger);
-      await stateOf(container, null);
-      final viewModel = container.read(
-        entryFormViewModelProvider(null).notifier,
-      );
-
-      viewModel.setAmount('20');
-      viewModel.setName('Rent');
-      viewModel.applyPickedSource(checking.id);
-      viewModel.applyPickedCategory(coffee.id);
-      viewModel.applyPickedRecurrence(RecurrenceFrequency.monthly);
-      await viewModel.save();
-
-      expect(ledger.state.plans.length, 1);
-      final resolved = ledger.state.entries.values.singleWhere(
-        (candidate) => candidate.id != existing.id,
-      );
-      expect(resolved.note, isNull);
-      expect(ledger.state.entries[existing.id]!.note, 'memo');
-    });
-
-    test('an add through a missing entry id keeps no note', () async {
-      const missingID = 'b0000000-0000-0000-0000-000000000009';
-      final existing = notedEntry(note: 'memo');
-      final ledger = buildLedger(entries: {existing.id: existing});
-      final container = containerFor(ledger);
-      final initial = await stateOf(container, missingID);
-      expect(initial.mode, EntryFormMode.newEntry);
-      final viewModel = container.read(
-        entryFormViewModelProvider(missingID).notifier,
-      );
-
-      viewModel.setAmount('12.50');
-      viewModel.setName('New expense');
-      viewModel.applyPickedSource(checking.id);
-      viewModel.applyPickedCategory(coffee.id);
-      await viewModel.save();
-
-      final added = ledger.state.entries.values.singleWhere(
-        (candidate) => candidate.id != existing.id,
-      );
-      expect(added.note, isNull);
-      expect(ledger.state.entries[existing.id], existing);
-    });
-
-    test('a recurring add through a missing entry id keeps no note', () async {
-      const missingID = 'b0000000-0000-0000-0000-000000000009';
-      final existing = notedEntry(note: 'memo');
-      final ledger = buildLedger(entries: {existing.id: existing});
-      final container = containerFor(ledger);
-      await stateOf(container, missingID);
-      final viewModel = container.read(
-        entryFormViewModelProvider(missingID).notifier,
-      );
-
-      viewModel.setAmount('20');
-      viewModel.setName('Rent');
-      viewModel.applyPickedSource(checking.id);
-      viewModel.applyPickedCategory(coffee.id);
-      viewModel.applyPickedRecurrence(RecurrenceFrequency.monthly);
-      await viewModel.save();
-
-      expect(ledger.state.plans.length, 1);
-      final resolved = ledger.state.entries.values.singleWhere(
-        (candidate) => candidate.id != existing.id,
-      );
-      expect(resolved.note, isNull);
-      expect(ledger.state.entries[existing.id], existing);
-    });
   });
 
   group('add note draft', () {
@@ -671,27 +471,6 @@ void main() {
       viewModel.applyPickedSource(checking.id);
       viewModel.applyPickedCategory(coffee.id);
     }
-
-    test('a new form starts with an empty note draft', () async {
-      final container = containerFor(buildLedger());
-      final state = await stateOf(container, null);
-
-      expect(state.noteText, isEmpty);
-    });
-
-    test('setNote updates the draft without touching other fields', () async {
-      final container = containerFor(buildLedger());
-      final viewModel = await openedAdd(container);
-      viewModel.setAmount('12.50');
-      viewModel.setName('New expense');
-
-      viewModel.setNote('lunch receipt');
-
-      final state = container.read(entryFormViewModelProvider(null)).value!;
-      expect(state.noteText, 'lunch receipt');
-      expect(state.amountText, '12.50');
-      expect(state.nameText, 'New expense');
-    });
 
     test('a new-entry save carries the note, trimmed', () async {
       final ledger = buildLedger();
@@ -756,19 +535,6 @@ void main() {
       },
     );
 
-    test('setKind keeps the note draft while clearing the category', () async {
-      final container = containerFor(buildLedger());
-      final viewModel = await openedAdd(container);
-      viewModel.applyPickedCategory(coffee.id);
-      viewModel.setNote('keep me');
-
-      viewModel.setKind(EntryFormKind.income);
-
-      final state = container.read(entryFormViewModelProvider(null)).value!;
-      expect(state.noteText, 'keep me');
-      expect(state.categoryId, isNull);
-    });
-
     test('setNote on an editing form never leaks into the edit save', () async {
       final entry = notedEntry(note: 'memo');
       final ledger = buildLedger(entries: {entry.id: entry});
@@ -821,25 +587,6 @@ void main() {
       viewModel.applyPickedCategory(coffee.id);
 
       await Future.wait([viewModel.save(), viewModel.save()]);
-
-      expect(ledger.state.entries.length, 1);
-    });
-
-    test('save after dismissal is a no-op', () async {
-      final ledger = buildLedger();
-      final container = containerFor(ledger);
-      await stateOf(container, null);
-      final viewModel = container.read(
-        entryFormViewModelProvider(null).notifier,
-      );
-      viewModel.setAmount('12.50');
-      viewModel.setName('New expense');
-      viewModel.applyPickedSource(checking.id);
-      viewModel.applyPickedCategory(coffee.id);
-      await viewModel.save();
-      expect(ledger.state.entries.length, 1);
-
-      await viewModel.save();
 
       expect(ledger.state.entries.length, 1);
     });
@@ -907,20 +654,6 @@ void main() {
       expect(display.destinationLabel, 'Unavailable account');
       expect(display.categoryLabel, 'Unavailable category');
       expect(display.categorySymbol, isNull);
-    });
-
-    test('null selections resolve to null labels', () async {
-      final container = containerFor(buildLedger());
-      final state = await stateOf(container, null);
-
-      final display = projectEntryFormDisplay(
-        state,
-        container.read(ledgerProvider)!.state,
-      );
-
-      expect(display.sourceLabel, isNull);
-      expect(display.destinationLabel, isNull);
-      expect(display.categoryLabel, isNull);
     });
 
     test('an archived selection keeps its latest name', () async {

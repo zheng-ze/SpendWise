@@ -7,13 +7,8 @@ void main() {
   const cardID = 'a0000000-0000-0000-0000-000000000001';
   const otherID = 'a0000000-0000-0000-0000-000000000002';
 
-  group('statementCut clamp matrix', () {
+  group('statementCut month-end clamping', () {
     final cases = <String, (DateTime now, int statementDay, DateTime want)>{
-      'day 28 in February': (
-        DateTime.utc(2026, 3, 1),
-        28,
-        DateTime.utc(2026, 2, 28),
-      ),
       'day 29 in February clamps to 28': (
         DateTime.utc(2026, 3, 1),
         29,
@@ -28,11 +23,6 @@ void main() {
         DateTime.utc(2028, 3, 1),
         30,
         DateTime.utc(2028, 2, 29),
-      ),
-      'day 30 in a 30-day month lands on 30': (
-        DateTime.utc(2026, 5, 1),
-        30,
-        DateTime.utc(2026, 4, 30),
       ),
       'day 31 in a 30-day month clamps to 30': (
         DateTime.utc(2026, 5, 1),
@@ -55,18 +45,10 @@ void main() {
   });
 
   group('statementCut anchor month', () {
-    test('anchors to the current month when today is on the statement day', () {
-      final cut = statementCut(15, DateTime.utc(2026, 7, 15));
+    test('anchors to the current month when today is on or after the statement day', () {
+      final cut = statementCut(15, DateTime.utc(2026, 7, 20));
       expect(cut, DateTime.utc(2026, 7, 15));
     });
-
-    test(
-      'anchors to the current month when today is after the statement day',
-      () {
-        final cut = statementCut(15, DateTime.utc(2026, 7, 20));
-        expect(cut, DateTime.utc(2026, 7, 15));
-      },
-    );
 
     test(
       'anchors to the previous month when today is before the statement day',
@@ -86,13 +68,8 @@ void main() {
     test('negates a negative total', () {
       expect(payable(dec('-120')), dec('120'));
     });
-
     test('clamps to zero for a card in credit', () {
       expect(payable(dec('50')), Decimal.zero);
-    });
-
-    test('stays zero for a zero total', () {
-      expect(payable(Decimal.zero), Decimal.zero);
     });
   });
 

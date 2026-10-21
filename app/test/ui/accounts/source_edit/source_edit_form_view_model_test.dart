@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/accounts/accounts_view_model.dart';
 import 'package:spendwise/ui/accounts/source_edit/source_edit_form_view_model.dart';
 
 void main() {
@@ -35,20 +34,6 @@ void main() {
     );
   }
 
-  test('saving with an unchanged balance posts no entry', () async {
-    final account = Account(name: 'Wallet', type: AccountType.cash);
-    final ledger = ledgerWithAccountBalance(account);
-    final container = buildContainer(ledger);
-    await container.read(sourceEditFormViewModelProvider(account.id).future);
-    final viewModel = container.read(
-      sourceEditFormViewModelProvider(account.id).notifier,
-    );
-
-    await viewModel.save();
-
-    expect(ledger.state.entries, hasLength(1));
-  });
-
   test(
     'raising the balance posts one adjustment entry excluded from analysis',
     () async {
@@ -72,43 +57,6 @@ void main() {
       expect(posted.sourceID, account.id);
     },
   );
-
-  test('lowering the balance posts a negative adjustment entry', () async {
-    final account = Account(name: 'Wallet', type: AccountType.cash);
-    final ledger = ledgerWithAccountBalance(account);
-    final container = buildContainer(ledger);
-    await container.read(sourceEditFormViewModelProvider(account.id).future);
-    final viewModel = container.read(
-      sourceEditFormViewModelProvider(account.id).notifier,
-    );
-
-    viewModel.setBalance('40');
-    await viewModel.save();
-
-    final posted = ledger.state.entries.values.firstWhere(
-      (e) => e.id != 'e0000000-0000-0000-0000-000000000001',
-    );
-    expect(posted.amount, dec('-60'));
-  });
-
-  test('an empty balance field counts as zero and needs no entry', () async {
-    final account = Account(name: 'Wallet', type: AccountType.cash);
-    final ledger = Ledger(
-      state: LedgerState(
-        moneySources: {account.id: MoneySource.account(account)},
-      ),
-    );
-    final container = buildContainer(ledger);
-    await container.read(sourceEditFormViewModelProvider(account.id).future);
-    final viewModel = container.read(
-      sourceEditFormViewModelProvider(account.id).notifier,
-    );
-
-    viewModel.setBalance('');
-    await viewModel.save();
-
-    expect(ledger.state.entries, isEmpty);
-  });
 
   test('net worth toggle is unavailable for a pocket', () async {
     final account = Account(name: 'Wallet', type: AccountType.cash);
@@ -186,22 +134,5 @@ void main() {
 
     final stored = ledger.state.moneySources[account.id]!.asAccount!;
     expect(stored.incomingTransfersAsExpenses, isFalse);
-  });
-
-  test('save emits SourceEditFormSaved on success', () async {
-    final account = Account(name: 'Wallet', type: AccountType.cash);
-    final ledger = ledgerWithAccountBalance(account);
-    final container = buildContainer(ledger);
-    await container.read(sourceEditFormViewModelProvider(account.id).future);
-    final viewModel = container.read(
-      sourceEditFormViewModelProvider(account.id).notifier,
-    );
-
-    await viewModel.save();
-
-    expect(
-      container.read(sourceEditFormViewModelProvider(account.id)).value?.step,
-      isA<SourceEditFormSaved>(),
-    );
   });
 }

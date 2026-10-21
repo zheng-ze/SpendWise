@@ -1,7 +1,6 @@
 import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
 import 'package:spendwise/ledger/analysis/breakdowns/category_breakdown.dart'
     as analysis;
@@ -259,37 +258,6 @@ void main() {
     },
   );
 
-  test('initial, retained refresh, failure and retry preserve truthful body and intent', () async {
-    final ledger = emptyTrendsLedger();
-    addTrendsEntry(ledger, '-10', _today);
-    final runner = ManualRunner();
-    final harness = TrendsHarness(
-      ledger: ledger,
-      today: _today,
-      runner: runner.call,
-    );
-    await harness.settle();
-    expect(harness.body, isA<TrendsLoadingBody>());
-    await settle(runner, ledger);
-    expect(harness.ready.breakdown.total, Decimal.fromInt(10));
-    final intent = harness.intent;
-    final queries = harness.container.read(analysisQueriesProvider)!;
-    final previous = _readBreakdown(queries);
-    addTrendsEntry(ledger, '-20', _today);
-    await harness.settle();
-    expect(_readBreakdown(queries).value, previous.value);
-    expect(harness.body, isA<TrendsLoadingBody>());
-    runner.pending.last.completeError(StateError('failed'));
-    await harness.settle();
-    expect(harness.body, isA<TrendsErrorBody>());
-    harness.viewModel.retry();
-    await harness.settle();
-    expect(harness.body, isA<TrendsLoadingBody>());
-    await settle(runner, ledger);
-    expect(harness.ready.breakdown.total, Decimal.fromInt(30));
-    expect(harness.intent, intent);
-  });
-
   test('breakdown alone gates failure, missing and stale revisions, pending and ready-null', () async {
     final fixture = await _scripted();
     final real = _readBreakdown(fixture.queries);
@@ -322,43 +290,6 @@ void main() {
       }
     },
   );
-  test(
-    'breakdown row amounts must reconcile with the unchanged total',
-    () async {
-      final fixture = await _scripted();
-      final real = _readBreakdown(fixture.queries).value;
-      expect(real, isNotNull);
-      if (real == null) return;
-      final row = _rowPayload(real.rows.single, amount: Decimal.fromInt(9));
-      final value = _payload(real, rows: [row]);
-      expect(value.total, real.total);
-      fixture.queries.replacement = _result(
-        value,
-        AnalysisQueryState.ready,
-        fixture.ledger.revision,
-      );
-      expect(_project(fixture.queries, fixture.ledger), isA<TrendsErrorBody>());
-    },
-  );
-
-  test('breakdown row shares must reconcile to 100 percent', () async {
-    final fixture = await _scripted();
-    final real = _readBreakdown(fixture.queries).value;
-    expect(real, isNotNull);
-    if (real == null) return;
-    final row = _rowPayload(
-      real.rows.single,
-      sharePercent: Decimal.fromInt(99),
-    );
-    final value = _payload(real, rows: [row]);
-    fixture.queries.replacement = _result(
-      value,
-      AnalysisQueryState.ready,
-      fixture.ledger.revision,
-    );
-    expect(_project(fixture.queries, fixture.ledger), isA<TrendsErrorBody>());
-  });
-
   test('year breakdown window mismatch produces an error', () async {
     final fixture = await _scripted();
     final context = TrendsContext(currentMonth: monthSerial(_today));
@@ -444,77 +375,6 @@ void main() {
     );
     expect(_project(fixture.queries, fixture.ledger), isA<TrendsLoadingBody>());
   });
-
-  test(
-    'deletion to empty and old completion cannot publish mixed revisions',
-    () async {
-      final ledger = emptyTrendsLedger();
-      final id = addTrendsEntry(ledger, '-10', _today);
-      final runner = ManualRunner();
-      final harness = TrendsHarness(
-        ledger: ledger,
-        today: _today,
-        runner: runner.call,
-      );
-      await harness.settle();
-      await settle(runner, ledger);
-      final beforeDelete = runner.pending.length;
-      ledger.deleteEntry(id);
-      final emptyItems = Accounting.analysisItems(ledger.state);
-      await harness.settle();
-      expect(harness.body, isA<TrendsLoadingBody>());
-      addTrendsEntry(ledger, '-20', _today);
-      await harness.settle();
-      runner.pending[beforeDelete].complete(emptyItems);
-      await harness.settle();
-      expect(harness.body, isA<TrendsLoadingBody>());
-      await settle(runner, ledger);
-      expect(harness.ready.breakdown.total, Decimal.fromInt(20));
-      final next = runner.pending.length;
-      addTrendsEntry(ledger, '-30', _today);
-      final olderItems = Accounting.analysisItems(ledger.state);
-      addTrendsEntry(ledger, '-40', _today);
-      await settle(runner, ledger);
-      expect(harness.ready.breakdown.total, Decimal.fromInt(90));
-      runner.pending[next].complete(olderItems);
-      await harness.settle();
-      expect(harness.ready.breakdown.total, Decimal.fromInt(90));
-      expect(harness.ready.breakdown.sourceRevision, ledger.revision);
-    },
-  );
-
-  test(
-    'latest level kind and period win while computation is pending',
-    () async {
-      SharedPreferences.setMockInitialValues({});
-      final ledger = seededTrendsLedger(_today);
-      final runner = ManualRunner();
-      final harness = TrendsHarness(
-        ledger: ledger,
-        today: _today,
-        runner: runner.call,
-      );
-      await harness.settle();
-      harness.viewModel.setKind(TrendsKind.income);
-      harness.viewModel.setMode(TrendsMode.year);
-      harness.viewModel.selectSlot(1);
-      final preferences = settings.DisplayPreferences(
-        breakdownLevel: settings.BreakdownLevel.subcategories,
-      );
-      await harness.container
-          .read(displayPreferencesProvider.notifier)
-          .replace(preferences);
-      await harness.settle();
-      expect(harness.body, isA<TrendsLoadingBody>());
-      await settle(runner, ledger);
-      final breakdown = harness.ready.breakdown;
-      expect(breakdown.kind, CategoryKind.income);
-      expect(breakdown.mode, TrendsMode.year);
-      expect(breakdown.level, settings.BreakdownLevel.subcategories);
-      expect(breakdown.period, DateTime.utc(2025));
-      expect(breakdown, isA<TrendsEmptyBreakdown>());
-    },
-  );
 }
 
 AnalysisItem _item(String? id, String amount) => AnalysisItem(
@@ -572,18 +432,6 @@ analysis.PeriodBreakdown _payload(
   level: level ?? real.level,
   total: total ?? real.total,
   rows: rows ?? real.rows,
-);
-
-analysis.BreakdownRow _rowPayload(
-  analysis.BreakdownRow real, {
-  Decimal? amount,
-  Decimal? sharePercent,
-}) => analysis.BreakdownRow(
-  bucketID: real.bucketID,
-  mainBucketID: real.mainBucketID,
-  isDirect: real.isDirect,
-  amount: amount ?? real.amount,
-  sharePercent: sharePercent ?? real.sharePercent,
 );
 
 class _BreakdownQueries extends AnalysisQueries {

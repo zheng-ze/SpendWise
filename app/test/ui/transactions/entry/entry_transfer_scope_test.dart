@@ -23,13 +23,7 @@ void main() {
     expect(sign, TransferScopeSign.loss);
   });
 
-  test('both endpoints in scope is neutral', () {
-    final sign = transfer().transferScopeSign({a, b});
-
-    expect(sign, TransferScopeSign.neutral);
-  });
-
-  test('neither endpoint in scope is neutral', () {
+  test('a transfer outside the scope is neutral', () {
     final sign = transfer().transferScopeSign({
       'a0000000-0000-0000-0000-000000000099',
     });

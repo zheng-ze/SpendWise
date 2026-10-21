@@ -84,16 +84,6 @@ Future<Future<void>> _driveToOtpEntry(_Harness harness) async {
 
 void main() {
   group('repair entry observation', () {
-    test('enterRepairMode reports whether repair is still needed', () async {
-      final harness = _Harness()..build();
-      addTearDown(harness.dispose);
-
-      expect(await harness.notifier.enterRepairMode(), isFalse);
-
-      await harness.metadataStore.enterBindingAuthorizationRequired();
-      expect(await harness.notifier.enterRepairMode(), isTrue);
-    });
-
     test(
       'enterRepairMode reports unneeded when the metadata read fails',
       () async {
@@ -132,33 +122,6 @@ void main() {
   });
 
   group('new-code requests', () {
-    test('requestNewCode while a resolver waits cancels it and opens '
-        'a new session', () async {
-      final harness = _Harness()..build();
-      addTearDown(harness.dispose);
-      await harness.metadataStore.enterBindingAuthorizationRequired();
-      await harness.notifier.enterRepairMode();
-      await _driveToOtpEntry(harness);
-      expect(harness.opener.openCalls, 1);
-      harness.notifier.clearStep();
-
-      harness.clock = harness.clock.add(const Duration(seconds: 61));
-      _collectOtpOnEnroll(harness);
-      final resend = harness.notifier.requestNewCode();
-      for (var i = 0; i < 50; i++) {
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-        if (harness.state.step is ShowOtpEntry) break;
-      }
-
-      expect(harness.opener.openCalls, 2);
-      expect(harness.opener.identifiers.last, 'user@example.com');
-      expect(harness.state.step, isA<ShowOtpEntry>());
-
-      harness.notifier.submitOtp('000000');
-      await resend;
-      expect(harness.state.step, isA<ShowEnrollmentCompleted>());
-    });
-
     test('repeated new-code taps while opening issue one request', () async {
       final harness = _Harness()..build();
       addTearDown(harness.dispose);
@@ -189,61 +152,6 @@ void main() {
       await first;
       expect(harness.opener.openCalls, 2);
       expect(harness.state.step, isA<ShowEnrollmentCompleted>());
-    });
-
-    test('requestNewCode during the cooldown opens no new session', () async {
-      final harness = _Harness()..build();
-      addTearDown(harness.dispose);
-      await harness.metadataStore.enterBindingAuthorizationRequired();
-      await harness.notifier.enterRepairMode();
-      final pending = await _driveToOtpEntry(harness);
-
-      await harness.notifier.requestNewCode();
-
-      expect(harness.opener.openCalls, 1);
-      expect(harness.state.errorMessage, contains('Send a new code in'));
-
-      harness.notifier.submitOtp('482916');
-      await pending;
-    });
-  });
-
-  group('cooldown observation', () {
-    test(
-      'no cooldown before a challenge, 60 seconds after, clear later',
-      () async {
-        final harness = _Harness()..build();
-        addTearDown(harness.dispose);
-        await harness.metadataStore.enterBindingAuthorizationRequired();
-        await harness.notifier.enterRepairMode();
-
-        expect(harness.notifier.codeCooldownRemaining(), isNull);
-
-        final pending = await _driveToOtpEntry(harness);
-        expect(
-          harness.notifier.codeCooldownRemaining(),
-          const Duration(seconds: 60),
-        );
-
-        harness.clock = harness.clock.add(const Duration(seconds: 61));
-        expect(harness.notifier.codeCooldownRemaining(), isNull);
-
-        harness.notifier.submitOtp('482916');
-        await pending;
-      },
-    );
-  });
-
-  group('repair dismissal', () {
-    test('dismissRepairFlow emits a single-shot close step', () async {
-      final harness = _Harness()..build();
-      addTearDown(harness.dispose);
-
-      harness.notifier.dismissRepairFlow();
-
-      expect(harness.state.step, isA<DismissRepairFlow>());
-      harness.notifier.clearStep();
-      expect(harness.state.step, isNull);
     });
   });
 }

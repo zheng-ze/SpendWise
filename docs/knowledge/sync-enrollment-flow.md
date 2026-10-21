@@ -27,8 +27,8 @@ the UI operation guard and cancellation. Source:
   identifier, OTP, resume, completion, and error screens.
 - `app/lib/sync/sync_enrollment_session.dart` - narrow adapter over
   `composeSyncEnrollment`'s ready graph.
-- `app/test/ui/sync/enrollment/sync_enrollment_flow_test.dart` - Flow route,
-  cancellation, retry, operation-lock, and bounded-publication coverage.
+- `app/test/ui/sync/enrollment/sync_enrollment_flow_test.dart` - retained
+  navigation, opener-error, and bounded-publication regression cases.
 - `app/test/ui/sync/enrollment/sync_enrollment_hosted_e2e_test.dart` - hosted
   graph integration through the Flow.
 

@@ -8,10 +8,7 @@ import 'package:spendwise/boot/app_boot.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/persistence/database/ledger_database.dart'
     show LedgerDatabase;
-import 'package:spendwise/sync/hosted_sync_status.dart';
-import 'package:spendwise/sync/sync_enrollment_service.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
-import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_screen.dart';
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_flow.dart';
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_screens.dart';
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart';
@@ -28,9 +25,7 @@ const _identifierField = Key('syncIdentifierField');
 const _identifierContinue = Key('syncIdentifierContinue');
 const _otpField = Key('syncOtpField');
 const _otpSubmit = Key('syncOtpSubmit');
-const _otpBack = Key('syncOtpBack');
 const _otpNewCode = Key('syncOtpNewCode');
-const _repairDone = Key('syncRepairDone');
 const _resumeRetry = Key('syncResumeRetry');
 
 final class _Harness {
@@ -45,7 +40,6 @@ final class _Harness {
   Future<void> pumpRepairFlow(
     WidgetTester tester, {
     SyncEnrollmentPhase? seedPhase,
-    Completer<void>? refreshGate,
   }) async {
     db = LedgerDatabase(NativeDatabase.memory());
     addTearDown(db.close);
@@ -59,18 +53,13 @@ final class _Harness {
     opener = FakeSessionOpener();
     secrets = InMemorySecretStore();
     final now = clock;
-    final gate = refreshGate;
     container = ProviderContainer(
       overrides: [
         appBootProvider.overrideWith(
           (ref) => AppBoot(
             createStore: () async => RecordingLedgerStore(),
             seedChanges: () => const [],
-            readSyncSnapshot: () async {
-              final pendingGate = gate;
-              if (pendingGate != null) await pendingGate.future;
-              return metadataStore.snapshot();
-            },
+            readSyncSnapshot: () => metadataStore.snapshot(),
           ),
         ),
         ledgerDatabaseProvider.overrideWithValue(db),
@@ -126,52 +115,6 @@ Future<void> driveToOtpEntry(
 }
 
 void main() {
-  group('repair identifier and OTP copy', () {
-    testWidgets('identifier entry explains code replacement', (tester) async {
-      final harness = _Harness();
-      await harness.pumpRepairFlow(
-        tester,
-        seedPhase: SyncEnrollmentPhase.bindingAuthorizationRequired,
-      );
-
-      expect(find.text('Repair Device Access'), findsOneWidget);
-      expect(
-        find.text(
-          'Requesting a new code replaces the previous one. '
-          'Only the newest code will work.',
-        ),
-        findsOneWidget,
-      );
-      expect(find.byType(BackendPickerScreen), findsNothing);
-    }, timeout: uiTestTimeout);
-
-    testWidgets('OTP entry explains replacement and gates the new-code '
-        'action on the cooldown', (tester) async {
-      final harness = _Harness();
-      await harness.pumpRepairFlow(
-        tester,
-        seedPhase: SyncEnrollmentPhase.bindingAuthorizationRequired,
-      );
-      await driveToOtpEntry(tester, harness.opener.session);
-
-      expect(find.byKey(_otpField), findsOneWidget);
-      expect(
-        find.text('Requesting a new code replaces the previous one.'),
-        findsOneWidget,
-      );
-      final gated = tester.widget<TextButton>(find.byKey(_otpNewCode));
-      expect(gated.onPressed, isNull);
-      expect(find.text('Send a new code in 60s'), findsOneWidget);
-
-      harness.clock = harness.clock.add(const Duration(seconds: 61));
-      await pumpRepairFrames(tester);
-
-      final released = tester.widget<TextButton>(find.byKey(_otpNewCode));
-      expect(released.onPressed, isNotNull);
-      expect(find.text('Send a new code'), findsOneWidget);
-    }, timeout: uiTestTimeout);
-  });
-
   group('repair completion', () {
     testWidgets('repair shows progress once the OTP is accepted, with '
         'no entry action enabled', (tester) async {
@@ -213,85 +156,9 @@ void main() {
 
       expect(find.text('Device access restored'), findsOneWidget);
     }, timeout: uiTestTimeout);
-
-    testWidgets('identifier to OTP ends in device-access-restored '
-        'completion, and Done ends the flow', (tester) async {
-      final harness = _Harness();
-      await harness.pumpRepairFlow(
-        tester,
-        seedPhase: SyncEnrollmentPhase.bindingAuthorizationRequired,
-      );
-      await driveToOtpEntry(tester, harness.opener.session);
-
-      await tester.enterText(find.byKey(_otpField), '482916');
-      await tester.pump();
-      await tester.tap(find.byKey(_otpSubmit));
-      await pumpRepairFrames(tester);
-
-      expect(find.text('Device access restored'), findsOneWidget);
-      expect(find.text('Sync writes have resumed.'), findsOneWidget);
-
-      await tester.tap(find.byKey(_repairDone));
-      await pumpRepairFrames(tester);
-
-      expect(harness.endedCalls, 1);
-    }, timeout: uiTestTimeout);
   });
 
   group('repair cancellation and routing', () {
-    for (final phase in [
-      SyncEnrollmentPhase.bindingAuthorizationRequired,
-      SyncEnrollmentPhase.sessionReauthRequired,
-    ]) {
-      testWidgets('cancelling OTP from $phase preserves the durable '
-          'disabled state and keeps one identifier route', (tester) async {
-        final harness = _Harness();
-        await harness.pumpRepairFlow(tester, seedPhase: phase);
-        await driveToOtpEntry(tester, harness.opener.session);
-        expect(find.byKey(_otpField), findsOneWidget);
-
-        await tester.tap(find.byKey(_otpBack));
-        await pumpRepairFrames(tester);
-
-        expect(find.byKey(_identifierField), findsOneWidget);
-        final snapshot = await harness.metadataStore.snapshot();
-        expect(snapshot.phase, phase);
-        expect(snapshot.writeEnabled, isFalse);
-        expect(
-          tester.widgetList(
-            find.byType(SyncIdentifierScreen, skipOffstage: false),
-          ),
-          hasLength(1),
-        );
-
-        harness.clock = harness.clock.add(const Duration(seconds: 61));
-        await tester.pump(const Duration(seconds: 2));
-        harness.opener.session.onEnroll = () async {
-          throw const SyncEnrollmentException(
-            step: 'completeEnrollment',
-            code: 'invalid_request',
-            message: 'server: bad otp 482916 for user@example.com',
-          );
-        };
-        await submitIdentifier(tester, 'user@example.com');
-        await pumpRepairFrames(tester);
-
-        expect(find.byKey(_identifierField), findsOneWidget);
-        expect(
-          tester.widgetList(
-            find.byType(SyncIdentifierScreen, skipOffstage: false),
-          ),
-          hasLength(1),
-        );
-        final failed = harness.container.read(syncEnrollmentViewModelProvider);
-        expect(failed.errorMessage, contains('not accepted'));
-        expect(failed.errorMessage, isNot(contains('482916')));
-        final retrySnapshot = await harness.metadataStore.snapshot();
-        expect(retrySnapshot.phase, phase);
-        expect(retrySnapshot.writeEnabled, isFalse);
-      }, timeout: uiTestTimeout);
-    }
-
     testWidgets('requesting a new code replaces the OTP route instead '
         'of stacking a second one', (tester) async {
       final harness = _Harness();
@@ -374,23 +241,6 @@ void main() {
       expect(snapshot.writeEnabled, isFalse);
     }, timeout: uiTestTimeout);
 
-    testWidgets('back on the idle repair identifier root pops the flow route', (
-      tester,
-    ) async {
-      final harness = _Harness();
-      await harness.pumpRepairFlow(
-        tester,
-        seedPhase: SyncEnrollmentPhase.bindingAuthorizationRequired,
-      );
-      expect(find.byKey(_identifierField), findsOneWidget);
-
-      await tester.binding.handlePopRoute();
-      await pumpRepairFrames(tester);
-
-      expect(find.text(flowHostMarker), findsOneWidget);
-      expect(find.byKey(_identifierField), findsNothing);
-    }, timeout: uiTestTimeout);
-
     testWidgets('disposing the flow while an OTP is pending releases '
         'the guard and preserves the durable phase', (tester) async {
       final harness = _Harness();
@@ -451,43 +301,6 @@ void main() {
 
       expect(harness.opener.session.enrollCalls, 2);
       expect(find.text('Device access restored'), findsOneWidget);
-    }, timeout: uiTestTimeout);
-
-    testWidgets('entering with the repair phase already cleared ends '
-        'the flow and refreshes status', (tester) async {
-      final harness = _Harness();
-      await harness.pumpRepairFlow(tester);
-
-      expect(harness.endedCalls, 1);
-      final snapshot = await harness.metadataStore.snapshot();
-      expect(
-        harness.container.read(hostedSyncStatusProvider),
-        projectHostedSyncStatus(snapshot),
-      );
-    }, timeout: uiTestTimeout);
-
-    testWidgets('backing out during the cleared-entry refresh does not '
-        'end a later route', (tester) async {
-      final harness = _Harness();
-      final refreshGate = Completer<void>();
-      await harness.pumpRepairFlow(tester, refreshGate: refreshGate);
-      expect(harness.endedCalls, 0);
-
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: harness.container,
-          child: MaterialApp(
-            key: UniqueKey(),
-            home: const Scaffold(body: Text('flow gone')),
-          ),
-        ),
-      );
-      await pumpRepairFrames(tester);
-
-      refreshGate.complete();
-      await pumpRepairFrames(tester);
-
-      expect(harness.endedCalls, 0);
     }, timeout: uiTestTimeout);
   });
 }

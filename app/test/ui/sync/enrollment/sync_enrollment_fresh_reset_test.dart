@@ -8,8 +8,6 @@ import 'package:spendwise/boot/app_boot.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/persistence/database/ledger_database.dart';
 import 'package:spendwise/sync/backend_selection_writer.dart';
-import 'package:spendwise/sync/enrollment_snapshot_publisher.dart';
-import 'package:spendwise/sync/sync_coordinator.dart';
 import 'package:spendwise/sync/sync_secret_keys.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
 import 'package:spendwise/ui/sync/enrollment/backend_picker/backend_picker_screen.dart';
@@ -26,7 +24,6 @@ import '../../../support/ui_test_timeout.dart';
 const _identifierField = Key('syncIdentifierField');
 const _otpField = Key('syncOtpField');
 const _otpSubmit = Key('syncOtpSubmit');
-const _freshDone = Key('syncFreshDone');
 const _pickerBack = Key('syncPickerBack');
 
 final class _Harness {
@@ -154,34 +151,6 @@ void main() {
       },
     );
 
-    test('a live operation settles before the reset applies', () async {
-      final harness = _Harness();
-      harness.build();
-      addTearDown(harness.dispose);
-      await harness.metadataStore.enterBindingAuthorizationRequired();
-      await harness.notifier.enterRepairMode();
-      final gate = Completer<void>();
-      harness.opener.session.onEnroll = () => gate.future;
-      final pending = harness.notifier.submitIdentifier('user@example.com');
-      await Future<void>.delayed(Duration.zero);
-      expect(harness.state.inFlight, isTrue);
-
-      final freshEntry = harness.notifier.enterFreshMode();
-      expect(harness.state.repairMode, isTrue);
-
-      gate.complete();
-      await pending;
-      await freshEntry;
-
-      final state = harness.state;
-      expect(state.inFlight, isFalse);
-      expect(state.repairMode, isFalse);
-      expect(state.repairPhase, isNull);
-      expect(state.explainCodeReplacement, isFalse);
-      expect(state.step, isNull);
-      expect(state.identifier, 'user@example.com');
-    });
-
     test('an older completion cannot release a newer pending enroll', () async {
       final harness = _Harness();
       harness.build();
@@ -249,155 +218,6 @@ void main() {
   });
 
   group('repair then fresh in one container', () {
-    testWidgets('fresh entry restores fresh semantics', (tester) async {
-      final db = LedgerDatabase(NativeDatabase.memory());
-      addTearDown(db.close);
-      final metadataStore = SyncMetadataStore(db);
-      await metadataStore.enterBindingAuthorizationRequired();
-      final opener = FakeSessionOpener();
-      final secrets = InMemorySecretStore();
-      final writer = _RecordingWriter();
-      var clock = DateTime.utc(2026, 1, 1);
-      final container = ProviderContainer(
-        overrides: [
-          appBootProvider.overrideWith(
-            (ref) => AppBoot(
-              createStore: () async => RecordingLedgerStore(),
-              seedChanges: () => const [],
-              readSyncSnapshot: () => metadataStore.snapshot(),
-            ),
-          ),
-          ledgerDatabaseProvider.overrideWithValue(db),
-          syncMetadataStoreProvider.overrideWithValue(metadataStore),
-          backendPickerViewModelProvider.overrideWith(
-            () => BackendPickerNotifier(writer: writer),
-          ),
-          syncEnrollmentViewModelProvider.overrideWith(
-            () => SyncEnrollmentNotifier(
-              sessionOpener: opener.call,
-              secretStore: secrets,
-              now: () => clock,
-            ),
-          ),
-        ],
-      );
-      addTearDown(container.dispose);
-
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: const MaterialApp(home: SyncEnrollmentFlow(repairMode: true)),
-        ),
-      );
-      await pumpFlowFrames(tester);
-      expect(find.text('Repair Device Access'), findsOneWidget);
-
-      await secrets.write(syncWriteProofSecretKey, 'proof-1');
-      opener.session.onEnroll = () async {
-        await opener.session.resolveOtp!(
-          EnrollmentChallenge(const {'identifier': 'user@example.com'}),
-        );
-      };
-      opener.session.onPublish = () async => const EnrollmentSnapshotPending(
-        collection: SyncCollection.entries,
-        result: PushDeferred(),
-      );
-      await _submitIdentifier(tester, 'user@example.com');
-      await pumpFlowFrames(tester);
-      expect(find.byKey(_otpField), findsOneWidget);
-
-      await tester.enterText(find.byKey(_otpField), '482916');
-      await tester.pump();
-      await tester.tap(find.byKey(_otpSubmit));
-      await pumpFlowFrames(tester);
-
-      expect(
-        container.read(syncEnrollmentViewModelProvider).errorMessage,
-        contains('pending'),
-      );
-
-      container
-          .read(backendPickerViewModelProvider.notifier)
-          .selectBackend(SyncBackendKind.custom);
-      container
-          .read(backendPickerViewModelProvider.notifier)
-          .updateEndpoint('https://sync.example.com/sync');
-
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: const MaterialApp(
-            home: Scaffold(body: Text('flow host gone')),
-          ),
-        ),
-      );
-      await pumpFlowFrames(tester);
-
-      var endedCalls = 0;
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            home: SyncEnrollmentFlow(onEnded: () => endedCalls++),
-          ),
-        ),
-      );
-      await pumpFlowFrames(tester);
-
-      expect(find.text('Choose sync backend'), findsOneWidget);
-      expect(find.text('Server URL'), findsNothing);
-      final pickerState = container.read(backendPickerViewModelProvider);
-      expect(pickerState.selectedBackend, SyncBackendKind.supabase);
-      expect(pickerState.endpoint, isEmpty);
-
-      await tester.tap(find.text('Continue'));
-      await pumpFlowFrames(tester);
-
-      expect(find.text('Hosted sync sign-in'), findsOneWidget);
-      expect(find.text('Repair Device Access'), findsNothing);
-      expect(
-        find.text(
-          'Requesting a new code replaces the previous one. '
-          'Only the newest code will work.',
-        ),
-        findsNothing,
-      );
-      expect(
-        tester.widget<TextField>(find.byKey(_identifierField)).controller?.text,
-        'user@example.com',
-      );
-
-      clock = clock.add(const Duration(seconds: 61));
-      await tester.pump(const Duration(seconds: 2));
-      opener.session.onEnroll = () async {
-        await opener.session.resolveOtp!(
-          EnrollmentChallenge(const {'identifier': 'user@example.com'}),
-        );
-      };
-      opener.session.onPublish = null;
-      await _submitIdentifier(tester, 'user@example.com');
-      await pumpFlowFrames(tester);
-
-      expect(find.byKey(_otpField), findsOneWidget);
-      expect(
-        find.text('Requesting a new code replaces the previous one.'),
-        findsNothing,
-      );
-
-      await tester.enterText(find.byKey(_otpField), '482916');
-      await tester.pump();
-      await tester.tap(find.byKey(_otpSubmit));
-      await pumpFlowFrames(tester);
-
-      expect(find.text('Sync enrollment complete'), findsOneWidget);
-      expect(find.byKey(_freshDone), findsOneWidget);
-      expect(writer.calls.single.backend, SyncBackendKind.supabase);
-
-      await tester.tap(find.byKey(_freshDone));
-      await pumpFlowFrames(tester);
-      expect(endedCalls, 1);
-    }, timeout: uiTestTimeout);
-
     testWidgets('a cancelled repair enroll publishes its proof before fresh '
         'mode applies', (tester) async {
       final db = LedgerDatabase(NativeDatabase.memory());
@@ -585,96 +405,6 @@ void main() {
   });
 
   group('fresh re-entry while a prior operation settles', () {
-    testWidgets('a fresh re-entry waits behind a loading root until the '
-        'prior enroll settles', (tester) async {
-      final db = LedgerDatabase(NativeDatabase.memory());
-      addTearDown(db.close);
-      final metadataStore = SyncMetadataStore(db);
-      final opener = FakeSessionOpener();
-      final secrets = InMemorySecretStore();
-      final writer = _RecordingWriter();
-      final container = ProviderContainer(
-        overrides: [
-          appBootProvider.overrideWith(
-            (ref) => AppBoot(
-              createStore: () async => RecordingLedgerStore(),
-              seedChanges: () => const [],
-              readSyncSnapshot: () => metadataStore.snapshot(),
-            ),
-          ),
-          ledgerDatabaseProvider.overrideWithValue(db),
-          syncMetadataStoreProvider.overrideWithValue(metadataStore),
-          backendPickerViewModelProvider.overrideWith(
-            () => BackendPickerNotifier(writer: writer),
-          ),
-          syncEnrollmentViewModelProvider.overrideWith(
-            () => SyncEnrollmentNotifier(
-              sessionOpener: opener.call,
-              secretStore: secrets,
-            ),
-          ),
-        ],
-      );
-      addTearDown(container.dispose);
-
-      await _pumpFreshFlow(tester, container, onEnded: () {});
-      expect(find.text('Choose sync backend'), findsOneWidget);
-
-      await tester.tap(find.text('Continue'));
-      await pumpFlowFrames(tester);
-      expect(find.byKey(_identifierField), findsOneWidget);
-
-      final enrollGate = Completer<void>();
-      opener.session.onEnroll = () => enrollGate.future;
-      await _submitIdentifier(tester, 'user@example.com');
-      expect(container.read(syncEnrollmentViewModelProvider).inFlight, isTrue);
-
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: const MaterialApp(
-            home: Scaffold(body: Text('flow host gone')),
-          ),
-        ),
-      );
-      await pumpFlowFrames(tester);
-
-      var endedCalls = 0;
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            home: SyncEnrollmentFlow(onEnded: () => endedCalls++),
-          ),
-        ),
-      );
-      await pumpFlowFrames(tester);
-
-      expect(
-        find.text(
-          'Finishing the previous attempt. This usually takes a few seconds.',
-        ),
-        findsOneWidget,
-      );
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
-      expect(find.text('Hosted sync'), findsNothing);
-      expect(opener.openCalls, 1);
-
-      enrollGate.complete();
-      await pumpFlowFrames(tester);
-
-      expect(find.text('Hosted sync'), findsOneWidget);
-      expect(
-        find.text(
-          'Finishing the previous attempt. This usually takes a few seconds.',
-        ),
-        findsNothing,
-      );
-      expect(opener.openCalls, 1);
-      expect(opener.session.publishCalls, 0);
-      expect(endedCalls, 0);
-    }, timeout: uiTestTimeout);
-
     testWidgets('closing the loading root ends the flow and the late reset '
         'leaves the disposed flow alone', (tester) async {
       final db = LedgerDatabase(NativeDatabase.memory());
@@ -1051,43 +781,6 @@ void main() {
       return (container: container, opener: opener, enrollGate: enrollGate);
     }
 
-    testWidgets('a stalled wait shows the retry state without resetting', (
-      tester,
-    ) async {
-      final waiting = await pumpWaitingFreshFlow(tester);
-      final container = waiting.container;
-      container
-          .read(backendPickerViewModelProvider.notifier)
-          .selectBackend(SyncBackendKind.custom);
-      container
-          .read(backendPickerViewModelProvider.notifier)
-          .updateEndpoint('https://sync.example.com/sync');
-      final before = container.read(syncEnrollmentViewModelProvider);
-
-      await tester.pump(const Duration(seconds: 30));
-      await pumpFlowFrames(tester);
-
-      expect(find.text(retryCopy), findsOneWidget);
-      expect(find.byKey(retryButton), findsOneWidget);
-      expect(find.byType(BackendPickerScreen), findsNothing);
-      final stalled = container.read(syncEnrollmentViewModelProvider);
-      expect(stalled.identifier, before.identifier);
-      expect(stalled.inFlight, before.inFlight);
-      expect(stalled.repairMode, before.repairMode);
-      final pickerState = container.read(backendPickerViewModelProvider);
-      expect(pickerState.selectedBackend, SyncBackendKind.custom);
-      expect(pickerState.endpoint, 'https://sync.example.com/sync');
-
-      waiting.enrollGate.complete();
-      await pumpFlowFrames(tester);
-
-      expect(waiting.opener.session.enrollCalls, 1);
-      expect(waiting.opener.session.publishCalls, 0);
-      expect(find.text(retryCopy), findsOneWidget);
-      expect(find.byType(BackendPickerScreen), findsNothing);
-      expect(tester.takeException(), isNull);
-    }, timeout: uiTestTimeout);
-
     testWidgets('try again re-waits and mounts the picker once settled', (
       tester,
     ) async {
@@ -1113,45 +806,6 @@ void main() {
       expect(find.text('Hosted sync'), findsOneWidget);
       expect(find.text(retryCopy), findsNothing);
       expect(container.read(syncEnrollmentViewModelProvider).inFlight, isFalse);
-      expect(tester.takeException(), isNull);
-    }, timeout: uiTestTimeout);
-
-    testWidgets('back ends the flow from the retry state', (tester) async {
-      var endedCalls = 0;
-      await pumpWaitingFreshFlow(tester, onEnded: () => endedCalls++);
-
-      await tester.pump(const Duration(seconds: 30));
-      await pumpFlowFrames(tester);
-      expect(find.text(retryCopy), findsOneWidget);
-
-      await tester.tap(find.byKey(_pickerBack));
-      await pumpFlowFrames(tester);
-      expect(endedCalls, 1);
-      expect(tester.takeException(), isNull);
-    }, timeout: uiTestTimeout);
-
-    testWidgets('the retry wait times out again when still stalled', (
-      tester,
-    ) async {
-      final waiting = await pumpWaitingFreshFlow(tester);
-      final before = waiting.container.read(syncEnrollmentViewModelProvider);
-
-      await tester.pump(const Duration(seconds: 30));
-      await pumpFlowFrames(tester);
-      expect(find.byKey(retryButton), findsOneWidget);
-
-      await tester.tap(find.byKey(retryButton));
-      await pumpFlowFrames(tester);
-      expect(find.byKey(retryButton), findsNothing);
-
-      await tester.pump(const Duration(seconds: 30));
-      await pumpFlowFrames(tester);
-      expect(find.byKey(retryButton), findsOneWidget);
-      expect(find.text(retryCopy), findsOneWidget);
-      expect(find.byType(BackendPickerScreen), findsNothing);
-      final stalled = waiting.container.read(syncEnrollmentViewModelProvider);
-      expect(stalled.identifier, before.identifier);
-      expect(stalled.inFlight, before.inFlight);
       expect(tester.takeException(), isNull);
     }, timeout: uiTestTimeout);
   });

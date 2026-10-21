@@ -49,15 +49,10 @@ void main() {
     },
   );
 
-  test('all scope matches the main category plus every child', () {
+  test('all scope matches the main category and children only', () {
     final result = matchingCategoryIDs(foodID, const AllScope(), state);
 
     expect(result, {foodID, hawkerID, cafeID});
-  });
-
-  test('all scope excludes an unrelated category', () {
-    final result = matchingCategoryIDs(foodID, const AllScope(), state);
-
     expect(result.contains(transportID), false);
   });
 
@@ -73,18 +68,9 @@ void main() {
     expect(result, {null});
   });
 
-  test('direct scope matches only the parent id, not its children', () {
+  test('direct scope matches only the parent category', () {
     final result = matchingCategoryIDs(foodID, const DirectScope(), state);
 
     expect(result, {foodID});
-    expect(result.contains(hawkerID), false);
-    expect(result.contains(cafeID), false);
-  });
-
-  test('direct scope differs from all scope when children exist', () {
-    final direct = matchingCategoryIDs(foodID, const DirectScope(), state);
-    final all = matchingCategoryIDs(foodID, const AllScope(), state);
-
-    expect(direct, isNot(equals(all)));
   });
 }

@@ -44,8 +44,14 @@ void main() {
   group('monthTotal', () {
     final month = DateTime.utc(2026, 7);
 
-    test('sums items dated within the month', () {
+    test('sums only items in the half-open month window', () {
       final items = [
+        AnalysisItem(
+          bucketID: null,
+          amount: dec('10'),
+          date: DateTime.utc(2026, 6, 30),
+          kind: CategoryKind.expense,
+        ),
         AnalysisItem(
           bucketID: null,
           amount: dec('10'),
@@ -58,35 +64,15 @@ void main() {
           date: DateTime.utc(2026, 7, 31),
           kind: CategoryKind.expense,
         ),
-      ];
-
-      expect(monthTotal(items, month), dec('15'));
-    });
-
-    test('excludes items dated in the next month', () {
-      final items = [
         AnalysisItem(
           bucketID: null,
-          amount: dec('10'),
+          amount: dec('20'),
           date: DateTime.utc(2026, 8, 1),
           kind: CategoryKind.expense,
         ),
       ];
 
-      expect(monthTotal(items, month), Decimal.zero);
-    });
-
-    test('excludes items dated before the month', () {
-      final items = [
-        AnalysisItem(
-          bucketID: null,
-          amount: dec('10'),
-          date: DateTime.utc(2026, 6, 30),
-          kind: CategoryKind.expense,
-        ),
-      ];
-
-      expect(monthTotal(items, month), Decimal.zero);
+      expect(monthTotal(items, month), dec('15'));
     });
   });
 }

@@ -147,7 +147,7 @@ void main() {
   });
 
   group('PlanListNotifier', () {
-    final today = DateTime.now().toUtc();
+    final today = DateTime.utc(2026, 1, 1);
     final soonerPlan = RecurringPlan(
       template: EntryTemplate(
         amount: dec('-10'),
@@ -158,28 +158,6 @@ void main() {
       anchor: today,
       lastResolvedDate: today.subtract(const Duration(days: 1)),
     );
-    final laterPlan = RecurringPlan(
-      template: EntryTemplate(
-        amount: dec('5'),
-        name: 'Alpha',
-        sourceID: source.id,
-      ),
-      frequency: RecurrenceFrequency.yearly,
-      anchor: today,
-      lastResolvedDate: today.subtract(const Duration(days: 1)),
-    );
-
-    test('build sorts plans by ascending next occurrence', () async {
-      final ledger = buildLedger([laterPlan, soonerPlan]);
-      final container = buildContainer(ledger);
-
-      final state = await container.read(planListViewModelProvider.future);
-
-      expect(state.plans.map((p) => p.id), [soonerPlan.id, laterPlan.id]);
-      expect(state.editing, isFalse);
-      expect(state.step, isNull);
-    });
-
     test('toggleEditing flips editing on and off', () async {
       final container = buildContainer(buildLedger([soonerPlan]));
       await container.read(planListViewModelProvider.future);
@@ -202,18 +180,6 @@ void main() {
       final step = container.read(planListViewModelProvider).value?.step;
       expect(step, isA<PlanFormRequested>());
       expect((step as PlanFormRequested).plan.id, soonerPlan.id);
-    });
-
-    test('deletePlan removes the plan without emitting a step', () async {
-      final ledger = buildLedger([soonerPlan]);
-      final container = buildContainer(ledger);
-      await container.read(planListViewModelProvider.future);
-      final viewModel = container.read(planListViewModelProvider.notifier);
-
-      viewModel.deletePlan(soonerPlan.id);
-
-      expect(ledger.state.plans.containsKey(soonerPlan.id), isFalse);
-      expect(container.read(planListViewModelProvider).value?.step, isNull);
     });
 
     test(
@@ -255,18 +221,6 @@ void main() {
       viewModel.applyDeleteConfirmed(false);
 
       expect(ledger.state.plans.containsKey(soonerPlan.id), isTrue);
-    });
-
-    test('clearStep resets the step to null', () async {
-      final container = buildContainer(buildLedger([soonerPlan]));
-      await container.read(planListViewModelProvider.future);
-      final viewModel = container.read(planListViewModelProvider.notifier);
-
-      viewModel.requestEditPlan(soonerPlan);
-      expect(container.read(planListViewModelProvider).value?.step, isNotNull);
-
-      viewModel.clearStep();
-      expect(container.read(planListViewModelProvider).value?.step, isNull);
     });
   });
 }

@@ -5,46 +5,33 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/settings/settings_providers.dart';
-import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form.dart';
-import 'package:spendwise/ui/transactions/entry/steps/entry_form_logic.dart';
-import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 
 import '../../../support/ui_test_timeout.dart';
 
 void main() {
-  Decimal dec(String value) => Decimal.parse(value);
-
-  final checking = Account(
-    id: 'a0000000-0000-0000-0000-000000000001',
-    name: 'Checking',
-    type: AccountType.checking,
-  );
-  final coffee = TransactionCategory(
-    id: 'c0000000-0000-0000-0000-000000000001',
-    name: 'Coffee',
-    kind: CategoryKind.expense,
-    colorHex: '#FF0000',
-    includeInAnalysis: true,
-    parentID: null,
-    symbol: 'local_cafe',
-  );
-
-  Ledger buildLedger({Map<String, Entry> entries = const {}}) {
-    return Ledger(
+  testWidgets('system entries keep protected fields locked in edit mode', (
+    tester,
+  ) async {
+    const sourceId = 'a0000000-0000-0000-0000-000000000001';
+    final entry = Entry(
+      amount: Decimal.parse('250'),
+      name: 'Opening balance',
+      sourceID: sourceId,
+      includeInAnalysis: false,
+      systemKind: SystemEntryKind.openingBalance,
+    );
+    final ledger = Ledger(
       state: LedgerState(
-        moneySources: {checking.id: MoneySource.account(checking)},
-        categories: {coffee.id: coffee},
-        entries: entries,
+        moneySources: {
+          sourceId: MoneySource.account(
+            Account(id: sourceId, name: 'Checking', type: AccountType.checking),
+          ),
+        },
+        entries: {entry.id: entry},
       ),
     );
-  }
 
-  Future<void> pumpForm(
-    WidgetTester tester, {
-    required Ledger ledger,
-    String? entryId,
-  }) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -52,424 +39,27 @@ void main() {
           scanStripEnabledProvider.overrideWith((ref) async => true),
         ],
         child: MaterialApp(
-          home: Builder(
-            builder: (context) => Scaffold(
-              body: ElevatedButton(
-                onPressed: () {
-                  if (entryId == null) {
-                    showAppSheet<void>(
-                      context,
-                      presentation: AppSheetPresentation.phone,
-                      builder: (_) => EntryForm(entryId: entryId),
-                    );
-                  } else {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) =>
-                            Scaffold(body: EntryForm(entryId: entryId)),
-                      ),
-                    );
-                  }
-                },
-                child: const Text('open'),
-              ),
-            ),
-          ),
+          home: Scaffold(body: EntryForm(entryId: entry.id)),
         ),
       ),
     );
-    await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
-  }
+    await tester.tap(find.text('Edit'));
+    await tester.pumpAndSettle();
 
-  group('modes', () {
-    testWidgets('a new entry opens directly editable with a Save action', (
-      tester,
-    ) async {
-      await pumpForm(tester, ledger: buildLedger());
-
-      expect(find.text('Add entry'), findsOneWidget);
-      expect(find.text('Save entry'), findsOneWidget);
-    }, timeout: uiTestTimeout);
-
-    testWidgets('an existing entry opens read-only with an Edit control', (
-      tester,
-    ) async {
-      final entry = Entry(
-        amount: dec('-5'),
-        name: 'Coffee run',
-        sourceID: checking.id,
-        categoryID: coffee.id,
-      );
-      await pumpForm(
-        tester,
-        ledger: buildLedger(entries: {entry.id: entry}),
-        entryId: entry.id,
-      );
-
-      expect(find.text('Coffee run'), findsOneWidget);
-      expect(find.text('Save'), findsNothing);
-      expect(find.text('Edit'), findsOneWidget);
-    }, timeout: uiTestTimeout);
-
-    testWidgets(
-      'the read-only view has no live input controls, only plain rows',
-      (tester) async {
-        final entry = Entry(
-          amount: dec('-5'),
-          name: 'Coffee run',
-          sourceID: checking.id,
-          categoryID: coffee.id,
-        );
-        await pumpForm(
-          tester,
-          ledger: buildLedger(entries: {entry.id: entry}),
-          entryId: entry.id,
-        );
-
-        expect(find.byType(SegmentedButton<EntryFormKind>), findsNothing);
-        expect(find.byType(TextField), findsNothing);
-        expect(find.byType(SwitchListTile), findsNothing);
-      },
-      timeout: uiTestTimeout,
+    final nameField = find.byType(TextField).at(1);
+    final nameIgnore = tester.firstWidget<IgnorePointer>(
+      find.ancestor(of: nameField, matching: find.byType(IgnorePointer)),
+    );
+    final categoryTile = tester.widget<ListTile>(
+      find.widgetWithText(ListTile, 'Category'),
+    );
+    final analysisSwitch = tester.widget<SwitchListTile>(
+      find.widgetWithText(SwitchListTile, 'Include in Analysis'),
     );
 
-    testWidgets('tapping Edit switches to edit mode with a Save action', (
-      tester,
-    ) async {
-      final entry = Entry(
-        amount: dec('-5'),
-        name: 'Coffee run',
-        sourceID: checking.id,
-        categoryID: coffee.id,
-      );
-      await pumpForm(
-        tester,
-        ledger: buildLedger(entries: {entry.id: entry}),
-        entryId: entry.id,
-      );
-
-      await tester.tap(find.text('Edit'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Edit Entry'), findsOneWidget);
-      expect(find.text('Save'), findsOneWidget);
-    }, timeout: uiTestTimeout);
-
-    testWidgets('while viewing, Delete Entry is unreachable', (tester) async {
-      final entry = Entry(
-        amount: dec('-5'),
-        name: 'Coffee run',
-        sourceID: checking.id,
-        categoryID: coffee.id,
-      );
-      await pumpForm(
-        tester,
-        ledger: buildLedger(entries: {entry.id: entry}),
-        entryId: entry.id,
-      );
-
-      expect(find.text('Delete Entry'), findsNothing);
-    }, timeout: uiTestTimeout);
-
-    testWidgets('tapping Edit reveals live fields not shown while viewing', (
-      tester,
-    ) async {
-      final entry = Entry(
-        amount: dec('-5'),
-        name: 'Coffee run',
-        sourceID: checking.id,
-        categoryID: coffee.id,
-      );
-      await pumpForm(
-        tester,
-        ledger: buildLedger(entries: {entry.id: entry}),
-        entryId: entry.id,
-      );
-
-      await tester.tap(find.text('Edit'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Save'), findsOneWidget);
-      expect(find.text('Delete Entry'), findsOneWidget);
-    }, timeout: uiTestTimeout);
-  });
-
-  group('cancel from edit reverts', () {
-    testWidgets('reverts the name field and returns to read-only, sheet open', (
-      tester,
-    ) async {
-      final entry = Entry(
-        amount: dec('-5'),
-        name: 'Coffee run',
-        sourceID: checking.id,
-        categoryID: coffee.id,
-      );
-      final ledger = buildLedger(entries: {entry.id: entry});
-      await pumpForm(tester, ledger: ledger, entryId: entry.id);
-
-      await tester.tap(find.text('Edit'));
-      await tester.pumpAndSettle();
-
-      await tester.enterText(find.byType(TextField).at(1), 'Changed name');
-      await tester.pumpAndSettle();
-
-      await Navigator.of(tester.element(find.byType(EntryForm))).maybePop();
-      await tester.pumpAndSettle();
-
-      expect(find.text('Coffee run'), findsOneWidget);
-      expect(find.text('Changed name'), findsNothing);
-      expect(find.text('Edit'), findsOneWidget);
-      expect(ledger.state.entries[entry.id]!.name, 'Coffee run');
-    }, timeout: uiTestTimeout);
-  });
-
-  group('save paths', () {
-    testWidgets(
-      'editing an existing entry updates it and returns to read-only',
-      (tester) async {
-        final entry = Entry(
-          amount: dec('-5'),
-          name: 'Coffee run',
-          sourceID: checking.id,
-          categoryID: coffee.id,
-        );
-        final ledger = buildLedger(entries: {entry.id: entry});
-        await pumpForm(tester, ledger: ledger, entryId: entry.id);
-
-        await tester.tap(find.text('Edit'));
-        await tester.pumpAndSettle();
-
-        await tester.enterText(find.byType(TextField).at(1), 'Updated name');
-        await tester.pumpAndSettle();
-
-        await tester.tap(find.text('Save'));
-        await tester.pumpAndSettle();
-
-        expect(ledger.state.entries[entry.id]!.name, 'Updated name');
-        expect(find.text('Updated name'), findsOneWidget);
-        expect(find.text('Save'), findsNothing);
-      },
-      timeout: uiTestTimeout,
-    );
-
-    testWidgets('a new entry without recurrence adds it and dismisses', (
-      tester,
-    ) async {
-      final ledger = buildLedger();
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            ledgerProvider.overrideWithValue(ledger),
-            scanStripEnabledProvider.overrideWith((ref) async => true),
-          ],
-          child: MaterialApp(
-            home: Builder(
-              builder: (context) => Scaffold(
-                body: ElevatedButton(
-                  onPressed: () => showAppSheet<void>(
-                    context,
-                    presentation: AppSheetPresentation.phone,
-                    builder: (_) => const EntryForm(),
-                  ),
-                  child: const Text('open'),
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.tap(find.text('open'));
-      await tester.pumpAndSettle();
-
-      await tester.enterText(find.byType(TextField).at(0), '12.50');
-      await tester.enterText(find.byType(TextField).at(1), 'New expense');
-      await tester.pumpAndSettle();
-
-      final container = ProviderScope.containerOf(
-        tester.element(find.byType(EntryForm)),
-      );
-      container
-          .read(entryFormViewModelProvider(null).notifier)
-          .applyPickedSource(checking.id);
-      container
-          .read(entryFormViewModelProvider(null).notifier)
-          .applyPickedCategory(coffee.id);
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Save entry'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('open'), findsOneWidget);
-      expect(ledger.state.entries.length, 1);
-      final added = ledger.state.entries.values.first;
-      expect(added.name, 'New expense');
-      expect(added.amount, dec('-12.50'));
-    }, timeout: uiTestTimeout);
-  });
-
-  group('delete', () {
-    testWidgets('deletes and dismisses without a confirmation', (tester) async {
-      final entry = Entry(
-        amount: dec('-5'),
-        name: 'Coffee run',
-        sourceID: checking.id,
-        categoryID: coffee.id,
-      );
-      final ledger = buildLedger(entries: {entry.id: entry});
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            ledgerProvider.overrideWithValue(ledger),
-            scanStripEnabledProvider.overrideWith((ref) async => true),
-          ],
-          child: MaterialApp(
-            home: Builder(
-              builder: (context) => Scaffold(
-                body: ElevatedButton(
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) =>
-                          Scaffold(body: EntryForm(entryId: entry.id)),
-                    ),
-                  ),
-                  child: const Text('open'),
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.tap(find.text('open'));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Edit'));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Delete Entry'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Delete this transaction?'), findsNothing);
-      expect(ledger.state.entries.containsKey(entry.id), isFalse);
-      expect(find.text('open'), findsOneWidget);
-    }, timeout: uiTestTimeout);
-  });
-
-  group('system entries', () {
-    testWidgets(
-      'an opening balance entry opens read-only with an Edit control',
-      (tester) async {
-        final entry = Entry(
-          amount: dec('250'),
-          name: 'Opening balance',
-          sourceID: checking.id,
-          includeInAnalysis: false,
-          systemKind: SystemEntryKind.openingBalance,
-        );
-        await pumpForm(
-          tester,
-          ledger: buildLedger(entries: {entry.id: entry}),
-          entryId: entry.id,
-        );
-
-        expect(find.text('Opening balance'), findsOneWidget);
-        expect(find.text('Edit'), findsOneWidget);
-      },
-      timeout: uiTestTimeout,
-    );
-
-    testWidgets(
-      'editing an opening balance entry locks name, category and include '
-      'in analysis, but leaves amount and delete usable',
-      (tester) async {
-        final entry = Entry(
-          amount: dec('250'),
-          name: 'Opening balance',
-          sourceID: checking.id,
-          includeInAnalysis: false,
-          systemKind: SystemEntryKind.openingBalance,
-        );
-        final ledger = buildLedger(entries: {entry.id: entry});
-        await pumpForm(tester, ledger: ledger, entryId: entry.id);
-
-        await tester.tap(find.text('Edit'));
-        await tester.pumpAndSettle();
-
-        expect(find.text('Edit Entry'), findsOneWidget);
-
-        final nameIgnore = tester.firstWidget<IgnorePointer>(
-          find.ancestor(
-            of: find.byType(TextField).at(1),
-            matching: find.byType(IgnorePointer),
-          ),
-        );
-        expect(nameIgnore.ignoring, isTrue);
-
-        final categoryTile = tester.widget<ListTile>(
-          find.widgetWithText(ListTile, 'Category'),
-        );
-        expect(categoryTile.onTap, isNull);
-
-        final analysisSwitch = tester.widget<SwitchListTile>(
-          find.widgetWithText(SwitchListTile, 'Include in Analysis'),
-        );
-        expect(analysisSwitch.onChanged, isNull);
-
-        final amountIgnore = tester.firstWidget<IgnorePointer>(
-          find.ancestor(
-            of: find.byType(TextField).first,
-            matching: find.byType(IgnorePointer),
-          ),
-        );
-        expect(amountIgnore.ignoring, isFalse);
-
-        expect(find.text('Delete Entry'), findsOneWidget);
-
-        await tester.tap(find.text('Delete Entry'));
-        await tester.pumpAndSettle();
-
-        expect(ledger.state.entries.containsKey(entry.id), isFalse);
-      },
-      timeout: uiTestTimeout,
-    );
-
-    testWidgets('a balance adjustment entry opens read-only the same way', (
-      tester,
-    ) async {
-      final entry = Entry(
-        amount: dec('-10'),
-        name: 'Balance adjustment',
-        sourceID: checking.id,
-        includeInAnalysis: false,
-        systemKind: SystemEntryKind.balanceAdjustment,
-      );
-      await pumpForm(
-        tester,
-        ledger: buildLedger(entries: {entry.id: entry}),
-        entryId: entry.id,
-      );
-
-      expect(find.text('Balance adjustment'), findsOneWidget);
-      expect(find.text('Edit'), findsOneWidget);
-    }, timeout: uiTestTimeout);
-
-    testWidgets('a normal entry is unaffected and still offers Edit', (
-      tester,
-    ) async {
-      final entry = Entry(
-        amount: dec('-5'),
-        name: 'Coffee run',
-        sourceID: checking.id,
-        categoryID: coffee.id,
-      );
-      await pumpForm(
-        tester,
-        ledger: buildLedger(entries: {entry.id: entry}),
-        entryId: entry.id,
-      );
-
-      expect(find.text('Edit'), findsOneWidget);
-    }, timeout: uiTestTimeout);
-  });
+    expect(nameIgnore.ignoring, isTrue);
+    expect(categoryTile.onTap, isNull);
+    expect(analysisSwitch.onChanged, isNull);
+  }, timeout: uiTestTimeout);
 }

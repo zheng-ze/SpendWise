@@ -95,8 +95,8 @@ stack. The boot-created observer remains attached to that same Accounts navigato
 
 ## Gotchas and invariants
 
-- Statement-cut date math is clamped, never allowed to overflow into the next month, with a test
-  matrix across 28/29/30/31 × {Feb, Feb-leap, 30-day, 31-day}.
+- Statement-cut date math clamps to the month end and never overflows into the next month; tests
+  cover common February, leap February, 30-day and 31-day month boundaries.
 - Editing a balance does not rewrite history: it posts a synthetic excluded delta entry, keeping the
   running balance replay-consistent.
 - Cards cannot hold pockets, guarded in both UI and controller.

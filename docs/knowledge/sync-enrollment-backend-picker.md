@@ -87,9 +87,7 @@ Source:
   `app/lib/ui/sync/enrollment/backend_picker/backend_picker_flow.dart` -
   `_BackendPickerFlowState.goBack`;
   `app/lib/ui/sync/enrollment/sync_enrollment/sync_enrollment_flow.dart` -
-  `_SyncEnrollmentFlowState.goBack`;
-  `app/test/ui/sync/enrollment/sync_enrollment_flow_test.dart` -
-  `picker Back ends the flow again after a save failure`.
+  `_SyncEnrollmentFlowState.goBack`.
 - `BackendPickerViewModel.continueWithSelection()` persists the hosted choice
   through `BackendSelectionWriter.setBackendSelection` before emitting
   `HostedReady`. For a valid custom endpoint, it persists the validated URI
@@ -122,8 +120,4 @@ Source:
   `app/lib/ui/settings/settings_root_screen.dart` - `_HostedSyncSection`;
   `app/lib/ui/settings/settings_flow.dart` - `_openFreshFlow`, `_openRepairFlow`,
   `_pushEnrollmentRoute`; `app/lib/sync/sync_metadata_store.dart` -
-  `SyncMetadataStore.setBackendSelection`;
-  `app/test/ui/sync/enrollment/backend_picker_flow_test.dart` -
-  `hosted-ready invokes the hosted callback and clears the step`,
-  `custom-unavailable shows the affordance, clears the step, and never invokes
-  the hosted callback`.
+  `SyncMetadataStore.setBackendSelection`.

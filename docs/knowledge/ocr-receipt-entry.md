@@ -287,8 +287,7 @@ It listens for each new `scanStop`, shows exactly "Camera or photo library acces
 `ReceiptEntryCoordinator` still owns native capture, crop-result scanning and recognition; its
 captured initiating-Ref checks retire late results. Prefill updates Name, Amount and Date while
 preserving Note, recurrence and analysis. Crop Step dispatch remains available independently of the
-launcher. Regression coverage lives in `new_entry_receipt_launcher_test.dart`,
-`new_entry_final_layout_test.dart`, `entry_form_scan_prefill_test.dart` and the coordinator tests.
+launcher. Coverage lives in the coordinator tests.
 
 Both chooser options remain visible on every supported platform. Capability differences stay in
 `selectDocumentScanner` and `selectRecognizer`, which return null where no implementation exists;

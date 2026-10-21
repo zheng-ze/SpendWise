@@ -98,7 +98,7 @@ the retained History flow keeps its stack, date and mode. History has no back-to
   (`app/test/ui/overview/overview_view_model_test.dart`).
 - 'View History' is shown for nonempty, empty and section-loading Recent entries, carries
   button semantics with a 48px minimum hit target, and requests the History page
-  (`app/test/ui/overview/overview_screen_test.dart`, `app/test/ui/overview/overview_flow_test.dart`).
+  (`app/test/ui/overview/overview_screen_test.dart`).
 - Coming up excludes dates at or beyond 42 days
   (`app/test/ui/overview/overview_view_model_test.dart`).
 - An empty ledger renders all three sections with their own copy

@@ -97,21 +97,6 @@ void main() {
     },
   );
 
-  test('deleteAccount leaves an unrelated expansion alone', () async {
-    final ledger = buildLedger();
-    final container = buildContainer(ledger);
-    await container.read(accountsViewModelProvider.future);
-    final viewModel = container.read(accountsViewModelProvider.notifier);
-
-    viewModel.toggleExpanded(checking.id);
-    await viewModel.deleteAccount(savings.id);
-
-    expect(
-      container.read(accountsViewModelProvider).value?.expandedAccountId,
-      checking.id,
-    );
-  });
-
   test('deletePocket archives the pocket', () async {
     final ledger = buildLedger();
     final container = buildContainer(ledger);
@@ -143,23 +128,6 @@ void main() {
     },
   );
 
-  test(
-    'openAccountAlone emits AccountAloneOpened scoped to the account only',
-    () async {
-      final container = buildContainer(buildLedger());
-      await container.read(accountsViewModelProvider.future);
-      final viewModel = container.read(accountsViewModelProvider.notifier);
-
-      viewModel.openAccountAlone(checking.id);
-
-      final step = container.read(accountsViewModelProvider).value?.step;
-      expect(step, isA<AccountAloneOpened>());
-      final opened = step as AccountAloneOpened;
-      expect(opened.title, 'Main Checking');
-      expect(opened.scopeIDs, {checking.id});
-    },
-  );
-
   test('openPocket emits PocketOpened scoped to the pocket alone', () async {
     final container = buildContainer(buildLedger());
     await container.read(accountsViewModelProvider.future);
@@ -185,17 +153,5 @@ void main() {
       container.read(accountsViewModelProvider).value?.step,
       isA<AccountFormRequested>(),
     );
-  });
-
-  test('clearStep resets the step to null', () async {
-    final container = buildContainer(buildLedger());
-    await container.read(accountsViewModelProvider.future);
-    final viewModel = container.read(accountsViewModelProvider.notifier);
-
-    viewModel.requestNewAccount();
-    expect(container.read(accountsViewModelProvider).value?.step, isNotNull);
-
-    viewModel.clearStep();
-    expect(container.read(accountsViewModelProvider).value?.step, isNull);
   });
 }

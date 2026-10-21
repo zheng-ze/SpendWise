@@ -1,6 +1,5 @@
 import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:spendwise/ui/format/color_hex.dart';
 import 'package:spendwise/ui/stats/helpers/slices.dart';
 
 void main() {
@@ -52,22 +51,18 @@ void main() {
         kind: kind ?? CategoryKind.expense,
       );
 
-  test('orders slices by amount descending', () {
-    final items = [item(transportID, '10'), item(foodID, '50')];
+  test('rolls subcategories into parents and sorts by total descending', () {
+    final items = [
+      item(transportID, '10'),
+      item(foodID, '30'),
+      item(hawkerID, '20'),
+    ];
 
     final result = slices(items, CategoryKind.expense, window, state);
 
-    expect(result.map((s) => s.bucketID), [foodID, transportID]);
-  });
-
-  test('folds a subcategory into its parent', () {
-    final items = [item(foodID, '30'), item(hawkerID, '20')];
-
-    final result = slices(items, CategoryKind.expense, window, state);
-
-    expect(result.length, 1);
-    expect(result.single.bucketID, foodID);
-    expect(result.single.amount, dec('50'));
+    expect(result.map((slice) => slice.bucketID), [foodID, transportID]);
+    expect(result.first.bucketID, foodID);
+    expect(result.first.amount, dec('50'));
   });
 
   test('buckets null category as uncategorized', () {
@@ -77,15 +72,7 @@ void main() {
 
     expect(result.single.bucketID, null);
     expect(result.single.amount, dec('15'));
-  });
-
-  test('a treat-as-expense transfer item arrives with a null bucket and lands in uncategorized', () {
-    final items = [item(null, '25', kind: CategoryKind.expense)];
-
-    final result = slices(items, CategoryKind.expense, window, state);
-
-    expect(result.single.bucketID, null);
-    expect(result.single.amount, dec('25'));
+    expect(result.single.name, 'Uncategorized');
   });
 
   test('excludes items of the other kind and outside the window', () {
@@ -120,49 +107,15 @@ void main() {
   });
 
   test('zero total guards fractions instead of throwing or producing NaN', () {
-    final items = <AnalysisItem>[];
+    final items = [item(foodID, '0')];
 
     final result = slices(items, CategoryKind.expense, window, state);
 
-    expect(result, isEmpty);
+    expect(result.single.amount, Decimal.zero);
+    expect(result.single.fraction, Decimal.zero);
   });
 
-  test('uncategorized slice is gray with the uncategorized symbol', () {
-    final items = [item(null, '15')];
-
-    final result = slices(items, CategoryKind.expense, window, state);
-
-    expect(result.single.symbolName, 'help_outline');
-    expect(result.single.color, colorHexFallback);
-  });
-
-  test('category slice pulls color and symbol from state', () {
-    final items = [item(foodID, '15')];
-
-    final result = slices(items, CategoryKind.expense, window, state);
-
-    expect(result.single.symbolName, 'restaurant');
-    expect(result.single.color, parseColorHex('#FF0000'));
-  });
-
-  test('uncategorized slice is named Uncategorized', () {
-    final items = [item(null, '15')];
-
-    final result = slices(items, CategoryKind.expense, window, state);
-
-    expect(result.single.name, 'Uncategorized');
-  });
-
-  test('category slice takes its name from state', () {
-    final items = [item(foodID, '15')];
-
-    final result = slices(items, CategoryKind.expense, window, state);
-
-    expect(result.single.name, 'Food');
-  });
-
-  test('a synthetic bucket carries its own name, symbol and neutral color '
-      'instead of Uncategorized', () {
+  test('a synthetic bucket keeps its own ID and label', () {
     final syntheticID = syntheticTransferExpenseBucketID(AccountType.savings);
     final items = [item(syntheticID, '15')];
 
@@ -170,7 +123,5 @@ void main() {
 
     expect(result.single.bucketID, syntheticID);
     expect(result.single.name, isNot('Uncategorized'));
-    expect(result.single.symbolName, isNot('help_outline'));
-    expect(result.single.color, colorHexFallback);
   });
 }

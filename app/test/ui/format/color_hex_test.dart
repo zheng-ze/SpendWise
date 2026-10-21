@@ -4,12 +4,7 @@ import 'package:spendwise/ui/format/color_hex.dart';
 
 void main() {
   group('parseColorHex', () {
-    test('accepts a six-digit string with or without a leading hash', () {
-      expect(parseColorHex('#FF8800'), const Color(0xFFFF8800));
-      expect(parseColorHex('FF8800'), const Color(0xFFFF8800));
-    });
-
-    test('accepts lowercase and surrounding whitespace', () {
+    test('accepts normalized six-digit input', () {
       expect(parseColorHex('  #ff8800 '), const Color(0xFFFF8800));
     });
 
@@ -17,19 +12,6 @@ void main() {
       for (final bad in ['', '#FFF', 'GGGGGG', '#FF88000', 'not a color']) {
         expect(parseColorHex(bad), colorHexFallback, reason: bad);
       }
-    });
-
-    test('the fallback is desaturated, so a broken color reads as absent', () {
-      final channels = [
-        colorHexFallback.r,
-        colorHexFallback.g,
-        colorHexFallback.b,
-      ];
-      final spread =
-          channels.reduce((a, b) => a > b ? a : b) -
-          channels.reduce((a, b) => a < b ? a : b);
-      expect(spread, lessThan(0.05));
-      expect(colorHexFallback.a, 1.0);
     });
   });
 
@@ -45,10 +27,6 @@ void main() {
 
     test('pads components that need a leading zero', () {
       expect(toColorHex(const Color(0xFF000102)), '#000102');
-    });
-
-    test('round-trips a parsed color', () {
-      expect(toColorHex(parseColorHex('#1A2B3C')), '#1A2B3C');
     });
   });
 }

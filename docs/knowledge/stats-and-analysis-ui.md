@@ -99,9 +99,9 @@ sum to the total; nonempty rows' shares must sum to 100 percent. The projection 
 (`trends_projection.dart:_readBreakdown`, `_breakdown`, `trends_body.dart`, `trends_screen.dart`,
 `app/test/ui/stats/trends_breakdown_projection_test.dart`).
 
-Trends renders one breakdown section below the period card (`trends_breakdown_section.dart`,
-`app/test/ui/stats/trends_breakdown_test.dart`). It draws the saved chart (donut or category map) at the
-saved level and colour mode, then ranked rows with swatch, name, a caption of `share / parent` and the
+Trends renders one breakdown section below the period card (`trends_breakdown_section.dart`). It draws
+the saved chart (donut or category map) at the saved level and colour mode, then ranked rows with
+swatch, name, a caption of `share / parent` and the
 signed amount. A period with no records of the selected kind shows the empty card copy instead of chart
 and rows. Colours resolve once per row through `CategoryPalette`; Direct rows use the parent's saved hex
 with their own rank. The donut centre label is bounded to the hole, and row labels wrap inside the
@@ -132,8 +132,7 @@ up a step pending at mount after the first frame, clears the step before dispatc
 guard until that route's `completed` future, so repeated taps and taps during the reverse transition
 open no second route. Returning performs no intent update or invalidation.
 (`app/lib/ui/stats/trends_flow.dart`, `trends/trends_view_model.dart`,
-`app/test/ui/stats/trends_category_navigation_test.dart`, `trends_navigation_state_test.dart`,
-`trends_flow_test.dart`).
+`app/test/ui/stats/trends_navigation_state_test.dart`).
 
 Category Detail retains its own date state, seeded by its arguments, and inherits a fixed month or
 year mode. Its toolbar has the `MonthYearSelector` only; it has no range menu.

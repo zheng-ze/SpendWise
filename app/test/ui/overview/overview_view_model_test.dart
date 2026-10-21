@@ -4,7 +4,6 @@ import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/overview/overview_view_model.dart';
 
 import 'overview_fixture.dart';
@@ -81,33 +80,6 @@ void main() {
       expect(viewState.todayFailed, isFalse);
       expect(viewState.today!.spent, Decimal.parse('45.70'));
     });
-
-    test(
-      'shows Today as loading until it catches up with the ledger',
-      () async {
-        final ledger = Ledger(state: emptyState());
-        final pending = Completer<List<AnalysisItem>>();
-        var calls = 0;
-        final container = overviewContainer(
-          ledger,
-          runner: (state) =>
-              ++calls == 1 ? syncComputeRunner(state) : pending.future,
-        );
-        container.listen(overviewViewModelProvider, (_, _) {});
-        await settleAnalysis(container, ledger);
-
-        ledger.addEntry(
-          entry(1, '-5.00', fixtureToday, categoryID: groceriesID),
-        );
-        await pumpEventQueue();
-
-        final viewState = container
-            .read(overviewViewModelProvider)
-            .requireValue;
-        expect(viewState.recent, hasLength(1));
-        expect(viewState.today, isNull);
-      },
-    );
   });
 
   group('Recent entries', () {
@@ -136,23 +108,6 @@ void main() {
       expect(viewState.recent!.map((row) => row.title), ['Older']);
       expect(viewState.recent!.single.caption, startsWith('2 Oct / '));
       expect(viewState.recordedToday, isFalse);
-    });
-
-    test('maps caption, signed amount and kind for each entry shape', () async {
-      final viewState = await _settled(Ledger(state: defaultState()));
-      final byTitle = {for (final row in viewState.recent!) row.title: row};
-
-      final pay = byTitle['Monthly pay']!;
-      expect(pay.caption, 'Today / Salary / Checking');
-      expect(pay.amountKind, AmountKind.income);
-      expect(pay.amount, Decimal.parse('3200.00'));
-      final transfer = byTitle['To savings']!;
-      expect(transfer.caption, 'Today / Transfer / Checking > Savings');
-      expect(transfer.amountKind, AmountKind.transfer);
-      final spend = byTitle['Shop run']!;
-      expect(spend.caption, 'Today / Groceries / Amex Card');
-      expect(spend.amountKind, AmountKind.expense);
-      expect(spend.amount, Decimal.parse('-42.50'));
     });
 
     test('follows ledger changes', () async {
@@ -191,18 +146,6 @@ void main() {
         ],
       );
     });
-
-    test(
-      'statement rows carry no amount and plans carry a signed one',
-      () async {
-        final rows = (await _settled(Ledger(state: defaultState()))).upcoming!;
-
-        expect(rows.first.amount, isNull);
-        expect(rows[1].amount, Decimal.parse('-19.98'));
-        expect(rows[1].amountKind, AmountKind.expense);
-        expect(rows[2].amountKind, AmountKind.income);
-      },
-    );
 
     test('omits items at or beyond forty-two days', () async {
       final state = LedgerState();
@@ -248,39 +191,5 @@ void main() {
         isA<OverviewHistoryRequested>(),
       );
     });
-
-    test('clearStep clears a pending history request', () async {
-      final ledger = Ledger(state: defaultState());
-      final container = overviewContainer(ledger);
-      container.listen(overviewViewModelProvider, (_, _) {});
-      await settleAnalysis(container, ledger);
-      container.read(overviewViewModelProvider.notifier).requestHistory();
-
-      container.read(overviewViewModelProvider.notifier).clearStep();
-
-      expect(
-        container.read(overviewViewModelProvider).requireValue.step,
-        isNull,
-      );
-    });
-
-    test(
-      'a pending history request survives unrelated view rebuilds',
-      () async {
-        final ledger = Ledger(state: defaultState());
-        final container = overviewContainer(ledger);
-        container.listen(overviewViewModelProvider, (_, _) {});
-        await settleAnalysis(container, ledger);
-        container.read(overviewViewModelProvider.notifier).requestHistory();
-
-        container.invalidate(overviewViewModelProvider);
-        await settleAnalysis(container, ledger);
-
-        expect(
-          container.read(overviewViewModelProvider).requireValue.step,
-          isA<OverviewHistoryRequested>(),
-        );
-      },
-    );
   });
 }

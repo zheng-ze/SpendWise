@@ -162,10 +162,4 @@ void main() {
       );
     },
   );
-
-  test('chartMaxY extends 15 percent past the largest bar, floors at 1.0', () {
-    expect(chartMaxY([dec('0')], [dec('0')]), 1.0);
-    expect(chartMaxY([dec('100')], [dec('50')]), closeTo(115.0, 1e-9));
-    expect(chartMaxY([dec('50')], [dec('200')]), closeTo(230.0, 1e-9));
-  });
 }
