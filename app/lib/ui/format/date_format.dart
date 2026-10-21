@@ -11,6 +11,9 @@ final DateFormat _rangeDay = DateFormat('d MMM');
 final DateFormat _weekdayDate = DateFormat('EEEE, d MMMM');
 final DateFormat _dayMonthLong = DateFormat('d MMMM');
 final DateFormat _monthShort = DateFormat('MMM');
+final DateFormat _monthFull = DateFormat('MMMM');
+final DateFormat _monthFullYear = DateFormat('MMMM yyyy');
+final DateFormat _monthInitial = DateFormat('MMMMM');
 
 const _exclusiveEndStepBack = Duration(days: 1);
 
@@ -51,3 +54,9 @@ String formatDayMonthLong(DateTime day) => _dayMonthLong.format(day);
 String formatDayMonthShort(DateTime day) => _rangeDay.format(day);
 
 String formatMonthShort(DateTime day) => _monthShort.format(day);
+
+String formatMonthName(DateTime day) => _monthFull.format(day);
+
+String formatMonthNameYear(DateTime day) => _monthFullYear.format(day);
+
+String formatMonthInitial(DateTime day) => _monthInitial.format(day);
