@@ -14,6 +14,7 @@ import 'package:spendwise/ui/transactions/transactions_flow.dart';
 import 'package:spendwise/ui/transactions/transactions_view_model.dart';
 
 import '../../support/trends_ledger.dart';
+import 'trends_test_support.dart';
 import '../../support/ui_test_timeout.dart';
 
 const _actionLabel = 'See more detail';
@@ -156,16 +157,12 @@ void main() {
   testWidgets('TrendsFlow without an ending callback has no back control', (
     tester,
   ) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          ledgerProvider.overrideWithValue(trendsLedger()),
-          analysisComputeRunnerProvider.overrideWithValue(syncComputeRunner),
-        ],
-        child: const MaterialApp(home: TrendsFlow()),
-      ),
+    await pumpTrends(
+      tester,
+      ledger: trendsLedger(),
+      today: DateTime.now(),
+      home: const TrendsFlow(),
     );
-    await tester.pumpAndSettle();
 
     expect(find.byType(TrendsScreen), findsOneWidget);
     expect(find.bySemanticsLabel(_historyLabel), findsNothing);

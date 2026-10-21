@@ -384,93 +384,108 @@ void main() {
   });
 
   group('chart', () {
-    for (final brightness in Brightness.values) {
-      final colors = brightness == Brightness.light
-          ? SpendWiseColors.light
-          : SpendWiseColors.dark;
-
-      testWidgets(
-        'taps on the tallest and smallest rods select them in ${brightness.name} mode',
-        (tester) async {
-          await pumpTrends(
-            tester,
-            ledger: _history().ledger,
-            today: _today,
-            brightness: brightness,
-          );
-
-          await _tapRod(tester, _julyIndex);
-          expect(find.text('July 2026'), findsOneWidget);
-          await _tapRod(tester, _decemberIndex);
-          expect(find.text('December 2025'), findsOneWidget);
-          expect(find.text('-S\$30.00'), findsOneWidget);
-        },
-        timeout: uiTestTimeout,
-      );
-
-      testWidgets(
-        'the selected rod is filled with the selected mark and has no stroke in ${brightness.name} mode',
-        (tester) async {
-          await pumpTrends(
-            tester,
-            ledger: _history().ledger,
-            today: _today,
-            brightness: brightness,
-          );
-          await _tapRod(tester, _julyIndex);
-
-          final rods = _rods(tester);
-
-          expect(rods[_julyIndex].color, colors.selectedMark);
-          expect(rods[_julyIndex].borderSide.width, 0);
-          expect(rods[_decemberIndex].color, colors.action);
-        },
-        timeout: uiTestTimeout,
-      );
-    }
-
-    testWidgets('axis labels sit under the rod centres at 320 dp', (
-      tester,
-    ) async {
-      final semantics = tester.ensureSemantics();
-      await pumpTrends(tester, ledger: _history().ledger, today: _today);
-      final chart = tester.getRect(find.byType(BarChart));
-
-      for (var i = 0; i < _monthCount; i++) {
-        final cell = tester.getCenter(
-          find.bySemanticsLabel(_axisNames[i]).first,
-        );
-        final rodCentre = chart.left + (i + 0.5) * chart.width / _monthCount;
-        expect(cell.dx, closeTo(rodCentre, _centreTolerance));
-      }
-      semantics.dispose();
-    }, timeout: uiTestTimeout);
-
+    Brightness.values.forEach(_registerThemedChartTests);
     testWidgets(
-      'an empty month is selectable through its label and draws no rod',
-      (tester) async {
-        final semantics = tester.ensureSemantics();
-        await pumpTrends(tester, ledger: _history().ledger, today: _today);
-
-        await tester.tap(find.bySemanticsLabel('June 2026'));
-        await tester.pumpAndSettle();
-
-        expect(find.text('June 2026'), findsOneWidget);
-        expect(find.text('No expenses recorded'), findsOneWidget);
-        expect(_rods(tester)[7].toY, 0);
-        semantics.dispose();
-      },
+      'axis labels sit under the rod centres at 320 dp',
+      _axisLabelsAlignWithRods,
       timeout: uiTestTimeout,
     );
-
-    testWidgets('shows no completeness styling or qualifier text', (
-      tester,
-    ) async {
-      await pumpTrends(tester, ledger: _history().ledger, today: _today);
-
-      expect(find.textContaining('incomplete'), findsNothing);
-      expect(find.textContaining('Recorded so far'), findsNothing);
-      expect(find.textContaining('no records'), findsNothing);
-    }, timeout: uiTestTimeout);
+    testWidgets(
+      'an empty month is selectable through its label and draws no rod',
+      _emptyMonthSelectsThroughLabel,
+      timeout: uiTestTimeout,
+    );
+    testWidgets(
+      'shows no completeness styling or qualifier text',
+      _showsNoQualifiers,
+      timeout: uiTestTimeout,
+    );
   });
+}
+
+Future<void> _pumpHistory(
+  WidgetTester tester, {
+  Brightness brightness = Brightness.light,
+}) {
+  return pumpTrends(
+    tester,
+    ledger: _history().ledger,
+    today: _today,
+    brightness: brightness,
+  );
+}
+
+void _registerThemedChartTests(Brightness brightness) {
+  final colors = brightness == Brightness.light
+      ? SpendWiseColors.light
+      : SpendWiseColors.dark;
+  testWidgets(
+    'taps on the tallest and smallest rods select them in ${brightness.name} mode',
+    (tester) => _tapsSelectRods(tester, brightness),
+    timeout: uiTestTimeout,
+  );
+  testWidgets(
+    'the selected rod is filled with the selected mark and has no stroke in ${brightness.name} mode',
+    (tester) => _selectedRodStyle(tester, brightness, colors),
+    timeout: uiTestTimeout,
+  );
+}
+
+Future<void> _tapsSelectRods(WidgetTester tester, Brightness brightness) async {
+  await _pumpHistory(tester, brightness: brightness);
+
+  await _tapRod(tester, _julyIndex);
+  expect(find.text('July 2026'), findsOneWidget);
+  await _tapRod(tester, _decemberIndex);
+  expect(find.text('December 2025'), findsOneWidget);
+  expect(find.text('-S\$30.00'), findsOneWidget);
+}
+
+Future<void> _selectedRodStyle(
+  WidgetTester tester,
+  Brightness brightness,
+  SpendWiseColors colors,
+) async {
+  await _pumpHistory(tester, brightness: brightness);
+  await _tapRod(tester, _julyIndex);
+
+  final rods = _rods(tester);
+
+  expect(rods[_julyIndex].color, colors.selectedMark);
+  expect(rods[_julyIndex].borderSide.width, 0);
+  expect(rods[_decemberIndex].color, colors.action);
+}
+
+Future<void> _axisLabelsAlignWithRods(WidgetTester tester) async {
+  final semantics = tester.ensureSemantics();
+  await _pumpHistory(tester);
+  final chart = tester.getRect(find.byType(BarChart));
+
+  for (var i = 0; i < _monthCount; i++) {
+    final label = find.bySemanticsLabel(_axisNames[i]).first;
+    final rodCentre = chart.left + (i + 0.5) * chart.width / _monthCount;
+    expect(tester.getCenter(label).dx, closeTo(rodCentre, _centreTolerance));
+  }
+  semantics.dispose();
+}
+
+Future<void> _emptyMonthSelectsThroughLabel(WidgetTester tester) async {
+  final semantics = tester.ensureSemantics();
+  await _pumpHistory(tester);
+
+  await tester.tap(find.bySemanticsLabel('June 2026'));
+  await tester.pumpAndSettle();
+
+  expect(find.text('June 2026'), findsOneWidget);
+  expect(find.text('No expenses recorded'), findsOneWidget);
+  expect(_rods(tester)[7].toY, 0);
+  semantics.dispose();
+}
+
+Future<void> _showsNoQualifiers(WidgetTester tester) async {
+  await _pumpHistory(tester);
+
+  expect(find.textContaining('incomplete'), findsNothing);
+  expect(find.textContaining('Recorded so far'), findsNothing);
+  expect(find.textContaining('no records'), findsNothing);
 }

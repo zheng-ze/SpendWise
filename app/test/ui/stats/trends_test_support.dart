@@ -157,6 +157,7 @@ Future<void> pumpTrends(
   required Ledger? ledger,
   required DateTime today,
   ComputeRunner? runner,
+  Widget home = const TrendsScreen(),
   Size size = trendsPhoneSize,
   Brightness brightness = Brightness.light,
   bool settle = true,
@@ -174,10 +175,7 @@ Future<void> pumpTrends(
     ],
   );
   addTearDown(container.dispose);
-  final app = MaterialApp(
-    theme: buildSpendWiseTheme(brightness),
-    home: const TrendsScreen(),
-  );
+  final app = MaterialApp(theme: buildSpendWiseTheme(brightness), home: home);
   await tester.pumpWidget(
     UncontrolledProviderScope(container: container, child: app),
   );

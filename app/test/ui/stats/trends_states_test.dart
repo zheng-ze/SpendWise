@@ -1,5 +1,6 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -25,6 +26,8 @@ import 'trends_test_support.dart';
 
 final _today = DateTime.utc(2026, 10, 15);
 const _scrollStep = 120.0;
+const _emptyBody =
+    'Record an expense to start your monthly picture and breakdown.';
 final _disabledArrow = isSemantics(isButton: true, isEnabled: false);
 
 void _expectControls() {
@@ -150,6 +153,40 @@ AnalysisQueryResult<T> _with<T>(
 }
 
 const _keep = Object();
+
+TrendsIntent _yearIntent() {
+  return TrendsIntent.initial(
+    _today,
+  ).withMode(TrendsMode.year, TrendsContext(currentMonth: monthSerial(_today)));
+}
+
+AnalysisQueryResult<MonthSpread> _spreadForOtherMonth(
+  AnalysisQueryResult<MonthSpread> real,
+) {
+  final spread = real.value!;
+  final other = MonthSpread(
+    endMonth: spread.endMonth,
+    kind: spread.kind,
+    currentMonth: DateTime.utc(2026, 9, 1),
+    earliestSpreadEndMonth: spread.earliestSpreadEndMonth,
+    slots: spread.slots,
+  );
+  return _with(real, value: other);
+}
+
+AnalysisQueryResult<YearSpread> _spreadForOtherYear(
+  AnalysisQueryResult<YearSpread> real,
+) {
+  final spread = real.value!;
+  final other = YearSpread(
+    endYear: spread.endYear,
+    kind: spread.kind,
+    currentYear: 2025,
+    earliestSpreadEndYear: spread.earliestSpreadEndYear,
+    slots: spread.slots,
+  );
+  return _with(real, value: other);
+}
 
 void main() {
   group('loading and refresh', () {
@@ -425,57 +462,23 @@ void main() {
 
     test('a spread built for another current month is loading', () async {
       final scripted = await _scripted(_today);
-      scripted.queries.monthSpread = (real) {
-        final spread = real.value!;
-        return _with(
-          real,
-          value: MonthSpread(
-            endMonth: spread.endMonth,
-            kind: spread.kind,
-            currentMonth: DateTime.utc(2026, 9, 1),
-            earliestSpreadEndMonth: spread.earliestSpreadEndMonth,
-            slots: spread.slots,
-          ),
-        );
-      };
+      scripted.queries.monthSpread = _spreadForOtherMonth;
 
       expect(scripted.project(_today), isA<TrendsLoadingBody>());
     });
 
     test('a year spread built for another current year is loading', () async {
       final scripted = await _scripted(_today);
-      scripted.queries.yearSpread = (real) {
-        final spread = real.value!;
-        return _with(
-          real,
-          value: YearSpread(
-            endYear: spread.endYear,
-            kind: spread.kind,
-            currentYear: 2025,
-            earliestSpreadEndYear: spread.earliestSpreadEndYear,
-            slots: spread.slots,
-          ),
-        );
-      };
-      final intent = TrendsIntent.initial(_today).withMode(
-        TrendsMode.year,
-        TrendsContext(currentMonth: monthSerial(_today)),
-      );
+      scripted.queries.yearSpread = _spreadForOtherYear;
 
-      expect(
-        scripted.project(_today, intent: intent),
-        isA<TrendsLoadingBody>(),
-      );
+      final body = scripted.project(_today, intent: _yearIntent());
+
+      expect(body, isA<TrendsLoadingBody>());
     });
 
     test('year mode does not read the monthly usual', () async {
       final scripted = await _scripted(_today);
-      final intent = TrendsIntent.initial(_today).withMode(
-        TrendsMode.year,
-        TrendsContext(currentMonth: monthSerial(_today)),
-      );
-
-      scripted.project(_today, intent: intent);
+      scripted.project(_today, intent: _yearIntent());
 
       expect(scripted.queries.reads, ['year-spread']);
     });
@@ -515,126 +518,147 @@ void main() {
   });
 
   group('frames', () {
-    testWidgets('loading keeps the header and both controls over skeletons', (
-      tester,
-    ) async {
-      final runner = ManualRunner();
-
-      await pumpTrends(
-        tester,
-        ledger: _populated(),
-        today: _today,
-        runner: runner.call,
-        settle: false,
-      );
-
-      expect(find.text('Trends'), findsOneWidget);
-      _expectControls();
-      expect(find.byType(LoadingSkeleton), findsWidgets);
-      expect(find.text('Retry'), findsNothing);
-      expect(find.byType(MonthBars), findsNothing);
-    }, timeout: uiTestTimeout);
-
+    testWidgets(
+      'loading keeps the header and both controls over skeletons',
+      _loadingFrame,
+      timeout: uiTestTimeout,
+    );
     testWidgets(
       'failure shows the error copy with a filled Retry that recovers',
-      (tester) async {
-        final runner = ManualRunner();
-        final ledger = _populated();
-        await pumpTrends(
-          tester,
-          ledger: ledger,
-          today: _today,
-          runner: runner.call,
-          settle: false,
-        );
-        runner.pending.last.completeError(StateError('compute failed'));
-        await tester.pumpAndSettle();
-
-        expect(find.text("Couldn't load your spending"), findsOneWidget);
-        expect(find.text('Please try again.'), findsOneWidget);
-        expect(find.widgetWithText(FilledButton, 'Retry'), findsOneWidget);
-        _expectControls();
-
-        await tester.tap(find.text('Retry'));
-        await tester.pump();
-        runner.pending.last.complete(Accounting.analysisItems(ledger.state));
-        await tester.pumpAndSettle();
-
-        expect(find.byType(MonthBars), findsOneWidget);
-        _expectControls();
-      },
+      _errorFrame,
       timeout: uiTestTimeout,
     );
-
     testWidgets(
       'a fresh ledger shows controls, a period row with both arrows off and the empty state',
-      (tester) async {
-        final semantics = tester.ensureSemantics();
-
-        await pumpTrends(tester, ledger: emptyTrendsLedger(), today: _today);
-
-        _expectControls();
-        expect(find.text('Nov 2025 - Oct 2026'), findsOneWidget);
-        expect(find.text('See where your money goes'), findsOneWidget);
-        expect(
-          find.text(
-            'Record an expense to start your monthly picture and breakdown.',
-          ),
-          findsOneWidget,
-        );
-        expect(find.byType(EmptyState), findsOneWidget);
-        expect(find.byType(MonthBars), findsNothing);
-        expect(find.textContaining('Compared with usual'), findsNothing);
-        expect(find.textContaining('S\$'), findsNothing);
-        expect(
-          tester.getSemantics(find.bySemanticsLabel('Previous')),
-          _disabledArrow,
-        );
-        expect(
-          tester.getSemantics(find.bySemanticsLabel('Next')),
-          _disabledArrow,
-        );
-
-        await tester.tap(find.text('Year by year'));
-        await tester.pumpAndSettle();
-        expect(find.text('2024 - 2026'), findsOneWidget);
-        semantics.dispose();
-      },
+      _freshFrame,
       timeout: uiTestTimeout,
     );
-
-    testWidgets('controls stay available when the provider has no value', (
-      tester,
-    ) async {
-      await pumpTrends(tester, ledger: null, today: _today);
-
-      _expectControls();
-      expect(find.text("Couldn't load your spending"), findsOneWidget);
-      expect(find.byType(MonthBars), findsNothing);
-    }, timeout: uiTestTimeout);
-
+    testWidgets(
+      'controls stay available when the provider has no value',
+      _noValueFrame,
+      timeout: uiTestTimeout,
+    );
     testWidgets(
       'a short phone scrolls to the usual row with controls reachable',
-      (tester) async {
-        await pumpTrends(
-          tester,
-          ledger: _populated(),
-          today: _today,
-          size: trendsShortPhoneSize,
-        );
-
-        await tester.scrollUntilVisible(
-          find.textContaining('Compared with usual'),
-          _scrollStep,
-          scrollable: find.byType(Scrollable).first,
-        );
-        expect(find.textContaining('Compared with usual'), findsOneWidget);
-        await tester.tap(find.text('Year by year'));
-        await tester.pumpAndSettle();
-        expect(find.textContaining('Compared with usual'), findsNothing);
-        expect(find.text('2024 - 2026'), findsOneWidget);
-      },
+      _shortPhoneScrolls,
+      timeout: uiTestTimeout,
+    );
+    testWidgets(
+      'a large total at 320 dp shows every digit of the amount',
+      _largeTotalIsFullyShown,
       timeout: uiTestTimeout,
     );
   });
+}
+
+Future<void> _loadingFrame(WidgetTester tester) async {
+  final runner = ManualRunner();
+
+  await pumpTrends(
+    tester,
+    ledger: _populated(),
+    today: _today,
+    runner: runner.call,
+    settle: false,
+  );
+
+  expect(find.text('Trends'), findsOneWidget);
+  _expectControls();
+  expect(find.byType(LoadingSkeleton), findsWidgets);
+  expect(find.text('Retry'), findsNothing);
+  expect(find.byType(MonthBars), findsNothing);
+}
+
+Future<void> _errorFrame(WidgetTester tester) async {
+  final runner = ManualRunner();
+  final ledger = _populated();
+  await pumpTrends(
+    tester,
+    ledger: ledger,
+    today: _today,
+    runner: runner.call,
+    settle: false,
+  );
+  runner.pending.last.completeError(StateError('compute failed'));
+  await tester.pumpAndSettle();
+
+  expect(find.text("Couldn't load your spending"), findsOneWidget);
+  expect(find.text('Please try again.'), findsOneWidget);
+  expect(find.widgetWithText(FilledButton, 'Retry'), findsOneWidget);
+  _expectControls();
+
+  await tester.tap(find.text('Retry'));
+  await tester.pump();
+  runner.pending.last.complete(Accounting.analysisItems(ledger.state));
+  await tester.pumpAndSettle();
+
+  expect(find.byType(MonthBars), findsOneWidget);
+  _expectControls();
+}
+
+Future<void> _freshFrame(WidgetTester tester) async {
+  final semantics = tester.ensureSemantics();
+
+  await pumpTrends(tester, ledger: emptyTrendsLedger(), today: _today);
+
+  _expectControls();
+  expect(find.text('Nov 2025 - Oct 2026'), findsOneWidget);
+  expect(find.text('See where your money goes'), findsOneWidget);
+  expect(find.text(_emptyBody), findsOneWidget);
+  expect(find.byType(EmptyState), findsOneWidget);
+  expect(find.byType(MonthBars), findsNothing);
+  expect(find.textContaining('Compared with usual'), findsNothing);
+  expect(find.textContaining('S\$'), findsNothing);
+  final previous = tester.getSemantics(find.bySemanticsLabel('Previous'));
+  final next = tester.getSemantics(find.bySemanticsLabel('Next'));
+  expect(previous, _disabledArrow);
+  expect(next, _disabledArrow);
+
+  await tester.tap(find.text('Year by year'));
+  await tester.pumpAndSettle();
+  expect(find.text('2024 - 2026'), findsOneWidget);
+  semantics.dispose();
+}
+
+Future<void> _noValueFrame(WidgetTester tester) async {
+  await pumpTrends(tester, ledger: null, today: _today);
+
+  _expectControls();
+  expect(find.text("Couldn't load your spending"), findsOneWidget);
+  expect(find.byType(MonthBars), findsNothing);
+}
+
+Future<void> _shortPhoneScrolls(WidgetTester tester) async {
+  await pumpTrends(
+    tester,
+    ledger: _populated(),
+    today: _today,
+    size: trendsShortPhoneSize,
+  );
+
+  await tester.scrollUntilVisible(
+    find.textContaining('Compared with usual'),
+    _scrollStep,
+    scrollable: find.byType(Scrollable).first,
+  );
+  expect(find.textContaining('Compared with usual'), findsOneWidget);
+  await tester.tap(find.text('Year by year'));
+  await tester.pumpAndSettle();
+  expect(find.textContaining('Compared with usual'), findsNothing);
+  expect(find.text('2024 - 2026'), findsOneWidget);
+}
+
+Future<void> _largeTotalIsFullyShown(WidgetTester tester) async {
+  final ledger = emptyTrendsLedger();
+  addTrendsEntry(ledger, '-123456789.12', DateTime.utc(2026, 10, 2));
+
+  await pumpTrends(tester, ledger: ledger, today: _today);
+
+  final amount = find.text('-S\$123,456,789.12');
+  expect(amount, findsOneWidget);
+  expect(tester.renderObject<RenderParagraph>(amount).didExceedMaxLines, false);
+  final page = tester.getRect(find.byType(Scaffold));
+  expect(tester.getRect(amount).left, greaterThanOrEqualTo(page.left));
+  expect(tester.getRect(amount).right, lessThanOrEqualTo(page.right));
+  expect(tester.takeException(), isNull);
 }

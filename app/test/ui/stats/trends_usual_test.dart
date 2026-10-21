@@ -38,6 +38,10 @@ List<_Spend> _springBaseline(String april, String may, String june) => [
   _on(2026, 6, 10, june),
 ];
 
+List<_Spend> _julyAgainst(String april, String may, String june, String july) {
+  return [..._springBaseline(april, may, june), _on(2026, 7, 10, july)];
+}
+
 void main() {
   group('seed figures', () {
     test(
@@ -64,10 +68,7 @@ void main() {
     test(
       'a month above its three-month usual reads higher with the average range',
       () async {
-        final spends = [
-          ..._springBaseline('-875', '-860', '-940'),
-          _on(2026, 7, 10, '-900'),
-        ];
+        final spends = _julyAgainst('-875', '-860', '-940', '-900');
         final harness = await _open(spends, today: _october);
 
         final usual = await _usualFor(harness, 'July 2026');
@@ -78,10 +79,7 @@ void main() {
     );
 
     test('a month below its usual reads lower', () async {
-      final spends = [
-        ..._springBaseline('-1000', '-1000', '-1000'),
-        _on(2026, 7, 10, '-900'),
-      ];
+      final spends = _julyAgainst('-1000', '-1000', '-1000', '-900');
       final harness = await _open(spends, today: _october);
 
       final usual = await _usualFor(harness, 'July 2026');
@@ -90,10 +88,7 @@ void main() {
     });
 
     test('a month matching its usual reads the same', () async {
-      final spends = [
-        ..._springBaseline('-900', '-900', '-900'),
-        _on(2026, 7, 10, '-900'),
-      ];
+      final spends = _julyAgainst('-900', '-900', '-900', '-900');
       final harness = await _open(spends, today: _october);
 
       final usual = await _usualFor(harness, 'July 2026');
@@ -103,10 +98,7 @@ void main() {
     });
 
     test('a tie between tenths rounds to the even tenth', () async {
-      final spends = [
-        ..._springBaseline('-2000', '-2000', '-2000'),
-        _on(2026, 7, 10, '-2005'),
-      ];
+      final spends = _julyAgainst('-2000', '-2000', '-2000', '-2005');
       final harness = await _open(spends, today: _october);
 
       final usual = await _usualFor(harness, 'July 2026');
