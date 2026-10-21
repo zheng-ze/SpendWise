@@ -10,16 +10,15 @@ RecognizedText textOf(List<String> lines) {
 }
 
 void main() {
-  test('subtotalIsNotMistakenForTotal', () {
-    final text = textOf(['Coffee Shop', 'SUBTOTAL 8.00', 'TOTAL 9.50']);
+  test('subtotalAndTaxAreNotMistakenForTotal', () {
+    final text = textOf([
+      'Coffee Shop',
+      'SUBTOTAL 8.00',
+      'SALES TAX 1.20',
+      'GRAND TOTAL 9.50',
+    ]);
 
     expect(extractAmount(text), Decimal.parse('9.50'));
-  });
-
-  test('taxLineIsNotMistakenForTotal', () {
-    final text = textOf(['Store', 'SALES TAX 1.20', 'GRAND TOTAL 12.20']);
-
-    expect(extractAmount(text), Decimal.parse('12.20'));
   });
 
   test('keywordMissFallsBackToLastCurrencyNumber', () {

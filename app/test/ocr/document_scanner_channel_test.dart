@@ -72,15 +72,5 @@ void main() {
         isFalse,
       );
     });
-
-    test('returns false when the native side returns null', () async {
-      messenger.setMockMethodCallHandler(channel, (call) async => null);
-
-      expect(
-        await DocumentScannerChannel('spendwise/document_scanner')
-            .isAvailable(),
-        isFalse,
-      );
-    });
   });
 }

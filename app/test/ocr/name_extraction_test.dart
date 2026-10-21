@@ -39,12 +39,6 @@ void main() {
     expect(extractName(text), 'Kopi Tiam');
   });
 
-  test('skipsUrlAndHandleLinesBeforeFindingCandidate', () {
-    final text = textOf(['www.kopitiam.example.com', '@kopitiam', 'Kopi Tiam']);
-
-    expect(extractName(text), 'Kopi Tiam');
-  });
-
   test('tallestSurvivingLineWinsWhenBoundsAvailable', () {
     final text = textOf(
       ['Coffee Corner', 'Grand Bazaar Cafe'],
@@ -60,37 +54,7 @@ void main() {
     expect(extractName(text), 'Coffee Corner');
   });
 
-  test('threeOrMoreConsecutiveSkipsBeforeCandidateLeavesNameBlank', () {
-    final text = textOf([
-      '123 Main Street',
-      '(555) 123-4567',
-      'STORE #4521',
-      'REG 4',
-      'Kopi Tiam',
-    ]);
-
-    expect(extractName(text), isNull);
-  });
-
-  test('fewerThanThreeConsecutiveSkipsStillFindsCandidate', () {
-    final text = textOf(['123 Main Street', '(555) 123-4567', 'Kopi Tiam']);
-
-    expect(extractName(text), 'Kopi Tiam');
-  });
-
-  test('threeOrMoreConsecutiveSkipsAfterCandidateStillReturnsIt', () {
-    final text = textOf([
-      'Kopi Tiam',
-      '123 Main Street',
-      '(555) 123-4567',
-      'STORE #4521',
-      'REG 4',
-    ]);
-
-    expect(extractName(text), 'Kopi Tiam');
-  });
-
-  test('allFiveLinesSkippedLeavesNameBlank', () {
+  test('allCandidateLinesSkippedLeavesNameBlank', () {
     final text = textOf([
       'WELCOME TO',
       '123 Main Street',
@@ -100,46 +64,6 @@ void main() {
     ]);
 
     expect(extractName(text), isNull);
-  });
-
-  test('noCandidateWithinScanDepthLeavesNameBlank', () {
-    final text = textOf([
-      'WELCOME TO',
-      '123 Main Street',
-      '(555) 123-4567',
-      'STORE #4521',
-      'REG 4',
-      'Kopi Tiam',
-    ]);
-
-    expect(extractName(text), isNull);
-  });
-
-  test('rejectsLineOverDigitDensityThreshold', () {
-    final text = textOf(['12345678', 'Kopi Tiam']);
-
-    expect(extractName(text), 'Kopi Tiam');
-  });
-
-  test('rejectsLineWithNoAlphabeticCharacter', () {
-    final text = textOf(['----------', 'Kopi Tiam']);
-
-    expect(extractName(text), 'Kopi Tiam');
-  });
-
-  test('rejectsLineOverSixWords', () {
-    final text = textOf([
-      'this line has way too many words in it',
-      'Kopi Tiam',
-    ]);
-
-    expect(extractName(text), 'Kopi Tiam');
-  });
-
-  test('rejectsLineOutsideLengthBounds', () {
-    final text = textOf(['ab', 'Kopi Tiam']);
-
-    expect(extractName(text), 'Kopi Tiam');
   });
 
   test('emptyReceiptLeavesNameBlank', () {

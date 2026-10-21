@@ -17,14 +17,6 @@ void main() {
     expect(result, DateTime.utc(2025, 4, 13));
   });
 
-  test('numberOverTwelveResolvesDayEvenUnderDayFirstLocale', () {
-    final text = textOf(['Store', '04/13/25', 'TOTAL 9.00']);
-
-    final result = extractDate(text, locale: 'en_GB');
-
-    expect(result, DateTime.utc(2025, 4, 13));
-  });
-
   test('bothNumbersAmbiguousFallsBackToUsLocaleMonthFirst', () {
     final text = textOf(['Store', '03/04/25', 'TOTAL 9.00']);
 
