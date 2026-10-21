@@ -25,7 +25,6 @@ import '../../../support/ui_test_timeout.dart';
 const _identifierField = Key('syncIdentifierField');
 const _identifierContinue = Key('syncIdentifierContinue');
 const _otpField = Key('syncOtpField');
-const _otpSubmit = Key('syncOtpSubmit');
 const _resumeRetry = Key('syncResumeRetry');
 const _pickerBack = Key('syncPickerBack');
 
