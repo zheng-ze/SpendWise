@@ -92,9 +92,17 @@ settings `BreakdownLevel` to the analysis `BreakdownLevel`. A failed breakdown r
 body; pending reads or stale revisions give loading. A ready breakdown with no rows produces
 `TrendsEmptyBreakdown` within the ready body, while an empty ledger has no breakdown in its empty
 body. The breakdown window, kind, level and total must match the selected period. Row amounts must
-sum to the total; nonempty rows' shares must sum to 100 percent. The projection carries the breakdown data,
-but no widget renders it (`trends_projection.dart:_readBreakdown`, `_breakdown`,
-`trends_body.dart`, `trends_screen.dart`, `app/test/ui/stats/trends_breakdown_projection_test.dart`).
+sum to the total; nonempty rows' shares must sum to 100 percent. The projection carries the breakdown data
+(`trends_projection.dart:_readBreakdown`, `_breakdown`, `trends_body.dart`, `trends_screen.dart`,
+`app/test/ui/stats/trends_breakdown_projection_test.dart`).
+
+Trends renders one breakdown section below the period card (`trends_breakdown_section.dart`,
+`app/test/ui/stats/trends_breakdown_test.dart`). It draws the saved chart (donut or category map) at the
+saved level and colour mode, then ranked rows with swatch, name, a caption of `share / parent` and the
+signed amount. A period with no records of the selected kind shows the empty card copy instead of chart
+and rows. Colours resolve once per row through `CategoryPalette`; Direct rows use the parent's saved hex
+with their own rank. The donut centre label is bounded to the hole, and row labels wrap inside the
+card at phone width. Rows and chart are not interactive yet.
 
 ## Navigation
 

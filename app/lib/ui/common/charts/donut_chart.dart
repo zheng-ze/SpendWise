@@ -41,6 +41,8 @@ class DonutChart extends StatelessWidget {
 
   static const _centerSpaceFactor = 0.34;
 
+  static const _diameterFactor = 2.0;
+
   static const _sectionsSpace = 1.5;
 
   static const _transparent = Color(0x00000000);
@@ -90,6 +92,7 @@ class DonutChart extends StatelessWidget {
     final center = _DonutCenter(
       centerLabel: centerLabel,
       centerValue: centerValue,
+      innerDiameter: size * _centerSpaceFactor * _diameterFactor,
     );
 
     return SizedBox(
@@ -102,15 +105,23 @@ class DonutChart extends StatelessWidget {
 
 // MARK: - DonutCenter
 class _DonutCenter extends StatelessWidget {
-  const _DonutCenter({required this.centerLabel, required this.centerValue});
+  const _DonutCenter({
+    required this.centerLabel,
+    required this.centerValue,
+    required this.innerDiameter,
+  });
 
   static const _valueFontSize = 14.0;
 
   static const _labelFontSize = 10.0;
 
+  static const _horizontalPadding = 6.0;
+
   final String? centerLabel;
 
   final String? centerValue;
+
+  final double innerDiameter;
 
   @override
   Widget build(BuildContext context) {
@@ -134,10 +145,17 @@ class _DonutCenter extends StatelessWidget {
               color: context.colors.subtext,
             ),
           );
-    final entries = [?valueText, ?labelText];
-
+    final entries = [
+      if (valueText != null) FittedBox(fit: BoxFit.scaleDown, child: valueText),
+      if (labelText != null) FittedBox(fit: BoxFit.scaleDown, child: labelText),
+    ];
+    final column = Column(mainAxisSize: MainAxisSize.min, children: entries);
+    final padded = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: _horizontalPadding),
+      child: column,
+    );
     return Center(
-      child: Column(mainAxisSize: MainAxisSize.min, children: entries),
+      child: SizedBox(width: innerDiameter, child: padded),
     );
   }
 }

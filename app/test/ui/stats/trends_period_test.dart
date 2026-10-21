@@ -7,6 +7,7 @@ import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/theme/spendwise_colors.dart';
 import 'package:spendwise/ui/stats/trends/trends_body.dart';
 import 'package:spendwise/ui/stats/trends/trends_intent.dart';
+import 'package:spendwise/ui/stats/trends/trends_period_card.dart';
 
 import '../../support/ui_test_timeout.dart';
 import 'trends_test_support.dart';
@@ -477,7 +478,11 @@ Future<void> _emptyMonthSelectsThroughLabel(WidgetTester tester) async {
   await tester.pumpAndSettle();
 
   expect(find.text('June 2026'), findsOneWidget);
-  expect(find.text('No expenses recorded'), findsOneWidget);
+  final headline = find.descendant(
+    of: find.byType(TrendsHeadlineView),
+    matching: find.text('No expenses recorded'),
+  );
+  expect(headline, findsOneWidget);
   expect(_rods(tester)[7].toY, 0);
   semantics.dispose();
 }

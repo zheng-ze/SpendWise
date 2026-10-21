@@ -649,6 +649,7 @@ Future<void> _shortPhoneScrolls(WidgetTester tester) async {
     scrollable: find.byType(Scrollable).first,
   );
   expect(find.textContaining('Compared with usual'), findsOneWidget);
+  await tester.ensureVisible(find.text('Year by year'));
   await tester.tap(find.text('Year by year'));
   await tester.pumpAndSettle();
   expect(find.textContaining('Compared with usual'), findsNothing);
