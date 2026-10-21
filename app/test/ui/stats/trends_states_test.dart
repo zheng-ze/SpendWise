@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/boot/providers.dart';
+import 'package:spendwise/settings/display_preferences.dart' as settings;
 import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
 import 'package:spendwise/ledger/analysis/breakdowns/compared_with_usual.dart';
 import 'package:spendwise/ledger/analysis/summaries/month_spread.dart';
@@ -119,6 +120,12 @@ class _Scripted {
       intent: intent ?? TrendsIntent.initial(today),
       today: today,
       ledgerRevision: ledger.revision,
+      categories: const {},
+      preferences: (
+        chart: settings.BreakdownChart.donut,
+        level: settings.BreakdownLevel.categories,
+        colours: settings.ChartColours.categoryColours,
+      ),
     );
   }
 }
