@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
+import 'package:spendwise/settings/display_preferences_providers.dart';
+import 'package:spendwise/ui/stats/trends/trends_breakdown.dart';
 import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/stats/trends/trends_body.dart';
 import 'package:spendwise/ui/stats/trends/trends_intent.dart';
@@ -22,7 +24,25 @@ class TrendsNotifier extends AsyncNotifier<TrendsBody>
     implements TrendsViewModel {
   @override
   TrendsBody build() {
-    final revision = ledger.revision;
+    final readyLedger = ledger;
+    final revision = readyLedger.revision;
+    final categories = Map<String, TrendsCategory>.unmodifiable({
+      for (final category in readyLedger.state.categories.values)
+        category.id: (
+          name: category.name,
+          parentID: category.parentID,
+          savedHex: category.colorHex,
+        ),
+    });
+    final preferences = ref.watch(
+      displayPreferencesProvider.select(
+        (value) => (
+          chart: value.breakdownChart,
+          level: value.breakdownLevel,
+          colours: value.chartColours,
+        ),
+      ),
+    );
     final queries = ref.watch(analysisQueriesProvider);
     if (queries == null) {
       throw StateError('$runtimeType requires analysis queries.');
@@ -32,6 +52,8 @@ class TrendsNotifier extends AsyncNotifier<TrendsBody>
       intent: ref.watch(trendsIntentProvider),
       today: ref.watch(todayProvider),
       ledgerRevision: revision,
+      categories: categories,
+      preferences: preferences,
     );
   }
 

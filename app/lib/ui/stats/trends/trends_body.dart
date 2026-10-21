@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import 'package:spendwise/ui/format/money_format.dart';
+import 'package:spendwise/ui/stats/trends/trends_breakdown.dart';
 import 'package:spendwise/ui/stats/trends/trends_intent.dart';
 
 // MARK: - Presentation
@@ -86,6 +87,7 @@ final class TrendsReadyBody extends TrendsBody {
     required this.selectedIndex,
     required this.headline,
     required this.usual,
+    required this.breakdown,
     required this.bounds,
   });
 
@@ -94,6 +96,7 @@ final class TrendsReadyBody extends TrendsBody {
   final int selectedIndex;
   final TrendsHeadline headline;
   final TrendsUsual? usual;
+  final TrendsBreakdown breakdown;
 
   @override
   final TrendsBounds bounds;
