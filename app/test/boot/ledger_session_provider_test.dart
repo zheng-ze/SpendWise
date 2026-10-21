@@ -8,8 +8,9 @@ import 'package:spendwise/boot/app_phase.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger_session.dart';
-// Temporary exclusion: this MUST be resolved when #437 supplies the new Trends provider.
-// import 'package:spendwise/ui/stats/analysis/analysis_view_model.dart';
+import 'package:spendwise/ui/stats/trends/trends_body.dart';
+import 'package:spendwise/ui/stats/trends/trends_intent.dart';
+import 'package:spendwise/ui/stats/trends/trends_view_model.dart';
 
 import '../support/in_memory_ledger_store.dart';
 
@@ -169,7 +170,7 @@ void main() {
     expect(newNotifications, 0);
   });
 
-  test('legacyViewModelRebuildsAgainstTheReplacementCache', () async {
+  test('trendsRebuildsAgainstTheReplacementSession', () async {
     final container = _containerFor(
       InMemoryLedgerStore(state: _stateWithExpense(), hasSeeded: true),
       syncComputeRunner,
@@ -177,28 +178,19 @@ void main() {
     final boot = container.read(appBootProvider);
     await _readyPhase(container);
 
-    // Temporary exclusion: this MUST be resolved when #437 supplies the new Trends provider.
-    // final before = await container.read(
-    //   analysisViewModelProvider(CategoryKind.expense).future,
-    // );
-    // Temporary exclusion: this MUST be resolved when #437 supplies the new Trends provider.
-    // expect(before.items, hasLength(1));
+    final before = await _openTrends(container);
+    expect(before.value.headline.amount, '-S\$10.00');
     final oldCache = _readySession(container).analysisCache;
+    await before.close();
 
     await boot.retry();
     final secondReady = await _readyPhase(container);
     final newCache = _readySession(container).analysisCache;
-
     expect(identical(newCache, oldCache), isFalse);
     expect(() => oldCache.addListener(() {}), throwsFlutterError);
 
-    // Temporary exclusion: this MUST be resolved when #437 supplies the new Trends provider.
-    // final after = await container.read(
-    //   analysisViewModelProvider(CategoryKind.expense).future,
-    // );
-    // Temporary exclusion: this MUST be resolved when #437 supplies the new Trends provider.
-    // expect(after.items, hasLength(1));
-
+    final after = await _openTrends(container);
+    expect(after.value.headline.amount, '-S\$10.00');
     secondReady.ledger.addEntry(
       Entry(
         amount: Decimal.fromInt(-5),
@@ -209,15 +201,31 @@ void main() {
     );
     await pumpEventQueue();
 
-    // Temporary exclusion: this MUST be resolved when #437 supplies the new Trends provider.
-    // expect(newCache.items, hasLength(2));
-    // Temporary exclusion: this MUST be resolved when #437 supplies the new Trends provider.
-    // expect(
-    //   container
-    //       .read(analysisViewModelProvider(CategoryKind.expense))
-    //       .value
-    //       ?.items,
-    //   hasLength(2),
-    // );
+    expect(newCache.items, hasLength(2));
+    expect(after.value.headline.amount, '-S\$15.00');
+    await after.close();
   });
+}
+
+class _TrendsSubscriptions {
+  _TrendsSubscriptions(ProviderContainer container)
+    : _intent = container.listen(trendsIntentProvider, (_, _) {}),
+      _body = container.listen(trendsViewModelProvider, (_, _) {});
+
+  final ProviderSubscription<TrendsIntent> _intent;
+  final ProviderSubscription<AsyncValue<TrendsBody>> _body;
+
+  TrendsReadyBody get value => _body.read().requireValue as TrendsReadyBody;
+
+  Future<void> close() async {
+    _intent.close();
+    _body.close();
+    await pumpEventQueue();
+  }
+}
+
+Future<_TrendsSubscriptions> _openTrends(ProviderContainer container) async {
+  final subscriptions = _TrendsSubscriptions(container);
+  await pumpEventQueue();
+  return subscriptions;
 }
