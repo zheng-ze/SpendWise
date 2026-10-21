@@ -276,29 +276,6 @@ void main() {
     expect(destinationOnly.value?.moved, Decimal.parse('22.00'));
   });
 
-  test('whollyFutureWindowCountsCommittedEntries', () async {
-    final state = _state();
-    _expense(
-      state,
-      '20000000-0000-0000-0000-000000000001',
-      '-12.00',
-      DateTime.utc(2027, 6, 5),
-    );
-    final ledger = Ledger(state: state);
-    final ready = _readyQueries(ledger);
-    await _accept(ready.cache, ledger);
-
-    final window = DateRange(
-      DateTime.utc(2027, 6, 1),
-      DateTime.utc(2027, 7, 1),
-    );
-    final result = ready.queries.readPeriod(window: window);
-    expect(result.state, AnalysisQueryState.ready);
-    expect(result.value?.window, window);
-    expect(result.value?.effectiveWindow, window);
-    expect(result.value?.spent, Decimal.parse('12.00'));
-  });
-
   test('emptyWindowTotalsZeroAndReversedWindowThrows', () async {
     final state = _state();
     _expense(

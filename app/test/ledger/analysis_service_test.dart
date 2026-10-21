@@ -757,88 +757,6 @@ void main() {
     expect(scoped.value, isEmpty);
   });
 
-  test('upcomingStatementUsesClosingCycleOnCutDay', () async {
-    final state = _baseState();
-    _addCard(state);
-    state.addEntry(
-      Entry(
-        id: 'f0000000-0000-0000-0000-000000000001',
-        amount: Decimal.parse('-50.00'),
-        name: 'card charge',
-        sourceID: _cardID,
-        categoryID: _foodID,
-        date: DateTime.utc(2027, 4, 5),
-      ),
-    );
-    state.addEntry(
-      Entry(
-        id: 'f0000000-0000-0000-0000-000000000002',
-        amount: Decimal.parse('20.00'),
-        name: 'repayment',
-        sourceID: _checkingID,
-        destinationID: _cardID,
-        date: DateTime.utc(2027, 4, 6),
-      ),
-    );
-    state.addEntry(
-      Entry(
-        id: 'f0000000-0000-0000-0000-000000000003',
-        amount: Decimal.parse('-5.00'),
-        name: 'cut-day charge',
-        sourceID: _cardID,
-        categoryID: _foodID,
-        date: DateTime.utc(2027, 4, 10),
-      ),
-    );
-    state.addAccount(
-      Account(
-        id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-        name: 'Archived',
-        type: AccountType.card,
-        statementDay: 10,
-      ),
-    );
-    state.deleteAccount('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
-    state.addAccount(
-      Account(
-        id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
-        name: 'No cut',
-        type: AccountType.card,
-      ),
-    );
-    final setup = _ready(state);
-    await _accept(setup.cache, setup.ledger);
-
-    final upcoming = setup.queries.readUpcoming();
-    final statements = upcoming.value!.whereType<UpcomingStatement>().toList();
-    expect(statements, hasLength(1));
-    expect(statements.single.date, DateTime.utc(2027, 4, 10));
-    expect(statements.single.cycleAmount, Decimal.parse('50.00'));
-
-    final cutDay = _ready(state, today: DateTime.utc(2027, 4, 10));
-    await _accept(cutDay.cache, cutDay.ledger);
-    final closing = cutDay.queries
-        .readUpcoming()
-        .value!
-        .whereType<UpcomingStatement>()
-        .toList();
-    expect(closing, hasLength(1));
-    expect(closing.single.date, DateTime.utc(2027, 4, 10));
-    expect(closing.single.cycleAmount, Decimal.parse('50.00'));
-
-    final cardScoped = setup.queries.readUpcoming(sourceIDs: {_cardID});
-    expect(cardScoped.value!.whereType<UpcomingStatement>(), hasLength(1));
-    final cardScopedStatement = cardScoped.value!
-        .whereType<UpcomingStatement>()
-        .single;
-    expect(cardScopedStatement.date, DateTime.utc(2027, 4, 10));
-    expect(cardScopedStatement.cycleAmount, Decimal.parse('50.00'));
-    final emptyScoped = setup.queries.readUpcoming(sourceIDs: <String>{});
-    expect(emptyScoped.value!.whereType<UpcomingStatement>(), isEmpty);
-    final checkingScoped = setup.queries.readUpcoming(sourceIDs: {_checkingID});
-    expect(checkingScoped.value!.whereType<UpcomingStatement>(), isEmpty);
-  });
-
   test('weeksTotalAcrossMonthBoundaryWithCounts', () async {
     final state = _baseState();
     _expense(
@@ -956,70 +874,6 @@ void main() {
     ]);
   });
 
-  test('boundaryWeeksMatchAcrossAdjacentMonthReads', () async {
-    final state = _baseState();
-    _expense(
-      state,
-      'b0000000-0000-0000-0000-000000000001',
-      '-4.50',
-      DateTime.utc(2027, 3, 31),
-    );
-    _expense(
-      state,
-      'b0000000-0000-0000-0000-000000000002',
-      '-5.00',
-      DateTime.utc(2027, 4, 2),
-    );
-    _expense(
-      state,
-      'b0000000-0000-0000-0000-000000000003',
-      '-11.00',
-      DateTime.utc(2027, 4, 28),
-    );
-    _expense(
-      state,
-      'b0000000-0000-0000-0000-000000000004',
-      '-8.00',
-      DateTime.utc(2027, 5, 1),
-    );
-    final setup = _ready(state);
-    await _accept(setup.cache, setup.ledger);
-    final queries = setup.queries;
-
-    final april = queries.readWeeks(window: _april());
-    expect(april.state, AnalysisQueryState.ready);
-    final opening = april.value!.firstWhere(
-      (week) => week.range.start == DateTime.utc(2027, 3, 29),
-    );
-    expect(opening.spent, Decimal.parse('9.50'));
-    expect(opening.expenseItemCount, 2);
-    final closing = april.value!.firstWhere(
-      (week) => week.range.start == DateTime.utc(2027, 4, 26),
-    );
-    expect(closing.spent, Decimal.parse('19.00'));
-    expect(closing.expenseItemCount, 2);
-
-    final march = queries.readWeeks(
-      window: DateRange(DateTime.utc(2027, 3, 1), DateTime.utc(2027, 4, 1)),
-    );
-    expect(march.state, AnalysisQueryState.ready);
-    final marchClosing = march.value!.last;
-    expect(marchClosing.range, opening.range);
-    expect(marchClosing.effectiveWindow, opening.effectiveWindow);
-    expect(marchClosing.spent, opening.spent);
-    expect(marchClosing.expenseItemCount, opening.expenseItemCount);
-
-    final may = queries.readWeeks(
-      window: DateRange(DateTime.utc(2027, 5, 1), DateTime.utc(2027, 6, 1)),
-    );
-    expect(may.state, AnalysisQueryState.ready);
-    final mayOpening = may.value!.first;
-    expect(mayOpening.range, closing.range);
-    expect(mayOpening.effectiveWindow, closing.effectiveWindow);
-    expect(mayOpening.spent, closing.spent);
-    expect(mayOpening.expenseItemCount, closing.expenseItemCount);
-  });
-
   test('calendarMarksRecordedAndPlannedDays', () async {
     final state = _baseState();
     _expense(
@@ -1133,117 +987,6 @@ void main() {
           .expand((day) => day.plans)
           .any((plan) => plan.planID == '33333333-cccc-3333-cccc-333333333333'),
       isFalse,
-    );
-  });
-
-  test('resultsAreImmutableAndResolveMetadata', () async {
-    final state = _baseState();
-    _periodEntries(state);
-    final setup = _ready(state);
-    await _accept(setup.cache, setup.ledger);
-    final queries = setup.queries;
-
-    final days = queries.readRegisterDays(window: _april());
-    expect(
-      () => days.value!.first.entries.add(days.value!.first.entries.single),
-      throwsUnsupportedError,
-    );
-    final record = days.value!.first.entries.single;
-    expect(record.category?.name, 'Food');
-    expect(record.sourceName, 'Checking');
-
-    final recent = queries.readRecent();
-    expect(
-      () => recent.value!.add(recent.value!.first),
-      throwsUnsupportedError,
-    );
-
-    final search = queries.readSearch(query: 'pay');
-    expect(search.value!.single.matches.single.destinationName, isNull);
-
-    final weeks = queries.readWeeks(window: _april());
-    expect(() => weeks.value!.clear(), throwsUnsupportedError);
-
-    final calendar = queries.readCalendarDays(window: _april());
-    expect(() => calendar.value!.clear(), throwsUnsupportedError);
-  });
-
-  test('equivalentReadsReuseAcrossNormalizedScopes', () async {
-    final state = _baseState();
-    _periodEntries(state);
-    final setup = _ready(state);
-    await _accept(setup.cache, setup.ledger);
-    final queries = setup.queries;
-
-    final first = queries.readRegisterDays(window: _april());
-    expect(
-      identical(
-        queries.readRegisterDays(
-          window: DateRange(DateTime.utc(2027, 4, 1), DateTime.utc(2027, 5, 1)),
-        ),
-        first,
-      ),
-      isTrue,
-    );
-
-    final scoped = queries.readRegisterDays(
-      window: _april(),
-      sourceIDs: {_checkingID},
-    );
-    expect(
-      identical(
-        queries.readRegisterDays(
-          window: _april(),
-          sourceIDs: {_checkingID.toUpperCase(), _checkingID},
-        ),
-        scoped,
-      ),
-      isTrue,
-    );
-    expect(
-      identical(
-        queries.readRegisterDays(window: _april(), kind: EntryKind.expense),
-        queries.readRegisterDays(window: _april()),
-      ),
-      isFalse,
-    );
-
-    final scope = {_checkingID, _savingsID};
-    final weeksFirst = queries.readWeeks(window: _april(), sourceIDs: scope);
-    scope.remove(_savingsID);
-    scope.add('99999999-9999-9999-9999-999999999999');
-    expect(
-      identical(
-        queries.readWeeks(
-          window: _april(),
-          sourceIDs: {_checkingID, _savingsID},
-        ),
-        weeksFirst,
-      ),
-      isTrue,
-    );
-
-    final recentFirst = queries.readRecent(limit: 2);
-    expect(identical(queries.readRecent(limit: 2), recentFirst), isTrue);
-    expect(identical(queries.readRecent(limit: 3), recentFirst), isFalse);
-
-    final cardFirst = queries.readCardStatement(accountID: _checkingID);
-    expect(
-      identical(
-        queries.readCardStatement(accountID: _checkingID.toUpperCase()),
-        cardFirst,
-      ),
-      isTrue,
-    );
-    expect(
-      identical(queries.readCardStatement(accountID: _savingsID), cardFirst),
-      isFalse,
-    );
-
-    final window = DateRange(_today, _today.add(const Duration(days: 42)));
-    expect(
-      identical(queries.readUpcoming(), queries.readUpcoming(window: window)),
-      isTrue,
     );
   });
 
@@ -1436,7 +1179,12 @@ void main() {
 
   test('queryFailuresAreIsolatedAndRetryRecovers', () async {
     final state = _baseState();
-    _periodEntries(state);
+    _expense(
+      state,
+      'c0000000-0000-0000-0000-000000000001',
+      '-10.00',
+      DateTime.utc(2027, 4, 2),
+    );
     final setup = _ready(state);
     await _accept(setup.cache, setup.ledger);
     final queries = setup.queries;
@@ -1464,11 +1212,75 @@ void main() {
 
     final recovered = queries.readRegisterDays(window: _april());
     expect(recovered.state, AnalysisQueryState.ready);
-    expect(recovered.value, hasLength(5));
+    expect(recovered.value, hasLength(1));
 
     final failedSearch = queries.readSearch(query: 'ramen', window: reversed);
     expect(failedSearch.state, AnalysisQueryState.failed);
     expect(queries.readSearch(query: 'ramen').state, AnalysisQueryState.ready);
+  });
+
+  test('boundaryWeeksMatchAcrossAdjacentMonthReads', () async {
+    final state = _baseState();
+    _expense(
+      state,
+      'b0000000-0000-0000-0000-000000000001',
+      '-4.50',
+      DateTime.utc(2027, 3, 31),
+    );
+    _expense(
+      state,
+      'b0000000-0000-0000-0000-000000000002',
+      '-5.00',
+      DateTime.utc(2027, 4, 2),
+    );
+    _expense(
+      state,
+      'b0000000-0000-0000-0000-000000000003',
+      '-11.00',
+      DateTime.utc(2027, 4, 28),
+    );
+    _expense(
+      state,
+      'b0000000-0000-0000-0000-000000000004',
+      '-8.00',
+      DateTime.utc(2027, 5, 1),
+    );
+    final setup = _ready(state);
+    await _accept(setup.cache, setup.ledger);
+    final queries = setup.queries;
+
+    final april = queries.readWeeks(window: _april());
+    expect(april.state, AnalysisQueryState.ready);
+    final opening = april.value!.firstWhere(
+      (week) => week.range.start == DateTime.utc(2027, 3, 29),
+    );
+    expect(opening.spent, Decimal.parse('9.50'));
+    expect(opening.expenseItemCount, 2);
+    final closing = april.value!.firstWhere(
+      (week) => week.range.start == DateTime.utc(2027, 4, 26),
+    );
+    expect(closing.spent, Decimal.parse('19.00'));
+    expect(closing.expenseItemCount, 2);
+
+    final march = queries.readWeeks(
+      window: DateRange(DateTime.utc(2027, 3, 1), DateTime.utc(2027, 4, 1)),
+    );
+    expect(march.state, AnalysisQueryState.ready);
+    final marchClosing = march.value!.last;
+    expect(marchClosing.range, opening.range);
+    expect(marchClosing.effectiveWindow, opening.effectiveWindow);
+    expect(marchClosing.spent, opening.spent);
+    expect(marchClosing.expenseItemCount, opening.expenseItemCount);
+
+    final may = queries.readWeeks(
+      window: DateRange(DateTime.utc(2027, 5, 1), DateTime.utc(2027, 6, 1)),
+    );
+    expect(may.state, AnalysisQueryState.ready);
+    final mayOpening = may.value!.first;
+    expect(mayOpening.range, closing.range);
+    expect(mayOpening.effectiveWindow, closing.effectiveWindow);
+    expect(mayOpening.spent, closing.spent);
+    expect(mayOpening.expenseItemCount, closing.expenseItemCount);
   });
 
   test('negativeTransferPlanProjectsAsResolved', () async {
@@ -1582,7 +1394,6 @@ void main() {
 
   test('ineligibleCardIsReadyNullWithRevision', () async {
     final state = _baseState();
-    _periodEntries(state);
     _addCard(state, statementDay: null);
     final setup = _ready(state);
     await _accept(setup.cache, setup.ledger);

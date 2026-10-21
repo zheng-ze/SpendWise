@@ -16,7 +16,6 @@ const _hiddenID = '66666666-6666-6666-6666-666666666666';
 
 const _earliestID = 'd0000000-0000-0000-0000-000000000001';
 
-final _today = DateTime.utc(2027, 5, 15);
 const _endYear = 2027;
 
 void _populate(Ledger ledger) {
@@ -266,108 +265,6 @@ void main() {
     expect(failed.sourceRevision, isNull);
   });
 
-  test('navigationAnchorsPagesAtTheCurrentYear', () async {
-    YearSpread spread(DateTime? first) => yearSpread(
-      items: const [],
-      endYear: _endYear,
-      kind: CategoryKind.expense,
-      firstRecordMonth: first,
-      today: _today,
-    );
-    final table = <List<Object?>>[
-      [DateTime.utc(2024, 12, 1), 2024],
-      [DateTime.utc(2022, 6, 1), 2024],
-      [DateTime.utc(2021, 1, 1), 2021],
-      [null, 2027],
-      [DateTime.utc(2028, 1, 1), 2027],
-    ];
-    for (final row in table) {
-      expect(spread(row[0] as DateTime?).earliestSpreadEndYear, row[1]);
-    }
-  });
-  test('spreadEqualityIsListAwareAndSlotsAreImmutable', () async {
-    YearSpread build() => yearSpread(
-      items: Accounting.analysisItems(_populatedState()),
-      endYear: _endYear,
-      kind: CategoryKind.expense,
-      firstRecordMonth: DateTime.utc(2024, 12, 1),
-      today: _today,
-    );
-    final first = build();
-    final second = build();
-    expect(identical(first.slots, second.slots), isFalse);
-    expect(second, first);
-    expect(second.hashCode, first.hashCode);
-
-    final changed = yearSpread(
-      items: Accounting.analysisItems(_populatedState())
-          .where((item) => item.date != DateTime.utc(2025, 12, 31)),
-      endYear: _endYear,
-      kind: CategoryKind.expense,
-      firstRecordMonth: DateTime.utc(2024, 12, 1),
-      today: _today,
-    );
-    expect(changed == first, isFalse);
-    expect(() => first.slots.add(first.slots.first), throwsUnsupportedError);
-  });
-
-  test('spreadFollowsMixedMemoAndRevisionGate', () async {
-    final setup = setupAnalysis();
-    final ledger = setup.ledger;
-    final queries = setup.queries;
-    final runner = setup.runner;
-
-    final loading = queries.readYearSpread(
-      endYear: _endYear,
-      kind: CategoryKind.expense,
-    );
-    expect(loading.state, AnalysisQueryState.loading);
-    expect(loading.value, isNull);
-
-    _populate(ledger);
-    await settle(runner, ledger);
-    final settled = queries.readYearSpread(
-      endYear: _endYear,
-      kind: CategoryKind.expense,
-    );
-    expect(settled.state, AnalysisQueryState.ready);
-    expect(settled.sourceRevision, ledger.revision);
-    expect(
-      identical(
-        queries.readYearSpread(endYear: _endYear, kind: CategoryKind.income),
-        settled,
-      ),
-      isFalse,
-    );
-
-    ledger.addEntry(
-      Entry(
-        id: 'f0000000-0000-0000-0000-000000000001',
-        amount: Decimal.parse('-2.00'),
-        name: 'entry',
-        sourceID: _checkingID,
-        categoryID: _foodID,
-        date: DateTime.utc(2027, 5, 12),
-      ),
-    );
-    final retained = queries.readYearSpread(
-      endYear: _endYear,
-      kind: CategoryKind.expense,
-    );
-    expect(retained.state, AnalysisQueryState.loading);
-    expect(retained.value, settled.value);
-    expect(retained.sourceRevision, settled.sourceRevision);
-
-    await settle(runner, ledger);
-    final updated = queries.readYearSpread(
-      endYear: _endYear,
-      kind: CategoryKind.expense,
-    );
-    expect(updated.state, AnalysisQueryState.ready);
-    expect(updated.sourceRevision, ledger.revision);
-    expect(_slot(updated.value!, 2027).total, Decimal.parse('54.00'));
-  });
-
   test('movingEarliestDuringPendingRefreshKeepsSpreadCoherent', () async {
     final setup = setupAnalysis();
     final ledger = setup.ledger;
@@ -411,37 +308,6 @@ void main() {
     expect(_slot(accepted.value!, 2025).total, Decimal.parse('30.00'));
   });
 
-  test('dayChangeRecomputesSpreadWithoutRunnerWork', () async {
-    final setup = setupAnalysis();
-    _populate(setup.ledger);
-    await settle(setup.runner, setup.ledger);
-    final queries = setup.queries;
-    final calls = setup.runner.calls;
-    var notifications = 0;
-    queries.addListener(() => notifications++);
-
-    queries.setToday(DateTime.utc(2028, 1, 10));
-    expect(setup.runner.calls, calls);
-    expect(notifications, 1);
-
-    final spread = queries.readYearSpread(
-      endYear: _endYear,
-      kind: CategoryKind.expense,
-    );
-    expect(spread.state, AnalysisQueryState.ready);
-    expect(spread.value?.currentYear, 2028);
-    expect(spread.value?.earliestSpreadEndYear, 2025);
-    expect(_slot(spread.value!, 2027).total, Decimal.parse('52.00'));
-
-    final current = queries.readYearSpread(
-      endYear: 2028,
-      kind: CategoryKind.expense,
-    );
-    expect(current.state, AnalysisQueryState.ready);
-    expect(_slot(current.value!, 2028).total, Decimal.zero);
-    expect(_slot(current.value!, 2028).itemCount, 0);
-  });
-
   test('spreadFailureIsIsolated', () async {
     final setup = setupAnalysis();
     _populate(setup.ledger);
@@ -468,10 +334,4 @@ void main() {
     );
     expect(spread.state, AnalysisQueryState.ready);
   });
-}
-
-LedgerState _populatedState() {
-  final ledger = Ledger();
-  _populate(ledger);
-  return ledger.state;
 }

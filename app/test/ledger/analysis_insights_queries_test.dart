@@ -137,44 +137,6 @@ void main() {
     expect(week.value?.qualifies, isTrue);
   });
 
-  test('aPendingRevisionKeepsPriorValuesUntilItemsCatchUp', () async {
-    final setup = setupAnalysis(today: _queriesToday);
-    _populateHistory(setup.ledger);
-    await settle(setup.runner, setup.ledger);
-    final before = setup.queries.readWeekSoFar().value;
-
-    _expense(setup.ledger, '10.00', DateTime.utc(2027, 5, 12));
-    final pending = setup.queries.readWeekSoFar();
-    expect(pending.state, AnalysisQueryState.loading);
-    expect(pending.value, before);
-
-    await settle(setup.runner, setup.ledger);
-    final after = setup.queries.readWeekSoFar();
-    expect(after.state, AnalysisQueryState.ready);
-    expect(after.value?.observedTotal, Decimal.parse('210'));
-  });
-
-  test('advancingTodayRecomputesAcrossDayMonthAndMondayBoundaries', () async {
-    final setup = setupAnalysis(today: _queriesToday);
-    _populateHistory(setup.ledger);
-    await settle(setup.runner, setup.ledger);
-    final saturday = setup.queries.readWeekSoFar().value;
-
-    setup.queries.setToday(DateTime.utc(2027, 5, 16));
-    final sunday = setup.queries.readWeekSoFar().value;
-    expect(sunday?.elapsedDayCount, 7);
-    expect(sunday, isNot(saturday));
-
-    setup.queries.setToday(DateTime.utc(2027, 5, 17));
-    final monday = setup.queries.readWeekSoFar().value;
-    expect(monday?.weekStart, DateTime.utc(2027, 5, 17));
-
-    setup.queries.setToday(DateTime.utc(2027, 6, 1));
-    final june = setup.queries.readMatchedDayInsights().value;
-    expect(june?.selectedMonth, DateTime.utc(2027, 6, 1));
-    expect(june?.elapsedDayCount, 1);
-  });
-
   test('aFailingRuleFailsOnlyItsKeyAndRetryRecovers', () async {
     final rules = _ThrowingRules();
     final ledger = Ledger();

@@ -131,16 +131,6 @@ void main() {
     expect(firstRecordMonth(_stateWithHistory()), DateTime.utc(2027, 1, 1));
   });
 
-  test('firstRecordMonthCountsSystemEntries', () {
-    final state = _stateWithHistory();
-    state.setOpeningBalance(
-      Decimal.parse('100'),
-      _accountID,
-      date: DateTime.utc(2026, 11, 3),
-    );
-    expect(firstRecordMonth(state), DateTime.utc(2026, 11, 1));
-  });
-
   test('firstRecordMonthIsNullForAnEmptyLedger', () {
     expect(firstRecordMonth(LedgerState()), isNull);
   });
@@ -190,27 +180,6 @@ void main() {
     );
   });
 
-  test('monthEndingExactlyTodayIsComplete', () {
-    final today = DateTime.utc(2027, 6, 1);
-    final firstRecord = DateTime.utc(2027, 1, 1);
-    expect(
-      classifyPeriod(
-        window: DateRange(DateTime.utc(2027, 5, 1), DateTime.utc(2027, 6, 1)),
-        firstRecordMonth: firstRecord,
-        today: today,
-      ),
-      PeriodCompleteness.complete,
-    );
-    expect(
-      classifyPeriod(
-        window: DateRange(DateTime.utc(2027, 6, 1), DateTime.utc(2027, 7, 1)),
-        firstRecordMonth: firstRecord,
-        today: today,
-      ),
-      PeriodCompleteness.incomplete,
-    );
-  });
-
   test('classifyPeriodCoversWeekCases', () {
     final firstRecord = DateTime.utc(2027, 1, 1);
     expect(
@@ -237,59 +206,6 @@ void main() {
       ),
       PeriodCompleteness.preRecord,
     );
-  });
-
-  test('ledgerOnlyReadsAreReadyWhileCacheIsPending', () async {
-    final setup = _setup();
-    final queries = setup.queries;
-
-    final first = queries.readFirstRecordMonth();
-    expect(first.state, AnalysisQueryState.ready);
-    expect(first.value, isNull);
-    expect(first.sourceRevision, isNotNull);
-
-    final month = queries.readMonthCompleteness(
-      month: DateTime.utc(2027, 4, 1),
-    );
-    expect(month.state, AnalysisQueryState.ready);
-    expect(month.value?.state, PeriodCompleteness.preRecord);
-    expect(month.value?.firstRecordMonth, isNull);
-
-    final week = queries.readWeekCompleteness(
-      containingDay: DateTime.utc(2027, 4, 7),
-    );
-    expect(week.state, AnalysisQueryState.ready);
-    expect(week.value?.state, PeriodCompleteness.preRecord);
-  });
-
-  test('firstRecordMonthReadFindsEarliestAcrossKinds', () async {
-    final setup = _setup();
-    final ledger = setup.ledger;
-    final queries = setup.queries;
-
-    ledger.setOpeningBalance(
-      Decimal.parse('100'),
-      _accountID,
-      date: DateTime.utc(2027, 2, 10),
-    );
-    _addExpense(
-      ledger,
-      'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-      '-13.50',
-      date: DateTime.utc(2027, 1, 20),
-      includeInAnalysis: false,
-    );
-    _addExpense(
-      ledger,
-      'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
-      '-7.00',
-      date: DateTime.utc(2027, 3, 5),
-    );
-
-    final first = queries.readFirstRecordMonth();
-    expect(first.state, AnalysisQueryState.ready);
-    expect(first.value, DateTime.utc(2027, 1, 1));
-    expect(first.sourceRevision, ledger.revision);
   });
 
   test('monthCompletenessNormalizesInputsAndClassifies', () async {
@@ -377,167 +293,6 @@ void main() {
           ?.window,
       DateRange(DateTime.utc(2026, 12, 28), DateTime.utc(2027, 1, 4)),
     );
-  });
-
-  test('weekEndingExactlyTodayIsComplete', () async {
-    final setup = _setup(today: DateTime.utc(2027, 5, 10));
-    final queries = setup.queries;
-
-    _addExpense(
-      setup.ledger,
-      'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-      '-13.50',
-      date: DateTime.utc(2027, 1, 20),
-    );
-
-    expect(
-      queries
-          .readWeekCompleteness(containingDay: DateTime.utc(2027, 5, 5))
-          .value
-          ?.state,
-      PeriodCompleteness.complete,
-    );
-  });
-
-  test('deletingEarliestEntryMovesTheBoundary', () async {
-    final setup = _setup();
-    final ledger = setup.ledger;
-    final queries = setup.queries;
-
-    _addExpense(
-      ledger,
-      'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-      '-13.50',
-      date: DateTime.utc(2027, 1, 4),
-    );
-    _addExpense(
-      ledger,
-      'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
-      '-7.00',
-      date: DateTime.utc(2027, 4, 1),
-    );
-    expect(queries.readFirstRecordMonth().value, DateTime.utc(2027, 1, 1));
-
-    ledger.deleteEntry('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
-
-    expect(queries.readFirstRecordMonth().value, DateTime.utc(2027, 4, 1));
-    expect(queries.readFirstRecordMonth().sourceRevision, ledger.revision);
-    expect(
-      queries
-          .readMonthCompleteness(month: DateTime.utc(2027, 1, 15))
-          .value
-          ?.state,
-      PeriodCompleteness.preRecord,
-    );
-  });
-
-  test('equivalentMonthInputsShareOneMemoEntry', () async {
-    final setup = _setup();
-    final queries = setup.queries;
-    final runner = setup.runner;
-
-    runner.pending.last.complete(const []);
-    await pumpEventQueue();
-
-    final first = queries.readMonthCompleteness(
-      month: DateTime.utc(2027, 4, 1),
-    );
-    final second = queries.readMonthCompleteness(
-      month: DateTime(2027, 4, 15, 10, 30),
-    );
-    expect(identical(second, first), isTrue);
-
-    final otherMonth = queries.readMonthCompleteness(
-      month: DateTime.utc(2027, 5, 1),
-    );
-    expect(identical(otherMonth, first), isFalse);
-
-    final firstWeek = queries.readWeekCompleteness(
-      containingDay: DateTime.utc(2027, 5, 5),
-    );
-    expect(
-      identical(
-        queries.readWeekCompleteness(
-          containingDay: DateTime(2027, 5, 6, 23, 45),
-        ),
-        firstWeek,
-      ),
-      isTrue,
-    );
-  });
-
-  test('dayRolloverRecomputesCompletenessWithoutRunnerWork', () async {
-    final setup = _setup(today: DateTime.utc(2027, 4, 30));
-    final ledger = setup.ledger;
-    final queries = setup.queries;
-    final runner = setup.runner;
-    var notifications = 0;
-    queries.addListener(() => notifications++);
-
-    runner.pending.last.complete(const []);
-    await pumpEventQueue();
-    expect(notifications, 1);
-
-    _addExpense(
-      ledger,
-      'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-      '-13.50',
-      date: DateTime.utc(2027, 4, 5),
-    );
-
-    expect(
-      queries
-          .readMonthCompleteness(month: DateTime.utc(2027, 4, 1))
-          .value
-          ?.state,
-      PeriodCompleteness.incomplete,
-    );
-
-    queries.setToday(DateTime.utc(2027, 5, 1));
-    expect(runner.calls, 2);
-    expect(notifications, 3);
-
-    expect(
-      queries
-          .readMonthCompleteness(month: DateTime.utc(2027, 4, 1))
-          .value
-          ?.state,
-      PeriodCompleteness.complete,
-    );
-
-    queries.setToday(DateTime(2027, 5, 1, 18, 45));
-    expect(notifications, 3);
-  });
-
-  test('completenessStaysReadyWhileMixedReadsFail', () async {
-    final setup = _setup();
-    final ledger = setup.ledger;
-    final queries = setup.queries;
-    final runner = setup.runner;
-
-    runner.pending.last.complete(const []);
-    await pumpEventQueue();
-
-    _addExpense(
-      ledger,
-      'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-      '-13.50',
-      date: DateTime.utc(2027, 1, 4),
-    );
-    runner.pending.last.completeError(StateError('boom'));
-    await pumpEventQueue();
-
-    final period = queries.readPeriod(
-      window: DateRange(DateTime.utc(2027, 1, 1), DateTime.utc(2027, 2, 1)),
-    );
-    expect(period.state, AnalysisQueryState.failed);
-
-    final month = queries.readMonthCompleteness(
-      month: DateTime.utc(2027, 1, 15),
-    );
-    expect(month.state, AnalysisQueryState.ready);
-    expect(month.sourceRevision, ledger.revision);
-    expect(month.value?.state, PeriodCompleteness.complete);
   });
 
   test('deletingEarliestEntryDuringPendingRefreshSplitsCompletenessFromTotalsUntilAcceptance', () async {

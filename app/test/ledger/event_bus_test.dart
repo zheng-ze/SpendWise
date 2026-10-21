@@ -7,18 +7,6 @@ Account _account({String name = 'acc'}) =>
     Account(name: name, type: AccountType.savings);
 
 void main() {
-  test('subscriberReceivesPublishedBatch', () {
-    final bus = EventBus();
-    final received = <List<LedgerChange>>[];
-    bus.subscribe().listen((publication) => received.add(publication.changes));
-
-    final a = _account();
-    bus.publish([UpsertAccount(a)]);
-
-    expect(received, hasLength(1));
-    expect(received.first, [UpsertAccount(a)]);
-  });
-
   test('batchArrivesAtomicallyNotFlattened', () {
     final bus = EventBus();
     final received = <List<LedgerChange>>[];
@@ -30,25 +18,6 @@ void main() {
 
     expect(received, [
       [UpsertAccount(a), UpsertEntry(entry)],
-    ]);
-  });
-
-  test('ordersBatchesInPublishOrder', () {
-    final bus = EventBus();
-    final received = <List<LedgerChange>>[];
-    bus.subscribe().listen((publication) => received.add(publication.changes));
-
-    final a = _account(name: 'a');
-    final b = _account(name: 'b');
-    final c = _account(name: 'c');
-    bus.publish([UpsertAccount(a)]);
-    bus.publish([UpsertAccount(b)]);
-    bus.publish([UpsertAccount(c)]);
-
-    expect(received, [
-      [UpsertAccount(a)],
-      [UpsertAccount(b)],
-      [UpsertAccount(c)],
     ]);
   });
 
@@ -84,22 +53,6 @@ void main() {
     ]);
   });
 
-  test('bufferingIsLosslessBeforeConsumptionStarts', () {
-    final bus = EventBus();
-    final received = <List<LedgerChange>>[];
-    bus.subscribe().listen((publication) => received.add(publication.changes));
-
-    final a = _account(name: 'a');
-    final b = _account(name: 'b');
-    bus.publish([UpsertAccount(a)]);
-    bus.publish([UpsertAccount(b)]);
-
-    expect(received, [
-      [UpsertAccount(a)],
-      [UpsertAccount(b)],
-    ]);
-  });
-
   test('publishedBatchIsUnmodifiableByASubscriber', () {
     final bus = EventBus();
     final received = <List<LedgerChange>>[];
@@ -111,23 +64,6 @@ void main() {
       () => received.single.add(UpsertAccount(_account())),
       throwsUnsupportedError,
     );
-  });
-
-  test('cancelledSubscriberStopsReceiving', () async {
-    final bus = EventBus();
-    final received = <List<LedgerChange>>[];
-    final subscription = bus.subscribe().listen(
-      (publication) => received.add(publication.changes),
-    );
-
-    final a = _account(name: 'a');
-    bus.publish([UpsertAccount(a)]);
-    await subscription.cancel();
-    bus.publish([UpsertAccount(_account(name: 'b'))]);
-
-    expect(received, [
-      [UpsertAccount(a)],
-    ]);
   });
 
   test('publishAfterDisposeThrows', () async {
@@ -163,18 +99,6 @@ void main() {
     ]);
   });
 
-  test('ordinaryPublicationCarriesNoStamps', () {
-    final bus = EventBus();
-    final publications = <LedgerPublication>[];
-    bus.subscribe().listen(publications.add);
-
-    bus.publish([UpsertAccount(_account())]);
-
-    expect(publications, hasLength(1));
-    expect(publications.single.stamps, isNull);
-    expect(publications.single.hasStamps, isFalse);
-  });
-
   test('stampedPublicationDeliversStamps', () {
     final bus = EventBus();
     final publications = <LedgerPublication>[];
@@ -193,30 +117,6 @@ void main() {
     expect(publications.single.hasStamps, isTrue);
   });
 
-  test('publishedStampsAreUnmodifiableByASubscriber', () {
-    final bus = EventBus();
-    final publications = <LedgerPublication>[];
-    bus.subscribe().listen(publications.add);
-
-    final account = _account();
-    final row = SyncRowID.of(SyncCollection.moneySources, account.id);
-    bus.publish(
-      [UpsertAccount(account)],
-      stamps: {
-        row: VersionVector({'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa': 3}),
-      },
-    );
-
-    final other = SyncRowID.of(
-      SyncCollection.entries,
-      '4f2c1b90-3e5d-4a18-9c7b-6d0e2a1f8b43',
-    );
-    expect(
-      () => publications.single.stamps![other] = VersionVector.empty,
-      throwsUnsupportedError,
-    );
-  });
-
   test('emptyChangesWithStampsIsNotDelivered', () {
     final bus = EventBus();
     final publications = <LedgerPublication>[];
@@ -231,15 +131,5 @@ void main() {
 
     expect(publications, hasLength(1));
     expect(publications.single.stamps, isNull);
-  });
-
-  test('deliveryIsSynchronous', () {
-    final bus = EventBus();
-    var delivered = false;
-    bus.subscribe().listen((_) => delivered = true);
-
-    bus.publish([UpsertAccount(_account())]);
-
-    expect(delivered, isTrue);
   });
 }

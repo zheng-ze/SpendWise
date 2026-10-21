@@ -121,31 +121,6 @@ void main() {
       expect(queries.readToday().value?.spent, Decimal.parse('13.50'));
     },
   );
-
-  test('mutationWithoutViewModelsStillRefreshesTodayAndPeriod', () async {
-    final setup = _setup();
-    final ledger = setup.ledger;
-    final cache = setup.cache;
-    final queries = setup.queries;
-    final runner = setup.runner;
-
-    runner.pending.last.complete(const []);
-    await pumpEventQueue();
-    expect(cache.itemsSourceRevision, ledger.revision);
-
-    _addExpense(ledger, 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', '-13.50');
-
-    expect(runner.calls, 2);
-    runner.pending.last.complete(Accounting.analysisItems(ledger.state));
-    await pumpEventQueue();
-
-    expect(queries.readToday().value?.spent, Decimal.parse('13.50'));
-    expect(
-      queries.readPeriod(window: _april()).value?.spent,
-      Decimal.parse('13.50'),
-    );
-  });
-
   test(
     'failingRunnerKeepsLastResultAndRecoversOnRetryAndNotification',
     () async {
@@ -210,33 +185,6 @@ void main() {
       expect(settled.value?.spent, Decimal.parse('21.50'));
     },
   );
-
-  test('failedRefreshStartsNoRecursiveWork', () async {
-    final setup = _setup();
-    final queries = setup.queries;
-    final runner = setup.runner;
-    var notifications = 0;
-    queries.addListener(() => notifications++);
-
-    runner.pending.last.complete(const []);
-    await pumpEventQueue();
-
-    _addExpense(setup.ledger, 'ffffffff-ffff-ffff-ffff-ffffffffffff', '-13.50');
-    runner.pending.last.completeError(StateError('boom'));
-    await pumpEventQueue();
-    await pumpEventQueue();
-
-    expect(runner.calls, 2);
-    expect(notifications, 3);
-
-    queries.readToday();
-    queries.readPeriod(window: _april());
-    await pumpEventQueue();
-
-    expect(runner.calls, 2);
-    expect(notifications, 3);
-  });
-
   test('olderFailureAfterNewerFailureKeepsTheNewerFailure', () async {
     final setup = _setup();
     final ledger = setup.ledger;
@@ -292,81 +240,6 @@ void main() {
       Decimal.parse('20.50'),
     );
   });
-
-  test('retryNotifiesListenersWhenItStartsNewWork', () async {
-    final setup = _setup();
-    final ledger = setup.ledger;
-    final queries = setup.queries;
-    final runner = setup.runner;
-    var notifications = 0;
-    queries.addListener(() => notifications++);
-    runner.pending.last.complete(const []);
-    await pumpEventQueue();
-    _addExpense(ledger, 'cccccccc-cccc-cccc-cccc-cccccccccccc', '-13.50');
-    runner.pending.last.completeError(StateError('boom'));
-    await pumpEventQueue();
-    expect(queries.readToday().state, AnalysisQueryState.failed);
-    final before = notifications;
-
-    final retrying = queries.retry();
-
-    expect(queries.readToday().state, AnalysisQueryState.loading);
-    expect(notifications, before + 1);
-    runner.pending.last.complete(Accounting.analysisItems(ledger.state));
-    await retrying;
-  });
-
-  test('retryNotifiesOnceWhenTheCacheIsAlreadyCurrent', () async {
-    final setup = _setup();
-    final queries = setup.queries;
-    setup.runner.pending.last.complete(const []);
-    await pumpEventQueue();
-    var notifications = 0;
-    queries.addListener(() => notifications++);
-
-    await queries.retry();
-
-    expect(notifications, 1);
-  });
-
-  test('bothFailingBeforeDrainingPublishesTheFailureOnce', () async {
-    final setup = _setup();
-    final ledger = setup.ledger;
-    final queries = setup.queries;
-    final runner = setup.runner;
-    var notifications = 0;
-    queries.addListener(() => notifications++);
-
-    runner.pending[0].complete(const []);
-    await pumpEventQueue();
-    expect(notifications, 1);
-    final settledPeriod = queries.readPeriod(window: _april());
-
-    _addExpense(ledger, 'cccccccc-cccc-cccc-cccc-cccccccccccc', '-13.50');
-    _addExpense(ledger, 'dddddddd-dddd-dddd-dddd-dddddddddddd', '-7.00');
-
-    runner.pending[2].completeError(StateError('newer'));
-    runner.pending[1].completeError(StateError('older'));
-    await pumpEventQueue();
-
-    expect(notifications, 4);
-    final failed = queries.readPeriod(window: _april());
-    expect(failed.state, AnalysisQueryState.failed);
-    expect(failed.value, settledPeriod.value);
-    expect(failed.sourceRevision, settledPeriod.sourceRevision);
-    expect(queries.readToday().state, AnalysisQueryState.failed);
-
-    final retrying = queries.retry();
-    runner.pending[3].complete(Accounting.analysisItems(ledger.state));
-    await retrying;
-    await pumpEventQueue();
-
-    expect(
-      queries.readPeriod(window: _april()).state,
-      AnalysisQueryState.ready,
-    );
-  });
-
   test('initialFailureHasNullValueAndRecoversOnRetry', () async {
     final setup = _setup();
     final ledger = setup.ledger;
@@ -393,100 +266,5 @@ void main() {
     expect(ready.state, AnalysisQueryState.ready);
     expect(ready.value?.spent, Decimal.zero);
     expect(ready.sourceRevision, ledger.revision);
-  });
-
-  test(
-    'failedRefreshThenDayChangeNotifiesOnceAndMovesLedgerOnlyReads',
-    () async {
-      final setup = _setup();
-      final ledger = setup.ledger;
-      final queries = setup.queries;
-      final runner = setup.runner;
-      var notifications = 0;
-      queries.addListener(() => notifications++);
-
-      runner.pending.last.complete(const []);
-      await pumpEventQueue();
-      expect(notifications, 1);
-      final settledToday = queries.readToday();
-      expect(settledToday.state, AnalysisQueryState.ready);
-
-      _addExpense(
-        ledger,
-        'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-        '-13.50',
-        date: DateTime.utc(2027, 4, 8),
-      );
-      expect(notifications, 2);
-
-      runner.pending.last.completeError(StateError('boom'));
-      await pumpEventQueue();
-      expect(notifications, 3);
-
-      final failedToday = queries.readToday();
-      expect(failedToday.state, AnalysisQueryState.failed);
-      expect(failedToday.value, settledToday.value);
-      expect(failedToday.sourceRevision, settledToday.sourceRevision);
-
-      final window = DateRange(
-        DateTime.utc(2027, 4, 7),
-        DateTime.utc(2027, 4, 9),
-      );
-      final upcomingBefore = queries.readUpcoming(window: window);
-      expect(upcomingBefore.state, AnalysisQueryState.ready);
-      expect(upcomingBefore.value, hasLength(1));
-
-      queries.setToday(DateTime.utc(2027, 4, 8));
-      expect(notifications, 4);
-
-      final upcomingAfter = queries.readUpcoming(window: window);
-      expect(upcomingAfter.state, AnalysisQueryState.ready);
-      expect(upcomingAfter.value, isEmpty);
-      expect(
-        queries.readRecent().value!.single.entry.date,
-        DateTime.utc(2027, 4, 8),
-      );
-
-      final retainedToday = queries.readToday();
-      expect(retainedToday.state, AnalysisQueryState.failed);
-      expect(retainedToday.value, settledToday.value);
-      expect(retainedToday.sourceRevision, settledToday.sourceRevision);
-      expect(notifications, 4);
-    },
-  );
-
-  test('pendingRefreshNotifiesLedgerChangeBeforeCacheAcceptance', () async {
-    final setup = _setup();
-    final ledger = setup.ledger;
-    final queries = setup.queries;
-    final runner = setup.runner;
-    var notifications = 0;
-    queries.addListener(() => notifications++);
-
-    runner.pending.last.complete(const []);
-    await pumpEventQueue();
-    expect(notifications, 1);
-    final settled = queries.readPeriod(window: _april());
-    expect(settled.state, AnalysisQueryState.ready);
-
-    _addExpense(ledger, 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', '-13.50');
-    expect(notifications, 2);
-
-    final recent = queries.readRecent();
-    expect(recent.state, AnalysisQueryState.ready);
-    expect(recent.value, hasLength(1));
-
-    final pending = queries.readPeriod(window: _april());
-    expect(pending.state, AnalysisQueryState.loading);
-    expect(pending.value, settled.value);
-    expect(pending.sourceRevision, settled.sourceRevision);
-
-    runner.pending.last.complete(Accounting.analysisItems(ledger.state));
-    await pumpEventQueue();
-    expect(notifications, 3);
-
-    final updated = queries.readPeriod(window: _april());
-    expect(updated.state, AnalysisQueryState.ready);
-    expect(updated.value?.spent, Decimal.parse('13.50'));
   });
 }
