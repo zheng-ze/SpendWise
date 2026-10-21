@@ -24,6 +24,8 @@ the ready Ledger's `AnalysisCache` (`app/lib/ui/stats/category_detail/category_d
 - `app/lib/ui/stats/analysis/analysis_scan.dart` - memoized category-detail filtering.
 - `app/lib/ui/stats/helpers/slices.dart` - category slice and roll-up helpers referenced only by tests,
   retained for the Transactions versus analysis accounting contract.
+- `app/lib/ui/format/analysis_bucket_name.dart` - `analysisBucketName` and `uncategorizedName`: the
+  shared display name for a null (Uncategorized) or synthetic transfer bucket ID, used by slices.
 - `app/lib/ui/common/lists/day_sectioned_entry_list.dart` - reused entry list with tap-to-view and
   swipe-delete.
 - `packages/domain/lib/src/accounting.dart` - `rollUp`, `fraction`, and filtering (see
@@ -51,7 +53,8 @@ hold an explicit `container.listen` subscription to keep the provider alive
 
 Slices filter cache items by kind and window, roll up to main-category buckets with
 `Accounting.rollUp`, and sort by amount descending. Slice color comes from the category's
-`colorHex`; Uncategorized and synthetic transfer buckets use the gray fallback. Treat-as-expense
+`colorHex`; Uncategorized and synthetic transfer buckets use the gray fallback, and take their names from
+`analysisBucketName`. Treat-as-expense
 transfers use synthetic buckets by destination account type (`app/lib/ui/stats/helpers/slices.dart`,
 `packages/domain/lib/src/accounting.dart:Accounting.classify`). Category Detail's `AnalysisScan` memoizes filtering by
 cache identity, `itemsRevision`, kind, and bucket set. Cache identity matters because a replacement

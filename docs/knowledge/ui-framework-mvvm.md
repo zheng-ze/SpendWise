@@ -1,6 +1,6 @@
 # UI Framework (MVVM)
 
-Last reconciled: 2026-10-20
+Last reconciled: 2026-10-21
 
 ## Feature overview
 
@@ -34,9 +34,11 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
 - `app/lib/ui/theme/` - `spendwise_colors.dart` (`SpendWiseColors` ThemeExtension with the
   Harbour glass light/dark tokens), `spendwise_text.dart` (`SpendWiseText` amount roles plus the
   `context.colors` / `context.text` accessors), `spendwise_theme.dart`
-  (`buildSpendWiseTheme(Brightness)`).
+  (`buildSpendWiseTheme(Brightness)`), `category_palette.dart` (`CategoryPalette`, see Category
+  palette below).
 - `app/lib/ui/format/` - `money_format.dart`, `amount_style.dart`, `amount_input.dart`,
-  `color_hex.dart`, `date_format.dart`, `amount_parse.dart`, `account_type_format.dart`.
+  `color_hex.dart`, `date_format.dart`, `amount_parse.dart`, `account_type_format.dart`,
+  `analysis_bucket_name.dart`.
 - Per-screen: `transactions/transactions_view_model.dart`, `stats/`, `accounts/`, `budgets/`,
   `settings/`, `overview/` (`OverviewFlow`, `OverviewNotifier`, `OverviewScreen`; see
   [overview-ui.md](overview-ui.md)).
@@ -392,7 +394,20 @@ value, which then overwrites it. (issue #38)
   `layoutCategoryMap`; returned rectangles and selection callbacks preserve input indices
   despite sorting for layout. Labels pair the category name with its share, never a bare
   number; labels that fail the text-scaled fit check move beside the map and select the
-  category when `onSelect` is supplied.
+  category when `onSelect` is supplied. In-block label text colour is `foregroundOn` of the
+  block's actual fill, so a selected block (`selectedMark` fill) and an unselected one each get a
+  readable label (`app/lib/ui/common/charts/category_map/category_map_block.dart`).
+- **Category palette** (`app/lib/ui/theme/category_palette.dart`) - `CategoryPalette.resolve`
+  takes `savedHex`, `rank`, the `ChartColours` mode and the active `SpendWiseColors`, and returns
+  one chart colour. `categoryColours`: the six seeded saved hexes map to theme marks (`0xFF34C759`
+  groceries, `0xFFFF9500` dining, `0xFF5856D6` transport, `0xFF007AFF` salary, `0xFF30D158`
+  supermarket, `0xFF63E6BE` freshMarket); any other hex keeps its hue and saturation with
+  lightness clamped to a light or dark band chosen from the surface brightness; null uses the gray
+  fallback. `themeShades`: an sRGB `Color.lerp` ramp from `action` to `surface` at eight weights
+  (0 to 1/2), indexed by rank modulo eight. `contrasting`: a fixed list of eight theme marks
+  (groceries, supermarket, freshMarket, dining, transport, salary, fitness, housing) indexed by
+  rank modulo eight. `selectedMark` is never a category colour. Nothing in production calls it
+  yet; slices still colour from `colorHex`.
   `WeekStrip` leaves future days blank and draws dashed stubs for past empty days.
   (`app/lib/ui/common/charts/week_strip.dart`)
 - **Sheet checks** - `app/test/support/sheet_contract.dart` provides route pumping
