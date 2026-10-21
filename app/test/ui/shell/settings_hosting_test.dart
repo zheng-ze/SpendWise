@@ -37,7 +37,7 @@ void main() {
   testWidgets('a repair tap selects Settings with one repair route', (
     tester,
   ) async {
-    final harness = await pumpShell(
+    final container = await pumpShell(
       tester,
       status: const HostedSyncBindingRepair(),
       layoutMode: ShellLayoutMode.phone,
@@ -49,7 +49,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      harness.container.read(selectedDestinationProvider),
+      container.read(selectedDestinationProvider),
       ShellDestination.settings,
     );
     expect(find.byType(SettingsFlow), findsOneWidget);
@@ -59,13 +59,12 @@ void main() {
 
   testWidgets('hides the repair banner only when Settings is selected and '
       'enrollment is open', (tester) async {
-    final harness = await pumpShell(
+    final container = await pumpShell(
       tester,
       status: const HostedSyncBindingRepair(),
       size: const Size(1200, 800),
       layoutMode: ShellLayoutMode.desktop,
     );
-    final container = harness.container;
     expect(find.text(_repairLabel), findsOneWidget);
 
     container.read(selectedDestinationProvider.notifier).state =
@@ -103,7 +102,7 @@ void main() {
       addTearDown(tester.view.reset);
       await tester.pumpWidget(
         UncontrolledProviderScope(
-          container: created.container,
+          container: created,
           child: MaterialApp(
             builder: buildShellAppContent,
             home: AppShell(
@@ -117,7 +116,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      return created.container;
+      return created;
     }
 
     Future<void> resize(WidgetTester tester, Size size) async {
