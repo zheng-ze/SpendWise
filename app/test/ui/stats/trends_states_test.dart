@@ -1,4 +1,5 @@
 import 'package:domain/domain.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -10,15 +11,27 @@ import 'package:spendwise/ledger/analysis/summaries/year_spread.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/analysis_queries.dart';
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ui/common/charts/month_bars.dart';
+import 'package:spendwise/ui/common/feedback/empty_state.dart';
+import 'package:spendwise/ui/common/feedback/loading_skeleton.dart';
 import 'package:spendwise/ui/stats/trends/trends_body.dart';
 import 'package:spendwise/ui/stats/trends/trends_intent.dart';
 import 'package:spendwise/ui/stats/trends/trends_projection.dart';
 import 'package:spendwise/ui/stats/trends/trends_view_model.dart';
 
 import '../../ledger/analysis_test_support.dart';
+import '../../support/ui_test_timeout.dart';
 import 'trends_test_support.dart';
 
 final _today = DateTime.utc(2026, 10, 15);
+const _scrollStep = 120.0;
+final _disabledArrow = isSemantics(isButton: true, isEnabled: false);
+
+void _expectControls() {
+  for (final label in ['Expense', 'Income', 'Month by month', 'Year by year']) {
+    expect(find.text(label), findsOneWidget);
+  }
+}
 
 Ledger _populated() {
   final ledger = emptyTrendsLedger();
@@ -499,5 +512,129 @@ void main() {
       expect(state.hasError, isTrue);
       expect(state.error, isA<StateError>());
     });
+  });
+
+  group('frames', () {
+    testWidgets('loading keeps the header and both controls over skeletons', (
+      tester,
+    ) async {
+      final runner = ManualRunner();
+
+      await pumpTrends(
+        tester,
+        ledger: _populated(),
+        today: _today,
+        runner: runner.call,
+        settle: false,
+      );
+
+      expect(find.text('Trends'), findsOneWidget);
+      _expectControls();
+      expect(find.byType(LoadingSkeleton), findsWidgets);
+      expect(find.text('Retry'), findsNothing);
+      expect(find.byType(MonthBars), findsNothing);
+    }, timeout: uiTestTimeout);
+
+    testWidgets(
+      'failure shows the error copy with a filled Retry that recovers',
+      (tester) async {
+        final runner = ManualRunner();
+        final ledger = _populated();
+        await pumpTrends(
+          tester,
+          ledger: ledger,
+          today: _today,
+          runner: runner.call,
+          settle: false,
+        );
+        runner.pending.last.completeError(StateError('compute failed'));
+        await tester.pumpAndSettle();
+
+        expect(find.text("Couldn't load your spending"), findsOneWidget);
+        expect(find.text('Please try again.'), findsOneWidget);
+        expect(find.widgetWithText(FilledButton, 'Retry'), findsOneWidget);
+        _expectControls();
+
+        await tester.tap(find.text('Retry'));
+        await tester.pump();
+        runner.pending.last.complete(Accounting.analysisItems(ledger.state));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(MonthBars), findsOneWidget);
+        _expectControls();
+      },
+      timeout: uiTestTimeout,
+    );
+
+    testWidgets(
+      'a fresh ledger shows controls, a period row with both arrows off and the empty state',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+
+        await pumpTrends(tester, ledger: emptyTrendsLedger(), today: _today);
+
+        _expectControls();
+        expect(find.text('Nov 2025 - Oct 2026'), findsOneWidget);
+        expect(find.text('See where your money goes'), findsOneWidget);
+        expect(
+          find.text(
+            'Record an expense to start your monthly picture and breakdown.',
+          ),
+          findsOneWidget,
+        );
+        expect(find.byType(EmptyState), findsOneWidget);
+        expect(find.byType(MonthBars), findsNothing);
+        expect(find.textContaining('Compared with usual'), findsNothing);
+        expect(find.textContaining('S\$'), findsNothing);
+        expect(
+          tester.getSemantics(find.bySemanticsLabel('Previous')),
+          _disabledArrow,
+        );
+        expect(
+          tester.getSemantics(find.bySemanticsLabel('Next')),
+          _disabledArrow,
+        );
+
+        await tester.tap(find.text('Year by year'));
+        await tester.pumpAndSettle();
+        expect(find.text('2024 - 2026'), findsOneWidget);
+        semantics.dispose();
+      },
+      timeout: uiTestTimeout,
+    );
+
+    testWidgets('controls stay available when the provider has no value', (
+      tester,
+    ) async {
+      await pumpTrends(tester, ledger: null, today: _today);
+
+      _expectControls();
+      expect(find.text("Couldn't load your spending"), findsOneWidget);
+      expect(find.byType(MonthBars), findsNothing);
+    }, timeout: uiTestTimeout);
+
+    testWidgets(
+      'a short phone scrolls to the usual row with controls reachable',
+      (tester) async {
+        await pumpTrends(
+          tester,
+          ledger: _populated(),
+          today: _today,
+          size: trendsShortPhoneSize,
+        );
+
+        await tester.scrollUntilVisible(
+          find.textContaining('Compared with usual'),
+          _scrollStep,
+          scrollable: find.byType(Scrollable).first,
+        );
+        expect(find.textContaining('Compared with usual'), findsOneWidget);
+        await tester.tap(find.text('Year by year'));
+        await tester.pumpAndSettle();
+        expect(find.textContaining('Compared with usual'), findsNothing);
+        expect(find.text('2024 - 2026'), findsOneWidget);
+      },
+      timeout: uiTestTimeout,
+    );
   });
 }

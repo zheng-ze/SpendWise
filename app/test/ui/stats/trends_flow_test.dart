@@ -58,8 +58,8 @@ void _expectTrendsScreen(WidgetTester tester) {
   expect(find.byType(TopTabBar), findsNothing);
   expect(find.byType(MonthYearSelector), findsNothing);
   expect(find.byType(CategoryDetailScreen), findsNothing);
-  expect(find.text('Income'), findsNothing);
-  expect(find.text('Expense'), findsNothing);
+  expect(find.text('Income'), findsOneWidget);
+  expect(find.text('Expense'), findsOneWidget);
 }
 
 void _expectHistory(WidgetTester tester) {
@@ -69,7 +69,7 @@ void _expectHistory(WidgetTester tester) {
 
 void main() {
   testWidgets(
-    'History opens the empty Trends screen with a History back control',
+    'History opens Trends with a History back control and the fresh-ledger state',
     (tester) async {
       await _pumpHistory(tester, withEntry: false);
 
@@ -77,15 +77,7 @@ void main() {
 
       _expectTrendsScreen(tester);
       expect(find.bySemanticsLabel(_historyLabel), findsOneWidget);
-      final screen = tester.widget<Scaffold>(
-        find.descendant(
-          of: find.byType(TrendsScreen),
-          matching: find.byType(Scaffold),
-        ),
-      );
-      final body = screen.body as SizedBox;
-      expect(body.height, double.infinity);
-      expect(body.width, double.infinity);
+      expect(find.text('See where your money goes'), findsOneWidget);
     },
     timeout: uiTestTimeout,
   );
@@ -164,7 +156,15 @@ void main() {
   testWidgets('TrendsFlow without an ending callback has no back control', (
     tester,
   ) async {
-    await tester.pumpWidget(const MaterialApp(home: TrendsFlow()));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          ledgerProvider.overrideWithValue(trendsLedger()),
+          analysisComputeRunnerProvider.overrideWithValue(syncComputeRunner),
+        ],
+        child: const MaterialApp(home: TrendsFlow()),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.byType(TrendsScreen), findsOneWidget);

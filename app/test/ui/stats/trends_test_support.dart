@@ -1,4 +1,5 @@
 import 'package:domain/domain.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
@@ -8,6 +9,8 @@ import 'package:spendwise/boot/seed_data.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/stats/trends/trends_body.dart';
+import 'package:spendwise/ui/stats/trends_screen.dart';
+import 'package:spendwise/ui/theme/spendwise_theme.dart';
 import 'package:spendwise/ui/stats/trends/trends_intent.dart';
 import 'package:spendwise/ui/stats/trends/trends_view_model.dart';
 
@@ -144,4 +147,43 @@ Future<TrendsHarness> readyHarness({
   final harness = TrendsHarness(ledger: ledger, today: today);
   await harness.settle();
   return harness;
+}
+
+const trendsPhoneSize = Size(320, 760);
+const trendsShortPhoneSize = Size(320, 560);
+
+Future<void> pumpTrends(
+  WidgetTester tester, {
+  required Ledger? ledger,
+  required DateTime today,
+  ComputeRunner? runner,
+  Size size = trendsPhoneSize,
+  Brightness brightness = Brightness.light,
+  bool settle = true,
+}) async {
+  tester.view.devicePixelRatio = 1.0;
+  tester.view.physicalSize = size;
+  addTearDown(tester.view.reset);
+  final container = ProviderContainer(
+    overrides: [
+      ledgerProvider.overrideWithValue(ledger),
+      clockProvider.overrideWithValue(() => today),
+      analysisComputeRunnerProvider.overrideWithValue(
+        runner ?? syncComputeRunner,
+      ),
+    ],
+  );
+  addTearDown(container.dispose);
+  final app = MaterialApp(
+    theme: buildSpendWiseTheme(brightness),
+    home: const TrendsScreen(),
+  );
+  await tester.pumpWidget(
+    UncontrolledProviderScope(container: container, child: app),
+  );
+  if (settle) {
+    await tester.pumpAndSettle();
+  } else {
+    await tester.pump();
+  }
 }
