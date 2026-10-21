@@ -82,13 +82,29 @@ Spreads are rolling 12-month windows and 3 calendar-year windows anchored at the
 Computed clamps to the earliest spread never rewrite stored intent: a genuine action adopts the displayed
 basis first. Month to Year clamps to the earliest yearly slot; Year to Month applies the remembered month,
 clamped to the current month and the earliest monthly slot. A projection first reads month completeness
-for the current month and requires its `today` to equal `todayProvider` (otherwise loading), then requires
-first-record, spread, usual and category-breakdown reads to be ready with one `sourceRevision` equal
-to the Ledger revision;
+for the current month and requires its `today` to equal `todayProvider` (otherwise loading), then
+requires the first-record and category-breakdown reads plus the `readTrendsPeriod` aggregate in month
+mode or `readYearSpread` in year mode to share the Ledger revision; month mode also gates on its
+separate usual read (`app/lib/ui/stats/trends/trends_projection.dart:months`, `years`, `_unready`,
+`app/lib/ledger/analysis_queries.dart:readTrendsPeriod`, `readYearSpread`).
 failed reads give the error body, pending or mismatched ones the skeleton. Compared with usual copy
 (higher, lower, same, zero baseline, elapsed-day and cross-year wording) is built in `trends_usual.dart`.
 Retry calls `AnalysisQueries.retry()` only. (`app/lib/ui/stats/trends/`,
 `app/test/ui/stats/trends_period_test.dart`, `trends_states_test.dart`, `trends_usual_test.dart`)
+
+Month mode reads one `MonthTrendsPeriod` through `AnalysisQueries.readTrendsPeriod` and stores it
+as `TrendsReadyBody.periodSummary`; the projection waits for it alongside the other reads and
+checks the 12-slot shape, revision inputs, spread bounds, whole-window breakdown, and average-row
+identity before rendering (`app/lib/ui/stats/trends/trends_projection.dart:months`,
+`_monthSummaryMatches`, `_averagesMatchBreakdown`,
+`app/lib/ui/stats/trends/trends_body.dart:TrendsReadyBody`). The summary owns the monthly spread,
+the ranked whole-period category breakdown over its 12-slot window, the first ranked row as
+`largestRow`, and the highest-total complete positive month as `highestMonth`; it also carries
+per-category means across complete month windows, with null means when `completePeriodCount` is
+zero (`app/lib/ledger/analysis/summaries/trends_period.dart:MonthTrendsPeriod`,
+`trendsPeriod`, `CategoryPeriodAverages`). Year mode continues to read `readYearSpread` and does
+not populate `periodSummary` (`app/lib/ui/stats/trends/trends_projection.dart:years`,
+`app/lib/ui/stats/trends/trends_body.dart:TrendsReadyBody`).
 
 The category breakdown uses the selected period, kind and level. The projection explicitly maps the
 settings `BreakdownLevel` to the analysis `BreakdownLevel`. A failed breakdown read gives the error
