@@ -6,9 +6,9 @@ Last reconciled: 2026-10-21
 
 History opens a full-screen Trends page through its own `TransactionsFlow` navigator. Trends shows an
 Expense/Income control, a Month by month/Year by year control, a period row with previous/next arrows,
-a bar chart with selectable axis labels, a selected-period headline, and (month mode only) a Compared
-with usual row. It has no category drill-down entry point. The retained Category Detail implementation has no production entry point.
-It renders a main category's subcategory table, trend card, and scoped entry list. Its data comes from
+a bar chart with selectable axis labels, a selected-period headline, (month mode only) a Compared
+with usual row, and a ranked category breakdown whose rows and chart blocks open Category Detail. Category
+Detail renders a main category's subcategory table, trend card, and scoped entry list. Its data comes from
 the ready Ledger's `AnalysisCache` (`app/lib/ui/stats/category_detail/category_detail_view_model.dart`).
 
 ## Key files
@@ -18,7 +18,8 @@ the ready Ledger's `AnalysisCache` (`app/lib/ui/stats/category_detail/category_d
 - `app/lib/ui/stats/trends/` - `trends_intent.dart` (route-owned intent, grid/page arithmetic, intent
   notifier), `trends_projection.dart` (day-aligned, revision-coherent projection of the analysis reads),
   `trends_usual.dart` (Compared with usual copy), `trends_body.dart` (presentation variants),
-  `trends_view_model.dart` (`TrendsViewModel` interface and `LedgerBackedNotifier`), and the
+  `trends_view_model.dart` (`TrendsViewModel` interface, `TrendsViewState`, `TrendsStep` and the
+  `LedgerBackedNotifier`), and the
   `trends_controls`, `trends_period_card`, `trends_state_views` widgets.
 - `app/lib/ui/stats/category_detail/` - the retained category drill-down screen and view model.
 - `app/lib/ui/stats/analysis/analysis_scan.dart` - memoized category-detail filtering.
@@ -70,8 +71,10 @@ Ledger's cache restarts `itemsRevision` and can match the previous cache's revis
 requested spread end, requested selected period, remembered month and `followsCurrent`. It starts on
 expense, month mode and the current month, ignoring History's selected month, and survives analysis
 notifications, failures and Retry within one route lifetime. `trendsViewModelProvider` is an
-auto-dispose `AsyncNotifier` using `LedgerBackedNotifier`; it watches the intent, `analysisQueriesProvider`
-and `todayProvider` and returns a `TrendsBody`: loading, error, empty (ledger has no records) or ready.
+auto-dispose `AsyncNotifier` using `LedgerBackedNotifier` and `StepEmitting`; it watches the intent,
+`analysisQueriesProvider` and `todayProvider` and returns a `TrendsViewState` whose `body` is a
+`TrendsBody`: loading, error, empty (ledger has no records) or ready, and whose `step` is the pending
+`TrendsStep`.
 It reactively watches `breakdownChart`, `breakdownLevel` and `chartColours` through a selection of
 `displayPreferencesProvider`. Each build copies category names, parent IDs and saved hex colours
 from the ready Ledger into an immutable map for that revision (`TrendsNotifier.build`).
@@ -102,7 +105,9 @@ saved level and colour mode, then ranked rows with swatch, name, a caption of `s
 signed amount. A period with no records of the selected kind shows the empty card copy instead of chart
 and rows. Colours resolve once per row through `CategoryPalette`; Direct rows use the parent's saved hex
 with their own rank. The donut centre label is bounded to the hole, and row labels wrap inside the
-card at phone width. Rows and chart are not interactive yet.
+card at phone width. A row with a navigation target shows a trailing chevron and a tap action; a row without
+one has neither. Both charts forward the tapped item's index and never receive a selected index, so
+`selectedMark` stays reserved for selection.
 
 ## Navigation
 
@@ -114,9 +119,24 @@ route. System Back and the iOS edge swipe pop the enclosing route. `Transactions
 single-route guard until the matching route's `completed` future (`transactions-ui.md`,
 `app/lib/ui/transactions/transactions_flow.dart`, `app/lib/ui/common/base/flow_base.dart`).
 
-Trends has no category navigation. Category Detail retains its own date state, seeded by
-its arguments, and inherits a fixed month or year mode. Its toolbar has the `MonthYearSelector` only;
-it has no range menu.
+A row or chart block calls `TrendsViewModel.requestCategoryDetail(rowIndex)`. The notifier ignores the
+request after disposal, outside a ready body, for an invalid index and for a row without a navigation
+target, then emits `TrendsCategoryDetailRequested` carrying the unchanged `CategoryDetailArgs`:
+`mainID` is the row's `mainBucketID`, `kind` the selected kind, `isYearRange` follows the mode and
+`initialDate` is the effective selected UTC period. Null (Uncategorized) and synthetic transfer buckets
+have no target and are inert; an unresolved non-null bucket ID stays navigable and displays as
+Uncategorized. The notifier keeps the pending step in a private field so clock, preference, query and
+Ledger rebuilds preserve it until `clearStep`. `TrendsFlow` listens with `ref.listenManual`, also picks
+up a step pending at mount after the first frame, clears the step before dispatching, and pushes
+`CategoryDetailScreen` on its own navigator through `FlowBaseState.navigator`. It holds a single-route
+guard until that route's `completed` future, so repeated taps and taps during the reverse transition
+open no second route. Returning performs no intent update or invalidation.
+(`app/lib/ui/stats/trends_flow.dart`, `trends/trends_view_model.dart`,
+`app/test/ui/stats/trends_category_navigation_test.dart`, `trends_navigation_state_test.dart`,
+`trends_flow_test.dart`).
+
+Category Detail retains its own date state, seeded by its arguments, and inherits a fixed month or
+year mode. Its toolbar has the `MonthYearSelector` only; it has no range menu.
 
 Budgets live in the Money Budgets segment. Trends does not mount `BudgetsFlow`
 (`app/lib/ui/money/money_flow.dart`).
@@ -125,8 +145,8 @@ Budgets live in the Money Budgets segment. Trends does not mount `BudgetsFlow`
 
 - **Trends** - app bar titled "Trends", optional History-labelled back control, the kind and mode
   controls (always mounted), and a body that is skeleton trays, an error box with a filled Retry, the
-  fresh-ledger empty state with a disabled period row, or the period card. It has no category
-  drill-down (`app/lib/ui/stats/trends_screen.dart`).
+  fresh-ledger empty state with a disabled period row, or the period card and breakdown section
+  (`app/lib/ui/stats/trends_screen.dart`).
 - **Category Detail** - a `TransactionsTableView` whose header stack is scope total, subcategory
   table (only when the category has children), trend card, and "ENTRIES"; the day-sectioned entry
   list follows. Scope selection is `all` | `sub(id)` | `direct`: a caption identifies the scope,
