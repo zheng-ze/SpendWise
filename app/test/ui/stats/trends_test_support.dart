@@ -124,7 +124,11 @@ class TrendsHarness {
 
   TrendsIntent get intent => container.read(trendsIntentProvider);
 
-  TrendsBody get body => container.read(trendsViewModelProvider).requireValue;
+  TrendsBody get body =>
+      container.read(trendsViewModelProvider).requireValue.body;
+
+  TrendsStep? get step =>
+      container.read(trendsViewModelProvider).requireValue.step;
 
   TrendsReadyBody get ready => body as TrendsReadyBody;
 

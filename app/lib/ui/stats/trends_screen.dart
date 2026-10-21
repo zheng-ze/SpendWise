@@ -27,7 +27,7 @@ class TrendsScreen extends ConsumerWidget {
       trendsViewModelProvider.notifier,
     );
     final body = switch (ref.watch(trendsViewModelProvider)) {
-      AsyncData(:final value) => value,
+      AsyncData(:final value) => value.body,
       AsyncError() => const TrendsErrorBody(),
       AsyncLoading() => const TrendsLoadingBody(),
     };
@@ -148,6 +148,7 @@ class _ReadyView extends StatelessWidget {
     final breakdown = TrendsBreakdownSection(
       breakdown: body.breakdown,
       amountKind: body.headline.amountKind,
+      onOpenCategory: viewModel.requestCategoryDetail,
     );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

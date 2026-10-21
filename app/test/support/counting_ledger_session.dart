@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/boot/providers.dart';
@@ -76,7 +77,10 @@ Counted countedSession({
   return Counted(ledger, cache);
 }
 
-ProviderContainer containerFor(LedgerSession Function() session) {
+ProviderContainer containerFor(
+  LedgerSession Function() session, {
+  List<Override> overrides = const [],
+}) {
   final container = ProviderContainer(
     overrides: [
       ledgerProvider.overrideWith(
@@ -85,6 +89,7 @@ ProviderContainer containerFor(LedgerSession Function() session) {
       ledgerSessionProvider.overrideWith(
         (ref) => ref.watch(sessionHolderProvider),
       ),
+      ...overrides,
     ],
   );
   addTearDown(container.dispose);

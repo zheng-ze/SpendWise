@@ -1,7 +1,6 @@
 import 'package:domain/domain.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -61,7 +60,6 @@ void main() {
       'Transport',
     ]);
     expect(map.tiles.map((tile) => tile.share), [0.501, 0.439, 0.06]);
-    expect(map.onSelect, isNull);
     expect(map.selectedIndex, isNull);
     expect(find.text('Transport 6.0%'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -96,7 +94,7 @@ Finder _inSection(Finder matching) =>
 TrendsReadyBody _ready(WidgetTester tester) {
   final context = tester.element(find.byType(TrendsBreakdownSection));
   final container = ProviderScope.containerOf(context);
-  final body = container.read(trendsViewModelProvider).requireValue;
+  final body = container.read(trendsViewModelProvider).requireValue.body;
   if (body is TrendsReadyBody) return body;
   throw StateError('Expected a ready Trends body, found $body');
 }
@@ -168,7 +166,6 @@ void _expectDonut(WidgetTester tester, List<double> amounts) {
   expect(donut.centerValue, first.name);
   expect(donut.centerLabel, first.formattedShare);
   expect(donut.selectedIndex, isNull);
-  expect(donut.onSelect, isNull);
 }
 
 String _categoryID(Ledger ledger, String name) =>
@@ -270,7 +267,6 @@ void _frameTests() {
       if (chart == BreakdownChart.donut) {
         _expectDonut(tester, [83.9, 42.5, 18.6, 12.4, 10]);
       }
-      _expectPassiveRows(tester);
       _expectNoSettings();
     }, timeout: uiTestTimeout);
   }
@@ -292,7 +288,6 @@ void _frameTests() {
     expect(find.text('Income breakdown'), findsOneWidget);
     expect(find.text('+3,200.00'), findsOneWidget);
     _expectDonut(tester, [3200]);
-    _expectPassiveRows(tester);
   }, timeout: uiTestTimeout);
 
   testWidgets('tr-no-income shows the successful empty card', (tester) async {
@@ -356,20 +351,6 @@ void _expectNoSettings() {
   expect(find.text('Subcategories'), findsNothing);
   expect(find.byType(Switch), findsNothing);
   expect(find.byType(DropdownButton<BreakdownChart>), findsNothing);
-}
-
-void _expectPassiveRows(WidgetTester tester) {
-  final semantics = tester.ensureSemantics();
-  final rows = _ready(tester).breakdown.rows;
-  for (final row in rows) {
-    final amount = _inSection(find.text(row.formattedAmount));
-    final node = tester.getSemantics(amount);
-    expect(node.flagsCollection.isButton, isFalse);
-    expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isFalse);
-  }
-  expect(_inSection(find.byType(Icon)), findsNothing);
-  expect(_inSection(find.byType(InkWell)), findsNothing);
-  semantics.dispose();
 }
 
 typedef _Choice = ({
@@ -447,13 +428,11 @@ void _preferenceTest(Brightness brightness, _Choice choice) {
 List<Color> _chartColors(WidgetTester tester, BreakdownChart chart) {
   if (chart == BreakdownChart.donut) {
     final donut = tester.widget<DonutChart>(find.byType(DonutChart));
-    expect(donut.onSelect, isNull);
     expect(donut.selectedIndex, isNull);
     expect(find.byType(CategoryMap), findsNothing);
     return [for (final segment in donut.segments) segment.color];
   }
   final map = tester.widget<CategoryMap>(find.byType(CategoryMap));
-  expect(map.onSelect, isNull);
   expect(map.selectedIndex, isNull);
   expect(find.byType(DonutChart), findsNothing);
   return [for (final tile in map.tiles) tile.color];
