@@ -93,8 +93,8 @@ Retry calls `AnalysisQueries.retry()` only. (`app/lib/ui/stats/trends/`,
 `app/test/ui/stats/trends_period_test.dart`, `trends_states_test.dart`, `trends_usual_test.dart`)
 
 Both modes read the sealed `TrendsPeriod` through `AnalysisQueries.readTrendsPeriod` and store it as
-`TrendsReadyBody.periodSummary`. Month mode carries a 12-month spread and a ranked category
-breakdown over that window; year mode carries a three-calendar-year spread and a ranked breakdown
+the required, non-null `TrendsReadyBody.periodSummary`. Month mode carries a 12-month spread and a
+ranked category breakdown over that window; year mode carries a three-calendar-year spread and a ranked breakdown
 over the full three-year window. Both summaries include the first ranked `largestRow` and per-category
 `CategoryPeriodAverages` across complete periods. Month mode also identifies the highest-total
 complete positive month, while year mode identifies the highest-total complete positive year. In
@@ -107,6 +107,18 @@ breakdown, and average-row identity before rendering (`app/lib/ui/stats/trends/t
 `app/lib/ui/stats/trends/trends_body.dart:TrendsReadyBody`,
 `app/lib/ledger/analysis/summaries/trends_period.dart:MonthTrendsPeriod`,
 `YearTrendsPeriod`, `CategoryPeriodAverages`).
+
+Only `TrendsReadyBody` carries the required `wholePeriod` payload (`TrendsWholePeriod`). Both month
+and year projections call `projectWholePeriod` to build its breakdown from `periodSummary.breakdown`,
+using the shared row projection and current display preferences. Its header carries the kind-specific
+title, spread range and signed whole-period total. Insights contain at most two observations: the
+largest category's name and share, then the highest complete month or year with its signed amount
+(for example, `July 2026: -S$1,234.00`). Unavailable observations are omitted; when neither exists,
+the empty message is `Not enough data`. Insights have no qualifier text
+(`app/lib/ui/stats/trends/trends_whole_period.dart:projectWholePeriod`,
+`app/test/ui/stats/trends_breakdown_projection_test.dart`). `TrendsInsightsCard` renders this payload's
+Insights but is not mounted by `TrendsScreen`; the screen still renders the selected-period breakdown
+(`app/lib/ui/stats/trends/trends_insights_card.dart`, `app/lib/ui/stats/trends_screen.dart`).
 
 The category breakdown uses the selected period, kind and level. The projection explicitly maps the
 settings `BreakdownLevel` to the analysis `BreakdownLevel`. A failed breakdown read gives the error
@@ -126,6 +138,10 @@ with their own rank. The donut centre label is bounded to the hole, and row labe
 card at phone width. A row with a navigation target shows a trailing chevron and a tap action; a row without
 one has neither. Both charts forward the tapped item's index and never receive a selected index, so
 `selectedMark` stays reserved for selection.
+
+`TrendsBreakdownSection` accepts an optional `header` override and `compact` presentation flag.
+Their defaults (`null` and `false`) preserve the existing phone and desktop presentation
+(`app/lib/ui/stats/trends/trends_breakdown_section.dart`).
 
 ## Navigation
 

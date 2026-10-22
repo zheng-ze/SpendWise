@@ -1,6 +1,6 @@
 # UI Framework (MVVM)
 
-Last reconciled: 2026-10-21
+Last reconciled: 2026-10-22
 
 ## Feature overview
 
@@ -188,9 +188,11 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   72 dp rail gutter is reserved once. The host retains the page child at one
   element location across selection, resize and Add visibility changes. It owns
   the detail divider, pinned title/subtitle/actions header and Close button.
-  `ShellDetail` requires a stable `id`, title, body builder and `onClose`, with
-  optional subtitle and header actions. Page and detail body builders own their
-  vertical scrolling. When detail is hidden by phone/desktop mode
+  `ShellDetail` requires a stable `id`, title and body builder, with optional
+  `onClose`, subtitle and header actions. A null `onClose` omits the Close button
+  and its leading gap; a supplied callback keeps the `shellDetailCloseKey` button
+  and runs when tapped (`app/test/ui/shell/shell_detail_close_test.dart`).
+  Page and detail body builders own their vertical scrolling. When detail is hidden by phone/desktop mode
   or Add, its subtree remains offstage with feature selection intact.
   `ShellPaneHost` never changes routes. A visible floating action appears only
   for the active, current page in open mode without Add, at 10 dp from the
