@@ -101,32 +101,58 @@ extension _AnalysisMixedReads on AnalysisQueries {
     });
   }
 
-  AnalysisQueryResult<MonthTrendsPeriod> _readTrendsPeriod({
-    required DateTime endMonth,
+  AnalysisQueryResult<TrendsPeriod> _readTrendsPeriod({
+    required DateTime endPeriod,
+    required AnalysisPeriodMode mode,
     required CategoryKind kind,
     required BreakdownLevel level,
   }) {
-    final anchor = monthWindow(endMonth).start;
+    final anchor = switch (mode) {
+      AnalysisPeriodMode.month => monthWindow(endPeriod).start,
+      AnalysisPeriodMode.year => DateTime.utc(endPeriod.year),
+    };
     final identity =
-        'trends-period|month|${anchor.toIso8601String()}|'
+        'trends-period|${mode.name}|${anchor.toIso8601String()}|'
         '${kind.name}|${level.name}';
-    return _readMixed<MonthTrendsPeriod>(identity, () {
-      if (anchor.isAfter(monthWindow(_today).start)) {
-        throw ArgumentError.value(
-          endMonth,
-          'endMonth',
-          'Month is in the future.',
-        );
-      }
-      return trendsPeriod(
+    return _readMixed<TrendsPeriod>(identity, () {
+      _rejectFutureTrendsPeriod(mode, anchor);
+      return _calculateTrendsPeriod(mode, anchor, kind, level);
+    });
+  }
+
+  void _rejectFutureTrendsPeriod(AnalysisPeriodMode mode, DateTime anchor) {
+    final isFuture = switch (mode) {
+      AnalysisPeriodMode.month => anchor.isAfter(monthWindow(_today).start),
+      AnalysisPeriodMode.year => anchor.year > _today.year,
+    };
+    if (!isFuture) return;
+    throw ArgumentError.value(anchor, 'endPeriod', 'Period is in the future.');
+  }
+
+  TrendsPeriod _calculateTrendsPeriod(
+    AnalysisPeriodMode mode,
+    DateTime anchor,
+    CategoryKind kind,
+    BreakdownLevel level,
+  ) {
+    return switch (mode) {
+      AnalysisPeriodMode.month => trendsPeriod(
         items: _cache.items,
         state: _ledger.state,
         endMonth: anchor,
         kind: kind,
         level: level,
         today: _today,
-      );
-    });
+      ),
+      AnalysisPeriodMode.year => yearTrendsPeriod(
+        items: _cache.items,
+        state: _ledger.state,
+        endYear: anchor.year,
+        kind: kind,
+        level: level,
+        today: _today,
+      ),
+    };
   }
 
   // MARK: - Breakdowns

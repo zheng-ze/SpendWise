@@ -8,6 +8,7 @@ import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
 import 'package:spendwise/ledger/analysis/breakdowns/category_breakdown.dart'
     as analysis;
 import 'package:spendwise/ledger/analysis/breakdowns/compared_with_usual.dart';
+import 'package:spendwise/ledger/analysis/breakdowns/scoped_trend.dart';
 import 'package:spendwise/ledger/analysis/summaries/trends_period.dart';
 import 'package:spendwise/ledger/analysis/summaries/year_spread.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
@@ -54,31 +55,28 @@ class _ScriptedQueries extends AnalysisQueries {
   });
 
   final List<String> reads = [];
+  AnalysisQueryResult<TrendsPeriod> Function(AnalysisQueryResult<TrendsPeriod>)?
+  trendsPeriod;
   AnalysisQueryResult<ComparedWithUsual> Function(
     AnalysisQueryResult<ComparedWithUsual>,
   )?
   usual;
-  AnalysisQueryResult<YearSpread> Function(AnalysisQueryResult<YearSpread>)?
-  yearSpread;
 
   @override
-  AnalysisQueryResult<MonthTrendsPeriod> readTrendsPeriod({
-    required DateTime endMonth,
+  AnalysisQueryResult<TrendsPeriod> readTrendsPeriod({
+    required DateTime endPeriod,
+    required AnalysisPeriodMode mode,
     required CategoryKind kind,
     required analysis.BreakdownLevel level,
   }) {
     reads.add('trends-period');
-    return super.readTrendsPeriod(endMonth: endMonth, kind: kind, level: level);
-  }
-
-  @override
-  AnalysisQueryResult<YearSpread> readYearSpread({
-    required int endYear,
-    required CategoryKind kind,
-  }) {
-    reads.add('year-spread');
-    final real = super.readYearSpread(endYear: endYear, kind: kind);
-    return yearSpread?.call(real) ?? real;
+    final real = super.readTrendsPeriod(
+      endPeriod: endPeriod,
+      mode: mode,
+      kind: kind,
+      level: level,
+    );
+    return trendsPeriod?.call(real) ?? real;
   }
 
   @override
@@ -145,16 +143,25 @@ AnalysisQueryResult<T> _with<T>(
 
 const _keep = Object();
 
-AnalysisQueryResult<YearSpread> _spreadForOtherYear(
-  AnalysisQueryResult<YearSpread> real,
+AnalysisQueryResult<TrendsPeriod> _summaryForOtherYear(
+  AnalysisQueryResult<TrendsPeriod> real,
 ) {
-  final spread = real.value!;
-  final other = YearSpread(
+  final summary = real.value! as YearTrendsPeriod;
+  final spread = summary.spread;
+  final otherSpread = YearSpread(
     endYear: spread.endYear,
     kind: spread.kind,
     currentYear: 2025,
     earliestSpreadEndYear: spread.earliestSpreadEndYear,
     slots: spread.slots,
+  );
+  final other = YearTrendsPeriod(
+    today: summary.today,
+    firstRecordMonth: summary.firstRecordMonth,
+    breakdown: summary.breakdown,
+    averages: summary.averages,
+    spread: otherSpread,
+    highestYear: summary.highestYear,
   );
   return _with(real, value: other);
 }
@@ -370,7 +377,7 @@ void main() {
 
     test('a year spread built for another current year is loading', () async {
       final scripted = await _scripted(_today);
-      scripted.queries.yearSpread = _spreadForOtherYear;
+      scripted.queries.trendsPeriod = _summaryForOtherYear;
 
       final body = scripted.project(_today, intent: _yearIntent());
 
@@ -381,7 +388,7 @@ void main() {
       final scripted = await _scripted(_today);
       scripted.project(_today, intent: _yearIntent());
 
-      expect(scripted.queries.reads, ['year-spread']);
+      expect(scripted.queries.reads, ['trends-period']);
     });
   });
 

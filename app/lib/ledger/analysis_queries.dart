@@ -168,11 +168,17 @@ class AnalysisQueries extends ChangeNotifier {
     required CategoryKind kind,
   }) => _readYearSpread(endYear: endYear, kind: kind);
 
-  AnalysisQueryResult<MonthTrendsPeriod> readTrendsPeriod({
-    required DateTime endMonth,
+  AnalysisQueryResult<TrendsPeriod> readTrendsPeriod({
+    required DateTime endPeriod,
+    required AnalysisPeriodMode mode,
     required CategoryKind kind,
     required BreakdownLevel level,
-  }) => _readTrendsPeriod(endMonth: endMonth, kind: kind, level: level);
+  }) => _readTrendsPeriod(
+    endPeriod: endPeriod,
+    mode: mode,
+    kind: kind,
+    level: level,
+  );
 
   AnalysisQueryResult<PeriodBreakdown> readCategoryBreakdown({
     required DateTime period,

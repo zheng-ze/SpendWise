@@ -1,6 +1,6 @@
 # Ledger Runtime
 
-Last reconciled: 2026-10-21
+Last reconciled: 2026-10-22
 
 ## Feature overview
 
@@ -25,8 +25,8 @@ banners, and first-launch seeding. These live in `app/lib/ledger/` and `app/lib/
 - `app/lib/ledger/analysis/` - app-owned query result types and pure helpers for summaries,
   entry metadata, register days, recent entries, upcoming items, weeks, search, calendar days,
   firstRecordMonth, period completeness, month and year spreads, category breakdowns, scoped trends,
-  monthly Trends periods, and compared with usual. `summaries/trends_period.dart` owns
-  `MonthTrendsPeriod` and its category-average result types.
+  monthly and yearly Trends periods, and compared with usual. `summaries/trends_period.dart` owns
+  the sealed `TrendsPeriod` variants and their category-average result types.
   The pure-domain card query lives in `packages/domain/lib/src/analysis/card_statement.dart`.
 - `app/lib/ui/common/base/ledger_backed_notifier.dart` - watches the ready session and exposes its
   Ledger and cache to ViewModels.
@@ -273,16 +273,20 @@ its previous successful value if it is still retained (`analysis_queries.dart:_r
   backward navigation in 3-year pages anchored at the current year and is computed from
   firstRecordMonth inside the gated evaluation. An end year after the current year fails the read
   (`app/lib/ledger/analysis/summaries/year_spread.dart`; `analysis_year_spread_test.dart`).
-- `readTrendsPeriod(endMonth:, kind:, level:)` is a mixed read returning `MonthTrendsPeriod`.
-  Its query identity uses the UTC month-start anchor, category kind, and breakdown level; a future
-  end month fails the read. The pure `trendsPeriod` calculation combines the 12-slot month spread
-  with a category breakdown over the complete 12-slot window. `largestRow` is the first ranked row
-  or null; `highestMonth` is the highest-total complete month with a positive total, or null.
-  `CategoryPeriodAverages.completePeriodCount` counts complete month windows; each average row has
-  a null mean when that count is zero. The query uses `_readMixed` for revision gating and retry
+- `readTrendsPeriod(endPeriod:, mode:, kind:, level:)` is a mixed read returning the sealed
+  `TrendsPeriod`: `MonthTrendsPeriod` for month mode and `YearTrendsPeriod` for year mode. Its query
+  identity uses a normalized UTC month-start or January 1 year anchor, plus mode, category kind, and
+  breakdown level; a future anchor fails the read. Month mode combines the 12-slot month spread
+  with a category breakdown over its complete 12-month window. Year mode combines the
+  three-calendar-year spread with a category breakdown over its whole three-year window. `largestRow`
+  is the first ranked row or null; `highestMonth` or `highestYear` is the highest-total complete
+  period with a positive total, or null. `CategoryPeriodAverages.completePeriodCount` counts complete
+  month windows in month mode and D8-complete calendar years in year mode; a year beginning before
+  `firstRecordMonth` is excluded in full. Each average row has a null mean when no periods are
+  complete. The query uses `_readMixed` for revision gating and retry
   (`app/lib/ledger/analysis_queries.dart:readTrendsPeriod`,
   `app/lib/ledger/analysis_queries_mixed_reads.dart:_readTrendsPeriod`,
-  `app/lib/ledger/analysis/summaries/trends_period.dart:trendsPeriod`).
+  `app/lib/ledger/analysis/summaries/trends_period.dart:trendsPeriod`, `yearTrendsPeriod`).
 - `readCategoryBreakdown(period:, mode:, kind:, level:)` is a mixed read returning
   `AnalysisQueryResult<PeriodBreakdown>` through `_readMixed`, using the pure `categoryBreakdown`
   helper to group `AnalysisItem`s of one kind within one window into ranked `BreakdownRow`s.
