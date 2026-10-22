@@ -19,6 +19,8 @@ final _itemDate = DateTime.utc(2026, 10, 2);
 const _unknownBucket = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 const _syntheticBucket = 'transfer-expense:savings';
 const _itemAmount = '10';
+const _foodID = '33333333-3333-3333-3333-333333333333';
+const _travelID = '77777777-7777-7777-7777-777777777777';
 
 CategoryDetailArgs _requested(TrendsStep? step) {
   if (step is TrendsCategoryDetailRequested) return step.args;
@@ -35,6 +37,38 @@ void _addDining(Ledger ledger, DateTime date) {
       date: date,
     ),
   );
+}
+
+void _addTravel(Ledger ledger, String amount, DateTime date) {
+  ledger.addEntry(
+    Entry(
+      amount: Decimal.parse(amount),
+      name: 'Travel',
+      sourceID: ledger.state.activeAccounts.first.id,
+      categoryID: _travelID,
+      date: date,
+    ),
+  );
+}
+
+Ledger _rankedLedger() {
+  final ledger = emptyTrendsLedger();
+  ledger.addCategory(
+    TransactionCategory(
+      id: _travelID,
+      name: 'Travel',
+      kind: CategoryKind.expense,
+      colorHex: '#000000',
+      includeInAnalysis: true,
+      parentID: null,
+      symbol: 'tag',
+    ),
+  );
+  addTrendsEntry(ledger, '-100', DateTime.utc(2026, 7, 2));
+  _addTravel(ledger, '-50', DateTime.utc(2026, 7, 3));
+  addTrendsEntry(ledger, '-10', _today);
+  _addTravel(ledger, '-50', DateTime.utc(2026, 10, 2));
+  return ledger;
 }
 
 String _categoryID(Ledger ledger, String name) =>
@@ -88,6 +122,40 @@ void main() {
       );
     });
 
+    test(
+      'whole-period requests resolve against the whole-period ranking',
+      () async {
+        final harness = TrendsHarness(ledger: _rankedLedger(), today: _today);
+        await harness.settle();
+        expect(harness.ready.breakdown.rows.first.mainBucketID, _travelID);
+        expect(
+          harness.ready.wholePeriod.breakdown.rows.first.mainBucketID,
+          _foodID,
+        );
+
+        harness.viewModel.requestCategoryDetail(
+          0,
+          source: TrendsCategoryDetailSource.wholePeriod,
+        );
+
+        expect(
+          _requested(harness.step),
+          CategoryDetailArgs(
+            mainID: _foodID,
+            kind: CategoryKind.expense,
+            isYearRange: false,
+            initialDate: DateTime.utc(2026, 10),
+          ),
+        );
+        expect(harness.intent.selected, monthSerial(_today));
+
+        harness.viewModel.clearStep();
+        harness.viewModel.requestCategoryDetail(0);
+
+        expect(_requested(harness.step).mainID, _travelID);
+      },
+    );
+
     test('income and year mode map into the args', () async {
       final harness = await _seeded();
       harness.viewModel.setKind(TrendsKind.income);
@@ -122,6 +190,28 @@ void main() {
       expect(_requested(harness.step).initialDate, DateTime.utc(2026, 7));
     });
 
+    test('whole-period requests use the effective selected year', () async {
+      final harness = TrendsHarness(ledger: _rankedLedger(), today: _today);
+      await harness.settle();
+      harness.viewModel.setMode(TrendsMode.year);
+      await harness.settle();
+
+      harness.viewModel.requestCategoryDetail(
+        0,
+        source: TrendsCategoryDetailSource.wholePeriod,
+      );
+
+      expect(
+        _requested(harness.step),
+        CategoryDetailArgs(
+          mainID: _foodID,
+          kind: CategoryKind.expense,
+          isYearRange: true,
+          initialDate: DateTime.utc(2026),
+        ),
+      );
+    });
+
     test('subcategory and Direct rows open their main category', () async {
       final harness = await _seeded(
         preferences: DisplayPreferences(
@@ -149,6 +239,10 @@ void main() {
       final count = harness.ready.breakdown.rows.length;
       for (var index = 0; index < count; index++) {
         harness.viewModel.requestCategoryDetail(index);
+        harness.viewModel.requestCategoryDetail(
+          index,
+          source: TrendsCategoryDetailSource.wholePeriod,
+        );
       }
 
       expect(harness.ready.breakdown.rows, hasLength(2));
@@ -172,6 +266,10 @@ void main() {
 
       harness.viewModel.requestCategoryDetail(-1);
       harness.viewModel.requestCategoryDetail(count);
+      harness.viewModel.requestCategoryDetail(
+        harness.ready.wholePeriod.breakdown.rows.length,
+        source: TrendsCategoryDetailSource.wholePeriod,
+      );
 
       expect(harness.step, isNull);
     });
@@ -187,6 +285,10 @@ void main() {
       expect(harness.body, isA<TrendsLoadingBody>());
 
       harness.viewModel.requestCategoryDetail(0);
+      harness.viewModel.requestCategoryDetail(
+        0,
+        source: TrendsCategoryDetailSource.wholePeriod,
+      );
 
       expect(harness.step, isNull);
     });

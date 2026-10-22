@@ -22,6 +22,8 @@ final class TrendsCategoryDetailRequested extends TrendsStep {
   final CategoryDetailArgs args;
 }
 
+enum TrendsCategoryDetailSource { selectedPeriod, wholePeriod }
+
 // MARK: - ViewState
 @immutable
 class TrendsViewState implements HasStep<TrendsViewState, TrendsStep> {
@@ -44,7 +46,11 @@ abstract class TrendsViewModel {
   void previousPage();
   void nextPage();
   void retry();
-  void requestCategoryDetail(int rowIndex);
+  void requestCategoryDetail(
+    int rowIndex, {
+    TrendsCategoryDetailSource source =
+        TrendsCategoryDetailSource.selectedPeriod,
+  });
   void clearStep();
 }
 
@@ -111,14 +117,21 @@ class TrendsNotifier extends AsyncNotifier<TrendsViewState>
   void retry() => ref.read(analysisQueriesProvider)?.retry();
 
   @override
-  void requestCategoryDetail(int rowIndex) {
+  void requestCategoryDetail(
+    int rowIndex, {
+    TrendsCategoryDetailSource source =
+        TrendsCategoryDetailSource.selectedPeriod,
+  }) {
     if (!ref.mounted) return;
     final body = switch (state) {
       AsyncData(:final value) => value.body,
       _ => null,
     };
     if (body is! TrendsReadyBody) return;
-    final rows = body.breakdown.rows;
+    final rows = switch (source) {
+      TrendsCategoryDetailSource.selectedPeriod => body.breakdown.rows,
+      TrendsCategoryDetailSource.wholePeriod => body.wholePeriod.breakdown.rows,
+    };
     if (rowIndex < 0 || rowIndex >= rows.length) return;
     final target = rows[rowIndex].navigationTarget;
     if (target == null) return;
