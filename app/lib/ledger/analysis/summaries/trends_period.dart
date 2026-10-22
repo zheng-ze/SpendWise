@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:spendwise/ledger/analysis/breakdowns/category_breakdown.dart';
 import 'package:spendwise/ledger/analysis/insights/completeness.dart';
 import 'package:spendwise/ledger/analysis/summaries/month_spread.dart';
+import 'package:spendwise/ledger/analysis/summaries/year_spread.dart';
 
 const _meanScale = 12;
 
@@ -66,6 +67,71 @@ final class MonthTrendsPeriod extends TrendsPeriod {
 
   final MonthSpread spread;
   final MonthSlot? highestMonth;
+}
+
+final class YearTrendsPeriod extends TrendsPeriod {
+  const YearTrendsPeriod({
+    required super.today,
+    required super.firstRecordMonth,
+    required super.breakdown,
+    required super.averages,
+    required this.spread,
+    required this.highestYear,
+  });
+
+  final YearSpread spread;
+  final YearSlot? highestYear;
+}
+
+YearTrendsPeriod yearTrendsPeriod({
+  required Iterable<AnalysisItem> items,
+  required LedgerState state,
+  required int endYear,
+  required CategoryKind kind,
+  required BreakdownLevel level,
+  required DateTime today,
+}) {
+  final day = startOfDayUtc(today);
+  final first = firstRecordMonth(state);
+  final spread = yearSpread(
+    items: items,
+    endYear: endYear,
+    kind: kind,
+    firstRecordMonth: first,
+    today: day,
+  );
+  final wholeWindow = DateRange(
+    spread.slots.first.window.start,
+    spread.slots.last.window.end,
+  );
+  final breakdown = categoryBreakdown(
+    items: items,
+    state: state,
+    window: wholeWindow,
+    kind: kind,
+    level: level,
+  );
+  final averages = _categoryPeriodAverages(
+    items: items,
+    state: state,
+    wholePeriod: breakdown,
+    windows: spread.slots.map((slot) => slot.window).toList(),
+    firstRecordMonth: first,
+    today: day,
+  );
+  final highest = _highestCompleteYear(
+    spread.slots,
+    firstRecordMonth: first,
+    today: day,
+  );
+  return YearTrendsPeriod(
+    today: day,
+    firstRecordMonth: first,
+    breakdown: breakdown,
+    averages: averages,
+    spread: spread,
+    highestYear: highest,
+  );
 }
 
 MonthTrendsPeriod trendsPeriod({
@@ -207,6 +273,28 @@ MonthSlot? _highestCompleteMonth(
         PeriodCompleteness.complete,
   );
   MonthSlot? highest;
+  for (final slot in complete) {
+    if (slot.total <= Decimal.zero) continue;
+    if (highest == null || slot.total > highest.total) highest = slot;
+  }
+  return highest;
+}
+
+YearSlot? _highestCompleteYear(
+  List<YearSlot> slots, {
+  required DateTime? firstRecordMonth,
+  required DateTime today,
+}) {
+  final complete = slots.where(
+    (slot) =>
+        classifyPeriod(
+          window: slot.window,
+          firstRecordMonth: firstRecordMonth,
+          today: today,
+        ) ==
+        PeriodCompleteness.complete,
+  );
+  YearSlot? highest;
   for (final slot in complete) {
     if (slot.total <= Decimal.zero) continue;
     if (highest == null || slot.total > highest.total) highest = slot;

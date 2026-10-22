@@ -2,6 +2,7 @@ import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/settings/display_preferences.dart' as settings;
 import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
+import 'package:spendwise/ledger/analysis/breakdowns/scoped_trend.dart';
 import 'package:spendwise/ledger/analysis/summaries/trends_period.dart';
 import 'package:spendwise/ledger/analysis/breakdowns/category_breakdown.dart';
 import 'package:spendwise/ledger/analysis_queries.dart';
@@ -122,11 +123,33 @@ void _populateForEdit(Ledger ledger) {
 AnalysisQueryResult<MonthTrendsPeriod> _read(
   AnalysisQueries queries, {
   BreakdownLevel level = BreakdownLevel.categories,
-}) => queries.readTrendsPeriod(
-  endMonth: _endMonth,
-  kind: CategoryKind.expense,
-  level: level,
-);
+}) {
+  final result = queries.readTrendsPeriod(
+    endPeriod: _endMonth,
+    mode: AnalysisPeriodMode.month,
+    kind: CategoryKind.expense,
+    level: level,
+  );
+  return AnalysisQueryResult<MonthTrendsPeriod>(
+    value: result.value as MonthTrendsPeriod?,
+    state: result.state,
+    sourceRevision: result.sourceRevision,
+  );
+}
+
+AnalysisQueryResult<YearTrendsPeriod> _readYear(AnalysisQueries queries) {
+  final result = queries.readTrendsPeriod(
+    endPeriod: DateTime.utc(2026),
+    mode: AnalysisPeriodMode.year,
+    kind: CategoryKind.expense,
+    level: BreakdownLevel.categories,
+  );
+  return AnalysisQueryResult<YearTrendsPeriod>(
+    value: result.value as YearTrendsPeriod?,
+    state: result.state,
+    sourceRevision: result.sourceRevision,
+  );
+}
 
 void main() {
   test('month aggregate separates whole spread, complete observations and averages', () async {
@@ -167,6 +190,79 @@ void main() {
     expect(result.value!.highestMonth, isNull);
     expect(result.value!.averages.available, isFalse);
     expect(result.value!.averages.completePeriodCount, 0);
+  });
+
+  test('year aggregate sums the displayed calendar-year slots', () async {
+    final fixture = setupAnalysis(today: _today);
+    _populate(fixture.ledger);
+    await settle(fixture.runner, fixture.ledger);
+    final summary = _readYear(fixture.queries).value!;
+
+    expect(summary.spread.slots, hasLength(3));
+    expect(summary.breakdown.total, Decimal.fromInt(990));
+    expect(
+      summary.spread.slots.fold(Decimal.zero, (sum, slot) => sum + slot.total),
+      summary.breakdown.total,
+    );
+    expect(summary.largestRow?.bucketID, _otherID);
+  });
+
+  test(
+    'year averages count complete empty years and exclude the incomplete year',
+    () async {
+      final fixture = setupAnalysis(today: _today);
+      fixture.ledger.addAccount(
+        Account(id: _accountID, name: 'Checking', type: AccountType.checking),
+      );
+      _addCategory(fixture.ledger, _foodID, 'Food');
+      _addCategory(fixture.ledger, _otherID, 'Other');
+      _addEntry(
+        fixture.ledger,
+        'e0000000-0000-0000-0000-000000000011',
+        '-30',
+        DateTime.utc(2024, 1, 2),
+        _foodID,
+      );
+      _addEntry(
+        fixture.ledger,
+        'e0000000-0000-0000-0000-000000000012',
+        '-900',
+        DateTime.utc(2026, 2, 2),
+        _otherID,
+      );
+      await settle(fixture.runner, fixture.ledger);
+      final summary = _readYear(fixture.queries).value!;
+      final food = summary.averages.rows.singleWhere(
+        (row) => row.bucketID == _foodID,
+      );
+
+      expect(summary.averages.completePeriodCount, 2);
+      expect(food.numerator, Decimal.fromInt(30));
+      expect(food.mean, Decimal.fromInt(15));
+      expect(summary.highestYear?.year, 2024);
+    },
+  );
+
+  test('year averages are unavailable when no year has a baseline', () async {
+    final fixture = setupAnalysis(today: _today);
+    fixture.ledger.addAccount(
+      Account(id: _accountID, name: 'Checking', type: AccountType.checking),
+    );
+    _addCategory(fixture.ledger, _foodID, 'Food');
+    _addEntry(
+      fixture.ledger,
+      'e0000000-0000-0000-0000-000000000013',
+      '-30',
+      DateTime.utc(2025, 7, 2),
+      _foodID,
+    );
+    await settle(fixture.runner, fixture.ledger);
+    final summary = _readYear(fixture.queries).value!;
+
+    expect(summary.averages.completePeriodCount, 0);
+    expect(summary.averages.available, isFalse);
+    expect(summary.averages.rows.single.mean, isNull);
+    expect(summary.highestYear, isNull);
   });
 
   test('mixed read retains its aggregate through failure and retry', () async {

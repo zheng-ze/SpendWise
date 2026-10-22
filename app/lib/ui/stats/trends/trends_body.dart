@@ -99,7 +99,7 @@ final class TrendsReadyBody extends TrendsBody {
   final TrendsHeadline headline;
   final TrendsUsual? usual;
   final TrendsBreakdown breakdown;
-  final MonthTrendsPeriod? periodSummary;
+  final TrendsPeriod? periodSummary;
 
   @override
   final TrendsBounds bounds;

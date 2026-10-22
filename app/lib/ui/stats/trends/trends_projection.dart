@@ -118,7 +118,8 @@ class _Projection {
 
   TrendsBody months() {
     final summary = queries.readTrendsPeriod(
-      endMonth: monthStartOf(basis.end),
+      endPeriod: monthStartOf(basis.end),
+      mode: AnalysisPeriodMode.month,
       kind: _kind,
       level: _level,
     );
@@ -133,7 +134,7 @@ class _Projection {
     if (unready != null) return unready;
     final value = summary.value;
     final usualValue = usual?.value;
-    if (value == null || (usual != null && usualValue == null)) {
+    if (value is! MonthTrendsPeriod || (usual != null && usualValue == null)) {
       return const TrendsErrorBody();
     }
     final current = monthStartOf(context.currentMonth);
@@ -225,7 +226,7 @@ class _Projection {
         breakdown.total == spreadTotal;
   }
 
-  bool _averagesMatchBreakdown(MonthTrendsPeriod summary) {
+  bool _averagesMatchBreakdown(TrendsPeriod summary) {
     final rows = summary.breakdown.rows;
     final averages = summary.averages.rows;
     if (rows.length != averages.length) return false;
@@ -240,17 +241,24 @@ class _Projection {
   }
 
   TrendsBody years() {
-    final spread = queries.readYearSpread(endYear: basis.end, kind: _kind);
+    final summary = queries.readTrendsPeriod(
+      endPeriod: DateTime.utc(basis.end),
+      mode: AnalysisPeriodMode.year,
+      kind: _kind,
+      level: _level,
+    );
     final breakdown = _readBreakdown();
-    final unready = _unready([...reads, spread, breakdown], revision);
+    final unready = _unready([...reads, summary, breakdown], revision);
     if (unready != null) return unready;
-    final value = spread.value;
-    if (value == null) return const TrendsErrorBody();
-    if (value.currentYear != yearOfMonth(context.currentMonth)) {
+    final value = summary.value;
+    if (value is! YearTrendsPeriod) return const TrendsErrorBody();
+    if (value.today != today ||
+        value.spread.currentYear != yearOfMonth(context.currentMonth)) {
       return const TrendsLoadingBody();
     }
+    if (!_yearSummaryMatches(value)) return const TrendsErrorBody();
 
-    final slots = value.slots;
+    final slots = value.spread.slots;
     final period = _periodRow(
       '${slots.first.year}$_rangeSeparator${slots.last.year}',
     );
@@ -279,7 +287,32 @@ class _Projection {
       ),
       usual: null,
       bounds: bounds,
+      periodSummary: value,
     );
+  }
+
+  bool _yearSummaryMatches(YearTrendsPeriod summary) {
+    final slots = summary.spread.slots;
+    final spreadTotal = slots.fold(
+      Decimal.zero,
+      (total, slot) => total + slot.total,
+    );
+    final endYear = basis.end;
+    return slots.length == 3 &&
+        slots.first.year == endYear - 2 &&
+        slots.last.year == endYear &&
+        (summary.highestYear == null || slots.contains(summary.highestYear)) &&
+        summary.averages.completePeriodCount <= slots.length &&
+        _averagesMatchBreakdown(summary) &&
+        summary.spread.endYear == endYear &&
+        summary.spread.kind == _kind &&
+        summary.spread.earliestSpreadEndYear == bounds.earliestYearEnd &&
+        summary.firstRecordMonth == firstRecordMonth &&
+        summary.breakdown.window ==
+            DateRange(slots.first.window.start, slots.last.window.end) &&
+        summary.breakdown.kind == _kind &&
+        summary.breakdown.level == _level &&
+        summary.breakdown.total == spreadTotal;
   }
 
   DateTime get _selectedPeriod => switch (intent.mode) {

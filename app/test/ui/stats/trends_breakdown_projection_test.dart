@@ -5,6 +5,7 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
 import 'package:spendwise/ledger/analysis/breakdowns/category_breakdown.dart'
     as analysis;
+import 'package:spendwise/ledger/analysis/summaries/trends_period.dart';
 import 'package:spendwise/ledger/analysis/breakdowns/scoped_trend.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/analysis_queries.dart';
@@ -31,7 +32,7 @@ void main() {
         today: _today,
       );
       final breakdown = harness.ready.breakdown;
-      final periodSummary = harness.ready.periodSummary!;
+      final periodSummary = harness.ready.periodSummary! as MonthTrendsPeriod;
       expect(periodSummary.spread.slots, hasLength(12));
       expect(periodSummary.breakdown.total, greaterThan(Decimal.zero));
       expect(periodSummary.averages.completePeriodCount, greaterThan(0));
@@ -141,8 +142,12 @@ void main() {
       harness.viewModel.setMode(TrendsMode.year);
       await harness.settle();
       final ready = harness.ready;
+      final periodSummary = ready.periodSummary! as YearTrendsPeriod;
       expect(ready.breakdown.period, DateTime.utc(2026));
       expect(ready.breakdown.total, Decimal.fromInt(60));
+      expect(periodSummary.spread.slots, hasLength(3));
+      expect(periodSummary.breakdown.total, Decimal.fromInt(60));
+      expect(periodSummary.averages.completePeriodCount, 0);
       expect(ready.headline.amount, '-S\$60.00');
       expect(ready.bars[ready.selectedIndex].value, 60);
       expect(ready.usual, isNull);
