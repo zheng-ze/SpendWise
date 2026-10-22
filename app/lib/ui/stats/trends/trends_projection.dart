@@ -8,11 +8,13 @@ import 'package:spendwise/ledger/analysis/breakdowns/category_breakdown.dart'
 import 'package:spendwise/ledger/analysis/breakdowns/scoped_trend.dart';
 import 'package:spendwise/settings/display_preferences.dart' as settings;
 import 'package:spendwise/ui/stats/trends/trends_breakdown.dart';
+import 'package:spendwise/ui/stats/trends/trends_average_comparison.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/stats/trends/trends_body.dart';
 import 'package:spendwise/ui/stats/trends/trends_intent.dart';
 import 'package:spendwise/ui/stats/trends/trends_usual.dart';
+import 'package:spendwise/ui/stats/trends/trends_whole_period.dart';
 
 // MARK: - Constants
 const _rangeSeparator = ' - ';
@@ -161,6 +163,13 @@ class _Projection {
     final selected = slots[index];
     final projected = _breakdown(breakdown.value, selected.total);
     if (projected == null) return const TrendsErrorBody();
+    final averageComparison = projectTrendsAverageComparison(
+      breakdown: projected,
+      averages: value.averages.rows,
+      mode: intent.mode,
+      kind: _kind,
+    );
+    if (averageComparison == null) return const TrendsErrorBody();
     if (isEmpty) return TrendsEmptyBody(period: period, bounds: bounds);
     final bars = [
       for (final slot in slots)
@@ -186,6 +195,21 @@ class _Projection {
       ),
       bounds: bounds,
       periodSummary: value,
+      wholePeriod: _wholePeriod(value, period.rangeLabel),
+      averageComparison: averageComparison,
+    );
+  }
+
+  TrendsWholePeriod _wholePeriod(TrendsPeriod summary, String rangeLabel) {
+    return projectWholePeriod(
+      summary,
+      categories: categories,
+      preferences: preferences,
+      period: _selectedPeriod,
+      mode: intent.mode,
+      kind: _kind,
+      revision: revision,
+      rangeLabel: rangeLabel,
     );
   }
 
@@ -266,6 +290,13 @@ class _Projection {
     final selected = slots[index];
     final projected = _breakdown(breakdown.value, selected.total);
     if (projected == null) return const TrendsErrorBody();
+    final averageComparison = projectTrendsAverageComparison(
+      breakdown: projected,
+      averages: value.averages.rows,
+      mode: intent.mode,
+      kind: _kind,
+    );
+    if (averageComparison == null) return const TrendsErrorBody();
     if (isEmpty) return TrendsEmptyBody(period: period, bounds: bounds);
     final bars = [
       for (final slot in slots)
@@ -288,6 +319,8 @@ class _Projection {
       usual: null,
       bounds: bounds,
       periodSummary: value,
+      wholePeriod: _wholePeriod(value, period.rangeLabel),
+      averageComparison: averageComparison,
     );
   }
 

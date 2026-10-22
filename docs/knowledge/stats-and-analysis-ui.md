@@ -13,14 +13,18 @@ the ready Ledger's `AnalysisCache` (`app/lib/ui/stats/category_detail/category_d
 
 ## Key files
 
-- `app/lib/ui/stats/trends_flow.dart` and `trends_screen.dart` - the hosted Flow and the Trends page;
-  the optional `onBackPressed` callback controls the History-labelled back button.
+- `app/lib/ui/stats/trends_flow.dart` and `trends_screen.dart` - the nested Flow and page; the Flow
+  root resolves phone versus the shared open/desktop composition from `ShellPaneScope.mode` once.
+  `TrendsScreen` owns the page scroller and optional History-labelled back button.
 - `app/lib/ui/stats/trends/` - `trends_intent.dart` (route-owned intent, grid/page arithmetic, intent
   notifier), `trends_projection.dart` (day-aligned, revision-coherent projection of the analysis reads),
   `trends_usual.dart` (Compared with usual copy), `trends_body.dart` (presentation variants),
   `trends_view_model.dart` (`TrendsViewModel` interface, `TrendsViewState`, `TrendsStep` and the
-  `LedgerBackedNotifier`), and the
-  `trends_controls`, `trends_period_card`, `trends_state_views` widgets.
+  `LedgerBackedNotifier`, typed scope action and named category source), `trends_breakdown_scope.dart`
+  (route-lifetime scope state), `trends_scoped_presentation.dart` (coordinated breakdown/header/source),
+  `trends_open_layout.dart` (shared open/desktop composition), `trends_shared_breakdown_card.dart`,
+  `trends_category_averages.dart`, and the `trends_controls`, `trends_period_card`,
+  `trends_state_views` widgets.
 - `app/lib/ui/stats/category_detail/` - the retained category drill-down screen and view model.
 - `app/lib/ui/stats/analysis/analysis_scan.dart` - memoized category-detail filtering.
 - `app/lib/ui/stats/helpers/slices.dart` - category slice and roll-up helpers referenced only by tests,
@@ -93,8 +97,8 @@ Retry calls `AnalysisQueries.retry()` only. (`app/lib/ui/stats/trends/`,
 `app/test/ui/stats/trends_period_test.dart`, `trends_states_test.dart`, `trends_usual_test.dart`)
 
 Both modes read the sealed `TrendsPeriod` through `AnalysisQueries.readTrendsPeriod` and store it as
-`TrendsReadyBody.periodSummary`. Month mode carries a 12-month spread and a ranked category
-breakdown over that window; year mode carries a three-calendar-year spread and a ranked breakdown
+the required, non-null `TrendsReadyBody.periodSummary`. Month mode carries a 12-month spread and a
+ranked category breakdown over that window; year mode carries a three-calendar-year spread and a ranked breakdown
 over the full three-year window. Both summaries include the first ranked `largestRow` and per-category
 `CategoryPeriodAverages` across complete periods. Month mode also identifies the highest-total
 complete positive month, while year mode identifies the highest-total complete positive year. In
@@ -108,7 +112,41 @@ breakdown, and average-row identity before rendering (`app/lib/ui/stats/trends/t
 `app/lib/ledger/analysis/summaries/trends_period.dart:MonthTrendsPeriod`,
 `YearTrendsPeriod`, `CategoryPeriodAverages`).
 
-The category breakdown uses the selected period, kind and level. The projection explicitly maps the
+Only `TrendsReadyBody` carries the required `wholePeriod` payload (`TrendsWholePeriod`). Both month
+and year projections call `projectWholePeriod` to build its breakdown from `periodSummary.breakdown`,
+using the shared row projection and current display preferences. Its header carries the kind-specific
+title, spread range and signed whole-period total. Insights contain at most two observations: the
+largest category's name and share, then the highest complete month or year with its signed amount
+(for example, `July 2026: -S$1,234.00`). Unavailable observations are omitted; when neither exists,
+the empty message is `Not enough data`. Insights have no qualifier text
+(`app/lib/ui/stats/trends/trends_whole_period.dart:projectWholePeriod`,
+`app/test/ui/stats/trends_breakdown_projection_test.dart`). `TrendsInsightsCard` renders this payload's
+Insights in the shared open/desktop composition; phone renders the selected-period breakdown
+(`app/lib/ui/stats/trends/trends_insights_card.dart`,
+`app/lib/ui/stats/trends/trends_open_layout.dart`).
+
+The open and desktop shell modes share `TrendsOpenLayout`; the Flow root maps `ShellPaneScope.mode`
+to phone or shared composition once. The shared layout puts kind, mode and period controls beside the
+period chart in a full-width top card. Below it, the shared breakdown and Insights group sits beside
+the selected-period headline and chart-free Category averages. The latter shows selected-period
+amounts against monthly or yearly averages and includes Compared with usual only in month mode. A
+640 dp content-width threshold stacks or pairs the lower groups and controls/chart inside this layout;
+it does not change shell mode. The reserved composition boundary remains zero-content. One page
+`SingleChildScrollView` contains the entire composition. Phone keeps its own controls, period card,
+headline, month-only usual row and selected-period breakdown (`trends_open_layout.dart`,
+`trends_screen.dart`, `trends_flow.dart`, `trends_layout_test.dart`,
+`trends_open_layout_test.dart`).
+
+The shared breakdown card switches between whole-period and selected-period rows. Its separate
+auto-dispose `trendsBreakdownScopeProvider` defaults to `wholePeriod`; the typed ViewModel action
+changes it within the Trends route lifetime. `resolveTrendsScopedPresentation` selects the matching
+breakdown, header and `TrendsCategoryDetailSource` together. The control labels the selected scope
+`Selected month` or `Selected year` according to mode. The shared card draws the saved donut or
+category map and ranked rows; Category averages draws no chart. Scope, helper and widget behavior
+are covered by `trends_breakdown_scope_test.dart`, `trends_scoped_presentation_test.dart`,
+`trends_shared_breakdown_card_test.dart` and `trends_category_averages_test.dart`.
+
+The selected-period category breakdown uses the selected period, kind and level. The projection explicitly maps the
 settings `BreakdownLevel` to the analysis `BreakdownLevel`. A failed breakdown read gives the error
 body; pending reads or stale revisions give loading. A ready breakdown with no rows produces
 `TrendsEmptyBreakdown` within the ready body, while an empty ledger has no breakdown in its empty
@@ -117,8 +155,15 @@ sum to the total; nonempty rows' shares must sum to 100 percent. The projection 
 (`trends_projection.dart:_readBreakdown`, `_breakdown`, `trends_body.dart`, `trends_screen.dart`,
 `app/test/ui/stats/trends_breakdown_projection_test.dart`).
 
-Trends renders one breakdown section below the period card (`trends_breakdown_section.dart`). It draws
-the saved chart (donut or category map) at the saved level and colour mode, then ranked rows with
+`TrendsReadyBody.averageComparison` joins selected-period breakdown rows to
+`periodSummary.averages.rows` by `(bucketID, mainBucketID, isDirect)`, preserving selected-row order.
+A missing selected identity or duplicate identity in either input makes the projection return
+`TrendsErrorBody`. The header is `Monthly average` or `Yearly average`; a null mean displays as
+`Unavailable`, a genuine zero as plain `0.00`, and other means as signed amounts
+(`app/lib/ui/stats/trends/trends_average_comparison.dart`, `trends_projection.dart`).
+
+The selected-period phone breakdown and shared scoped breakdown draw the saved chart (donut or
+category map) at the saved level and colour mode, then ranked rows with
 swatch, name, a caption of `share / parent` and the
 signed amount. A period with no records of the selected kind shows the empty card copy instead of chart
 and rows. Colours resolve once per row through `CategoryPalette`; Direct rows use the parent's saved hex
@@ -126,6 +171,13 @@ with their own rank. The donut centre label is bounded to the hole, and row labe
 card at phone width. A row with a navigation target shows a trailing chevron and a tap action; a row without
 one has neither. Both charts forward the tapped item's index and never receive a selected index, so
 `selectedMark` stays reserved for selection.
+
+`TrendsBreakdownSection` accepts an optional `header` and `scopeControl`; a supplied scope control
+requires a header and places its range and total above the rows. Category averages belong to
+`TrendsCategoryAverages`
+(`app/lib/ui/stats/trends/trends_breakdown_section.dart`,
+`app/lib/ui/stats/trends/trends_category_averages.dart`). Loading, error with Retry and empty bodies
+replace financial totals rather than displaying stale values (`trends_screen.dart`).
 
 ## Navigation
 
@@ -137,7 +189,12 @@ route. System Back and the iOS edge swipe pop the enclosing route. `Transactions
 single-route guard until the matching route's `completed` future (`transactions-ui.md`,
 `app/lib/ui/transactions/transactions_flow.dart`, `app/lib/ui/common/base/flow_base.dart`).
 
-A row or chart block calls `TrendsViewModel.requestCategoryDetail(rowIndex)`. The notifier ignores the
+A row or chart block calls `TrendsViewModel.requestCategoryDetail(rowIndex)`. Its named `source`
+parameter defaults to `TrendsCategoryDetailSource.selectedPeriod`, resolving against
+`body.breakdown.rows`; `wholePeriod` resolves against `body.wholePeriod.breakdown.rows`. The scoped
+presentation supplies the source for the shared breakdown; Category averages always uses
+`selectedPeriod`.
+The notifier ignores the
 request after disposal, outside a ready body, for an invalid index and for a row without a navigation
 target, then emits `TrendsCategoryDetailRequested` carrying the unchanged `CategoryDetailArgs`:
 `mainID` is the row's `mainBucketID`, `kind` the selected kind, `isYearRange` follows the mode and
@@ -162,8 +219,9 @@ Budgets live in the Money Budgets segment. Trends does not mount `BudgetsFlow`
 
 - **Trends** - app bar titled "Trends", optional History-labelled back control, the kind and mode
   controls (always mounted), and a body that is skeleton trays, an error box with a filled Retry, the
-  fresh-ledger empty state with a disabled period row, or the period card and breakdown section
-  (`app/lib/ui/stats/trends_screen.dart`).
+  fresh-ledger empty state with a disabled period row, or the layout-specific ready composition
+  described above
+  (`app/lib/ui/stats/trends_screen.dart`, `app/test/ui/stats/trends_layout_test.dart`).
 - **Category Detail** - a `TransactionsTableView` whose header stack is scope total, subcategory
   table (only when the category has children), trend card, and "ENTRIES"; the day-sectioned entry
   list follows. Scope selection is `all` | `sub(id)` | `direct`: a caption identifies the scope,

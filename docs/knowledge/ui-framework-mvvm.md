@@ -1,6 +1,6 @@
 # UI Framework (MVVM)
 
-Last reconciled: 2026-10-21
+Last reconciled: 2026-10-22
 
 ## Feature overview
 
@@ -188,9 +188,11 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   72 dp rail gutter is reserved once. The host retains the page child at one
   element location across selection, resize and Add visibility changes. It owns
   the detail divider, pinned title/subtitle/actions header and Close button.
-  `ShellDetail` requires a stable `id`, title, body builder and `onClose`, with
-  optional subtitle and header actions. Page and detail body builders own their
-  vertical scrolling. When detail is hidden by phone/desktop mode
+  `ShellDetail` requires a stable `id`, title, body builder and non-null `onClose`,
+  with optional subtitle and header actions. The host always draws the
+  `shellDetailCloseKey` Close button and calls `onClose` when tapped
+  (`app/lib/ui/shell/shell_pane_host.dart`).
+  Page and detail body builders own their vertical scrolling. When detail is hidden by phone/desktop mode
   or Add, its subtree remains offstage with feature selection intact.
   `ShellPaneHost` never changes routes. A visible floating action appears only
   for the active, current page in open mode without Add, at 10 dp from the
@@ -214,6 +216,11 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   detail must match the latest selection. Desktop detail presentation remains
   feature-owned. This entry records the feature Flow requirement; production
   verification of its reconciliation behavior is not established here.
+  Trends is an in-page exception to this managed selected-detail presentation:
+  open and desktop modes compose its selected-period content in `TrendsOpenLayout`,
+  while Category Detail remains a nested route opened by the Trends Flow
+  (`app/lib/ui/stats/trends_flow.dart`,
+  `app/lib/ui/stats/trends/trends_open_layout.dart`).
   The desktop sidebar's sync line is a dedicated `SidebarStatusViewModel` that
   watches `hostedSyncStatusProvider`: no selection shows "Sync not configured",
   setup pending shows "Sync setup pending", ready shows "Sync ready", binding

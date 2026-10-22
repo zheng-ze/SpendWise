@@ -11,6 +11,8 @@ import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/analysis_queries.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/stats/trends/trends_body.dart';
+import 'package:spendwise/ui/format/date_format.dart';
+import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/stats/trends/trends_intent.dart';
 import 'package:spendwise/ui/stats/trends/trends_projection.dart';
 
@@ -32,7 +34,7 @@ void main() {
         today: _today,
       );
       final breakdown = harness.ready.breakdown;
-      final periodSummary = harness.ready.periodSummary! as MonthTrendsPeriod;
+      final periodSummary = harness.ready.periodSummary as MonthTrendsPeriod;
       expect(periodSummary.spread.slots, hasLength(12));
       expect(periodSummary.breakdown.total, greaterThan(Decimal.zero));
       expect(periodSummary.averages.completePeriodCount, greaterThan(0));
@@ -81,7 +83,7 @@ void main() {
       await harness.settle();
       final breakdown = harness.ready.breakdown;
       expect(
-        harness.ready.periodSummary!.breakdown.level,
+        harness.ready.periodSummary.breakdown.level,
         analysis.BreakdownLevel.subcategories,
       );
       expect(breakdown.chart, settings.BreakdownChart.categoryMap);
@@ -129,6 +131,182 @@ void main() {
     },
   );
 
+  group('whole-period presentation', () {
+    test('rows, total and header come from the summary rather than the selected period', () async {
+      final harness = await readyHarness(
+        ledger: seededTrendsLedger(_today),
+        today: _today,
+      );
+      harness.viewModel.selectSlot(9);
+      await harness.settle();
+      final ready = harness.ready;
+      final summary = ready.periodSummary.breakdown;
+      final whole = ready.wholePeriod;
+
+      expect(whole.breakdown.total, summary.total);
+      expect(whole.breakdown.rows.map((row) => row.amount), [
+        for (final row in summary.rows) row.amount,
+      ]);
+      expect(whole.breakdown.total, isNot(ready.breakdown.total));
+      expect(whole.header.range, ready.period.rangeLabel);
+      expect(whole.header.title, 'Expense breakdown');
+      expect(whole.header.total, '-S\$356.10');
+    });
+
+    test(
+      'rows match the shared row projection and current preferences',
+      () async {
+        final preferences = settings.DisplayPreferences(
+          breakdownLevel: settings.BreakdownLevel.subcategories,
+          breakdownChart: settings.BreakdownChart.categoryMap,
+          chartColours: settings.ChartColours.contrasting,
+        );
+        final ledger = seededTrendsLedger(_today);
+        final harness = TrendsHarness(
+          ledger: ledger,
+          today: _today,
+          preferences: preferences,
+        );
+        await harness.settle();
+        final whole = harness.ready.wholePeriod.breakdown;
+        final direct = whole.rows.singleWhere((row) => row.isDirect);
+
+        expect(whole.chart, settings.BreakdownChart.categoryMap);
+        expect(whole.level, settings.BreakdownLevel.subcategories);
+        expect(whole.colours, settings.ChartColours.contrasting);
+        expect(direct.name, 'Direct to Groceries');
+        expect(direct.parentContext, 'Groceries');
+        expect(direct.savedHex, '#34C759');
+        expect(whole.rows.first.navigationTarget?.initialDate, whole.period);
+        expect(whole.period, DateTime.utc(2026, 10));
+      },
+    );
+
+    test('income uses plus-signed amounts and income wording', () async {
+      final harness = await readyHarness(
+        ledger: seededTrendsLedger(_today),
+        today: _today,
+      );
+      harness.viewModel.setKind(TrendsKind.income);
+      await harness.settle();
+      final whole = harness.ready.wholePeriod;
+
+      expect(whole.header.title, 'Income breakdown');
+      expect(whole.header.total, startsWith('+S\$'));
+      expect(whole.breakdown.rows.first.formattedAmount, startsWith('+'));
+      expect(
+        whole.insights.observations.first.title,
+        'Largest income category',
+      );
+    });
+
+    test(
+      'a kind without records has an empty whole-period breakdown',
+      () async {
+        final ledger = emptyTrendsLedger();
+        addTrendsEntry(ledger, '-10', DateTime.utc(2026, 10, 2));
+        final harness = await readyHarness(ledger: ledger, today: _today);
+        harness.viewModel.setKind(TrendsKind.income);
+        await harness.settle();
+        final whole = harness.ready.wholePeriod;
+
+        expect(whole.breakdown, isA<TrendsEmptyBreakdown>());
+        expect(whole.breakdown.total, Decimal.zero);
+      },
+    );
+  });
+
+  group('insights', () {
+    test(
+      'month mode reports the largest category and highest complete month',
+      () async {
+        final harness = await readyHarness(
+          ledger: seededTrendsLedger(_today),
+          today: _today,
+        );
+        final ready = harness.ready;
+        final summary = ready.periodSummary as MonthTrendsPeriod;
+        final highest = summary.highestMonth!;
+        final observations = ready.wholePeriod.insights.observations;
+
+        expect(observations, hasLength(2));
+        expect(observations[0].title, 'Largest expense category');
+        expect(
+          observations[0].value,
+          '${ready.wholePeriod.breakdown.rows.first.name} - '
+          '${ready.wholePeriod.breakdown.rows.first.formattedShare}',
+        );
+        expect(observations[1].title, 'Highest spending month');
+        expect(
+          observations[1].value,
+          '${formatMonthNameYear(highest.month)}: '
+          '${formatSignedMoney(highest.total, kind: AmountKind.expense)}',
+        );
+        expect(ready.wholePeriod.insights.emptyMessage, isNull);
+      },
+    );
+
+    test('year mode labels the highest complete year', () async {
+      final ledger = emptyTrendsLedger();
+      addTrendsEntry(ledger, '-10', DateTime.utc(2024, 3, 2));
+      addTrendsEntry(ledger, '-40', DateTime.utc(2025, 3, 2));
+      addTrendsEntry(ledger, '-5', DateTime.utc(2026, 3, 2));
+      final harness = await readyHarness(ledger: ledger, today: _today);
+      harness.viewModel.setMode(TrendsMode.year);
+      await harness.settle();
+      final observations = harness.ready.wholePeriod.insights.observations;
+
+      expect(observations.last.title, 'Highest spending year');
+      expect(observations.last.value, '2025: -S\$40.00');
+    });
+
+    test(
+      'income year shows the highest complete year with a plus sign',
+      () async {
+        final ledger = emptyTrendsLedger();
+        addTrendsEntry(ledger, '25', DateTime.utc(2024, 3, 2));
+        addTrendsEntry(ledger, '90', DateTime.utc(2025, 3, 2));
+        addTrendsEntry(ledger, '5', DateTime.utc(2026, 3, 2));
+        final harness = await readyHarness(ledger: ledger, today: _today);
+        harness.viewModel.setKind(TrendsKind.income);
+        harness.viewModel.setMode(TrendsMode.year);
+        await harness.settle();
+        final observations = harness.ready.wholePeriod.insights.observations;
+
+        expect(observations.last.title, 'Highest income year');
+        expect(observations.last.value, '2025: +S\$90.00');
+      },
+    );
+
+    test('an unavailable highest period is omitted', () async {
+      final ledger = emptyTrendsLedger();
+      addTrendsEntry(ledger, '-10', DateTime.utc(2026, 10, 2));
+      final harness = await readyHarness(ledger: ledger, today: _today);
+      final insights = harness.ready.wholePeriod.insights;
+
+      expect(
+        (harness.ready.periodSummary as MonthTrendsPeriod).highestMonth,
+        isNull,
+      );
+      expect(insights.observations.map((item) => item.title), [
+        'Largest expense category',
+      ]);
+      expect(insights.emptyMessage, isNull);
+    });
+
+    test('no observations show Not enough data', () async {
+      final ledger = emptyTrendsLedger();
+      addTrendsEntry(ledger, '-10', DateTime.utc(2026, 10, 2));
+      final harness = await readyHarness(ledger: ledger, today: _today);
+      harness.viewModel.setKind(TrendsKind.income);
+      await harness.settle();
+      final insights = harness.ready.wholePeriod.insights;
+
+      expect(insights.observations, isEmpty);
+      expect(insights.emptyMessage, 'Not enough data');
+    });
+  });
+
   test(
     'year includes after-today and December entries with matching headline',
     () async {
@@ -142,7 +320,7 @@ void main() {
       harness.viewModel.setMode(TrendsMode.year);
       await harness.settle();
       final ready = harness.ready;
-      final periodSummary = ready.periodSummary! as YearTrendsPeriod;
+      final periodSummary = ready.periodSummary as YearTrendsPeriod;
       expect(ready.breakdown.period, DateTime.utc(2026));
       expect(ready.breakdown.total, Decimal.fromInt(60));
       expect(periodSummary.spread.slots, hasLength(3));

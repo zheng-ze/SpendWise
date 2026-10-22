@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/common/navigation/labelled_back_button.dart';
 import 'package:spendwise/ui/stats/trends/trends_body.dart';
+import 'package:spendwise/ui/stats/trends/trends_breakdown_scope.dart';
 import 'package:spendwise/ui/stats/trends/trends_breakdown_section.dart';
 import 'package:spendwise/ui/stats/trends/trends_controls.dart';
 import 'package:spendwise/ui/stats/trends/trends_intent.dart';
+import 'package:spendwise/ui/stats/trends/trends_open_layout.dart';
 import 'package:spendwise/ui/stats/trends/trends_period_card.dart';
 import 'package:spendwise/ui/stats/trends/trends_state_views.dart';
 import 'package:spendwise/ui/stats/trends/trends_view_model.dart';
@@ -14,15 +16,20 @@ const _trendsTitle = 'Trends';
 const _historyBackLabel = 'History';
 const _pagePadding = EdgeInsets.fromLTRB(14, 12, 14, 14);
 
-// MARK: - Screen
 class TrendsScreen extends ConsumerWidget {
-  const TrendsScreen({super.key, this.onBackPressed});
+  const TrendsScreen({
+    super.key,
+    this.useOpenComposition = false,
+    this.onBackPressed,
+  });
 
+  final bool useOpenComposition;
   final VoidCallback? onBackPressed;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final intent = ref.watch(trendsIntentProvider);
+    final scope = ref.watch(trendsBreakdownScopeProvider);
     final TrendsViewModel viewModel = ref.read(
       trendsViewModelProvider.notifier,
     );
@@ -38,11 +45,23 @@ class TrendsScreen extends ConsumerWidget {
             onPressed: onBackPressed,
             label: _historyBackLabel,
           );
+    final showStandaloneKindControl =
+        !useOpenComposition || body is! TrendsReadyBody;
+    final kindControl = showStandaloneKindControl
+        ? TrendsKindControl(value: intent.kind, onChanged: viewModel.setKind)
+        : null;
     final content = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        TrendsKindControl(value: intent.kind, onChanged: viewModel.setKind),
-        _TrendsBodyView(body: body, mode: intent.mode, viewModel: viewModel),
+        ?kindControl,
+        _TrendsBodyView(
+          body: body,
+          kind: intent.kind,
+          mode: intent.mode,
+          scope: scope,
+          useOpenComposition: useOpenComposition,
+          viewModel: viewModel,
+        ),
       ],
     );
 
@@ -60,16 +79,21 @@ class TrendsScreen extends ConsumerWidget {
   }
 }
 
-// MARK: - Body
 class _TrendsBodyView extends StatelessWidget {
   const _TrendsBodyView({
     required this.body,
+    required this.kind,
     required this.mode,
+    required this.scope,
+    required this.useOpenComposition,
     required this.viewModel,
   });
 
   final TrendsBody body;
+  final TrendsKind kind;
   final TrendsMode mode;
+  final TrendsBreakdownScope scope;
+  final bool useOpenComposition;
   final TrendsViewModel viewModel;
 
   @override
@@ -104,45 +128,66 @@ class _TrendsBodyView extends StatelessWidget {
       ),
       final TrendsReadyBody ready => _ReadyView(
         body: ready,
+        kind: kind,
         modeControl: modeControl,
+        scope: scope,
+        useOpenComposition: useOpenComposition,
         viewModel: viewModel,
       ),
     };
   }
 }
 
-// MARK: - Ready
 class _ReadyView extends StatelessWidget {
   const _ReadyView({
     required this.body,
+    required this.kind,
     required this.modeControl,
+    required this.scope,
+    required this.useOpenComposition,
     required this.viewModel,
   });
 
   final TrendsReadyBody body;
+  final TrendsKind kind;
   final Widget modeControl;
+  final TrendsBreakdownScope scope;
+  final bool useOpenComposition;
   final TrendsViewModel viewModel;
 
   @override
   Widget build(BuildContext context) {
-    final usual = body.usual;
-    final period = TrendsPeriodRowView(
-      period: body.period,
-      onPrevious: viewModel.previousPage,
-      onNext: viewModel.nextPage,
-    );
-    final chart = TrendsChart(
-      bars: body.bars,
-      selectedIndex: body.selectedIndex,
-      onSelect: viewModel.selectSlot,
-    );
+    if (useOpenComposition) {
+      return TrendsOpenLayout(
+        body: body,
+        kind: kind,
+        scope: scope,
+        onKindChanged: viewModel.setKind,
+        onModeChanged: viewModel.setMode,
+        onScopeChanged: viewModel.setBreakdownScope,
+        onPrevious: viewModel.previousPage,
+        onNext: viewModel.nextPage,
+        onSelectPeriod: viewModel.selectSlot,
+        onOpenCategory: (index, source) =>
+            viewModel.requestCategoryDetail(index, source: source),
+      );
+    }
+
     final periodCard = TrendsCard(
       children: [
         modeControl,
-        period,
-        chart,
+        TrendsPeriodRowView(
+          period: body.period,
+          onPrevious: viewModel.previousPage,
+          onNext: viewModel.nextPage,
+        ),
+        TrendsChart(
+          bars: body.bars,
+          selectedIndex: body.selectedIndex,
+          onSelect: viewModel.selectSlot,
+        ),
         TrendsHeadlineView(headline: body.headline),
-        if (usual != null) TrendsUsualView(usual: usual),
+        if (body.usual case final usual?) TrendsUsualView(usual: usual),
       ],
     );
     final breakdown = TrendsBreakdownSection(

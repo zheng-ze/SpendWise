@@ -8,6 +8,7 @@ import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/base/step_emitting.dart';
 import 'package:spendwise/ui/stats/category_detail/category_detail_view_model.dart';
 import 'package:spendwise/ui/stats/trends/trends_body.dart';
+import 'package:spendwise/ui/stats/trends/trends_breakdown_scope.dart';
 import 'package:spendwise/ui/stats/trends/trends_intent.dart';
 import 'package:spendwise/ui/stats/trends/trends_projection.dart';
 
@@ -21,6 +22,8 @@ final class TrendsCategoryDetailRequested extends TrendsStep {
 
   final CategoryDetailArgs args;
 }
+
+enum TrendsCategoryDetailSource { selectedPeriod, wholePeriod }
 
 // MARK: - ViewState
 @immutable
@@ -44,7 +47,12 @@ abstract class TrendsViewModel {
   void previousPage();
   void nextPage();
   void retry();
-  void requestCategoryDetail(int rowIndex);
+  void setBreakdownScope(TrendsBreakdownScope scope);
+  void requestCategoryDetail(
+    int rowIndex, {
+    TrendsCategoryDetailSource source =
+        TrendsCategoryDetailSource.selectedPeriod,
+  });
   void clearStep();
 }
 
@@ -111,14 +119,25 @@ class TrendsNotifier extends AsyncNotifier<TrendsViewState>
   void retry() => ref.read(analysisQueriesProvider)?.retry();
 
   @override
-  void requestCategoryDetail(int rowIndex) {
+  void setBreakdownScope(TrendsBreakdownScope scope) =>
+      ref.read(trendsBreakdownScopeProvider.notifier).setScope(scope);
+
+  @override
+  void requestCategoryDetail(
+    int rowIndex, {
+    TrendsCategoryDetailSource source =
+        TrendsCategoryDetailSource.selectedPeriod,
+  }) {
     if (!ref.mounted) return;
     final body = switch (state) {
       AsyncData(:final value) => value.body,
       _ => null,
     };
     if (body is! TrendsReadyBody) return;
-    final rows = body.breakdown.rows;
+    final rows = switch (source) {
+      TrendsCategoryDetailSource.selectedPeriod => body.breakdown.rows,
+      TrendsCategoryDetailSource.wholePeriod => body.wholePeriod.breakdown.rows,
+    };
     if (rowIndex < 0 || rowIndex >= rows.length) return;
     final target = rows[rowIndex].navigationTarget;
     if (target == null) return;
