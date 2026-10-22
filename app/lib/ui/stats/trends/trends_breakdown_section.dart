@@ -8,6 +8,7 @@ import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/stats/trends/trends_breakdown.dart';
 import 'package:spendwise/ui/stats/trends/trends_period_card.dart';
+import 'package:spendwise/ui/stats/trends/trends_whole_period.dart';
 import 'package:spendwise/ui/theme/category_palette.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
@@ -30,6 +31,10 @@ const _chevron = Icons.chevron_right;
 const _chevronSize = 14.0;
 const _chevronPadding = EdgeInsets.only(left: 4);
 const _percentFactor = 100;
+const _compactRowPadding = EdgeInsets.symmetric(vertical: 4);
+const _compactChartPadding = EdgeInsets.only(top: 2, bottom: 2);
+const _compactDonutSize = 96.0;
+const _regularDonutSize = 132.0;
 
 typedef _ColoredRow = ({TrendsBreakdownRow row, Color color});
 
@@ -39,11 +44,15 @@ class TrendsBreakdownSection extends StatelessWidget {
     required this.breakdown,
     required this.amountKind,
     required this.onOpenCategory,
+    this.header,
+    this.compact = false,
   });
 
   final TrendsBreakdown breakdown;
   final AmountKind amountKind;
   final ValueChanged<int> onOpenCategory;
+  final TrendsBreakdownHeader? header;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -60,13 +69,21 @@ class TrendsBreakdownSection extends StatelessWidget {
           ),
         ),
     ];
+    final income = amountKind == AmountKind.income;
     final heading = _BreakdownHeading(
-      income: amountKind == AmountKind.income,
-      level: breakdown.level,
+      title:
+          header?.title ?? (income ? 'Income breakdown' : 'Expense breakdown'),
+      subtitle:
+          header?.range ??
+          (breakdown.level == BreakdownLevel.categories
+              ? 'By category'
+              : 'By subcategory'),
+      total: header?.total,
     );
     final chart = _BreakdownChart(
       rows: rows,
       chart: breakdown.chart,
+      compact: compact,
       onSelect: onOpenCategory,
     );
     final rowWidgets = [
@@ -75,6 +92,7 @@ class TrendsBreakdownSection extends StatelessWidget {
           entry: rows[i],
           amountKind: amountKind,
           divided: i < rows.length - 1,
+          compact: compact,
           onTap: _opener(rows[i].row, i, onOpenCategory),
         ),
     ];
@@ -101,27 +119,41 @@ VoidCallback? _opener(
 ) => row.navigationTarget == null ? null : () => open(index);
 
 class _BreakdownHeading extends StatelessWidget {
-  const _BreakdownHeading({required this.income, required this.level});
+  const _BreakdownHeading({
+    required this.title,
+    required this.subtitle,
+    required this.total,
+  });
 
-  final bool income;
-  final BreakdownLevel level;
+  final String title;
+  final String subtitle;
+  final String? total;
 
   @override
   Widget build(BuildContext context) {
     final heading = Text(
-      income ? 'Income breakdown' : 'Expense breakdown',
+      title,
       style: const TextStyle(fontSize: _headingSize, fontWeight: _semiBold),
     );
-    final subtitle = Text(
-      level == BreakdownLevel.categories ? 'By category' : 'By subcategory',
+    final caption = Text(
+      subtitle,
       style: TextStyle(fontSize: _captionSize, color: context.colors.subtext),
     );
+    final totalText = total == null
+        ? null
+        : Text(
+            total!,
+            style: const TextStyle(
+              fontSize: _headingSize,
+              fontWeight: _semiBold,
+            ),
+          );
     return Wrap(
       alignment: WrapAlignment.spaceBetween,
       crossAxisAlignment: WrapCrossAlignment.center,
       spacing: _rowGap,
       runSpacing: _headingGap,
-      children: [heading, subtitle],
+      children: [heading, caption, ?totalText],
     );
   }
 }
@@ -152,11 +184,13 @@ class _BreakdownChart extends StatelessWidget {
   const _BreakdownChart({
     required this.rows,
     required this.chart,
+    required this.compact,
     required this.onSelect,
   });
 
   final List<_ColoredRow> rows;
   final BreakdownChart chart;
+  final bool compact;
   final ValueChanged<int> onSelect;
 
   @override
@@ -166,6 +200,7 @@ class _BreakdownChart extends StatelessWidget {
       case BreakdownChart.donut:
         visual = Center(
           child: DonutChart(
+            size: compact ? _compactDonutSize : _regularDonutSize,
             segments: _donutSegments(rows),
             centerLabel: rows.first.row.formattedShare,
             centerValue: rows.first.row.name,
@@ -175,7 +210,8 @@ class _BreakdownChart extends StatelessWidget {
       case BreakdownChart.categoryMap:
         visual = CategoryMap(tiles: _mapTiles(rows), onSelect: onSelect);
     }
-    return Padding(padding: _chartPadding, child: visual);
+    final padding = compact ? _compactChartPadding : _chartPadding;
+    return Padding(padding: padding, child: visual);
   }
 }
 
@@ -184,12 +220,14 @@ class _BreakdownRow extends StatelessWidget {
     required this.entry,
     required this.amountKind,
     required this.divided,
+    required this.compact,
     required this.onTap,
   });
 
   final _ColoredRow entry;
   final AmountKind amountKind;
   final bool divided;
+  final bool compact;
   final VoidCallback? onTap;
 
   @override
@@ -250,7 +288,7 @@ class _BreakdownRow extends StatelessWidget {
           )
         : null;
     final surface = Container(
-      padding: _rowPadding,
+      padding: compact ? _compactRowPadding : _rowPadding,
       decoration: BoxDecoration(border: border),
       child: content,
     );

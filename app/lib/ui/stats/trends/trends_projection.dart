@@ -13,6 +13,7 @@ import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/stats/trends/trends_body.dart';
 import 'package:spendwise/ui/stats/trends/trends_intent.dart';
 import 'package:spendwise/ui/stats/trends/trends_usual.dart';
+import 'package:spendwise/ui/stats/trends/trends_whole_period.dart';
 
 // MARK: - Constants
 const _rangeSeparator = ' - ';
@@ -186,6 +187,20 @@ class _Projection {
       ),
       bounds: bounds,
       periodSummary: value,
+      wholePeriod: _wholePeriod(value, period.rangeLabel),
+    );
+  }
+
+  TrendsWholePeriod _wholePeriod(TrendsPeriod summary, String rangeLabel) {
+    return projectWholePeriod(
+      summary,
+      categories: categories,
+      preferences: preferences,
+      period: _selectedPeriod,
+      mode: intent.mode,
+      kind: _kind,
+      revision: revision,
+      rangeLabel: rangeLabel,
     );
   }
 
@@ -288,6 +303,7 @@ class _Projection {
       usual: null,
       bounds: bounds,
       periodSummary: value,
+      wholePeriod: _wholePeriod(value, period.rangeLabel),
     );
   }
 
