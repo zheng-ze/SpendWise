@@ -164,11 +164,10 @@ def header(title, date=None, acts="", back=None):
     return f'<div class="hd">{b}{d}<div class="tr"><h4>{title}</h4><div class="acts">{acts}</div></div></div>'
 
 
-def phone(body, tab=None, cls="", force="", extra="", body_cls=""):
+def phone(body, tab=None, cls="", extra="", body_cls=""):
     tb = tabbar(tab) if tab else ""
-    fc = f" force-{force}" if force else ""
     return (
-        f'<div class="app phone{fc} {cls}">{statusbar()}<div class="pb {body_cls}">{body}</div>'
+        f'<div class="app phone {cls}">{statusbar()}<div class="pb {body_cls}">{body}</div>'
         f'{extra}{tb}<div class="homebar"></div></div>'
     )
 
@@ -226,8 +225,7 @@ def sheet_alert(title, detail="", tone="error"):
     return f'<div class="sheet-alert {tone}" role="{role}">{heading}{text}</div>'
 
 
-def sheet_phone(under, sheet, tab=None, cls="", force="", under_cls="", sheet_cls="", alert="", under_sheet=""):
-    fc = f" force-{force}" if force else ""
+def sheet_phone(under, sheet, tab=None, cls="", under_cls="", sheet_cls="", alert="", under_sheet=""):
     tb = tabbar(tab) if tab else ""
     cls = " ".join(c for c in cls.split() if c != "long")
     background = f'<div class="under">{under}</div>'
@@ -235,7 +233,7 @@ def sheet_phone(under, sheet, tab=None, cls="", force="", under_cls="", sheet_cl
         background = f'<div class="sheet-backdrop">{background}{sheet_surface(under_sheet)}</div><div class="under"></div>'
         sheet_cls = (sheet_cls + " sheet-front").strip()
     return (
-        f'<div class="app phone{fc} {cls}">{statusbar()}<div class="pb sheetwrap">'
+        f'<div class="app phone {cls}">{statusbar()}<div class="pb sheetwrap">'
         f'{background}{sheet_surface(sheet, sheet_cls)}'
         f'</div>{alert}{tb}<div class="homebar"></div></div>'
     )
@@ -259,11 +257,7 @@ def snack(text, action=""):
 def light_card(body, cls=""):
     if cls == "form-card":
         return f'<div class="form-card">{body}</div>'
-    return f'<div class="vl light-only"><div class="light-card {cls}">{body}</div></div><div class="vd">{body}</div>'
-
-
-def light_sections(light, dark):
-    return f'<div class="vl light-only">{light}</div><div class="vd">{dark}</div>'
+    return f'<div class="light-card {cls}">{body}</div>'
 
 
 def tray(title, body, cls="", aside=""):
@@ -473,7 +467,7 @@ def cattrack(name, value, pct, color, right_text=None, over=False):
 SIDE = [("Overview", "home", False), ("History", "history", False), ("Money", None, False), ("Budgets", "gauge", True), ("Accounts", "bank", True), ("Plans", "repeat", True)]
 
 
-def desktop(active, content, title, sub="", acts=None, force="", overlay="", sync="Sync on"):
+def desktop(active, content, title, sub="", acts=None, overlay="", sync="Sync on"):
     items = "".join(
         f'<small class="grp">{n}</small>' if i is None else f'<span class="{"on" if n == active else ""}{" child" if child else ""}">{ic(i, "s")}{n}</span>'
         for n, i, child in SIDE
@@ -483,9 +477,8 @@ def desktop(active, content, title, sub="", acts=None, force="", overlay="", syn
         f'<span class="sbtn">{ic("search", "s")}Search</span><span class="pbtn">{ic("plus", "s")}Add entry</span>'
     )
     s = f'<div class="sub">{sub}</div>' if sub else ""
-    fc = f" force-{force}" if force else ""
     return (
-        f'<div class="app win{fc}"><div class="wbar"><span class="dots"><i></i><i></i><i></i></span><span>SpendWise</span><span class="dots"><i></i><i></i><i></i></span></div>'
+        f'<div class="app win"><div class="wbar"><span class="dots"><i></i><i></i><i></i></span><span>SpendWise</span><span class="dots"><i></i><i></i><i></i></span></div>'
         f'<div class="wbody"><nav class="side"><div class="wordmark">Spend<i>Wise</i></div>{items}<div class="gap"></div>{settings}<small class="syn">{sync}</small></nav>'
         f'<div class="ws"><div class="whead"><div>{s}<h4>{title}</h4></div><div class="acts">{acts}</div></div>{content}{overlay}</div></div></div>'
     )
