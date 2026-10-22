@@ -1,4 +1,3 @@
-import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/format/amount_style.dart';
@@ -34,11 +33,13 @@ class TrendsCategoryAverages extends StatelessWidget {
     super.key,
     required this.breakdown,
     required this.averageComparison,
+    required this.amountKind,
     required this.onOpenCategory,
   });
 
   final TrendsBreakdown breakdown;
   final TrendsAverageComparison averageComparison;
+  final AmountKind amountKind;
   final ValueChanged<int> onOpenCategory;
 
   @override
@@ -46,6 +47,7 @@ class TrendsCategoryAverages extends StatelessWidget {
     builder: (context, constraints) => _CategoryAveragesTable(
       breakdown: breakdown,
       averageComparison: averageComparison,
+      amountKind: amountKind,
       onOpenCategory: onOpenCategory,
       stacked: constraints.maxWidth < trendsCategoryAveragesStackedWidth,
     ),
@@ -56,12 +58,14 @@ class _CategoryAveragesTable extends StatelessWidget {
   const _CategoryAveragesTable({
     required this.breakdown,
     required this.averageComparison,
+    required this.amountKind,
     required this.onOpenCategory,
     required this.stacked,
   });
 
   final TrendsBreakdown breakdown;
   final TrendsAverageComparison averageComparison;
+  final AmountKind amountKind;
   final ValueChanged<int> onOpenCategory;
   final bool stacked;
 
@@ -74,9 +78,7 @@ class _CategoryAveragesTable extends StatelessWidget {
           row: breakdown.rows[index],
           comparison: averageComparison.rows[index],
           averageLabel: averageComparison.header,
-          amountKind: breakdown.kind == CategoryKind.income
-              ? AmountKind.income
-              : AmountKind.expense,
+          amountKind: amountKind,
           divided: index < breakdown.rows.length - 1,
           stacked: stacked,
           onTap: breakdown.rows[index].navigationTarget == null

@@ -275,6 +275,7 @@ class _SelectedPeriodGroup extends StatelessWidget {
         TrendsCategoryAverages(
           breakdown: body.breakdown,
           averageComparison: body.averageComparison,
+          amountKind: body.headline.amountKind,
           onOpenCategory: onOpenCategory,
         ),
       ],

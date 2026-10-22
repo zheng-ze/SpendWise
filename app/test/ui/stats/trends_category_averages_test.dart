@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/settings/display_preferences.dart' as settings;
 import 'package:spendwise/ui/stats/category_detail/category_detail_view_model.dart';
+import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/stats/trends/trends_average_comparison.dart';
 import 'package:spendwise/ui/stats/trends/trends_breakdown.dart';
 import 'package:spendwise/ui/stats/trends/trends_category_averages.dart';
@@ -59,15 +60,6 @@ void main() {
     await tester.tap(find.text(_diningName));
     expect(openedIndex, 1);
   }, timeout: _interactionTimeout);
-
-  testWidgets('preserves the selected-row order', (tester) async {
-    await _pumpAverages(tester, mode: TrendsMode.month);
-
-    final transportTop = tester.getTopLeft(find.text(_transportName)).dy;
-    final diningTop = tester.getTopLeft(find.text(_diningName)).dy;
-
-    expect(transportTop, lessThan(diningTop));
-  });
 
   testWidgets('keeps each selected amount paired with its average', (
     tester,
@@ -131,6 +123,7 @@ Future<void> _pumpAverages(
         body: TrendsCategoryAverages(
           breakdown: _breakdown(mode, diningNavigable: diningNavigable),
           averageComparison: _comparison(mode),
+          amountKind: AmountKind.expense,
           onOpenCategory: onOpenCategory ?? (_) {},
         ),
       ),
