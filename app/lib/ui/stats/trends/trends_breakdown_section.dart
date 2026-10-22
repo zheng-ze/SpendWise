@@ -6,7 +6,6 @@ import 'package:spendwise/ui/common/charts/donut_chart.dart';
 import 'package:spendwise/ui/common/feedback/empty_state.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
-import 'package:spendwise/ui/stats/trends/trends_average_comparison.dart';
 import 'package:spendwise/ui/stats/trends/trends_breakdown.dart';
 import 'package:spendwise/ui/stats/trends/trends_period_card.dart';
 import 'package:spendwise/ui/stats/trends/trends_whole_period.dart';
@@ -32,15 +31,7 @@ const _chevron = Icons.chevron_right;
 const _chevronSize = 14.0;
 const _chevronPadding = EdgeInsets.only(left: 4);
 const _percentFactor = 100;
-const _compactRowPadding = EdgeInsets.symmetric(vertical: 4);
-const _compactChartPadding = EdgeInsets.only(top: 2, bottom: 2);
-const _compactDonutSize = 96.0;
 const _regularDonutSize = 132.0;
-const _amountColumnWidth = 72.0;
-const _averageColumnWidth = 76.0;
-const _amountColumnLabel = 'Amount';
-const _stackedWidthThreshold = 300.0;
-const _averageCaptionSeparator = ': ';
 const _totalLineAlignment = TextAlign.end;
 const _scopeControlGap = 8.0;
 const _scopeTotalGap = 4.0;
@@ -55,8 +46,6 @@ class TrendsBreakdownSection extends StatelessWidget {
     required this.onOpenCategory,
     this.header,
     this.scopeControl,
-    this.compact = false,
-    this.averageComparison,
   });
 
   final TrendsBreakdown breakdown;
@@ -64,26 +53,15 @@ class TrendsBreakdownSection extends StatelessWidget {
   final ValueChanged<int> onOpenCategory;
   final TrendsBreakdownHeader? header;
   final Widget? scopeControl;
-  final bool compact;
-  final TrendsAverageComparison? averageComparison;
 
   @override
-  Widget build(BuildContext context) {
-    final comparing = averageComparison != null;
-    return LayoutBuilder(
-      builder: (context, constraints) => _BreakdownCard(
-        section: this,
-        stacked: comparing && constraints.maxWidth < _stackedWidthThreshold,
-      ),
-    );
-  }
+  Widget build(BuildContext context) => _BreakdownCard(section: this);
 }
 
 class _BreakdownCard extends StatelessWidget {
-  const _BreakdownCard({required this.section, required this.stacked});
+  const _BreakdownCard({required this.section});
 
   final TrendsBreakdownSection section;
-  final bool stacked;
 
   @override
   Widget build(BuildContext context) {
@@ -91,13 +69,7 @@ class _BreakdownCard extends StatelessWidget {
     final amountKind = section.amountKind;
     final onOpenCategory = section.onOpenCategory;
     final header = section.header;
-    final compact = section.compact;
-    final averageComparison = section.averageComparison;
     final scopeControl = section.scopeControl;
-    assert(
-      averageComparison == null ||
-          averageComparison.rows.length == breakdown.rows.length,
-    );
     assert(scopeControl == null || header != null);
     final colors = context.colors;
     final rows = [
@@ -124,33 +96,19 @@ class _BreakdownCard extends StatelessWidget {
     final chart = _BreakdownChart(
       rows: rows,
       chart: breakdown.chart,
-      compact: compact,
       onSelect: onOpenCategory,
     );
-    final comparisonRows = averageComparison?.rows;
     final rowWidgets = [
       for (var index = 0; index < rows.length; index++)
         _BreakdownRow(
           entry: rows[index],
           amountKind: amountKind,
           divided: index < rows.length - 1,
-          compact: compact,
-          stacked: stacked,
-          average: comparisonRows == null
-              ? null
-              : comparisonRows[index].formattedMean,
-          averageLabel: averageComparison?.header,
           onTap: _opener(rows[index].row, index, onOpenCategory),
         ),
     ];
     final empty = _EmptyBreakdown(income: amountKind == AmountKind.income);
-    final comparison = averageComparison;
-    final comparisonHeader = comparison == null || stacked
-        ? null
-        : _BreakdownColumnHeading(averageLabel: comparison.header);
-    final content = rows.isEmpty
-        ? [empty]
-        : [chart, ?comparisonHeader, ...rowWidgets];
+    final content = rows.isEmpty ? [empty] : [chart, ...rowWidgets];
     final scopeContent = <Widget>[];
     if (scopeControl != null && header != null) {
       scopeContent.addAll([
@@ -265,38 +223,6 @@ class _BreakdownTotalLine extends StatelessWidget {
   }
 }
 
-class _BreakdownColumnHeading extends StatelessWidget {
-  const _BreakdownColumnHeading({required this.averageLabel});
-
-  final String averageLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    final style = TextStyle(
-      fontSize: _captionSize,
-      color: context.colors.subtext,
-    );
-    return Row(
-      children: [
-        const Spacer(),
-        SizedBox(
-          width: _amountColumnWidth,
-          child: Text(
-            _amountColumnLabel,
-            textAlign: TextAlign.end,
-            style: style,
-          ),
-        ),
-        const SizedBox(width: _rowGap),
-        SizedBox(
-          width: _averageColumnWidth,
-          child: Text(averageLabel, textAlign: TextAlign.end, style: style),
-        ),
-      ],
-    );
-  }
-}
-
 List<DonutSegment> _donutSegments(List<_ColoredRow> rows) {
   return [
     for (final entry in rows)
@@ -323,13 +249,11 @@ class _BreakdownChart extends StatelessWidget {
   const _BreakdownChart({
     required this.rows,
     required this.chart,
-    required this.compact,
     required this.onSelect,
   });
 
   final List<_ColoredRow> rows;
   final BreakdownChart chart;
-  final bool compact;
   final ValueChanged<int> onSelect;
 
   @override
@@ -339,7 +263,7 @@ class _BreakdownChart extends StatelessWidget {
       case BreakdownChart.donut:
         visual = Center(
           child: DonutChart(
-            size: compact ? _compactDonutSize : _regularDonutSize,
+            size: _regularDonutSize,
             segments: _donutSegments(rows),
             centerLabel: rows.first.row.formattedShare,
             centerValue: rows.first.row.name,
@@ -349,8 +273,7 @@ class _BreakdownChart extends StatelessWidget {
       case BreakdownChart.categoryMap:
         visual = CategoryMap(tiles: _mapTiles(rows), onSelect: onSelect);
     }
-    final padding = compact ? _compactChartPadding : _chartPadding;
-    return Padding(padding: padding, child: visual);
+    return Padding(padding: _chartPadding, child: visual);
   }
 }
 
@@ -359,20 +282,12 @@ class _BreakdownRow extends StatelessWidget {
     required this.entry,
     required this.amountKind,
     required this.divided,
-    required this.compact,
-    required this.stacked,
-    required this.average,
-    required this.averageLabel,
     required this.onTap,
   });
 
   final _ColoredRow entry;
   final AmountKind amountKind;
   final bool divided;
-  final bool compact;
-  final bool stacked;
-  final String? average;
-  final String? averageLabel;
   final VoidCallback? onTap;
 
   @override
@@ -395,12 +310,6 @@ class _BreakdownRow extends StatelessWidget {
       fontSize: _captionSize,
       color: colors.subtext,
     );
-    final averageCaption = stacked && average != null
-        ? Text(
-            '$averageLabel$_averageCaptionSeparator$average',
-            style: captionStyle,
-          )
-        : null;
     final label = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -410,8 +319,6 @@ class _BreakdownRow extends StatelessWidget {
         ),
         const SizedBox(height: _captionGap),
         Text(caption, style: captionStyle),
-        if (averageCaption != null) const SizedBox(height: _captionGap),
-        ?averageCaption,
       ],
     );
     final amountText = Text(
@@ -421,22 +328,6 @@ class _BreakdownRow extends StatelessWidget {
         color: AmountStyle.of(context, kind: amountKind).color,
       ),
     );
-    final amount = average == null || stacked
-        ? amountText
-        : SizedBox(width: _amountColumnWidth, child: amountText);
-    final averageText = average;
-    final averageValue = averageText == null || stacked
-        ? null
-        : SizedBox(
-            width: _averageColumnWidth,
-            child: Text(
-              averageText,
-              textAlign: TextAlign.end,
-              style: context.text.small.copyWith(
-                color: AmountStyle.of(context, kind: amountKind).color,
-              ),
-            ),
-          );
     final chevron = onTap == null
         ? null
         : Padding(
@@ -449,9 +340,7 @@ class _BreakdownRow extends StatelessWidget {
         const SizedBox(width: _rowGap),
         Expanded(child: label),
         const SizedBox(width: _rowGap),
-        amount,
-        if (averageValue != null) const SizedBox(width: _rowGap),
-        ?averageValue,
+        amountText,
         ?chevron,
       ],
     );
@@ -461,7 +350,7 @@ class _BreakdownRow extends StatelessWidget {
           )
         : null;
     final surface = Container(
-      padding: compact ? _compactRowPadding : _rowPadding,
+      padding: _rowPadding,
       decoration: BoxDecoration(border: border),
       child: content,
     );

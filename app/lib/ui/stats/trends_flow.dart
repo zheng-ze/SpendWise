@@ -6,15 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/ui/common/base/flow_base.dart';
 import 'package:spendwise/ui/stats/category_detail/category_detail_screen.dart';
 import 'package:spendwise/ui/stats/category_detail/category_detail_view_model.dart';
-import 'package:spendwise/ui/stats/trends/trends_body.dart';
-import 'package:spendwise/ui/stats/trends/trends_detail_metadata.dart';
-import 'package:spendwise/ui/stats/trends/trends_hosted_root.dart';
-import 'package:spendwise/ui/stats/trends/trends_intent.dart';
 import 'package:spendwise/ui/stats/trends/trends_view_model.dart';
 import 'package:spendwise/ui/stats/trends_screen.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
-import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 class TrendsFlow extends FlowBase<TrendsStep> {
   const TrendsFlow({super.key, super.onEnded});
@@ -70,48 +65,22 @@ class _TrendsFlowState extends FlowBaseState<TrendsStep, TrendsFlow> {
       _TrendsRoot(onBackPressed: showsOwnBackButton ? goBack : null);
 }
 
-class _TrendsRoot extends ConsumerWidget {
+class _TrendsRoot extends StatelessWidget {
   const _TrendsRoot({required this.onBackPressed});
 
   final VoidCallback? onBackPressed;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final scope = context.dependOnInheritedWidgetOfExactType<ShellPaneScope>();
-    if (scope == null) {
-      return TrendsScreen(onBackPressed: onBackPressed);
-    }
-
-    final intent = ref.watch(trendsIntentProvider);
-    final state = ref.watch(trendsViewModelProvider);
-    final metadata = ref.watch(trendsDetailMetadataProvider);
-    final viewModel = ref.read(trendsViewModelProvider.notifier);
-    final body = switch (state) {
-      AsyncData(:final value) => value.body,
-      AsyncError() => const TrendsErrorBody(),
-      AsyncLoading() => const TrendsLoadingBody(),
+    final mode = scope?.mode ?? ShellLayoutMode.phone;
+    final useOpenComposition = switch (mode) {
+      ShellLayoutMode.phone => false,
+      ShellLayoutMode.open || ShellLayoutMode.desktop => true,
     };
-    final mode = scope.mode;
-    final detailBody = mode == ShellLayoutMode.open
-        ? TrendsPeriodDetailBody(
-            body: body,
-            mode: intent.mode,
-            viewModel: viewModel,
-          )
-        : const SizedBox.shrink();
-    final detail = ShellDetail(
-      id: metadata.id,
-      title: metadata.title,
-      bodyBuilder: (_) => detailBody,
+    return TrendsScreen(
+      useOpenComposition: useOpenComposition,
+      onBackPressed: onBackPressed,
     );
-    final host = ShellPaneHost(
-      detail: detail,
-      pageBuilder: (_, presentation) => TrendsScreen(
-        onBackPressed: onBackPressed,
-        layoutMode: mode,
-        presentation: presentation,
-      ),
-    );
-    return Material(color: context.colors.base, child: host);
   }
 }
