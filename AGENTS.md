@@ -69,7 +69,25 @@ SpendWise is a personal finance app built in Flutter.
   tickets, or sibling work, or duplicate a nearby comment. Full rule:
   `/Users/macbook/dev-tooling/claude/COMMENTS.md`.
 
+## Tests
+
+- Unit test every component's reachable behavior: domain, controllers, view models, flows,
+  services, stores, and mappers. Cover each distinct happy path, each error path production can
+  trigger, boundaries, and invariants.
+- Never test a hypothetical flow: an input, state, or path that production code cannot produce.
+  Prove it with the callers before deleting or declining to write the test. Merge exact duplicates.
+- Test behavior, never visuals. Do not assert geometry, layout, spacing, insets, placement,
+  scrolling extents, or colors. Do not test UI declarations (screens, sheets, rows, cards, pickers,
+  charts, bars, theme).
+- Write a widget test only for behavior logic tests cannot prove, such as navigation, route
+  lifetime, or a past behavior defect.
+- Coverage is advisory at 80 to 90 percent of the filtered figure from
+  `app/tool/coverage_summary.dart`, which excludes generated code and UI declarations. It never
+  blocks a change.
+- Full rule: `.agents/rules/testing-and-mocking.md`, "Test proportion and selection".
+
 ## Checks
 
 Run `cd packages/domain && dart format . && dart analyze && dart test`, then run
-`cd app && flutter analyze`. The analyzer must report zero issues.
+`cd app && flutter analyze`. The analyzer must report zero issues. For coverage, run
+`cd app && flutter test --coverage && dart run tool/coverage_summary.dart coverage/lcov.info`.
