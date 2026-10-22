@@ -196,16 +196,14 @@ plain back control.
   to `max(0, 192 - keyboardInset)` dp, so their combined reserved height stays at most one pad
   height while the keyboard inset is at most 192 dp; larger insets reserve only keyboard space.
   The pad remains through Add route exit to avoid collapsing the outgoing form.
-  (`AnimatedInputSurface._surfaceFactor`, `_NewEntryFormState.build`,
-  `app/test/ui/transactions/entry/new_entry_pad_motion_test.dart`)
+  (`AnimatedInputSurface._surfaceFactor`, `_NewEntryFormState.build`)
 - Phone Add follows downward drags from the handle, header or body at its minimum scroll offset.
   A downward body drag first consumes any remaining scroll distance. Release dismisses when the
   sheet displacement exceeds 25% of its height or downward velocity exceeds 700 dp/s; shorter
   drags spring back over 200 ms, settling immediately with reduced motion. Dismissal discards
   the unsaved draft and retires the Add session; the next Add invalidates its form provider.
   (`app/lib/ui/common/sheets/sheet_drag_dismiss.dart`, `_SheetScrollBody`,
-  `app/lib/ui/transactions/entry/new_entry_presenter.dart`,
-  `app/test/ui/transactions/entry/new_entry_sheet_drag_test.dart`)
+  `app/lib/ui/transactions/entry/new_entry_presenter.dart`)
 
 The amount-first host renders the reference row shell described under Entry form. Repeat is its
 own row, not a button beside Date. Receipt input uses `showReceiptChoiceSheet` and

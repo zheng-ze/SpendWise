@@ -2,6 +2,17 @@ import 'package:domain/domain.dart';
 import 'package:test/test.dart';
 
 void main() {
+  group('SystemEntryKind', () {
+    test('codes decode and unknown codes return null', () {
+      expect(SystemEntryKind.openingBalance.code, 0);
+      expect(SystemEntryKind.balanceAdjustment.code, 1);
+      expect(SystemEntryKind.fromCode(0), SystemEntryKind.openingBalance);
+      expect(SystemEntryKind.fromCode(1), SystemEntryKind.balanceAdjustment);
+      expect(SystemEntryKind.fromCode(null), isNull);
+      expect(SystemEntryKind.fromCode(-1), isNull);
+    });
+  });
+
   group('LifecycleState', () {
     test('codes never change, persistence writes them', () {
       const table = {

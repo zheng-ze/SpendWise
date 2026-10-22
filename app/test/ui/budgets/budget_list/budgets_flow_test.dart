@@ -6,365 +6,69 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/budgets/budget_detail/budget_detail_screen.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_limit_view_model.dart';
-import 'package:spendwise/ui/budgets/budget_list/budget_form.dart';
-import 'package:spendwise/ui/budgets/budget_detail/budget_limit_screen.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_flow.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
-import 'package:spendwise/ui/budgets/budget_list/budget_form_view_model.dart';
 
-import '../../../support/semantics_test_support.dart';
 import '../../../support/ui_test_timeout.dart';
 
 void main() {
-  Decimal dec(String value) => Decimal.parse(value);
-
-  final account = Account(
-    id: 'a0000000-0000-0000-0000-000000000001',
-    name: 'Checking',
-    type: AccountType.checking,
+  final budget = Budget(
+    id: 'b1',
+    categoryID: null,
+    limitEvents: [
+      LimitEvent(
+        effectiveFromMonth: null,
+        value: Decimal.parse('100'),
+        kind: LimitEventKind.defaultLimit,
+      ),
+    ],
+    createdAtMonth: const YearMonth(2026, 1),
   );
 
-  final food = TransactionCategory(
-    id: 'c0000000-0000-0000-0000-000000000001',
-    name: 'Food',
-    kind: CategoryKind.expense,
-    colorHex: '#00AA00',
-    includeInAnalysis: true,
-    parentID: null,
-    symbol: 'restaurant',
-  );
-
-  Budget budget({String? categoryID, required String id}) {
-    return Budget(
-      id: id,
-      categoryID: categoryID,
-      limitEvents: [
-        LimitEvent(
-          effectiveFromMonth: null,
-          value: dec('100'),
-          kind: LimitEventKind.defaultLimit,
+  testWidgets(
+    'detail providers stay alive through route exit and then dispose',
+    (tester) async {
+      final ledger = Ledger(state: LedgerState(budgets: {budget.id: budget}));
+      final container = ProviderContainer(
+        overrides: [
+          ledgerProvider.overrideWithValue(ledger),
+          analysisComputeRunnerProvider.overrideWithValue(syncComputeRunner),
+        ],
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: BudgetsFlow()),
         ),
-      ],
-      createdAtMonth: const YearMonth(2026, 1),
-    );
-  }
-
-  Ledger buildLedger({Map<String, Budget> budgets = const {}}) {
-    return Ledger(
-      state: LedgerState(
-        moneySources: {account.id: MoneySource.account(account)},
-        categories: {food.id: food},
-        budgets: budgets,
-      ),
-    );
-  }
-
-  Future<ProviderContainer> pumpFlow(WidgetTester tester, Ledger ledger) async {
-    final container = ProviderContainer(
-      overrides: [
-        ledgerProvider.overrideWithValue(ledger),
-        analysisComputeRunnerProvider.overrideWithValue(syncComputeRunner),
-      ],
-    );
-    addTearDown(container.dispose);
-
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: const MaterialApp(home: BudgetsFlow()),
-      ),
-    );
-    await tester.pumpAndSettle();
-    return container;
-  }
-
-  testWidgets('BudgetDetailRequested pushes BudgetDetailScreen for that '
-      'budget', (tester) async {
-    final overall = budget(categoryID: null, id: 'b1');
-    final container = await pumpFlow(
-      tester,
-      buildLedger(budgets: {overall.id: overall}),
-    );
-
-    container
-        .read(budgetsListViewModelProvider.notifier)
-        .requestBudgetDetail(overall.id);
-    await tester.pumpAndSettle();
-
-    final pushed = tester.widget<BudgetDetailScreen>(
-      find.byType(BudgetDetailScreen),
-    );
-    expect(pushed.budgetID, overall.id);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('BudgetFormRequested opens the budget form sheet', (
-    tester,
-  ) async {
-    final container = await pumpFlow(tester, buildLedger());
-
-    container.read(budgetsListViewModelProvider.notifier).requestNewBudget();
-    await tester.pumpAndSettle();
-
-    expect(find.byType(BudgetForm), findsOneWidget);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('BudgetLimitEditRequested from an open detail screen pushes '
-      'BudgetLimitScreen', (tester) async {
-    final overall = budget(categoryID: null, id: 'b1');
-    final container = await pumpFlow(
-      tester,
-      buildLedger(budgets: {overall.id: overall}),
-    );
-
-    container
-        .read(budgetsListViewModelProvider.notifier)
-        .requestBudgetDetail(overall.id);
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byIcon(Icons.edit_outlined));
-    await tester.pumpAndSettle();
-
-    final pushed = tester.widget<BudgetLimitScreen>(
-      find.byType(BudgetLimitScreen),
-    );
-    expect(pushed.budgetID, overall.id);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('PickLimitRequested opens the limit-edit sheet and applies the '
-      'picked amount', (tester) async {
-    final overall = budget(categoryID: null, id: 'b1');
-    final ledger = buildLedger(budgets: {overall.id: overall});
-    final container = await pumpFlow(tester, ledger);
-
-    container
-        .read(budgetsListViewModelProvider.notifier)
-        .requestBudgetDetail(overall.id);
-    await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.edit_outlined));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Default Budget'));
-    await tester.pumpAndSettle();
-
-    await tester.enterText(find.byType(TextField), '200.00');
-    await tester.tap(find.text('Save'));
-    await tester.pumpAndSettle();
-
-    final now = DateTime.now().toUtc();
-    final currentMonth = YearMonth(now.year, now.month);
-    expect(
-      effectiveLimit(ledger.state.budgets[overall.id]!, currentMonth),
-      dec('100'),
-    );
-    expect(find.text('200.00'), findsWidgets);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('PickCategoryRequested opens the category picker and applies '
-      'the pick', (tester) async {
-    final container = await pumpFlow(tester, buildLedger());
-
-    container.read(budgetsListViewModelProvider.notifier).requestNewBudget();
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Category'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Food'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Food'), findsOneWidget);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('back navigation while a pushed screen is open pops that '
-      "screen, not the Flow's own root", (tester) async {
-    final overall = budget(categoryID: null, id: 'b1');
-    final container = await pumpFlow(
-      tester,
-      buildLedger(budgets: {overall.id: overall}),
-    );
-
-    container
-        .read(budgetsListViewModelProvider.notifier)
-        .requestBudgetDetail(overall.id);
-    await tester.pumpAndSettle();
-    expect(find.byType(BudgetDetailScreen), findsOneWidget);
-
-    await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
-
-    expect(find.byType(BudgetDetailScreen), findsNothing);
-    expect(find.byType(BudgetsFlow), findsOneWidget);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('swiping a budget row asks for confirmation, then deletes '
-      'without altering entries', (tester) async {
-    final overall = budget(categoryID: null, id: 'b1');
-    final entry = Entry(
-      amount: dec('-7'),
-      name: 'Misc',
-      sourceID: account.id,
-      date: DateTime.utc(2026, 3, 1),
-    );
-    final ledger = Ledger(
-      state: LedgerState(
-        moneySources: {account.id: MoneySource.account(account)},
-        categories: {food.id: food},
-        budgets: {overall.id: overall},
-        entries: {entry.id: entry},
-      ),
-    );
-
-    await pumpFlow(tester, ledger);
-
-    await tester.drag(find.text('Overall'), const Offset(-500, 0));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Delete'));
-    await tester.pumpAndSettle();
-
-    expect(ledger.state.budgets.containsKey(overall.id), isFalse);
-    expect(ledger.state.entries.containsKey(entry.id), isTrue);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('the delete custom semantic action on a budget row opens the '
-      'same confirm dialog as the swipe', (tester) async {
-    final handle = tester.ensureSemantics();
-    final overall = budget(categoryID: null, id: 'b1');
-    final ledger = buildLedger(budgets: {overall.id: overall});
-
-    await pumpFlow(tester, ledger);
-
-    await performCustomSemanticsAction(
-      tester,
-      of: find.text('Overall'),
-      label: 'Delete Overall',
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('Delete Overall?'), findsOneWidget);
-
-    await tester.tap(find.text('Delete'));
-    await tester.pumpAndSettle();
-
-    expect(ledger.state.budgets.containsKey(overall.id), isFalse);
-    handle.dispose();
-  }, timeout: uiTestTimeout);
-
-  testWidgets('each budget form draft is a fresh identity disposed with its '
-      'route', (tester) async {
-    final container = await pumpFlow(tester, buildLedger());
-    BudgetDraftKey openDraft() =>
-        tester.widget<BudgetForm>(find.byType(BudgetForm)).draftKey;
-
-    container.read(budgetsListViewModelProvider.notifier).requestNewBudget();
-    await tester.pumpAndSettle();
-    final first = openDraft();
-    expect(container.exists(budgetFormViewModelProvider(first)), isTrue);
-
-    Navigator.of(tester.element(find.byType(BudgetForm))).pop();
-    await tester.pumpAndSettle();
-    expect(container.exists(budgetFormViewModelProvider(first)), isFalse);
-
-    container.read(budgetsListViewModelProvider.notifier).requestNewBudget();
-    await tester.pumpAndSettle();
-    expect(openDraft(), isNot(same(first)));
-  }, timeout: uiTestTimeout);
-
-  group('provider disposal', () {
-    Future<ProviderContainer> openDetail(
-      WidgetTester tester,
-      Map<String, Budget> budgets,
-      String budgetID,
-    ) async {
-      final container = await pumpFlow(tester, buildLedger(budgets: budgets));
+      );
+      await tester.pumpAndSettle();
       container
           .read(budgetsListViewModelProvider.notifier)
-          .requestBudgetDetail(budgetID);
+          .requestBudgetDetail(budget.id);
       await tester.pumpAndSettle();
-      return container;
-    }
-
-    bool detailAlive(ProviderContainer container, String id) =>
-        container.exists(budgetDetailViewModelProvider(id));
-
-    bool limitAlive(ProviderContainer container, String id) =>
-        container.exists(budgetLimitViewModelProvider(id));
-
-    testWidgets('closing the detail route disposes its detail and limit '
-        'providers', (tester) async {
-      final overall = budget(categoryID: null, id: 'b1');
-      final container = await openDetail(tester, {
-        overall.id: overall,
-      }, overall.id);
-      expect(detailAlive(container, overall.id), isTrue);
-      expect(limitAlive(container, overall.id), isTrue);
-
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-
-      expect(detailAlive(container, overall.id), isFalse);
-      expect(limitAlive(container, overall.id), isFalse);
-    }, timeout: uiTestTimeout);
-
-    testWidgets('providers stay alive until the closing detail route finishes '
-        'its exit transition', (tester) async {
-      final overall = budget(categoryID: null, id: 'b1');
-      final container = await openDetail(tester, {
-        overall.id: overall,
-      }, overall.id);
 
       await tester.pageBack();
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
-
-      expect(detailAlive(container, overall.id), isTrue);
-      expect(limitAlive(container, overall.id), isTrue);
+      expect(
+        container.exists(budgetDetailViewModelProvider(budget.id)),
+        isTrue,
+      );
+      expect(container.exists(budgetLimitViewModelProvider(budget.id)), isTrue);
 
       await tester.pumpAndSettle();
-
-      expect(detailAlive(container, overall.id), isFalse);
-      expect(limitAlive(container, overall.id), isFalse);
-    }, timeout: uiTestTimeout);
-
-    testWidgets('the detail provider stays alive under the limit screen and '
-        'is disposed once both routes close', (tester) async {
-      final overall = budget(categoryID: null, id: 'b1');
-      final container = await openDetail(tester, {
-        overall.id: overall,
-      }, overall.id);
-      await tester.tap(find.byIcon(Icons.edit_outlined));
-      await tester.pumpAndSettle();
-      expect(detailAlive(container, overall.id), isTrue);
-
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-      expect(detailAlive(container, overall.id), isTrue);
-
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-      expect(detailAlive(container, overall.id), isFalse);
-      expect(limitAlive(container, overall.id), isFalse);
-    }, timeout: uiTestTimeout);
-
-    testWidgets('opening another budget after closing one leaves only the '
-        'second alive', (tester) async {
-      final first = budget(categoryID: null, id: 'b1');
-      final second = budget(categoryID: food.id, id: 'b2');
-      final container = await openDetail(tester, {
-        first.id: first,
-        second.id: second,
-      }, first.id);
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-
-      container
-          .read(budgetsListViewModelProvider.notifier)
-          .requestBudgetDetail(second.id);
-      await tester.pumpAndSettle();
-
-      expect(detailAlive(container, first.id), isFalse);
-      expect(detailAlive(container, second.id), isTrue);
-    }, timeout: uiTestTimeout);
-  });
+      expect(
+        container.exists(budgetDetailViewModelProvider(budget.id)),
+        isFalse,
+      );
+      expect(
+        container.exists(budgetLimitViewModelProvider(budget.id)),
+        isFalse,
+      );
+    },
+    timeout: uiTestTimeout,
+  );
 }

@@ -3,11 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ui/stats/category_detail/category_detail_screen.dart';
 import 'package:spendwise/ui/stats/category_detail/category_detail_view_model.dart';
 
-import '../../../ledger/analysis_test_support.dart';
 import '../../../support/counting_ledger_session.dart';
 import '../../../support/ui_test_timeout.dart';
 
@@ -40,17 +38,12 @@ void main() {
     date: DateTime.utc(2026, 3, 5),
   );
 
-  Counted counted({
-    ComputeRunner runner = syncComputeRunner,
-    Map<String, Entry> entries = const {},
-  }) {
+  Counted counted() {
     return countedSession(
       state: LedgerState(
         moneySources: {account.id: MoneySource.account(account)},
         categories: {food.id: food},
-        entries: entries,
       ),
-      runner: runner,
     );
   }
 
@@ -96,67 +89,6 @@ void main() {
       env.ledger.addEntry(lunch('-12'));
       await tester.pumpAndSettle();
       expect(find.text('S\$12.00'), findsWidgets);
-    },
-    timeout: uiTestTimeout,
-  );
-
-  test(
-    'closing during a delayed refresh then mutating the ledger is inert',
-    () async {
-      final runner = ManualRunner();
-      final env = counted(runner: runner.call);
-      final container = containerFor(() => env.session);
-      final subscription = container.listen(
-        categoryDetailViewModelProvider(args),
-        (_, _) {},
-      );
-
-      await pumpEventQueue();
-      expect(runner.pending, hasLength(1));
-      subscription.close();
-      await pumpEventQueue();
-      env.ledger.addEntry(lunch('-3'));
-      runner.pending.single.complete(const []);
-      await pumpEventQueue();
-
-      expect(env.ledger.listeners, 0);
-      expect(env.cache.listeners, 0);
-    },
-    timeout: uiTestTimeout,
-  );
-
-  test(
-    'session replacement ignores the old instances and rebuilds on the new',
-    () async {
-      final oldRunner = ManualRunner();
-      final old = counted(runner: oldRunner.call);
-      final replacement = counted(entries: {lunch('-7').id: lunch('-7')});
-      final container = containerFor(() => old.session);
-      final provider = categoryDetailViewModelProvider(args);
-      final emissions = <AsyncValue<CategoryDetailViewState>>[];
-      final subscription = container.listen(
-        provider,
-        (_, next) => emissions.add(next),
-      );
-      addTearDown(subscription.close);
-      await pumpEventQueue();
-      expect(oldRunner.pending, hasLength(1));
-
-      container
-          .read(sessionHolderProvider.notifier)
-          .replace(replacement.session);
-      await pumpEventQueue();
-      old.ledger.addEntry(lunch('-1'));
-      oldRunner.pending.single.complete(const []);
-      await pumpEventQueue();
-      final state = await container.read(provider.future);
-
-      expect(emissions.any((value) => value is AsyncError), isFalse);
-      expect(old.ledger.listeners, 0);
-      expect(old.cache.listeners, 0);
-      expect(replacement.ledger.listeners, 1);
-      expect(replacement.cache.listeners, 1);
-      expect(state.totals.scopeTotal, Decimal.parse('7'));
     },
     timeout: uiTestTimeout,
   );

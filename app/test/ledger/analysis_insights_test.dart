@@ -108,6 +108,30 @@ List<AnalysisItem> _groceriesAndDining() => [
 
 void main() {
   group('categoryChanges', () {
+    test('equal absolute changes sort category IDs before a null bucket', () {
+      final items = [
+        ..._monthly(_groceriesID, ['10', '10', '10', '10', '10']),
+        _expense(_groceriesID, '50', _today),
+        ..._monthly(null, ['10', '10', '10', '10', '10']),
+        _expense(null, '50', _today),
+      ];
+
+      final result = _categories(
+        items,
+        rules: InsightRules(maximumCategoryChanges: 3),
+      );
+
+      expect(result.state, InsightState.available);
+      expect(result.changes.map((change) => change.bucketID), [
+        _groceriesID,
+        null,
+      ]);
+      expect(
+        result.changes.map((change) => change.difference).toSet(),
+        hasLength(1),
+      );
+    });
+
     test('sampleHistoryRanksGroceriesAndDiningAndExcludesTransport', () {
       final result = _categories(_groceriesAndDining());
 

@@ -127,6 +127,16 @@ void main() {
     expect(Accounting.netWorth(ledger).asset, Decimal.zero);
   });
 
+  test('a liability pocket contributes through its active parent account', () {
+    final ledger = LedgerState();
+    ledger.addAccount(account(a));
+    ledger.addPocket(pocket(p), a);
+    ledger.addEntry(entry(amount: money(1000), sourceID: a));
+    ledger.addEntry(entry(amount: money(-150), sourceID: p));
+
+    expect(Accounting.netWorth(ledger), NetWorth(money(850), Decimal.zero));
+  });
+
   group('NetWorth value equality', () {
     test('holds by field', () {
       expect(NetWorth(money(10), money(2)), NetWorth(money(10), money(2)));

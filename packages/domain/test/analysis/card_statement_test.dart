@@ -99,6 +99,28 @@ void main() {
   final checking = uuid(2);
 
   group('cardStatement', () {
+    test('CardStatement compares all reported values', () {
+      final cycle = DateRange(
+        DateTime.utc(2027, 3, 10),
+        DateTime.utc(2027, 4, 10),
+      );
+      CardStatement statement({Decimal? payable}) => CardStatement(
+        accountID: card,
+        currentCycle: cycle,
+        nextCut: DateTime.utc(2027, 4, 10),
+        cycleAmount: Decimal.parse('35'),
+        payable: payable ?? Decimal.parse('106'),
+      );
+
+      final value = statement();
+
+      expect(value, statement());
+      expect(value.hashCode, statement().hashCode);
+      expect(value, isNot(statement(payable: Decimal.zero)));
+      expect(value.toString(), contains('cycleAmount: 35'));
+      expect(value.toString(), contains('payable: 106'));
+    });
+
     test('normalizes the account id at construction', () {
       const raw = 'ABCDEFAB-0000-4000-8000-000000000001';
 

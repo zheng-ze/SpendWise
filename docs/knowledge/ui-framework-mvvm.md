@@ -212,9 +212,8 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   only after the feature page is exposed: preserve unrelated routes and defer a
   missing phone-detail push while one covers that page. Exactly one exposed
   detail must match the latest selection. Desktop detail presentation remains
-  feature-owned. The fixture Flow in
-  `app/test/ui/shell/shell_pane_selection_contract_test.dart` proves the
-  reconciliation logic a Flow must implement, not a production Flow.
+  feature-owned. This entry records the feature Flow requirement; production
+  verification of its reconciliation behavior is not established here.
   The desktop sidebar's sync line is a dedicated `SidebarStatusViewModel` that
   watches `hostedSyncStatusProvider`: no selection shows "Sync not configured",
   setup pending shows "Sync setup pending", ready shows "Sync ready", binding

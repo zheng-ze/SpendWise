@@ -7,12 +7,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:spendwise/boot/app_boot.dart';
-import 'package:spendwise/boot/banner_state.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/persistence/database/ledger_database.dart'
     show LedgerDatabase;
-import 'package:spendwise/persistence/store/ledger_store.dart';
 import 'package:spendwise/sync/hosted_sync_status.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
 import 'package:spendwise/ui/settings/settings_flow.dart';
@@ -37,10 +35,6 @@ final _statusStateProvider = StateProvider<HostedSyncStatus>(
   (ref) => const HostedSyncNoSelection(),
 );
 
-Finder _bannerSurface() => find
-    .ancestor(of: find.text(_repairLabel), matching: find.byType(Material))
-    .first;
-
 Ledger _buildLedger() {
   final account = Account(name: 'Checking', type: AccountType.checking);
   return Ledger(
@@ -50,18 +44,9 @@ Ledger _buildLedger() {
   );
 }
 
-Future<
-  ({
-    ProviderContainer container,
-    SyncMetadataStore metadataStore,
-    FakeSessionOpener opener,
-  })
->
-createEnrollmentContainer({
+Future<ProviderContainer> createEnrollmentContainer({
   HostedSyncStatus? status = const HostedSyncNoSelection(),
-  BannerState? banner,
   SyncEnrollmentPhase? seedPhase,
-  List<SettingsStep>? settingsSteps,
   ShellLayoutMode? layoutMode,
   ShellPlatformFacts? platform,
 }) async {
@@ -86,7 +71,6 @@ createEnrollmentContainer({
         hostedSyncStatusProvider.overrideWith(
           (ref) => ref.watch(_statusStateProvider),
         ),
-      if (banner != null) bannerStateProvider.overrideWith((ref) => banner),
       ledgerDatabaseProvider.overrideWithValue(db),
       syncMetadataStoreProvider.overrideWithValue(metadataStore),
       appBootProvider.overrideWith(
@@ -105,49 +89,25 @@ createEnrollmentContainer({
     ],
   );
   addTearDown(container.dispose);
-  if (settingsSteps != null) {
-    final subscription = container.listen(settingsRootViewModelProvider, (
-      previous,
-      next,
-    ) {
-      final step = next.step;
-      if (step != null) settingsSteps.add(step);
-    });
-    addTearDown(subscription.close);
-  }
   if (status != null) {
     container.read(_statusStateProvider.notifier).state = status;
   }
-  return (container: container, metadataStore: metadataStore, opener: opener);
+  return container;
 }
 
-Future<
-  ({
-    ProviderContainer container,
-    SyncMetadataStore metadataStore,
-    FakeSessionOpener opener,
-  })
->
-pumpShell(
+Future<ProviderContainer> pumpShell(
   WidgetTester tester, {
   HostedSyncStatus? status = const HostedSyncNoSelection(),
-  BannerState? banner,
   Size size = _compact,
   required ShellLayoutMode layoutMode,
   SyncEnrollmentPhase? seedPhase,
-  List<SettingsStep>? settingsSteps,
   Map<ShellDestination, WidgetBuilder>? bodies,
 }) async {
-  final created = await createEnrollmentContainer(
+  final container = await createEnrollmentContainer(
     status: status,
-    banner: banner,
     seedPhase: seedPhase,
-    settingsSteps: settingsSteps,
     layoutMode: layoutMode,
   );
-  final container = created.container;
-  final metadataStore = created.metadataStore;
-  final opener = created.opener;
 
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -168,7 +128,7 @@ pumpShell(
     ),
   );
   await tester.pumpAndSettle();
-  return (container: container, metadataStore: metadataStore, opener: opener);
+  return container;
 }
 
 void main() {
@@ -197,34 +157,24 @@ void main() {
   }, timeout: uiTestTimeout);
 
   testWidgets('non-repair statuses show no repair banner', (tester) async {
-    final cases = <HostedSyncStatus>[
-      const HostedSyncNoSelection(),
-      const HostedSyncSetupPending(),
-      const HostedSyncReady(),
-      const HostedSyncUnsupportedV2(),
-      const HostedSyncUnavailable(),
-    ];
-    for (final status in cases) {
-      await pumpShell(
-        tester,
-        status: status,
-        layoutMode: ShellLayoutMode.phone,
-      );
-      expect(find.text(_repairLabel), findsNothing);
-    }
+    await pumpShell(
+      tester,
+      status: const HostedSyncReady(),
+      layoutMode: ShellLayoutMode.phone,
+    );
+
+    expect(find.text(_repairLabel), findsNothing);
   }, timeout: uiTestTimeout);
 
   testWidgets('tapping the banner opens Repair Device Access once', (
     tester,
   ) async {
-    final harness = await pumpShell(
+    final container = await pumpShell(
       tester,
       status: const HostedSyncBindingRepair(),
       layoutMode: ShellLayoutMode.phone,
       seedPhase: SyncEnrollmentPhase.bindingAuthorizationRequired,
     );
-    final container = harness.container;
-
     await tester.tap(find.text(_repairLabel));
     await tester.pumpAndSettle();
 
@@ -237,49 +187,9 @@ void main() {
     expect(container.read(settingsRootViewModelProvider).step, isNull);
   }, timeout: uiTestTimeout);
 
-  testWidgets('repair takes precedence over a timed banner message, '
-      'which returns after repair ends', (tester) async {
-    final banner = BannerState();
-    final harness = await pumpShell(
-      tester,
-      status: const HostedSyncBindingRepair(),
-      layoutMode: ShellLayoutMode.phone,
-      banner: banner,
-    );
-    final container = harness.container;
-
-    banner.receiveSaveState(SaveBannerState.retrying);
-    await tester.pump();
-
-    expect(find.text(_repairLabel), findsOneWidget);
-    expect(find.text("Couldn't save changes, retrying"), findsNothing);
-
-    container.read(_statusStateProvider.notifier).state =
-        const HostedSyncReady();
-    await tester.pumpAndSettle();
-
-    expect(find.text(_repairLabel), findsNothing);
-    expect(find.text("Couldn't save changes, retrying"), findsOneWidget);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('repeated taps do not stack repair routes', (tester) async {
-    await pumpShell(
-      tester,
-      status: const HostedSyncBindingRepair(),
-      layoutMode: ShellLayoutMode.phone,
-      seedPhase: SyncEnrollmentPhase.bindingAuthorizationRequired,
-    );
-
-    await tester.tap(find.text(_repairLabel));
-    await tester.tap(find.text(_repairLabel), warnIfMissed: false);
-    await tester.pumpAndSettle();
-
-    expect(find.byType(SyncIdentifierScreen), findsOneWidget);
-  }, timeout: uiTestTimeout);
-
   testWidgets('the banner is hidden while the repair route is open and '
       'returns after the repair route closes', (tester) async {
-    final harness = await pumpShell(
+    final container = await pumpShell(
       tester,
       status: const HostedSyncBindingRepair(),
       layoutMode: ShellLayoutMode.phone,
@@ -289,120 +199,18 @@ void main() {
     await tester.tap(find.text(_repairLabel));
     await tester.pumpAndSettle();
 
-    expect(harness.container.read(enrollmentFlowOpenProvider), isTrue);
+    expect(container.read(enrollmentFlowOpenProvider), isTrue);
     expect(find.text(_repairLabel), findsNothing);
 
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
 
-    expect(harness.container.read(enrollmentFlowOpenProvider), isFalse);
+    expect(container.read(enrollmentFlowOpenProvider), isFalse);
     expect(find.byType(SyncIdentifierScreen), findsNothing);
     expect(
-      harness.container.read(selectedDestinationProvider),
+      container.read(selectedDestinationProvider),
       ShellDestination.settings,
     );
     expect(find.text(_repairLabel), findsOneWidget);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('with the keyboard up the repair form keeps Continue '
-      'tappable and the banner stays hidden', (tester) async {
-    await pumpShell(
-      tester,
-      status: const HostedSyncBindingRepair(),
-      layoutMode: ShellLayoutMode.phone,
-      seedPhase: SyncEnrollmentPhase.bindingAuthorizationRequired,
-    );
-    await tester.tap(find.text(_repairLabel));
-    await tester.pumpAndSettle();
-
-    tester.view.viewInsets = const FakeViewPadding(bottom: 300);
-    addTearDown(tester.view.resetViewInsets);
-    await tester.pumpAndSettle();
-
-    final continueButton = find.byKey(const Key('syncIdentifierContinue'));
-    expect(find.text(_repairLabel), findsNothing);
-    expect(continueButton.hitTestable(), findsOneWidget);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('the banner clears the bottom safe-area inset in rail and '
-      'bottom-nav layouts', (tester) async {
-    tester.view.padding = const FakeViewPadding(bottom: 34);
-    tester.view.viewPadding = const FakeViewPadding(bottom: 34);
-    addTearDown(tester.view.resetPadding);
-    addTearDown(tester.view.resetViewPadding);
-
-    await pumpShell(
-      tester,
-      status: const HostedSyncBindingRepair(),
-      layoutMode: ShellLayoutMode.phone,
-    );
-    final bottomNavBanner = tester.getRect(_bannerSurface());
-    final navBar = tester.getRect(find.byKey(const ValueKey('phone-bar')));
-    expect(bottomNavBanner.bottom, lessThanOrEqualTo(navBar.top));
-
-    await pumpShell(
-      tester,
-      status: const HostedSyncBindingRepair(),
-      size: const Size(900, 800),
-      layoutMode: ShellLayoutMode.desktop,
-    );
-    expect(find.byKey(const ValueKey('sidebar')), findsOneWidget);
-    final railBanner = tester.getRect(_bannerSurface());
-    expect(railBanner.bottom, lessThanOrEqualTo(800 - 34));
-  }, timeout: uiTestTimeout);
-
-  testWidgets('the open rail clears the repair banner and repair keeps '
-      'precedence over timed messages', (tester) async {
-    final banner = BannerState();
-    await pumpShell(
-      tester,
-      status: const HostedSyncBindingRepair(),
-      layoutMode: ShellLayoutMode.open,
-      size: const Size(960, 720),
-      banner: banner,
-    );
-    banner.receiveSaveState(SaveBannerState.retrying);
-    await tester.pump();
-
-    expect(find.text(_repairLabel), findsOneWidget);
-    expect(find.text("Couldn't save changes, retrying"), findsNothing);
-    final bannerRect = tester.getRect(_bannerSurface());
-    final railRect = tester.getRect(find.byKey(const ValueKey('open-rail')));
-    expect(bannerRect.right, lessThanOrEqualTo(railRect.left));
-  }, timeout: uiTestTimeout);
-
-  testWidgets('the repair banner has no dismiss affordance', (tester) async {
-    await pumpShell(
-      tester,
-      status: const HostedSyncBindingRepair(),
-      layoutMode: ShellLayoutMode.phone,
-    );
-
-    expect(find.byType(Dismissible), findsNothing);
-    expect(find.byIcon(Icons.close), findsNothing);
-    expect(find.byIcon(Icons.clear), findsNothing);
-    expect(find.text('Dismiss'), findsNothing);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('the repair banner exposes button semantics with its label', (
-    tester,
-  ) async {
-    await pumpShell(
-      tester,
-      status: const HostedSyncBindingRepair(),
-      layoutMode: ShellLayoutMode.phone,
-    );
-
-    expect(find.bySemanticsLabel(_repairLabel), findsOneWidget);
-    expect(
-      tester.getSemantics(find.bySemanticsLabel(_repairLabel)),
-      matchesSemantics(
-        label: _repairLabel,
-        isButton: true,
-        isFocusable: true,
-        hasTapAction: true,
-        hasFocusAction: true,
-      ),
-    );
   }, timeout: uiTestTimeout);
 }

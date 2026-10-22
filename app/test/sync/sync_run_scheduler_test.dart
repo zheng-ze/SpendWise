@@ -251,6 +251,23 @@ void main() {
       },
     );
 
+    test('a failed pass rejects waiters joined to its trailing pass', () async {
+      final fake = FakeRunPass();
+      final statuses = <bool>[];
+      final scheduler = schedulerWith(fake: fake, statuses: statuses);
+      final failure = StateError('pass failed');
+
+      scheduler.requestRun();
+      await pumpScheduler();
+      final trailing = scheduler.runNow();
+
+      fake.failOldest(failure);
+
+      await expectLater(trailing, throwsA(same(failure)));
+      expect(fake.calls, 1);
+      expect(statuses, <bool>[true, false]);
+    });
+
     test(
       'requestRun-only failure escapes to the zone and settles idle',
       () async {

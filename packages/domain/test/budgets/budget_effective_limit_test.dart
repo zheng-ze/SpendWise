@@ -2,6 +2,55 @@ import 'package:domain/domain.dart';
 import 'package:test/test.dart';
 
 void main() {
+  test(
+    'LimitEvent equality preserves its effective month, amount and kind',
+    () {
+      final event = LimitEvent(
+        effectiveFromMonth: YearMonth(2026, 6),
+        value: Decimal.fromInt(200),
+        kind: LimitEventKind.override,
+      );
+      final equalEvent = LimitEvent(
+        effectiveFromMonth: YearMonth(2026, 6),
+        value: Decimal.fromInt(200),
+        kind: LimitEventKind.override,
+      );
+      final otherKind = LimitEvent(
+        effectiveFromMonth: YearMonth(2026, 6),
+        value: Decimal.fromInt(200),
+        kind: LimitEventKind.defaultLimit,
+      );
+
+      expect(event, equalEvent);
+      expect(event.hashCode, equalEvent.hashCode);
+      expect(event, isNot(otherKind));
+      expect(event.toString(), 'LimitEvent(override, YearMonth(2026-6), 200)');
+    },
+  );
+
+  test('LimitEvent codes decode known kinds and reject unknown codes', () {
+    expect(LimitEventKind.defaultLimit.code, 0);
+    expect(LimitEventKind.override.code, 1);
+    expect(LimitEventKind.fromCode(0), LimitEventKind.defaultLimit);
+    expect(LimitEventKind.fromCode(1), LimitEventKind.override);
+    expect(() => LimitEventKind.fromCode(-1), throwsArgumentError);
+  });
+
+  test('Budget identifies its id and category in its string form', () {
+    final budget = Budget(
+      id: 'abcdefab-0000-4000-8000-000000000001',
+      categoryID: 'abcdefab-0000-4000-8000-000000000002',
+      limitEvents: [_defaultEvent(null, 100)],
+      createdAtMonth: const YearMonth(2026, 1),
+    );
+
+    expect(
+      budget.toString(),
+      'Budget(abcdefab-0000-4000-8000-000000000001, '
+      'abcdefab-0000-4000-8000-000000000002)',
+    );
+  });
+
   test('defaultOnlyTimelineResolvesEveryMonthToTheSingleEvent', () {
     final budget = _budgetWith([_defaultEvent(null, 100)]);
 

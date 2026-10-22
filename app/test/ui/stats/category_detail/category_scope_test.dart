@@ -1,6 +1,7 @@
 import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ui/stats/category_detail/category_scope.dart';
+import 'package:spendwise/ledger/analysis/breakdowns/analysis_category_scope.dart';
 
 void main() {
   const foodID = 'a0000000-0000-0000-0000-000000000001';
@@ -86,5 +87,25 @@ void main() {
     final all = matchingCategoryIDs(foodID, const AllScope(), state);
 
     expect(direct, isNot(equals(all)));
+  });
+
+  test('analysis subcategory scope normalizes its identity', () {
+    final scope = AnalysisCategoryScope.subcategory(
+      'A0000000-0000-4000-8000-000000000001',
+    );
+
+    final normalized = AnalysisCategoryScope.subcategory(
+      'a0000000-0000-4000-8000-000000000001',
+    );
+    expect(scope, normalized);
+    expect(scope.hashCode, normalized.hashCode);
+  });
+
+  test('analysis root scopes construct their public variants', () {
+    const all = AnalysisCategoryScope.all();
+    const direct = AnalysisCategoryScope.direct();
+
+    expect(all, isA<AllCategoryScope>());
+    expect(direct, isA<DirectCategoryScope>());
   });
 }

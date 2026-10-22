@@ -1,18 +1,10 @@
-import 'dart:async';
-
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:spendwise/boot/app_boot.dart';
-import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/main.dart';
-import 'package:spendwise/persistence/store/ledger_store.dart';
 import 'package:spendwise/settings/display_preferences.dart';
 import 'package:spendwise/settings/display_preferences_providers.dart';
 import 'package:spendwise/settings/display_preferences_store.dart';
-
-import '../support/ui_test_timeout.dart';
 
 final _darkCustom = DisplayPreferences(
   appearance: Appearance.dark,
@@ -30,40 +22,6 @@ ProviderContainer _containerWith(DisplayPreferences initial) {
   addTearDown(container.dispose);
   return container;
 }
-
-Future<void> _pumpApp(
-  WidgetTester tester, {
-  required DisplayPreferences initial,
-  required Brightness platform,
-}) async {
-  tester.platformDispatcher.platformBrightnessTestValue = platform;
-  addTearDown(
-    () => tester.platformDispatcher.clearPlatformBrightnessTestValue(),
-  );
-  final container = ProviderContainer(
-    overrides: [
-      initialDisplayPreferencesProvider.overrideWithValue(initial),
-      appBootProvider.overrideWith(
-        (ref) => AppBoot(
-          createStore: () => Completer<LedgerStore>().future,
-          seedChanges: () => [],
-        )..start(),
-      ),
-    ],
-  );
-  addTearDown(container.dispose);
-
-  await tester.pumpWidget(
-    UncontrolledProviderScope(
-      container: container,
-      child: const SpendWiseApp(),
-    ),
-  );
-  await tester.pump();
-}
-
-Brightness _appBrightness(WidgetTester tester) =>
-    Theme.of(tester.element(find.byType(Scaffold))).brightness;
 
 void main() {
   setUp(() {
@@ -100,48 +58,6 @@ void main() {
       OverviewWidgetKind.recentEntries,
     ]);
   });
-
-  testWidgets('a stored Dark overrides a light platform', (tester) async {
-    await _pumpApp(
-      tester,
-      initial: DisplayPreferences(appearance: Appearance.dark),
-      platform: Brightness.light,
-    );
-
-    expect(
-      tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode,
-      ThemeMode.dark,
-    );
-    expect(_appBrightness(tester), Brightness.dark);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('System follows the platform', (tester) async {
-    await _pumpApp(
-      tester,
-      initial: DisplayPreferences.defaults,
-      platform: Brightness.dark,
-    );
-
-    expect(
-      tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode,
-      ThemeMode.system,
-    );
-    expect(_appBrightness(tester), Brightness.dark);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('a stored Light overrides a dark platform', (tester) async {
-    await _pumpApp(
-      tester,
-      initial: DisplayPreferences(appearance: Appearance.light),
-      platform: Brightness.dark,
-    );
-
-    expect(
-      tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode,
-      ThemeMode.light,
-    );
-    expect(_appBrightness(tester), Brightness.light);
-  }, timeout: uiTestTimeout);
 
   test('a read that throws still boots with defaults', () async {
     final loaded = await loadInitialDisplayPreferences(

@@ -7,6 +7,60 @@ void main() {
 
   final budgetID = uuid(1);
 
+  test('a budget with no limit events violates the timeline invariant', () {
+    final state = LedgerState(
+      budgets: {
+        budgetID: Budget(
+          id: budgetID,
+          categoryID: null,
+          limitEvents: const [],
+          createdAtMonth: const YearMonth(2026, 1),
+        ),
+      },
+    );
+
+    expect(
+      state.assertInvariants,
+      throwsA(
+        isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          contains('invariant 17'),
+        ),
+      ),
+    );
+  });
+
+  test('a budget whose first limit event is an override is caught', () {
+    final state = LedgerState(
+      budgets: {
+        budgetID: Budget(
+          id: budgetID,
+          categoryID: null,
+          limitEvents: [
+            LimitEvent(
+              effectiveFromMonth: null,
+              value: Decimal.fromInt(100),
+              kind: LimitEventKind.override,
+            ),
+          ],
+          createdAtMonth: const YearMonth(2026, 1),
+        ),
+      },
+    );
+
+    expect(
+      state.assertInvariants,
+      throwsA(
+        isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          contains('invariant 17'),
+        ),
+      ),
+    );
+  });
+
   test('a budget referencing an unknown category is caught', () {
     final state = LedgerState(
       budgets: {

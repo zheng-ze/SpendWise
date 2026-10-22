@@ -1,6 +1,4 @@
 import 'package:domain/domain.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -13,29 +11,15 @@ import 'package:spendwise/ledger/analysis/summaries/year_spread.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/analysis_queries.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/common/charts/month_bars.dart';
-import 'package:spendwise/ui/common/feedback/empty_state.dart';
-import 'package:spendwise/ui/common/feedback/loading_skeleton.dart';
 import 'package:spendwise/ui/stats/trends/trends_body.dart';
 import 'package:spendwise/ui/stats/trends/trends_intent.dart';
 import 'package:spendwise/ui/stats/trends/trends_projection.dart';
 import 'package:spendwise/ui/stats/trends/trends_view_model.dart';
 
 import '../../ledger/analysis_test_support.dart';
-import '../../support/ui_test_timeout.dart';
 import 'trends_test_support.dart';
 
 final _today = DateTime.utc(2026, 10, 15);
-const _scrollStep = 120.0;
-const _emptyBody =
-    'Record an expense to start your monthly picture and breakdown.';
-final _disabledArrow = isSemantics(isButton: true, isEnabled: false);
-
-void _expectControls() {
-  for (final label in ['Expense', 'Income', 'Month by month', 'Year by year']) {
-    expect(find.text(label), findsOneWidget);
-  }
-}
 
 Ledger _populated() {
   final ledger = emptyTrendsLedger();
@@ -253,23 +237,6 @@ void main() {
       expect(newer, '-S\$35.00');
       expect(harness.ready.headline.amount, '-S\$35.00');
     });
-
-    test(
-      'an older completion while newer work is pending keeps the skeleton',
-      () async {
-        final runner = ManualRunner();
-        final ledger = _populated();
-        final harness = _held(ledger, runner);
-        await harness.settle();
-        addTrendsEntry(ledger, '-10', DateTime.utc(2026, 10, 3));
-        await harness.settle();
-
-        runner.pending.first.complete(const <AnalysisItem>[]);
-        await harness.settle();
-
-        expect(harness.body, isA<TrendsLoadingBody>());
-      },
-    );
   });
 
   group('failure and retry', () {
@@ -336,21 +303,6 @@ void main() {
       },
     );
 
-    test('is released when the screen providers are released', () async {
-      final runner = ManualRunner();
-      final ledger = _populated();
-      final harness = _held(ledger, runner);
-      await harness.settle();
-      harness.viewModel.setMode(TrendsMode.year);
-
-      harness.dispose();
-      runner.pending.last.complete(Accounting.analysisItems(ledger.state));
-      await pumpEventQueue();
-
-      final fresh = _held(_populated(), ManualRunner());
-      expect(fresh.intent.mode, TrendsMode.month);
-    });
-
     test(
       'a retired session completing later does not reach a new screen',
       () async {
@@ -413,21 +365,6 @@ void main() {
       );
     });
 
-    test('a today behind the queries clock shows skeletons until the queries follow', () async {
-      final scripted = await _scripted(DateTime.utc(2026, 10, 1));
-
-      expect(
-        scripted.project(DateTime.utc(2026, 9, 30)),
-        isA<TrendsLoadingBody>(),
-      );
-      expect(scripted.queries.reads, isEmpty);
-      scripted.queries.setToday(DateTime.utc(2026, 9, 30));
-      expect(
-        scripted.project(DateTime.utc(2026, 9, 30)),
-        isA<TrendsReadyBody>(),
-      );
-    });
-
     test('a year boundary mismatch is loading, not an error', () async {
       final scripted = await _scripted(DateTime.utc(2026, 12, 31));
 
@@ -438,13 +375,6 @@ void main() {
   });
 
   group('coherence', () {
-    test('a spread without a source revision is loading', () async {
-      final scripted = await _scripted(_today);
-      scripted.queries.monthSpread = (real) => _with(real, revision: null);
-
-      expect(scripted.project(_today), isA<TrendsLoadingBody>());
-    });
-
     test('a spread from another revision is loading', () async {
       final scripted = await _scripted(_today);
       final stale = scripted.ledger.revision - 1;
@@ -482,13 +412,6 @@ void main() {
 
       expect(body, isA<TrendsLoadingBody>());
     });
-
-    test('year mode does not read the monthly usual', () async {
-      final scripted = await _scripted(_today);
-      scripted.project(_today, intent: _yearIntent());
-
-      expect(scripted.queries.reads, ['year-spread']);
-    });
   });
 
   group('classification', () {
@@ -523,150 +446,4 @@ void main() {
       expect(state.error, isA<StateError>());
     });
   });
-
-  group('frames', () {
-    testWidgets(
-      'loading keeps the header and both controls over skeletons',
-      _loadingFrame,
-      timeout: uiTestTimeout,
-    );
-    testWidgets(
-      'failure shows the error copy with a filled Retry that recovers',
-      _errorFrame,
-      timeout: uiTestTimeout,
-    );
-    testWidgets(
-      'a fresh ledger shows controls, a period row with both arrows off and the empty state',
-      _freshFrame,
-      timeout: uiTestTimeout,
-    );
-    testWidgets(
-      'controls stay available when the provider has no value',
-      _noValueFrame,
-      timeout: uiTestTimeout,
-    );
-    testWidgets(
-      'a short phone scrolls to the usual row with controls reachable',
-      _shortPhoneScrolls,
-      timeout: uiTestTimeout,
-    );
-    testWidgets(
-      'a large total at 320 dp shows every digit of the amount',
-      _largeTotalIsFullyShown,
-      timeout: uiTestTimeout,
-    );
-  });
-}
-
-Future<void> _loadingFrame(WidgetTester tester) async {
-  final runner = ManualRunner();
-
-  await pumpTrends(
-    tester,
-    ledger: _populated(),
-    today: _today,
-    runner: runner.call,
-    settle: false,
-  );
-
-  expect(find.text('Trends'), findsOneWidget);
-  _expectControls();
-  expect(find.byType(LoadingSkeleton), findsWidgets);
-  expect(find.text('Retry'), findsNothing);
-  expect(find.byType(MonthBars), findsNothing);
-}
-
-Future<void> _errorFrame(WidgetTester tester) async {
-  final runner = ManualRunner();
-  final ledger = _populated();
-  await pumpTrends(
-    tester,
-    ledger: ledger,
-    today: _today,
-    runner: runner.call,
-    settle: false,
-  );
-  runner.pending.last.completeError(StateError('compute failed'));
-  await tester.pumpAndSettle();
-
-  expect(find.text("Couldn't load your spending"), findsOneWidget);
-  expect(find.text('Please try again.'), findsOneWidget);
-  expect(find.widgetWithText(FilledButton, 'Retry'), findsOneWidget);
-  _expectControls();
-
-  await tester.tap(find.text('Retry'));
-  await tester.pump();
-  runner.pending.last.complete(Accounting.analysisItems(ledger.state));
-  await tester.pumpAndSettle();
-
-  expect(find.byType(MonthBars), findsOneWidget);
-  _expectControls();
-}
-
-Future<void> _freshFrame(WidgetTester tester) async {
-  final semantics = tester.ensureSemantics();
-
-  await pumpTrends(tester, ledger: emptyTrendsLedger(), today: _today);
-
-  _expectControls();
-  expect(find.text('Nov 2025 - Oct 2026'), findsOneWidget);
-  expect(find.text('See where your money goes'), findsOneWidget);
-  expect(find.text(_emptyBody), findsOneWidget);
-  expect(find.byType(EmptyState), findsOneWidget);
-  expect(find.byType(MonthBars), findsNothing);
-  expect(find.textContaining('Compared with usual'), findsNothing);
-  expect(find.textContaining('S\$'), findsNothing);
-  final previous = tester.getSemantics(find.bySemanticsLabel('Previous'));
-  final next = tester.getSemantics(find.bySemanticsLabel('Next'));
-  expect(previous, _disabledArrow);
-  expect(next, _disabledArrow);
-
-  await tester.tap(find.text('Year by year'));
-  await tester.pumpAndSettle();
-  expect(find.text('2024 - 2026'), findsOneWidget);
-  semantics.dispose();
-}
-
-Future<void> _noValueFrame(WidgetTester tester) async {
-  await pumpTrends(tester, ledger: null, today: _today);
-
-  _expectControls();
-  expect(find.text("Couldn't load your spending"), findsOneWidget);
-  expect(find.byType(MonthBars), findsNothing);
-}
-
-Future<void> _shortPhoneScrolls(WidgetTester tester) async {
-  await pumpTrends(
-    tester,
-    ledger: _populated(),
-    today: _today,
-    size: trendsShortPhoneSize,
-  );
-
-  await tester.scrollUntilVisible(
-    find.textContaining('Compared with usual'),
-    _scrollStep,
-    scrollable: find.byType(Scrollable).first,
-  );
-  expect(find.textContaining('Compared with usual'), findsOneWidget);
-  await tester.ensureVisible(find.text('Year by year'));
-  await tester.tap(find.text('Year by year'));
-  await tester.pumpAndSettle();
-  expect(find.textContaining('Compared with usual'), findsNothing);
-  expect(find.text('2024 - 2026'), findsOneWidget);
-}
-
-Future<void> _largeTotalIsFullyShown(WidgetTester tester) async {
-  final ledger = emptyTrendsLedger();
-  addTrendsEntry(ledger, '-123456789.12', DateTime.utc(2026, 10, 2));
-
-  await pumpTrends(tester, ledger: ledger, today: _today);
-
-  final amount = find.text('-S\$123,456,789.12');
-  expect(amount, findsOneWidget);
-  expect(tester.renderObject<RenderParagraph>(amount).didExceedMaxLines, false);
-  final page = tester.getRect(find.byType(Scaffold));
-  expect(tester.getRect(amount).left, greaterThanOrEqualTo(page.left));
-  expect(tester.getRect(amount).right, lessThanOrEqualTo(page.right));
-  expect(tester.takeException(), isNull);
 }

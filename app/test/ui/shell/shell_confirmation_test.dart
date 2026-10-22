@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/legacy.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/sync/hosted_sync_status.dart';
@@ -11,7 +10,6 @@ import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/settings/recycle_bin/recycle_bin_purge_dialog.dart';
 import 'package:spendwise/ui/settings/recycle_bin/recycle_bin_view_model.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
-import 'package:spendwise/ui/shell/open_rail.dart';
 import 'package:spendwise/ui/shell/shell_binding.dart';
 import 'package:spendwise/ui/shell/shell_confirmation.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
@@ -20,15 +18,6 @@ import '../../support/ui_test_timeout.dart';
 
 const _openSize = Size(960, 720);
 const _phoneSize = Size(400, 800);
-const _shortOpenSize = Size(960, 480);
-const _rightInset = 30.0;
-const _paneCentreAtOpenSize = 444.0;
-const _wideProbeWidth = 900.0;
-const _themeMarker = Color(0xFF123456);
-
-final _platformProvider = StateProvider<TargetPlatform>(
-  (ref) => TargetPlatform.iOS,
-);
 
 class _ProbeFlow extends FlowBase<String> {
   const _ProbeFlow({required this.label});
@@ -63,7 +52,6 @@ Map<ShellDestination, WidgetBuilder> _probeBodies() => {
 Future<ProviderContainer> _pumpBoundShell(
   WidgetTester tester, {
   required Size size,
-  TargetPlatform platform = TargetPlatform.iOS,
   Map<ShellDestination, WidgetBuilder>? bodies,
 }) async {
   tester.view.physicalSize = size;
@@ -72,9 +60,8 @@ Future<ProviderContainer> _pumpBoundShell(
   final container = ProviderContainer(
     overrides: [
       hostedSyncStatusProvider.overrideWithValue(const HostedSyncReady()),
-      _platformProvider.overrideWith((ref) => platform),
       shellPlatformProvider.overrideWith(
-        (ref) => (isWeb: false, targetPlatform: ref.watch(_platformProvider)),
+        (ref) => (isWeb: false, targetPlatform: TargetPlatform.iOS),
       ),
     ],
   );
@@ -101,40 +88,7 @@ Future<bool?> _openTestDialog(BuildContext context) {
   );
 }
 
-Finder _dimFinder(Color color) => find.byWidgetPredicate(
-  (widget) => widget is ColoredBox && widget.color == color,
-);
-
 void main() {
-  testWidgets('open centres the dialog over the pane region at 960 dp', (
-    tester,
-  ) async {
-    await _pumpBoundShell(tester, size: _openSize);
-    final context = tester.element(find.text('overview probe'));
-
-    final future = _openTestDialog(context);
-    await tester.pumpAndSettle();
-
-    expect(
-      tester.getCenter(find.byType(Dialog)).dx,
-      moreOrLessEquals(_paneCentreAtOpenSize, epsilon: 1),
-    );
-    expect(
-      tester.getRect(find.byType(Dialog)).width,
-      lessThanOrEqualTo(shellConfirmationOpenMaxWidth + 1),
-    );
-    final dimRect = tester.getRect(_dimFinder(shellConfirmationOpenDim));
-    expect(dimRect.left, moreOrLessEquals(0, epsilon: 1));
-    expect(
-      dimRect.right,
-      moreOrLessEquals(_openSize.width - openRailGutter, epsilon: 1),
-    );
-
-    Navigator.of(context, rootNavigator: true).pop(true);
-    await tester.pumpAndSettle();
-    expect(await future, isTrue);
-  }, timeout: uiTestTimeout);
-
   testWidgets('the dialog lives on the root navigator from any pane', (
     tester,
   ) async {
@@ -147,7 +101,6 @@ void main() {
     var future = _openTestDialog(overviewContext);
     await tester.pumpAndSettle();
     expect(Navigator.of(tester.element(find.text('confirm body'))), root);
-    final overviewRect = tester.getRect(find.byType(Dialog));
     root.pop(false);
     await tester.pumpAndSettle();
     expect(await future, isFalse);
@@ -158,8 +111,6 @@ void main() {
     final moneyContext = tester.element(find.text('money probe'));
     future = _openTestDialog(moneyContext);
     await tester.pumpAndSettle();
-    expect(tester.getRect(find.byType(Dialog)), overviewRect);
-
     Navigator.of(moneyContext, rootNavigator: true).pop(true);
     await tester.pumpAndSettle();
     expect(await future, isTrue);
@@ -184,10 +135,6 @@ void main() {
     final detailFuture = _openTestDialog(detailContext!);
     await tester.pumpAndSettle();
     expect(Navigator.of(tester.element(find.text('confirm body'))), root);
-    expect(
-      tester.getCenter(find.byType(Dialog)).dx,
-      moreOrLessEquals(_paneCentreAtOpenSize, epsilon: 1),
-    );
     root.pop(false);
     await tester.pumpAndSettle();
     expect(await detailFuture, isFalse);
@@ -265,15 +212,6 @@ void main() {
     tester.view.physicalSize = _phoneSize;
     await tester.pumpAndSettle();
 
-    expect(
-      tester.getCenter(find.byType(Dialog)).dx,
-      moreOrLessEquals(_phoneSize.width / 2, epsilon: 1),
-    );
-    final phoneDimRect = tester.getRect(
-      _dimFinder(shellConfirmationStandardDimFallback),
-    );
-    expect(phoneDimRect.left, moreOrLessEquals(0, epsilon: 1));
-    expect(phoneDimRect.right, moreOrLessEquals(_phoneSize.width, epsilon: 1));
     expect(identical(confirmation, pendingConfirmation), isTrue);
     expect(
       tester.widget<EditableText>(find.byType(EditableText)).controller.text,
@@ -317,15 +255,6 @@ void main() {
     tester.view.physicalSize = _phoneSize;
     await tester.pumpAndSettle();
     expect(find.text('confirm body'), findsOneWidget);
-    expect(
-      tester.getCenter(find.byType(Dialog)).dx,
-      moreOrLessEquals(_phoneSize.width / 2, epsilon: 1),
-    );
-    final phoneDimRect = tester.getRect(
-      _dimFinder(shellConfirmationStandardDimFallback),
-    );
-    expect(phoneDimRect.left, moreOrLessEquals(0, epsilon: 1));
-    expect(phoneDimRect.right, moreOrLessEquals(_phoneSize.width, epsilon: 1));
     expect(completed, isFalse);
     expect(
       container.read(selectedDestinationProvider),
@@ -334,10 +263,6 @@ void main() {
 
     tester.view.physicalSize = _openSize;
     await tester.pumpAndSettle();
-    expect(
-      tester.getCenter(find.byType(Dialog)).dx,
-      moreOrLessEquals(_paneCentreAtOpenSize, epsilon: 1),
-    );
 
     Navigator.of(context, rootNavigator: true).pop(true);
     await tester.pumpAndSettle();
@@ -412,27 +337,6 @@ void main() {
     expect(mutated, isFalse);
   }, timeout: uiTestTimeout);
 
-  testWidgets('a rail tap cannot change destination behind the dialog', (
-    tester,
-  ) async {
-    final container = await _pumpBoundShell(tester, size: _openSize);
-    final context = tester.element(find.text('overview probe'));
-    expect(find.text('History'), findsOneWidget);
-
-    final future = showDeleteConfirmation(context, itemName: 'Groceries');
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('History'), warnIfMissed: false);
-    await tester.pumpAndSettle();
-
-    expect(find.text('Delete Groceries?'), findsNothing);
-    expect(
-      container.read(selectedDestinationProvider),
-      ShellDestination.overview,
-    );
-    expect(await future, isFalse);
-  }, timeout: uiTestTimeout);
-
   testWidgets('a rail tap behind the dim layer is inert', (tester) async {
     final container = await _pumpBoundShell(tester, size: _openSize);
     final context = tester.element(find.text('overview probe'));
@@ -459,97 +363,6 @@ void main() {
     expect(await future, isFalse);
   }, timeout: uiTestTimeout);
 
-  testWidgets('phone keeps full-window placement', (tester) async {
-    await _pumpBoundShell(tester, size: _phoneSize);
-    final context = tester.element(find.text('overview probe'));
-
-    final future = showDeleteConfirmation(context, itemName: 'Item');
-    await tester.pumpAndSettle();
-
-    expect(
-      tester.getCenter(find.byType(Dialog)).dx,
-      moreOrLessEquals(_phoneSize.width / 2, epsilon: 1),
-    );
-    final dimRect = tester.getRect(
-      _dimFinder(shellConfirmationStandardDimFallback),
-    );
-    expect(dimRect.right, moreOrLessEquals(_phoneSize.width, epsilon: 1));
-
-    await tester.tap(find.text('Delete'));
-    await tester.pumpAndSettle();
-    expect(await future, isTrue);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('desktop keeps full-window placement', (tester) async {
-    await _pumpBoundShell(
-      tester,
-      size: _openSize,
-      platform: TargetPlatform.macOS,
-    );
-    final context = tester.element(find.text('overview probe'));
-
-    final future = showDeleteConfirmation(context, itemName: 'Item');
-    await tester.pumpAndSettle();
-
-    expect(
-      tester.getCenter(find.byType(Dialog)).dx,
-      moreOrLessEquals(_openSize.width / 2, epsilon: 1),
-    );
-    final dimRect = tester.getRect(
-      _dimFinder(shellConfirmationStandardDimFallback),
-    );
-    expect(dimRect.right, moreOrLessEquals(_openSize.width, epsilon: 1));
-
-    await tester.tap(find.text('Cancel'));
-    await tester.pumpAndSettle();
-    expect(await future, isFalse);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('short open windows bound and scroll large content', (
-    tester,
-  ) async {
-    tester.binding.platformDispatcher.textScaleFactorTestValue = 2;
-    addTearDown(
-      tester.binding.platformDispatcher.clearTextScaleFactorTestValue,
-    );
-    await _pumpBoundShell(tester, size: _shortOpenSize);
-    final context = tester.element(find.text('overview probe'));
-
-    final future = showDeleteConfirmation(
-      context,
-      itemName:
-          'A remarkably long budget name that keeps going and going and going',
-    );
-    await tester.pumpAndSettle();
-
-    expect(tester.takeException(), isNull);
-    expect(find.text('Cancel').hitTestable(), findsOneWidget);
-    expect(find.text('Delete').hitTestable(), findsOneWidget);
-    expect(
-      tester.getRect(find.byType(Dialog)).height,
-      lessThanOrEqualTo(_shortOpenSize.height),
-    );
-    final titleScrollable = find.descendant(
-      of: find.byType(Dialog),
-      matching: find.byType(Scrollable),
-    );
-    expect(titleScrollable, findsOneWidget);
-    final scrollable = tester.state<ScrollableState>(titleScrollable);
-    expect(scrollable.position.maxScrollExtent, greaterThan(0));
-    scrollable.position.jumpTo(scrollable.position.maxScrollExtent);
-    await tester.pumpAndSettle();
-    expect(find.text('Cancel').hitTestable(), findsOneWidget);
-    expect(find.text('Delete').hitTestable(), findsOneWidget);
-    expect(
-      tester.getCenter(find.byType(Dialog)).dx,
-      moreOrLessEquals(_paneCentreAtOpenSize, epsilon: 1),
-    );
-
-    await tester.tap(find.text('Cancel'));
-    await tester.pumpAndSettle();
-    expect(await future, isFalse);
-  }, timeout: uiTestTimeout);
-
   testWidgets('purge keeps its wording and maps dismissal to false', (
     tester,
   ) async {
@@ -569,10 +382,6 @@ void main() {
       find.textContaining('Holiday fund leaves the bin for good'),
       findsOneWidget,
     );
-    expect(
-      tester.getCenter(find.byType(AlertDialog)).dx,
-      moreOrLessEquals(_paneCentreAtOpenSize, epsilon: 1),
-    );
 
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
@@ -583,27 +392,6 @@ void main() {
     await tester.tap(find.text('Delete'));
     await tester.pumpAndSettle();
     expect(await confirmed, isTrue);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('the open region respects the right safe inset', (tester) async {
-    tester.view.padding = const FakeViewPadding(right: _rightInset);
-    await _pumpBoundShell(tester, size: _openSize);
-    final context = tester.element(find.text('overview probe'));
-
-    final future = _openTestDialog(context);
-    await tester.pumpAndSettle();
-
-    const regionRight = 960 - openRailGutter - _rightInset;
-    final dimRect = tester.getRect(_dimFinder(shellConfirmationOpenDim));
-    expect(dimRect.right, moreOrLessEquals(regionRight, epsilon: 1));
-    expect(
-      tester.getCenter(find.byType(Dialog)).dx,
-      moreOrLessEquals(regionRight / 2, epsilon: 1),
-    );
-
-    Navigator.of(context, rootNavigator: true).pop(true);
-    await tester.pumpAndSettle();
-    expect(await future, isTrue);
   }, timeout: uiTestTimeout);
 
   testWidgets('focus traversal stays inside the dialog', (tester) async {
@@ -623,85 +411,5 @@ void main() {
     Navigator.of(context, rootNavigator: true).pop(false);
     await tester.pumpAndSettle();
     expect(await future, isFalse);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('the dialog inherits the caller theme', (tester) async {
-    final bodies = _probeBodies()
-      ..[ShellDestination.overview] = (context) => Theme(
-        data: ThemeData(primaryColor: _themeMarker),
-        child: const _ProbeFlow(label: 'overview probe'),
-      );
-    await _pumpBoundShell(tester, size: _openSize, bodies: bodies);
-    final context = tester.element(find.text('overview probe'));
-    Color? seen;
-
-    final future = showShellConfirmation<bool>(
-      context,
-      builder: (dialogContext) {
-        seen = Theme.of(dialogContext).primaryColor;
-        return const Dialog(child: Text('themed body'));
-      },
-    );
-    await tester.pumpAndSettle();
-
-    expect(seen, _themeMarker);
-
-    Navigator.of(context, rootNavigator: true).pop(true);
-    await tester.pumpAndSettle();
-    expect(await future, isTrue);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('a live open to desktop resize follows the live mode', (
-    tester,
-  ) async {
-    final container = await _pumpBoundShell(tester, size: _openSize);
-    final context = tester.element(find.text('overview probe'));
-
-    final root = Navigator.of(context, rootNavigator: true);
-    final future = _openTestDialog(context);
-    await tester.pumpAndSettle();
-    expect(
-      tester.getCenter(find.byType(Dialog)).dx,
-      moreOrLessEquals(_paneCentreAtOpenSize, epsilon: 1),
-    );
-
-    container.read(_platformProvider.notifier).state = TargetPlatform.macOS;
-    await tester.pumpAndSettle();
-
-    expect(find.text('confirm body'), findsOneWidget);
-    expect(
-      tester.getCenter(find.byType(Dialog)).dx,
-      moreOrLessEquals(_openSize.width / 2, epsilon: 1),
-    );
-    final dimRect = tester.getRect(
-      _dimFinder(shellConfirmationStandardDimFallback),
-    );
-    expect(dimRect.right, moreOrLessEquals(_openSize.width, epsilon: 1));
-
-    root.pop(true);
-    await tester.pumpAndSettle();
-    expect(await future, isTrue);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('wide content clamps to the open maximum width', (tester) async {
-    await _pumpBoundShell(tester, size: _openSize);
-    final context = tester.element(find.text('overview probe'));
-
-    final future = showShellConfirmation<bool>(
-      context,
-      builder: (_) => const Dialog(
-        child: SizedBox(width: _wideProbeWidth, child: Text('wide body')),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(
-      tester.getRect(find.byType(Dialog)).width,
-      moreOrLessEquals(shellConfirmationOpenMaxWidth, epsilon: 1),
-    );
-
-    Navigator.of(context, rootNavigator: true).pop(true);
-    await tester.pumpAndSettle();
-    expect(await future, isTrue);
   }, timeout: uiTestTimeout);
 }

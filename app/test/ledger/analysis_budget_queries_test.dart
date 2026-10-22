@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ledger/analysis_queries.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
+import 'package:spendwise/ledger/analysis/budgets/budget_detail.dart';
+import 'package:spendwise/ledger/analysis/insights/completeness.dart';
 
 import 'analysis_test_support.dart';
 
@@ -131,5 +133,52 @@ void main() {
     expect(stale.state, AnalysisQueryState.loading);
     expect(fresh.value?.allSpending.spent, dec('30'));
     expect(fresh.sourceRevision, fixture.ledger.revision);
+  });
+
+  test('budget detail values compare their money and slot state', () {
+    final month = YearMonth(2026, 10);
+    final slot = BudgetMonthSlot(
+      month: month,
+      spend: dec('12'),
+      limit: dec('30'),
+      isOverride: true,
+      recordCount: 1,
+      completeness: PeriodCompleteness.complete,
+    );
+    final sameSlot = BudgetMonthSlot(
+      month: month,
+      spend: dec('12'),
+      limit: dec('30'),
+      isOverride: true,
+      recordCount: 1,
+      completeness: PeriodCompleteness.complete,
+    );
+    final summary = BudgetDetailSummary(
+      categoryID: testId(1),
+      createdAtMonth: YearMonth(2026, 1),
+      spent: dec('12'),
+      limit: dec('30'),
+    );
+    final detail = BudgetDetail(
+      budgetID: testId(2),
+      displayedYear: 2026,
+      selectedMonth: month,
+      summary: summary,
+      slots: [slot],
+    );
+    final equalDetail = BudgetDetail(
+      budgetID: testId(2),
+      displayedYear: 2026,
+      selectedMonth: month,
+      summary: summary,
+      slots: [sameSlot],
+    );
+
+    expect(slot, sameSlot);
+    expect(slot.hashCode, sameSlot.hashCode);
+    expect(summary.remaining, dec('18'));
+    expect(detail, equalDetail);
+    expect(detail.hashCode, equalDetail.hashCode);
+    expect(detail.slots, hasLength(1));
   });
 }

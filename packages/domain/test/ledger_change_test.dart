@@ -61,6 +61,7 @@ void main() {
         const DeleteCategory(categoryID),
       );
       expect(const DeleteEntry(entryID), const DeleteEntry(entryID));
+      expect(const DeletePlan(entryID), const DeletePlan(entryID));
     });
 
     test('equal changes share a hash code', () {
@@ -71,6 +72,22 @@ void main() {
       expect(
         const DeleteMoneySource(accountID).hashCode,
         const DeleteMoneySource(accountID).hashCode,
+      );
+      expect(
+        const DeleteCategory(categoryID).hashCode,
+        const DeleteCategory(categoryID).hashCode,
+      );
+      expect(
+        const DeleteEntry(entryID).hashCode,
+        const DeleteEntry(entryID).hashCode,
+      );
+      expect(
+        const DeletePlan(entryID).hashCode,
+        const DeletePlan(entryID).hashCode,
+      );
+      expect(
+        const DeleteBudget(budgetID).hashCode,
+        const DeleteBudget(budgetID).hashCode,
       );
     });
 
@@ -104,6 +121,7 @@ void main() {
         const DeleteMoneySource(entryID),
         isNot(const DeleteCategory(entryID)),
       );
+      expect(const DeletePlan(entryID), isNot(const DeleteEntry(entryID)));
     });
 
     test('budget cases behave the same as the other upsert/delete cases', () {
@@ -142,8 +160,32 @@ void main() {
       expect(const DeleteMoneySource(accountID).targetID, accountID);
       expect(const DeleteCategory(categoryID).targetID, categoryID);
       expect(const DeleteEntry(entryID).targetID, entryID);
+      expect(const DeletePlan(entryID).targetID, entryID);
       expect(UpsertBudget(budget()).targetID, budgetID);
       expect(const DeleteBudget(budgetID).targetID, budgetID);
+    });
+
+    test('delete changes describe their operation and target', () {
+      expect(
+        const DeleteMoneySource(accountID).toString(),
+        'LedgerChange.deleteMoneySource($accountID)',
+      );
+      expect(
+        const DeleteCategory(categoryID).toString(),
+        'LedgerChange.deleteCategory($categoryID)',
+      );
+      expect(
+        const DeleteEntry(entryID).toString(),
+        'LedgerChange.deleteEntry($entryID)',
+      );
+      expect(
+        const DeletePlan(entryID).toString(),
+        'LedgerChange.deletePlan($entryID)',
+      );
+      expect(
+        const DeleteBudget(budgetID).toString(),
+        'LedgerChange.deleteBudget($budgetID)',
+      );
     });
   });
 

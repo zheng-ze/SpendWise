@@ -2,6 +2,7 @@ import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
 import 'package:spendwise/ledger/analysis/summaries/period_summary.dart';
+import 'package:spendwise/ledger/analysis/summaries/today_summary.dart';
 import 'package:spendwise/ledger/analysis_queries.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
@@ -88,6 +89,72 @@ Future<void> _accept(AnalysisCache cache, Ledger ledger) async {
 }
 
 void main() {
+  test('summary value equality preserves calculated money fields', () {
+    final state = _state();
+    state.addBudget(null, Decimal.parse('300'), now: _today);
+    final items = [
+      AnalysisItem(
+        bucketID: _foodID,
+        amount: Decimal.parse('12.50'),
+        date: _today,
+        kind: CategoryKind.expense,
+      ),
+    ];
+    final firstToday = todaySummary(ledger: state, items: items, today: _today);
+    final secondToday = todaySummary(
+      ledger: state,
+      items: items,
+      today: _today,
+    );
+    final firstPeriod = periodSummary(
+      ledger: state,
+      items: items,
+      window: _april(),
+    );
+    final secondPeriod = periodSummary(
+      ledger: state,
+      items: items,
+      window: _april(),
+    );
+
+    expect(firstToday, secondToday);
+    expect(firstToday.hashCode, secondToday.hashCode);
+    expect(firstPeriod, secondPeriod);
+    expect(firstPeriod.hashCode, secondPeriod.hashCode);
+    expect(firstToday.spent, Decimal.parse('12.50'));
+    expect(firstPeriod.spent, Decimal.parse('12.50'));
+  });
+
+  test('today summary rejects malformed duplicate applicable caps', () {
+    Budget cap(String id) => Budget(
+      id: id,
+      categoryID: null,
+      limitEvents: [
+        LimitEvent(
+          effectiveFromMonth: null,
+          value: Decimal.parse('300'),
+          kind: LimitEventKind.defaultLimit,
+        ),
+      ],
+      createdAtMonth: const YearMonth(2027, 4),
+    );
+    final ledger = LedgerState(
+      budgets: {
+        'a0000000-0000-0000-0000-000000000001': cap(
+          'a0000000-0000-0000-0000-000000000001',
+        ),
+        'a0000000-0000-0000-0000-000000000002': cap(
+          'a0000000-0000-0000-0000-000000000002',
+        ),
+      },
+    );
+
+    expect(
+      () => todaySummary(ledger: ledger, items: const [], today: _today),
+      throwsStateError,
+    );
+  });
+
   test('periodTotalsExcludeTransfersAndReportThemAsMoved', () async {
     final state = _state();
     _expense(

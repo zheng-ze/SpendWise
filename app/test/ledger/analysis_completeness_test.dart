@@ -127,6 +127,28 @@ LedgerState _stateWithHistory() {
 }
 
 void main() {
+  test('period completeness results compare their classification inputs', () {
+    final window = DateRange(
+      DateTime.utc(2027, 4, 1),
+      DateTime.utc(2027, 5, 1),
+    );
+    final result = PeriodCompletenessResult(
+      window: window,
+      firstRecordMonth: DateTime.utc(2027, 1, 1),
+      today: DateTime.utc(2027, 5, 1),
+      state: PeriodCompleteness.complete,
+    );
+    final equal = PeriodCompletenessResult(
+      window: window,
+      firstRecordMonth: DateTime.utc(2027, 1, 1),
+      today: DateTime.utc(2027, 5, 1),
+      state: PeriodCompleteness.complete,
+    );
+
+    expect(result, equal);
+    expect(result.hashCode, equal.hashCode);
+  });
+
   test('firstRecordMonthUsesEarliestEntryOfAnyKind', () {
     expect(firstRecordMonth(_stateWithHistory()), DateTime.utc(2027, 1, 1));
   });

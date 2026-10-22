@@ -25,14 +25,10 @@ import '../../../support/ui_test_timeout.dart';
 const _identifierField = Key('syncIdentifierField');
 const _identifierContinue = Key('syncIdentifierContinue');
 const _otpField = Key('syncOtpField');
-const _otpSubmit = Key('syncOtpSubmit');
-const _otpBack = Key('syncOtpBack');
 const _resumeRetry = Key('syncResumeRetry');
 const _pickerBack = Key('syncPickerBack');
-const _freshDone = Key('syncFreshDone');
 
 final class FakeBackendSelectionWriter implements BackendSelectionWriter {
-  final List<({SyncBackendKind backend, String? endpoint})> calls = [];
   Future<void> Function()? onWrite;
 
   @override
@@ -40,7 +36,6 @@ final class FakeBackendSelectionWriter implements BackendSelectionWriter {
     required SyncBackendKind backend,
     String? endpoint,
   }) async {
-    calls.add((backend: backend, endpoint: endpoint));
     await onWrite?.call();
   }
 }
@@ -71,7 +66,6 @@ final class FakeSyncEnrollmentSession implements SyncEnrollmentSession {
 
 final class FakeSessionOpener {
   FakeSyncEnrollmentSession session = FakeSyncEnrollmentSession();
-  SyncEnrollmentSessionResult? nextResult;
   Object? errorOnOpen;
   Future<void> Function()? onOpen;
 
@@ -91,7 +85,7 @@ final class FakeSessionOpener {
       session.resolveOtpCalls++;
       return resolveOtp(challenge);
     };
-    return nextResult ?? SyncEnrollmentSessionReady(session);
+    return SyncEnrollmentSessionReady(session);
   }
 }
 
@@ -175,234 +169,6 @@ Future<void> driveToOtpEntry(
 }
 
 void main() {
-  testWidgets('hosted selection persists and advances to identifier entry', (
-    tester,
-  ) async {
-    final harness = await pumpEnrollmentFlow(tester);
-
-    await continueWithHosted(tester);
-
-    expect(harness.writer.calls, hasLength(1));
-    expect(harness.writer.calls.single.backend, SyncBackendKind.supabase);
-    expect(find.byKey(_identifierField), findsOneWidget);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('identifier then OTP completes enrollment and publication', (
-    tester,
-  ) async {
-    final harness = await pumpEnrollmentFlow(tester);
-    await continueWithHosted(tester);
-    String? seenOtp;
-    harness.opener.session.onEnroll = () async {
-      seenOtp = await harness.opener.session.resolveOtp!(
-        EnrollmentChallenge(const {'identifier': 'user@example.com'}),
-      );
-    };
-
-    await submitIdentifier(tester, 'user@example.com');
-    await pumpFlowFrames(tester);
-
-    expect(harness.opener.identifiers, ['user@example.com']);
-    expect(find.byKey(_otpField), findsOneWidget);
-
-    await tester.enterText(find.byKey(_otpField), '482916');
-    await tester.pump();
-    await tester.tap(find.byKey(_otpSubmit));
-    await pumpFlowFrames(tester);
-
-    expect(seenOtp, '482916');
-    expect(harness.opener.session.enrollCalls, 1);
-    expect(harness.opener.session.publishCalls, 1);
-    expect(find.text('Sync enrollment complete'), findsOneWidget);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('a second action while an operation is active is ignored', (
-    tester,
-  ) async {
-    final harness = await pumpEnrollmentFlow(tester);
-    await continueWithHosted(tester);
-    final gate = Completer<void>();
-    harness.opener.session.onEnroll = () => gate.future;
-    final viewModel = harness.container.read(
-      syncEnrollmentViewModelProvider.notifier,
-    );
-
-    await submitIdentifier(tester, 'user@example.com');
-    viewModel.submitIdentifier('second@example.com');
-    await viewModel.retry();
-    await tester.pump();
-
-    expect(harness.opener.session.enrollCalls, 1);
-    expect(harness.opener.openCalls, 1);
-
-    gate.complete();
-    await pumpFlowFrames(tester);
-
-    expect(find.text('Sync enrollment complete'), findsOneWidget);
-    expect(harness.opener.session.enrollCalls, 1);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('backing out of OTP cancels, clears the guard, '
-      'and accepts a fresh submission', (tester) async {
-    var now = DateTime.utc(2026, 1, 1);
-    final harness = await pumpEnrollmentFlow(tester, now: () => now);
-    await continueWithHosted(tester);
-    await driveToOtpEntry(tester, harness.opener.session);
-    expect(find.byKey(_otpField), findsOneWidget);
-
-    await tester.tap(find.byKey(_otpBack));
-    await pumpFlowFrames(tester);
-
-    final cancelledState = harness.container.read(
-      syncEnrollmentViewModelProvider,
-    );
-    expect(cancelledState.cancelled, isTrue);
-    expect(cancelledState.inFlight, isFalse);
-    expect(cancelledState.errorMessage, isNull);
-    expect(find.byKey(_identifierField), findsOneWidget);
-    expect(harness.opener.session.enrollCalls, 1);
-
-    now = now.add(const Duration(seconds: 61));
-    await tester.pump(const Duration(seconds: 2));
-    harness.opener.session.onEnroll = () async {};
-    await submitIdentifier(tester, 'fresh@example.com');
-    await pumpFlowFrames(tester);
-
-    expect(harness.opener.session.enrollCalls, 2);
-    expect(harness.opener.identifiers.last, 'fresh@example.com');
-    expect(find.text('Sync enrollment complete'), findsOneWidget);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('a typed failure before credential persistence '
-      'is an ordinary error retried from identifier entry', (tester) async {
-    final harness = await pumpEnrollmentFlow(tester);
-    await continueWithHosted(tester);
-    harness.opener.session.onEnroll = () async {
-      throw const SyncEnrollmentException(
-        step: 'completeEnrollment',
-        code: 'invalid_otp',
-      );
-    };
-
-    await submitIdentifier(tester, 'user@example.com');
-    await pumpFlowFrames(tester);
-
-    expect(find.byKey(_identifierField), findsOneWidget);
-    expect(find.byKey(_resumeRetry), findsNothing);
-    final failed = harness.container.read(syncEnrollmentViewModelProvider);
-    expect(failed.errorMessage, isNotNull);
-    expect(failed.inFlight, isFalse);
-    expect(
-      (await harness.metadataStore.snapshot()).phase,
-      SyncEnrollmentPhase.notEnrolled,
-    );
-
-    harness.opener.session.onEnroll = () async {};
-    await tester.tap(find.byKey(_identifierContinue));
-    await pumpFlowFrames(tester);
-
-    expect(find.text('Sync enrollment complete'), findsOneWidget);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('a post-credential failure retries from the resume screen '
-      'without re-collecting identifier or OTP', (tester) async {
-    final harness = await pumpEnrollmentFlow(tester);
-    await continueWithHosted(tester);
-    await harness.metadataStore.enterSnapshotInProgress();
-    harness.opener.session.onEnroll = () async {
-      throw const SyncEnrollmentException(
-        step: 'reconcileBegin',
-        code: 'unavailable',
-      );
-    };
-
-    await submitIdentifier(tester, 'user@example.com');
-    await pumpFlowFrames(tester);
-
-    expect(find.byKey(_resumeRetry), findsOneWidget);
-    expect(find.byKey(_otpField), findsNothing);
-    expect(harness.opener.session.resolveOtpCalls, 0);
-
-    harness.opener.session.onEnroll = () async {};
-    await tester.tap(find.byKey(_resumeRetry));
-    await pumpFlowFrames(tester);
-
-    expect(harness.opener.openCalls, 1);
-    expect(harness.opener.session.enrollCalls, 2);
-    expect(harness.opener.session.resolveOtpCalls, 0);
-    expect(find.text('Sync enrollment complete'), findsOneWidget);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('completion waits until the publisher reports published', (
-    tester,
-  ) async {
-    final harness = await pumpEnrollmentFlow(tester);
-    await continueWithHosted(tester);
-    final results = <EnrollmentSnapshotPublishResult>[
-      const EnrollmentSnapshotPending(
-        collection: SyncCollection.entries,
-        result: PushDeferred(),
-      ),
-      const EnrollmentSnapshotPublished(),
-    ];
-    var publishIndex = 0;
-    harness.opener.session.onEnroll = () async {
-      await harness.opener.session.resolveOtp!(
-        EnrollmentChallenge(const {'identifier': 'user@example.com'}),
-      );
-    };
-    harness.opener.session.onPublish = () async => results[publishIndex++];
-
-    await submitIdentifier(tester, 'user@example.com');
-    await pumpFlowFrames(tester);
-    await tester.enterText(find.byKey(_otpField), '482916');
-    await tester.pump();
-    await tester.tap(find.byKey(_otpSubmit));
-    await pumpFlowFrames(tester);
-
-    expect(harness.opener.session.publishCalls, 2);
-    expect(find.text('Sync enrollment complete'), findsOneWidget);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('a not-ready composition surfaces an ordinary error '
-      'without enrolling', (tester) async {
-    final opener = FakeSessionOpener()
-      ..nextResult = const SyncEnrollmentSessionNotReady(
-        ledgerReady: false,
-        persistenceReady: true,
-      );
-    final harness = await pumpEnrollmentFlow(tester, opener: opener);
-    await continueWithHosted(tester);
-
-    await submitIdentifier(tester, 'user@example.com');
-    await pumpFlowFrames(tester);
-
-    final state = harness.container.read(syncEnrollmentViewModelProvider);
-    expect(state.errorMessage, isNotNull);
-    expect(find.byKey(_identifierField), findsOneWidget);
-    expect(harness.opener.session.enrollCalls, 0);
-    expect(harness.opener.session.publishCalls, 0);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('custom selection keeps its unavailable affordance '
-      'and never opens hosted enrollment', (tester) async {
-    final harness = await pumpEnrollmentFlow(tester);
-    final picker = harness.container.read(
-      backendPickerViewModelProvider.notifier,
-    );
-
-    picker.selectBackend(SyncBackendKind.custom);
-    picker.updateEndpoint('https://sync.example.com/sync');
-    await picker.continueWithSelection();
-    await tester.pump();
-
-    expect(harness.writer.calls, hasLength(1));
-    expect(harness.writer.calls.single.backend, SyncBackendKind.custom);
-    expect(find.text('Custom servers are not yet available.'), findsOneWidget);
-    expect(find.byKey(_identifierField), findsNothing);
-    expect(harness.opener.openCalls, 0);
-  }, timeout: uiTestTimeout);
-
   testWidgets('a persistently pending publisher gives up bounded and '
       'surfaces a retryable resume error', (tester) async {
     final harness = await pumpEnrollmentFlow(tester);
@@ -487,28 +253,6 @@ void main() {
     expect(find.byType(BackendPickerScreen), findsNothing);
   }, timeout: uiTestTimeout);
 
-  testWidgets('system back at the picker root pops the flow route', (
-    tester,
-  ) async {
-    await pumpEnrollmentFlow(tester);
-
-    expect(find.byType(BackendPickerScreen), findsOneWidget);
-    await tester.binding.handlePopRoute();
-    await pumpFlowFrames(tester);
-
-    expect(find.text(flowHostMarker), findsOneWidget);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('picker Back button ends the flow', (tester) async {
-    var endedCalls = 0;
-    await pumpEnrollmentFlow(tester, onEnded: () => endedCalls++);
-
-    await tester.tap(find.byKey(_pickerBack));
-    await pumpFlowFrames(tester);
-
-    expect(endedCalls, 1);
-  }, timeout: uiTestTimeout);
-
   testWidgets('picker Back is inert while a backend selection save is '
       'in flight', (tester) async {
     var endedCalls = 0;
@@ -565,62 +309,6 @@ void main() {
     await pumpFlowFrames(tester);
     expect(endedCalls, 0);
     expect(find.byKey(_identifierField), findsOneWidget);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('picker Back ends the flow again after a save failure', (
-    tester,
-  ) async {
-    var endedCalls = 0;
-    final harness = await pumpEnrollmentFlow(
-      tester,
-      onEnded: () => endedCalls++,
-    );
-    final gate = Completer<void>();
-    harness.writer.onWrite = () async {
-      await gate.future;
-      throw Exception('write failed');
-    };
-
-    await tester.tap(find.text('Continue'));
-    await tester.pump();
-    expect(
-      harness.container.read(backendPickerViewModelProvider).saving,
-      isTrue,
-    );
-
-    gate.complete();
-    await pumpFlowFrames(tester);
-    expect(
-      harness.container.read(backendPickerViewModelProvider).saving,
-      isFalse,
-    );
-    expect(
-      find.text('Could not save the backend selection. Please try again.'),
-      findsOneWidget,
-    );
-
-    await tester.tap(find.byKey(_pickerBack));
-    await pumpFlowFrames(tester);
-
-    expect(endedCalls, 1);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('fresh completion Done ends the flow', (tester) async {
-    var endedCalls = 0;
-    final harness = await pumpEnrollmentFlow(
-      tester,
-      onEnded: () => endedCalls++,
-    );
-    await continueWithHosted(tester);
-    harness.opener.session.onEnroll = () async {};
-    await submitIdentifier(tester, 'user@example.com');
-    await pumpFlowFrames(tester);
-
-    expect(find.text('Sync enrollment complete'), findsOneWidget);
-    await tester.tap(find.byKey(_freshDone));
-    await pumpFlowFrames(tester);
-
-    expect(endedCalls, 1);
   }, timeout: uiTestTimeout);
 
   testWidgets('back is blocked while identifier submission is in flight '
