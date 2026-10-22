@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/common/navigation/labelled_back_button.dart';
+import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/stats/trends/trends_body.dart';
 import 'package:spendwise/ui/stats/trends/trends_breakdown_section.dart';
 import 'package:spendwise/ui/stats/trends/trends_controls.dart';
+import 'package:spendwise/ui/stats/trends/trends_desktop_layout.dart';
 import 'package:spendwise/ui/stats/trends/trends_intent.dart';
 import 'package:spendwise/ui/stats/trends/trends_period_card.dart';
 import 'package:spendwise/ui/stats/trends/trends_state_views.dart';
@@ -16,9 +18,14 @@ const _pagePadding = EdgeInsets.fromLTRB(14, 12, 14, 14);
 
 // MARK: - Screen
 class TrendsScreen extends ConsumerWidget {
-  const TrendsScreen({super.key, this.onBackPressed});
+  const TrendsScreen({
+    super.key,
+    this.onBackPressed,
+    this.layoutMode = ShellLayoutMode.phone,
+  });
 
   final VoidCallback? onBackPressed;
+  final ShellLayoutMode layoutMode;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -42,7 +49,12 @@ class TrendsScreen extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         TrendsKindControl(value: intent.kind, onChanged: viewModel.setKind),
-        _TrendsBodyView(body: body, mode: intent.mode, viewModel: viewModel),
+        _TrendsBodyView(
+          body: body,
+          mode: intent.mode,
+          layoutMode: layoutMode,
+          viewModel: viewModel,
+        ),
       ],
     );
 
@@ -65,11 +77,13 @@ class _TrendsBodyView extends StatelessWidget {
   const _TrendsBodyView({
     required this.body,
     required this.mode,
+    required this.layoutMode,
     required this.viewModel,
   });
 
   final TrendsBody body;
   final TrendsMode mode;
+  final ShellLayoutMode layoutMode;
   final TrendsViewModel viewModel;
 
   @override
@@ -105,6 +119,7 @@ class _TrendsBodyView extends StatelessWidget {
       final TrendsReadyBody ready => _ReadyView(
         body: ready,
         modeControl: modeControl,
+        layoutMode: layoutMode,
         viewModel: viewModel,
       ),
     };
@@ -116,11 +131,13 @@ class _ReadyView extends StatelessWidget {
   const _ReadyView({
     required this.body,
     required this.modeControl,
+    required this.layoutMode,
     required this.viewModel,
   });
 
   final TrendsReadyBody body;
   final Widget modeControl;
+  final ShellLayoutMode layoutMode;
   final TrendsViewModel viewModel;
 
   @override
@@ -150,9 +167,10 @@ class _ReadyView extends StatelessWidget {
       amountKind: body.headline.amountKind,
       onOpenCategory: viewModel.requestCategoryDetail,
     );
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [periodCard, breakdown],
+    return TrendsDesktopLayout(
+      layoutMode: layoutMode,
+      periodCard: periodCard,
+      breakdown: breakdown,
     );
   }
 }
