@@ -115,46 +115,44 @@ extension _AnalysisMixedReads on AnalysisQueries {
         'trends-period|${mode.name}|${anchor.toIso8601String()}|'
         '${kind.name}|${level.name}';
     return _readMixed<TrendsPeriod>(identity, () {
-      final future = switch (mode) {
-        AnalysisPeriodMode.month => anchor.isAfter(monthWindow(_today).start),
-        AnalysisPeriodMode.year => anchor.year > _today.year,
-      };
-      if (future) {
-        switch (mode) {
-          case AnalysisPeriodMode.month:
-            throw ArgumentError.value(
-              endPeriod,
-              'endMonth',
-              'Month is in the future.',
-            );
-          case AnalysisPeriodMode.year:
-            throw ArgumentError.value(
-              endPeriod.year,
-              'endYear',
-              'Year is in the future.',
-            );
-        }
-      }
-      final calculate = switch (mode) {
-        AnalysisPeriodMode.month => () => trendsPeriod(
-          items: _cache.items,
-          state: _ledger.state,
-          endMonth: anchor,
-          kind: kind,
-          level: level,
-          today: _today,
-        ),
-        AnalysisPeriodMode.year => () => yearTrendsPeriod(
-          items: _cache.items,
-          state: _ledger.state,
-          endYear: anchor.year,
-          kind: kind,
-          level: level,
-          today: _today,
-        ),
-      };
-      return calculate();
+      _rejectFutureTrendsPeriod(mode, anchor);
+      return _calculateTrendsPeriod(mode, anchor, kind, level);
     });
+  }
+
+  void _rejectFutureTrendsPeriod(AnalysisPeriodMode mode, DateTime anchor) {
+    final isFuture = switch (mode) {
+      AnalysisPeriodMode.month => anchor.isAfter(monthWindow(_today).start),
+      AnalysisPeriodMode.year => anchor.year > _today.year,
+    };
+    if (!isFuture) return;
+    throw ArgumentError.value(anchor, 'endPeriod', 'Period is in the future.');
+  }
+
+  TrendsPeriod _calculateTrendsPeriod(
+    AnalysisPeriodMode mode,
+    DateTime anchor,
+    CategoryKind kind,
+    BreakdownLevel level,
+  ) {
+    return switch (mode) {
+      AnalysisPeriodMode.month => trendsPeriod(
+        items: _cache.items,
+        state: _ledger.state,
+        endMonth: anchor,
+        kind: kind,
+        level: level,
+        today: _today,
+      ),
+      AnalysisPeriodMode.year => yearTrendsPeriod(
+        items: _cache.items,
+        state: _ledger.state,
+        endYear: anchor.year,
+        kind: kind,
+        level: level,
+        today: _today,
+      ),
+    };
   }
 
   // MARK: - Breakdowns

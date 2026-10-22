@@ -195,11 +195,18 @@ void main() {
   test('year aggregate sums the displayed calendar-year slots', () async {
     final fixture = setupAnalysis(today: _today);
     _populate(fixture.ledger);
+    _addEntry(
+      fixture.ledger,
+      'e0000000-0000-0000-0000-000000000007',
+      '-15',
+      DateTime.utc(2025, 3, 3),
+      _foodID,
+    );
     await settle(fixture.runner, fixture.ledger);
     final summary = _readYear(fixture.queries).value!;
 
     expect(summary.spread.slots, hasLength(3));
-    expect(summary.breakdown.total, Decimal.fromInt(990));
+    expect(summary.breakdown.total, Decimal.fromInt(1005));
     expect(
       summary.spread.slots.fold(Decimal.zero, (sum, slot) => sum + slot.total),
       summary.breakdown.total,
