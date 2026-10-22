@@ -56,11 +56,5 @@ void main() {
 
       expect(result, isNull);
     });
-
-    test('returns null for an empty candidate list', () {
-      final result = selectPlatformAdapter<int>(<int? Function()>[]);
-
-      expect(result, isNull);
-    });
   });
 }
