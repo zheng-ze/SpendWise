@@ -125,7 +125,8 @@ This layer has no routes or screens. Source: `app/lib/sync/sync_metadata_store.d
   `bindingAuthorizationRequired` (5), or `sessionReauthRequired` (6) under explicit integer
   codes. Source:
   `app/lib/sync/sync_metadata_store.dart` - `SyncEnrollmentPhase`,
-  `SyncMetadataStore.snapshot`.
+  `SyncMetadataStore.snapshot`; `app/test/sync/sync_metadata_store_test.dart` - test
+  `records every phase durably`.
 - `SyncDeviceBindingState` stores `notApplicable` (0), `authorizationRequired` (1), or
   `bound` (2) under explicit integer codes. Source: `app/lib/sync/sync_metadata_store.dart` -
   `SyncDeviceBindingState`, `SyncMetadataStore.snapshot`.
@@ -236,7 +237,7 @@ This layer has no routes or screens. Source: `app/lib/sync/sync_metadata_store.d
   `device_binding_state` 1, and has writes disabled. Rows outside these matches retain their
   existing fields and receive the two added-column defaults.
   Source: `app/lib/persistence/database/ledger_database.dart` - `migration`;
-  `app/test/sync/sync_migration_test.dart` - v4-to-v6 upgrade test.
+  `app/test/sync/sync_migration_test.dart` - v4/v5-to-v6 upgrade tests.
 - The migration never writes `reauth_resume_phase`, so it remains null, and it cannot produce
   `device_binding_state` 2 (`bound`). Source: `app/lib/persistence/database/ledger_database.dart` -
   `migration`.
@@ -274,8 +275,8 @@ This layer has no routes or screens. Source: `app/lib/sync/sync_metadata_store.d
   vector. Keep `moneySources` as the `Accounts` plus `SubPockets` union, and map only domain
   tombstones to the sync tombstone lifecycle. Source:
   `app/lib/sync/collection_version_reader.dart` - `DriftCollectionVersionReader`;
-  `app/test/sync/collection_version_reader_test.dart` - tests stored vectors, tombstone mapping,
-  and the money-source union including an orphan tombstone.
+  `app/test/sync/collection_version_reader_test.dart` - tests `moneySources unions accounts and
+  subPockets` and `a tombstoned row reads back with tombstone lifecycle`.
 - Classify every submitted stamp after a flush from one read per collection. Exact or dominating
   vectors pass; missing or incomparable vectors fail; classification does not change metadata.
   Source: `app/lib/sync/post_flush_readback_verifier.dart` -

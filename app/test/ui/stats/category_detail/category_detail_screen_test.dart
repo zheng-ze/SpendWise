@@ -57,6 +57,13 @@ void main() {
         categoryID: excludedID,
         date: day,
       );
+      final includedEntry = Entry(
+        amount: Decimal.fromInt(-12),
+        name: 'Included entry',
+        sourceID: accountID,
+        categoryID: foodID,
+        date: day,
+      );
       final ledger = Ledger(
         state: LedgerState(
           moneySources: {accountID: MoneySource.account(account)},
@@ -64,6 +71,7 @@ void main() {
           entries: {
             excludedEntry.id: excludedEntry,
             entryInExcludedCategory.id: entryInExcludedCategory,
+            includedEntry.id: includedEntry,
           },
         ),
       );
@@ -88,6 +96,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Excluded entry', skipOffstage: false), findsNothing);
+      expect(find.text('Included entry', skipOffstage: false), findsOneWidget);
       expect(
         find.text('Entry in excluded category', skipOffstage: false),
         findsNothing,

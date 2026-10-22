@@ -177,9 +177,12 @@ Memoized results are bounded by `_maxRetainedIdentities` (256 identities). Each 
 identity to the most recent position (`_touch`), and storing a result evicts the least recently
 read identities beyond the cap (`_retain`). An evicted identity loses its last successful value,
 so a later pending or failed read of it returns no previous value
-(`app/lib/ledger/analysis_queries.dart`; `app/test/ledger/analysis_queries_memo_test.dart`).
-No test specifically covers the retention cap; retry notification is covered in
-`analysis_queries_test.dart`: `retryNotifiesListenersWhenItStartsNewWork`.
+(`app/lib/ledger/analysis_queries.dart`; `app/test/ledger/analysis_queries_memo_test.dart`;
+`app/test/ledger/analysis_queries_retention_test.dart`:
+`readingMoreThanTheCapEvictsTheOldestIdentity`,
+`aRecentlyReadIdentitySurvivesWhileTheOldestIsEvicted`,
+`stalePreviousValueSurvivesALedgerChangeWithinTheCap`; retry notification in
+`analysis_queries_test.dart`: `retryNotifiesListenersWhenItStartsNewWork`).
 
 `TodaySummary` contains the normalized day, that day's analysis-gated expense total, and an
 optional daily guide. The guide uses the applicable unscoped budget's effective monthly limit,
@@ -205,7 +208,7 @@ Successful results carry `Ledger.revision`; memo keys include normalized query p
 revision, plus today for day-dependent reads. Exceptions fail only the affected query and retain
 its previous successful value if it is still retained (`analysis_queries.dart:_readLedgerOnly`;
 `app/test/ledger/analysis_service_test.dart`: `ledgerOnlyReadsComputeWhileMixedReadsStayPending`,
-`queryFailuresAreIsolatedAndRetryRecovers`).
+`equivalentReadsReuseAcrossNormalizedScopes`, `queryFailuresAreIsolatedAndRetryRecovers`).
 
 - `readRegisterDays(window:, sourceIDs:, kind:)` returns newest-first populated days, with
   entries in reverse Ledger insertion order within each day. `registerDays` is the shared seam
@@ -213,7 +216,8 @@ its previous successful value if it is still retained (`analysis_queries.dart:_r
   intentionally include excluded-category entries that analysis totals omit; entry-level
   `includeInAnalysis` still gates totals. Rows remain visible regardless of those flags
   (`app/lib/ledger/analysis/summaries/register.dart`: `registerDays`, `registerTotals`;
-  `app/test/ledger/analysis_service_test.dart`: `registerPreservesDaySectionsAccounting`).
+  `app/test/ledger/analysis_service_test.dart`: `registerPreservesDaySectionsAccounting`,
+  `registerTotalsMatchPeriodFixtureAndHistoryEqualsSelectedDay`).
 - `readRecent(limit: 4, sourceIDs:)` excludes dates after today and sorts by date descending,
   breaking ties by entry id descending, so archiving and restoring an entry keeps its place
   (`app/test/ledger/analysis_service_test.dart:recentKeepsSameDayOrderAfterArchiveAndRestore`). `readSearch(query:, window:, sourceIDs:, kind:)`
@@ -281,8 +285,8 @@ its previous successful value if it is still retained (`analysis_queries.dart:_r
   (`app/lib/ledger/analysis_queries.dart:readCategoryBreakdown`;
   `app/test/ledger/analysis_category_breakdown_query_test.dart`:
   `mayBreakdownMatchesPeriodAndMonthSlotAtBothLevels`,
-  `yearBreakdownCoversCalendarYearAndCountsFutureDecember`,
-  `periodInputsUseNamedCalendarDayAcrossBoundaries`, `breakdownFollowsMixedMemoAndRevisionGate`,
+  `yearBreakdownCoversCalendarYearAndCountsFutureDecember`, `periodInputsNormaliseToUtcMidnight`,
+  `memoIdentitySeparatesByKindLevelModeAndPeriod`, `breakdownFollowsMixedMemoAndRevisionGate`,
   `failedRefreshRetainsBreakdownAndRetryRecovers`, `futurePeriodsAreReadyAndEmptyUnlessBooked`).
   `BreakdownLevel.categories` uses `Accounting.rollUp`; `subcategories` keeps leaf rows and marks
   a main's directly booked items as an `isDirect` 'Direct to <Main>' row when any child exists in
