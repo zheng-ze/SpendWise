@@ -41,6 +41,9 @@ const _averageColumnWidth = 76.0;
 const _amountColumnLabel = 'Amount';
 const _stackedWidthThreshold = 300.0;
 const _averageCaptionSeparator = ': ';
+const _totalLineAlignment = TextAlign.end;
+const _scopeControlGap = 8.0;
+const _scopeTotalGap = 4.0;
 
 typedef _ColoredRow = ({TrendsBreakdownRow row, Color color});
 
@@ -51,6 +54,7 @@ class TrendsBreakdownSection extends StatelessWidget {
     required this.amountKind,
     required this.onOpenCategory,
     this.header,
+    this.scopeControl,
     this.compact = false,
     this.averageComparison,
   });
@@ -59,6 +63,7 @@ class TrendsBreakdownSection extends StatelessWidget {
   final AmountKind amountKind;
   final ValueChanged<int> onOpenCategory;
   final TrendsBreakdownHeader? header;
+  final Widget? scopeControl;
   final bool compact;
   final TrendsAverageComparison? averageComparison;
 
@@ -88,10 +93,12 @@ class _BreakdownCard extends StatelessWidget {
     final header = section.header;
     final compact = section.compact;
     final averageComparison = section.averageComparison;
+    final scopeControl = section.scopeControl;
     assert(
       averageComparison == null ||
           averageComparison.rows.length == breakdown.rows.length,
     );
+    assert(scopeControl == null || header != null);
     final colors = context.colors;
     final rows = [
       for (var i = 0; i < breakdown.rows.length; i++)
@@ -109,12 +116,10 @@ class _BreakdownCard extends StatelessWidget {
     final heading = _BreakdownHeading(
       title:
           header?.title ?? (income ? 'Income breakdown' : 'Expense breakdown'),
-      subtitle:
-          header?.range ??
-          (breakdown.level == BreakdownLevel.categories
-              ? 'By category'
-              : 'By subcategory'),
-      total: header?.total,
+      subtitle: scopeControl == null
+          ? header?.range ?? _levelLabel(breakdown.level)
+          : _levelLabel(breakdown.level),
+      total: scopeControl == null ? header?.total : null,
     );
     final chart = _BreakdownChart(
       rows: rows,
@@ -146,9 +151,23 @@ class _BreakdownCard extends StatelessWidget {
     final content = rows.isEmpty
         ? [empty]
         : [chart, ?comparisonHeader, ...rowWidgets];
+    final scopeContent = <Widget>[];
+    if (scopeControl != null && header != null) {
+      scopeContent.addAll([
+        const SizedBox(height: _scopeControlGap),
+        scopeControl,
+        const SizedBox(height: _scopeTotalGap),
+        _BreakdownTotalLine(
+          label: header.range,
+          total: header.total,
+          amountKind: amountKind,
+        ),
+      ]);
+    }
     final card = TrendsCard(
       children: [
         heading,
+        ...scopeContent,
         const SizedBox(height: _headingGap),
         ...content,
       ],
@@ -159,6 +178,11 @@ class _BreakdownCard extends StatelessWidget {
     );
   }
 }
+
+String _levelLabel(BreakdownLevel level) => switch (level) {
+  BreakdownLevel.categories => 'By category',
+  BreakdownLevel.subcategories => 'By subcategory',
+};
 
 VoidCallback? _opener(
   TrendsBreakdownRow row,
@@ -202,6 +226,41 @@ class _BreakdownHeading extends StatelessWidget {
       spacing: _rowGap,
       runSpacing: _headingGap,
       children: [heading, caption, ?totalText],
+    );
+  }
+}
+
+class _BreakdownTotalLine extends StatelessWidget {
+  const _BreakdownTotalLine({
+    required this.label,
+    required this.total,
+    required this.amountKind,
+  });
+
+  final String label;
+  final String total;
+  final AmountKind amountKind;
+
+  @override
+  Widget build(BuildContext context) {
+    final labelText = Text(
+      label,
+      style: TextStyle(fontSize: _captionSize, color: context.colors.subtext),
+    );
+    final totalText = Text(
+      total,
+      textAlign: _totalLineAlignment,
+      style: context.text.small.copyWith(
+        fontSize: _headingSize,
+        fontWeight: _semiBold,
+        color: AmountStyle.of(context, kind: amountKind).color,
+      ),
+    );
+    return Row(
+      children: [
+        Expanded(child: labelText),
+        totalText,
+      ],
     );
   }
 }
