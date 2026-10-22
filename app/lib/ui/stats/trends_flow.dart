@@ -6,8 +6,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/ui/common/base/flow_base.dart';
 import 'package:spendwise/ui/stats/category_detail/category_detail_screen.dart';
 import 'package:spendwise/ui/stats/category_detail/category_detail_view_model.dart';
+import 'package:spendwise/ui/stats/trends/trends_body.dart';
+import 'package:spendwise/ui/stats/trends/trends_detail_metadata.dart';
+import 'package:spendwise/ui/stats/trends/trends_hosted_root.dart';
+import 'package:spendwise/ui/stats/trends/trends_intent.dart';
 import 'package:spendwise/ui/stats/trends/trends_view_model.dart';
 import 'package:spendwise/ui/stats/trends_screen.dart';
+import 'package:spendwise/ui/shell/shell_pane_host.dart';
+import 'package:spendwise/ui/shell/shell_providers.dart';
+import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 class TrendsFlow extends FlowBase<TrendsStep> {
   const TrendsFlow({super.key, super.onEnded});
@@ -60,5 +67,49 @@ class _TrendsFlowState extends FlowBaseState<TrendsStep, TrendsFlow> {
 
   @override
   Widget buildRoot(BuildContext context) =>
-      TrendsScreen(onBackPressed: showsOwnBackButton ? goBack : null);
+      _TrendsRoot(onBackPressed: showsOwnBackButton ? goBack : null);
+}
+
+class _TrendsRoot extends ConsumerWidget {
+  const _TrendsRoot({required this.onBackPressed});
+
+  final VoidCallback? onBackPressed;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scope = context.dependOnInheritedWidgetOfExactType<ShellPaneScope>();
+    if (scope == null) {
+      return TrendsScreen(onBackPressed: onBackPressed);
+    }
+
+    final intent = ref.watch(trendsIntentProvider);
+    final state = ref.watch(trendsViewModelProvider);
+    final metadata = ref.watch(trendsDetailMetadataProvider);
+    final viewModel = ref.read(trendsViewModelProvider.notifier);
+    final body = switch (state) {
+      AsyncData(:final value) => value.body,
+      AsyncError() => const TrendsErrorBody(),
+      AsyncLoading() => const TrendsLoadingBody(),
+    };
+    final detail = ShellDetail(
+      id: metadata.id,
+      title: metadata.title,
+      bodyBuilder: (_) => scope.mode == ShellLayoutMode.open
+          ? TrendsPeriodDetailBody(
+              body: body,
+              mode: intent.mode,
+              viewModel: viewModel,
+            )
+          : const SizedBox.shrink(),
+    );
+    final host = ShellPaneHost(
+      detail: detail,
+      pageBuilder: (context, presentation) => TrendsScreen(
+        onBackPressed: onBackPressed,
+        layoutMode: ShellPaneScope.of(context).mode,
+        presentation: presentation,
+      ),
+    );
+    return Material(color: context.colors.base, child: host);
+  }
 }

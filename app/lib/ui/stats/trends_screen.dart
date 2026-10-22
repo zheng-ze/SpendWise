@@ -7,10 +7,12 @@ import 'package:spendwise/ui/stats/trends/trends_body.dart';
 import 'package:spendwise/ui/stats/trends/trends_breakdown_section.dart';
 import 'package:spendwise/ui/stats/trends/trends_controls.dart';
 import 'package:spendwise/ui/stats/trends/trends_desktop_layout.dart';
+import 'package:spendwise/ui/stats/trends/trends_insights_card.dart';
 import 'package:spendwise/ui/stats/trends/trends_intent.dart';
 import 'package:spendwise/ui/stats/trends/trends_period_card.dart';
 import 'package:spendwise/ui/stats/trends/trends_state_views.dart';
 import 'package:spendwise/ui/stats/trends/trends_view_model.dart';
+import 'package:spendwise/ui/shell/shell_pane_host.dart';
 
 const _trendsTitle = 'Trends';
 const _historyBackLabel = 'History';
@@ -22,10 +24,12 @@ class TrendsScreen extends ConsumerWidget {
     super.key,
     this.onBackPressed,
     this.layoutMode = ShellLayoutMode.phone,
+    this.presentation = ShellPagePresentation.fullPage,
   });
 
   final VoidCallback? onBackPressed;
   final ShellLayoutMode layoutMode;
+  final ShellPagePresentation presentation;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -53,6 +57,7 @@ class TrendsScreen extends ConsumerWidget {
           body: body,
           mode: intent.mode,
           layoutMode: layoutMode,
+          presentation: presentation,
           viewModel: viewModel,
         ),
       ],
@@ -78,12 +83,14 @@ class _TrendsBodyView extends StatelessWidget {
     required this.body,
     required this.mode,
     required this.layoutMode,
+    required this.presentation,
     required this.viewModel,
   });
 
   final TrendsBody body;
   final TrendsMode mode;
   final ShellLayoutMode layoutMode;
+  final ShellPagePresentation presentation;
   final TrendsViewModel viewModel;
 
   @override
@@ -120,6 +127,7 @@ class _TrendsBodyView extends StatelessWidget {
         body: ready,
         modeControl: modeControl,
         layoutMode: layoutMode,
+        presentation: presentation,
         viewModel: viewModel,
       ),
     };
@@ -132,16 +140,26 @@ class _ReadyView extends StatelessWidget {
     required this.body,
     required this.modeControl,
     required this.layoutMode,
+    required this.presentation,
     required this.viewModel,
   });
 
   final TrendsReadyBody body;
   final Widget modeControl;
   final ShellLayoutMode layoutMode;
+  final ShellPagePresentation presentation;
   final TrendsViewModel viewModel;
 
   @override
   Widget build(BuildContext context) {
+    if (layoutMode == ShellLayoutMode.open &&
+        presentation == ShellPagePresentation.singleColumn) {
+      return _OpenReadyView(
+        body: body,
+        modeControl: modeControl,
+        viewModel: viewModel,
+      );
+    }
     final usual = body.usual;
     final period = TrendsPeriodRowView(
       period: body.period,
@@ -171,6 +189,49 @@ class _ReadyView extends StatelessWidget {
       layoutMode: layoutMode,
       periodCard: periodCard,
       breakdown: breakdown,
+    );
+  }
+}
+
+class _OpenReadyView extends StatelessWidget {
+  const _OpenReadyView({
+    required this.body,
+    required this.modeControl,
+    required this.viewModel,
+  });
+
+  final TrendsReadyBody body;
+  final Widget modeControl;
+  final TrendsViewModel viewModel;
+
+  @override
+  Widget build(BuildContext context) {
+    final period = TrendsPeriodRowView(
+      period: body.period,
+      onPrevious: viewModel.previousPage,
+      onNext: viewModel.nextPage,
+    );
+    final chart = TrendsChart(
+      bars: body.bars,
+      selectedIndex: body.selectedIndex,
+      onSelect: viewModel.selectSlot,
+    );
+    final periodCard = TrendsCard(children: [modeControl, period, chart]);
+    final wholePeriod = body.wholePeriod;
+    final breakdown = TrendsBreakdownSection(
+      breakdown: wholePeriod.breakdown,
+      amountKind: body.headline.amountKind,
+      header: wholePeriod.header,
+      compact: true,
+      onOpenCategory: (index) => viewModel.requestCategoryDetail(
+        index,
+        source: TrendsCategoryDetailSource.wholePeriod,
+      ),
+    );
+    final insights = TrendsInsightsCard(insights: wholePeriod.insights);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [periodCard, breakdown, insights],
     );
   }
 }
