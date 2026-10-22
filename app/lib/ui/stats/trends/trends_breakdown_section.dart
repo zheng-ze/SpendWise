@@ -39,6 +39,8 @@ const _regularDonutSize = 132.0;
 const _amountColumnWidth = 72.0;
 const _averageColumnWidth = 76.0;
 const _amountColumnLabel = 'Amount';
+const _stackedWidthThreshold = 300.0;
+const _averageCaptionSeparator = ': ';
 
 typedef _ColoredRow = ({TrendsBreakdownRow row, Color color});
 
@@ -62,9 +64,33 @@ class TrendsBreakdownSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final comparing = averageComparison != null;
+    return LayoutBuilder(
+      builder: (context, constraints) => _BreakdownCard(
+        section: this,
+        stacked: comparing && constraints.maxWidth < _stackedWidthThreshold,
+      ),
+    );
+  }
+}
+
+class _BreakdownCard extends StatelessWidget {
+  const _BreakdownCard({required this.section, required this.stacked});
+
+  final TrendsBreakdownSection section;
+  final bool stacked;
+
+  @override
+  Widget build(BuildContext context) {
+    final breakdown = section.breakdown;
+    final amountKind = section.amountKind;
+    final onOpenCategory = section.onOpenCategory;
+    final header = section.header;
+    final compact = section.compact;
+    final averageComparison = section.averageComparison;
     assert(
       averageComparison == null ||
-          averageComparison!.rows.length == breakdown.rows.length,
+          averageComparison.rows.length == breakdown.rows.length,
     );
     final colors = context.colors;
     final rows = [
@@ -104,15 +130,17 @@ class TrendsBreakdownSection extends StatelessWidget {
           amountKind: amountKind,
           divided: index < rows.length - 1,
           compact: compact,
+          stacked: stacked,
           average: comparisonRows == null
               ? null
               : comparisonRows[index].formattedMean,
+          averageLabel: averageComparison?.header,
           onTap: _opener(rows[index].row, index, onOpenCategory),
         ),
     ];
     final empty = _EmptyBreakdown(income: amountKind == AmountKind.income);
     final comparison = averageComparison;
-    final comparisonHeader = comparison == null
+    final comparisonHeader = comparison == null || stacked
         ? null
         : _BreakdownColumnHeading(averageLabel: comparison.header);
     final content = rows.isEmpty
@@ -273,7 +301,9 @@ class _BreakdownRow extends StatelessWidget {
     required this.amountKind,
     required this.divided,
     required this.compact,
+    required this.stacked,
     required this.average,
+    required this.averageLabel,
     required this.onTap,
   });
 
@@ -281,7 +311,9 @@ class _BreakdownRow extends StatelessWidget {
   final AmountKind amountKind;
   final bool divided;
   final bool compact;
+  final bool stacked;
   final String? average;
+  final String? averageLabel;
   final VoidCallback? onTap;
 
   @override
@@ -300,6 +332,16 @@ class _BreakdownRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(_swatchRadius),
       ),
     );
+    final captionStyle = TextStyle(
+      fontSize: _captionSize,
+      color: colors.subtext,
+    );
+    final averageCaption = stacked && average != null
+        ? Text(
+            '$averageLabel$_averageCaptionSeparator$average',
+            style: captionStyle,
+          )
+        : null;
     final label = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -308,10 +350,9 @@ class _BreakdownRow extends StatelessWidget {
           style: const TextStyle(fontSize: _nameSize, fontWeight: _semiBold),
         ),
         const SizedBox(height: _captionGap),
-        Text(
-          caption,
-          style: TextStyle(fontSize: _captionSize, color: colors.subtext),
-        ),
+        Text(caption, style: captionStyle),
+        if (averageCaption != null) const SizedBox(height: _captionGap),
+        ?averageCaption,
       ],
     );
     final amountText = Text(
@@ -321,11 +362,11 @@ class _BreakdownRow extends StatelessWidget {
         color: AmountStyle.of(context, kind: amountKind).color,
       ),
     );
-    final amount = average == null
+    final amount = average == null || stacked
         ? amountText
         : SizedBox(width: _amountColumnWidth, child: amountText);
     final averageText = average;
-    final averageValue = averageText == null
+    final averageValue = averageText == null || stacked
         ? null
         : SizedBox(
             width: _averageColumnWidth,

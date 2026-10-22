@@ -20,6 +20,7 @@ import 'trends_test_support.dart';
 
 const _openSize = Size(960, 720);
 const _phoneSize = Size(320, 760);
+const _narrowOpenSize = Size(600, 480);
 const _travelID = '77777777-7777-7777-7777-777777777777';
 const _octoberTitle = 'October 2026';
 const _julyTitle = 'July 2026';
@@ -97,8 +98,12 @@ Ledger _rankedLedger() {
   return ledger;
 }
 
-Future<_Setup> _pumpOpen(WidgetTester tester, Ledger ledger) async {
-  tester.view.physicalSize = _openSize;
+Future<_Setup> _pumpOpen(
+  WidgetTester tester,
+  Ledger ledger, {
+  Size size = _openSize,
+}) async {
+  tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   final runner = ManualRunner();
@@ -107,23 +112,17 @@ Future<_Setup> _pumpOpen(WidgetTester tester, Ledger ledger) async {
     today: _testToday,
     runner: runner.call,
   ).container;
-  final app = _openSizeApp(container, ShellLayoutMode.open, false);
+  final app = _TrendsApp(
+    container: container,
+    mode: ShellLayoutMode.open,
+    addPresented: false,
+    size: size,
+  );
   await tester.pumpWidget(app);
   await tester.runAsync(() => settle(runner, ledger));
   await tester.pumpAndSettle();
   return (container: container, ledger: ledger, runner: runner);
 }
-
-Widget _openSizeApp(
-  ProviderContainer container,
-  ShellLayoutMode mode,
-  bool addPresented,
-) => _TrendsApp(
-  container: container,
-  mode: mode,
-  addPresented: addPresented,
-  size: _openSize,
-);
 
 Future<void> _setShell(
   WidgetTester tester,
@@ -313,4 +312,14 @@ void main() {
     );
     expect(pane, findsOneWidget);
   }, timeout: uiTestTimeout);
+
+  testWidgets(
+    'the detail pane lists category rows without overflowing at the narrowest open window',
+    (tester) async {
+      await _pumpOpen(tester, _rankedLedger(), size: _narrowOpenSize);
+      expect(tester.takeException(), isNull);
+      expect(_paneText('Travel'), findsWidgets);
+    },
+    timeout: uiTestTimeout,
+  );
 }
