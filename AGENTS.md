@@ -74,8 +74,12 @@ SpendWise is a personal finance app built in Flutter.
 - Unit test every component's reachable behavior: domain, controllers, view models, flows,
   services, stores, and mappers. Cover each distinct happy path, each error path production can
   trigger, boundaries, and invariants.
-- Never test a hypothetical flow: an input, state, or path that production code cannot produce.
-  Prove it with the callers before deleting or declining to write the test. Merge exact duplicates.
+- A hypothetical flow (an input, state, or path production cannot currently produce) may be tested
+  as a defensive guard, but do not overdo it: one case per guarded edge, never a matrix of
+  variants. Merge exact duplicates.
+- Critical code is tested to 100 percent line and branch coverage with every error path: domain
+  accounting and `LedgerState` invariants, ID and date normalization, persistence and mappers, and
+  sync (engine, coordinator, enrollment, write gates).
 - Test behavior, never visuals. Do not assert geometry, layout, spacing, insets, placement,
   scrolling extents, or colors. Do not test UI declarations (screens, sheets, rows, cards, pickers,
   charts, bars, theme).
