@@ -8,6 +8,7 @@ import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/base/step_emitting.dart';
 import 'package:spendwise/ui/stats/category_detail/category_detail_view_model.dart';
 import 'package:spendwise/ui/stats/trends/trends_body.dart';
+import 'package:spendwise/ui/stats/trends/trends_breakdown_scope.dart';
 import 'package:spendwise/ui/stats/trends/trends_intent.dart';
 import 'package:spendwise/ui/stats/trends/trends_projection.dart';
 
@@ -46,6 +47,7 @@ abstract class TrendsViewModel {
   void previousPage();
   void nextPage();
   void retry();
+  void setBreakdownScope(TrendsBreakdownScope scope);
   void requestCategoryDetail(
     int rowIndex, {
     TrendsCategoryDetailSource source =
@@ -115,6 +117,10 @@ class TrendsNotifier extends AsyncNotifier<TrendsViewState>
 
   @override
   void retry() => ref.read(analysisQueriesProvider)?.retry();
+
+  @override
+  void setBreakdownScope(TrendsBreakdownScope scope) =>
+      ref.read(trendsBreakdownScopeProvider.notifier).setScope(scope);
 
   @override
   void requestCategoryDetail(
