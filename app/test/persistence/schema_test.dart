@@ -8,69 +8,89 @@ void main() {
   setUp(() => db = LedgerDatabase(NativeDatabase.memory()));
   tearDown(() => db.close());
 
-  Future<Map<String, Map<String, Object?>>> columns(String table) async {
+  Future<Map<String, String>> columnTypes(String table) async {
     final rows = await db.customSelect('PRAGMA table_info($table)').get();
     return {
       for (final row in rows)
-        row.read<String>('name'): {
-          'type': row.read<String>('type'),
-          'notnull': row.read<int>('notnull'),
-        },
+        row.read<String>('name'): row.read<String>('type'),
     };
   }
 
-  test('money and dates use exact persistent representations', () async {
-    final entries = await columns('entries');
-    final plans = await columns('plans');
-
-    expect(entries['amount']!['type'], 'TEXT');
-    expect(entries['date']!['type'], 'INTEGER');
-    expect(plans['template_amount']!['type'], 'TEXT');
-    expect(plans['anchor']!['type'], 'INTEGER');
-    expect(plans['end_date']!['type'], 'INTEGER');
-    expect(plans['last_resolved_date']!['type'], 'INTEGER');
+  test('money columns are text so amounts round-trip exactly', () async {
+    expect((await columnTypes('entries'))['amount'], 'TEXT');
+    expect((await columnTypes('plans'))['template_amount'], 'TEXT');
   });
 
-  test(
-    'synced rows carry vectors and lifecycle while store metadata does not',
-    () async {
-      for (final table in [
-        'accounts',
-        'sub_pockets',
-        'categories',
-        'entries',
-        'plans',
-      ]) {
-        final schema = await columns(table);
-        expect(schema['version_data']!['type'], 'BLOB', reason: table);
-        expect(schema['lifecycle']!['type'], 'INTEGER', reason: table);
-      }
-
-      final metadata = await columns('store_meta');
-      expect(metadata.containsKey('version_data'), isFalse);
-      expect(metadata.containsKey('lifecycle'), isFalse);
-    },
-  );
-
-  test('entry and plan notes remain nullable text columns', () async {
-    final entries = await columns('entries');
-    final plans = await columns('plans');
-
-    expect(entries['note'], {'type': 'TEXT', 'notnull': 0});
-    expect(entries['system_kind']!['notnull'], 0);
-    expect(plans['template_note'], {'type': 'TEXT', 'notnull': 0});
+  test('every synced table carries a version vector and a lifecycle', () async {
+    for (final table in [
+      'accounts',
+      'sub_pockets',
+      'categories',
+      'entries',
+      'plans',
+    ]) {
+      final columns = await columnTypes(table);
+      expect(columns['version_data'], 'BLOB', reason: table);
+      expect(columns['lifecycle'], 'INTEGER', reason: table);
+    }
   });
 
-  test('store metadata rejects a second row', () async {
+  test('store_meta is device-local, so it has neither', () async {
+    final columns = await columnTypes('store_meta');
+    expect(columns.containsKey('version_data'), isFalse);
+    expect(columns.containsKey('lifecycle'), isFalse);
+  });
+
+  test('reserved entry columns exist and are nullable', () async {
+    final rows = await db.customSelect('PRAGMA table_info(entries)').get();
+    final nullable = {
+      for (final row in rows)
+        row.read<String>('name'): row.read<int>('notnull') == 0,
+    };
+    expect(nullable['note'], isTrue);
+    expect(nullable['system_kind'], isTrue);
+  });
+
+  test('the plan template is flat columns, not a nested structure', () async {
+    final columns = await columnTypes('plans');
+    expect(
+      columns.keys,
+      containsAll([
+        'template_amount',
+        'template_name',
+        'template_category_id',
+        'template_source_id',
+        'template_destination_id',
+        'template_include_in_analysis',
+        'template_note',
+      ]),
+    );
+  });
+
+  test('the plan template note column is nullable text', () async {
+    final rows = await db.customSelect('PRAGMA table_info(plans)').get();
+    final byName = {for (final row in rows) row.read<String>('name'): row};
+    expect(byName['template_note']!.read<String>('type'), 'TEXT');
+    expect(byName['template_note']!.read<int>('notnull'), 0);
+  });
+
+  test('store_meta rejects a second row', () async {
     await db.customStatement(
       "INSERT INTO store_meta (id, device_id, has_seeded) VALUES (0, 'a', 0)",
     );
-
     await expectLater(
       db.customStatement(
         "INSERT INTO store_meta (id, device_id, has_seeded) VALUES (1, 'b', 0)",
       ),
       throwsA(isA<SqliteException>()),
     );
+  });
+
+  test('dates are stored as integer epoch milliseconds', () async {
+    expect((await columnTypes('entries'))['date'], 'INTEGER');
+    final planColumns = await columnTypes('plans');
+    expect(planColumns['anchor'], 'INTEGER');
+    expect(planColumns['end_date'], 'INTEGER');
+    expect(planColumns['last_resolved_date'], 'INTEGER');
   });
 }

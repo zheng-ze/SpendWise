@@ -233,6 +233,36 @@ void main() {
     }
   });
 
+  test('emptyMonthsAreZeroForBothKinds', () async {
+    final juneSetup = setupAnalysis(today: DateTime.utc(2027, 6, 15));
+    await settle(juneSetup.runner, juneSetup.ledger);
+    final june = juneSetup.queries.readMonthSpread(
+      endMonth: DateTime.utc(2027, 6, 1),
+      kind: CategoryKind.expense,
+    );
+    expect(june.state, AnalysisQueryState.ready);
+    final current = june.value!.slots.last;
+    expect(current.month, DateTime.utc(2027, 6, 1));
+    expect(current.total, Decimal.zero);
+    expect(current.itemCount, 0);
+  });
+
+  test('currentSlotMatchesReadPeriodForBothKinds', () async {
+    final setup = setupAnalysis();
+    _populate(setup.ledger);
+    await settle(setup.runner, setup.ledger);
+    final queries = setup.queries;
+    final may = DateRange(_endMonth, DateTime.utc(2027, 6, 1));
+
+    final period = queries.readPeriod(window: may);
+    expect(period.state, AnalysisQueryState.ready);
+    final expense = _readySpread(queries, CategoryKind.expense);
+    final income = _readySpread(queries, CategoryKind.income);
+    expect(_slot(expense, 2027, 5).total, Decimal.parse('12.00'));
+    expect(_slot(expense, 2027, 5).total, period.value?.spent);
+    expect(_slot(income, 2027, 5).total, period.value?.income);
+  });
+
   test('outOfRecordEndsStayEmptyAndFutureEndsFail', () async {
     final setup = setupAnalysis();
     _populate(setup.ledger);
@@ -270,4 +300,242 @@ void main() {
     expect(failed.value, isNull);
     expect(failed.sourceRevision, isNull);
   });
+
+  test('navigationAnchorsPagesAtTheCurrentMonth', () async {
+    final setup = setupAnalysis();
+    _populate(setup.ledger);
+    await settle(setup.runner, setup.ledger);
+    expect(
+      _readySpread(setup.queries, CategoryKind.expense).earliestSpreadEndMonth,
+      _endMonth,
+    );
+
+    final older = monthSpread(
+      items: const [],
+      endMonth: _endMonth,
+      kind: CategoryKind.expense,
+      firstRecordMonth: DateTime.utc(2025, 6, 1),
+      today: _today,
+    );
+    expect(older.earliestSpreadEndMonth, DateTime.utc(2026, 5, 1));
+    expect(
+      monthSpread(
+        items: const [],
+        endMonth: _endMonth,
+        kind: CategoryKind.expense,
+        firstRecordMonth: null,
+        today: _today,
+      ).earliestSpreadEndMonth,
+      _endMonth,
+    );
+  });
+
+  test('spreadEqualityIsListAwareAndSlotsAreImmutable', () async {
+    MonthSpread build() => monthSpread(
+      items: Accounting.analysisItems(_populatedState()),
+      endMonth: _endMonth,
+      kind: CategoryKind.expense,
+      firstRecordMonth: DateTime.utc(2026, 12, 1),
+      today: _today,
+    );
+    final first = build();
+    final second = build();
+    expect(identical(first.slots, second.slots), isFalse);
+    expect(second, first);
+    expect(second.hashCode, first.hashCode);
+
+    final changed = monthSpread(
+      items: Accounting.analysisItems(_populatedState())
+          .where((item) => item.date != DateTime.utc(2027, 2, 1)),
+      endMonth: _endMonth,
+      kind: CategoryKind.expense,
+      firstRecordMonth: DateTime.utc(2026, 12, 1),
+      today: _today,
+    );
+    expect(changed == first, isFalse);
+    expect(() => first.slots.add(first.slots.first), throwsUnsupportedError);
+  });
+
+  test('spreadFollowsMixedMemoAndRevisionGate', () async {
+    final setup = setupAnalysis();
+    final ledger = setup.ledger;
+    final queries = setup.queries;
+    final runner = setup.runner;
+
+    final loading = queries.readMonthSpread(
+      endMonth: _endMonth,
+      kind: CategoryKind.expense,
+    );
+    expect(loading.state, AnalysisQueryState.loading);
+    expect(loading.value, isNull);
+
+    _populate(ledger);
+    await settle(runner, ledger);
+    final settled = queries.readMonthSpread(
+      endMonth: _endMonth,
+      kind: CategoryKind.expense,
+    );
+    expect(settled.state, AnalysisQueryState.ready);
+    expect(settled.sourceRevision, ledger.revision);
+    expect(
+      identical(
+        queries.readMonthSpread(
+          endMonth: DateTime(2027, 5, 20, 14, 45),
+          kind: CategoryKind.expense,
+        ),
+        settled,
+      ),
+      isTrue,
+    );
+    expect(
+      identical(
+        queries.readMonthSpread(endMonth: _endMonth, kind: CategoryKind.income),
+        settled,
+      ),
+      isFalse,
+    );
+
+    ledger.addEntry(
+      Entry(
+        id: 'f0000000-0000-0000-0000-000000000001',
+        amount: Decimal.parse('-2.00'),
+        name: 'entry',
+        sourceID: _checkingID,
+        categoryID: _foodID,
+        date: DateTime.utc(2027, 5, 12),
+      ),
+    );
+    final retained = queries.readMonthSpread(
+      endMonth: _endMonth,
+      kind: CategoryKind.expense,
+    );
+    expect(retained.state, AnalysisQueryState.loading);
+    expect(retained.value, settled.value);
+    expect(retained.sourceRevision, settled.sourceRevision);
+
+    await settle(runner, ledger);
+    final updated = queries.readMonthSpread(
+      endMonth: _endMonth,
+      kind: CategoryKind.expense,
+    );
+    expect(updated.state, AnalysisQueryState.ready);
+    expect(updated.sourceRevision, ledger.revision);
+    expect(_slot(updated.value!, 2027, 5).total, Decimal.parse('14.00'));
+  });
+
+  test('movingEarliestDuringPendingRefreshKeepsSpreadCoherent', () async {
+    final setup = setupAnalysis();
+    final ledger = setup.ledger;
+    final queries = setup.queries;
+    final runner = setup.runner;
+    _populate(ledger);
+    await settle(runner, ledger);
+
+    final revision = ledger.revision;
+    final settled = queries.readMonthSpread(
+      endMonth: _endMonth,
+      kind: CategoryKind.expense,
+    );
+    expect(settled.sourceRevision, revision);
+    expect(settled.value?.earliestSpreadEndMonth, _endMonth);
+    expect(_slot(settled.value!, 2027, 1).total, Decimal.parse('10.00'));
+    expect(_slot(settled.value!, 2027, 1).itemCount, 1);
+
+    ledger.deleteEntry('e0000000-0000-0000-0000-000000000001');
+
+    final retained = queries.readMonthSpread(
+      endMonth: _endMonth,
+      kind: CategoryKind.expense,
+    );
+    expect(retained.state, AnalysisQueryState.loading);
+    expect(retained.value, settled.value);
+    expect(retained.sourceRevision, revision);
+
+    final freshMonth = queries.readMonthCompleteness(
+      month: DateTime.utc(2026, 12, 15),
+    );
+    expect(freshMonth.state, AnalysisQueryState.ready);
+    expect(freshMonth.sourceRevision, ledger.revision);
+    expect(freshMonth.value?.state, PeriodCompleteness.preRecord);
+    expect(retained.sourceRevision, isNot(freshMonth.sourceRevision));
+
+    await settle(runner, ledger);
+    final accepted = queries.readMonthSpread(
+      endMonth: _endMonth,
+      kind: CategoryKind.expense,
+    );
+    expect(accepted.sourceRevision, ledger.revision);
+    expect(accepted.value?.earliestSpreadEndMonth, _endMonth);
+    expect(_slot(accepted.value!, 2026, 12).total, Decimal.zero);
+    expect(_slot(accepted.value!, 2026, 12).itemCount, 0);
+    expect(
+      queries
+          .readMonthCompleteness(month: DateTime.utc(2026, 12, 15))
+          .sourceRevision,
+      ledger.revision,
+    );
+  });
+
+  test('dayChangeRecomputesSpreadWithoutRunnerWork', () async {
+    final setup = setupAnalysis();
+    _populate(setup.ledger);
+    await settle(setup.runner, setup.ledger);
+    final queries = setup.queries;
+    final calls = setup.runner.calls;
+    var notifications = 0;
+    queries.addListener(() => notifications++);
+
+    queries.setToday(DateTime.utc(2027, 6, 1));
+    expect(setup.runner.calls, calls);
+    expect(notifications, 1);
+
+    final spread = queries.readMonthSpread(
+      endMonth: _endMonth,
+      kind: CategoryKind.expense,
+    );
+    expect(spread.state, AnalysisQueryState.ready);
+    expect(spread.value?.currentMonth, DateTime.utc(2027, 6, 1));
+    expect(_slot(spread.value!, 2027, 5).total, Decimal.parse('12.00'));
+    expect(_slot(spread.value!, 2027, 5).itemCount, 2);
+
+    final june = queries.readMonthSpread(
+      endMonth: DateTime.utc(2027, 6, 1),
+      kind: CategoryKind.income,
+    );
+    expect(june.state, AnalysisQueryState.ready);
+    expect(_slot(june.value!, 2027, 6).total, Decimal.zero);
+    expect(_slot(june.value!, 2027, 6).itemCount, 0);
+  });
+
+  test('spreadFailureIsIsolated', () async {
+    final setup = setupAnalysis();
+    _populate(setup.ledger);
+    await settle(setup.runner, setup.ledger);
+    final queries = setup.queries;
+
+    final failed = queries.readMonthSpread(
+      endMonth: DateTime.utc(2027, 6, 1),
+      kind: CategoryKind.expense,
+    );
+    expect(failed.state, AnalysisQueryState.failed);
+
+    final period = queries.readPeriod(
+      window: DateRange(_endMonth, DateTime.utc(2027, 6, 1)),
+    );
+    expect(period.state, AnalysisQueryState.ready);
+    expect(period.value?.spent, Decimal.parse('12.00'));
+
+    await queries.retry();
+    final spread = queries.readMonthSpread(
+      endMonth: _endMonth,
+      kind: CategoryKind.expense,
+    );
+    expect(spread.state, AnalysisQueryState.ready);
+  });
+}
+
+LedgerState _populatedState() {
+  final ledger = Ledger();
+  _populate(ledger);
+  return ledger.state;
 }

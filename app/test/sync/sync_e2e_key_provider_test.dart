@@ -20,6 +20,17 @@ void main() {
     provider = SyncE2EKeyProvider(secretStore: secrets);
   });
 
+  test('a well-formed 32-byte key round-trips through the accessor', () async {
+    final expected = Uint8List.fromList(
+      List<int>.generate(32, (index) => index),
+    );
+    await secrets.write(syncE2EKeySecretKey, encodeKey(expected));
+
+    final actual = await provider.accessor();
+
+    expect(actual, expected);
+  });
+
   test('accessing the closure reads lazily on each invocation', () async {
     final first = Uint8List.fromList(List<int>.generate(32, (index) => index));
     final second = Uint8List.fromList(
@@ -164,6 +175,74 @@ void main() {
     await secrets.write(syncCredentialSecretKey, 'credential-payload');
 
     expect(await provider.accessor(), key);
-    expect(secrets.reads, [syncE2EKeySecretKey]);
+    await secrets.delete(syncE2EKeySecretKey);
+    await expectLater(
+      provider.accessor(),
+      throwsA(isA<SyncE2EKeyUnavailableException>()),
+    );
+    await secrets.write(syncE2EKeySecretKey, '!!!-not-base64-!!!');
+    await expectLater(
+      provider.accessor(),
+      throwsA(isA<SyncE2EKeyUnavailableException>()),
+    );
+    await secrets.write(
+      syncE2EKeySecretKey,
+      encodeKey(Uint8List.fromList(List<int>.filled(8, 1))),
+    );
+    await expectLater(
+      provider.accessor(),
+      throwsA(isA<SyncE2EKeyUnavailableException>()),
+    );
+    secrets.readFailure = const SecretStoreException();
+    await expectLater(
+      provider.accessor(),
+      throwsA(isA<SyncE2EKeyUnavailableException>()),
+    );
+
+    expect(secrets.reads, isNotEmpty);
+    expect(secrets.reads, isNot(contains(syncCredentialSecretKey)));
+    expect(secrets.reads, everyElement(syncE2EKeySecretKey));
+    secrets.readFailure = null;
+    expect(await secrets.read(syncCredentialSecretKey), 'credential-payload');
+  });
+
+  group('decodeAndValidateSyncE2EKey', () {
+    test('a valid 32-byte key decodes to the original bytes', () {
+      final expected = Uint8List.fromList(
+        List<int>.generate(32, (index) => index),
+      );
+
+      expect(decodeAndValidateSyncE2EKey(encodeKey(expected)), expected);
+    });
+
+    test('malformed input fails with the malformed reason', () {
+      expect(
+        () => decodeAndValidateSyncE2EKey('!!!-not-valid-base64-!!!'),
+        throwsA(
+          isA<SyncE2EKeyUnavailableException>().having(
+            (error) => error.reason,
+            'reason',
+            SyncE2EKeyUnavailableReason.malformed,
+          ),
+        ),
+      );
+    });
+
+    test('well-formed input of the wrong length fails', () {
+      final short = Uint8List.fromList(
+        List<int>.generate(16, (index) => index),
+      );
+
+      expect(
+        () => decodeAndValidateSyncE2EKey(encodeKey(short)),
+        throwsA(
+          isA<SyncE2EKeyUnavailableException>().having(
+            (error) => error.reason,
+            'reason',
+            SyncE2EKeyUnavailableReason.wrongLength,
+          ),
+        ),
+      );
+    });
   });
 }

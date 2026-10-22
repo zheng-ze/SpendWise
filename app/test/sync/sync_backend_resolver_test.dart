@@ -33,9 +33,69 @@ void main() {
       );
     });
 
+    test('a relative URI throws before any backend is constructed', () {
+      expect(
+        () => resolver.resolve(
+          snapshotOf(backend: SyncBackendKind.custom, endpoint: 'sync/push'),
+        ),
+        throwsA(
+          isA<SyncBackendConfigurationException>().having(
+            (error) => error.message,
+            'message',
+            contains('absolute'),
+          ),
+        ),
+      );
+    });
+
+    test('an https URI with an empty host throws', () {
+      expect(
+        () => resolver.resolve(
+          snapshotOf(backend: SyncBackendKind.custom, endpoint: 'https://'),
+        ),
+        throwsA(
+          isA<SyncBackendConfigurationException>().having(
+            (error) => error.message,
+            'message',
+            contains('host'),
+          ),
+        ),
+      );
+    });
+
     test('a missing endpoint throws', () {
       expect(
         () => resolver.resolve(snapshotOf(backend: SyncBackendKind.custom)),
+        throwsA(isA<SyncBackendConfigurationException>()),
+      );
+    });
+
+    test('a plain http URI throws', () {
+      expect(
+        () => resolver.resolve(
+          snapshotOf(
+            backend: SyncBackendKind.custom,
+            endpoint: 'http://sync.example.com',
+          ),
+        ),
+        throwsA(
+          isA<SyncBackendConfigurationException>().having(
+            (error) => error.message,
+            'message',
+            contains('https'),
+          ),
+        ),
+      );
+    });
+
+    test('an unrelated scheme throws', () {
+      expect(
+        () => resolver.resolve(
+          snapshotOf(
+            backend: SyncBackendKind.custom,
+            endpoint: 'ftp://sync.example.com/sync',
+          ),
+        ),
         throwsA(isA<SyncBackendConfigurationException>()),
       );
     });
@@ -148,6 +208,12 @@ void main() {
   group('no backend selected', () {
     test('a never-enrolled snapshot resolves to null without throwing', () {
       expect(resolver.resolve(snapshotOf(backend: null)), isNull);
+    });
+  });
+
+  group('SupabaseConfig.fromEnvironment', () {
+    test('without compile-time defines it reports not-configured', () {
+      expect(SupabaseConfig.fromEnvironment(), isNull);
     });
   });
 }

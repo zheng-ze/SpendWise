@@ -7,6 +7,7 @@ void main() {
 
   final categoryID = uuid(1);
   final childCategoryID = uuid(2);
+  final unrelatedCategoryID = uuid(3);
 
   TransactionCategory category({required String id, String? parentID}) =>
       TransactionCategory(
@@ -23,6 +24,7 @@ void main() {
     final state = LedgerState();
     state.addCategory(category(id: categoryID));
     state.addCategory(category(id: childCategoryID, parentID: categoryID));
+    state.addCategory(category(id: unrelatedCategoryID));
     return state;
   }
 
@@ -64,4 +66,26 @@ void main() {
 
     expect(state.budgets[budget.id], isNotNull);
   });
+
+  test(
+    'deleting an unrelated category leaves an existing budget untouched',
+    () {
+      final state = seeded();
+      final budget =
+          (state
+                      .addBudget(
+                        categoryID,
+                        Decimal.fromInt(100),
+                        now: DateTime.utc(2026, 1, 1),
+                      )
+                      .single
+                  as UpsertBudget)
+              .budget;
+
+      state.deleteCategory(unrelatedCategoryID);
+      state.purgeCategory(unrelatedCategoryID);
+
+      expect(state.budgets[budget.id], budget);
+    },
+  );
 }

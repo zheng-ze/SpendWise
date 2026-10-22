@@ -49,6 +49,12 @@ void main() {
     lastResolvedDate: DateTime.utc(2026, 1, 15),
   );
 
+  test('the raw constructor stores what it is given without validating', () {
+    final state = LedgerState(plans: {planID: plan(sourceID: uuid(9))});
+
+    expect(state.plans[planID], isNotNull);
+  });
+
   test('an active entry referencing an archived holder violates nothing', () {
     final state = LedgerState(
       moneySources: {
@@ -78,6 +84,29 @@ void main() {
         ),
       ),
     );
+  });
+
+  test('a referenceOnly account keeping a linked pocket is legal', () {
+    final state = LedgerState(
+      moneySources: {
+        accountID: AccountSource(
+          account(
+            subPocketIDs: {pocketID},
+            lifecycle: LifecycleState.referenceOnly,
+          ),
+        ),
+        pocketID: PocketSource(
+          SubPocket(
+            id: pocketID,
+            name: 'Bills',
+            lifecycle: LifecycleState.referenceOnly,
+          ),
+        ),
+      },
+      entries: {entryID: entry(sourceID: pocketID)},
+    );
+
+    expect(state.assertInvariants, returnsNormally);
   });
 
   test('a plan naming a holder absent from the table is caught', () {
@@ -156,6 +185,29 @@ void main() {
         ),
       );
     });
+
+    test('an entry on the pocket does hold the account up', () {
+      final state = LedgerState(
+        moneySources: {
+          accountID: AccountSource(
+            account(
+              subPocketIDs: {pocketID},
+              lifecycle: LifecycleState.referenceOnly,
+            ),
+          ),
+          pocketID: PocketSource(
+            SubPocket(
+              id: pocketID,
+              name: 'Bills',
+              lifecycle: LifecycleState.referenceOnly,
+            ),
+          ),
+        },
+        entries: {entryID: entry(sourceID: pocketID)},
+      );
+
+      expect(state.assertInvariants, returnsNormally);
+    });
   });
 
   group('clause 15, a pocket may not outlive its account', () {
@@ -182,6 +234,23 @@ void main() {
           ),
         ),
       );
+    });
+
+    test('a pocket less alive than an active account is legal', () {
+      final state = LedgerState(
+        moneySources: {
+          accountID: AccountSource(account(subPocketIDs: {pocketID})),
+          pocketID: PocketSource(
+            SubPocket(
+              id: pocketID,
+              name: 'Bills',
+              lifecycle: LifecycleState.archived,
+            ),
+          ),
+        },
+      );
+
+      expect(state.assertInvariants, returnsNormally);
     });
   });
 
@@ -212,6 +281,20 @@ void main() {
           ),
         ),
       );
+    });
+
+    test('an active child under an archived parent stays legal', () {
+      final state = LedgerState(
+        categories: {
+          parentID: categoryRow(
+            id: parentID,
+            lifecycle: LifecycleState.archived,
+          ),
+          childID: categoryRow(id: childID, parentID: parentID),
+        },
+      );
+
+      expect(state.assertInvariants, returnsNormally);
     });
 
     test('addCategory refuses a referenceOnly parent', () {
@@ -490,6 +573,14 @@ void main() {
         ),
       );
     });
+
+    test('a card inside the range and a bare non-card are legal', () {
+      final state = LedgerState(
+        moneySources: {accountID: AccountSource(card(statementDay: 28))},
+      );
+
+      expect(state.assertInvariants, returnsNormally);
+    });
   });
 
   group('clause 12, lifecycle monotonicity', () {
@@ -514,6 +605,15 @@ void main() {
       state.purgeAccount(accountID);
       return state;
     }
+
+    test('purging a referenced account leaves it referenceOnly', () {
+      final state = stateWithReferenceOnlyAccount();
+
+      expect(
+        state.moneySources[accountID]!.lifecycle,
+        LifecycleState.referenceOnly,
+      );
+    });
 
     test('updateAccount may not resurrect a referenceOnly account', () {
       final state = stateWithReferenceOnlyAccount();
@@ -626,6 +726,22 @@ void main() {
 
       expect(() => state.restoreAccount(accountID), returnsNormally);
       expect(state.moneySources[accountID]!.lifecycle, LifecycleState.active);
+    });
+
+    test('restoreCategory may still bring an archived category back', () {
+      final state = LedgerState();
+      state.addCategory(category());
+      state.deleteCategory(uuid(5));
+
+      expect(() => state.restoreCategory(uuid(5)), returnsNormally);
+      expect(state.categories[uuid(5)]!.lifecycle, LifecycleState.active);
+    });
+
+    test('a freshly added row is not treated as a transition', () {
+      final state = LedgerState();
+      state.addAccount(account());
+
+      expect(() => state.addCategory(category()), returnsNormally);
     });
   });
 }

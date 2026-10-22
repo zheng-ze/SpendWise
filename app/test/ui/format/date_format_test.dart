@@ -34,5 +34,10 @@ void main() {
       final window = DateRange(day(2026, 6, 29), day(2026, 7, 6));
       expect(formatWeekRange(window), '29 Jun - 5 Jul');
     });
+
+    test('a single-day window shows that day at both ends', () {
+      final window = DateRange(day(2026, 7, 6), day(2026, 7, 7));
+      expect(formatWeekRange(window), '6 Jul - 6 Jul');
+    });
   });
 }

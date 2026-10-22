@@ -23,6 +23,14 @@ void main() {
     expect(worth.liability, money(300));
   });
 
+  test('a card in credit is an asset', () {
+    final ledger = LedgerState();
+    ledger.addAccount(account(a, type: AccountType.card));
+    ledger.addEntry(entry(amount: money(250), sourceID: a));
+
+    expect(Accounting.netWorth(ledger), NetWorth(money(250), Decimal.zero));
+  });
+
   test('net worth excludes an account flagged out of it', () {
     final ledger = LedgerState();
     ledger.addAccount(account(a));
@@ -81,6 +89,16 @@ void main() {
     );
   });
 
+  test('an account-to-account transfer is zero sum for net worth', () {
+    final ledger = LedgerState();
+    ledger.addAccount(account(a));
+    ledger.addAccount(account(b));
+    ledger.addEntry(entry(amount: money(1000), sourceID: a));
+    ledger.addEntry(entry(amount: money(400), sourceID: a, destinationID: b));
+
+    expect(Accounting.netWorth(ledger).asset, money(1000));
+  });
+
   test('an archived pocket leaves its parent total', () {
     final ledger = LedgerState();
     ledger.addAccount(account(a));
@@ -90,6 +108,13 @@ void main() {
     ledger.deletePocket(p);
 
     expect(Accounting.netWorth(ledger).asset, money(600));
+  });
+
+  test('an empty ledger has zero net worth', () {
+    final worth = Accounting.netWorth(LedgerState());
+
+    expect(worth.asset, Decimal.zero);
+    expect(worth.liability, Decimal.zero);
   });
 
   test('a pocket is never counted at top level', () {
@@ -112,6 +137,27 @@ void main() {
       expect(
         NetWorth(money(10), money(2)),
         isNot(NetWorth(money(2), money(10))),
+      );
+    });
+
+    test('a differing asset alone breaks equality', () {
+      expect(
+        NetWorth(money(10), money(2)),
+        isNot(NetWorth(money(11), money(2))),
+      );
+    });
+
+    test('a differing liability alone breaks equality', () {
+      expect(
+        NetWorth(money(10), money(2)),
+        isNot(NetWorth(money(10), money(3))),
+      );
+    });
+
+    test('a differing liability alone changes the hash', () {
+      expect(
+        NetWorth(money(10), money(2)).hashCode,
+        isNot(NetWorth(money(10), money(3)).hashCode),
       );
     });
   });

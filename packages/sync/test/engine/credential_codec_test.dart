@@ -14,14 +14,30 @@ void main() {
       restoreTestCredential(deviceID: deviceID, bearerToken: bearer);
 
   group('round-trip', () {
-    test('exports and restores a credential without exposing its bearer', () {
+    test('exports and restores an authenticated credential', () {
       final payload = codec.export(credential());
-      expect(payload, isNot(contains(bearer)));
-      expect(codec.restore(payload), credential());
+      final restored = codec.restore(payload);
+      expect(restored, credential());
+    });
+
+    test('restores a normalized device id', () {
+      final payload =
+          credentialPayload(deviceID: 'DEADBEEF', bearerToken: bearer);
+      expect(codec.restore(payload).deviceID, 'deadbeef');
+    });
+
+    test('rejects a non-JSON payload', () {
+      expect(() => codec.restore('not a payload'),
+          throwsA(isA<FormatException>()));
     });
   });
 
   group('bearer opacity', () {
+    test('the exported payload never contains the raw bearer', () {
+      final payload = codec.export(credential());
+      expect(payload, isNot(contains(bearer)));
+    });
+
     test('toString redacts the bearer', () {
       expect(credential().toString(), isNot(contains(bearer)));
     });

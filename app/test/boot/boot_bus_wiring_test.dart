@@ -21,6 +21,27 @@ Future<Ready> _bootReady(InMemoryLedgerStore store) async {
 }
 
 void main() {
+  test('theLedgerPublishesOntoTheBusTheProcessorSubscribedTo', () async {
+    final store = InMemoryLedgerStore(hasSeeded: true);
+    final ready = await _bootReady(store);
+
+    expect(ready.ledger.bus, same(ready.persistence.bus));
+  });
+
+  test('theVeryFirstMutationAfterBootIsPersisted', () async {
+    final store = InMemoryLedgerStore(hasSeeded: true);
+    final ready = await _bootReady(store);
+
+    final account = _account();
+    ready.ledger.addAccount(account);
+
+    expect(store.enqueuedBatches, hasLength(1));
+    expect(store.enqueuedBatches.single, hasLength(1));
+
+    await ready.persistence.flush();
+    expect(store.state.moneySources, contains(account.id));
+  });
+
   test('everyMutationAfterBootReachesTheStoreInOrder', () async {
     final store = InMemoryLedgerStore(hasSeeded: true);
     final ready = await _bootReady(store);

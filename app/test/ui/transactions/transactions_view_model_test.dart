@@ -48,7 +48,27 @@ void main() {
     return container.read(transactionsViewModelProvider(scope).future);
   }
 
+  group('unscoped screen', () {
+    test('shows the default title', () async {
+      final container = containerFor(buildLedger());
+      final state = await stateOf(container, null);
+
+      expect(state.title, 'Transactions');
+    });
+  });
+
   group('scoped screen', () {
+    test('shows the scope title', () async {
+      final scope = TransactionsScope(
+        title: 'Checking',
+        scopeIDs: {account.id, pocket.id},
+      );
+      final container = containerFor(buildLedger());
+      final state = await stateOf(container, scope);
+
+      expect(state.title, 'Checking');
+    });
+
     test('filters day sections to the scoped holders', () async {
       final scoped = Entry(
         amount: dec('-5'),

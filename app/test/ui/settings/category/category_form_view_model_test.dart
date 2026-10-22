@@ -48,8 +48,16 @@ void main() {
   });
 
   group('canSaveCategoryForm', () {
+    test('blank name cannot save', () {
+      expect(canSaveCategoryForm(''), isFalse);
+    });
+
     test('whitespace-only name cannot save', () {
       expect(canSaveCategoryForm('   '), isFalse);
+    });
+
+    test('trimmed non-empty name can save', () {
+      expect(canSaveCategoryForm('  Groceries  '), isTrue);
     });
   });
 
@@ -88,9 +96,34 @@ void main() {
       );
       expect(result, isEmpty);
     });
+
+    test('a subcategory never appears, even unexcluded', () {
+      final result = eligibleParents(
+        categories,
+        CategoryKind.expense,
+        excludingID: null,
+      );
+      expect(result.map((c) => c.id), isNot(contains(snacks.id)));
+    });
   });
 
   group('creating a category', () {
+    test('cannot save with a blank name', () async {
+      final container = buildContainer(Ledger());
+      final args = const CategoryFormArgs();
+      await container.read(categoryFormViewModelProvider(args).future);
+      final viewModel = container.read(
+        categoryFormViewModelProvider(args).notifier,
+      );
+
+      viewModel.setName('   ');
+
+      expect(
+        container.read(categoryFormViewModelProvider(args)).value?.canSave,
+        isFalse,
+      );
+    });
+
     test('saving a new category adds it to the ledger', () async {
       final ledger = Ledger();
       final container = buildContainer(ledger);
@@ -131,6 +164,22 @@ void main() {
   });
 
   group('parent picker', () {
+    test('requestPickParent emits PickParentRequested', () async {
+      final container = buildContainer(Ledger());
+      final args = const CategoryFormArgs();
+      await container.read(categoryFormViewModelProvider(args).future);
+      final viewModel = container.read(
+        categoryFormViewModelProvider(args).notifier,
+      );
+
+      viewModel.requestPickParent();
+
+      expect(
+        container.read(categoryFormViewModelProvider(args)).value?.step,
+        isA<PickParentRequested>(),
+      );
+    });
+
     test('applyPickedParent sets the parent and clears the step', () async {
       final parent = category(name: 'Food');
       final ledger = Ledger(
@@ -152,6 +201,22 @@ void main() {
       expect(formState?.parentID, parent.id);
       expect(formState?.step, isNull);
     });
+
+    test(
+      'applyPickedParent is a no-op once the provider is disposed',
+      () async {
+        final container = buildContainer(Ledger());
+        final args = const CategoryFormArgs();
+        await container.read(categoryFormViewModelProvider(args).future);
+        final viewModel = container.read(
+          categoryFormViewModelProvider(args).notifier,
+        );
+
+        container.dispose();
+
+        expect(() => viewModel.applyPickedParent('some-id'), returnsNormally);
+      },
+    );
 
     test('changing kind clears a parent that no longer matches', () async {
       final expenseParent = category(name: 'Food');
@@ -176,6 +241,22 @@ void main() {
   });
 
   group('symbol picker', () {
+    test('requestPickSymbol emits PickSymbolRequested', () async {
+      final container = buildContainer(Ledger());
+      final args = const CategoryFormArgs();
+      await container.read(categoryFormViewModelProvider(args).future);
+      final viewModel = container.read(
+        categoryFormViewModelProvider(args).notifier,
+      );
+
+      viewModel.requestPickSymbol();
+
+      expect(
+        container.read(categoryFormViewModelProvider(args)).value?.step,
+        isA<PickSymbolRequested>(),
+      );
+    });
+
     test('applyPickedSymbol sets the symbol and clears the step', () async {
       final container = buildContainer(Ledger());
       final args = const CategoryFormArgs();
@@ -215,6 +296,26 @@ void main() {
           .read(categoryFormViewModelProvider(args))
           .value;
       expect(formState?.error, isA<CategoryTooDeep>());
+    });
+
+    test('requestDelete emits DeleteConfirmationRequested', () async {
+      final existing = category(name: 'Food');
+      final ledger = Ledger(
+        state: LedgerState(categories: {existing.id: existing}),
+      );
+      final container = buildContainer(ledger);
+      final args = CategoryFormArgs(category: existing);
+      await container.read(categoryFormViewModelProvider(args).future);
+      final viewModel = container.read(
+        categoryFormViewModelProvider(args).notifier,
+      );
+
+      viewModel.requestDelete();
+
+      expect(
+        container.read(categoryFormViewModelProvider(args)).value?.step,
+        isA<DeleteConfirmationRequested>(),
+      );
     });
 
     test(

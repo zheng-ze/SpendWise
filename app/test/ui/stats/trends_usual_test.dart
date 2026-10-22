@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/ui/stats/trends/trends_body.dart';
+import 'package:spendwise/ui/stats/trends/trends_intent.dart';
 
 import 'trends_test_support.dart';
 
@@ -42,6 +43,27 @@ List<_Spend> _julyAgainst(String april, String may, String june, String july) {
 }
 
 void main() {
+  group('seed figures', () {
+    test(
+      'October 2026 shows expense and income totals with usual unavailable',
+      () async {
+        final today = DateTime.utc(2026, 10, 3);
+        final harness = await readyHarness(
+          ledger: seededTrendsLedger(today),
+          today: today,
+        );
+
+        expect(harness.ready.headline.amount, '-S\$167.40');
+        expect(harness.ready.usual?.title, _usualTitle);
+        expect(harness.ready.usual?.body, 'Not enough data');
+        harness.viewModel.setKind(TrendsKind.income);
+        await harness.settle();
+        expect(harness.ready.headline.amount, '+S\$3,200.00');
+        expect(harness.ready.usual?.body, 'Not enough data');
+      },
+    );
+  });
+
   group('past month', () {
     test(
       'a month above its three-month usual reads higher with the average range',
@@ -146,6 +168,17 @@ void main() {
       await harness.setToday(DateTime.utc(2026, 10, 16));
 
       expect(harness.ready.usual?.body, contains('day 1 to 16 average'));
+    });
+  });
+
+  group('year mode', () {
+    test('has no usual row', () async {
+      final harness = await _open(const [], today: _october);
+
+      harness.viewModel.setMode(TrendsMode.year);
+      await harness.settle();
+
+      expect(harness.ready.usual, isNull);
     });
   });
 }

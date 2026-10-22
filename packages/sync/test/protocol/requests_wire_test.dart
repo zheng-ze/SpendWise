@@ -2,6 +2,26 @@ import 'package:sync/sync.dart';
 import 'package:test/test.dart';
 
 void main() {
+  test('pull uses optional page_limit and cursor wire fields', () {
+    expect(
+      const PullRequest(collection: SyncCollection.entries).toWireJson(),
+      {'collection': 'entries'},
+    );
+
+    expect(
+      const PullRequest(
+        collection: SyncCollection.entries,
+        cursor: 'cursor-1',
+        pageLimit: 250,
+      ).toWireJson(),
+      {
+        'collection': 'entries',
+        'cursor': 'cursor-1',
+        'page_limit': 250,
+      },
+    );
+  });
+
   test('acknowledge uses checkpoint, not cursor', () {
     expect(
       const AcknowledgeRequest(
@@ -100,6 +120,13 @@ void main() {
         'cursor': 'cursor-1',
         'page_limit': 250,
       },
+    );
+  });
+
+  test('BeginReconcile.toWireJson carries only the begin_reconcile action', () {
+    expect(
+      const BeginReconcile().toWireJson(),
+      const {'action': 'begin_reconcile'},
     );
   });
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:drift/native.dart';
@@ -5,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/persistence/store/device_identity.dart';
 import 'package:spendwise/persistence/database/ledger_database.dart';
 import 'package:spendwise/sync/credential_provider.dart';
+import 'package:spendwise/sync/secret_store.dart';
 import 'package:spendwise/sync/sync_secret_keys.dart';
 import 'package:sync/sync.dart';
 
@@ -193,6 +195,38 @@ void main() {
     expect(called, isFalse);
   });
 
+  test('storage failure and absence keep distinct redacted reasons', () async {
+    Future<CredentialUnavailableException> unavailableFrom(
+      Future<void> Function() action,
+    ) async {
+      try {
+        await action();
+      } on CredentialUnavailableException catch (error) {
+        return error;
+      }
+      throw StateError('Expected credential unavailability.');
+    }
+
+    secrets.readFailure = const SecretStoreException();
+    final storageUnavailable = await unavailableFrom(
+      () => provider.withSessionCredential(
+        (_) => fail('A storage failure used a credential.'),
+      ),
+    );
+    secrets.readFailure = null;
+    final absentUnavailable = await unavailableFrom(
+      () => provider.withSessionCredential(
+        (_) => fail('An absent credential was used.'),
+      ),
+    );
+
+    expect(storageUnavailable.reason, isNot(absentUnavailable.reason));
+    expect(storageUnavailable.toString(), isNot(contains('test-bearer')));
+    expect(storageUnavailable.toString(), isNot(contains('db-error')));
+    expect(absentUnavailable.toString(), isNot(contains('test-bearer')));
+    expect(absentUnavailable.toString(), isNot(contains('db-error')));
+  });
+
   test(
     'each call restores the current payload and observes deletion',
     () async {
@@ -327,22 +361,55 @@ void main() {
       syncCredentialSecretKey,
       const CredentialCodec().export(credential),
     );
-    const malformed = 'leaked-malformed-secret';
-    await secrets.write(syncDeviceSecretKey, malformed);
-    secrets.reads.clear();
-    var called = false;
+    final canonical = validDeviceSecret();
+    final malformedSecrets = [
+      '',
+      'short-secret',
+      validDeviceSecret().substring(0, 20),
+      '${validDeviceSecret()}=',
+      '${validDeviceSecret()}!',
+      base64Url.encode(List.filled(16, 1)).replaceAll('=', ''),
+      // Same 32 zero bytes with nonzero trailing bits in the final char.
+      '${canonical.substring(0, canonical.length - 1)}B',
+    ];
+
+    for (final malformed in malformedSecrets) {
+      await secrets.write(syncDeviceSecretKey, malformed);
+      secrets.reads.clear();
+      var called = false;
+
+      await expectLater(
+        provider.withBoundCredential((_) => called = true),
+        throwsA(
+          isA<CredentialUnavailableException>()
+              .having(
+                (error) => error.reason,
+                'reason',
+                CredentialUnavailableReason.deviceSecretMalformed,
+              )
+              .having(
+                (error) => error.toString(),
+                'message',
+                'Sync credential unavailable (deviceSecretMalformed).',
+              ),
+        ),
+      );
+
+      expect(called, isFalse);
+      expect(secrets.reads, [syncDeviceSecretKey]);
+    }
+
     CredentialUnavailableException? thrown;
+    await secrets.write(syncDeviceSecretKey, 'leaked-malformed-secret');
     try {
-      await provider.withBoundCredential((_) => called = true);
+      await provider.withBoundCredential((_) => 'unreachable');
     } on CredentialUnavailableException catch (error) {
       thrown = error;
     }
-    expect(called, isFalse);
     expect(thrown, isNotNull);
     expect(thrown!.reason, CredentialUnavailableReason.deviceSecretMalformed);
-    expect(thrown.toString(), isNot(contains(malformed)));
+    expect(thrown.toString(), isNot(contains('leaked-malformed-secret')));
     expect(thrown.toString(), isNot(contains('test-bearer')));
-    expect(secrets.reads, [syncDeviceSecretKey]);
   });
 
   test('session and bound resolution stay independent of each key', () async {
@@ -520,4 +587,36 @@ void main() {
     expect(thrown.toString(), isNot(contains(deviceSecret)));
     expect(secrets.reads, [syncDeviceSecretKey]);
   });
+
+  test(
+    'overlapping callbacks use independently restored credentials',
+    () async {
+      final id = await deviceID(db);
+      final first = payload(id, 'first-test-bearer');
+      final second = payload(id, 'second-test-bearer');
+      final entered = Completer<void>();
+      final release = Completer<void>();
+      await secrets.write(syncCredentialSecretKey, first);
+      final firstCall = provider.withSessionCredential((credential) async {
+        entered.complete();
+        await release.future;
+        return credential == const CredentialCodec().restore(first);
+      });
+      await entered.future;
+      await secrets.write(syncCredentialSecretKey, second);
+      try {
+        expect(
+          await provider.withSessionCredential(
+            (credential) =>
+                credential == const CredentialCodec().restore(second),
+          ),
+          isTrue,
+        );
+      } finally {
+        release.complete();
+      }
+      expect(await firstCall, isTrue);
+      expect(secrets.reads, List.filled(2, syncCredentialSecretKey));
+    },
+  );
 }

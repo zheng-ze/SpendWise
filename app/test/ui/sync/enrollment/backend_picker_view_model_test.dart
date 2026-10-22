@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,6 +11,7 @@ typedef BackendSelectionCall = ({SyncBackendKind backend, String? endpoint});
 
 final class RecordingBackendSelectionWriter implements BackendSelectionWriter {
   Completer<void>? gate;
+  void Function()? onWrite;
   Object? failure;
 
   final List<BackendSelectionCall> calls = [];
@@ -20,6 +22,7 @@ final class RecordingBackendSelectionWriter implements BackendSelectionWriter {
     String? endpoint,
   }) async {
     calls.add((backend: backend, endpoint: endpoint));
+    onWrite?.call();
     final pending = gate;
     if (pending != null) await pending.future;
     final error = failure;
@@ -109,6 +112,38 @@ void main() {
     });
 
     test(
+      'selection and endpoint input are ignored while a persist is in flight',
+      () async {
+        final writer = RecordingBackendSelectionWriter()
+          ..gate = Completer<void>();
+        final container = containerWith(writer: writer);
+        final viewModel = container.read(
+          backendPickerViewModelProvider.notifier,
+        );
+
+        final pending = viewModel.continueWithSelection();
+        expect(container.read(backendPickerViewModelProvider).saving, isTrue);
+
+        viewModel.selectBackend(SyncBackendKind.custom);
+        viewModel.updateEndpoint('https://sync.example.com/changed');
+
+        final midState = container.read(backendPickerViewModelProvider);
+        expect(midState.selectedBackend, SyncBackendKind.supabase);
+        expect(midState.endpoint, isEmpty);
+
+        writer.gate!.complete();
+        await pending;
+
+        final state = container.read(backendPickerViewModelProvider);
+        expect(writer.calls.single.backend, SyncBackendKind.supabase);
+        expect(state.selectedBackend, SyncBackendKind.supabase);
+        expect(state.endpoint, isEmpty);
+        expect(state.step, isA<HostedReady>());
+        expect(state.saving, isFalse);
+      },
+    );
+
+    test(
       'a second continue while a persist is in flight makes no extra write',
       () async {
         final writer = RecordingBackendSelectionWriter()
@@ -163,6 +198,43 @@ void main() {
       expect(state.saveError, isNull);
     });
 
+    test('writer failure surfaces a save error and emits no step', () async {
+      final writer = RecordingBackendSelectionWriter()
+        ..failure = Exception('disk full');
+      final container = containerWith(writer: writer);
+      final viewModel = container.read(backendPickerViewModelProvider.notifier);
+
+      viewModel.selectBackend(SyncBackendKind.custom);
+      viewModel.updateEndpoint('https://sync.example.com/sync');
+      await viewModel.continueWithSelection();
+
+      final state = container.read(backendPickerViewModelProvider);
+      expect(writer.calls, hasLength(1));
+      expect(state.saveError, isNotNull);
+      expect(state.step, isNull);
+      expect(state.saving, isFalse);
+    });
+
+    test('writer Error propagates instead of surfacing a save error', () async {
+      final writer = RecordingBackendSelectionWriter()
+        ..failure = UnimplementedError();
+      final container = containerWith(writer: writer);
+      final viewModel = container.read(backendPickerViewModelProvider.notifier);
+
+      viewModel.selectBackend(SyncBackendKind.custom);
+      viewModel.updateEndpoint('https://sync.example.com/sync');
+
+      await expectLater(
+        viewModel.continueWithSelection(),
+        throwsA(isA<UnimplementedError>()),
+      );
+
+      expect(writer.calls, hasLength(1));
+      expect(container.read(backendPickerViewModelProvider).saveError, isNull);
+      expect(container.read(backendPickerViewModelProvider).step, isNull);
+      expect(container.read(backendPickerViewModelProvider).saving, isFalse);
+    });
+
     test('selection and endpoint input are ignored while a custom persist '
         'is in flight', () async {
       final writer = RecordingBackendSelectionWriter()
@@ -196,8 +268,41 @@ void main() {
   });
 
   group('BackendPickerNotifier custom validation', () {
+    const invalidEndpoints = {
+      'blank': '',
+      'relative': 'sync/push',
+      'non-https': 'http://sync.example.com',
+      'malformed': 'https://[::1',
+      'empty host': 'https://',
+    };
+
+    for (final entry in invalidEndpoints.entries) {
+      test(
+        '${entry.key} endpoint persists nothing and surfaces validation',
+        () async {
+          final writer = RecordingBackendSelectionWriter();
+          final container = containerWith(writer: writer);
+          final viewModel = container.read(
+            backendPickerViewModelProvider.notifier,
+          );
+
+          viewModel.selectBackend(SyncBackendKind.custom);
+          viewModel.updateEndpoint(entry.value);
+          await viewModel.continueWithSelection();
+
+          final state = container.read(backendPickerViewModelProvider);
+          expect(writer.calls, isEmpty);
+          expect(state.endpointError, isNotNull);
+          expect(state.step, isNull);
+          expect(state.saving, isFalse);
+        },
+      );
+    }
+  });
+
+  group('BackendPickerNotifier fresh-entry reset', () {
     test(
-      'an insecure endpoint persists nothing and surfaces validation',
+      'an unsaved custom selection resets to hosted with cleared state',
       () async {
         final writer = RecordingBackendSelectionWriter();
         final container = containerWith(writer: writer);
@@ -206,20 +311,21 @@ void main() {
         );
 
         viewModel.selectBackend(SyncBackendKind.custom);
-        viewModel.updateEndpoint('http://sync.example.com');
-        await viewModel.continueWithSelection();
+        viewModel.updateEndpoint('https://sync.example.com/sync');
+        await viewModel.resetForFreshEntry();
 
         final state = container.read(backendPickerViewModelProvider);
         expect(writer.calls, isEmpty);
-        expect(state.endpointError, isNotNull);
+        expect(state.selectedBackend, SyncBackendKind.supabase);
+        expect(state.endpoint, isEmpty);
+        expect(state.endpointError, isNull);
+        expect(state.saveError, isNull);
         expect(state.step, isNull);
         expect(state.saving, isFalse);
       },
     );
-  });
 
-  group('BackendPickerNotifier fresh-entry reset', () {
-    test('a failed custom save resets to hosted with cleared errors', () async {
+    test('a failed save resets to hosted with cleared errors', () async {
       final writer = RecordingBackendSelectionWriter()
         ..failure = Exception('disk full');
       final container = containerWith(writer: writer);
@@ -269,6 +375,23 @@ void main() {
       expect(state.selectedBackend, SyncBackendKind.supabase);
       expect(state.step, isNull);
       expect(state.saving, isFalse);
+    });
+  });
+
+  group('BackendPickerNotifier constructor surface', () {
+    test('depends only on the writer and the validator', () {
+      final source = File(
+        'lib/ui/sync/enrollment/backend_picker/backend_picker_view_model.dart',
+      ).readAsStringSync();
+
+      expect(source, contains('BackendSelectionWriter'));
+      expect(source, contains('CustomEndpointValidator'));
+      expect(source, isNot(contains('Resolver')));
+      expect(source, isNot(contains('Coordinator')));
+      expect(source, isNot(contains('Authenticator')));
+      expect(source, isNot(contains('EnrollmentService')));
+      expect(source, isNot(contains(RegExp(r'\bSyncBackend\b'))));
+      expect(source, isNot(contains('Supabase')));
     });
   });
 }

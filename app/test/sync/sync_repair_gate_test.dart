@@ -80,6 +80,35 @@ void main() {
       expect(gate.isCurrent(lease), isTrue);
     });
 
+    test('a legal repair snapshot refuses and latches the gate', () async {
+      final db = LedgerDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      final gate = SyncRepairGate.forDatabase(db);
+
+      expect(
+        (await gate.admit(
+          () async => _snapshot(
+            binding: SyncDeviceBindingState.bound,
+            phase: SyncEnrollmentPhase.sessionReauthRequired,
+            writes: false,
+            resume: SyncEnrollmentPhase.gateEnabled,
+          ),
+        )).lease,
+        isNull,
+      );
+      expect(gate.isOpen, isFalse);
+      expect(
+        (await gate.admit(
+          () async => _snapshot(
+            binding: SyncDeviceBindingState.authorizationRequired,
+            phase: SyncEnrollmentPhase.bindingAuthorizationRequired,
+            writes: false,
+          ),
+        )).lease,
+        isNull,
+      );
+    });
+
     test('a non-bound snapshot refuses admission', () async {
       final db = LedgerDatabase(NativeDatabase.memory());
       addTearDown(db.close);

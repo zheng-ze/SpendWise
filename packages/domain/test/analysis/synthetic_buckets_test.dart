@@ -3,6 +3,34 @@ import 'package:test/test.dart';
 
 void main() {
   group('syntheticTransferExpenseBucketID', () {
+    test('is deterministic for the same type', () {
+      final first = syntheticTransferExpenseBucketID(AccountType.savings);
+      final second = syntheticTransferExpenseBucketID(AccountType.savings);
+
+      expect(first, second);
+    });
+
+    test('differs between two eligible types', () {
+      final savings = syntheticTransferExpenseBucketID(AccountType.savings);
+      final investment = syntheticTransferExpenseBucketID(
+        AccountType.investment,
+      );
+
+      expect(savings, isNot(investment));
+    });
+
+    test(
+      'is not shaped like a uuid, so it cannot collide with a category id',
+      () {
+        final id = syntheticTransferExpenseBucketID(AccountType.savings);
+        final uuidPattern = RegExp(
+          r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+        );
+
+        expect(uuidPattern.hasMatch(id), isFalse);
+      },
+    );
+
     test('throws for a type that does not allow transfers as expense', () {
       expect(
         () => syntheticTransferExpenseBucketID(AccountType.cash),

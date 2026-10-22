@@ -4,11 +4,19 @@ import 'package:domain/domain.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ocr/ocr.dart';
+import 'package:spendwise/ocr/amount_extraction.dart';
+import 'package:spendwise/ocr/date_extraction.dart';
+import 'package:spendwise/ocr/name_extraction.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_flow.dart';
 
 import '../../../support/image_picker_channel.dart';
 
-const _deniedCode = 'camera_access_denied';
+const _deniedCodes = [
+  'camera_access_denied',
+  'camera_access_restricted',
+  'photo_access_denied',
+  'photo_access_restricted',
+];
 const _otherErrorCode = 'invalid_image';
 const _pickedBytes = [1, 2, 3];
 
@@ -100,6 +108,25 @@ void main() {
     expect(recognizer.disposed, isTrue);
   });
 
+  test(
+    'runs recognition on preCapturedBytes without using the picker',
+    () async {
+      mockImagePickerResult(errorCode: _deniedCodes.first);
+      ReceiptScanStop? stop;
+      DateTime? capturedDate;
+
+      await runReceiptScan(
+        source: ReceiptScanSource.camera,
+        preCapturedBytes: Uint8List(0),
+        onExtracted: ({name, amount, required date}) => capturedDate = date,
+        onStop: (value) => stop = value,
+      );
+
+      expect(stop, isNull);
+      expect(capturedDate, isNotNull);
+    },
+  );
+
   test('falls through to a null name, null amount and a defaulted date when the recognizer factory returns null', () async {
     String? capturedName;
     Decimal? capturedAmount;
@@ -118,21 +145,37 @@ void main() {
     expect(capturedDate, _todayUtc());
   });
 
+  test('extracts name, amount and date from recognized receipt text', () {
+    final recognized = _textOf(['Coffee Shop', 'Total \$12.50', '01/15/2026']);
+
+    final name = extractName(recognized);
+    final amount = extractAmount(recognized);
+    final date = extractDate(recognized, now: DateTime.utc(2026, 1, 20));
+
+    expect(name, isNotNull);
+    expect(amount, Decimal.parse('12.50'));
+    expect(date, DateTime.utc(2026, 1, 15));
+  });
+
   group('image picker outcomes', () {
-    test('camera permission denial stops as permissionDenied', () async {
-      mockImagePickerResult(errorCode: _deniedCode);
-      ReceiptScanStop? stop;
-      var extractedCalls = 0;
+    for (final code in _deniedCodes) {
+      for (final source in ReceiptScanSource.values) {
+        test('$code from ${source.name} stops as permissionDenied', () async {
+          mockImagePickerResult(errorCode: code);
+          ReceiptScanStop? stop;
+          var extractedCalls = 0;
 
-      await runReceiptScan(
-        source: ReceiptScanSource.camera,
-        onExtracted: ({name, amount, required date}) => extractedCalls++,
-        onStop: (value) => stop = value,
-      );
+          await runReceiptScan(
+            source: source,
+            onExtracted: ({name, amount, required date}) => extractedCalls++,
+            onStop: (value) => stop = value,
+          );
 
-      expect(stop, ReceiptScanStop.permissionDenied);
-      expect(extractedCalls, 0);
-    });
+          expect(stop, ReceiptScanStop.permissionDenied);
+          expect(extractedCalls, 0);
+        });
+      }
+    }
 
     test('a cancelled pick stops as cancelled', () async {
       mockImagePickerResult();

@@ -166,6 +166,18 @@ void main() {
       expect(stored.destinationID, uuid(1));
       expect(changes, [UpsertEntry(stored)]);
     });
+
+    test('a positive transfer is stored unchanged', () {
+      final given = entry(
+        id: uuid(4),
+        amount: Decimal.fromInt(100),
+        sourceID: uuid(1),
+        destinationID: uuid(2),
+      );
+      ledger.addEntry(given);
+
+      expect(ledger.entries[uuid(4)], given);
+    });
   });
 
   group('opening balance', () {
@@ -378,7 +390,7 @@ void main() {
       },
     );
 
-    for (final kind in [SystemEntryKind.openingBalance]) {
+    for (final kind in SystemEntryKind.values) {
       test('updateEntry on a $kind entry with a changed name throws', () {
         ledger.addEntry(
           Entry(

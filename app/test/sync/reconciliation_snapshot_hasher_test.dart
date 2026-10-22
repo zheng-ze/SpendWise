@@ -49,12 +49,14 @@ final class ScriptedSnapshotBackend implements SyncBackend {
 
   final Map<SyncCollection, List<PullResponse>> pages;
   final List<PullRequest> pulls = <PullRequest>[];
+  final List<String> calls = <String>[];
 
   @override
   Future<SyncOutcome<PullResponse>> pull(
     SyncCredential credential,
     PullRequest request,
   ) async {
+    calls.add('pull');
     pulls.add(request);
     final remaining = pages[request.collection];
     if (remaining == null || remaining.isEmpty) {
@@ -79,7 +81,10 @@ final class ScriptedSnapshotBackend implements SyncBackend {
   Future<SyncOutcome<AcknowledgeResponse>> acknowledge(
     SyncCredential credential,
     AcknowledgeRequest request,
-  ) => throw UnimplementedError();
+  ) async {
+    calls.add('acknowledge');
+    return SyncSuccess(AcknowledgeResponse(const {}));
+  }
 }
 
 void main() {
@@ -194,6 +199,26 @@ void main() {
     },
   );
 
+  test('hashing never acknowledges or advances durable state', () async {
+    final backend = ScriptedSnapshotBackend({
+      for (final collection in SyncCollection.values)
+        collection: [snapshotPage(const [], cursor: 'cursor-0', end: true)],
+    });
+    final hasher = ReconciliationSnapshotHasher(
+      backend: backend,
+      credential: testCredential(),
+    );
+
+    await hasher.hashAll(testContext());
+
+    expect(backend.calls, isNot(contains('acknowledge')));
+    expect(
+      backend.calls.every((call) => call == 'pull'),
+      isTrue,
+      reason: 'the hasher only pages the snapshot; it stages nothing.',
+    );
+  });
+
   test(
     'an empty snapshot hashes every collection to the empty digest',
     () async {
@@ -268,6 +293,29 @@ void main() {
       hasher.hashAll(testContext()),
       throwsA(isA<ReconciliationSnapshotException>()),
     );
+  });
+
+  test('attempts re-page from scratch without cached snapshot state', () async {
+    SyncBackend scripted() => ScriptedSnapshotBackend({
+      for (final collection in SyncCollection.values)
+        collection: [snapshotPage(const [], cursor: 'cursor-0', end: true)],
+    });
+    final first = scripted() as ScriptedSnapshotBackend;
+    final hasher = ReconciliationSnapshotHasher(
+      backend: first,
+      credential: testCredential(),
+    );
+
+    final firstHashes = await hasher.hashAll(testContext());
+    final secondBackend = scripted() as ScriptedSnapshotBackend;
+    final secondHashes = await ReconciliationSnapshotHasher(
+      backend: secondBackend,
+      credential: testCredential(),
+    ).hashAll(testContext());
+
+    expect(secondHashes, firstHashes);
+    expect(first.pulls, hasLength(SyncCollection.values.length));
+    expect(secondBackend.pulls, hasLength(SyncCollection.values.length));
   });
 
   test(

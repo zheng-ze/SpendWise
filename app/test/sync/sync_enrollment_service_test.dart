@@ -462,9 +462,12 @@ void main() {
       hasLength(1),
     );
     expect(
-      (await metadataStore.snapshot()).phase,
-      SyncEnrollmentPhase.gateEnabled,
+      decodeAndValidateSyncE2EKey((await secrets.read(syncE2EKeySecretKey))!),
+      validE2EKey(),
     );
+    final snapshot = await metadataStore.snapshot();
+    expect(snapshot.phase, SyncEnrollmentPhase.gateEnabled);
+    expect(snapshot.writeEnabled, isTrue);
   });
 
   test('bindingAuthorizationRequired row collects one binding OTP', () async {
@@ -497,60 +500,87 @@ void main() {
     );
   });
 
-  test(
-    'session reauth restores snapshotInProgress after bearer-only OTP',
-    () async {
-      await metadataStore.enterSnapshotInProgress();
-      await metadataStore.enterSessionReauthRequired();
+  test('sessionReauthRequired performs bearer-only OTP and restores each resume phase', () async {
+    for (final resume in [
+      SyncEnrollmentPhase.snapshotInProgress,
+      SyncEnrollmentPhase.reconciliationComplete,
+      SyncEnrollmentPhase.gateEnabled,
+    ]) {
+      final localDb = LedgerDatabase(NativeDatabase.memory());
+      addTearDown(() => localDb.close());
+      final localSecrets = InMemorySecretStore();
+      final localMeta = SyncMetadataStore(localDb);
+      final localAuth = FakeSyncAuthenticator();
+      final localBackend = emptySnapshotBackend();
+      await localMeta.enterSnapshotInProgress();
+      if (resume == SyncEnrollmentPhase.reconciliationComplete ||
+          resume == SyncEnrollmentPhase.gateEnabled) {
+        await localMeta.enterReconciliationComplete();
+      }
+      if (resume == SyncEnrollmentPhase.gateEnabled) {
+        await localMeta.enterGateEnabled();
+      }
+      await localMeta.enterSessionReauthRequired();
       final id = await seedBoundDevice(
-        database: db,
-        store: secrets,
-        target: backend,
-        bearer: 'old-bearer',
+        database: localDb,
+        store: localSecrets,
+        target: localBackend,
+        bearer: 'old-bearer-$resume',
       );
-      authenticator.onComplete = () {
-        backend.updateBearer(id, 'new-bearer');
+      localAuth.onComplete = () {
+        localBackend.updateBearer(id, 'new-bearer-$resume');
         return SyncSuccess(
-          const CredentialCodec().restore(credentialPayload(id, 'new-bearer')),
+          const CredentialCodec().restore(
+            credentialPayload(id, 'new-bearer-$resume'),
+          ),
         );
       };
+      final localService = SyncEnrollmentService(
+        authenticator: localAuth,
+        backend: localBackend,
+        metadataStore: localMeta,
+        secretStore: localSecrets,
+        database: localDb,
+        buildBeginRequest: () => BeginEnrollmentRequest(const {}),
+        buildCompleteRequest: (challenge) async =>
+            CompleteEnrollmentRequest(const {}),
+        resolveE2EKey: () async => validE2EKey(),
+        buildSnapshotHasher: (credential) => ReconciliationSnapshotHasher(
+          backend: localBackend,
+          credential: credential,
+        ),
+        bindingAuthorizer: localBackend,
+        bindingIdentifier: 'user@example.com',
+        resolveBindingOtp: (_) async => InMemorySyncBackend.bindingOtp,
+      );
 
-      await service().enroll();
+      await localService.enroll();
 
-      expect(authenticator.beginCalls, 1);
-      expect(authenticator.completeCalls, 1);
-      expect(backend.calls.where((call) => call == 'startBinding'), isEmpty);
-      expect(backend.calls.where((call) => call == 'verifyBinding'), isEmpty);
+      expect(localAuth.beginCalls, 1, reason: '$resume');
+      expect(localAuth.completeCalls, 1, reason: '$resume');
       expect(
-        (await metadataStore.snapshot()).phase,
+        localBackend.calls.where((call) => call == 'startBinding'),
+        isEmpty,
+        reason: '$resume',
+      );
+      expect(
+        localBackend.calls.where((call) => call == 'verifyBinding'),
+        isEmpty,
+        reason: '$resume',
+      );
+      final storedBearer = const CredentialCodec().restore(
+        (await localSecrets.read(syncCredentialSecretKey))!,
+      );
+      expect(storedBearer.deviceID, id, reason: '$resume');
+      final finalSnapshot = await localMeta.snapshot();
+      expect(
+        finalSnapshot.phase,
         SyncEnrollmentPhase.gateEnabled,
+        reason: '$resume',
       );
-    },
-  );
-
-  test(
-    'authorized-Begin DeviceAuthorizationRequired stays in binding repair',
-    () async {
-      await metadataStore.enterBindingAuthorizationRequired();
-      await secrets.write(syncE2EKeySecretKey, base64Url.encode(validE2EKey()));
-      final wrapper = DelegatingBackend(backend);
-      wrapper.onAuthorizedBegin = (credential, request) =>
-          const DeviceAuthorizationRequired<ReconcileResponse>(
-            message: 'denied',
-          );
-
-      final error = await enrollError(
-        () => service(backendOverride: wrapper).enroll(),
-      );
-
-      expect(error.step, 'reconcileBegin');
-      expect(error.code, 'device_authorization_required');
-      final snapshot = await metadataStore.snapshot();
-      expect(snapshot.phase, SyncEnrollmentPhase.bindingAuthorizationRequired);
-      expect(snapshot.writeEnabled, isFalse);
-      expect(wrapper.pulls, isEmpty);
-    },
-  );
+      expect(finalSnapshot.writeEnabled, isTrue, reason: '$resume');
+    }
+  });
 
   test(
     'lost authorized-Begin response retries with a fresh challenge',
@@ -613,37 +643,40 @@ void main() {
 
     expect(error.step, 'reconcileBegin');
     expect(error.code, 'credential_expired');
+    final snapshot = await metadataStore.snapshot();
+    expect(snapshot.phase, SyncEnrollmentPhase.bindingAuthorizationRequired);
+    expect(snapshot.writeEnabled, isFalse);
+    expect(wrapper.pulls, isEmpty);
+
+    await service(backendOverride: wrapper..onAuthorizedBegin = null).enroll();
+
     expect(
       (await metadataStore.snapshot()).phase,
-      SyncEnrollmentPhase.bindingAuthorizationRequired,
+      SyncEnrollmentPhase.gateEnabled,
     );
-    expect(wrapper.pulls, isEmpty);
   });
 
   test(
-    'authorized-Begin with malformed device_secret is incompatible',
+    'authorized-Begin DeviceAuthorizationRequired stays in binding repair',
     () async {
       await metadataStore.enterBindingAuthorizationRequired();
       await secrets.write(syncE2EKeySecretKey, base64Url.encode(validE2EKey()));
       final wrapper = DelegatingBackend(backend);
-      wrapper.onAuthorizedBegin = (credential, request) => SyncSuccess(
-        ReconcileResponse(<String, Object?>{
-          ...beginContextWire(),
-          'device_secret': 'malformed',
-        }),
-      );
+      wrapper.onAuthorizedBegin = (credential, request) =>
+          const DeviceAuthorizationRequired<ReconcileResponse>(
+            message: 'denied',
+          );
 
       final error = await enrollError(
         () => service(backendOverride: wrapper).enroll(),
       );
 
       expect(error.step, 'reconcileBegin');
-      expect(error.code, 'incompatible_server');
+      expect(error.code, 'device_authorization_required');
+      final snapshot = await metadataStore.snapshot();
+      expect(snapshot.phase, SyncEnrollmentPhase.bindingAuthorizationRequired);
+      expect(snapshot.writeEnabled, isFalse);
       expect(wrapper.pulls, isEmpty);
-      expect(
-        (await metadataStore.snapshot()).phase,
-        SyncEnrollmentPhase.bindingAuthorizationRequired,
-      );
     },
   );
 
@@ -757,6 +790,40 @@ void main() {
         (error) => error.reason,
         'reason',
         SyncE2EKeyUnavailableReason.malformed,
+      ),
+    );
+    expect(resolveKeyCalls, 0);
+    expect(backend.calls, isEmpty);
+    final snapshot = await metadataStore.snapshot();
+    expect(snapshot.phase, SyncEnrollmentPhase.bindingAuthorizationRequired);
+  });
+
+  test('wrong-length E2E key in bindingAuthorizationRequired makes zero binding calls', () async {
+    await metadataStore.enterBindingAuthorizationRequired();
+    await secrets.write(
+      syncE2EKeySecretKey,
+      base64Url.encode(List<int>.filled(16, 7)),
+    );
+    var resolveKeyCalls = 0;
+
+    Object? thrown;
+    try {
+      await service(
+        resolveE2EKey: () async {
+          resolveKeyCalls++;
+          return validE2EKey();
+        },
+      ).enroll();
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(
+      thrown,
+      isA<SyncE2EKeyUnavailableException>().having(
+        (error) => error.reason,
+        'reason',
+        SyncE2EKeyUnavailableReason.wrongLength,
       ),
     );
     expect(resolveKeyCalls, 0);
@@ -881,6 +948,95 @@ void main() {
       SyncEnrollmentPhase.gateEnabled,
     );
   });
+
+  test(
+    'stale secret is deleted even when entering binding authorization fails',
+    () async {
+      await secrets.write(syncDeviceSecretKey, validDeviceSecret());
+      await db.customStatement(
+        'CREATE TRIGGER fail_binding_enter BEFORE UPDATE ON sync_meta '
+        'WHEN NEW.device_binding_state = 1 '
+        'BEGIN SELECT RAISE(ABORT, \'boom\'); END',
+      );
+
+      Object? thrown;
+      try {
+        await service().enroll();
+      } catch (error) {
+        thrown = error;
+      }
+
+      expect(thrown, isNotNull);
+      expect(await secrets.read(syncDeviceSecretKey), isNull);
+      expect(
+        (await metadataStore.snapshot()).phase,
+        SyncEnrollmentPhase.notEnrolled,
+      );
+
+      await db.customStatement('DROP TRIGGER fail_binding_enter');
+
+      await service().enroll();
+
+      expect(
+        backend.calls.where((call) => call == 'startBinding'),
+        hasLength(1),
+      );
+      expect(
+        (await metadataStore.snapshot()).phase,
+        SyncEnrollmentPhase.gateEnabled,
+      );
+    },
+  );
+
+  test(
+    'session reauth with an absent secret enters binding repair first',
+    () async {
+      await metadataStore.enterSnapshotInProgress();
+      await metadataStore.enterSessionReauthRequired();
+      await secrets.write(syncE2EKeySecretKey, base64Url.encode(validE2EKey()));
+      await configureHandshakeSuccess();
+
+      await service().enroll();
+
+      expect(authenticator.beginCalls, 0);
+      expect(authenticator.completeCalls, 0);
+      expect(
+        backend.calls.where((call) => call == 'startBinding'),
+        hasLength(1),
+      );
+      expect(
+        backend.calls.where((call) => call == 'verifyBinding'),
+        hasLength(1),
+      );
+      expect(
+        (await metadataStore.snapshot()).phase,
+        SyncEnrollmentPhase.gateEnabled,
+      );
+    },
+  );
+
+  test(
+    'session reauth with a malformed secret deletes it before binding repair',
+    () async {
+      await metadataStore.enterSnapshotInProgress();
+      await metadataStore.enterSessionReauthRequired();
+      await secrets.write(syncE2EKeySecretKey, base64Url.encode(validE2EKey()));
+      await secrets.write(syncDeviceSecretKey, '!!!-not-a-secret-!!!');
+      await configureHandshakeSuccess();
+
+      await service().enroll();
+
+      expect(authenticator.beginCalls, 0);
+      expect(
+        isValidSyncDeviceSecret((await secrets.read(syncDeviceSecretKey))!),
+        isTrue,
+      );
+      expect(
+        (await metadataStore.snapshot()).phase,
+        SyncEnrollmentPhase.gateEnabled,
+      );
+    },
+  );
 
   test('session reauth storage failure stops without a transition', () async {
     await metadataStore.enterSnapshotInProgress();
@@ -1053,29 +1209,206 @@ void main() {
     },
   );
 
+  test(
+    'authorized-Begin secrets that fail validation are incompatible',
+    () async {
+      final valid = validDeviceSecret();
+      final variants = <String, Map<String, Object?>?>{
+        'missing': null,
+        'padded': {'device_secret': '$valid='},
+        'noncanonical': {
+          'device_secret':
+              valid.substring(0, valid.length - 1) +
+              (valid.endsWith('A') ? 'B' : 'A'),
+        },
+        'malformed': {'device_secret': '!!!-not-a-secret-!!!'},
+        'wrong-length': {
+          'device_secret': base64Url.encode(List<int>.filled(16, 7)),
+        },
+      };
+      for (final entry in variants.entries) {
+        final localDb = LedgerDatabase(NativeDatabase.memory());
+        addTearDown(() => localDb.close());
+        final localSecrets = InMemorySecretStore();
+        final localMeta = SyncMetadataStore(localDb);
+        final localBackend = emptySnapshotBackend();
+        final localAuth = FakeSyncAuthenticator();
+        await localMeta.enterBindingAuthorizationRequired();
+        await localSecrets.write(
+          syncE2EKeySecretKey,
+          base64Url.encode(validE2EKey()),
+        );
+        if (entry.value case final secretEntry?) {
+          expect(
+            isValidSyncDeviceSecret(secretEntry['device_secret']! as String),
+            isFalse,
+            reason: entry.key,
+          );
+        }
+        final wrapper = DelegatingBackend(localBackend);
+        final secretOverride = entry.value;
+        wrapper.onAuthorizedBegin = (credential, request) => SyncSuccess(
+          ReconcileResponse(<String, Object?>{
+            ...beginContextWire(),
+            ...?secretOverride,
+          }),
+        );
+        final localService = SyncEnrollmentService(
+          authenticator: localAuth,
+          backend: wrapper,
+          metadataStore: localMeta,
+          secretStore: localSecrets,
+          database: localDb,
+          buildBeginRequest: () => BeginEnrollmentRequest(const {}),
+          buildCompleteRequest: (challenge) async =>
+              CompleteEnrollmentRequest(const {}),
+          resolveE2EKey: () async => validE2EKey(),
+          buildSnapshotHasher: (credential) => ReconciliationSnapshotHasher(
+            backend: wrapper,
+            credential: credential,
+          ),
+          bindingAuthorizer: localBackend,
+          bindingIdentifier: 'user@example.com',
+          resolveBindingOtp: (_) async => InMemorySyncBackend.bindingOtp,
+        );
+
+        Object? thrown;
+        try {
+          await localService.enroll();
+        } on SyncEnrollmentException catch (error) {
+          thrown = error;
+        }
+
+        expect(
+          thrown,
+          isA<SyncEnrollmentException>()
+              .having((e) => e.step, 'step', 'reconcileBegin')
+              .having((e) => e.code, 'code', 'incompatible_server'),
+          reason: entry.key,
+        );
+        expect(
+          await localSecrets.read(syncDeviceSecretKey),
+          isNull,
+          reason: entry.key,
+        );
+        expect(wrapper.pulls, isEmpty, reason: entry.key);
+        final snapshot = await localMeta.snapshot();
+        expect(
+          snapshot.phase,
+          SyncEnrollmentPhase.bindingAuthorizationRequired,
+          reason: entry.key,
+        );
+        expect(snapshot.writeEnabled, isFalse, reason: entry.key);
+      }
+    },
+  );
+
   test('bound Begin carrying device_secret is incompatible', () async {
-    await seedBoundDevice(database: db, store: secrets, target: backend);
-    await metadataStore.enterSnapshotInProgress();
-    final wrapper = DelegatingBackend(backend);
-    wrapper.onBoundBegin = (credential, request) => SyncSuccess(
-      ReconcileResponse(<String, Object?>{
-        ...beginContextWire(),
-        'device_secret': validDeviceSecret(),
-      }),
-    );
+    const secretKeys = [
+      syncCredentialSecretKey,
+      syncDeviceSecretKey,
+      syncE2EKeySecretKey,
+      syncWriteProofSecretKey,
+    ];
+    Future<Map<String, String?>> readAllSecrets(
+      InMemorySecretStore store,
+    ) async {
+      final values = <String, String?>{};
+      for (final key in secretKeys) {
+        values[key] = await store.read(key);
+      }
+      return values;
+    }
 
-    final error = await enrollError(
-      () => service(backendOverride: wrapper).enroll(),
-    );
+    for (final secretValue in [validDeviceSecret(), null]) {
+      final localDb = LedgerDatabase(NativeDatabase.memory());
+      addTearDown(() => localDb.close());
+      final localSecrets = InMemorySecretStore();
+      final localMeta = SyncMetadataStore(localDb);
+      final localBackend = emptySnapshotBackend();
+      final localAuth = FakeSyncAuthenticator();
+      await seedBoundDevice(
+        database: localDb,
+        store: localSecrets,
+        target: localBackend,
+      );
+      await localMeta.enterSnapshotInProgress();
+      final wrapper = DelegatingBackend(localBackend);
+      wrapper.onBoundBegin = (credential, request) => SyncSuccess(
+        ReconcileResponse(<String, Object?>{
+          ...beginContextWire(),
+          'device_secret': secretValue,
+        }),
+      );
+      final localService = SyncEnrollmentService(
+        authenticator: localAuth,
+        backend: wrapper,
+        metadataStore: localMeta,
+        secretStore: localSecrets,
+        database: localDb,
+        buildBeginRequest: () => BeginEnrollmentRequest(const {}),
+        buildCompleteRequest: (challenge) async =>
+            CompleteEnrollmentRequest(const {}),
+        resolveE2EKey: () async => validE2EKey(),
+        buildSnapshotHasher: (credential) => ReconciliationSnapshotHasher(
+          backend: wrapper,
+          credential: credential,
+        ),
+        bindingAuthorizer: localBackend,
+        bindingIdentifier: 'user@example.com',
+        resolveBindingOtp: (_) async => InMemorySyncBackend.bindingOtp,
+      );
 
-    expect(error.step, 'reconcileBegin');
-    expect(error.code, 'incompatible_server');
-    expect(wrapper.pulls, isEmpty);
-    expect(await secrets.read(syncDeviceSecretKey), validDeviceSecret());
-    expect(
-      (await metadataStore.snapshot()).phase,
-      SyncEnrollmentPhase.snapshotInProgress,
-    );
+      Object? thrown;
+      final secretsBefore = await readAllSecrets(localSecrets);
+      final writesBefore = List.of(localSecrets.writes);
+      final deletesBefore = List.of(localSecrets.deletes);
+      try {
+        await localService.enroll();
+      } on SyncEnrollmentException catch (error) {
+        thrown = error;
+      }
+
+      expect(
+        thrown,
+        isA<SyncEnrollmentException>()
+            .having((e) => e.step, 'step', 'reconcileBegin')
+            .having((e) => e.code, 'code', 'incompatible_server'),
+        reason: 'device_secret=$secretValue',
+      );
+      expect(wrapper.pulls, isEmpty, reason: 'device_secret=$secretValue');
+      expect(
+        await readAllSecrets(localSecrets),
+        secretsBefore,
+        reason: 'device_secret=$secretValue',
+      );
+      expect(
+        localSecrets.writes,
+        writesBefore,
+        reason: 'device_secret=$secretValue',
+      );
+      expect(
+        localSecrets.deletes,
+        deletesBefore,
+        reason: 'device_secret=$secretValue',
+      );
+      expect(
+        localSecrets.writes.sublist(writesBefore.length),
+        isNot(contains(syncDeviceSecretKey)),
+        reason: 'device_secret=$secretValue',
+      );
+      expect(
+        localSecrets.writes,
+        isNot(contains(syncWriteProofSecretKey)),
+        reason: 'device_secret=$secretValue',
+      );
+      final snapshot = await localMeta.snapshot();
+      expect(
+        snapshot.phase,
+        SyncEnrollmentPhase.snapshotInProgress,
+        reason: 'device_secret=$secretValue',
+      );
+    }
   });
 
   test('bound Begin CredentialExpired records session reauth', () async {
@@ -1123,6 +1456,31 @@ void main() {
     expect(snapshot.writeEnabled, isFalse);
   });
 
+  test('bound Complete CredentialExpired on a non-repair illegal row surfaces invalid_request', () async {
+    await seedBoundDevice(database: db, store: secrets, target: backend);
+    await metadataStore.enterSnapshotInProgress();
+    final wrapper = DelegatingBackend(backend);
+    wrapper.onComplete = (credential, request) async {
+      await (db.update(db.syncMeta)..where((t) => t.id.equals(0))).write(
+        SyncMetaCompanion(
+          enrollmentPhase: Value(SyncEnrollmentPhase.notEnrolled.code),
+        ),
+      );
+      return const CredentialExpired<ReconcileResponse>(message: 'expired');
+    };
+
+    final error = await enrollError(
+      () => service(backendOverride: wrapper).enroll(),
+    );
+
+    expect(error.step, 'reconcileComplete');
+    expect(error.code, 'invalid_request');
+    expect(error.message, 'expired');
+    final snapshot = await metadataStore.snapshot();
+    expect(snapshot.phase, SyncEnrollmentPhase.notEnrolled);
+    expect(snapshot.deviceBindingState, SyncDeviceBindingState.bound);
+  });
+
   test('bound Begin DeviceAuthorizationRequired deletes the secret', () async {
     await seedBoundDevice(database: db, store: secrets, target: backend);
     await metadataStore.enterSnapshotInProgress();
@@ -1138,6 +1496,78 @@ void main() {
     expect(error.code, 'device_authorization_required');
     expect(await secrets.read(syncDeviceSecretKey), isNull);
     expect(wrapper.pulls, isEmpty);
+    final snapshot = await metadataStore.snapshot();
+    expect(snapshot.phase, SyncEnrollmentPhase.bindingAuthorizationRequired);
+  });
+
+  test('Pull CredentialExpired records session reauth', () async {
+    await seedBoundDevice(database: db, store: secrets, target: backend);
+    await metadataStore.enterSnapshotInProgress();
+    final wrapper = DelegatingBackend(backend);
+    wrapper.onPullOverride = (credential, request) =>
+        const CredentialExpired<PullResponse>(message: 'expired');
+
+    final error = await enrollError(
+      () => service(backendOverride: wrapper).enroll(),
+    );
+
+    expect(error.step, 'reconcileBegin');
+    expect(error.code, 'credential_expired');
+    final snapshot = await metadataStore.snapshot();
+    expect(snapshot.phase, SyncEnrollmentPhase.sessionReauthRequired);
+    expect(snapshot.reauthResumePhase, SyncEnrollmentPhase.snapshotInProgress);
+  });
+
+  test('Pull DeviceAuthorizationRequired deletes the secret', () async {
+    await seedBoundDevice(database: db, store: secrets, target: backend);
+    await metadataStore.enterSnapshotInProgress();
+    final wrapper = DelegatingBackend(backend);
+    wrapper.onPullOverride = (credential, request) =>
+        const DeviceAuthorizationRequired<PullResponse>(message: 'denied');
+
+    final error = await enrollError(
+      () => service(backendOverride: wrapper).enroll(),
+    );
+
+    expect(error.step, 'reconcileBegin');
+    expect(error.code, 'device_authorization_required');
+    expect(await secrets.read(syncDeviceSecretKey), isNull);
+    final snapshot = await metadataStore.snapshot();
+    expect(snapshot.phase, SyncEnrollmentPhase.bindingAuthorizationRequired);
+  });
+
+  test('Complete CredentialExpired records session reauth', () async {
+    await seedBoundDevice(database: db, store: secrets, target: backend);
+    await metadataStore.enterSnapshotInProgress();
+    final wrapper = DelegatingBackend(backend);
+    wrapper.onComplete = (credential, request) =>
+        const CredentialExpired<ReconcileResponse>(message: 'expired');
+
+    final error = await enrollError(
+      () => service(backendOverride: wrapper).enroll(),
+    );
+
+    expect(error.step, 'reconcileComplete');
+    expect(error.code, 'credential_expired');
+    final snapshot = await metadataStore.snapshot();
+    expect(snapshot.phase, SyncEnrollmentPhase.sessionReauthRequired);
+    expect(snapshot.reauthResumePhase, SyncEnrollmentPhase.snapshotInProgress);
+  });
+
+  test('Complete DeviceAuthorizationRequired deletes the secret', () async {
+    await seedBoundDevice(database: db, store: secrets, target: backend);
+    await metadataStore.enterSnapshotInProgress();
+    final wrapper = DelegatingBackend(backend);
+    wrapper.onComplete = (credential, request) =>
+        const DeviceAuthorizationRequired<ReconcileResponse>(message: 'denied');
+
+    final error = await enrollError(
+      () => service(backendOverride: wrapper).enroll(),
+    );
+
+    expect(error.step, 'reconcileComplete');
+    expect(error.code, 'device_authorization_required');
+    expect(await secrets.read(syncDeviceSecretKey), isNull);
     final snapshot = await metadataStore.snapshot();
     expect(snapshot.phase, SyncEnrollmentPhase.bindingAuthorizationRequired);
   });
@@ -1169,45 +1599,6 @@ void main() {
     expect(snapshot.phase, SyncEnrollmentPhase.bindingAuthorizationRequired);
     expect(snapshot.reauthResumePhase, isNull);
   });
-
-  test(
-    'stale secret is deleted even when entering binding authorization fails',
-    () async {
-      await secrets.write(syncDeviceSecretKey, validDeviceSecret());
-      await db.customStatement(
-        'CREATE TRIGGER fail_binding_enter BEFORE UPDATE ON sync_meta '
-        'WHEN NEW.device_binding_state = 1 '
-        'BEGIN SELECT RAISE(ABORT, \'boom\'); END',
-      );
-
-      Object? thrown;
-      try {
-        await service().enroll();
-      } catch (error) {
-        thrown = error;
-      }
-
-      expect(thrown, isNotNull);
-      expect(await secrets.read(syncDeviceSecretKey), isNull);
-      expect(
-        (await metadataStore.snapshot()).phase,
-        SyncEnrollmentPhase.notEnrolled,
-      );
-
-      await db.customStatement('DROP TRIGGER fail_binding_enter');
-
-      await service().enroll();
-
-      expect(
-        backend.calls.where((call) => call == 'startBinding'),
-        hasLength(1),
-      );
-      expect(
-        (await metadataStore.snapshot()).phase,
-        SyncEnrollmentPhase.gateEnabled,
-      );
-    },
-  );
 
   test('valid secret with an absent bearer enters session reauth', () async {
     final id = await deviceID(db);
@@ -1563,6 +1954,25 @@ void main() {
     },
   );
 
+  test('valid stored key is reused without calling resolveE2EKey', () async {
+    final encoded = base64Url.encode(validE2EKey());
+    await secrets.write(syncE2EKeySecretKey, encoded);
+    var resolveKeyCalls = 0;
+
+    await service(
+      resolveE2EKey: () async {
+        resolveKeyCalls++;
+        return validE2EKey();
+      },
+    ).enroll();
+
+    expect(resolveKeyCalls, 0);
+    expect(await secrets.read(syncE2EKeySecretKey), encoded);
+    final snapshot = await metadataStore.snapshot();
+    expect(snapshot.phase, SyncEnrollmentPhase.gateEnabled);
+    expect(snapshot.writeEnabled, isTrue);
+  });
+
   test('resume from reconciliationComplete only flips the gate', () async {
     await metadataStore.enterReconciliationComplete();
     await configureHandshakeSuccess();
@@ -1577,6 +1987,16 @@ void main() {
   });
 
   group('shared repair gate (IR4)', () {
+    test(
+      'the service uses the database gate shared with coordinators',
+      () async {
+        expect(
+          identical(service().repairGate, SyncRepairGate.forDatabase(db)),
+          isTrue,
+        );
+      },
+    );
+
     test('device-secret mutations wait on the shared gate lock', () async {
       await secrets.write(syncDeviceSecretKey, validDeviceSecret());
       final gate = SyncRepairGate.forDatabase(db);

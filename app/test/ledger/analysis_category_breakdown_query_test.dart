@@ -4,6 +4,7 @@ import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
 import 'package:spendwise/ledger/analysis/breakdowns/category_breakdown.dart';
 import 'package:spendwise/ledger/analysis/insights/completeness.dart';
 import 'package:spendwise/ledger/analysis/breakdowns/scoped_trend.dart';
+import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/analysis_queries.dart';
 import 'package:spendwise/ledger/ledger.dart';
 
@@ -19,9 +20,14 @@ const _payID = '66666666-6666-6666-6666-666666666666';
 const _hiddenID = '77777777-7777-7777-7777-777777777777';
 const _excludedParentID = '88888888-8888-8888-8888-888888888888';
 const _excludedChildID = '99999999-9999-9999-9999-999999999992';
+const _soloMainID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+const _soloChildID = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
 const _syntheticID = 'transfer-expense:savings';
 
 const _mayExpenseTotal = '85.00';
+const _twoEditMayTotal = '195.00';
+const _firstEditID = 'c0000000-0000-0000-0000-000000000001';
+const _secondEditID = 'c0000000-0000-0000-0000-000000000002';
 const _mayIncomeTotal = '50.00';
 const _juneExpenseTotal = '99.00';
 const _year2026ExpenseTotal = '7.00';
@@ -245,6 +251,42 @@ PeriodBreakdown _readyBreakdown(
   return read.value!;
 }
 
+Future<int> _editTwiceAndAcceptFirst(
+  Ledger ledger,
+  ManualRunner runner,
+  AnalysisCache cache,
+  int settledRevision,
+) async {
+  final base = runner.pending.length;
+  ledger.addEntry(
+    Entry(
+      id: _firstEditID,
+      amount: Decimal.parse('-10.00'),
+      name: 'entry',
+      sourceID: _checkingID,
+      categoryID: _childID,
+      date: DateTime.utc(2027, 5, 12),
+    ),
+  );
+  final itemsAfterFirst = Accounting.analysisItems(ledger.state);
+  ledger.addEntry(
+    Entry(
+      id: _secondEditID,
+      amount: Decimal.parse('-100.00'),
+      name: 'entry',
+      sourceID: _checkingID,
+      categoryID: _childID,
+      date: DateTime.utc(2027, 5, 13),
+    ),
+  );
+  expect(runner.pending.length, base + 2);
+  runner.pending[base].complete(itemsAfterFirst);
+  await pumpEventQueue();
+  expect(cache.itemsSourceRevision, settledRevision + 1);
+  expect(ledger.revision, settledRevision + 2);
+  return base;
+}
+
 void main() {
   test('mayBreakdownMatchesPeriodAndMonthSlotAtBothLevels', () async {
     final setup = setupAnalysis();
@@ -410,6 +452,101 @@ void main() {
     );
     expect(futureSpread.state, AnalysisQueryState.failed);
   });
+
+  test('periodInputsNormaliseToUtcMidnight', () async {
+    final setup = setupAnalysis();
+    _populate(setup.ledger);
+    await settle(setup.runner, setup.ledger);
+    final queries = setup.queries;
+
+    final canonical = queries.readCategoryBreakdown(
+      period: _may,
+      mode: AnalysisPeriodMode.month,
+      kind: CategoryKind.expense,
+      level: BreakdownLevel.categories,
+    );
+    expect(canonical.state, AnalysisQueryState.ready);
+    expect(canonical.value?.window, monthWindow(_may));
+    expect(
+      identical(
+        queries.readCategoryBreakdown(
+          period: DateTime.utc(2027, 5, 20, 14, 45),
+          mode: AnalysisPeriodMode.month,
+          kind: CategoryKind.expense,
+          level: BreakdownLevel.categories,
+        ),
+        canonical,
+      ),
+      isTrue,
+    );
+    expect(
+      identical(
+        queries.readCategoryBreakdown(
+          period: DateTime(2027, 5, 20, 14, 45),
+          mode: AnalysisPeriodMode.month,
+          kind: CategoryKind.expense,
+          level: BreakdownLevel.categories,
+        ),
+        canonical,
+      ),
+      isTrue,
+    );
+
+    final yearCanonical = queries.readCategoryBreakdown(
+      period: DateTime.utc(2027, 1, 1),
+      mode: AnalysisPeriodMode.year,
+      kind: CategoryKind.expense,
+      level: BreakdownLevel.categories,
+    );
+    expect(
+      identical(
+        queries.readCategoryBreakdown(
+          period: DateTime(2027, 12, 31, 23, 59),
+          mode: AnalysisPeriodMode.year,
+          kind: CategoryKind.expense,
+          level: BreakdownLevel.categories,
+        ),
+        yearCanonical,
+      ),
+      isTrue,
+    );
+  });
+
+  test('modeAloneSeparatesJanuaryReadsWithSharedWindowStart', () async {
+    final setup = setupAnalysis();
+    _populate(setup.ledger);
+    await settle(setup.runner, setup.ledger);
+    final queries = setup.queries;
+
+    final january = DateTime.utc(2027, 1, 15);
+    final monthRead = queries.readCategoryBreakdown(
+      period: january,
+      mode: AnalysisPeriodMode.month,
+      kind: CategoryKind.expense,
+      level: BreakdownLevel.categories,
+    );
+    final yearRead = queries.readCategoryBreakdown(
+      period: january,
+      mode: AnalysisPeriodMode.year,
+      kind: CategoryKind.expense,
+      level: BreakdownLevel.categories,
+    );
+    expect(monthRead.state, AnalysisQueryState.ready);
+    expect(yearRead.state, AnalysisQueryState.ready);
+    expect(
+      monthRead.value?.window,
+      DateRange(DateTime.utc(2027, 1, 1), DateTime.utc(2027, 2, 1)),
+    );
+    expect(
+      yearRead.value?.window,
+      DateRange(DateTime.utc(2027, 1, 1), DateTime.utc(2028, 1, 1)),
+    );
+    expect(monthRead.value?.window.start, yearRead.value?.window.start);
+    expect(monthRead.value?.total, Decimal.parse('5.00'));
+    expect(yearRead.value?.total, Decimal.parse(_year2027ExpenseTotal));
+    expect(identical(yearRead, monthRead), isFalse);
+  });
+
   test('periodInputsUseNamedCalendarDayAcrossBoundaries', () async {
     final setup = setupAnalysis();
     _populate(setup.ledger);
@@ -491,6 +628,96 @@ void main() {
       isTrue,
     );
   });
+
+  test('emptyLedgersGiveEmptyBreakdowns', () async {
+    final setup = setupAnalysis();
+    await settle(setup.runner, setup.ledger);
+    for (final mode in AnalysisPeriodMode.values) {
+      for (final level in BreakdownLevel.values) {
+        for (final kind in CategoryKind.values) {
+          final breakdown = _readyBreakdown(
+            setup.queries,
+            period: _may,
+            mode: mode,
+            kind: kind,
+            level: level,
+          );
+          expect(breakdown.total, Decimal.zero);
+          expect(breakdown.rows, isEmpty);
+        }
+      }
+    }
+
+    final expenseOnly = setupAnalysis();
+    expenseOnly.ledger.addAccount(
+      Account(id: _checkingID, name: 'Checking', type: AccountType.checking),
+    );
+    expenseOnly.ledger.addCategory(
+      TransactionCategory(
+        id: _mainID,
+        name: 'Main',
+        kind: CategoryKind.expense,
+        colorHex: '#000000',
+        includeInAnalysis: true,
+        parentID: null,
+        symbol: 'tag',
+      ),
+    );
+    expenseOnly.ledger.addEntry(
+      Entry(
+        id: 'f0000000-0000-0000-0000-000000000001',
+        amount: Decimal.parse('-10.00'),
+        name: 'entry',
+        sourceID: _checkingID,
+        categoryID: _mainID,
+        date: _may,
+      ),
+    );
+    await settle(expenseOnly.runner, expenseOnly.ledger);
+    for (final level in BreakdownLevel.values) {
+      final incomeMonth = _readyBreakdown(
+        expenseOnly.queries,
+        period: _may,
+        mode: AnalysisPeriodMode.month,
+        kind: CategoryKind.income,
+        level: level,
+      );
+      expect(incomeMonth.total, Decimal.zero);
+      expect(incomeMonth.rows, isEmpty);
+      final incomeYear = _readyBreakdown(
+        expenseOnly.queries,
+        period: _may,
+        mode: AnalysisPeriodMode.year,
+        kind: CategoryKind.income,
+        level: level,
+      );
+      expect(incomeYear.total, Decimal.zero);
+      expect(incomeYear.rows, isEmpty);
+    }
+  });
+
+  test('gatingFixturesStayOutOfBreakdowns', () async {
+    final setup = setupAnalysis();
+    _populate(setup.ledger);
+    await settle(setup.runner, setup.ledger);
+    final queries = setup.queries;
+
+    for (final level in BreakdownLevel.values) {
+      final breakdown = _readyBreakdown(
+        queries,
+        period: _may,
+        mode: AnalysisPeriodMode.month,
+        kind: CategoryKind.expense,
+        level: level,
+      );
+      expect(breakdown.total, Decimal.parse(_mayExpenseTotal));
+      final ids = breakdown.rows.map((row) => row.bucketID).toSet();
+      expect(ids, isNot(contains(_hiddenID)));
+      expect(ids, isNot(contains(_excludedParentID)));
+      expect(ids, isNot(contains(_excludedChildID)));
+    }
+  });
+
   test('breakdownFollowsMixedMemoAndRevisionGate', () async {
     final setup = setupAnalysis();
     final ledger = setup.ledger;
@@ -550,6 +777,82 @@ void main() {
     expect(updated.sourceRevision, ledger.revision);
     expect(updated.value?.total, Decimal.parse('87.00'));
   });
+
+  test('hierarchyAndItemsShareOneRevisionGate', () async {
+    final setup = setupAnalysis();
+    final ledger = setup.ledger;
+    final queries = setup.queries;
+    final runner = setup.runner;
+    ledger.addAccount(
+      Account(id: _checkingID, name: 'Checking', type: AccountType.checking),
+    );
+    ledger.addCategory(
+      TransactionCategory(
+        id: _soloMainID,
+        name: 'Solo',
+        kind: CategoryKind.expense,
+        colorHex: '#000000',
+        includeInAnalysis: true,
+        parentID: null,
+        symbol: 'tag',
+      ),
+    );
+    ledger.addEntry(
+      Entry(
+        id: 'b0000000-0000-0000-0000-000000000001',
+        amount: Decimal.parse('-10.00'),
+        name: 'entry',
+        sourceID: _checkingID,
+        categoryID: _soloMainID,
+        date: DateTime.utc(2027, 5, 5),
+      ),
+    );
+    await settle(runner, ledger);
+
+    final settled = queries.readCategoryBreakdown(
+      period: _may,
+      mode: AnalysisPeriodMode.month,
+      kind: CategoryKind.expense,
+      level: BreakdownLevel.subcategories,
+    );
+    expect(settled.state, AnalysisQueryState.ready);
+    expect(settled.value?.rows.single.isDirect, isFalse);
+
+    ledger.addCategory(
+      TransactionCategory(
+        id: _soloChildID,
+        name: 'Solo child',
+        kind: CategoryKind.expense,
+        colorHex: '#000000',
+        includeInAnalysis: true,
+        parentID: _soloMainID,
+        symbol: 'tag',
+      ),
+    );
+    final retained = queries.readCategoryBreakdown(
+      period: _may,
+      mode: AnalysisPeriodMode.month,
+      kind: CategoryKind.expense,
+      level: BreakdownLevel.subcategories,
+    );
+    expect(retained.state, AnalysisQueryState.loading);
+    expect(retained.value, settled.value);
+    expect(retained.sourceRevision, settled.sourceRevision);
+    expect(retained.value?.rows.single.isDirect, isFalse);
+
+    await settle(runner, ledger);
+    final updated = queries.readCategoryBreakdown(
+      period: _may,
+      mode: AnalysisPeriodMode.month,
+      kind: CategoryKind.expense,
+      level: BreakdownLevel.subcategories,
+    );
+    expect(updated.state, AnalysisQueryState.ready);
+    expect(updated.sourceRevision, ledger.revision);
+    expect(updated.value?.rows.single.isDirect, isTrue);
+    expect(updated.value?.total, Decimal.parse('10.00'));
+  });
+
   test('staleCompletionKeepsTheNewerBreakdown', () async {
     final setup = setupAnalysis();
     final ledger = setup.ledger;
@@ -616,6 +919,92 @@ void main() {
     expect(afterStale.value, newest.value);
     expect(afterStale.value?.total, settledTotal + Decimal.parse('3.00'));
   });
+
+  test(
+    'acceptedOlderRefreshDuringNewerPendingRetainsPublishedBreakdown',
+    () async {
+      final setup = setupAnalysis();
+      final ledger = setup.ledger;
+      final queries = setup.queries;
+      final runner = setup.runner;
+      final cache = setup.cache;
+      _populate(ledger);
+      await settle(runner, ledger);
+      final settledRevision = ledger.revision;
+
+      AnalysisQueryResult<PeriodBreakdown> read() =>
+          queries.readCategoryBreakdown(
+            period: _may,
+            mode: AnalysisPeriodMode.month,
+            kind: CategoryKind.expense,
+            level: BreakdownLevel.categories,
+          );
+      final settled = read();
+      expect(settled.state, AnalysisQueryState.ready);
+      expect(settled.sourceRevision, settledRevision);
+      expect(settled.value?.total, Decimal.parse(_mayExpenseTotal));
+
+      final base = await _editTwiceAndAcceptFirst(
+        ledger,
+        runner,
+        cache,
+        settledRevision,
+      );
+      final intermediate = read();
+      expect(intermediate.state, AnalysisQueryState.loading);
+      expect(intermediate.value, settled.value);
+      expect(intermediate.sourceRevision, settled.sourceRevision);
+      expect(intermediate.value?.total, Decimal.parse(_mayExpenseTotal));
+
+      runner.pending[base + 1].complete(Accounting.analysisItems(ledger.state));
+      await pumpEventQueue();
+      final updated = read();
+      expect(updated.state, AnalysisQueryState.ready);
+      expect(updated.sourceRevision, ledger.revision);
+      expect(updated.value?.total, Decimal.parse(_twoEditMayTotal));
+    },
+  );
+
+  test(
+    'acceptedOlderRefreshDuringNewerPendingLeavesUnreadBreakdownLoading',
+    () async {
+      final setup = setupAnalysis();
+      final ledger = setup.ledger;
+      final queries = setup.queries;
+      final runner = setup.runner;
+      final cache = setup.cache;
+      _populate(ledger);
+      await settle(runner, ledger);
+      final settledRevision = ledger.revision;
+
+      AnalysisQueryResult<PeriodBreakdown> read() =>
+          queries.readCategoryBreakdown(
+            period: _may,
+            mode: AnalysisPeriodMode.month,
+            kind: CategoryKind.expense,
+            level: BreakdownLevel.categories,
+          );
+
+      final base = await _editTwiceAndAcceptFirst(
+        ledger,
+        runner,
+        cache,
+        settledRevision,
+      );
+      final intermediate = read();
+      expect(intermediate.state, AnalysisQueryState.loading);
+      expect(intermediate.value, isNull);
+      expect(intermediate.sourceRevision, isNull);
+
+      runner.pending[base + 1].complete(Accounting.analysisItems(ledger.state));
+      await pumpEventQueue();
+      final updated = read();
+      expect(updated.state, AnalysisQueryState.ready);
+      expect(updated.sourceRevision, ledger.revision);
+      expect(updated.value?.total, Decimal.parse(_twoEditMayTotal));
+    },
+  );
+
   test('failedRefreshRetainsBreakdownAndRetryRecovers', () async {
     final setup = setupAnalysis();
     final ledger = setup.ledger;
@@ -681,6 +1070,79 @@ void main() {
     expect(recovered.sourceRevision, ledger.revision);
     expect(recovered.value?.total, Decimal.parse('86.00'));
   });
+
+  test('memoIdentitySeparatesByKindLevelModeAndPeriod', () async {
+    final setup = setupAnalysis();
+    _populate(setup.ledger);
+    await settle(setup.runner, setup.ledger);
+    final queries = setup.queries;
+
+    AnalysisQueryResult<PeriodBreakdown> read({
+      DateTime? period,
+      AnalysisPeriodMode? mode,
+      CategoryKind? kind,
+      BreakdownLevel? level,
+    }) => queries.readCategoryBreakdown(
+      period: period ?? _may,
+      mode: mode ?? AnalysisPeriodMode.month,
+      kind: kind ?? CategoryKind.expense,
+      level: level ?? BreakdownLevel.categories,
+    );
+
+    final first = read();
+    expect(first.state, AnalysisQueryState.ready);
+    expect(identical(read(), first), isTrue);
+    expect(
+      identical(
+        queries.readCategoryBreakdown(
+          period: DateTime(2027, 5, 20, 14, 45),
+          mode: AnalysisPeriodMode.month,
+          kind: CategoryKind.expense,
+          level: BreakdownLevel.categories,
+        ),
+        first,
+      ),
+      isTrue,
+    );
+
+    expect(identical(read(kind: CategoryKind.income), first), isFalse);
+    expect(
+      identical(read(level: BreakdownLevel.subcategories), first),
+      isFalse,
+    );
+    expect(identical(read(mode: AnalysisPeriodMode.year), first), isFalse);
+    expect(identical(read(period: _june), first), isFalse);
+  });
+
+  test('dayRolloverKeepsBreakdownTotalsWithoutRunnerWork', () async {
+    final setup = setupAnalysis();
+    _populate(setup.ledger);
+    await settle(setup.runner, setup.ledger);
+    final queries = setup.queries;
+    final calls = setup.runner.calls;
+
+    final before = queries.readCategoryBreakdown(
+      period: _may,
+      mode: AnalysisPeriodMode.month,
+      kind: CategoryKind.expense,
+      level: BreakdownLevel.categories,
+    );
+    expect(before.state, AnalysisQueryState.ready);
+
+    queries.setToday(DateTime.utc(2027, 6, 1));
+    expect(setup.runner.calls, calls);
+
+    final after = queries.readCategoryBreakdown(
+      period: _may,
+      mode: AnalysisPeriodMode.month,
+      kind: CategoryKind.expense,
+      level: BreakdownLevel.categories,
+    );
+    expect(after.state, AnalysisQueryState.ready);
+    expect(after.value, before.value);
+    expect(after.value?.total, Decimal.parse(_mayExpenseTotal));
+  });
+
   test('futurePeriodsAreReadyAndEmptyUnlessBooked', () async {
     final setup = setupAnalysis();
     _populate(setup.ledger);

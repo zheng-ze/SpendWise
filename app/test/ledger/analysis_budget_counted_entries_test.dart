@@ -95,6 +95,14 @@ void main() {
     },
   );
 
+  test('a source-only flagged transfer is absent because it yields income', () {
+    final state = ledgerOf([
+      transfer('out of flagged', from: flaggedID, to: plainID),
+    ]);
+
+    expect(budgetCountedEntries(budget(null), month, state), isEmpty);
+  });
+
   test(
     'a transfer between two flagged accounts appears once at its amount',
     () {

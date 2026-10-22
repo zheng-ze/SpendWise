@@ -1,9 +1,12 @@
 import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:spendwise/ledger/event_bus.dart';
 import 'package:spendwise/ledger/ledger.dart';
 
 Account _account({String name = 'acc'}) =>
     Account(name: name, type: AccountType.savings);
+
+SubPocket _pocket({String name = 'pocket'}) => SubPocket(name: name);
 
 TransactionCategory _category({
   required String name,
@@ -57,6 +60,36 @@ void main() {
       [UpsertAccount(account)],
     ]);
   });
+
+  test('localMutationsPublishUnstamped', () {
+    final ledger = Ledger();
+    final publications = <LedgerPublication>[];
+    ledger.bus.subscribe().listen(publications.add);
+
+    final account = _account();
+    ledger.addAccount(account);
+
+    expect(publications, hasLength(1));
+    expect(publications.single.changes, [UpsertAccount(account)]);
+    expect(publications.single.stamps, isNull);
+  });
+
+  test('cascadeMutationPublishesAllFactsInOneBatch', () {
+    final ledger = Ledger();
+    final account = _account();
+    ledger.addAccount(account);
+    final batches = _batchesOf(ledger);
+
+    final pocket = _pocket();
+    ledger.addPocket(pocket, account.id);
+
+    expect(batches, hasLength(1));
+    expect(batches.single, [
+      UpsertPocket(pocket),
+      UpsertAccount(ledger.state.moneySources[account.id]!.asAccount!),
+    ]);
+  });
+
   test('rejectedMutationPublishesNothing', () {
     final ledger = Ledger();
     final batches = _batchesOf(ledger);
@@ -72,6 +105,79 @@ void main() {
     expect(notifications, 0);
     expect(ledger.state.entries, isEmpty);
   });
+
+  test('rejectedBudgetMutationPublishesNothing', () {
+    final ledger = Ledger();
+    final batches = _batchesOf(ledger);
+    var notifications = 0;
+    ledger.addListener(() => notifications++);
+
+    expect(
+      () => ledger.updateBudgetAmount(
+        '4f2c1b90-3e5d-4a18-9c7b-6d0e2a1f8b43',
+        Decimal.fromInt(10),
+        YearMonth(2026, 1),
+      ),
+      throwsA(isA<UnknownBudget>()),
+    );
+
+    expect(batches, isEmpty);
+    expect(notifications, 0);
+    expect(ledger.state.budgets, isEmpty);
+  });
+
+  test('sequentialMutationsPublishInOrder', () {
+    final ledger = Ledger();
+    final batches = _batchesOf(ledger);
+
+    final first = _account(name: 'a');
+    final second = _account(name: 'b');
+    ledger.addAccount(first);
+    ledger.addAccount(second);
+    ledger.addEntry(_entry(first.id, name: 'e'));
+
+    expect(batches, hasLength(3));
+    expect(batches[0], [UpsertAccount(first)]);
+    expect(batches[1], [UpsertAccount(second)]);
+    expect(batches[2].single, isA<UpsertEntry>());
+  });
+
+  test('mutationNotifiesListenersOncePerMutation', () {
+    final ledger = Ledger();
+    var notifications = 0;
+    ledger.addListener(() => notifications++);
+
+    final account = _account();
+    ledger.addAccount(account);
+    ledger.addPocket(_pocket(), account.id);
+
+    expect(notifications, 2);
+  });
+
+  test('publishHappensBeforeListenersAreNotified', () {
+    final ledger = Ledger();
+    final order = <String>[];
+    ledger.bus.subscribe().listen((_) => order.add('publish'));
+    ledger.addListener(() => order.add('notify'));
+
+    ledger.addAccount(_account());
+
+    expect(order, ['publish', 'notify']);
+  });
+
+  test('stateIsCommittedBeforeTheBatchIsPublished', () {
+    final ledger = Ledger();
+    final account = _account();
+    final seen = <String?>[];
+    ledger.bus.subscribe().listen(
+      (_) => seen.add(ledger.state.moneySources[account.id]?.name),
+    );
+
+    ledger.addAccount(account);
+
+    expect(seen, [account.name]);
+  });
+
   test('categoriesOfKindOrdersRootsThenTheirChildrenByName', () {
     final ledger = Ledger();
     final beta = _category(name: 'Beta');
@@ -93,6 +199,55 @@ void main() {
       'Zeta',
     ]);
   });
+
+  test('categoriesOfKindExcludesOtherKindsAndInactiveRows', () {
+    final ledger = Ledger();
+    final expense = _category(name: 'Food');
+    final income = _category(name: 'Salary', kind: CategoryKind.income);
+    final archived = _category(name: 'Gone');
+    ledger.addCategory(expense);
+    ledger.addCategory(income);
+    ledger.addCategory(archived);
+    ledger.deleteCategory(archived.id);
+
+    expect(ledger.categories(CategoryKind.expense).map((c) => c.name), [
+      'Food',
+    ]);
+    expect(ledger.categories(CategoryKind.income).map((c) => c.name), [
+      'Salary',
+    ]);
+  });
+
+  test('categoriesOfKindDropsAChildWhoseParentIsFilteredOut', () {
+    final ledger = Ledger();
+    final visible = _category(name: 'Visible');
+    final parent = _category(name: 'Parent');
+    ledger.addCategory(visible);
+    ledger.addCategory(parent);
+    ledger.deleteCategory(parent.id);
+    final child = _category(name: 'Child', parentID: parent.id);
+    ledger.addCategory(child);
+
+    expect(ledger.state.categories[child.id]!.lifecycle, LifecycleState.active);
+    expect(ledger.categories(CategoryKind.expense).map((c) => c.name), [
+      'Visible',
+    ]);
+  });
+
+  test('categoriesOfKindSortsOrdinallyNotByLocale', () {
+    final ledger = Ledger();
+    for (final name in ['b', 'A', 'a', 'B']) {
+      ledger.addCategory(_category(name: name));
+    }
+
+    expect(ledger.categories(CategoryKind.expense).map((c) => c.name), [
+      'A',
+      'B',
+      'a',
+      'b',
+    ]);
+  });
+
   test('resolvePlansCommitsSuccessesAndReportsFailuresAfterwards', () {
     final ledger = Ledger();
     final account = _account();
@@ -142,6 +297,31 @@ void main() {
     expect(entries.map((e) => e.name), ['healthy']);
     expect(batches.single, contains(UpsertEntry(entries.single)));
   });
+
+  test('resolvePlansWithNoFailuresDoesNotCallOnPlanError', () {
+    final ledger = Ledger();
+    final account = _account();
+    ledger.addAccount(account);
+    ledger.addPlan(
+      _plan(
+        template: EntryTemplate(
+          amount: Decimal.fromInt(-100),
+          name: 'rent',
+          sourceID: account.id,
+        ),
+        anchor: DateTime.utc(2026, 1, 10),
+        lastResolvedDate: DateTime.utc(2026, 1, 10),
+      ),
+    );
+    var called = 0;
+    ledger.onPlanError = (_) => called++;
+
+    ledger.resolvePlans(DateTime.utc(2026, 2, 15));
+
+    expect(called, 0);
+    expect(ledger.state.entries, hasLength(1));
+  });
+
   test('entryLifecycleMutatorsPublishAndNotify', () {
     final ledger = Ledger();
     final account = _account();

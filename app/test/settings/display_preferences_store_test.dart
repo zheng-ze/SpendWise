@@ -40,6 +40,18 @@ void main() {
       expect(DisplayPreferencesStore(prefs).load(), saved);
     });
 
+    test('an absent widget key loads the default set', () async {
+      final prefs = await SharedPreferences.getInstance();
+
+      final loaded = DisplayPreferencesStore(prefs).load();
+
+      expect(loaded.overviewWidgets, [
+        OverviewWidgetKind.today,
+        OverviewWidgetKind.recentEntries,
+        OverviewWidgetKind.comingUp,
+      ]);
+    });
+
     test('an empty widget value loads an empty set', () async {
       SharedPreferences.setMockInitialValues({
         'display.v1.overviewWidgets': '',

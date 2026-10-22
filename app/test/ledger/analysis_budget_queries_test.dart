@@ -59,6 +59,56 @@ void main() {
       expect(ready.sourceRevision, fixture.ledger.revision);
     },
   );
+
+  test('equivalent month inputs reuse one memoised result', () async {
+    addDiningBudget();
+    await settle(fixture.runner, fixture.ledger);
+
+    final first = fixture.queries.readBudgets(month: DateTime.utc(2026, 10, 1));
+    final second = fixture.queries.readBudgets(
+      month: DateTime.utc(2026, 10, 28),
+    );
+
+    expect(identical(first, second), isTrue);
+  });
+
+  test(
+    'readBudgetDetail normalises the id and dates before memo identity',
+    () async {
+      final id = addDiningBudget();
+      await settle(fixture.runner, fixture.ledger);
+
+      final lower = fixture.queries.readBudgetDetail(
+        budgetID: id,
+        displayedYear: DateTime.utc(2026, 3, 9),
+        selectedMonth: DateTime.utc(2026, 10, 1),
+      );
+      final upper = fixture.queries.readBudgetDetail(
+        budgetID: id.toUpperCase(),
+        displayedYear: DateTime.utc(2026),
+        selectedMonth: DateTime.utc(2026, 10, 20),
+      );
+
+      expect(id, isNot(id.toUpperCase()));
+      expect(identical(lower, upper), isTrue);
+      expect(lower.value?.slots.length, 12);
+    },
+  );
+
+  test('a missing budget reads as ready with no summary', () async {
+    await settle(fixture.runner, fixture.ledger);
+
+    final result = fixture.queries.readBudgetDetail(
+      budgetID: testId(99),
+      displayedYear: DateTime.utc(2026),
+      selectedMonth: DateTime.utc(2026, 10),
+    );
+
+    expect(result.state, AnalysisQueryState.ready);
+    expect(result.value?.summary, isNull);
+    expect(result.value?.slots, isEmpty);
+  });
+
   test('a ledger change recomputes the overview at the new revision', () async {
     addDiningBudget();
     await settle(fixture.runner, fixture.ledger);

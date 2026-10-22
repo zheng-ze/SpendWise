@@ -9,6 +9,7 @@ import 'analysis_test_support.dart';
 final _groceriesID = testId(1);
 final _diningID = testId(2);
 final _transportID = testId(3);
+final _hobbiesID = testId(4);
 final _snacksID = testId(5);
 
 final _today = DateTime.utc(2026, 10, 3);
@@ -23,6 +24,7 @@ LedgerState _state() {
     (_groceriesID, null),
     (_diningID, null),
     (_transportID, null),
+    (_hobbiesID, null),
     (_snacksID, _groceriesID),
   ]) {
     state.addCategory(
@@ -137,6 +139,57 @@ void main() {
       expect(dining.usualMean, _d('58'));
       expect(dining.difference, _d('25.9'));
     });
+
+    test('evidenceHasThreeRecordsSummingToTheBaseline', () {
+      final groceries = _categories(_groceriesAndDining()).changes.first;
+
+      expect(groceries.baselineEvidence.map((e) => e.total), [
+        _d('40'),
+        _d('50'),
+        _d('45'),
+      ]);
+      expect(groceries.baselineEvidence.map((e) => e.expenseItemCount), [
+        2,
+        2,
+        1,
+      ]);
+      expect(
+        groceries.baselineEvidence.fold(Decimal.zero, (s, e) => s + e.total),
+        groceries.baselineTotal,
+      );
+    });
+
+    test('theCapKeepsTheLargestChangesAndRulesReplaceIt', () {
+      final items = [
+        ..._groceriesAndDining(),
+        ..._monthly(_hobbiesID, ['10', '10', '10', '0', '0']),
+        _expense(_hobbiesID, '200', DateTime.utc(2026, 10, 2)),
+      ];
+
+      expect(_categories(items).changes.map((c) => c.bucketID), [
+        _hobbiesID,
+        _groceriesID,
+      ]);
+      expect(
+        _categories(
+          items,
+          rules: InsightRules(maximumCategoryChanges: 1),
+        ).changes.map((c) => c.bucketID),
+        [_hobbiesID],
+      );
+    });
+
+    test('baselineCountIsPerCategoryNotAggregate', () {
+      final items = [
+        ..._monthly(_groceriesID, ['30', '30', '30', '0', '0']),
+        _expense(_groceriesID, '200', _today),
+        ..._monthly(_diningID, ['30', '30', '30', '30']),
+        _expense(_diningID, '200', _today),
+      ];
+
+      expect(_categories(items).changes.map((c) => c.bucketID), [_groceriesID]);
+    });
+
     test('childEntriesRollIntoTheirMainCategory', () {
       final items = [
         ..._monthly(_groceriesID, ['30', '30', '30']),
@@ -161,6 +214,14 @@ void main() {
       expect(change.difference, _d('-100'));
       expect(change.relativeChangePercent, _d('-100'));
     });
+
+    test('aCategoryOnlyInTheCurrentWindowNeverQualifies', () {
+      final result = _categories([_expense(_groceriesID, '500', _today)]);
+
+      expect(result.state, InsightState.available);
+      expect(result.changes, isEmpty);
+    });
+
     test('nullAndSyntheticBucketsAreCategoriesAndTiesSortByIdNullLast', () {
       final synthetic = syntheticTransferExpenseBucketID(AccountType.savings);
       final items = [
@@ -178,6 +239,22 @@ void main() {
       expect(changes.map((c) => c.bucketID), [...ids, null]);
       expect(changes.map((c) => c.difference).toSet(), hasLength(1));
     });
+
+    test('incomeIsIgnored', () {
+      final items = [
+        ..._monthly(_groceriesID, ['30', '30', '30', '0', '0']),
+        _expense(_groceriesID, '30', _today),
+        AnalysisItem(
+          bucketID: _groceriesID,
+          amount: _d('900'),
+          date: _today,
+          kind: CategoryKind.income,
+        ),
+      ];
+
+      expect(_categories(items).changes, isEmpty);
+    });
+
     test('missingOrIncompleteHistoryNeedsHistory', () {
       final items = _groceriesAndDining();
       for (final (:first, :never) in [
@@ -195,16 +272,162 @@ void main() {
         expect(result.observedWindow.start, DateTime.utc(2026, 10, 1));
       }
     });
+
+    test('windowsStartInclusiveEndExclusiveAndNormalizeToday', () {
+      final items = [
+        ..._monthly(_groceriesID, ['30', '30', '30']),
+        _expense(_groceriesID, '30', DateTime.utc(2026, 7, 4)),
+        _expense(_groceriesID, '30', DateTime.utc(2026, 7, 1)),
+        _expense(_groceriesID, '30', DateTime.utc(2026, 8, 3)),
+        _expense(_groceriesID, '30', DateTime.utc(2026, 9, 3)),
+        _expense(_groceriesID, '100', DateTime.utc(2026, 10, 1)),
+        _expense(_groceriesID, '100', DateTime.utc(2026, 10, 4)),
+        _expense(_groceriesID, '100', DateTime.utc(2026, 9, 30)),
+      ];
+
+      final change = _categories(
+        items,
+        today: DateTime.utc(2026, 10, 3, 18, 30),
+      ).changes.single;
+      expect(change.observedTotal, _d('100'));
+      expect(change.baselineTotal, _d('180'));
+      expect(change.baselineExpenseCount, 6);
+    });
+
+    test('shortAndLeapMonthsClipBaselineWindows', () {
+      final leap = _categories(
+        const [],
+        today: DateTime.utc(2028, 5, 31),
+        firstRecord: DateTime.utc(2028, 1, 1),
+      );
+      expect(
+        leap.baselineWindows.first,
+        DateRange(DateTime.utc(2028, 2, 1), DateTime.utc(2028, 3, 1)),
+      );
+      final rollover = _categories(
+        const [],
+        today: DateTime.utc(2027, 1, 31),
+        firstRecord: DateTime.utc(2026, 10, 1),
+      );
+      expect(rollover.baselineWindows, [
+        DateRange(DateTime.utc(2026, 10, 1), DateTime.utc(2026, 11, 1)),
+        DateRange(DateTime.utc(2026, 11, 1), DateTime.utc(2026, 12, 1)),
+        DateRange(DateTime.utc(2026, 12, 1), DateTime.utc(2027, 1, 1)),
+      ]);
+    });
+
+    test('resultsAreValueObjectsWithUnmodifiableCollections', () {
+      final first = _categories(_groceriesAndDining());
+      final second = _categories(_groceriesAndDining());
+
+      expect(first, second);
+      expect(first.hashCode, second.hashCode);
+      expect(first.changes.first, second.changes.first);
+      expect(() => first.changes.clear(), throwsUnsupportedError);
+      expect(() => first.baselineWindows.clear(), throwsUnsupportedError);
+      expect(
+        () => first.changes.first.baselineEvidence.clear(),
+        throwsUnsupportedError,
+      );
+    });
   });
 
   group('insightRules', () {
     final rules = InsightRules();
     bool qualifies(String observed, String baseline, [int count = 5]) =>
         rules.qualifies(_d(observed), _d(baseline), count);
+
+    test('defaultsMatchTheProvisionalThresholds', () {
+      expect(rules.minimumUsual, _d('10'));
+      expect(rules.minimumAbsoluteChange, _d('20'));
+      expect(rules.minimumRelativeChange, _d('0.20'));
+      expect(rules.minimumExpenseCount, 5);
+      expect(rules.maximumCategoryChanges, 2);
+    });
+
+    test('everyGateIsInclusive', () {
+      expect(qualifies('30', '30'), isTrue);
+      expect(qualifies('30', '29.99'), isFalse, reason: 'usual below 10');
+      expect(qualifies('240', '600'), isTrue);
+      expect(qualifies('239.99', '600'), isFalse, reason: 'relative below 20%');
+      expect(qualifies('30', '30'), isTrue);
+      expect(qualifies('29.99', '30'), isFalse, reason: 'change below 20');
+      expect(qualifies('240', '600', 5), isTrue);
+      expect(qualifies('240', '600', 4), isFalse, reason: 'fewer than 5');
+    });
+
     test('decreasesQualifyAndZeroChangeOrZeroBaselineDoNot', () {
       expect(qualifies('160', '600'), isTrue);
       expect(qualifies('200', '600'), isFalse);
       expect(qualifies('500', '0'), isFalse);
+    });
+
+    test('zeroChangeNeverQualifiesEvenWithZeroThresholds', () {
+      final open = InsightRules(
+        minimumAbsoluteChange: Decimal.zero,
+        minimumRelativeChange: Decimal.zero,
+      );
+      final flat = [
+        ..._monthly(_groceriesID, ['10', '10', '10', '0', '0']),
+        _expense(_groceriesID, '10', _today),
+        ..._monthly(_diningID, ['10', '10', '10', '0', '0']),
+        _expense(_diningID, '15', _today),
+      ];
+      final weekFlat = [
+        for (var day = 7; day < 12; day++)
+          _expense(_groceriesID, '6', DateTime.utc(2026, 9, day)),
+        _expense(_groceriesID, '10', _today),
+      ];
+
+      expect(open.qualifies(_d('10'), _d('30'), 5), isFalse);
+      expect(open.qualifies(_d('11'), _d('30'), 5), isTrue);
+      expect(_categories(flat, rules: open).changes.map((c) => c.bucketID), [
+        _diningID,
+      ]);
+      expect(_week(weekFlat, rules: open).qualifies, isFalse);
+    });
+
+    test('comparisonIsExactForRepeatingMeans', () {
+      final strict = InsightRules(
+        minimumUsual: _d('1'),
+        minimumAbsoluteChange: _d('0.07'),
+        minimumRelativeChange: _d('0'),
+      );
+
+      expect(strict.qualifies(_d('3.4'), _d('10'), 5), isFalse);
+      expect(strict.qualifies(_d('3.44'), _d('10'), 5), isTrue);
+    });
+
+    test('invalidConstructionThrows', () {
+      expect(
+        () => InsightRules(minimumUsual: Decimal.zero),
+        throwsArgumentError,
+      );
+      expect(
+        () => InsightRules(minimumAbsoluteChange: _d('-1')),
+        throwsArgumentError,
+      );
+      expect(
+        () => InsightRules(minimumRelativeChange: _d('-0.1')),
+        throwsArgumentError,
+      );
+      expect(() => InsightRules(minimumExpenseCount: 0), throwsArgumentError);
+      expect(
+        () => InsightRules(maximumCategoryChanges: 0),
+        throwsArgumentError,
+      );
+    });
+
+    test('replacementRulesChangeBothComputations', () {
+      final loose = InsightRules(minimumExpenseCount: 2);
+      final items = [
+        _expense(_groceriesID, '60', DateTime.utc(2026, 9, 8)),
+        _expense(_groceriesID, '60', DateTime.utc(2026, 9, 15)),
+        _expense(_groceriesID, '300', _today),
+      ];
+
+      expect(_week(items).state, InsightState.historyNeeded);
+      expect(_week(items, rules: loose).qualifies, isTrue);
     });
   });
 
@@ -259,6 +482,47 @@ void main() {
       expect(result.relativeChangePercent, _d('620'));
       expect(result.qualifies, isTrue);
     });
+
+    test('aWeekWithoutExpensesStaysInTheMean', () {
+      final result = _week(
+        mondays([(7, '20'), (8, '20'), (9, '20'), (10, '20'), (11, '20')]),
+      );
+
+      expect(result.baselineEvidence.map((e) => e.expenseItemCount), [5, 0, 0]);
+      expect(result.usualMean, _d('33.333333333333'));
+    });
+
+    test('mondayOnlyAndPriorWeekEndingTodayAreMatched', () {
+      final monday = _week([
+        _expense(_groceriesID, '1', DateTime.utc(2026, 9, 28)),
+        _expense(_groceriesID, '1', DateTime.utc(2026, 9, 14)),
+        _expense(_groceriesID, '1', DateTime.utc(2026, 9, 15)),
+        _expense(_groceriesID, '5', DateTime.utc(2026, 10, 5)),
+      ], today: DateTime.utc(2026, 10, 5));
+
+      expect(monday.elapsedDayCount, 1);
+      expect(
+        monday.observedWindow,
+        DateRange(DateTime.utc(2026, 10, 5), DateTime.utc(2026, 10, 6)),
+      );
+      expect(
+        monday.baselineWindows.last,
+        DateRange(DateTime.utc(2026, 9, 28), DateTime.utc(2026, 9, 29)),
+      );
+      expect(monday.baselineExpenseCount, 2);
+      expect(monday.observedTotal, _d('5'));
+    });
+
+    test('sundayUsesWholeWeeks', () {
+      final sunday = _week(fiveBaseline, today: DateTime.utc(2026, 10, 4));
+
+      expect(sunday.elapsedDayCount, 7);
+      expect(
+        sunday.baselineWindows.first,
+        DateRange(DateTime.utc(2026, 9, 7), DateTime.utc(2026, 9, 14)),
+      );
+    });
+
     test('anyBaselineWeekBeforeTheFirstRecordNeedsHistory', () {
       for (final (:first, :never) in [
         (first: null, never: true),
@@ -296,6 +560,17 @@ void main() {
       expect(result.baselineExpenseCount, 4);
       expect(result.qualifies, isFalse);
     });
+
+    test('sufficientHistoryBelowThresholdsIsAvailableButDoesNotQualify', () {
+      final result = _week([
+        ...fiveBaseline,
+        _expense(_groceriesID, '33', _today),
+      ]);
+
+      expect(result.state, InsightState.available);
+      expect(result.qualifies, isFalse);
+    });
+
     test('fiveZeroAmountExpensesGiveAZeroBaselineAndNoPercent', () {
       final result = _week([
         for (var i = 0; i < 5; i++)

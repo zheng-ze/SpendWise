@@ -10,6 +10,17 @@ void main() {
     );
   });
 
+  test('sameYearOrdersByMonth', () {
+    expect(
+      const YearMonth(2026, 3).compareTo(const YearMonth(2026, 5)),
+      lessThan(0),
+    );
+    expect(
+      const YearMonth(2026, 5).compareTo(const YearMonth(2026, 3)),
+      greaterThan(0),
+    );
+  });
+
   test('decemberToJanuaryOrdersAcrossTheYearBoundary', () {
     const december = YearMonth(2026, 12);
     const january = YearMonth(2027, 1);
@@ -25,5 +36,12 @@ void main() {
       YearMonth.fromUtc(DateTime.utc(2026, 7, 19)),
       const YearMonth(2026, 7),
     );
+  });
+
+  test('comparisonOperatorsIncludeEquality', () {
+    const month = YearMonth(2026, 4);
+
+    expect(month <= const YearMonth(2026, 4), isTrue);
+    expect(month >= const YearMonth(2026, 4), isTrue);
   });
 }

@@ -28,4 +28,26 @@ void main() {
     expect(a, equals(b));
     expect(a.hashCode, b.hashCode);
   });
+
+  test('differing changes compare unequal', () {
+    final a = PlanResolution(changes: [change()], failures: const []);
+    final b = PlanResolution(changes: const [], failures: const []);
+
+    expect(a, isNot(equals(b)));
+  });
+
+  test('differing failures compare unequal', () {
+    final a = PlanResolution(changes: const [], failures: [failure()]);
+    final b = PlanResolution(changes: const [], failures: const []);
+
+    expect(a, isNot(equals(b)));
+  });
+
+  test('separately built equal values collapse to one Set entry', () {
+    final a = PlanResolution(changes: [change()], failures: [failure()]);
+    final b = PlanResolution(changes: [change()], failures: [failure()]);
+
+    expect({a, b}, hasLength(1));
+    expect({a: 1}..[b] = 2, {a: 2});
+  });
 }

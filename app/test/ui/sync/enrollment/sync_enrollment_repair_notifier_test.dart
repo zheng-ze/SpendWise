@@ -13,8 +13,8 @@ import 'package:spendwise/sync/sync_secret_keys.dart';
 import 'package:spendwise/ui/sync/enrollment/sync_enrollment/sync_enrollment_view_model.dart';
 import 'package:sync/sync.dart';
 
-import '../../../sync/in_memory_secret_store.dart';
 import '../../../support/recording_ledger_store.dart';
+import '../../../sync/in_memory_secret_store.dart';
 import 'sync_enrollment_flow_test.dart' show FakeSessionOpener;
 
 final class _Harness {
@@ -61,6 +61,24 @@ final class _Harness {
   void dispose() {
     container.dispose();
     db.close();
+  }
+
+  void rebuildNotifier() {
+    container.dispose();
+    container = ProviderContainer(
+      overrides: [
+        ledgerDatabaseProvider.overrideWithValue(db),
+        syncMetadataStoreProvider.overrideWithValue(metadataStore),
+        syncEnrollmentViewModelProvider.overrideWith(
+          () => SyncEnrollmentNotifier(
+            sessionOpener: opener.call,
+            secretStore: secrets,
+            repairMode: true,
+            now: () => clock,
+          ),
+        ),
+      ],
+    );
   }
 
   SyncEnrollmentNotifier get notifier =>
@@ -135,6 +153,41 @@ void main() {
         expect(seenOtp, '482916');
         expect(harness.opener.session.enrollCalls, 1);
       });
+
+      test(
+        'retry from $phase returns to identifier entry without resuming',
+        () async {
+          final harness = _Harness()..build();
+          addTearDown(harness.dispose);
+          await _seedRepair(harness, phase);
+
+          await harness.notifier.retry();
+
+          expect(harness.state.step, isA<ShowIdentifierEntry>());
+          expect(harness.opener.openCalls, 0);
+          expect(harness.opener.session.enrollCalls, 0);
+        },
+      );
+
+      test('works after notifier recreation from $phase', () async {
+        final harness = _Harness()..build();
+        addTearDown(harness.dispose);
+        await _seedRepair(harness, phase);
+        harness.rebuildNotifier();
+        await harness.notifier.enterRepairMode();
+        expect(harness.state.identifier, isEmpty);
+
+        _collectOtpOnEnroll(harness);
+        final pending = harness.notifier.submitIdentifier('user@example.com');
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+
+        expect(harness.state.step, isA<ShowOtpEntry>());
+
+        harness.notifier.submitOtp('482916');
+        await pending;
+
+        expect(harness.opener.session.enrollCalls, 1);
+      });
     }
 
     test('ordinary-phase retry still resumes without OTP', () async {
@@ -186,6 +239,35 @@ void main() {
       );
     });
 
+    test('disposing while enroll is pending skips completion and, with no proof, publication', () async {
+      final harness = _Harness()..build();
+      addTearDown(harness.dispose);
+      await _seedRepair(
+        harness,
+        SyncEnrollmentPhase.bindingAuthorizationRequired,
+      );
+      final enrollGate = Completer<void>();
+      harness.opener.session.onEnroll = () async {
+        await harness.opener.session.resolveOtp!(
+          EnrollmentChallenge(const {'identifier': 'user@example.com'}),
+        );
+        await enrollGate.future;
+      };
+      final pending = harness.notifier.submitIdentifier('user@example.com');
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(harness.state.step, isA<ShowOtpEntry>());
+      harness.notifier.submitOtp('482916');
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      harness.notifier.cancelPendingOperation();
+      enrollGate.complete();
+      await pending;
+
+      expect(harness.state.step, isA<ShowOtpEntry>());
+      expect(harness.opener.session.publishCalls, 0);
+      expect(harness.state.inFlight, isFalse);
+    });
+
     test(
       'disposing while enroll is pending still publishes a stored write proof '
       'without completing',
@@ -219,26 +301,6 @@ void main() {
         expect(harness.state.inFlight, isFalse);
       },
     );
-
-    test('disposing during enrollment refreshes durable sync status', () async {
-      final harness = _Harness()..build(stubAppBoot: true);
-      addTearDown(harness.dispose);
-      await _seedRepair(
-        harness,
-        SyncEnrollmentPhase.bindingAuthorizationRequired,
-      );
-      final enrollGate = Completer<void>();
-      harness.opener.session.onEnroll = () => enrollGate.future;
-      final pending = harness.notifier.submitIdentifier('user@example.com');
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-      final readsBeforeCancel = harness.snapshotReads;
-
-      harness.notifier.cancelPendingOperation();
-      enrollGate.complete();
-      await pending;
-
-      expect(harness.snapshotReads, greaterThan(readsBeforeCancel));
-    });
 
     test('a new repair waits for an abandoned publication to finish', () async {
       final harness = _Harness()..build();
@@ -280,6 +342,28 @@ void main() {
       expect(harness.opener.openCalls, 2);
       harness.notifier.cancelPendingOperation();
       await second;
+    });
+
+    test('disposing while enroll is pending still refreshes the durable '
+        'status once the service settles', () async {
+      final harness = _Harness()..build(stubAppBoot: true);
+      addTearDown(harness.dispose);
+      await _seedRepair(
+        harness,
+        SyncEnrollmentPhase.bindingAuthorizationRequired,
+      );
+      final enrollGate = Completer<void>();
+      harness.opener.session.onEnroll = () => enrollGate.future;
+      final pending = harness.notifier.submitIdentifier('user@example.com');
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(harness.opener.session.enrollCalls, 1);
+      final readsBeforeCancel = harness.snapshotReads;
+
+      harness.notifier.cancelPendingOperation();
+      enrollGate.complete();
+      await pending;
+
+      expect(harness.snapshotReads, greaterThan(readsBeforeCancel));
     });
 
     test('a late operation cannot overwrite a newer one', () async {

@@ -4,9 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ledger/analysis/budgets/budget_overview.dart';
 
 const _foodID = 'a0000000-0000-0000-0000-00000000000f';
-const _lookalikeID = 'a0000000-0000-0000-0000-0000000000d4';
 const _hawkerID = 'a0000000-0000-0000-0000-0000000000a1';
 const _transportID = 'a0000000-0000-0000-0000-0000000000b2';
+const _coffeeID = 'a0000000-0000-0000-0000-0000000000c3';
+const _lookalikeID = 'a0000000-0000-0000-0000-0000000000d4';
 const _month = YearMonth(2026, 10);
 final _october3 = DateTime.utc(2026, 10, 3);
 
@@ -41,6 +42,7 @@ LedgerState ledgerWith(List<Budget> budgets) {
     category(_foodID, 'Food'),
     category(_hawkerID, 'Hawker', parentID: _foodID),
     category(_transportID, 'Transport'),
+    category(_coffeeID, 'Coffee', parentID: _transportID),
     category(_lookalikeID, ' food '),
   ];
   return LedgerState(
@@ -95,14 +97,39 @@ void main() {
       expect(result.allSpending.capBudgetID, isNull);
     });
 
-    test('a configured parent excludes its child from the cap', () {
+    test('an orphan subcategory budget counts toward the cap', () {
       final result = overview([
-        budget(_foodID, '100'),
         budget(_hawkerID, '40'),
         budget(_transportID, '60'),
       ]);
 
-      expect(result.allSpending.cap, dec('160'));
+      expect(result.allSpending.cap, dec('100'));
+    });
+
+    test('a configured parent suppresses its child in either order', () {
+      final parentFirst = overview([
+        budget(_foodID, '100'),
+        budget(_hawkerID, '40'),
+        budget(_transportID, '60'),
+      ]);
+      final childFirst = overview([
+        budget(_transportID, '60'),
+        budget(_hawkerID, '40'),
+        budget(_foodID, '100'),
+      ]);
+
+      expect(parentFirst.allSpending.cap, dec('160'));
+      expect(childFirst.allSpending.cap, dec('160'));
+      expect(parentFirst.categoryBudgets.length, 3);
+    });
+
+    test('siblings under an unbudgeted parent contribute independently', () {
+      final result = overview([
+        budget(_hawkerID, '40'),
+        budget(_coffeeID, '25'),
+      ]);
+
+      expect(result.allSpending.cap, dec('65'));
     });
 
     test('a month override changes the cap for that month only', () {
@@ -128,15 +155,6 @@ void main() {
 
       expect(october.allSpending.cap, dec('650'));
       expect(november.allSpending.cap, dec('500'));
-    });
-
-    test('an orphan subcategory budget counts toward the cap', () {
-      final result = overview([
-        budget(_hawkerID, '40'),
-        budget(_transportID, '60'),
-      ]);
-
-      expect(result.allSpending.cap, dec('100'));
     });
 
     test('a budget without a default event fails the read', () {
@@ -259,6 +277,17 @@ void main() {
       },
     );
 
+    test('an over limit row keeps its real ratio above the rest', () {
+      final result = overview(
+        [budget(_foodID, '100'), budget(_transportID, '100')],
+        items: [spend(_foodID, '99'), spend(_transportID, '150')],
+      );
+
+      expect(order(result), ['Transport', 'Food']);
+      expect(result.categoryBudgets.first.remaining, dec('-50'));
+      expect(result.categoryBudgets.first.utilizationRatio, dec('1.5'));
+    });
+
     test('exact ties fall back to the normalized name, then the budget id', () {
       final first = budget(
         _foodID,
@@ -279,21 +308,16 @@ void main() {
       expect(order(reverse), order(forward));
     });
 
-    test('an over limit row keeps its real ratio above the rest', () {
-      final result = overview(
-        [budget(_foodID, '100'), budget(_transportID, '100')],
-        items: [spend(_foodID, '99'), spend(_transportID, '150')],
-      );
-
-      expect(order(result), ['Transport', 'Food']);
-      expect(result.categoryBudgets.first.remaining, dec('-50'));
-      expect(result.categoryBudgets.first.utilizationRatio, dec('1.5'));
-    });
-
     test('a budget on a missing category fails the read', () {
       final orphan = budget('a0000000-0000-0000-0000-0000000000ee', '100');
 
       expect(() => overview([orphan]), throwsStateError);
+    });
+
+    test('rows carry the parent name for subcategories', () {
+      final result = overview([budget(_hawkerID, '100')]);
+
+      expect(result.categoryBudgets.single.parentName, 'Food');
     });
   });
 
@@ -327,19 +351,51 @@ void main() {
       expect(value, isNot(dec('36.88')));
     });
 
-    test('an over cap month allows nothing more', () {
-      expect(allowance(today: _october3, spent: '1300'), Decimal.zero);
+    test('the first day divides over the rest of the month', () {
+      final value = allowance(today: DateTime.utc(2026, 10, 1), spent: '0');
+
+      expect(value?.round(scale: 2), dec('40.00'));
     });
 
     test('the final day has no forward allowance', () {
       expect(allowance(today: DateTime.utc(2026, 10, 31)), isNull);
     });
 
-    test('a past selected month omits the allowance', () {
-      expect(
-        allowance(today: _october3, month: const YearMonth(2026, 9)),
-        isNull,
+    test('a leap February counts its 29 days', () {
+      final value = allowance(
+        today: DateTime.utc(2028, 2, 10),
+        month: const YearMonth(2028, 2),
+        cap: '190',
+        spent: '0',
       );
+
+      expect(value?.round(scale: 2), dec('10.00'));
+    });
+
+    test('an over cap month allows nothing more', () {
+      expect(allowance(today: _october3, spent: '1300'), Decimal.zero);
+    });
+
+    test('a December date counts the days to year end', () {
+      final value = allowance(
+        today: DateTime.utc(2026, 12, 30),
+        month: const YearMonth(2026, 12),
+        cap: '1200',
+        spent: '0',
+      );
+
+      expect(value, dec('1200'));
+    });
+
+    test('a past or future selected month omits the allowance', () {
+      final past = allowance(today: _october3, month: const YearMonth(2026, 9));
+      final future = allowance(
+        today: _october3,
+        month: const YearMonth(2026, 11),
+      );
+
+      expect(past, isNull);
+      expect(future, isNull);
     });
   });
 }

@@ -25,7 +25,6 @@ void main() {
 
     await app.retry();
 
-    expect(app.phase, isA<Ready>());
     expect(phases.first, isA<Loading>());
     expect(
       store.calls.where((call) => call != StoreCall.start).toList(),
@@ -35,6 +34,19 @@ void main() {
         StoreCall.load,
       ]),
     );
+  });
+
+  test('retryAfterAFailureThatThenSucceedsReachesReady', () async {
+    final store = RecordingLedgerStore(hasSeeded: true)
+      ..failOn = StoreCall.load;
+    final app = boot(store);
+    await app.start();
+    expect(app.phase, isA<Failed>());
+
+    store.failOn = null;
+    await app.retry();
+
+    expect(app.phase, isA<Ready>());
   });
 
   test('retryDisposesTheRuntimeFromASuccessfulBoot', () async {

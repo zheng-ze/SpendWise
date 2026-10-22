@@ -60,6 +60,13 @@ Entry entry({
 );
 
 void main() {
+  test('a ledger built with no arguments is empty', () {
+    final ledger = LedgerState();
+    expect(ledger.moneySources, isEmpty);
+    expect(ledger.entries, isEmpty);
+    expect(ledger.categories, isEmpty);
+  });
+
   group('active and binned sets', () {
     final ledger = LedgerState();
     ledger.addAccount(account(accountA));
@@ -113,6 +120,17 @@ void main() {
         'zulu',
       ]);
     });
+
+    test("another account's pockets are excluded", () {
+      final ledger = LedgerState();
+      ledger.addAccount(account(accountA));
+      ledger.addAccount(account(accountB));
+      ledger.addPocket(pocket(pocketP, name: 'mine'), accountA);
+      ledger.addPocket(pocket(pocketQ, name: 'theirs'), accountB);
+
+      final owner = ledger.moneySources[accountA]!.asAccount!;
+      expect(ledger.activePockets(owner).map((p) => p.name), ['mine']);
+    });
   });
 
   group('owningAccount', () {
@@ -127,11 +145,28 @@ void main() {
       expect(ledger.owningAccount(pocketQ)?.name, 'Other');
     });
 
+    test('an account has no parent', () {
+      final ledger = LedgerState();
+      ledger.addAccount(account(accountA));
+      ledger.addPocket(pocket(pocketP), accountA);
+
+      expect(ledger.owningAccount(accountA), isNull);
+    });
+
     test('an unknown id yields null', () {
       final ledger = LedgerState();
       ledger.addAccount(account(accountA));
 
       expect(ledger.owningAccount(ghostID), isNull);
+    });
+
+    test('an archived pocket still resolves its parent', () {
+      final ledger = LedgerState();
+      ledger.addAccount(account(accountA, name: 'Bank'));
+      ledger.addPocket(pocket(pocketP), accountA);
+      ledger.deletePocket(pocketP);
+
+      expect(ledger.owningAccount(pocketP)?.id, accountA);
     });
 
     test('a referenced pocket keeps its parent across a purge', () {
@@ -143,6 +178,17 @@ void main() {
       ledger.purgeAccount(ghostID);
 
       expect(ledger.owningAccount(pocketP)?.id, ghostID);
+    });
+
+    test('a pocket purged away with its parent yields null', () {
+      final ledger = LedgerState();
+      ledger.addAccount(account(ghostID, name: 'pocket parent'));
+      ledger.addPocket(pocket(pocketP), ghostID);
+      ledger.deleteAccount(ghostID);
+      ledger.purgeAccount(ghostID);
+
+      expect(ledger.moneySources[pocketP], isNull);
+      expect(ledger.owningAccount(pocketP), isNull);
     });
   });
 
@@ -169,6 +215,14 @@ void main() {
       expect(ledger.sourceName(null), isNull);
       expect(ledger.sourceName(ghostID), isNull);
     });
+
+    test('an archived holder still resolves its name', () {
+      final ledger = LedgerState();
+      ledger.addAccount(account(accountA, name: 'Bank'));
+      ledger.deleteAccount(accountA);
+
+      expect(ledger.sourceName(accountA), 'Bank');
+    });
   });
 
   group('reference counts', () {
@@ -188,13 +242,15 @@ void main() {
       expect(ledger.entriesReferencing(ghostID), 0);
     });
 
+    test('entryCount counts an entry touching two ids in the set once', () {
+      expect(ledger.entryCount({accountA, accountB}), 2);
+      expect(ledger.entryCount({accountA}), 2);
+      expect(ledger.entryCount({}), 0);
+    });
+
     test('entryCountReferencing counts entries carrying the category', () {
       expect(ledger.entryCountReferencing(categoryC), 1);
       expect(ledger.entryCountReferencing(ghostID), 0);
-    });
-
-    test('entryCount counts an entry touching two ids only once', () {
-      expect(ledger.entryCount({accountA, accountB}), 2);
     });
   });
 
@@ -238,6 +294,12 @@ void main() {
             .categoriesGroupedByParent(CategoryKind.expense)
             .map((c) => c.name),
         ['Food'],
+      );
+      expect(
+        ledger
+            .categoriesGroupedByParent(CategoryKind.income)
+            .map((c) => c.name),
+        ['Salary'],
       );
     });
   });

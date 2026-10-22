@@ -17,12 +17,42 @@ void main() {
       expect(ledger.moneySources[uuid(1)]?.asAccount?.subPocketIDs, {uuid(2)});
     });
 
+    test('emits the pocket upsert then the parent upsert', () {
+      ledger.addAccount(account(uuid(1)));
+      final changes = ledger.addPocket(pocket(uuid(2)), uuid(1));
+
+      expect(changes, [
+        UpsertPocket(pocket(uuid(2))),
+        UpsertAccount(account(uuid(1), subPocketIDs: {uuid(2)})),
+      ]);
+    });
+
     test('throws unknownAccount for a missing parent', () {
       expect(
         () => ledger.addPocket(pocket(uuid(2)), uuid(1)),
         throwsA(UnknownAccount(uuid(1))),
       );
       expect(ledger.moneySources, isEmpty);
+    });
+
+    test('throws unknownAccount when the parent id is a pocket', () {
+      ledger.addAccount(account(uuid(1)));
+      ledger.addPocket(pocket(uuid(2)), uuid(1));
+
+      expect(
+        () => ledger.addPocket(pocket(uuid(3)), uuid(2)),
+        throwsA(UnknownAccount(uuid(2))),
+      );
+    });
+
+    test('the parent check precedes the collision check', () {
+      ledger.addAccount(account(uuid(1)));
+      ledger.addPocket(pocket(uuid(2)), uuid(1));
+
+      expect(
+        () => ledger.addPocket(pocket(uuid(2)), uuid(9)),
+        throwsA(UnknownAccount(uuid(9))),
+      );
     });
 
     test('rejects an id already held by another pocket', () {
@@ -38,6 +68,20 @@ void main() {
     test('an archived account rejects a new pocket', () {
       ledger.addAccount(account(uuid(1)));
       ledger.deleteAccount(uuid(1));
+
+      expect(
+        () => ledger.addPocket(pocket(uuid(2)), uuid(1)),
+        throwsA(InactiveReference(uuid(1))),
+      );
+      expect(ledger.moneySources[uuid(2)], isNull);
+      expect(ledger.moneySources[uuid(1)]?.asAccount?.subPocketIDs, isEmpty);
+    });
+
+    test('a referenceOnly account rejects a new pocket', () {
+      ledger.addAccount(account(uuid(1)));
+      ledger.addEntry(entry(id: uuid(3), sourceID: uuid(1)));
+      ledger.deleteAccount(uuid(1));
+      ledger.purgeAccount(uuid(1));
 
       expect(
         () => ledger.addPocket(pocket(uuid(2)), uuid(1)),
@@ -89,6 +133,14 @@ void main() {
       expect(changes, [UpsertAccount(account(uuid(1)))]);
     });
 
+    test('stores the statement day a card is given', () {
+      ledger.addAccount(
+        account(uuid(1), type: AccountType.card, statementDay: 15),
+      );
+
+      expect(ledger.moneySources[uuid(1)]?.asAccount?.statementDay, 15);
+    });
+
     test('clears the statement day for a non-card type', () {
       ledger.addAccount(
         account(uuid(1), type: AccountType.savings, statementDay: 15),
@@ -103,6 +155,14 @@ void main() {
       );
 
       expect(ledger.moneySources[uuid(1)]?.asAccount?.statementDay, 28);
+    });
+
+    test('clamps a statement day below the first', () {
+      ledger.addAccount(
+        account(uuid(1), type: AccountType.card, statementDay: -5),
+      );
+
+      expect(ledger.moneySources[uuid(1)]?.asAccount?.statementDay, 1);
     });
 
     test('forces the transfer flag off for an ineligible type', () {
@@ -172,6 +232,14 @@ void main() {
       expect(ledger.moneySources[uuid(1)]?.asAccount?.subPocketIDs, {uuid(2)});
     });
 
+    test('ignores passed pocket links', () {
+      ledger.addAccount(account(uuid(1)));
+      ledger.addPocket(pocket(uuid(2)), uuid(1));
+      ledger.updateAccount(account(uuid(1), subPocketIDs: {uuid(8), uuid(9)}));
+
+      expect(ledger.moneySources[uuid(1)]?.asAccount?.subPocketIDs, {uuid(2)});
+    });
+
     test('clears the statement day for a non-card type', () {
       ledger.addAccount(
         account(uuid(1), type: AccountType.card, statementDay: 15),
@@ -193,6 +261,34 @@ void main() {
       );
 
       expect(ledger.moneySources[uuid(1)]?.asAccount?.statementDay, 28);
+    });
+
+    test('keeps the statement day for a card', () {
+      ledger.addAccount(account(uuid(1), type: AccountType.card));
+      ledger.updateAccount(
+        account(uuid(1), type: AccountType.card, statementDay: 15),
+      );
+
+      expect(ledger.moneySources[uuid(1)]?.asAccount?.statementDay, 15);
+    });
+
+    test('emits an upsert of the stored account, not the argument', () {
+      ledger.addAccount(account(uuid(1)));
+      ledger.addPocket(pocket(uuid(2)), uuid(1));
+      final changes = ledger.updateAccount(
+        account(
+          uuid(1),
+          name: 'renamed',
+          subPocketIDs: {uuid(9)},
+          statementDay: 15,
+        ),
+      );
+
+      expect(changes, [
+        UpsertAccount(
+          account(uuid(1), name: 'renamed', subPocketIDs: {uuid(2)}),
+        ),
+      ]);
     });
 
     test('throws unknownAccount for a missing id', () {

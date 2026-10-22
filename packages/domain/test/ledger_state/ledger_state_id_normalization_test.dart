@@ -25,127 +25,64 @@ void main() {
       expect(ledger.moneySources[hex(1)]?.lifecycle, LifecycleState.archived);
     });
 
-    test('id-taking mutators resolve uppercase ids', () {
-      late LedgerState state;
-      LedgerState freshLedger() {
-        final fresh = LedgerState();
-        fresh.addAccount(account(hex(1)));
-        return fresh;
-      }
+    test('restoreAccount restores rather than silently no-opping', () {
+      ledger.deleteAccount(hex(1));
+      final changes = ledger.restoreAccount(upper(1));
 
-      final cases = <({void Function() verify})>[
-        (
-          verify: () {
-            final changes = state.addPocket(pocket(hex(2)), upper(1));
+      expect(changes, [UpsertAccount(account(hex(1)))]);
+      expect(ledger.moneySources[hex(1)]?.lifecycle, LifecycleState.active);
+    });
 
-            expect(changes, [
-              UpsertPocket(pocket(hex(2))),
-              UpsertAccount(account(hex(1), subPocketIDs: {hex(2)})),
-            ]);
-          },
-        ),
-        (
-          verify: () {
-            state.addPocket(pocket(hex(2)), hex(1));
+    test('addPocket resolves an uppercase parent id', () {
+      final changes = ledger.addPocket(pocket(hex(2)), upper(1));
 
-            expect(state.deletePocket(upper(2)), [
-              UpsertPocket(pocket(hex(2), lifecycle: LifecycleState.archived)),
-            ]);
-            expect(state.restorePocket(upper(2)), [
-              UpsertPocket(pocket(hex(2))),
-            ]);
-          },
-        ),
-        (
-          verify: () {
-            final changes = state.setOpeningBalance(
-              Decimal.fromInt(250),
-              upper(1),
-            );
+      expect(changes, [
+        UpsertPocket(pocket(hex(2))),
+        UpsertAccount(account(hex(1), subPocketIDs: {hex(2)})),
+      ]);
+    });
 
-            expect(changes, hasLength(1));
-            expect(state.entries.values.single.sourceID, hex(1));
-          },
-        ),
-        (
-          verify: () {
-            state.addEntry(entry(id: hex(4), sourceID: hex(1)));
-            final changes = state.deleteEntry(upper(4));
+    test('deletePocket and restorePocket resolve an uppercase id', () {
+      ledger.addPocket(pocket(hex(2)), hex(1));
 
-            expect(changes, [DeleteEntry(hex(4))]);
-            expect(state.entries, isEmpty);
-          },
-        ),
-        (
-          verify: () {
-            state.addCategory(category(hex(3)));
+      expect(ledger.deletePocket(upper(2)), [
+        UpsertPocket(pocket(hex(2), lifecycle: LifecycleState.archived)),
+      ]);
+      expect(ledger.restorePocket(upper(2)), [UpsertPocket(pocket(hex(2)))]);
+    });
 
-            expect(state.deleteCategory(upper(3)), [
-              UpsertCategory(
-                category(hex(3), lifecycle: LifecycleState.archived),
-              ),
-            ]);
-            expect(state.restoreCategory(upper(3)), [
-              UpsertCategory(category(hex(3))),
-            ]);
-          },
-        ),
-        (
-          verify: () {
-            state.deleteAccount(hex(1));
-            final changes = state.restoreAccount(upper(1));
+    test('setOpeningBalance resolves an uppercase holder id', () {
+      final changes = ledger.setOpeningBalance(Decimal.fromInt(250), upper(1));
 
-            expect(changes, [UpsertAccount(account(hex(1)))]);
-            expect(
-              state.moneySources[hex(1)]?.lifecycle,
-              LifecycleState.active,
-            );
-          },
-        ),
-      ];
+      expect(changes, hasLength(1));
+      expect(ledger.entries.values.single.sourceID, hex(1));
+    });
 
-      for (final testCase in cases) {
-        state = freshLedger();
-        testCase.verify();
-      }
+    test('deleteEntry resolves an uppercase id', () {
+      ledger.addEntry(entry(id: hex(4), sourceID: hex(1)));
+      final changes = ledger.deleteEntry(upper(4));
 
-      final queryCases = <({void Function() verify})>[
-        (verify: () => expect(state.sourceName(upper(1)), 'acc')),
-        (
-          verify: () {
-            state.addEntry(entry(id: hex(4), sourceID: hex(1)));
+      expect(changes, [DeleteEntry(hex(4))]);
+      expect(ledger.entries, isEmpty);
+    });
 
-            expect(state.entriesReferencing(upper(1)), 1);
-          },
-        ),
-        (
-          verify: () {
-            state.addEntry(entry(id: hex(4), sourceID: hex(1)));
+    test('deleteCategory and restoreCategory resolve an uppercase id', () {
+      ledger.addCategory(category(hex(3)));
 
-            expect(state.entryCount({upper(1)}), 1);
-          },
-        ),
-        (
-          verify: () {
-            state.addCategory(category(hex(3)));
-            state.addEntry(
-              entry(id: hex(4), sourceID: hex(1), categoryID: hex(3)),
-            );
-
-            expect(state.entryCountReferencing(upper(3)), 1);
-          },
-        ),
-      ];
-
-      for (final testCase in queryCases) {
-        state = LedgerState();
-        state.addAccount(account(hex(1)));
-        testCase.verify();
-      }
+      expect(ledger.deleteCategory(upper(3)), [
+        UpsertCategory(category(hex(3), lifecycle: LifecycleState.archived)),
+      ]);
+      expect(ledger.restoreCategory(upper(3)), [
+        UpsertCategory(category(hex(3))),
+      ]);
     });
   });
 
   group('queries normalize a bare id', () {
+    test('sourceName resolves an uppercase id', () {
+      expect(ledger.sourceName(upper(1)), 'acc');
+    });
+
     test('sourceName still returns null for a null id', () {
       expect(ledger.sourceName(null), isNull);
     });
@@ -154,6 +91,25 @@ void main() {
       ledger.addPocket(pocket(hex(2)), hex(1));
 
       expect(ledger.owningAccount(upper(2))?.id, hex(1));
+    });
+
+    test('entriesReferencing resolves an uppercase id', () {
+      ledger.addEntry(entry(id: hex(4), sourceID: hex(1)));
+
+      expect(ledger.entriesReferencing(upper(1)), 1);
+    });
+
+    test('entryCount resolves uppercase ids', () {
+      ledger.addEntry(entry(id: hex(4), sourceID: hex(1)));
+
+      expect(ledger.entryCount({upper(1)}), 1);
+    });
+
+    test('entryCountReferencing resolves an uppercase category id', () {
+      ledger.addCategory(category(hex(3)));
+      ledger.addEntry(entry(id: hex(4), sourceID: hex(1), categoryID: hex(3)));
+
+      expect(ledger.entryCountReferencing(upper(3)), 1);
     });
   });
 }

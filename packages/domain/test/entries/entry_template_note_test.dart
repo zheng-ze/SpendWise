@@ -27,12 +27,30 @@ RecurringPlan notedPlan({String? note, String? id}) => RecurringPlan(
 
 void main() {
   group('template note normalization', () {
-    test('normalizes blank and surrounding whitespace', () {
+    test('an omitted note loads as no note', () {
+      expect(notedTemplate().note, isNull);
+    });
+
+    test('null, empty and whitespace-only notes load as no note', () {
       for (final raw in <String?>[null, '', '   ', '\n\t ']) {
         expect(notedTemplate(note: raw).note, isNull, reason: '$raw');
       }
+    });
+
+    test('surrounding whitespace is removed', () {
       expect(notedTemplate(note: '  memo  ').note, 'memo');
+    });
+
+    test('internal whitespace and line breaks remain', () {
       expect(notedTemplate(note: 'a  b\nc').note, 'a  b\nc');
+    });
+
+    test('normalized-equivalent templates compare equal with equal hashes', () {
+      final first = notedTemplate(note: '  memo ');
+      final second = notedTemplate(note: 'memo');
+
+      expect(first, second);
+      expect(first.hashCode, second.hashCode);
     });
 
     test('templates differing only by note compare unequal', () {
@@ -63,7 +81,7 @@ void main() {
       expect(made.sourceID, uuid(1));
     });
 
-    test('an omitted template note stays absent on the occurrence', () {
+    test('templates built without a note make note-free occurrences', () {
       final made = notedTemplate().makeEntry(
         uuid(7),
         DateTime.utc(2026, 3, 15),
@@ -84,6 +102,15 @@ void main() {
       for (final entry in state.entries.values) {
         expect(entry.note, 'memo');
       }
+    });
+
+    test('a resolved plan keeps its template note on the advanced cursor', () {
+      final state = stateWithHolders();
+      state.addPlan(notedPlan(note: 'memo'));
+
+      state.resolvePlans(DateTime.utc(2026, 4, 20));
+
+      expect(state.plans[uuid(6)]!.template.note, 'memo');
     });
 
     test('existing occurrences are skipped without backfill or overwrite', () {
@@ -108,6 +135,25 @@ void main() {
         second.changes.any((change) => change.targetID == firstId),
         isFalse,
       );
+    });
+
+    test('archiving an occurrence does not duplicate it on the next sweep', () {
+      final state = stateWithHolders();
+      state.addPlan(notedPlan(note: 'memo'));
+      state.resolvePlans(DateTime.utc(2026, 2, 20));
+      final firstId = OccurrenceID.make(uuid(6), DateTime.utc(2026, 2, 15));
+      state.archiveEntry(firstId);
+
+      state.resolvePlans(DateTime.utc(2026, 3, 20));
+
+      expect(state.binnedEntries[firstId]!.note, 'memo');
+      expect(
+        state
+            .entries[OccurrenceID.make(uuid(6), DateTime.utc(2026, 3, 15))]!
+            .note,
+        'memo',
+      );
+      expect(state.entries.containsKey(firstId), isFalse);
     });
 
     test(

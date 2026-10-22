@@ -48,6 +48,22 @@ void main() {
     },
   );
 
+  test('row carries the id of the entry it was built from', () {
+    final state = baseState();
+    final entry = Entry(
+      amount: dec('-12.50'),
+      name: 'lunch',
+      categoryID: parentCategory.id,
+      sourceID: account.id,
+    );
+    final other = Entry(amount: dec('-1'), name: 'other', sourceID: account.id);
+
+    final row = transactionRow(entry, state);
+
+    expect(row.id, entry.id);
+    expect(row.id, isNot(other.id));
+  });
+
   test('non-transfer with a parent-only category titles the row from it', () {
     final state = baseState();
     final entry = Entry(
@@ -65,7 +81,6 @@ void main() {
     expect(row.color, parseColorHex(parentCategory.colorHex));
     expect(row.amount, dec('-12.50'));
     expect(row.amountKind, AmountKind.expense);
-    expect(row.note, 'lunch');
   });
 
   test('non-transfer under a nested category titles as Parent/Child', () {
@@ -94,6 +109,21 @@ void main() {
     expect(row.symbolName, 'help_outline');
     expect(row.amountKind, AmountKind.income);
     expect(row.amount, dec('100'));
+  });
+
+  test('non-transfer income is not negated', () {
+    final state = baseState();
+    final entry = Entry(
+      amount: dec('250'),
+      name: 'salary',
+      categoryID: parentCategory.id,
+      sourceID: account.id,
+    );
+
+    final row = transactionRow(entry, state);
+
+    expect(row.amount, dec('250'));
+    expect(row.amountKind, AmountKind.income);
   });
 
   test('transfer titles as Transfer with a Source > Destination line', () {
@@ -165,7 +195,39 @@ void main() {
     },
   );
 
+  test(
+    'row note is the entry name, independent of the category-derived title',
+    () {
+      final state = baseState();
+      final entry = Entry(
+        amount: dec('-9'),
+        name: 'birthday cake',
+        categoryID: parentCategory.id,
+        sourceID: account.id,
+      );
+
+      final row = transactionRow(entry, state);
+
+      expect(row.note, 'birthday cake');
+      expect(row.title, 'Food');
+    },
+  );
+
   group('transfer scope', () {
+    test('with no scope passed, a transfer stays plain and neutral', () {
+      final state = baseState();
+      final entry = Entry(
+        amount: dec('75'),
+        name: 'move funds',
+        sourceID: account.id,
+        destinationID: destinationAccount.id,
+      );
+
+      final row = transactionRow(entry, state);
+
+      expect(row.amountKind, AmountKind.transfer);
+    });
+
     test('destination in scope, source out, reads as a gain', () {
       final state = baseState();
       final entry = Entry(
@@ -196,6 +258,42 @@ void main() {
       final row = transactionRow(entry, state, scopeIDs: {account.id});
 
       expect(row.amountKind, AmountKind.expense);
+    });
+
+    test('both endpoints in scope stays neutral', () {
+      final state = baseState();
+      final entry = Entry(
+        amount: dec('75'),
+        name: 'move funds',
+        sourceID: account.id,
+        destinationID: destinationAccount.id,
+      );
+
+      final row = transactionRow(
+        entry,
+        state,
+        scopeIDs: {account.id, destinationAccount.id},
+      );
+
+      expect(row.amountKind, AmountKind.transfer);
+    });
+
+    test('neither endpoint in scope stays neutral', () {
+      final state = baseState();
+      final entry = Entry(
+        amount: dec('75'),
+        name: 'move funds',
+        sourceID: account.id,
+        destinationID: destinationAccount.id,
+      );
+
+      final row = transactionRow(
+        entry,
+        state,
+        scopeIDs: {'a0000000-0000-0000-0000-000000000099'},
+      );
+
+      expect(row.amountKind, AmountKind.transfer);
     });
 
     test('a transfer from an account to its own pocket is neutral at account '

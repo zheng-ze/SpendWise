@@ -30,6 +30,19 @@ void main() {
     expect(store.state.moneySources, contains(account.id));
   });
 
+  test('seedIsNotRepeatedOnASecondLaunch', () async {
+    final store = InMemoryLedgerStore();
+    final account = _account();
+    List<LedgerChange> seed() => [UpsertAccount(account)];
+
+    await AppBoot(createStore: () async => store, seedChanges: seed).start();
+    final afterFirst = store.enqueuedBatches.length;
+
+    await AppBoot(createStore: () async => store, seedChanges: seed).start();
+
+    expect(store.enqueuedBatches, hasLength(afterFirst));
+  });
+
   test('anEmptiedLedgerIsNotReseeded', () async {
     final store = InMemoryLedgerStore();
     final account = _account();
@@ -49,5 +62,22 @@ void main() {
 
     expect((second.phase as Ready).ledger.state.moneySources, isEmpty);
     expect(store.state.moneySources, isEmpty);
+  });
+
+  test('seedIsSkippedWhenTheFlagIsAlreadySet', () async {
+    final store = RecordingLedgerStore(hasSeeded: true);
+    var built = 0;
+
+    await AppBoot(
+      createStore: () async => store,
+      seedChanges: () {
+        built += 1;
+        return [UpsertAccount(_account())];
+      },
+    ).start();
+
+    expect(store.state.moneySources, isEmpty);
+    expect(store.calls, isNot(contains(StoreCall.flushNow)));
+    expect(built, 1);
   });
 }

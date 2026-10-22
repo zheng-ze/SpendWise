@@ -101,6 +101,18 @@ void main() {
     );
   });
 
+  test('clearStep resets the step to null', () async {
+    final container = buildContainer(buildLedger());
+    await container.read(budgetsListViewModelProvider.future);
+    final viewModel = container.read(budgetsListViewModelProvider.notifier);
+
+    viewModel.requestNewBudget();
+    expect(container.read(budgetsListViewModelProvider).value?.step, isNotNull);
+
+    viewModel.clearStep();
+    expect(container.read(budgetsListViewModelProvider).value?.step, isNull);
+  });
+
   test('deleteBudget removes the budget from the ledger', () async {
     final overall = budget(categoryID: null, id: 'b1');
     final ledger = buildLedger(budgets: {overall.id: overall});

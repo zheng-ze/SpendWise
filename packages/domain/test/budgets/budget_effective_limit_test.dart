@@ -2,6 +2,13 @@ import 'package:domain/domain.dart';
 import 'package:test/test.dart';
 
 void main() {
+  test('defaultOnlyTimelineResolvesEveryMonthToTheSingleEvent', () {
+    final budget = _budgetWith([_defaultEvent(null, 100)]);
+
+    expect(effectiveLimit(budget, const YearMonth(2026, 1)), _d(100));
+    expect(effectiveLimit(budget, const YearMonth(2030, 6)), _d(100));
+  });
+
   test('defaultChangeTakesEffectOnlyFromItsMonthForward', () {
     final budget = _budgetWith([
       _defaultEvent(null, 100),
@@ -33,6 +40,26 @@ void main() {
 
     expect(effectiveLimit(budget, const YearMonth(2026, 6)), _d(999));
     expect(effectiveLimit(budget, const YearMonth(2026, 7)), _d(150));
+  });
+
+  test('twoOverridesOnTheSameMonthTheLastAppendedWins', () {
+    final budget = _budgetWith([
+      _defaultEvent(null, 100),
+      _overrideEvent(const YearMonth(2026, 6), 500),
+      _overrideEvent(const YearMonth(2026, 6), 700),
+    ]);
+
+    expect(effectiveLimit(budget, const YearMonth(2026, 6)), _d(700));
+  });
+
+  test('twoDefaultChangesOnTheSameMonthTheLastAppendedWins', () {
+    final budget = _budgetWith([
+      _defaultEvent(null, 100),
+      _defaultEvent(const YearMonth(2026, 6), 200),
+      _defaultEvent(const YearMonth(2026, 6), 300),
+    ]);
+
+    expect(effectiveLimit(budget, const YearMonth(2026, 6)), _d(300));
   });
 
   test('monthBeforeEveryEventFallsBackToTheUnboundedPastFirstEvent', () {

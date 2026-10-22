@@ -38,6 +38,22 @@ void main() {
 
   final now = day(2026, 7, 15);
 
+  test('a future year yields zero months', () {
+    final state = baseState();
+
+    final months = monthSummaries(state, day(2027), now: now);
+
+    expect(months, isEmpty);
+  });
+
+  test('a fully past year yields all twelve months', () {
+    final state = baseState();
+
+    final months = monthSummaries(state, day(2025), now: now);
+
+    expect(months.length, 12);
+  });
+
   test('current year stops at the current month, newest first', () {
     final state = baseState();
 
@@ -46,6 +62,13 @@ void main() {
     expect(months.length, 7);
     expect(months.first.month, day(2026, 7, 1));
     expect(months.last.month, day(2026, 1, 1));
+  });
+
+  test('only the current month carries the current-month flag', () {
+    final state = baseState();
+
+    final months = monthSummaries(state, day(2026), now: now);
+
     expect(months.first.isCurrentMonth, isTrue);
     expect(months.skip(1).every((m) => !m.isCurrentMonth), isTrue);
   });
@@ -109,6 +132,64 @@ void main() {
     expect(week.income, Decimal.zero);
   });
 
+  test('a transfer between two accounts with neither flagged counts toward '
+      'neither total', () {
+    final state = baseState(
+      secondAccount: savings,
+      entries: [
+        Entry(
+          amount: dec('75'),
+          name: 'move to savings',
+          sourceID: account.id,
+          destinationID: savings.id,
+          date: day(2026, 7, 8),
+        ),
+      ],
+    );
+
+    final months = monthSummaries(state, day(2026), now: now);
+    final july = months.firstWhere((m) => m.month == day(2026, 7, 1));
+
+    expect(july.income, Decimal.zero);
+    expect(july.expenses, Decimal.zero);
+  });
+
+  test(
+    'a transfer flagged treat-as-expense on both ends counts in both totals',
+    () {
+      final flaggedAccount = Account(
+        id: account.id,
+        name: account.name,
+        type: AccountType.savings,
+        incomingTransfersAsExpenses: true,
+      );
+      final state = LedgerState(
+        moneySources: {
+          account.id: MoneySource.account(flaggedAccount),
+          savings.id: MoneySource.account(flaggedSavings),
+        },
+        entries: {
+          for (final entry in [
+            Entry(
+              amount: dec('75'),
+              name: 'move between flagged accounts',
+              sourceID: account.id,
+              destinationID: savings.id,
+              date: day(2026, 7, 8),
+            ),
+          ])
+            entry.id: entry,
+        },
+      );
+
+      final months = monthSummaries(state, day(2026), now: now);
+      final july = months.firstWhere((m) => m.month == day(2026, 7, 1));
+
+      expect(july.income, dec('75'));
+      expect(july.expenses, dec('75'));
+    },
+  );
+
   test('a spillover week appears under both months with identical totals', () {
     final state = baseState(
       entries: [
@@ -144,6 +225,17 @@ void main() {
     expect(julySpillover.expenses, dec('25'));
   });
 
+  test('weeks are listed newest first', () {
+    final state = baseState();
+
+    final months = monthSummaries(state, day(2026), now: now);
+    final july = months.firstWhere((m) => m.month == day(2026, 7, 1));
+
+    final starts = july.weeks.map((w) => w.range.start).toList();
+    final sorted = [...starts]..sort((a, b) => b.compareTo(a));
+    expect(starts, sorted);
+  });
+
   test('only the week containing now carries the current-week flag', () {
     final state = baseState();
 
@@ -153,5 +245,15 @@ void main() {
     final currentWeeks = july.weeks.where((w) => w.isCurrentWeek);
     expect(currentWeeks.length, 1);
     expect(currentWeeks.single.range.contains(now), isTrue);
+  });
+
+  test('week range label subtracts a day off the exclusive end', () {
+    final state = baseState();
+
+    final months = monthSummaries(state, day(2026), now: now);
+    final july = months.firstWhere((m) => m.month == day(2026, 7, 1));
+
+    final week = july.weeks.firstWhere((w) => w.range.start == day(2026, 7, 6));
+    expect(week.range.end, day(2026, 7, 13));
   });
 }

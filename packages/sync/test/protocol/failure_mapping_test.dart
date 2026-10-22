@@ -56,6 +56,26 @@ void main() {
       expect(failure, isA<CredentialExpired<PushResponse>>());
     });
 
+    test('existing vocabulary keeps mapping through the shared mapper', () {
+      expect(
+        syncFailureFromHttp<void>(400, const {'code': 'invalid_request'}),
+        isA<InvalidRequest<void>>(),
+      );
+      expect(
+        syncFailureFromHttp<void>(403, const {'code': 'device_retired'}),
+        isA<DeviceRetired<void>>(),
+      );
+      expect(
+        syncFailureFromHttp<void>(
+            409, const {'code': 'reconciliation_required'}),
+        isA<ReconciliationRequired<void>>(),
+      );
+      expect(
+        syncFailureFromHttp<void>(429, const {'code': 'rate_limited'}),
+        isA<RateLimited<void>>(),
+      );
+    });
+
     test('unknown failures stay backend_unavailable', () {
       final failure = syncFailureFromHttp<PushResponse>(418, const {});
 

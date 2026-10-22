@@ -151,46 +151,60 @@ void main() {
   });
 
   group('scanStop', () {
-    test('reports permission denial without prefilling', () async {
-      container = startContainer();
-      mockImagePickerResult(errorCode: _cameraDenied);
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(_documentScannerChannel, (call) async {
-            if (call.method == 'isAvailable') return false;
-            return null;
-          });
+    test(
+      'is set exactly once on a scan that ends without prefilling',
+      () async {
+        container = startContainer();
+        mockImagePickerResult(errorCode: _cameraDenied);
+        var isAvailableCalled = false;
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(_documentScannerChannel, (call) async {
+              if (call.method == 'isAvailable') {
+                isAvailableCalled = true;
+                return false;
+              }
+              return null;
+            });
 
-      var prefillCalls = 0;
-      coordinator().requestScan(
-        ReceiptScanSource.camera,
-        onPrefill: ({name, amount, required date}) => prefillCalls++,
-      );
+        var prefillCalls = 0;
+        coordinator().requestScan(
+          ReceiptScanSource.camera,
+          onPrefill: ({name, amount, required date}) => prefillCalls++,
+        );
 
-      await idle();
+        await idle();
 
-      expect(state().scanStop, ReceiptScanStop.permissionDenied);
-      expect(prefillCalls, 0);
-    });
+        expect(state().scanStop, ReceiptScanStop.permissionDenied);
+        expect(prefillCalls, 0);
+        expect(isAvailableCalled, isTrue);
+      },
+    );
 
-    test('clearScanStop removes a previous scan stop', () async {
-      container = startContainer();
-      mockImagePickerResult(errorCode: _cameraDenied);
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(_documentScannerChannel, (call) async {
-            if (call.method == 'isAvailable') return false;
-            return null;
-          });
+    test(
+      'clearScanStop clears a previously set scanStop exactly once',
+      () async {
+        container = startContainer();
+        mockImagePickerResult(errorCode: _cameraDenied);
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(_documentScannerChannel, (call) async {
+              if (call.method == 'isAvailable') return false;
+              return null;
+            });
 
-      coordinator().requestScan(
-        ReceiptScanSource.camera,
-        onPrefill: _ignorePrefill,
-      );
-      await idle();
-      expect(state().scanStop, ReceiptScanStop.permissionDenied);
+        coordinator().requestScan(
+          ReceiptScanSource.camera,
+          onPrefill: _ignorePrefill,
+        );
+        await idle();
+        expect(state().scanStop, ReceiptScanStop.permissionDenied);
 
-      coordinator().clearScanStop();
-      expect(state().scanStop, isNull);
-    });
+        coordinator().clearScanStop();
+        expect(state().scanStop, isNull);
+
+        coordinator().clearScanStop();
+        expect(state().scanStop, isNull);
+      },
+    );
   });
 
   group('native document scanner routing', () {
@@ -271,6 +285,32 @@ void main() {
       await idle();
 
       expect(capturedDate, DateTime.utc(2026, 1, 15));
+    });
+  });
+
+  group('applyCroppedDocument', () {
+    test('recognizes the uploaded bytes as a gallery scan', () async {
+      container = startContainer();
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            _mlKitChannel,
+            (call) async => _recognizedResult([
+              'Coffee Shop',
+              'Total \$12.50',
+              '01/15/2026',
+            ]),
+          );
+
+      DateTime? capturedDate;
+      coordinator().applyCroppedDocument(
+        Uint8List.fromList([4, 5, 6]),
+        onPrefill: ({name, amount, required date}) => capturedDate = date,
+      );
+
+      await idle();
+
+      expect(capturedDate, DateTime.utc(2026, 1, 15));
+      expect(state().scanStop, isNull);
     });
   });
 }

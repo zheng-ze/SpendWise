@@ -33,6 +33,14 @@ void main() {
       expect(save(amount: null), isFalse);
     });
 
+    test('rejects a zero amount', () {
+      expect(save(amount: Decimal.zero), isFalse);
+    });
+
+    test('rejects an empty name', () {
+      expect(save(amount: dec('5'), name: ''), isFalse);
+    });
+
     test('rejects a name that is only whitespace', () {
       expect(save(amount: dec('5'), name: '   '), isFalse);
     });
@@ -43,6 +51,13 @@ void main() {
 
     test('rejects an expense without a category', () {
       expect(save(amount: dec('5'), categoryId: null), isFalse);
+    });
+
+    test('rejects an income without a category', () {
+      expect(
+        save(amount: dec('5'), kind: EntryFormKind.income, categoryId: null),
+        isFalse,
+      );
     });
 
     test('accepts a transfer without a category', () {
@@ -73,6 +88,10 @@ void main() {
 
     test('accepts a valid expense', () {
       expect(save(amount: dec('5')), isTrue);
+    });
+
+    test('accepts a valid income', () {
+      expect(save(amount: dec('5'), kind: EntryFormKind.income), isTrue);
     });
 
     test('rejects a transfer with no destination', () {
@@ -130,13 +149,18 @@ void main() {
     });
 
     test('transfer is stored positive with a destination and no category', () {
+      final entry = build(EntryFormKind.transfer, destinationId: otherId);
+      expect(entry.amount, dec('5'));
+      expect(entry.destinationID, otherId);
+      expect(entry.categoryID, isNull);
+    });
+
+    test('transfer drops a category even if one was passed in', () {
       final entry = build(
         EntryFormKind.transfer,
         destinationId: otherId,
-        categoryId: categoryId,
+        categoryId: 'c1',
       );
-      expect(entry.amount, dec('5'));
-      expect(entry.destinationID, otherId);
       expect(entry.categoryID, isNull);
     });
 
@@ -150,6 +174,10 @@ void main() {
         note: '  Receipt kept ',
       );
       expect(entry.note, 'Receipt kept');
+    });
+
+    test('defaults to no note', () {
+      expect(build(EntryFormKind.expense).note, isNull);
     });
 
     test('a whitespace-only note saves as no note', () {

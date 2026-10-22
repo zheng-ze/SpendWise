@@ -60,14 +60,24 @@ void main() {
   }
 
   group('defaults', () {
-    test('new metadata starts unenrolled with the write gate closed', () async {
+    test('backend selection stays null until enrollment', () async {
       final state = await snapshot();
       expect(state.backend, isNull);
       expect(state.endpoint, isNull);
+    });
+
+    test('phase starts not-enrolled with the write gate closed', () async {
+      final state = await snapshot();
       expect(state.phase, SyncEnrollmentPhase.notEnrolled);
       expect(state.writeEnabled, isFalse);
+    });
+
+    test('all five pull watermarks start null', () async {
+      final state = await snapshot();
       expect(state.watermarks, hasLength(SyncCollection.values.length));
-      expect(state.watermarks.values, everyElement(isNull));
+      for (final collection in SyncCollection.values) {
+        expect(state.watermarks[collection], isNull, reason: '$collection');
+      }
     });
 
     test('vectors and pending acknowledgements start empty', () async {
@@ -118,6 +128,17 @@ void main() {
   });
 
   group('enrollment phase and write gate', () {
+    test('records every phase durably', () async {
+      for (final phase in SyncEnrollmentPhase.values) {
+        await seedRow(
+          binding: SyncDeviceBindingState.notApplicable,
+          phase: phase,
+          writes: false,
+        );
+        expect((await snapshot()).phase, phase, reason: '$phase');
+      }
+    });
+
     test('deviceBindingRequired follows device_binding_state', () async {
       expect((await snapshot()).deviceBindingRequired, isFalse);
       await (db.update(db.syncMeta)..where((t) => t.id.equals(0))).write(
@@ -165,6 +186,17 @@ void main() {
       expect(await store.acknowledgedVector(row), vector);
     });
 
+    test('overwrites a vector for the same row', () async {
+      final row = SyncRowID.of(SyncCollection.entries, _rowA);
+      await store.setAcknowledgedVector(row, VersionVector({'device-a': 1}));
+      await store.setAcknowledgedVector(row, VersionVector({'device-a': 2}));
+      expect(
+        await store.acknowledgedVector(row),
+        VersionVector({'device-a': 2}),
+      );
+      expect((await store.acknowledgedVectors()), hasLength(1));
+    });
+
     test(
       'keeps identical UUIDs in different collections independent',
       () async {
@@ -188,6 +220,25 @@ void main() {
         );
       },
     );
+
+    test('lists every recorded vector', () async {
+      await store.setAcknowledgedVector(
+        SyncRowID.of(SyncCollection.entries, _rowA),
+        VersionVector({'device-a': 1}),
+      );
+      await store.setAcknowledgedVector(
+        SyncRowID.of(SyncCollection.categories, _rowB),
+        VersionVector({'device-b': 2}),
+      );
+      expect(await store.acknowledgedVectors(), {
+        SyncRowID.of(SyncCollection.entries, _rowA): VersionVector({
+          'device-a': 1,
+        }),
+        SyncRowID.of(SyncCollection.categories, _rowB): VersionVector({
+          'device-b': 2,
+        }),
+      });
+    });
   });
 
   group('pending pull acknowledgements', () {
@@ -203,6 +254,21 @@ void main() {
       expect(await store.pendingAcknowledgement(SyncCollection.plans), isNull);
     });
 
+    test('overwrites the checkpoint for the same collection', () async {
+      await store.setPendingAcknowledgement(
+        SyncCollection.entries,
+        'checkpoint-9',
+      );
+      await store.setPendingAcknowledgement(
+        SyncCollection.entries,
+        'checkpoint-10',
+      );
+      expect(
+        await store.pendingAcknowledgement(SyncCollection.entries),
+        'checkpoint-10',
+      );
+    });
+
     test('clears only the named collection', () async {
       await store.setPendingAcknowledgement(
         SyncCollection.entries,
@@ -216,6 +282,11 @@ void main() {
       expect(await store.pendingAcknowledgements(), {
         SyncCollection.plans: 'checkpoint-3',
       });
+    });
+
+    test('clearing an absent collection is a no-op', () async {
+      await store.clearPendingAcknowledgement(SyncCollection.entries);
+      expect(await store.pendingAcknowledgements(), isEmpty);
     });
   });
 
@@ -349,6 +420,27 @@ void main() {
         'checkpoint-2',
       );
     });
+
+    test('a failed single-value write keeps the previous value', () async {
+      final flaky = FailingCommitInterceptor();
+      final fragileDb = LedgerDatabase(
+        NativeDatabase.memory().interceptWith(flaky),
+      );
+      addTearDown(fragileDb.close);
+      final fragile = SyncMetadataStore(fragileDb);
+
+      await fragile.enterSnapshotInProgress();
+      flaky.failures = 1;
+      await expectLater(
+        fragile.enterReconciliationComplete(),
+        throwsA(isA<_CommitFailure>()),
+      );
+      final state = await fragile.snapshot();
+      expect(state.phase, SyncEnrollmentPhase.snapshotInProgress);
+      expect(state.deviceBindingState, SyncDeviceBindingState.bound);
+      expect(state.writeEnabled, isFalse);
+      expect(state.reauthResumePhase, isNull);
+    });
   });
 
   group('secret separation', () {
@@ -468,26 +560,167 @@ void main() {
       },
     );
 
-    test('accepts a legal unbound enrollment state', () {
-      final outcome = store.validateHostedOperationState(
+    test('accepts every legal combination', () {
+      final legal = [
+        fake(
+          binding: SyncDeviceBindingState.notApplicable,
+          phase: SyncEnrollmentPhase.notEnrolled,
+          writes: false,
+        ),
         fake(
           binding: SyncDeviceBindingState.authorizationRequired,
           phase: SyncEnrollmentPhase.credentialAcquired,
           writes: false,
         ),
-      );
-      expect(outcome, isA<HostedOperationLegal>());
+        fake(
+          binding: SyncDeviceBindingState.authorizationRequired,
+          phase: SyncEnrollmentPhase.bindingAuthorizationRequired,
+          writes: false,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.sessionReauthRequired,
+          writes: false,
+          resume: SyncEnrollmentPhase.snapshotInProgress,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.sessionReauthRequired,
+          writes: false,
+          resume: SyncEnrollmentPhase.reconciliationComplete,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.sessionReauthRequired,
+          writes: false,
+          resume: SyncEnrollmentPhase.gateEnabled,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.snapshotInProgress,
+          writes: false,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.reconciliationComplete,
+          writes: false,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.gateEnabled,
+          writes: true,
+        ),
+      ];
+      for (final state in legal) {
+        final outcome = store.validateHostedOperationState(state);
+        expect(outcome, isA<HostedOperationLegal>(), reason: '$state');
+        expect(outcome.isLegal, isTrue, reason: '$state');
+      }
     });
 
-    test('rejects a write-enabled state before binding', () {
-      final outcome = store.validateHostedOperationState(
+    test('rejects every illegal combination', () {
+      final illegal = [
+        fake(
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.sessionReauthRequired,
+          writes: false,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.notApplicable,
+          phase: SyncEnrollmentPhase.gateEnabled,
+          writes: true,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.notApplicable,
+          phase: SyncEnrollmentPhase.credentialAcquired,
+          writes: false,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.authorizationRequired,
+          phase: SyncEnrollmentPhase.notEnrolled,
+          writes: false,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.authorizationRequired,
+          phase: SyncEnrollmentPhase.snapshotInProgress,
+          writes: false,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.credentialAcquired,
+          writes: false,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.bindingAuthorizationRequired,
+          writes: false,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.notEnrolled,
+          writes: false,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.gateEnabled,
+          writes: false,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.snapshotInProgress,
+          writes: true,
+        ),
         fake(
           binding: SyncDeviceBindingState.notApplicable,
           phase: SyncEnrollmentPhase.notEnrolled,
           writes: true,
         ),
-      );
-      expect(outcome, isA<HostedOperationIllegal>());
+        fake(
+          binding: SyncDeviceBindingState.authorizationRequired,
+          phase: SyncEnrollmentPhase.credentialAcquired,
+          writes: true,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.authorizationRequired,
+          phase: SyncEnrollmentPhase.bindingAuthorizationRequired,
+          writes: true,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.sessionReauthRequired,
+          writes: true,
+          resume: SyncEnrollmentPhase.gateEnabled,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.sessionReauthRequired,
+          writes: false,
+          resume: SyncEnrollmentPhase.credentialAcquired,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.sessionReauthRequired,
+          writes: false,
+          resume: SyncEnrollmentPhase.sessionReauthRequired,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.gateEnabled,
+          writes: true,
+          resume: SyncEnrollmentPhase.snapshotInProgress,
+        ),
+        fake(
+          binding: SyncDeviceBindingState.notApplicable,
+          phase: SyncEnrollmentPhase.notEnrolled,
+          writes: false,
+          resume: SyncEnrollmentPhase.snapshotInProgress,
+        ),
+      ];
+      for (final state in illegal) {
+        final outcome = store.validateHostedOperationState(state);
+        expect(outcome, isA<HostedOperationIllegal>(), reason: '$state');
+        expect(outcome.isLegal, isFalse, reason: '$state');
+      }
     });
 
     test(
@@ -507,27 +740,6 @@ void main() {
   });
 
   group('binding repair transitions', () {
-    test(
-      'enterGateEnabled rejects an illegal unbound reconciliationComplete row',
-      () async {
-        await seedRow(
-          binding: SyncDeviceBindingState.authorizationRequired,
-          phase: SyncEnrollmentPhase.reconciliationComplete,
-          writes: false,
-        );
-        final before = await snapshot();
-        await expectLater(
-          store.enterGateEnabled(),
-          throwsA(isA<SyncWriteGateException>()),
-        );
-        final after = await snapshot();
-        expect(after.deviceBindingState, before.deviceBindingState);
-        expect(after.phase, before.phase);
-        expect(after.writeEnabled, before.writeEnabled);
-        expect(after.reauthResumePhase, before.reauthResumePhase);
-      },
-    );
-
     test(
       'enterBindingAuthorizationRequired disables writes and clears resume',
       () async {
@@ -565,9 +777,122 @@ void main() {
       expect(state.writeEnabled, isFalse);
       expect(state.reauthResumePhase, isNull);
     });
+
+    test('enterSnapshotInProgress binds with writes disabled', () async {
+      await store.enterBindingAuthorizationRequired();
+      await store.enterSnapshotInProgress();
+      final state = await snapshot();
+      expect(state.deviceBindingState, SyncDeviceBindingState.bound);
+      expect(state.phase, SyncEnrollmentPhase.snapshotInProgress);
+      expect(state.writeEnabled, isFalse);
+      expect(state.reauthResumePhase, isNull);
+      expect(store.validateHostedOperationState(state).isLegal, isTrue);
+    });
+
+    test(
+      'enterReconciliationComplete keeps the binding with writes disabled',
+      () async {
+        await store.enterSnapshotInProgress();
+        await store.enterReconciliationComplete();
+        final state = await snapshot();
+        expect(state.deviceBindingState, SyncDeviceBindingState.bound);
+        expect(state.phase, SyncEnrollmentPhase.reconciliationComplete);
+        expect(state.writeEnabled, isFalse);
+        expect(store.validateHostedOperationState(state).isLegal, isTrue);
+      },
+    );
+
+    test(
+      'enterGateEnabled enables writes from reconciliationComplete',
+      () async {
+        await store.enterReconciliationComplete();
+        await store.enterGateEnabled();
+        final state = await snapshot();
+        expect(state.deviceBindingState, SyncDeviceBindingState.bound);
+        expect(state.phase, SyncEnrollmentPhase.gateEnabled);
+        expect(state.writeEnabled, isTrue);
+        expect(state.reauthResumePhase, isNull);
+        expect(store.validateHostedOperationState(state).isLegal, isTrue);
+      },
+    );
+
+    test(
+      'enterGateEnabled is refused from any other phase and persists nothing',
+      () async {
+        await store.enterSnapshotInProgress();
+        await expectLater(
+          store.enterGateEnabled(),
+          throwsA(isA<SyncWriteGateException>()),
+        );
+        final state = await snapshot();
+        expect(state.phase, SyncEnrollmentPhase.snapshotInProgress);
+        expect(state.writeEnabled, isFalse);
+      },
+    );
+
+    test(
+      'enterGateEnabled rejects an illegal unbound reconciliationComplete row',
+      () async {
+        await seedRow(
+          binding: SyncDeviceBindingState.authorizationRequired,
+          phase: SyncEnrollmentPhase.reconciliationComplete,
+          writes: false,
+        );
+        final before = await snapshot();
+        await expectLater(
+          store.enterGateEnabled(),
+          throwsA(isA<SyncWriteGateException>()),
+        );
+        final after = await snapshot();
+        expect(after.deviceBindingState, before.deviceBindingState);
+        expect(after.phase, before.phase);
+        expect(after.writeEnabled, before.writeEnabled);
+        expect(after.reauthResumePhase, before.reauthResumePhase);
+      },
+    );
   });
 
   group('session reauth compare-and-set', () {
+    test(
+      'applies from each allowed phase and records it as the resume target',
+      () async {
+        for (final resume in [
+          SyncEnrollmentPhase.snapshotInProgress,
+          SyncEnrollmentPhase.reconciliationComplete,
+          SyncEnrollmentPhase.gateEnabled,
+        ]) {
+          await seedRow(
+            binding: SyncDeviceBindingState.bound,
+            phase: resume,
+            writes: resume == SyncEnrollmentPhase.gateEnabled,
+          );
+          expect(
+            await store.enterSessionReauthRequired(),
+            SessionReauthEntry.applied,
+            reason: '$resume',
+          );
+          final state = await snapshot();
+          expect(
+            state.deviceBindingState,
+            SyncDeviceBindingState.bound,
+            reason: '$resume',
+          );
+          expect(
+            state.phase,
+            SyncEnrollmentPhase.sessionReauthRequired,
+            reason: '$resume',
+          );
+          expect(state.writeEnabled, isFalse, reason: '$resume');
+          expect(state.reauthResumePhase, resume, reason: '$resume');
+          expect(
+            store.validateHostedOperationState(state).isLegal,
+            isTrue,
+            reason: '$resume',
+          );
+        }
+      },
+    );
+
     test(
       'no-ops when already in session reauth and keeps the resume target',
       () async {

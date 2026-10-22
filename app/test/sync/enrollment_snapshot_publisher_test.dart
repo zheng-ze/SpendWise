@@ -85,6 +85,8 @@ final class _RecordingReader implements CollectionVersionReader {
   _RecordingReader(this.inner);
 
   final InMemoryCollectionVersionReader inner;
+  final List<SyncCollection> calls = [];
+
   void upsert(SyncRowID rowID, RowVersion version) =>
       inner.upsert(rowID, version);
 
@@ -92,7 +94,30 @@ final class _RecordingReader implements CollectionVersionReader {
   Future<Map<SyncRowID, RowVersion>> readRowVersions(
     SyncCollection collection,
   ) async {
+    calls.add(collection);
     return inner.readRowVersions(collection);
+  }
+}
+
+final class _OrderedSecretStore implements SecretStore {
+  _OrderedSecretStore(this.inner, this.events);
+
+  final InMemorySecretStore inner;
+  final List<String> events;
+
+  @override
+  Future<String?> read(String key) async {
+    events.add('read:$key');
+    return inner.read(key);
+  }
+
+  @override
+  Future<void> write(String key, String value) => inner.write(key, value);
+
+  @override
+  Future<void> delete(String key) async {
+    events.add('delete:$key');
+    return inner.delete(key);
   }
 }
 
@@ -222,8 +247,11 @@ void main() {
     versions.upsert(row, version);
   }
 
+  int proofReads() =>
+      proofSecrets.reads.where((key) => key == syncWriteProofSecretKey).length;
+
   test(
-    'all noop collections return published without consuming the proof',
+    'all noop returns success in enum order with the proof untouched',
     () async {
       final setup = await publishSetup();
       setup.backend.onPush = _appliedPush;
@@ -233,7 +261,10 @@ void main() {
       final result = await publisher.publish();
 
       expect(result, isA<EnrollmentSnapshotPublished>());
+      final reader = setup.coordinator.versionReader as _RecordingReader;
+      expect(reader.calls, SyncCollection.values);
       expect(setup.backend.pushes, isEmpty);
+      expect(proofReads(), 1);
       expect(proofSecrets.deletes, isEmpty);
       expect(await proofSecrets.read(syncWriteProofSecretKey), 'proof-1');
     },
@@ -261,6 +292,31 @@ void main() {
       final result = await publisher.publish();
 
       expect(result, isA<EnrollmentSnapshotPublished>());
+      expect(reader.calls, SyncCollection.values);
+      expect(setup.backend.pushes, hasLength(2));
+      expect(setup.backend.pushes[0].writeProof, 'proof-1');
+      expect(setup.backend.pushes[1].writeProof, isNull);
+      expect(proofSecrets.deletes, [syncWriteProofSecretKey]);
+    },
+  );
+
+  test(
+    'first non-noop at categories takes the proof; later pushes get null',
+    () async {
+      final setup = await publishSetup();
+      setup.backend.onPush = _appliedPush;
+      final reader = setup.coordinator.versionReader as _RecordingReader;
+      final versions =
+          setup.coordinator.versionSource as InMemorySyncVersionSource;
+      seedTombstone(reader, versions, SyncCollection.categories);
+      seedTombstone(reader, versions, SyncCollection.plans);
+      await proofSecrets.write(syncWriteProofSecretKey, 'proof-1');
+      final publisher = publisherOf(setup.coordinator);
+
+      final result = await publisher.publish();
+
+      expect(result, isA<EnrollmentSnapshotPublished>());
+      expect(reader.calls, SyncCollection.values);
       expect(setup.backend.pushes, hasLength(2));
       expect(setup.backend.pushes[0].writeProof, 'proof-1');
       expect(setup.backend.pushes[1].writeProof, isNull);
@@ -289,6 +345,64 @@ void main() {
       expect(proofSecrets.deletes, isEmpty);
     },
   );
+
+  test(
+    'the proof is read once before any push and deleted after confirmation',
+    () async {
+      final events = <String>[];
+      final ordered = _OrderedSecretStore(proofSecrets, events);
+      final setup = await publishSetup();
+      setup.backend.onPush = (request) async {
+        events.add('push:${request.envelopes.single.collection.name}');
+        return _appliedPush(request);
+      };
+      final reader = setup.coordinator.versionReader as _RecordingReader;
+      final versions =
+          setup.coordinator.versionSource as InMemorySyncVersionSource;
+      seedTombstone(reader, versions, SyncCollection.entries);
+      seedTombstone(reader, versions, SyncCollection.plans);
+      await proofSecrets.write(syncWriteProofSecretKey, 'proof-1');
+      final publisher = EnrollmentSnapshotPublisher(
+        coordinator: setup.coordinator,
+        secretStore: ordered,
+      );
+
+      final result = await publisher.publish();
+
+      expect(result, isA<EnrollmentSnapshotPublished>());
+      expect(events, [
+        'read:$syncWriteProofSecretKey',
+        'push:entries',
+        'delete:$syncWriteProofSecretKey',
+        'push:plans',
+      ]);
+    },
+  );
+
+  test('unresolved rows delete the proof once and stop the run', () async {
+    final setup = await publishSetup();
+    setup.backend.onPush = (request) async => SyncSuccess<PushResponse>(
+      _pushRowsResponse(request.envelopes, status: 'rejected'),
+    );
+    final reader = setup.coordinator.versionReader as _RecordingReader;
+    final versions =
+        setup.coordinator.versionSource as InMemorySyncVersionSource;
+    seedTombstone(reader, versions, SyncCollection.entries);
+    seedTombstone(reader, versions, SyncCollection.plans);
+    await proofSecrets.write(syncWriteProofSecretKey, 'proof-1');
+    final publisher = publisherOf(setup.coordinator);
+
+    final result = await publisher.publish();
+
+    expect(result, isA<EnrollmentSnapshotPending>());
+    final pending = result as EnrollmentSnapshotPending;
+    expect(pending.collection, SyncCollection.entries);
+    expect(pending.result, isA<PushUnresolvedRows>());
+    expect(reader.calls, [SyncCollection.moneySources, SyncCollection.entries]);
+    expect(setup.backend.pushes, hasLength(1));
+    expect(proofSecrets.deletes, [syncWriteProofSecretKey]);
+    expect(await proofSecrets.read(syncWriteProofSecretKey), isNull);
+  });
 
   test('a delete failure propagates instead of reporting success', () async {
     final setup = await publishSetup();
@@ -335,6 +449,7 @@ void main() {
     final pending = first as EnrollmentSnapshotPending;
     expect(pending.collection, SyncCollection.entries);
     expect(pending.result, isA<PushDeferred>());
+    expect(reader.calls, [SyncCollection.moneySources]);
     expect(backend.acknowledges.map((request) => request.collection), [
       SyncCollection.entries,
     ]);
@@ -342,12 +457,15 @@ void main() {
     expect(proofSecrets.deletes, isEmpty);
 
     backend.acknowledgeOutcomes.remove(SyncCollection.entries);
+    reader.calls.clear();
+
     final second = await publisher.publish();
 
     expect(second, isA<EnrollmentSnapshotPublished>());
     expect(backend.pushes, hasLength(2));
     expect(backend.pushes[0].writeProof, 'proof-1');
     expect(backend.pushes[1].writeProof, isNull);
+    expect(proofReads(), 2);
     expect(proofSecrets.deletes, [syncWriteProofSecretKey]);
   });
 
@@ -377,15 +495,67 @@ void main() {
     expect(proofSecrets.deletes, [syncWriteProofSecretKey]);
 
     unresolved = false;
+    reader.calls.clear();
+
     final second = await publisher.publish();
 
     expect(second, isA<EnrollmentSnapshotPublished>());
+    expect(reader.calls, SyncCollection.values);
     expect(setup.backend.pushes, hasLength(3));
     expect(setup.backend.pushes[0].writeProof, 'proof-1');
     expect(setup.backend.pushes[1].writeProof, isNull);
     expect(setup.backend.pushes[2].writeProof, isNull);
+    expect(proofReads(), 2);
     expect(proofSecrets.deletes, [syncWriteProofSecretKey]);
   });
+
+  test(
+    'a retry stays on the pending collection until it resolves terminally',
+    () async {
+      final backend = _ScriptedPushBackend();
+      final setup = await publishSetup(backend: backend);
+      backend.onPush = _appliedPush;
+      final reader = setup.coordinator.versionReader as _RecordingReader;
+      final versions =
+          setup.coordinator.versionSource as InMemorySyncVersionSource;
+      seedTombstone(reader, versions, SyncCollection.entries);
+      seedTombstone(reader, versions, SyncCollection.plans);
+      await setup.coordinator.metadataStore.setPendingAcknowledgement(
+        SyncCollection.entries,
+        'cursor-deferred',
+      );
+      backend.acknowledgeOutcomes[SyncCollection.entries] =
+          const NetworkUnavailable<AcknowledgeResponse>(message: 'down');
+      await proofSecrets.write(syncWriteProofSecretKey, 'proof-1');
+      final publisher = publisherOf(setup.coordinator);
+
+      final first = await publisher.publish();
+      expect(first, isA<EnrollmentSnapshotPending>());
+      reader.calls.clear();
+
+      final second = await publisher.publish();
+
+      expect(second, isA<EnrollmentSnapshotPending>());
+      expect(
+        (second as EnrollmentSnapshotPending).collection,
+        SyncCollection.entries,
+      );
+      expect(reader.calls, [SyncCollection.moneySources]);
+      expect(backend.acknowledges.map((request) => request.collection), [
+        SyncCollection.entries,
+        SyncCollection.entries,
+      ]);
+      expect(backend.pushes, isEmpty);
+
+      backend.acknowledgeOutcomes.remove(SyncCollection.entries);
+      reader.calls.clear();
+
+      final third = await publisher.publish();
+
+      expect(third, isA<EnrollmentSnapshotPublished>());
+      expect(reader.calls, SyncCollection.values);
+    },
+  );
 
   test(
     'a closed write gate throws StateError with no proof deletion',
@@ -448,6 +618,7 @@ void main() {
       throwsA(isA<SecretStoreException>()),
     );
     expect(setup.backend.pushes, isEmpty);
+    expect(reader.calls, isEmpty);
   });
 
   test('two concurrent publish() calls on the same instance never both submit the proof', () async {

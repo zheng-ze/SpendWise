@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/settings/display_preferences.dart';
+import 'package:spendwise/settings/display_preferences_providers.dart';
 import 'package:spendwise/ui/stats/category_detail/category_detail_view_model.dart';
 import 'package:spendwise/ui/stats/trends/trends_body.dart';
 import 'package:spendwise/ui/stats/trends/trends_intent.dart';
@@ -121,7 +122,7 @@ void main() {
       expect(_requested(harness.step).initialDate, DateTime.utc(2026, 7));
     });
 
-    test('a subcategory row opens its main category', () async {
+    test('subcategory and Direct rows open their main category', () async {
       final harness = await _seeded(
         preferences: DisplayPreferences(
           breakdownLevel: BreakdownLevel.subcategories,
@@ -129,12 +130,17 @@ void main() {
       );
       final groceries = _categoryID(harness.ledger, 'Groceries');
       final rows = harness.ready.breakdown.rows;
-      final index = rows.indexWhere((row) => row.parentContext == 'Groceries');
-      expect(index, greaterThanOrEqualTo(0));
+      final children = [
+        for (final (index, row) in rows.indexed)
+          if (row.parentContext == 'Groceries') index,
+      ];
 
-      harness.viewModel.requestCategoryDetail(index);
-
-      expect(_requested(harness.step).mainID, groceries);
+      expect(children, hasLength(3));
+      for (final index in children) {
+        harness.viewModel.requestCategoryDetail(index);
+        expect(_requested(harness.step).mainID, groceries);
+        harness.viewModel.clearStep();
+      }
     });
 
     test('Uncategorized and synthetic buckets are inert', () async {
@@ -195,21 +201,46 @@ void main() {
   });
 
   group('pending step', () {
-    test('pending navigation survives state rebuilds until cleared', () async {
-      SharedPreferences.setMockInitialValues({});
+    test(
+      'survives clock, preference and ledger rebuilds until cleared',
+      () async {
+        SharedPreferences.setMockInitialValues({});
+        final harness = await _seeded();
+        harness.viewModel.requestCategoryDetail(0);
+        final pending = harness.step;
+        expect(pending, isNotNull);
+
+        await harness.setToday(DateTime.utc(2026, 10, 4));
+        expect(harness.step, same(pending));
+
+        await harness.container
+            .read(displayPreferencesProvider.notifier)
+            .replace(
+              DisplayPreferences(breakdownChart: BreakdownChart.categoryMap),
+            );
+        await harness.settle();
+        expect(harness.step, same(pending));
+
+        _addDining(harness.ledger, _today);
+        await harness.settle();
+        expect(harness.step, same(pending));
+
+        harness.viewModel.clearStep();
+        expect(harness.step, isNull);
+        await harness.setToday(DateTime.utc(2026, 10, 5));
+        expect(harness.step, isNull);
+      },
+    );
+
+    test('a repeated request publishes a new step instance', () async {
       final harness = await _seeded();
       harness.viewModel.requestCategoryDetail(0);
-      final pending = harness.step;
-      expect(pending, isNotNull);
+      final first = harness.step;
 
-      _addDining(harness.ledger, _today);
-      await harness.settle();
-      expect(harness.step, same(pending));
+      harness.viewModel.requestCategoryDetail(0);
 
-      harness.viewModel.clearStep();
-      expect(harness.step, isNull);
-      await harness.setToday(DateTime.utc(2026, 10, 4));
-      expect(harness.step, isNull);
+      expect(harness.step, isNot(same(first)));
+      expect(harness.step, isA<TrendsCategoryDetailRequested>());
     });
   });
 }

@@ -34,6 +34,24 @@ void main() {
       });
     });
 
+    test(
+      'does not evaluate Android eligibility when iOS is selected',
+      () async {
+        var eligibleCalled = false;
+        final scanner = await selectDocumentScanner(
+          isIOS: true,
+          isAndroid: true,
+          isAndroidScannerEligible: () async {
+            eligibleCalled = true;
+            return false;
+          },
+        );
+
+        expect(scanner, isNotNull);
+        expect(eligibleCalled, isFalse);
+      },
+    );
+
     test('has no scanner on an unrecognized platform', () async {
       final scanner = await selectDocumentScanner(
         isIOS: false,

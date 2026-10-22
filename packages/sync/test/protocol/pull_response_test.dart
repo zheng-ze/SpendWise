@@ -59,6 +59,18 @@ void main() {
     expect(() => response.cursor, throwsA(isA<FormatException>()));
   });
 
+  test('malformed envelope element throws a typed error', () {
+    final response = PullResponse(<String, Object?>{
+      'envelopes': <Object?>[
+        _envelope('row-1').toWireJson(),
+        <String, Object?>{'collection': 'entries'},
+      ],
+      'cursor': 'cursor-1',
+    });
+
+    expect(() => response.envelopes, throwsA(isA<FormatException>()));
+  });
+
   test('non-boolean end_of_snapshot throws a typed error', () {
     final response = PullResponse(const <String, Object?>{
       'envelopes': <Object?>[],

@@ -165,6 +165,12 @@ void main() {
       expect(pending.single, replacement);
     });
 
+    test('keeps distinct groups for different rows', () async {
+      await store.stageConflict(_conflict(SyncCollection.entries, _rowA));
+      await store.stageConflict(_conflict(SyncCollection.entries, _rowB));
+      expect(await store.pendingConflictList(), hasLength(2));
+    });
+
     test(
       'keeps distinct groups for the same row in different collections',
       () async {
@@ -173,6 +179,35 @@ void main() {
         expect(await store.pendingConflictList(), hasLength(2));
       },
     );
+
+    test('round-trips a live group for every collection', () async {
+      for (final collection in SyncCollection.values) {
+        await store.stageConflict(_conflict(collection, _rowA));
+      }
+      final pending = await store.pendingConflictList();
+      expect(pending, hasLength(SyncCollection.values.length));
+      for (final collection in SyncCollection.values) {
+        expect(
+          pending.singleWhere((group) => group.collection == collection),
+          _conflict(collection, _rowA),
+        );
+      }
+    });
+
+    test('preserves sibling order inside a group', () async {
+      final conflict = StagedConflict(SyncCollection.entries, _rowA, [
+        _sibling(SyncCollection.entries, _rowA, 'device-a'),
+        _sibling(SyncCollection.entries, _rowA, 'device-b'),
+        _sibling(SyncCollection.entries, _rowA, 'device-c'),
+      ]);
+      await store.stageConflict(conflict);
+      final pending = await store.pendingConflictList();
+      expect(pending.single.siblings, [
+        _sibling(SyncCollection.entries, _rowA, 'device-a'),
+        _sibling(SyncCollection.entries, _rowA, 'device-b'),
+        _sibling(SyncCollection.entries, _rowA, 'device-c'),
+      ]);
+    });
   });
 
   group('pendingConflicts', () {
@@ -223,9 +258,8 @@ void main() {
     });
   });
 
-  test(
-    'the synchronous contract settles stage and resolve after flush',
-    () async {
+  group('package contract through the synchronous interface', () {
+    test('stage, pendingConflicts, and resolve work after flush', () async {
       final SyncStagingStore contract = store;
       final conflict = _conflict(SyncCollection.entries, _rowA);
       contract.stage(conflict);
@@ -235,8 +269,13 @@ void main() {
       contract.resolve(conflict);
       await store.flush();
       expect(contract.pendingConflicts, isEmpty);
-    },
-  );
+    });
+
+    test('flush with no pending writes completes', () async {
+      await store.flush();
+      expect(store.pendingConflicts, isEmpty);
+    });
+  });
 
   group('transaction atomicity and rollback', () {
     test('a failed stage leaves no partial group behind', () async {

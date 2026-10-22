@@ -161,4 +161,78 @@ void main() {
 
     expect(effectiveLimit(ledger.state.budgets[budget.id]!, month), dec('150'));
   });
+
+  test(
+    'applyPickedLimit(null) leaves the budget unchanged and clears the step',
+    () async {
+      final budget = buildBudget();
+      final ledger = Ledger(state: LedgerState(budgets: {budget.id: budget}));
+      final container = buildContainer(ledger);
+      await container.read(budgetLimitViewModelProvider(budget.id).future);
+      final viewModel = container.read(
+        budgetLimitViewModelProvider(budget.id).notifier,
+      );
+
+      viewModel.requestEditMonth(const YearMonth(2026, 6));
+      viewModel.applyPickedLimit(null);
+
+      expect(
+        effectiveLimit(
+          ledger.state.budgets[budget.id]!,
+          const YearMonth(2026, 6),
+        ),
+        dec('100'),
+      );
+      expect(
+        container.read(budgetLimitViewModelProvider(budget.id)).value?.step,
+        isNull,
+      );
+    },
+  );
+
+  test(
+    'applyPickedLimit with no PickLimitRequested step in flight is a no-op',
+    () async {
+      final budget = buildBudget();
+      final ledger = Ledger(state: LedgerState(budgets: {budget.id: budget}));
+      final container = buildContainer(ledger);
+      await container.read(budgetLimitViewModelProvider(budget.id).future);
+      final viewModel = container.read(
+        budgetLimitViewModelProvider(budget.id).notifier,
+      );
+
+      viewModel.applyPickedLimit(dec('999'));
+
+      final now = DateTime.now().toUtc();
+      expect(
+        effectiveLimit(
+          ledger.state.budgets[budget.id]!,
+          YearMonth(now.year, now.month),
+        ),
+        dec('100'),
+      );
+    },
+  );
+
+  test('clearStep resets the step to null', () async {
+    final budget = buildBudget();
+    final ledger = Ledger(state: LedgerState(budgets: {budget.id: budget}));
+    final container = buildContainer(ledger);
+    await container.read(budgetLimitViewModelProvider(budget.id).future);
+    final viewModel = container.read(
+      budgetLimitViewModelProvider(budget.id).notifier,
+    );
+
+    viewModel.requestEditMonth(const YearMonth(2026, 6));
+    expect(
+      container.read(budgetLimitViewModelProvider(budget.id)).value?.step,
+      isNotNull,
+    );
+
+    viewModel.clearStep();
+    expect(
+      container.read(budgetLimitViewModelProvider(budget.id)).value?.step,
+      isNull,
+    );
+  });
 }

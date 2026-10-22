@@ -106,7 +106,40 @@ void main() {
       expect(status, const HostedSyncNoSelection());
     });
 
-    test('absentBackendWithCorruptBindingProjectsToUnavailable', () {
+    test('absentBackendWithAnyOtherTupleProjectsToUnavailable', () {
+      final resumes = [null, ...SyncEnrollmentPhase.values];
+      for (final binding in SyncDeviceBindingState.values) {
+        for (final phase in SyncEnrollmentPhase.values) {
+          for (final writes in [false, true]) {
+            for (final resume in resumes) {
+              final isLegalDefault =
+                  !writes &&
+                  resume == null &&
+                  binding == SyncDeviceBindingState.notApplicable &&
+                  phase == SyncEnrollmentPhase.notEnrolled;
+              if (isLegalDefault) continue;
+              expect(
+                projectHostedSyncStatus(
+                  _snapshot(
+                    backend: null,
+                    binding: binding,
+                    phase: phase,
+                    writes: writes,
+                    resume: resume,
+                  ),
+                ),
+                const HostedSyncUnavailable(),
+                reason:
+                    'binding=${binding.name} phase=${phase.name} '
+                    'writes=$writes resume=${resume?.name}',
+              );
+            }
+          }
+        }
+      }
+    });
+
+    test('absentBackendWithRepairPhaseProjectsToUnavailable', () {
       expect(
         projectHostedSyncStatus(
           _snapshot(
@@ -114,6 +147,18 @@ void main() {
             binding: SyncDeviceBindingState.authorizationRequired,
             phase: SyncEnrollmentPhase.bindingAuthorizationRequired,
             writes: false,
+          ),
+        ),
+        const HostedSyncUnavailable(),
+      );
+      expect(
+        projectHostedSyncStatus(
+          _snapshot(
+            backend: null,
+            binding: SyncDeviceBindingState.bound,
+            phase: SyncEnrollmentPhase.sessionReauthRequired,
+            writes: false,
+            resume: SyncEnrollmentPhase.gateEnabled,
           ),
         ),
         const HostedSyncUnavailable(),
@@ -128,18 +173,25 @@ void main() {
     });
 
     test('legalReauthTuplesProjectToSessionReauth', () {
-      expect(
-        projectHostedSyncStatus(
-          _snapshot(
-            backend: SyncBackendKind.supabase,
-            binding: SyncDeviceBindingState.bound,
-            phase: SyncEnrollmentPhase.sessionReauthRequired,
-            writes: false,
-            resume: SyncEnrollmentPhase.gateEnabled,
+      for (final resume in [
+        SyncEnrollmentPhase.snapshotInProgress,
+        SyncEnrollmentPhase.reconciliationComplete,
+        SyncEnrollmentPhase.gateEnabled,
+      ]) {
+        expect(
+          projectHostedSyncStatus(
+            _snapshot(
+              backend: SyncBackendKind.supabase,
+              binding: SyncDeviceBindingState.bound,
+              phase: SyncEnrollmentPhase.sessionReauthRequired,
+              writes: false,
+              resume: resume,
+            ),
           ),
-        ),
-        const HostedSyncSessionReauth(),
-      );
+          const HostedSyncSessionReauth(),
+          reason: 'resume=${resume.name}',
+        );
+      }
     });
 
     test('boundGateEnabledProjectsToReady', () {
@@ -147,25 +199,129 @@ void main() {
     });
 
     test('otherLegalTuplesProjectToSetupPending', () {
-      final pending = _snapshot(
-        backend: SyncBackendKind.supabase,
-        binding: SyncDeviceBindingState.notApplicable,
-        phase: SyncEnrollmentPhase.notEnrolled,
-        writes: false,
-      );
+      final pending = [
+        _snapshot(
+          backend: SyncBackendKind.supabase,
+          binding: SyncDeviceBindingState.notApplicable,
+          phase: SyncEnrollmentPhase.notEnrolled,
+          writes: false,
+        ),
+        _snapshot(
+          backend: SyncBackendKind.supabase,
+          binding: SyncDeviceBindingState.authorizationRequired,
+          phase: SyncEnrollmentPhase.credentialAcquired,
+          writes: false,
+        ),
+        _snapshot(
+          backend: SyncBackendKind.supabase,
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.snapshotInProgress,
+          writes: false,
+        ),
+        _snapshot(
+          backend: SyncBackendKind.supabase,
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.reconciliationComplete,
+          writes: false,
+        ),
+      ];
 
-      expect(projectHostedSyncStatus(pending), const HostedSyncSetupPending());
+      for (final snapshot in pending) {
+        expect(
+          projectHostedSyncStatus(snapshot),
+          const HostedSyncSetupPending(),
+          reason:
+              'binding=${snapshot.deviceBindingState.name} '
+              'phase=${snapshot.phase.name}',
+        );
+      }
     });
 
     test('illegalHostedTuplesProjectToUnavailable', () {
-      final illegal = _snapshot(
-        backend: SyncBackendKind.supabase,
-        binding: SyncDeviceBindingState.bound,
-        phase: SyncEnrollmentPhase.bindingAuthorizationRequired,
-        writes: false,
-      );
+      final illegal = [
+        _snapshot(
+          backend: SyncBackendKind.supabase,
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.bindingAuthorizationRequired,
+          writes: false,
+        ),
+        _snapshot(
+          backend: SyncBackendKind.supabase,
+          binding: SyncDeviceBindingState.notApplicable,
+          phase: SyncEnrollmentPhase.gateEnabled,
+          writes: true,
+        ),
+        _snapshot(
+          backend: SyncBackendKind.supabase,
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.sessionReauthRequired,
+          writes: false,
+        ),
+        _snapshot(
+          backend: SyncBackendKind.supabase,
+          binding: SyncDeviceBindingState.bound,
+          phase: SyncEnrollmentPhase.sessionReauthRequired,
+          writes: true,
+          resume: SyncEnrollmentPhase.gateEnabled,
+        ),
+        _snapshot(
+          backend: SyncBackendKind.supabase,
+          binding: SyncDeviceBindingState.authorizationRequired,
+          phase: SyncEnrollmentPhase.bindingAuthorizationRequired,
+          writes: true,
+        ),
+      ];
 
-      expect(projectHostedSyncStatus(illegal), const HostedSyncUnavailable());
+      for (final snapshot in illegal) {
+        expect(
+          projectHostedSyncStatus(snapshot),
+          const HostedSyncUnavailable(),
+          reason:
+              'binding=${snapshot.deviceBindingState.name} '
+              'phase=${snapshot.phase.name} writes=${snapshot.writeEnabled} '
+              'resume=${snapshot.reauthResumePhase?.name}',
+        );
+      }
+    });
+
+    test('unavailableAgreesWithHostedLegalityOnEveryTuple', () async {
+      final database = LedgerDatabase(NativeDatabase.memory());
+      addTearDown(database.close);
+      final store = SyncMetadataStore(database);
+
+      const resumes = [
+        null,
+        SyncEnrollmentPhase.snapshotInProgress,
+        SyncEnrollmentPhase.reconciliationComplete,
+        SyncEnrollmentPhase.gateEnabled,
+        SyncEnrollmentPhase.notEnrolled,
+      ];
+      for (final binding in SyncDeviceBindingState.values) {
+        for (final phase in SyncEnrollmentPhase.values) {
+          for (final writes in [false, true]) {
+            for (final resume in resumes) {
+              final snapshot = _snapshot(
+                backend: SyncBackendKind.supabase,
+                binding: binding,
+                phase: phase,
+                writes: writes,
+                resume: resume,
+              );
+              final legal = store
+                  .validateHostedOperationState(snapshot)
+                  .isLegal;
+              expect(
+                projectHostedSyncStatus(snapshot) ==
+                    const HostedSyncUnavailable(),
+                !legal,
+                reason:
+                    'binding=${binding.name} phase=${phase.name} '
+                    'writes=$writes resume=${resume?.name}',
+              );
+            }
+          }
+        }
+      }
     });
   });
 

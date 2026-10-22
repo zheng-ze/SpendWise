@@ -85,26 +85,24 @@ void main() {
     });
 
     test('duplicate siblings collapse to one conflict-free change', () async {
-      final version = VersionVector(<String, int>{'dev': 3});
+      final v1 = VersionVector(<String, int>{'dev': 3});
       final first = await buildEnvelope(
         collection: SyncCollection.entries,
         rowID: 'row-1',
-        version: version,
+        version: v1,
         lifecycle: SiblingLifecycle.live,
         change: UpsertEntry(testEntry(id: 'row-1')),
       );
       final second = await buildEnvelope(
         collection: SyncCollection.entries,
         rowID: 'row-1',
-        version: version,
+        version: v1,
         lifecycle: SiblingLifecycle.live,
         change: UpsertEntry(testEntry(id: 'row-1')),
       );
-
       final result = await engine().reconcile(<SyncEnvelope>[first, second]);
-
       expect(result.changes, hasLength(1));
-      expect(result.hasConflicts, isFalse);
+      expect(result.stamps[SyncRowID.of(SyncCollection.entries, 'row-1')], v1);
     });
 
     test(
@@ -214,39 +212,17 @@ void main() {
       );
     });
 
-    test('persists concurrent groups in the injected staging store', () async {
-      final staging = InMemorySyncStagingStore();
-      final local = engine(staging: staging);
-      final a = await buildEnvelope(
-        collection: SyncCollection.entries,
-        rowID: 'row-1',
-        version: VersionVector(<String, int>{'devA': 1}),
-        lifecycle: SiblingLifecycle.live,
-        change: UpsertEntry(testEntry(id: 'row-1')),
-      );
-      final b = await buildEnvelope(
-        collection: SyncCollection.entries,
-        rowID: 'row-1',
-        version: VersionVector(<String, int>{'devB': 1}),
-        lifecycle: SiblingLifecycle.live,
-        change: UpsertEntry(testEntry(id: 'row-1')),
-      );
-
-      await local.reconcile(<SyncEnvelope>[a, b]);
-
-      expect(staging.pendingConflicts, hasLength(1));
-    });
-
     test('a dominant sibling resolves a group even with a concurrent pair',
         () async {
-      final a = await buildEnvelope(
+      // devA and devB are mutually concurrent, but devA+devB dominates both.
+      final concurrentA = await buildEnvelope(
         collection: SyncCollection.entries,
         rowID: 'row-1',
         version: VersionVector(<String, int>{'devA': 1}),
         lifecycle: SiblingLifecycle.live,
         change: UpsertEntry(testEntry(id: 'row-1')),
       );
-      final b = await buildEnvelope(
+      final concurrentB = await buildEnvelope(
         collection: SyncCollection.entries,
         rowID: 'row-1',
         version: VersionVector(<String, int>{'devB': 1}),
@@ -260,8 +236,11 @@ void main() {
         lifecycle: SiblingLifecycle.live,
         change: UpsertEntry(testEntry(id: 'row-1')),
       );
-      final result = await engine().reconcile(<SyncEnvelope>[a, b, merged]);
+      final result = await engine()
+          .reconcile(<SyncEnvelope>[concurrentA, merged, concurrentB]);
       expect(result.changes, hasLength(1));
+      expect(result.stamps[SyncRowID.of(SyncCollection.entries, 'row-1')],
+          VersionVector(<String, int>{'devA': 1, 'devB': 1}));
       expect(result.hasConflicts, isFalse);
     });
 
@@ -420,6 +399,183 @@ void main() {
       expect(result.stamps[SyncRowID.of(SyncCollection.moneySources, 'ms-1')],
           VersionVector(<String, int>{'dev': 1}));
     });
+
+    test('stages concurrent groups but leaves conflict-free rows unstaged',
+        () async {
+      final staging = InMemorySyncStagingStore();
+      final local = SyncEngine(
+        userID: 'user',
+        keyAccessor: () => Future<Uint8List>.value(key),
+        stagingStore: staging,
+      );
+
+      final conflictA = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-a',
+        version: VersionVector(<String, int>{'devA': 1}),
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertEntry(testEntry(id: 'row-a')),
+      );
+      final conflictB = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-a',
+        version: VersionVector(<String, int>{'devB': 1}),
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertEntry(testEntry(id: 'row-a')),
+      );
+      final free = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-b',
+        version: VersionVector(<String, int>{'devC': 1}),
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertEntry(testEntry(id: 'row-b')),
+      );
+
+      final result = await local.reconcile(<SyncEnvelope>[
+        conflictA,
+        conflictB,
+        free,
+      ]);
+      expect(result.changes, hasLength(1));
+      expect(result.stagedConflicts, hasLength(1));
+      expect(staging.pendingConflicts, hasLength(1));
+      expect(staging.pendingConflicts.first.collection, SyncCollection.entries);
+    });
+
+    test('authentication failure throws SyncPayloadDecryptionError', () async {
+      final forged = SyncEnvelope(
+        protocolVersion: syncProtocolVersion,
+        userID: 'user',
+        collection: SyncCollection.entries,
+        rowID: 'row-1',
+        siblingID: computeSiblingID(
+          userID: 'user',
+          collection: SyncCollection.entries,
+          rowID: 'row-1',
+          versionVector: VersionVector(<String, int>{'dev': 1}),
+        ),
+        versionVector: VersionVector(<String, int>{'dev': 1}),
+        lifecycle: SiblingLifecycle.live,
+        ciphertext: base64Url.encode(Uint8List.fromList(
+            List<int>.generate(24 + 4 + 16, (index) => index))),
+      );
+      await expectLater(
+        engine().reconcile(<SyncEnvelope>[forged]),
+        throwsA(isA<SyncPayloadDecryptionError>()),
+      );
+    });
+  });
+
+  group('winningInputIndex', () {
+    test('records the winner position in the original input sequence',
+        () async {
+      final obsolete = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-a',
+        version: VersionVector(<String, int>{'devA': 1}),
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertEntry(testEntry(id: 'row-a')),
+      );
+      final winner = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-a',
+        version: VersionVector(<String, int>{'devA': 2}),
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertEntry(testEntry(id: 'row-a')),
+      );
+      final solo = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-b',
+        version: VersionVector(<String, int>{'devB': 1}),
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertEntry(testEntry(id: 'row-b')),
+      );
+      final result = await engine().reconcile(<SyncEnvelope>[
+        obsolete,
+        winner,
+        solo,
+      ]);
+      expect(result.hasConflicts, isFalse);
+      expect(
+        result.winningInputIndex,
+        <SyncRowID, int>{
+          SyncRowID.of(SyncCollection.entries, 'row-a'): 1,
+          SyncRowID.of(SyncCollection.entries, 'row-b'): 2,
+        },
+      );
+    });
+
+    test('staged rows get no entry, conflict-free rows do', () async {
+      final conflictA = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-a',
+        version: VersionVector(<String, int>{'devA': 1}),
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertEntry(testEntry(id: 'row-a')),
+      );
+      final conflictB = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-a',
+        version: VersionVector(<String, int>{'devB': 1}),
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertEntry(testEntry(id: 'row-a')),
+      );
+      final free = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-b',
+        version: VersionVector(<String, int>{'devC': 1}),
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertEntry(testEntry(id: 'row-b')),
+      );
+      final result = await engine().reconcile(<SyncEnvelope>[
+        conflictA,
+        conflictB,
+        free,
+      ]);
+      expect(result.hasConflicts, isTrue);
+      expect(
+        result.winningInputIndex,
+        <SyncRowID, int>{
+          SyncRowID.of(SyncCollection.entries, 'row-b'): 2,
+        },
+      );
+    });
+
+    test(
+        'equal-vector same-content survivors collapse without conflict: '
+        'a fold-in tie can never reach the two-input path', () async {
+      // A row whose local vector equals the pulled vector is classified
+      // duplicate/dominated before fold-in's two-input reconcile path, and
+      // VersionVector.dominates is reflexive, so an exact match dominates
+      // itself. This proves the unreachability at the engine level: two
+      // same-content envelopes sharing one version vector collapse to a
+      // single conflict-free winner instead of staging a spurious conflict.
+      final vector = VersionVector(<String, int>{'dev': 3});
+      final first = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-1',
+        version: vector,
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertEntry(testEntry(id: 'row-1')),
+      );
+      final second = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-1',
+        version: vector,
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertEntry(testEntry(id: 'row-1')),
+      );
+      final result = await engine().reconcile(<SyncEnvelope>[first, second]);
+      expect(result.changes, hasLength(1));
+      expect(result.hasConflicts, isFalse);
+      expect(result.stagedConflicts, isEmpty);
+      expect(
+        result.winningInputIndex,
+        <SyncRowID, int>{
+          SyncRowID.of(SyncCollection.entries, 'row-1'): 0,
+        },
+      );
+    });
   });
 
   group('identical UUIDs in different collections', () {
@@ -547,7 +703,34 @@ void main() {
     });
   });
 
-  group('ReconcileResult collection ownership', () {
+  group('ReconcileResult equality', () {
+    test('independently built equal instances share hashCode', () {
+      final r1 = ReconcileResult(
+        changes: <LedgerChange>[UpsertEntry(testEntry(id: 'row-1'))],
+        stamps: <SyncRowID, VersionVector>{
+          SyncRowID.of(SyncCollection.entries, 'row-1'):
+              VersionVector(<String, int>{'dev': 1}),
+        },
+        stagedConflicts: <StagedConflict>[],
+        winningInputIndex: <SyncRowID, int>{
+          SyncRowID.of(SyncCollection.entries, 'row-1'): 0,
+        },
+      );
+      final r2 = ReconcileResult(
+        changes: <LedgerChange>[UpsertEntry(testEntry(id: 'row-1'))],
+        stamps: <SyncRowID, VersionVector>{
+          SyncRowID.of(SyncCollection.entries, 'row-1'):
+              VersionVector(<String, int>{'dev': 1}),
+        },
+        stagedConflicts: <StagedConflict>[],
+        winningInputIndex: <SyncRowID, int>{
+          SyncRowID.of(SyncCollection.entries, 'row-1'): 0,
+        },
+      );
+      expect(r1, equals(r2));
+      expect(r1.hashCode, r2.hashCode);
+    });
+
     test('mutating the supplied collections does not change the result', () {
       final changes = <LedgerChange>[UpsertEntry(testEntry(id: 'row-1'))];
       final stamps = <SyncRowID, VersionVector>{
@@ -577,9 +760,82 @@ void main() {
         0,
       );
     });
+
+    test('hashCode ignores stamp insertion order', () {
+      final r1 = ReconcileResult(
+        changes: <LedgerChange>[UpsertEntry(testEntry(id: 'row-1'))],
+        stamps: <SyncRowID, VersionVector>{
+          SyncRowID.of(SyncCollection.entries, 'row-1'):
+              VersionVector(<String, int>{'dev': 1}),
+          SyncRowID.of(SyncCollection.entries, 'row-2'):
+              VersionVector(<String, int>{'dev': 1}),
+        },
+        stagedConflicts: <StagedConflict>[],
+        winningInputIndex: <SyncRowID, int>{
+          SyncRowID.of(SyncCollection.entries, 'row-1'): 0,
+          SyncRowID.of(SyncCollection.entries, 'row-2'): 1,
+        },
+      );
+      final r2 = ReconcileResult(
+        changes: <LedgerChange>[UpsertEntry(testEntry(id: 'row-1'))],
+        stamps: <SyncRowID, VersionVector>{
+          SyncRowID.of(SyncCollection.entries, 'row-2'):
+              VersionVector(<String, int>{'dev': 1}),
+          SyncRowID.of(SyncCollection.entries, 'row-1'):
+              VersionVector(<String, int>{'dev': 1}),
+        },
+        stagedConflicts: <StagedConflict>[],
+        winningInputIndex: <SyncRowID, int>{
+          SyncRowID.of(SyncCollection.entries, 'row-2'): 1,
+          SyncRowID.of(SyncCollection.entries, 'row-1'): 0,
+        },
+      );
+      expect(r1, equals(r2));
+      expect(r1.hashCode, r2.hashCode);
+    });
+  });
+
+  group('RowVersion equality', () {
+    test('independently built equal instances share hashCode', () {
+      final v1 = RowVersion(
+        versionVector: VersionVector(<String, int>{'dev': 1}),
+        lifecycle: SiblingLifecycle.live,
+      );
+      final v2 = RowVersion(
+        versionVector: VersionVector(<String, int>{'dev': 1}),
+        lifecycle: SiblingLifecycle.live,
+      );
+      expect(v1, equals(v2));
+      expect(v1.hashCode, v2.hashCode);
+    });
   });
 
   group('reconcile: entry note identity', () {
+    test('duplicate noted siblings collapse to one change preserving the note',
+        () async {
+      final noted = UpsertEntry(testEntry(id: 'row-1', note: 'memo'));
+      final v1 = VersionVector(<String, int>{'dev': 3});
+      final first = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-1',
+        version: v1,
+        lifecycle: SiblingLifecycle.live,
+        change: noted,
+      );
+      final second = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-1',
+        version: v1,
+        lifecycle: SiblingLifecycle.live,
+        change: noted,
+      );
+
+      final result = await engine().reconcile(<SyncEnvelope>[first, second]);
+
+      expect(result.changes, <LedgerChange>[noted]);
+      expect(result.stamps[SyncRowID.of(SyncCollection.entries, 'row-1')], v1);
+    });
+
     test('same-vector siblings differing only by note throw', () async {
       final v = VersionVector(<String, int>{'dev': 1});
       final plain = await buildEnvelope(
@@ -602,11 +858,58 @@ void main() {
         throwsA(isA<SyncPayloadIdentityError>()),
       );
     });
+
+    test('a dominating legacy payload without note replaces the note',
+        () async {
+      final earlier = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-1',
+        version: VersionVector(<String, int>{'dev': 1}),
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertEntry(testEntry(id: 'row-1', note: 'memo')),
+      );
+      final legacy = UpsertEntry(testEntry(id: 'row-1'));
+      final later = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-1',
+        version: VersionVector(<String, int>{'dev': 2}),
+        lifecycle: SiblingLifecycle.live,
+        change: legacy,
+      );
+
+      final result = await engine().reconcile(<SyncEnvelope>[earlier, later]);
+
+      expect(result.changes, <LedgerChange>[legacy]);
+      expect(result.hasConflicts, isFalse);
+    });
+
+    test('concurrent noted siblings still stage as a conflict', () async {
+      final a = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-1',
+        version: VersionVector(<String, int>{'devA': 1}),
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertEntry(testEntry(id: 'row-1', note: 'from A')),
+      );
+      final b = await buildEnvelope(
+        collection: SyncCollection.entries,
+        rowID: 'row-1',
+        version: VersionVector(<String, int>{'devB': 1}),
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertEntry(testEntry(id: 'row-1', note: 'from B')),
+      );
+
+      final result = await engine().reconcile(<SyncEnvelope>[a, b]);
+
+      expect(result.changes, isEmpty);
+      expect(result.stagedConflicts, hasLength(1));
+      expect(result.stagedConflicts.first.siblings, hasLength(2));
+    });
   });
 
   group('reconcile: template note identity', () {
-    RecurringPlan notedPlan(String? note) => RecurringPlan(
-          id: 'row-1',
+    RecurringPlan notedPlan(String id, String? note) => RecurringPlan(
+          id: id,
           template: EntryTemplate(
             amount: Decimal.parse('50.00'),
             name: 'Rent',
@@ -619,27 +922,102 @@ void main() {
           lastResolvedDate: resolvedDate,
         );
 
-    test('same-vector plan siblings differing only by note throw', () async {
-      final version = VersionVector(<String, int>{'dev': 1});
-      final plain = await buildEnvelope(
+    test('duplicate noted plan siblings collapse preserving the note',
+        () async {
+      final noted = UpsertPlan(notedPlan('row-1', 'memo'));
+      final v1 = VersionVector(<String, int>{'dev': 3});
+      final first = await buildEnvelope(
         collection: SyncCollection.plans,
         rowID: 'row-1',
-        version: version,
+        version: v1,
         lifecycle: SiblingLifecycle.live,
-        change: UpsertPlan(notedPlan(null)),
+        change: noted,
       );
-      final noted = await buildEnvelope(
+      final second = await buildEnvelope(
         collection: SyncCollection.plans,
         rowID: 'row-1',
-        version: version,
+        version: v1,
         lifecycle: SiblingLifecycle.live,
-        change: UpsertPlan(notedPlan('memo')),
+        change: noted,
       );
 
-      await expectLater(
-        engine().reconcile(<SyncEnvelope>[plain, noted]),
-        throwsA(isA<SyncPayloadIdentityError>()),
+      final result = await engine().reconcile(<SyncEnvelope>[first, second]);
+
+      expect(result.changes, <LedgerChange>[noted]);
+      expect(result.stamps[SyncRowID.of(SyncCollection.plans, 'row-1')], v1);
+    });
+
+    test('same-vector plan siblings differing only by note throw', () async {
+      for (final order in [false, true]) {
+        final v = VersionVector(<String, int>{'dev': 1});
+        final plain = await buildEnvelope(
+          collection: SyncCollection.plans,
+          rowID: 'row-1',
+          version: v,
+          lifecycle: SiblingLifecycle.live,
+          change: UpsertPlan(notedPlan('row-1', null)),
+        );
+        final noted = await buildEnvelope(
+          collection: SyncCollection.plans,
+          rowID: 'row-1',
+          version: v,
+          lifecycle: SiblingLifecycle.live,
+          change: UpsertPlan(notedPlan('row-1', 'memo')),
+        );
+        final inputs = order ? [noted, plain] : [plain, noted];
+
+        await expectLater(
+          engine().reconcile(inputs),
+          throwsA(isA<SyncPayloadIdentityError>()),
+          reason: 'order $order',
+        );
+      }
+    });
+
+    test('a dominating legacy plan without note replaces the note', () async {
+      final earlier = await buildEnvelope(
+        collection: SyncCollection.plans,
+        rowID: 'row-1',
+        version: VersionVector(<String, int>{'dev': 1}),
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertPlan(notedPlan('row-1', 'memo')),
       );
+      final legacy = UpsertPlan(notedPlan('row-1', null));
+      final later = await buildEnvelope(
+        collection: SyncCollection.plans,
+        rowID: 'row-1',
+        version: VersionVector(<String, int>{'dev': 2}),
+        lifecycle: SiblingLifecycle.live,
+        change: legacy,
+      );
+
+      final result = await engine().reconcile(<SyncEnvelope>[earlier, later]);
+
+      expect(result.changes, <LedgerChange>[legacy]);
+      expect(result.hasConflicts, isFalse);
+    });
+
+    test('concurrent noted plan siblings still stage as a conflict', () async {
+      final a = await buildEnvelope(
+        collection: SyncCollection.plans,
+        rowID: 'row-1',
+        version: VersionVector(<String, int>{'devA': 1}),
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertPlan(notedPlan('row-1', 'from A')),
+      );
+      final b = await buildEnvelope(
+        collection: SyncCollection.plans,
+        rowID: 'row-1',
+        version: VersionVector(<String, int>{'devB': 1}),
+        lifecycle: SiblingLifecycle.live,
+        change: UpsertPlan(notedPlan('row-1', 'from B')),
+      );
+
+      final result = await engine().reconcile(<SyncEnvelope>[a, b]);
+
+      expect(result.changes, isEmpty);
+      expect(result.stagedConflicts, hasLength(1));
+      expect(result.stagedConflicts.first.siblings, hasLength(2));
     });
   });
 }

@@ -196,4 +196,37 @@ void main() {
       expect(header.outstanding, dec('65'));
     },
   );
+
+  test(
+    'a card row carries payable and outstanding instead of a single total',
+    () {
+      final card = Account(
+        id: 'a0000000-0000-0000-0000-000000000001',
+        name: 'Card',
+        type: AccountType.card,
+        statementDay: 15,
+      );
+
+      final state = LedgerState(
+        moneySources: {card.id: MoneySource.account(card)},
+        entries: {
+          for (final e in [
+            Entry(
+              amount: dec('-40'),
+              name: 'spend',
+              sourceID: card.id,
+              date: DateTime.utc(2026, 7, 16),
+            ),
+          ])
+            e.id: e,
+        },
+      );
+
+      final row = accountSections(state, now: now).single.rows.single;
+      final amount = row.amount as CardAmounts;
+
+      expect(amount.payable, dec('40'));
+      expect(amount.outstanding, dec('40'));
+    },
+  );
 }

@@ -14,6 +14,55 @@ void main() {
     kind: CategoryKind.expense,
   );
 
+  test('reuses the cached filtered list when the revision is unchanged', () {
+    final scan = AnalysisScan();
+    final source = Object();
+    final first = [item(dec('10'))];
+    final second = [item(dec('99'))];
+
+    final firstResult = scan.scan(
+      source: source,
+      items: first,
+      itemsRevision: 1,
+      kind: CategoryKind.expense,
+      buckets: {foodID},
+    );
+    final secondResult = scan.scan(
+      source: source,
+      items: second,
+      itemsRevision: 1,
+      kind: CategoryKind.expense,
+      buckets: {foodID},
+    );
+
+    expect(identical(secondResult, firstResult), true);
+    expect(secondResult.single.amount, dec('10'));
+  });
+
+  test('recomputes and reflects new items when the revision bumps', () {
+    final scan = AnalysisScan();
+    final source = Object();
+    final first = [item(dec('10'))];
+    final second = [item(dec('99'))];
+
+    scan.scan(
+      source: source,
+      items: first,
+      itemsRevision: 1,
+      kind: CategoryKind.expense,
+      buckets: {foodID},
+    );
+    final secondResult = scan.scan(
+      source: source,
+      items: second,
+      itemsRevision: 2,
+      kind: CategoryKind.expense,
+      buckets: {foodID},
+    );
+
+    expect(secondResult.single.amount, dec('99'));
+  });
+
   test('recomputes when the kind changes even with the same revision', () {
     final scan = AnalysisScan();
     final source = Object();

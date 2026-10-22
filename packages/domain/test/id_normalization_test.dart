@@ -59,6 +59,12 @@ void main() {
     expect(entry.destinationID, isNull);
   });
 
+  test('generated ids are normalized', () {
+    final id = Entry(amount: Decimal.one, name: 'e', sourceID: _lower).id;
+
+    expect(id, normalizedID(id));
+  });
+
   test('pocket links added after construction are normalized', () {
     final account = Account(
       name: 'a',

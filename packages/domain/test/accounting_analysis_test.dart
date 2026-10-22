@@ -878,4 +878,249 @@ void main() {
       expect([inside].total(interval: DateRange(april, may)), money(7));
     });
   });
+
+  group('AnalysisItem value equality', () {
+    final when = DateTime.utc(2026, 3, 4);
+
+    test('holds by field', () {
+      expect(
+        AnalysisItem(
+          bucketID: cat,
+          amount: money(10),
+          date: when,
+          kind: CategoryKind.expense,
+        ),
+        AnalysisItem(
+          bucketID: cat,
+          amount: money(10),
+          date: when,
+          kind: CategoryKind.expense,
+        ),
+      );
+      expect(
+        AnalysisItem(
+          bucketID: cat,
+          amount: money(10),
+          date: when,
+          kind: CategoryKind.expense,
+        ).hashCode,
+        AnalysisItem(
+          bucketID: cat,
+          amount: money(10),
+          date: when,
+          kind: CategoryKind.expense,
+        ).hashCode,
+      );
+      expect(
+        AnalysisItem(
+          bucketID: cat,
+          amount: money(10),
+          date: when,
+          kind: CategoryKind.expense,
+        ),
+        isNot(
+          AnalysisItem(
+            bucketID: cat,
+            amount: money(10),
+            date: when,
+            kind: CategoryKind.income,
+          ),
+        ),
+      );
+      expect(
+        AnalysisItem(
+          bucketID: cat,
+          amount: money(10),
+          date: when,
+          kind: CategoryKind.expense,
+        ),
+        isNot(
+          AnalysisItem(
+            bucketID: null,
+            amount: money(10),
+            date: when,
+            kind: CategoryKind.expense,
+          ),
+        ),
+      );
+      expect(
+        AnalysisItem(
+          bucketID: cat,
+          amount: money(10),
+          date: when,
+          kind: CategoryKind.expense,
+        ),
+        isNot(
+          AnalysisItem(
+            bucketID: cat,
+            amount: money(11),
+            date: when,
+            kind: CategoryKind.expense,
+          ),
+        ),
+      );
+      expect(
+        AnalysisItem(
+          bucketID: cat,
+          amount: money(10),
+          date: when,
+          kind: CategoryKind.expense,
+        ),
+        isNot(
+          AnalysisItem(
+            bucketID: cat,
+            amount: money(10),
+            date: DateTime.utc(2026, 3, 5),
+            kind: CategoryKind.expense,
+          ),
+        ),
+      );
+    });
+
+    test('hashCode separates items differing in only amount or only date', () {
+      expect(
+        AnalysisItem(
+          bucketID: cat,
+          amount: money(10),
+          date: when,
+          kind: CategoryKind.expense,
+        ).hashCode,
+        isNot(
+          AnalysisItem(
+            bucketID: cat,
+            amount: money(11),
+            date: when,
+            kind: CategoryKind.expense,
+          ).hashCode,
+        ),
+      );
+      expect(
+        AnalysisItem(
+          bucketID: cat,
+          amount: money(10),
+          date: when,
+          kind: CategoryKind.expense,
+        ).hashCode,
+        isNot(
+          AnalysisItem(
+            bucketID: cat,
+            amount: money(10),
+            date: DateTime.utc(2026, 3, 5),
+            kind: CategoryKind.expense,
+          ).hashCode,
+        ),
+      );
+    });
+  });
+
+  group('CategoryResolution value equality', () {
+    test('holds by case and id', () {
+      expect(const Uncategorized(), const Uncategorized());
+      expect(const Excluded(), const Excluded());
+      expect(const Excluded(), isNot(const Uncategorized()));
+      expect(InCategory(cat), InCategory(cat));
+      expect(InCategory(cat), isNot(InCategory(parent)));
+      expect(InCategory(cat).hashCode, InCategory(cat).hashCode);
+    });
+
+    test('each case rejects the others from the left', () {
+      expect(const Excluded(), isNot(const Uncategorized()));
+      expect(const Excluded(), isNot(InCategory(cat)));
+      expect(const Uncategorized(), isNot(const Excluded()));
+      expect(const Uncategorized(), isNot(InCategory(cat)));
+      expect(InCategory(cat), isNot(const Excluded()));
+      expect(InCategory(cat), isNot(const Uncategorized()));
+    });
+
+    test('InCategory hashCode separates different ids', () {
+      expect(InCategory(cat).hashCode, isNot(InCategory(parent).hashCode));
+    });
+
+    test('InCategory normalizes its id', () {
+      const upper = '6F1A2B3C-4D5E-6F70-8192-A3B4C5D6E7F8';
+      const lower = '6f1a2b3c-4d5e-6f70-8192-a3b4c5d6e7f8';
+
+      expect(InCategory(upper).id, lower);
+      expect(InCategory(upper), InCategory(lower));
+    });
+  });
+
+  group('returned collections are unmodifiable', () {
+    LedgerState seeded() {
+      final ledger = LedgerState();
+      ledger.addAccount(account(a));
+      ledger.addCategory(category(parent));
+      ledger.addCategory(category(child, parent: parent));
+      ledger.addEntry(
+        entry(amount: money(-30), categoryID: parent, sourceID: a),
+      );
+      ledger.addEntry(
+        entry(amount: money(-70), categoryID: child, sourceID: a),
+      );
+      return ledger;
+    }
+
+    final spare = AnalysisItem(
+      bucketID: null,
+      amount: money(1),
+      date: DateTime.utc(2026, 4),
+      kind: CategoryKind.expense,
+    );
+
+    test('analysisItems rejects add, remove, sort and clear', () {
+      final items = Accounting.analysisItems(seeded());
+
+      expect(() => items.add(spare), throwsUnsupportedError);
+      expect(() => items.removeAt(0), throwsUnsupportedError);
+      expect(() => items[0] = spare, throwsUnsupportedError);
+      expect(() => items.sort((x, y) => 0), throwsUnsupportedError);
+      expect(items.clear, throwsUnsupportedError);
+    });
+
+    test('filtered rejects mutation', () {
+      final items = Accounting.analysisItems(
+        seeded(),
+      ).filtered(kind: CategoryKind.expense);
+
+      expect(() => items.add(spare), throwsUnsupportedError);
+      expect(() => items[0] = spare, throwsUnsupportedError);
+      expect(items.clear, throwsUnsupportedError);
+    });
+
+    test('rollUp rejects mutation', () {
+      final ledger = seeded();
+      final sums = Accounting.rollUp(
+        Accounting.analysisItems(ledger).filtered(kind: CategoryKind.expense),
+        ledger,
+      );
+
+      expect(() => sums[parent] = money(1), throwsUnsupportedError);
+      expect(() => sums.remove(parent), throwsUnsupportedError);
+      expect(sums.clear, throwsUnsupportedError);
+    });
+
+    test('a filtered result still filters and totals', () {
+      final ledger = seeded();
+      final items = Accounting.analysisItems(
+        ledger,
+      ).filtered(kind: CategoryKind.expense);
+
+      expect(items.filtered(buckets: {child}), hasLength(1));
+      expect(items.filtered(buckets: {child}).total(), money(70));
+      expect(items.total(buckets: {parent, child}), money(100));
+      expect(Accounting.rollUp(items.filtered(buckets: {child}), ledger), {
+        parent: money(70),
+      });
+    });
+
+    test('a rollUp result is independent of the list it was built from', () {
+      final ledger = seeded();
+      final items = Accounting.analysisItems(ledger).toList();
+      final sums = Accounting.rollUp(items, ledger);
+
+      items.clear();
+
+      expect(sums, {parent: money(100)});
+    });
+  });
 }

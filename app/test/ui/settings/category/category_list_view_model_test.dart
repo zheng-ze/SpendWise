@@ -106,7 +106,7 @@ void main() {
     },
   );
 
-  test('deleteCategory archives the category', () async {
+  test('deleteCategory archives the category and needs no step', () async {
     final ledger = buildLedger([food]);
     final container = buildContainer(ledger);
     await container.read(categoryListViewModelProvider.future);
@@ -118,5 +118,21 @@ void main() {
       ledger.state.categories[food.id]!.lifecycle,
       LifecycleState.archived,
     );
+    expect(container.read(categoryListViewModelProvider).value?.step, isNull);
+  });
+
+  test('clearStep resets the step to null', () async {
+    final container = buildContainer(buildLedger([]));
+    await container.read(categoryListViewModelProvider.future);
+    final viewModel = container.read(categoryListViewModelProvider.notifier);
+
+    viewModel.requestNewCategory();
+    expect(
+      container.read(categoryListViewModelProvider).value?.step,
+      isNotNull,
+    );
+
+    viewModel.clearStep();
+    expect(container.read(categoryListViewModelProvider).value?.step, isNull);
   });
 }

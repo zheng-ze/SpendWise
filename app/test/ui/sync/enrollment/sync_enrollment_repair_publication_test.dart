@@ -342,6 +342,31 @@ void main() {
     expect(harness.syncStatus, isA<HostedSyncReady>());
   });
 
+  test('session reauth resuming into snapshotInProgress publishes '
+      'its proof', () async {
+    final harness = _RepairHarness();
+    await harness.build(driftStore: true);
+    addTearDown(harness.dispose);
+    await harness.seedHostedSelection();
+    await harness.seedLocalEntry();
+    await harness.metadataStore.enterSnapshotInProgress();
+    await harness.metadataStore.enterSessionReauthRequired();
+    await harness.seedBoundCredential();
+    await harness.notifier.enterRepairMode();
+
+    await harness.repairThroughNotifier();
+
+    expect(harness.state.step, isA<ShowEnrollmentCompleted>());
+    expect(
+      (await harness.metadataStore.snapshot()).phase,
+      SyncEnrollmentPhase.gateEnabled,
+    );
+    final pushes = harness.httpClient.callsTo('/rest/v1/rpc/sync_push');
+    expect(pushes, isNotEmpty);
+    expect(pushes.first.body['write_proof'], 'proof-1');
+    expect(await harness.secrets.read(syncWriteProofSecretKey), isNull);
+  });
+
   test('bearer-only reauth with no proof completes without '
       'publication', () async {
     final harness = _RepairHarness();
@@ -421,6 +446,39 @@ void main() {
     final pushes = harness.httpClient.callsTo('/rest/v1/rpc/sync_push');
     expect(pushes, isNotEmpty);
     expect(pushes.first.body['write_proof'], 'leftover-9');
+    expect(await harness.secrets.read(syncWriteProofSecretKey), isNull);
+  });
+
+  test('session reauth converting to binding repair publishes '
+      'after reconciliation', () async {
+    final harness = _RepairHarness();
+    await harness.build(driftStore: true);
+    addTearDown(harness.dispose);
+    await harness.seedHostedSelection();
+    await harness.seedLocalEntry();
+    await harness.metadataStore.enterSnapshotInProgress();
+    await harness.metadataStore.enterSessionReauthRequired();
+    final id = await deviceID(harness.db);
+    final credential = const CredentialCodec().restore(
+      _credentialPayload(id, 'old-bearer'),
+    );
+    await harness.secrets.write(
+      syncCredentialSecretKey,
+      const CredentialCodec().export(credential),
+    );
+    await harness.secrets.write(syncE2EKeySecretKey, _e2eKeyPayload());
+    await harness.notifier.enterRepairMode();
+
+    await harness.repairThroughNotifier();
+
+    expect(harness.state.step, isA<ShowEnrollmentCompleted>());
+    expect(
+      (await harness.metadataStore.snapshot()).phase,
+      SyncEnrollmentPhase.gateEnabled,
+    );
+    final pushes = harness.httpClient.callsTo('/rest/v1/rpc/sync_push');
+    expect(pushes, isNotEmpty);
+    expect(pushes.first.body['write_proof'], 'proof-1');
     expect(await harness.secrets.read(syncWriteProofSecretKey), isNull);
   });
 
