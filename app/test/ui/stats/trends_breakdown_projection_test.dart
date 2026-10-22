@@ -161,12 +161,11 @@ void main() {
           breakdownChart: settings.BreakdownChart.categoryMap,
           chartColours: settings.ChartColours.contrasting,
         );
+        final ledger = seededTrendsLedger(_today);
         final harness = TrendsHarness(
-          ledger: seededTrendsLedger(_today),
+          ledger: ledger,
           today: _today,
-          overrides: [
-            initialDisplayPreferencesProvider.overrideWithValue(preferences),
-          ],
+          preferences: preferences,
         );
         await harness.settle();
         final whole = harness.ready.wholePeriod.breakdown;
@@ -240,7 +239,7 @@ void main() {
         expect(observations[1].title, 'Highest spending month');
         expect(
           observations[1].value,
-          '${formatMonthNameYear(highest.month)} - '
+          '${formatMonthNameYear(highest.month)}: '
           '${formatSignedMoney(highest.total, kind: AmountKind.expense)}',
         );
         expect(ready.wholePeriod.insights.emptyMessage, isNull);
@@ -258,8 +257,26 @@ void main() {
       final observations = harness.ready.wholePeriod.insights.observations;
 
       expect(observations.last.title, 'Highest spending year');
-      expect(observations.last.value, '2025 - -S\$40.00');
+      expect(observations.last.value, '2025: -S\$40.00');
     });
+
+    test(
+      'income year shows the highest complete year with a plus sign',
+      () async {
+        final ledger = emptyTrendsLedger();
+        addTrendsEntry(ledger, '25', DateTime.utc(2024, 3, 2));
+        addTrendsEntry(ledger, '90', DateTime.utc(2025, 3, 2));
+        addTrendsEntry(ledger, '5', DateTime.utc(2026, 3, 2));
+        final harness = await readyHarness(ledger: ledger, today: _today);
+        harness.viewModel.setKind(TrendsKind.income);
+        harness.viewModel.setMode(TrendsMode.year);
+        await harness.settle();
+        final observations = harness.ready.wholePeriod.insights.observations;
+
+        expect(observations.last.title, 'Highest income year');
+        expect(observations.last.value, '2025: +S\$90.00');
+      },
+    );
 
     test('an unavailable highest period is omitted', () async {
       final ledger = emptyTrendsLedger();

@@ -9,6 +9,7 @@ import 'package:spendwise/ui/stats/trends/trends_intent.dart';
 
 const _notEnoughData = 'Not enough data';
 const _observationSeparator = ' - ';
+const _amountSeparator = ': ';
 
 @immutable
 class TrendsBreakdownHeader {
@@ -130,14 +131,14 @@ TrendsInsight? _highestInsight(TrendsPeriod summary, CategoryKind kind) {
         title: 'Highest $noun month',
         value:
             '${formatMonthNameYear(highestMonth.month)}'
-            '$_observationSeparator'
+            '$_amountSeparator'
             '${formatSignedMoney(highestMonth.total, kind: amountKind)}',
       );
     case YearTrendsPeriod(:final highestYear?):
       return TrendsInsight(
         title: 'Highest $noun year',
         value:
-            '${highestYear.year}$_observationSeparator'
+            '${highestYear.year}$_amountSeparator'
             '${formatSignedMoney(highestYear.total, kind: amountKind)}',
       );
     default:
