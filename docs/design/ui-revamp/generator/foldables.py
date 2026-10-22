@@ -164,6 +164,19 @@ FOLDABLE_CSS = """
 .fold-history-grid>div{min-width:0}
 .fold-pair{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:10px;align-items:stretch}
 .fold-pair>.tray{margin:0}
+.trend-shared-top{display:grid;grid-template-columns:minmax(250px,1fr) minmax(0,2fr);gap:18px;align-items:center;margin-bottom:12px}
+.trend-shared-top>.trend-shared-controls>.seg{margin-bottom:8px}
+.trend-shared-top .bars{height:150px;margin-top:0}
+.trend-shared-bottom{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(0,1fr);gap:12px;align-items:start}
+.trend-shared-bottom>div:first-child,.trend-shared-right{display:flex;flex-direction:column;gap:12px;min-width:0}
+.trend-shared-bottom .pane{margin:0}
+.trend-shared-breakdown .scope{margin:0 0 8px}
+.trend-shared-breakdown .selp{margin:0 0 4px}
+.trend-shared-breakdown .fold-breakdown{grid-template-columns:130px minmax(0,1fr);gap:12px}
+.trend-shared-breakdown .donut{width:130px;height:130px}
+.trend-shared-breakdown .rr{grid-template-columns:10px minmax(0,1fr) auto;gap:8px;padding:7px 0}
+.trend-shared-right .rr{grid-template-columns:10px minmax(0,1fr) auto auto;gap:8px}
+.trend-shared-right .avg{font-size:11px;color:var(--subtext);white-space:nowrap}
 .fold-money-grid{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:10px;align-items:stretch}
 .fold-money-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:stretch}
 .fold-money-cards>.tray{margin:0}
@@ -402,12 +415,11 @@ def trends_insights_card():
 
 
 def trends_page():
-    return (trends_chart() + f'<div class="fold-pair">{whole_period_card()}{trends_insights_card()}</div>'
-            + f'<div class="fold-tiles">{"".join(tiles.trend_tiles())}</div>')
+    return s_history_trends.shared_trends_page()
 
 
 def trends_selected_page():
-    return trends_chart(True) + whole_period_card(True) + trends_insights_card() + "".join(tiles.trend_tiles())
+    return s_history_trends.shared_trends_page(selected_scope=True)
 
 
 def month_detail():
@@ -576,11 +588,10 @@ def history_section(approved):
 
 
 def trends_section():
-    full_note = "Opened from History, which stays selected in the rail, and Back reads History. The period chart spans the top; the whole-period breakdown and Insights sit side by side, with Category movers, Day-of-week pattern, Fixed vs flexible and Savings rate packed in two columns below."
-    selected_note = "Opened from History. Left, one column: the chart with July marked, the compact whole-period breakdown, Insights and the four trend tiles; July's detail with period averages is on the right."
-    detail = detail_panel("July 2026", month_detail())
-    full = frame("trends-full", "Trends - open, nothing selected", full_note + SAMPLE_NOTE, trends_page(), "History")
-    selected = frame("trends-selected", "Trends - open, month selected", selected_note + SAMPLE_NOTE, trends_selected_page(), "History", detail=detail)
+    full_note = "Opened from History, which stays selected in the rail, and Back reads History. October 2026 is selected. The full-width chart card sits above the shared whole-period breakdown and Insights on the left, with the selected-period headline and Category averages on the right."
+    selected_note = "Opened from History. October 2026 is selected. The same full-screen composition switches the shared breakdown scope to Selected month; the selected-period headline and Category averages stay in the right column."
+    full = frame("trends-full", "Trends - open, whole-period scope", full_note + SAMPLE_NOTE, trends_page(), "History")
+    selected = frame("trends-selected", "Trends - open, selected-month scope", selected_note + SAMPLE_NOTE, trends_selected_page(), "History")
     return "Trends", "", [full, selected]
 
 
