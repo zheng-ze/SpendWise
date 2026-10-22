@@ -26,25 +26,36 @@ TrendsScopedPresentation resolveTrendsScopedPresentation(
   TrendsReadyBody body,
   TrendsBreakdownScope scope,
 ) => switch (scope) {
-  TrendsBreakdownScope.wholePeriod => TrendsScopedPresentation(
-    breakdown: body.wholePeriod.breakdown,
-    header: TrendsBreakdownHeader(
-      title: body.wholePeriod.header.title,
-      range: _wholeDisplayedRange,
-      total: body.wholePeriod.header.total,
-    ),
-    categorySource: TrendsCategoryDetailSource.wholePeriod,
-  ),
-  TrendsBreakdownScope.selectedPeriod => TrendsScopedPresentation(
-    breakdown: body.breakdown,
-    header: TrendsBreakdownHeader(
-      title: body.wholePeriod.header.title,
-      range: body.headline.title,
-      total: formatSignedMoney(
-        body.breakdown.total,
-        kind: body.headline.amountKind,
-      ),
-    ),
-    categorySource: TrendsCategoryDetailSource.selectedPeriod,
-  ),
+  TrendsBreakdownScope.wholePeriod => _wholePeriodPresentation(body),
+  TrendsBreakdownScope.selectedPeriod => _selectedPeriodPresentation(body),
 };
+
+TrendsScopedPresentation _wholePeriodPresentation(TrendsReadyBody body) {
+  final header = TrendsBreakdownHeader(
+    title: body.wholePeriod.header.title,
+    range: _wholeDisplayedRange,
+    total: body.wholePeriod.header.total,
+  );
+  return TrendsScopedPresentation(
+    breakdown: body.wholePeriod.breakdown,
+    header: header,
+    categorySource: TrendsCategoryDetailSource.wholePeriod,
+  );
+}
+
+TrendsScopedPresentation _selectedPeriodPresentation(TrendsReadyBody body) {
+  final total = formatSignedMoney(
+    body.breakdown.total,
+    kind: body.headline.amountKind,
+  );
+  final header = TrendsBreakdownHeader(
+    title: body.wholePeriod.header.title,
+    range: body.headline.title,
+    total: total,
+  );
+  return TrendsScopedPresentation(
+    breakdown: body.breakdown,
+    header: header,
+    categorySource: TrendsCategoryDetailSource.selectedPeriod,
+  );
+}
