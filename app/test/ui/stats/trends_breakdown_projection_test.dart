@@ -31,6 +31,10 @@ void main() {
         today: _today,
       );
       final breakdown = harness.ready.breakdown;
+      final periodSummary = harness.ready.periodSummary!;
+      expect(periodSummary.spread.slots, hasLength(12));
+      expect(periodSummary.breakdown.total, greaterThan(Decimal.zero));
+      expect(periodSummary.averages.completePeriodCount, greaterThan(0));
       expect(breakdown.period, DateTime.utc(2026, 10));
       expect(breakdown.total, Decimal.parse('167.40'));
       final nameValues = breakdown.rows.map((row) => row.name);
@@ -75,6 +79,10 @@ void main() {
       );
       await harness.settle();
       final breakdown = harness.ready.breakdown;
+      expect(
+        harness.ready.periodSummary!.breakdown.level,
+        analysis.BreakdownLevel.subcategories,
+      );
       expect(breakdown.chart, settings.BreakdownChart.categoryMap);
       expect(breakdown.colours, settings.ChartColours.contrasting);
       final nameValues = breakdown.rows.map((row) => row.name);
@@ -107,12 +115,14 @@ void main() {
       );
       harness.viewModel.setKind(TrendsKind.income);
       await harness.settle();
+      final periodSummary = harness.ready.periodSummary;
       final row = harness.ready.breakdown.rows.single;
       expect(row.name, 'Salary');
       expect(row.formattedAmount, '+3,200.00');
       expect(row.formattedShare, '100.0%');
       harness.viewModel.selectSlot(9);
       await harness.settle();
+      expect(harness.ready.periodSummary, same(periodSummary));
       expect(harness.ready.breakdown, isA<TrendsEmptyBreakdown>());
       expect(harness.ready.breakdown.total, Decimal.zero);
     },

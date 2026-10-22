@@ -20,6 +20,7 @@ import 'package:spendwise/ledger/analysis/summaries/register.dart';
 import 'package:spendwise/ledger/analysis/breakdowns/scoped_trend.dart';
 import 'package:spendwise/ledger/analysis/search.dart';
 import 'package:spendwise/ledger/analysis/summaries/today_summary.dart';
+import 'package:spendwise/ledger/analysis/summaries/trends_period.dart';
 import 'package:spendwise/ledger/analysis/summaries/upcoming.dart';
 import 'package:spendwise/ledger/analysis/summaries/week_so_far.dart';
 import 'package:spendwise/ledger/analysis/summaries/weeks.dart';
@@ -166,6 +167,12 @@ class AnalysisQueries extends ChangeNotifier {
     required int endYear,
     required CategoryKind kind,
   }) => _readYearSpread(endYear: endYear, kind: kind);
+
+  AnalysisQueryResult<MonthTrendsPeriod> readTrendsPeriod({
+    required DateTime endMonth,
+    required CategoryKind kind,
+    required BreakdownLevel level,
+  }) => _readTrendsPeriod(endMonth: endMonth, kind: kind, level: level);
 
   AnalysisQueryResult<PeriodBreakdown> readCategoryBreakdown({
     required DateTime period,

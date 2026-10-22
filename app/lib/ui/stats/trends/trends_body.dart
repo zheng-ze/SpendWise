@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/stats/trends/trends_breakdown.dart';
 import 'package:spendwise/ui/stats/trends/trends_intent.dart';
+import 'package:spendwise/ledger/analysis/summaries/trends_period.dart';
 
 // MARK: - Presentation
 @immutable
@@ -89,6 +90,7 @@ final class TrendsReadyBody extends TrendsBody {
     required this.usual,
     required this.breakdown,
     required this.bounds,
+    this.periodSummary,
   });
 
   final TrendsPeriodRow period;
@@ -97,6 +99,7 @@ final class TrendsReadyBody extends TrendsBody {
   final TrendsHeadline headline;
   final TrendsUsual? usual;
   final TrendsBreakdown breakdown;
+  final MonthTrendsPeriod? periodSummary;
 
   @override
   final TrendsBounds bounds;
