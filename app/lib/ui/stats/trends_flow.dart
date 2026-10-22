@@ -91,22 +91,24 @@ class _TrendsRoot extends ConsumerWidget {
       AsyncError() => const TrendsErrorBody(),
       AsyncLoading() => const TrendsLoadingBody(),
     };
+    final mode = scope.mode;
+    final detailBody = mode == ShellLayoutMode.open
+        ? TrendsPeriodDetailBody(
+            body: body,
+            mode: intent.mode,
+            viewModel: viewModel,
+          )
+        : const SizedBox.shrink();
     final detail = ShellDetail(
       id: metadata.id,
       title: metadata.title,
-      bodyBuilder: (_) => scope.mode == ShellLayoutMode.open
-          ? TrendsPeriodDetailBody(
-              body: body,
-              mode: intent.mode,
-              viewModel: viewModel,
-            )
-          : const SizedBox.shrink(),
+      bodyBuilder: (_) => detailBody,
     );
     final host = ShellPaneHost(
       detail: detail,
-      pageBuilder: (context, presentation) => TrendsScreen(
+      pageBuilder: (_, presentation) => TrendsScreen(
         onBackPressed: onBackPressed,
-        layoutMode: ShellPaneScope.of(context).mode,
+        layoutMode: mode,
         presentation: presentation,
       ),
     );
