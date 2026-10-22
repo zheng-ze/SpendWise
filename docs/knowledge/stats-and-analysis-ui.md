@@ -108,6 +108,13 @@ breakdown, and average-row identity before rendering (`app/lib/ui/stats/trends/t
 `app/lib/ledger/analysis/summaries/trends_period.dart:MonthTrendsPeriod`,
 `YearTrendsPeriod`, `CategoryPeriodAverages`).
 
+`deriveTrendsDetailMetadata` derives body-independent metadata from `intent.effective`, today and
+optional bounds. Its ID contains only mode and selected period (`month:YYYY-MM` or `year:YYYY`),
+never kind or layout; its title is the formatted month and year or calendar year.
+`trendsDetailMetadataProvider` uses bounds from the current-revision ready ledger-only first-record
+read when available, otherwise an unbounded context. No screen consumes this metadata
+(`app/lib/ui/stats/trends/trends_detail_metadata.dart`).
+
 Only `TrendsReadyBody` carries the required `wholePeriod` payload (`TrendsWholePeriod`). Both month
 and year projections call `projectWholePeriod` to build its breakdown from `periodSummary.breakdown`,
 using the shared row projection and current display preferences. Its header carries the kind-specific
@@ -129,7 +136,14 @@ sum to the total; nonempty rows' shares must sum to 100 percent. The projection 
 (`trends_projection.dart:_readBreakdown`, `_breakdown`, `trends_body.dart`, `trends_screen.dart`,
 `app/test/ui/stats/trends_breakdown_projection_test.dart`).
 
-Trends renders one breakdown section below the period card (`trends_breakdown_section.dart`). It draws
+`TrendsReadyBody.averageComparison` joins selected-period breakdown rows to
+`periodSummary.averages.rows` by `(bucketID, mainBucketID, isDirect)`, preserving selected-row order.
+A missing selected identity or duplicate identity in either input makes the projection return
+`TrendsErrorBody`. The header is `Monthly average` or `Yearly average`; a null mean displays as
+`Unavailable`, a genuine zero as plain `0.00`, and other means as signed amounts
+(`app/lib/ui/stats/trends/trends_average_comparison.dart`, `trends_projection.dart`).
+
+Trends renders one selected-period breakdown section beside or below the period card. It draws
 the saved chart (donut or category map) at the saved level and colour mode, then ranked rows with
 swatch, name, a caption of `share / parent` and the
 signed amount. A period with no records of the selected kind shows the empty card copy instead of chart
@@ -139,9 +153,19 @@ card at phone width. A row with a navigation target shows a trailing chevron and
 one has neither. Both charts forward the tapped item's index and never receive a selected index, so
 `selectedMark` stays reserved for selection.
 
-`TrendsBreakdownSection` accepts an optional `header` override and `compact` presentation flag.
-Their defaults (`null` and `false`) preserve the existing phone and desktop presentation
+`TrendsBreakdownSection` accepts an optional `header` override, `compact` presentation flag and
+`averageComparison`. Providing a comparison adds an average column and asserts that its row count
+matches the breakdown. Their defaults (`null`, `false` and `null`) preserve the existing presentation;
+`TrendsScreen` does not supply the comparison
 (`app/lib/ui/stats/trends/trends_breakdown_section.dart`).
+
+`TrendsScreen.layoutMode` defaults to `ShellLayoutMode.phone`. Its ready body uses
+`TrendsDesktopLayout`: desktop mode places the period card and selected-period breakdown side by side
+when the bounded page content width is at least `trendsMinimumTwoColumnContentWidth` (640 logical
+pixels); otherwise they stack. This is a Trends presentation rule, independent of shell breakpoints.
+`TrendsFlow` uses the default phone mode. No open layout or period-detail pane is mounted
+(`app/lib/ui/stats/trends/trends_desktop_layout.dart`, `app/lib/ui/stats/trends_screen.dart`,
+`app/lib/ui/stats/trends_flow.dart`).
 
 ## Navigation
 
@@ -153,7 +177,10 @@ route. System Back and the iOS edge swipe pop the enclosing route. `Transactions
 single-route guard until the matching route's `completed` future (`transactions-ui.md`,
 `app/lib/ui/transactions/transactions_flow.dart`, `app/lib/ui/common/base/flow_base.dart`).
 
-A row or chart block calls `TrendsViewModel.requestCategoryDetail(rowIndex)`. The notifier ignores the
+A row or chart block calls `TrendsViewModel.requestCategoryDetail(rowIndex)`. Its named `source`
+parameter defaults to `TrendsCategoryDetailSource.selectedPeriod`, resolving against
+`body.breakdown.rows`; `wholePeriod` resolves against `body.wholePeriod.breakdown.rows`. The screen
+uses the default source. The notifier ignores the
 request after disposal, outside a ready body, for an invalid index and for a row without a navigation
 target, then emits `TrendsCategoryDetailRequested` carrying the unchanged `CategoryDetailArgs`:
 `mainID` is the row's `mainBucketID`, `kind` the selected kind, `isYearRange` follows the mode and
