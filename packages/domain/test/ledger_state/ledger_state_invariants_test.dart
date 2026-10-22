@@ -284,6 +284,29 @@ void main() {
     );
   });
 
+  test('a plan referencing a reference-only holder is caught', () {
+    final state = LedgerState(
+      moneySources: {
+        accountID: AccountSource(
+          account(lifecycle: LifecycleState.referenceOnly),
+        ),
+      },
+      entries: {entryID: entry()},
+      plans: {planID: plan()},
+    );
+
+    expect(
+      state.assertInvariants,
+      throwsA(
+        isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          allOf(contains('invariant 14'), contains('referenceOnly')),
+        ),
+      ),
+    );
+  });
+
   TransactionCategory categoryRow({
     required String id,
     String? parentID,
@@ -298,6 +321,36 @@ void main() {
     symbol: 'tag',
     lifecycle: lifecycle,
   );
+
+  test('a plan referencing a reference-only category is caught', () {
+    final categoryID = uuid(15);
+    final state = LedgerState(
+      moneySources: {accountID: AccountSource(account())},
+      categories: {
+        categoryID: categoryRow(
+          id: categoryID,
+          lifecycle: LifecycleState.referenceOnly,
+        ),
+      },
+      entries: {entryID: entry(categoryID: categoryID)},
+      plans: {planID: plan(categoryID: categoryID)},
+    );
+
+    expect(
+      state.assertInvariants,
+      throwsA(
+        isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          allOf(
+            contains('invariant 14'),
+            contains('referenceOnly'),
+            contains(categoryID),
+          ),
+        ),
+      ),
+    );
+  });
 
   group('a pocket is judged by its references, not its row', () {
     test('an entry-free pocket does not hold up its referenceOnly account', () {

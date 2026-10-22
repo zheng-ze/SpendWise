@@ -47,6 +47,13 @@ void main() {
     );
   });
 
+  test('unknown backend codes are rejected', () {
+    expect(
+      () => SyncBackendKind.fromCode('unknown'),
+      throwsA(isA<FormatException>()),
+    );
+  });
+
   Future<void> seedRow({
     required SyncDeviceBindingState binding,
     required SyncEnrollmentPhase phase,

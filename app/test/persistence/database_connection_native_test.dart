@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:spendwise/persistence/database/database_connection.dart';
 import 'package:spendwise/persistence/database/database_connection_native.dart';
 import 'package:spendwise/persistence/database/ledger_database.dart';
 
@@ -31,6 +32,23 @@ void main() {
     'opens a native database in the application documents directory',
     () async {
       final database = LedgerDatabase(await openConnection(_databaseName));
+      final result = await database.customSelect('SELECT 1').getSingle();
+
+      expect(result.data.values.single, 1);
+      expect(
+        File('${directory.path}/$_databaseName.sqlite').existsSync(),
+        isTrue,
+      );
+      await database.close();
+    },
+  );
+
+  test(
+    'opens the application database through its public connection API',
+    () async {
+      final database = LedgerDatabase(
+        await openLedgerConnection(name: _databaseName),
+      );
       final result = await database.customSelect('SELECT 1').getSingle();
 
       expect(result.data.values.single, 1);

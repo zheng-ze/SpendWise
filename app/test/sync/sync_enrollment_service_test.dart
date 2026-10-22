@@ -2221,6 +2221,8 @@ void main() {
 
     expect(error.step, 'enroll');
     expect(error.code, 'invalid_request');
+    expect(error.message, contains('Illegal hosted sync state'));
+    expect(error.message, contains('phase=snapshotInProgress'));
     expect(authenticator.beginCalls, 0);
     expect(authenticator.completeCalls, 0);
     expect(backend.calls, isEmpty);

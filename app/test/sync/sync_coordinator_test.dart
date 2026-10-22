@@ -332,6 +332,11 @@ String _credentialPayload(String deviceID, String bearer) => base64Url.encode(
 String _deviceSecret([int fill = 0]) =>
     base64Url.encode(List<int>.filled(32, fill)).replaceAll('=', '');
 
+const _missingPullBackendMessage =
+    'Cannot pull SyncCollection.entries before enrollment: no sync backend.';
+const _missingAcknowledgeBackendMessage =
+    'Cannot acknowledge before enrollment: no sync backend.';
+
 void main() {
   late LedgerDatabase db;
   late InMemorySecretStore secrets;
@@ -366,6 +371,36 @@ void main() {
         httpClient: httpSpy,
         secretStore: secrets,
       );
+
+  test('pull requires an enrolled backend', () async {
+    final coordinator = await create();
+
+    await expectLater(
+      coordinator.processPullPage(SyncCollection.entries),
+      throwsA(
+        isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          _missingPullBackendMessage,
+        ),
+      ),
+    );
+  });
+
+  test('acknowledgement recovery requires an enrolled backend', () async {
+    final coordinator = await create();
+
+    await expectLater(
+      coordinator.recoverPendingAcknowledgements(),
+      throwsA(
+        isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          _missingAcknowledgeBackendMessage,
+        ),
+      ),
+    );
+  });
 
   Future<SyncCoordinator> pullCoordinator({
     required SyncBackend backend,

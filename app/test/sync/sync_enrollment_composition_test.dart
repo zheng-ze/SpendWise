@@ -19,6 +19,7 @@ import 'package:spendwise/sync/sync_enrollment_composition.dart';
 import 'package:spendwise/sync/sync_enrollment_session.dart';
 import 'package:spendwise/sync/sync_enrollment_service.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
+import 'package:spendwise/sync/secret_store.dart';
 import 'package:spendwise/sync/sync_secret_keys.dart';
 import 'package:sync/sync.dart';
 
@@ -175,6 +176,7 @@ void main() {
     bool overrideProcessor = true,
     bool forceNullLedger = false,
     bool forceNullProcessor = false,
+    bool useDefaultSecretStore = false,
     String identifier = 'user@example.com',
     Future<String> Function(EnrollmentChallenge)? resolveOtp,
     Future<Uint8List> Function()? resolveE2EKey,
@@ -203,7 +205,7 @@ void main() {
         identifier: identifier,
         resolveOtp: resolveOtp ?? (_) async => '482916',
         resolveE2EKey: resolveE2EKey,
-        secretStore: secrets,
+        secretStore: useDefaultSecretStore ? null : secrets,
         supabaseConfigSource: configSource ?? () => _testConfig,
         httpClient: httpClient,
       ),
@@ -232,6 +234,17 @@ void main() {
     final request = ready.enrollmentService.buildBeginRequest();
 
     expect(request.wire['identifier'], 'user@example.com');
+  });
+
+  test('composition supplies its default secure secret store', () async {
+    await SyncMetadataStore(db)
+        .setBackendSelection(backend: SyncBackendKind.supabase);
+
+    final composition = await compose(useDefaultSecretStore: true);
+    final ready = composition as SyncEnrollmentReady;
+
+    expect(ready.secretStore, isA<SecureSecretStore>());
+    expect(ready.snapshotPublisher, isA<EnrollmentSnapshotPublisher>());
   });
 
   test(
