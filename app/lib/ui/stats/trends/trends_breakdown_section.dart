@@ -6,6 +6,7 @@ import 'package:spendwise/ui/common/charts/donut_chart.dart';
 import 'package:spendwise/ui/common/feedback/empty_state.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
+import 'package:spendwise/ui/stats/trends/trends_average_comparison.dart';
 import 'package:spendwise/ui/stats/trends/trends_breakdown.dart';
 import 'package:spendwise/ui/stats/trends/trends_period_card.dart';
 import 'package:spendwise/ui/stats/trends/trends_whole_period.dart';
@@ -35,6 +36,9 @@ const _compactRowPadding = EdgeInsets.symmetric(vertical: 4);
 const _compactChartPadding = EdgeInsets.only(top: 2, bottom: 2);
 const _compactDonutSize = 96.0;
 const _regularDonutSize = 132.0;
+const _amountColumnWidth = 72.0;
+const _averageColumnWidth = 76.0;
+const _amountColumnLabel = 'Amount';
 
 typedef _ColoredRow = ({TrendsBreakdownRow row, Color color});
 
@@ -46,6 +50,7 @@ class TrendsBreakdownSection extends StatelessWidget {
     required this.onOpenCategory,
     this.header,
     this.compact = false,
+    this.averageComparison,
   });
 
   final TrendsBreakdown breakdown;
@@ -53,6 +58,7 @@ class TrendsBreakdownSection extends StatelessWidget {
   final ValueChanged<int> onOpenCategory;
   final TrendsBreakdownHeader? header;
   final bool compact;
+  final TrendsAverageComparison? averageComparison;
 
   @override
   Widget build(BuildContext context) {
@@ -93,11 +99,18 @@ class TrendsBreakdownSection extends StatelessWidget {
           amountKind: amountKind,
           divided: i < rows.length - 1,
           compact: compact,
+          average: averageComparison?.rows[i].formattedMean,
           onTap: _opener(rows[i].row, i, onOpenCategory),
         ),
     ];
     final empty = _EmptyBreakdown(income: amountKind == AmountKind.income);
-    final content = rows.isEmpty ? [empty] : [chart, ...rowWidgets];
+    final comparison = averageComparison;
+    final comparisonHeader = comparison == null
+        ? null
+        : _BreakdownColumnHeading(averageLabel: comparison.header);
+    final content = rows.isEmpty
+        ? [empty]
+        : [chart, ?comparisonHeader, ...rowWidgets];
     final card = TrendsCard(
       children: [
         heading,
@@ -154,6 +167,38 @@ class _BreakdownHeading extends StatelessWidget {
       spacing: _rowGap,
       runSpacing: _headingGap,
       children: [heading, caption, ?totalText],
+    );
+  }
+}
+
+class _BreakdownColumnHeading extends StatelessWidget {
+  const _BreakdownColumnHeading({required this.averageLabel});
+
+  final String averageLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = TextStyle(
+      fontSize: _captionSize,
+      color: context.colors.subtext,
+    );
+    return Row(
+      children: [
+        const Spacer(),
+        SizedBox(
+          width: _amountColumnWidth,
+          child: Text(
+            _amountColumnLabel,
+            textAlign: TextAlign.end,
+            style: style,
+          ),
+        ),
+        const SizedBox(width: _rowGap),
+        SizedBox(
+          width: _averageColumnWidth,
+          child: Text(averageLabel, textAlign: TextAlign.end, style: style),
+        ),
+      ],
     );
   }
 }
@@ -221,6 +266,7 @@ class _BreakdownRow extends StatelessWidget {
     required this.amountKind,
     required this.divided,
     required this.compact,
+    required this.average,
     required this.onTap,
   });
 
@@ -228,6 +274,7 @@ class _BreakdownRow extends StatelessWidget {
   final AmountKind amountKind;
   final bool divided;
   final bool compact;
+  final String? average;
   final VoidCallback? onTap;
 
   @override
@@ -260,12 +307,28 @@ class _BreakdownRow extends StatelessWidget {
         ),
       ],
     );
-    final amount = Text(
+    final amountText = Text(
       row.formattedAmount,
+      textAlign: TextAlign.end,
       style: context.text.small.copyWith(
         color: AmountStyle.of(context, kind: amountKind).color,
       ),
     );
+    final amount = average == null
+        ? amountText
+        : SizedBox(width: _amountColumnWidth, child: amountText);
+    final averageValue = average == null
+        ? null
+        : SizedBox(
+            width: _averageColumnWidth,
+            child: Text(
+              average!,
+              textAlign: TextAlign.end,
+              style: context.text.small.copyWith(
+                color: AmountStyle.of(context, kind: amountKind).color,
+              ),
+            ),
+          );
     final chevron = onTap == null
         ? null
         : Padding(
@@ -279,6 +342,8 @@ class _BreakdownRow extends StatelessWidget {
         Expanded(child: label),
         const SizedBox(width: _rowGap),
         amount,
+        if (averageValue != null) const SizedBox(width: _rowGap),
+        ?averageValue,
         ?chevron,
       ],
     );

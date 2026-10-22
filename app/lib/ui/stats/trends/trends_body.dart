@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import 'package:spendwise/ui/format/money_format.dart';
+import 'package:spendwise/ui/stats/trends/trends_average_comparison.dart';
 import 'package:spendwise/ui/stats/trends/trends_breakdown.dart';
 import 'package:spendwise/ui/stats/trends/trends_intent.dart';
 import 'package:spendwise/ui/stats/trends/trends_whole_period.dart';
@@ -93,6 +94,7 @@ final class TrendsReadyBody extends TrendsBody {
     required this.bounds,
     required this.periodSummary,
     required this.wholePeriod,
+    required this.averageComparison,
   });
 
   final TrendsPeriodRow period;
@@ -103,6 +105,7 @@ final class TrendsReadyBody extends TrendsBody {
   final TrendsBreakdown breakdown;
   final TrendsPeriod periodSummary;
   final TrendsWholePeriod wholePeriod;
+  final TrendsAverageComparison averageComparison;
 
   @override
   final TrendsBounds bounds;
