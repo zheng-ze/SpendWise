@@ -71,7 +71,7 @@ def build_history():
     body = (header("History", "Search") + f'<div class="search focus">{ic("search","s")}Groceries<span class="caret"></span></div>'
             + chips(["Sep - Oct 2026", "All accounts", "Expense"], "") +
             '<div class="selp" style="margin:2px 0 6px"><span class="lab">5 matches<small>Groceries includes its subcategories</small></span><span class="mid exp">-S$179.50</span></div>'
-            + light_sections('<div class="light-card day-card">' + october_matches + '</div><div class="light-card day-card">' + september_matches + '</div>' + keyboard(), october_matches + september_matches + keyboard()))
+            + ('<div class="light-card day-card">' + october_matches + '</div><div class="light-card day-card">' + september_matches + '</div>' + keyboard()))
     reg("hi-search", H, "Register", "History, search",
         phone(body, None, "long"),
         "Search combines names, categories, accounts and dates; chips narrow the range, account and type. Seed matches: 42.50 + 18.60 + 12.40 + 31.80 + 74.20 = 179.50. The 8 November Cold Storage entry is outside the chosen range. Full scroll shown.",
@@ -116,8 +116,7 @@ def scoped_seed_trend(october, september=None):
     items = [(label, None, "x", False) for label in months[:-2]]
     items += [("S", None if september is None else september * 10, "x" if september is None else "c", False), ("O", october * 10, "p", True)]
     return tray("Monthly trend", seg(["Month by month", "Year by year"], "Month by month", "sm")
-                + period("Nov 2025 - Oct 2026", prev_off=True, next_off=True) + month_bars(items, "mini")
-                + '<div class="qual">October is incomplete.</div>')
+                + period("Nov 2025 - Oct 2026", prev_off=True, next_off=True) + month_bars(items, "mini"))
 
 
 SPLIT = [("Dining", 48.0, "dining"), ("Groceries", 36.0, "groceries"), ("Transport", 16.0, "transport")]
@@ -125,15 +124,14 @@ SPLIT = [("Dining", 48.0, "dining"), ("Groceries", 36.0, "groceries"), ("Transpo
 
 def trends_body(chart, breakdown, mode="Expense"):
     light = f'<div class="light-card chart-card">{chart}</div><div class="light-card breakdown-card">{breakdown}</div>'
-    return header("Trends", back="History") + seg(["Expense", "Income"], mode) + light_sections(light, chart + breakdown)
+    return header("Trends", back="History") + seg(["Expense", "Income"], mode) + light
 
 
 def trends_month(selected, sel_label, sel_sub, amount, usual_b, usual_s, chart, level="By category", end=(2026, 9), period_label="Nov 2025 - Oct 2026",
                  prev_off=False, quality=True):
-    q = '<div class="qual">August has no records; October is incomplete.</div>' if quality else ""
     us = f'<div class="usual"><b>{usual_b}</b><small>{usual_s}</small></div>'
     chart_body = (seg(["Month by month", "Year by year"], "Month by month") + period(period_label, prev_off=prev_off, next_off=end == (2026, 9))
-                  + month_bars(spread(end[0], end[1], selected)) + q
+                  + month_bars(spread(end[0], end[1], selected))
                   + f'<div class="selp"><span class="lab">{sel_label}<small>{sel_sub}</small></span><span class="big exp">{sm(-amount, True)}</span></div>' + us)
     breakdown = f'<div class="bkh"><h5>Expense breakdown</h5><small>{level}</small></div>' + chart
     return trends_body(chart_body, breakdown) + "".join(tiles.trend_tiles())
@@ -155,7 +153,6 @@ def income_chart(selected=(2026, 9)):
     return (seg(["Month by month", "Year by year"], "Month by month")
             + period("Nov 2025 - Oct 2026", prev_off=True, next_off=True)
             + month_bars(items, label="Monthly income bars")
-            + '<div class="qual">Only September and October have recorded income. October is incomplete.</div>'
             + detail + '<div class="usual"><b>Compared with usual</b><small>More complete months needed.</small></div>')
 
 
@@ -163,6 +160,89 @@ def income_breakdown():
     return ('<div class="bkh"><h5>Income breakdown</h5><small>October 2026 / By category</small></div>'
             + donut([("Salary", 100.0, "salary")], "Salary", "100.0%")
             + rank([("Salary", "100.0%", 3200.00, "salary", "")], income=True))
+
+
+def shared_trends_scope(kind="Expense", selected=(2026, 9), selected_scope=False):
+    if kind == "Income":
+        values = [("Salary", 3200.00, "salary")]
+        amount = 3200.00
+        rows = [("Salary", "100.0%", amount, "salary", "")]
+    elif selected_scope:
+        cats = [("Dining", 83.90, "dining"), ("Groceries", 73.50, "groceries"), ("Transport", 10.00, "transport")]
+        amount = sum(value for _, value, _ in cats)
+        values = [(name, value / amount * 100, color) for name, value, color in cats]
+        rows = [(name, f"{value / amount * 100:.1f}%", value, color, "") for name, value, color in cats]
+    else:
+        totals = tiles.period_category_totals()
+        amount = sum(totals.values())
+        values = [(name, value / amount * 100, name.lower()) for name, value in totals.items()]
+        rows = [(name, f"{value / amount * 100:.1f}%", value, name.lower(), "") for name, value in totals.items()]
+    scope_period = "October 2026" if selected_scope else "Nov 2025 - Oct 2026"
+    total_color = "inc" if kind == "Income" else "exp"
+    total_value = sm(amount if kind == "Income" else -amount, True)
+    total = f'<div class="selp"><span class="lab">{scope_period}</span><span class="big {total_color}">{total_value}</span></div>'
+    chart = donut(values, values[0][0], f"{values[0][1]:.1f}%") + rank(rows, chevron=False)
+    return f'<div class="trend-shared-breakdown pane"><div class="bkh"><h5>{kind} breakdown</h5><small>By category</small></div><div class="seg scope"><span class="{"on" if not selected_scope else ""}">Whole period</span><span class="{"on" if selected_scope else ""}">Selected month</span></div>{total}<div class="fold-breakdown">{chart}</div></div>'
+
+
+def trend_insight(text, detail):
+    return f'<div class="ins"><div class="t"><b>{text}</b></div><small>{detail}</small></div>'
+
+
+def october_usual_text():
+    difference = OCTOBER_SPENT - OCTOBER_USUAL_MEAN
+    direction = "higher" if difference > 0 else "lower"
+    percent = abs(difference) / OCTOBER_USUAL_MEAN * 100
+    return (f"Compared with usual: {percent:.1f}% {direction}",
+            f"Usual is S${f2(OCTOBER_USUAL_MEAN)}, the day 1 to 3 average for July to September, clipped to each month's length.")
+
+
+def october_usual():
+    title, body = october_usual_text()
+    return f'<div class="usual"><b>{title}</b><small>{body}</small></div>'
+
+
+def shared_trends_page(kind="Expense", selected_scope=False):
+    selected = (2026, 9)
+    controls = seg(["Expense", "Income"], kind) + seg(["Month by month", "Year by year"], "Month by month") + period("Nov 2025 - Oct 2026", next_off=True)
+    if kind == "Income":
+        income_values = {(2026, 8): 3200.00, (2026, 9): 3200.00}
+        bars = []
+        for offset in range(11, -1, -1):
+            month = (9 - offset) % 12
+            year = 2026 if 9 - offset >= 0 else 2025
+            value = income_values.get((year, month))
+            bars.append((MSHORT[month][0], None if value is None else value / 32, "x" if value is None else ("p" if (year, month) == selected else "c"), (year, month) == selected))
+        chart = month_bars(bars, label="Monthly income; October selected")
+    else:
+        chart = month_bars(spread(2026, 9, selected), label="Monthly spending; October selected")
+    top = f'<div class="trend-shared-top pane"><div class="trend-shared-controls">{controls}</div><div>{chart}</div></div>'
+    breakdown = shared_trends_scope(kind, selected, selected_scope)
+    totals = tiles.period_category_totals()
+    top_name = max(totals, key=totals.get)
+    total = sum(totals.values())
+    insight_card = tray("Insights", trend_insight(f"{top_name} is the largest category at {totals[top_name] / total * 100:.1f}% of the period.", "Nov 2025 - Oct 2026, recorded spending") + trend_insight("December 2025 is the highest complete month at S$1,000.00.", "Of 10 complete months"))
+    amount = 3200.00 if kind == "Income" else 167.40
+    title = "October 2026"
+    label = "Income" if kind == "Income" else "Recorded so far, 1-3 October"
+    color = "inc" if kind == "Income" else "exp"
+    headline = f'<div class="pane"><div class="selp"><span class="lab">{title}<small>{label}</small></span><span class="big {color}">{sm(amount if kind == "Income" else -amount, True)}</span></div></div>'
+    usual = october_usual() if kind == "Expense" else ""
+    averages = tiles.category_averages()
+    selected_values = OCTOBER_CATEGORY_SPENT
+    if kind == "Income":
+        values = [("Salary", "salary", 3200.00, 3200.00)]
+    else:
+        values = [(name, name.lower(), -value, -averages[name]) for name, value in selected_values.items()]
+    category_rows = "".join(
+        f'<tr><td><span><i class="km" style="--c:var(--{color})"></i><b>{name}</b></span></td><td class="amt">{sm(value)}</td><td>{sm(average)}</td></tr>'
+        for name, color, value, average in values)
+    table = ('<div class="pane"><div class="bkh"><h5>Category averages</h5></div>'
+             '<table class="trend-averages"><thead><tr><th>Category</th><th>October</th><th>Monthly average</th></tr></thead>'
+             f'<tbody>{category_rows}</tbody></table></div>')
+    right = f'<div class="trend-shared-right">{headline}{usual}{table}</div>'
+    lower = f'<div class="trend-shared-bottom"><div>{breakdown}{insight_card}</div>{right}</div>'
+    return top + lower
 
 
 def build_trends():
@@ -173,21 +253,21 @@ def build_trends():
         "Sample history (revision 2). July 2026 S$900.00 against usual (875 + 860 + 940) / 3 = 891.67, so 0.9% higher. The breakdown uses the Settings choices, here Donut and Categories; breakdown choices stay in Settings. Sample split: 432.00 + 324.00 + 144.00 = 900.00. Tapping a row opens its category." + TREND_TILES_NOTE,
         "app/lib/ui/stats/stats_root_screen.dart", ["Stats, expenses", "Transactions, monthly"])
 
-    octm = trends_month((2026, 9), "October 2026", "Recorded so far, 1-3 October", 167.40, "Compared with usual", "More complete months needed.",
+    octm = trends_month((2026, 9), "October 2026", "Recorded so far, 1-3 October", 167.40, *october_usual_text(),
                         cmap(oct_cats()) + rank_oct_cats())
     reg("tr-oct-map", T, "Month by month", "Trends, October, category map",
         phone(octm, "History", "long"),
-        "Monthly bars use revision 2 sample history. Seed October: Dining 83.90 + Groceries 73.50 + Transport 10.00 = 167.40. Settings chart is Category map. Transport is too small for its name, so it gets an adjacent colour-linked label instead of a bare number. The selected purple bar marks October, and the caption identifies it as incomplete; usual needs three complete preceding months, and August is missing." + TREND_TILES_NOTE,
+        "Monthly bars use revision 2 sample history. Seed October: Dining 83.90 + Groceries 73.50 + Transport 10.00 = 167.40. Settings chart is Category map. Transport is too small for its name, so it gets an adjacent colour-linked label instead of a bare number. The selected purple bar marks October, and the caption identifies it as incomplete; usual compares July to September day 1-3 totals of 309.00, 0.00 and 0.00: mean 103.00; October is 62.5% higher." + TREND_TILES_NOTE,
         "app/lib/ui/stats/analysis/analysis_flow.dart", ["Stats, category map"])
 
-    octs = trends_month((2026, 9), "October 2026", "Recorded so far, 1-3 October", 167.40, "Compared with usual", "More complete months needed.",
+    octs = trends_month((2026, 9), "October 2026", "Recorded so far, 1-3 October", 167.40, *october_usual_text(),
                         donut(oct_subs(), "Dining", "50.1%") + rank_oct_subs(), level="By subcategory")
     reg("tr-oct-sub-donut", T, "Month by month", "Trends, October, subcategories, donut",
         phone(octs, "History", "long"),
         "Monthly bars use revision 2 sample history. Settings level is Subcategories. Groceries splits into Supermarket 42.50, Fresh Market 18.60 and Direct to Groceries 12.40 (73.50 together); rounded displayed shares of 167.40 add to 100.0%." + TREND_TILES_NOTE,
         "app/lib/ui/stats/analysis/analysis_flow.dart", ["Stats, subcategory donut"])
 
-    octsm = trends_month((2026, 9), "October 2026", "Recorded so far, 1-3 October", 167.40, "Compared with usual", "More complete months needed.",
+    octsm = trends_month((2026, 9), "October 2026", "Recorded so far, 1-3 October", 167.40, *october_usual_text(),
                          cmap(oct_subs()) + rank_oct_subs(), level="By subcategory")
     reg("tr-oct-sub-map", T, "Month by month", "Trends, October, subcategories, category map",
         phone(octsm, "History", "long"),
@@ -229,8 +309,7 @@ def build_trends():
     # Category detail
     gro_fn = lambda y, m, v: SEPTEMBER_CATEGORY_SPENT["Groceries"] if (y, m) == (2026, 8) else (73.50 if (y, m) == (2026, 9) else split48(v)[1])
     trend = tray("Monthly trend", seg(["Month by month", "Year by year"], "Month by month", "sm") + period("Nov 2025 - Oct 2026", next_off=True)
-                 + month_bars(spread(2026, 9, (2026, 9), fn=gro_fn, maxv=400.0), "mini")
-                 + '<div class="qual">August has no records; October is incomplete.</div>')
+                 + month_bars(spread(2026, 9, (2026, 9), fn=gro_fn, maxv=400.0), "mini"))
     subs = tray("Subcategories",
                 "".join(f'<div class="rr" style="display:grid;grid-template-columns:12px minmax(0,1fr) auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--edge)"><span class="km" style="--c:var(--{c})"></span><div><b style="font-size:12px;font-weight:600;display:block">{n}</b><small class="sub">{p} of Groceries</small></div><span class="amt exp">{sm(-v)}</span></div>'
                         for n, p, v, c in [("Supermarket", "57.8%", 42.50, "supermarket"), ("Fresh Market", "25.3%", 18.60, "freshmarket"), ("Direct to Groceries", "16.9%", 12.40, "groceries")]))
@@ -261,7 +340,6 @@ def build_trends():
 
     trend_sep = tray("Monthly trend", seg(["Month by month", "Year by year"], "Month by month", "sm") + period("Nov 2025 - Oct 2026", next_off=True)
                      + month_bars(spread(2026, 9, (2026, 8), fn=gro_fn, maxv=400.0), "mini")
-                     + '<div class="qual">August has no records; October is incomplete.</div>'
                      + '<div class="selp"><span class="lab">September 2026<small>Groceries</small></span><span class="mid exp">-S$106.00</span></div>'
                      + row("Grocery top-up", "29 Sep / Groceries / Amex Card", -31.80, "Groceries") + row("Weekly groceries", "18 Sep / Groceries / Amex Card", -74.20, "Groceries"))
     body = (f'<div class="back">{ic("left")}Trends</div><div style="font-size:18px;font-weight:600;margin-bottom:10px">Groceries</div>'
@@ -271,34 +349,19 @@ def build_trends():
         "Selecting a bar in the trend card shows that month's Groceries amount and entries: September 2026, Grocery top-up 31.80 on 29 September and Weekly groceries 74.20 on 18 September (106.00). Other monthly bars use revision 2 sample totals at the 36% Groceries share.",
         "app/lib/ui/stats/category_detail/category_trend_card.dart", ["Category trend, selected month"])
 
-    # Desktop Trends
-    left = (f'<div class="pane">{seg(["Expense", "Income"], "Expense")}{seg(["Month by month", "Year by year"], "Month by month")}{period("Nov 2025 - Oct 2026", next_off=True)}'
-            f'{month_bars(spread(2026, 9, (2026, 6)), "")}<div class="qual">August has no records; October is incomplete.</div>'
-            '<div class="selp"><span class="lab">July 2026<small>Spent</small></span><span class="big exp">-S$900.00</span></div>'
-            '<div class="usual"><b>Compared with usual: 0.9% higher</b><small>Usual is S$891.67, the April to June average.</small></div></div>')
-    right = (f'<div class="pane"><div class="bkh" style="margin-top:0"><h5>Expense breakdown</h5><small>July 2026 / By category</small></div>'
-             f'{donut(SPLIT, "Dining", "48.0%")}{rank_split(900.00)}</div>')
-    trend_tiles = tiles.trend_tiles()
-    lower = f'<div class="dg2e" style="margin-top:18px"><div class="dcol">{trend_tiles[0]}{trend_tiles[2]}</div><div class="dcol">{trend_tiles[1]}{trend_tiles[3]}</div></div>'
-    reg("tr-desk", T, "Desktop", "Trends with breakdown, desktop",
-        desktop("History", f'<div class="dg2">{left}{right}</div>' + lower, "Trends", "All accounts / Spending", acts=BACK_TO_HISTORY),
-        "The period chart and the selected breakdown sit side by side; selecting a bar updates the breakdown without leaving the page. Same sample July values and Settings choices as the phone. Left and right arrow keys move one spread. Category movers and Fixed vs flexible fill the left column below, Day-of-week pattern and Savings rate the right." + tiles.sample_note(week=False),
+    # Desktop Trends uses the same composition as the open layout.
+    desktop_trends = shared_trends_page()
+    reg("tr-desk", T, "Desktop", "Trends, shared breakdown, desktop",
+        desktop("History", desktop_trends, "Trends", "All accounts / Spending", acts=BACK_TO_HISTORY),
+        "October 2026 is selected. The full-width chart card sits above the shared whole-period breakdown and Insights on the left, with the selected-period headline and Category averages on the right.",
         "app/lib/ui/shell/app_shell.dart; app/lib/ui/stats/stats_root_screen.dart", ["Stats, expenses, macOS"], kind="desktop")
 
-    left_income = '<div class="pane">' + seg(["Expense", "Income"], "Income") + income_chart() + '</div>'
-    right_income = '<div class="pane">' + income_breakdown() + '</div>'
-    reg("tr-desk-income", T, "Desktop", "Trends, monthly income, desktop",
-        desktop("History", f'<div class="dg2">{left_income}{right_income}</div>', "Trends", "All accounts / Income", acts=BACK_TO_HISTORY),
-        "The existing desktop chart-and-breakdown pattern carries the income view. Seed September and October salary +3,200.00 each; selected October has Salary 100.0%, +3,200.00. Earlier months stay blank.",
+    reg("tr-desk-income", T, "Desktop", "Trends, income, desktop",
+        desktop("History", shared_trends_page("Income"), "Trends", "All accounts / Income", acts=BACK_TO_HISTORY),
+        "Income mode keeps October selected. The shared breakdown, selected-period headline and Category averages use the seeded salary records.",
         "app/lib/ui/shell/app_shell.dart; app/lib/ui/stats/stats_root_screen.dart", kind="desktop")
 
-    left = (f'<div class="pane"><div class="lab">1-3 October 2026</div><div class="canvas-amount"><strong>-S$73.50</strong></div>'
-            + chips(["All Groceries", "Supermarket", "Fresh Market", "Direct to Groceries"], "All Groceries")
-            + cmap([("Supermarket", 57.8, "supermarket"), ("Fresh Market", 25.3, "freshmarket"), ("Direct to Groceries", 16.9, "groceries")], 120)
-            + '</div>')
-    right = ents.replace('class="tray"', 'class="pane"') + "<div style='height:14px'></div>" + trend.replace('class="tray"', 'class="pane"')
-    reg("tr-desk-cat", T, "Desktop", "Category detail, desktop",
-        desktop("History", f'<div class="dg2e">{left}<div>{right}</div></div>', "Groceries", "Trends / October 2026",
-                acts=f'<span>{ic("left","s")}Back to Trends</span><span class="pbtn">{ic("plus","s")}Add entry</span>'),
-        "Desktop category detail: scope, subcategory map and entries together. The map labels every block that fits; the chips name every scope. The Groceries trend uses revision 2 sample monthly totals at the 36% share, with September 106.00 (74.20 + 31.80) and October 73.50.",
-        "app/lib/ui/stats/category_detail/category_detail_screen.dart", kind="desktop")
+    reg("tr-desk-cat", T, "Desktop", "Trends, selected-month scope, desktop",
+        desktop("History", shared_trends_page(selected_scope=True), "Trends", "All accounts / Spending", acts=BACK_TO_HISTORY),
+        "October 2026 is selected and the shared breakdown scope is switched to Selected month. The selected month breakdown and Category averages remain in the single Trends screen.",
+        "app/lib/ui/shell/app_shell.dart; app/lib/ui/stats/stats_root_screen.dart", kind="desktop")

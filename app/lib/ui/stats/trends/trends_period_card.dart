@@ -27,7 +27,6 @@ class TrendsCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: children,
     );
-    if (Theme.of(context).brightness != Brightness.light) return column;
     final decoration = BoxDecoration(
       color: colors.surface,
       border: Border.all(color: colors.edge),

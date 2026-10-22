@@ -102,9 +102,9 @@ def rail(active):
         for title, icon in items) + '</div></nav>'
 
 
-def frame(identifier, label, caption, body, active="Overview", theme="light", detail="", form="", dialog="", folded=False, fab="", full=False):
+def frame(identifier, label, caption, body, active="Overview", detail="", form="", dialog="", folded=False, fab="", full=False):
     if folded:
-        display = body.replace('class="app phone', 'class="app force-light phone', 1)
+        display = body
     else:
         if detail:
             content = f'<div class="fold-selection"><div class="fold-list">{body}</div><aside class="fold-detail">{detail}</aside></div>'
@@ -115,12 +115,12 @@ def frame(identifier, label, caption, body, active="Overview", theme="light", de
             content = f'<div class="fold-page-scroll"><div class="fold-page">{body}</div></div>'
         fab_button = f'<div class="fab">{ic("plus")}{fab}</div>' if fab else ""
         overlay = f'<div class="fold-confirmation">{dialog}</div>' if dialog else ""
-        display = (f'<div class="app fold-display force-{theme}">{statusbar()}'
+        display = (f'<div class="app fold-display">{statusbar()}'
                    f'<div class="fold-body">{content}{fab_button}<div class="fold-dock">{rail(active)}</div>{overlay}</div>'
                    '<div class="homebar"></div><div class="crease" aria-hidden="true"></div></div>')
     posture = "folded" if folded else "open"
     markup = (f'<figure class="fold-figure {posture}{" full" if full else ""}" id="{identifier}" '
-              f'data-theme="{theme}" data-posture="{posture}">'
+              f'data-posture="{posture}">'
               f'<figcaption><b>{escape(label)}</b><p>{escape(caption)}</p></figcaption>'
               f'<div class="fold-shell">{display}</div></figure>')
     return dict(id=identifier, title=label, caption=caption, posture=posture, html=markup)
@@ -134,7 +134,7 @@ FOLDABLE_CSS = """
 .fold-figure>figcaption{width:auto;max-width:960px;margin:0 0 12px;color:var(--ink);font-size:15px}
 .fold-figure>figcaption b{font-weight:600}
 .fold-figure>figcaption p{font-size:12px;max-width:none;color:var(--quiet);margin-top:3px}
-.fold-shell{width:max-content;background:#25272A;padding:6px;border:1px solid #3B3E43;border-radius:26px;box-shadow:0 8px 24px rgba(0,0,0,.07)}
+.fold-shell{width:max-content;background:var(--ink);padding:6px;border:1px solid var(--line);border-radius:26px;box-shadow:0 8px 24px rgba(0,0,0,.07)}
 .fold-display{width:960px;height:720px;aspect-ratio:4/3;display:flex;flex-direction:column;overflow:hidden;border-radius:20px;position:relative}
 .fold-display>.st{height:28px;padding:4px 18px 0;flex-shrink:0}
 .fold-display>.st:before{display:none}
@@ -164,6 +164,27 @@ FOLDABLE_CSS = """
 .fold-history-grid>div{min-width:0}
 .fold-pair{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:10px;align-items:stretch}
 .fold-pair>.tray{margin:0}
+.trend-shared-top{display:grid;grid-template-columns:minmax(250px,1fr) minmax(0,2fr);gap:18px;align-items:center;margin-bottom:12px}
+.trend-shared-top>.trend-shared-controls>.seg{margin-bottom:8px}
+.trend-shared-top .bars{height:150px;margin-top:0}
+.trend-shared-bottom{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(0,1fr);gap:12px;align-items:start}
+.trend-shared-bottom>div:first-child,.trend-shared-right{display:flex;flex-direction:column;gap:12px;min-width:0}
+.trend-shared-bottom .pane{margin:0}
+.trend-shared-right>.usual{margin:0;padding:14px;background:var(--surface);border:1px solid var(--edge);border-radius:14px}
+.trend-shared-breakdown .scope{margin:0 0 8px}
+.trend-shared-breakdown .selp{margin:0 0 4px}
+.trend-shared-breakdown .fold-breakdown{grid-template-columns:130px minmax(0,1fr);gap:12px}
+.trend-shared-breakdown .donut{width:130px;height:130px}
+.trend-shared-breakdown .rr{grid-template-columns:10px minmax(0,1fr) auto;gap:8px;padding:7px 0}
+.trend-averages{width:100%;border-collapse:collapse;table-layout:fixed;font-size:11px}
+.trend-averages th,.trend-averages td{padding:9px 0;border-bottom:1px solid var(--edge);text-align:right;vertical-align:middle}
+.trend-averages th{font-size:10px;color:var(--subtext);font-weight:500}
+.trend-averages th:first-child,.trend-averages td:first-child{width:38%;text-align:left}
+.trend-averages td:first-child>span{display:flex;align-items:center;gap:6px}
+.trend-averages td:not(:first-child){white-space:nowrap}
+.trend-averages td:last-child{color:var(--subtext)}
+.trend-averages tr:last-child td{border-bottom:0}
+.trend-shared-right .avg{font-size:11px;color:var(--subtext);white-space:nowrap}
 .fold-money-grid{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:10px;align-items:stretch}
 .fold-money-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:stretch}
 .fold-money-cards>.tray{margin:0}
@@ -233,7 +254,7 @@ FOLDABLE_CSS = """
 .fold-confirmation{position:absolute;inset:0 72px 0 0;display:grid;place-items:center;background:rgba(0,0,0,.2);z-index:10}
 .fold-confirmation .dialog{width:308px;max-width:308px;margin:0;padding:20px;box-shadow:0 12px 40px rgba(0,0,0,.15)}
 .crease{position:absolute;left:calc(50% - 2px);top:0;bottom:0;width:4px;background:linear-gradient(90deg,transparent,rgba(0,0,0,.055),rgba(255,255,255,.24),transparent);z-index:7;pointer-events:none}
-.force-dark .crease{background:linear-gradient(90deg,transparent,rgba(0,0,0,.22),rgba(255,255,255,.045),transparent)}
+html[data-app=dark] .app .crease{background:linear-gradient(90deg,transparent,rgba(0,0,0,.22),rgba(255,255,255,.045),transparent)}
 .fold-continuity{display:flex;align-items:flex-start;gap:24px;width:max-content}
 .folded .fold-shell{padding:0;border:0;background:transparent;border-radius:38px;box-shadow:none}
 .folded .phone.long{height:760px;min-height:760px}
@@ -370,7 +391,7 @@ def trends_chart(selected=False):
     chart = (seg(["Expense", "Income"], "Expense") + seg(["Month by month", "Year by year"], "Month by month")
              + period("Nov 2025 - Oct 2026", next_off=True)
              + month_bars(data.spread(2026, 9, (2026, 6) if selected else None), label="Monthly spending; July selected" if selected else "Monthly spending; no month selected")
-             + '<div class="qual">August has no records; October is incomplete.</div>')
+)
     return header("Trends", back="History") + tray("Period chart", chart, "fold-period-chart")
 
 
@@ -402,12 +423,11 @@ def trends_insights_card():
 
 
 def trends_page():
-    return (trends_chart() + f'<div class="fold-pair">{whole_period_card()}{trends_insights_card()}</div>'
-            + f'<div class="fold-tiles">{"".join(tiles.trend_tiles())}</div>')
+    return s_history_trends.shared_trends_page()
 
 
 def trends_selected_page():
-    return trends_chart(True) + whole_period_card(True) + trends_insights_card() + "".join(tiles.trend_tiles())
+    return s_history_trends.shared_trends_page(selected_scope=True)
 
 
 def month_detail():
@@ -539,7 +559,7 @@ SAMPLE_NOTE = tiles.sample_note()
 
 
 
-FRAME_COUNT = 22
+FRAME_COUNT = 21
 FOLDED_COUNT = 7
 DEVICE_NAMES = ("Samsung Galaxy Z Fold8", "Apple iPhone Duo")
 INTRO = ("Samsung Galaxy Z Fold8 and Apple iPhone Duo share one design: the approved phone design opens into a 4:3 landscape canvas "
@@ -560,9 +580,8 @@ def check_references(approved):
 
 def overview_section():
     open_note = "All 16 widgets (the 12 approved plus Safe to spend, Pace vs usual, Subscriptions and Needs attention) share one scrolling dashboard with mixed card sizes." + s_overview.OPEN_TRENDS_NOTE
-    light = frame("overview-light", "Overview - open, light", open_note + SAMPLE_NOTE, overview_page())
-    dark = frame("overview-dark", "Overview - open, dark", "The same 16-widget dashboard uses neutral near-black surfaces and blue chart accents." + s_overview.OPEN_TRENDS_NOTE + SAMPLE_NOTE, overview_page(), theme="dark")
-    return "Overview", "", [light, dark]
+    overview = frame("overview", "Overview - open", open_note + SAMPLE_NOTE, overview_page())
+    return "Overview", "", [overview]
 
 
 def history_section(approved):
@@ -576,11 +595,10 @@ def history_section(approved):
 
 
 def trends_section():
-    full_note = "Opened from History, which stays selected in the rail, and Back reads History. The period chart spans the top; the whole-period breakdown and Insights sit side by side, with Category movers, Day-of-week pattern, Fixed vs flexible and Savings rate packed in two columns below."
-    selected_note = "Opened from History. Left, one column: the chart with July marked, the compact whole-period breakdown, Insights and the four trend tiles; July's detail with period averages is on the right."
-    detail = detail_panel("July 2026", month_detail())
-    full = frame("trends-full", "Trends - open, nothing selected", full_note + SAMPLE_NOTE, trends_page(), "History")
-    selected = frame("trends-selected", "Trends - open, month selected", selected_note + SAMPLE_NOTE, trends_selected_page(), "History", detail=detail)
+    full_note = "Opened from History, which stays selected in the rail, and Back reads History. October 2026 is selected. The full-width chart card sits above the shared whole-period breakdown and Insights on the left, with the selected-period headline and Category averages on the right."
+    selected_note = "Opened from History. October 2026 is selected. The same full-screen composition switches the shared breakdown scope to Selected month; the selected-period headline and Category averages stay in the right column."
+    full = frame("trends-full", "Trends - open, whole-period scope", full_note + SAMPLE_NOTE, trends_page(), "History")
+    selected = frame("trends-selected", "Trends - open, selected-month scope", selected_note + SAMPLE_NOTE, trends_selected_page(), "History")
     return "Trends", "", [full, selected]
 
 

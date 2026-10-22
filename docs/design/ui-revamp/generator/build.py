@@ -132,18 +132,6 @@ def inventory_table():
             + "".join(rows) + "</tbody></table></div>")
 
 
-def side_by_side():
-    picks = [("ov-default", "Overview"), ("tr-july", "Trends"), ("hi-oct", "History"), ("add-expense", "Add sheet"), ("mo-budgets", "Money"), ("st-root", "Settings")]
-    byid = {f["id"]: f for f in FR}
-    out = []
-    for fid, label in picks:
-        h = byid[fid]["html"]
-        lt = h.replace('class="app ', 'class="app force-light ', 1)
-        dk = h.replace('class="app ', 'class="app force-dark ', 1)
-        out.append(f'<div class="pair"><h4><a href="#{fid}">{label}</a></h4><div class="two"><div><small>Light</small>{lt}</div><div><small>Dark</small>{dk}</div></div></div>')
-    return '<div class="pairs">' + "".join(out) + "</div>"
-
-
 def appendix():
     trows = "".join(
         f'<tr><td>{t[3]}<br><small style="color:var(--quiet)">--{t[0]}</small></td><td><span class="swatch" style="background:{t[1]}"></span>{t[1]}</td>'
@@ -157,14 +145,14 @@ def appendix():
     space = ('<section><h3>Spacing, radii and elevation</h3><table class="tok"><tbody>'
              '<tr><th>Spacing</th><td>4 px unit. Phone gutter 14, tray padding 12 (Today 14), gap between trays 10, desktop workspace 18 to 22, desktop columns 14 to 18.</td></tr>'
              '<tr><th>Radii</th><td>Today 20 20 7 20 (asymmetric). Record trays 14. Controls and buttons 8 to 10. Floating bottom tab bars 20. Sheets 22 at the top. Medallions 9. Map blocks 8.</td></tr>'
-             '<tr><th>Elevation</th><td>Light content sections sit in white cards on a light blue canvas, separated by neutral hairlines. Dark surfaces retain their lightness steps: canvas, tray, level 2. Only sheets, side panels and menus lift: a neutral soft shadow in light; in dark, the level 2 surface and a control-colour top edge. Every phone sheet sizes to content, up to two thirds of the phone height. Headers, actions and input pads remain pinned while taller content scrolls inside. Desktop flows use compact content-sized dialogs. No dimming veil appears behind sheets; compact confirmation dialogs use a light scrim.</td></tr>'
+             '<tr><th>Elevation</th><td>Light content sections sit in white cards on a light blue canvas, separated by neutral hairlines. Dark surfaces retain their lightness steps: canvas, tray, level 2. Only sheets, side panels and menus lift, with neutral soft shadows in both themes; dark adds the level 2 surface and a control-colour edge. Every phone sheet sizes to content, up to two thirds of the phone height. Headers, actions and input pads remain pinned while taller content scrolls inside. Desktop flows use compact content-sized dialogs. No dimming veil appears behind sheets; compact confirmation dialogs use a light scrim.</td></tr>'
              '<tr><th>Focus</th><td>Underline only: a 2 px focus-colour underline and a thin caret on the active field. No rings or tinted boxes inside the app.</td></tr>'
              '</tbody></table></section>')
     chart_content = (month_bars([("Complete", 860, "c", False), ("Selected", 900, "c", True), ("No records", None, "g", False), ("Incomplete", 188.7, "p", False)]).replace('--n:4', '--n:4')
                   + '<div class="adjl" style="margin-top:10px"><span><i style="--c:var(--dining)"></i>Dining</span><span><i style="--c:var(--groceries)"></i>Groceries</span><span><i style="--c:var(--transport)"></i>Transport</span><span><i style="--c:var(--supermarket)"></i>Supermarket</span><span><i style="--c:var(--freshmarket)"></i>Fresh Market</span></div>')
     chart_spec = '<div class="app specimen">' + light_card(chart_content, "chart-card") + '</div>'
     charts = ('<section><h3>Chart rules</h3>' + chart_spec +
-              '<p style="font-size:13px;margin-top:10px">Bars are flat-topped accent columns. A selected bar uses the prominent purple selected-mark fill in both themes, with no border, outline or ring. A selected incomplete bar uses that same fill; its caption still identifies the incomplete period. An incomplete period is a paler fill with an accent outline and one sentence below the chart. A month with no records is a short dashed stub, never a zero bar; slots before the first record stay blank. Values live in the selection line, not on bars. Donuts name the largest category and share in the centre. Map blocks show name and share; a block too small for both gets an adjacent colour-linked label, never a bare number. The ranked list always follows with names, shares and signed amounts. Category colours come from each saved category colour through its light or dark counterpart.</p></section>')
+              '<p style="font-size:13px;margin-top:10px">Bars are flat-topped accent columns. A selected bar uses the prominent purple selected-mark fill in both themes, with no border, outline or ring. A selected incomplete bar uses that same fill; its caption still identifies the incomplete period. An incomplete period is a paler fill with an accent outline. A month with no records is a short dashed stub, never a zero bar; slots before the first record stay blank. Values live in the selection line, not on bars. Donuts name the largest category and share in the centre. Map blocks show name and share; a block too small for both gets an adjacent colour-linked label, never a bare number. The ranked list always follows with names, shares and signed amounts. Category colours come from each saved category colour through its light or dark counterpart.</p></section>')
     icons = ["home", "history", "trends", "money", "plus", "gear", "cart", "bag", "leaf", "dining", "tram", "dollar", "transfer", "card", "bank", "jar", "calendar", "repeat", "receipt", "camera", "search", "alert", "lock", "trash"]
     icon_spec = '<div class="app specimen" style="display:flex;flex-wrap:wrap;gap:14px;color:var(--text)">' + "".join(ic(i, "l") for i in icons) + "</div>"
     icon_sec = f'<section><h3>Icon style</h3>{icon_spec}<p style="font-size:13px;margin-top:10px">Rounded 1.8 px line icons on a 24 px grid. Category icons sit in medallions: a 30 px rounded square in the tint surface with the icon in the category colour. Canvas headline amounts use Instrument Sans with the standard amount weight and expense colour, without an adjacent icon. Labels always carry the meaning.</p></section>'
@@ -206,12 +194,9 @@ EXTRA_CSS = """
 .specimen .tray{margin:0}
 .specimen .seg:last-child{margin-bottom:0}
 .swatch{display:inline-block;width:15px;height:15px;border-radius:4px;border:1px solid var(--quiet);vertical-align:-3px;margin-right:6px}
-.pairs{grid-template-columns:repeat(auto-fill,minmax(540px,1fr))}
-.pair .two .phone{zoom:.8}
-.pair .two>div{display:flex;flex-direction:column;align-items:center}
 @media(max-width:1250px){.wcat{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:1000px){.wcat{grid-template-columns:repeat(2,minmax(0,1fr))}.pairs{grid-template-columns:1fr}}
-@media(max-width:760px){.wcat{grid-template-columns:1fr}.pair .two{grid-template-columns:1fr}}
+@media(max-width:1000px){.wcat{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){.wcat{grid-template-columns:1fr}}
 """
 
 JS = r"""
@@ -256,19 +241,18 @@ def page():
 <style>{PAGE_CSS}{APP_CSS}{EXTRA_CSS}{tiles.TILE_CSS}{foldables.FOLDABLE_CSS}</style></head><body>{sprite()}<main>"""
     mast = f"""<header class="masthead"><div><h1>Every SpendWise screen.<span>Harbour glass, light and dark.</span></h1>
 <p>The implementation reference for the approved Daylight structure: Overview, History, Money and Settings, with Add centred in the tab bar and Trends opened from History. Every frame below is drawn from one token table and follows the app theme switch.</p></div>
-<div class="controlbox"><div class="ctl"><b>App theme<small>Switches every drawn app frame. The side-by-side pairs stay fixed.</small></b><span class="toggle-group" role="group" aria-label="App theme"><button type="button" data-set-app="light" aria-pressed="true">Light</button><button type="button" data-set-app="dark" aria-pressed="false">Dark</button></span></div>
+<div class="controlbox"><div class="ctl"><b>App theme<small>Switches every drawn app frame.</small></b><span class="toggle-group" role="group" aria-label="App theme"><button type="button" data-set-app="light" aria-pressed="true">Light</button><button type="button" data-set-app="dark" aria-pressed="false">Dark</button></span></div>
 <div class="ctl"><b>Page background<small>Changes only this page around the frames.</small></b><span class="toggle-group" role="group" aria-label="Page background"><button type="button" data-set-page="light" aria-pressed="true">Light</button><button type="button" data-set-page="dark" aria-pressed="false">Dark</button></span></div></div></header>
-<nav class="toc" aria-label="Sections"><a href="#inventory">Screen inventory</a><a href="#side-by-side">Light and dark side by side</a>{toc}<a href="#appendix">Design tokens</a><a href="#feedback">Flag a correction</a></nav>
+<nav class="toc" aria-label="Sections"><a href="#inventory">Screen inventory</a>{toc}<a href="#appendix">Design tokens</a><a href="#feedback">Flag a correction</a></nav>
 <div class="snapshot"><div><b>Seed snapshot</b>Saturday 3 October 2026, SGD, from app/lib/boot/seed_data.dart. October 1-3 spending: Dining 83.90, Groceries 73.50, Transport 10.00, total 167.40. Income +3,200.00, net +3,032.60. Balances run through today; the two November entries are dated ahead.</div>
-<div><b>Labelled samples</b>Monthly history January 2024 to July 2026 (August missing; September is the four seed entries plus three sample entries on 28-30 September), the 48 / 36 / 16 category split for sample months, matched-day windows for insights (1-3 July, August and September, a separate sample from the monthly history), the S$1,200 cap, the 450 / 350 / 120 budget limits and the three sample September entries (S$74.50, Amex Card). Captions name every sample.</div>
+<div><b>Labelled samples</b>Monthly history January 2024 to July 2026 (August missing; September is the four seed entries plus three sample entries on 28-30 September), the 48 / 36 / 16 category split for sample months, matched-day sample within July (Dining 174.00 and Groceries 135.00 on 1-3 July), with no entries on 1-3 August or September, the S$1,200 cap, the 450 / 350 / 120 budget limits and the three sample September entries (S$74.50, Amex Card). Captions name every sample.</div>
 <div><b>How to read</b>Phone frames show the whole scroll where a caption says so. Desktop windows share one neutral macOS and Windows frame. Captions carry the arithmetic and the code location; nothing inside a drawn screen is an annotation.</div></div>"""
     inv_sec = f"""<section class="area" id="inventory"><header><h2>Screen inventory</h2><p>Every drawn screen, its section, its code location from the earlier atlas inventory and the earlier rows it covers. New Daylight screens have no current code route.</p></header>
 <div class="counts"><span><b>{len(FR)}</b>screens drawn ({phones} phone, {desks} desktop)</span><span><b>{len(FR) + nd}</b>listed, including {nd} not drawn</span><span><b>{earlier_cov}</b>of 177 earlier rows covered</span><span><b>{len(tiles.ALL_WIDGETS)}</b>widgets in the catalogue</span><span><b>{len(FOLD_FRAMES)}</b>foldable frames, listed under Foldables</span></div>
 {inventory_table()}</section>"""
-    sbs = f"""<section class="area" id="side-by-side"><header><h2>Light and dark side by side</h2><p>The main screens with both appearances fixed, for direct comparison. These frames do not follow the app theme switch.</p></header>{side_by_side()}</section>"""
     areas = "".join(render_area(*a) for a in AREAS) + FOLD_HTML
     foot = '<p class="footer">Static, portable reference. Inline CSS and JavaScript; Instrument Sans from Google Fonts with Arial as fallback. Drawn controls are static; only the two theme switches and the feedback form work.</p>'
-    return head + mast + inv_sec + sbs + areas + appendix() + feedback() + foot + f"</main><script>{JS}</script></body></html>"
+    return head + mast + inv_sec + areas + appendix() + feedback() + foot + f"</main><script>{JS}</script></body></html>"
 
 
 FOLD_HTML = foldables.render(FOLD)

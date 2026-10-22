@@ -45,7 +45,13 @@ COMPLETE_MONTHS = SAMPLE_COMPLETE_MONTHS + [(2026, 8)]
 BUDGET_LIMITS = {"Dining": 350, "Groceries": 450, "Transport": 120}
 PARENT_CATEGORY = {"Supermarket": "Groceries", "Fresh Market": "Groceries"}
 INSIGHT_USUAL_START = {"Groceries": 45.00, "Dining": 58.00}
+JULY_EARLY_CATEGORY_SPENT = {"Dining": 174.00, "Groceries": 135.00, "Transport": 0.00}
 GROCERIES_INSIGHT_WINDOWS = (40.00, 50.00, 45.00)
+OCTOBER_USUAL_WINDOWS = (sum(JULY_EARLY_CATEGORY_SPENT.values()), 0.00, 0.00)
+OCTOBER_USUAL_MEAN = sum(OCTOBER_USUAL_WINDOWS) / 3
+assert all(early <= total for early, total in zip(JULY_EARLY_CATEGORY_SPENT.values(), (432.00, 324.00, 144.00)))
+assert not any(day <= 3 for day, *_ in SEP)
+assert JULY_EARLY_CATEGORY_SPENT["Dining"] / 3 == INSIGHT_USUAL_START["Dining"]
 assert sum(GROCERIES_INSIGHT_WINDOWS) / 3 == INSIGHT_USUAL_START["Groceries"]
 WEEKDAY_SHARES = [10, 11, 12, 13, 16, 22, 16]
 assert sum(WEEKDAY_SHARES) == 100
@@ -152,7 +158,6 @@ def today_rows(prefix="Today / "):
 
 
 def day_groups(entries, mon="October", skip=(), totals=True):
-    out = []
     cards = []
     days = []
     for e in entries:
@@ -167,9 +172,8 @@ def day_groups(entries, mon="October", skip=(), totals=True):
             meta = "Transfer / DBS Checking to OCBC Savings" if mv else f"{c} / {a}"
             group.append(row(n, meta, v, c, moved=mv))
         content = "".join(group)
-        out.append(content)
         cards.append(f'<div class="light-card day-card">{content}</div>')
-    return light_sections("".join(cards), "".join(out))
+    return "".join(cards)
 
 
 def band(net, spent, income, moved, lead_label="Net"):

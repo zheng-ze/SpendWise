@@ -6,6 +6,14 @@ Generator: `/Users/macbook/Desktop/SpendWise/.lavish/reference-src/`.
 
 The reference page is rebuilt from the current generator. The light theme now uses a light blue canvas with white content cards, neutral separation and blue accents. The owner reviews the generated result; browser and screenshot verification are excluded from this revision. Earlier layout evidence below remains historical static evidence.
 
+## 2026-10-23: one theme-switched frame per screen
+
+Every frame, phone, desktop and foldable, is one frame that follows the App theme switch at the top of the page. The Light and dark side by side section, the fixed light and dark pairs, the `force-light` and `force-dark` pins and the separate Overview dark foldable frame are removed. Dark uses the same borders, dividers and raised surfaces as light through the token sets in `generator/tokens.py` and `generator/styles.py`, so a frame must not hold a light-only colour.
+
+The Trends frames keep the shared composition (one breakdown with a Whole period / Selected month scope). Category averages is three aligned columns, and Compared with usual shows a sample figure derived from the sample history.
+
+The build reports 205 frames: 173 phone, 11 desktop and 21 foldable. To review dark, switch App theme and check entry row separators (History's Saturday 3 October header, Overview's Monthly salary row) and tray separation.
+
 ## 2026-10-20: History-first navigation and one consolidated reference
 
 `spendwise-reference.html` now holds the phone, desktop and foldable frames. `generator/foldables.py` builds the foldable frames, and `build.py` renders them as the Foldables area. No separate foldables page or builder remains. Frame ids are unchanged, and the 22 foldable ids are checked for uniqueness against the reference ids. `frames.json` lists the foldable frames with form factor `foldable` and no inventory rows. The foldable checks run in the same build: 22 frames, 7 folded, equality with the reference Budgets, Accounts and Plans frames, device names once, no em dash.

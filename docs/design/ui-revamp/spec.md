@@ -47,7 +47,7 @@ Also follow the approved base rules in `.lavish/ui-redesign.html`, Decisions sec
 
   Group them by area, and keep a screen inventory table at the top that maps each screen to its section, plus the code location from the earlier inventory.
 - Phone frames for every screen. Desktop windows (one shared macOS and Windows look, neutral frame) for every screen where the desktop layout differs meaningfully: at minimum Overview with widgets, History, Trends with the breakdown, Money (budgets, accounts, plans), an account page, the Add entry panel, Settings, and Edit Overview.
-- Light and dark for every frame. Theme the drawn app with CSS custom properties for both token sets, and give the page a control that switches every app frame between Light and Dark, separate from the page background control. Also include a short "light and dark side by side" section for the main screens (Overview, Trends, History, Add sheet, Money, Settings), so both can be compared without toggling.
+- Light and dark for every frame. Theme the drawn app with CSS custom properties for both token sets, and give the page a control that switches every app frame between Light and Dark, separate from the page background control. Each screen is one frame that follows that control; do not draw separate light and dark copies of a frame and do not add a side-by-side section. Dark mirrors light's borders, dividers and raised surfaces through the dark tokens.
 - A compact design-token appendix: colours (light and dark, with contrast), type scale, spacing, radii, elevation, chart rules (gap stub, incomplete bar, category colours), icon style and the component list (tray, medallion row, summary band, segmented control, FAB, widget card, notice, sheet, number pad).
 
 ## Data rules
