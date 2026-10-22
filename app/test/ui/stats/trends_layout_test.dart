@@ -99,6 +99,7 @@ Future<_Setup> _pumpFlow(
   WidgetTester tester,
   Ledger ledger, {
   required ShellLayoutMode mode,
+  bool resolveInitialRead = true,
   Size size = _openSize,
 }) async {
   tester.view.physicalSize = size;
@@ -113,8 +114,13 @@ Future<_Setup> _pumpFlow(
   await tester.pumpWidget(
     _TrendsApp(container: container, mode: mode, size: size),
   );
-  await tester.runAsync(() => settle(runner, ledger));
-  await tester.pumpAndSettle();
+  if (resolveInitialRead) {
+    await tester.runAsync(() => settle(runner, ledger));
+    await tester.pumpAndSettle();
+  } else {
+    await tester.runAsync(() => pumpEventQueue());
+    await tester.pump();
+  }
   return (container: container, ledger: ledger, runner: runner);
 }
 
@@ -160,7 +166,57 @@ Future<void> _selectMonthScope(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
+void _expectKindAndModeControls(WidgetTester tester) {
+  expect(find.text('Expense'), findsOneWidget);
+  expect(find.text('Income'), findsOneWidget);
+  expect(find.text('Month by month'), findsOneWidget);
+  expect(find.text('Year by year'), findsOneWidget);
+}
+
 void main() {
+  testWidgets(
+    'open mode keeps kind and mode controls during loading and empty-data failure',
+    (tester) async {
+      final setup = await _pumpFlow(
+        tester,
+        _datedLedger(),
+        mode: ShellLayoutMode.open,
+        resolveInitialRead: false,
+      );
+      _expectKindAndModeControls(tester);
+
+      setup.runner.pending.last.completeError(StateError('compute failed'));
+      await tester.pumpAndSettle();
+      expect(find.text("Couldn't load your spending"), findsOneWidget);
+      expect(find.text('Retry'), findsOneWidget);
+      _expectKindAndModeControls(tester);
+    },
+    timeout: uiTestTimeout,
+  );
+
+  testWidgets(
+    'open mode empty state keeps controls and disables period navigation',
+    (tester) async {
+      final setup = await _pumpFlow(
+        tester,
+        emptyTrendsLedger(),
+        mode: ShellLayoutMode.open,
+      );
+      final before = setup.container.read(trendsIntentProvider);
+      expect(find.text('See where your money goes'), findsOneWidget);
+      _expectKindAndModeControls(tester);
+
+      await tester.tap(find.bySemanticsLabel('Previous'));
+      await tester.tap(find.bySemanticsLabel('Next'));
+      await tester.pumpAndSettle();
+
+      final after = setup.container.read(trendsIntentProvider);
+      expect(after.selected, before.selected);
+      expect(after.spreadEnd, before.spreadEnd);
+    },
+    timeout: uiTestTimeout,
+  );
+
   testWidgets(
     'folding retains the Trends screen, selected period and breakdown scope',
     (tester) async {
@@ -299,6 +355,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(stale, findsNothing);
     expect(find.text('Retry'), findsOneWidget);
+    _expectKindAndModeControls(tester);
     expect(container.read(trendsIntentProvider).selected, selected);
     expect(
       container.read(trendsBreakdownScopeProvider),
