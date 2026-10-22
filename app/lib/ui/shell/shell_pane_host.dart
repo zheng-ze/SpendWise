@@ -59,7 +59,7 @@ class ShellDetail {
     required this.id,
     required this.title,
     required this.bodyBuilder,
-    required this.onClose,
+    this.onClose,
     this.subtitle,
     this.headerActions = const [],
   });
@@ -68,7 +68,7 @@ class ShellDetail {
   final String title;
   final String? subtitle;
   final WidgetBuilder bodyBuilder;
-  final VoidCallback onClose;
+  final VoidCallback? onClose;
   final List<Widget> headerActions;
 }
 
@@ -287,12 +287,15 @@ class _DetailHeader extends StatelessWidget {
         ],
       ],
     );
-    final closeButton = TextButton.icon(
-      key: shellDetailCloseKey,
-      onPressed: detail.onClose,
-      icon: Icon(Icons.close, size: _detailCloseIconSize),
-      label: const Text('Close'),
-    );
+    final onClose = detail.onClose;
+    final closeButton = onClose == null
+        ? null
+        : TextButton.icon(
+            key: shellDetailCloseKey,
+            onPressed: onClose,
+            icon: Icon(Icons.close, size: _detailCloseIconSize),
+            label: const Text('Close'),
+          );
     return Padding(
       padding: _detailHeaderPadding,
       child: Column(
@@ -302,8 +305,10 @@ class _DetailHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(child: title),
-              const SizedBox(width: _detailHeaderGap),
-              closeButton,
+              if (closeButton != null) ...[
+                const SizedBox(width: _detailHeaderGap),
+                closeButton,
+              ],
             ],
           ),
           if (detail.headerActions.isNotEmpty)
