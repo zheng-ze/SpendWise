@@ -398,4 +398,26 @@ void main() {
       expect(future, isNull);
     });
   });
+
+  test('budget overview results compare by money values and rows', () {
+    final first = overview(
+      [budget(_foodID, '100', id: 'd0000000-0000-0000-0000-000000000001')],
+      items: [spend(_foodID, '25')],
+    );
+    final second = overview(
+      [budget(_foodID, '100', id: 'd0000000-0000-0000-0000-000000000001')],
+      items: [spend(_foodID, '25')],
+    );
+
+    expect(first.categoryBudgets.single, second.categoryBudgets.single);
+    expect(
+      first.categoryBudgets.single.hashCode,
+      second.categoryBudgets.single.hashCode,
+    );
+    expect(first.allSpending, second.allSpending);
+    expect(first.allSpending.hashCode, second.allSpending.hashCode);
+    expect(first, second);
+    expect(first.hashCode, second.hashCode);
+    expect(() => first.categoryBudgets.clear(), throwsUnsupportedError);
+  });
 }

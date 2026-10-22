@@ -58,6 +58,56 @@ void main() {
     expect(state.moneySources[uuid(1)]!.asAccount!.subPocketIDs, {uuid(2)});
   });
 
+  test('deletion changes remove rows from every replay table', () {
+    final state = LedgerState();
+    state.addAccount(account(uuid(1)));
+    state.addCategory(category(uuid(2)));
+    state.addEntry(entry(id: uuid(3), sourceID: uuid(1), categoryID: uuid(2)));
+    state.addPlan(plan(uuid(4), sourceID: uuid(1), categoryID: uuid(2)));
+    state.apply([
+      UpsertEntry(
+        Entry(
+          id: uuid(5),
+          date: DateTime.utc(2026),
+          amount: Decimal.fromInt(-10),
+          name: 'archived',
+          sourceID: uuid(1),
+          categoryID: uuid(2),
+          lifecycle: LifecycleState.archived,
+        ),
+      ),
+      UpsertBudget(
+        Budget(
+          id: uuid(6),
+          categoryID: uuid(2),
+          limitEvents: [
+            LimitEvent(
+              effectiveFromMonth: null,
+              value: Decimal.fromInt(100),
+              kind: LimitEventKind.defaultLimit,
+            ),
+          ],
+          createdAtMonth: const YearMonth(2026, 1),
+        ),
+      ),
+    ]);
+
+    state.apply([
+      DeleteMoneySource(uuid(1)),
+      DeleteCategory(uuid(2)),
+      DeleteEntry(uuid(3)),
+      DeleteEntry(uuid(5)),
+      DeletePlan(uuid(4)),
+      DeleteBudget(uuid(6)),
+    ]);
+
+    expect(state.moneySources, isEmpty);
+    expect(state.categories, isEmpty);
+    expect(state.entries, isEmpty);
+    expect(state.plans, isEmpty);
+    expect(state.budgets, isEmpty);
+  });
+
   test('replaying a stream that never upserted a referenced holder throws', () {
     expect(
       () => LedgerState.replaying([

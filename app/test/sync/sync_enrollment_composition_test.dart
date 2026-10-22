@@ -16,6 +16,7 @@ import 'package:spendwise/sync/sync_backend_resolver.dart';
 import 'package:spendwise/sync/sync_coordinator.dart';
 import 'package:spendwise/sync/sync_e2e_key_provider.dart';
 import 'package:spendwise/sync/sync_enrollment_composition.dart';
+import 'package:spendwise/sync/sync_enrollment_session.dart';
 import 'package:spendwise/sync/sync_enrollment_service.dart';
 import 'package:spendwise/sync/sync_metadata_store.dart';
 import 'package:spendwise/sync/sync_secret_keys.dart';
@@ -231,6 +232,97 @@ void main() {
     final request = ready.enrollmentService.buildBeginRequest();
 
     expect(request.wire['identifier'], 'user@example.com');
+  });
+
+  test(
+    'session opener returns a ready session for a valid composition',
+    () async {
+      await SyncMetadataStore(db)
+          .setBackendSelection(backend: SyncBackendKind.supabase);
+      final container = ProviderContainer(
+        overrides: [
+          ledgerDatabaseProvider.overrideWithValue(db),
+          ledgerProvider.overrideWithValue(ledger),
+          persistenceProcessorProvider.overrideWithValue(processor),
+        ],
+      );
+      addTearDown(container.dispose);
+      final probe = Provider<Future<SyncEnrollmentSessionResult>>(
+        (ref) => openSyncEnrollmentSession(
+          ref,
+          identifier: 'user@example.com',
+          resolveOtp: (_) async => '482916',
+          supabaseConfigSource: () => _testConfig,
+          httpClient: httpClient,
+          secretStore: secrets,
+        ),
+      );
+
+      final result = await container.read(probe);
+
+      expect(result, isA<SyncEnrollmentSessionReady>());
+      expect(
+        (result as SyncEnrollmentSessionReady).session,
+        isA<SyncEnrollmentSession>(),
+      );
+    },
+  );
+
+  test('session opener reports missing ledger readiness', () async {
+    final container = ProviderContainer(
+      overrides: [
+        ledgerDatabaseProvider.overrideWithValue(db),
+        ledgerProvider.overrideWithValue(null),
+        persistenceProcessorProvider.overrideWithValue(processor),
+      ],
+    );
+    addTearDown(container.dispose);
+    final probe = Provider<Future<SyncEnrollmentSessionResult>>(
+      (ref) => openSyncEnrollmentSession(
+        ref,
+        identifier: 'user@example.com',
+        resolveOtp: (_) async => '482916',
+        supabaseConfigSource: () => _testConfig,
+        httpClient: httpClient,
+        secretStore: secrets,
+      ),
+    );
+
+    final result = await container.read(probe);
+
+    expect(result, isA<SyncEnrollmentSessionNotReady>());
+    final notReady = result as SyncEnrollmentSessionNotReady;
+    expect(notReady.ledgerReady, isFalse);
+    expect(notReady.persistenceReady, isTrue);
+  });
+
+  test('session opener reports configuration failures', () async {
+    final container = ProviderContainer(
+      overrides: [
+        ledgerDatabaseProvider.overrideWithValue(db),
+        ledgerProvider.overrideWithValue(ledger),
+        persistenceProcessorProvider.overrideWithValue(processor),
+      ],
+    );
+    addTearDown(container.dispose);
+    final probe = Provider<Future<SyncEnrollmentSessionResult>>(
+      (ref) => openSyncEnrollmentSession(
+        ref,
+        identifier: 'user@example.com',
+        resolveOtp: (_) async => '482916',
+        supabaseConfigSource: () => null,
+        httpClient: httpClient,
+        secretStore: secrets,
+      ),
+    );
+
+    final result = await container.read(probe);
+
+    expect(result, isA<SyncEnrollmentSessionConfigurationError>());
+    expect(
+      (result as SyncEnrollmentSessionConfigurationError).message,
+      isNotEmpty,
+    );
   });
 
   test('complete request carries the challenge identifier, OTP, and database deviceID', () async {

@@ -9,6 +9,13 @@ void main() {
   setUp(() => ledger = LedgerState());
 
   group('addPocket', () {
+    test('a pocket source exposes the pocket name', () {
+      ledger.addAccount(account(uuid(1)));
+      ledger.addPocket(pocket(uuid(2), name: 'reserve'), uuid(1));
+
+      expect(ledger.moneySources[uuid(2)]?.name, 'reserve');
+    });
+
     test('attaches the pocket to its parent and to the table', () {
       ledger.addAccount(account(uuid(1)));
       ledger.addPocket(pocket(uuid(2)), uuid(1));
@@ -182,6 +189,31 @@ void main() {
   });
 
   group('updateAccount', () {
+    test('demotes a pocket when its archived account is updated', () {
+      final state = LedgerState(
+        moneySources: {
+          uuid(1): AccountSource(
+            account(
+              uuid(1),
+              subPocketIDs: {uuid(2)},
+              lifecycle: LifecycleState.archived,
+            ),
+          ),
+          uuid(2): PocketSource(pocket(uuid(2))),
+        },
+      );
+
+      final changes = state.updateAccount(account(uuid(1), name: 'renamed'));
+
+      expect(state.moneySources[uuid(2)]?.lifecycle, LifecycleState.archived);
+      expect(
+        changes,
+        contains(
+          UpsertPocket(pocket(uuid(2), lifecycle: LifecycleState.archived)),
+        ),
+      );
+    });
+
     test('edits attributes in place', () {
       ledger.addAccount(account(uuid(1)));
       final changes = ledger.updateAccount(
@@ -311,6 +343,24 @@ void main() {
   });
 
   group('updatePocket', () {
+    test('a pocket cannot outlive an archived account', () {
+      final state = LedgerState(
+        moneySources: {
+          uuid(1): AccountSource(
+            account(
+              uuid(1),
+              subPocketIDs: {uuid(2)},
+              lifecycle: LifecycleState.archived,
+            ),
+          ),
+          uuid(2): PocketSource(pocket(uuid(2))),
+        },
+      );
+
+      expect(() => state.updatePocket(pocket(uuid(2))), throwsStateError);
+      expect(state.moneySources[uuid(2)]?.lifecycle, LifecycleState.active);
+    });
+
     test('changes fields without touching the parent link', () {
       ledger.addAccount(account(uuid(1)));
       ledger.addPocket(pocket(uuid(2)), uuid(1));

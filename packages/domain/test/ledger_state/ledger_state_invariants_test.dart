@@ -36,12 +36,17 @@ void main() {
     destinationID: destinationID,
   );
 
-  RecurringPlan plan({String? sourceID, DateTime? endDate}) => RecurringPlan(
+  RecurringPlan plan({
+    String? sourceID,
+    String? categoryID,
+    DateTime? endDate,
+  }) => RecurringPlan(
     id: planID,
     template: EntryTemplate(
       amount: Decimal.fromInt(-25),
       name: 'rent',
       sourceID: sourceID ?? accountID,
+      categoryID: categoryID,
     ),
     frequency: RecurrenceFrequency.monthly,
     anchor: DateTime.utc(2026, 1, 15),
@@ -86,6 +91,54 @@ void main() {
     );
   });
 
+  test('an account cannot link an unresolved pocket', () {
+    final state = LedgerState(
+      moneySources: {
+        accountID: AccountSource(account(subPocketIDs: {pocketID})),
+      },
+    );
+
+    expect(
+      state.assertInvariants,
+      throwsA(
+        isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          allOf(contains('invariant 2'), contains('unresolved')),
+        ),
+      ),
+    );
+  });
+
+  test('a pocket cannot be linked by two accounts', () {
+    final secondAccountID = uuid(13);
+    final state = LedgerState(
+      moneySources: {
+        accountID: AccountSource(account(subPocketIDs: {pocketID})),
+        secondAccountID: AccountSource(
+          Account(
+            id: secondAccountID,
+            name: 'Savings',
+            type: AccountType.savings,
+            subPocketIDs: {pocketID},
+          ),
+        ),
+        pocketID: PocketSource(SubPocket(id: pocketID, name: 'Bills')),
+      },
+    );
+
+    expect(
+      state.assertInvariants,
+      throwsA(
+        isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          allOf(contains('invariant 2'), contains('linked by')),
+        ),
+      ),
+    );
+  });
+
   test('a referenceOnly account keeping a linked pocket is legal', () {
     final state = LedgerState(
       moneySources: {
@@ -109,6 +162,27 @@ void main() {
     expect(state.assertInvariants, returnsNormally);
   });
 
+  test('an unreferenced referenceOnly money source is caught', () {
+    final state = LedgerState(
+      moneySources: {
+        accountID: AccountSource(
+          account(lifecycle: LifecycleState.referenceOnly),
+        ),
+      },
+    );
+
+    expect(
+      state.assertInvariants,
+      throwsA(
+        isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          allOf(contains('invariant 11'), contains('has no reference')),
+        ),
+      ),
+    );
+  });
+
   test('a plan naming a holder absent from the table is caught', () {
     final state = LedgerState(
       moneySources: {accountID: AccountSource(account())},
@@ -122,6 +196,71 @@ void main() {
           (error) => error.message,
           'message',
           allOf(contains('invariant 7'), contains(uuid(9))),
+        ),
+      ),
+    );
+  });
+
+  test('a plan naming a category absent from the table is caught', () {
+    final state = LedgerState(
+      moneySources: {accountID: AccountSource(account())},
+      plans: {planID: plan(categoryID: uuid(9))},
+    );
+
+    expect(
+      state.assertInvariants,
+      throwsA(
+        isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          allOf(contains('invariant 7'), contains(planID)),
+        ),
+      ),
+    );
+  });
+
+  test('tombstoned stored sources violate invariants', () {
+    final state = LedgerState(
+      moneySources: {
+        accountID: AccountSource(account(lifecycle: LifecycleState.tombstoned)),
+      },
+    );
+
+    expect(
+      state.assertInvariants,
+      throwsA(
+        isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          allOf(contains('invariant 10'), contains(accountID)),
+        ),
+      ),
+    );
+  });
+
+  test('tombstoned stored categories violate invariants', () {
+    final state = LedgerState(
+      categories: {
+        uuid(5): TransactionCategory(
+          id: uuid(5),
+          name: 'food',
+          kind: CategoryKind.expense,
+          colorHex: '#888888',
+          includeInAnalysis: true,
+          parentID: null,
+          symbol: 'tag',
+          lifecycle: LifecycleState.tombstoned,
+        ),
+      },
+    );
+
+    expect(
+      state.assertInvariants,
+      throwsA(
+        isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          allOf(contains('invariant 10'), contains(uuid(5))),
         ),
       ),
     );
@@ -317,6 +456,99 @@ void main() {
       expect(
         () => state.addCategory(categoryRow(id: childID, parentID: parentID)),
         throwsA(InactiveReference(parentID)),
+      );
+    });
+  });
+
+  group('category nesting invariants', () {
+    final parentID = uuid(10);
+    final childID = uuid(11);
+
+    test('a category with an unknown parent is caught', () {
+      final state = LedgerState(
+        categories: {childID: categoryRow(id: childID, parentID: uuid(12))},
+      );
+
+      expect(
+        state.assertInvariants,
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            allOf(contains('invariant 5'), contains('unknown parent')),
+          ),
+        ),
+      );
+    });
+
+    test('a category cannot nest below a child category', () {
+      final state = LedgerState(
+        categories: {
+          parentID: categoryRow(id: parentID),
+          childID: categoryRow(id: childID, parentID: parentID),
+          uuid(12): categoryRow(id: uuid(12), parentID: childID),
+        },
+      );
+
+      expect(
+        state.assertInvariants,
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            allOf(contains('invariant 5'), contains('depth 2')),
+          ),
+        ),
+      );
+    });
+
+    test('a child category must match its parent kind', () {
+      final state = LedgerState(
+        categories: {
+          parentID: categoryRow(id: parentID),
+          childID: TransactionCategory(
+            id: childID,
+            name: 'Income',
+            kind: CategoryKind.income,
+            colorHex: '#888888',
+            includeInAnalysis: true,
+            parentID: parentID,
+            symbol: 'tag',
+          ),
+        },
+      );
+
+      expect(
+        state.assertInvariants,
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            allOf(contains('invariant 5'), contains('kind differs')),
+          ),
+        ),
+      );
+    });
+
+    test('an unreferenced referenceOnly category is caught', () {
+      final state = LedgerState(
+        categories: {
+          parentID: categoryRow(
+            id: parentID,
+            lifecycle: LifecycleState.referenceOnly,
+          ),
+        },
+      );
+
+      expect(
+        state.assertInvariants,
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            allOf(contains('invariant 11'), contains('unreferenced')),
+          ),
+        ),
       );
     });
   });

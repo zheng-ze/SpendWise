@@ -82,7 +82,7 @@ SyncEnvelope entriesEnvelope(String row) => SyncEnvelope.create(
 
 final class FakeSyncAuthenticator implements SyncAuthenticator {
   SyncOutcome<EnrollmentChallenge> Function()? onBegin;
-  SyncOutcome<DeviceCredential> Function()? onComplete;
+  FutureOr<SyncOutcome<DeviceCredential>> Function()? onComplete;
   int beginCalls = 0;
   int completeCalls = 0;
 
@@ -101,7 +101,7 @@ final class FakeSyncAuthenticator implements SyncAuthenticator {
     completeCalls++;
     final onComplete = this.onComplete;
     if (onComplete == null) throw StateError('no completion configured');
-    return onComplete();
+    return await onComplete();
   }
 
   @override
@@ -259,6 +259,41 @@ final class FailingWriteStore implements SecretStore {
     }
     return inner.write(key, value);
   }
+
+  @override
+  Future<void> delete(String key) => inner.delete(key);
+}
+
+final class SequencedReadSecretStore implements SecretStore {
+  SequencedReadSecretStore({
+    required this.inner,
+    required this.key,
+    required this.readNumber,
+    this.onRead,
+    this.failRead = false,
+  });
+
+  final InMemorySecretStore inner;
+  final String key;
+  final int readNumber;
+  final Future<void> Function()? onRead;
+  final bool failRead;
+  var matchingReads = 0;
+
+  @override
+  Future<String?> read(String key) async {
+    if (key == this.key) {
+      matchingReads++;
+      if (matchingReads == readNumber) {
+        await onRead?.call();
+        if (failRead) throw const SecretStoreException();
+      }
+    }
+    return inner.read(key);
+  }
+
+  @override
+  Future<void> write(String key, String value) => inner.write(key, value);
 
   @override
   Future<void> delete(String key) => inner.delete(key);
@@ -580,6 +615,26 @@ void main() {
       );
       expect(finalSnapshot.writeEnabled, isTrue, reason: '$resume');
     }
+  });
+
+  test('repair exit refuses to release a newer repair episode', () async {
+    await seedBoundDevice(database: db, store: secrets, target: backend);
+    await metadataStore.enterSnapshotInProgress();
+    await metadataStore.enterSessionReauthRequired();
+    final id = await deviceID(db);
+    authenticator.onComplete = () async {
+      await SyncRepairGate.forDatabase(db).latch();
+      return SyncSuccess(
+        const CredentialCodec().restore(credentialPayload(id, 'new-bearer')),
+      );
+    };
+
+    await expectLater(service().enroll(), throwsStateError);
+
+    final snapshot = await metadataStore.snapshot();
+    expect(snapshot.phase, SyncEnrollmentPhase.sessionReauthRequired);
+    expect(snapshot.reauthResumePhase, SyncEnrollmentPhase.snapshotInProgress);
+    expect(SyncRepairGate.forDatabase(db).isOpen, isFalse);
   });
 
   test(
@@ -1431,6 +1486,29 @@ void main() {
     expect(snapshot.writeEnabled, isFalse);
   });
 
+  test('a stale bearer expiry does not reauth a replaced credential', () async {
+    await seedBoundDevice(database: db, store: secrets, target: backend);
+    await metadataStore.enterSnapshotInProgress();
+    final wrapper = DelegatingBackend(backend);
+    wrapper.onBoundBegin = (credential, request) async {
+      await secrets.delete(syncCredentialSecretKey);
+      return const CredentialExpired<ReconcileResponse>(
+        message: 'stale expiry',
+      );
+    };
+
+    final error = await enrollError(
+      () => service(backendOverride: wrapper).enroll(),
+    );
+
+    expect(error.code, 'invalid_request');
+    expect(error.message, 'The expired credential was superseded.');
+    final snapshot = await metadataStore.snapshot();
+    expect(snapshot.deviceBindingState, SyncDeviceBindingState.bound);
+    expect(snapshot.phase, SyncEnrollmentPhase.snapshotInProgress);
+    expect(snapshot.reauthResumePhase, isNull);
+  });
+
   test('bound Pull CredentialExpired during binding repair surfaces device_authorization_required', () async {
     await seedBoundDevice(database: db, store: secrets, target: backend);
     await metadataStore.enterSnapshotInProgress();
@@ -1499,6 +1577,58 @@ void main() {
     final snapshot = await metadataStore.snapshot();
     expect(snapshot.phase, SyncEnrollmentPhase.bindingAuthorizationRequired);
   });
+
+  test(
+    'a stale binding rejection does not repair a replaced credential',
+    () async {
+      await seedBoundDevice(database: db, store: secrets, target: backend);
+      await metadataStore.enterSnapshotInProgress();
+      final wrapper = DelegatingBackend(backend);
+      wrapper.onBoundBegin = (credential, request) async {
+        await secrets.delete(syncCredentialSecretKey);
+        return const DeviceAuthorizationRequired<ReconcileResponse>(
+          message: 'stale rejection',
+        );
+      };
+
+      final error = await enrollError(
+        () => service(backendOverride: wrapper).enroll(),
+      );
+
+      expect(error.code, 'device_authorization_required');
+      expect(await secrets.read(syncDeviceSecretKey), validDeviceSecret());
+      final snapshot = await metadataStore.snapshot();
+      expect(snapshot.deviceBindingState, SyncDeviceBindingState.bound);
+      expect(snapshot.phase, SyncEnrollmentPhase.snapshotInProgress);
+    },
+  );
+
+  test(
+    'repeated binding rejection keeps repair latched and deletes the secret',
+    () async {
+      await seedBoundDevice(database: db, store: secrets, target: backend);
+      await metadataStore.enterSnapshotInProgress();
+      final wrapper = DelegatingBackend(backend);
+      wrapper.onBoundBegin = (credential, request) async {
+        await metadataStore.enterBindingAuthorizationRequired();
+        return const DeviceAuthorizationRequired<ReconcileResponse>(
+          message: 'binding rejected',
+        );
+      };
+
+      final error = await enrollError(
+        () => service(backendOverride: wrapper).enroll(),
+      );
+
+      expect(error.code, 'device_authorization_required');
+      expect(await secrets.read(syncDeviceSecretKey), isNull);
+      expect(SyncRepairGate.forDatabase(db).isOpen, isFalse);
+      expect(
+        (await metadataStore.snapshot()).phase,
+        SyncEnrollmentPhase.bindingAuthorizationRequired,
+      );
+    },
+  );
 
   test('Pull CredentialExpired records session reauth', () async {
     await seedBoundDevice(database: db, store: secrets, target: backend);
@@ -1619,6 +1749,172 @@ void main() {
     expect(snapshot.phase, SyncEnrollmentPhase.sessionReauthRequired);
     expect(snapshot.reauthResumePhase, SyncEnrollmentPhase.snapshotInProgress);
   });
+
+  test(
+    'malformed bearer enters session reauth and preserves the snapshot phase',
+    () async {
+      await seedBoundDevice(database: db, store: secrets, target: backend);
+      await secrets.write(syncCredentialSecretKey, 'malformed-credential');
+      await metadataStore.enterSnapshotInProgress();
+
+      final error = await enrollError(service().enroll);
+
+      expect(error.step, 'reconcileBegin');
+      expect(error.code, 'credential_expired');
+      final snapshot = await metadataStore.snapshot();
+      expect(snapshot.phase, SyncEnrollmentPhase.sessionReauthRequired);
+      expect(
+        snapshot.reauthResumePhase,
+        SyncEnrollmentPhase.snapshotInProgress,
+      );
+      expect(snapshot.writeEnabled, isFalse);
+    },
+  );
+
+  test(
+    'credential storage failure during recheck remains a storage failure',
+    () async {
+      await seedBoundDevice(database: db, store: secrets, target: backend);
+      await secrets.delete(syncCredentialSecretKey);
+      await metadataStore.enterSnapshotInProgress();
+      final store = SequencedReadSecretStore(
+        inner: secrets,
+        key: syncCredentialSecretKey,
+        readNumber: 2,
+        failRead: true,
+      );
+
+      await expectLater(
+        service(secretStoreOverride: store).enroll(),
+        throwsA(
+          isA<CredentialUnavailableException>().having(
+            (error) => error.reason,
+            'reason',
+            CredentialUnavailableReason.storageFailed,
+          ),
+        ),
+      );
+      expect(
+        (await metadataStore.snapshot()).phase,
+        SyncEnrollmentPhase.snapshotInProgress,
+      );
+    },
+  );
+
+  test(
+    'credential identity failure during recheck remains an identity failure',
+    () async {
+      await seedBoundDevice(database: db, store: secrets, target: backend);
+      await secrets.delete(syncCredentialSecretKey);
+      await metadataStore.enterSnapshotInProgress();
+      final id = await deviceID(db);
+      final store = SequencedReadSecretStore(
+        inner: secrets,
+        key: syncCredentialSecretKey,
+        readNumber: 2,
+        onRead: () => secrets.write(
+          syncCredentialSecretKey,
+          credentialPayload('another-device', 'bearer'),
+        ),
+      );
+
+      await expectLater(
+        service(secretStoreOverride: store).enroll(),
+        throwsA(
+          isA<CredentialUnavailableException>().having(
+            (error) => error.reason,
+            'reason',
+            CredentialUnavailableReason.identityFailed,
+          ),
+        ),
+      );
+      expect(id, isNot('another-device'));
+      expect(
+        (await metadataStore.snapshot()).phase,
+        SyncEnrollmentPhase.snapshotInProgress,
+      );
+    },
+  );
+
+  test(
+    'a credential restored during recheck supersedes the unavailable one',
+    () async {
+      await seedBoundDevice(database: db, store: secrets, target: backend);
+      await secrets.delete(syncCredentialSecretKey);
+      await metadataStore.enterSnapshotInProgress();
+      final id = await deviceID(db);
+      final store = SequencedReadSecretStore(
+        inner: secrets,
+        key: syncCredentialSecretKey,
+        readNumber: 2,
+        onRead: () => secrets.write(
+          syncCredentialSecretKey,
+          credentialPayload(id, 'restored-bearer'),
+        ),
+      );
+
+      final error = await enrollError(
+        () => service(secretStoreOverride: store).enroll(),
+      );
+
+      expect(error.code, 'invalid_request');
+      expect(error.message, 'The unavailable credential was superseded.');
+      expect(
+        (await metadataStore.snapshot()).phase,
+        SyncEnrollmentPhase.snapshotInProgress,
+      );
+    },
+  );
+
+  test('binding repair supersedes a session reauth route', () async {
+    await seedBoundDevice(database: db, store: secrets, target: backend);
+    await secrets.delete(syncCredentialSecretKey);
+    await metadataStore.enterSnapshotInProgress();
+    final store = SequencedReadSecretStore(
+      inner: secrets,
+      key: syncCredentialSecretKey,
+      readNumber: 2,
+      onRead: metadataStore.enterBindingAuthorizationRequired,
+    );
+
+    final error = await enrollError(
+      () => service(secretStoreOverride: store).enroll(),
+    );
+
+    expect(error.code, 'device_authorization_required');
+    final snapshot = await metadataStore.snapshot();
+    expect(
+      snapshot.deviceBindingState,
+      SyncDeviceBindingState.authorizationRequired,
+    );
+    expect(snapshot.phase, SyncEnrollmentPhase.bindingAuthorizationRequired);
+    expect(SyncRepairGate.forDatabase(db).isOpen, isFalse);
+  });
+
+  test(
+    'malformed reconciliation context surfaces an invalid request',
+    () async {
+      await seedBoundDevice(database: db, store: secrets, target: backend);
+      await metadataStore.enterSnapshotInProgress();
+      final wrapper = DelegatingBackend(backend);
+      wrapper.onBoundBegin = (credential, request) => SyncSuccess(
+        ReconcileResponse(const <String, Object?>{'reconciliation': 'invalid'}),
+      );
+
+      final error = await enrollError(
+        () => service(backendOverride: wrapper).enroll(),
+      );
+
+      expect(error.step, 'reconcileBegin');
+      expect(error.code, 'invalid_request');
+      expect(error.message, isNotEmpty);
+      expect(wrapper.pulls, isEmpty);
+      expect(
+        (await metadataStore.snapshot()).phase,
+        SyncEnrollmentPhase.snapshotInProgress,
+      );
+    },
+  );
 
   test('device-secret read failure stops without claiming repair', () async {
     await seedBoundDevice(database: db, store: secrets, target: backend);
@@ -1759,6 +2055,43 @@ void main() {
     );
     final snapshot = await metadataStore.snapshot();
     expect(snapshot.phase, SyncEnrollmentPhase.snapshotInProgress);
+    expect(snapshot.writeEnabled, isFalse);
+  });
+
+  test('rehash authorization failure enters binding repair', () async {
+    await seedBoundDevice(database: db, store: secrets, target: backend);
+    await metadataStore.enterSnapshotInProgress();
+    var entryPulls = 0;
+    final wrapper = DelegatingBackend(backend);
+    wrapper.onPullOverride = (credential, request) async {
+      if (request.collection == SyncCollection.entries) {
+        entryPulls++;
+        if (entryPulls == 2) {
+          return const DeviceAuthorizationRequired<PullResponse>(
+            message: 'binding rejected',
+          );
+        }
+      }
+      return backend.pull(credential, request);
+    };
+    wrapper.onComplete = (credential, request) =>
+        const SnapshotHashMismatch<ReconcileResponse>(
+          mismatchedCollection: SyncCollection.entries,
+        );
+
+    final error = await enrollError(
+      () => service(backendOverride: wrapper).enroll(),
+    );
+
+    expect(error.step, 'reconcileComplete');
+    expect(error.code, 'device_authorization_required');
+    expect(await secrets.read(syncDeviceSecretKey), isNull);
+    final snapshot = await metadataStore.snapshot();
+    expect(
+      snapshot.deviceBindingState,
+      SyncDeviceBindingState.authorizationRequired,
+    );
+    expect(snapshot.phase, SyncEnrollmentPhase.bindingAuthorizationRequired);
     expect(snapshot.writeEnabled, isFalse);
   });
 

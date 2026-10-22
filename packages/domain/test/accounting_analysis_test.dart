@@ -378,6 +378,37 @@ void main() {
   });
 
   group('category resolution', () {
+    test('includedInAnalysis honors entry and category exclusions', () {
+      final ledger = LedgerState();
+      ledger.addAccount(account(a));
+      ledger.addCategory(category(cat, includeInAnalysis: false));
+      ledger.addCategory(category(parent, includeInAnalysis: false));
+      ledger.addCategory(category(child, parent: parent));
+
+      expect(Accounting.includedInAnalysis(entry(sourceID: a), ledger), isTrue);
+      expect(
+        Accounting.includedInAnalysis(
+          entry(sourceID: a, includeInAnalysis: false),
+          ledger,
+        ),
+        isFalse,
+      );
+      expect(
+        Accounting.includedInAnalysis(
+          entry(sourceID: a, categoryID: cat),
+          ledger,
+        ),
+        isFalse,
+      );
+      expect(
+        Accounting.includedInAnalysis(
+          entry(sourceID: a, categoryID: child),
+          ledger,
+        ),
+        isFalse,
+      );
+    });
+
     test('a category excluded from analysis hides its expenses', () {
       final ledger = LedgerState();
       ledger.addAccount(account(a));

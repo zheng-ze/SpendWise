@@ -12,6 +12,22 @@ void main() {
   });
 
   group('category structure', () {
+    test('editing a child prevents it from outliving its archived parent', () {
+      ledger.addCategory(category(uuid(2), lifecycle: LifecycleState.archived));
+      ledger.addCategory(category(uuid(3), parent: uuid(2)));
+
+      final changes = ledger.updateCategory(
+        category(
+          uuid(3),
+          parent: uuid(2),
+          lifecycle: LifecycleState.referenceOnly,
+        ),
+      );
+
+      expect(ledger.categories[uuid(3)]?.lifecycle, LifecycleState.active);
+      expect(changes, [UpsertCategory(category(uuid(3), parent: uuid(2)))]);
+    });
+
     test('a third nesting level throws categoryTooDeep', () {
       ledger.addCategory(category(uuid(2)));
       ledger.addCategory(category(uuid(3), parent: uuid(2)));

@@ -40,6 +40,13 @@ void main() {
 
   Future<SyncMetadataSnapshot> snapshot() => store.snapshot();
 
+  test('unknown device binding codes are rejected', () {
+    expect(
+      () => SyncDeviceBindingState.fromCode(99),
+      throwsA(isA<FormatException>()),
+    );
+  });
+
   Future<void> seedRow({
     required SyncDeviceBindingState binding,
     required SyncEnrollmentPhase phase,
@@ -145,6 +152,24 @@ void main() {
         const SyncMetaCompanion(deviceBindingState: Value(1)),
       );
       expect((await snapshot()).deviceBindingRequired, isTrue);
+    });
+
+    test('gate enabling rejects a stale reauth resume phase', () async {
+      await seedRow(
+        binding: SyncDeviceBindingState.bound,
+        phase: SyncEnrollmentPhase.reconciliationComplete,
+        writes: false,
+        resume: SyncEnrollmentPhase.snapshotInProgress,
+      );
+
+      await expectLater(
+        store.enterGateEnabled(),
+        throwsA(isA<SyncWriteGateException>()),
+      );
+      final state = await snapshot();
+      expect(state.phase, SyncEnrollmentPhase.reconciliationComplete);
+      expect(state.writeEnabled, isFalse);
+      expect(state.reauthResumePhase, SyncEnrollmentPhase.snapshotInProgress);
     });
   });
 

@@ -78,6 +78,28 @@ void _addExpense(Ledger ledger, String id, String amount, {DateTime? date}) {
 }
 
 void main() {
+  test('analysis query results compare state value and revision', () {
+    const ready = AnalysisQueryResult<int>(
+      value: 7,
+      state: AnalysisQueryState.ready,
+      sourceRevision: 3,
+    );
+    const equal = AnalysisQueryResult<int>(
+      value: 7,
+      state: AnalysisQueryState.ready,
+      sourceRevision: 3,
+    );
+    const stale = AnalysisQueryResult<int>(
+      value: 7,
+      state: AnalysisQueryState.ready,
+      sourceRevision: 4,
+    );
+
+    expect(ready, equal);
+    expect(ready.hashCode, equal.hashCode);
+    expect(ready, isNot(stale));
+  });
+
   test(
     'readsStartLoadingThenRetainWhilePendingAndPublishOnceAtEquality',
     () async {

@@ -29,6 +29,13 @@ void main() {
     expect(a.hashCode, b.hashCode);
   });
 
+  test('failure string identifies its plan and occurrence', () {
+    final text = failure().toString();
+
+    expect(text, contains('PlanFailure($planID'));
+    expect(text, contains('2026-03-15'));
+  });
+
   test('differing changes compare unequal', () {
     final a = PlanResolution(changes: [change()], failures: const []);
     final b = PlanResolution(changes: const [], failures: const []);

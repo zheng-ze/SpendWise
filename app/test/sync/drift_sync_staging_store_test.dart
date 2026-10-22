@@ -450,4 +450,19 @@ void main() {
       expect(await reader.pendingConflictList(), [oldest, newest]);
     });
   });
+
+  test('unknown staged lifecycle is rejected during reload', () async {
+    final conflict = _conflict(SyncCollection.entries, _rowA);
+    await store.stageConflict(conflict);
+    await db.customStatement(
+      'UPDATE sync_staged_siblings SET lifecycle = 2 '
+      'WHERE collection = ? AND row_id = ?',
+      [SyncCollection.entries.wireName, _rowA],
+    );
+
+    await expectLater(
+      store.pendingConflictList(),
+      throwsA(isA<FormatException>()),
+    );
+  });
 }

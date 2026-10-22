@@ -214,6 +214,34 @@ final class _BlockingDeleteSecretStore implements SecretStore {
   }
 }
 
+final class _FailOnNthSecretRead implements SecretStore {
+  _FailOnNthSecretRead(this.inner, this.key, this.readNumber, {this.onRead});
+
+  final InMemorySecretStore inner;
+  final String key;
+  final int readNumber;
+  final Future<void> Function()? onRead;
+  var matchingReads = 0;
+
+  @override
+  Future<String?> read(String key) async {
+    if (key == this.key) {
+      matchingReads++;
+      if (matchingReads == readNumber) {
+        await onRead?.call();
+        if (onRead == null) throw const SecretStoreException();
+      }
+    }
+    return inner.read(key);
+  }
+
+  @override
+  Future<void> write(String key, String value) => inner.write(key, value);
+
+  @override
+  Future<void> delete(String key) => inner.delete(key);
+}
+
 final class _RotatingMissingSecretStore implements SecretStore {
   _RotatingMissingSecretStore(this.inner, this.gate);
 
@@ -624,6 +652,21 @@ void main() {
       expect(coordinator.status, const SyncIdle());
     });
   });
+
+  test(
+    'create uses its default secure secret store when none is injected',
+    () async {
+      final coordinator = await SyncCoordinator.create(
+        database: db,
+        ledger: ledger,
+        persistenceProcessor: processor,
+        httpClient: httpSpy,
+      );
+
+      expect(coordinator.status, isA<SyncIdle>());
+      coordinator.dispose();
+    },
+  );
 
   group('wiring invariant', () {
     test(
@@ -4273,6 +4316,165 @@ void main() {
       expect(snapshot.phase, SyncEnrollmentPhase.sessionReauthRequired);
       expect(snapshot.reauthResumePhase, SyncEnrollmentPhase.gateEnabled);
       expect(snapshot.writeEnabled, isFalse);
+    });
+
+    test('a malformed bearer routes pull into session reauth', () async {
+      final backend = _FakeSyncBackend();
+      final setup = await pushSetup(backend: backend);
+      await secrets.write(syncCredentialSecretKey, 'malformed-credential');
+
+      await expectLater(
+        setup.coordinator.processPullPage(SyncCollection.entries),
+        throwsStateError,
+      );
+
+      expect(backend.pulls, isEmpty);
+      final snapshot = await setup.coordinator.metadataStore.snapshot();
+      expect(snapshot.deviceBindingState, SyncDeviceBindingState.bound);
+      expect(snapshot.phase, SyncEnrollmentPhase.sessionReauthRequired);
+      expect(snapshot.reauthResumePhase, SyncEnrollmentPhase.gateEnabled);
+      expect(snapshot.writeEnabled, isFalse);
+    });
+
+    test(
+      'a credential storage failure during recheck preserves the error',
+      () async {
+        final backend = _FakeSyncBackend();
+        await secrets.delete(syncCredentialSecretKey);
+        final rotatingStore = _FailOnNthSecretRead(
+          secrets,
+          syncCredentialSecretKey,
+          2,
+        );
+        final coordinator = await pullCoordinator(
+          backend: backend,
+          versionSource: InMemorySyncVersionSource(),
+          staging: InMemorySyncStagingStore(),
+          e2eKey: _freshKey(),
+          credentialSecrets: rotatingStore,
+        );
+        await secrets.delete(syncCredentialSecretKey);
+
+        await expectLater(
+          coordinator.processPullPage(SyncCollection.entries),
+          throwsA(
+            isA<CredentialUnavailableException>().having(
+              (error) => error.reason,
+              'reason',
+              CredentialUnavailableReason.storageFailed,
+            ),
+          ),
+        );
+
+        expect(backend.pulls, isEmpty);
+        final snapshot = await coordinator.metadataStore.snapshot();
+        expect(snapshot.phase, SyncEnrollmentPhase.snapshotInProgress);
+        expect(coordinator.repairGate.isOpen, isTrue);
+      },
+    );
+
+    test(
+      'a credential identity failure during recheck preserves the error',
+      () async {
+        final backend = _FakeSyncBackend();
+        final id = await deviceID(db);
+        final rotatingStore = _FailOnNthSecretRead(
+          secrets,
+          syncCredentialSecretKey,
+          2,
+          onRead: () => secrets.write(
+            syncCredentialSecretKey,
+            _credentialPayload('another-device', 'replacement-bearer'),
+          ),
+        );
+        final coordinator = await pullCoordinator(
+          backend: backend,
+          versionSource: InMemorySyncVersionSource(),
+          staging: InMemorySyncStagingStore(),
+          e2eKey: _freshKey(),
+          credentialSecrets: rotatingStore,
+        );
+        await secrets.delete(syncCredentialSecretKey);
+
+        await expectLater(
+          coordinator.processPullPage(SyncCollection.entries),
+          throwsA(
+            isA<CredentialUnavailableException>().having(
+              (error) => error.reason,
+              'reason',
+              CredentialUnavailableReason.identityFailed,
+            ),
+          ),
+        );
+
+        expect(id, isNot('another-device'));
+        expect(backend.pulls, isEmpty);
+        expect(
+          (await coordinator.metadataStore.snapshot()).phase,
+          SyncEnrollmentPhase.snapshotInProgress,
+        );
+      },
+    );
+
+    test(
+      'bearer expiry during binding repair keeps binding repair authoritative',
+      () async {
+        final backend = _FakeSyncBackend();
+        final setup = await pushSetup(backend: backend);
+        backend.onPullRequest = (request) async {
+          await setup.coordinator.metadataStore
+              .enterBindingAuthorizationRequired();
+          return const CredentialExpired<PullResponse>(message: 'expired');
+        };
+
+        await expectLater(
+          setup.coordinator.processPullPage(SyncCollection.entries),
+          throwsA(
+            isA<StateError>().having(
+              (error) => error.message,
+              'message',
+              contains('binding repair is required'),
+            ),
+          ),
+        );
+
+        final snapshot = await setup.coordinator.metadataStore.snapshot();
+        expect(
+          snapshot.deviceBindingState,
+          SyncDeviceBindingState.authorizationRequired,
+        );
+        expect(
+          snapshot.phase,
+          SyncEnrollmentPhase.bindingAuthorizationRequired,
+        );
+        expect(setup.coordinator.repairGate.isOpen, isFalse);
+      },
+    );
+
+    test('repeated device rejection keeps binding repair latched', () async {
+      final backend = _FakeSyncBackend();
+      final setup = await pushSetup(backend: backend);
+      backend.onPullRequest = (request) async {
+        await setup.coordinator.metadataStore
+            .enterBindingAuthorizationRequired();
+        return const DeviceAuthorizationRequired<PullResponse>(
+          message: 'binding rejected',
+        );
+      };
+
+      await expectLater(
+        setup.coordinator.processPullPage(SyncCollection.entries),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(await secrets.read(syncDeviceSecretKey), isNull);
+      expect(setup.coordinator.repairGate.isOpen, isFalse);
+      final snapshot = await setup.coordinator.metadataStore.snapshot();
+      expect(
+        snapshot.deviceBindingState,
+        SyncDeviceBindingState.authorizationRequired,
+      );
+      expect(snapshot.phase, SyncEnrollmentPhase.bindingAuthorizationRequired);
     });
 
     test('a storage failure stops the pull without entering repair', () async {

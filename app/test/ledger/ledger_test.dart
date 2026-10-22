@@ -90,6 +90,22 @@ void main() {
     ]);
   });
 
+  test('updatePocketCommitsAndPublishesTheChangedPocket', () {
+    final ledger = Ledger();
+    final account = _account();
+    ledger.addAccount(account);
+    final pocket = SubPocket(name: 'Bills');
+    ledger.addPocket(pocket, account.id);
+    final updated = SubPocket(id: pocket.id, name: 'Rent');
+    final batches = _batchesOf(ledger);
+
+    final changes = ledger.updatePocket(updated);
+
+    expect(changes, [UpsertPocket(updated)]);
+    expect(ledger.state.moneySources[pocket.id]?.name, 'Rent');
+    expect(batches, [changes]);
+  });
+
   test('rejectedMutationPublishesNothing', () {
     final ledger = Ledger();
     final batches = _batchesOf(ledger);
