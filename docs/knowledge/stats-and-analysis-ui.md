@@ -21,6 +21,8 @@ the ready Ledger's `AnalysisCache` (`app/lib/ui/stats/category_detail/category_d
   `trends_view_model.dart` (`TrendsViewModel` interface, `TrendsViewState`, `TrendsStep` and the
   `LedgerBackedNotifier`), and the
   `trends_controls`, `trends_period_card`, `trends_state_views` widgets.
+- `app/lib/ui/stats/trends/trends_hosted_root.dart` - selected-period pane body and its
+  loading, error and empty presentations.
 - `app/lib/ui/stats/category_detail/` - the retained category drill-down screen and view model.
 - `app/lib/ui/stats/analysis/analysis_scan.dart` - memoized category-detail filtering.
 - `app/lib/ui/stats/helpers/slices.dart` - category slice and roll-up helpers referenced only by tests,
@@ -112,8 +114,9 @@ breakdown, and average-row identity before rendering (`app/lib/ui/stats/trends/t
 optional bounds. Its ID contains only mode and selected period (`month:YYYY-MM` or `year:YYYY`),
 never kind or layout; its title is the formatted month and year or calendar year.
 `trendsDetailMetadataProvider` uses bounds from the current-revision ready ledger-only first-record
-read when available, otherwise an unbounded context. No screen consumes this metadata
-(`app/lib/ui/stats/trends/trends_detail_metadata.dart`).
+read when available, otherwise an unbounded context. The hosted root uses this metadata for the
+`ShellDetail` ID and title, independently of loading, failure and Retry
+(`app/lib/ui/stats/trends/trends_detail_metadata.dart`, `app/lib/ui/stats/trends_flow.dart`).
 
 Only `TrendsReadyBody` carries the required `wholePeriod` payload (`TrendsWholePeriod`). Both month
 and year projections call `projectWholePeriod` to build its breakdown from `periodSummary.breakdown`,
@@ -124,10 +127,11 @@ largest category's name and share, then the highest complete month or year with 
 the empty message is `Not enough data`. Insights have no qualifier text
 (`app/lib/ui/stats/trends/trends_whole_period.dart:projectWholePeriod`,
 `app/test/ui/stats/trends_breakdown_projection_test.dart`). `TrendsInsightsCard` renders this payload's
-Insights but is not mounted by `TrendsScreen`; the screen still renders the selected-period breakdown
+Insights in `TrendsScreen`'s open single-column presentation; phone and desktop render the
+selected-period breakdown
 (`app/lib/ui/stats/trends/trends_insights_card.dart`, `app/lib/ui/stats/trends_screen.dart`).
 
-The category breakdown uses the selected period, kind and level. The projection explicitly maps the
+The selected-period category breakdown uses the selected period, kind and level. The projection explicitly maps the
 settings `BreakdownLevel` to the analysis `BreakdownLevel`. A failed breakdown read gives the error
 body; pending reads or stale revisions give loading. A ready breakdown with no rows produces
 `TrendsEmptyBreakdown` within the ready body, while an empty ledger has no breakdown in its empty
@@ -143,7 +147,8 @@ A missing selected identity or duplicate identity in either input makes the proj
 `Unavailable`, a genuine zero as plain `0.00`, and other means as signed amounts
 (`app/lib/ui/stats/trends/trends_average_comparison.dart`, `trends_projection.dart`).
 
-Trends renders one selected-period breakdown section beside or below the period card. It draws
+Phone and desktop render the selected-period breakdown beside or below the period card; open mode
+renders it in the detail pane and a compact whole-period breakdown in the page. Each section draws
 the saved chart (donut or category map) at the saved level and colour mode, then ranked rows with
 swatch, name, a caption of `share / parent` and the
 signed amount. A period with no records of the selected kind shows the empty card copy instead of chart
@@ -156,16 +161,30 @@ one has neither. Both charts forward the tapped item's index and never receive a
 `TrendsBreakdownSection` accepts an optional `header` override, `compact` presentation flag and
 `averageComparison`. Providing a comparison adds an average column and asserts that its row count
 matches the breakdown. Their defaults (`null`, `false` and `null`) preserve the existing presentation;
-`TrendsScreen` does not supply the comparison
-(`app/lib/ui/stats/trends/trends_breakdown_section.dart`).
+`TrendsPeriodDetailBody` supplies the comparison in the open detail pane
+(`app/lib/ui/stats/trends/trends_breakdown_section.dart`, `trends/trends_hosted_root.dart`).
 
-`TrendsScreen.layoutMode` defaults to `ShellLayoutMode.phone`. Its ready body uses
-`TrendsDesktopLayout`: desktop mode places the period card and selected-period breakdown side by side
-when the bounded page content width is at least `trendsMinimumTwoColumnContentWidth` (640 logical
-pixels); otherwise they stack. This is a Trends presentation rule, independent of shell breakpoints.
-`TrendsFlow` uses the default phone mode. No open layout or period-detail pane is mounted
-(`app/lib/ui/stats/trends/trends_desktop_layout.dart`, `app/lib/ui/stats/trends_screen.dart`,
-`app/lib/ui/stats/trends_flow.dart`).
+`TrendsFlow.buildRoot` returns a private root `ConsumerWidget` that owns the hosted provider watches,
+so Trends state changes do not rebuild a pushed `CategoryDetailScreen`. A nullable inherited lookup
+reads `ShellPaneScope`; without a scope it renders the default phone `TrendsScreen`. With a scope,
+an opaque `Material` using `context.colors.base` backs `ShellPaneHost`, which passes the scope's
+layout mode and its `ShellPagePresentation` to `TrendsScreen`.
+
+The hosted root always supplies a `ShellDetail` without `onClose`. Selection remains in
+`TrendsIntent`, defaults to the latest period, and has no nothing-selected state or Close action.
+In open mode, the page's single column contains the chart with its selected mark, compact whole-period
+breakdown and `TrendsInsightsCard`. The detail pane shows the selected-period headline, month-only
+Compared with usual row, and selected-period breakdown with the average comparison column. Loading,
+error with Retry, and empty bodies replace the totals rather than displaying stale values.
+
+Outside open mode the detail body is empty because `ShellPaneHost` still lays out its hidden pane
+at a very narrow width. Phone and desktop keep their existing compositions: `TrendsDesktopLayout`
+places the period card and selected-period breakdown side by side in desktop mode when bounded page
+content width reaches `trendsMinimumTwoColumnContentWidth` (640 logical pixels); otherwise they stack.
+This threshold is independent of shell breakpoints. `trends-selected` and `phone-trends` are the
+covered references; `trends-full` is superseded by the always-present selection contract
+(`app/lib/ui/stats/trends_flow.dart`, `trends_screen.dart`, `trends/trends_hosted_root.dart`,
+`trends/trends_desktop_layout.dart`, `app/test/ui/stats/trends_layout_test.dart`).
 
 ## Navigation
 
@@ -180,7 +199,8 @@ single-route guard until the matching route's `completed` future (`transactions-
 A row or chart block calls `TrendsViewModel.requestCategoryDetail(rowIndex)`. Its named `source`
 parameter defaults to `TrendsCategoryDetailSource.selectedPeriod`, resolving against
 `body.breakdown.rows`; `wholePeriod` resolves against `body.wholePeriod.breakdown.rows`. The screen
-uses the default source. The notifier ignores the
+uses `wholePeriod` for open-page breakdown taps and the default source for selected-period taps.
+The notifier ignores the
 request after disposal, outside a ready body, for an invalid index and for a row without a navigation
 target, then emits `TrendsCategoryDetailRequested` carrying the unchanged `CategoryDetailArgs`:
 `mainID` is the row's `mainBucketID`, `kind` the selected kind, `isYearRange` follows the mode and
@@ -205,7 +225,8 @@ Budgets live in the Money Budgets segment. Trends does not mount `BudgetsFlow`
 
 - **Trends** - app bar titled "Trends", optional History-labelled back control, the kind and mode
   controls (always mounted), and a body that is skeleton trays, an error box with a filled Retry, the
-  fresh-ledger empty state with a disabled period row, or the period card and breakdown section
+  fresh-ledger empty state with a disabled period row, or the layout-specific ready composition
+  described above
   (`app/lib/ui/stats/trends_screen.dart`).
 - **Category Detail** - a `TransactionsTableView` whose header stack is scope total, subcategory
   table (only when the category has children), trend card, and "ENTRIES"; the day-sectioned entry
