@@ -95,6 +95,7 @@ String _header(TrendsMode mode) => switch (mode) {
 
 String _formatMean(Decimal? mean, CategoryKind kind) {
   if (mean == null) return _unavailableMean;
+  if (mean == Decimal.zero) return formatPlainAmount(mean);
   final amountKind = kind == CategoryKind.expense
       ? AmountKind.expense
       : AmountKind.income;

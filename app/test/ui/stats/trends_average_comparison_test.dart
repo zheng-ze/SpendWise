@@ -1,9 +1,17 @@
 import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:spendwise/boot/providers.dart';
+import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
+import 'package:spendwise/ledger/analysis/breakdowns/category_breakdown.dart'
+    as analysis;
+import 'package:spendwise/ledger/analysis/breakdowns/scoped_trend.dart';
 import 'package:spendwise/ledger/analysis/summaries/trends_period.dart';
+import 'package:spendwise/ledger/analysis_cache.dart';
+import 'package:spendwise/ledger/analysis_queries.dart';
 import 'package:spendwise/settings/display_preferences.dart' as settings;
 import 'package:spendwise/ui/stats/trends/trends_average_comparison.dart';
 import 'package:spendwise/ui/stats/trends/trends_breakdown.dart';
+import 'package:spendwise/ui/stats/trends/trends_body.dart';
 import 'package:spendwise/ui/stats/trends/trends_intent.dart';
 
 import 'trends_test_support.dart';
@@ -45,9 +53,16 @@ void main() {
 
     expect(comparison?.header, 'Yearly average');
     expect(comparison?.rows.map((row) => row.formattedMean), [
-      '-0.00',
+      '0.00',
       'Unavailable',
     ]);
+    final incomeComparison = projectTrendsAverageComparison(
+      breakdown: _breakdown([_row('a', 'a', false)]),
+      averages: [_average('a', 'a', false, Decimal.zero)],
+      mode: TrendsMode.month,
+      kind: CategoryKind.income,
+    );
+    expect(incomeComparison?.rows.single.formattedMean, '0.00');
   });
 
   test('rejects a missing selected identity', () {
@@ -94,7 +109,113 @@ void main() {
       expect(harness.ready.usual, isNull);
     },
   );
+
+  test('empty ledger remains empty in month and year modes', () async {
+    final today = DateTime.utc(2026, 10, 3);
+    final harness = await readyHarness(
+      ledger: emptyTrendsLedger(),
+      today: today,
+    );
+
+    expect(harness.body, isA<TrendsEmptyBody>());
+    harness.viewModel.setMode(TrendsMode.year);
+    await harness.settle();
+    expect(harness.body, isA<TrendsEmptyBody>());
+  });
+
+  test('month and year projection reject missing selected averages', () async {
+    final today = DateTime.utc(2026, 10, 3);
+    final harness = await _harnessWithOmittedAverages(today);
+    await harness.settle();
+
+    expect(harness.body, isA<TrendsErrorBody>());
+    harness.viewModel.setMode(TrendsMode.year);
+    await harness.settle();
+    expect(harness.body, isA<TrendsErrorBody>());
+  });
 }
+
+Future<TrendsHarness> _harnessWithOmittedAverages(DateTime today) async {
+  final ledger = seededTrendsLedger(today);
+  final cache = AnalysisCache(runner: syncComputeRunner)
+    ..start(ledger.bus, sourceRevision: () => ledger.revision);
+  final queries = _OmittedAverageQueries(
+    ledger: ledger,
+    cache: cache,
+    today: today,
+  );
+  addTearDown(() async {
+    await cache.dispose();
+  });
+  await pumpEventQueue();
+  return TrendsHarness(
+    ledger: ledger,
+    today: today,
+    overrides: [analysisQueriesProvider.overrideWith((ref) => queries)],
+  );
+}
+
+class _OmittedAverageQueries extends AnalysisQueries {
+  _OmittedAverageQueries({
+    required super.ledger,
+    required super.cache,
+    required super.today,
+  });
+
+  @override
+  AnalysisQueryResult<TrendsPeriod> readTrendsPeriod({
+    required DateTime endPeriod,
+    required AnalysisPeriodMode mode,
+    required CategoryKind kind,
+    required analysis.BreakdownLevel level,
+  }) {
+    final result = super.readTrendsPeriod(
+      endPeriod: endPeriod,
+      mode: mode,
+      kind: kind,
+      level: level,
+    );
+    final summary = result.value;
+    final altered = switch (summary) {
+      MonthTrendsPeriod month => _monthWithoutLastAverage(month),
+      YearTrendsPeriod year => _yearWithoutLastAverage(year),
+      null => null,
+    };
+    return AnalysisQueryResult(
+      value: altered,
+      state: result.state,
+      sourceRevision: result.sourceRevision,
+    );
+  }
+}
+
+MonthTrendsPeriod _monthWithoutLastAverage(MonthTrendsPeriod summary) =>
+    MonthTrendsPeriod(
+      today: summary.today,
+      firstRecordMonth: summary.firstRecordMonth,
+      breakdown: summary.breakdown,
+      averages: _withoutLastAverage(summary.averages),
+      spread: summary.spread,
+      highestMonth: summary.highestMonth,
+    );
+
+YearTrendsPeriod _yearWithoutLastAverage(YearTrendsPeriod summary) =>
+    YearTrendsPeriod(
+      today: summary.today,
+      firstRecordMonth: summary.firstRecordMonth,
+      breakdown: summary.breakdown,
+      averages: _withoutLastAverage(summary.averages),
+      spread: summary.spread,
+      highestYear: summary.highestYear,
+    );
+
+CategoryPeriodAverages _withoutLastAverage(CategoryPeriodAverages averages) =>
+    CategoryPeriodAverages(
+      completePeriodCount: averages.completePeriodCount,
+      rows: averages.rows.isEmpty
+          ? const []
+          : averages.rows.take(averages.rows.length - 1).toList(),
+    );
 
 TrendsBreakdown _breakdown(List<TrendsBreakdownRow> rows) => TrendsBreakdown(
   sourceRevision: 1,

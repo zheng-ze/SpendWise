@@ -62,6 +62,10 @@ class TrendsBreakdownSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    assert(
+      averageComparison == null ||
+          averageComparison!.rows.length == breakdown.rows.length,
+    );
     final colors = context.colors;
     final rows = [
       for (var i = 0; i < breakdown.rows.length; i++)
@@ -92,15 +96,18 @@ class TrendsBreakdownSection extends StatelessWidget {
       compact: compact,
       onSelect: onOpenCategory,
     );
+    final comparisonRows = averageComparison?.rows;
     final rowWidgets = [
-      for (var i = 0; i < rows.length; i++)
+      for (var index = 0; index < rows.length; index++)
         _BreakdownRow(
-          entry: rows[i],
+          entry: rows[index],
           amountKind: amountKind,
-          divided: i < rows.length - 1,
+          divided: index < rows.length - 1,
           compact: compact,
-          average: averageComparison?.rows[i].formattedMean,
-          onTap: _opener(rows[i].row, i, onOpenCategory),
+          average: comparisonRows == null
+              ? null
+              : comparisonRows[index].formattedMean,
+          onTap: _opener(rows[index].row, index, onOpenCategory),
         ),
     ];
     final empty = _EmptyBreakdown(income: amountKind == AmountKind.income);
@@ -317,12 +324,13 @@ class _BreakdownRow extends StatelessWidget {
     final amount = average == null
         ? amountText
         : SizedBox(width: _amountColumnWidth, child: amountText);
-    final averageValue = average == null
+    final averageText = average;
+    final averageValue = averageText == null
         ? null
         : SizedBox(
             width: _averageColumnWidth,
             child: Text(
-              average!,
+              averageText,
               textAlign: TextAlign.end,
               style: context.text.small.copyWith(
                 color: AmountStyle.of(context, kind: amountKind).color,
