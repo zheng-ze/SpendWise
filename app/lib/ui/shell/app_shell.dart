@@ -175,8 +175,8 @@ class _ShellStack extends StatelessWidget {
             right: openRailRightInset,
             bottom: openRailBottomInset,
             child: SafeArea(
-              top: false,
               left: false,
+              right: false,
               child: LayoutBuilder(
                 builder: (context, constraints) => ConstrainedBox(
                   constraints: BoxConstraints(maxHeight: constraints.maxHeight),
