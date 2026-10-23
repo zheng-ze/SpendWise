@@ -1,20 +1,15 @@
 import 'package:domain/domain.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:spendwise/boot/providers.dart';
-import 'package:spendwise/ledger/analysis_cache.dart';
+import 'package:spendwise/ledger/analysis/breakdowns/analysis_category_scope.dart';
+import 'package:spendwise/ledger/analysis/breakdowns/scoped_trend.dart';
+import 'package:spendwise/ledger/analysis/category_detail/category_detail.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/stats/category_detail/category_detail_screen.dart';
-import 'package:spendwise/ui/stats/category_detail/category_detail_view_model.dart';
-
-import '../../../support/ui_test_timeout.dart';
 
 void main() {
-  testWidgets(
+  test(
     'entries excluded directly or through their category stay out of the list',
-    (tester) async {
+    () {
       const accountID = 'a0000000-0000-0000-0000-000000000010';
       const foodID = 'a0000000-0000-0000-0000-000000000001';
       const excludedID = 'a0000000-0000-0000-0000-000000000099';
@@ -75,33 +70,20 @@ void main() {
           },
         ),
       );
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            ledgerProvider.overrideWithValue(ledger),
-            analysisComputeRunnerProvider.overrideWithValue(syncComputeRunner),
-          ],
-          child: MaterialApp(
-            home: CategoryDetailScreen(
-              args: CategoryDetailArgs(
-                mainID: foodID,
-                kind: CategoryKind.expense,
-                isYearRange: false,
-                initialDate: DateTime.utc(2026, 10),
-              ),
-            ),
-          ),
-        ),
+      final result = categoryDetailPeriod(
+        state: ledger.state,
+        items: Accounting.analysisItems(ledger.state),
+        mainID: foodID,
+        kind: CategoryKind.expense,
+        scope: const AllCategoryScope(),
+        period: DateTime.utc(2026, 10),
+        mode: AnalysisPeriodMode.month,
       );
-      await tester.pumpAndSettle();
 
-      expect(find.text('Excluded entry', skipOffstage: false), findsNothing);
-      expect(find.text('Included entry', skipOffstage: false), findsOneWidget);
-      expect(
-        find.text('Entry in excluded category', skipOffstage: false),
-        findsNothing,
-      );
+      expect(result.entryIDs, [includedEntry.id]);
+      expect(result.entryIDs, isNot(contains(excludedEntry.id)));
+      expect(result.entryIDs, isNot(contains(entryInExcludedCategory.id)));
+      expect(result.totals.scopeTotal, Decimal.fromInt(12));
     },
-    timeout: uiTestTimeout,
   );
 }

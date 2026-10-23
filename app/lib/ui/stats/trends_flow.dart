@@ -49,7 +49,7 @@ class _TrendsFlowState extends FlowBaseState<TrendsStep, TrendsFlow> {
     if (_detailRoute != null) return;
     final navigator = Navigator.of(context);
     final route = MaterialPageRoute<void>(
-      builder: (_) => CategoryDetailScreen(args: args),
+      builder: (_) => CategoryDetailScreen(args: args, onBackPressed: goBack),
     );
     _detailRoute = route;
     unawaited(navigator.push(route));

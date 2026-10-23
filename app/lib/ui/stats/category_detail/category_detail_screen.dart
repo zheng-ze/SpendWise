@@ -1,158 +1,159 @@
-import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/common/lists/day_sectioned_entry_list.dart';
-import 'package:spendwise/ui/common/inputs/month_year_selector.dart';
-import 'package:spendwise/ui/format/amount_style.dart';
-import 'package:spendwise/ui/format/money_format.dart';
+import 'package:spendwise/ui/common/sheets/sliver_tray.dart';
+import 'package:spendwise/ui/stats/category_detail/category_detail_sections.dart';
+import 'package:spendwise/ui/stats/category_detail/category_detail_trend.dart';
 import 'package:spendwise/ui/stats/category_detail/category_detail_view_model.dart';
-import 'package:spendwise/ui/stats/category_detail/category_scope.dart';
-import 'package:spendwise/ui/stats/category_detail/category_trend_card.dart';
-import 'package:spendwise/ui/stats/helpers/stats_window.dart';
-import 'package:spendwise/ui/stats/category_detail/subcategory_table.dart';
+import 'package:spendwise/ui/theme/spendwise_text.dart';
 
-// MARK: - CategoryDetailScreen
+const _pagePadding = EdgeInsets.fromLTRB(14, 12, 14, 14);
+const _sectionGap = 12.0;
+const _backWidth = 112.0;
+const _subtitleSize = 12.0;
+const _headerGap = 2.0;
+const _statusPadding = EdgeInsets.all(24);
+const _backLabel = 'Trends';
+
 class CategoryDetailScreen extends ConsumerWidget {
-  const CategoryDetailScreen({super.key, required this.args});
+  const CategoryDetailScreen({
+    super.key,
+    required this.args,
+    this.onBackPressed,
+  });
 
   final CategoryDetailArgs args;
+  final VoidCallback? onBackPressed;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final asyncState = ref.watch(categoryDetailViewModelProvider(args));
-    final viewModel = ref.watch(categoryDetailViewModelProvider(args).notifier);
+    final provider = categoryDetailViewModelProvider(args);
+    final CategoryDetailViewModel viewModel = ref.read(provider.notifier);
+    final viewState = ref.watch(provider).asData?.value;
+    final body = viewState?.body ?? const CategoryDetailLoadingBody();
     final ledger = ref.watch(ledgerProvider);
-
-    return asyncState.when(
-      data: (viewState) => ledger == null
-          ? const SizedBox.shrink()
-          : _CategoryDetailBody(
-              viewState: viewState,
-              viewModel: viewModel,
-              ledger: ledger,
-            ),
-      loading: () =>
-          const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (error, stackTrace) =>
-          Scaffold(body: Center(child: Text('$error'))),
+    final category = ledger?.state.categories[args.mainID];
+    final title = body is CategoryDetailReadyBody
+        ? body.title
+        : category?.name ?? 'Uncategorized';
+    final subtitle = viewState?.subtitle ?? '';
+    final titleText = Text(title);
+    final subtitleText = Text(
+      subtitle,
+      style: TextStyle(color: context.colors.subtext, fontSize: _subtitleSize),
+    );
+    final heading = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        titleText,
+        const SizedBox(height: _headerGap),
+        subtitleText,
+      ],
+    );
+    final backAction = onBackPressed;
+    final leading = backAction == null
+        ? null
+        : TextButton.icon(
+            onPressed: backAction,
+            icon: const Icon(Icons.chevron_left),
+            label: const Text(_backLabel, maxLines: 1, softWrap: false),
+          );
+    final appBar = AppBar(
+      leadingWidth: _backWidth,
+      leading: leading,
+      title: heading,
+      centerTitle: false,
+    );
+    final content = switch (body) {
+      CategoryDetailReadyBody() when ledger != null => _CategoryDetailReadyView(
+        body: body,
+        viewModel: viewModel,
+        ledger: ledger,
+      ),
+      CategoryDetailErrorBody() => _CategoryDetailErrorView(
+        onRetry: viewModel.retry,
+      ),
+      _ => const Center(child: CircularProgressIndicator()),
+    };
+    return Scaffold(
+      appBar: appBar,
+      body: SafeArea(child: content),
     );
   }
 }
 
-// MARK: - CategoryDetailBody
-class _CategoryDetailBody extends StatelessWidget {
-  const _CategoryDetailBody({
-    required this.viewState,
+class _CategoryDetailReadyView extends StatelessWidget {
+  const _CategoryDetailReadyView({
+    required this.body,
     required this.viewModel,
     required this.ledger,
   });
 
-  final CategoryDetailViewState viewState;
+  final CategoryDetailReadyBody body;
   final CategoryDetailViewModel viewModel;
   final Ledger ledger;
 
-  static const _headlineInset = 16.0;
-  static const _headlinePadding = EdgeInsets.all(_headlineInset);
-  static const _entriesTopInset = 24.0;
-  static const _entriesSideInset = 16.0;
-  static const _entriesBottomInset = 8.0;
-  static const _entriesLabelPadding = EdgeInsets.fromLTRB(
-    _entriesSideInset,
-    _entriesTopInset,
-    _entriesSideInset,
-    _entriesBottomInset,
-  );
+  @override
+  Widget build(BuildContext context) {
+    final headline = CategoryDetailHeadline(
+      amount: body.totals.scopeTotal,
+      kind: body.amountKind,
+    );
+    final chips = CategoryDetailScopeChips(
+      chips: body.chips,
+      onSelect: viewModel.setScope,
+    );
+    final breakdown = CategoryDetailSubcategories(
+      rows: body.breakdown,
+      kind: body.amountKind,
+      onSelect: viewModel.setScope,
+    );
+    final entrySliver = DaySectionedEntryList.prepared(
+      sections: body.sections,
+      ledger: ledger,
+      state: ledger.state,
+    );
+    final entriesTray = SliverTray(title: 'Entries', slivers: [entrySliver]);
+    final trend = body.trend;
+    final slivers = <Widget>[
+      SliverToBoxAdapter(child: headline),
+      if (body.chips.isNotEmpty) SliverToBoxAdapter(child: chips),
+      if (body.showSubcategories) SliverToBoxAdapter(child: breakdown),
+      const SliverToBoxAdapter(child: SizedBox(height: _sectionGap)),
+      entriesTray,
+      if (trend != null)
+        const SliverToBoxAdapter(child: SizedBox(height: _sectionGap)),
+      if (trend != null)
+        CategoryDetailTrend(
+          trend: trend,
+          viewModel: viewModel,
+          ledger: ledger,
+          state: ledger.state,
+        ),
+    ];
+    final group = SliverMainAxisGroup(slivers: slivers);
+    final padded = SliverPadding(padding: _pagePadding, sliver: group);
+    return CustomScrollView(slivers: [padded]);
+  }
+}
+
+class _CategoryDetailErrorView extends StatelessWidget {
+  const _CategoryDetailErrorView({required this.onRetry});
+
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final style = AmountStyle.of(
-      context,
-      kind: viewState.kind == CategoryKind.income
-          ? AmountKind.income
-          : AmountKind.expense,
+    final retry = FilledButton(onPressed: onRetry, child: const Text('Retry'));
+    final content = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [const Text('Could not load category details'), retry],
     );
-
-    final mainCategory = viewState.mainCategory;
-    final title = mainCategory?.name ?? '';
-    final totals = viewState.totals;
-
-    final step = viewState.isYearRange
-        ? MonthYearStep.year
-        : MonthYearStep.month;
-
-    final scopeColor = style.color;
-    final headline = Padding(
-      padding: _headlinePadding,
-      child: AmountHeader(
-        caption: scopeCaption(title, viewState.scope, viewState.ledgerState),
-        amount: totals.scopeTotal,
-        amountColor: scopeColor,
-      ),
-    );
-    final entriesLabel = Padding(
-      padding: _entriesLabelPadding,
-      child: Text(
-        'ENTRIES',
-        style: theme.textTheme.labelMedium?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
-      ),
-    );
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(title),
-        actions: [
-          MonthYearSelector(
-            value: viewState.detailDate,
-            step: step,
-            onChanged: viewModel.setDate,
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: ListView(
-          children: [
-            headline,
-            if (viewState.children.isNotEmpty)
-              SubcategoryTable(
-                mainCategory: mainCategory,
-                mainTotal: totals.mainTotal,
-                children: viewState.children,
-                childTotals: totals.childTotals,
-                directTotal: totals.directTotal,
-                scope: viewState.scope,
-                onSelectScope: viewModel.setScope,
-              ),
-            TrendCard(
-              scope: viewState.scope,
-              mainCategory: mainCategory,
-              state: viewState.ledgerState,
-              detailDate: viewState.detailDate,
-              isYearRange: viewState.isYearRange,
-              months: viewState.trendMonths,
-              amounts: viewState.trendAmounts,
-              color: scopeColor,
-            ),
-            entriesLabel,
-            DaySectionedEntryList(
-              ledger: ledger,
-              state: viewState.ledgerState,
-              window: viewState.window,
-              matching: () => viewState.ledgerState.entries.values.where(
-                (entry) =>
-                    !entry.isTransfer &&
-                    viewState.scopedBuckets.contains(entry.categoryID) &&
-                    Accounting.includedInAnalysis(entry, viewState.ledgerState),
-              ),
-            ),
-          ],
-        ),
-      ),
+    return Center(
+      child: Padding(padding: _statusPadding, child: content),
     );
   }
 }

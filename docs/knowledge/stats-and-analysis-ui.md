@@ -1,6 +1,6 @@
 # Trends & Category Detail UI
 
-Last reconciled: 2026-10-22
+Last reconciled: 2026-10-23
 
 ## Feature overview
 
@@ -8,8 +8,8 @@ History opens a full-screen Trends page through its own `TransactionsFlow` navig
 Expense/Income control, a Month by month/Year by year control, a period row with previous/next arrows,
 a bar chart with selectable axis labels, a selected-period headline, (month mode only) a Compared
 with usual row, and a ranked category breakdown whose rows and chart blocks open Category Detail. Category
-Detail renders a main category's subcategory table, trend card, and scoped entry list. Its data comes from
-the ready Ledger's `AnalysisCache` (`app/lib/ui/stats/category_detail/category_detail_view_model.dart`).
+Detail keeps the incoming month or year fixed while route-local scope and trend controls project the
+incoming-period totals and a selectable scoped trend from `AnalysisQueries`.
 
 ## Key files
 
@@ -25,14 +25,18 @@ the ready Ledger's `AnalysisCache` (`app/lib/ui/stats/category_detail/category_d
   `trends_open_layout.dart` (shared open/desktop composition), `trends_shared_breakdown_card.dart`,
   `trends_category_averages.dart`, and the `trends_controls`, `trends_period_card`,
   `trends_state_views` widgets.
-- `app/lib/ui/stats/category_detail/` - the retained category drill-down screen and view model.
-- `app/lib/ui/stats/analysis/analysis_scan.dart` - memoized category-detail filtering.
+- `app/lib/ui/stats/category_detail/` - immutable route arguments, route-local scope and trend intent,
+  synchronous query projection, scope/breakdown presentation, and the drill-down screen.
+- `app/lib/ledger/analysis_queries.dart` - shared mixed-read entry points and revision-aware
+  analysis ownership for Category Detail.
+- `app/lib/ui/common/lists/day_sectioned_entry_list.dart` and `flat_entry_sliver.dart` - lazy primary
+  day-sectioned and selected-period flat entry lists with tap-to-view and swipe-delete.
+- `app/lib/ui/common/sheets/sliver_tray.dart` - the shared sliver tray used by both Category Detail
+  lists and the trend card.
 - `app/lib/ui/stats/helpers/slices.dart` - category slice and roll-up helpers referenced only by tests,
   retained for the Transactions versus analysis accounting contract.
 - `app/lib/ui/format/analysis_bucket_name.dart` - `analysisBucketName` and `uncategorizedName`: the
   shared display name for a null (Uncategorized) or synthetic transfer bucket ID, used by slices.
-- `app/lib/ui/common/lists/day_sectioned_entry_list.dart` - reused entry list with tap-to-view and
-  swipe-delete.
 - `packages/domain/lib/src/accounting.dart` - `rollUp`, `fraction`, and filtering (see
   `recurring-plans-and-accounting.md`).
 - `app/lib/ledger/analysis_cache.dart` - source-revision-stamped cache; ownership and acceptance
@@ -40,34 +44,34 @@ the ready Ledger's `AnalysisCache` (`app/lib/ui/stats/category_detail/category_d
 
 ## Module interactions
 
-`CategoryDetailNotifier.build` obtains the ready Ledger and its non-null cache through
-`LedgerBackedNotifier`, which watches `ledgerSessionProvider` and throws `StateError` while the
-session is unavailable (`app/lib/ui/common/base/ledger_backed_notifier.dart`). It captures the
-Ledger and cache, attaches listeners, registers removal against those captured instances, and awaits
-`cache.refresh(ledger.state)`. Later notifications refresh the captured cache. The session provider
-owns cache disposal, and replacement Ledger identity rebuilds the session and its consumers
-(`app/lib/boot/providers.dart:ledgerSessionProvider`, `app/lib/ledger/ledger_session.dart`,
-`app/test/boot/ledger_session_provider_test.dart`,
-`app/lib/ui/stats/category_detail/category_detail_view_model.dart`).
+`CategoryDetailNotifier.build` synchronously watches `analysisQueriesProvider`,
+`ledgerSessionProvider`, `todayProvider`, and the route-keyed `categoryDetailIntentProvider`. It reads
+the incoming-period result first, derives `TrendsBounds` from its current effective scope's
+`firstRecord`, then reads the spread and optional selection using that scope and effective trend
+basis. The projection publishes financial content only when both reads are ready, non-null, and
+match the current Ledger revision; the spread's `today` must also match `todayProvider`. Loading or
+error replaces financial content, and Retry delegates to `AnalysisQueries.retry()`
+(`app/lib/ui/stats/category_detail/category_detail_view_model.dart:CategoryDetailNotifier.build`,
+`app/lib/ui/stats/category_detail/category_detail_projection.dart:projectCategoryDetailWithTrend`,
+`app/lib/ledger/analysis_queries.dart:readCategoryDetailPeriod`,
+`readCategoryDetailSpread`).
 
-`categoryDetailViewModelProvider` is an `AsyncNotifierProvider.autoDispose.family` owned by its
-route consumer, `CategoryDetailScreen`. Closing the route disposes the notifier and removes its
-captured Ledger/cache listeners. After disposal, `_onChanged` returns without touching state. Tests
-hold an explicit `container.listen` subscription to keep the provider alive
-(`app/test/ui/stats/category_detail/category_detail_lifecycle_test.dart`).
+The auto-dispose `categoryDetailViewModelProvider` and
+`categoryDetailIntentProvider` are keyed by unchanged `CategoryDetailArgs`. The ViewModel projects
+shared query values and has no direct cache listeners or `AnalysisScan` use. Provider dependencies
+own route lifetime; the shared session and `AnalysisQueries` retain refresh, replacement and cache
+ownership (`app/lib/ui/stats/category_detail/category_detail_view_model.dart`,
+`app/test/ui/stats/category_detail/category_detail_lifecycle_test.dart`,
+`app/test/boot/category_detail_cache_retry_test.dart`).
 
 Slices filter cache items by kind and window, roll up to main-category buckets with
 `Accounting.rollUp`, and sort by amount descending. Slice color comes from the category's
 `colorHex`; Uncategorized and synthetic transfer buckets use the gray fallback, and take their names from
 `analysisBucketName`. Treat-as-expense
 transfers use synthetic buckets by destination account type (`app/lib/ui/stats/helpers/slices.dart`,
-`packages/domain/lib/src/accounting.dart:Accounting.classify`). Category Detail's `AnalysisScan` memoizes filtering by
-cache identity, `itemsRevision`, kind, and bucket set. Cache identity matters because a replacement
-Ledger's cache restarts `itemsRevision` and can match the previous cache's revision
-(`app/lib/ui/stats/analysis/analysis_scan.dart:AnalysisScan.scan`,
-`app/lib/ui/stats/category_detail/category_detail_view_model.dart:_buildState`,
-`app/test/ui/stats/analysis/analysis_scan_test.dart`,
-`app/test/boot/category_detail_cache_retry_test.dart`).
+`packages/domain/lib/src/accounting.dart:Accounting.classify`). Trends continues to own those slice
+projections; Category Detail uses the pure evaluators behind `AnalysisQueries` instead of the former
+`AnalysisScan` path.
 
 ## Trends period state
 
@@ -209,8 +213,9 @@ open no second route. Returning performs no intent update or invalidation.
 (`app/lib/ui/stats/trends_flow.dart`, `trends/trends_view_model.dart`,
 `app/test/ui/stats/trends_navigation_state_test.dart`).
 
-Category Detail retains its own date state, seeded by its arguments, and inherits a fixed month or
-year mode. Its toolbar has the `MonthYearSelector` only; it has no range menu.
+Category Detail preserves the incoming `CategoryDetailArgs` unchanged. Projection normalizes its
+date for the page subtitle, totals and primary entries; switching trend mode or selecting a trend
+period never moves that incoming page period.
 
 Budgets live in the Money Budgets segment. Trends does not mount `BudgetsFlow`
 (`app/lib/ui/money/money_flow.dart`).
@@ -222,16 +227,35 @@ Budgets live in the Money Budgets segment. Trends does not mount `BudgetsFlow`
   fresh-ledger empty state with a disabled period row, or the layout-specific ready composition
   described above
   (`app/lib/ui/stats/trends_screen.dart`, `app/test/ui/stats/trends_layout_test.dart`).
-- **Category Detail** - a `TransactionsTableView` whose header stack is scope total, subcategory
-  table (only when the category has children), trend card, and "ENTRIES"; the day-sectioned entry
-  list follows. Scope selection is `all` | `sub(id)` | `direct`: a caption identifies the scope,
-  and the amount uses the kind's `AmountStyle` colour. The subcategory table starts with "All
-  <Main>" (100%), then child slices and the Direct slice (id nil, parent color) sorted together by
-  amount. The Direct row exists only when main total minus child totals is greater than zero.
-  Fractions use the main-category total. The trend card shows a smoothed line over `trendMonths`
-  (month mode uses six months ending at detailDate's month; year mode uses all 12 months of
-  detailDate's year) with nearest-point selection. `matchingCategoryIDs` drives totals and entry
-  filtering, modeling the null bucket as its own sealed case.
+- **Category Detail** - one pushed `CategoryDetailScreen` shows the Trends back action, category
+  title, immutable incoming month/year subtitle, kind-token 26 px headline, scope chips, optional
+  Subcategories tray, Entries tray, and trend tray. `CategoryDetailArgs` retains its fields and value
+  equality; the projection normalizes `initialDate` to UTC month/year start without changing the args
+  (`category_detail_args.dart:CategoryDetailArgs`,
+  `category_detail_projection.dart:categoryDetailUnreadyState`).
+  Chips appear when children exist and offer All, every child, and Direct. Subcategories appears only
+  for All with children. It includes zero-total children with a one-decimal parent-total share; the
+  Direct breakdown row appears only for a positive direct total. Rows rank by descending total, name,
+  then ID. The page headline uses `context.text.headline` and the expense or income `AmountStyle`;
+  category color and icon do not style that amount (`category_detail_sections.dart:CategoryDetailHeadline`,
+  `category_detail_projection.dart:_chips`, `_directRow`, `_share`).
+  The primary Entries tray uses prepared day sections with merchant titles, empty duplicate notes,
+  and captions without dates. Its sliver list builds requested rows lazily. The trend selection uses
+  a separate flat lazy list, newest first, with short date/category/account captions and no day
+  headers. An empty selection displays `No entries in this period`
+  (`category_detail_screen.dart:_CategoryDetailReadyView`,
+  `day_sectioned_entry_list.dart:DaySectionedEntryList.prepared`,
+  `flat_entry_sliver.dart:FlatEntrySliver`, `category_detail_trend.dart:_selectionSlivers`).
+  The trend reuses `TrendsChart`, shared mode controls and period row inside one `SliverTray`.
+  Month mode contains twelve chronological months; year mode contains three calendar years. Bounds
+  come from the first analysis-included record in the effective scope. Clamps are derived for display
+  and do not rewrite the requested intent. Successful mode/page changes clear explicit selection;
+  no-op actions preserve it. The mark shows an explicit effective selection, otherwise the incoming
+  period slot only when visible in the current mode's spread, otherwise no mark. Selecting any valid
+  slot opens its signed total and entries, including a zero-total slot; the incoming page period
+  remains fixed (`category_detail_intent.dart:CategoryDetailIntent`,
+  `category_detail_projection.dart:_trendBody`,
+  `category_detail_trend.dart:CategoryDetailTrend`).
 
 ## Gotchas and invariants
 
@@ -243,13 +267,25 @@ Budgets live in the Money Budgets segment. Trends does not mount `BudgetsFlow`
   slice helpers label those buckets and keep them non-navigable (`Accounting.classify`,
   `app/lib/ui/stats/helpers/slices.dart:Slice.isNavigable`).
 - Slice fractions guard zero totals.
+- A trend period with zero total draws no bar, while its axis label remains selectable. An explicit
+  empty selection still shows its signed zero headline and the empty-entry message.
+- Category Detail scope and trend intent are route-local and independent of `trendsIntentProvider`.
+  `TrendsFlow` pushes one `MaterialPageRoute`, passes its `goBack` action to the detail screen, and
+  holds its duplicate-route guard until that route completes. The detail provider and intent are
+  auto-dispose families keyed by the incoming args (`app/lib/ui/stats/trends_flow.dart:_openCategoryDetail`,
+  `category_detail_view_model.dart:categoryDetailIntentProvider`,
+  `app/test/ui/stats/category_detail/category_detail_lifecycle_test.dart`).
+- The former `SubcategoryTable`, category `TrendCard`, and `TrendLineChart` are removed. Keep
+  `app/lib/ui/stats/helpers/trend.dart`: `budget_detail_view_model.dart` still calls `trendMonths`.
 
 ## Requirements
 
-- Category Detail captures the ready session's Ledger and cache during build, uses that cache for
-  listener removal and later refreshes, and scopes memoized scans to cache identity
-  (`CategoryDetailNotifier.build`, `AnalysisScan.scan`).
+- Category Detail reads only through the shared `AnalysisQueries`; both mixed results must match the
+  current Ledger revision, and the spread evaluation day must match `todayProvider` before financial
+  content appears (`CategoryDetailNotifier.build`, `projectCategoryDetailWithTrend`).
 - Slices roll categories up to main buckets, preserve synthetic transfer buckets, and sort by
   amount descending (`Accounting.rollUp`, `app/lib/ui/stats/helpers/slices.dart:slices`).
-- Category Detail scope selection, subcategory Direct-bucket threshold (`> 0`), trend windows in
-  both modes, and `matchingCategoryIDs` are pure, tested functions.
+- Category Detail's scope, breakdown ordering/shares, mode-relative incoming mark, selected empty
+  period projection, lifecycle, and replacement-cache behavior have focused tests
+  (`app/test/ui/stats/category_detail/`,
+  `app/test/boot/category_detail_cache_retry_test.dart`).

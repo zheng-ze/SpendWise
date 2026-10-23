@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/stats/category_detail/category_detail_screen.dart';
+import 'package:spendwise/ui/stats/category_detail/category_scope.dart';
 import 'package:spendwise/ui/stats/category_detail/category_detail_view_model.dart';
 
 import '../../../support/counting_ledger_session.dart';
@@ -57,30 +59,44 @@ void main() {
         child: const Text('open'),
       ),
     );
-    return tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp(home: home),
-      ),
-    );
+    final app = MaterialApp(home: home);
+    final scope = UncontrolledProviderScope(container: container, child: app);
+    return tester.pumpWidget(scope);
   }
 
   testWidgets(
-    'closing the route releases listeners and reopening still updates',
+    'closing disposes detail providers and reopening resets scope with current queries',
     (tester) async {
       final env = counted();
       final container = containerFor(() => env.session);
+      final queriesSubscription = container.listen(
+        analysisQueriesProvider,
+        (_, _) {},
+      );
+      addTearDown(queriesSubscription.close);
+      final queries = container.read(analysisQueriesProvider);
       final baselineLedger = env.ledger.listeners;
       final baselineCache = env.cache.listeners;
       await pumpRoute(tester, container);
 
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
-      expect(env.ledger.listeners, baselineLedger + 1);
-      expect(env.cache.listeners, baselineCache + 1);
+      expect(container.exists(categoryDetailViewModelProvider(args)), isTrue);
+      final viewModel = container.read(
+        categoryDetailViewModelProvider(args).notifier,
+      );
+      viewModel.setScope(const DirectScope());
+      await tester.pumpAndSettle();
+      expect(
+        container.read(categoryDetailIntentProvider(args)).scope,
+        const DirectScope(),
+      );
 
       Navigator.of(tester.element(find.byType(CategoryDetailScreen))).pop();
       await tester.pumpAndSettle();
+      expect(container.exists(categoryDetailViewModelProvider(args)), isFalse);
+      expect(container.exists(categoryDetailIntentProvider(args)), isFalse);
+      expect(container.read(analysisQueriesProvider), same(queries));
       expect(env.ledger.listeners, baselineLedger);
       expect(env.cache.listeners, baselineCache);
 
@@ -88,7 +104,14 @@ void main() {
       await tester.pumpAndSettle();
       env.ledger.addEntry(lunch('-12'));
       await tester.pumpAndSettle();
-      expect(find.text('S\$12.00'), findsWidgets);
+      final reopened = container
+          .read(categoryDetailViewModelProvider(args))
+          .value!;
+      final body = reopened.body as CategoryDetailReadyBody;
+      expect(reopened.scope, const AllScope());
+      expect(body.sourceRevision, env.ledger.revision);
+      expect(body.totals.scopeTotal, Decimal.fromInt(12));
+      expect(body.sections.single.rows.single.title, 'Lunch');
     },
     timeout: uiTestTimeout,
   );

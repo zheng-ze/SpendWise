@@ -2,10 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
-// MARK: - Constants
-
-const _semiBoldWeight = FontWeight.w600;
-
 // MARK: - Tray
 class Tray extends StatelessWidget {
   const Tray({super.key, this.title, this.trailing, required this.child});
@@ -16,29 +12,34 @@ class Tray extends StatelessWidget {
 
   final Widget child;
 
-  static const _cornerRadius = 14.0;
+  static const cornerRadius = 14.0;
 
-  static const _contentPadding = 12.0;
+  static const contentPadding = 12.0;
+
+  static const semiBoldWeight = FontWeight.w600;
+
+  static BoxDecoration decoration(BuildContext context) {
+    final colors = context.colors;
+    return BoxDecoration(
+      color: colors.surface,
+      border: Border.all(color: colors.edge),
+      borderRadius: BorderRadius.circular(cornerRadius),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
     final title = this.title;
     final header = title == null
         ? null
-        : _TrayHeader(title: title, trailing: trailing);
+        : TrayHeader(title: title, trailing: trailing);
     final content = <Widget>[];
     if (header != null) content.add(header);
     content.add(child);
 
-    final decoration = BoxDecoration(
-      color: colors.surface,
-      border: Border.all(color: colors.edge),
-      borderRadius: BorderRadius.circular(_cornerRadius),
-    );
     return Container(
-      decoration: decoration,
-      padding: const EdgeInsets.all(_contentPadding),
+      decoration: decoration(context),
+      padding: const EdgeInsets.all(contentPadding),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -49,8 +50,8 @@ class Tray extends StatelessWidget {
 }
 
 // MARK: - TrayHeader
-class _TrayHeader extends StatelessWidget {
-  const _TrayHeader({required this.title, required this.trailing});
+class TrayHeader extends StatelessWidget {
+  const TrayHeader({super.key, required this.title, this.trailing});
 
   final String title;
 
@@ -68,7 +69,7 @@ class _TrayHeader extends StatelessWidget {
       title,
       style: const TextStyle(
         fontSize: _titleFontSize,
-        fontWeight: _semiBoldWeight,
+        fontWeight: Tray.semiBoldWeight,
         height: _titleLineHeight,
       ),
     );
