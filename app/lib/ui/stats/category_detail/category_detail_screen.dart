@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/common/lists/day_sectioned_entry_list.dart';
-import 'package:spendwise/ui/common/sheets/sliver_tray.dart';
 import 'package:spendwise/ui/stats/category_detail/category_detail_sections.dart';
 import 'package:spendwise/ui/stats/category_detail/category_detail_trend.dart';
 import 'package:spendwise/ui/stats/category_detail/category_detail_view_model.dart';
@@ -111,19 +109,11 @@ class _CategoryDetailReadyView extends StatelessWidget {
       kind: body.amountKind,
       onSelect: viewModel.setScope,
     );
-    final entrySliver = DaySectionedEntryList.prepared(
-      sections: body.sections,
-      ledger: ledger,
-      state: ledger.state,
-    );
-    final entriesTray = SliverTray(title: 'Entries', slivers: [entrySliver]);
     final trend = body.trend;
     final slivers = <Widget>[
       SliverToBoxAdapter(child: headline),
       if (body.chips.isNotEmpty) SliverToBoxAdapter(child: chips),
       if (body.showSubcategories) SliverToBoxAdapter(child: breakdown),
-      const SliverToBoxAdapter(child: SizedBox(height: _sectionGap)),
-      entriesTray,
       if (trend != null)
         const SliverToBoxAdapter(child: SizedBox(height: _sectionGap)),
       if (trend != null)

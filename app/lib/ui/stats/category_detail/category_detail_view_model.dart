@@ -102,9 +102,7 @@ class CategoryDetailNotifier extends AsyncNotifier<CategoryDetailViewState>
       scope: effectiveScope,
       endPeriod: _periodFor(basis.end, intent.trend.mode),
       mode: _analysisMode(intent.trend.mode),
-      selectedPeriod: intent.hasExplicitSelection
-          ? _periodFor(basis.selected, intent.trend.mode)
-          : null,
+      selectedPeriod: _periodFor(basis.selected, intent.trend.mode),
     );
     return projectCategoryDetailWithTrend(
       periodResult: periodResult,

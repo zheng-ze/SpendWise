@@ -29,10 +29,10 @@ incoming-period totals and a selectable scoped trend from `AnalysisQueries`.
   synchronous query projection, scope/breakdown presentation, and the drill-down screen.
 - `app/lib/ledger/analysis_queries.dart` - shared mixed-read entry points and revision-aware
   analysis ownership for Category Detail.
-- `app/lib/ui/common/lists/day_sectioned_entry_list.dart` and `flat_entry_sliver.dart` - lazy primary
-  day-sectioned and selected-period flat entry lists with tap-to-view and swipe-delete.
-- `app/lib/ui/common/sheets/sliver_tray.dart` - the shared sliver tray used by both Category Detail
-  lists and the trend card.
+- `app/lib/ui/common/lists/flat_entry_sliver.dart` - the lazy selected-period entry list with
+  tap-to-view and swipe-delete.
+- `app/lib/ui/common/sheets/sliver_tray.dart` - the shared sliver tray used by the Category Detail
+  trend card.
 - `app/lib/ui/stats/helpers/slices.dart` - category slice and roll-up helpers referenced only by tests,
   retained for the Transactions versus analysis accounting contract.
 - `app/lib/ui/format/analysis_bucket_name.dart` - `analysisBucketName` and `uncategorizedName`: the
@@ -47,10 +47,10 @@ incoming-period totals and a selectable scoped trend from `AnalysisQueries`.
 `CategoryDetailNotifier.build` synchronously watches `analysisQueriesProvider`,
 `ledgerSessionProvider`, `todayProvider`, and the route-keyed `categoryDetailIntentProvider`. It reads
 the incoming-period result first, derives `TrendsBounds` from its current effective scope's
-`firstRecord`, then reads the spread and optional selection using that scope and effective trend
-basis. The projection publishes financial content only when both reads are ready, non-null, and
-match the current Ledger revision; the spread's `today` must also match `todayProvider`. Loading or
-error replaces financial content, and Retry delegates to `AnalysisQueries.retry()`
+`firstRecord`, then reads the spread and its effective selected-period amount and entries using that
+scope and trend basis. The projection publishes financial content only when both reads are ready,
+non-null, and match the current Ledger revision; the spread's `today` must also match `todayProvider`.
+Loading or error replaces financial content, and Retry delegates to `AnalysisQueries.retry()`
 (`app/lib/ui/stats/category_detail/category_detail_view_model.dart:CategoryDetailNotifier.build`,
 `app/lib/ui/stats/category_detail/category_detail_projection.dart:projectCategoryDetailWithTrend`,
 `app/lib/ledger/analysis_queries.dart:readCategoryDetailPeriod`,
@@ -229,7 +229,7 @@ Budgets live in the Money Budgets segment. Trends does not mount `BudgetsFlow`
   (`app/lib/ui/stats/trends_screen.dart`, `app/test/ui/stats/trends_layout_test.dart`).
 - **Category Detail** - one pushed `CategoryDetailScreen` shows the Trends back action, category
   title, immutable incoming month/year subtitle, kind-token 26 px headline, scope chips, optional
-  Subcategories tray, Entries tray, and trend tray. `CategoryDetailArgs` retains its fields and value
+  Subcategories tray, and trend tray. `CategoryDetailArgs` retains its fields and value
   equality; the projection normalizes `initialDate` to UTC month/year start without changing the args
   (`category_detail_args.dart:CategoryDetailArgs`,
   `category_detail_projection.dart:categoryDetailUnreadyState`).
@@ -239,21 +239,19 @@ Budgets live in the Money Budgets segment. Trends does not mount `BudgetsFlow`
   then ID. The page headline uses `context.text.headline` and the expense or income `AmountStyle`;
   category color and icon do not style that amount (`category_detail_sections.dart:CategoryDetailHeadline`,
   `category_detail_projection.dart:_chips`, `_directRow`, `_share`).
-  The primary Entries tray uses prepared day sections with merchant titles, empty duplicate notes,
-  and captions without dates. Its sliver list builds requested rows lazily. The trend selection uses
-  a separate flat lazy list, newest first, with short date/category/account captions and no day
-  headers. An empty selection displays `No entries in this period`
+  The trend tray always presents the effective selected period's signed amount and entries on initial
+  load and after mode changes. Its entries use a flat lazy list, newest first, with short
+  date/category/account captions and no day headers. An empty selected period displays
+  `No entries in this period`
   (`category_detail_screen.dart:_CategoryDetailReadyView`,
-  `day_sectioned_entry_list.dart:DaySectionedEntryList.prepared`,
   `flat_entry_sliver.dart:FlatEntrySliver`, `category_detail_trend.dart:_selectionSlivers`).
   The trend reuses `TrendsChart`, shared mode controls and period row inside one `SliverTray`.
   Month mode contains twelve chronological months; year mode contains three calendar years. Bounds
   come from the first analysis-included record in the effective scope. Clamps are derived for display
-  and do not rewrite the requested intent. Successful mode/page changes clear explicit selection;
-  no-op actions preserve it. The mark shows an explicit effective selection, otherwise the incoming
-  period slot only when visible in the current mode's spread, otherwise no mark. Selecting any valid
-  slot opens its signed total and entries, including a zero-total slot; the incoming page period
-  remains fixed (`category_detail_intent.dart:CategoryDetailIntent`,
+  and do not rewrite the requested intent. The chart mark, amount and entries follow the effective
+  selected period on initial load, mode changes, paging and slot selection. Selecting any valid slot
+  opens its signed total and entries, including a zero-total slot; the incoming page period remains
+  fixed (`category_detail_intent.dart:CategoryDetailIntent`,
   `category_detail_projection.dart:_trendBody`,
   `category_detail_trend.dart:CategoryDetailTrend`).
 
@@ -267,8 +265,8 @@ Budgets live in the Money Budgets segment. Trends does not mount `BudgetsFlow`
   slice helpers label those buckets and keep them non-navigable (`Accounting.classify`,
   `app/lib/ui/stats/helpers/slices.dart:Slice.isNavigable`).
 - Slice fractions guard zero totals.
-- A trend period with zero total draws no bar, while its axis label remains selectable. An explicit
-  empty selection still shows its signed zero headline and the empty-entry message.
+- A trend period with zero total draws no bar, while its axis label remains selectable. An empty
+  effective selected period still shows its signed zero headline and the empty-entry message.
 - Category Detail scope and trend intent are route-local and independent of `trendsIntentProvider`.
   `TrendsFlow` pushes one `MaterialPageRoute`, passes its `goBack` action to the detail screen, and
   holds its duplicate-route guard until that route completes. The detail provider and intent are

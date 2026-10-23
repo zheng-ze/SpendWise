@@ -40,7 +40,6 @@ void main() {
       final narrowed = selected.withScope(const SubScope('child'));
       final narrowedBasis = narrowed.trend.effective(laterChildContext);
 
-      expect(narrowed.hasExplicitSelection, isTrue);
       expect(narrowed.trend.spreadEnd, requestedEnd);
       expect(narrowed.trend.selected, requestedSelection);
       expect(narrowedBasis.end, laterChildContext.bounds!.earliestMonthEnd);
@@ -56,7 +55,6 @@ void main() {
       expect(widened.trend.effective(allContext).selected, requestedSelection);
 
       final paged = narrowed.nextPage(laterChildContext);
-      expect(paged.hasExplicitSelection, isFalse);
       expect(paged.trend.spreadEnd, narrowedBasis.end + 12);
       expect(paged.trend.selected, narrowedBasis.selected + 12);
       expect(
@@ -66,44 +64,46 @@ void main() {
     },
   );
 
-  test('mode and paging transitions clear only successful selections', () {
-    final args = _args(DateTime.utc(2026, 10));
-    final bounded = _context(DateTime.utc(2010, 1));
-    final selected = CategoryDetailIntent.initial(args).selectSlot(4, bounded);
-    final year = selected.withMode(TrendsMode.year, bounded);
-
-    expect(year.trend.mode, TrendsMode.year);
-    expect(year.trend.rememberedMonth, 3);
-    expect(year.hasExplicitSelection, isFalse);
-
-    final selectedAgain = year.selectSlot(2, bounded);
-    final unchangedMode = selectedAgain.withMode(TrendsMode.year, bounded);
-    expect(identical(unchangedMode, selectedAgain), isTrue);
-    expect(
-      identical(selectedAgain.selectSlot(-1, bounded), selectedAgain),
-      isTrue,
-    );
-
-    final paged = selectedAgain.previousPage(bounded);
-    expect(paged.hasExplicitSelection, isFalse);
-    expect(paged.trend.spreadEnd, year.trend.spreadEnd - 3);
-  });
-
   test(
-    'empty-scope bounds disable paging without clearing explicit selection',
+    'mode and paging transitions preserve the effective selected period',
     () {
-      final context = _context(null);
-      final initial = CategoryDetailIntent.initial(
-        _args(DateTime.utc(2026, 10)),
-      );
-      final selected = initial.selectSlot(0, context);
-      final noOp = selected.previousPage(context);
+      final args = _args(DateTime.utc(2026, 10));
+      final bounded = _context(DateTime.utc(2010, 1));
+      final selected = CategoryDetailIntent.initial(args)
+          .selectSlot(4, bounded);
+      final year = selected.withMode(TrendsMode.year, bounded);
 
-      expect(context.bounds!.earliestMonthEnd, _currentMonth);
-      expect(identical(noOp, selected), isTrue);
-      expect(noOp.hasExplicitSelection, isTrue);
+      expect(year.trend.mode, TrendsMode.year);
+      expect(year.trend.rememberedMonth, 3);
+      expect(year.trend.effective(bounded).selected, 2026);
+
+      final selectedAgain = year.selectSlot(2, bounded);
+      final unchangedMode = selectedAgain.withMode(TrendsMode.year, bounded);
+      expect(identical(unchangedMode, selectedAgain), isTrue);
+      expect(
+        identical(selectedAgain.selectSlot(-1, bounded), selectedAgain),
+        isTrue,
+      );
+
+      final paged = selectedAgain.previousPage(bounded);
+      expect(paged.trend.spreadEnd, year.trend.spreadEnd - 3);
+      expect(
+        paged.trend.effective(bounded).selected,
+        year.trend.effective(bounded).selected - 3,
+      );
     },
   );
+
+  test('empty-scope bounds disable paging and retain the selected period', () {
+    final context = _context(null);
+    final initial = CategoryDetailIntent.initial(_args(DateTime.utc(2026, 10)));
+    final selected = initial.selectSlot(0, context);
+    final noOp = selected.previousPage(context);
+
+    expect(context.bounds!.earliestMonthEnd, _currentMonth);
+    expect(identical(noOp, selected), isTrue);
+    expect(noOp.trend.effective(context).selected, selected.trend.selected);
+  });
 }
 
 CategoryDetailArgs _args(DateTime date, {bool year = false}) {

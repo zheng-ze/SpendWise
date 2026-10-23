@@ -7,11 +7,7 @@ import 'package:spendwise/ui/stats/trends/trends_intent.dart';
 
 @immutable
 class CategoryDetailIntent {
-  const CategoryDetailIntent({
-    required this.scope,
-    required this.trend,
-    required this.hasExplicitSelection,
-  });
+  const CategoryDetailIntent({required this.scope, required this.trend});
 
   factory CategoryDetailIntent.initial(CategoryDetailArgs args) {
     final period = args.isYearRange
@@ -31,31 +27,21 @@ class CategoryDetailIntent {
         rememberedMonth: period.month,
         followsCurrent: false,
       ),
-      hasExplicitSelection: false,
     );
   }
 
   final CategoryScope scope;
   final TrendsIntent trend;
-  final bool hasExplicitSelection;
 
   CategoryDetailIntent withScope(CategoryScope next) {
     if (_sameScope(scope, next)) return this;
-    return CategoryDetailIntent(
-      scope: next,
-      trend: trend,
-      hasExplicitSelection: hasExplicitSelection,
-    );
+    return CategoryDetailIntent(scope: next, trend: trend);
   }
 
   CategoryDetailIntent withMode(TrendsMode mode, TrendsContext context) {
     final next = trend.withMode(mode, context);
     if (identical(next, trend)) return this;
-    return CategoryDetailIntent(
-      scope: scope,
-      trend: next,
-      hasExplicitSelection: false,
-    );
+    return CategoryDetailIntent(scope: scope, trend: next);
   }
 
   CategoryDetailIntent previousPage(TrendsContext context) =>
@@ -67,20 +53,12 @@ class CategoryDetailIntent {
   CategoryDetailIntent selectSlot(int index, TrendsContext context) {
     final next = trend.withSlot(index, context);
     if (identical(next, trend)) return this;
-    return CategoryDetailIntent(
-      scope: scope,
-      trend: next,
-      hasExplicitSelection: true,
-    );
+    return CategoryDetailIntent(scope: scope, trend: next);
   }
 
   CategoryDetailIntent _page(TrendsIntent next) {
     if (identical(next, trend)) return this;
-    return CategoryDetailIntent(
-      scope: scope,
-      trend: next,
-      hasExplicitSelection: false,
-    );
+    return CategoryDetailIntent(scope: scope, trend: next);
   }
 
   static bool _sameScope(CategoryScope first, CategoryScope second) {

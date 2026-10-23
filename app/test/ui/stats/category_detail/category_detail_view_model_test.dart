@@ -95,6 +95,8 @@ void main() {
     expect(state.subtitle, 'March 2026');
     expect(body.mainCategory?.id, food.id);
     expect(body.children.map((c) => c.id), [hawker.id]);
+    expect(body.trend!.selection!.headline.title, 'March 2026');
+    expect(body.trend!.selection!.headline.amount, '-S\$0.00');
   });
 
   test(
@@ -133,6 +135,9 @@ void main() {
 
       expect(yearState.detailDate, DateTime.utc(2026, 3));
       expect(yearTrend.bars[yearTrend.selectedIndex].semanticLabel, '2026');
+      expect(yearTrend.selection!.headline.title, '2026');
+      expect(yearTrend.selection!.headline.amount, '-S\$8.00');
+      expect(yearTrend.selection!.rows.single.id, incoming.id);
 
       viewModel.setTrendMode(TrendsMode.month);
       final monthState = await waitForTrend(
@@ -148,6 +153,9 @@ void main() {
         monthTrend.bars[monthTrend.selectedIndex].semanticLabel,
         'March 2026',
       );
+      expect(monthTrend.selection!.headline.title, 'March 2026');
+      expect(monthTrend.selection!.headline.amount, '-S\$8.00');
+      expect(monthTrend.selection!.rows.single.id, incoming.id);
     },
   );
 

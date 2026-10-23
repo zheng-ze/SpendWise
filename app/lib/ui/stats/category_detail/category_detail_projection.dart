@@ -151,7 +151,6 @@ CategoryDetailViewState projectCategoryDetailWithTrend({
     spread: spread,
     period: period,
     state: ledgerState,
-    args: args,
     intent: intent,
     basis: basis,
     context: trendContext,
@@ -196,7 +195,6 @@ CategoryDetailTrendBody _trendBody({
   required CategoryDetailSpread spread,
   required CategoryDetailPeriod period,
   required LedgerState state,
-  required CategoryDetailArgs args,
   required CategoryDetailIntent intent,
   required TrendsBasis basis,
   required TrendsContext context,
@@ -205,14 +203,7 @@ CategoryDetailTrendBody _trendBody({
   final selectedPeriod = mode == TrendsMode.month
       ? monthStartOf(basis.selected)
       : DateTime.utc(basis.selected);
-  final incoming = mode == TrendsMode.month
-      ? monthSerial(args.initialDate)
-      : args.initialDate.year;
-  final selectedIndex = _slotIndex(
-    spread.slots,
-    intent.hasExplicitSelection ? basis.selected : incoming,
-    mode,
-  );
+  final selectedIndex = _slotIndex(spread.slots, basis.selected, mode);
   final bars = spread.slots.map((slot) {
     final label = mode == TrendsMode.month
         ? formatMonthInitial(slot.period)
@@ -227,7 +218,7 @@ CategoryDetailTrendBody _trendBody({
     );
   }).toList();
   final periodRow = _trendPeriodRow(spread.slots, mode, basis, context);
-  final selection = intent.hasExplicitSelection && spread.selection != null
+  final selection = spread.selection != null
       ? _trendSelection(
           period: selectedPeriod,
           mode: mode,
