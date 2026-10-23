@@ -1,199 +1,183 @@
-import 'dart:async';
-
-import 'package:domain/domain.dart';
-import 'package:flutter/foundation.dart' show immutable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ledger/analysis_cache.dart';
-import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
-import 'package:spendwise/ui/stats/analysis/analysis_scan.dart';
+import 'package:spendwise/boot/providers.dart';
+import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
+import 'package:spendwise/ledger/analysis/breakdowns/scoped_trend.dart';
+import 'package:spendwise/ui/stats/category_detail/category_detail_args.dart';
+import 'package:spendwise/ui/stats/category_detail/category_detail_intent.dart';
+import 'package:spendwise/ui/stats/category_detail/category_detail_projection.dart';
 import 'package:spendwise/ui/stats/category_detail/category_scope.dart';
-import 'package:spendwise/ui/stats/category_detail/category_totals.dart';
-import 'package:spendwise/ui/stats/helpers/stats_window.dart';
-import 'package:spendwise/ui/stats/helpers/trend.dart';
+import 'package:spendwise/ui/stats/trends/trends_intent.dart';
 
-// MARK: - CategoryDetailArgs
-@immutable
-class CategoryDetailArgs {
-  const CategoryDetailArgs({
-    required this.mainID,
-    required this.kind,
-    required this.isYearRange,
-    required this.initialDate,
-  });
+export 'package:spendwise/ui/stats/category_detail/category_detail_args.dart';
+export 'package:spendwise/ui/stats/category_detail/category_detail_body.dart';
+export 'package:spendwise/ui/stats/category_detail/category_detail_projection.dart';
 
-  final String mainID;
-  final CategoryKind kind;
-  final bool isYearRange;
-  final DateTime initialDate;
-
-  @override
-  bool operator ==(Object other) =>
-      other is CategoryDetailArgs &&
-      other.mainID == mainID &&
-      other.kind == kind &&
-      other.isYearRange == isYearRange &&
-      other.initialDate == initialDate;
-
-  @override
-  int get hashCode => Object.hash(mainID, kind, isYearRange, initialDate);
-}
-
-// MARK: - CategoryDetailViewState
-class CategoryDetailViewState {
-  const CategoryDetailViewState({
-    required this.detailDate,
-    required this.scope,
-    required this.kind,
-    required this.mainCategory,
-    required this.ledgerState,
-    required this.children,
-    required this.totals,
-    required this.trendMonths,
-    required this.trendAmounts,
-    required this.isYearRange,
-    required this.window,
-    required this.scopedBuckets,
-  });
-
-  final DateTime detailDate;
-  final CategoryScope scope;
-  final CategoryKind kind;
-  final TransactionCategory? mainCategory;
-  final LedgerState ledgerState;
-  final List<TransactionCategory> children;
-  final CategoryTotals totals;
-  final List<DateTime> trendMonths;
-  final List<Decimal> trendAmounts;
-  final bool isYearRange;
-  final DateRange window;
-  final Set<String?> scopedBuckets;
-}
-
-// MARK: - CategoryDetailViewModel
 abstract class CategoryDetailViewModel {
-  void setDate(DateTime date);
   void setScope(CategoryScope scope);
+  void setTrendMode(TrendsMode mode);
+  void previousTrendPage();
+  void nextTrendPage();
+  void selectTrendSlot(int index);
+  void retry();
 }
 
-// MARK: - CategoryDetailNotifier
+class CategoryDetailIntentNotifier extends Notifier<CategoryDetailIntent> {
+  CategoryDetailIntentNotifier(this._args);
+
+  final CategoryDetailArgs _args;
+
+  @override
+  CategoryDetailIntent build() => CategoryDetailIntent.initial(_args);
+
+  void setScope(CategoryScope scope) => _replace(state.withScope(scope));
+
+  void setTrendMode(TrendsMode mode, TrendsContext context) =>
+      _replace(state.withMode(mode, context));
+
+  void previousTrendPage(TrendsContext context) =>
+      _replace(state.previousPage(context));
+
+  void nextTrendPage(TrendsContext context) =>
+      _replace(state.nextPage(context));
+
+  void selectTrendSlot(int index, TrendsContext context) =>
+      _replace(state.selectSlot(index, context));
+
+  void _replace(CategoryDetailIntent next) {
+    if (!identical(next, state)) state = next;
+  }
+}
+
+final categoryDetailIntentProvider = NotifierProvider.autoDispose
+    .family<
+      CategoryDetailIntentNotifier,
+      CategoryDetailIntent,
+      CategoryDetailArgs
+    >(CategoryDetailIntentNotifier.new);
+
 class CategoryDetailNotifier extends AsyncNotifier<CategoryDetailViewState>
-    with LedgerBackedNotifier<CategoryDetailViewState>
     implements CategoryDetailViewModel {
   CategoryDetailNotifier(this._args);
 
   final CategoryDetailArgs _args;
 
-  final AnalysisScan _scan = AnalysisScan();
-
-  late DateTime _detailDate;
-  late CategoryScope _scope;
-
-  late Ledger _ledger;
-  late AnalysisCache _cache;
-
   @override
-  Future<CategoryDetailViewState> build() async {
-    final currentLedger = ledger;
-    final cache = analysisCache;
-    _ledger = currentLedger;
-    _cache = cache;
-    currentLedger.addListener(_onChanged);
-    cache.addListener(_onChanged);
-    ref.onDispose(() => currentLedger.removeListener(_onChanged));
-    ref.onDispose(() => cache.removeListener(_onChanged));
-
-    _detailDate = _args.isYearRange
-        ? DateTime.utc(_args.initialDate.year)
-        : DateTime.utc(_args.initialDate.year, _args.initialDate.month);
-    _scope = const AllScope();
-
-    await cache.refresh(currentLedger.state);
-
-    return _buildState(detailDate: _detailDate, scope: _scope);
-  }
-
-  void _onChanged() {
-    if (!ref.mounted) return;
-    unawaited(_cache.refresh(_ledger.state));
-    state = AsyncData(_buildState(detailDate: _detailDate, scope: _scope));
-  }
-
-  CategoryDetailViewState _buildState({
-    required DateTime detailDate,
-    required CategoryScope scope,
-  }) {
-    final ledgerState = _ledger.state;
-    final mainCategory = ledgerState.categories[_args.mainID];
-
-    final children = [
-      for (final category in ledgerState.categories.values)
-        if (category.parentID == _args.mainID) category,
-    ];
-
-    final wholeCategoryBuckets = {
-      _args.mainID,
-      for (final category in children) category.id,
-    };
-
-    final scanned = _scan.scan(
-      source: _cache,
-      items: _cache.items,
-      itemsRevision: _cache.itemsRevision,
+  CategoryDetailViewState build() {
+    final queries = ref.watch(analysisQueriesProvider);
+    final session = ref.watch(ledgerSessionProvider);
+    final intent = ref.watch(categoryDetailIntentProvider(_args));
+    final today = ref.watch(todayProvider);
+    if (queries == null || session == null) {
+      return categoryDetailUnreadyState(_args, intent.scope);
+    }
+    final revision = session.ledger.revision;
+    final periodResult = queries.readCategoryDetailPeriod(
+      mainID: _args.mainID,
       kind: _args.kind,
-      buckets: wholeCategoryBuckets,
+      scope: categoryDetailAnalysisScope(intent.scope),
+      period: _args.initialDate,
+      mode: _args.isYearRange
+          ? AnalysisPeriodMode.year
+          : AnalysisPeriodMode.month,
     );
-
-    final scopedBuckets = matchingCategoryIDs(_args.mainID, scope, ledgerState);
-
-    final window = _args.isYearRange
-        ? yearWindow(detailDate)
-        : monthWindow(detailDate);
-
-    final totals = CategoryTotals.compute(
-      scanned: scanned,
-      children: children,
-      window: window,
-      scopedBuckets: scopedBuckets,
+    final period = periodResult.value;
+    final periodIsCurrent =
+        periodResult.state == AnalysisQueryState.ready &&
+        period != null &&
+        periodResult.sourceRevision == revision;
+    final effectiveScope = periodIsCurrent
+        ? period.scope
+        : categoryDetailAnalysisScope(intent.scope);
+    final currentMonth = monthSerial(today);
+    final bounds = TrendsBounds.fromFirstRecord(
+      periodIsCurrent ? period.firstRecord : null,
+      currentMonth,
     );
-
-    final trendItems = scanned
-        .where((item) => scopedBuckets.contains(item.bucketID))
-        .toList();
-    final months = trendMonths(detailDate, isYearRange: _args.isYearRange);
-    final amounts = [for (final month in months) monthTotal(trendItems, month)];
-
-    return CategoryDetailViewState(
-      detailDate: detailDate,
-      scope: scope,
+    final context = TrendsContext(currentMonth: currentMonth, bounds: bounds);
+    final basis = intent.trend.effective(context);
+    final spreadResult = queries.readCategoryDetailSpread(
+      mainID: _args.mainID,
       kind: _args.kind,
-      mainCategory: mainCategory,
-      ledgerState: ledgerState,
-      children: children,
-      totals: totals,
-      trendMonths: months,
-      trendAmounts: amounts,
-      isYearRange: _args.isYearRange,
-      window: window,
-      scopedBuckets: scopedBuckets,
+      scope: effectiveScope,
+      endPeriod: _periodFor(basis.end, intent.trend.mode),
+      mode: _analysisMode(intent.trend.mode),
+      selectedPeriod: _periodFor(basis.selected, intent.trend.mode),
     );
-  }
-
-  @override
-  void setDate(DateTime date) {
-    _detailDate = date;
-    updateState((s) => _buildState(detailDate: date, scope: s.scope));
+    return projectCategoryDetailWithTrend(
+      periodResult: periodResult,
+      spreadResult: spreadResult,
+      ledgerRevision: revision,
+      ledgerState: session.ledger.state,
+      args: _args,
+      intent: intent,
+      trendContext: context,
+      basis: basis,
+      today: today,
+    );
   }
 
   @override
   void setScope(CategoryScope scope) {
-    _scope = scope;
-    updateState((s) => _buildState(detailDate: s.detailDate, scope: scope));
+    if (!ref.mounted) return;
+    ref.read(categoryDetailIntentProvider(_args).notifier).setScope(scope);
+  }
+
+  @override
+  void setTrendMode(TrendsMode mode) {
+    if (!ref.mounted) return;
+    ref
+        .read(categoryDetailIntentProvider(_args).notifier)
+        .setTrendMode(mode, _context());
+  }
+
+  @override
+  void previousTrendPage() {
+    if (!ref.mounted) return;
+    ref
+        .read(categoryDetailIntentProvider(_args).notifier)
+        .previousTrendPage(_context());
+  }
+
+  @override
+  void nextTrendPage() {
+    if (!ref.mounted) return;
+    ref
+        .read(categoryDetailIntentProvider(_args).notifier)
+        .nextTrendPage(_context());
+  }
+
+  @override
+  void selectTrendSlot(int index) {
+    if (!ref.mounted) return;
+    ref
+        .read(categoryDetailIntentProvider(_args).notifier)
+        .selectTrendSlot(index, _context());
+  }
+
+  @override
+  void retry() {
+    if (!ref.mounted) return;
+    ref.read(analysisQueriesProvider)?.retry();
+  }
+
+  TrendsContext _context() {
+    final current = state.value?.trendContext;
+    return current ??
+        TrendsContext(currentMonth: monthSerial(ref.read(todayProvider)));
   }
 }
 
-// MARK: - Constants
+DateTime _periodFor(int period, TrendsMode mode) => switch (mode) {
+  TrendsMode.month => monthStartOf(period),
+  TrendsMode.year => DateTime.utc(period),
+};
+
+AnalysisPeriodMode _analysisMode(TrendsMode mode) => switch (mode) {
+  TrendsMode.month => AnalysisPeriodMode.month,
+  TrendsMode.year => AnalysisPeriodMode.year,
+};
+
 final categoryDetailViewModelProvider = AsyncNotifierProvider.autoDispose
     .family<
       CategoryDetailNotifier,

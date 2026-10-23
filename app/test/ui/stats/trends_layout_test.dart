@@ -166,6 +166,13 @@ Future<void> _selectMonthScope(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
+Future<void> _tapCategoryDetailBack(WidgetTester tester) async {
+  final detail = find.byType(CategoryDetailScreen);
+  final back = find.descendant(of: detail, matching: find.text('Trends'));
+  await tester.tap(back);
+  await tester.pumpAndSettle();
+}
+
 void _expectKindAndModeControls(WidgetTester tester) {
   expect(find.text('Expense'), findsOneWidget);
   expect(find.text('Income'), findsOneWidget);
@@ -315,8 +322,7 @@ void main() {
       expect(identical(detailElement, tester.element(detail)), isTrue);
       expect(container.read(trendsIntentProvider).selected, selected);
 
-      await tester.pageBack();
-      await tester.pumpAndSettle();
+      await _tapCategoryDetailBack(tester);
       expect(detail, findsNothing);
       expect(container.read(trendsIntentProvider).selected, selected);
     },
@@ -415,8 +421,7 @@ void main() {
       expect(args.mainID, _travelID);
       expect(args.initialDate, DateTime.utc(2026, 7));
 
-      await tester.pageBack();
-      await tester.pumpAndSettle();
+      await _tapCategoryDetailBack(tester);
       final yearMode = find.text('Year by year');
       await tester.ensureVisible(yearMode);
       await tester.tap(yearMode);

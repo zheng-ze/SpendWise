@@ -25,6 +25,8 @@ import 'package:spendwise/ledger/analysis/summaries/upcoming.dart';
 import 'package:spendwise/ledger/analysis/summaries/week_so_far.dart';
 import 'package:spendwise/ledger/analysis/summaries/weeks.dart';
 import 'package:spendwise/ledger/analysis/summaries/year_spread.dart';
+import 'package:spendwise/ledger/analysis/category_detail/category_detail.dart';
+import 'package:spendwise/ledger/analysis/category_detail/category_detail_scope.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
 
@@ -205,6 +207,72 @@ class AnalysisQueries extends ChangeNotifier {
     mainBucketID: mainBucketID,
     scope: scope,
   );
+
+  AnalysisQueryResult<CategoryDetailPeriod> readCategoryDetailPeriod({
+    required String mainID,
+    required CategoryKind kind,
+    required AnalysisCategoryScope scope,
+    required DateTime period,
+    required AnalysisPeriodMode mode,
+  }) {
+    final resolved = CategoryDetailScope(
+      state: _ledger.state,
+      mainID: mainID,
+      scope: scope,
+    );
+    final anchor = categoryDetailWindow(period, mode).start;
+    final identity =
+        'category-detail-period|${resolved.identity}|${kind.name}|'
+        '${mode.name}|${anchor.toIso8601String()}';
+    return _readMixed<CategoryDetailPeriod>(
+      identity,
+      () => categoryDetailPeriod(
+        state: _ledger.state,
+        items: _cache.items,
+        mainID: resolved.mainID,
+        kind: kind,
+        scope: resolved.scope,
+        period: anchor,
+        mode: mode,
+      ),
+    );
+  }
+
+  AnalysisQueryResult<CategoryDetailSpread> readCategoryDetailSpread({
+    required String mainID,
+    required CategoryKind kind,
+    required AnalysisCategoryScope scope,
+    required DateTime endPeriod,
+    required AnalysisPeriodMode mode,
+    required DateTime? selectedPeriod,
+  }) {
+    final resolved = CategoryDetailScope(
+      state: _ledger.state,
+      mainID: mainID,
+      scope: scope,
+    );
+    final anchor = categoryDetailWindow(endPeriod, mode).start;
+    final selected = selectedPeriod == null
+        ? null
+        : categoryDetailWindow(selectedPeriod, mode).start;
+    final identity =
+        'category-detail-spread|${resolved.identity}|${kind.name}|'
+        '${mode.name}|${anchor.toIso8601String()}|${selected?.toIso8601String()}';
+    return _readMixed<CategoryDetailSpread>(
+      identity,
+      () => categoryDetailSpread(
+        state: _ledger.state,
+        items: _cache.items,
+        mainID: resolved.mainID,
+        kind: kind,
+        scope: resolved.scope,
+        endPeriod: anchor,
+        mode: mode,
+        selectedPeriod: selected,
+        today: _today,
+      ),
+    );
+  }
 
   AnalysisQueryResult<ComparedWithUsual> readComparedWithUsual({
     required DateTime month,
