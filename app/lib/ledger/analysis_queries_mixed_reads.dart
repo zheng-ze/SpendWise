@@ -220,9 +220,6 @@ extension _AnalysisMixedReads on AnalysisQueries {
     return _readMixed<ComparedWithUsual>(
       'compared-with-usual|${anchor.toIso8601String()}|${kind.name}',
       () {
-        if (anchor.isAfter(monthWindow(_today).start)) {
-          throw ArgumentError.value(month, 'month', 'Month is in the future.');
-        }
         return comparedWithUsual(
           items: _cache.items,
           selectedMonth: anchor,
