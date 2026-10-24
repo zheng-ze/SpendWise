@@ -575,17 +575,20 @@ void main() {
         endPeriod: DateTime.utc(2026, 12),
       );
       final revised = revisedResult.value!;
+      final december = DateTime.utc(2026, 12);
+      final october = DateTime.utc(2026, 10);
+      final projectionIntent = TrendsIntent(
+        kind: TrendsKind.expense,
+        mode: TrendsMode.month,
+        spreadEnd: monthSerial(december),
+        selected: monthSerial(october),
+        rememberedMonth: 10,
+        followsCurrent: false,
+      );
       final ready = _project(
         fixture.queries,
         fixture.ledger,
-        intent: TrendsIntent(
-          kind: TrendsKind.expense,
-          mode: TrendsMode.month,
-          spreadEnd: monthSerial(DateTime.utc(2026, 12)),
-          selected: monthSerial(DateTime.utc(2026, 10)),
-          rememberedMonth: 10,
-          followsCurrent: false,
-        ),
+        intent: projectionIntent,
       ) as TrendsReadyBody;
       expect(revised.firstRecordMonth, DateTime.utc(2026, 7));
       expect(revised.spread.earliestSpreadEndMonth, DateTime.utc(2026, 10));

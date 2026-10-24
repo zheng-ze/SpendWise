@@ -102,22 +102,13 @@ void main() {
     expect(monthStartOf(firstPage.end), DateTime.utc(-271820, 12));
     expect(monthStartOf(firstPage.selected), DateTime.utc(-271820, 1));
     expect(grid.canPage(firstPage.end, -1), isFalse);
-    expect(
-      identical(
-        firstIntent.pagedPrevious(TrendsContext(currentMonth: 0)),
-        firstIntent,
-      ),
-      isTrue,
-    );
+    final context = TrendsContext(currentMonth: 0);
+    final previousIntent = firstIntent.pagedPrevious(context);
+    final nextIntent = lastIntent.pagedNext(context);
+    expect(identical(previousIntent, firstIntent), isTrue);
     expect(monthStartOf(lastPage.end), DateTime.utc(275759, 12));
     expect(grid.canPage(lastPage.end, 1), isFalse);
-    expect(
-      identical(
-        lastIntent.pagedNext(TrendsContext(currentMonth: 0)),
-        lastIntent,
-      ),
-      isTrue,
-    );
+    expect(identical(nextIntent, lastIntent), isTrue);
     expect(
       grid.basis(firstJanuary - 12, firstJanuary - 12).selected,
       firstJanuary,
