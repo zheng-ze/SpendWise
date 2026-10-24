@@ -1,6 +1,6 @@
 # Transactions UI
 
-Last reconciled: 2026-10-21
+Last reconciled: 2026-10-24
 
 ## Feature overview
 
@@ -74,7 +74,17 @@ without a source. The presenter captures that source at invocation, installs the
 invalidates the null-key form and receipt providers once, binds that initialization attempt to the
 session lifetime, and applies the scoped prefill once after the first successful attempt, maps the shell layout mode to the
 `AppSheet` presentation (phone, open or desktop), and releases its presentation state and
-subscription when the sheet completes or presentation fails. The Add route re-resolves its
+subscription when the sheet completes or presentation fails. Add supplies a navigation-region
+resolver to its route and picker sheets. The route barrier passes input through only over the phone
+bar, desktop sidebar or open rail; the Add page remains modal elsewhere. A destination tap selects
+that destination and dismisses the active Add session, while a blank tap in the exposed navigation
+lane also dismisses it. An outside-lane tap dismisses the current route. If an Add picker covers the
+form, a destination tap removes the Add-owned picker route before closing Add; retirement closes the
+Step subscription and defers receipt coordinator invalidation, and the next Add attempt resets the
+null-key form and receipt state (`NewEntryPresentationController`, `_AddSession`). Generic AppSheets
+keep their full-window barrier and default open content inset. (`app/lib/ui/common/sheets/app_sheet_route.dart`,
+`app/lib/ui/transactions/entry/new_entry_presenter.dart`, `app/lib/ui/transactions/entry/steps/entry_step_handlers.dart`,
+`app/lib/ui/shell/app_shell.dart`) The Add route re-resolves its
 presentation live through a resolver reading `ShellLayoutModeScope`, so a
 phone/open resize changes only the sheet geometry, alignment and chrome around the retained keyed
 form and never replaces the route. A late receipt finish after invalidation writes no state
