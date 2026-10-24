@@ -1,6 +1,6 @@
 # Ledger Runtime
 
-Last reconciled: 2026-10-22
+Last reconciled: 2026-10-24
 
 ## Feature overview
 
@@ -276,8 +276,10 @@ its previous successful value if it is still retained (`analysis_queries.dart:_r
 - `readTrendsPeriod(endPeriod:, mode:, kind:, level:)` is a mixed read returning the sealed
   `TrendsPeriod`: `MonthTrendsPeriod` for month mode and `YearTrendsPeriod` for year mode. Its query
   identity uses a normalized UTC month-start or January 1 year anchor, plus mode, category kind, and
-  breakdown level; a future anchor fails the read. Month mode combines the 12-slot month spread
-  with a category breakdown over its complete 12-month window. Year mode combines the
+  breakdown level. Month mode accepts past, current, and future endpoints and combines a rolling
+  12-slot month spread ending at that endpoint with a category breakdown over its whole 12-month
+  window. A December endpoint yields January through December; totals include committed future
+  entries within the window. Year mode rejects future years and combines the
   three-calendar-year spread with a category breakdown over its whole three-year window. `largestRow`
   is the first ranked row or null; `highestMonth` or `highestYear` is the highest-total complete
   period with a positive total, or null. `CategoryPeriodAverages.completePeriodCount` counts complete
@@ -286,7 +288,9 @@ its previous successful value if it is still retained (`analysis_queries.dart:_r
   complete. The query uses `_readMixed` for revision gating and retry
   (`app/lib/ledger/analysis_queries.dart:readTrendsPeriod`,
   `app/lib/ledger/analysis_queries_mixed_reads.dart:_readTrendsPeriod`,
-  `app/lib/ledger/analysis/summaries/trends_period.dart:trendsPeriod`, `yearTrendsPeriod`).
+  `app/lib/ledger/analysis/summaries/trends_period.dart:trendsPeriod`, `yearTrendsPeriod`;
+  `app/test/ledger/analysis_trends_period_test.dart`: `December Trends aggregate includes committed
+  future entries`, `future Trends month identities normalize and stay revision-gated`).
 - `readCategoryBreakdown(period:, mode:, kind:, level:)` is a mixed read returning
   `AnalysisQueryResult<PeriodBreakdown>` through `_readMixed`, using the pure `categoryBreakdown`
   helper to group `AnalysisItem`s of one kind within one window into ranked `BreakdownRow`s.
