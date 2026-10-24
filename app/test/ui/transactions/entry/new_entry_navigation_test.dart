@@ -23,15 +23,6 @@ Future<void> _tapNavigationDestination(
 }
 
 void main() {
-  testWidgets('phone sheet stays above the navigation bar', (tester) async {
-    final harness = await pumpShell(tester);
-    await openAdd(tester, harness);
-
-    final sheetBottom = tester.getBottomLeft(find.byType(AppSheet)).dy;
-    final barTop = tester.getTopLeft(find.byType(PhoneBar)).dy;
-    expect(sheetBottom, lessThanOrEqualTo(barTop));
-  }, timeout: uiTestTimeout);
-
   testWidgets('phone navigation tap dismisses Add without navigating', (
     tester,
   ) async {

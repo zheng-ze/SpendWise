@@ -28,6 +28,7 @@ const _barIconSize = 24.0;
 const _barLabelFontSize = 10.0;
 const _barLabelGap = 3.0;
 const _barLabelHeightFactor = 1.4;
+const _barLabelMaxLines = 1;
 const _barItemCornerRadius = 14.0;
 const _barItemVerticalPadding = 4.0;
 const _addBadgeSize = 40.0;
@@ -170,6 +171,8 @@ class _BarDestination extends StatelessWidget {
         const SizedBox(height: _barLabelGap),
         Text(
           destinationLabels[destination]!,
+          maxLines: _barLabelMaxLines,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
             fontSize: _barLabelFontSize,
             height: _barLabelHeightFactor,
@@ -209,6 +212,8 @@ class _BarAdd extends StatelessWidget {
         const SizedBox(height: _barLabelGap),
         Text(
           _addLabel,
+          maxLines: _barLabelMaxLines,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
             fontSize: _barLabelFontSize,
             height: _barLabelHeightFactor,
