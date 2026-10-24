@@ -250,36 +250,41 @@ class _OpenNavigationLane extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final constrainedRail = LayoutBuilder(
+      builder: (context, constraints) => ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: constraints.maxHeight),
+        child: rail,
+      ),
+    );
+    final safeRail = SafeArea(
+      left: false,
+      right: false,
+      child: constrainedRail,
+    );
+    final insetRail = Padding(
+      padding: const EdgeInsets.only(
+        right: openRailRightInset,
+        bottom: openRailBottomInset,
+      ),
+      child: safeRail,
+    );
+    final alignedRail = Align(
+      alignment: Alignment.bottomRight,
+      child: insetRail,
+    );
+    final laneGesture = GestureDetector(
+      behavior: addPresented
+          ? HitTestBehavior.opaque
+          : HitTestBehavior.deferToChild,
+      onTap: addPresented ? onBlankTap : null,
+      child: alignedRail,
+    );
     return Positioned(
       top: 0,
       right: 0,
       bottom: 0,
       width: gutter,
-      child: GestureDetector(
-        behavior: addPresented
-            ? HitTestBehavior.opaque
-            : HitTestBehavior.deferToChild,
-        onTap: addPresented ? onBlankTap : null,
-        child: Align(
-          alignment: Alignment.bottomRight,
-          child: Padding(
-            padding: const EdgeInsets.only(
-              right: openRailRightInset,
-              bottom: openRailBottomInset,
-            ),
-            child: SafeArea(
-              left: false,
-              right: false,
-              child: LayoutBuilder(
-                builder: (context, constraints) => ConstrainedBox(
-                  constraints: BoxConstraints(maxHeight: constraints.maxHeight),
-                  child: rail,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
+      child: laneGesture,
     );
   }
 }
