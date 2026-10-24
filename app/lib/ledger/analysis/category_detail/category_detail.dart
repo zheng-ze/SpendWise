@@ -148,7 +148,7 @@ CategoryDetailSpread categoryDetailSpread({
   final anchor = categoryDetailWindow(endPeriod, mode).start;
   final day = startOfDayUtc(today);
   final current = categoryDetailWindow(day, mode).start;
-  if (anchor.isAfter(current)) {
+  if (mode == AnalysisPeriodMode.year && anchor.isAfter(current)) {
     throw ArgumentError.value(
       endPeriod,
       'endPeriod',

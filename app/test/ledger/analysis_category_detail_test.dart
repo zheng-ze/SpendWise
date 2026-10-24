@@ -256,33 +256,91 @@ void main() {
     },
   );
 
-  test('future spread ends fail while missing main gives empty metadata', () {
+  test('future month spreads include saved scoped selections', () {
     final state = detailState();
-    CategoryDetailSpread futureSpread() => categoryDetailSpread(
+    final first = book(state, 80, childID, '-3', DateTime.utc(2026, 12, 5));
+    final latest = book(state, 81, childID, '-7', DateTime.utc(2026, 12, 20));
+    final future = categoryDetailSpread(
       state: state,
-      items: const [],
+      items: Accounting.analysisItems(state),
       mainID: mainID,
       kind: CategoryKind.expense,
-      scope: const AllCategoryScope(),
-      endPeriod: DateTime.utc(2027),
-      mode: AnalysisPeriodMode.year,
-      selectedPeriod: null,
+      scope: SubCategoryScope(childID),
+      endPeriod: DateTime.utc(2026, 12, 31),
+      mode: AnalysisPeriodMode.month,
+      selectedPeriod: DateTime.utc(2026, 12, 1),
       today: today,
     );
-    expect(futureSpread, throwsArgumentError);
-    final result = categoryDetailPeriod(
+
+    expect(future.slots, hasLength(12));
+    expect(future.slots.map((slot) => slot.period), [
+      for (var month = 1; month <= 12; month++) DateTime.utc(2026, month),
+    ]);
+    expect(future.slots.last.total, Decimal.fromInt(10));
+    expect(future.selection?.total, Decimal.fromInt(10));
+    expect(future.selection?.entryIDs, [latest, first]);
+
+    final emptyScope = categoryDetailSpread(
+      state: state,
+      items: Accounting.analysisItems(state),
+      mainID: mainID,
+      kind: CategoryKind.expense,
+      scope: SubCategoryScope(emptyID),
+      endPeriod: DateTime.utc(2027, 12),
+      mode: AnalysisPeriodMode.month,
+      selectedPeriod: DateTime.utc(2027, 11),
+      today: today,
+    );
+    expect(emptyScope.slots, hasLength(12));
+    expect(emptyScope.selection?.total, Decimal.zero);
+    expect(emptyScope.selection?.entryIDs, isEmpty);
+
+    final missingMain = categoryDetailSpread(
       state: state,
       items: const [],
       mainID: accountID,
       kind: CategoryKind.expense,
       scope: const AllCategoryScope(),
-      period: today,
+      endPeriod: DateTime.utc(2027, 12),
       mode: AnalysisPeriodMode.month,
+      selectedPeriod: DateTime.utc(2027, 12),
+      today: today,
     );
-    expect(result.mainCategory, isNull);
-    expect(result.children, isEmpty);
-    expect(result.totals.mainTotal, Decimal.zero);
+    expect(missingMain.slots, hasLength(12));
+    expect(missingMain.selection?.total, Decimal.zero);
+    expect(missingMain.selection?.entryIDs, isEmpty);
   });
+
+  test(
+    'future year spread ends fail while missing main gives empty metadata',
+    () {
+      final state = detailState();
+      CategoryDetailSpread futureSpread() => categoryDetailSpread(
+        state: state,
+        items: const [],
+        mainID: mainID,
+        kind: CategoryKind.expense,
+        scope: const AllCategoryScope(),
+        endPeriod: DateTime.utc(2027),
+        mode: AnalysisPeriodMode.year,
+        selectedPeriod: null,
+        today: today,
+      );
+      expect(futureSpread, throwsArgumentError);
+      final result = categoryDetailPeriod(
+        state: state,
+        items: const [],
+        mainID: accountID,
+        kind: CategoryKind.expense,
+        scope: const AllCategoryScope(),
+        period: today,
+        mode: AnalysisPeriodMode.month,
+      );
+      expect(result.mainCategory, isNull);
+      expect(result.children, isEmpty);
+      expect(result.totals.mainTotal, Decimal.zero);
+    },
+  );
 }
 
 CategoryDetailSpread spread(
