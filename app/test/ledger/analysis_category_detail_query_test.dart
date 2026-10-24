@@ -22,14 +22,19 @@ void seed(Ledger ledger) {
   ledger.addCategory(category(childID, parent: mainID));
 }
 
-void addExpense(Ledger ledger, int id, {String bucket = childID}) {
+void addExpense(
+  Ledger ledger,
+  int id, {
+  String bucket = childID,
+  DateTime? date,
+}) {
   final entry = Entry(
     id: testId(id),
     name: 'Merchant',
     amount: Decimal.fromInt(-id),
     sourceID: accountID,
     categoryID: bucket,
-    date: today,
+    date: date ?? today,
   );
   ledger.addEntry(entry);
 }
@@ -206,7 +211,11 @@ void main() {
       seed(setup.ledger);
       await settle(setup.runner, setup.ledger);
       final before = readSpread(setup.queries);
-      final invalid = readSpread(setup.queries, end: DateTime.utc(2026, 11));
+      final invalid = readSpread(
+        setup.queries,
+        mode: AnalysisPeriodMode.year,
+        end: DateTime.utc(2027),
+      );
       expect(invalid.state, AnalysisQueryState.failed);
       expect(invalid.value, isNull);
       expect(readPeriod(setup.queries).state, AnalysisQueryState.ready);
@@ -217,6 +226,47 @@ void main() {
       expect(after, isNot(same(before)));
       expect(after.value?.today, nextDay);
       expect(after.sourceRevision, setup.ledger.revision);
+    },
+  );
+
+  test(
+    'future month endpoints are ready while future year endpoints fail',
+    () async {
+      final setup = setupAnalysis(today: today);
+      seed(setup.ledger);
+      addExpense(setup.ledger, 10, date: DateTime.utc(2026, 12, 5));
+      addExpense(setup.ledger, 20, date: DateTime.utc(2026, 12, 20));
+      addExpense(setup.ledger, 30, date: DateTime.utc(2027, 12, 10));
+      await settle(setup.runner, setup.ledger);
+
+      final currentYear = readSpread(
+        setup.queries,
+        end: DateTime.utc(2026, 12, 31),
+        selected: DateTime.utc(2026, 12, 1),
+      );
+      final futureYear = readSpread(
+        setup.queries,
+        end: DateTime.utc(2027, 12, 31),
+        selected: DateTime.utc(2027, 12, 1),
+      );
+      final futureYearMode = readSpread(
+        setup.queries,
+        mode: AnalysisPeriodMode.year,
+        end: DateTime.utc(2027, 12, 31),
+      );
+
+      expect(currentYear.state, AnalysisQueryState.ready);
+      expect(currentYear.value?.slots.first.period, DateTime.utc(2026, 1));
+      expect(currentYear.value?.slots.last.period, DateTime.utc(2026, 12));
+      expect(currentYear.value?.selection?.total, Decimal.fromInt(30));
+      expect(currentYear.value?.selection?.entryIDs, [testId(20), testId(10)]);
+      expect(futureYear.state, AnalysisQueryState.ready);
+      expect(futureYear.value?.slots.first.period, DateTime.utc(2027, 1));
+      expect(futureYear.value?.slots.last.period, DateTime.utc(2027, 12));
+      expect(futureYear.value?.selection?.total, Decimal.fromInt(30));
+      expect(futureYear.value?.selection?.entryIDs, [testId(30)]);
+      expect(futureYearMode.state, AnalysisQueryState.failed);
+      expect(futureYearMode.value, isNull);
     },
   );
 }

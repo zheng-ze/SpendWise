@@ -16,6 +16,7 @@ import 'analysis_test_support.dart';
 const _accountID = '11111111-1111-1111-1111-111111111111';
 const _foodID = '33333333-3333-3333-3333-333333333333';
 const _otherID = '44444444-4444-4444-4444-444444444444';
+const _currentOnlyID = '55555555-5555-5555-5555-555555555555';
 final _today = DateTime.utc(2026, 10, 15);
 final _endMonth = DateTime.utc(2026, 10, 1);
 
@@ -123,9 +124,10 @@ void _populateForEdit(Ledger ledger) {
 AnalysisQueryResult<MonthTrendsPeriod> _read(
   AnalysisQueries queries, {
   BreakdownLevel level = BreakdownLevel.categories,
+  DateTime? endPeriod,
 }) {
   final result = queries.readTrendsPeriod(
-    endPeriod: _endMonth,
+    endPeriod: endPeriod ?? _endMonth,
     mode: AnalysisPeriodMode.month,
     kind: CategoryKind.expense,
     level: level,
@@ -151,7 +153,189 @@ AnalysisQueryResult<YearTrendsPeriod> _readYear(AnalysisQueries queries) {
   );
 }
 
+AnalysisQueryResult<TrendsPeriod> _readAt(
+  AnalysisQueries queries, {
+  required DateTime endPeriod,
+  AnalysisPeriodMode mode = AnalysisPeriodMode.month,
+}) => queries.readTrendsPeriod(
+  endPeriod: endPeriod,
+  mode: mode,
+  kind: CategoryKind.expense,
+  level: BreakdownLevel.categories,
+);
+
 void main() {
+  test('December Trends aggregate includes committed future entries', () async {
+    final fixture = setupAnalysis(today: _today);
+    fixture.ledger.addAccount(
+      Account(id: _accountID, name: 'Checking', type: AccountType.checking),
+    );
+    _addCategory(fixture.ledger, _foodID, 'Food');
+    _addCategory(fixture.ledger, _otherID, 'Other');
+    _addCategory(fixture.ledger, _currentOnlyID, 'Current only');
+    _addEntry(
+      fixture.ledger,
+      'e0000000-0000-0000-0000-000000000021',
+      '-30',
+      DateTime.utc(2026, 7, 2),
+      _foodID,
+    );
+    _addEntry(
+      fixture.ledger,
+      'e0000000-0000-0000-0000-000000000022',
+      '-60',
+      DateTime.utc(2026, 9, 2),
+      _foodID,
+    );
+    _addEntry(
+      fixture.ledger,
+      'e0000000-0000-0000-0000-000000000023',
+      '-900',
+      DateTime.utc(2026, 10, 20),
+      _currentOnlyID,
+    );
+    _addEntry(
+      fixture.ledger,
+      'e0000000-0000-0000-0000-000000000024',
+      '-120',
+      DateTime.utc(2026, 12, 2),
+      _otherID,
+    );
+    _addEntry(
+      fixture.ledger,
+      'e0000000-0000-0000-0000-000000000027',
+      '-700',
+      DateTime.utc(2027, 1, 2),
+      _otherID,
+    );
+    await settle(fixture.runner, fixture.ledger);
+
+    final result = _readAt(
+      fixture.queries,
+      endPeriod: DateTime.utc(2026, 12, 31),
+    );
+
+    expect(result.state, AnalysisQueryState.ready);
+    final summary = result.value! as MonthTrendsPeriod;
+    expect(summary.spread.slots, hasLength(12));
+    final actualMonths = summary.spread.slots
+        .map((slot) => slot.month)
+        .toList();
+    final expectedMonths = List.generate(
+      12,
+      (index) => DateTime.utc(2026, index + 1),
+    );
+    expect(actualMonths, expectedMonths);
+    final nextJanuary = DateTime.utc(2027, 1);
+    final includesNextJanuary = actualMonths.contains(nextJanuary);
+    expect(includesNextJanuary, isFalse);
+    expect(summary.spread.slots.last.total, Decimal.fromInt(120));
+    expect(summary.breakdown.total, Decimal.fromInt(1110));
+    expect(
+      summary.spread.slots.fold(Decimal.zero, (sum, slot) => sum + slot.total),
+      summary.breakdown.total,
+    );
+    expect(summary.averages.completePeriodCount, 3);
+    final food = summary.averages.rows.singleWhere(
+      (row) => row.bucketID == _foodID,
+    );
+    expect(food.numerator, Decimal.fromInt(90));
+    expect(food.mean, Decimal.fromInt(30));
+    final other = summary.averages.rows.singleWhere(
+      (row) => row.bucketID == _otherID,
+    );
+    expect(other.numerator, Decimal.zero);
+    expect(other.mean, Decimal.zero);
+    final currentOnly = summary.averages.rows.singleWhere(
+      (row) => row.bucketID == _currentOnlyID,
+    );
+    expect(currentOnly.numerator, Decimal.zero);
+    expect(currentOnly.mean, Decimal.zero);
+    expect(summary.highestMonth?.month, DateTime.utc(2026, 9));
+  });
+
+  test(
+    'future Trends month identities normalize and stay revision-gated',
+    () async {
+      final fixture = setupAnalysis(today: _today);
+      _populate(fixture.ledger);
+      _addEntry(
+        fixture.ledger,
+        'e0000000-0000-0000-0000-000000000026',
+        '-80',
+        DateTime.utc(2027, 1, 2),
+        _foodID,
+      );
+      await settle(fixture.runner, fixture.ledger);
+      final december = _readAt(
+        fixture.queries,
+        endPeriod: DateTime.utc(2026, 12, 1),
+      );
+      final equivalentDecember = _readAt(
+        fixture.queries,
+        endPeriod: DateTime.utc(2026, 12, 24),
+      );
+
+      expect(december.state, AnalysisQueryState.ready);
+      expect(equivalentDecember, same(december));
+      final january = _readAt(
+        fixture.queries,
+        endPeriod: DateTime.utc(2027, 1, 20),
+      );
+      expect(january.state, AnalysisQueryState.ready);
+      expect(january.value, isA<MonthTrendsPeriod>());
+      expect(
+        (january.value! as MonthTrendsPeriod).spread.slots.first.month,
+        DateTime.utc(2026, 2),
+      );
+      final futureYear = _readAt(
+        fixture.queries,
+        endPeriod: DateTime.utc(2027, 12),
+      );
+      expect(futureYear.state, AnalysisQueryState.ready);
+      expect(
+        (futureYear.value! as MonthTrendsPeriod).spread.endMonth,
+        DateTime.utc(2027, 12),
+      );
+      final futureYearSummary = futureYear.value! as MonthTrendsPeriod;
+      expect(futureYearSummary.breakdown.total, Decimal.fromInt(80));
+      expect(futureYearSummary.averages.completePeriodCount, 0);
+      expect(futureYearSummary.averages.rows.single.mean, isNull);
+      final rejectedYear = _readAt(
+        fixture.queries,
+        endPeriod: DateTime.utc(2027),
+        mode: AnalysisPeriodMode.year,
+      );
+      expect(rejectedYear.state, AnalysisQueryState.failed);
+
+      _addEntry(
+        fixture.ledger,
+        'e0000000-0000-0000-0000-000000000025',
+        '-500',
+        DateTime.utc(2026, 12, 5),
+        _foodID,
+      );
+      final pending = _readAt(
+        fixture.queries,
+        endPeriod: DateTime.utc(2026, 12, 15),
+      );
+      expect(pending.state, AnalysisQueryState.loading);
+      expect(pending.value, december.value);
+      expect(pending.sourceRevision, december.sourceRevision);
+      await settle(fixture.runner, fixture.ledger);
+      final refreshed = _readAt(
+        fixture.queries,
+        endPeriod: DateTime.utc(2026, 12, 15),
+      );
+      expect(refreshed.state, AnalysisQueryState.ready);
+      expect(refreshed.sourceRevision, fixture.ledger.revision);
+      expect(
+        (refreshed.value! as MonthTrendsPeriod).breakdown.total,
+        Decimal.fromInt(1490),
+      );
+    },
+  );
+
   test('month aggregate separates whole spread, complete observations and averages', () async {
     final fixture = setupAnalysis(today: _today);
     _populate(fixture.ledger);
@@ -349,14 +533,17 @@ void main() {
       _populateForEdit(fixture.ledger);
       final oldEntry = fixture.ledger.state.entries.values.first;
       await settle(fixture.runner, fixture.ledger);
-      final acceptedResult = _read(fixture.queries);
+      final acceptedResult = _read(
+        fixture.queries,
+        endPeriod: DateTime.utc(2026, 12),
+      );
       final accepted = acceptedResult.value!;
       expect(acceptedResult.sourceRevision, fixture.ledger.revision);
       expect(accepted.spread.earliestSpreadEndMonth, DateTime.utc(2025, 10));
       expect(accepted.breakdown.total, Decimal.fromInt(65));
       expect(accepted.largestRow?.bucketID, _otherID);
       expect(accepted.highestMonth?.month, DateTime.utc(2026, 7));
-      expect(accepted.averages.completePeriodCount, 11);
+      expect(accepted.averages.completePeriodCount, 9);
 
       fixture.ledger.updateEntry(
         Entry(
@@ -373,7 +560,7 @@ void main() {
           date: DateTime.utc(2026, 9, 4),
         ),
       );
-      final pending = _read(fixture.queries);
+      final pending = _read(fixture.queries, endPeriod: DateTime.utc(2026, 12));
       expect(pending.state, AnalysisQueryState.loading);
       expect(pending.value, accepted);
       expect(pending.sourceRevision, acceptedResult.sourceRevision);
@@ -383,10 +570,26 @@ void main() {
       );
 
       await settle(fixture.runner, fixture.ledger);
-      final revisedResult = _read(fixture.queries);
+      final revisedResult = _read(
+        fixture.queries,
+        endPeriod: DateTime.utc(2026, 12),
+      );
       final revised = revisedResult.value!;
-      final ready =
-          _project(fixture.queries, fixture.ledger) as TrendsReadyBody;
+      final december = DateTime.utc(2026, 12);
+      final october = DateTime.utc(2026, 10);
+      final projectionIntent = TrendsIntent(
+        kind: TrendsKind.expense,
+        mode: TrendsMode.month,
+        spreadEnd: monthSerial(december),
+        selected: monthSerial(october),
+        rememberedMonth: 10,
+        followsCurrent: false,
+      );
+      final ready = _project(
+        fixture.queries,
+        fixture.ledger,
+        intent: projectionIntent,
+      ) as TrendsReadyBody;
       expect(revised.firstRecordMonth, DateTime.utc(2026, 7));
       expect(revised.spread.earliestSpreadEndMonth, DateTime.utc(2026, 10));
       expect(revised.breakdown.total, Decimal.fromInt(1065));
@@ -399,9 +602,13 @@ void main() {
   );
 }
 
-TrendsBody _project(AnalysisQueries queries, Ledger ledger) => projectTrends(
+TrendsBody _project(
+  AnalysisQueries queries,
+  Ledger ledger, {
+  TrendsIntent? intent,
+}) => projectTrends(
   queries: queries,
-  intent: TrendsIntent.initial(_today),
+  intent: intent ?? TrendsIntent.initial(_today),
   today: _today,
   ledgerRevision: ledger.revision,
   categories: const {},

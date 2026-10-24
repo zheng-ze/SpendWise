@@ -63,7 +63,7 @@ void main() {
       TrendsBreakdownScope.selectedPeriod,
     );
 
-    expect(presentation.header.range, 'December 2025');
+    expect(presentation.header.range, 'February 2026');
     expect(presentation.header.total, '-S\$0.00');
     expect(presentation.breakdown.total, Decimal.zero);
   });
@@ -85,13 +85,13 @@ Future<TrendsHarness> _rankedHarness() async {
   addTrendsEntry(
     ledger,
     '-500',
-    DateTime.utc(2025, 11, 10),
+    DateTime.utc(2026, 1, 10),
     categoryID: _diningID,
   );
   addTrendsEntry(
     ledger,
     '-300',
-    DateTime.utc(2025, 11, 11),
+    DateTime.utc(2026, 9, 11),
     categoryID: _foodID,
   );
   addTrendsEntry(

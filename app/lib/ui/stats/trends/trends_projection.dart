@@ -27,7 +27,8 @@ const _pageNext = 1;
 const _fullSharePercent = 100;
 const _nextCalendarPeriod = 1;
 const _monthsInSpread = 12;
-const _monthsBeforeCurrentMonth = 11;
+const _firstMonthOfYear = 1;
+const _lastMonthOfYear = 12;
 
 // MARK: - Projection
 TrendsBody projectTrends({
@@ -125,18 +126,16 @@ class _Projection {
       kind: _kind,
       level: _level,
     );
-    final usual = isEmpty
-        ? null
-        : queries.readComparedWithUsual(
-            month: monthStartOf(basis.selected),
-            kind: _kind,
-          );
+    final usual = queries.readComparedWithUsual(
+      month: monthStartOf(basis.selected),
+      kind: _kind,
+    );
     final breakdown = _readBreakdown();
-    final unready = _unready([...reads, summary, ?usual, breakdown], revision);
+    final unready = _unready([...reads, summary, usual, breakdown], revision);
     if (unready != null) return unready;
     final value = summary.value;
-    final usualValue = usual?.value;
-    if (value is! MonthTrendsPeriod || (usual != null && usualValue == null)) {
+    final usualValue = usual.value;
+    if (value is! MonthTrendsPeriod || usualValue == null) {
       return const TrendsErrorBody();
     }
     final current = monthStartOf(context.currentMonth);
@@ -170,7 +169,6 @@ class _Projection {
       kind: _kind,
     );
     if (averageComparison == null) return const TrendsErrorBody();
-    if (isEmpty) return TrendsEmptyBody(period: period, bounds: bounds);
     final bars = [
       for (final slot in slots)
         TrendsBar(
@@ -179,20 +177,32 @@ class _Projection {
           value: slot.total.toDouble(),
         ),
     ];
+    final headline = _headline(
+      formatMonthNameYear(selected.month),
+      selected.total,
+      selected.itemCount,
+    );
+    final usualBody = trendsUsual(
+      usualValue,
+      currentMonth: usualValue.selectedMonth == current,
+    );
+    if (isEmpty) {
+      return TrendsEmptyBody(
+        period: period,
+        bounds: bounds,
+        bars: bars,
+        selectedIndex: index,
+        headline: headline,
+        usual: usualBody,
+      );
+    }
     return TrendsReadyBody(
       period: period,
       bars: bars,
       breakdown: projected,
       selectedIndex: index,
-      headline: _headline(
-        formatMonthNameYear(selected.month),
-        selected.total,
-        selected.itemCount,
-      ),
-      usual: trendsUsual(
-        usualValue!,
-        currentMonth: usualValue.selectedMonth == current,
-      ),
+      headline: headline,
+      usual: usualBody,
       bounds: bounds,
       periodSummary: value,
       wholePeriod: _wholePeriod(value, period.rangeLabel),
@@ -228,12 +238,10 @@ class _Projection {
       (total, slot) => total + slot.total,
     );
     final endMonth = monthStartOf(basis.end);
+    final startMonth = DateTime.utc(endMonth.year, _firstMonthOfYear);
     return slots.length == _monthsInSpread &&
-        slots.first.month ==
-            DateTime.utc(
-              endMonth.year,
-              endMonth.month - _monthsBeforeCurrentMonth,
-            ) &&
+        slots.first.month == startMonth &&
+        endMonth.month == _lastMonthOfYear &&
         slots.last.month == endMonth &&
         (summary.highestMonth == null ||
             slots.contains(summary.highestMonth)) &&
@@ -433,10 +441,15 @@ class _Projection {
 
   TrendsPeriodRow _periodRow(String rangeLabel) {
     final grid = context.grid(intent.mode);
+    final allowsEmptyNavigation = intent.mode == TrendsMode.month;
     return TrendsPeriodRow(
       rangeLabel: rangeLabel,
-      previousEnabled: !isEmpty && grid.canPage(basis.end, _pagePrevious),
-      nextEnabled: !isEmpty && grid.canPage(basis.end, _pageNext),
+      previousEnabled:
+          (allowsEmptyNavigation || !isEmpty) &&
+          grid.canPage(basis.end, _pagePrevious),
+      nextEnabled:
+          (allowsEmptyNavigation || !isEmpty) &&
+          grid.canPage(basis.end, _pageNext),
     );
   }
 

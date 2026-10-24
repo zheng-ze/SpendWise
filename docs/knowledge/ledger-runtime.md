@@ -1,6 +1,6 @@
 # Ledger Runtime
 
-Last reconciled: 2026-10-22
+Last reconciled: 2026-10-24
 
 ## Feature overview
 
@@ -276,8 +276,10 @@ its previous successful value if it is still retained (`analysis_queries.dart:_r
 - `readTrendsPeriod(endPeriod:, mode:, kind:, level:)` is a mixed read returning the sealed
   `TrendsPeriod`: `MonthTrendsPeriod` for month mode and `YearTrendsPeriod` for year mode. Its query
   identity uses a normalized UTC month-start or January 1 year anchor, plus mode, category kind, and
-  breakdown level; a future anchor fails the read. Month mode combines the 12-slot month spread
-  with a category breakdown over its complete 12-month window. Year mode combines the
+  breakdown level. Month mode accepts past, current, and future endpoints and combines a rolling
+  12-slot month spread ending at that endpoint with a category breakdown over its whole 12-month
+  window. A December endpoint yields January through December; totals include committed future
+  entries within the window. Year mode rejects future years and combines the
   three-calendar-year spread with a category breakdown over its whole three-year window. `largestRow`
   is the first ranked row or null; `highestMonth` or `highestYear` is the highest-total complete
   period with a positive total, or null. `CategoryPeriodAverages.completePeriodCount` counts complete
@@ -286,7 +288,9 @@ its previous successful value if it is still retained (`analysis_queries.dart:_r
   complete. The query uses `_readMixed` for revision gating and retry
   (`app/lib/ledger/analysis_queries.dart:readTrendsPeriod`,
   `app/lib/ledger/analysis_queries_mixed_reads.dart:_readTrendsPeriod`,
-  `app/lib/ledger/analysis/summaries/trends_period.dart:trendsPeriod`, `yearTrendsPeriod`).
+  `app/lib/ledger/analysis/summaries/trends_period.dart:trendsPeriod`, `yearTrendsPeriod`;
+  `app/test/ledger/analysis_trends_period_test.dart`: `December Trends aggregate includes committed
+  future entries`, `future Trends month identities normalize and stay revision-gated`).
 - `readCategoryBreakdown(period:, mode:, kind:, level:)` is a mixed read returning
   `AnalysisQueryResult<PeriodBreakdown>` through `_readMixed`, using the pure `categoryBreakdown`
   helper to group `AnalysisItem`s of one kind within one window into ranked `BreakdownRow`s.
@@ -345,16 +349,18 @@ its previous successful value if it is still retained (`analysis_queries.dart:_r
   `month mode all scope sums children and direct`, `invalid child parent pairs throw`,
   `includes months after today in year mode`, `independent equal trends are equal`).
 - `readComparedWithUsual(month:, kind:)` is a mixed read for a pace comparison. The observed
-  total covers the selected month up to today for the current month, or the whole month for a past
-  month. The usual is the mean of the same elapsed days in exactly the three calendar months before
-  it, each clipped to its own length; it is `available` only when all three months are complete
+  total covers the selected month up to today for the current month, or the whole month for any
+  other month, including committed future entries. The usual is the mean of the same elapsed days
+  in exactly the three calendar months before it, each clipped to its own length; it is `available`
+  only when all three months are complete
   under D8, otherwise `notEnoughData`, which screens show as 'Not enough data'. `baselineTotal` is
   exact and `usualMean` is its third at scale 12, so comparisons should use
   `observedTotal * 3` against `baselineTotal`. The headline figure stays the committed
-  whole-month total. A selected month after the current month fails the read. The pure
-  `previousCompleteMonthWindows` helper is shared with insights and does not reject future
+  whole-month total. Future selections return a ready `notEnoughData` result with no baseline or
+  mean. The pure `previousCompleteMonthWindows` helper is shared with insights and does not reject future
   selections (`app/lib/ledger/analysis/breakdowns/compared_with_usual.dart`;
-  `analysis_compared_with_usual_test.dart`).
+  `analysis_compared_with_usual_test.dart`: `futureSelectionReturnsReadyWithoutComparison`,
+  `futureUsualIsUnavailableWithoutFailingOtherReads`).
 - `readMatchedDayInsights()` and `readWeekSoFar()` are parameterless mixed reads at today with fixed
   `InsightRules` (optional constructor argument, not part of the memo key). Defaults: usual at least
   10, change at least 20, relative change at least 20%, at least 5 baseline expenses, at most 2

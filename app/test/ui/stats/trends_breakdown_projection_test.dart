@@ -123,7 +123,7 @@ void main() {
       expect(row.name, 'Salary');
       expect(row.formattedAmount, '+3,200.00');
       expect(row.formattedShare, '100.0%');
-      harness.viewModel.selectSlot(9);
+      harness.viewModel.selectSlot(11);
       await harness.settle();
       expect(harness.ready.periodSummary, same(periodSummary));
       expect(harness.ready.breakdown, isA<TrendsEmptyBreakdown>());
@@ -150,7 +150,7 @@ void main() {
       expect(whole.breakdown.total, isNot(ready.breakdown.total));
       expect(whole.header.range, ready.period.rangeLabel);
       expect(whole.header.title, 'Expense breakdown');
-      expect(whole.header.total, '-S\$356.10');
+      expect(whole.header.total, '-S\$1,589.50');
     });
 
     test(
@@ -177,7 +177,7 @@ void main() {
         expect(direct.name, 'Direct to Groceries');
         expect(direct.parentContext, 'Groceries');
         expect(direct.savedHex, '#34C759');
-        expect(whole.rows.first.navigationTarget?.initialDate, whole.period);
+        expect(direct.navigationTarget?.initialDate, whole.period);
         expect(whole.period, DateTime.utc(2026, 10));
       },
     );
@@ -579,7 +579,7 @@ void main() {
   });
 
   test(
-    'breakdown reads wait for day alignment and use the effective clamp',
+    'breakdown reads wait for day alignment and honor a historical selection',
     () async {
       final fixture = await _scripted();
       final tomorrow = DateTime.utc(2026, 10, 4);
@@ -606,7 +606,7 @@ void main() {
       );
       expect(body, isA<TrendsReadyBody>());
       if (body is! TrendsReadyBody) return;
-      final effective = DateTime.utc(2025, 11);
+      final effective = DateTime.utc(2020, 1);
       expect(fixture.queries.breakdownReads, [effective]);
       expect(body.breakdown.period, effective);
       expect(body.breakdown.total, Decimal.zero);

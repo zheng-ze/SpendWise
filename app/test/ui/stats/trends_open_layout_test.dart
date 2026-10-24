@@ -27,6 +27,7 @@ void main() {
       TrendsBreakdownScope? changedScope;
       int? selectedPeriodIndex;
       var previousPressed = false;
+      var nextPressed = false;
 
       void onOpenCategory(int index, TrendsCategoryDetailSource source) {
         harness.viewModel.requestCategoryDetail(index, source: source);
@@ -40,7 +41,7 @@ void main() {
         onModeChanged: (mode) => changedMode = mode,
         onScopeChanged: (scope) => changedScope = scope,
         onPrevious: () => previousPressed = true,
-        onNext: () => fail('Next period is disabled.'),
+        onNext: () => nextPressed = true,
         onSelectPeriod: (index) => selectedPeriodIndex = index,
         onOpenCategory: onOpenCategory,
       );
@@ -59,13 +60,14 @@ void main() {
       await tester.tap(find.text('Year by year'));
       await tester.tap(find.bySemanticsLabel('Previous'));
       await tester.tap(find.bySemanticsLabel('Next'));
-      await tester.tap(find.bySemanticsLabel('November 2025'));
+      await tester.tap(find.bySemanticsLabel('November 2026'));
       await tester.pumpAndSettle();
 
       expect(changedKind, TrendsKind.income);
       expect(changedMode, TrendsMode.year);
       expect(previousPressed, isTrue);
-      expect(selectedPeriodIndex, 0);
+      expect(nextPressed, isTrue);
+      expect(selectedPeriodIndex, 10);
 
       final sharedBreakdown = find.byType(TrendsSharedBreakdownCard);
       final dining = find
@@ -112,7 +114,7 @@ Future<TrendsHarness> _rankedHarness() async {
   addTrendsEntry(
     ledger,
     '-500',
-    DateTime.utc(2025, 11, 10),
+    DateTime.utc(2026, 1, 10),
     categoryID: _diningID,
   );
   addTrendsEntry(
@@ -124,7 +126,7 @@ Future<TrendsHarness> _rankedHarness() async {
   addTrendsEntry(
     ledger,
     '-300',
-    DateTime.utc(2025, 11, 11),
+    DateTime.utc(2026, 9, 11),
     categoryID: foodCategoryID,
   );
   addTrendsEntry(

@@ -217,18 +217,67 @@ void main() {
     expect(windows, isNull);
   });
 
-  test('futureSelectionFailsAtFacadeButNotHelper', () async {
+  test('futureSelectionReturnsReadyWithoutComparison', () async {
     final setup = setupAnalysis(today: DateTime.utc(2027, 4, 15));
     _populateStandard(setup.ledger);
+    _entry(setup.ledger, '-25.00', DateTime.utc(2027, 5, 5), _foodID);
     await settle(setup.runner, setup.ledger);
 
-    final failed = setup.queries.readComparedWithUsual(
+    final read = setup.queries.readComparedWithUsual(
       month: _may,
       kind: CategoryKind.expense,
     );
-    expect(failed.state, AnalysisQueryState.failed);
-    expect(failed.value, isNull);
-    expect(failed.sourceRevision, isNull);
+    final usual = read.value;
+
+    expect(read.state, AnalysisQueryState.ready);
+    expect(read.sourceRevision, setup.ledger.revision);
+    expect(usual?.state, ComparedWithUsualState.notEnoughData);
+    expect(usual?.observedTotal, Decimal.parse('102.00'));
+    expect(usual?.baselineWindows, isEmpty);
+    expect(usual?.baselineTotal, isNull);
+    expect(usual?.usualMean, isNull);
+  });
+
+  test('januaryUsesPreviousYearBaselineAtRuntimeYearEndpoint', () async {
+    final today = DateTime.utc(-271820, 1, 15);
+    final october = DateTime.utc(-271821, 10, 1);
+    final november = DateTime.utc(-271821, 11, 1);
+    final december = DateTime.utc(-271821, 12, 1);
+    final january = DateTime.utc(-271820, 1, 1);
+    final expectedWindows = [
+      DateRange(october, DateTime.utc(-271821, 10, 16)),
+      DateRange(november, DateTime.utc(-271821, 11, 16)),
+      DateRange(december, DateTime.utc(-271821, 12, 16)),
+    ];
+    final setup = setupAnalysis(today: today);
+    _accounts(setup.ledger);
+    _entry(setup.ledger, '-10.00', DateTime.utc(-271821, 10, 5), _foodID);
+    _entry(setup.ledger, '-20.00', DateTime.utc(-271821, 11, 5), _foodID);
+    _entry(setup.ledger, '-30.00', DateTime.utc(-271821, 12, 5), _foodID);
+    await settle(setup.runner, setup.ledger);
+
+    final usual = _readyUsual(setup.queries, january, CategoryKind.expense);
+
+    expect(usual.firstRecordMonth, october);
+    expect(usual.state, ComparedWithUsualState.available);
+    expect(usual.baselineWindows, expectedWindows);
+    expect(usual.baselineTotal, Decimal.parse('60.00'));
+  });
+
+  test('januaryBaselineStartsInPreviousYear', () {
+    final expectedWindows = [
+      DateRange(DateTime.utc(2027, 10, 1), DateTime.utc(2027, 10, 16)),
+      DateRange(DateTime.utc(2027, 11, 1), DateTime.utc(2027, 11, 16)),
+      DateRange(DateTime.utc(2027, 12, 1), DateTime.utc(2027, 12, 16)),
+    ];
+    final windows = previousCompleteMonthWindows(
+      selectedMonth: DateTime.utc(2028, 1, 1),
+      elapsedDayCount: 15,
+      firstRecordMonth: DateTime.utc(2027, 1, 1),
+      today: DateTime.utc(2028, 1, 15),
+    );
+
+    expect(windows, expectedWindows);
   });
 
   test('preRecordBaselineIsUnavailableThroughFacadeAndHelper', () async {
@@ -471,30 +520,24 @@ void main() {
     expect(accepted.value?.state, ComparedWithUsualState.notEnoughData);
   });
 
-  test('usualFailureIsIsolated', () async {
+  test('futureUsualIsUnavailableWithoutFailingOtherReads', () async {
     final setup = setupAnalysis();
     _populateStandard(setup.ledger);
     await settle(setup.runner, setup.ledger);
     final queries = setup.queries;
 
-    final failed = queries.readComparedWithUsual(
+    final future = queries.readComparedWithUsual(
       month: DateTime.utc(2027, 6, 1),
       kind: CategoryKind.expense,
     );
-    expect(failed.state, AnalysisQueryState.failed);
+    expect(future.state, AnalysisQueryState.ready);
+    expect(future.value?.state, ComparedWithUsualState.notEnoughData);
 
     final period = queries.readPeriod(
       window: DateRange(_may, DateTime.utc(2027, 6, 1)),
     );
     expect(period.state, AnalysisQueryState.ready);
     expect(period.value?.spent, Decimal.parse('77.00'));
-
-    await queries.retry();
-    final usual = queries.readComparedWithUsual(
-      month: _may,
-      kind: CategoryKind.expense,
-    );
-    expect(usual.state, AnalysisQueryState.ready);
   });
 }
 

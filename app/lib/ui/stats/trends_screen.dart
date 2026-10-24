@@ -114,17 +114,10 @@ class _TrendsBodyView extends StatelessWidget {
           TrendsErrorView(onRetry: viewModel.retry),
         ],
       ),
-      TrendsEmptyBody(:final period) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          modeControl,
-          TrendsPeriodRowView(
-            period: period,
-            onPrevious: viewModel.previousPage,
-            onNext: viewModel.nextPage,
-          ),
-          const TrendsEmptyView(),
-        ],
+      final TrendsEmptyBody empty => _EmptyView(
+        body: empty,
+        modeControl: modeControl,
+        viewModel: viewModel,
       ),
       final TrendsReadyBody ready => _ReadyView(
         body: ready,
@@ -135,6 +128,90 @@ class _TrendsBodyView extends StatelessWidget {
         viewModel: viewModel,
       ),
     };
+  }
+}
+
+class _EmptyView extends StatelessWidget {
+  const _EmptyView({
+    required this.body,
+    required this.modeControl,
+    required this.viewModel,
+  });
+
+  final TrendsEmptyBody body;
+  final Widget modeControl;
+  final TrendsViewModel viewModel;
+
+  @override
+  Widget build(BuildContext context) {
+    final bars = body.bars;
+    final selectedIndex = body.selectedIndex;
+    final headline = body.headline;
+    final usual = body.usual;
+    final periodRow = TrendsPeriodRowView(
+      period: body.period,
+      onPrevious: viewModel.previousPage,
+      onNext: viewModel.nextPage,
+    );
+    if (bars == null ||
+        selectedIndex == null ||
+        headline == null ||
+        usual == null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [modeControl, periodRow, const TrendsEmptyView()],
+      );
+    }
+    return _EmptyMonthView(
+      modeControl: modeControl,
+      periodRow: periodRow,
+      bars: bars,
+      selectedIndex: selectedIndex,
+      headline: headline,
+      usual: usual,
+      viewModel: viewModel,
+    );
+  }
+}
+
+class _EmptyMonthView extends StatelessWidget {
+  const _EmptyMonthView({
+    required this.modeControl,
+    required this.periodRow,
+    required this.bars,
+    required this.selectedIndex,
+    required this.headline,
+    required this.usual,
+    required this.viewModel,
+  });
+
+  final Widget modeControl;
+  final Widget periodRow;
+  final List<TrendsBar> bars;
+  final int selectedIndex;
+  final TrendsHeadline headline;
+  final TrendsUsual usual;
+  final TrendsViewModel viewModel;
+
+  @override
+  Widget build(BuildContext context) {
+    final periodCard = TrendsCard(
+      children: [
+        modeControl,
+        periodRow,
+        TrendsChart(
+          bars: bars,
+          selectedIndex: selectedIndex,
+          onSelect: viewModel.selectSlot,
+        ),
+        TrendsHeadlineView(headline: headline),
+        TrendsUsualView(usual: usual),
+      ],
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [periodCard, const TrendsEmptyView()],
+    );
   }
 }
 

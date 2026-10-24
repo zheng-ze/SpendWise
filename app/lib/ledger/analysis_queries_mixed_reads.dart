@@ -121,11 +121,7 @@ extension _AnalysisMixedReads on AnalysisQueries {
   }
 
   void _rejectFutureTrendsPeriod(AnalysisPeriodMode mode, DateTime anchor) {
-    final isFuture = switch (mode) {
-      AnalysisPeriodMode.month => anchor.isAfter(monthWindow(_today).start),
-      AnalysisPeriodMode.year => anchor.year > _today.year,
-    };
-    if (!isFuture) return;
+    if (mode != AnalysisPeriodMode.year || anchor.year <= _today.year) return;
     throw ArgumentError.value(anchor, 'endPeriod', 'Period is in the future.');
   }
 
@@ -224,9 +220,6 @@ extension _AnalysisMixedReads on AnalysisQueries {
     return _readMixed<ComparedWithUsual>(
       'compared-with-usual|${anchor.toIso8601String()}|${kind.name}',
       () {
-        if (anchor.isAfter(monthWindow(_today).start)) {
-          throw ArgumentError.value(month, 'month', 'Month is in the future.');
-        }
         return comparedWithUsual(
           items: _cache.items,
           selectedMonth: anchor,

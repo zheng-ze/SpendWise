@@ -65,9 +65,59 @@ List<String> _labels(TrendsReadyBody body) => [
 ];
 
 void main() {
+  test('month serials round trip across year zero', () {
+    for (final serial in [-13, -12, -1, 0, 11, 12]) {
+      final month = monthStartOf(serial);
+
+      expect(monthSerial(month), serial);
+      expect(yearOfMonth(serial), month.year);
+      expect(monthNumberOf(serial), month.month);
+    }
+  });
+
+  test('month grid stops only at complete runtime calendar years', () {
+    final grid = TrendsContext(currentMonth: monthSerial(_today))
+        .grid(TrendsMode.month);
+    final firstJanuary = monthSerial(DateTime.utc(-271820, 1));
+    final lastDecember = monthSerial(DateTime.utc(275759, 12));
+    final firstPage = grid.basis(firstJanuary, firstJanuary);
+    final lastPage = grid.basis(lastDecember, lastDecember);
+    final firstIntent = TrendsIntent(
+      kind: TrendsKind.expense,
+      mode: TrendsMode.month,
+      spreadEnd: firstPage.end,
+      selected: firstPage.selected,
+      rememberedMonth: 1,
+      followsCurrent: false,
+    );
+    final lastIntent = TrendsIntent(
+      kind: TrendsKind.expense,
+      mode: TrendsMode.month,
+      spreadEnd: lastPage.end,
+      selected: lastPage.selected,
+      rememberedMonth: 12,
+      followsCurrent: false,
+    );
+
+    expect(monthStartOf(firstPage.end), DateTime.utc(-271820, 12));
+    expect(monthStartOf(firstPage.selected), DateTime.utc(-271820, 1));
+    expect(grid.canPage(firstPage.end, -1), isFalse);
+    final context = TrendsContext(currentMonth: 0);
+    final previousIntent = firstIntent.pagedPrevious(context);
+    final nextIntent = lastIntent.pagedNext(context);
+    expect(identical(previousIntent, firstIntent), isTrue);
+    expect(monthStartOf(lastPage.end), DateTime.utc(275759, 12));
+    expect(grid.canPage(lastPage.end, 1), isFalse);
+    expect(identical(nextIntent, lastIntent), isTrue);
+    expect(
+      grid.basis(firstJanuary - 12, firstJanuary - 12).selected,
+      firstJanuary,
+    );
+  });
+
   group('opening', () {
     test(
-      'starts on expense, month by month, ending at the current month',
+      'starts on expense and selects the current month in its calendar year',
       () async {
         final harness = await _open();
 
@@ -75,8 +125,9 @@ void main() {
         expect(intent.kind, TrendsKind.expense);
         expect(intent.mode, TrendsMode.month);
         expect(intent.followsCurrent, isTrue);
-        expect(harness.ready.period.rangeLabel, 'Nov 2025 - Oct 2026');
-        expect(harness.ready.selectedIndex, 11);
+        expect(harness.ready.period.rangeLabel, 'Jan 2026 - Dec 2026');
+        expect(harness.ready.bars, hasLength(12));
+        expect(harness.ready.selectedIndex, 9);
         expect(harness.ready.headline.title, 'October 2026');
         expect(harness.ready.headline.sublabel, 'Spent');
         expect(harness.ready.headline.amount, '-S\$100.00');
@@ -110,8 +161,8 @@ void main() {
       final harness = await _open();
 
       final values = [for (final bar in harness.ready.bars) bar.value];
-      expect(values[1], 30);
-      expect(values[11], 100);
+      expect(values[6], 900);
+      expect(values[9], 100);
     });
 
     test('year bars are plain calendar-year sums', () async {
@@ -135,7 +186,7 @@ void main() {
 
         expect(harness.ready.headline.title, 'July 2026');
         expect(harness.ready.headline.amount, '-S\$900.00');
-        expect(harness.ready.period.rangeLabel, 'Nov 2025 - Oct 2026');
+        expect(harness.ready.period.rangeLabel, 'Jan 2026 - Dec 2026');
         expect(harness.intent.followsCurrent, isFalse);
       },
     );
@@ -151,27 +202,27 @@ void main() {
 
         expect(harness.ready.headline.title, 'July 2025');
         expect(harness.ready.headline.amount, '-S\$250.00');
-        expect(harness.ready.period.rangeLabel, 'Nov 2024 - Oct 2025');
-        expect(harness.ready.selectedIndex, 8);
+        expect(harness.ready.period.rangeLabel, 'Jan 2025 - Dec 2025');
+        expect(harness.ready.selectedIndex, 6);
       },
     );
 
     test(
-      'paging stops at the earliest spread and at the current month',
+      'month paging visits adjacent calendar years without record bounds',
       () async {
         final harness = await _open();
 
         await _page(harness, back: 5);
 
-        expect(harness.ready.period.rangeLabel, 'Nov 2023 - Oct 2024');
-        expect(harness.ready.period.previousEnabled, isFalse);
+        expect(harness.ready.period.rangeLabel, 'Jan 2021 - Dec 2021');
+        expect(harness.ready.period.previousEnabled, isTrue);
         expect(harness.ready.period.nextEnabled, isTrue);
-        harness.viewModel.nextPage();
-        harness.viewModel.nextPage();
-        harness.viewModel.nextPage();
+        for (var page = 0; page < 5; page++) {
+          harness.viewModel.nextPage();
+        }
         await harness.settle();
-        expect(harness.ready.period.rangeLabel, 'Nov 2025 - Oct 2026');
-        expect(harness.ready.period.nextEnabled, isFalse);
+        expect(harness.ready.period.rangeLabel, 'Jan 2026 - Dec 2026');
+        expect(harness.ready.period.nextEnabled, isTrue);
       },
     );
   });
@@ -208,9 +259,11 @@ void main() {
     });
 
     test(
-      'year to month clamps a remembered future month to the current month',
+      'a successful year selection consumes the saved month basis',
       () async {
         final harness = await _open();
+        harness.viewModel.previousPage();
+        await harness.settle();
         await _select(harness, 'December 2025');
 
         harness.viewModel.setMode(TrendsMode.year);
@@ -220,19 +273,64 @@ void main() {
         harness.viewModel.setMode(TrendsMode.month);
         await harness.settle();
 
-        expect(harness.ready.headline.title, 'October 2026');
+        expect(harness.ready.headline.title, 'December 2026');
       },
     );
 
+    test(
+      'a mode-only roundtrip restores the selected month in its year',
+      () async {
+        final harness = await _open();
+        harness.viewModel.previousPage();
+        await harness.settle();
+        await _select(harness, 'December 2025');
+
+        harness.viewModel.setMode(TrendsMode.year);
+        await harness.settle();
+        harness.viewModel.setMode(TrendsMode.month);
+        await harness.settle();
+
+        expect(harness.ready.headline.title, 'December 2025');
+      },
+    );
+
+    test('invalid slots and blocked year paging preserve the saved month', () {
+      final bounded = TrendsContext(
+        currentMonth: monthSerial(_today),
+        bounds: TrendsBounds.fromFirstRecord(_today, monthSerial(_today)),
+      );
+      final requested = TrendsIntent(
+        kind: TrendsKind.expense,
+        mode: TrendsMode.month,
+        spreadEnd: monthSerial(DateTime.utc(2030, 3)),
+        selected: monthSerial(DateTime.utc(2030, 3)),
+        rememberedMonth: 3,
+        followsCurrent: false,
+      );
+      final year = requested.withMode(TrendsMode.year, bounded);
+      final invalid = year.withSlot(-1, bounded);
+      final blocked = invalid.pagedPrevious(bounded);
+
+      expect(identical(invalid, year), isTrue);
+      expect(identical(blocked, year), isTrue);
+      expect(
+        year.withMode(TrendsMode.month, bounded).effective(bounded).selected,
+        monthSerial(DateTime.utc(2030, 3)),
+      );
+    });
+
     test('month to year clamps to the earliest yearly slot', () async {
       final harness = await _open();
-      await _page(harness, back: 2);
+      await _page(harness, back: 3);
       await _select(harness, 'November 2023');
 
       harness.viewModel.setMode(TrendsMode.year);
       await harness.settle();
 
       expect(harness.ready.headline.title, '2024');
+      harness.viewModel.setMode(TrendsMode.month);
+      await harness.settle();
+      expect(harness.ready.headline.title, 'November 2023');
     });
 
     test('year to month clamps to the earliest monthly slot', () async {
@@ -246,7 +344,7 @@ void main() {
       harness.viewModel.setMode(TrendsMode.month);
       await harness.settle();
 
-      expect(harness.ready.headline.title, 'November 2024');
+      expect(harness.ready.headline.title, 'October 2024');
     });
   });
 
@@ -261,12 +359,12 @@ void main() {
 
         history.ledger.archiveEntry(history.firstEntryID);
         await harness.settle();
-        expect(harness.ready.period.rangeLabel, 'Nov 2024 - Oct 2025');
+        expect(harness.ready.period.rangeLabel, 'Jan 2024 - Dec 2024');
         expect(harness.intent, requested);
 
         history.ledger.restoreEntry(history.firstEntryID);
         await harness.settle();
-        expect(harness.ready.period.rangeLabel, 'Nov 2023 - Oct 2024');
+        expect(harness.ready.period.rangeLabel, 'Jan 2024 - Dec 2024');
       },
     );
   });

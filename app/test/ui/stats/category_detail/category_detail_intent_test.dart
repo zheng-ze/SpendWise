@@ -27,42 +27,34 @@ void main() {
     expect(monthArgs.initialDate, DateTime.utc(2025, 3, 15));
   });
 
-  test(
-    'scope clamps are derived, widening restores, and a page adopts the clamp',
-    () {
-      final args = _args(DateTime.utc(2017, 10));
-      final allContext = _context(DateTime.utc(2010, 10));
-      final laterChildContext = _context(DateTime.utc(2024, 3));
-      final initial = CategoryDetailIntent.initial(args);
-      final selected = initial.selectSlot(5, allContext);
-      final requestedEnd = selected.trend.spreadEnd;
-      final requestedSelection = selected.trend.selected;
-      final narrowed = selected.withScope(const SubScope('child'));
-      final narrowedBasis = narrowed.trend.effective(laterChildContext);
+  test('scope changes preserve the requested calendar-year basis', () {
+    final args = _args(DateTime.utc(2017, 10));
+    final allContext = _context(DateTime.utc(2010, 10));
+    final laterChildContext = _context(DateTime.utc(2024, 3));
+    final initial = CategoryDetailIntent.initial(args);
+    final selected = initial.selectSlot(5, allContext);
+    final requestedEnd = selected.trend.spreadEnd;
+    final requestedSelection = selected.trend.selected;
+    final narrowed = selected.withScope(const SubScope('child'));
+    final narrowedBasis = narrowed.trend.effective(laterChildContext);
 
-      expect(narrowed.trend.spreadEnd, requestedEnd);
-      expect(narrowed.trend.selected, requestedSelection);
-      expect(narrowedBasis.end, laterChildContext.bounds!.earliestMonthEnd);
-      expect(
-        narrowedBasis.selected,
-        laterChildContext
-            .grid(TrendsMode.month)
-            .clampSelected(requestedSelection, narrowedBasis.end),
-      );
+    expect(narrowed.trend.spreadEnd, requestedEnd);
+    expect(narrowed.trend.selected, requestedSelection);
+    expect(narrowedBasis.end, requestedEnd);
+    expect(narrowedBasis.selected, requestedSelection);
 
-      final widened = narrowed.withScope(const AllScope());
-      expect(widened.trend.effective(allContext).end, requestedEnd);
-      expect(widened.trend.effective(allContext).selected, requestedSelection);
+    final widened = narrowed.withScope(const AllScope());
+    expect(widened.trend.effective(allContext).end, requestedEnd);
+    expect(widened.trend.effective(allContext).selected, requestedSelection);
 
-      final paged = narrowed.nextPage(laterChildContext);
-      expect(paged.trend.spreadEnd, narrowedBasis.end + 12);
-      expect(paged.trend.selected, narrowedBasis.selected + 12);
-      expect(
-        paged.withScope(const AllScope()).trend.effective(allContext).end,
-        narrowedBasis.end + 12,
-      );
-    },
-  );
+    final paged = narrowed.nextPage(laterChildContext);
+    expect(paged.trend.spreadEnd, narrowedBasis.end + 12);
+    expect(paged.trend.selected, narrowedBasis.selected + 12);
+    expect(
+      paged.withScope(const AllScope()).trend.effective(allContext).end,
+      narrowedBasis.end + 12,
+    );
+  });
 
   test(
     'mode and paging transitions preserve the effective selected period',
@@ -74,7 +66,7 @@ void main() {
       final year = selected.withMode(TrendsMode.year, bounded);
 
       expect(year.trend.mode, TrendsMode.year);
-      expect(year.trend.rememberedMonth, 3);
+      expect(year.trend.rememberedMonth, 5);
       expect(year.trend.effective(bounded).selected, 2026);
 
       final selectedAgain = year.selectSlot(2, bounded);
@@ -94,15 +86,18 @@ void main() {
     },
   );
 
-  test('empty-scope bounds disable paging and retain the selected period', () {
+  test('empty-scope month pages remain available', () {
     final context = _context(null);
     final initial = CategoryDetailIntent.initial(_args(DateTime.utc(2026, 10)));
     final selected = initial.selectSlot(0, context);
-    final noOp = selected.previousPage(context);
+    final previous = selected.previousPage(context);
 
     expect(context.bounds!.earliestMonthEnd, _currentMonth);
-    expect(identical(noOp, selected), isTrue);
-    expect(noOp.trend.effective(context).selected, selected.trend.selected);
+    expect(identical(previous, selected), isFalse);
+    expect(
+      previous.trend.effective(context).selected,
+      selected.trend.effective(context).selected - 12,
+    );
   });
 }
 
