@@ -1,6 +1,6 @@
 # Trends & Category Detail UI
 
-Last reconciled: 2026-10-23
+Last reconciled: 2026-10-24
 
 ## Feature overview
 
@@ -54,7 +54,12 @@ Loading or error replaces financial content, and Retry delegates to `AnalysisQue
 (`app/lib/ui/stats/category_detail/category_detail_view_model.dart:CategoryDetailNotifier.build`,
 `app/lib/ui/stats/category_detail/category_detail_projection.dart:projectCategoryDetailWithTrend`,
 `app/lib/ledger/analysis_queries.dart:readCategoryDetailPeriod`,
-`readCategoryDetailSpread`).
+`readCategoryDetailSpread`). Month-mode spread endpoints may be in the future and include committed
+scoped totals and selected entries; future year-mode endpoints fail. The spread query remains a
+rolling endpoint read; the UI requests December to obtain January through December
+(`app/lib/ledger/analysis/category_detail/category_detail.dart:categoryDetailSpread`,
+`app/test/ledger/analysis_category_detail_query_test.dart`:
+`future month endpoints are ready while future year endpoints fail`).
 
 The auto-dispose `categoryDetailViewModelProvider` and
 `categoryDetailIntentProvider` are keyed by unchanged `CategoryDetailArgs`. The ViewModel projects
@@ -86,16 +91,23 @@ auto-dispose `AsyncNotifier` using `LedgerBackedNotifier` and `StepEmitting`; it
 It reactively watches `breakdownChart`, `breakdownLevel` and `chartColours` through a selection of
 `displayPreferencesProvider`. Each build copies category names, parent IDs and saved hex colours
 from the ready Ledger into an immutable map for that revision (`TrendsNotifier.build`).
-Spreads are rolling 12-month windows and 3 calendar-year windows anchored at the current period.
-Computed clamps to the earliest spread never rewrite stored intent: a genuine action adopts the displayed
-basis first. Month to Year clamps to the earliest yearly slot; Year to Month applies the remembered month,
-clamped to the current month and the earliest monthly slot. A projection first reads month completeness
+The shared month grid displays January through December and pages one calendar year at a time,
+preserving the selected month within the year. Its bounds are the complete calendar years supported
+by the runtime, -271820 through 275759, independent of first record, today, or an empty ledger.
+Year mode retains three-calendar-year pages bounded by first record and the current year.
+Computed clamps never rewrite stored intent: a genuine action adopts the displayed basis first.
+Month to Year saves the month basis before applying year bounds. A mode-only round trip restores
+that basis, including a month outside the year bounds. A successful explicit year-slot selection or
+year-page action consumes the saved basis; Year to Month then applies the remembered month to the
+effective selected year. Invalid slots and blocked paging preserve the saved basis
+(`app/lib/ui/stats/trends/trends_intent.dart:TrendsContext.grid`, `TrendsIntent`,
+`app/test/ui/stats/trends_period_test.dart`). A projection first reads month completeness
 for the current month and requires its `today` to equal `todayProvider` (otherwise loading), then
 requires the first-record and category-breakdown reads plus the `readTrendsPeriod` aggregate in both
 modes to share the Ledger revision; month mode also gates on its separate usual read
 (`app/lib/ui/stats/trends/trends_projection.dart:months`, `years`, `_unready`,
 `app/lib/ledger/analysis_queries.dart:readTrendsPeriod`).
-failed reads give the error body, pending or mismatched ones the skeleton. Compared with usual copy
+Failed reads give the error body, pending or mismatched ones the skeleton. Compared with usual copy
 (higher, lower, same, zero baseline, elapsed-day and cross-year wording) is built in `trends_usual.dart`.
 Retry calls `AnalysisQueries.retry()` only. (`app/lib/ui/stats/trends/`,
 `app/test/ui/stats/trends_period_test.dart`, `trends_states_test.dart`, `trends_usual_test.dart`)
@@ -154,7 +166,12 @@ The selected-period category breakdown uses the selected period, kind and level.
 settings `BreakdownLevel` to the analysis `BreakdownLevel`. A failed breakdown read gives the error
 body; pending reads or stale revisions give loading. A ready breakdown with no rows produces
 `TrendsEmptyBreakdown` within the ready body, while an empty ledger has no breakdown in its empty
-body. The breakdown window, kind, level and total must match the selected period. Row amounts must
+body. In month mode, `TrendsEmptyBody` still carries twelve selectable zero slots, the selected-period
+headline and Compared with usual's `Not enough data`; paging remains available within runtime bounds.
+`_EmptyMonthView` renders these controls alongside the empty-ledger message
+(`app/lib/ui/stats/trends_screen.dart:_EmptyMonthView`, `app/test/ui/stats/trends_states_test.dart`:
+`an empty ledger month carries selectable zero data and navigation`).
+The breakdown window, kind, level and total must match the selected period. Row amounts must
 sum to the total; nonempty rows' shares must sum to 100 percent. The projection carries the breakdown data
 (`trends_projection.dart:_readBreakdown`, `_breakdown`, `trends_body.dart`, `trends_screen.dart`,
 `app/test/ui/stats/trends_breakdown_projection_test.dart`).
@@ -224,8 +241,8 @@ Budgets live in the Money Budgets segment. Trends does not mount `BudgetsFlow`
 
 - **Trends** - app bar titled "Trends", optional History-labelled back control, the kind and mode
   controls (always mounted), and a body that is skeleton trays, an error box with a filled Retry, the
-  fresh-ledger empty state with a disabled period row, or the layout-specific ready composition
-  described above
+  fresh-ledger empty state with interactive month controls or a disabled year period row, or the
+  layout-specific ready composition described above
   (`app/lib/ui/stats/trends_screen.dart`, `app/test/ui/stats/trends_layout_test.dart`).
 - **Category Detail** - one pushed `CategoryDetailScreen` shows the Trends back action, category
   title, immutable incoming month/year subtitle, kind-token 26 px headline, scope chips, optional
@@ -246,10 +263,11 @@ Budgets live in the Money Budgets segment. Trends does not mount `BudgetsFlow`
   (`category_detail_screen.dart:_CategoryDetailReadyView`,
   `flat_entry_sliver.dart:FlatEntrySliver`, `category_detail_trend.dart:_selectionSlivers`).
   The trend reuses `TrendsChart`, shared mode controls and period row inside one `SliverTray`.
-  Month mode contains twelve chronological months; year mode contains three calendar years. Bounds
-  come from the first analysis-included record in the effective scope. Clamps are derived for display
-  and do not rewrite the requested intent. The chart mark, amount and entries follow the effective
-  selected period on initial load, mode changes, paging and slot selection. Selecting any valid slot
+  Month mode uses the shared January-through-December grid and runtime bounds, including an empty
+  scope; year mode contains three calendar years bounded by the first analysis-included record in
+  the effective scope and the current year. Scope changes preserve the requested month basis.
+  Clamps are derived for display and do not rewrite the requested intent. The chart mark, amount and
+  entries follow the effective selected period on initial load, mode changes, paging and slot selection. Selecting any valid slot
   opens its signed total and entries, including a zero-total slot; the incoming page period remains
   fixed (`category_detail_intent.dart:CategoryDetailIntent`,
   `category_detail_projection.dart:_trendBody`,

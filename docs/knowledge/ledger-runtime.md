@@ -349,16 +349,18 @@ its previous successful value if it is still retained (`analysis_queries.dart:_r
   `month mode all scope sums children and direct`, `invalid child parent pairs throw`,
   `includes months after today in year mode`, `independent equal trends are equal`).
 - `readComparedWithUsual(month:, kind:)` is a mixed read for a pace comparison. The observed
-  total covers the selected month up to today for the current month, or the whole month for a past
-  month. The usual is the mean of the same elapsed days in exactly the three calendar months before
-  it, each clipped to its own length; it is `available` only when all three months are complete
+  total covers the selected month up to today for the current month, or the whole month for any
+  other month, including committed future entries. The usual is the mean of the same elapsed days
+  in exactly the three calendar months before it, each clipped to its own length; it is `available`
+  only when all three months are complete
   under D8, otherwise `notEnoughData`, which screens show as 'Not enough data'. `baselineTotal` is
   exact and `usualMean` is its third at scale 12, so comparisons should use
   `observedTotal * 3` against `baselineTotal`. The headline figure stays the committed
-  whole-month total. A selected month after the current month fails the read. The pure
-  `previousCompleteMonthWindows` helper is shared with insights and does not reject future
+  whole-month total. Future selections return a ready `notEnoughData` result with no baseline or
+  mean. The pure `previousCompleteMonthWindows` helper is shared with insights and does not reject future
   selections (`app/lib/ledger/analysis/breakdowns/compared_with_usual.dart`;
-  `analysis_compared_with_usual_test.dart`).
+  `analysis_compared_with_usual_test.dart`: `futureSelectionReturnsReadyWithoutComparison`,
+  `futureUsualIsUnavailableWithoutFailingOtherReads`).
 - `readMatchedDayInsights()` and `readWeekSoFar()` are parameterless mixed reads at today with fixed
   `InsightRules` (optional constructor argument, not part of the memo key). Defaults: usual at least
   10, change at least 20, relative change at least 20%, at least 5 baseline expenses, at most 2
