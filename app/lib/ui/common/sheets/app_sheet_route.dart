@@ -13,6 +13,7 @@ typedef AppSheetNavigationRegionResolver = AppSheetNavigationRegion? Function(
 // MARK: - Constants
 
 const _paintOrigin = Offset.zero;
+const _addOpenContentInset = 10.0;
 
 // MARK: - Show
 
@@ -238,9 +239,7 @@ class _AppSheetPageState<T> extends State<_AppSheetPage<T>> {
       media.size,
     );
     final panelInsets = region?.panelInsets ?? EdgeInsets.zero;
-    final width = open
-        ? media.size.width / _openWidthDivisor + panelInsets.right / 2
-        : null;
+    final width = open ? media.size.width / _openWidthDivisor : null;
     final height = open ? media.size.height - media.padding.bottom : null;
     final positionedSheet = Align(
       alignment: alignment,
@@ -262,7 +261,9 @@ class _AppSheetPageState<T> extends State<_AppSheetPage<T>> {
       presentation: presentation,
       alerts: widget.route._alerts,
       alertAction: widget.route._alertAction,
-      openRightInset: widget.route.navigationRegionResolver == null ? null : 0,
+      openRightInset: widget.route.navigationRegionResolver == null
+          ? null
+          : _addOpenContentInset,
       child: Stack(children: [positionedSheet, overlay]),
     );
   }

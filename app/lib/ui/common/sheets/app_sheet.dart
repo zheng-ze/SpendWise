@@ -67,7 +67,6 @@ class AppSheet extends StatefulWidget {
     this.phoneMaxHeightFraction = defaultMaxHeightFraction,
     this.dragToDismiss = false,
     this.variant = AppSheetVariant.standard,
-    this.openRightInset,
   });
 
   static const defaultMaxHeightFraction = 0.66;
@@ -91,8 +90,6 @@ class AppSheet extends StatefulWidget {
   final bool dragToDismiss;
 
   final AppSheetVariant variant;
-
-  final double? openRightInset;
 
   @override
   State<AppSheet> createState() => _AppSheetState();
@@ -188,7 +185,6 @@ class _AppSheetState extends State<AppSheet> {
       bottomInset: media.padding.bottom,
       openRightInset:
           AppSheetAlertSlot.maybeOf(context)?.openRightInset ??
-          widget.openRightInset ??
           _SheetChrome._openRightInset,
       child: scrollBody,
     );

@@ -100,16 +100,16 @@ class _AppShellState extends ConsumerState<AppShell> {
           const SidebarDivider(),
         ],
       );
-      final navigationRegion = addPresented
-          ? SizedBox(
-              width: desktopSidebarNavigationWidth,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: _dismissNewEntry,
-                child: navigation,
-              ),
-            )
-          : navigation;
+      final navigationRegion = SizedBox(
+        width: desktopSidebarNavigationWidth,
+        child: GestureDetector(
+          behavior: addPresented
+              ? HitTestBehavior.opaque
+              : HitTestBehavior.deferToChild,
+          onTap: addPresented ? _dismissNewEntry : null,
+          child: navigation,
+        ),
+      );
       return Scaffold(
         key: const ValueKey('sidebar-layout'),
         body: Row(
@@ -148,20 +148,16 @@ class _AppShellState extends ConsumerState<AppShell> {
       ),
       bottomNavigationBar: open
           ? null
-          : addPresented
-          ? GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: _dismissNewEntry,
+          : GestureDetector(
+              behavior: addPresented
+                  ? HitTestBehavior.opaque
+                  : HitTestBehavior.deferToChild,
+              onTap: addPresented ? _dismissNewEntry : null,
               child: PhoneBar(
                 selected: selected,
                 onDestinationSelected: _select,
                 onAdd: () => _openNewEntry(context),
               ),
-            )
-          : PhoneBar(
-              selected: selected,
-              onDestinationSelected: _select,
-              onAdd: () => _openNewEntry(context),
             ),
     );
   }
@@ -205,53 +201,14 @@ class _ShellStack extends StatelessWidget {
       ),
       child: viewportChild,
     );
-    final docked = rail == null
+    final navigationRail = rail;
+    final docked = navigationRail == null
         ? null
-        : addPresented
-        ? Positioned(
-            top: 0,
-            right: 0,
-            bottom: 0,
-            width: gutter,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: onNavigationLaneTap,
-              child: Align(
-                alignment: Alignment.bottomRight,
-                child: Padding(
-                  padding: const EdgeInsets.only(
-                    right: openRailRightInset,
-                    bottom: openRailBottomInset,
-                  ),
-                  child: SafeArea(
-                    left: false,
-                    right: false,
-                    child: LayoutBuilder(
-                      builder: (context, constraints) => ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxHeight: constraints.maxHeight,
-                        ),
-                        child: rail,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          )
-        : Positioned(
-            right: openRailRightInset,
-            bottom: openRailBottomInset,
-            child: SafeArea(
-              left: false,
-              right: false,
-              child: LayoutBuilder(
-                builder: (context, constraints) => ConstrainedBox(
-                  constraints: BoxConstraints(maxHeight: constraints.maxHeight),
-                  child: rail,
-                ),
-              ),
-            ),
+        : _OpenNavigationLane(
+            gutter: gutter,
+            rail: navigationRail,
+            addPresented: addPresented,
+            onBlankTap: onNavigationLaneTap,
           );
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -274,6 +231,55 @@ class _ShellStack extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _OpenNavigationLane extends StatelessWidget {
+  const _OpenNavigationLane({
+    required this.gutter,
+    required this.rail,
+    required this.addPresented,
+    required this.onBlankTap,
+  });
+
+  final double gutter;
+  final Widget rail;
+  final bool addPresented;
+  final VoidCallback onBlankTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      top: 0,
+      right: 0,
+      bottom: 0,
+      width: gutter,
+      child: GestureDetector(
+        behavior: addPresented
+            ? HitTestBehavior.opaque
+            : HitTestBehavior.deferToChild,
+        onTap: addPresented ? onBlankTap : null,
+        child: Align(
+          alignment: Alignment.bottomRight,
+          child: Padding(
+            padding: const EdgeInsets.only(
+              right: openRailRightInset,
+              bottom: openRailBottomInset,
+            ),
+            child: SafeArea(
+              left: false,
+              right: false,
+              child: LayoutBuilder(
+                builder: (context, constraints) => ConstrainedBox(
+                  constraints: BoxConstraints(maxHeight: constraints.maxHeight),
+                  child: rail,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
