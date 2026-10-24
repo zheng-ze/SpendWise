@@ -121,11 +121,7 @@ extension _AnalysisMixedReads on AnalysisQueries {
   }
 
   void _rejectFutureTrendsPeriod(AnalysisPeriodMode mode, DateTime anchor) {
-    final isFuture = switch (mode) {
-      AnalysisPeriodMode.month => anchor.isAfter(monthWindow(_today).start),
-      AnalysisPeriodMode.year => anchor.year > _today.year,
-    };
-    if (!isFuture) return;
+    if (mode != AnalysisPeriodMode.year || anchor.year <= _today.year) return;
     throw ArgumentError.value(anchor, 'endPeriod', 'Period is in the future.');
   }
 
