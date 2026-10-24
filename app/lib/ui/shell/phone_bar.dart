@@ -7,8 +7,21 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 // MARK: - Constants
 const _barKey = ValueKey('phone-bar');
 
-const _barMargin = EdgeInsets.fromLTRB(8, 0, 8, 8);
-const _barPadding = EdgeInsets.fromLTRB(4, 6, 4, 6);
+const _barHorizontalMargin = 8.0;
+const _barBottomMargin = 8.0;
+const _barVerticalPadding = 6.0;
+const _barMargin = EdgeInsets.fromLTRB(
+  _barHorizontalMargin,
+  0,
+  _barHorizontalMargin,
+  _barBottomMargin,
+);
+const _barPadding = EdgeInsets.fromLTRB(
+  4,
+  _barVerticalPadding,
+  4,
+  _barVerticalPadding,
+);
 const _barCornerRadius = 20.0;
 const _barBorderWidth = 1.0;
 const _barIconSize = 24.0;
@@ -20,6 +33,15 @@ const _addBadgeSize = 40.0;
 const _addBadgeRadius = 20.0;
 const _addIconSize = 22.0;
 const _addLabel = 'Add';
+double phoneBarNavigationHeight(BuildContext context) =>
+    _barBottomMargin +
+    2 * _barVerticalPadding +
+    2 * _barBorderWidth +
+    2 * _barItemVerticalPadding +
+    _addBadgeSize +
+    _barLabelGap +
+    MediaQuery.textScalerOf(context).scale(_barLabelLineHeight);
+const _barLabelLineHeight = 12.0;
 
 const _destinationsBeforeAdd = [
   ShellDestination.overview,

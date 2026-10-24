@@ -34,6 +34,7 @@ Future<RecurrenceFrequency?> showRecurrencePickerSheet({
   RecurrenceFrequency? selected,
   bool useRootNavigator = false,
   AppSheetPresentation Function(BuildContext)? sheetPresentation,
+  AppSheetNavigationRegionResolver? navigationRegionResolver,
 }) {
   final outcome = sheetPresentation == null
       ? showModalBottomSheet<_RecurrenceOutcome>(
@@ -46,6 +47,7 @@ Future<RecurrenceFrequency?> showRecurrencePickerSheet({
       : showPickerAppSheet<_RecurrenceOutcome>(
           context,
           presentation: sheetPresentation,
+          navigationRegionResolver: navigationRegionResolver,
           builder: (_) => AppPickerSheet(
             title: _titleLabel,
             body: Column(

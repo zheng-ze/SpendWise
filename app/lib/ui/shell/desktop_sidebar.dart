@@ -11,6 +11,7 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 const _sidebarKey = ValueKey('sidebar');
 
 const _sidebarWidth = 172.0;
+const desktopSidebarNavigationWidth = _sidebarWidth + _sidebarDividerWidth;
 const _sidebarPadding = EdgeInsets.fromLTRB(8, 12, 8, 12);
 const _sidebarDividerWidth = 1.0;
 const _wordmarkFontSize = 18.0;

@@ -7,6 +7,9 @@ import 'package:flutter_riverpod/legacy.dart';
 import 'package:spendwise/ui/common/pickers/receipt_choice_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/shell/shell_binding.dart';
+import 'package:spendwise/ui/shell/desktop_sidebar.dart';
+import 'package:spendwise/ui/shell/open_rail.dart';
+import 'package:spendwise/ui/shell/phone_bar.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
@@ -37,6 +40,46 @@ AppSheetPresentation _presentationForMode(ShellLayoutMode mode) =>
       ShellLayoutMode.desktop => AppSheetPresentation.desktop,
     };
 
+AppSheetNavigationRegion? _navigationRegion(
+  BuildContext context,
+  AppSheetPresentation presentation,
+  Size size,
+) {
+  final padding = MediaQuery.paddingOf(context);
+  final phoneNavigationHeight = phoneBarNavigationHeight(context);
+  return switch (presentation) {
+    AppSheetPresentation.open => (
+      panelInsets: EdgeInsets.only(right: openRailGutter + padding.right),
+      passThrough: Rect.fromLTWH(
+        size.width - openRailGutter - padding.right,
+        0,
+        openRailGutter + padding.right,
+        size.height,
+      ),
+    ),
+    AppSheetPresentation.desktop => (
+      panelInsets: const EdgeInsets.only(left: desktopSidebarNavigationWidth),
+      passThrough: Rect.fromLTWH(
+        0,
+        0,
+        desktopSidebarNavigationWidth,
+        size.height,
+      ),
+    ),
+    AppSheetPresentation.phone => (
+      panelInsets: EdgeInsets.only(
+        bottom: phoneNavigationHeight + padding.bottom,
+      ),
+      passThrough: Rect.fromLTWH(
+        0,
+        size.height - phoneNavigationHeight - padding.bottom,
+        size.width,
+        phoneNavigationHeight + padding.bottom,
+      ),
+    ),
+  };
+}
+
 Future<void> openNewEntry({
   required BuildContext context,
   required WidgetRef ref,
@@ -66,6 +109,8 @@ class NewEntryPresentationController {
     unawaited(_start(context, session, sourceId));
     return session.completion.future;
   }
+
+  void dismiss() => _session?.dismissFromNavigation();
 
   void ownerDisposed(BuildContext owner) {
     final session = _session;
@@ -126,6 +171,7 @@ class NewEntryPresentationController {
         context,
         presentation: initial,
         presentationResolver: _liveResolver(initial),
+        navigationRegionResolver: _navigationRegion,
         onRouteCreated: session.attach,
         builder: buildEntryForm,
       ),
@@ -308,6 +354,7 @@ class _AddSession {
       useRootNavigator: true,
       isCurrent: () => eligible,
       sheetPresentation: route?.resolveLive,
+      navigationRegionResolver: _navigationRegion,
       onReceiptRouteCreated: (created) => _receiptRoute = created,
     );
   }
@@ -345,6 +392,21 @@ class _AddSession {
       return;
     }
     navigator.removeRoute(addRoute);
+  }
+
+  void dismissFromNavigation() {
+    final addRoute = route;
+    final navigator = addRoute?.navigator;
+    if (addRoute == null || navigator == null || !addRoute.isActive) return;
+    if (!addRoute.isCurrent) {
+      navigator.popUntil(
+        (candidate) =>
+            identical(candidate, addRoute) ||
+            candidate is! AppSheetRoute ||
+            candidate.navigationRegionResolver != _navigationRegion,
+      );
+    }
+    close();
   }
 
   void removeOutsideCallback() {

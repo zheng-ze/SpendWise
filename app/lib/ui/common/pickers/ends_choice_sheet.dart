@@ -17,6 +17,7 @@ enum EndsChoice { never, chooseDate }
 Future<EndsChoice?> showEndsChoiceSheet({
   required BuildContext context,
   required AppSheetPresentation Function(BuildContext) presentation,
+  AppSheetNavigationRegionResolver? navigationRegionResolver,
   required bool hasEndDate,
 }) {
   final never = _EndsChoiceRow(
@@ -36,6 +37,7 @@ Future<EndsChoice?> showEndsChoiceSheet({
   return showPickerAppSheet<EndsChoice>(
     context,
     presentation: presentation,
+    navigationRegionResolver: navigationRegionResolver,
     builder: (_) => sheet,
   );
 }

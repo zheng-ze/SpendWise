@@ -62,6 +62,10 @@ class _AppShellState extends ConsumerState<AppShell> {
 
   void _select(ShellDestination destination) {
     ref.read(selectedDestinationProvider.notifier).state = destination;
+    if (ref.read(newEntryPresentationProvider) ==
+        NewEntryPresentation.presented) {
+      _addController?.dismiss();
+    }
   }
 
   void _openNewEntry(BuildContext context) {

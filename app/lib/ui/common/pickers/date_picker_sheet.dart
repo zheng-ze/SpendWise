@@ -8,6 +8,7 @@ import 'package:spendwise/ui/common/sheets/sheet_drag_dismiss.dart';
 Future<DateTime?> showDatePickerSheet({
   required BuildContext context,
   required AppSheetPresentation Function(BuildContext) presentation,
+  AppSheetNavigationRegionResolver? navigationRegionResolver,
   required String title,
   required DateTime initialDate,
   required DateTime firstDate,
@@ -16,6 +17,7 @@ Future<DateTime?> showDatePickerSheet({
   return showPickerAppSheet<DateTime>(
     context,
     presentation: presentation,
+    navigationRegionResolver: navigationRegionResolver,
     builder: (_) => DatePickerSheet(
       title: title,
       initialDate: initialDate,
