@@ -332,10 +332,9 @@ value, which then overwrites it. (issue #38)
 ## Sheet and component kit
 
 - **AppSheet** (`app/lib/ui/common/sheets/app_sheet.dart`) is the shared kit sheet surface.
-  `showAppSheet<T>(context, presentation:, builder:, presentationResolver:,
-  navigationRegionResolver:)` pushes an `AppSheetRoute` on the root navigator, whose barrier
-  covers the window even when opened from a nested Flow unless the caller provides a pass-through
-  region. `presentation` is a required plain `AppSheetPresentation`
+  `showAppSheet<T>(context, presentation:, builder:, presentationResolver:)` pushes an
+  `AppSheetRoute` on the root navigator, so its barrier covers the window even when opened from
+  a nested Flow. `presentation` is a required plain `AppSheetPresentation`
   (`phone`, `open`, `desktop`) value; every caller supplies it, and `ui/common` reads
   no Riverpod state and no window width. An optional `presentationResolver` maps the route
   context to a live presentation; omitted resolvers keep the captured static presentation, and
@@ -343,23 +342,15 @@ value, which then overwrites it. (issue #38)
   the captured value as the fallback and publishes the resolved value through a retained
   `effectivePresentation` notifier that also drives the barrier color without replacing the
   route: phone and desktop dim the window, open uses a transparent dismissible full-window
-  barrier with the underlying page visible and inert by default. An optional
-  `navigationRegionResolver` supplies panel insets and a pass-through rectangle; the Add presenter
-  uses it to reserve the phone bar, desktop sidebar or open rail and clip the barrier only over that
-  navigation lane. Add picker routes receive the same resolver, so shell navigation stays exposed
-  while the Add route and its pickers remain modal elsewhere. Destination taps run the shell's normal
-  selection action and dismiss the active Add session, including its covering Add pickers; blank taps
-  in the exposed lane dismiss Add. Routes without this resolver keep the full-window barrier and
-  generic open content inset. The page resolves the live presentation
+  barrier with the underlying page visible and inert. The page resolves the live presentation
   on every build through one stable `Align` ancestry that varies only alignment, box size and
   chrome around the caller's builder subtree, so a keyed form keeps its `State`, controllers,
   selection and focus across presentation changes. Phone spans the full available width at the
   bottom, desktop centres a dialog no wider than 440 while fitting the viewport, and open docks
   a full-height surface in the safe right half starting at half the window width with an 82 dp
-  default right content inset, no grab handle and no height cap. The Add resolver supplies outer
-  panel insets for navigation clearance and a 10 dp residual content inset; sheets without that
-  resolver keep the 82 dp default. (`app/lib/ui/common/sheets/app_sheet_route.dart`,
-  `app/lib/ui/transactions/entry/new_entry_presenter.dart`) Phone and
+  right content inset reserving rail clearance, no grab handle and no height cap. The `form`
+  variant (Add) instead leaves the rail gutter outside its surface with a 10 dp content inset, and
+  Add lifts its phone sheet above the phone bar. Phone and
   desktop size to content up to `0.66 * (window height - top safe padding - bottom keyboard
   inset)` by default. `phoneMaxHeightFraction` and `desktopMaxHeightFraction` let callers
   change their respective caps; Add grows its phone cap to 1.0 for input and uses 1.0 on desktop.

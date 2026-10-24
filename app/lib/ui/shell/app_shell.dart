@@ -62,13 +62,7 @@ class _AppShellState extends ConsumerState<AppShell> {
 
   void _select(ShellDestination destination) {
     ref.read(selectedDestinationProvider.notifier).state = destination;
-    if (ref.read(newEntryPresentationProvider) ==
-        NewEntryPresentation.presented) {
-      _addController?.dismiss();
-    }
   }
-
-  void _dismissNewEntry() => _addController?.dismiss();
 
   void _openNewEntry(BuildContext context) {
     final selected = ref.read(selectedDestinationProvider);
@@ -89,32 +83,16 @@ class _AppShellState extends ConsumerState<AppShell> {
     _ensureTicker(ref.watch(clockProvider));
 
     if (mode == ShellLayoutMode.desktop) {
-      final navigation = Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          DesktopSidebar(
-            selected: selected,
-            onDestinationSelected: _select,
-            onAdd: () => _openNewEntry(context),
-          ),
-          const SidebarDivider(),
-        ],
-      );
-      final navigationRegion = SizedBox(
-        width: desktopSidebarNavigationWidth,
-        child: GestureDetector(
-          behavior: addPresented
-              ? HitTestBehavior.opaque
-              : HitTestBehavior.deferToChild,
-          onTap: addPresented ? _dismissNewEntry : null,
-          child: navigation,
-        ),
-      );
       return Scaffold(
         key: const ValueKey('sidebar-layout'),
         body: Row(
           children: [
-            navigationRegion,
+            DesktopSidebar(
+              selected: selected,
+              onDestinationSelected: _select,
+              onAdd: () => _openNewEntry(context),
+            ),
+            const SidebarDivider(),
             Expanded(
               child: _ShellStack(
                 selected: selected,
@@ -122,7 +100,6 @@ class _AppShellState extends ConsumerState<AppShell> {
                 rail: null,
                 mode: mode,
                 addPresented: addPresented,
-                onNavigationLaneTap: _dismissNewEntry,
               ),
             ),
           ],
@@ -137,7 +114,6 @@ class _AppShellState extends ConsumerState<AppShell> {
         bodies: widget.bodies,
         mode: mode,
         addPresented: addPresented,
-        onNavigationLaneTap: _dismissNewEntry,
         rail: open
             ? OpenRail(
                 selected: selected,
@@ -148,16 +124,10 @@ class _AppShellState extends ConsumerState<AppShell> {
       ),
       bottomNavigationBar: open
           ? null
-          : GestureDetector(
-              behavior: addPresented
-                  ? HitTestBehavior.opaque
-                  : HitTestBehavior.deferToChild,
-              onTap: addPresented ? _dismissNewEntry : null,
-              child: PhoneBar(
-                selected: selected,
-                onDestinationSelected: _select,
-                onAdd: () => _openNewEntry(context),
-              ),
+          : PhoneBar(
+              selected: selected,
+              onDestinationSelected: _select,
+              onAdd: () => _openNewEntry(context),
             ),
     );
   }
@@ -171,7 +141,6 @@ class _ShellStack extends StatelessWidget {
     required this.rail,
     required this.mode,
     required this.addPresented,
-    required this.onNavigationLaneTap,
   });
 
   final ShellDestination selected;
@@ -179,7 +148,6 @@ class _ShellStack extends StatelessWidget {
   final Widget? rail;
   final ShellLayoutMode mode;
   final bool addPresented;
-  final VoidCallback onNavigationLaneTap;
 
   @override
   Widget build(BuildContext context) {
@@ -201,14 +169,21 @@ class _ShellStack extends StatelessWidget {
       ),
       child: viewportChild,
     );
-    final navigationRail = rail;
-    final docked = navigationRail == null
+    final docked = rail == null
         ? null
-        : _OpenNavigationLane(
-            gutter: gutter,
-            rail: navigationRail,
-            addPresented: addPresented,
-            onBlankTap: onNavigationLaneTap,
+        : Positioned(
+            right: openRailRightInset,
+            bottom: openRailBottomInset,
+            child: SafeArea(
+              left: false,
+              right: false,
+              child: LayoutBuilder(
+                builder: (context, constraints) => ConstrainedBox(
+                  constraints: BoxConstraints(maxHeight: constraints.maxHeight),
+                  child: rail,
+                ),
+              ),
+            ),
           );
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -231,60 +206,6 @@ class _ShellStack extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-}
-
-class _OpenNavigationLane extends StatelessWidget {
-  const _OpenNavigationLane({
-    required this.gutter,
-    required this.rail,
-    required this.addPresented,
-    required this.onBlankTap,
-  });
-
-  final double gutter;
-  final Widget rail;
-  final bool addPresented;
-  final VoidCallback onBlankTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final constrainedRail = LayoutBuilder(
-      builder: (context, constraints) => ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: constraints.maxHeight),
-        child: rail,
-      ),
-    );
-    final safeRail = SafeArea(
-      left: false,
-      right: false,
-      child: constrainedRail,
-    );
-    final insetRail = Padding(
-      padding: const EdgeInsets.only(
-        right: openRailRightInset,
-        bottom: openRailBottomInset,
-      ),
-      child: safeRail,
-    );
-    final alignedRail = Align(
-      alignment: Alignment.bottomRight,
-      child: insetRail,
-    );
-    final laneGesture = GestureDetector(
-      behavior: addPresented
-          ? HitTestBehavior.opaque
-          : HitTestBehavior.deferToChild,
-      onTap: addPresented ? onBlankTap : null,
-      child: alignedRail,
-    );
-    return Positioned(
-      top: 0,
-      right: 0,
-      bottom: 0,
-      width: gutter,
-      child: laneGesture,
     );
   }
 }

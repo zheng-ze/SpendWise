@@ -5,52 +5,85 @@ import 'package:spendwise/ui/shell/desktop_sidebar.dart';
 import 'package:spendwise/ui/shell/open_rail.dart';
 import 'package:spendwise/ui/shell/phone_bar.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
-import 'package:spendwise/ui/transactions/entry/new_entry_presenter.dart';
 
 import '../../../support/ui_test_timeout.dart';
 import 'new_entry_session_harness.dart';
 
+const _desktopSize = Size(1280, 800);
+
+Future<void> _tapNavigationDestination(
+  WidgetTester tester,
+  Finder navigation,
+) async {
+  await tester.tap(
+    find.descendant(of: navigation, matching: find.text('History')),
+    warnIfMissed: false,
+  );
+  await tester.pumpAndSettle();
+}
+
 void main() {
-  testWidgets('open rail destination selects and dismisses Add', (
+  testWidgets('phone sheet stays above the navigation bar', (tester) async {
+    final harness = await pumpShell(tester);
+    await openAdd(tester, harness);
+
+    final sheetBottom = tester.getBottomLeft(find.byType(AppSheet)).dy;
+    final barTop = tester.getTopLeft(find.byType(PhoneBar)).dy;
+    expect(sheetBottom, lessThanOrEqualTo(barTop));
+  }, timeout: uiTestTimeout);
+
+  testWidgets('phone navigation tap dismisses Add without navigating', (
     tester,
   ) async {
-    final harness = await pumpShell(tester, size: openSize);
-    await tester.tap(
-      find.descendant(of: find.byKey(openRailKey), matching: find.text('Add')),
-    );
-    await tester.pumpAndSettle();
-    final addForm = tester.state(find.byKey(newEntryFormKey));
+    final harness = await pumpShell(tester);
+    await openAdd(tester, harness);
 
-    await resize(tester, const Size(600, 480));
-    expect(tester.state(find.byKey(newEntryFormKey)), same(addForm));
-    expect(harness.recorder.sheetPushes, 1);
+    await _tapNavigationDestination(tester, find.byType(PhoneBar));
 
-    await resize(tester, openSize);
-    expect(tester.state(find.byKey(newEntryFormKey)), same(addForm));
-
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(openRailKey),
-        matching: find.text('History'),
-      ),
-    );
-    await tester.pumpAndSettle();
-
+    expect(find.byType(AppSheet), findsNothing);
     expect(
       harness.container.read(selectedDestinationProvider),
-      ShellDestination.history,
+      ShellDestination.overview,
     );
+  }, timeout: uiTestTimeout);
+
+  testWidgets('open rail tap dismisses Add without navigating', (tester) async {
+    final harness = await pumpShell(tester, size: openSize);
+    await openAdd(tester, harness);
+
+    await _tapNavigationDestination(tester, find.byKey(openRailKey));
+
     expect(find.byType(AppSheet), findsNothing);
+    expect(
+      harness.container.read(selectedDestinationProvider),
+      ShellDestination.overview,
+    );
+  }, timeout: uiTestTimeout);
+
+  testWidgets('desktop sidebar tap dismisses Add without navigating', (
+    tester,
+  ) async {
+    final harness = await pumpShell(
+      tester,
+      size: _desktopSize,
+      platform: TargetPlatform.macOS,
+    );
+    await openAdd(tester, harness);
+
+    await _tapNavigationDestination(tester, find.byType(DesktopSidebar));
+
+    expect(find.byType(AppSheet), findsNothing);
+    expect(
+      harness.container.read(selectedDestinationProvider),
+      ShellDestination.overview,
+    );
   }, timeout: uiTestTimeout);
 
   testWidgets('outside tap dismisses Add without changing destination', (
     tester,
   ) async {
     final harness = await pumpShell(tester, size: openSize);
-    await tester.tap(
-      find.descendant(of: find.byKey(openRailKey), matching: find.text('Add')),
-    );
-    await tester.pumpAndSettle();
+    await openAdd(tester, harness);
 
     await tester.tapAt(const Offset(120, 120));
     await tester.pumpAndSettle();
@@ -60,82 +93,5 @@ void main() {
       harness.container.read(selectedDestinationProvider),
       ShellDestination.overview,
     );
-  }, timeout: uiTestTimeout);
-
-  testWidgets('blank open navigation lane tap dismisses Add', (tester) async {
-    await pumpShell(tester, size: openSize);
-    await tester.tap(
-      find.descendant(of: find.byKey(openRailKey), matching: find.text('Add')),
-    );
-    await tester.pumpAndSettle();
-
-    await tester.tapAt(Offset(openSize.width - 20, 20));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(AppSheet), findsNothing);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('open rail destination closes an Add picker with Add', (
-    tester,
-  ) async {
-    final harness = await pumpShell(tester, size: openSize);
-    final rail = find.byKey(openRailKey);
-    await tester.tap(find.descendant(of: rail, matching: find.text('Add')));
-    await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Category'));
-    await tester.tap(find.text('Category'));
-    await tester.pumpAndSettle();
-    expect(find.byType(AppSheet), findsNWidgets(2));
-
-    await tester.tap(find.descendant(of: rail, matching: find.text('History')));
-    await tester.pumpAndSettle();
-
-    expect(
-      harness.container.read(selectedDestinationProvider),
-      ShellDestination.history,
-    );
-    expect(find.byType(AppSheet), findsNothing);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('phone destination selects and dismisses Add', (tester) async {
-    final harness = await pumpShell(tester);
-    final phoneBar = find.byType(PhoneBar);
-    await tester.tap(find.descendant(of: phoneBar, matching: find.text('Add')));
-    await tester.pumpAndSettle();
-
-    await tester.tap(
-      find.descendant(of: phoneBar, matching: find.text('History')),
-    );
-    await tester.pumpAndSettle();
-
-    expect(
-      harness.container.read(selectedDestinationProvider),
-      ShellDestination.history,
-    );
-    expect(find.byType(AppSheet), findsNothing);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('desktop destination selects and dismisses Add', (tester) async {
-    final harness = await pumpShell(
-      tester,
-      size: const Size(1280, 800),
-      platform: TargetPlatform.macOS,
-    );
-    final sidebar = find.byType(DesktopSidebar);
-    await tester.tap(
-      find.descendant(of: sidebar, matching: find.text('Add entry')),
-    );
-    await tester.pumpAndSettle();
-
-    await tester.tap(
-      find.descendant(of: sidebar, matching: find.text('History')),
-    );
-    await tester.pumpAndSettle();
-
-    expect(
-      harness.container.read(selectedDestinationProvider),
-      ShellDestination.history,
-    );
-    expect(find.byType(AppSheet), findsNothing);
   }, timeout: uiTestTimeout);
 }

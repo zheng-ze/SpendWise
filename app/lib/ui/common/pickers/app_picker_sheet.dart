@@ -17,14 +17,12 @@ const _titleSpacing = 8.0;
 Future<T?> showPickerAppSheet<T>(
   BuildContext context, {
   required AppSheetPresentation Function(BuildContext) presentation,
-  AppSheetNavigationRegionResolver? navigationRegionResolver,
   required WidgetBuilder builder,
 }) {
   return showAppSheet<T>(
     context,
     presentation: presentation(context),
     presentationResolver: presentation,
-    navigationRegionResolver: navigationRegionResolver,
     builder: builder,
   );
 }

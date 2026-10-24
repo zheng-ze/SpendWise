@@ -35,7 +35,6 @@ void dispatchEntryFormStep(
   bool useRootNavigator = false,
   bool Function()? isCurrent,
   AppSheetPresentation Function(BuildContext)? sheetPresentation,
-  AppSheetNavigationRegionResolver? navigationRegionResolver,
   void Function(AppSheetRoute<ReceiptChoice>)? onReceiptRouteCreated,
 }) {
   final form = ref.read(entryFormViewModelProvider(formKey).notifier);
@@ -49,7 +48,6 @@ void dispatchEntryFormStep(
         useRootNavigator: useRootNavigator,
         isCurrent: isCurrent,
         sheetPresentation: sheetPresentation,
-        navigationRegionResolver: navigationRegionResolver,
       );
     case PickDestinationRequested():
       _pickDestination(
@@ -60,7 +58,6 @@ void dispatchEntryFormStep(
         useRootNavigator: useRootNavigator,
         isCurrent: isCurrent,
         sheetPresentation: sheetPresentation,
-        navigationRegionResolver: navigationRegionResolver,
       );
     case PickCategoryRequested():
       _pickCategory(
@@ -71,7 +68,6 @@ void dispatchEntryFormStep(
         useRootNavigator: useRootNavigator,
         isCurrent: isCurrent,
         sheetPresentation: sheetPresentation,
-        navigationRegionResolver: navigationRegionResolver,
       );
     case PickRecurrenceRequested():
       _pickRecurrence(
@@ -82,7 +78,6 @@ void dispatchEntryFormStep(
         useRootNavigator: useRootNavigator,
         isCurrent: isCurrent,
         sheetPresentation: sheetPresentation,
-        navigationRegionResolver: navigationRegionResolver,
       );
     case PickDateRequested():
       _pickDate(
@@ -93,7 +88,6 @@ void dispatchEntryFormStep(
         useRootNavigator: useRootNavigator,
         isCurrent: isCurrent,
         sheetPresentation: sheetPresentation,
-        navigationRegionResolver: navigationRegionResolver,
       );
     case PickEndDateRequested():
       _pickEndDate(
@@ -104,7 +98,6 @@ void dispatchEntryFormStep(
         useRootNavigator: useRootNavigator,
         isCurrent: isCurrent,
         sheetPresentation: sheetPresentation,
-        navigationRegionResolver: navigationRegionResolver,
       );
     case PickEndsRequested():
       _pickEnds(
@@ -115,7 +108,6 @@ void dispatchEntryFormStep(
         useRootNavigator: useRootNavigator,
         isCurrent: isCurrent,
         sheetPresentation: sheetPresentation,
-        navigationRegionResolver: navigationRegionResolver,
       );
     case PickReceiptRequested():
       _pickReceipt(
@@ -125,7 +117,6 @@ void dispatchEntryFormStep(
         form,
         isCurrent: isCurrent,
         sheetPresentation: sheetPresentation,
-        navigationRegionResolver: navigationRegionResolver,
         onRouteCreated: onReceiptRouteCreated,
       );
     case DocumentCropRequested(:final imageBytes):
@@ -153,7 +144,6 @@ Future<void> _pickSource(
   bool useRootNavigator = false,
   bool Function()? isCurrent,
   AppSheetPresentation Function(BuildContext)? sheetPresentation,
-  AppSheetNavigationRegionResolver? navigationRegionResolver,
 }) async {
   final ledger = ref.read(ledgerProvider);
   if (ledger == null) return;
@@ -162,7 +152,6 @@ Future<void> _pickSource(
     context: context,
     useRootNavigator: useRootNavigator,
     sheetPresentation: sheetPresentation,
-    navigationRegionResolver: navigationRegionResolver,
     title: formState?.kind == EntryFormKind.transfer ? 'From' : 'Account',
     state: ledger.state,
     selectedId: formState?.sourceId,
@@ -180,7 +169,6 @@ Future<void> _pickDestination(
   bool useRootNavigator = false,
   bool Function()? isCurrent,
   AppSheetPresentation Function(BuildContext)? sheetPresentation,
-  AppSheetNavigationRegionResolver? navigationRegionResolver,
 }) async {
   final ledger = ref.read(ledgerProvider);
   if (ledger == null) return;
@@ -189,7 +177,6 @@ Future<void> _pickDestination(
     context: context,
     useRootNavigator: useRootNavigator,
     sheetPresentation: sheetPresentation,
-    navigationRegionResolver: navigationRegionResolver,
     title: 'To',
     state: ledger.state,
     selectedId: formState?.destinationId,
@@ -208,7 +195,6 @@ Future<void> _pickCategory(
   bool useRootNavigator = false,
   bool Function()? isCurrent,
   AppSheetPresentation Function(BuildContext)? sheetPresentation,
-  AppSheetNavigationRegionResolver? navigationRegionResolver,
 }) async {
   final ledger = ref.read(ledgerProvider);
   if (ledger == null) return;
@@ -220,7 +206,6 @@ Future<void> _pickCategory(
     context: context,
     useRootNavigator: useRootNavigator,
     sheetPresentation: sheetPresentation,
-    navigationRegionResolver: navigationRegionResolver,
     state: ledger.state,
     kind: categoryKind,
     selectedId: formState?.categoryId,
@@ -238,14 +223,12 @@ Future<void> _pickRecurrence(
   bool useRootNavigator = false,
   bool Function()? isCurrent,
   AppSheetPresentation Function(BuildContext)? sheetPresentation,
-  AppSheetNavigationRegionResolver? navigationRegionResolver,
 }) async {
   final formState = ref.read(entryFormViewModelProvider(formKey)).value;
   final chosen = await showRecurrencePickerSheet(
     context: context,
     useRootNavigator: useRootNavigator,
     sheetPresentation: sheetPresentation,
-    navigationRegionResolver: navigationRegionResolver,
     selected: formState?.recurrence,
   );
   if (!context.mounted || !_isCurrent(isCurrent)) return;
@@ -261,7 +244,6 @@ Future<DateTime?> _chooseDate({
   required BuildContext context,
   required bool useRootNavigator,
   required AppSheetPresentation Function(BuildContext)? sheetPresentation,
-  required AppSheetNavigationRegionResolver? navigationRegionResolver,
   required String title,
   required DateTime initialDate,
   required DateTime firstDate,
@@ -280,7 +262,6 @@ Future<DateTime?> _chooseDate({
   return showDatePickerSheet(
     context: context,
     presentation: presentation,
-    navigationRegionResolver: navigationRegionResolver,
     title: title,
     initialDate: initialDate,
     firstDate: firstDate,
@@ -296,14 +277,12 @@ Future<void> _pickDate(
   bool useRootNavigator = false,
   bool Function()? isCurrent,
   AppSheetPresentation Function(BuildContext)? sheetPresentation,
-  AppSheetNavigationRegionResolver? navigationRegionResolver,
 }) async {
   final formState = ref.read(entryFormViewModelProvider(formKey)).value;
   final picked = await _chooseDate(
     context: context,
     useRootNavigator: useRootNavigator,
     sheetPresentation: sheetPresentation,
-    navigationRegionResolver: navigationRegionResolver,
     title: 'Date',
     initialDate: formState?.date ?? DateTime.now(),
     firstDate: DateTime.utc(_datePickerFirstYear),
@@ -321,14 +300,12 @@ Future<void> _pickEndDate(
   bool useRootNavigator = false,
   bool Function()? isCurrent,
   AppSheetPresentation Function(BuildContext)? sheetPresentation,
-  AppSheetNavigationRegionResolver? navigationRegionResolver,
 }) async {
   final formState = ref.read(entryFormViewModelProvider(formKey)).value;
   final picked = await _chooseDate(
     context: context,
     useRootNavigator: useRootNavigator,
     sheetPresentation: sheetPresentation,
-    navigationRegionResolver: navigationRegionResolver,
     title: 'End date',
     initialDate: formState?.endDate ?? formState?.date ?? DateTime.now(),
     firstDate: formState?.date ?? DateTime.utc(_datePickerFirstYear),
@@ -346,7 +323,6 @@ Future<void> _pickEnds(
   bool useRootNavigator = false,
   bool Function()? isCurrent,
   AppSheetPresentation Function(BuildContext)? sheetPresentation,
-  AppSheetNavigationRegionResolver? navigationRegionResolver,
 }) async {
   final presentation = sheetPresentation;
   final provider = entryFormViewModelProvider(formKey);
@@ -359,7 +335,6 @@ Future<void> _pickEnds(
   final choice = await showEndsChoiceSheet(
     context: context,
     presentation: presentation,
-    navigationRegionResolver: navigationRegionResolver,
     hasEndDate: formState!.hasEndDate,
   );
   if (!context.mounted || !_isCurrent(isCurrent)) return;
@@ -378,7 +353,6 @@ Future<void> _pickEnds(
         useRootNavigator: useRootNavigator,
         isCurrent: isCurrent,
         sheetPresentation: presentation,
-        navigationRegionResolver: navigationRegionResolver,
       );
   }
 }
@@ -390,7 +364,6 @@ Future<void> _pickReceipt(
   EntryFormNotifier form, {
   bool Function()? isCurrent,
   AppSheetPresentation Function(BuildContext)? sheetPresentation,
-  AppSheetNavigationRegionResolver? navigationRegionResolver,
   void Function(AppSheetRoute<ReceiptChoice>)? onRouteCreated,
 }) async {
   final presentation = sheetPresentation;
@@ -402,7 +375,6 @@ Future<void> _pickReceipt(
   final choice = await showReceiptChoiceSheet(
     context: context,
     presentation: presentation,
-    navigationRegionResolver: navigationRegionResolver,
     onRouteCreated: onRouteCreated,
   );
   if (!context.mounted || !_isCurrent(isCurrent)) return;

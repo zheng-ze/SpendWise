@@ -21,7 +21,6 @@ enum ReceiptChoice { scan, photo }
 Future<ReceiptChoice?> showReceiptChoiceSheet({
   required BuildContext context,
   required AppSheetPresentation Function(BuildContext) presentation,
-  AppSheetNavigationRegionResolver? navigationRegionResolver,
   void Function(AppSheetRoute<ReceiptChoice>)? onRouteCreated,
 }) {
   final sheet = AppPickerSheet(
@@ -32,7 +31,6 @@ Future<ReceiptChoice?> showReceiptChoiceSheet({
     context,
     presentation: presentation(context),
     presentationResolver: presentation,
-    navigationRegionResolver: navigationRegionResolver,
     onRouteCreated: onRouteCreated,
     builder: (_) => sheet,
   );

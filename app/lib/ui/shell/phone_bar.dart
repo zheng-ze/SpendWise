@@ -27,6 +27,7 @@ const _barBorderWidth = 1.0;
 const _barIconSize = 24.0;
 const _barLabelFontSize = 10.0;
 const _barLabelGap = 3.0;
+const _barLabelHeightFactor = 1.4;
 const _barItemCornerRadius = 14.0;
 const _barItemVerticalPadding = 4.0;
 const _addBadgeSize = 40.0;
@@ -40,8 +41,8 @@ double phoneBarNavigationHeight(BuildContext context) =>
     2 * _barItemVerticalPadding +
     _addBadgeSize +
     _barLabelGap +
-    MediaQuery.textScalerOf(context).scale(_barLabelLineHeight);
-const _barLabelLineHeight = 12.0;
+    MediaQuery.textScalerOf(context)
+        .scale(_barLabelFontSize * _barLabelHeightFactor);
 
 const _destinationsBeforeAdd = [
   ShellDestination.overview,
@@ -171,6 +172,7 @@ class _BarDestination extends StatelessWidget {
           destinationLabels[destination]!,
           style: TextStyle(
             fontSize: _barLabelFontSize,
+            height: _barLabelHeightFactor,
             fontWeight: isSelected
                 ? selectedDestinationWeight
                 : unselectedDestinationWeight,
@@ -209,6 +211,7 @@ class _BarAdd extends StatelessWidget {
           _addLabel,
           style: TextStyle(
             fontSize: _barLabelFontSize,
+            height: _barLabelHeightFactor,
             fontWeight: selectedDestinationWeight,
             color: colors.action,
           ),

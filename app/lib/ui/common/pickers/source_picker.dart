@@ -12,7 +12,6 @@ Future<PickerOutcome?> showSourcePickerSheet({
   String? selectedId,
   bool useRootNavigator = false,
   AppSheetPresentation Function(BuildContext)? sheetPresentation,
-  AppSheetNavigationRegionResolver? navigationRegionResolver,
 }) {
   final groups = [
     for (final account in state.activeAccounts)
@@ -33,6 +32,5 @@ Future<PickerOutcome?> showSourcePickerSheet({
     selectedId: selectedId,
     useRootNavigator: useRootNavigator,
     sheetPresentation: sheetPresentation,
-    navigationRegionResolver: navigationRegionResolver,
   );
 }

@@ -3,17 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
 
-typedef AppSheetNavigationRegion = ({EdgeInsets panelInsets, Rect passThrough});
-typedef AppSheetNavigationRegionResolver = AppSheetNavigationRegion? Function(
-  BuildContext context,
-  AppSheetPresentation presentation,
-  Size size,
-);
-
 // MARK: - Constants
 
 const _paintOrigin = Offset.zero;
-const _addOpenContentInset = 10.0;
 
 // MARK: - Show
 
@@ -22,14 +14,12 @@ Future<T?> showAppSheet<T>(
   required AppSheetPresentation presentation,
   AppSheetPresentation Function(BuildContext)? presentationResolver,
   void Function(AppSheetRoute<T>)? onRouteCreated,
-  AppSheetNavigationRegionResolver? navigationRegionResolver,
   required WidgetBuilder builder,
 }) {
   final navigator = Navigator.of(context, rootNavigator: true);
   final route = AppSheetRoute<T>(
     presentation: presentation,
     presentationResolver: presentationResolver,
-    navigationRegionResolver: navigationRegionResolver,
     builder: builder,
   );
   onRouteCreated?.call(route);
@@ -43,7 +33,6 @@ class AppSheetRoute<T> extends ModalRoute<T> {
     required this.presentation,
     required this.builder,
     this.presentationResolver,
-    this.navigationRegionResolver,
   }) {
     effectivePresentation = ValueNotifier<AppSheetPresentation>(presentation);
     effectivePresentation.addListener(_reportBarrierChange);
@@ -66,8 +55,6 @@ class AppSheetRoute<T> extends ModalRoute<T> {
   final AppSheetPresentation presentation;
 
   final AppSheetPresentation Function(BuildContext)? presentationResolver;
-
-  final AppSheetNavigationRegionResolver? navigationRegionResolver;
 
   late final ValueNotifier<AppSheetPresentation> effectivePresentation;
 
@@ -112,27 +99,6 @@ class AppSheetRoute<T> extends ModalRoute<T> {
   String? get barrierLabel => 'Dismiss';
 
   @override
-  Widget buildModalBarrier() {
-    final resolver = navigationRegionResolver;
-    if (resolver == null) return super.buildModalBarrier();
-    final barrier = super.buildModalBarrier();
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final region = resolver(
-          context,
-          presentationResolver?.call(context) ?? presentation,
-          constraints.biggest,
-        );
-        if (region == null || region.passThrough.isEmpty) return barrier;
-        return ClipPath(
-          clipper: _NavigationBarrierClipper(region.passThrough),
-          child: barrier,
-        );
-      },
-    );
-  }
-
-  @override
   bool get maintainState => true;
 
   @override
@@ -169,23 +135,6 @@ class AppSheetRoute<T> extends ModalRoute<T> {
     _alertAction.dispose();
     super.dispose();
   }
-}
-
-class _NavigationBarrierClipper extends CustomClipper<Path> {
-  const _NavigationBarrierClipper(this.passThrough);
-
-  final Rect passThrough;
-
-  @override
-  Path getClip(Size size) {
-    final bounds = Path()..addRect(Offset.zero & size);
-    final hole = Path()..addRect(passThrough);
-    return Path.combine(PathOperation.difference, bounds, hole);
-  }
-
-  @override
-  bool shouldReclip(_NavigationBarrierClipper oldClipper) =>
-      passThrough != oldClipper.passThrough;
 }
 
 // MARK: - Page
@@ -233,20 +182,12 @@ class _AppSheetPageState<T> extends State<_AppSheetPage<T>> {
       ),
       child: Builder(builder: widget.route.builder),
     );
-    final region = widget.route.navigationRegionResolver?.call(
-      context,
-      presentation,
-      media.size,
-    );
-    final panelInsets = region?.panelInsets ?? EdgeInsets.zero;
-    final width = open ? media.size.width / _openWidthDivisor : null;
-    final height = open ? media.size.height - media.padding.bottom : null;
     final positionedSheet = Align(
       alignment: alignment,
       child: SizedBox(
-        width: width,
-        height: height,
-        child: Padding(padding: panelInsets, child: sheet),
+        width: open ? media.size.width / _openWidthDivisor : null,
+        height: open ? media.size.height - media.padding.bottom : null,
+        child: sheet,
       ),
     );
     final alertTop =
@@ -261,9 +202,6 @@ class _AppSheetPageState<T> extends State<_AppSheetPage<T>> {
       presentation: presentation,
       alerts: widget.route._alerts,
       alertAction: widget.route._alertAction,
-      openRightInset: widget.route.navigationRegionResolver == null
-          ? null
-          : _addOpenContentInset,
       child: Stack(children: [positionedSheet, overlay]),
     );
   }

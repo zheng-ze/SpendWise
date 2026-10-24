@@ -29,7 +29,6 @@ class AppSheetAlertSlot extends InheritedWidget {
     required this.presentation,
     required this.alerts,
     required this.alertAction,
-    this.openRightInset,
     required super.child,
   });
 
@@ -39,8 +38,6 @@ class AppSheetAlertSlot extends InheritedWidget {
 
   final ValueNotifier<VoidCallback?> alertAction;
 
-  final double? openRightInset;
-
   static AppSheetAlertSlot? maybeOf(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<AppSheetAlertSlot>();
 
@@ -48,8 +45,7 @@ class AppSheetAlertSlot extends InheritedWidget {
   bool updateShouldNotify(covariant AppSheetAlertSlot oldWidget) =>
       presentation != oldWidget.presentation ||
       alerts != oldWidget.alerts ||
-      alertAction != oldWidget.alertAction ||
-      openRightInset != oldWidget.openRightInset;
+      alertAction != oldWidget.alertAction;
 }
 
 // MARK: - Sheet
@@ -183,9 +179,6 @@ class _AppSheetState extends State<AppSheet> {
       presentation: presentation,
       variant: widget.variant,
       bottomInset: media.padding.bottom,
-      openRightInset:
-          AppSheetAlertSlot.maybeOf(context)?.openRightInset ??
-          _SheetChrome._openRightInset,
       child: scrollBody,
     );
     final sheet = ConstrainedBox(constraints: constraints, child: chrome);
@@ -280,7 +273,6 @@ class _SheetChrome extends StatelessWidget {
     required this.presentation,
     required this.variant,
     required this.bottomInset,
-    required this.openRightInset,
     required this.child,
   });
 
@@ -317,6 +309,8 @@ class _SheetChrome extends StatelessWidget {
 
   static const _openRightInset = 82.0;
 
+  static const _formOpenContentRightInset = 10.0;
+
   static const _openBottomPadding = 14.0;
 
   static const _openLeftPadding = 16.0;
@@ -326,8 +320,6 @@ class _SheetChrome extends StatelessWidget {
   final AppSheetVariant variant;
 
   final double bottomInset;
-
-  final double openRightInset;
 
   final Widget child;
 
@@ -361,13 +353,20 @@ class _SheetChrome extends StatelessWidget {
       borderRadius: radius,
       boxShadow: shadow,
     );
+    final clearsRail = open && form;
+    final contentRightInset = clearsRail
+        ? _formOpenContentRightInset
+        : _openRightInset;
+    final railClearance = EdgeInsets.only(
+      right: clearsRail ? _openRightInset : 0,
+    );
     final padding = form && desktop
         ? _formDesktopPadding.add(EdgeInsets.only(bottom: bottomInset))
         : open
         ? EdgeInsets.fromLTRB(
             _openLeftPadding,
             _openTopPadding,
-            openRightInset,
+            contentRightInset,
             _openBottomPadding + bottomInset,
           )
         : EdgeInsets.fromLTRB(
@@ -377,11 +376,12 @@ class _SheetChrome extends StatelessWidget {
             _bottomPadding + bottomInset,
           );
 
-    return Material(
+    final surface = Material(
       color: canvas ? colors.base : colors.raised,
       borderRadius: radius,
       child: Container(decoration: decoration, padding: padding, child: child),
     );
+    return Padding(padding: railClearance, child: surface);
   }
 }
 
