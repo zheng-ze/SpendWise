@@ -75,9 +75,29 @@ final class TrendsErrorBody extends TrendsBody {
 }
 
 final class TrendsEmptyBody extends TrendsBody {
-  const TrendsEmptyBody({required this.period, required this.bounds});
+  const TrendsEmptyBody({
+    required this.period,
+    required this.bounds,
+    this.bars,
+    this.selectedIndex,
+    this.headline,
+    this.usual,
+  }) : assert(
+         (bars == null &&
+                 selectedIndex == null &&
+                 headline == null &&
+                 usual == null) ||
+             (bars != null &&
+                 selectedIndex != null &&
+                 headline != null &&
+                 usual != null),
+       );
 
   final TrendsPeriodRow period;
+  final List<TrendsBar>? bars;
+  final int? selectedIndex;
+  final TrendsHeadline? headline;
+  final TrendsUsual? usual;
 
   @override
   final TrendsBounds bounds;

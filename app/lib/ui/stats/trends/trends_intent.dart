@@ -11,6 +11,17 @@ const _monthSpan = 12;
 const _yearSpan = 3;
 const _pagePrevious = -1;
 const _pageNext = 1;
+const _maximumDateTimeMilliseconds = 8640000000000000;
+final _minimumDateTime = DateTime.fromMillisecondsSinceEpoch(
+  -_maximumDateTimeMilliseconds,
+  isUtc: true,
+);
+final _maximumDateTime = DateTime.fromMillisecondsSinceEpoch(
+  _maximumDateTimeMilliseconds,
+  isUtc: true,
+);
+final _minimumCompleteYear = _minimumDateTime.year + 1;
+final _maximumCompleteYear = _maximumDateTime.year - 1;
 
 // MARK: - Choices
 enum TrendsKind { expense, income }
@@ -20,29 +31,40 @@ enum TrendsMode { month, year }
 // MARK: - Calendar
 int monthSerial(DateTime day) => day.year * _monthsPerYear + day.month - 1;
 
+int _floorDivide(int value, int divisor) =>
+    value >= 0 ? value ~/ divisor : -((-value + divisor - 1) ~/ divisor);
+
+int _positiveModulo(int value, int divisor) =>
+    ((value % divisor) + divisor) % divisor;
+
 DateTime monthStartOf(int serial) =>
-    DateTime.utc(serial ~/ _monthsPerYear, serial % _monthsPerYear + 1, 1);
+    DateTime.utc(yearOfMonth(serial), monthNumberOf(serial), 1);
 
-int monthNumberOf(int serial) => serial % _monthsPerYear + 1;
+int monthNumberOf(int serial) => _positiveModulo(serial, _monthsPerYear) + 1;
 
-int yearOfMonth(int serial) => serial ~/ _monthsPerYear;
+int yearOfMonth(int serial) => _floorDivide(serial, _monthsPerYear);
 
 // MARK: - Grid
 @immutable
 class TrendsGrid {
   const TrendsGrid({
     required this.span,
-    required this.current,
+    required this.alignmentAnchor,
+    required this.currentSelection,
+    required this.maximumEnd,
     required this.earliestEnd,
   });
 
   final int span;
-  final int current;
+  final int alignmentAnchor;
+  final int currentSelection;
+  final int maximumEnd;
   final int? earliestEnd;
 
   int alignedEnd(int requested) {
-    final capped = math.min(requested, current);
-    final end = current - span * ((current - capped) ~/ span);
+    final capped = math.min(requested, maximumEnd);
+    final end =
+        alignmentAnchor - span * _floorDivide(alignmentAnchor - capped, span);
     final earliest = earliestEnd;
     return earliest == null ? end : math.max(end, earliest);
   }
@@ -61,7 +83,7 @@ class TrendsGrid {
   bool canPage(int end, int direction) {
     final target = end + direction * span;
     final earliest = earliestEnd;
-    return earliest != null && target >= earliest && target <= current;
+    return earliest != null && target >= earliest && target <= maximumEnd;
   }
 }
 
@@ -104,15 +126,26 @@ class TrendsContext {
   TrendsGrid grid(TrendsMode mode) => switch (mode) {
     TrendsMode.month => TrendsGrid(
       span: _monthSpan,
-      current: currentMonth,
-      earliestEnd: bounds?.earliestMonthEnd,
+      alignmentAnchor:
+          yearOfMonth(currentMonth) * _monthsPerYear + _monthsPerYear - 1,
+      currentSelection: currentMonth,
+      maximumEnd: _lastCompleteYearEnd,
+      earliestEnd: _firstCompleteYearEnd,
     ),
     TrendsMode.year => TrendsGrid(
       span: _yearSpan,
-      current: yearOfMonth(currentMonth),
+      alignmentAnchor: yearOfMonth(currentMonth),
+      currentSelection: yearOfMonth(currentMonth),
+      maximumEnd: yearOfMonth(currentMonth),
       earliestEnd: bounds?.earliestYearEnd,
     ),
   };
+
+  int get _firstCompleteYearEnd =>
+      _minimumCompleteYear * _monthsPerYear + _monthsPerYear - 1;
+
+  int get _lastCompleteYearEnd =>
+      _maximumCompleteYear * _monthsPerYear + _monthsPerYear - 1;
 }
 
 // MARK: - Basis
@@ -134,6 +167,7 @@ class TrendsIntent {
     required this.selected,
     required this.rememberedMonth,
     required this.followsCurrent,
+    this.rememberedBasis,
   });
 
   factory TrendsIntent.initial(DateTime today) {
@@ -154,11 +188,12 @@ class TrendsIntent {
   final int selected;
   final int rememberedMonth;
   final bool followsCurrent;
+  final TrendsBasis? rememberedBasis;
 
   TrendsBasis effective(TrendsContext context) {
     final grid = context.grid(mode);
     if (followsCurrent) {
-      return TrendsBasis(end: grid.current, selected: grid.current);
+      return grid.basis(grid.alignmentAnchor, grid.currentSelection);
     }
     return grid.basis(spreadEnd, selected);
   }
@@ -182,7 +217,11 @@ class TrendsIntent {
     if (index < 0 || index >= span) return this;
     final basis = effective(context);
     final selected = basis.end - (span - 1) + index;
-    return _placed(basis.end, selected);
+    return _placed(
+      basis.end,
+      selected,
+      rememberedBasis: mode == TrendsMode.year ? null : rememberedBasis,
+    );
   }
 
   TrendsIntent pagedPrevious(TrendsContext context) =>
@@ -195,7 +234,11 @@ class TrendsIntent {
     final basis = effective(context);
     if (!grid.canPage(basis.end, direction)) return this;
     final shift = direction * grid.span;
-    return _placed(basis.end + shift, basis.selected + shift);
+    return _placed(
+      basis.end + shift,
+      basis.selected + shift,
+      rememberedBasis: mode == TrendsMode.year ? null : rememberedBasis,
+    );
   }
 
   TrendsIntent _toYear(TrendsBasis basis, TrendsContext context) {
@@ -209,11 +252,24 @@ class TrendsIntent {
       selected: placed.selected,
       rememberedMonth: monthNumberOf(basis.selected),
       followsCurrent: false,
+      rememberedBasis: basis,
     );
   }
 
   TrendsIntent _toMonth(TrendsBasis basis, TrendsContext context) {
+    final saved = rememberedBasis;
     final grid = context.grid(TrendsMode.month);
+    if (saved != null) {
+      final placed = grid.basis(saved.end, saved.selected);
+      return TrendsIntent(
+        kind: kind,
+        mode: TrendsMode.month,
+        spreadEnd: placed.end,
+        selected: placed.selected,
+        rememberedMonth: monthNumberOf(placed.selected),
+        followsCurrent: false,
+      );
+    }
     final month = basis.selected * _monthsPerYear + rememberedMonth - 1;
     final placed = grid.basis(month, month);
     return TrendsIntent(
@@ -226,16 +282,18 @@ class TrendsIntent {
     );
   }
 
-  TrendsIntent _placed(int end, int selected) => TrendsIntent(
-    kind: kind,
-    mode: mode,
-    spreadEnd: end,
-    selected: selected,
-    rememberedMonth: mode == TrendsMode.month
-        ? monthNumberOf(selected)
-        : rememberedMonth,
-    followsCurrent: false,
-  );
+  TrendsIntent _placed(int end, int selected, {TrendsBasis? rememberedBasis}) =>
+      TrendsIntent(
+        kind: kind,
+        mode: mode,
+        spreadEnd: end,
+        selected: selected,
+        rememberedMonth: mode == TrendsMode.month
+            ? monthNumberOf(selected)
+            : rememberedMonth,
+        followsCurrent: false,
+        rememberedBasis: rememberedBasis,
+      );
 
   TrendsIntent _adopting(
     TrendsContext context, {
@@ -252,6 +310,7 @@ class TrendsIntent {
           ? monthNumberOf(basis.selected)
           : rememberedMonth,
       followsCurrent: followsCurrent,
+      rememberedBasis: rememberedBasis,
     );
   }
 
@@ -263,6 +322,8 @@ class TrendsIntent {
       other.spreadEnd == spreadEnd &&
       other.selected == selected &&
       other.rememberedMonth == rememberedMonth &&
+      other.rememberedBasis?.end == rememberedBasis?.end &&
+      other.rememberedBasis?.selected == rememberedBasis?.selected &&
       other.followsCurrent == followsCurrent;
 
   @override
@@ -272,6 +333,8 @@ class TrendsIntent {
     spreadEnd,
     selected,
     rememberedMonth,
+    rememberedBasis?.end,
+    rememberedBasis?.selected,
     followsCurrent,
   );
 }

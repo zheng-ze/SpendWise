@@ -202,7 +202,7 @@ void main() {
   );
 
   testWidgets(
-    'open mode empty state keeps controls and disables period navigation',
+    'empty month chart selects a future month and pages to its next year',
     (tester) async {
       final setup = await _pumpFlow(
         tester,
@@ -213,13 +213,25 @@ void main() {
       expect(find.text('See where your money goes'), findsOneWidget);
       _expectKindAndModeControls(tester);
 
+      await tester.tap(find.bySemanticsLabel('December 2026'));
+      await tester.pumpAndSettle();
+      expect(
+        setup.container.read(trendsIntentProvider).selected,
+        monthSerial(DateTime.utc(2026, 12)),
+      );
+
       await tester.tap(find.bySemanticsLabel('Previous'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.bySemanticsLabel('Next'));
+      await tester.pumpAndSettle();
       await tester.tap(find.bySemanticsLabel('Next'));
       await tester.pumpAndSettle();
 
       final after = setup.container.read(trendsIntentProvider);
-      expect(after.selected, before.selected);
-      expect(after.spreadEnd, before.spreadEnd);
+      expect(before.selected, monthSerial(DateTime.utc(2026, 10)));
+      expect(after.selected, monthSerial(DateTime.utc(2027, 12)));
+      expect(after.spreadEnd, monthSerial(DateTime.utc(2027, 12)));
+      expect(find.text('See where your money goes'), findsOneWidget);
     },
     timeout: uiTestTimeout,
   );

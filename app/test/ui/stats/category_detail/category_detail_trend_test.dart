@@ -20,6 +20,7 @@ const _entryAprilID = 'a0000000-0000-0000-0000-000000000004';
 const _entryOctoberID = 'a0000000-0000-0000-0000-000000000005';
 const _childID = 'a0000000-0000-0000-0000-000000000006';
 const _entryEarlierID = 'a0000000-0000-0000-0000-000000000007';
+const _entryFutureID = 'a0000000-0000-0000-0000-000000000008';
 
 void main() {
   testWidgets(
@@ -32,7 +33,7 @@ void main() {
       final trend = (state.body as CategoryDetailReadyBody).trend!;
       final selection = trend.selection!;
 
-      expect(trend.selectedIndex, 11);
+      expect(trend.selectedIndex, 9);
       expect(selection.headline.title, 'October 2026');
       expect(selection.headline.amount, '-S\$5.00');
       expect(selection.rows.map((row) => row.id), [_entryOctoberID]);
@@ -224,6 +225,21 @@ void main() {
     expect(result.rows.single.title, 'Lunch');
     expect(result.rows.single.note, isEmpty);
     expect(result.rows.single.accountLine, '6 Apr / Direct to Food / Checking');
+
+    container
+        .read(categoryDetailViewModelProvider(args).notifier)
+        .nextTrendPage();
+    await _pumpReady(tester, container, args);
+    final nextYear = container
+        .read(categoryDetailViewModelProvider(args))
+        .value!;
+    final nextYearBody = nextYear.body as CategoryDetailReadyBody;
+    expect(nextYear.detailDate, DateTime.utc(2026, 3));
+    expect(nextYearBody.trend!.selection!.headline.title, 'April 2027');
+    expect(nextYearBody.trend!.selection!.headline.amount, '-S\$8.00');
+    expect(nextYearBody.trend!.selection!.rows.map((row) => row.id), [
+      _entryFutureID,
+    ]);
     await tester.pumpAndSettle();
   }, timeout: const Timeout(_timeout));
 }
@@ -335,6 +351,14 @@ Ledger _ledger() {
     categoryID: _childID,
     date: DateTime.utc(2023, 5, 6),
   );
+  final future = Entry(
+    id: _entryFutureID,
+    amount: Decimal.parse('-8'),
+    name: 'Future lunch',
+    sourceID: _accountID,
+    categoryID: _mainID,
+    date: DateTime.utc(2027, 4, 6),
+  );
   final child = TransactionCategory(
     id: _childID,
     name: 'Market',
@@ -353,6 +377,7 @@ Ledger _ledger() {
         _entryAprilID: april,
         _entryOctoberID: october,
         _entryEarlierID: earlier,
+        _entryFutureID: future,
       },
     ),
   );

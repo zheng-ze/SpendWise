@@ -124,9 +124,10 @@ void _populateForEdit(Ledger ledger) {
 AnalysisQueryResult<MonthTrendsPeriod> _read(
   AnalysisQueries queries, {
   BreakdownLevel level = BreakdownLevel.categories,
+  DateTime? endPeriod,
 }) {
   final result = queries.readTrendsPeriod(
-    endPeriod: _endMonth,
+    endPeriod: endPeriod ?? _endMonth,
     mode: AnalysisPeriodMode.month,
     kind: CategoryKind.expense,
     level: level,
@@ -532,14 +533,17 @@ void main() {
       _populateForEdit(fixture.ledger);
       final oldEntry = fixture.ledger.state.entries.values.first;
       await settle(fixture.runner, fixture.ledger);
-      final acceptedResult = _read(fixture.queries);
+      final acceptedResult = _read(
+        fixture.queries,
+        endPeriod: DateTime.utc(2026, 12),
+      );
       final accepted = acceptedResult.value!;
       expect(acceptedResult.sourceRevision, fixture.ledger.revision);
       expect(accepted.spread.earliestSpreadEndMonth, DateTime.utc(2025, 10));
       expect(accepted.breakdown.total, Decimal.fromInt(65));
       expect(accepted.largestRow?.bucketID, _otherID);
       expect(accepted.highestMonth?.month, DateTime.utc(2026, 7));
-      expect(accepted.averages.completePeriodCount, 11);
+      expect(accepted.averages.completePeriodCount, 9);
 
       fixture.ledger.updateEntry(
         Entry(
@@ -556,7 +560,7 @@ void main() {
           date: DateTime.utc(2026, 9, 4),
         ),
       );
-      final pending = _read(fixture.queries);
+      final pending = _read(fixture.queries, endPeriod: DateTime.utc(2026, 12));
       expect(pending.state, AnalysisQueryState.loading);
       expect(pending.value, accepted);
       expect(pending.sourceRevision, acceptedResult.sourceRevision);
@@ -566,10 +570,23 @@ void main() {
       );
 
       await settle(fixture.runner, fixture.ledger);
-      final revisedResult = _read(fixture.queries);
+      final revisedResult = _read(
+        fixture.queries,
+        endPeriod: DateTime.utc(2026, 12),
+      );
       final revised = revisedResult.value!;
-      final ready =
-          _project(fixture.queries, fixture.ledger) as TrendsReadyBody;
+      final ready = _project(
+        fixture.queries,
+        fixture.ledger,
+        intent: TrendsIntent(
+          kind: TrendsKind.expense,
+          mode: TrendsMode.month,
+          spreadEnd: monthSerial(DateTime.utc(2026, 12)),
+          selected: monthSerial(DateTime.utc(2026, 10)),
+          rememberedMonth: 10,
+          followsCurrent: false,
+        ),
+      ) as TrendsReadyBody;
       expect(revised.firstRecordMonth, DateTime.utc(2026, 7));
       expect(revised.spread.earliestSpreadEndMonth, DateTime.utc(2026, 10));
       expect(revised.breakdown.total, Decimal.fromInt(1065));
@@ -582,9 +599,13 @@ void main() {
   );
 }
 
-TrendsBody _project(AnalysisQueries queries, Ledger ledger) => projectTrends(
+TrendsBody _project(
+  AnalysisQueries queries,
+  Ledger ledger, {
+  TrendsIntent? intent,
+}) => projectTrends(
   queries: queries,
-  intent: TrendsIntent.initial(_today),
+  intent: intent ?? TrendsIntent.initial(_today),
   today: _today,
   ledgerRevision: ledger.revision,
   categories: const {},

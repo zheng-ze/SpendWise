@@ -336,7 +336,7 @@ void main() {
     test('a pinned selection stays on its month through rollover', () async {
       final ledger = _populated();
       final harness = await readyHarness(ledger: ledger, today: _today);
-      harness.viewModel.selectSlot(8);
+      harness.viewModel.selectSlot(6);
       await harness.settle();
 
       await harness.setToday(DateTime.utc(2026, 11, 2));
@@ -393,14 +393,34 @@ void main() {
   });
 
   group('classification', () {
-    test('an empty ledger is the empty body', () async {
-      final harness = await readyHarness(
-        ledger: emptyTrendsLedger(),
-        today: _today,
-      );
+    test(
+      'an empty ledger month carries selectable zero data and navigation',
+      () async {
+        final harness = await readyHarness(
+          ledger: emptyTrendsLedger(),
+          today: _today,
+        );
 
-      expect(harness.body, isA<TrendsEmptyBody>());
-    });
+        final body = harness.body as TrendsEmptyBody;
+        expect(body.bars, hasLength(12));
+        expect(body.selectedIndex, 9);
+        expect(body.headline?.title, 'October 2026');
+        expect(body.headline?.emptyMessage, 'No expenses recorded');
+        expect(body.usual?.body, 'Not enough data');
+        expect(body.period.previousEnabled, isTrue);
+        expect(body.period.nextEnabled, isTrue);
+
+        harness.viewModel.selectSlot(11);
+        await harness.settle();
+        final selectedBody = harness.body as TrendsEmptyBody;
+        expect(harness.intent.selected, monthSerial(DateTime.utc(2026, 12)));
+        expect(selectedBody.headline?.emptyMessage, 'No expenses recorded');
+
+        harness.viewModel.nextPage();
+        await harness.settle();
+        expect(harness.intent.selected, monthSerial(DateTime.utc(2027, 12)));
+      },
+    );
 
     test('a selected kind with no records is a normal period view', () async {
       final harness = await readyHarness(ledger: _populated(), today: _today);
