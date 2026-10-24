@@ -225,10 +225,9 @@ void main() {
       (index) => DateTime.utc(2026, index + 1),
     );
     expect(actualMonths, expectedMonths);
-    expect(
-      summary.spread.slots.any((slot) => slot.month == DateTime.utc(2027, 1)),
-      isFalse,
-    );
+    final nextJanuary = DateTime.utc(2027, 1);
+    final includesNextJanuary = actualMonths.contains(nextJanuary);
+    expect(includesNextJanuary, isFalse);
     expect(summary.spread.slots.last.total, Decimal.fromInt(120));
     expect(summary.breakdown.total, Decimal.fromInt(1110));
     expect(
