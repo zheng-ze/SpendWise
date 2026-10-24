@@ -1,0 +1,88 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:spendwise/ui/common/sheets/app_sheet.dart';
+import 'package:spendwise/ui/shell/desktop_sidebar.dart';
+import 'package:spendwise/ui/shell/open_rail.dart';
+import 'package:spendwise/ui/shell/phone_bar.dart';
+import 'package:spendwise/ui/shell/shell_providers.dart';
+
+import '../../../support/ui_test_timeout.dart';
+import 'new_entry_session_harness.dart';
+
+const _desktopSize = Size(1280, 800);
+
+Future<void> _tapNavigationDestination(
+  WidgetTester tester,
+  Finder navigation,
+) async {
+  await tester.tap(
+    find.descendant(of: navigation, matching: find.text('History')),
+    warnIfMissed: false,
+  );
+  await tester.pumpAndSettle();
+}
+
+void main() {
+  testWidgets('phone navigation tap dismisses Add without navigating', (
+    tester,
+  ) async {
+    final harness = await pumpShell(tester);
+    await openAdd(tester, harness);
+
+    await _tapNavigationDestination(tester, find.byType(PhoneBar));
+
+    expect(find.byType(AppSheet), findsNothing);
+    expect(
+      harness.container.read(selectedDestinationProvider),
+      ShellDestination.overview,
+    );
+  }, timeout: uiTestTimeout);
+
+  testWidgets('open rail tap dismisses Add without navigating', (tester) async {
+    final harness = await pumpShell(tester, size: openSize);
+    await openAdd(tester, harness);
+
+    await _tapNavigationDestination(tester, find.byKey(openRailKey));
+
+    expect(find.byType(AppSheet), findsNothing);
+    expect(
+      harness.container.read(selectedDestinationProvider),
+      ShellDestination.overview,
+    );
+  }, timeout: uiTestTimeout);
+
+  testWidgets('desktop sidebar tap dismisses Add without navigating', (
+    tester,
+  ) async {
+    final harness = await pumpShell(
+      tester,
+      size: _desktopSize,
+      platform: TargetPlatform.macOS,
+    );
+    await openAdd(tester, harness);
+
+    await _tapNavigationDestination(tester, find.byType(DesktopSidebar));
+
+    expect(find.byType(AppSheet), findsNothing);
+    expect(
+      harness.container.read(selectedDestinationProvider),
+      ShellDestination.overview,
+    );
+  }, timeout: uiTestTimeout);
+
+  testWidgets('outside tap dismisses Add without changing destination', (
+    tester,
+  ) async {
+    final harness = await pumpShell(tester, size: openSize);
+    await openAdd(tester, harness);
+
+    await tester.tapAt(const Offset(120, 120));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AppSheet), findsNothing);
+    expect(
+      harness.container.read(selectedDestinationProvider),
+      ShellDestination.overview,
+    );
+  }, timeout: uiTestTimeout);
+}

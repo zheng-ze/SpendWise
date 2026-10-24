@@ -1,6 +1,6 @@
 # UI Framework (MVVM)
 
-Last reconciled: 2026-10-22
+Last reconciled: 2026-10-24
 
 ## Feature overview
 
@@ -342,13 +342,15 @@ value, which then overwrites it. (issue #38)
   the captured value as the fallback and publishes the resolved value through a retained
   `effectivePresentation` notifier that also drives the barrier color without replacing the
   route: phone and desktop dim the window, open uses a transparent dismissible full-window
-  barrier with the underlying page visible but inert. The page resolves the live presentation
+  barrier with the underlying page visible and inert. The page resolves the live presentation
   on every build through one stable `Align` ancestry that varies only alignment, box size and
   chrome around the caller's builder subtree, so a keyed form keeps its `State`, controllers,
   selection and focus across presentation changes. Phone spans the full available width at the
   bottom, desktop centres a dialog no wider than 440 while fitting the viewport, and open docks
   a full-height surface in the safe right half starting at half the window width with an 82 dp
-  right content inset reserving rail clearance, no grab handle and no height cap. Phone and
+  right content inset reserving rail clearance, no grab handle and no height cap. The `form`
+  variant (Add) instead leaves the rail gutter outside its surface with a 10 dp content inset, and
+  Add lifts its phone sheet above the phone bar. Phone and
   desktop size to content up to `0.66 * (window height - top safe padding - bottom keyboard
   inset)` by default. `phoneMaxHeightFraction` and `desktopMaxHeightFraction` let callers
   change their respective caps; Add grows its phone cap to 1.0 for input and uses 1.0 on desktop.

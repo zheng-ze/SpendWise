@@ -309,6 +309,8 @@ class _SheetChrome extends StatelessWidget {
 
   static const _openRightInset = 82.0;
 
+  static const _formOpenContentRightInset = 10.0;
+
   static const _openBottomPadding = 14.0;
 
   static const _openLeftPadding = 16.0;
@@ -351,13 +353,20 @@ class _SheetChrome extends StatelessWidget {
       borderRadius: radius,
       boxShadow: shadow,
     );
+    final clearsRail = open && form;
+    final contentRightInset = clearsRail
+        ? _formOpenContentRightInset
+        : _openRightInset;
+    final railClearance = EdgeInsets.only(
+      right: clearsRail ? _openRightInset : 0,
+    );
     final padding = form && desktop
         ? _formDesktopPadding.add(EdgeInsets.only(bottom: bottomInset))
         : open
         ? EdgeInsets.fromLTRB(
             _openLeftPadding,
             _openTopPadding,
-            _openRightInset,
+            contentRightInset,
             _openBottomPadding + bottomInset,
           )
         : EdgeInsets.fromLTRB(
@@ -367,11 +376,12 @@ class _SheetChrome extends StatelessWidget {
             _bottomPadding + bottomInset,
           );
 
-    return Material(
+    final surface = Material(
       color: canvas ? colors.base : colors.raised,
       borderRadius: radius,
       child: Container(decoration: decoration, padding: padding, child: child),
     );
+    return Padding(padding: railClearance, child: surface);
   }
 }
 

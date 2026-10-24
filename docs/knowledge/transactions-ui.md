@@ -1,6 +1,6 @@
 # Transactions UI
 
-Last reconciled: 2026-10-21
+Last reconciled: 2026-10-24
 
 ## Feature overview
 
@@ -74,7 +74,11 @@ without a source. The presenter captures that source at invocation, installs the
 invalidates the null-key form and receipt providers once, binds that initialization attempt to the
 session lifetime, and applies the scoped prefill once after the first successful attempt, maps the shell layout mode to the
 `AppSheet` presentation (phone, open or desktop), and releases its presentation state and
-subscription when the sheet completes or presentation fails. The Add route re-resolves its
+subscription when the sheet completes or presentation fails. Add keeps shell navigation unobscured: on phone the form sheet sits above the phone bar
+(`_PhoneBarClearance`), and in open mode the form-variant surface stops short of the rail gutter.
+The route barrier stays modal and full-window, so a tap on navigation or anywhere outside the sheet
+dismisses Add and is consumed; it never navigates. (`app/lib/ui/transactions/entry/new_entry_presenter.dart`,
+`app/lib/ui/common/sheets/app_sheet.dart`) The Add route re-resolves its
 presentation live through a resolver reading `ShellLayoutModeScope`, so a
 phone/open resize changes only the sheet geometry, alignment and chrome around the retained keyed
 form and never replaces the route. A late receipt finish after invalidation writes no state
