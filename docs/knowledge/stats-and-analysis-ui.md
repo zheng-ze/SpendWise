@@ -1,6 +1,6 @@
 # Trends & Category Detail UI
 
-Last reconciled: 2026-10-24
+Last reconciled: 2026-10-25
 
 ## Feature overview
 
@@ -175,6 +175,14 @@ The breakdown window, kind, level and total must match the selected period. Row 
 sum to the total; nonempty rows' shares must sum to 100 percent. The projection carries the breakdown data
 (`trends_projection.dart:_readBreakdown`, `_breakdown`, `trends_body.dart`, `trends_screen.dart`,
 `app/test/ui/stats/trends_breakdown_projection_test.dart`).
+
+History's top-categories projection consumes `readCategoryBreakdown` at expense/categories level.
+Daily uses the selected month and Monthly uses the selected calendar year; the History ViewModel
+preserves query order and each share of the complete period total when it takes at most three rows.
+It uses the same-window register read only to distinguish confirmed emptiness, never for analysis
+amounts. Its loading, failure-before-stale-revision, compact and Retry behavior belongs to the
+Transactions UI ViewModel (`transactions-ui.md`,
+`app/lib/ui/transactions/top_categories_view_model.dart`).
 
 `TrendsReadyBody.averageComparison` joins selected-period breakdown rows to
 `periodSummary.averages.rows` by `(bucketID, mainBucketID, isDirect)`, preserving selected-row order.
