@@ -29,6 +29,7 @@ class AppSheetAlertSlot extends InheritedWidget {
     required this.presentation,
     required this.alerts,
     required this.alertAction,
+    this.openRightInset,
     required super.child,
   });
 
@@ -38,6 +39,8 @@ class AppSheetAlertSlot extends InheritedWidget {
 
   final ValueNotifier<VoidCallback?> alertAction;
 
+  final double? openRightInset;
+
   static AppSheetAlertSlot? maybeOf(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<AppSheetAlertSlot>();
 
@@ -45,7 +48,8 @@ class AppSheetAlertSlot extends InheritedWidget {
   bool updateShouldNotify(covariant AppSheetAlertSlot oldWidget) =>
       presentation != oldWidget.presentation ||
       alerts != oldWidget.alerts ||
-      alertAction != oldWidget.alertAction;
+      alertAction != oldWidget.alertAction ||
+      openRightInset != oldWidget.openRightInset;
 }
 
 // MARK: - Sheet
@@ -63,6 +67,7 @@ class AppSheet extends StatefulWidget {
     this.phoneMaxHeightFraction = defaultMaxHeightFraction,
     this.dragToDismiss = false,
     this.variant = AppSheetVariant.standard,
+    this.openRightInset,
   });
 
   static const defaultMaxHeightFraction = 0.66;
@@ -86,6 +91,8 @@ class AppSheet extends StatefulWidget {
   final bool dragToDismiss;
 
   final AppSheetVariant variant;
+
+  final double? openRightInset;
 
   @override
   State<AppSheet> createState() => _AppSheetState();
@@ -179,6 +186,10 @@ class _AppSheetState extends State<AppSheet> {
       presentation: presentation,
       variant: widget.variant,
       bottomInset: media.padding.bottom,
+      openRightInset:
+          AppSheetAlertSlot.maybeOf(context)?.openRightInset ??
+          widget.openRightInset ??
+          _SheetChrome._openRightInset,
       child: scrollBody,
     );
     final sheet = ConstrainedBox(constraints: constraints, child: chrome);
@@ -273,6 +284,7 @@ class _SheetChrome extends StatelessWidget {
     required this.presentation,
     required this.variant,
     required this.bottomInset,
+    required this.openRightInset,
     required this.child,
   });
 
@@ -319,6 +331,8 @@ class _SheetChrome extends StatelessWidget {
 
   final double bottomInset;
 
+  final double openRightInset;
+
   final Widget child;
 
   @override
@@ -357,7 +371,7 @@ class _SheetChrome extends StatelessWidget {
         ? EdgeInsets.fromLTRB(
             _openLeftPadding,
             _openTopPadding,
-            _openRightInset,
+            openRightInset,
             _openBottomPadding + bottomInset,
           )
         : EdgeInsets.fromLTRB(

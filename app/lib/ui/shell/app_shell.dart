@@ -68,6 +68,8 @@ class _AppShellState extends ConsumerState<AppShell> {
     }
   }
 
+  void _dismissNewEntry() => _addController?.dismiss();
+
   void _openNewEntry(BuildContext context) {
     final selected = ref.read(selectedDestinationProvider);
     final sourceId = selected == ShellDestination.money
@@ -87,16 +89,32 @@ class _AppShellState extends ConsumerState<AppShell> {
     _ensureTicker(ref.watch(clockProvider));
 
     if (mode == ShellLayoutMode.desktop) {
+      final navigation = Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          DesktopSidebar(
+            selected: selected,
+            onDestinationSelected: _select,
+            onAdd: () => _openNewEntry(context),
+          ),
+          const SidebarDivider(),
+        ],
+      );
+      final navigationRegion = addPresented
+          ? SizedBox(
+              width: desktopSidebarNavigationWidth,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _dismissNewEntry,
+                child: navigation,
+              ),
+            )
+          : navigation;
       return Scaffold(
         key: const ValueKey('sidebar-layout'),
         body: Row(
           children: [
-            DesktopSidebar(
-              selected: selected,
-              onDestinationSelected: _select,
-              onAdd: () => _openNewEntry(context),
-            ),
-            const SidebarDivider(),
+            navigationRegion,
             Expanded(
               child: _ShellStack(
                 selected: selected,
@@ -104,6 +122,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                 rail: null,
                 mode: mode,
                 addPresented: addPresented,
+                onNavigationLaneTap: _dismissNewEntry,
               ),
             ),
           ],
@@ -118,6 +137,7 @@ class _AppShellState extends ConsumerState<AppShell> {
         bodies: widget.bodies,
         mode: mode,
         addPresented: addPresented,
+        onNavigationLaneTap: _dismissNewEntry,
         rail: open
             ? OpenRail(
                 selected: selected,
@@ -128,6 +148,16 @@ class _AppShellState extends ConsumerState<AppShell> {
       ),
       bottomNavigationBar: open
           ? null
+          : addPresented
+          ? GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _dismissNewEntry,
+              child: PhoneBar(
+                selected: selected,
+                onDestinationSelected: _select,
+                onAdd: () => _openNewEntry(context),
+              ),
+            )
           : PhoneBar(
               selected: selected,
               onDestinationSelected: _select,
@@ -145,6 +175,7 @@ class _ShellStack extends StatelessWidget {
     required this.rail,
     required this.mode,
     required this.addPresented,
+    required this.onNavigationLaneTap,
   });
 
   final ShellDestination selected;
@@ -152,6 +183,7 @@ class _ShellStack extends StatelessWidget {
   final Widget? rail;
   final ShellLayoutMode mode;
   final bool addPresented;
+  final VoidCallback onNavigationLaneTap;
 
   @override
   Widget build(BuildContext context) {
@@ -175,6 +207,38 @@ class _ShellStack extends StatelessWidget {
     );
     final docked = rail == null
         ? null
+        : addPresented
+        ? Positioned(
+            top: 0,
+            right: 0,
+            bottom: 0,
+            width: gutter,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onNavigationLaneTap,
+              child: Align(
+                alignment: Alignment.bottomRight,
+                child: Padding(
+                  padding: const EdgeInsets.only(
+                    right: openRailRightInset,
+                    bottom: openRailBottomInset,
+                  ),
+                  child: SafeArea(
+                    left: false,
+                    right: false,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) => ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxHeight: constraints.maxHeight,
+                        ),
+                        child: rail,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          )
         : Positioned(
             right: openRailRightInset,
             bottom: openRailBottomInset,

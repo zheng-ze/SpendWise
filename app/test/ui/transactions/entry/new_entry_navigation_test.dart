@@ -62,6 +62,19 @@ void main() {
     );
   }, timeout: uiTestTimeout);
 
+  testWidgets('blank open navigation lane tap dismisses Add', (tester) async {
+    await pumpShell(tester, size: openSize);
+    await tester.tap(
+      find.descendant(of: find.byKey(openRailKey), matching: find.text('Add')),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tapAt(Offset(openSize.width - 20, 20));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AppSheet), findsNothing);
+  }, timeout: uiTestTimeout);
+
   testWidgets('open rail destination closes an Add picker with Add', (
     tester,
   ) async {

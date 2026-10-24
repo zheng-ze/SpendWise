@@ -239,7 +239,7 @@ class _AppSheetPageState<T> extends State<_AppSheetPage<T>> {
     );
     final panelInsets = region?.panelInsets ?? EdgeInsets.zero;
     final width = open
-        ? media.size.width / _openWidthDivisor + panelInsets.right
+        ? media.size.width / _openWidthDivisor + panelInsets.right / 2
         : null;
     final height = open ? media.size.height - media.padding.bottom : null;
     final positionedSheet = Align(
@@ -262,6 +262,7 @@ class _AppSheetPageState<T> extends State<_AppSheetPage<T>> {
       presentation: presentation,
       alerts: widget.route._alerts,
       alertAction: widget.route._alertAction,
+      openRightInset: widget.route.navigationRegionResolver == null ? null : 0,
       child: Stack(children: [positionedSheet, overlay]),
     );
   }
