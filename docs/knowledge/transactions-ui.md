@@ -78,7 +78,8 @@ subscription when the sheet completes or presentation fails. Add supplies a navi
 resolver to its route and picker sheets. The route barrier passes input through only over the phone
 bar, desktop sidebar or open rail; the Add page remains modal elsewhere. A destination tap selects
 that destination and dismisses the active Add session, while a blank tap in the exposed navigation
-lane also dismisses it. An outside-lane tap dismisses the current route. If an Add picker covers the
+lane also dismisses it. Tapping outside the sheet and navigation lane dismisses the current route.
+If an Add picker covers the
 form, a destination tap removes the Add-owned picker route before closing Add; retirement closes the
 Step subscription and defers receipt coordinator invalidation, and the next Add attempt resets the
 null-key form and receipt state (`NewEntryPresentationController`, `_AddSession`). Generic AppSheets
