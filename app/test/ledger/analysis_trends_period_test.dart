@@ -190,7 +190,7 @@ void main() {
       fixture.ledger,
       'e0000000-0000-0000-0000-000000000023',
       '-900',
-      DateTime.utc(2026, 10, 2),
+      DateTime.utc(2026, 10, 20),
       _currentOnlyID,
     );
     _addEntry(
@@ -198,6 +198,13 @@ void main() {
       'e0000000-0000-0000-0000-000000000024',
       '-120',
       DateTime.utc(2026, 12, 2),
+      _otherID,
+    );
+    _addEntry(
+      fixture.ledger,
+      'e0000000-0000-0000-0000-000000000027',
+      '-700',
+      DateTime.utc(2027, 1, 2),
       _otherID,
     );
     await settle(fixture.runner, fixture.ledger);
@@ -210,9 +217,17 @@ void main() {
     expect(result.state, AnalysisQueryState.ready);
     final summary = result.value! as MonthTrendsPeriod;
     expect(summary.spread.slots, hasLength(12));
+    final actualMonths = summary.spread.slots
+        .map((slot) => slot.month)
+        .toList();
+    final expectedMonths = List.generate(
+      12,
+      (index) => DateTime.utc(2026, index + 1),
+    );
+    expect(actualMonths, expectedMonths);
     expect(
-      summary.spread.slots.map((slot) => slot.month),
-      List.generate(12, (index) => DateTime.utc(2026, index + 1)),
+      summary.spread.slots.any((slot) => slot.month == DateTime.utc(2027, 1)),
+      isFalse,
     );
     expect(summary.spread.slots.last.total, Decimal.fromInt(120));
     expect(summary.breakdown.total, Decimal.fromInt(1110));
