@@ -16,7 +16,7 @@ and is the only place recurring plans are created.
   optional source scope); derived lists are pure functions of `(LedgerState, params)`.
 - `app/lib/ui/transactions/top_categories_view_model.dart` and
   `top_categories_view_state.dart` — the History top-categories period key, immutable projection,
-  state variants and Retry interface; the T7 widget and placement remain separate.
+  state variants and Retry interface; the card widget and History placement are separate.
 - `app/lib/ui/transactions/daily_list/` and `app/lib/ui/transactions/monthly/` — the day-sectioned
   list and the month/week breakdown views.
 - `app/lib/ui/transactions/entry/` — the entry form sheet.
