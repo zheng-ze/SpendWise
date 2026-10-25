@@ -68,7 +68,11 @@ class _AccountsList extends StatelessWidget {
       leadAmount: netWorth.asset - netWorth.liability,
       cells: [
         SummaryBandCell(label: 'Assets', amount: netWorth.asset),
-        SummaryBandCell(label: 'Owed', amount: netWorth.liability),
+        SummaryBandCell(
+          label: 'Owed',
+          amount: netWorth.liability,
+          kind: AmountKind.expense,
+        ),
       ],
     );
     final sections = [

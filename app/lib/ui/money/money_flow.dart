@@ -17,7 +17,7 @@ import 'package:spendwise/ui/shell/shell_providers.dart';
 enum MoneySegment { budgets, accounts, plans }
 
 final moneySegmentProvider = StateProvider<MoneySegment>(
-  (ref) => MoneySegment.budgets,
+  (ref) => MoneySegment.accounts,
 );
 
 final activeMoneySourceProvider = Provider<String? Function()>((ref) {
