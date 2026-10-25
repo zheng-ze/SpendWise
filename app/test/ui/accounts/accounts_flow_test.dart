@@ -1,6 +1,7 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/boot/providers.dart';
@@ -8,8 +9,11 @@ import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/accounts/accounts_flow.dart';
 import 'package:spendwise/ui/accounts/accounts_screen.dart';
 import 'package:spendwise/ui/accounts/accounts_view_model.dart';
+import 'package:spendwise/ui/shell/shell_providers.dart';
 
 import '../../support/ui_test_timeout.dart';
+
+final _layoutModeProvider = StateProvider((ref) => ShellLayoutMode.phone);
 
 void main() {
   final checking = Account(
@@ -28,7 +32,12 @@ void main() {
 
   Future<ProviderContainer> pumpFlow(WidgetTester tester, Ledger ledger) async {
     final container = ProviderContainer(
-      overrides: [ledgerProvider.overrideWithValue(ledger)],
+      overrides: [
+        ledgerProvider.overrideWithValue(ledger),
+        shellLayoutModeProvider.overrideWith(
+          (ref) => ref.watch(_layoutModeProvider),
+        ),
+      ],
     );
     addTearDown(container.dispose);
 
@@ -59,5 +68,40 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(AccountsScreen), findsOneWidget);
+  }, timeout: uiTestTimeout);
+
+  testWidgets(
+    'tapping an account opens its detail before scoped transactions',
+    (tester) async {
+      await pumpFlow(tester, buildLedger());
+
+      await tester.tap(find.text('Main Checking'));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('account-detail-page')), findsOneWidget);
+      expect(find.text('Main Checking'), findsWidgets);
+      expect(find.text('All balances'), findsOneWidget);
+    },
+    timeout: uiTestTimeout,
+  );
+
+  testWidgets('detail selection survives phone and open layout changes', (
+    tester,
+  ) async {
+    final container = await pumpFlow(tester, buildLedger());
+
+    await tester.tap(find.text('Main Checking'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('account-detail-page')), findsOneWidget);
+
+    container.read(_layoutModeProvider.notifier).state = ShellLayoutMode.open;
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('account-detail-page')), findsNothing);
+    expect(find.byKey(const ValueKey('account-detail-title')), findsOneWidget);
+
+    container.read(_layoutModeProvider.notifier).state = ShellLayoutMode.phone;
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('account-detail-page')), findsOneWidget);
+    expect(find.text('All balances'), findsOneWidget);
   }, timeout: uiTestTimeout);
 }

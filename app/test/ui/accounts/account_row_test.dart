@@ -1,4 +1,4 @@
-import 'package:decimal/decimal.dart';
+import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -15,7 +15,9 @@ void main() {
   final plainRow = AccountRow(
     id: 'a0000000-0000-0000-0000-000000000001',
     name: 'Main Checking',
+    type: AccountType.checking,
     amount: SingleTotal(dec('-120.50')),
+    totalBalance: dec('-120.50'),
     ownBalance: dec('-120.50'),
     pockets: const [],
   );
@@ -23,7 +25,9 @@ void main() {
   final rowWithPocket = AccountRow(
     id: 'a0000000-0000-0000-0000-000000000002',
     name: 'Wallet',
+    type: AccountType.cash,
     amount: SingleTotal(dec('300')),
+    totalBalance: dec('300'),
     ownBalance: dec('250'),
     pockets: [
       PocketRow(

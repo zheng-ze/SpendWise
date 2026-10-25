@@ -1,10 +1,12 @@
-import 'package:decimal/decimal.dart';
+import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/accounts/account_sections.dart';
 import 'package:spendwise/ui/common/lists/swipe_row.dart';
+import 'package:spendwise/ui/format/account_type_format.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
+import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - AccountRowTile
 class AccountRowTile extends StatelessWidget {
@@ -90,6 +92,11 @@ class _AccountRowBody extends StatelessWidget {
   static const _expandControlWidth = 40.0;
   static const _rowHorizontalPadding = 8.0;
   static const _rowVerticalPadding = 10.0;
+  static const _medallionSize = 32.0;
+  static const _medallionRadius = 9.0;
+  static const _medallionIconSize = 18.0;
+  static const _medallionTextGap = 10.0;
+  static const _titleCaptionGap = 2.0;
 
   @override
   Widget build(BuildContext context) {
@@ -104,8 +111,34 @@ class _AccountRowBody extends StatelessWidget {
               onPressed: onToggleExpanded,
             ),
     );
+    final medallion = Container(
+      width: _medallionSize,
+      height: _medallionSize,
+      decoration: BoxDecoration(
+        color: context.colors.tint,
+        borderRadius: BorderRadius.circular(_medallionRadius),
+      ),
+      alignment: Alignment.center,
+      child: Icon(
+        _accountIcon(row.type),
+        size: _medallionIconSize,
+        color: context.colors.action,
+      ),
+    );
     final title = Expanded(
-      child: Text(row.name, style: theme.textTheme.bodyLarge),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(row.name, style: theme.textTheme.bodyLarge),
+          const SizedBox(height: _titleCaptionGap),
+          Text(
+            accountTypeLabel(row.type),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: context.colors.subtext,
+            ),
+          ),
+        ],
+      ),
     );
     final amount = switch (row.amount) {
       SingleTotal(:final total) => Text(
@@ -132,7 +165,15 @@ class _AccountRowBody extends StatelessWidget {
         ],
       ),
     };
-    final rowContent = Row(children: [expandControl, title, amount]);
+    final rowContent = Row(
+      children: [
+        expandControl,
+        medallion,
+        const SizedBox(width: _medallionTextGap),
+        title,
+        amount,
+      ],
+    );
     final padded = Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: _rowHorizontalPadding,
@@ -143,6 +184,19 @@ class _AccountRowBody extends StatelessWidget {
 
     return InkWell(onTap: onTap, child: padded);
   }
+
+  IconData _accountIcon(AccountType type) => switch (type) {
+    AccountType.cash => Icons.account_balance_wallet_outlined,
+    AccountType.checking => Icons.account_balance_outlined,
+    AccountType.savings => Icons.savings_outlined,
+    AccountType.card => Icons.credit_card_outlined,
+    AccountType.prepaid => Icons.payments_outlined,
+    AccountType.investment => Icons.trending_up,
+    AccountType.insurance => Icons.shield_outlined,
+    AccountType.other => Icons.account_balance_wallet_outlined,
+    AccountType.loan => Icons.request_quote_outlined,
+    AccountType.overdraft => Icons.warning_amber_outlined,
+  };
 }
 
 // MARK: - SubRow

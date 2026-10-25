@@ -37,3 +37,5 @@ class PocketOpened extends AccountsStep {
   final String title;
   final Set<String> scopeIDs;
 }
+
+class AccountDetailRequested extends AccountsStep {}
