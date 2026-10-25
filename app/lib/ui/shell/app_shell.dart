@@ -153,9 +153,7 @@ class _ShellStack extends StatelessWidget {
   Widget build(BuildContext context) {
     final stacks = _DestinationStacks(selected: selected, bodies: bodies);
     final padding = MediaQuery.paddingOf(context);
-    final gutter = rail == null
-        ? _noRailGutter
-        : openRailGutter + padding.right;
+    final gutter = rail == null ? _noRailGutter : openRailGutter;
     final viewportChild = MediaQuery.removePadding(
       context: context,
       removeLeft: rail != null,
