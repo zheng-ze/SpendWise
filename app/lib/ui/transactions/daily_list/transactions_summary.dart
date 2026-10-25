@@ -31,12 +31,14 @@ class TransactionsSummary extends StatelessWidget {
     required this.expenses,
     required this.income,
     required this.wideComposition,
+    required this.bottomSpacing,
   });
 
   final Decimal net;
   final Decimal expenses;
   final Decimal income;
   final bool wideComposition;
+  final double bottomSpacing;
 
   @override
   Widget build(BuildContext context) {
@@ -104,8 +106,10 @@ class TransactionsSummary extends StatelessWidget {
     );
 
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: _summaryPageHorizontalInset,
+      padding: EdgeInsets.only(
+        left: _summaryPageHorizontalInset,
+        right: _summaryPageHorizontalInset,
+        bottom: bottomSpacing,
       ),
       child: layout,
     );

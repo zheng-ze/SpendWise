@@ -21,6 +21,7 @@ const _pageHorizontalInset = 14.0;
 const _headerTopInset = 12.0;
 const _headingPeriodGap = 14.0;
 const _periodSummaryGap = 4.0;
+const _summaryRegisterGap = 16.0;
 const _headingFontFamily = 'InstrumentSans';
 const _headingFontSize = 26.0;
 const _headingWeight = FontWeight.w600;
@@ -104,15 +105,16 @@ class _TransactionsScreenBody extends StatelessWidget {
       onBackPressed: onBackPressed,
       backLabel: backLabel,
     );
+    final trendsAction = showsTrendsAction
+        ? TrendsDetailAction(onPressed: viewModel.requestTrends)
+        : null;
     final summary = TransactionsSummary(
       net: state.total,
       expenses: state.expenses,
       income: state.income,
       wideComposition: wideComposition,
+      bottomSpacing: trendsAction == null ? _summaryRegisterGap : 0,
     );
-    final trendsAction = showsTrendsAction
-        ? TrendsDetailAction(onPressed: viewModel.requestTrends)
-        : null;
 
     return Scaffold(
       body: SafeArea(
@@ -328,25 +330,34 @@ class _DailyContent extends StatelessWidget {
     final sections = state.daySections;
     if (sections.isEmpty) return const TransactionsEmptyState();
 
-    return CustomScrollView(
-      slivers: [
-        for (final section in sections)
-          SliverMainAxisGroup(
-            slivers: [
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: DayHeaderDelegate(
-                  day: section.date,
-                  net: section.income - section.expenses,
-                ),
-              ),
-              _DaySliverList(section: section, viewModel: viewModel),
-            ],
-          ),
-      ],
-    );
+    final sectionSlivers = <Widget>[];
+    for (var index = 0; index < sections.length; index++) {
+      if (index > 0) {
+        sectionSlivers.add(
+          const SliverToBoxAdapter(child: SizedBox(height: _registerDayGap)),
+        );
+      }
+
+      final section = sections[index];
+      final textScaler = MediaQuery.textScalerOf(context);
+      final dayHeader = SliverPersistentHeader(
+        pinned: true,
+        delegate: DayHeaderDelegate(
+          day: section.date,
+          net: section.income - section.expenses,
+          registerStyle: true,
+          textScaler: textScaler,
+        ),
+      );
+      final entries = _DaySliverList(section: section, viewModel: viewModel);
+      sectionSlivers.add(SliverMainAxisGroup(slivers: [dayHeader, entries]));
+    }
+
+    return CustomScrollView(slivers: sectionSlivers);
   }
 }
+
+const _registerDayGap = 10.0;
 
 // MARK: - DaySliverList
 class _DaySliverList extends StatelessWidget {
@@ -361,9 +372,10 @@ class _DaySliverList extends StatelessWidget {
       itemCount: section.rows.length,
       itemBuilder: (context, index) {
         final row = section.rows[index];
-        final cell = TransactionCell(
+        final cell = TransactionCell.register(
           row: row,
           onTap: () => viewModel.openEntry(row.id),
+          isLastInDay: index == section.rows.length - 1,
         );
 
         return SwipeRow(

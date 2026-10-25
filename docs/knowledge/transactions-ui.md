@@ -120,12 +120,22 @@ register space. The screen applies top and side `SafeArea` insets with `bottom: 
 (`app/lib/ui/transactions/daily_list/daily_transactions_screen.dart`,
 `app/lib/ui/transactions/daily_list/transactions_summary.dart`)
 
-- **Daily view** — day-sectioned list. `daySections` is a pure function: scope to touched entries,
+- **Daily view** - day-sectioned list. `daySections` is a pure function: scope to touched entries,
   resolve each to a `TransactionRow`, filter to the half-open interval, group by `startOfDay(date)`,
   sort days descending and rows by timestamp descending. Section aggregates count income and
-  negated expenses of entries with `includeInAnalysis == true`. Day headers are sticky and show a
-  bare net in the `AmountStyle` sign colour. Empty state: tray icon + "No transactions". Tap a row opens a
-  read-only entry sheet; swipe leading-to-trailing opens a "Delete this transaction?" confirmation.
+  negated expenses of entries with `includeInAnalysis == true`. Sticky day headers show the full
+  date and bare net in the `AmountStyle` sign colour. `_DailyContent` owns the lazy sliver list,
+  pinned day groups and 10 dp gaps between days. It opts into `DayHeaderDelegate(registerStyle: true)`
+  and `TransactionCell.register`; the default header and cell constructors retain their existing
+  presentation. Each day forms a bordered register card with 14 dp side insets, rounded header
+  corners and rounded bottom corners on its last row. The sticky header paints opaque page-base
+  backing across its pinned bounds so scrolling rows cannot show through its rounded corners.
+  Rows show the note as the primary label,
+  falling back to the category title when empty; the secondary label retains category and source
+  when a note exists, or source alone otherwise. Icons use the row's symbol and colour, and amounts
+  keep signed formatting and `AmountStyle` colours. Tapping a row opens a read-only entry sheet.
+  The empty state shows an inbox icon and "No transactions".
+  Swipe leading-to-trailing opens a "Delete this transaction?" confirmation.
 - **Entry form** - three modes. New uses the amount-first `NewEntryForm`: kind selector,
   `AddAmountBlock`, then the `NewEntryRows` group. Edit keeps
   `EntryFields`; Add no longer uses it. `NewEntryRows` lays out Name, Category, Account (Transfer:
