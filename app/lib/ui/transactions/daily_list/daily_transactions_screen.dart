@@ -21,7 +21,7 @@ const _pageHorizontalInset = 14.0;
 const _headerTopInset = 12.0;
 const _headingPeriodGap = 14.0;
 const _periodSummaryGap = 4.0;
-const _registerTopGap = 16.0;
+const _summaryRegisterGap = 16.0;
 const _headingFontFamily = 'InstrumentSans';
 const _headingFontSize = 26.0;
 const _headingWeight = FontWeight.w600;
@@ -105,15 +105,16 @@ class _TransactionsScreenBody extends StatelessWidget {
       onBackPressed: onBackPressed,
       backLabel: backLabel,
     );
+    final trendsAction = showsTrendsAction
+        ? TrendsDetailAction(onPressed: viewModel.requestTrends)
+        : null;
     final summary = TransactionsSummary(
       net: state.total,
       expenses: state.expenses,
       income: state.income,
       wideComposition: wideComposition,
+      bottomSpacing: trendsAction == null ? _summaryRegisterGap : 0,
     );
-    final trendsAction = showsTrendsAction
-        ? TrendsDetailAction(onPressed: viewModel.requestTrends)
-        : null;
 
     return Scaffold(
       body: SafeArea(
@@ -166,11 +167,7 @@ class _TransactionsReadyLayout extends StatelessWidget {
           child: headerScrollView,
         );
         final expandedContent = Expanded(child: content);
-        final children = [
-          constrainedHeader,
-          const SizedBox(height: _registerTopGap),
-          expandedContent,
-        ];
+        final children = [constrainedHeader, expandedContent];
         return Column(children: children);
       },
     );
