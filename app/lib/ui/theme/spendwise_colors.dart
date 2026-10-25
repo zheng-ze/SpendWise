@@ -9,6 +9,7 @@ class SpendWiseColors extends ThemeExtension<SpendWiseColors> {
     required this.surface,
     required this.raised,
     required this.tint,
+    required this.interactionSurface,
     required this.text,
     required this.subtext,
     required this.edge,
@@ -43,6 +44,7 @@ class SpendWiseColors extends ThemeExtension<SpendWiseColors> {
     surface: Color(0xFFFFFFFF),
     raised: Color(0xFFFFFFFF),
     tint: Color(0xFFF0F1F2),
+    interactionSurface: Color(0xFFF0F1F2),
     text: Color(0xFF25272A),
     subtext: Color(0xFF5B5F66),
     edge: Color(0xFFDDDFE2),
@@ -77,6 +79,7 @@ class SpendWiseColors extends ThemeExtension<SpendWiseColors> {
     surface: Color(0xFF1C1D1F),
     raised: Color(0xFF282A2D),
     tint: Color(0xFF242629),
+    interactionSurface: Color(0xFF30343A),
     text: Color(0xFFF2F3F5),
     subtext: Color(0xFFB9BCC2),
     edge: Color(0xFF4C4F54),
@@ -110,6 +113,7 @@ class SpendWiseColors extends ThemeExtension<SpendWiseColors> {
   final Color surface;
   final Color raised;
   final Color tint;
+  final Color interactionSurface;
   final Color text;
   final Color subtext;
   final Color edge;
@@ -144,6 +148,7 @@ class SpendWiseColors extends ThemeExtension<SpendWiseColors> {
     Color? surface,
     Color? raised,
     Color? tint,
+    Color? interactionSurface,
     Color? text,
     Color? subtext,
     Color? edge,
@@ -177,6 +182,7 @@ class SpendWiseColors extends ThemeExtension<SpendWiseColors> {
       surface: surface ?? this.surface,
       raised: raised ?? this.raised,
       tint: tint ?? this.tint,
+      interactionSurface: interactionSurface ?? this.interactionSurface,
       text: text ?? this.text,
       subtext: subtext ?? this.subtext,
       edge: edge ?? this.edge,
@@ -216,6 +222,10 @@ class SpendWiseColors extends ThemeExtension<SpendWiseColors> {
       surface: lerpColor(surface, other.surface),
       raised: lerpColor(raised, other.raised),
       tint: lerpColor(tint, other.tint),
+      interactionSurface: lerpColor(
+        interactionSurface,
+        other.interactionSurface,
+      ),
       text: lerpColor(text, other.text),
       subtext: lerpColor(subtext, other.subtext),
       edge: lerpColor(edge, other.edge),

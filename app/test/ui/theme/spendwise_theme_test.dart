@@ -16,6 +16,7 @@ void main() {
       expect(colors.surface, const Color(0xFFFFFFFF));
       expect(colors.raised, const Color(0xFFFFFFFF));
       expect(colors.tint, const Color(0xFFF0F1F2));
+      expect(colors.interactionSurface, const Color(0xFFF0F1F2));
       expect(colors.text, const Color(0xFF25272A));
       expect(colors.subtext, const Color(0xFF5B5F66));
       expect(colors.edge, const Color(0xFFDDDFE2));
@@ -51,6 +52,7 @@ void main() {
       expect(colors.surface, const Color(0xFF1C1D1F));
       expect(colors.raised, const Color(0xFF282A2D));
       expect(colors.tint, const Color(0xFF242629));
+      expect(colors.interactionSurface, const Color(0xFF30343A));
       expect(colors.text, const Color(0xFFF2F3F5));
       expect(colors.subtext, const Color(0xFFB9BCC2));
       expect(colors.edge, const Color(0xFF4C4F54));

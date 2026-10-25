@@ -198,7 +198,8 @@ class _RegisterTransactionCell extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
-          highlightColor: colors.tint,
+          hoverColor: colors.interactionSurface,
+          highlightColor: colors.interactionSurface,
           child: content,
         ),
       ),
