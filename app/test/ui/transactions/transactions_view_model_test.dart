@@ -136,32 +136,64 @@ void main() {
     });
   });
 
-  group('mode and date', () {
-    test('setMode switches the window used for totals and sections', () async {
+  group('month selection', () {
+    test(
+      'shows only the selected month in the scoped daily register',
+      () async {
+        final marchEntry = Entry(
+          amount: dec('-5'),
+          name: 'March',
+          sourceID: account.id,
+          date: DateTime.utc(2026, 3, 31),
+        );
+        final aprilEntry = Entry(
+          amount: dec('-7'),
+          name: 'April',
+          sourceID: account.id,
+          date: DateTime.utc(2026, 4, 1),
+        );
+        final container = containerFor(
+          buildLedger(
+            entries: {marchEntry.id: marchEntry, aprilEntry.id: aprilEntry},
+          ),
+        );
+        final scope = TransactionsScope(
+          title: 'Checking',
+          scopeIDs: {account.id},
+        );
+        await stateOf(container, scope);
+        final viewModel = container.read(
+          transactionsViewModelProvider(scope).notifier,
+        );
+
+        viewModel.setDate(DateTime.utc(2026, 3));
+
+        final state = container
+            .read(transactionsViewModelProvider(scope))
+            .value!;
+        expect(state.selectedDate, DateTime.utc(2026, 3));
+        expect(
+          state.daySections
+              .expand((section) => section.rows)
+              .map((row) => row.note),
+          ['March'],
+        );
+      },
+    );
+
+    test('shows an empty register for an empty selected month', () async {
       final container = containerFor(buildLedger());
       await stateOf(container, null);
       final viewModel = container.read(
         transactionsViewModelProvider(null).notifier,
       );
 
-      viewModel.setMode(TransactionsScreenMode.monthly);
+      viewModel.setDate(DateTime.utc(2026, 5));
 
       final state = container.read(transactionsViewModelProvider(null)).value!;
-      expect(state.mode, TransactionsScreenMode.monthly);
-    });
-
-    test('switchToDaily jumps to daily mode at the given month', () async {
-      final container = containerFor(buildLedger());
-      await stateOf(container, null);
-      final viewModel = container.read(
-        transactionsViewModelProvider(null).notifier,
-      );
-
-      viewModel.switchToDaily(DateTime.utc(2026, 3));
-
-      final state = container.read(transactionsViewModelProvider(null)).value!;
-      expect(state.mode, TransactionsScreenMode.daily);
-      expect(state.selectedDate, DateTime.utc(2026, 3));
+      expect(state.daySections, isEmpty);
+      expect(state.income, Decimal.zero);
+      expect(state.expenses, Decimal.zero);
     });
   });
 
