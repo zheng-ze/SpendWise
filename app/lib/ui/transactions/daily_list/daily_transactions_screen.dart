@@ -339,12 +339,14 @@ class _DailyContent extends StatelessWidget {
       }
 
       final section = sections[index];
+      final textScaler = MediaQuery.textScalerOf(context);
       final dayHeader = SliverPersistentHeader(
         pinned: true,
         delegate: DayHeaderDelegate(
           day: section.date,
           net: section.income - section.expenses,
           registerStyle: true,
+          textScaler: textScaler,
         ),
       );
       final entries = _DaySliverList(section: section, viewModel: viewModel);

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 
@@ -9,6 +11,16 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 // MARK: - Constants
 const double dayHeaderHeight = 56;
 const double registerDayHeaderHeight = 46;
+
+double _registerDayHeaderExtent(TextScaler textScaler) {
+  final scaledDateFontSize = textScaler.scale(_RegisterDayHeader._dateFontSize);
+  final twoLineContentHeight =
+      _RegisterDayHeader._topInset +
+      _RegisterDayHeader._bottomInset +
+      2 * _RegisterDayHeader._borderWidth +
+      2 * scaledDateFontSize;
+  return math.max(registerDayHeaderHeight, twoLineContentHeight);
+}
 
 // MARK: - DayHeader
 class DayHeader extends StatelessWidget {
@@ -130,7 +142,7 @@ class _RegisterDayHeader extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: _pageInset),
         child: Container(
-          height: registerDayHeaderHeight,
+          height: _registerDayHeaderExtent(MediaQuery.textScalerOf(context)),
           decoration: decoration,
           padding: const EdgeInsetsDirectional.fromSTEB(
             _horizontalInset,
@@ -157,19 +169,21 @@ class DayHeaderDelegate extends SliverPersistentHeaderDelegate {
     required this.day,
     required this.net,
     this.registerStyle = false,
+    this.textScaler = TextScaler.noScaling,
   });
 
   final DateTime day;
   final Decimal net;
   final bool registerStyle;
+  final TextScaler textScaler;
 
   @override
   double get minExtent =>
-      registerStyle ? registerDayHeaderHeight : dayHeaderHeight;
+      registerStyle ? _registerDayHeaderExtent(textScaler) : dayHeaderHeight;
 
   @override
   double get maxExtent =>
-      registerStyle ? registerDayHeaderHeight : dayHeaderHeight;
+      registerStyle ? _registerDayHeaderExtent(textScaler) : dayHeaderHeight;
 
   @override
   Widget build(
@@ -186,6 +200,7 @@ class DayHeaderDelegate extends SliverPersistentHeaderDelegate {
   bool shouldRebuild(covariant DayHeaderDelegate oldDelegate) {
     return oldDelegate.day != day ||
         oldDelegate.net != net ||
-        oldDelegate.registerStyle != registerStyle;
+        oldDelegate.registerStyle != registerStyle ||
+        oldDelegate.textScaler != textScaler;
   }
 }
