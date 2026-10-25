@@ -182,7 +182,6 @@ class _AppSheetState extends State<AppSheet> {
       presentation: presentation,
       variant: widget.variant,
       bottomInset: open ? 0 : media.padding.bottom,
-      flushBottom: widget.inputSurface != null,
       surfaceColor: widget.surfaceColor,
       child: scrollBody,
     );
@@ -282,7 +281,6 @@ class _SheetChrome extends StatelessWidget {
     required this.presentation,
     required this.variant,
     required this.bottomInset,
-    required this.flushBottom,
     required this.surfaceColor,
     required this.child,
   });
@@ -314,15 +312,11 @@ class _SheetChrome extends StatelessWidget {
 
   static const _topPadding = 8.0;
 
-  static const _bottomPadding = 14.0;
-
   static const _openTopPadding = 16.0;
 
   static const _openRightInset = 82.0;
 
   static const _formOpenContentRightInset = 10.0;
-
-  static const _openBottomPadding = 14.0;
 
   static const _openLeftPadding = 16.0;
 
@@ -331,8 +325,6 @@ class _SheetChrome extends StatelessWidget {
   final AppSheetVariant variant;
 
   final double bottomInset;
-
-  final bool flushBottom;
 
   final Color? surfaceColor;
 
@@ -375,9 +367,6 @@ class _SheetChrome extends StatelessWidget {
     final railClearance = EdgeInsets.only(
       right: clearsRail ? _openRightInset : 0,
     );
-    final bottomPadding = flushBottom
-        ? bottomInset
-        : _bottomPadding + bottomInset;
     final padding = form && desktop
         ? _formDesktopPadding.add(EdgeInsets.only(bottom: bottomInset))
         : open
@@ -385,13 +374,13 @@ class _SheetChrome extends StatelessWidget {
             _openLeftPadding,
             _openTopPadding,
             contentRightInset,
-            flushBottom ? bottomInset : _openBottomPadding + bottomInset,
+            bottomInset,
           )
         : EdgeInsets.fromLTRB(
             _horizontalPadding,
             _topPadding,
             _horizontalPadding,
-            bottomPadding,
+            bottomInset,
           );
 
     final surface = Material(
