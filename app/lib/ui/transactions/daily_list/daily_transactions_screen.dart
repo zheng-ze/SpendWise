@@ -328,25 +328,32 @@ class _DailyContent extends StatelessWidget {
     final sections = state.daySections;
     if (sections.isEmpty) return const TransactionsEmptyState();
 
-    return CustomScrollView(
-      slivers: [
-        for (final section in sections)
-          SliverMainAxisGroup(
-            slivers: [
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: DayHeaderDelegate(
-                  day: section.date,
-                  net: section.income - section.expenses,
-                ),
-              ),
-              _DaySliverList(section: section, viewModel: viewModel),
-            ],
-          ),
-      ],
-    );
+    final sectionSlivers = <Widget>[];
+    for (var index = 0; index < sections.length; index++) {
+      if (index > 0) {
+        sectionSlivers.add(
+          const SliverToBoxAdapter(child: SizedBox(height: _registerDayGap)),
+        );
+      }
+
+      final section = sections[index];
+      final dayHeader = SliverPersistentHeader(
+        pinned: true,
+        delegate: DayHeaderDelegate(
+          day: section.date,
+          net: section.income - section.expenses,
+          registerStyle: true,
+        ),
+      );
+      final entries = _DaySliverList(section: section, viewModel: viewModel);
+      sectionSlivers.add(SliverMainAxisGroup(slivers: [dayHeader, entries]));
+    }
+
+    return CustomScrollView(slivers: sectionSlivers);
   }
 }
+
+const _registerDayGap = 10.0;
 
 // MARK: - DaySliverList
 class _DaySliverList extends StatelessWidget {
@@ -364,6 +371,7 @@ class _DaySliverList extends StatelessWidget {
         final cell = TransactionCell(
           row: row,
           onTap: () => viewModel.openEntry(row.id),
+          isLastInDay: index == section.rows.length - 1,
         );
 
         return SwipeRow(

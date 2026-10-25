@@ -123,9 +123,11 @@ register space. The screen applies top and side `SafeArea` insets with `bottom: 
 - **Daily view** — day-sectioned list. `daySections` is a pure function: scope to touched entries,
   resolve each to a `TransactionRow`, filter to the half-open interval, group by `startOfDay(date)`,
   sort days descending and rows by timestamp descending. Section aggregates count income and
-  negated expenses of entries with `includeInAnalysis == true`. Day headers are sticky and show a
-  bare net in the `AmountStyle` sign colour. Empty state: tray icon + "No transactions". Tap a row opens a
-  read-only entry sheet; swipe leading-to-trailing opens a "Delete this transaction?" confirmation.
+  negated expenses of entries with `includeInAnalysis == true`. Sticky day headers show the full
+  date and bare net in the `AmountStyle` sign colour. Each day is presented as a bordered register
+  card. Rows show the entry name, category and source, category icon, and signed amount; tapping a
+  row opens a read-only entry sheet. The empty state shows an inbox icon and "No transactions".
+  Swipe leading-to-trailing opens a "Delete this transaction?" confirmation.
 - **Entry form** - three modes. New uses the amount-first `NewEntryForm`: kind selector,
   `AddAmountBlock`, then the `NewEntryRows` group. Edit keeps
   `EntryFields`; Add no longer uses it. `NewEntryRows` lays out Name, Category, Account (Transfer:
