@@ -21,6 +21,7 @@ const _pageHorizontalInset = 14.0;
 const _headerTopInset = 12.0;
 const _headingPeriodGap = 14.0;
 const _periodSummaryGap = 4.0;
+const _registerTopGap = 16.0;
 const _headingFontFamily = 'InstrumentSans';
 const _headingFontSize = 26.0;
 const _headingWeight = FontWeight.w600;
@@ -165,7 +166,11 @@ class _TransactionsReadyLayout extends StatelessWidget {
           child: headerScrollView,
         );
         final expandedContent = Expanded(child: content);
-        final children = [constrainedHeader, expandedContent];
+        final children = [
+          constrainedHeader,
+          const SizedBox(height: _registerTopGap),
+          expandedContent,
+        ];
         return Column(children: children);
       },
     );
