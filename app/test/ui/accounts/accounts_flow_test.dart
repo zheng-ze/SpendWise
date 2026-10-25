@@ -10,10 +10,12 @@ import 'package:spendwise/ui/accounts/accounts_flow.dart';
 import 'package:spendwise/ui/accounts/accounts_screen.dart';
 import 'package:spendwise/ui/accounts/accounts_view_model.dart';
 import 'package:spendwise/ui/accounts/money_navigation.dart';
+import 'package:spendwise/ui/common/inputs/segmented_control.dart';
 import 'package:spendwise/ui/common/lists/summary_band.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/money/money_flow.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
+import 'package:spendwise/ui/shell/shell_binding.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
@@ -25,11 +27,19 @@ void main() {
     name: 'Main Checking',
     type: AccountType.checking,
   );
+  final card = Account(
+    id: 'a0000000-0000-0000-0000-000000000002',
+    name: 'Travel Card',
+    type: AccountType.card,
+  );
 
   Ledger buildLedger() {
     return Ledger(
       state: LedgerState(
-        moneySources: {checking.id: MoneySource.account(checking)},
+        moneySources: {
+          checking.id: MoneySource.account(checking),
+          card.id: MoneySource.account(card),
+        },
       ),
     );
   }
@@ -133,6 +143,7 @@ void main() {
   ) async {
     tester.view.physicalSize = const Size(640, 800);
     tester.view.devicePixelRatio = 1;
+    tester.view.padding = const FakeViewPadding(left: 54, right: 54);
     addTearDown(tester.view.reset);
     final observer = MoneyNavigatorObserver();
     final container = ProviderContainer(
@@ -148,11 +159,15 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: MaterialApp(
-          home: AppShell(
-            bodies: {
-              ShellDestination.money: (_) => MoneyFlow(moneyObserver: observer),
-            },
+        child: ShellLayoutModeScope(
+          mode: ShellLayoutMode.open,
+          child: MaterialApp(
+            home: AppShell(
+              bodies: {
+                ShellDestination.money: (_) =>
+                    MoneyFlow(moneyObserver: observer),
+              },
+            ),
           ),
         ),
       ),
@@ -179,6 +194,27 @@ void main() {
         tester.widget<SummaryBand>(find.byType(SummaryBand).first).compact,
         isTrue,
       );
+      expect(
+        tester
+            .widget<SegmentedControl<MoneySegment>>(
+              find.byType(SegmentedControl<MoneySegment>),
+            )
+            .small,
+        isTrue,
+      );
+      expect(find.text('Money'), findsNWidgets(2));
+      expect(find.text('Budgets'), findsOneWidget);
+      expect(find.text('Accounts'), findsOneWidget);
+      expect(find.text('Plans'), findsOneWidget);
+      expect(find.text('Main Checking'), findsAtLeastNWidgets(1));
+      expect(find.text('Assets'), findsOneWidget);
+      expect(find.text('Owed'), findsOneWidget);
+      expect(find.text('Travel Card'), findsOneWidget);
+      expect(find.textContaining('Payable'), findsOneWidget);
+      expect(find.textContaining('Outstanding'), findsOneWidget);
+
+      expect(container.read(moneySegmentProvider), MoneySegment.accounts);
+      expect(tester.takeException(), isNull);
 
       Navigator.of(
         tester.element(find.byType(AppSheet).last),

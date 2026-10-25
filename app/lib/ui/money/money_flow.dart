@@ -12,6 +12,7 @@ import 'package:spendwise/ui/common/inputs/month_year_selector.dart';
 import 'package:spendwise/ui/common/inputs/segmented_control.dart';
 import 'package:spendwise/ui/settings/plan/plan_list_screen.dart';
 import 'package:spendwise/ui/settings/plan/plan_list_view_model.dart';
+import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
 enum MoneySegment { budgets, accounts, plans }
@@ -102,21 +103,31 @@ class _MoneyFlowState extends ConsumerState<MoneyFlow> {
       );
     }).toList();
     final stack = IndexedStack(index: segment.index, children: children);
-    final body = Column(
-      children: [
-        if (!widget.moneyObserver.hasScopedTransactionsRoute)
-          _MoneyHeader(segment: segment),
-        Expanded(child: stack),
-      ],
+    Widget moneyPage(ShellPagePresentation presentation) => SafeArea(
+      child: Material(
+        child: Column(
+          children: [
+            if (!widget.moneyObserver.hasScopedTransactionsRoute)
+              _MoneyHeader(segment: segment, presentation: presentation),
+            Expanded(child: stack),
+          ],
+        ),
+      ),
     );
-    return SafeArea(child: Material(child: body));
+    if (ShellPaneScope.maybeOf(context) == null) {
+      return moneyPage(ShellPagePresentation.fullPage);
+    }
+    return ShellPaneHost(
+      pageBuilder: (_, presentation) => moneyPage(presentation),
+    );
   }
 }
 
 class _MoneyHeader extends ConsumerWidget {
-  const _MoneyHeader({required this.segment});
+  const _MoneyHeader({required this.segment, required this.presentation});
 
   final MoneySegment segment;
+  final ShellPagePresentation presentation;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -137,6 +148,7 @@ class _MoneyHeader extends ConsumerWidget {
     final control = SegmentedControl(
       options: _options,
       value: segment,
+      small: presentation == ShellPagePresentation.singleColumn,
       onChanged: (value) =>
           ref.read(moneySegmentProvider.notifier).state = value,
     );

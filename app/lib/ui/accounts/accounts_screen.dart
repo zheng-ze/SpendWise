@@ -171,6 +171,7 @@ class _SectionHeader extends StatelessWidget {
   static const _headerBottomPadding = 6.0;
   static const _titleSize = 14.0;
   static const _titleWeight = FontWeight.w600;
+  static const _compactHeaderMaxWidth = 400.0;
 
   @override
   Widget build(BuildContext context) {
@@ -180,14 +181,13 @@ class _SectionHeader extends StatelessWidget {
         amount: formatMoney(subtotal, symbol: false),
         color: AmountStyle.of(context, signedValue: subtotal).color,
       ),
-      CardHeader(:final payable, :final outstanding) => Row(
-        mainAxisSize: MainAxisSize.min,
+      CardHeader(:final payable, :final outstanding) => Wrap(
+        spacing: _headerAmountGap,
         children: [
           _SectionAmount(
             amount: 'Payable ${formatMoney(payable, symbol: false)}',
             color: AmountStyle.of(context, kind: AmountKind.expense).color,
           ),
-          const SizedBox(width: _headerAmountGap),
           _SectionAmount(
             amount: 'Outstanding ${formatMoney(outstanding, symbol: false)}',
             color: context.colors.subtext,
@@ -195,23 +195,34 @@ class _SectionHeader extends StatelessWidget {
         ],
       ),
     };
-    final title = Expanded(
-      child: Text(
-        accountTypeLabel(section.type),
-        style: TextStyle(
-          fontSize: _titleSize,
-          fontWeight: _titleWeight,
-          color: context.colors.text,
-        ),
+    final title = Text(
+      accountTypeLabel(section.type),
+      style: TextStyle(
+        fontSize: _titleSize,
+        fontWeight: _titleWeight,
+        color: context.colors.text,
       ),
     );
-    final row = Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [title, trailing],
-    );
-    return Padding(
-      padding: const EdgeInsets.only(bottom: _headerBottomPadding),
-      child: row,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth <= _compactHeaderMaxWidth;
+        final content = compact
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [title, trailing],
+              )
+            : Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(child: title),
+                  trailing,
+                ],
+              );
+        return Padding(
+          padding: const EdgeInsets.only(bottom: _headerBottomPadding),
+          child: content,
+        );
+      },
     );
   }
 }

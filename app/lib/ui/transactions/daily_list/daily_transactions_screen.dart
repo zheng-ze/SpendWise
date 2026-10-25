@@ -6,6 +6,7 @@ import 'package:spendwise/ui/common/lists/swipe_row.dart';
 import 'package:spendwise/ui/common/navigation/labelled_back_button.dart';
 import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
+import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 import 'package:spendwise/ui/transactions/daily_list/day_header.dart';
 import 'package:spendwise/ui/transactions/daily_list/day_sections.dart';
@@ -43,6 +44,7 @@ class TransactionsScreen extends ConsumerWidget {
     this.scope,
     this.onBackPressed,
     this.backLabel,
+    this.presentation = ShellPagePresentation.fullPage,
   });
 
   final TransactionsScope? scope;
@@ -50,6 +52,8 @@ class TransactionsScreen extends ConsumerWidget {
   final VoidCallback? onBackPressed;
 
   final String? backLabel;
+
+  final ShellPagePresentation presentation;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -71,7 +75,8 @@ class TransactionsScreen extends ConsumerWidget {
         backLabel: backLabel,
         showsTrendsAction: scope == null,
         wideComposition:
-            mode == ShellLayoutMode.open || mode == ShellLayoutMode.desktop,
+            presentation == ShellPagePresentation.fullPage &&
+            (mode == ShellLayoutMode.open || mode == ShellLayoutMode.desktop),
       ),
     );
   }

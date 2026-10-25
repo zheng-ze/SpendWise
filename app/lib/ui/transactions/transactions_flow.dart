@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/common/base/flow_base.dart';
+import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/stats/trends_flow.dart';
 import 'package:spendwise/ui/transactions/daily_list/daily_transactions_screen.dart';
@@ -149,9 +150,20 @@ class _TransactionsFlowState
   }
 
   @override
-  Widget buildRoot(BuildContext context) => TransactionsScreen(
-    scope: widget.initialScope,
-    onBackPressed: showsOwnBackButton ? goBack : null,
-    backLabel: widget.backLabel,
-  );
+  Widget buildRoot(BuildContext context) {
+    Widget screen(ShellPagePresentation presentation) => TransactionsScreen(
+      scope: widget.initialScope,
+      onBackPressed: showsOwnBackButton ? goBack : null,
+      backLabel: widget.backLabel,
+      presentation: presentation,
+    );
+
+    if (widget.initialScope != null ||
+        ShellPaneScope.maybeOf(context) == null) {
+      return screen(ShellPagePresentation.fullPage);
+    }
+    return ShellPaneHost(
+      pageBuilder: (_, presentation) => screen(presentation),
+    );
+  }
 }
