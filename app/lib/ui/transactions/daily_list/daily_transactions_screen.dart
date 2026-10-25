@@ -368,7 +368,7 @@ class _DaySliverList extends StatelessWidget {
       itemCount: section.rows.length,
       itemBuilder: (context, index) {
         final row = section.rows[index];
-        final cell = TransactionCell(
+        final cell = TransactionCell.register(
           row: row,
           onTap: () => viewModel.openEntry(row.id),
           isLastInDay: index == section.rows.length - 1,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:spendwise/ui/common/lists/category_icon.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/symbol_map.dart';
@@ -8,16 +9,91 @@ import 'package:spendwise/ui/transactions/daily_list/transaction_row.dart';
 
 // MARK: - TransactionCell
 class TransactionCell extends StatelessWidget {
-  const TransactionCell({
+  const TransactionCell({super.key, required this.row, this.onTap})
+    : isRegisterStyle = false,
+      isLastInDay = false;
+
+  const TransactionCell.register({
     super.key,
     required this.row,
     this.onTap,
-    this.isLastInDay = false,
-  });
+    required this.isLastInDay,
+  }) : isRegisterStyle = true;
 
   final TransactionRow row;
   final VoidCallback? onTap;
+  final bool isRegisterStyle;
   final bool isLastInDay;
+
+  static const _cellHorizontalPadding = 16.0;
+  static const _cellVerticalPadding = 10.0;
+  static const _contentGap = 12.0;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isRegisterStyle) {
+      return _RegisterTransactionCell(
+        row: row,
+        onTap: onTap,
+        isLastInDay: isLastInDay,
+      );
+    }
+
+    final theme = Theme.of(context);
+    final captionStyle = theme.textTheme.bodySmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: _cellHorizontalPadding,
+          vertical: _cellVerticalPadding,
+        ),
+        child: Row(
+          children: [
+            CategoryIcon(symbolName: row.symbolName, color: row.color),
+            const SizedBox(width: _contentGap),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(row.title, style: theme.textTheme.bodyMedium),
+                  if (row.note.isNotEmpty) Text(row.note, style: captionStyle),
+                  Text(row.accountLine, style: captionStyle),
+                ],
+              ),
+            ),
+            const SizedBox(width: _contentGap),
+            Text(
+              formatSignedMoney(
+                row.amount,
+                kind: row.amountKind,
+                symbol: false,
+              ),
+              style: theme.textTheme.titleSmall?.copyWith(
+                color: AmountStyle.of(context, kind: row.amountKind).color,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RegisterTransactionCell extends StatelessWidget {
+  const _RegisterTransactionCell({
+    required this.row,
+    required this.isLastInDay,
+    this.onTap,
+  });
+
+  final TransactionRow row;
+  final bool isLastInDay;
+  final VoidCallback? onTap;
 
   static const _cellHorizontalInset = 12.0;
   static const _cellVerticalInset = 8.0;
