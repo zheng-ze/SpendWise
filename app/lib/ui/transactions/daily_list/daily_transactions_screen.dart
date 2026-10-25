@@ -6,20 +6,15 @@ import 'package:spendwise/ui/common/lists/column_text.dart';
 import 'package:spendwise/ui/common/inputs/month_year_selector.dart';
 import 'package:spendwise/ui/common/lists/swipe_row.dart';
 import 'package:spendwise/ui/common/navigation/labelled_back_button.dart';
-import 'package:spendwise/ui/common/navigation/top_tab_bar.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/transactions/daily_list/day_header.dart';
 import 'package:spendwise/ui/transactions/daily_list/day_sections.dart';
 import 'package:spendwise/ui/transactions/daily_list/empty_state.dart';
-import 'package:spendwise/ui/transactions/monthly/monthly_transactions_view.dart';
 import 'package:spendwise/ui/transactions/daily_list/transaction_cell.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
 import 'package:spendwise/ui/transactions/trends_detail_action.dart';
 import 'package:spendwise/ui/transactions/transactions_view_model.dart';
-
-// MARK: - Constants
-const _tabTitles = ['Daily', 'Monthly'];
 
 // MARK: - TransactionsScreen
 class TransactionsScreen extends ConsumerWidget {
@@ -79,26 +74,9 @@ class _TransactionsScreenBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final step = state.mode == TransactionsScreenMode.daily
-        ? MonthYearStep.month
-        : MonthYearStep.year;
-
-    final content = state.mode == TransactionsScreenMode.daily
-        ? _DailyContent(state: state, viewModel: viewModel)
-        : MonthlyTransactionsView(
-            summaries: state.monthSummaries,
-            onWeekTap: viewModel.switchToDaily,
-          );
-    final tabs = TopTabBar(
-      titles: _tabTitles,
-      selectedIndex: state.mode.index,
-      onSelected: (index) =>
-          viewModel.setMode(TransactionsScreenMode.values[index]),
-    );
+    final content = _DailyContent(state: state, viewModel: viewModel);
     final column = Column(
       children: [
-        tabs,
-        const Divider(height: _dividerHeight),
         _TotalsBar(state: state),
         const Divider(height: _dividerHeight),
         if (showsTrendsAction)
@@ -120,7 +98,7 @@ class _TransactionsScreenBody extends StatelessWidget {
         actions: [
           MonthYearSelector(
             value: state.selectedDate,
-            step: step,
+            step: MonthYearStep.month,
             onChanged: viewModel.setDate,
           ),
         ],

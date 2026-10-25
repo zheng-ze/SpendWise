@@ -183,9 +183,10 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   presented. `ShellPaneHost` calls `pageBuilder(context, presentation)` with
   bounded page constraints and either `ShellPagePresentation.fullPage` or
   `ShellPagePresentation.singleColumn`. In open mode, let W be the complete safe body width: the page
-  is W/2 wide when a detail or Add occupies the right half, and W - 72 dp wide
-  without either. A visible detail starts at W/2 and is W/2 - 72 dp wide; the
-  72 dp rail gutter is reserved once. The host retains the page child at one
+  is W/2 wide when a detail or Add occupies the right half. With neither, the page fills the shell
+  content viewport, which reserves only the 72 dp rail gutter from the left-safe content width. A
+  visible detail starts at W/2 and is W/2 - 72 dp wide; the 72 dp rail gutter is reserved once. The
+  rail remains 9 dp from the physical right edge. The host retains the page child at one
   element location across selection, resize and Add visibility changes. It owns
   the detail divider, pinned title/subtitle/actions header and Close button.
   `ShellDetail` requires a stable `id`, title, body builder and non-null `onClose`,
