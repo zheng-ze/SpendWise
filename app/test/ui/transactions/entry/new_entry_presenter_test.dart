@@ -10,6 +10,7 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/settings/settings_providers.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
+import 'package:spendwise/ui/common/inputs/number_pad.dart';
 import 'package:spendwise/ui/common/pickers/date_picker_sheet.dart';
 import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
@@ -182,6 +183,33 @@ void main() {
         .read(entryFormViewModelProvider(null))
         .value!;
     expect(state.nameText, isEmpty);
+
+    await closeAdd(tester);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('phone input surface keeps the Add form alive', (tester) async {
+    await pumpFlow(
+      tester,
+      ledger: buildLedger(),
+      mode: ShellLayoutMode.phone,
+      scanStripEnabled: false,
+    );
+    await openAdd(tester);
+    final form = containerOf(tester)
+        .read(entryFormViewModelProvider(null).notifier);
+    form.setName('Draft entry');
+    tester
+        .widget<TextField>(find.byType(TextField).first)
+        .focusNode!
+        .requestFocus();
+    await tester.pumpAndSettle();
+
+    final state = containerOf(tester)
+        .read(entryFormViewModelProvider(null))
+        .value!;
+    expect(find.byType(NumberPad), findsOneWidget);
+    expect(find.byType(AppSheet, skipOffstage: false), findsOneWidget);
+    expect(state.nameText, 'Draft entry');
 
     await closeAdd(tester);
   }, timeout: uiTestTimeout);

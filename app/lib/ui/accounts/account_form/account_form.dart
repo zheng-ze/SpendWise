@@ -14,6 +14,7 @@ import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/common/inputs/statement_day_picker.dart';
 import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
+import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Visual Constants
 
@@ -230,6 +231,7 @@ class _AccountFormBody extends StatelessWidget {
       footer: saveButton,
       dragToDismiss: true,
       variant: AppSheetVariant.form,
+      surfaceColor: context.colors.raised,
     );
   }
 

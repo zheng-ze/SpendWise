@@ -61,6 +61,8 @@ class AppSheet extends StatefulWidget {
     this.onAlertAction,
     this.desktopMaxHeightFraction = defaultMaxHeightFraction,
     this.phoneMaxHeightFraction = defaultMaxHeightFraction,
+    this.phoneBottomClearance = 0,
+    this.surfaceColor,
     this.dragToDismiss = false,
     this.variant = AppSheetVariant.standard,
   });
@@ -82,6 +84,10 @@ class AppSheet extends StatefulWidget {
   final double desktopMaxHeightFraction;
 
   final double phoneMaxHeightFraction;
+
+  final double phoneBottomClearance;
+
+  final Color? surfaceColor;
 
   final bool dragToDismiss;
 
@@ -178,10 +184,22 @@ class _AppSheetState extends State<AppSheet> {
     final chrome = _SheetChrome(
       presentation: presentation,
       variant: widget.variant,
-      bottomInset: media.padding.bottom,
+      bottomInset: phone && widget.phoneBottomClearance > 0
+          ? 0
+          : media.padding.bottom,
+      surfaceColor: widget.surfaceColor,
       child: scrollBody,
     );
-    final sheet = ConstrainedBox(constraints: constraints, child: chrome);
+    final constrainedSheet = ConstrainedBox(
+      constraints: constraints,
+      child: chrome,
+    );
+    final sheet = phone && widget.phoneBottomClearance > 0
+        ? Padding(
+            padding: EdgeInsets.only(bottom: widget.phoneBottomClearance),
+            child: constrainedSheet,
+          )
+        : constrainedSheet;
     if (!widget.dragToDismiss) return sheet;
 
     return SheetDragDismiss(enabled: phone, onDismiss: _dismiss, child: sheet);
@@ -273,6 +291,7 @@ class _SheetChrome extends StatelessWidget {
     required this.presentation,
     required this.variant,
     required this.bottomInset,
+    required this.surfaceColor,
     required this.child,
   });
 
@@ -321,6 +340,8 @@ class _SheetChrome extends StatelessWidget {
 
   final double bottomInset;
 
+  final Color? surfaceColor;
+
   final Widget child;
 
   @override
@@ -348,7 +369,7 @@ class _SheetChrome extends StatelessWidget {
         : Border(top: topBorder);
     final shadow = canvas && !open && !desktop ? [_formShadow] : null;
     final decoration = BoxDecoration(
-      color: canvas ? colors.base : null,
+      color: surfaceColor ?? (canvas ? colors.base : null),
       border: border,
       borderRadius: radius,
       boxShadow: shadow,
@@ -377,7 +398,7 @@ class _SheetChrome extends StatelessWidget {
           );
 
     final surface = Material(
-      color: canvas ? colors.base : colors.raised,
+      color: surfaceColor ?? (canvas ? colors.base : colors.raised),
       borderRadius: radius,
       child: Container(decoration: decoration, padding: padding, child: child),
     );

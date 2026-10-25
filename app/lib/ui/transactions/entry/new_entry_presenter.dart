@@ -7,7 +7,6 @@ import 'package:flutter_riverpod/legacy.dart';
 import 'package:spendwise/ui/common/pickers/receipt_choice_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/shell/shell_binding.dart';
-import 'package:spendwise/ui/shell/phone_bar.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
@@ -37,31 +36,6 @@ AppSheetPresentation _presentationForMode(ShellLayoutMode mode) =>
       ShellLayoutMode.open => AppSheetPresentation.open,
       ShellLayoutMode.desktop => AppSheetPresentation.desktop,
     };
-
-class _PhoneBarClearance extends StatelessWidget {
-  const _PhoneBarClearance({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final phone =
-        ShellLayoutModeScope.maybeOf(context) == ShellLayoutMode.phone;
-    final safeBottom = MediaQuery.paddingOf(context).bottom;
-    final clearance = phone
-        ? phoneBarNavigationHeight(context) + safeBottom
-        : 0.0;
-    final unpadded = MediaQuery.removePadding(
-      context: context,
-      removeBottom: phone,
-      child: child,
-    );
-    return Padding(
-      padding: EdgeInsets.only(bottom: clearance),
-      child: unpadded,
-    );
-  }
-}
 
 Future<void> openNewEntry({
   required BuildContext context,
@@ -142,12 +116,10 @@ class NewEntryPresentationController {
       session.ref.read(shellLayoutModeProvider),
     );
     session.listenForSteps();
-    Widget buildEntryForm(BuildContext context) => _PhoneBarClearance(
-      child: EntryForm(
-        key: newEntryFormKey,
-        onDismiss: session.close,
-        onRetry: session.retryInitialization,
-      ),
+    Widget buildEntryForm(BuildContext context) => EntryForm(
+      key: newEntryFormKey,
+      onDismiss: session.close,
+      onRetry: session.retryInitialization,
     );
     unawaited(
       showAppSheet<void>(
