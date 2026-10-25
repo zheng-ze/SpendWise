@@ -47,6 +47,9 @@ class ShellPaneScope extends InheritedWidget {
     return scope!;
   }
 
+  static ShellPaneScope? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<ShellPaneScope>();
+
   @override
   bool updateShouldNotify(ShellPaneScope oldWidget) =>
       mode != oldWidget.mode ||

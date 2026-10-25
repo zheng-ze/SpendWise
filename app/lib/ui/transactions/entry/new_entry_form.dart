@@ -15,9 +15,6 @@ import 'package:spendwise/ui/transactions/entry/new_entry_rows.dart';
 import 'package:spendwise/ui/transactions/entry/steps/entry_form_logic.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_stop_host.dart';
-import 'package:spendwise/ui/shell/phone_bar.dart';
-import 'package:spendwise/ui/shell/shell_binding.dart';
-import 'package:spendwise/ui/shell/shell_providers.dart';
 
 // MARK: - Visual Constants
 
@@ -206,20 +203,11 @@ class _NewEntryFormState extends State<NewEntryForm> {
         alert: widget.alert,
         onAlertAction: widget.onAlertAction,
         desktopMaxHeightFraction: _desktopMaxHeightFraction,
-        phoneBottomClearance: _phoneBottomClearance(context),
       );
     }
 
     return AnimatedInputSurface(builder: sheet, child: pad);
   }
-}
-
-double _phoneBottomClearance(BuildContext context) {
-  final phone = ShellLayoutModeScope.maybeOf(context) == ShellLayoutMode.phone;
-  final keyboardUp = MediaQuery.viewInsetsOf(context).bottom > 0;
-  if (!phone || keyboardUp) return 0;
-  return phoneBarNavigationHeight(context) +
-      MediaQuery.paddingOf(context).bottom;
 }
 
 class _NewEntryBody extends ConsumerWidget {

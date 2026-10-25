@@ -10,7 +10,12 @@ import 'package:spendwise/ui/accounts/accounts_flow.dart';
 import 'package:spendwise/ui/accounts/accounts_screen.dart';
 import 'package:spendwise/ui/accounts/accounts_view_model.dart';
 import 'package:spendwise/ui/accounts/money_navigation.dart';
+import 'package:spendwise/ui/common/lists/summary_band.dart';
+import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/money/money_flow.dart';
+import 'package:spendwise/ui/shell/app_shell.dart';
+import 'package:spendwise/ui/shell/shell_pane_host.dart';
+import 'package:spendwise/ui/shell/shell_providers.dart';
 
 import '../../support/ui_test_timeout.dart';
 
@@ -122,4 +127,66 @@ void main() {
     },
     timeout: uiTestTimeout,
   );
+
+  testWidgets('account forms constrain and compact the open Money pane', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(640, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final observer = MoneyNavigatorObserver();
+    final container = ProviderContainer(
+      overrides: [
+        ledgerProvider.overrideWithValue(buildLedger()),
+        shellLayoutModeProvider.overrideWithValue(ShellLayoutMode.open),
+        moneyNavigatorObserverProvider.overrideWithValue(observer),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.read(selectedDestinationProvider.notifier).state =
+        ShellDestination.money;
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          home: AppShell(
+            bodies: {
+              ShellDestination.money: (_) => MoneyFlow(moneyObserver: observer),
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    final viewModel = container.read(accountsViewModelProvider.notifier);
+    for (final request in [
+      () => viewModel.requestNewAccount(),
+      () => viewModel.requestSourceEdit(checking.id),
+    ]) {
+      request();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(container.read(accountSheetPresentedProvider), isTrue);
+      expect(
+        ShellPaneScope.of(tester.element(find.byType(AccountsScreen)))
+            .addPresented,
+        isTrue,
+      );
+      expect(
+        tester.widget<SummaryBand>(find.byType(SummaryBand).first).compact,
+        isTrue,
+      );
+
+      Navigator.of(
+        tester.element(find.byType(AppSheet).last),
+        rootNavigator: true,
+      ).pop();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(container.read(accountSheetPresentedProvider), isFalse);
+    }
+  }, timeout: uiTestTimeout);
 }

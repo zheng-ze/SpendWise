@@ -79,7 +79,8 @@ class _AppShellState extends ConsumerState<AppShell> {
     final mode = ref.watch(shellLayoutModeProvider);
     final addPresented =
         ref.watch(newEntryPresentationProvider) ==
-        NewEntryPresentation.presented;
+            NewEntryPresentation.presented ||
+        ref.watch(accountSheetPresentedProvider);
     _ensureTicker(ref.watch(clockProvider));
 
     if (mode == ShellLayoutMode.desktop) {

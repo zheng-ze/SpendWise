@@ -59,6 +59,8 @@ final selectedDestinationProvider = StateProvider<ShellDestination>(
   (ref) => ShellDestination.overview,
 );
 
+final accountSheetPresentedProvider = StateProvider<bool>((ref) => false);
+
 // MARK: - Month Selection
 DateTime startOfMonthUtc(DateTime date) => DateTime.utc(date.year, date.month);
 

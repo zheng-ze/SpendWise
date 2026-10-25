@@ -214,6 +214,33 @@ void main() {
     await closeAdd(tester);
   }, timeout: uiTestTimeout);
 
+  testWidgets('open input surface keeps the Add form alive', (tester) async {
+    await pumpFlow(
+      tester,
+      ledger: buildLedger(),
+      mode: ShellLayoutMode.open,
+      scanStripEnabled: false,
+    );
+    await openAdd(tester);
+    final form = containerOf(tester)
+        .read(entryFormViewModelProvider(null).notifier);
+    form.setName('Draft entry');
+    tester
+        .widget<TextField>(find.byType(TextField).first)
+        .focusNode!
+        .requestFocus();
+    await tester.pumpAndSettle();
+
+    final state = containerOf(tester)
+        .read(entryFormViewModelProvider(null))
+        .value!;
+    expect(find.byType(NumberPad), findsOneWidget);
+    expect(find.byType(AppSheet, skipOffstage: false), findsOneWidget);
+    expect(state.nameText, 'Draft entry');
+
+    await closeAdd(tester);
+  }, timeout: uiTestTimeout);
+
   testWidgets('duplicate requests open a single sheet', (tester) async {
     registerSheetTearDown(tester);
     late WidgetRef stashedRef;

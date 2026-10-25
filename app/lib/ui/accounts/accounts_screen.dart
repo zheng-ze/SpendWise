@@ -9,6 +9,7 @@ import 'package:spendwise/ui/common/sheets/tray.dart';
 import 'package:spendwise/ui/format/account_type_format.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
+import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 class AccountsScreen extends ConsumerWidget {
@@ -59,21 +60,27 @@ class _AccountsList extends StatelessWidget {
   static const _sectionGap = 10.0;
   static const _emptyTopPadding = 28.0;
   static const _emptyTextSize = 14.0;
+  static const _compactSummaryMaxWidth = 360.0;
 
   @override
   Widget build(BuildContext context) {
     final netWorth = viewState.netWorth;
-    final summary = SummaryBand(
-      leadLabel: 'Net worth',
-      leadAmount: netWorth.asset - netWorth.liability,
-      cells: [
-        SummaryBandCell(label: 'Assets', amount: netWorth.asset),
-        SummaryBandCell(
-          label: 'Owed',
-          amount: netWorth.liability,
-          kind: AmountKind.expense,
-        ),
-      ],
+    final summary = LayoutBuilder(
+      builder: (context, constraints) => SummaryBand(
+        leadLabel: 'Net worth',
+        leadAmount: netWorth.asset - netWorth.liability,
+        compact:
+            constraints.maxWidth <= _compactSummaryMaxWidth ||
+            (ShellPaneScope.maybeOf(context)?.addPresented ?? false),
+        cells: [
+          SummaryBandCell(label: 'Assets', amount: netWorth.asset),
+          SummaryBandCell(
+            label: 'Owed',
+            amount: netWorth.liability,
+            kind: AmountKind.expense,
+          ),
+        ],
+      ),
     );
     final sections = [
       for (final section in viewState.sections)

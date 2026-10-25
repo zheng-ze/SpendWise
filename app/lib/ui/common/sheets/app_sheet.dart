@@ -61,7 +61,6 @@ class AppSheet extends StatefulWidget {
     this.onAlertAction,
     this.desktopMaxHeightFraction = defaultMaxHeightFraction,
     this.phoneMaxHeightFraction = defaultMaxHeightFraction,
-    this.phoneBottomClearance = 0,
     this.surfaceColor,
     this.dragToDismiss = false,
     this.variant = AppSheetVariant.standard,
@@ -84,8 +83,6 @@ class AppSheet extends StatefulWidget {
   final double desktopMaxHeightFraction;
 
   final double phoneMaxHeightFraction;
-
-  final double phoneBottomClearance;
 
   final Color? surfaceColor;
 
@@ -184,9 +181,8 @@ class _AppSheetState extends State<AppSheet> {
     final chrome = _SheetChrome(
       presentation: presentation,
       variant: widget.variant,
-      bottomInset: phone && widget.phoneBottomClearance > 0
-          ? 0
-          : media.padding.bottom,
+      bottomInset: open ? 0 : media.padding.bottom,
+      flushBottom: widget.inputSurface != null,
       surfaceColor: widget.surfaceColor,
       child: scrollBody,
     );
@@ -194,12 +190,7 @@ class _AppSheetState extends State<AppSheet> {
       constraints: constraints,
       child: chrome,
     );
-    final sheet = phone && widget.phoneBottomClearance > 0
-        ? Padding(
-            padding: EdgeInsets.only(bottom: widget.phoneBottomClearance),
-            child: constrainedSheet,
-          )
-        : constrainedSheet;
+    final sheet = constrainedSheet;
     if (!widget.dragToDismiss) return sheet;
 
     return SheetDragDismiss(enabled: phone, onDismiss: _dismiss, child: sheet);
@@ -291,6 +282,7 @@ class _SheetChrome extends StatelessWidget {
     required this.presentation,
     required this.variant,
     required this.bottomInset,
+    required this.flushBottom,
     required this.surfaceColor,
     required this.child,
   });
@@ -340,6 +332,8 @@ class _SheetChrome extends StatelessWidget {
 
   final double bottomInset;
 
+  final bool flushBottom;
+
   final Color? surfaceColor;
 
   final Widget child;
@@ -381,6 +375,9 @@ class _SheetChrome extends StatelessWidget {
     final railClearance = EdgeInsets.only(
       right: clearsRail ? _openRightInset : 0,
     );
+    final bottomPadding = flushBottom
+        ? bottomInset
+        : _bottomPadding + bottomInset;
     final padding = form && desktop
         ? _formDesktopPadding.add(EdgeInsets.only(bottom: bottomInset))
         : open
@@ -388,13 +385,13 @@ class _SheetChrome extends StatelessWidget {
             _openLeftPadding,
             _openTopPadding,
             contentRightInset,
-            _openBottomPadding + bottomInset,
+            flushBottom ? bottomInset : _openBottomPadding + bottomInset,
           )
         : EdgeInsets.fromLTRB(
             _horizontalPadding,
             _topPadding,
             _horizontalPadding,
-            _bottomPadding + bottomInset,
+            bottomPadding,
           );
 
     final surface = Material(

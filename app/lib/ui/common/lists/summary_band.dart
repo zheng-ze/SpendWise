@@ -39,6 +39,7 @@ class SummaryBand extends StatelessWidget {
     this.leadKind,
     this.leadSymbol = true,
     this.cells = const [],
+    this.compact = false,
   });
 
   final String? leadLabel;
@@ -50,6 +51,8 @@ class SummaryBand extends StatelessWidget {
   final bool leadSymbol;
 
   final List<SummaryBandCell> cells;
+
+  final bool compact;
 
   static const _cornerRadius = 14.0;
 
@@ -72,6 +75,11 @@ class SummaryBand extends StatelessWidget {
         : null;
     final cellRow = cells.isEmpty
         ? null
+        : compact
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [for (final cell in cells) _CellAmount(cell: cell)],
+          )
         : Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
