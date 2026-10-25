@@ -151,7 +151,7 @@ class _OpenApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final shell = ShellPaneScope(
       mode: ShellLayoutMode.open,
-      safeBodyWidth: pageWidth,
+      splitOffset: pageWidth / 2,
       addPresented: addPresented,
       child: child,
     );

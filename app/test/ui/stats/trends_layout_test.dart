@@ -40,7 +40,7 @@ class _TrendsApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final scope = ShellPaneScope(
       mode: mode,
-      safeBodyWidth: size.width,
+      splitOffset: size.width / 2,
       addPresented: false,
       child: const TrendsFlow(),
     );

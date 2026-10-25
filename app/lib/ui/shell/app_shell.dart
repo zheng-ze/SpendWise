@@ -23,7 +23,7 @@ const shellDestinations = [
 const _fallbackStackIndex = 0;
 const _noSafeLeftInset = 0.0;
 const _noRailGutter = 0.0;
-const _minimumSafeBodyWidth = 0.0;
+const _minimumSplitOffset = 0.0;
 
 Widget _emptyBody(BuildContext context) => const SizedBox.shrink();
 
@@ -187,13 +187,13 @@ class _ShellStack extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final padding = MediaQuery.paddingOf(context);
-        final safeBodyWidth = (constraints.maxWidth - padding.horizontal).clamp(
-          _minimumSafeBodyWidth,
+        final splitOffset = (constraints.maxWidth / 2 - padding.left).clamp(
+          _minimumSplitOffset,
           double.infinity,
         );
         return ShellPaneScope(
           mode: mode,
-          safeBodyWidth: safeBodyWidth,
+          splitOffset: splitOffset,
           addPresented: addPresented,
           child: Stack(
             fit: StackFit.expand,

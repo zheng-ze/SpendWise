@@ -3,7 +3,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/common/base/flow_base.dart';
-import 'package:spendwise/ui/shell/open_rail.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
@@ -32,13 +31,13 @@ class ShellPaneScope extends InheritedWidget {
   const ShellPaneScope({
     super.key,
     required this.mode,
-    required this.safeBodyWidth,
+    required this.splitOffset,
     required this.addPresented,
     required super.child,
   });
 
   final ShellLayoutMode mode;
-  final double safeBodyWidth;
+  final double splitOffset;
   final bool addPresented;
 
   static ShellPaneScope of(BuildContext context) {
@@ -53,7 +52,7 @@ class ShellPaneScope extends InheritedWidget {
   @override
   bool updateShouldNotify(ShellPaneScope oldWidget) =>
       mode != oldWidget.mode ||
-      safeBodyWidth != oldWidget.safeBodyWidth ||
+      splitOffset != oldWidget.splitOffset ||
       addPresented != oldWidget.addPresented;
 }
 
@@ -107,14 +106,15 @@ class ShellPaneHost extends StatelessWidget {
       builder: (context, constraints) {
         final open = scope.mode == ShellLayoutMode.open;
         final hasDetailPane = open && detail != null && !scope.addPresented;
+        final splitOffset = scope.splitOffset.clamp(0.0, constraints.maxWidth);
         final pageWidth = !open
             ? constraints.maxWidth
             : scope.addPresented || detail != null
-            ? math.min(scope.safeBodyWidth / 2, constraints.maxWidth)
+            ? splitOffset
             : constraints.maxWidth;
         final detailWidth = math.max(
           _minimumDetailPaneWidth,
-          scope.safeBodyWidth / 2 - openRailGutter,
+          constraints.maxWidth - splitOffset,
         );
         final presentation = pageWidth < constraints.maxWidth
             ? ShellPagePresentation.singleColumn
@@ -161,7 +161,7 @@ class ShellPaneHost extends StatelessWidget {
                 key: shellDetailDividerKey,
                 alignment: Alignment.topLeft,
                 child: Padding(
-                  padding: EdgeInsets.only(left: scope.safeBodyWidth / 2),
+                  padding: EdgeInsets.only(left: splitOffset),
                   child: SizedBox(
                     width: _detailDividerWidth,
                     height: constraints.maxHeight,
