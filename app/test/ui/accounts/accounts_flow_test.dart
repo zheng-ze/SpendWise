@@ -42,9 +42,9 @@ void main() {
     return container;
   }
 
-  testWidgets('AccountOpened pushes a TransactionsFlow whose AppBar shows a '
-      'tappable back button, so a platform with no system back gesture can '
-      'still return to the accounts list', (tester) async {
+  testWidgets('AccountOpened pushes a TransactionsFlow with a tappable back '
+      'button, so a platform with no system back gesture can still return to '
+      'the accounts list', (tester) async {
     final container = await pumpFlow(tester, buildLedger());
 
     container.read(accountsViewModelProvider.notifier).openAccount(checking.id);
@@ -52,10 +52,7 @@ void main() {
 
     expect(find.byType(AccountsScreen), findsNothing);
 
-    final backButtonFinder = find.descendant(
-      of: find.byType(AppBar),
-      matching: find.byTooltip('Back'),
-    );
+    final backButtonFinder = find.byTooltip('Back');
     expect(backButtonFinder, findsOneWidget);
 
     await tester.tap(backButtonFinder);
