@@ -53,7 +53,7 @@ void main() {
       final container = containerFor(buildLedger());
       final state = await stateOf(container, null);
 
-      expect(state.title, 'Transactions');
+      expect(state.title, 'History');
     });
   });
 
@@ -137,6 +137,54 @@ void main() {
   });
 
   group('month selection', () {
+    test('previous month crosses January into the prior December', () async {
+      final container = containerFor(buildLedger());
+      await stateOf(container, null);
+      final viewModel = container.read(
+        transactionsViewModelProvider(null).notifier,
+      );
+
+      viewModel.setDate(DateTime.utc(2026, 1, 1));
+      viewModel.previousMonth();
+
+      final state = container.read(transactionsViewModelProvider(null)).value!;
+      expect(state.selectedDate, DateTime.utc(2025, 12));
+    });
+
+    test('next month crosses December into the next January', () async {
+      final container = containerFor(buildLedger());
+      await stateOf(container, null);
+      final viewModel = container.read(
+        transactionsViewModelProvider(null).notifier,
+      );
+
+      viewModel.setDate(DateTime.utc(2026, 12, 31, 23));
+      viewModel.nextMonth();
+
+      final state = container.read(transactionsViewModelProvider(null)).value!;
+      expect(state.selectedDate, DateTime.utc(2027, 1));
+    });
+
+    test(
+      'month commands normalize a non-UTC selection to UTC month start',
+      () async {
+        final container = containerFor(buildLedger());
+        await stateOf(container, null);
+        final viewModel = container.read(
+          transactionsViewModelProvider(null).notifier,
+        );
+
+        viewModel.setDate(DateTime(2026, 3, 17, 22));
+        viewModel.nextMonth();
+
+        final state = container
+            .read(transactionsViewModelProvider(null))
+            .value!;
+        expect(state.selectedDate, DateTime.utc(2026, 4));
+        expect(state.selectedDate.isUtc, isTrue);
+      },
+    );
+
     test(
       'shows only the selected month in the scoped daily register',
       () async {
@@ -178,6 +226,60 @@ void main() {
               .map((row) => row.note),
           ['March'],
         );
+      },
+    );
+
+    test(
+      'scoped next month preserves filtering and refreshes totals',
+      () async {
+        final aprilExpense = Entry(
+          amount: dec('-5'),
+          name: 'April scoped expense',
+          sourceID: account.id,
+          date: DateTime.utc(2026, 4, 1),
+        );
+        final mayIncome = Entry(
+          amount: dec('20'),
+          name: 'May scoped income',
+          sourceID: account.id,
+          date: DateTime.utc(2026, 5, 2),
+        );
+        final outOfScope = Entry(
+          amount: dec('-99'),
+          name: 'May other account',
+          sourceID: 'a0000000-0000-0000-0000-000000000002',
+          date: DateTime.utc(2026, 5, 3),
+        );
+        final scope = TransactionsScope(
+          title: 'Checking',
+          scopeIDs: {account.id, pocket.id},
+        );
+        final container = containerFor(
+          buildLedger(
+            entries: {
+              aprilExpense.id: aprilExpense,
+              mayIncome.id: mayIncome,
+              outOfScope.id: outOfScope,
+            },
+          ),
+        );
+        await stateOf(container, scope);
+        final viewModel = container.read(
+          transactionsViewModelProvider(scope).notifier,
+        );
+
+        viewModel.setDate(DateTime.utc(2026, 4));
+        viewModel.nextMonth();
+
+        final state = container
+            .read(transactionsViewModelProvider(scope))
+            .value!;
+        expect(state.title, 'Checking');
+        expect(state.selectedDate, DateTime.utc(2026, 5));
+        expect(state.daySections.expand((section) => section.rows).length, 1);
+        expect(state.daySections.single.rows.single.id, mayIncome.id);
+        expect(state.income, dec('20'));
+        expect(state.expenses, Decimal.zero);
       },
     );
 

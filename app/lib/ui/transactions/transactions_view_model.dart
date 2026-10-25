@@ -94,6 +94,8 @@ class TransactionsViewState
 // MARK: - TransactionsViewModel
 abstract class TransactionsViewModel {
   void setDate(DateTime date);
+  void previousMonth();
+  void nextMonth();
   Future<void> deleteEntry(String id);
   void openEntry(String id);
   void requestTrends();
@@ -156,7 +158,7 @@ class TransactionsNotifier extends AsyncNotifier<TransactionsViewState>
     }
 
     return TransactionsViewState(
-      title: scope?.title ?? 'Transactions',
+      title: scope?.title ?? 'History',
       selectedDate: selectedDate,
       daySections: sections,
       income: income,
@@ -170,6 +172,23 @@ class TransactionsNotifier extends AsyncNotifier<TransactionsViewState>
     final current = state.value;
     if (current == null) return;
     updateState((_) => _buildState(ledger, selectedDate: date));
+  }
+
+  @override
+  void previousMonth() => _shiftMonth(-1);
+
+  @override
+  void nextMonth() => _shiftMonth(1);
+
+  void _shiftMonth(int direction) {
+    final current = state.value;
+    if (current == null) return;
+    final date = shiftMonthThenClampDayUtc(
+      current.selectedDate,
+      direction,
+      day: 1,
+    );
+    setDate(date);
   }
 
   @override
