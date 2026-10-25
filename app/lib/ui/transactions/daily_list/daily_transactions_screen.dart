@@ -110,39 +110,64 @@ class _TransactionsScreenBody extends StatelessWidget {
       income: state.income,
       wideComposition: wideComposition,
     );
+    final trendsAction = showsTrendsAction
+        ? TrendsDetailAction(onPressed: viewModel.requestTrends)
+        : null;
 
     return Scaffold(
       body: SafeArea(
         bottom: false,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final headerMaxHeight = constraints.maxHeight / _headerHeightFactor;
-            final headerContent = Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                header,
-                summary,
-                if (showsTrendsAction)
-                  TrendsDetailAction(onPressed: viewModel.requestTrends),
-              ],
-            );
-            final scrollableHeader = CustomScrollView(
-              primary: false,
-              shrinkWrap: true,
-              slivers: [SliverToBoxAdapter(child: headerContent)],
-            );
-            return Column(
-              children: [
-                ConstrainedBox(
-                  constraints: BoxConstraints(maxHeight: headerMaxHeight),
-                  child: scrollableHeader,
-                ),
-                Expanded(child: content),
-              ],
-            );
-          },
+        child: _TransactionsReadyLayout(
+          header: header,
+          summary: summary,
+          trendsAction: trendsAction,
+          content: content,
         ),
       ),
+    );
+  }
+}
+
+class _TransactionsReadyLayout extends StatelessWidget {
+  const _TransactionsReadyLayout({
+    required this.header,
+    required this.summary,
+    required this.content,
+    this.trendsAction,
+  });
+
+  final Widget header;
+  final Widget summary;
+  final Widget content;
+  final Widget? trendsAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final headerChildren = [header, summary];
+    final action = trendsAction;
+    if (action != null) headerChildren.add(action);
+    final headerContent = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: headerChildren,
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final headerMaxHeight = constraints.maxHeight / _headerHeightFactor;
+        final headerConstraints = BoxConstraints(maxHeight: headerMaxHeight);
+        final headerSliver = SliverToBoxAdapter(child: headerContent);
+        final headerScrollView = CustomScrollView(
+          primary: false,
+          shrinkWrap: true,
+          slivers: [headerSliver],
+        );
+        final constrainedHeader = ConstrainedBox(
+          constraints: headerConstraints,
+          child: headerScrollView,
+        );
+        final expandedContent = Expanded(child: content);
+        final children = [constrainedHeader, expandedContent];
+        return Column(children: children);
+      },
     );
   }
 }
@@ -236,6 +261,7 @@ class _PeriodRow extends StatelessWidget {
       fontWeight: _periodLabelWeight,
       color: context.colors.text,
     );
+    final monthLabel = Text(formatMonthLabel(selectedDate), style: labelStyle);
     return Row(
       children: [
         _PeriodArrow(
@@ -243,11 +269,7 @@ class _PeriodRow extends StatelessWidget {
           icon: Icons.chevron_left,
           onPressed: onPrevious,
         ),
-        Expanded(
-          child: Center(
-            child: Text(formatMonthLabel(selectedDate), style: labelStyle),
-          ),
-        ),
+        Expanded(child: Center(child: monthLabel)),
         _PeriodArrow(
           label: _nextMonthLabel,
           icon: Icons.chevron_right,

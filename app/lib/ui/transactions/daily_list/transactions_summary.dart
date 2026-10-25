@@ -40,6 +40,18 @@ class TransactionsSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final decoration = BoxDecoration(
+      color: context.colors.surface,
+      border: Border.all(
+        color: context.colors.edge,
+        width: _summaryBorderWidth,
+      ),
+      borderRadius: BorderRadius.circular(_summaryRadius),
+    );
+    const padding = EdgeInsets.symmetric(
+      horizontal: _summaryHorizontalPadding,
+      vertical: _summaryVerticalPadding,
+    );
     final metrics = [
       _summaryMetric(
         context,
@@ -62,52 +74,40 @@ class TransactionsSummary extends StatelessWidget {
       ),
     ];
 
+    final layout = LayoutBuilder(
+      builder: (context, constraints) {
+        final availableWidth =
+            constraints.maxWidth -
+            (_summaryHorizontalPadding * 2) -
+            (_summaryBorderWidth * 2);
+        final widths = metrics
+            .map((metric) => _metricRequiredWidth(context, metric))
+            .toList();
+        final allFit = _rowFits(widths, availableWidth, gap: _summaryColumnGap);
+        final supportingValuesFit = _rowFits(
+          widths.skip(1).toList(),
+          availableWidth,
+          gap: _summaryColumnGap,
+        );
+        final content = _totalsContent(
+          metrics,
+          widths,
+          wideComposition && allFit,
+          supportingValuesFit,
+        );
+        return Container(
+          decoration: decoration,
+          padding: padding,
+          child: content,
+        );
+      },
+    );
+
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: _summaryPageHorizontalInset,
       ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final availableWidth =
-              constraints.maxWidth -
-              (_summaryHorizontalPadding * 2) -
-              (_summaryBorderWidth * 2);
-          final widths = metrics
-              .map((metric) => _metricRequiredWidth(context, metric))
-              .toList();
-          final allFit = _rowFits(
-            widths,
-            availableWidth,
-            gap: _summaryColumnGap,
-          );
-          final supportingValuesFit = _rowFits(
-            widths.skip(1).toList(),
-            availableWidth,
-            gap: _summaryColumnGap,
-          );
-          final content = _totalsContent(
-            metrics,
-            widths,
-            wideComposition && allFit,
-            supportingValuesFit,
-          );
-          return Container(
-            decoration: BoxDecoration(
-              color: context.colors.surface,
-              border: Border.all(
-                color: context.colors.edge,
-                width: _summaryBorderWidth,
-              ),
-              borderRadius: BorderRadius.circular(_summaryRadius),
-            ),
-            padding: const EdgeInsets.symmetric(
-              horizontal: _summaryHorizontalPadding,
-              vertical: _summaryVerticalPadding,
-            ),
-            child: content,
-          );
-        },
-      ),
+      child: layout,
     );
   }
 }
@@ -194,14 +194,14 @@ Widget _totalsContent(
     );
   }
   if (!supportingValuesFit) {
+    final children = <Widget>[];
+    for (var index = 0; index < metrics.length; index++) {
+      if (index > 0) children.add(SizedBox(height: _summaryStackGap));
+      children.add(_SummaryMetric(metric: metrics[index]));
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (var index = 0; index < metrics.length; index++) ...[
-          if (index > 0) SizedBox(height: _summaryStackGap),
-          _SummaryMetric(metric: metrics[index]),
-        ],
-      ],
+      children: children,
     );
   }
   return Column(
