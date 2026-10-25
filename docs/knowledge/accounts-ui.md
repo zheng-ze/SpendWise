@@ -66,20 +66,10 @@ stack. The boot-created observer remains attached to that same Accounts navigato
 (`app/lib/ui/money/money_flow.dart`: `activeMoneySourceProvider`,
 `app/lib/ui/accounts/money_navigation.dart`)
 
-Selecting an account or pocket opens its detail. Phone pushes the detail onto the Accounts
-navigator; open and desktop modes show the selected detail beside the retained account list. Account
-detail offers all-balances, own-balance, and pocket scopes; pocket detail offers its own entries and
-a return action to the parent account. Both detail types expose Edit and archive actions in the
-account menu; account detail also exposes Fix balance. Returning from a scoped Transactions route
-keeps the detail selected. The selection and detail are owned by AccountsFlow and its view model.
-(`app/lib/ui/accounts/accounts_flow.dart`, `accounts_view_model.dart`,
-`accounts_screen.dart`, `account_detail_screen.dart`)
-
 ## Screens and flows
 
 - **Accounts root** - no header row (the Money header owns the title and the `+` that opens the account
-  form); phone uses a pushed account/pocket detail page, while open and desktop show selected detail
-  beside the list; a summary bar (Assets income token /
+  form); a summary bar (Assets income token /
   Liabilities expense token / Total = assets − liabilities from
   `netWorth`), and a grouped list. Sections group active accounts by `AccountType` in the fixed enum
   order Cash, Checking, Savings, Cards, Prepaid, Investment, Insurance, Other, skipping empty types.

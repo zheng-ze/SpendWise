@@ -15,14 +15,12 @@ class AccountsViewState implements HasStep<AccountsViewState, AccountsStep> {
     required this.sections,
     required this.netWorth,
     required this.expandedAccountId,
-    required this.selectedDetail,
     this.step,
   });
 
   final List<AccountSection> sections;
   final NetWorth netWorth;
   final String? expandedAccountId;
-  final AccountDetail? selectedDetail;
   @override
   final AccountsStep? step;
 
@@ -30,7 +28,6 @@ class AccountsViewState implements HasStep<AccountsViewState, AccountsStep> {
     List<AccountSection>? sections,
     NetWorth? netWorth,
     String? Function()? expandedAccountId,
-    AccountDetail? Function()? selectedDetail,
     AccountsStep? Function()? step,
   }) {
     return AccountsViewState(
@@ -39,9 +36,6 @@ class AccountsViewState implements HasStep<AccountsViewState, AccountsStep> {
       expandedAccountId: expandedAccountId == null
           ? this.expandedAccountId
           : expandedAccountId(),
-      selectedDetail: selectedDetail == null
-          ? this.selectedDetail
-          : selectedDetail(),
       step: step == null ? this.step : step(),
     );
   }
@@ -59,9 +53,6 @@ abstract class AccountsViewModel {
   void openAccount(String id);
   void openAccountAlone(String id);
   void openPocket(String id);
-  void selectDetail(String id);
-  void clearSelectedDetail();
-  void toggleAccountPockets(String accountId);
   void requestNewAccount();
 
   void requestSourceEdit(String holderId);
@@ -79,11 +70,7 @@ class AccountsNotifier extends AsyncNotifier<AccountsViewState>
     final currentLedger = ledger;
     currentLedger.addListener(_onLedgerChanged);
     ref.onDispose(() => currentLedger.removeListener(_onLedgerChanged));
-    return _buildState(
-      currentLedger,
-      expandedAccountId: null,
-      selectedDetailId: null,
-    );
+    return _buildState(currentLedger, expandedAccountId: null);
   }
 
   void _onLedgerChanged() {
@@ -92,9 +79,6 @@ class AccountsNotifier extends AsyncNotifier<AccountsViewState>
       _buildState(
         ledger,
         expandedAccountId: current?.expandedAccountId,
-        selectedDetailId:
-            current?.selectedDetail?.pocket?.id ??
-            current?.selectedDetail?.account.id,
         step: current?.step,
       ),
     );
@@ -103,7 +87,6 @@ class AccountsNotifier extends AsyncNotifier<AccountsViewState>
   AccountsViewState _buildState(
     Ledger ledger, {
     required String? expandedAccountId,
-    required String? selectedDetailId,
     AccountsStep? step,
   }) {
     final ledgerState = ledger.state;
@@ -112,30 +95,8 @@ class AccountsNotifier extends AsyncNotifier<AccountsViewState>
       sections: sections,
       netWorth: Accounting.netWorth(ledgerState),
       expandedAccountId: expandedAccountId,
-      selectedDetail: _findDetail(sections, selectedDetailId),
       step: step,
     );
-  }
-
-  AccountDetail? _findDetail(List<AccountSection> sections, String? id) {
-    if (id == null) return null;
-    for (final section in sections) {
-      for (final account in section.rows) {
-        if (account.id == id) {
-          return AccountDetail(account: account, type: section.type);
-        }
-        for (final pocket in account.pockets) {
-          if (pocket.id == id) {
-            return AccountDetail(
-              account: account,
-              type: section.type,
-              pocket: pocket,
-            );
-          }
-        }
-      }
-    }
-    return null;
   }
 
   AccountRow? _findRow(String accountId) {
@@ -156,42 +117,13 @@ class AccountsNotifier extends AsyncNotifier<AccountsViewState>
   }
 
   @override
-  void toggleAccountPockets(String accountId) => toggleExpanded(accountId);
-
-  @override
-  void selectDetail(String id) {
-    final current = state.value;
-    if (current == null) return;
-    final detail = _findDetail(current.sections, id);
-    if (detail == null) return;
-    state = AsyncData(
-      current.copyWith(
-        selectedDetail: () => detail,
-        step: () => AccountDetailRequested(),
-      ),
-    );
-  }
-
-  @override
-  void clearSelectedDetail() {
-    final current = state.value;
-    if (current == null || current.selectedDetail == null) return;
-    state = AsyncData(current.copyWith(selectedDetail: () => null));
-  }
-
-  @override
   Future<void> deleteAccount(String id) async {
     final current = state.value;
     ledger.deleteAccount(id);
     if (current == null) return;
     if (current.expandedAccountId == id) {
       state = AsyncData(
-        _buildState(
-          ledger,
-          expandedAccountId: null,
-          selectedDetailId: current.selectedDetail?.account.id,
-          step: current.step,
-        ),
+        _buildState(ledger, expandedAccountId: null, step: current.step),
       );
     }
   }
@@ -199,8 +131,6 @@ class AccountsNotifier extends AsyncNotifier<AccountsViewState>
   @override
   Future<void> deletePocket(String id) async {
     ledger.deletePocket(id);
-    final current = state.value;
-    if (current?.selectedDetail?.pocket?.id == id) clearSelectedDetail();
   }
 
   @override

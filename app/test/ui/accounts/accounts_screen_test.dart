@@ -7,7 +7,6 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/accounts/accounts_screen.dart';
 import 'package:spendwise/ui/accounts/accounts_view_model.dart';
-import 'package:spendwise/ui/shell/shell_providers.dart';
 
 import '../../support/ui_test_timeout.dart';
 
@@ -45,14 +44,10 @@ void main() {
 
   Future<ProviderContainer> pumpScreen(
     WidgetTester tester,
-    Ledger ledger, {
-    ShellLayoutMode mode = ShellLayoutMode.phone,
-  }) async {
+    Ledger ledger,
+  ) async {
     final container = ProviderContainer(
-      overrides: [
-        ledgerProvider.overrideWithValue(ledger),
-        shellLayoutModeProvider.overrideWithValue(mode),
-      ],
+      overrides: [ledgerProvider.overrideWithValue(ledger)],
     );
     addTearDown(container.dispose);
 
@@ -70,7 +65,7 @@ void main() {
     'expansion is single-open, opening a second collapses the first',
     (tester) async {
       final ledger = buildLedger();
-      final container = await pumpScreen(tester, ledger);
+      await pumpScreen(tester, ledger);
       await tester.pumpAndSettle();
 
       expect(find.text('Rent'), findsNothing);
@@ -80,10 +75,6 @@ void main() {
 
       expect(find.text('Rent'), findsOneWidget);
       expect(find.text('Excluding subpockets'), findsOneWidget);
-      expect(
-        container.read(accountsViewModelProvider).value?.selectedDetail,
-        isNull,
-      );
 
       await tester.tap(find.byIcon(Icons.expand_more));
       await tester.pumpAndSettle();
@@ -93,7 +84,7 @@ void main() {
     timeout: uiTestTimeout,
   );
 
-  testWidgets('tapping the account row selects its account detail', (
+  testWidgets('tapping the account row opens its scoped transactions', (
     tester,
   ) async {
     final ledger = buildLedger();
@@ -104,11 +95,10 @@ void main() {
     await tester.pump();
 
     final step = container.read(accountsViewModelProvider).value?.step;
-    expect(step, isA<AccountDetailRequested>());
-    expect(
-      container.read(accountsViewModelProvider).value?.selectedDetail?.title,
-      'Main Checking',
-    );
+    expect(step, isA<AccountOpened>());
+    final opened = step as AccountOpened;
+    expect(opened.title, 'Main Checking');
+    expect(opened.scopeIDs, {checking.id, rentPocket.id});
   }, timeout: uiTestTimeout);
 
   testWidgets('the excluding-subpockets row emits AccountAloneOpened', (
@@ -131,7 +121,7 @@ void main() {
     expect(opened.scopeIDs, {checking.id});
   }, timeout: uiTestTimeout);
 
-  testWidgets('a pocket row selects the pocket detail', (tester) async {
+  testWidgets('a pocket row opens its scoped transactions', (tester) async {
     final ledger = buildLedger();
     final container = await pumpScreen(tester, ledger);
     await tester.pumpAndSettle();
@@ -143,76 +133,10 @@ void main() {
     await tester.pump();
 
     final step = container.read(accountsViewModelProvider).value?.step;
-    expect(step, isA<AccountDetailRequested>());
-    expect(
-      container.read(accountsViewModelProvider).value?.selectedDetail?.title,
-      'Rent',
-    );
-  }, timeout: uiTestTimeout);
-
-  testWidgets('open mode keeps selected account detail in Accounts', (
-    tester,
-  ) async {
-    final container = await pumpScreen(
-      tester,
-      buildLedger(),
-      mode: ShellLayoutMode.open,
-    );
-    await tester.pumpAndSettle();
-
-    container
-        .read(accountsViewModelProvider.notifier)
-        .selectDetail(checking.id);
-    await tester.pumpAndSettle();
-
-    expect(find.byKey(const ValueKey('account-detail-page')), findsNothing);
-    expect(find.byKey(const ValueKey('account-detail-title')), findsOneWidget);
-    expect(find.text('All balances'), findsOneWidget);
-  }, timeout: uiTestTimeout);
-
-  testWidgets('desktop detail account menu requests source editing', (
-    tester,
-  ) async {
-    final container = await pumpScreen(
-      tester,
-      buildLedger(),
-      mode: ShellLayoutMode.desktop,
-    );
-    await tester.pumpAndSettle();
-
-    container
-        .read(accountsViewModelProvider.notifier)
-        .selectDetail(checking.id);
-    await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Account actions'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Edit account'));
-    await tester.pump();
-
-    expect(
-      container.read(accountsViewModelProvider).value?.step,
-      isA<SourceEditRequested>(),
-    );
-  }, timeout: uiTestTimeout);
-
-  testWidgets('pocket detail opens its own entry scope', (tester) async {
-    final container = await pumpScreen(
-      tester,
-      buildLedger(),
-      mode: ShellLayoutMode.open,
-    );
-    await tester.pumpAndSettle();
-
-    container
-        .read(accountsViewModelProvider.notifier)
-        .selectDetail(rentPocket.id);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('View entries'));
-    await tester.pump();
-
-    final step = container.read(accountsViewModelProvider).value?.step;
     expect(step, isA<PocketOpened>());
-    expect((step as PocketOpened).scopeIDs, {rentPocket.id});
+    final opened = step as PocketOpened;
+    expect(opened.title, 'Rent');
+    expect(opened.scopeIDs, {rentPocket.id});
   }, timeout: uiTestTimeout);
 
   testWidgets('the delete confirmation names the account', (tester) async {

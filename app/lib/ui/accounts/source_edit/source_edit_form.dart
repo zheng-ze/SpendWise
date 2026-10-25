@@ -74,7 +74,6 @@ class _SourceEditFormState extends ConsumerState<SourceEditForm> {
       case AccountOpened():
       case AccountAloneOpened():
       case PocketOpened():
-      case AccountDetailRequested():
       case PickParentRequested():
       case AccountFormSaved():
         break;

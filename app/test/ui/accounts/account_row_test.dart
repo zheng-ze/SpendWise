@@ -17,7 +17,6 @@ void main() {
     name: 'Main Checking',
     type: AccountType.checking,
     amount: SingleTotal(dec('-120.50')),
-    totalBalance: dec('-120.50'),
     ownBalance: dec('-120.50'),
     pockets: const [],
   );
@@ -27,7 +26,6 @@ void main() {
     name: 'Wallet',
     type: AccountType.cash,
     amount: SingleTotal(dec('300')),
-    totalBalance: dec('300'),
     ownBalance: dec('250'),
     pockets: [
       PocketRow(

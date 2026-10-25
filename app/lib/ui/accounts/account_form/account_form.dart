@@ -73,7 +73,6 @@ class _AccountFormState extends ConsumerState<AccountForm> {
       case AccountOpened():
       case AccountAloneOpened():
       case PocketOpened():
-      case AccountDetailRequested():
       case SourceEditFormSaved():
         break;
     }

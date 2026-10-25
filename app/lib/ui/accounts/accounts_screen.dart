@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ui/accounts/account_detail_screen.dart';
 import 'package:spendwise/ui/accounts/account_row.dart';
 import 'package:spendwise/ui/accounts/account_sections.dart';
 import 'package:spendwise/ui/accounts/accounts_view_model.dart';
@@ -10,7 +9,6 @@ import 'package:spendwise/ui/common/sheets/tray.dart';
 import 'package:spendwise/ui/format/account_type_format.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
-import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 class AccountsScreen extends ConsumerWidget {
@@ -20,16 +18,11 @@ class AccountsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final asyncState = ref.watch(accountsViewModelProvider);
     final viewModel = ref.watch(accountsViewModelProvider.notifier);
-    final mode = ref.watch(shellLayoutModeProvider);
 
     return asyncState.when(
       data: (viewState) => Scaffold(
         body: SafeArea(
-          child: _AccountsBody(
-            viewState: viewState,
-            viewModel: viewModel,
-            mode: mode,
-          ),
+          child: _AccountsBody(viewState: viewState, viewModel: viewModel),
         ),
       ),
       loading: () =>
@@ -41,17 +34,10 @@ class AccountsScreen extends ConsumerWidget {
 }
 
 class _AccountsBody extends StatelessWidget {
-  const _AccountsBody({
-    required this.viewState,
-    required this.viewModel,
-    required this.mode,
-  });
+  const _AccountsBody({required this.viewState, required this.viewModel});
 
   final AccountsViewState viewState;
   final AccountsViewModel viewModel;
-  final ShellLayoutMode mode;
-
-  static const _openDividerWidth = 1.0;
 
   @override
   Widget build(BuildContext context) {
@@ -59,32 +45,7 @@ class _AccountsBody extends StatelessWidget {
       viewState: viewState,
       viewModel: viewModel,
     );
-    final detail = viewState.selectedDetail;
-
-    if (mode == ShellLayoutMode.phone) return accountList;
-    if (mode == ShellLayoutMode.desktop && detail == null) return accountList;
-
-    final detailPane = detail == null
-        ? const SizedBox.expand()
-        : AccountDetailPane(
-            detail: detail,
-            viewModel: viewModel,
-            onClose: viewModel.clearSelectedDetail,
-          );
-    final divider = detail == null
-        ? null
-        : SizedBox(
-            width: _openDividerWidth,
-            child: ColoredBox(color: context.colors.edge),
-          );
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Expanded(child: accountList),
-        ?divider,
-        Expanded(child: detailPane),
-      ],
-    );
+    return accountList;
   }
 }
 
@@ -168,11 +129,11 @@ class _AccountSection extends StatelessWidget {
           onToggleExpanded: row.pockets.isEmpty
               ? null
               : () => viewModel.toggleExpanded(row.id),
-          onTap: () => viewModel.selectDetail(row.id),
+          onTap: () => viewModel.openAccount(row.id),
           onAccountDeleted: () => viewModel.deleteAccount(row.id),
           onAccountEdit: () => viewModel.requestSourceEdit(row.id),
           onOpenAccountAlone: () => viewModel.openAccountAlone(row.id),
-          onOpenPocket: (pocket) => viewModel.selectDetail(pocket.id),
+          onOpenPocket: (pocket) => viewModel.openPocket(pocket.id),
           onPocketDeleted: (pocket) => viewModel.deletePocket(pocket.id),
           onPocketEdit: (pocket) => viewModel.requestSourceEdit(pocket.id),
         ),

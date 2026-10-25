@@ -60,7 +60,6 @@ class AccountRow {
     required this.name,
     required this.type,
     required this.amount,
-    required this.totalBalance,
     required this.ownBalance,
     required this.pockets,
   });
@@ -69,26 +68,8 @@ class AccountRow {
   final String name;
   final AccountType type;
   final RowAmount amount;
-  final Decimal totalBalance;
   final Decimal ownBalance;
   final List<PocketRow> pockets;
-}
-
-@immutable
-class AccountDetail {
-  const AccountDetail({required this.account, required this.type, this.pocket});
-
-  final AccountRow account;
-  final AccountType type;
-  final PocketRow? pocket;
-
-  String get title => pocket?.name ?? account.name;
-
-  Decimal get balance {
-    final pocket = this.pocket;
-    if (pocket != null) return pocket.balance;
-    return account.totalBalance;
-  }
 }
 
 // MARK: - SectionHeader
@@ -217,7 +198,6 @@ AccountRow _row(
     name: account.name,
     type: account.type,
     amount: amount,
-    totalBalance: total,
     ownBalance: ownBalance,
     pockets: pockets,
   );
