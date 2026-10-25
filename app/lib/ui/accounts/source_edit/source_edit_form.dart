@@ -4,10 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/accounts/accounts_steps.dart';
 import 'package:spendwise/ui/accounts/source_edit/source_edit_form_view_model.dart';
+import 'package:spendwise/ui/accounts/account_sheet_presentation.dart';
+import 'package:spendwise/ui/common/buttons/app_buttons.dart';
 import 'package:spendwise/ui/common/pickers/account_type_picker.dart';
 import 'package:spendwise/ui/common/inputs/amount_field.dart';
 import 'package:spendwise/ui/common/feedback/error_section.dart';
-import 'package:spendwise/ui/common/inputs/form_scaffold.dart';
+import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
+import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/common/inputs/statement_day_picker.dart';
 
 // MARK: - Visual Constants
@@ -18,13 +21,20 @@ const _fieldContentPadding = EdgeInsets.zero;
 Future<void> showSourceEditFormSheet({
   required BuildContext context,
   required String holderID,
-}) {
-  return showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
+  required ProviderContainer container,
+}) async {
+  AppSheetRoute<void>? route;
+  await showAppSheet<void>(
+    context,
+    presentation: accountSheetPresentation(context),
+    presentationResolver: accountSheetPresentation,
+    onRouteCreated: (createdRoute) => route = createdRoute,
     builder: (_) => SourceEditForm(holderID: holderID),
   );
+  final completedRoute = route;
+  if (completedRoute == null) return;
+  await completedRoute.completed;
+  container.invalidate(sourceEditFormViewModelProvider(holderID));
 }
 
 // MARK: - SourceEditForm
@@ -125,43 +135,43 @@ class _SourceEditFormBody extends StatelessWidget {
       balanceController.text = formState.balanceText;
     }
 
-    return FormScaffold(
-      title: formState.isAccount ? 'Edit Account' : 'Edit Subpocket',
-      canSave: formState.canSave,
-      onSave: viewModel.save,
-      error: ErrorSection(subject: 'account', error: formState.error),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          TextField(
-            controller: nameController,
-            decoration: const InputDecoration(hintText: 'Name'),
-            onChanged: viewModel.setName,
-          ),
-          if (formState.isAccount) ...[
-            const SizedBox(height: _fieldGap),
-            AccountTypePicker(
-              selected: formState.type,
-              onSelected: viewModel.setType,
-            ),
-            if (formState.type == AccountType.card) ...[
-              const SizedBox(height: _fieldGap),
-              StatementDayPicker(
-                selected: formState.statementDay,
-                onSelected: viewModel.setStatementDay,
-              ),
-            ],
-          ],
+    final title = formState.isAccount ? 'Edit Account' : 'Edit Subpocket';
+    final fields = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: nameController,
+          decoration: const InputDecoration(hintText: 'Name'),
+          onChanged: viewModel.setName,
+        ),
+        if (formState.isAccount) ...[
           const SizedBox(height: _fieldGap),
-          AmountField(
-            controller: balanceController,
-            allowsNegative: true,
-            hintText: 'Balance',
-            onChanged: viewModel.setBalance,
+          AccountTypePicker(
+            selected: formState.type,
+            onSelected: viewModel.setType,
+            sheetPresentation: accountSheetPresentation,
           ),
-          if (formState.showsTransferToggle) ...[
+          if (formState.type == AccountType.card) ...[
             const SizedBox(height: _fieldGap),
-            SwitchListTile(
+            StatementDayPicker(
+              selected: formState.statementDay,
+              onSelected: viewModel.setStatementDay,
+              sheetPresentation: accountSheetPresentation,
+            ),
+          ],
+        ],
+        const SizedBox(height: _fieldGap),
+        AmountField(
+          controller: balanceController,
+          allowsNegative: true,
+          hintText: 'Balance',
+          onChanged: viewModel.setBalance,
+        ),
+        if (formState.showsTransferToggle) ...[
+          const SizedBox(height: _fieldGap),
+          Material(
+            type: MaterialType.transparency,
+            child: SwitchListTile(
               contentPadding: _fieldContentPadding,
               title: const Text('Transfers in count as expenses'),
               subtitle: const Text(
@@ -171,16 +181,35 @@ class _SourceEditFormBody extends StatelessWidget {
               value: formState.incomingTransfersAsExpenses,
               onChanged: viewModel.setIncomingTransfersAsExpenses,
             ),
-          ],
-          if (formState.isAccount)
-            SwitchListTile(
+          ),
+        ],
+        if (formState.isAccount)
+          Material(
+            type: MaterialType.transparency,
+            child: SwitchListTile(
               contentPadding: _fieldContentPadding,
               title: const Text('Include in net worth'),
               value: formState.includeInNetWorth,
               onChanged: viewModel.setIncludeInNetWorth,
             ),
-        ],
+          ),
+        ErrorSection(subject: 'account', error: formState.error),
+      ],
+    );
+    final saveButton = SizedBox(
+      width: double.infinity,
+      child: PrimaryButton(
+        label: 'Save',
+        onPressed: formState.canSave ? viewModel.save : null,
       ),
+    );
+
+    return AppSheet(
+      header: AppPickerHeader(title: title),
+      body: fields,
+      footer: saveButton,
+      dragToDismiss: true,
+      variant: AppSheetVariant.form,
     );
   }
 }

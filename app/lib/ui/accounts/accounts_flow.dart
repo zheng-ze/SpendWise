@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -47,9 +49,17 @@ class _AccountsFlowState extends FlowBaseState<AccountsStep, AccountsFlow> {
   void handleStep(BuildContext context, AccountsStep step) {
     switch (step) {
       case AccountFormRequested():
-        showAccountFormSheet(context: context);
+        unawaited(
+          showAccountFormSheet(context: context, container: ref.container),
+        );
       case SourceEditRequested(:final holderId):
-        showSourceEditFormSheet(context: context, holderID: holderId);
+        unawaited(
+          showSourceEditFormSheet(
+            context: context,
+            holderID: holderId,
+            container: ref.container,
+          ),
+        );
       case AccountOpened(:final title, :final scopeIDs):
         _pushTransactions(context, title, scopeIDs);
       case AccountAloneOpened(:final title, :final scopeIDs):

@@ -53,6 +53,7 @@ class SourceEditFormViewState
     bool? incomingTransfersAsExpenses,
     bool? includeInNetWorth,
     bool? showsTransferToggle,
+    Decimal? currentBalance,
     LedgerError? Function()? error,
     AccountsStep? Function()? step,
   }) {
@@ -67,7 +68,7 @@ class SourceEditFormViewState
           incomingTransfersAsExpenses ?? this.incomingTransfersAsExpenses,
       includeInNetWorth: includeInNetWorth ?? this.includeInNetWorth,
       showsTransferToggle: showsTransferToggle ?? this.showsTransferToggle,
-      currentBalance: currentBalance,
+      currentBalance: currentBalance ?? this.currentBalance,
       error: error == null ? this.error : error(),
       step: step == null ? this.step : step(),
     );
@@ -212,8 +213,14 @@ class SourceEditFormNotifier extends AsyncNotifier<SourceEditFormViewState>
       );
       if (adjustment != null) ledger.addEntry(adjustment);
 
+      final savedBalance = _currentBalance(ledger);
       updateState(
-        (s) => s.copyWith(error: () => null, step: () => SourceEditFormSaved()),
+        (s) => s.copyWith(
+          balanceText: formatPlainAmount(savedBalance),
+          currentBalance: savedBalance,
+          error: () => null,
+          step: () => SourceEditFormSaved(),
+        ),
       );
     } on LedgerError catch (error) {
       updateState((s) => s.copyWith(error: () => error));

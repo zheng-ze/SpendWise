@@ -4,11 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/accounts/account_form/account_form_logic.dart';
 import 'package:spendwise/ui/accounts/account_form/account_form_view_model.dart';
+import 'package:spendwise/ui/accounts/account_sheet_presentation.dart';
 import 'package:spendwise/ui/accounts/accounts_steps.dart';
-import 'package:spendwise/ui/common/pickers/account_type_picker.dart';
+import 'package:spendwise/ui/common/buttons/app_buttons.dart';
 import 'package:spendwise/ui/common/inputs/amount_field.dart';
 import 'package:spendwise/ui/common/feedback/error_section.dart';
-import 'package:spendwise/ui/common/inputs/form_scaffold.dart';
+import 'package:spendwise/ui/common/pickers/account_type_picker.dart';
+import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
+import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/common/inputs/statement_day_picker.dart';
 import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
 
@@ -17,13 +20,22 @@ import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
 const _fieldContentPadding = EdgeInsets.zero;
 
 // MARK: - Helpers
-Future<void> showAccountFormSheet({required BuildContext context}) {
-  return showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
+Future<void> showAccountFormSheet({
+  required BuildContext context,
+  required ProviderContainer container,
+}) async {
+  AppSheetRoute<void>? route;
+  await showAppSheet<void>(
+    context,
+    presentation: accountSheetPresentation(context),
+    presentationResolver: accountSheetPresentation,
+    onRouteCreated: (createdRoute) => route = createdRoute,
     builder: (_) => const AccountForm(),
   );
+  final completedRoute = route;
+  if (completedRoute == null) return;
+  await completedRoute.completed;
+  container.invalidate(accountFormViewModelProvider);
 }
 
 // MARK: - AccountForm
@@ -141,70 +153,83 @@ class _AccountFormBody extends StatelessWidget {
       balanceController.text = formState.balanceText;
     }
 
-    return FormScaffold(
-      title: formState.effectiveKind == AccountFormKind.subpocket
-          ? 'New Subpocket'
-          : 'New Account',
-      canSave: formState.canSave,
-      onSave: viewModel.save,
-      error: ErrorSection(subject: 'account', error: formState.error),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          IgnorePointer(
-            ignoring: formState.isLockedToAccount,
-            child: SegmentedButton<AccountFormKind>(
-              segments: const [
-                ButtonSegment(
-                  value: AccountFormKind.account,
-                  label: Text('Account'),
-                ),
-                ButtonSegment(
-                  value: AccountFormKind.subpocket,
-                  label: Text('Subpocket'),
-                ),
-              ],
-              selected: {formState.effectiveKind},
-              onSelectionChanged: formState.isLockedToAccount
-                  ? null
-                  : (selection) => viewModel.setKind(selection.first),
-            ),
-          ),
-          const SizedBox(height: _fieldGap),
-          TextField(
-            controller: nameController,
-            decoration: const InputDecoration(hintText: 'Name'),
-            onChanged: viewModel.setName,
-          ),
-          const SizedBox(height: _fieldGap),
-          if (formState.effectiveKind == AccountFormKind.account) ...[
-            AccountTypePicker(
-              selected: formState.type,
-              onSelected: viewModel.setType,
-            ),
-            if (formState.type == AccountType.card) ...[
-              const SizedBox(height: _fieldGap),
-              StatementDayPicker(
-                selected: formState.statementDay,
-                onSelected: viewModel.setStatementDay,
+    final title = formState.effectiveKind == AccountFormKind.subpocket
+        ? 'New Subpocket'
+        : 'New Account';
+    final fields = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        IgnorePointer(
+          ignoring: formState.isLockedToAccount,
+          child: SegmentedButton<AccountFormKind>(
+            segments: const [
+              ButtonSegment(
+                value: AccountFormKind.account,
+                label: Text('Account'),
+              ),
+              ButtonSegment(
+                value: AccountFormKind.subpocket,
+                label: Text('Subpocket'),
               ),
             ],
+            selected: {formState.effectiveKind},
+            onSelectionChanged: formState.isLockedToAccount
+                ? null
+                : (selection) => viewModel.setKind(selection.first),
+          ),
+        ),
+        const SizedBox(height: _fieldGap),
+        TextField(
+          controller: nameController,
+          decoration: const InputDecoration(hintText: 'Name'),
+          onChanged: viewModel.setName,
+        ),
+        const SizedBox(height: _fieldGap),
+        if (formState.effectiveKind == AccountFormKind.account) ...[
+          AccountTypePicker(
+            selected: formState.type,
+            onSelected: viewModel.setType,
+            sheetPresentation: accountSheetPresentation,
+          ),
+          if (formState.type == AccountType.card) ...[
             const SizedBox(height: _fieldGap),
-            AmountField(
-              controller: balanceController,
-              allowsNegative: true,
-              hintText: 'Opening balance',
-              onChanged: viewModel.setBalance,
+            StatementDayPicker(
+              selected: formState.statementDay,
+              onSelected: viewModel.setStatementDay,
+              sheetPresentation: accountSheetPresentation,
             ),
-          ] else
-            ListTile(
-              contentPadding: _fieldContentPadding,
-              title: const Text('Account'),
-              trailing: Text(_parentLabel() ?? 'Select'),
-              onTap: viewModel.requestPickParent,
-            ),
-        ],
+          ],
+          const SizedBox(height: _fieldGap),
+          AmountField(
+            controller: balanceController,
+            allowsNegative: true,
+            hintText: 'Opening balance',
+            onChanged: viewModel.setBalance,
+          ),
+        ] else
+          ListTile(
+            contentPadding: _fieldContentPadding,
+            title: const Text('Account'),
+            trailing: Text(_parentLabel() ?? 'Select'),
+            onTap: viewModel.requestPickParent,
+          ),
+        ErrorSection(subject: 'account', error: formState.error),
+      ],
+    );
+    final saveButton = SizedBox(
+      width: double.infinity,
+      child: PrimaryButton(
+        label: 'Save',
+        onPressed: formState.canSave ? viewModel.save : null,
       ),
+    );
+
+    return AppSheet(
+      header: AppPickerHeader(title: title),
+      body: fields,
+      footer: saveButton,
+      dragToDismiss: true,
+      variant: AppSheetVariant.form,
     );
   }
 

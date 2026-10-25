@@ -10,21 +10,40 @@ import '../../../support/ui_test_timeout.dart';
 
 void main() {
   Decimal dec(String value) => Decimal.parse(value);
+  const openFormKey = ValueKey('open-source-edit-form');
 
-  Future<void> pumpForm(
+  Future<ProviderContainer> pumpForm(
     WidgetTester tester,
     Ledger ledger,
     String holderID,
   ) async {
+    final container = ProviderContainer(
+      overrides: [ledgerProvider.overrideWithValue(ledger)],
+    );
+    addTearDown(container.dispose);
     await tester.pumpWidget(
-      ProviderScope(
-        overrides: [ledgerProvider.overrideWithValue(ledger)],
+      UncontrolledProviderScope(
+        container: container,
         child: MaterialApp(
-          home: Scaffold(body: SourceEditForm(holderID: holderID)),
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                key: openFormKey,
+                onPressed: () => showSourceEditFormSheet(
+                  context: context,
+                  holderID: holderID,
+                  container: container,
+                ),
+                child: const Text('Open edit form'),
+              ),
+            ),
+          ),
         ),
       ),
     );
-    await tester.pump();
+    await tester.tap(find.byKey(openFormKey));
+    await tester.pumpAndSettle();
+    return container;
   }
 
   testWidgets('saving with an unchanged balance posts no entry', (
@@ -93,6 +112,58 @@ void main() {
     expect(posted.includeInAnalysis, isFalse);
     expect(posted.sourceID, account.id);
   }, timeout: uiTestTimeout);
+
+  testWidgets(
+    'reopening after a balance save uses the saved balance and name',
+    (tester) async {
+      final account = Account(
+        id: 'a0000000-0000-0000-0000-000000000001',
+        name: 'Wallet',
+        type: AccountType.cash,
+      );
+      final ledger = Ledger(
+        state: LedgerState(
+          moneySources: {account.id: MoneySource.account(account)},
+          entries: {
+            'e0000000-0000-0000-0000-000000000001': Entry(
+              id: 'e0000000-0000-0000-0000-000000000001',
+              amount: dec('100'),
+              name: 'Opening balance',
+              sourceID: account.id,
+              includeInAnalysis: false,
+            ),
+          },
+        ),
+      );
+      await pumpForm(tester, ledger, account.id);
+
+      await tester.enterText(find.byType(TextField).at(1), '150.00');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(openFormKey));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TextField).at(0), findsOneWidget);
+      expect(
+        tester.widget<TextField>(find.byType(TextField).at(0)).controller?.text,
+        'Wallet',
+      );
+      expect(
+        tester.widget<TextField>(find.byType(TextField).at(1)).controller?.text,
+        '150.00',
+      );
+      await tester.enterText(find.byType(TextField).at(0), 'Daily wallet');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(ledger.state.entries, hasLength(2));
+      final adjustment = ledger.state.entries.values.last;
+      expect(adjustment.amount, dec('50'));
+      expect(adjustment.includeInAnalysis, isFalse);
+      expect(ledger.state.activeAccounts.single.name, 'Daily wallet');
+    },
+    timeout: uiTestTimeout,
+  );
 
   testWidgets('lowering the balance posts a negative adjustment entry', (
     tester,
