@@ -1,6 +1,6 @@
 # Transactions UI
 
-Last reconciled: 2026-10-24
+Last reconciled: 2026-10-25
 
 ## Feature overview
 
@@ -14,6 +14,9 @@ and is the only place recurring plans are created.
 
 - `app/lib/ui/transactions/transactions_view_model.dart` — screen state (`selectedDate`, `mode`,
   optional source scope); derived lists are pure functions of `(LedgerState, params)`.
+- `app/lib/ui/transactions/top_categories_view_model.dart` and
+  `top_categories_view_state.dart` — the History top-categories period key, immutable projection,
+  state variants and Retry interface; the card widget and History placement are separate.
 - `app/lib/ui/transactions/daily_list/` and `app/lib/ui/transactions/monthly/` — the day-sectioned
   list and the month/week breakdown views.
 - `app/lib/ui/transactions/entry/` — the entry form sheet.
@@ -60,6 +63,18 @@ same month when category inclusion gates exclude entries from analysis
 (`packages/domain/lib/src/accounting.dart:Accounting.resolveCategory`). Treat-as-expense transfers
 contribute equally to both expense totals, as covered by
 `app/test/ui/transactions_stats_totals_parity_test.dart`.
+
+The History top-categories ViewModel keys by the named UTC calendar month in Daily mode or calendar
+year in Monthly mode, including mode in family identity. It reads the expense/category
+`AnalysisQueries.readCategoryBreakdown` and `readRegisterDays` over the same half-open window. Query
+failure takes precedence over retained values and stale revisions; pending, missing or mismatched
+revisions expose loading. A confirmed empty register or coherent zero-spend empty breakdown exposes
+compact state. Ready state keeps the breakdown's full total and the first three query-ranked rows,
+including their unchanged whole-window shares, which may sum below 100 percent. Saved category
+metadata comes from the current ready Ledger; the shared bucket-name, color and symbol helpers
+resolve synthetic, uncategorized, unresolved and malformed metadata fallbacks. Retry delegates to
+`AnalysisQueries.retry()` while the family is mounted
+(`top_categories_view_model.dart`, `top_categories_view_state.dart`).
 
 ## Navigation
 
