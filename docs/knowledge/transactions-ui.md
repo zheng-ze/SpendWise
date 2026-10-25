@@ -17,7 +17,9 @@ account-scoped with a custom title and source filter. The entry form creates, vi
   `top_categories_view_state.dart` — the History top-categories period key, immutable projection,
   state variants and Retry interface; the card widget and History placement are separate.
 - `app/lib/ui/transactions/daily_list/daily_transactions_screen.dart` - History-local heading,
-  month controls, responsive totals band and day-sectioned register host.
+  month controls and day-sectioned register host.
+- `app/lib/ui/transactions/daily_list/transactions_summary.dart` - `TransactionsSummary`, the
+  state-free responsive Net/Spent/Income band shared by unscoped History and scoped Money routes.
 - `app/lib/ui/transactions/monthly/month_summaries.dart` — shared month/week projection helper;
   it remains available to other consumers although Transactions no longer presents that view.
 - `app/lib/ui/transactions/entry/` — the entry form sheet.
@@ -107,14 +109,16 @@ plain back control.
 
 ## Screens and flows
 
-The screen owns its heading, period controls and Net/Spent/Income band locally; shared
-`MonthYearSelector` and `ColumnText` remain separate components. The default title is History;
-scoped instances retain their custom title, filter and Back control. The band reads the existing
-register totals. Phone places Net above Spent and Income; open and desktop place all three in a
-row when the measured, text-scaled values fit. Narrow widths stack supporting values, and each
+The screen owns its heading and period controls; `TransactionsSummary` owns the state-free
+Net/Spent/Income presentation. The shared `MonthYearSelector` and `ColumnText` remain separate
+components. The default title is History; scoped instances retain their custom title, filter and
+Back control. The screen passes the existing register totals and shell composition mode into
+`TransactionsSummary`. Phone places Net above Spent and Income; open and desktop place all three in
+a row when the measured, text-scaled values fit. Narrow widths stack supporting values, and each
 amount can scroll horizontally. The header can scroll within half the available height to preserve
 register space. The screen applies top and side `SafeArea` insets with `bottom: false`.
-(`app/lib/ui/transactions/daily_list/daily_transactions_screen.dart`)
+(`app/lib/ui/transactions/daily_list/daily_transactions_screen.dart`,
+`app/lib/ui/transactions/daily_list/transactions_summary.dart`)
 
 - **Daily view** — day-sectioned list. `daySections` is a pure function: scope to touched entries,
   resolve each to a `TransactionRow`, filter to the half-open interval, group by `startOfDay(date)`,
