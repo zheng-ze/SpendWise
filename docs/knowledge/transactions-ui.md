@@ -16,7 +16,8 @@ account-scoped with a custom title and source filter. The entry form creates, vi
 - `app/lib/ui/transactions/top_categories_view_model.dart` and
   `top_categories_view_state.dart` — the History top-categories period key, immutable projection,
   state variants and Retry interface; the card widget and History placement are separate.
-- `app/lib/ui/transactions/daily_list/` — the day-sectioned register.
+- `app/lib/ui/transactions/daily_list/daily_transactions_screen.dart` - History-local heading,
+  month controls, responsive totals band and day-sectioned register host.
 - `app/lib/ui/transactions/monthly/month_summaries.dart` — shared month/week projection helper;
   it remains available to other consumers although Transactions no longer presents that view.
 - `app/lib/ui/transactions/entry/` — the entry form sheet.
@@ -46,7 +47,7 @@ account-scoped with a custom title and source filter. The entry form creates, vi
   persists.
 - `app/lib/ui/transactions/trends_detail_action.dart` - 'See more detail', a muted trailing text
   action with chevron and a 48 dp invisible hit height (`trendsDetailActionHitHeight`), rendered
-  below the totals bar in unscoped History only, including empty months.
+  below the totals band in unscoped History only, including empty months.
 - `app/lib/ui/common/navigation/labelled_back_button.dart` - the back control with an optional
   accessible label, shared by `TransactionsScreen` and `TrendsScreen`.
 - `app/lib/ui/common/lists/day_sectioned_entry_list.dart`, `form_scaffold.dart`,
@@ -105,6 +106,15 @@ inner child routes pop first — and only changes its accessible label; unlabell
 plain back control.
 
 ## Screens and flows
+
+The screen owns its heading, period controls and Net/Spent/Income band locally; shared
+`MonthYearSelector` and `ColumnText` remain separate components. The default title is History;
+scoped instances retain their custom title, filter and Back control. The band reads the existing
+register totals. Phone places Net above Spent and Income; open and desktop place all three in a
+row when the measured, text-scaled values fit. Narrow widths stack supporting values, and each
+amount can scroll horizontally. The header can scroll within half the available height to preserve
+register space. The screen applies top and side `SafeArea` insets with `bottom: false`.
+(`app/lib/ui/transactions/daily_list/daily_transactions_screen.dart`)
 
 - **Daily view** — day-sectioned list. `daySections` is a pure function: scope to touched entries,
   resolve each to a `TransactionRow`, filter to the half-open interval, group by `startOfDay(date)`,
@@ -250,6 +260,11 @@ and focus node beside Name's; Note focus alone does not change the phone sheet h
 
 - Screen state (`selectedDate`, scope) lives in a provider, not a widget. The register has no
   Daily/Monthly selector; month summaries remain a shared helper for other consumers.
+- `TransactionsViewModel.previousMonth` and `nextMonth` select UTC day 1 of the adjacent calendar
+  month, including year rollover, then rebuild the same scoped register and totals. The commands
+  leave source scope and custom titles intact.
+  (`app/lib/ui/transactions/transactions_view_model.dart`,
+  `app/test/ui/transactions/transactions_view_model_test.dart`)
 - `daySections`, `TransactionRow.resolve`, and `monthSummaries` are pure functions.
 - Interval filters are half-open `[start, end)` everywhere.
 - Saving a new entry with recurrence creates a plan with `lastResolvedDate = date − 1 s` and resolves
