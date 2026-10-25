@@ -3,11 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:spendwise/boot/money_navigation_provider.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/accounts/accounts_flow.dart';
 import 'package:spendwise/ui/accounts/accounts_screen.dart';
 import 'package:spendwise/ui/accounts/accounts_view_model.dart';
+import 'package:spendwise/ui/accounts/money_navigation.dart';
+import 'package:spendwise/ui/money/money_flow.dart';
 
 import '../../support/ui_test_timeout.dart';
 
@@ -60,4 +63,63 @@ void main() {
 
     expect(find.byType(AccountsScreen), findsOneWidget);
   }, timeout: uiTestTimeout);
+
+  testWidgets(
+    'scoped Transactions fills Money content and Back restores Accounts state',
+    (tester) async {
+      final ledger = buildLedger();
+      final observer = MoneyNavigatorObserver();
+      final container = ProviderContainer(
+        overrides: [
+          ledgerProvider.overrideWithValue(ledger),
+          moneyNavigatorObserverProvider.overrideWithValue(observer),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(home: MoneyFlow(moneyObserver: observer)),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(find.text('Money'), findsOneWidget);
+      expect(find.text('Budgets'), findsOneWidget);
+      expect(find.text('Accounts'), findsOneWidget);
+      expect(find.text('Plans'), findsOneWidget);
+
+      container
+          .read(accountsViewModelProvider.notifier)
+          .toggleExpanded(checking.id);
+      container
+          .read(accountsViewModelProvider.notifier)
+          .openAccount(checking.id);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(find.text('Money'), findsNothing);
+      expect(find.text('Budgets'), findsNothing);
+      expect(find.text('Accounts'), findsNothing);
+      expect(find.text('Plans'), findsNothing);
+      expect(find.text('Main Checking'), findsOneWidget);
+      expect(find.byTooltip('Back'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Back'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(find.text('Money'), findsOneWidget);
+      expect(find.text('Accounts'), findsOneWidget);
+      expect(find.byType(AccountsScreen), findsOneWidget);
+      expect(container.read(moneySegmentProvider), MoneySegment.accounts);
+      expect(
+        container.read(accountsViewModelProvider).value?.expandedAccountId,
+        checking.id,
+      );
+    },
+    timeout: uiTestTimeout,
+  );
 }

@@ -50,6 +50,36 @@ class MoneyFlow extends ConsumerStatefulWidget {
 
 class _MoneyFlowState extends ConsumerState<MoneyFlow> {
   final _visited = <MoneySegment>{MoneySegment.budgets};
+  bool _routeRebuildScheduled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.moneyObserver.addListener(_onMoneyRouteChanged);
+  }
+
+  @override
+  void didUpdateWidget(covariant MoneyFlow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.moneyObserver == widget.moneyObserver) return;
+    oldWidget.moneyObserver.removeListener(_onMoneyRouteChanged);
+    widget.moneyObserver.addListener(_onMoneyRouteChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.moneyObserver.removeListener(_onMoneyRouteChanged);
+    super.dispose();
+  }
+
+  void _onMoneyRouteChanged() {
+    if (_routeRebuildScheduled) return;
+    _routeRebuildScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _routeRebuildScheduled = false;
+      if (mounted) setState(() {});
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -74,7 +104,8 @@ class _MoneyFlowState extends ConsumerState<MoneyFlow> {
     final stack = IndexedStack(index: segment.index, children: children);
     final body = Column(
       children: [
-        _MoneyHeader(segment: segment),
+        if (!widget.moneyObserver.hasScopedTransactionsRoute)
+          _MoneyHeader(segment: segment),
         Expanded(child: stack),
       ],
     );
