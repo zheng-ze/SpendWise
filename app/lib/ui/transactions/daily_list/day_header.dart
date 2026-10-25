@@ -125,23 +125,26 @@ class _RegisterDayHeader extends StatelessWidget {
       ),
     );
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: _pageInset),
-      child: Container(
-        height: registerDayHeaderHeight,
-        decoration: decoration,
-        padding: const EdgeInsetsDirectional.fromSTEB(
-          _horizontalInset,
-          _topInset,
-          _horizontalInset,
-          _bottomInset,
-        ),
-        child: Row(
-          children: [
-            Expanded(child: date),
-            const SizedBox(width: _labelGap),
-            amount,
-          ],
+    return ColoredBox(
+      color: colors.base,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: _pageInset),
+        child: Container(
+          height: registerDayHeaderHeight,
+          decoration: decoration,
+          padding: const EdgeInsetsDirectional.fromSTEB(
+            _horizontalInset,
+            _topInset,
+            _horizontalInset,
+            _bottomInset,
+          ),
+          child: Row(
+            children: [
+              Expanded(child: date),
+              const SizedBox(width: _labelGap),
+              amount,
+            ],
+          ),
         ),
       ),
     );
