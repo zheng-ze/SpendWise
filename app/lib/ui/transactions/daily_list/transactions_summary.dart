@@ -204,15 +204,18 @@ Widget _totalsContent(
       children: children,
     );
   }
+  final supportingMetrics = metrics.skip(1).toList();
+  final supportingWidths = widths.skip(1).toList();
+  final supportingRow = Row(
+    crossAxisAlignment: CrossAxisAlignment.end,
+    children: _metricRow(supportingMetrics, supportingWidths),
+  );
   return Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       _SummaryMetric(metric: metrics.first),
       SizedBox(height: _summaryStackGap),
-      Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: _metricRow(metrics.skip(1).toList(), widths.skip(1).toList()),
-      ),
+      supportingRow,
     ],
   );
 }
