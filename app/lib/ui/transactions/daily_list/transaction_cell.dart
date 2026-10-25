@@ -126,7 +126,6 @@ class _RegisterTransactionCell extends StatelessWidget {
         : '${row.title} / ${row.accountLine}';
     final border = BorderSide(color: colors.edge, width: _rowBorderWidth);
     final decoration = BoxDecoration(
-      color: colors.surface,
       border: Border(left: border, right: border, bottom: border),
       borderRadius: isLastInDay
           ? const BorderRadius.vertical(
@@ -172,8 +171,7 @@ class _RegisterTransactionCell extends StatelessWidget {
         color: AmountStyle.of(context, kind: row.amountKind).color,
       ),
     );
-    final content = Container(
-      margin: const EdgeInsetsDirectional.symmetric(horizontal: _rowMargin),
+    final content = Ink(
       decoration: decoration,
       child: Padding(
         padding: const EdgeInsets.symmetric(
@@ -192,6 +190,18 @@ class _RegisterTransactionCell extends StatelessWidget {
       ),
     );
 
-    return InkWell(onTap: onTap, child: content);
+    return Padding(
+      padding: const EdgeInsetsDirectional.symmetric(horizontal: _rowMargin),
+      child: Material(
+        color: colors.surface,
+        borderRadius: decoration.borderRadius,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          highlightColor: colors.tint,
+          child: content,
+        ),
+      ),
+    );
   }
 }
