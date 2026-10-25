@@ -70,7 +70,7 @@ void main() {
     'expansion is single-open, opening a second collapses the first',
     (tester) async {
       final ledger = buildLedger();
-      await pumpScreen(tester, ledger);
+      final container = await pumpScreen(tester, ledger);
       await tester.pumpAndSettle();
 
       expect(find.text('Rent'), findsNothing);
@@ -80,6 +80,10 @@ void main() {
 
       expect(find.text('Rent'), findsOneWidget);
       expect(find.text('Excluding subpockets'), findsOneWidget);
+      expect(
+        container.read(accountsViewModelProvider).value?.selectedDetail,
+        isNull,
+      );
 
       await tester.tap(find.byIcon(Icons.expand_more));
       await tester.pumpAndSettle();

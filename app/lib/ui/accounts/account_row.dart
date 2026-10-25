@@ -89,7 +89,6 @@ class _AccountRowBody extends StatelessWidget {
   final VoidCallback? onToggleExpanded;
   final VoidCallback onTap;
 
-  static const _expandControlWidth = 40.0;
   static const _rowHorizontalPadding = 8.0;
   static const _rowVerticalPadding = 10.0;
   static const _medallionSize = 32.0;
@@ -102,15 +101,20 @@ class _AccountRowBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    final expandControl = SizedBox(
-      width: _expandControlWidth,
-      child: onToggleExpanded == null
-          ? null
-          : IconButton(
-              icon: Icon(expanded ? Icons.expand_more : Icons.chevron_right),
-              onPressed: onToggleExpanded,
+    final textDirection = Directionality.of(context);
+    final expandControl = onToggleExpanded == null
+        ? null
+        : IconButton(
+            tooltip: expanded ? 'Collapse pockets' : 'Expand pockets',
+            icon: Icon(
+              expanded
+                  ? Icons.expand_more
+                  : textDirection == TextDirection.rtl
+                  ? Icons.chevron_left
+                  : Icons.chevron_right,
             ),
-    );
+            onPressed: onToggleExpanded,
+          );
     final medallion = Container(
       width: _medallionSize,
       height: _medallionSize,
@@ -167,11 +171,11 @@ class _AccountRowBody extends StatelessWidget {
     };
     final rowContent = Row(
       children: [
-        expandControl,
         medallion,
         const SizedBox(width: _medallionTextGap),
         title,
         amount,
+        ?expandControl,
       ],
     );
     final padded = Padding(

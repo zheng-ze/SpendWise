@@ -194,6 +194,49 @@ void main() {
     expect(find.text('S\$50.00'), findsNothing);
   }, timeout: uiTestTimeout);
 
+  testWidgets(
+    'pocket disclosure remains an accessible action separate from row tap in RTL',
+    (tester) async {
+      var toggles = 0;
+      var detailOpens = 0;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Directionality(
+            textDirection: TextDirection.rtl,
+            child: Scaffold(
+              body: AccountRowTile(
+                row: rowWithPocket,
+                expanded: false,
+                onToggleExpanded: () => toggles++,
+                onTap: () => detailOpens++,
+                onAccountDeleted: () {},
+                onAccountEdit: () {},
+                onOpenAccountAlone: () {},
+                onOpenPocket: (_) {},
+                onPocketDeleted: (_) {},
+                onPocketEdit: (_) {},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final expandButton = find.byTooltip('Expand pockets');
+      expect(expandButton, findsOneWidget);
+      await tester.tap(expandButton);
+
+      expect(toggles, 1);
+      expect(detailOpens, 0);
+
+      await tester.tap(find.text('Wallet'));
+
+      expect(detailOpens, 1);
+      expect(toggles, 1);
+    },
+    timeout: uiTestTimeout,
+  );
+
   testWidgets('account Edit semantic action invokes edit without dismissing', (
     tester,
   ) async {
