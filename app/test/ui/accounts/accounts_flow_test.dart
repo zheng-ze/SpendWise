@@ -15,6 +15,7 @@ import 'package:spendwise/ui/common/lists/summary_band.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/money/money_flow.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
+import 'package:spendwise/ui/shell/open_rail.dart';
 import 'package:spendwise/ui/shell/shell_binding.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
@@ -134,6 +135,77 @@ void main() {
         container.read(accountsViewModelProvider).value?.expandedAccountId,
         checking.id,
       );
+    },
+    timeout: uiTestTimeout,
+  );
+
+  testWidgets(
+    'scoped Transactions route survives Add presentation changes and Back',
+    (tester) async {
+      tester.view.physicalSize = const Size(1024, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final observer = MoneyNavigatorObserver();
+      late ProviderContainer container;
+      container = ProviderContainer(
+        overrides: [
+          ledgerProvider.overrideWithValue(buildLedger()),
+          shellLayoutModeProvider.overrideWithValue(ShellLayoutMode.open),
+          moneyNavigatorObserverProvider.overrideWithValue(observer),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.read(selectedDestinationProvider.notifier).state =
+          ShellDestination.money;
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: ShellLayoutModeScope(
+            mode: ShellLayoutMode.open,
+            child: MaterialApp(
+              home: AppShell(
+                moneySourceId: container.read(activeMoneySourceProvider),
+                bodies: {
+                  ShellDestination.money: (_) =>
+                      MoneyFlow(moneyObserver: observer),
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      await tester.tap(find.text('Main Checking'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.text('Main Checking'), findsOneWidget);
+      expect(observer.sourceId, checking.id);
+
+      await tester.tap(find.text('Add'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.byType(AppSheet), findsOneWidget);
+
+      await tester.tap(
+        find.descendant(
+          of: find.byKey(openRailKey),
+          matching: find.text('History'),
+        ),
+        warnIfMissed: false,
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.byType(AppSheet), findsNothing);
+      expect(find.text('Main Checking'), findsOneWidget);
+      expect(observer.sourceId, checking.id);
+
+      await tester.tap(find.byTooltip('Back'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.byType(AccountsScreen), findsOneWidget);
     },
     timeout: uiTestTimeout,
   );

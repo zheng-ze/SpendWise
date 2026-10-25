@@ -152,10 +152,20 @@ class _AccountSection extends StatelessWidget {
     final header = _SectionHeader(section: section);
     return Padding(
       padding: const EdgeInsets.only(bottom: _sectionBottomSpacing),
-      child: Tray(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [header, ...rows],
+      child: Material(
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Tray.cornerRadius),
+        ),
+        child: Ink(
+          decoration: Tray.decoration(context),
+          child: Padding(
+            padding: const EdgeInsets.all(Tray.contentPadding),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [header, ...rows],
+            ),
+          ),
         ),
       ),
     );

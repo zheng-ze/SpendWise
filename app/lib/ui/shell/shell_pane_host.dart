@@ -121,14 +121,11 @@ class ShellPaneHost extends StatelessWidget {
             : ShellPagePresentation.fullPage;
 
         final pageContent = pageBuilder(context, presentation);
-        final pageForPresentation =
-            presentation == ShellPagePresentation.singleColumn
-            ? MediaQuery.removePadding(
-                context: context,
-                removeRight: true,
-                child: pageContent,
-              )
-            : pageContent;
+        final pageForPresentation = MediaQuery.removePadding(
+          context: context,
+          removeRight: presentation == ShellPagePresentation.singleColumn,
+          child: pageContent,
+        );
         final page = Align(
           key: _pageSlotKey,
           alignment: Alignment.topLeft,
