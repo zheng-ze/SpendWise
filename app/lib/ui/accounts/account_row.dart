@@ -216,34 +216,35 @@ class _SubRow extends StatelessWidget {
   final VoidCallback onTap;
 
   static const _subRowLeftInset = 48.0;
-  static const _subRowEdgePadding = 8.0;
+  static const _subRowVerticalPadding = 10.0;
+  static const _subRowRightPadding = 8.0;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Material(
-      color: theme.colorScheme.surfaceContainerHighest,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            _subRowLeftInset,
-            _subRowEdgePadding,
-            _subRowEdgePadding,
-            _subRowEdgePadding,
-          ),
-          child: Row(
-            children: [
-              Expanded(child: Text(title, style: theme.textTheme.bodyMedium)),
-              Text(
-                formatMoney(amount, symbol: false),
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: AmountStyle.of(context, signedValue: amount).color,
-                ),
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: context.colors.edge)),
+        ),
+        padding: const EdgeInsets.fromLTRB(
+          _subRowLeftInset,
+          _subRowVerticalPadding,
+          _subRowRightPadding,
+          _subRowVerticalPadding,
+        ),
+        child: Row(
+          children: [
+            Expanded(child: Text(title, style: theme.textTheme.bodyMedium)),
+            Text(
+              formatMoney(amount, symbol: false),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: AmountStyle.of(context, signedValue: amount).color,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
