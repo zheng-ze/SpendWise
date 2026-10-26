@@ -13,10 +13,11 @@ import 'package:spendwise/ui/accounts/accounts_screen.dart';
 import 'package:spendwise/ui/accounts/accounts_view_model.dart';
 import 'package:spendwise/ui/accounts/money_navigation.dart';
 import 'package:spendwise/ui/common/inputs/segmented_control.dart';
-import 'package:spendwise/ui/common/lists/summary_band.dart';
+import 'package:spendwise/ui/common/lists/responsive_summary_card.dart';
 import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
+import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/money/money_flow.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/shell_binding.dart';
@@ -24,6 +25,42 @@ import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
 import '../../support/ui_test_timeout.dart';
+
+void expectAccountsSummaryConfiguration(
+  WidgetTester tester,
+  ProviderContainer container, {
+  required bool wideComposition,
+}) {
+  final netWorth = container.read(accountsViewModelProvider).value!.netWorth;
+  final summary = tester.widget<ResponsiveSummaryCard>(
+    find.descendant(
+      of: find.byType(AccountsScreen),
+      matching: find.byType(ResponsiveSummaryCard),
+    ),
+  );
+
+  expect(summary.metrics.map((metric) => metric.label).toList(), [
+    'Net worth',
+    'Assets',
+    'Owed',
+  ]);
+  expect(summary.metrics.map((metric) => metric.amount).toList(), [
+    netWorth.asset - netWorth.liability,
+    netWorth.asset,
+    netWorth.liability,
+  ]);
+  expect(summary.metrics.map((metric) => metric.kind).toList(), [
+    null,
+    null,
+    AmountKind.expense,
+  ]);
+  expect(summary.metrics.map((metric) => metric.emphasis).toList(), [
+    SummaryMetricEmphasis.primary,
+    SummaryMetricEmphasis.supporting,
+    SummaryMetricEmphasis.supporting,
+  ]);
+  expect(summary.wideComposition, wideComposition);
+}
 
 void main() {
   final checking = Account(
@@ -314,9 +351,10 @@ void main() {
             .addPresented,
         isTrue,
       );
-      expect(
-        tester.widget<SummaryBand>(find.byType(SummaryBand).first).compact,
-        isFalse,
+      expectAccountsSummaryConfiguration(
+        tester,
+        container,
+        wideComposition: false,
       );
       expect(
         tester
@@ -394,9 +432,10 @@ void main() {
     expect(find.byType(AppSheet), findsOneWidget);
     expect(find.text('New Account'), findsOneWidget);
     expect(container.read(accountSheetPresentedProvider), isTrue);
-    expect(
-      tester.widget<SummaryBand>(find.byType(SummaryBand).first).compact,
-      isFalse,
+    expectAccountsSummaryConfiguration(
+      tester,
+      container,
+      wideComposition: true,
     );
     expect(
       tester

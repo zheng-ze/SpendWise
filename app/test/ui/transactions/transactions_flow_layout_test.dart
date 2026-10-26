@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ui/common/lists/responsive_summary_card.dart';
+import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/transactions/daily_list/transactions_summary.dart';
@@ -49,7 +51,22 @@ void main() {
       final summary = tester.widget<TransactionsSummary>(
         find.byType(TransactionsSummary),
       );
+      final card = tester.widget<ResponsiveSummaryCard>(
+        find.byType(ResponsiveSummaryCard),
+      );
       expect(summary.wideComposition, isFalse);
+      expect(card.metrics.map((metric) => metric.label).toList(), [
+        'Net',
+        'Spent',
+        'Income',
+      ]);
+      expect(card.metrics.map((metric) => metric.kind).toList(), [
+        null,
+        AmountKind.expense,
+        AmountKind.income,
+      ]);
+      expect(card.metrics.first.emphasis, SummaryMetricEmphasis.primary);
+      expect(card.wideComposition, isFalse);
       expect(find.text('Net'), findsOneWidget);
       expect(find.text('Spent'), findsOneWidget);
       expect(find.text('Income'), findsOneWidget);

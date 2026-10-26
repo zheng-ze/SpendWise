@@ -4,11 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/ui/accounts/account_row.dart';
 import 'package:spendwise/ui/accounts/account_sections.dart';
 import 'package:spendwise/ui/accounts/accounts_view_model.dart';
-import 'package:spendwise/ui/common/lists/summary_band.dart';
+import 'package:spendwise/ui/common/lists/responsive_summary_card.dart';
 import 'package:spendwise/ui/common/sheets/tray.dart';
 import 'package:spendwise/ui/format/account_type_format.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
+import 'package:spendwise/ui/shell/shell_pane_host.dart';
+import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 class AccountsScreen extends ConsumerWidget {
@@ -59,25 +61,28 @@ class _AccountsList extends StatelessWidget {
   static const _sectionGap = 10.0;
   static const _emptyTopPadding = 28.0;
   static const _emptyTextSize = 14.0;
-  static const _compactSummaryMaxWidth = 360.0;
-
   @override
   Widget build(BuildContext context) {
     final netWorth = viewState.netWorth;
-    final summary = LayoutBuilder(
-      builder: (context, constraints) => SummaryBand(
-        leadLabel: 'Net worth',
-        leadAmount: netWorth.asset - netWorth.liability,
-        compact: constraints.maxWidth <= _compactSummaryMaxWidth,
-        cells: [
-          SummaryBandCell(label: 'Assets', amount: netWorth.asset),
-          SummaryBandCell(
-            label: 'Owed',
-            amount: netWorth.liability,
-            kind: AmountKind.expense,
-          ),
-        ],
-      ),
+    final pane = ShellPaneScope.maybeOf(context);
+    final wideComposition =
+        pane?.mode == ShellLayoutMode.desktop ||
+        (pane?.mode == ShellLayoutMode.open && pane?.addPresented == false);
+    final summary = ResponsiveSummaryCard(
+      metrics: [
+        SummaryMetric(
+          label: 'Net worth',
+          amount: netWorth.asset - netWorth.liability,
+          emphasis: SummaryMetricEmphasis.primary,
+        ),
+        SummaryMetric(label: 'Assets', amount: netWorth.asset),
+        SummaryMetric(
+          label: 'Owed',
+          amount: netWorth.liability,
+          kind: AmountKind.expense,
+        ),
+      ],
+      wideComposition: wideComposition,
     );
     final sections = [
       for (final section in viewState.sections)

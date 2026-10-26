@@ -69,9 +69,10 @@ stack. The boot-created observer remains attached to that same Accounts navigato
 ## Screens and flows
 
 - **Accounts root** - no header row (the Money header owns the title and the `+` that opens the account
-  form); a summary bar (Assets income token /
-  Liabilities expense token / Total = assets − liabilities from
-  `netWorth`), and a grouped list. Sections group active accounts by `AccountType` in the fixed enum
+  form); a responsive three-metric summary card matching History (`Net worth`, `Assets`, `Owed`),
+  configured from `netWorth` with income/expense amount styling; and a grouped list. The shared card
+  measures the metrics and uses History's responsive composition in constrained panes.
+  Sections group active accounts by `AccountType` in the fixed enum
   order Cash, Checking, Savings, Cards, Prepaid, Investment, Insurance, Other, skipping empty types.
   Non-card rows show `accountTotal`; card rows show payable (`max(0, −accountTotal)`) and outstanding
   (negated negative non-transfer entries since the statement cut). Expanding one account shows an
