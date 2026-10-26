@@ -251,7 +251,7 @@ class _BudgetCardLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (columns == _singleColumn) {
+    if (columns == _singleColumn || children.length == 1) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: children,
