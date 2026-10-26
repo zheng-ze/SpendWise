@@ -87,7 +87,9 @@ stack. The boot-created observer remains attached to that same Accounts navigato
   optional opening balance.
   Subpocket mode: name, parent account picker presented by `AppPickerSheet` with the live Accounts
   sheet presentation; choosing a parent updates the form and dismissing the picker keeps its current
-  selection. Save: `addAccount` (statement day only for cards),
+  selection. Apply an async picker result only while the originating form route is active and its
+  transition is complete. `AppPickerSheet` supplies picker bodies with a transparent `Material`
+  ancestor. Save: `addAccount` (statement day only for cards),
   then `setOpeningBalance` if the balance ≠ 0 (posts the synthetic excluded opening-balance entry);
   Subpocket: `addPocket`.
 - **Source edit form** — reached from an account-header or pocket-row Edit action. Name; for
