@@ -1,74 +1,98 @@
-import 'dart:async';
-
 import 'package:domain/domain.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import 'package:spendwise/settings/display_preferences.dart';
+import 'package:spendwise/settings/display_preferences_providers.dart';
+import 'package:spendwise/ui/format/money_format.dart';
 
-import 'package:spendwise/ledger/analysis_cache.dart';
-import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/boot/providers.dart';
+import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
+import 'package:spendwise/ledger/analysis/budgets/budget_overview.dart';
+import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
 import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/base/step_emitting.dart';
 
-// MARK: - Sort Key
-(String groupName, bool isSubcategory, String ownName) budgetSortKey(
-  Budget budget,
-  LedgerState state,
-) {
-  final categoryID = budget.categoryID;
-  if (categoryID == null) return ('', false, '');
-  final category = state.categories[categoryID];
-  if (category == null) {
-    return ('(category deleted)', false, '(category deleted)');
-  }
-  final parentID = category.parentID;
-  if (parentID == null) return (category.name, false, category.name);
-  final parentName = state.categories[parentID]?.name ?? category.name;
-  return (parentName, true, category.name);
-}
+typedef BudgetListCard = ({
+  String id,
+  String? savedHex,
+  String name,
+  String amounts,
+  String status,
+  double progress,
+  bool overLimit,
+});
+typedef BudgetListSummary = ({
+  String? budgetID,
+  String remaining,
+  String caption,
+  String spent,
+  String? allowance,
+  double? progress,
+  bool overLimit,
+});
 
-// MARK: - Helpers
-List<Budget> sortedBudgets(LedgerState state) {
-  final budgets = state.budgets.values.toList()
-    ..sort((a, b) {
-      final aKey = budgetSortKey(a, state);
-      final bKey = budgetSortKey(b, state);
-      final groupCompare = aKey.$1.compareTo(bKey.$1);
-      if (groupCompare != 0) return groupCompare;
-      if (aKey.$2 != bKey.$2) return aKey.$2 ? 1 : -1;
-      return aKey.$3.compareTo(bKey.$3);
-    });
-  return budgets;
-}
+const _emptyProgress = 0.0;
+const _fullProgress = 1.0;
+const _percentScale = 100;
+const _percentDigits = 1;
 
 // MARK: - BudgetsListViewState
 class BudgetsListViewState
     implements HasStep<BudgetsListViewState, BudgetsStep> {
   const BudgetsListViewState({
-    required this.ledgerState,
-    required this.items,
-    required this.budgets,
+    this.overview,
+    this.cards = const [],
+    this.loading = false,
+    this.error,
+    required this.today,
+    this.chartColours = ChartColours.categoryColours,
     this.step,
   });
 
-  final LedgerState ledgerState;
-  final List<AnalysisItem> items;
-  final List<Budget> budgets;
+  final BudgetsOverview? overview;
+  final List<BudgetListCard> cards;
+  final bool loading;
+  final Object? error;
+  final DateTime today;
+  final ChartColours chartColours;
   @override
   final BudgetsStep? step;
 
-  bool isSubcategoryBudget(Budget budget) =>
-      budgetSortKey(budget, ledgerState).$2;
+  BudgetListSummary get summary {
+    final all = overview!.allSpending;
+    final cap = all.cap;
+    final remaining = all.remaining;
+    final allowance = all.dailyAllowance;
+    final tomorrow = today.add(const Duration(days: 1));
+    return (
+      budgetID: all.capBudgetID,
+      remaining: remaining == null
+          ? 'No spending limit'
+          : formatMoney(remaining),
+      caption: cap == null
+          ? ''
+          : 'left of ${formatMoney(cap)} this month'
+                '${all.capBudgetID == null ? ' (category limits)' : ''}',
+      spent: formatMoney(all.spent),
+      allowance: allowance == null
+          ? null
+          : 'From ${DateFormat('d MMMM').format(tomorrow)}: about ${formatMoney(allowance)} a day.',
+      progress: cap == null
+          ? null
+          : (all.spent / cap).toDouble().clamp(_emptyProgress, _fullProgress),
+      overLimit: remaining != null && remaining < Decimal.zero,
+    );
+  }
 
-  BudgetsListViewState copyWith({
-    LedgerState? ledgerState,
-    List<AnalysisItem>? items,
-    List<Budget>? budgets,
-    BudgetsStep? Function()? step,
-  }) {
+  BudgetsListViewState copyWith({BudgetsStep? Function()? step}) {
     return BudgetsListViewState(
-      ledgerState: ledgerState ?? this.ledgerState,
-      items: items ?? this.items,
-      budgets: budgets ?? this.budgets,
+      overview: overview,
+      cards: cards,
+      loading: loading,
+      error: error,
+      today: today,
+      chartColours: chartColours,
       step: step == null ? this.step : step(),
     );
   }
@@ -84,6 +108,7 @@ abstract class BudgetsListViewModel {
   void requestNewBudget();
 
   void deleteBudget(String id);
+  void retry();
   void clearStep();
 }
 
@@ -95,37 +120,68 @@ class BudgetsListNotifier extends AsyncNotifier<BudgetsListViewState>
     implements BudgetsListViewModel {
   BudgetsStep? _step;
 
-  late Ledger _ledger;
-  late AnalysisCache _cache;
-
   @override
-  Future<BudgetsListViewState> build() async {
+  BudgetsListViewState build() {
     final currentLedger = ledger;
-    final cache = analysisCache;
-    _ledger = currentLedger;
-    _cache = cache;
-    currentLedger.addListener(_onChanged);
-    cache.addListener(_onChanged);
-    ref.onDispose(() => currentLedger.removeListener(_onChanged));
-    ref.onDispose(() => cache.removeListener(_onChanged));
-    await cache.refresh(currentLedger.state);
-    return _buildState();
-  }
-
-  void _onChanged() {
-    unawaited(_cache.refresh(_ledger.state));
-    state = AsyncData(_buildState(step: _step));
-  }
-
-  BudgetsListViewState _buildState({BudgetsStep? step}) {
-    final ledgerState = _ledger.state;
+    final queries = ref.watch(analysisQueriesProvider);
+    if (queries == null) throw StateError('Budgets requires analysis queries.');
+    final month = ref.watch(effectiveMonthProvider);
+    final today = ref.watch(todayProvider);
+    final result = queries.readBudgets(month: month);
+    final chartColours = ref.watch(
+      displayPreferencesProvider.select((value) => value.chartColours),
+    );
+    Object? error;
+    if (result.state == AnalysisQueryState.failed) {
+      error = analysisCache.lastFailure?.error;
+      if (error == null) {
+        try {
+          budgetsOverview(
+            state: currentLedger.state,
+            items: analysisCache.items,
+            month: YearMonth.fromUtc(month),
+            today: today,
+          );
+        } catch (reason) {
+          error = reason;
+        }
+      }
+    }
     return BudgetsListViewState(
-      ledgerState: ledgerState,
-      items: _cache.items,
-      budgets: sortedBudgets(ledgerState),
-      step: step,
+      overview: result.value,
+      cards: result.value == null
+          ? const []
+          : _cardRows(result.value!, currentLedger.state),
+      loading: result.state == AnalysisQueryState.loading,
+      error: error,
+      today: today,
+      chartColours: chartColours,
+      step: _step,
     );
   }
+
+  List<BudgetListCard> _cardRows(
+    BudgetsOverview overview,
+    LedgerState ledgerState,
+  ) => [
+    for (final row in overview.categoryBudgets)
+      (
+        id: row.budgetID,
+        savedHex: ledgerState.categories[row.categoryID]?.colorHex,
+        name: row.parentName == null
+            ? row.name
+            : '${row.parentName} / ${row.name}',
+        amounts: '${formatMoney(row.spend)} of ${formatMoney(row.limit)}',
+        status:
+            '${formatMoney(row.remaining)} left / '
+            '${(row.utilizationRatio.toDouble() * _percentScale).toStringAsFixed(_percentDigits)}% used',
+        progress: row.utilizationRatio.toDouble(),
+        overLimit: row.remaining < Decimal.zero,
+      ),
+  ];
+
+  @override
+  void retry() => ref.read(analysisQueriesProvider)?.retry();
 
   @override
   void requestBudgetDetail(String budgetID) {
