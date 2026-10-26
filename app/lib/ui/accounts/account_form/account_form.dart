@@ -100,7 +100,8 @@ class _AccountFormState extends ConsumerState<AccountForm> {
 
   Future<void> _pickParent() async {
     final formState = ref.read(accountFormViewModelProvider).value;
-    if (formState == null) return;
+    final formRoute = ModalRoute.of(context);
+    if (formState == null || formRoute == null) return;
     final outcome = await showTwoColumnPickerSheet(
       context: context,
       title: 'Select Account',
@@ -109,8 +110,13 @@ class _AccountFormState extends ConsumerState<AccountForm> {
           PickerOption(id: account.id, label: account.name),
       ],
       selectedId: formState.parentId,
+      sheetPresentation: accountSheetPresentation,
     );
-    if (!context.mounted) return;
+    if (!context.mounted ||
+        !formRoute.isActive ||
+        formRoute.animation?.status != AnimationStatus.completed) {
+      return;
+    }
     if (outcome == null) return;
     final id = switch (outcome) {
       PickerChose(:final id) => id,
@@ -214,11 +220,14 @@ class _AccountFormBody extends StatelessWidget {
             onChanged: viewModel.setBalance,
           ),
         ] else
-          ListTile(
-            contentPadding: _fieldContentPadding,
-            title: const Text('Account'),
-            trailing: Text(_parentLabel() ?? 'Select'),
-            onTap: viewModel.requestPickParent,
+          Material(
+            type: MaterialType.transparency,
+            child: ListTile(
+              contentPadding: _fieldContentPadding,
+              title: const Text('Account'),
+              trailing: Text(_parentLabel() ?? 'Select'),
+              onTap: viewModel.requestPickParent,
+            ),
           ),
         ErrorSection(subject: 'account', error: formState.error),
       ],

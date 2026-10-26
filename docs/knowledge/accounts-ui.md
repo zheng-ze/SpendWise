@@ -1,6 +1,6 @@
 # Accounts UI
 
-Last reconciled: 2026-10-25
+Last reconciled: 2026-10-26
 
 ## Feature overview
 
@@ -69,9 +69,10 @@ stack. The boot-created observer remains attached to that same Accounts navigato
 ## Screens and flows
 
 - **Accounts root** - no header row (the Money header owns the title and the `+` that opens the account
-  form); a summary bar (Assets income token /
-  Liabilities expense token / Total = assets − liabilities from
-  `netWorth`), and a grouped list. Sections group active accounts by `AccountType` in the fixed enum
+  form); a responsive three-metric summary card matching History (`Net worth`, `Assets`, `Owed`),
+  configured from `netWorth` with income/expense amount styling; and a grouped list. The shared card
+  measures the metrics and uses History's responsive composition in constrained panes.
+  Sections group active accounts by `AccountType` in the fixed enum
   order Cash, Checking, Savings, Cards, Prepaid, Investment, Insurance, Other, skipping empty types.
   Non-card rows show `accountTotal`; card rows show payable (`max(0, −accountTotal)`) and outstanding
   (negated negative non-transfer entries since the statement cut). Expanding one account shows an
@@ -85,7 +86,11 @@ stack. The boot-created observer remains attached to that same Accounts navigato
   exist; pocketable = active, non-card, sorted by name — cards cannot hold pockets). Account mode:
   name, type picker (all `AccountType` values), statement-day picker (1–28, cards only),
   optional opening balance.
-  Subpocket mode: name, parent account picker. Save: `addAccount` (statement day only for cards),
+  Subpocket mode: name, parent account picker presented by `AppPickerSheet` with the live Accounts
+  sheet presentation; choosing a parent updates the form and dismissing the picker keeps its current
+  selection. Apply an async picker result only while the originating form route is active and its
+  transition is complete. `AppPickerSheet` supplies picker bodies with a transparent `Material`
+  ancestor. Save: `addAccount` (statement day only for cards),
   then `setOpeningBalance` if the balance ≠ 0 (posts the synthetic excluded opening-balance entry);
   Subpocket: `addPocket`.
 - **Source edit form** — reached from an account-header or pocket-row Edit action. Name; for

@@ -6,13 +6,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/money_navigation_provider.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ui/accounts/account_form/account_form.dart';
+import 'package:spendwise/ui/accounts/account_form/account_form_view_model.dart';
 import 'package:spendwise/ui/accounts/accounts_flow.dart';
 import 'package:spendwise/ui/accounts/accounts_screen.dart';
 import 'package:spendwise/ui/accounts/accounts_view_model.dart';
 import 'package:spendwise/ui/accounts/money_navigation.dart';
 import 'package:spendwise/ui/common/inputs/segmented_control.dart';
-import 'package:spendwise/ui/common/lists/summary_band.dart';
+import 'package:spendwise/ui/common/lists/responsive_summary_card.dart';
+import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
+import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
+import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/money/money_flow.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/shell_binding.dart';
@@ -20,6 +25,42 @@ import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
 import '../../support/ui_test_timeout.dart';
+
+void expectAccountsSummaryConfiguration(
+  WidgetTester tester,
+  ProviderContainer container, {
+  required bool wideComposition,
+}) {
+  final netWorth = container.read(accountsViewModelProvider).value!.netWorth;
+  final summary = tester.widget<ResponsiveSummaryCard>(
+    find.descendant(
+      of: find.byType(AccountsScreen),
+      matching: find.byType(ResponsiveSummaryCard),
+    ),
+  );
+
+  expect(summary.metrics.map((metric) => metric.label).toList(), [
+    'Net worth',
+    'Assets',
+    'Owed',
+  ]);
+  expect(summary.metrics.map((metric) => metric.amount).toList(), [
+    netWorth.asset - netWorth.liability,
+    netWorth.asset,
+    netWorth.liability,
+  ]);
+  expect(summary.metrics.map((metric) => metric.kind).toList(), [
+    null,
+    null,
+    AmountKind.expense,
+  ]);
+  expect(summary.metrics.map((metric) => metric.emphasis).toList(), [
+    SummaryMetricEmphasis.primary,
+    SummaryMetricEmphasis.supporting,
+    SummaryMetricEmphasis.supporting,
+  ]);
+  expect(summary.wideComposition, wideComposition);
+}
 
 void main() {
   final checking = Account(
@@ -78,6 +119,61 @@ void main() {
 
     expect(find.byType(AccountsScreen), findsOneWidget);
   }, timeout: uiTestTimeout);
+
+  testWidgets('pocket parent selection uses the Accounts picker sheet', (
+    tester,
+  ) async {
+    final container = await pumpFlow(tester, buildLedger());
+
+    container.read(accountsViewModelProvider.notifier).requestNewAccount();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Subpocket'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Select'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AppPickerSheet), findsOneWidget);
+    expect(find.text('Select Account'), findsOneWidget);
+  }, timeout: uiTestTimeout);
+
+  testWidgets(
+    'ignores parent selection after the originating form route is removed',
+    (tester) async {
+      final container = await pumpFlow(tester, buildLedger());
+
+      container.read(accountsViewModelProvider.notifier).requestNewAccount();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Subpocket'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).first, 'Discarded draft');
+      await tester.tap(find.text('Select'));
+      await tester.pumpAndSettle();
+
+      final formContext = tester.element(find.byType(AccountForm));
+      final navigator = Navigator.of(formContext, rootNavigator: true);
+      navigator.pop(const PickerChose('a0000000-0000-0000-0000-000000000001'));
+      navigator.pop();
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(find.byType(AccountForm), findsOneWidget);
+      expect(
+        container.read(accountFormViewModelProvider).value?.parentId,
+        isNull,
+      );
+      await tester.pumpAndSettle();
+
+      container.read(accountsViewModelProvider.notifier).requestNewAccount();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Subpocket'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Select'), findsOneWidget);
+      expect(
+        tester.widget<TextField>(find.byType(TextField).first).controller!.text,
+        isEmpty,
+      );
+    },
+    timeout: uiTestTimeout,
+  );
 
   testWidgets(
     'scoped Transactions fills Money content and Back restores Accounts state',
@@ -206,7 +302,7 @@ void main() {
   testWidgets('account forms constrain and compact the open Money pane', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(640, 800);
+    tester.view.physicalSize = const Size(1200, 800);
     tester.view.devicePixelRatio = 1;
     tester.view.padding = const FakeViewPadding(left: 54, right: 54);
     addTearDown(tester.view.reset);
@@ -255,9 +351,10 @@ void main() {
             .addPresented,
         isTrue,
       );
-      expect(
-        tester.widget<SummaryBand>(find.byType(SummaryBand).first).compact,
-        isTrue,
+      expectAccountsSummaryConfiguration(
+        tester,
+        container,
+        wideComposition: false,
       );
       expect(
         tester
@@ -289,5 +386,64 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
       expect(container.read(accountSheetPresentedProvider), isFalse);
     }
+  }, timeout: uiTestTimeout);
+
+  testWidgets('desktop account forms leave the Accounts summary uncompact', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final observer = MoneyNavigatorObserver();
+    final container = ProviderContainer(
+      overrides: [
+        ledgerProvider.overrideWithValue(buildLedger()),
+        shellLayoutModeProvider.overrideWithValue(ShellLayoutMode.desktop),
+        moneyNavigatorObserverProvider.overrideWithValue(observer),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.read(selectedDestinationProvider.notifier).state =
+        ShellDestination.money;
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: ShellLayoutModeScope(
+          mode: ShellLayoutMode.desktop,
+          child: MaterialApp(
+            home: AppShell(
+              bodies: {
+                ShellDestination.money: (_) =>
+                    MoneyFlow(moneyObserver: observer),
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    container.read(accountsViewModelProvider.notifier).requestNewAccount();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.byType(AppSheet), findsOneWidget);
+    expect(find.text('New Account'), findsOneWidget);
+    expect(container.read(accountSheetPresentedProvider), isTrue);
+    expectAccountsSummaryConfiguration(
+      tester,
+      container,
+      wideComposition: true,
+    );
+    expect(
+      tester
+          .widget<SegmentedControl<MoneySegment>>(
+            find.byType(SegmentedControl<MoneySegment>),
+          )
+          .small,
+      isFalse,
+    );
   }, timeout: uiTestTimeout);
 }
