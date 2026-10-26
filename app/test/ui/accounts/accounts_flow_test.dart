@@ -349,4 +349,62 @@ void main() {
       expect(container.read(accountSheetPresentedProvider), isFalse);
     }
   }, timeout: uiTestTimeout);
+
+  testWidgets('desktop account forms leave the Accounts summary uncompact', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final observer = MoneyNavigatorObserver();
+    final container = ProviderContainer(
+      overrides: [
+        ledgerProvider.overrideWithValue(buildLedger()),
+        shellLayoutModeProvider.overrideWithValue(ShellLayoutMode.desktop),
+        moneyNavigatorObserverProvider.overrideWithValue(observer),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.read(selectedDestinationProvider.notifier).state =
+        ShellDestination.money;
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: ShellLayoutModeScope(
+          mode: ShellLayoutMode.desktop,
+          child: MaterialApp(
+            home: AppShell(
+              bodies: {
+                ShellDestination.money: (_) =>
+                    MoneyFlow(moneyObserver: observer),
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    container.read(accountsViewModelProvider.notifier).requestNewAccount();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.byType(AppSheet), findsOneWidget);
+    expect(find.text('New Account'), findsOneWidget);
+    expect(container.read(accountSheetPresentedProvider), isTrue);
+    expect(
+      tester.widget<SummaryBand>(find.byType(SummaryBand).first).compact,
+      isFalse,
+    );
+    expect(
+      tester
+          .widget<SegmentedControl<MoneySegment>>(
+            find.byType(SegmentedControl<MoneySegment>),
+          )
+          .small,
+      isFalse,
+    );
+  }, timeout: uiTestTimeout);
 }
