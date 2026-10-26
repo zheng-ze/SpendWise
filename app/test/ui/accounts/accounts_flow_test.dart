@@ -265,7 +265,7 @@ void main() {
   testWidgets('account forms constrain and compact the open Money pane', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(640, 800);
+    tester.view.physicalSize = const Size(1200, 800);
     tester.view.devicePixelRatio = 1;
     tester.view.padding = const FakeViewPadding(left: 54, right: 54);
     addTearDown(tester.view.reset);
