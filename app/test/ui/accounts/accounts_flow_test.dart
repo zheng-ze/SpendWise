@@ -316,7 +316,7 @@ void main() {
       );
       expect(
         tester.widget<SummaryBand>(find.byType(SummaryBand).first).compact,
-        isTrue,
+        isFalse,
       );
       expect(
         tester

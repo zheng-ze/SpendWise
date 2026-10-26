@@ -9,8 +9,6 @@ import 'package:spendwise/ui/common/sheets/tray.dart';
 import 'package:spendwise/ui/format/account_type_format.dart';
 import 'package:spendwise/ui/format/amount_style.dart';
 import 'package:spendwise/ui/format/money_format.dart';
-import 'package:spendwise/ui/shell/shell_pane_host.dart';
-import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 class AccountsScreen extends ConsumerWidget {
@@ -66,17 +64,11 @@ class _AccountsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final netWorth = viewState.netWorth;
-    final paneScope = ShellPaneScope.maybeOf(context);
-    final compactForAccountSheet =
-        paneScope?.mode == ShellLayoutMode.open &&
-        paneScope?.addPresented == true;
     final summary = LayoutBuilder(
       builder: (context, constraints) => SummaryBand(
         leadLabel: 'Net worth',
         leadAmount: netWorth.asset - netWorth.liability,
-        compact:
-            constraints.maxWidth <= _compactSummaryMaxWidth ||
-            compactForAccountSheet,
+        compact: constraints.maxWidth <= _compactSummaryMaxWidth,
         cells: [
           SummaryBandCell(label: 'Assets', amount: netWorth.asset),
           SummaryBandCell(
