@@ -1,6 +1,6 @@
 # Accounts UI
 
-Last reconciled: 2026-10-25
+Last reconciled: 2026-10-26
 
 ## Feature overview
 
@@ -85,7 +85,9 @@ stack. The boot-created observer remains attached to that same Accounts navigato
   exist; pocketable = active, non-card, sorted by name — cards cannot hold pockets). Account mode:
   name, type picker (all `AccountType` values), statement-day picker (1–28, cards only),
   optional opening balance.
-  Subpocket mode: name, parent account picker. Save: `addAccount` (statement day only for cards),
+  Subpocket mode: name, parent account picker presented by `AppPickerSheet` with the live Accounts
+  sheet presentation; choosing a parent updates the form and dismissing the picker keeps its current
+  selection. Save: `addAccount` (statement day only for cards),
   then `setOpeningBalance` if the balance ≠ 0 (posts the synthetic excluded opening-balance entry);
   Subpocket: `addPocket`.
 - **Source edit form** — reached from an account-header or pocket-row Edit action. Name; for

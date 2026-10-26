@@ -49,7 +49,11 @@ class AppPickerSheet extends StatelessWidget {
       leading: leading,
       trailing: trailing,
     );
-    return AppSheet(header: header, body: body, dragToDismiss: true);
+    return AppSheet(
+      header: header,
+      body: Material(type: MaterialType.transparency, child: body),
+      dragToDismiss: true,
+    );
   }
 }
 

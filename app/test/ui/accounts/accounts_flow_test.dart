@@ -6,12 +6,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/money_navigation_provider.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ui/accounts/account_form/account_form.dart';
+import 'package:spendwise/ui/accounts/account_form/account_form_view_model.dart';
 import 'package:spendwise/ui/accounts/accounts_flow.dart';
 import 'package:spendwise/ui/accounts/accounts_screen.dart';
 import 'package:spendwise/ui/accounts/accounts_view_model.dart';
 import 'package:spendwise/ui/accounts/money_navigation.dart';
 import 'package:spendwise/ui/common/inputs/segmented_control.dart';
 import 'package:spendwise/ui/common/lists/summary_band.dart';
+import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
+import 'package:spendwise/ui/common/pickers/two_column_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/money/money_flow.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
@@ -78,6 +82,61 @@ void main() {
 
     expect(find.byType(AccountsScreen), findsOneWidget);
   }, timeout: uiTestTimeout);
+
+  testWidgets('pocket parent selection uses the Accounts picker sheet', (
+    tester,
+  ) async {
+    final container = await pumpFlow(tester, buildLedger());
+
+    container.read(accountsViewModelProvider.notifier).requestNewAccount();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Subpocket'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Select'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AppPickerSheet), findsOneWidget);
+    expect(find.text('Select Account'), findsOneWidget);
+  }, timeout: uiTestTimeout);
+
+  testWidgets(
+    'ignores parent selection after the originating form route is removed',
+    (tester) async {
+      final container = await pumpFlow(tester, buildLedger());
+
+      container.read(accountsViewModelProvider.notifier).requestNewAccount();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Subpocket'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).first, 'Discarded draft');
+      await tester.tap(find.text('Select'));
+      await tester.pumpAndSettle();
+
+      final formContext = tester.element(find.byType(AccountForm));
+      final navigator = Navigator.of(formContext, rootNavigator: true);
+      navigator.pop(const PickerChose('a0000000-0000-0000-0000-000000000001'));
+      navigator.pop();
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(find.byType(AccountForm), findsOneWidget);
+      expect(
+        container.read(accountFormViewModelProvider).value?.parentId,
+        isNull,
+      );
+      await tester.pumpAndSettle();
+
+      container.read(accountsViewModelProvider.notifier).requestNewAccount();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Subpocket'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Select'), findsOneWidget);
+      expect(
+        tester.widget<TextField>(find.byType(TextField).first).controller!.text,
+        isEmpty,
+      );
+    },
+    timeout: uiTestTimeout,
+  );
 
   testWidgets(
     'scoped Transactions fills Money content and Back restores Accounts state',
