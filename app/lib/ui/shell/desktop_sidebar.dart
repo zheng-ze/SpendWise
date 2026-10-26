@@ -10,7 +10,7 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 // MARK: - Constants
 const _sidebarKey = ValueKey('sidebar');
 
-const _sidebarWidth = 172.0;
+const desktopSidebarWidth = 172.0;
 const _sidebarPadding = EdgeInsets.fromLTRB(8, 12, 8, 12);
 const _sidebarDividerWidth = 1.0;
 const _wordmarkFontSize = 18.0;
@@ -52,7 +52,7 @@ class DesktopSidebar extends StatelessWidget {
     final colors = context.colors;
     return Container(
       key: _sidebarKey,
-      width: _sidebarWidth,
+      width: desktopSidebarWidth,
       color: colors.surface,
       padding: _sidebarPadding,
       child: _SidebarScroll(

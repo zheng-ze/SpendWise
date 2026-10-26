@@ -1,5 +1,3 @@
-import 'dart:ui' show lerpDouble;
-
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,8 +21,6 @@ import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_stop_host.da
 const _desktopMaxHeightFraction = 1.0;
 
 const _sectionGap = 8.0;
-
-const _grownHeightFraction = 1.0;
 
 const _segmentGap = 2.0;
 
@@ -160,14 +156,12 @@ class _NewEntryFormState extends State<NewEntryForm> {
         AppSheetAlertSlot.maybeOf(context)?.presentation ??
         AppSheetPresentation.phone;
     final desktop = presentation == AppSheetPresentation.desktop;
-    final keyboardUp = MediaQuery.viewInsetsOf(context).bottom > 0;
     final focusedPad = !desktop && _amountFocus.hasFocus;
     final route = ModalRoute.of(context);
     final exiting = route != null && !route.isActive;
     final leaving = exiting || state.dismissed;
     final padVisible = leaving ? _padShown : focusedPad;
     _padShown = padVisible;
-    final grown = padVisible || keyboardUp;
     final save = state.canSave ? viewModel.save : null;
     final header = NewEntryHeader(presentation: presentation, onSave: save);
     final body = _NewEntryBody(
@@ -198,12 +192,7 @@ class _NewEntryFormState extends State<NewEntryForm> {
             ),
           )
         : null;
-    Widget sheet(BuildContext context, Widget surface, double growth) {
-      final fraction = lerpDouble(
-        AppSheet.defaultMaxHeightFraction,
-        _grownHeightFraction,
-        growth,
-      );
+    Widget sheet(BuildContext context, Widget surface) {
       return AppSheet(
         header: header,
         body: body,
@@ -214,11 +203,10 @@ class _NewEntryFormState extends State<NewEntryForm> {
         alert: widget.alert,
         onAlertAction: widget.onAlertAction,
         desktopMaxHeightFraction: _desktopMaxHeightFraction,
-        phoneMaxHeightFraction: fraction!,
       );
     }
 
-    return AnimatedInputSurface(grown: grown, builder: sheet, child: pad);
+    return AnimatedInputSurface(builder: sheet, child: pad);
   }
 }
 

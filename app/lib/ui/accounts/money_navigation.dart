@@ -9,8 +9,11 @@ class MoneyTransactionsRouteSettings extends RouteSettings {
   final String? preferredSourceId;
 }
 
-class MoneyNavigatorObserver extends NavigatorObserver {
+class MoneyNavigatorObserver extends NavigatorObserver with ChangeNotifier {
   Route<Object?>? _topRoute;
+
+  bool get hasScopedTransactionsRoute =>
+      _topRoute?.settings is MoneyTransactionsRouteSettings;
 
   String? get sourceId {
     final navigator = this.navigator;
@@ -30,6 +33,10 @@ class MoneyNavigatorObserver extends NavigatorObserver {
     Route<Object?>? topRoute,
     Route<Object?>? previousTopRoute,
   ) {
+    final previousHasScopedTransactionsRoute = hasScopedTransactionsRoute;
     _topRoute = topRoute;
+    if (previousHasScopedTransactionsRoute != hasScopedTransactionsRoute) {
+      notifyListeners();
+    }
   }
 }

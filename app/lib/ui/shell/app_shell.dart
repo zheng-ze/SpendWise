@@ -23,7 +23,7 @@ const shellDestinations = [
 const _fallbackStackIndex = 0;
 const _noSafeLeftInset = 0.0;
 const _noRailGutter = 0.0;
-const _minimumSafeBodyWidth = 0.0;
+const _minimumSplitOffset = 0.0;
 
 Widget _emptyBody(BuildContext context) => const SizedBox.shrink();
 
@@ -77,9 +77,11 @@ class _AppShellState extends ConsumerState<AppShell> {
   Widget build(BuildContext context) {
     final selected = ref.watch(selectedDestinationProvider);
     final mode = ref.watch(shellLayoutModeProvider);
-    final addPresented =
+    final newEntryPresented =
         ref.watch(newEntryPresentationProvider) ==
         NewEntryPresentation.presented;
+    final addPresented =
+        newEntryPresented || ref.watch(accountSheetPresentedProvider);
     _ensureTicker(ref.watch(clockProvider));
 
     if (mode == ShellLayoutMode.desktop) {
@@ -87,11 +89,14 @@ class _AppShellState extends ConsumerState<AppShell> {
         key: const ValueKey('sidebar-layout'),
         body: Row(
           children: [
-            DesktopSidebar(
-              selected: selected,
-              onDestinationSelected: _select,
-              onAdd: () => _openNewEntry(context),
-            ),
+            if (newEntryPresented)
+              const SizedBox(width: desktopSidebarWidth)
+            else
+              DesktopSidebar(
+                selected: selected,
+                onDestinationSelected: _select,
+                onAdd: () => _openNewEntry(context),
+              ),
             const SidebarDivider(),
             Expanded(
               child: _ShellStack(
@@ -115,14 +120,16 @@ class _AppShellState extends ConsumerState<AppShell> {
         mode: mode,
         addPresented: addPresented,
         rail: open
-            ? OpenRail(
-                selected: selected,
-                onDestinationSelected: _select,
-                onAdd: () => _openNewEntry(context),
-              )
+            ? newEntryPresented
+                  ? const SizedBox(width: openRailWidth)
+                  : OpenRail(
+                      selected: selected,
+                      onDestinationSelected: _select,
+                      onAdd: () => _openNewEntry(context),
+                    )
             : null,
       ),
-      bottomNavigationBar: open
+      bottomNavigationBar: open || newEntryPresented
           ? null
           : PhoneBar(
               selected: selected,
@@ -186,13 +193,13 @@ class _ShellStack extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final padding = MediaQuery.paddingOf(context);
-        final safeBodyWidth = (constraints.maxWidth - padding.horizontal).clamp(
-          _minimumSafeBodyWidth,
+        final splitOffset = (constraints.maxWidth / 2 - padding.left).clamp(
+          _minimumSplitOffset,
           double.infinity,
         );
         return ShellPaneScope(
           mode: mode,
-          safeBodyWidth: safeBodyWidth,
+          splitOffset: splitOffset,
           addPresented: addPresented,
           child: Stack(
             fit: StackFit.expand,

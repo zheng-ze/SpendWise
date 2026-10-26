@@ -1,6 +1,6 @@
 # Accounts UI
 
-Last reconciled: 2026-10-19
+Last reconciled: 2026-10-25
 
 ## Feature overview
 

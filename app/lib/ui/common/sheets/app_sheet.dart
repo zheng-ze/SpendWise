@@ -61,6 +61,7 @@ class AppSheet extends StatefulWidget {
     this.onAlertAction,
     this.desktopMaxHeightFraction = defaultMaxHeightFraction,
     this.phoneMaxHeightFraction = defaultMaxHeightFraction,
+    this.surfaceColor,
     this.dragToDismiss = false,
     this.variant = AppSheetVariant.standard,
   });
@@ -82,6 +83,8 @@ class AppSheet extends StatefulWidget {
   final double desktopMaxHeightFraction;
 
   final double phoneMaxHeightFraction;
+
+  final Color? surfaceColor;
 
   final bool dragToDismiss;
 
@@ -178,10 +181,15 @@ class _AppSheetState extends State<AppSheet> {
     final chrome = _SheetChrome(
       presentation: presentation,
       variant: widget.variant,
-      bottomInset: media.padding.bottom,
+      bottomInset: open ? 0 : media.padding.bottom,
+      surfaceColor: widget.surfaceColor,
       child: scrollBody,
     );
-    final sheet = ConstrainedBox(constraints: constraints, child: chrome);
+    final constrainedSheet = ConstrainedBox(
+      constraints: constraints,
+      child: chrome,
+    );
+    final sheet = constrainedSheet;
     if (!widget.dragToDismiss) return sheet;
 
     return SheetDragDismiss(enabled: phone, onDismiss: _dismiss, child: sheet);
@@ -273,6 +281,7 @@ class _SheetChrome extends StatelessWidget {
     required this.presentation,
     required this.variant,
     required this.bottomInset,
+    required this.surfaceColor,
     required this.child,
   });
 
@@ -303,15 +312,11 @@ class _SheetChrome extends StatelessWidget {
 
   static const _topPadding = 8.0;
 
-  static const _bottomPadding = 14.0;
-
   static const _openTopPadding = 16.0;
 
   static const _openRightInset = 82.0;
 
   static const _formOpenContentRightInset = 10.0;
-
-  static const _openBottomPadding = 14.0;
 
   static const _openLeftPadding = 16.0;
 
@@ -320,6 +325,8 @@ class _SheetChrome extends StatelessWidget {
   final AppSheetVariant variant;
 
   final double bottomInset;
+
+  final Color? surfaceColor;
 
   final Widget child;
 
@@ -348,7 +355,7 @@ class _SheetChrome extends StatelessWidget {
         : Border(top: topBorder);
     final shadow = canvas && !open && !desktop ? [_formShadow] : null;
     final decoration = BoxDecoration(
-      color: canvas ? colors.base : null,
+      color: surfaceColor ?? (canvas ? colors.base : null),
       border: border,
       borderRadius: radius,
       boxShadow: shadow,
@@ -367,17 +374,17 @@ class _SheetChrome extends StatelessWidget {
             _openLeftPadding,
             _openTopPadding,
             contentRightInset,
-            _openBottomPadding + bottomInset,
+            bottomInset,
           )
         : EdgeInsets.fromLTRB(
             _horizontalPadding,
             _topPadding,
             _horizontalPadding,
-            _bottomPadding + bottomInset,
+            bottomInset,
           );
 
     final surface = Material(
-      color: canvas ? colors.base : colors.raised,
+      color: surfaceColor ?? (canvas ? colors.base : colors.raised),
       borderRadius: radius,
       child: Container(decoration: decoration, padding: padding, child: child),
     );

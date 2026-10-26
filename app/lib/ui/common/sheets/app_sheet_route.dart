@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
+import 'package:spendwise/ui/shell/desktop_sidebar.dart';
+import 'package:spendwise/ui/shell/open_rail.dart';
+import 'package:spendwise/ui/shell/phone_bar.dart';
+import 'package:spendwise/ui/shell/shell_providers.dart';
 
 // MARK: - Constants
 
 const _paintOrigin = Offset.zero;
+const _railRightPadding = EdgeInsets.only(right: openRailRightInset);
+const _railBottomPadding = EdgeInsets.only(bottom: openRailBottomInset);
 
 // MARK: - Show
 
@@ -13,6 +20,7 @@ Future<T?> showAppSheet<T>(
   BuildContext context, {
   required AppSheetPresentation presentation,
   AppSheetPresentation Function(BuildContext)? presentationResolver,
+  bool showShellNavigation = false,
   void Function(AppSheetRoute<T>)? onRouteCreated,
   required WidgetBuilder builder,
 }) {
@@ -21,6 +29,7 @@ Future<T?> showAppSheet<T>(
     presentation: presentation,
     presentationResolver: presentationResolver,
     builder: builder,
+    showShellNavigation: showShellNavigation,
   );
   onRouteCreated?.call(route);
   return navigator.push<T>(route);
@@ -32,6 +41,7 @@ class AppSheetRoute<T> extends ModalRoute<T> {
   AppSheetRoute({
     required this.presentation,
     required this.builder,
+    this.showShellNavigation = false,
     this.presentationResolver,
   }) {
     effectivePresentation = ValueNotifier<AppSheetPresentation>(presentation);
@@ -51,6 +61,8 @@ class AppSheetRoute<T> extends ModalRoute<T> {
   static const _slideBegin = Offset(0, _slideBeginDy);
 
   final WidgetBuilder builder;
+
+  final bool showShellNavigation;
 
   final AppSheetPresentation presentation;
 
@@ -182,12 +194,17 @@ class _AppSheetPageState<T> extends State<_AppSheetPage<T>> {
       ),
       child: Builder(builder: widget.route.builder),
     );
-    final positionedSheet = Align(
-      alignment: alignment,
-      child: SizedBox(
-        width: open ? media.size.width / _openWidthDivisor : null,
-        height: open ? media.size.height - media.padding.bottom : null,
-        child: sheet,
+    final positionedSheet = Padding(
+      padding: widget.route.showShellNavigation && !open && !desktop
+          ? EdgeInsets.only(bottom: phoneBarNavigationHeight(context))
+          : EdgeInsets.zero,
+      child: Align(
+        alignment: alignment,
+        child: SizedBox(
+          width: open ? media.size.width / _openWidthDivisor : null,
+          height: open ? media.size.height - media.padding.bottom : null,
+          child: sheet,
+        ),
       ),
     );
     final alertTop =
@@ -202,8 +219,70 @@ class _AppSheetPageState<T> extends State<_AppSheetPage<T>> {
       presentation: presentation,
       alerts: widget.route._alerts,
       alertAction: widget.route._alertAction,
-      child: Stack(children: [positionedSheet, overlay]),
+      child: Stack(
+        children: [
+          positionedSheet,
+          overlay,
+          if (widget.route.showShellNavigation) const _ShellNavigationOverlay(),
+        ],
+      ),
     );
+  }
+}
+
+class _ShellNavigationOverlay extends ConsumerWidget {
+  const _ShellNavigationOverlay();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mode = ref.watch(shellLayoutModeProvider);
+    final selected = ref.watch(selectedDestinationProvider);
+    final navigation = switch (mode) {
+      ShellLayoutMode.phone => Align(
+        alignment: Alignment.bottomCenter,
+        child: PhoneBar(
+          selected: selected,
+          onDestinationSelected: (destination) =>
+              _selectAndDismiss(context, ref, destination),
+          onAdd: () {},
+        ),
+      ),
+      ShellLayoutMode.open => Align(
+        alignment: Alignment.bottomRight,
+        child: Padding(
+          padding: _railRightPadding + _railBottomPadding,
+          child: SafeArea(
+            left: false,
+            right: false,
+            child: OpenRail(
+              selected: selected,
+              onDestinationSelected: (destination) =>
+                  _selectAndDismiss(context, ref, destination),
+              onAdd: () {},
+            ),
+          ),
+        ),
+      ),
+      ShellLayoutMode.desktop => Align(
+        alignment: Alignment.centerLeft,
+        child: DesktopSidebar(
+          selected: selected,
+          onDestinationSelected: (destination) =>
+              _selectAndDismiss(context, ref, destination),
+          onAdd: () {},
+        ),
+      ),
+    };
+    return Material(type: MaterialType.transparency, child: navigation);
+  }
+
+  void _selectAndDismiss(
+    BuildContext context,
+    WidgetRef ref,
+    ShellDestination destination,
+  ) {
+    ref.read(selectedDestinationProvider.notifier).state = destination;
+    Navigator.of(context, rootNavigator: true).maybePop();
   }
 }
 

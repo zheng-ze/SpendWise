@@ -58,6 +58,7 @@ class AccountRow {
   const AccountRow({
     required this.id,
     required this.name,
+    required this.type,
     required this.amount,
     required this.ownBalance,
     required this.pockets,
@@ -65,6 +66,7 @@ class AccountRow {
 
   final String id;
   final String name;
+  final AccountType type;
   final RowAmount amount;
   final Decimal ownBalance;
   final List<PocketRow> pockets;
@@ -194,6 +196,7 @@ AccountRow _row(
   return AccountRow(
     id: account.id,
     name: account.name,
+    type: account.type,
     amount: amount,
     ownBalance: ownBalance,
     pockets: pockets,

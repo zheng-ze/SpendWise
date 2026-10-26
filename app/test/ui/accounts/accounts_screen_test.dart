@@ -84,8 +84,9 @@ void main() {
     timeout: uiTestTimeout,
   );
 
-  testWidgets('tapping the account row body emits AccountOpened scoped to '
-      'the account plus pockets', (tester) async {
+  testWidgets('tapping the account row opens its scoped transactions', (
+    tester,
+  ) async {
     final ledger = buildLedger();
     final container = await pumpScreen(tester, ledger);
     await tester.pumpAndSettle();
@@ -120,9 +121,7 @@ void main() {
     expect(opened.scopeIDs, {checking.id});
   }, timeout: uiTestTimeout);
 
-  testWidgets('a pocket row emits PocketOpened scoped to the pocket alone', (
-    tester,
-  ) async {
+  testWidgets('a pocket row opens its scoped transactions', (tester) async {
     final ledger = buildLedger();
     final container = await pumpScreen(tester, ledger);
     await tester.pumpAndSettle();

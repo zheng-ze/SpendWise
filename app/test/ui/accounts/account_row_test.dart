@@ -1,4 +1,4 @@
-import 'package:decimal/decimal.dart';
+import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -15,6 +15,7 @@ void main() {
   final plainRow = AccountRow(
     id: 'a0000000-0000-0000-0000-000000000001',
     name: 'Main Checking',
+    type: AccountType.checking,
     amount: SingleTotal(dec('-120.50')),
     ownBalance: dec('-120.50'),
     pockets: const [],
@@ -23,6 +24,7 @@ void main() {
   final rowWithPocket = AccountRow(
     id: 'a0000000-0000-0000-0000-000000000002',
     name: 'Wallet',
+    type: AccountType.cash,
     amount: SingleTotal(dec('300')),
     ownBalance: dec('250'),
     pockets: [
@@ -189,6 +191,49 @@ void main() {
     expect(find.text('50.00'), findsOneWidget);
     expect(find.text('S\$50.00'), findsNothing);
   }, timeout: uiTestTimeout);
+
+  testWidgets(
+    'pocket disclosure remains an accessible action separate from row tap in RTL',
+    (tester) async {
+      var toggles = 0;
+      var detailOpens = 0;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Directionality(
+            textDirection: TextDirection.rtl,
+            child: Scaffold(
+              body: AccountRowTile(
+                row: rowWithPocket,
+                expanded: false,
+                onToggleExpanded: () => toggles++,
+                onTap: () => detailOpens++,
+                onAccountDeleted: () {},
+                onAccountEdit: () {},
+                onOpenAccountAlone: () {},
+                onOpenPocket: (_) {},
+                onPocketDeleted: (_) {},
+                onPocketEdit: (_) {},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final expandButton = find.byTooltip('Expand pockets');
+      expect(expandButton, findsOneWidget);
+      await tester.tap(expandButton);
+
+      expect(toggles, 1);
+      expect(detailOpens, 0);
+
+      await tester.tap(find.text('Wallet'));
+
+      expect(detailOpens, 1);
+      expect(toggles, 1);
+    },
+    timeout: uiTestTimeout,
+  );
 
   testWidgets('account Edit semantic action invokes edit without dismissing', (
     tester,

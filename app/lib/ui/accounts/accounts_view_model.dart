@@ -76,7 +76,11 @@ class AccountsNotifier extends AsyncNotifier<AccountsViewState>
   void _onLedgerChanged() {
     final current = state.value;
     state = AsyncData(
-      _buildState(ledger, expandedAccountId: current?.expandedAccountId),
+      _buildState(
+        ledger,
+        expandedAccountId: current?.expandedAccountId,
+        step: current?.step,
+      ),
     );
   }
 
@@ -86,8 +90,9 @@ class AccountsNotifier extends AsyncNotifier<AccountsViewState>
     AccountsStep? step,
   }) {
     final ledgerState = ledger.state;
+    final sections = accountSections(ledgerState, now: DateTime.now());
     return AccountsViewState(
-      sections: accountSections(ledgerState, now: DateTime.now()),
+      sections: sections,
       netWorth: Accounting.netWorth(ledgerState),
       expandedAccountId: expandedAccountId,
       step: step,

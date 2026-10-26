@@ -73,6 +73,30 @@ void main() {
     },
   );
 
+  test(
+    'saving a name after a balance adjustment does not repeat the adjustment',
+    () async {
+      final account = Account(name: 'Wallet', type: AccountType.cash);
+      final ledger = ledgerWithAccountBalance(account);
+      final container = buildContainer(ledger);
+      await container.read(sourceEditFormViewModelProvider(account.id).future);
+      final viewModel = container.read(
+        sourceEditFormViewModelProvider(account.id).notifier,
+      );
+
+      viewModel.setBalance('150');
+      await viewModel.save();
+      viewModel.clearStep();
+      viewModel.setName('Daily wallet');
+      await viewModel.save();
+
+      expect(ledger.state.entries, hasLength(2));
+      final adjustment = ledger.state.entries.values.last;
+      expect(adjustment.amount, dec('50'));
+      expect(adjustment.includeInAnalysis, isFalse);
+    },
+  );
+
   test('lowering the balance posts a negative adjustment entry', () async {
     final account = Account(name: 'Wallet', type: AccountType.cash);
     final ledger = ledgerWithAccountBalance(account);
