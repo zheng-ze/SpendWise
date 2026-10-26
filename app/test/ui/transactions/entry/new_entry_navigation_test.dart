@@ -16,14 +16,14 @@ Future<void> _tapNavigationDestination(
   Finder navigation,
 ) async {
   await tester.tap(
-    find.descendant(of: navigation, matching: find.text('History')),
+    find.descendant(of: navigation.last, matching: find.text('History')),
     warnIfMissed: false,
   );
   await tester.pumpAndSettle();
 }
 
 void main() {
-  testWidgets('phone navigation tap dismisses Add without navigating', (
+  testWidgets('phone navigation tap selects destination and dismisses Add', (
     tester,
   ) async {
     final harness = await pumpShell(tester);
@@ -34,11 +34,13 @@ void main() {
     expect(find.byType(AppSheet), findsNothing);
     expect(
       harness.container.read(selectedDestinationProvider),
-      ShellDestination.overview,
+      ShellDestination.history,
     );
   }, timeout: uiTestTimeout);
 
-  testWidgets('open rail tap dismisses Add without navigating', (tester) async {
+  testWidgets('open rail tap selects destination and dismisses Add', (
+    tester,
+  ) async {
     final harness = await pumpShell(tester, size: openSize);
     await openAdd(tester, harness);
 
@@ -47,11 +49,11 @@ void main() {
     expect(find.byType(AppSheet), findsNothing);
     expect(
       harness.container.read(selectedDestinationProvider),
-      ShellDestination.overview,
+      ShellDestination.history,
     );
   }, timeout: uiTestTimeout);
 
-  testWidgets('desktop sidebar tap dismisses Add without navigating', (
+  testWidgets('desktop sidebar tap selects destination and dismisses Add', (
     tester,
   ) async {
     final harness = await pumpShell(
@@ -66,7 +68,7 @@ void main() {
     expect(find.byType(AppSheet), findsNothing);
     expect(
       harness.container.read(selectedDestinationProvider),
-      ShellDestination.overview,
+      ShellDestination.history,
     );
   }, timeout: uiTestTimeout);
 

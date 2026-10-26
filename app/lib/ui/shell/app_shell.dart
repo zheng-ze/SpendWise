@@ -77,10 +77,11 @@ class _AppShellState extends ConsumerState<AppShell> {
   Widget build(BuildContext context) {
     final selected = ref.watch(selectedDestinationProvider);
     final mode = ref.watch(shellLayoutModeProvider);
-    final addPresented =
+    final newEntryPresented =
         ref.watch(newEntryPresentationProvider) ==
-            NewEntryPresentation.presented ||
-        ref.watch(accountSheetPresentedProvider);
+        NewEntryPresentation.presented;
+    final addPresented =
+        newEntryPresented || ref.watch(accountSheetPresentedProvider);
     _ensureTicker(ref.watch(clockProvider));
 
     if (mode == ShellLayoutMode.desktop) {
@@ -88,11 +89,14 @@ class _AppShellState extends ConsumerState<AppShell> {
         key: const ValueKey('sidebar-layout'),
         body: Row(
           children: [
-            DesktopSidebar(
-              selected: selected,
-              onDestinationSelected: _select,
-              onAdd: () => _openNewEntry(context),
-            ),
+            if (newEntryPresented)
+              const SizedBox(width: desktopSidebarWidth)
+            else
+              DesktopSidebar(
+                selected: selected,
+                onDestinationSelected: _select,
+                onAdd: () => _openNewEntry(context),
+              ),
             const SidebarDivider(),
             Expanded(
               child: _ShellStack(
@@ -116,14 +120,16 @@ class _AppShellState extends ConsumerState<AppShell> {
         mode: mode,
         addPresented: addPresented,
         rail: open
-            ? OpenRail(
-                selected: selected,
-                onDestinationSelected: _select,
-                onAdd: () => _openNewEntry(context),
-              )
+            ? newEntryPresented
+                  ? const SizedBox(width: openRailWidth)
+                  : OpenRail(
+                      selected: selected,
+                      onDestinationSelected: _select,
+                      onAdd: () => _openNewEntry(context),
+                    )
             : null,
       ),
-      bottomNavigationBar: open
+      bottomNavigationBar: open || newEntryPresented
           ? null
           : PhoneBar(
               selected: selected,

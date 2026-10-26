@@ -15,7 +15,6 @@ import 'package:spendwise/ui/common/lists/summary_band.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/money/money_flow.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
-import 'package:spendwise/ui/shell/open_rail.dart';
 import 'package:spendwise/ui/shell/shell_binding.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
@@ -189,13 +188,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
       expect(find.byType(AppSheet), findsOneWidget);
 
-      await tester.tap(
-        find.descendant(
-          of: find.byKey(openRailKey),
-          matching: find.text('History'),
-        ),
-        warnIfMissed: false,
-      );
+      await tester.tapAt(const Offset(120, 120));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
       expect(find.byType(AppSheet), findsNothing);

@@ -125,6 +125,7 @@ class NewEntryPresentationController {
       showAppSheet<void>(
         context,
         presentation: initial,
+        showShellNavigation: true,
         presentationResolver: _liveResolver(initial),
         onRouteCreated: session.attach,
         builder: buildEntryForm,

@@ -134,19 +134,10 @@ class _AccountSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final rows = [
       for (final row in section.rows)
-        AccountRowTile(
+        _AccountSectionRow(
           row: row,
           expanded: expandedAccountID == row.id,
-          onToggleExpanded: row.pockets.isEmpty
-              ? null
-              : () => viewModel.toggleExpanded(row.id),
-          onTap: () => viewModel.openAccount(row.id),
-          onAccountDeleted: () => viewModel.deleteAccount(row.id),
-          onAccountEdit: () => viewModel.requestSourceEdit(row.id),
-          onOpenAccountAlone: () => viewModel.openAccountAlone(row.id),
-          onOpenPocket: (pocket) => viewModel.openPocket(pocket.id),
-          onPocketDeleted: (pocket) => viewModel.deletePocket(pocket.id),
-          onPocketEdit: (pocket) => viewModel.requestSourceEdit(pocket.id),
+          viewModel: viewModel,
         ),
     ];
     final header = _SectionHeader(section: section);
@@ -170,6 +161,34 @@ class _AccountSection extends StatelessWidget {
       ),
     );
   }
+}
+
+class _AccountSectionRow extends StatelessWidget {
+  const _AccountSectionRow({
+    required this.row,
+    required this.expanded,
+    required this.viewModel,
+  });
+
+  final AccountRow row;
+  final bool expanded;
+  final AccountsViewModel viewModel;
+
+  @override
+  Widget build(BuildContext context) => AccountRowTile(
+    row: row,
+    expanded: expanded,
+    onToggleExpanded: row.pockets.isEmpty
+        ? null
+        : () => viewModel.toggleExpanded(row.id),
+    onTap: () => viewModel.openAccount(row.id),
+    onAccountDeleted: () => viewModel.deleteAccount(row.id),
+    onAccountEdit: () => viewModel.requestSourceEdit(row.id),
+    onOpenAccountAlone: () => viewModel.openAccountAlone(row.id),
+    onOpenPocket: (pocket) => viewModel.openPocket(pocket.id),
+    onPocketDeleted: (pocket) => viewModel.deletePocket(pocket.id),
+    onPocketEdit: (pocket) => viewModel.requestSourceEdit(pocket.id),
+  );
 }
 
 class _SectionHeader extends StatelessWidget {

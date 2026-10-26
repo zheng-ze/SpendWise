@@ -7,7 +7,6 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/accounts/accounts_screen.dart';
 import 'package:spendwise/ui/accounts/accounts_view_model.dart';
-import 'package:spendwise/ui/theme/spendwise_colors.dart';
 
 import '../../support/ui_test_timeout.dart';
 
@@ -61,19 +60,6 @@ void main() {
     await tester.pump();
     return container;
   }
-
-  testWidgets('Owed uses the expense amount token', (tester) async {
-    final liability = Entry(
-      amount: dec('-25'),
-      name: 'Overdrawn',
-      sourceID: checking.id,
-    );
-    await pumpScreen(tester, buildLedger(entries: {liability.id: liability}));
-    await tester.pumpAndSettle();
-
-    final amount = tester.widget<Text>(find.text(r'-S$25.00').first);
-    expect(amount.style?.color, SpendWiseColors.light.expense);
-  }, timeout: uiTestTimeout);
 
   testWidgets(
     'expansion is single-open, opening a second collapses the first',

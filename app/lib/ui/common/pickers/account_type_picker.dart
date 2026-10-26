@@ -47,7 +47,12 @@ class AccountTypePicker extends StatelessWidget {
             builder: (_) => FractionallySizedBox(
               heightFactor: _sheetHeightFactor,
               child: SafeArea(
-                child: SingleChildScrollView(child: _options(context)),
+                child: SingleChildScrollView(
+                  child: _AccountTypeOptions(
+                    selected: selected,
+                    onSelected: (type) => Navigator.of(context).pop(type),
+                  ),
+                ),
               ),
             ),
           )
@@ -56,14 +61,25 @@ class AccountTypePicker extends StatelessWidget {
             presentation: presentation,
             builder: (routeContext) => AppPickerSheet(
               title: 'Account type',
-              body: _options(routeContext),
+              body: _AccountTypeOptions(
+                selected: selected,
+                onSelected: (type) => Navigator.of(routeContext).pop(type),
+              ),
             ),
           );
     if (!context.mounted || chosen == null) return;
     onSelected(chosen);
   }
+}
 
-  Widget _options(BuildContext context) {
+class _AccountTypeOptions extends StatelessWidget {
+  const _AccountTypeOptions({required this.selected, required this.onSelected});
+
+  final AccountType selected;
+  final ValueChanged<AccountType> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -73,7 +89,7 @@ class AccountTypePicker extends StatelessWidget {
             child: ListTile(
               title: Text(accountTypeLabel(type)),
               trailing: type == selected ? const Icon(Icons.check) : null,
-              onTap: () => Navigator.of(context).pop(type),
+              onTap: () => onSelected(type),
             ),
           ),
       ],

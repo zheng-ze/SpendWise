@@ -23,8 +23,6 @@ class StatementDayPicker extends StatelessWidget {
 
   static const _sheetHeightFactor = 0.7;
 
-  static const _lastDay = 28;
-
   @override
   Widget build(BuildContext context) {
     return Material(
@@ -47,7 +45,12 @@ class StatementDayPicker extends StatelessWidget {
             builder: (_) => FractionallySizedBox(
               heightFactor: _sheetHeightFactor,
               child: SafeArea(
-                child: SingleChildScrollView(child: _options(context)),
+                child: SingleChildScrollView(
+                  child: _StatementDayOptions(
+                    selected: selected,
+                    onSelected: (day) => Navigator.of(context).pop(day),
+                  ),
+                ),
               ),
             ),
           )
@@ -56,14 +59,30 @@ class StatementDayPicker extends StatelessWidget {
             presentation: presentation,
             builder: (routeContext) => AppPickerSheet(
               title: 'Statement day',
-              body: _options(routeContext),
+              body: _StatementDayOptions(
+                selected: selected,
+                onSelected: (day) => Navigator.of(routeContext).pop(day),
+              ),
             ),
           );
     if (!context.mounted || chosen == null) return;
     onSelected(chosen);
   }
+}
 
-  Widget _options(BuildContext context) {
+class _StatementDayOptions extends StatelessWidget {
+  const _StatementDayOptions({
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final int? selected;
+  final ValueChanged<int> onSelected;
+
+  static const _lastDay = 28;
+
+  @override
+  Widget build(BuildContext context) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -73,7 +92,7 @@ class StatementDayPicker extends StatelessWidget {
             child: ListTile(
               title: Text('$day'),
               trailing: day == selected ? const Icon(Icons.check) : null,
-              onTap: () => Navigator.of(context).pop(day),
+              onTap: () => onSelected(day),
             ),
           ),
       ],
