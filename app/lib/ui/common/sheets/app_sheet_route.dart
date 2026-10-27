@@ -133,10 +133,12 @@ class AppSheetRoute<T> extends ModalRoute<T> {
       begin: _slideBegin,
       end: _paintOrigin,
     ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut));
-    return FadeTransition(
+    final transition = FadeTransition(
       opacity: animation,
       child: SlideTransition(position: slide, child: child),
     );
+    if (!showShellNavigation) return transition;
+    return _DesktopNavigationTransitionBoundary(transition: transition);
   }
 
   @override
@@ -223,10 +225,25 @@ class _AppSheetPageState<T> extends State<_AppSheetPage<T>> {
         children: [
           positionedSheet,
           overlay,
-          if (widget.route.showShellNavigation) const _ShellNavigationOverlay(),
+          if (widget.route.showShellNavigation && !desktop)
+            const _ShellNavigationOverlay(),
         ],
       ),
     );
+  }
+}
+
+class _DesktopNavigationTransitionBoundary extends ConsumerWidget {
+  const _DesktopNavigationTransitionBoundary({required this.transition});
+
+  final Widget transition;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final desktop =
+        ref.watch(shellLayoutModeProvider) == ShellLayoutMode.desktop;
+    if (!desktop) return transition;
+    return Stack(children: [transition, const _ShellNavigationOverlay()]);
   }
 }
 
