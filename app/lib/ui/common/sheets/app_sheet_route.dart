@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
-import 'package:spendwise/ui/shell/desktop_sidebar.dart';
 import 'package:spendwise/ui/shell/open_rail.dart';
 import 'package:spendwise/ui/shell/phone_bar.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
@@ -137,11 +136,7 @@ class AppSheetRoute<T> extends ModalRoute<T> {
       opacity: animation,
       child: SlideTransition(position: slide, child: child),
     );
-    if (!showShellNavigation) return transition;
-    return _DesktopNavigationTransitionBoundary(
-      transition: transition,
-      route: this,
-    );
+    return transition;
   }
 
   @override
@@ -236,33 +231,8 @@ class _AppSheetPageState<T> extends State<_AppSheetPage<T>> {
   }
 }
 
-class _DesktopNavigationTransitionBoundary extends ConsumerWidget {
-  const _DesktopNavigationTransitionBoundary({
-    required this.transition,
-    required this.route,
-  });
-
-  final Widget transition;
-  final AppSheetRoute<dynamic> route;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final desktop =
-        ref.watch(shellLayoutModeProvider) == ShellLayoutMode.desktop;
-    if (!desktop) return transition;
-    return Stack(
-      children: [
-        transition,
-        _ShellNavigationOverlay(route: route),
-      ],
-    );
-  }
-}
-
 class _ShellNavigationOverlay extends ConsumerWidget {
-  const _ShellNavigationOverlay({this.route});
-
-  final AppSheetRoute<dynamic>? route;
+  const _ShellNavigationOverlay();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -294,27 +264,9 @@ class _ShellNavigationOverlay extends ConsumerWidget {
           ),
         ),
       ),
-      ShellLayoutMode.desktop => Align(
-        alignment: Alignment.centerLeft,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () => _dismissRoute(context),
-          child: DesktopSidebar(
-            selected: selected,
-            onDestinationSelected: (destination) =>
-                _selectAndDismiss(context, ref, destination),
-            onAdd: () => _dismissRoute(context),
-          ),
-        ),
-      ),
+      ShellLayoutMode.desktop => const SizedBox.shrink(),
     };
     return Material(type: MaterialType.transparency, child: navigation);
-  }
-
-  void _dismissRoute(BuildContext context) {
-    final targetRoute = route;
-    if (targetRoute == null) return;
-    Navigator.of(context, rootNavigator: true).removeRoute(targetRoute);
   }
 
   void _selectAndDismiss(

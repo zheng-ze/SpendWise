@@ -53,7 +53,7 @@ void main() {
     );
   }, timeout: uiTestTimeout);
 
-  testWidgets('desktop sidebar tap selects destination and dismisses Add', (
+  testWidgets('desktop sidebar stays mounted and acts as an outside tap', (
     tester,
   ) async {
     final harness = await pumpShell(
@@ -63,12 +63,13 @@ void main() {
     );
     await openAdd(tester, harness);
 
+    expect(find.byType(DesktopSidebar), findsOneWidget);
     await _tapNavigationDestination(tester, find.byType(DesktopSidebar));
 
     expect(find.byType(AppSheet), findsNothing);
     expect(
       harness.container.read(selectedDestinationProvider),
-      ShellDestination.history,
+      ShellDestination.overview,
     );
   }, timeout: uiTestTimeout);
 
@@ -81,21 +82,6 @@ void main() {
     await openAdd(tester, harness);
 
     await tester.tapAt(const Offset(4, 500));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(AppSheet), findsNothing);
-    expect(
-      harness.container.read(selectedDestinationProvider),
-      ShellDestination.overview,
-    );
-
-    await openAdd(tester, harness);
-    await tester.tap(
-      find.descendant(
-        of: find.byType(DesktopSidebar).last,
-        matching: find.text('Add entry'),
-      ),
-    );
     await tester.pumpAndSettle();
 
     expect(find.byType(AppSheet), findsNothing);

@@ -89,14 +89,11 @@ class _AppShellState extends ConsumerState<AppShell> {
         key: const ValueKey('sidebar-layout'),
         body: Row(
           children: [
-            if (newEntryPresented)
-              const SizedBox(width: desktopSidebarWidth)
-            else
-              DesktopSidebar(
-                selected: selected,
-                onDestinationSelected: _select,
-                onAdd: () => _openNewEntry(context),
-              ),
+            DesktopSidebar(
+              selected: selected,
+              onDestinationSelected: _select,
+              onAdd: () => _openNewEntry(context),
+            ),
             const SidebarDivider(),
             Expanded(
               child: _ShellStack(
