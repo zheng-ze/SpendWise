@@ -1,200 +1,90 @@
-import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
+import 'package:spendwise/settings/display_preferences.dart';
+import 'package:spendwise/ui/theme/category_palette.dart';
 
-import 'package:spendwise/ui/format/amount_style.dart';
-import 'package:spendwise/ui/format/color_hex.dart';
-import 'package:spendwise/ui/format/money_format.dart';
-import 'package:spendwise/ledger/analysis/budgets/budget_spend.dart';
-import 'package:spendwise/ui/budgets/budget_list/budget_card_progress_bar.dart';
-
-// MARK: - Constants
-
-const _emptyProgress = 0.0;
-const _fullProgress = 1.0;
-const _limitWeight = FontWeight.w600;
-const _tabularFigures = [FontFeature.tabularFigures()];
-
-// MARK: - Card
+import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 class BudgetCard extends StatelessWidget {
   const BudgetCard({
     super.key,
-    required this.budget,
-    required this.month,
-    required this.items,
-    required this.state,
-    this.isSubcategory = false,
-    this.onTap,
+    required this.name,
+    required this.amounts,
+    required this.status,
+    required this.progress,
+    required this.overLimit,
+    required this.onTap,
+    required this.savedHex,
+    required this.rank,
+    required this.chartColours,
   });
 
-  final Budget budget;
-  final YearMonth month;
-  final List<AnalysisItem> items;
-  final LedgerState state;
+  final String? savedHex;
+  final int rank;
+  final ChartColours chartColours;
+  final String name;
+  final String amounts;
+  final String status;
+  final double progress;
+  final bool overLimit;
+  final VoidCallback onTap;
 
-  final bool isSubcategory;
-  final VoidCallback? onTap;
-
-  static const _subcategoryIndent = 32.0;
-  static const _horizontalPadding = 16.0;
-  static const _verticalPadding = 12.0;
-  static const _headerGap = 6.0;
-  static const _footerGap = 4.0;
-
-  (String, Color) _categoryDisplay(LedgerState state) {
-    final categoryID = budget.categoryID;
-    if (categoryID == null) return ('Overall', colorHexFallback);
-
-    final category = state.categories[categoryID];
-    if (category == null) return ('(category deleted)', colorHexFallback);
-    return (category.name, parseColorHex(category.colorHex));
-  }
+  static const _padding = EdgeInsets.symmetric(vertical: 7);
+  static const _gap = 5.0;
+  static const _headerGap = 8.0;
+  static const _fontSize = 12.0;
+  static const _labelWeight = FontWeight.w600;
+  static const _barHeight = 7.0;
+  static const _barRadius = 4.0;
+  static const _fullWidth = double.infinity;
+  static const _minimum = 0.0;
+  static const _maximum = 1.0;
 
   @override
   Widget build(BuildContext context) {
-    final (name, color) = _categoryDisplay(state);
-
-    final limit = effectiveLimit(budget, month);
-    final spend = budgetSpend(budget, month, items, state);
-    final remaining = limit - spend;
-    final overLimit = spend > limit;
-    final percentOfLimit = limit == Decimal.zero
-        ? (spend == Decimal.zero ? _emptyProgress : _fullProgress)
-        : (spend / limit).toDouble();
-
-    final header = _BudgetCardHeader(
-      name: name,
-      limit: limit,
-      isSubcategory: isSubcategory,
+    final colors = context.colors;
+    final label = Text(
+      name,
+      style: const TextStyle(fontSize: _fontSize, fontWeight: _labelWeight),
     );
-    final bar = BudgetCardProgressBar(
-      percentOfLimit: percentOfLimit,
+    final amount = Text(amounts, style: context.text.small);
+    final labels = Wrap(
+      alignment: WrapAlignment.spaceBetween,
+      spacing: _headerGap,
+      children: [label, amount],
+    );
+    final header = SizedBox(width: _fullWidth, child: labels);
+    final bar = LinearProgressIndicator(
+      value: progress.clamp(_minimum, _maximum),
+      minHeight: _barHeight,
+      borderRadius: BorderRadius.circular(_barRadius),
       color: overLimit
-          ? AmountStyle.of(context, kind: AmountKind.expense).color
-          : color,
+          ? colors.expense
+          : CategoryPalette.resolve(
+              savedHex: savedHex,
+              rank: rank,
+              mode: chartColours,
+              colors: colors,
+            ),
+      backgroundColor: colors.tint,
     );
-    final footer = _BudgetCardFooter(
-      spend: spend,
-      remaining: remaining,
-      overLimit: overLimit,
+    final caption = Text(
+      status,
+      style: Theme.of(context).textTheme.bodySmall
+          ?.copyWith(color: overLimit ? colors.expense : colors.subtext),
     );
-
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        header,
+        const SizedBox(height: _gap),
+        bar,
+        const SizedBox(height: _gap),
+        caption,
+      ],
+    );
     return InkWell(
       onTap: onTap,
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          isSubcategory ? _subcategoryIndent : _horizontalPadding,
-          _verticalPadding,
-          _horizontalPadding,
-          _verticalPadding,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            header,
-            const SizedBox(height: _headerGap),
-            bar,
-            const SizedBox(height: _footerGap),
-            footer,
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// MARK: - Header
-
-class _BudgetCardHeader extends StatelessWidget {
-  const _BudgetCardHeader({
-    required this.name,
-    required this.limit,
-    required this.isSubcategory,
-  });
-
-  final String name;
-  final Decimal limit;
-  final bool isSubcategory;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            name,
-            style:
-                (isSubcategory
-                        ? theme.textTheme.bodySmall
-                        : theme.textTheme.bodyMedium)
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-          ),
-        ),
-        Text(
-          formatMoney(limit),
-          style: theme.textTheme.bodyMedium?.copyWith(
-            fontWeight: _limitWeight,
-            fontFeatures: _tabularFigures,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// MARK: - Footer
-
-class _BudgetCardFooter extends StatelessWidget {
-  const _BudgetCardFooter({
-    required this.spend,
-    required this.remaining,
-    required this.overLimit,
-  });
-
-  final Decimal spend;
-  final Decimal remaining;
-  final bool overLimit;
-
-  static const _warningIconSize = 14.0;
-  static const _warningIconGap = 4.0;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final expense = AmountStyle.of(context, kind: AmountKind.expense).color;
-    final neutral = AmountStyle.of(context).color;
-
-    return Row(
-      children: [
-        if (overLimit)
-          Padding(
-            padding: const EdgeInsets.only(right: _warningIconGap),
-            child: Icon(
-              Icons.warning_amber_rounded,
-              size: _warningIconSize,
-              color: expense,
-            ),
-          ),
-        Text(
-          formatMoney(spend, symbol: false),
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: overLimit ? expense : neutral,
-            fontFeatures: _tabularFigures,
-          ),
-        ),
-        const Spacer(),
-        Text(
-          remaining < Decimal.zero
-              ? '-${formatMoney(remaining.abs(), symbol: false)}'
-              : formatMoney(remaining, symbol: false),
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: overLimit ? expense : theme.colorScheme.onSurfaceVariant,
-            fontFeatures: _tabularFigures,
-          ),
-        ),
-      ],
+      child: Padding(padding: _padding, child: content),
     );
   }
 }

@@ -1,6 +1,6 @@
 # Budgets
 
-Last reconciled: 2026-10-20
+Last reconciled: 2026-10-27
 
 ## Feature overview
 
@@ -179,6 +179,32 @@ continuations belong to the open `BudgetDraftKey`. (`budgets_flow.dart:handleSte
   normalized budget id.
 - **Failure.** A budget with no applicable limit event, a nonpositive limit, or a missing category
   makes the read fail rather than returning a partial overview.
+
+## Budgets list
+
+`BudgetsRoot` reads `budgetsListViewModelProvider`, which watches the current effective month,
+`todayProvider`, chart-colour preference, and `AnalysisQueries.readBudgets`. The query result supplies
+the `BudgetsOverview` and category card data; the list view model maps category names, spend, limits,
+remaining amounts, and utilization into presentation rows. The summary and category cards therefore
+reflect the same overview projection. A failed query uses the analysis cache failure when available,
+otherwise it surfaces an exception from recomputing the overview. `BudgetListError` owns the visible
+retry action, which calls `AnalysisQueries.retry`. (`budgets_list_view.dart`,
+`budgets_list_view_model.dart`, `analysis_queries.dart`)
+
+The list has an **All spending** tray followed by **Category budgets**, whose individual category
+trays are ranked by the overview's spend-to-limit utilization order. An unscoped budget makes the All
+spending summary tappable to open its detail; category trays open their matching budget details.
+Category cards include their parent name when scoped to a child category. Open layout uses two
+columns for multiple category trays and one column for a single tray; phone and desktop use one
+column. When an Add sheet is already presented in the open layout, category trays return to one
+column and the list hides its Add button. (`budgets_list_view.dart`,
+`budgets_list_view_model.dart`, `budget_overview.dart`)
+
+Add budget is available from the empty-state action, from a compact labelled floating button when
+budgets exist on phone/open layouts, and from a button above the list on desktop. The list reserves
+scroll space for the floating button. The former list swipe-to-delete action and `ExpandingFab` are
+removed; budget deletion remains a domain mutator but has no action in this list. (`budgets_list_view.dart`,
+`budgets_list_view_model.dart`; `app/lib/ui/common/navigation/expanding_fab.dart` was removed)
 
 ## Detail projection
 

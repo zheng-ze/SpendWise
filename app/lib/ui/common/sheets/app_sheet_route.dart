@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
-import 'package:spendwise/ui/shell/desktop_sidebar.dart';
 import 'package:spendwise/ui/shell/open_rail.dart';
 import 'package:spendwise/ui/shell/phone_bar.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
@@ -133,10 +132,11 @@ class AppSheetRoute<T> extends ModalRoute<T> {
       begin: _slideBegin,
       end: _paintOrigin,
     ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut));
-    return FadeTransition(
+    final transition = FadeTransition(
       opacity: animation,
       child: SlideTransition(position: slide, child: child),
     );
+    return transition;
   }
 
   @override
@@ -223,7 +223,8 @@ class _AppSheetPageState<T> extends State<_AppSheetPage<T>> {
         children: [
           positionedSheet,
           overlay,
-          if (widget.route.showShellNavigation) const _ShellNavigationOverlay(),
+          if (widget.route.showShellNavigation && !desktop)
+            const _ShellNavigationOverlay(),
         ],
       ),
     );
@@ -263,15 +264,7 @@ class _ShellNavigationOverlay extends ConsumerWidget {
           ),
         ),
       ),
-      ShellLayoutMode.desktop => Align(
-        alignment: Alignment.centerLeft,
-        child: DesktopSidebar(
-          selected: selected,
-          onDestinationSelected: (destination) =>
-              _selectAndDismiss(context, ref, destination),
-          onAdd: () {},
-        ),
-      ),
+      ShellLayoutMode.desktop => const SizedBox.shrink(),
     };
     return Material(type: MaterialType.transparency, child: navigation);
   }

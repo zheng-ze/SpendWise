@@ -1,133 +1,312 @@
-import 'package:domain/domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/budgets/budget_list/budget_card.dart';
-import 'package:spendwise/ui/budgets/budget_list/budgets_empty_state.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
-import 'package:spendwise/ui/common/navigation/expanding_fab.dart';
-import 'package:spendwise/ui/common/lists/swipe_row.dart';
+import 'package:spendwise/ui/common/buttons/app_buttons.dart';
+import 'package:spendwise/ui/common/feedback/empty_state.dart';
+import 'package:spendwise/ui/common/feedback/loading_skeleton.dart';
+import 'package:spendwise/ui/common/navigation/compact_labelled_fab.dart';
+import 'package:spendwise/ui/common/sheets/tray.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
+import 'package:spendwise/ui/shell/shell_pane_host.dart';
+import 'package:spendwise/ui/theme/spendwise_text.dart';
 
-// MARK: - Root
+const _contentPadding = EdgeInsets.all(12);
+const _sectionGap = 10.0;
+const _actionPadding = EdgeInsets.all(12);
+const _openActionPadding = EdgeInsets.only(right: 3, bottom: 10);
+const _summaryGap = 4.0;
+const _summaryBarHeight = 7.0;
+const _summaryBarRadius = 4.0;
+const _categoryHeaderGap = 4.0;
+const _categoryCardGap = 10.0;
+const _singleColumn = 1;
+const _openColumns = 2;
 
 class BudgetsRoot extends ConsumerWidget {
   const BudgetsRoot({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final asyncState = ref.watch(budgetsListViewModelProvider);
+    final state = ref.watch(budgetsListViewModelProvider);
     final viewModel = ref.watch(budgetsListViewModelProvider.notifier);
-    final month = YearMonth.fromUtc(ref.watch(effectiveMonthProvider));
-
-    return asyncState.when(
-      data: (viewState) => BudgetsRootBody(
-        viewState: viewState,
+    final mode = ref.watch(shellLayoutModeProvider);
+    final desktop = mode == ShellLayoutMode.desktop;
+    final addPresented = ShellPaneScope.maybeOf(context)?.addPresented ?? false;
+    final open = mode == ShellLayoutMode.open;
+    final body = state.when(
+      data: (value) => BudgetsListView(
+        viewState: value,
         viewModel: viewModel,
-        month: month,
+        desktop: desktop,
+        columns: open && !addPresented ? _openColumns : _singleColumn,
+        showFloatingAction: !addPresented,
+        actionPadding: open ? _openActionPadding : _actionPadding,
       ),
       loading: () =>
-          const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (error, stackTrace) =>
-          Scaffold(body: Center(child: Text('$error'))),
+          const Padding(padding: _contentPadding, child: LoadingTrays()),
+      error: (error, _) =>
+          BudgetListError(error: error, onRetry: viewModel.retry),
     );
+    return Material(child: body);
   }
 }
 
-// MARK: - Body
-
-class BudgetsRootBody extends StatelessWidget {
-  const BudgetsRootBody({
-    super.key,
-    required this.viewState,
-    required this.viewModel,
-    required this.month,
-  });
-
-  static const _addBudgetLabel = 'Add Budget';
-
-  final BudgetsListViewState viewState;
-  final BudgetsListViewModel viewModel;
-  final YearMonth month;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: Stack(
-          children: [
-            BudgetsListView(
-              viewState: viewState,
-              viewModel: viewModel,
-              month: month,
-            ),
-            ExpandingFab(
-              primary: FabAction(
-                label: _addBudgetLabel,
-                icon: Icons.add,
-                onTap: viewModel.requestNewBudget,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// MARK: - List
+enum BudgetsSection { allSpending, categoryBudgets }
 
 class BudgetsListView extends StatelessWidget {
   const BudgetsListView({
     super.key,
     required this.viewState,
     required this.viewModel,
-    required this.month,
+    this.desktop = false,
+    this.columns = _singleColumn,
+    this.showFloatingAction = true,
+    this.actionPadding = _actionPadding,
+    this.sections = const [
+      BudgetsSection.allSpending,
+      BudgetsSection.categoryBudgets,
+    ],
   });
 
   final BudgetsListViewState viewState;
   final BudgetsListViewModel viewModel;
-  final YearMonth month;
-
-  static const _listVerticalPadding = 8.0;
-  static const _separatorHeight = 1.0;
-
-  static const _overallName = 'Overall';
-
-  static const _deletedCategoryName = '(category deleted)';
+  final bool desktop;
+  final int columns;
+  final bool showFloatingAction;
+  final EdgeInsets actionPadding;
+  final List<BudgetsSection> sections;
 
   @override
   Widget build(BuildContext context) {
-    final budgets = viewState.budgets;
-
-    if (budgets.isEmpty) return const BudgetsEmptyState();
-
-    return ListView.separated(
-      padding: const EdgeInsets.symmetric(vertical: _listVerticalPadding),
-      itemCount: budgets.length,
-      separatorBuilder: (_, _) => const Divider(height: _separatorHeight),
-      itemBuilder: (context, index) {
-        final budget = budgets[index];
-        return SwipeRow(
-          itemKey: ValueKey('budget-${budget.id}'),
-          itemName: _budgetDisplayName(budget, viewState.ledgerState),
-          onDeleted: () => viewModel.deleteBudget(budget.id),
-          child: BudgetCard(
-            budget: budget,
-            month: month,
-            items: viewState.items,
-            state: viewState.ledgerState,
-            isSubcategory: viewState.isSubcategoryBudget(budget),
-            onTap: () => viewModel.requestBudgetDetail(budget.id),
+    final overview = viewState.overview;
+    final error = viewState.error;
+    final content = <Widget>[];
+    if (error != null) {
+      content.add(BudgetListError(error: error, onRetry: viewModel.retry));
+    }
+    if (overview == null) {
+      if (error == null) content.add(const LoadingTrays());
+    } else if (!overview.hasBudgets) {
+      content.add(
+        EmptyState(
+          icon: Icons.savings_outlined,
+          title: 'Give your spending a limit',
+          body: 'Add a budget for one category or all your spending.',
+          actionLabel: 'Add budget',
+          onAction: viewModel.requestNewBudget,
+        ),
+      );
+    } else {
+      if (desktop) {
+        content.add(
+          Align(
+            alignment: Alignment.centerRight,
+            child: PrimaryButton(
+              label: 'Add budget',
+              onPressed: viewModel.requestNewBudget,
+            ),
           ),
         );
+      }
+      for (final section in sections) {
+        final widget = switch (section) {
+          BudgetsSection.allSpending => _AllSpendingSection(
+            key: const ValueKey(BudgetsSection.allSpending),
+            viewState: viewState,
+            viewModel: viewModel,
+          ),
+          BudgetsSection.categoryBudgets => _CategoryBudgetsSection(
+            key: const ValueKey(BudgetsSection.categoryBudgets),
+            columns: columns,
+            viewState: viewState,
+            viewModel: viewModel,
+          ),
+        };
+        content.add(widget);
+        content.add(const SizedBox(height: _sectionGap));
+      }
+      content.add(const FabReserveSpace());
+    }
+    final list = ListView(padding: _contentPadding, children: content);
+    final showAction =
+        showFloatingAction &&
+        !desktop &&
+        overview != null &&
+        overview.hasBudgets;
+    if (!showAction) return list;
+    final action = CompactLabelledFab(
+      label: 'Add budget',
+      icon: Icons.add,
+      onPressed: viewModel.requestNewBudget,
+    );
+    return Stack(
+      children: [
+        list,
+        Align(
+          alignment: Alignment.bottomRight,
+          child: Padding(padding: actionPadding, child: action),
+        ),
+      ],
+    );
+  }
+}
+
+class _AllSpendingSection extends StatelessWidget {
+  const _AllSpendingSection({
+    super.key,
+    required this.viewState,
+    required this.viewModel,
+  });
+  final BudgetsListViewState viewState;
+  final BudgetsListViewModel viewModel;
+
+  @override
+  Widget build(BuildContext context) {
+    final summary = viewState.summary;
+    final colors = context.colors;
+    final amountStyle = context.text.headline.copyWith(
+      color: summary.overLimit ? colors.expense : colors.text,
+    );
+    final captionStyle = Theme.of(context).textTheme.bodySmall;
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(summary.remaining, style: amountStyle),
+        Text(summary.caption, style: captionStyle),
+        const SizedBox(height: _summaryGap),
+        LinearProgressIndicator(
+          value: summary.progress,
+          minHeight: _summaryBarHeight,
+          borderRadius: BorderRadius.circular(_summaryBarRadius),
+          color: summary.overLimit ? colors.expense : colors.action,
+          backgroundColor: colors.tint,
+        ),
+        const SizedBox(height: _summaryGap),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Spent so far', style: captionStyle),
+            Text(summary.spent, style: context.text.small),
+          ],
+        ),
+        if (summary.allowance != null)
+          Text(summary.allowance!, style: captionStyle),
+      ],
+    );
+    final id = summary.budgetID;
+    final child = id == null
+        ? content
+        : InkWell(
+            onTap: () => viewModel.requestBudgetDetail(id),
+            child: content,
+          );
+    return Tray(title: 'All spending', child: child);
+  }
+}
+
+class _CategoryBudgetsSection extends StatelessWidget {
+  const _CategoryBudgetsSection({
+    super.key,
+    required this.viewState,
+    required this.viewModel,
+    required this.columns,
+  });
+  final BudgetsListViewState viewState;
+  final BudgetsListViewModel viewModel;
+  final int columns;
+
+  @override
+  Widget build(BuildContext context) {
+    final cards = [
+      for (final (index, row) in viewState.cards.indexed)
+        Tray(
+          key: ValueKey('budget-tray-${row.id}'),
+          child: BudgetCard(
+            key: ValueKey('budget-${row.id}'),
+            savedHex: row.savedHex,
+            rank: index,
+            chartColours: viewState.chartColours,
+            name: row.name,
+            amounts: row.amounts,
+            status: row.status,
+            progress: row.progress,
+            overLimit: row.overLimit,
+            onTap: () => viewModel.requestBudgetDetail(row.id),
+          ),
+        ),
+    ];
+    final content = _BudgetCardLayout(columns: columns, children: cards);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TrayHeader(
+          title: 'Category budgets',
+          trailing: Text(
+            'Most used first',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ),
+        const SizedBox(height: _categoryHeaderGap),
+        content,
+      ],
+    );
+  }
+}
+
+class _BudgetCardLayout extends StatelessWidget {
+  const _BudgetCardLayout({required this.columns, required this.children});
+  final int columns;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    if (columns == _singleColumn || children.length == 1) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final (index, child) in children.indexed) ...[
+            if (index > 0) const SizedBox(height: _categoryCardGap),
+            child,
+          ],
+        ],
+      );
+    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = (constraints.maxWidth - _sectionGap) / columns;
+        final tiles = [
+          for (final child in children) SizedBox(width: width, child: child),
+        ];
+        return Wrap(spacing: _sectionGap, children: tiles);
       },
     );
   }
+}
 
-  String _budgetDisplayName(Budget budget, LedgerState state) {
-    final categoryID = budget.categoryID;
-    if (categoryID == null) return _overallName;
-    return state.categories[categoryID]?.name ?? _deletedCategoryName;
+class BudgetListError extends StatelessWidget {
+  const BudgetListError({
+    super.key,
+    required this.error,
+    required this.onRetry,
+  });
+  final Object error;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text("Couldn't load your budgets"),
+        Text('$error'),
+        PrimaryButton(label: 'Try again', onPressed: onRetry),
+      ],
+    );
+    return Padding(
+      padding: _contentPadding,
+      child: Tray(child: content),
+    );
   }
 }
