@@ -8,14 +8,16 @@ import 'package:spendwise/ui/common/sheets/tray.dart';
 import 'package:spendwise/ui/theme/spendwise_theme.dart';
 
 void main() {
-  testWidgets('one open-layout category card fills the available row', (
+  testWidgets('one open-layout budget has its own full-width tray', (
     tester,
   ) async {
     await _pumpBudgetList(tester, cardCount: 1);
 
-    final tray = tester.getSize(find.byType(Tray));
-    final card = tester.getSize(find.byKey(const ValueKey('budget-budget-0')));
-    expect(card.width, closeTo(tray.width - Tray.contentPadding * 2, 2));
+    final tray = tester.getSize(
+      find.byKey(const ValueKey('budget-tray-budget-0')),
+    );
+    expect(tray.width, closeTo(800 - 24, 2));
+    expect(find.byType(Tray), findsOneWidget);
   });
 
   testWidgets('multiple open-layout category cards remain two columns', (
@@ -23,21 +25,37 @@ void main() {
   ) async {
     await _pumpBudgetList(tester, cardCount: 2);
 
-    final first = tester.getRect(find.byKey(const ValueKey('budget-budget-0')));
-    final second = tester.getRect(
-      find.byKey(const ValueKey('budget-budget-1')),
+    final first = tester.getRect(
+      find.byKey(const ValueKey('budget-tray-budget-0')),
     );
-    final tray = tester.getSize(find.byType(Tray));
-    expect(first.width, lessThan(tray.width - Tray.contentPadding * 2));
+    final second = tester.getRect(
+      find.byKey(const ValueKey('budget-tray-budget-1')),
+    );
+    expect(find.byType(Tray), findsNWidgets(2));
     expect(second.width, first.width);
     expect(second.top, first.top);
     expect(second.left, greaterThan(first.right));
+  });
+
+  testWidgets('category budget trays stack in a narrow layout', (tester) async {
+    await _pumpBudgetList(tester, cardCount: 2, columns: 1);
+
+    final first = tester.getRect(
+      find.byKey(const ValueKey('budget-tray-budget-0')),
+    );
+    final second = tester.getRect(
+      find.byKey(const ValueKey('budget-tray-budget-1')),
+    );
+    expect(find.byType(Tray), findsNWidgets(2));
+    expect(second.top, greaterThan(first.bottom));
+    expect(second.width, first.width);
   });
 }
 
 Future<void> _pumpBudgetList(
   WidgetTester tester, {
   required int cardCount,
+  int columns = 2,
 }) async {
   final rows = [
     for (var index = 0; index < cardCount; index++)
@@ -85,7 +103,7 @@ Future<void> _pumpBudgetList(
           child: BudgetsListView(
             viewState: viewState,
             viewModel: _ViewModel(),
-            columns: 2,
+            columns: columns,
             showFloatingAction: false,
             sections: const [BudgetsSection.categoryBudgets],
           ),

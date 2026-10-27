@@ -19,6 +19,8 @@ const _openActionPadding = EdgeInsets.only(right: 3, bottom: 10);
 const _summaryGap = 4.0;
 const _summaryBarHeight = 7.0;
 const _summaryBarRadius = 4.0;
+const _categoryHeaderGap = 4.0;
+const _categoryCardGap = 10.0;
 const _singleColumn = 1;
 const _openColumns = 2;
 
@@ -219,27 +221,36 @@ class _CategoryBudgetsSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final cards = [
       for (final (index, row) in viewState.cards.indexed)
-        BudgetCard(
-          key: ValueKey('budget-${row.id}'),
-          savedHex: row.savedHex,
-          rank: index,
-          chartColours: viewState.chartColours,
-          name: row.name,
-          amounts: row.amounts,
-          status: row.status,
-          progress: row.progress,
-          overLimit: row.overLimit,
-          onTap: () => viewModel.requestBudgetDetail(row.id),
+        Tray(
+          key: ValueKey('budget-tray-${row.id}'),
+          child: BudgetCard(
+            key: ValueKey('budget-${row.id}'),
+            savedHex: row.savedHex,
+            rank: index,
+            chartColours: viewState.chartColours,
+            name: row.name,
+            amounts: row.amounts,
+            status: row.status,
+            progress: row.progress,
+            overLimit: row.overLimit,
+            onTap: () => viewModel.requestBudgetDetail(row.id),
+          ),
         ),
     ];
     final content = _BudgetCardLayout(columns: columns, children: cards);
-    return Tray(
-      title: 'Category budgets',
-      trailing: Text(
-        'Most used first',
-        style: Theme.of(context).textTheme.bodySmall,
-      ),
-      child: content,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TrayHeader(
+          title: 'Category budgets',
+          trailing: Text(
+            'Most used first',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ),
+        const SizedBox(height: _categoryHeaderGap),
+        content,
+      ],
     );
   }
 }
@@ -254,7 +265,12 @@ class _BudgetCardLayout extends StatelessWidget {
     if (columns == _singleColumn || children.length == 1) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: children,
+        children: [
+          for (final (index, child) in children.indexed) ...[
+            if (index > 0) const SizedBox(height: _categoryCardGap),
+            child,
+          ],
+        ],
       );
     }
     return LayoutBuilder(
