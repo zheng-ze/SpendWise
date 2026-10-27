@@ -1,6 +1,6 @@
 # UI Framework (MVVM)
 
-Last reconciled: 2026-10-24
+Last reconciled: 2026-10-27
 
 ## Feature overview
 
@@ -362,6 +362,11 @@ value, which then overwrites it. (issue #38)
   The route lifts the sheet above the keyboard, and the surface keeps
   its footer/input above the bottom safe inset while the phone background fills
   that inset.
+  On desktop, `AppShell` keeps one `DesktopSidebar` mounted while Add is presented, and Add's normal
+  full-window modal barrier covers it. Any sidebar tap dismisses Add without changing the selected
+  destination. Phone and open navigation behavior remains unchanged. (`app/lib/ui/shell/app_shell.dart`,
+  `app/lib/ui/common/sheets/app_sheet_route.dart`,
+  `app/test/ui/transactions/entry/new_entry_navigation_test.dart`)
 - **Add form surface** - `AppSheetVariant.form` is used by the Add loading and loaded forms.
   In light mode its canvas backing uses `SpendWiseColors.base`; desktop form chrome is a 340 dp dialog with
   no grab handle. Standard sheets retain their existing chrome. Phone Add enables
