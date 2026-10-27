@@ -138,7 +138,10 @@ class AppSheetRoute<T> extends ModalRoute<T> {
       child: SlideTransition(position: slide, child: child),
     );
     if (!showShellNavigation) return transition;
-    return _DesktopNavigationTransitionBoundary(transition: transition);
+    return _DesktopNavigationTransitionBoundary(
+      transition: transition,
+      route: this,
+    );
   }
 
   @override
@@ -234,21 +237,32 @@ class _AppSheetPageState<T> extends State<_AppSheetPage<T>> {
 }
 
 class _DesktopNavigationTransitionBoundary extends ConsumerWidget {
-  const _DesktopNavigationTransitionBoundary({required this.transition});
+  const _DesktopNavigationTransitionBoundary({
+    required this.transition,
+    required this.route,
+  });
 
   final Widget transition;
+  final AppSheetRoute<dynamic> route;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final desktop =
         ref.watch(shellLayoutModeProvider) == ShellLayoutMode.desktop;
     if (!desktop) return transition;
-    return Stack(children: [transition, const _ShellNavigationOverlay()]);
+    return Stack(
+      children: [
+        transition,
+        _ShellNavigationOverlay(route: route),
+      ],
+    );
   }
 }
 
 class _ShellNavigationOverlay extends ConsumerWidget {
-  const _ShellNavigationOverlay();
+  const _ShellNavigationOverlay({this.route});
+
+  final AppSheetRoute<dynamic>? route;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -282,15 +296,25 @@ class _ShellNavigationOverlay extends ConsumerWidget {
       ),
       ShellLayoutMode.desktop => Align(
         alignment: Alignment.centerLeft,
-        child: DesktopSidebar(
-          selected: selected,
-          onDestinationSelected: (destination) =>
-              _selectAndDismiss(context, ref, destination),
-          onAdd: () {},
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => _dismissRoute(context),
+          child: DesktopSidebar(
+            selected: selected,
+            onDestinationSelected: (destination) =>
+                _selectAndDismiss(context, ref, destination),
+            onAdd: () => _dismissRoute(context),
+          ),
         ),
       ),
     };
     return Material(type: MaterialType.transparency, child: navigation);
+  }
+
+  void _dismissRoute(BuildContext context) {
+    final targetRoute = route;
+    if (targetRoute == null) return;
+    Navigator.of(context, rootNavigator: true).removeRoute(targetRoute);
   }
 
   void _selectAndDismiss(

@@ -72,6 +72,39 @@ void main() {
     );
   }, timeout: uiTestTimeout);
 
+  testWidgets('desktop sidebar surface dismisses only Add', (tester) async {
+    final harness = await pumpShell(
+      tester,
+      size: _desktopSize,
+      platform: TargetPlatform.macOS,
+    );
+    await openAdd(tester, harness);
+
+    await tester.tapAt(const Offset(4, 500));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AppSheet), findsNothing);
+    expect(
+      harness.container.read(selectedDestinationProvider),
+      ShellDestination.overview,
+    );
+
+    await openAdd(tester, harness);
+    await tester.tap(
+      find.descendant(
+        of: find.byType(DesktopSidebar).last,
+        matching: find.text('Add entry'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AppSheet), findsNothing);
+    expect(
+      harness.container.read(selectedDestinationProvider),
+      ShellDestination.overview,
+    );
+  }, timeout: uiTestTimeout);
+
   testWidgets('outside tap dismisses Add without changing destination', (
     tester,
   ) async {
