@@ -1,6 +1,6 @@
 # Budgets
 
-Last reconciled: 2026-10-27
+Last reconciled: 2026-10-28
 
 ## Feature overview
 
@@ -42,14 +42,16 @@ participate in the normal change stream and persistence. Spend math is **not** i
 lives in the app layer under `app/lib/ledger/analysis/budgets/`, as pure functions over `LedgerState`
 and `AnalysisItem`s.
 
-`AnalysisQueries.readBudgets(month:)` and `readBudgetDetail(budgetID:, displayedYear:,
-selectedMonth:)` expose the two projections as memoised mixed reads (see
-[ledger-runtime.md](ledger-runtime.md)). Their ids and dates are normalized before the memo identity
-is formed. The budget screens do not yet consume these reads. The detail screen derives the selected
-month's headline spend from `budgetCountedTotal(viewState.countedEntries)`; its twelve-month chart
-uses `budgetSpend` over cached analysis items (`BudgetDetailViewState.spendSeries`,
-`_BudgetDetailHeader`). `MoneyFlow` hosts `BudgetsFlow` in the Money Budgets segment
-(`app/lib/ui/money/money_flow.dart`).
+`AnalysisQueries.readBudgets(month:)` supplies the Budgets overview, and
+`readBudgetDetail(budgetID:, displayedYear:, selectedMonth:)` supplies the detail projection. Both are
+memoised mixed reads (see [ledger-runtime.md](ledger-runtime.md)). The list view model consumes
+`readBudgets`. `BudgetDetailNotifier` (`budget_detail_view_model.dart`) consumes `readBudgetDetail`
+and computes the counted entries itself from the live ledger.
+
+`MoneyFlow` hosts `BudgetsFlow` in the Money Budgets segment (`app/lib/ui/money/money_flow.dart`).
+`selectedBudgetProvider` (`app/lib/ui/budgets/budget_list/budget_selection.dart`) is the single
+selected-budget state. The list writes it on a tap, `MoneyFlow` reads it to supply the open-layout
+pane, and `BudgetsFlow` reconciles its managed page against it.
 
 ## Budget model
 
@@ -117,12 +119,27 @@ uncategorized transfer items. (`app/test/ledger/analysis_budget_counted_entries_
 
 ## Detail rows and totals
 
-`BudgetDetailNotifier` computes `countedEntries` from its current ledger state for the selected month
-and rebuilds them when the ledger, analysis cache, selected month, or displayed year changes. The
-headline spend is the fold of this same list, and remaining is the effective limit minus that spend.
-The displayed entries and selected-month total therefore reconcile by construction, including
-transfers treated as expenses. The twelve-month chart continues to use cached analysis items through
-`budgetSpend`. (`budget_detail_view_model.dart`, `budget_detail_screen.dart`)
+`BudgetDetailNotifier.build` recomputes `countedEntries` synchronously from the live ledger on every
+build, using `budgetCountedEntries` for the selected month. The headline spend is
+`budgetCountedTotal` over those same rows, and remaining is the selected limit minus that spend, so
+rows and totals reconcile by construction, including transfers treated as expenses. Rows are never
+retained.
+
+Only the asynchronous projection (the twelve month slots, the selected limit and the current limit)
+is retained. While a refresh is pending or has failed, the detail keeps the last accepted projection
+for the same budget, month and displayed year, and the chart may briefly lag the rows.
+`BudgetDetailProjection.belongsTo` discards a retained projection when the displayed month or year
+changes or the ledger instance is replaced.
+
+The chart draws one dashed horizontal line at `effectiveLimit(budget, YearMonth.fromUtc(today))`
+(`_captureProjection`, `_ChartTray` in `budget_detail_content.dart`). It does not depend on the
+displayed year or the selected month. The selected-month summary keeps its own applicable limit
+(`projection.selectedLimit`). The detail shows no limit-changes row and no chart caption.
+
+Freshness is decided across all months and years. A budget with no counted entries anywhere shows the
+fresh state. When entries exist elsewhere but none count in the selected month, only the entries
+section shows the empty copy (`budgetDetailPresentation`, `budget_detail_presentation.dart`). A zero
+total alone establishes neither state.
 
 `BudgetCountedEntryList` groups rows by `startOfDayUtc(entry.date)` and displays days newest first.
 Each day header shows the negative folded expense contribution for its rows. Individual `EntryRow`s
@@ -132,35 +149,47 @@ while contributing to a negative expense day total. (`budget_counted_entry_list.
 
 ## Provider and subscription lifetime
 
-`budgetsListViewModelProvider` is a non-auto-disposing provider.
-`budgetDetailViewModelProvider` and `budgetLimitViewModelProvider` are `autoDispose` families keyed
-by budget id. (`budgets_list_view_model.dart`, `budget_detail_view_model.dart`,
-`budget_limit_view_model.dart`)
+`budgetsListViewModelProvider` is non-autoDispose. `selectedBudgetProvider` is a non-autoDispose
+notifier holding `(budgetID, generation)` or null. It watches no query. `select` is idempotent for the
+budget already selected, assigns a new generation for a different budget, and `clear` is the only
+explicit clearing operation. `budgetDetailContextProvider(budgetID)`, `budgetDetailViewModelProvider(budgetID)`
+and `budgetLimitViewModelProvider(budgetID)` are autoDispose families.
 
-`BudgetsFlow` opens manual subscriptions to the detail and limit providers before pushing
-the detail route and retains them while the limit screen is above it. During normal detail closure, it waits for
-`route.completed` before closing both subscriptions, keeping the providers alive through the exit
-transition. It also closes subscriptions when the Flow is disposed or another budget is opened.
-The completion callback checks subscription identity so completion of an older route cannot close
-the current budget's subscriptions. (`budget_detail_view_model.dart`, `budget_limit_view_model.dart`,
-`app/lib/ui/budgets/budget_list/budgets_flow.dart`,
-`app/test/ui/budgets/budget_list/budgets_flow_test.dart`)
+`BudgetsFlow` owns one budget session at a time (`_BudgetSession`). It opens the context, detail and
+limit subscriptions together, and the session carries the selection generation. Selecting another
+budget retires the previous session. A retired session closes once its descendant routes complete, or
+immediately when it has none. Replacing the ledger instance (`ledgerProvider`) clears the selection.
 
-`budgetFormViewModelProvider` is an `autoDispose` family keyed by `BudgetDraftKey`, which uses object
-identity equality. Each Add sheet receives a fresh key. The Flow subscribes to that draft before presenting the sheet and releases its subscription
-when the sheet's returned Future completes, when another draft opens, or when the Flow is disposed.
-The form watches the same key, so auto-disposal releases the draft after its listeners are gone.
-The completion callback checks draft identity before releasing the subscription. Category-picker
-results apply only while the initiating context is mounted and the same draft remains open.
-(`budget_form.dart`, `budget_form_view_model.dart`,
-`budgets_flow.dart:_openBudgetForm`, `_handleFormStep`)
+`MoneyFlow` is a second owner, and only in open layout. While the Budgets segment is active, the shell
+destination is active and a selection exists, it watches `budgetDetailViewModelProvider` to supply the
+`ShellDetail`. Clearing the selection or leaving open layout drops that watch.
+
+`BudgetsFlow` schedules one post-frame reconciliation when the selection, the shell layout mode or the
+destination activity changes. It reads the latest values and then:
+
+- In open layout, it removes the managed detail page with `removeRoute`, which is a presentation-only
+  removal that leaves the selection in place. Completion of a page that is no longer tracked is
+  ignored.
+- In phone and desktop layout, it pushes one managed page when a selection exists and the shell route
+  is current. A new selection updates the existing page's budget in place instead of stacking a page.
+- When another route covers the shell, it defers the push. After that route completes, it restores the
+  page once with a zero-duration transition.
+
+When the tracked page completes (Back in phone layout), its selection is cleared only if the selection
+generation still matches the page. The pane's Close button clears the selection directly. History and
+other descendant routes are tracked per session, so they survive conversion.
+
+Delayed limit-sheet results apply only when the session generation, the selected budget and the
+captured ledger instance all still match. (`app/lib/ui/budgets/budget_list/budgets_flow.dart`,
+`app/lib/ui/money/money_flow.dart`, `app/test/ui/budgets/budget_list/budgets_pane_test.dart`)
 
 ## Step ownership
 
-The list Step belongs to the list provider. `BudgetsFlow.handleStep` handles and clears it.
-Detail and limit Steps belong to the open budget; form Steps and category-picker
-continuations belong to the open `BudgetDraftKey`. (`budgets_flow.dart:handleStep`,
-`_handleDetailStep`, `_handleLimitStep`, `_handleFormStep`,
+The list Step belongs to the list provider. `BudgetsFlow.handleStep` handles and clears form steps.
+Opening a detail is no longer a Step: a tap selects the budget, and reconciliation presents it. Detail
+and limit Steps belong to the owning session and are handled only while that session's generation is
+current. Form Steps and category-picker continuations belong to the open `BudgetDraftKey`.
+(`budgets_flow.dart:handleStep`, `_handleDetailStep`, `_handleLimitStep`, `_handleFormStep`,
 `app/test/ui/budgets/budget_list/budgets_flow_test.dart`)
 
 ## Overview projection
@@ -191,14 +220,13 @@ otherwise it surfaces an exception from recomputing the overview. `BudgetListErr
 retry action, which calls `AnalysisQueries.retry`. (`budgets_list_view.dart`,
 `budgets_list_view_model.dart`, `analysis_queries.dart`)
 
-The list has an **All spending** tray followed by **Category budgets**, whose individual category
-trays are ranked by the overview's spend-to-limit utilization order. An unscoped budget makes the All
-spending summary tappable to open its detail; category trays open their matching budget details.
-Category cards include their parent name when scoped to a child category. Open layout uses two
-columns for multiple category trays and one column for a single tray; phone and desktop use one
-column. When an Add sheet is already presented in the open layout, category trays return to one
-column and the list hides its Add button. (`budgets_list_view.dart`,
-`budgets_list_view_model.dart`, `budget_overview.dart`)
+The list has an **All spending** tray followed by **Category budgets**, whose category trays are
+ranked by the overview's utilization order. Tapping the All spending tray (when an unscoped budget
+exists) or a category tray selects that budget through `selectedBudgetProvider`. The selected tray uses
+the selected border and fill. In open layout with a selection, the list uses one column. Otherwise open
+layout uses two columns for multiple category trays, and phone and desktop use one column. When an Add
+sheet is presented in the open layout, category trays return to one column and the list hides its Add
+button. (`budgets_list_view.dart`, `budgets_list_view_model.dart`, `budget_overview.dart`)
 
 Add budget is available from the empty-state action, from a compact labelled floating button when
 budgets exist on phone/open layouts, and from a button above the list on desktop. The list reserves
@@ -213,6 +241,18 @@ effective limit, whether an override pins that month, the matching record count,
 completeness. The summary reports the selected month's spend and limit along with the budget's
 category and creation month. An unknown budget id yields a detail with a null summary and no slots.
 
+## Detail page and pane
+
+In open layout the selected budget appears in the shell's right pane. `MoneyFlow` supplies a
+`ShellDetail` whose title is the budget's category name or Overall, whose subtitle is the selected
+month, whose header actions are Edit and Close, and whose body is the shared `BudgetDetailContent`
+without a second app bar. Phone and desktop layouts show the same content as a page, with its own app
+bar and an Edit action with the tooltip "Edit limit history". Both Edit actions call
+`requestLimitEdit`, which opens the existing limit history page (`BudgetLimitScreen`). That history
+page and its view model are unchanged in this slice. #425 replaces the Edit action with the action
+sheet, and #570 removes the history page and its past-limit logic after #425. The deleted-budget
+frame remains the "Budget deleted" text until #425. (`budget_detail_content.dart`,
+`budget_detail_screen.dart`, `app/lib/ui/money/money_flow.dart`)
 ## Gotchas and invariants
 
 - Budget spend math is deliberately outside the domain; a domain change must not introduce it.
