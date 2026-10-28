@@ -24,6 +24,15 @@ const _categoryCardGap = 10.0;
 const _singleColumn = 1;
 const _openColumns = 2;
 
+int budgetListColumnCount({
+  required bool openLayout,
+  required bool addPresented,
+  required bool selectionPresent,
+}) {
+  if (openLayout && !addPresented && !selectionPresent) return _openColumns;
+  return _singleColumn;
+}
+
 class BudgetsRoot extends ConsumerWidget {
   const BudgetsRoot({super.key});
 
@@ -40,9 +49,11 @@ class BudgetsRoot extends ConsumerWidget {
         viewState: value,
         viewModel: viewModel,
         desktop: desktop,
-        columns: open && !addPresented && value.selectedBudgetID == null
-            ? _openColumns
-            : _singleColumn,
+        columns: budgetListColumnCount(
+          openLayout: open,
+          addPresented: addPresented,
+          selectionPresent: value.selectedBudgetID != null,
+        ),
         showFloatingAction: !addPresented,
         actionPadding: open ? _openActionPadding : _actionPadding,
       ),
