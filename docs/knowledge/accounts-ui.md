@@ -1,6 +1,6 @@
 # Accounts UI
 
-Last reconciled: 2026-10-28
+Last reconciled: 2026-10-29
 
 ## Feature overview
 
@@ -18,7 +18,7 @@ and phone/open layout changes. The shared root header shows Money and one segmen
 only Budgets shows the shared month selector. Accounts adds its Add account action to this header,
 and Plans adds its existing Edit/Done action. The Accounts and Plans roots have no header of
 their own. In open layout, a selected budget in the Budgets segment supplies the shell detail pane
-through `ShellPaneHost`; the Accounts and Plans segments supply no detail. (`money_flow.dart`,
+through `ShellPaneHost` (title from a light provider, body owned by the pane); the Accounts and Plans segments supply no detail. (`money_flow.dart`,
 `app/lib/ui/budgets/budget_list/budgets_flow.dart`) The Money header always renders for the selected
 segment; a nested Accounts page currently shows beneath it until the Accounts restyle (#304). (`app/lib/ui/money/money_flow.dart`,
 `accounts_flow.dart`, `accounts_screen.dart`, `app/lib/ui/settings/plan/plan_list_screen.dart`)

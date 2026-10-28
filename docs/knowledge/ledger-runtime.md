@@ -1,6 +1,6 @@
 # Ledger Runtime
 
-Last reconciled: 2026-10-24
+Last reconciled: 2026-10-29
 
 ## Feature overview
 
@@ -151,8 +151,10 @@ updates the existing query object without a cache computation
 `readCategoryBreakdown(period:, mode:, kind:, level:)`,
 `readScopedTrend(period:, mode:, kind:, mainBucketID:, scope:)`, `readBudgets(month:)`, and
 `readBudgetDetail(budgetID:, displayedYear:, selectedMonth:)` return
-`AnalysisQueryResult<T>` with nullable `value`, `ready`/`loading`/`failed` state, and nullable
-`sourceRevision`. `readBudgets` returns a `BudgetsOverview` and `readBudgetDetail` a `BudgetDetail`; both normalize
+`AnalysisQueryResult<T>` with nullable `value`, `ready`/`loading`/`failed` state, nullable
+`sourceRevision`, and an optional `failure` payload. A failed result carries the thrown evaluation error
+or the cache's failure for the matching revision, keeps any prior value, and a successful retry returns
+null again. `readBudgets` returns a `BudgetsOverview` and `readBudgetDetail` a `BudgetDetail`; both normalize
 ids and dates before the memo identity is formed (see [budgets.md](budgets.md)). `readToday()`
 returns a `TodaySummary` with `spent`, `dailyGuide` and `monthlyCap`;
 the Overview consumes it (see [overview-ui.md](overview-ui.md)). These reads mix Ledger state with
