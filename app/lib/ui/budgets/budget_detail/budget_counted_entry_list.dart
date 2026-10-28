@@ -20,17 +20,8 @@ class BudgetCountedEntryList extends StatelessWidget {
   final LedgerState state;
   final List<BudgetCountedEntry> counted;
 
-  static const _emptyVerticalPadding = 32.0;
-
   @override
   Widget build(BuildContext context) {
-    if (counted.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: _emptyVerticalPadding),
-        child: Center(child: Text('No entries in this period')),
-      );
-    }
-
     final byDay = <DateTime, List<BudgetCountedEntry>>{};
     for (final row in counted) {
       (byDay[startOfDayUtc(row.entry.date)] ??= []).add(row);

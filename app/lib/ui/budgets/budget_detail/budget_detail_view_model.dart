@@ -1,25 +1,19 @@
-import 'dart:async';
-
 import 'package:domain/domain.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:spendwise/ledger/analysis_cache.dart';
+import 'package:spendwise/boot/providers.dart';
+import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
+import 'package:spendwise/ledger/analysis/budgets/budget_counted_entries.dart';
+import 'package:spendwise/ledger/analysis/budgets/budget_detail.dart';
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ui/budgets/budget_detail/budgets_steps.dart';
 import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/base/step_emitting.dart';
-import 'package:spendwise/ui/budgets/budget_detail/budgets_steps.dart';
-import 'package:spendwise/ledger/analysis/budgets/budget_counted_entries.dart';
-import 'package:spendwise/ledger/analysis/budgets/budget_spend.dart';
+import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/stats/helpers/trend.dart';
 
 export 'package:spendwise/ui/budgets/budget_detail/budgets_steps.dart';
-
-// MARK: - Month Series
-
-List<T> monthSeries<T>(
-  List<DateTime> months,
-  T Function(YearMonth month) forMonth,
-) => [for (final month in months) forMonth(YearMonth(month.year, month.month))];
 
 // MARK: - Chart Scale
 double chartMaxY(List<Decimal> spend, List<Decimal> limit) {
@@ -35,75 +29,155 @@ double chartMaxY(List<Decimal> spend, List<Decimal> limit) {
 // MARK: - Constants
 const _chartHeadroomFactor = 1.15;
 const _emptyChartMaxY = 1.0;
+const _overallTitle = 'Overall';
+const _deletedCategoryTitle = '(category deleted)';
 
-// MARK: - BudgetDetailViewState
-class BudgetDetailViewState
-    implements HasStep<BudgetDetailViewState, BudgetsStep> {
-  const BudgetDetailViewState({
-    required this.budget,
-    required this.ledgerState,
-    required this.items,
-    required this.countedEntries,
-    required this.displayedYear,
-    required this.selectedMonth,
-    required this.months,
-    this.step,
-  });
+// MARK: - Labels
+String? _categoryName(Budget budget, LedgerState state) {
+  final categoryID = budget.categoryID;
+  if (categoryID == null) return null;
+  return state.categories[categoryID]?.name ?? _deletedCategoryTitle;
+}
 
-  final Budget? budget;
-  final LedgerState ledgerState;
-  final List<AnalysisItem> items;
-  final List<BudgetCountedEntry> countedEntries;
-  final DateTime displayedYear;
-  final DateTime selectedMonth;
-  final List<DateTime> months;
+// MARK: - Context
+typedef BudgetDetailContext = ({
+  DateTime displayedYear,
+  DateTime selectedMonth,
+});
+
+// MARK: - BudgetDetailContextNotifier
+class BudgetDetailContextNotifier extends Notifier<BudgetDetailContext> {
+  BudgetDetailContextNotifier(this.budgetID);
+
+  final String budgetID;
+
   @override
-  final BudgetsStep? step;
-
-  YearMonth get selectedYearMonth =>
-      YearMonth(selectedMonth.year, selectedMonth.month);
-
-  List<Decimal> get spendSeries {
-    final currentBudget = budget;
-    if (currentBudget == null) return const [];
-    return monthSeries(
-      months,
-      (month) => budgetSpend(currentBudget, month, items, ledgerState),
+  BudgetDetailContext build() {
+    final month = ref.read(effectiveMonthProvider);
+    return (
+      displayedYear: DateTime.utc(month.year),
+      selectedMonth: DateTime.utc(month.year, month.month),
     );
   }
 
-  List<Decimal> get limitSeries {
-    final currentBudget = budget;
-    if (currentBudget == null) return const [];
-    return monthSeries(months, (month) => effectiveLimit(currentBudget, month));
+  void selectMonth(DateTime month) {
+    state = (
+      displayedYear: state.displayedYear,
+      selectedMonth: DateTime.utc(month.year, month.month),
+    );
   }
 
-  double get chartMaxYValue => chartMaxY(spendSeries, limitSeries);
-
-  String get title {
-    final categoryID = budget?.categoryID;
-    if (categoryID == null) return 'Overall';
-    return ledgerState.categories[categoryID]?.name ?? '(category deleted)';
+  void changeYear(DateTime year) {
+    state = (
+      displayedYear: DateTime.utc(year.year),
+      selectedMonth: DateTime.utc(year.year, state.selectedMonth.month),
+    );
   }
+}
 
-  BudgetDetailViewState copyWith({
-    Budget? budget,
-    LedgerState? ledgerState,
-    List<AnalysisItem>? items,
-    List<BudgetCountedEntry>? countedEntries,
-    DateTime? displayedYear,
-    DateTime? selectedMonth,
-    List<DateTime>? months,
-    BudgetsStep? Function()? step,
-  }) {
+// MARK: - Snapshot
+@immutable
+class BudgetDetailSnapshot {
+  const BudgetDetailSnapshot({
+    required this.ledger,
+    required this.ledgerState,
+    required this.budget,
+    required this.projection,
+    required this.categoryName,
+    required this.countedEntries,
+    required this.hasCountedEntries,
+    required this.selectedLimit,
+    required this.currentLimit,
+    required this.displayedYear,
+    required this.selectedMonth,
+    required this.months,
+  });
+
+  final Ledger ledger;
+  final LedgerState ledgerState;
+  final Budget budget;
+  final BudgetDetail projection;
+  final String? categoryName;
+  final List<BudgetCountedEntry> countedEntries;
+  final bool hasCountedEntries;
+  final Decimal selectedLimit;
+  final Decimal currentLimit;
+  final DateTime displayedYear;
+  final DateTime selectedMonth;
+  final List<DateTime> months;
+
+  String get title => categoryName ?? _overallTitle;
+
+  Decimal get spent => budgetCountedTotal(countedEntries);
+
+  List<Decimal> get spendSeries => [
+    for (final slot in projection.slots) slot.spend,
+  ];
+
+  double get chartMaxYValue => chartMaxY(spendSeries, [currentLimit]);
+}
+
+BudgetDetailSnapshot _captureSnapshot({
+  required Ledger ledger,
+  required LedgerState ledgerState,
+  required Budget budget,
+  required BudgetDetail projection,
+  required BudgetDetailContext context,
+  required DateTime today,
+}) {
+  final summary = projection.summary;
+  if (summary == null) {
+    throw StateError('Budget ${budget.id} has no detail summary.');
+  }
+  final selected = YearMonth.fromUtc(context.selectedMonth);
+  return BudgetDetailSnapshot(
+    ledger: ledger,
+    ledgerState: ledgerState,
+    budget: budget,
+    projection: projection,
+    categoryName: _categoryName(budget, ledgerState),
+    countedEntries: budgetCountedEntries(budget, selected, ledgerState),
+    hasCountedEntries: budgetHasCountedEntries(budget, ledgerState),
+    selectedLimit: summary.limit,
+    currentLimit: effectiveLimit(budget, YearMonth.fromUtc(today)),
+    displayedYear: context.displayedYear,
+    selectedMonth: context.selectedMonth,
+    months: trendMonths(context.displayedYear, isYearRange: true),
+  );
+}
+
+// MARK: - BudgetDetailViewState
+enum BudgetDetailPhase { loading, ready, failed, deleted }
+
+class BudgetDetailViewState
+    implements HasStep<BudgetDetailViewState, BudgetsStep> {
+  const BudgetDetailViewState({
+    required this.phase,
+    required this.title,
+    required this.displayedYear,
+    required this.selectedMonth,
+    this.snapshot,
+    this.error,
+    this.step,
+  });
+
+  final BudgetDetailPhase phase;
+  final String title;
+  final DateTime displayedYear;
+  final DateTime selectedMonth;
+  final BudgetDetailSnapshot? snapshot;
+  final Object? error;
+  @override
+  final BudgetsStep? step;
+
+  BudgetDetailViewState copyWith({BudgetsStep? Function()? step}) {
     return BudgetDetailViewState(
-      budget: budget ?? this.budget,
-      ledgerState: ledgerState ?? this.ledgerState,
-      items: items ?? this.items,
-      countedEntries: countedEntries ?? this.countedEntries,
-      displayedYear: displayedYear ?? this.displayedYear,
-      selectedMonth: selectedMonth ?? this.selectedMonth,
-      months: months ?? this.months,
+      phase: phase,
+      title: title,
+      displayedYear: displayedYear,
+      selectedMonth: selectedMonth,
+      snapshot: snapshot,
+      error: error,
       step: step == null ? this.step : step(),
     );
   }
@@ -118,6 +192,7 @@ abstract class BudgetDetailViewModel {
   void selectMonth(DateTime month);
   void changeYear(DateTime year);
   void requestLimitEdit();
+  void retry();
   void clearStep();
 }
 
@@ -131,98 +206,161 @@ class BudgetDetailNotifier extends AsyncNotifier<BudgetDetailViewState>
 
   final String _budgetID;
 
-  late DateTime _displayedYear;
-  late DateTime _selectedMonth;
   BudgetsStep? _step;
 
-  late Ledger _ledger;
-  late AnalysisCache _cache;
+  BudgetDetailSnapshot? _accepted;
 
   @override
-  Future<BudgetDetailViewState> build() async {
+  BudgetDetailViewState build() {
+    final context = ref.watch(budgetDetailContextProvider(_budgetID));
+    final queries = ref.watch(analysisQueriesProvider);
+    final today = ref.watch(todayProvider);
+    if (queries == null) {
+      throw StateError('Budget detail requires analysis queries.');
+    }
     final currentLedger = ledger;
-    final cache = analysisCache;
-    _ledger = currentLedger;
-    _cache = cache;
-    currentLedger.addListener(_onChanged);
-    cache.addListener(_onChanged);
-    ref.onDispose(() => currentLedger.removeListener(_onChanged));
-    ref.onDispose(() => cache.removeListener(_onChanged));
-
-    final now = startOfDayUtc(DateTime.now());
-    _displayedYear = DateTime.utc(now.year);
-    _selectedMonth = DateTime.utc(now.year, now.month);
-
-    await cache.refresh(currentLedger.state);
-
-    return _buildState(
-      displayedYear: _displayedYear,
-      selectedMonth: _selectedMonth,
-    );
-  }
-
-  void _onChanged() {
-    unawaited(_cache.refresh(_ledger.state));
-    state = AsyncData(
-      _buildState(
-        displayedYear: _displayedYear,
-        selectedMonth: _selectedMonth,
-        step: _step,
-      ),
-    );
-  }
-
-  BudgetDetailViewState _buildState({
-    required DateTime displayedYear,
-    required DateTime selectedMonth,
-    BudgetsStep? step,
-  }) {
-    final ledgerState = _ledger.state;
+    final ledgerState = currentLedger.state;
     final budget = ledgerState.budgets[_budgetID];
+    if (budget == null) {
+      _accepted = null;
+      return _viewState(BudgetDetailPhase.deleted, context, title: '');
+    }
+
+    final title = _categoryName(budget, ledgerState) ?? _overallTitle;
+    final result = queries.readBudgetDetail(
+      budgetID: _budgetID,
+      displayedYear: context.displayedYear,
+      selectedMonth: context.selectedMonth,
+    );
+    final projection = result.value;
+    final coherent =
+        result.state == AnalysisQueryState.ready &&
+        result.sourceRevision == currentLedger.revision;
+
+    if (coherent && projection != null) {
+      try {
+        final snapshot = _captureSnapshot(
+          ledger: currentLedger,
+          ledgerState: ledgerState,
+          budget: budget,
+          projection: projection,
+          context: context,
+          today: today,
+        );
+        _accepted = snapshot;
+        return _viewState(
+          BudgetDetailPhase.ready,
+          context,
+          title: snapshot.title,
+          snapshot: snapshot,
+        );
+      } catch (reason) {
+        return _viewState(
+          BudgetDetailPhase.failed,
+          context,
+          title: title,
+          snapshot: _retainedFor(context, currentLedger),
+          error: reason,
+        );
+      }
+    }
+
+    final retained = _retainedFor(context, currentLedger);
+    if (result.state == AnalysisQueryState.failed) {
+      return _viewState(
+        BudgetDetailPhase.failed,
+        context,
+        title: title,
+        snapshot: retained,
+        error: _failureReason(
+          budget: budget,
+          ledgerState: ledgerState,
+          context: context,
+          today: today,
+          revision: currentLedger.revision,
+        ),
+      );
+    }
+    return _viewState(
+      BudgetDetailPhase.loading,
+      context,
+      title: title,
+      snapshot: retained,
+    );
+  }
+
+  BudgetDetailSnapshot? _retainedFor(
+    BudgetDetailContext context,
+    Ledger currentLedger,
+  ) {
+    final accepted = _accepted;
+    if (accepted == null || !identical(accepted.ledger, currentLedger)) {
+      return null;
+    }
+    final sameMonth =
+        accepted.selectedMonth == context.selectedMonth &&
+        accepted.displayedYear == context.displayedYear;
+    return sameMonth ? accepted : null;
+  }
+
+  Object _failureReason({
+    required Budget budget,
+    required LedgerState ledgerState,
+    required BudgetDetailContext context,
+    required DateTime today,
+    required int revision,
+  }) {
+    final cache = analysisCache;
+    final failure = cache.lastFailure;
+    if (failure != null && failure.sourceRevision == revision) {
+      return failure.error;
+    }
+    try {
+      budgetDetail(
+        state: ledgerState,
+        items: cache.items,
+        budgetID: _budgetID,
+        displayedYear: context.displayedYear.year,
+        selectedMonth: YearMonth.fromUtc(context.selectedMonth),
+        today: today,
+      );
+      effectiveLimit(budget, YearMonth.fromUtc(today));
+    } catch (reason) {
+      return reason;
+    }
+    return StateError('Budget ${budget.id} could not be computed.');
+  }
+
+  BudgetDetailViewState _viewState(
+    BudgetDetailPhase phase,
+    BudgetDetailContext context, {
+    required String title,
+    BudgetDetailSnapshot? snapshot,
+    Object? error,
+  }) {
     return BudgetDetailViewState(
-      budget: budget,
-      ledgerState: ledgerState,
-      items: _cache.items,
-      countedEntries: budget == null
-          ? const []
-          : budgetCountedEntries(
-              budget,
-              YearMonth(selectedMonth.year, selectedMonth.month),
-              ledgerState,
-            ),
-      displayedYear: displayedYear,
-      selectedMonth: selectedMonth,
-      months: trendMonths(displayedYear, isYearRange: true),
-      step: step,
+      phase: phase,
+      title: title,
+      displayedYear: context.displayedYear,
+      selectedMonth: context.selectedMonth,
+      snapshot: snapshot,
+      error: error,
+      step: _step,
     );
   }
 
   @override
-  void selectMonth(DateTime month) {
-    _selectedMonth = month;
-    updateState(
-      (s) => _buildState(displayedYear: s.displayedYear, selectedMonth: month),
-    );
-  }
+  void selectMonth(DateTime month) => ref
+      .read(budgetDetailContextProvider(_budgetID).notifier)
+      .selectMonth(month);
 
   @override
-  void changeYear(DateTime year) {
-    final current = state.value;
-    if (current == null) return;
-    final newDisplayedYear = DateTime.utc(year.year);
-    final newSelectedMonth = DateTime.utc(
-      year.year,
-      current.selectedMonth.month,
-    );
-    _displayedYear = newDisplayedYear;
-    _selectedMonth = newSelectedMonth;
-    updateState(
-      (s) => _buildState(
-        displayedYear: newDisplayedYear,
-        selectedMonth: newSelectedMonth,
-      ),
-    );
-  }
+  void changeYear(DateTime year) => ref
+      .read(budgetDetailContextProvider(_budgetID).notifier)
+      .changeYear(year);
+
+  @override
+  void retry() => ref.read(analysisQueriesProvider)?.retry();
 
   @override
   void requestLimitEdit() {
@@ -238,6 +376,11 @@ class BudgetDetailNotifier extends AsyncNotifier<BudgetDetailViewState>
 }
 
 // MARK: - Constants
+final budgetDetailContextProvider = NotifierProvider.autoDispose
+    .family<BudgetDetailContextNotifier, BudgetDetailContext, String>(
+      BudgetDetailContextNotifier.new,
+    );
+
 final budgetDetailViewModelProvider = AsyncNotifierProvider.autoDispose
     .family<BudgetDetailNotifier, BudgetDetailViewState, String>(
       BudgetDetailNotifier.new,

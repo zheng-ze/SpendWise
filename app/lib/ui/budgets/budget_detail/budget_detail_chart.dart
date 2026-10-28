@@ -9,7 +9,6 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 const _chartBaseline = 0.0;
 const _selectedBorderWidth = 0.0;
-const _dotStrokeWidth = 0.0;
 
 // MARK: - Chart
 
@@ -27,7 +26,7 @@ class BudgetDetailChart extends StatelessWidget {
 
   final List<DateTime> months;
   final List<Decimal> spend;
-  final List<Decimal> limit;
+  final Decimal limit;
   final double maxY;
   final DateTime selectedMonth;
   final void Function(DateTime month) onSelectMonth;
@@ -158,33 +157,30 @@ class BudgetDetailLimitLine extends StatelessWidget {
   });
 
   final List<DateTime> months;
-  final List<Decimal> limit;
+  final Decimal limit;
   final double maxY;
 
   static const _lineWidth = 2.0;
-  static const _dotRadius = 3.0;
   static const _edgeInset = 0.5;
+  static const _dashLength = 6;
+  static const _dashGap = 4;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final limitValue = limit.toDouble();
 
     final lineBarsData = [
       LineChartBarData(
         spots: [
-          for (var i = 0; i < months.length; i++)
-            FlSpot(i.toDouble(), limit[i].toDouble()),
+          FlSpot(-_edgeInset, limitValue),
+          FlSpot(months.length - _edgeInset, limitValue),
         ],
         isCurved: false,
         color: theme.colorScheme.onSurface,
         barWidth: _lineWidth,
-        dotData: FlDotData(
-          getDotPainter: (spot, percent, bar, index) => FlDotCirclePainter(
-            radius: _dotRadius,
-            color: theme.colorScheme.onSurface,
-            strokeWidth: _dotStrokeWidth,
-          ),
-        ),
+        dashArray: const [_dashLength, _dashGap],
+        dotData: const FlDotData(show: false),
         belowBarData: BarAreaData(show: false),
       ),
     ];

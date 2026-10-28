@@ -25,6 +25,12 @@ bool budgetCountsItem(
     _isMonthExpense(item, monthWindow(DateTime.utc(month.year, month.month))) &&
     _budgetMatches(budget, item, state);
 
+bool budgetCountsItemInAnyMonth(
+  Budget budget,
+  AnalysisItem item,
+  LedgerState state,
+) => item.kind == CategoryKind.expense && _budgetMatches(budget, item, state);
+
 List<AnalysisItem> budgetItems(
   Budget budget,
   YearMonth month,

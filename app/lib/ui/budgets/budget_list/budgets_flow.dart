@@ -25,6 +25,7 @@ class BudgetsFlow extends FlowBase<BudgetsStep> {
 
 // MARK: - BudgetsFlowState
 class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
+  ProviderSubscription<BudgetDetailContext>? _contextSubscription;
   ProviderSubscription<AsyncValue<BudgetDetailViewState>>? _detailSubscription;
   ProviderSubscription<AsyncValue<BudgetLimitViewState>>? _limitSubscription;
   String? _openBudgetID;
@@ -86,8 +87,10 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
   // MARK: - Budget Navigation
 
   void _closeBudgetSubscriptions() {
+    _contextSubscription?.close();
     _detailSubscription?.close();
     _limitSubscription?.close();
+    _contextSubscription = null;
     _detailSubscription = null;
     _limitSubscription = null;
     _openBudgetID = null;
@@ -96,6 +99,10 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
   Future<void> _openBudget(BuildContext context, String budgetID) async {
     _closeBudgetSubscriptions();
     _openBudgetID = budgetID;
+    _contextSubscription = ref.listenManual(
+      budgetDetailContextProvider(budgetID),
+      (_, _) {},
+    );
     final detailSubscription = ref.listenManual(
       budgetDetailViewModelProvider(budgetID),
       (previous, next) => _handleDetailStep(budgetID, next.value?.step),
