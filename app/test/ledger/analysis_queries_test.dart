@@ -100,6 +100,88 @@ void main() {
     expect(ready, isNot(stale));
   });
 
+  test('analysis query results compare their failure payload', () {
+    final error = StateError('boom');
+    final failed = AnalysisQueryResult<int>(
+      value: null,
+      state: AnalysisQueryState.failed,
+      sourceRevision: null,
+      failure: error,
+    );
+    final same = AnalysisQueryResult<int>(
+      value: null,
+      state: AnalysisQueryState.failed,
+      sourceRevision: null,
+      failure: error,
+    );
+    const noFailure = AnalysisQueryResult<int>(
+      value: null,
+      state: AnalysisQueryState.failed,
+      sourceRevision: null,
+    );
+
+    expect(failed, same);
+    expect(failed.hashCode, same.hashCode);
+    expect(failed, isNot(noFailure));
+  });
+
+  test('a failed refresh publishes its error and a retry clears it', () async {
+    final setup = _setup();
+    final queries = setup.queries;
+    final runner = setup.runner;
+    final error = StateError('early');
+
+    runner.pending.last.completeError(error);
+    await pumpEventQueue();
+    final failed = queries.readToday();
+    expect(failed.failure, same(error));
+
+    final retrying = queries.retry();
+    runner.pending.last.complete(const []);
+    await retrying;
+    await pumpEventQueue();
+    expect(queries.readToday().failure, isNull);
+  });
+
+  test(
+    'a failed evaluation publishes its error and keeps prior data',
+    () async {
+      final setup = _setup();
+      final queries = setup.queries;
+      final runner = setup.runner;
+      runner.pending.last.complete(const []);
+      await pumpEventQueue();
+
+      final result = queries.readYearSpread(
+        endYear: _today.year + 1,
+        kind: CategoryKind.expense,
+      );
+
+      expect(result.state, AnalysisQueryState.failed);
+      expect(result.failure, isA<ArgumentError>());
+      expect(result.value, isNull);
+    },
+  );
+
+  test('a failed refresh keeps prior data and the error', () async {
+    final setup = _setup();
+    final queries = setup.queries;
+    final runner = setup.runner;
+    runner.pending.last.complete(const []);
+    await pumpEventQueue();
+    expect(queries.readToday().state, AnalysisQueryState.ready);
+
+    _addExpense(setup.ledger, 'ffffffff-ffff-ffff-ffff-ffffffffffff', '-1');
+    final error = StateError('later');
+    runner.pending.last.completeError(error);
+    await pumpEventQueue();
+
+    final failed = queries.readToday();
+    expect(failed.state, AnalysisQueryState.failed);
+    expect(failed.value, isNotNull);
+    expect(failed.failure, same(error));
+  });
+
   test(
     'readsStartLoadingThenRetainWhilePendingAndPublishOnceAtEquality',
     () async {

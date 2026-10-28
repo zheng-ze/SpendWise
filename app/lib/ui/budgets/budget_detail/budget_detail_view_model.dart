@@ -315,13 +315,7 @@ class BudgetDetailNotifier extends AsyncNotifier<BudgetDetailViewState>
       return (
         phase: BudgetDetailPhase.failed,
         projection: retained,
-        error: _failureReason(
-          budget: budget,
-          ledgerState: ledgerState,
-          context: context,
-          today: today,
-          revision: currentLedger.revision,
-        ),
+        error: result.failure,
       );
     }
     return (
@@ -338,34 +332,6 @@ class BudgetDetailNotifier extends AsyncNotifier<BudgetDetailViewState>
     final accepted = _accepted;
     if (accepted == null) return null;
     return accepted.belongsTo(currentLedger, context) ? accepted : null;
-  }
-
-  Object _failureReason({
-    required Budget budget,
-    required LedgerState ledgerState,
-    required BudgetDetailContext context,
-    required DateTime today,
-    required int revision,
-  }) {
-    final cache = analysisCache;
-    final failure = cache.lastFailure;
-    if (failure != null && failure.sourceRevision == revision) {
-      return failure.error;
-    }
-    try {
-      budgetDetail(
-        state: ledgerState,
-        items: cache.items,
-        budgetID: _budgetID,
-        displayedYear: context.displayedYear.year,
-        selectedMonth: YearMonth.fromUtc(context.selectedMonth),
-        today: today,
-      );
-      effectiveLimit(budget, YearMonth.fromUtc(today));
-    } catch (reason) {
-      return reason;
-    }
-    return StateError('Budget ${budget.id} could not be computed.');
   }
 
   @override

@@ -136,22 +136,7 @@ class BudgetsListNotifier extends AsyncNotifier<BudgetsListViewState>
       displayPreferencesProvider.select((value) => value.chartColours),
     );
     final selection = ref.watch(selectedBudgetProvider);
-    Object? error;
-    if (result.state == AnalysisQueryState.failed) {
-      error = analysisCache.lastFailure?.error;
-      if (error == null) {
-        try {
-          budgetsOverview(
-            state: currentLedger.state,
-            items: analysisCache.items,
-            month: YearMonth.fromUtc(month),
-            today: today,
-          );
-        } catch (reason) {
-          error = reason;
-        }
-      }
-    }
+    final error = result.failure;
     return BudgetsListViewState(
       overview: result.value,
       cards: result.value == null
