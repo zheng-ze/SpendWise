@@ -1,7 +1,10 @@
 import 'package:domain/domain.dart';
 import 'package:flutter/foundation.dart';
 
+import 'package:spendwise/ledger/analysis/budgets/budget_detail.dart';
+import 'package:spendwise/ledger/analysis/insights/completeness.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
+import 'package:spendwise/ui/common/charts/month_bars.dart';
 
 // MARK: - Constants
 const _emptyProgress = 0.0;
@@ -97,4 +100,30 @@ BudgetDetailEmptyCopy budgetDetailEmptyCopy(String? categoryName) {
     title: 'No $categoryName spending yet this month',
     body: 'Choose $categoryName when you add an expense.',
   );
+}
+
+List<MonthBarSlot> budgetMonthBarSlots(List<BudgetMonthSlot> slots) => [
+  for (final slot in slots) budgetMonthBarSlot(slot),
+];
+
+MonthBarSlot budgetMonthBarSlot(BudgetMonthSlot slot) {
+  final hasRecords = slot.recordCount > 0;
+  return switch (slot.completeness) {
+    PeriodCompleteness.preRecord => const MonthBarSlot(
+      status: MonthBarStatus.blank,
+    ),
+    PeriodCompleteness.complete when hasRecords => MonthBarSlot(
+      value: slot.spend.toDouble(),
+    ),
+    PeriodCompleteness.complete => const MonthBarSlot(
+      status: MonthBarStatus.gap,
+    ),
+    PeriodCompleteness.incomplete when hasRecords => MonthBarSlot(
+      value: slot.spend.toDouble(),
+      status: MonthBarStatus.incomplete,
+    ),
+    PeriodCompleteness.incomplete => const MonthBarSlot(
+      status: MonthBarStatus.blank,
+    ),
+  };
 }

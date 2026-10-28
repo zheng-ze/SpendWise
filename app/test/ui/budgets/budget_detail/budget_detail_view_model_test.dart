@@ -354,6 +354,105 @@ void main() {
     expect(detailState(container).snapshot, isNull);
   });
 
+  void expectRowsCoherent(BudgetDetailSnapshot snapshot) {
+    final dayTotals = <DateTime, Decimal>{};
+    for (final row in snapshot.countedEntries) {
+      expect(snapshot.ledgerState.entries.containsKey(row.entry.id), isTrue);
+      final day = startOfDayUtc(row.entry.date);
+      dayTotals[day] = (dayTotals[day] ?? Decimal.zero) + row.amount;
+    }
+    final dayTotalSum = dayTotals.values.fold(
+      Decimal.zero,
+      (sum, total) => sum + total,
+    );
+    expect(dayTotalSum, snapshot.spent);
+    expect(snapshot.spent, snapshot.projection.summary?.spent);
+  }
+
+  test('a pending refresh after deleting a counted entry keeps the retained '
+      'rows, day totals and headline coherent', () async {
+    final second = lunch(DateTime.utc(2026, 10, 2), amount: '-25');
+    final container = detailContainer(
+      ledger: detailLedger(
+        budgets: [detailBudget()],
+        entries: [lunch(DateTime.utc(2026, 10, 1)), second],
+      ),
+      clock: DetailClock(october),
+    );
+    keepDetailAlive(container);
+    await settledDetail(container);
+
+    container.read(ledgerProvider)!.deleteEntry(second.id);
+    final pending = detailState(container);
+
+    expect(pending.phase, BudgetDetailPhase.loading);
+    expect(pending.snapshot?.spent, dec('35'));
+    expectRowsCoherent(pending.snapshot!);
+  });
+
+  test('a failed refresh after deleting a counted entry keeps the retained '
+      'rows, day totals and headline coherent', () async {
+    var calls = 0;
+    Future<List<AnalysisItem>> failingRefresh(LedgerState state) async {
+      calls += 1;
+      if (calls > 1) throw StateError('refresh unavailable');
+      return Accounting.analysisItems(state);
+    }
+
+    final second = lunch(DateTime.utc(2026, 10, 2), amount: '-25');
+    final container = detailContainer(
+      ledger: detailLedger(
+        budgets: [detailBudget()],
+        entries: [lunch(DateTime.utc(2026, 10, 1)), second],
+      ),
+      clock: DetailClock(october),
+      runner: failingRefresh,
+    );
+    keepDetailAlive(container);
+    await settledDetail(container);
+
+    container.read(ledgerProvider)!.deleteEntry(second.id);
+    final failed = await settledDetail(container);
+
+    expect(failed.phase, BudgetDetailPhase.failed);
+    expect('${failed.error}', contains('refresh unavailable'));
+    expect(failed.snapshot?.spent, dec('35'));
+    expectRowsCoherent(failed.snapshot!);
+  });
+
+  test(
+    'a category rename during a pending refresh keeps the retained label',
+    () async {
+      final container = detailContainer(
+        ledger: detailLedger(
+          budgets: [detailBudget(categoryID: foodCategory.id)],
+        ),
+        clock: DetailClock(october),
+      );
+      keepDetailAlive(container);
+      await settledDetail(container);
+
+      container
+          .read(ledgerProvider)!
+          .updateCategory(
+            TransactionCategory(
+              id: foodCategory.id,
+              name: 'Groceries',
+              kind: CategoryKind.expense,
+              colorHex: '#00AA00',
+              includeInAnalysis: true,
+              parentID: null,
+              symbol: 'restaurant',
+            ),
+          );
+      final pending = detailState(container);
+
+      expect(pending.phase, BudgetDetailPhase.loading);
+      expect(pending.title, 'Food');
+      expect(pending.snapshot?.categoryName, 'Food');
+    },
+  );
+
   test('chartMaxY extends 15 percent past the largest bar, floors at 1.0', () {
     expect(chartMaxY([dec('0')], [dec('0')]), 1.0);
     expect(chartMaxY([dec('100')], [dec('50')]), closeTo(115.0, 1e-9));

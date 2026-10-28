@@ -192,7 +192,7 @@ class _ChartTray extends StatelessWidget {
       height: _chartHeight,
       child: BudgetDetailChart(
         months: snapshot.months,
-        spend: snapshot.spendSeries,
+        slots: budgetMonthBarSlots(snapshot.projection.slots),
         limit: snapshot.currentLimit,
         maxY: snapshot.chartMaxYValue,
         selectedMonth: snapshot.selectedMonth,

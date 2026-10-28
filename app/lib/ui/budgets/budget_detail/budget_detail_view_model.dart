@@ -117,6 +117,15 @@ class BudgetDetailSnapshot {
   double get chartMaxYValue => chartMaxY(spendSeries, [currentLimit]);
 }
 
+LedgerState _capturedLedgerState(LedgerState live) => LedgerState(
+  moneySources: live.moneySources,
+  entries: live.entries,
+  binnedEntries: live.binnedEntries,
+  categories: live.categories,
+  plans: live.plans,
+  budgets: live.budgets,
+);
+
 BudgetDetailSnapshot _captureSnapshot({
   required Ledger ledger,
   required LedgerState ledgerState,
@@ -130,14 +139,15 @@ BudgetDetailSnapshot _captureSnapshot({
     throw StateError('Budget ${budget.id} has no detail summary.');
   }
   final selected = YearMonth.fromUtc(context.selectedMonth);
+  final captured = _capturedLedgerState(ledgerState);
   return BudgetDetailSnapshot(
     ledger: ledger,
-    ledgerState: ledgerState,
+    ledgerState: captured,
     budget: budget,
     projection: projection,
-    categoryName: _categoryName(budget, ledgerState),
-    countedEntries: budgetCountedEntries(budget, selected, ledgerState),
-    hasCountedEntries: budgetHasCountedEntries(budget, ledgerState),
+    categoryName: _categoryName(budget, captured),
+    countedEntries: budgetCountedEntries(budget, selected, captured),
+    hasCountedEntries: budgetHasCountedEntries(budget, captured),
     selectedLimit: summary.limit,
     currentLimit: effectiveLimit(budget, YearMonth.fromUtc(today)),
     displayedYear: context.displayedYear,
@@ -340,7 +350,7 @@ class BudgetDetailNotifier extends AsyncNotifier<BudgetDetailViewState>
   }) {
     return BudgetDetailViewState(
       phase: phase,
-      title: title,
+      title: snapshot?.title ?? title,
       displayedYear: context.displayedYear,
       selectedMonth: context.selectedMonth,
       snapshot: snapshot,

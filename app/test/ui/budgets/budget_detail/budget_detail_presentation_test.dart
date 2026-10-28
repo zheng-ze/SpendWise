@@ -1,7 +1,10 @@
 import 'package:domain/domain.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:spendwise/ledger/analysis/budgets/budget_detail.dart';
+import 'package:spendwise/ledger/analysis/insights/completeness.dart';
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ui/common/charts/month_bars.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_presentation.dart';
 
 import 'budget_detail_test_support.dart';
@@ -167,5 +170,82 @@ void main() {
 
     expect(copy.title, 'No spending yet this month');
     expect(copy.body, 'Add an expense to see it here.');
+  });
+
+  BudgetMonthSlot monthSlot({
+    required String spend,
+    required int recordCount,
+    required PeriodCompleteness completeness,
+  }) => BudgetMonthSlot(
+    month: const YearMonth(2026, 10),
+    spend: dec(spend),
+    limit: dec('100'),
+    isOverride: false,
+    recordCount: recordCount,
+    completeness: completeness,
+  );
+
+  test('a month before the first record maps to a blank bar', () {
+    final slot = budgetMonthBarSlot(
+      monthSlot(
+        spend: '0',
+        recordCount: 0,
+        completeness: PeriodCompleteness.preRecord,
+      ),
+    );
+
+    expect(slot.status, MonthBarStatus.blank);
+  });
+
+  test('a complete month with no records maps to a gap stub', () {
+    final slot = budgetMonthBarSlot(
+      monthSlot(
+        spend: '0',
+        recordCount: 0,
+        completeness: PeriodCompleteness.complete,
+      ),
+    );
+
+    expect(slot.status, MonthBarStatus.gap);
+  });
+
+  test('a complete month with records keeps its spend as the value', () {
+    final slot = budgetMonthBarSlot(
+      monthSlot(
+        spend: '42',
+        recordCount: 2,
+        completeness: PeriodCompleteness.complete,
+      ),
+    );
+
+    expect(slot.status, MonthBarStatus.value);
+    expect(slot.value, 42.0);
+  });
+
+  test('an incomplete month with records is marked incomplete with its '
+      'committed spend and no forecast', () {
+    final slot = budgetMonthBarSlot(
+      monthSlot(
+        spend: '42',
+        recordCount: 2,
+        completeness: PeriodCompleteness.incomplete,
+      ),
+    );
+
+    expect(slot.status, MonthBarStatus.incomplete);
+    expect(slot.value, 42.0);
+  });
+
+  test('a future month with no records stays blank and is not forecast', () {
+    final slot = budgetMonthBarSlot(
+      monthSlot(
+        spend: '0',
+        recordCount: 0,
+        completeness: PeriodCompleteness.incomplete,
+      ),
+    );
+
+    expect(slot.status, MonthBarStatus.blank);
+    expect(slot.value, 0.0);
   });
 }

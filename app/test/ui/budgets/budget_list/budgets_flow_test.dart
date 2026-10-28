@@ -7,6 +7,7 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
+import 'package:spendwise/ui/budgets/budget_detail/budget_limit_screen.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_limit_view_model.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_flow.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
@@ -59,6 +60,8 @@ void main() {
       );
       expect(container.exists(budgetLimitViewModelProvider(budget.id)), isTrue);
 
+      expect(container.exists(budgetDetailContextProvider(budget.id)), isTrue);
+
       await tester.pumpAndSettle();
       expect(
         container.exists(budgetDetailViewModelProvider(budget.id)),
@@ -68,6 +71,38 @@ void main() {
         container.exists(budgetLimitViewModelProvider(budget.id)),
         isFalse,
       );
+      expect(container.exists(budgetDetailContextProvider(budget.id)), isFalse);
+    },
+    timeout: uiTestTimeout,
+  );
+
+  testWidgets(
+    'Edit on the detail page opens the existing limit history screen',
+    (tester) async {
+      final ledger = Ledger(state: LedgerState(budgets: {budget.id: budget}));
+      final container = ProviderContainer(
+        overrides: [
+          ledgerProvider.overrideWithValue(ledger),
+          analysisComputeRunnerProvider.overrideWithValue(syncComputeRunner),
+        ],
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: BudgetsFlow()),
+        ),
+      );
+      await tester.pumpAndSettle();
+      container
+          .read(budgetsListViewModelProvider.notifier)
+          .requestBudgetDetail(budget.id);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Edit limit history'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(BudgetLimitScreen), findsOneWidget);
     },
     timeout: uiTestTimeout,
   );

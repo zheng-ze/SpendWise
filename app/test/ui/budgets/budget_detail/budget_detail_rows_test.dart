@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:spendwise/ledger/analysis/budgets/budget_counted_entries.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_screen.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
 
@@ -28,7 +27,7 @@ void main() {
   );
 
   test(
-    'counted rows reconcile with the headline spend and the day total',
+    'counted rows group into one day total that equals the headline spend',
     () async {
       final container = detailContainer(
         ledger: detailLedger(
@@ -41,10 +40,15 @@ void main() {
 
       final snapshot = (await settledDetail(container)).snapshot!;
       final amounts = [for (final row in snapshot.countedEntries) row.amount];
+      final dayTotals = <DateTime, Decimal>{};
+      for (final row in snapshot.countedEntries) {
+        final day = startOfDayUtc(row.entry.date);
+        dayTotals[day] = (dayTotals[day] ?? Decimal.zero) + row.amount;
+      }
 
       expect(amounts, unorderedEquals([dec('10'), dec('40')]));
+      expect(dayTotals, {DateTime.utc(2026, 10, 1): dec('50')});
       expect(snapshot.spent, dec('50'));
-      expect(budgetCountedTotal(snapshot.countedEntries), snapshot.spent);
       expect(snapshot.projection.summary?.spent, snapshot.spent);
     },
   );
