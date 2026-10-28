@@ -8,12 +8,6 @@ sealed class BudgetsStep {}
 
 class BudgetLimitEditRequested extends BudgetsStep {}
 
-class BudgetDetailRequested extends BudgetsStep {
-  BudgetDetailRequested(this.budgetID);
-
-  final String budgetID;
-}
-
 class BudgetFormRequested extends BudgetsStep {}
 
 // MARK: - Picker Steps

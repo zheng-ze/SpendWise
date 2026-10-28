@@ -191,8 +191,6 @@ class BudgetsListNotifier extends AsyncNotifier<BudgetsListViewState>
 
   @override
   void requestBudgetDetail(String budgetID) {
-    _step = BudgetDetailRequested(budgetID);
-    emitStep(BudgetDetailRequested(budgetID));
     ref.read(selectedBudgetProvider.notifier).select(budgetID);
   }
 

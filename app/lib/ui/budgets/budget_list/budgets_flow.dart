@@ -1,8 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:spendwise/boot/providers.dart';
+import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_screen.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_limit_edit_sheet.dart';
@@ -15,6 +18,7 @@ import 'package:spendwise/ui/budgets/budget_list/budget_selection.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
 import 'package:spendwise/ui/common/base/flow_base.dart';
+import 'package:spendwise/ui/shell/shell_providers.dart';
 
 // MARK: - BudgetsFlow
 class BudgetsFlow extends FlowBase<BudgetsStep> {
@@ -24,12 +28,57 @@ class BudgetsFlow extends FlowBase<BudgetsStep> {
   ConsumerState<BudgetsFlow> createState() => _BudgetsFlowState();
 }
 
+// MARK: - Owned Budget Session
+class _BudgetSession {
+  _BudgetSession({
+    required this.budgetID,
+    required this.generation,
+    required this.contextSubscription,
+    required this.detailSubscription,
+    required this.limitSubscription,
+  });
+
+  final String budgetID;
+  final int generation;
+  final ProviderSubscription<BudgetDetailContext> contextSubscription;
+  final ProviderSubscription<AsyncValue<BudgetDetailViewState>>
+  detailSubscription;
+  final ProviderSubscription<AsyncValue<BudgetLimitViewState>>
+  limitSubscription;
+  final Set<ModalRoute<void>> descendants = {};
+
+  void close() {
+    contextSubscription.close();
+    detailSubscription.close();
+    limitSubscription.close();
+  }
+}
+
+// MARK: - Managed Detail Page
+class _DetailPage {
+  _DetailPage({
+    required this.route,
+    required this.budgetID,
+    required this.generation,
+  });
+
+  final ModalRoute<void> route;
+  final ValueNotifier<String> budgetID;
+  int generation;
+}
+
 // MARK: - BudgetsFlowState
 class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
-  ProviderSubscription<BudgetDetailContext>? _contextSubscription;
-  ProviderSubscription<AsyncValue<BudgetDetailViewState>>? _detailSubscription;
-  ProviderSubscription<AsyncValue<BudgetLimitViewState>>? _limitSubscription;
-  String? _openBudgetID;
+  _BudgetSession? _session;
+  final _retiredSessions = <_BudgetSession>[];
+  _DetailPage? _page;
+  bool _destinationActive = true;
+  bool _restoreDeferred = false;
+  bool _reconcileScheduled = false;
+
+  late final ProviderSubscription<BudgetSelection?> _selectionSubscription;
+  late final ProviderSubscription<ShellLayoutMode> _modeSubscription;
+  late final ProviderSubscription<Ledger?> _ledgerSubscription;
 
   ProviderSubscription<AsyncValue<BudgetFormViewState>>? _formSubscription;
   BudgetDraftKey? _openDraftKey;
@@ -37,10 +86,42 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
   // MARK: - Lifecycle
 
   @override
+  void initState() {
+    super.initState();
+    _selectionSubscription = ref.listenManual(
+      selectedBudgetProvider,
+      (_, _) => _scheduleReconcile(),
+    );
+    _modeSubscription = ref.listenManual(
+      shellLayoutModeProvider,
+      (_, _) => _scheduleReconcile(),
+    );
+    _ledgerSubscription = ref.listenManual(ledgerProvider, (previous, next) {
+      if (identical(previous, next)) return;
+      ref.read(selectedBudgetProvider.notifier).clear();
+    });
+  }
+
+  @override
   void dispose() {
-    _closeBudgetSubscriptions();
+    _selectionSubscription.close();
+    _modeSubscription.close();
+    _ledgerSubscription.close();
+    _session?.close();
+    _session = null;
+    for (final session in _retiredSessions) {
+      session.close();
+    }
+    _retiredSessions.clear();
     _closeFormSubscription();
     super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    _destinationActive = DestinationActivity.of(context);
+    _scheduleReconcile();
+    return super.build(context);
   }
 
   // MARK: - View Model Contracts
@@ -72,8 +153,6 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
   @override
   void handleStep(BuildContext context, BudgetsStep step) {
     switch (step) {
-      case BudgetDetailRequested(:final budgetID):
-        unawaited(_openBudget(context, budgetID));
       case BudgetFormRequested():
         _openBudgetForm(context);
       case BudgetLimitEditRequested():
@@ -85,80 +164,189 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     _listViewModel.clearStep();
   }
 
-  // MARK: - Budget Navigation
+  // MARK: - Reconciliation
 
-  void _closeBudgetSubscriptions() {
-    _contextSubscription?.close();
-    _detailSubscription?.close();
-    _limitSubscription?.close();
-    _contextSubscription = null;
-    _detailSubscription = null;
-    _limitSubscription = null;
-    _openBudgetID = null;
+  void _scheduleReconcile() {
+    if (_reconcileScheduled) return;
+    _reconcileScheduled = true;
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _reconcileScheduled = false;
+      if (mounted) _reconcile();
+    });
   }
 
-  Future<void> _openBudget(BuildContext context, String budgetID) async {
-    _closeBudgetSubscriptions();
-    _openBudgetID = budgetID;
-    _contextSubscription = ref.listenManual(
-      budgetDetailContextProvider(budgetID),
-      (_, _) {},
-    );
-    final detailSubscription = ref.listenManual(
-      budgetDetailViewModelProvider(budgetID),
-      (previous, next) => _handleDetailStep(budgetID, next.value?.step),
-    );
-    _detailSubscription = detailSubscription;
-    _limitSubscription = ref.listenManual(
-      budgetLimitViewModelProvider(budgetID),
-      (previous, next) => _handleLimitStep(budgetID, next.value?.step),
-    );
-    final route = MaterialPageRoute<void>(
-      builder: (_) => BudgetDetailScreen(budgetID: budgetID),
-    );
-    unawaited(Navigator.of(context, rootNavigator: true).push(route));
-    await route.completed;
-    if (!identical(_detailSubscription, detailSubscription)) return;
-    _closeBudgetSubscriptions();
+  void _reconcile() {
     final selection = ref.read(selectedBudgetProvider);
-    if (selection?.budgetID == budgetID) {
+    if (selection == null) {
+      _removePage();
+      _retireSession();
+      return;
+    }
+    _ensureSession(selection);
+    final open = ref.read(shellLayoutModeProvider) == ShellLayoutMode.open;
+    if (open) {
+      _removePage();
+      return;
+    }
+    final page = _page;
+    if (page != null) {
+      page.budgetID.value = selection.budgetID;
+      page.generation = selection.generation;
+      return;
+    }
+    _presentPage(selection);
+  }
+
+  void _presentPage(BudgetSelection selection) {
+    if (!_destinationActive) return;
+    final context = navigatorContext;
+    if (context == null) return;
+    if (!(ModalRoute.isCurrentOf(context) ?? true)) {
+      _restoreDeferred = true;
+      return;
+    }
+    final budgetID = ValueNotifier(selection.budgetID);
+    final route = _detailPageRoute(budgetID, restored: _restoreDeferred);
+    _restoreDeferred = false;
+    final page = _DetailPage(
+      route: route,
+      budgetID: budgetID,
+      generation: selection.generation,
+    );
+    _page = page;
+    Navigator.of(context, rootNavigator: true).push(route);
+    unawaited(_watchPage(page));
+  }
+
+  void _removePage() {
+    final page = _page;
+    if (page == null) return;
+    _page = null;
+    final context = navigatorContext;
+    if (context == null) return;
+    final navigator = Navigator.of(context, rootNavigator: true);
+    if (page.route.isActive) navigator.removeRoute(page.route);
+  }
+
+  Future<void> _watchPage(_DetailPage page) async {
+    await page.route.completed;
+    if (!mounted || !identical(_page, page)) return;
+    _page = null;
+    final selection = ref.read(selectedBudgetProvider);
+    if (selection?.generation == page.generation) {
       ref.read(selectedBudgetProvider.notifier).clear();
     }
+    _scheduleReconcile();
   }
 
-  void _handleDetailStep(String budgetID, BudgetsStep? step) {
-    if (step == null) return;
-    if (_openBudgetID != budgetID) return;
+  ModalRoute<void> _detailPageRoute(
+    ValueNotifier<String> budgetID, {
+    required bool restored,
+  }) {
+    Widget page(BuildContext context) => ValueListenableBuilder<String>(
+      valueListenable: budgetID,
+      builder: (context, id, child) => BudgetDetailScreen(budgetID: id),
+    );
+    if (!restored) return MaterialPageRoute<void>(builder: page);
+    return PageRouteBuilder<void>(
+      transitionDuration: Duration.zero,
+      reverseTransitionDuration: Duration.zero,
+      pageBuilder: (context, animation, secondaryAnimation) => page(context),
+    );
+  }
+
+  // MARK: - Budget Sessions
+
+  void _ensureSession(BudgetSelection selection) {
+    final current = _session;
+    if (current != null && current.generation == selection.generation) return;
+    _retireSession();
+    _session = _openSession(selection);
+  }
+
+  _BudgetSession _openSession(BudgetSelection selection) {
+    final budgetID = selection.budgetID;
+    final generation = selection.generation;
+    return _BudgetSession(
+      budgetID: budgetID,
+      generation: generation,
+      contextSubscription: ref.listenManual(
+        budgetDetailContextProvider(budgetID),
+        (_, _) {},
+      ),
+      detailSubscription: ref.listenManual(
+        budgetDetailViewModelProvider(budgetID),
+        (previous, next) =>
+            _handleDetailStep(generation, budgetID, next.value?.step),
+      ),
+      limitSubscription: ref.listenManual(
+        budgetLimitViewModelProvider(budgetID),
+        (previous, next) =>
+            _handleLimitStep(generation, budgetID, next.value?.step),
+      ),
+    );
+  }
+
+  void _retireSession() {
+    final session = _session;
+    if (session == null) return;
+    _session = null;
+    if (session.descendants.isEmpty) {
+      session.close();
+      return;
+    }
+    _retiredSessions.add(session);
+  }
+
+  Future<void> _watchDescendant(
+    _BudgetSession session,
+    ModalRoute<void> route,
+  ) async {
+    session.descendants.add(route);
+    await route.completed;
+    if (!mounted) return;
+    session.descendants.remove(route);
+    if (session.descendants.isEmpty && _retiredSessions.remove(session)) {
+      session.close();
+    }
+    _scheduleReconcile();
+  }
+
+  void _handleDetailStep(int generation, String budgetID, BudgetsStep? step) {
+    final session = _session;
+    if (step == null || session == null) return;
+    if (session.generation != generation) return;
     final context = navigatorContext;
     if (context == null) return;
 
-    switch (step) {
-      case BudgetLimitEditRequested():
-        final route = MaterialPageRoute<void>(
-          builder: (_) => BudgetLimitScreen(budgetID: budgetID),
-        );
-        Navigator.of(context, rootNavigator: true).push(route);
-      case BudgetDetailRequested():
-      case BudgetFormRequested():
-      case PickLimitRequested():
-      case PickCategoryRequested():
-      case BudgetFormSaved():
-        break;
+    if (step is BudgetLimitEditRequested) {
+      final route = MaterialPageRoute<void>(
+        builder: (_) => BudgetLimitScreen(budgetID: budgetID),
+      );
+      Navigator.of(context, rootNavigator: true).push(route);
+      unawaited(_watchDescendant(session, route));
     }
     _detailViewModel(budgetID).clearStep();
   }
 
-  Future<void> _handleLimitStep(String budgetID, BudgetsStep? step) async {
-    if (step == null) return;
-    if (_openBudgetID != budgetID) return;
+  Future<void> _handleLimitStep(
+    int generation,
+    String budgetID,
+    BudgetsStep? step,
+  ) async {
     if (step is! PickLimitRequested) return;
+    if (_session?.generation != generation) return;
     final context = navigatorContext;
     if (context == null) return;
 
+    final capturedLedger = ref.read(ledgerProvider);
     final entered = await showBudgetLimitEditSheet(
       context: context,
       target: step.target,
     );
+    if (!mounted || _session?.generation != generation) return;
+    if (!identical(ref.read(ledgerProvider), capturedLedger)) return;
+    if (ref.read(selectedBudgetProvider)?.budgetID != budgetID) return;
     _limitViewModel(budgetID).applyPickedLimit(entered);
   }
 
@@ -206,7 +394,6 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
       case BudgetFormSaved():
         if (Navigator.of(context).canPop()) Navigator.of(context).pop();
         _formViewModel(draftKey).clearStep();
-      case BudgetDetailRequested():
       case BudgetFormRequested():
       case BudgetLimitEditRequested():
       case PickLimitRequested():
