@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:spendwise/ledger/analysis/budgets/budget_counted_entries.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/transactions/daily_list/day_header.dart';
-import 'package:spendwise/ui/transactions/daily_list/entry_row.dart';
+import 'package:spendwise/ui/common/lists/swipe_row.dart';
+import 'package:spendwise/ui/transactions/daily_list/transaction_cell.dart';
 import 'package:spendwise/ui/transactions/daily_list/transaction_row.dart';
+import 'package:spendwise/ui/transactions/entry/entry_form.dart';
 
 // MARK: - Constants
 const _registerDayGap = 10.0;
@@ -68,14 +70,45 @@ class _BudgetDayGroup extends StatelessWidget {
       children: [
         DayHeader.register(day: day, net: -budgetCountedTotal(rows)),
         for (final (index, row) in newestFirst.indexed)
-          EntryRow(
-            row: transactionRow(row.entry, state),
+          _CountedEntryRow(
+            entry: row.entry,
             ledger: ledger,
             state: state,
-            registerStyle: true,
             isLastInDay: index == newestFirst.length - 1,
           ),
       ],
+    );
+  }
+}
+
+// MARK: - CountedEntryRow
+class _CountedEntryRow extends StatelessWidget {
+  const _CountedEntryRow({
+    required this.entry,
+    required this.ledger,
+    required this.state,
+    required this.isLastInDay,
+  });
+
+  final Entry entry;
+  final Ledger ledger;
+  final LedgerState state;
+  final bool isLastInDay;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!state.entries.containsKey(entry.id)) return const SizedBox.shrink();
+    final row = transactionRow(entry, state);
+    final cell = TransactionCell.register(
+      row: row,
+      onTap: () => showEntryFormSheet(context: context, entryId: entry.id),
+      isLastInDay: isLastInDay,
+    );
+    return SwipeRow(
+      itemKey: ValueKey(entry.id),
+      itemName: row.title,
+      onDeleted: () => ledger.deleteEntry(entry.id),
+      child: cell,
     );
   }
 }
