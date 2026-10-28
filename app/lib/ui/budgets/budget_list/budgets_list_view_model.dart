@@ -146,7 +146,7 @@ class BudgetsListNotifier extends AsyncNotifier<BudgetsListViewState>
       error: error,
       today: today,
       chartColours: chartColours,
-      selectedBudgetID: selection?.budgetID,
+      selectedBudgetID: selection,
       step: _step,
     );
   }

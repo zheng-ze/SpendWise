@@ -91,7 +91,7 @@ void main() {
     viewModel.requestBudgetDetail('b1');
 
     expect(container.read(budgetsListViewModelProvider).value?.step, isNull);
-    expect(container.read(selectedBudgetProvider)?.budgetID, 'b1');
+    expect(container.read(selectedBudgetProvider), 'b1');
   });
 
   test('reselecting the same budget keeps the selection', () async {

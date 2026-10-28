@@ -92,13 +92,15 @@ class _MoneyFlowState extends ConsumerState<MoneyFlow> {
     _visited.add(segment);
     final active = DestinationActivity.of(context);
     final mode = ref.watch(shellLayoutModeProvider);
-    final selection = ref.watch(selectedBudgetProvider);
+    final selectedBudgetID = ref.watch(selectedBudgetProvider);
     final budgetPaneActive =
         active &&
         segment == MoneySegment.budgets &&
         mode == ShellLayoutMode.open &&
-        selection != null;
-    final budgetDetail = budgetPaneActive ? _budgetDetail(selection) : null;
+        selectedBudgetID != null;
+    final budgetDetail = selectedBudgetID != null && budgetPaneActive
+        ? _budgetDetail(selectedBudgetID)
+        : null;
     final children = MoneySegment.values.map((value) {
       final child = switch (value) {
         _ when !_visited.contains(value) => const SizedBox.shrink(),
@@ -145,8 +147,7 @@ class _MoneyFlowState extends ConsumerState<MoneyFlow> {
     );
   }
 
-  ShellDetail _budgetDetail(BudgetSelection selection) {
-    final budgetID = selection.budgetID;
+  ShellDetail _budgetDetail(String budgetID) {
     final header = ref.watch(budgetPaneHeaderProvider(budgetID));
     void requestEdit() => ref
         .read(budgetDetailViewModelProvider(budgetID).notifier)

@@ -28,56 +28,18 @@ class BudgetsFlow extends FlowBase<BudgetsStep> {
   ConsumerState<BudgetsFlow> createState() => _BudgetsFlowState();
 }
 
-typedef _ManagedRoute = ModalRoute<Object?>;
-
-// MARK: - Owned Budget Session
-class _BudgetSession {
-  _BudgetSession({
-    required this.budgetID,
-    required this.generation,
-    required this.contextSubscription,
-    required this.detailSubscription,
-    required this.limitSubscription,
-  });
-
-  final String budgetID;
-  final int generation;
-  final ProviderSubscription<BudgetDetailContext> contextSubscription;
-  final ProviderSubscription<AsyncValue<BudgetDetailViewState>>
-  detailSubscription;
-  final ProviderSubscription<AsyncValue<BudgetLimitViewState>>
-  limitSubscription;
-  final Set<_ManagedRoute> descendants = {};
-
-  void close() {
-    contextSubscription.close();
-    detailSubscription.close();
-    limitSubscription.close();
-  }
-}
-
-// MARK: - Managed Detail Page
-class _DetailPage {
-  _DetailPage({required this.route, required this.generation});
-
-  final _ManagedRoute route;
-  final int generation;
-  bool removedForPresentation = false;
-}
-
 // MARK: - BudgetsFlowState
 class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
-  _BudgetSession? _session;
-  final _retiredSessions = <_BudgetSession>[];
-  _DetailPage? _page;
   bool _destinationActive = true;
-  bool _restoreDeferred = false;
   bool _reconcileScheduled = false;
-  Object? _limitOperation;
+  bool _limitEditorOpen = false;
+  String? _shownBudgetID;
+  List<ProviderSubscription<Object?>> _shownSubscriptions = const [];
+  ModalRoute<Object?>? _page;
+  String? _pageBudgetID;
   NavigatorState? _rootNavigator;
-  bool _ownerExposed = true;
 
-  late final ProviderSubscription<BudgetSelection?> _selectionSubscription;
+  late final ProviderSubscription<String?> _selectionSubscription;
   late final ProviderSubscription<ShellLayoutMode> _modeSubscription;
   late final ProviderSubscription<Ledger?> _ledgerSubscription;
 
@@ -89,10 +51,13 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
   @override
   void initState() {
     super.initState();
-    _selectionSubscription = ref.listenManual(
-      selectedBudgetProvider,
-      (_, _) => _scheduleReconcile(),
-    );
+    _selectionSubscription = ref.listenManual(selectedBudgetProvider, (
+      _,
+      selection,
+    ) {
+      _showBudget(selection);
+      _scheduleReconcile();
+    });
     _modeSubscription = ref.listenManual(
       shellLayoutModeProvider,
       (_, _) => _scheduleReconcile(),
@@ -100,8 +65,9 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     _ledgerSubscription = ref.listenManual(ledgerProvider, (previous, next) {
       if (identical(previous, next)) return;
       ref.read(selectedBudgetProvider.notifier).clear();
-      _discardOwnedRoutesAfterFrame();
     });
+    _showBudget(ref.read(selectedBudgetProvider));
+    _scheduleReconcile();
   }
 
   @override
@@ -109,33 +75,18 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     _selectionSubscription.close();
     _modeSubscription.close();
     _ledgerSubscription.close();
-    final page = _page;
-    _page = null;
-    _removeRoutesAfterFrame([
-      ?page?.route,
-      for (final session in _allSessions()) ...session.descendants,
-    ]);
-    for (final session in _allSessions()) {
-      session.close();
-    }
-    _session = null;
-    _retiredSessions.clear();
+    _showBudget(null);
+    _removePageAfterFrame();
     _closeFormSubscription();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    _destinationActive = DestinationActivity.of(context);
-    _ownerExposed = ModalRoute.isCurrentOf(context) ?? true;
-    _scheduleReconcile();
+    final active = DestinationActivity.of(context);
+    if (active && !_destinationActive) _scheduleResume();
+    _destinationActive = active;
     return super.build(context);
-  }
-
-  Iterable<_BudgetSession> _allSessions() sync* {
-    final current = _session;
-    if (current != null) yield current;
-    yield* _retiredSessions;
   }
 
   // MARK: - View Model Contracts
@@ -179,34 +130,98 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     _listViewModel.clearStep();
   }
 
-  // MARK: - Reconciliation
+  // MARK: - Detail Page
 
   void _scheduleReconcile() {
     if (_reconcileScheduled) return;
     _reconcileScheduled = true;
     SchedulerBinding.instance.addPostFrameCallback((_) {
       _reconcileScheduled = false;
-      if (mounted) _reconcile();
+      if (mounted) _reconcilePage();
     });
   }
 
-  void _reconcile() {
-    _consumePendingSteps();
-    final selection = ref.read(selectedBudgetProvider);
-    if (selection == null) {
-      _removePage();
-      _retireSession();
-      return;
+  void _scheduleResume() {
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _consumePendingSteps();
+      _reconcilePage();
+    });
+  }
+
+  void _reconcilePage() {
+    final selected = ref.read(selectedBudgetProvider);
+    final open = ref.read(shellLayoutModeProvider) == ShellLayoutMode.open;
+    final wanted = open ? null : selected;
+    if (_pageBudgetID == wanted) return;
+    _removePage();
+    final context = navigatorContext;
+    if (wanted == null || !_destinationActive || context == null) return;
+    _pushPage(context, wanted);
+  }
+
+  void _pushPage(BuildContext context, String budgetID) {
+    final navigator = Navigator.of(context, rootNavigator: true);
+    final route = MaterialPageRoute<Object?>(
+      builder: (_) => BudgetDetailScreen(budgetID: budgetID),
+    );
+    _rootNavigator = navigator;
+    _page = route;
+    _pageBudgetID = budgetID;
+    unawaited(navigator.push(route));
+    unawaited(_clearSelectionWhenPopped(route));
+  }
+
+  Future<void> _clearSelectionWhenPopped(ModalRoute<Object?> route) async {
+    await route.completed;
+    if (!mounted || !identical(_page, route)) return;
+    _page = null;
+    _pageBudgetID = null;
+    ref.read(selectedBudgetProvider.notifier).clear();
+  }
+
+  void _removePage() {
+    final route = _page;
+    _page = null;
+    _pageBudgetID = null;
+    if (route != null && route.isActive) _rootNavigator?.removeRoute(route);
+  }
+
+  void _removePageAfterFrame() {
+    final route = _page;
+    final navigator = _rootNavigator;
+    _page = null;
+    if (route == null || navigator == null) return;
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (navigator.mounted && route.isActive) navigator.removeRoute(route);
+    });
+  }
+
+  // MARK: - Budget Subscriptions
+
+  void _showBudget(String? budgetID) {
+    if (_shownBudgetID == budgetID) return;
+    for (final subscription in _shownSubscriptions) {
+      subscription.close();
     }
-    _ensureSession(selection);
-    if (ref.read(shellLayoutModeProvider) == ShellLayoutMode.open) {
-      _removePage();
-      return;
-    }
-    final page = _page;
-    if (page != null && page.generation == selection.generation) return;
-    if (page != null) _removePage();
-    _presentPage(selection);
+    _shownBudgetID = budgetID;
+    _shownSubscriptions = budgetID == null ? const [] : _openOwners(budgetID);
+  }
+
+  List<ProviderSubscription<Object?>> _openOwners(String budgetID) {
+    final context = ref.listenManual(
+      budgetDetailContextProvider(budgetID),
+      (_, _) {},
+    );
+    final detail = ref.listenManual(
+      budgetDetailViewModelProvider(budgetID),
+      (_, next) => _handleDetailStep(budgetID, next.value?.step),
+    );
+    final limit = ref.listenManual(
+      budgetLimitViewModelProvider(budgetID),
+      (_, next) => _handleLimitStep(budgetID, next.value?.step),
+    );
+    return [context, detail, limit];
   }
 
   void _consumePendingSteps() {
@@ -214,181 +229,18 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     if (context == null || !_destinationActive) return;
     final listStep = ref.read(budgetsListViewModelProvider).value?.step;
     if (listStep != null) handleStep(context, listStep);
-    final session = _session;
-    if (session == null) return;
-    _handleDetailStep(
-      session.generation,
-      session.budgetID,
-      ref.read(budgetDetailViewModelProvider(session.budgetID)).value?.step,
-    );
-    unawaited(
-      _handleLimitStep(
-        session.generation,
-        session.budgetID,
-        ref.read(budgetLimitViewModelProvider(session.budgetID)).value?.step,
-      ),
-    );
+    final budgetID = _shownBudgetID;
+    if (budgetID == null) return;
+    final detail = ref.read(budgetDetailViewModelProvider(budgetID));
+    _handleDetailStep(budgetID, detail.value?.step);
+    final limit = ref.read(budgetLimitViewModelProvider(budgetID));
+    unawaited(_handleLimitStep(budgetID, limit.value?.step));
   }
 
-  void _presentPage(BudgetSelection selection) {
-    if (!_destinationActive) return;
-    final context = navigatorContext;
-    if (context == null) return;
-    if (!_ownerExposed) {
-      _restoreDeferred = true;
+  void _handleDetailStep(String budgetID, BudgetsStep? step) {
+    if (step == null || !_destinationActive || _shownBudgetID != budgetID) {
       return;
     }
-    final budgetID = selection.budgetID;
-    final route = _detailPageRoute(budgetID, restored: _restoreDeferred);
-    _restoreDeferred = false;
-    final page = _DetailPage(route: route, generation: selection.generation);
-    _page = page;
-    _rootNavigatorOf(context).push(route);
-    final session = _session;
-    if (session != null) _adoptDescendant(session, route);
-    unawaited(_watchPage(page));
-  }
-
-  NavigatorState _rootNavigatorOf(BuildContext context) {
-    final navigator = Navigator.of(context, rootNavigator: true);
-    _rootNavigator = navigator;
-    return navigator;
-  }
-
-  void _removePage() {
-    final page = _page;
-    if (page == null) return;
-    _page = null;
-    if (!page.route.isActive) return;
-    page.removedForPresentation = true;
-    final context = navigatorContext;
-    if (context == null) return;
-    final navigator = _rootNavigatorOf(context);
-    if (page.route.isActive) navigator.removeRoute(page.route);
-  }
-
-  Future<void> _watchPage(_DetailPage page) async {
-    await page.route.completed;
-    if (!mounted || page.removedForPresentation) return;
-    if (identical(_page, page)) _page = null;
-    final selection = ref.read(selectedBudgetProvider);
-    if (selection?.generation == page.generation) {
-      ref.read(selectedBudgetProvider.notifier).clear();
-    }
-    _scheduleReconcile();
-  }
-
-  _ManagedRoute _detailPageRoute(String budgetID, {required bool restored}) {
-    Widget page(BuildContext context) => BudgetDetailScreen(budgetID: budgetID);
-    if (!restored) return MaterialPageRoute<Object?>(builder: page);
-    return PageRouteBuilder<Object?>(
-      transitionDuration: Duration.zero,
-      reverseTransitionDuration: Duration.zero,
-      pageBuilder: (context, animation, secondaryAnimation) => page(context),
-    );
-  }
-
-  void _removeRoutesAfterFrame(List<_ManagedRoute> routes) {
-    final navigator = _rootNavigator;
-    if (navigator == null || routes.isEmpty) return;
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      if (!navigator.mounted) return;
-      for (final route in routes) {
-        if (route.isActive) navigator.removeRoute(route);
-      }
-    });
-  }
-
-  void _discardOwnedRoutesAfterFrame() {
-    final page = _page;
-    _page = null;
-    page?.removedForPresentation = true;
-    final sessions = _allSessions().toList();
-    _retireSession();
-    _limitOperation = null;
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _removeRoutesAfterFrameNow([
-        ?page?.route,
-        for (final session in sessions) ...session.descendants,
-      ]);
-    });
-  }
-
-  void _removeRoutesAfterFrameNow(List<_ManagedRoute> routes) {
-    final navigator = _rootNavigator;
-    if (navigator == null || !navigator.mounted) return;
-    for (final route in routes) {
-      if (route.isActive) navigator.removeRoute(route);
-    }
-  }
-
-  // MARK: - Budget Sessions
-
-  void _ensureSession(BudgetSelection selection) {
-    final current = _session;
-    if (current != null && current.generation == selection.generation) return;
-    _retireSession();
-    _session = _openSession(selection);
-  }
-
-  _BudgetSession _openSession(BudgetSelection selection) {
-    final budgetID = selection.budgetID;
-    final generation = selection.generation;
-    return _BudgetSession(
-      budgetID: budgetID,
-      generation: generation,
-      contextSubscription: ref.listenManual(
-        budgetDetailContextProvider(budgetID),
-        (_, _) {},
-      ),
-      detailSubscription: ref.listenManual(
-        budgetDetailViewModelProvider(budgetID),
-        (previous, next) =>
-            _handleDetailStep(generation, budgetID, next.value?.step),
-      ),
-      limitSubscription: ref.listenManual(
-        budgetLimitViewModelProvider(budgetID),
-        (previous, next) =>
-            _handleLimitStep(generation, budgetID, next.value?.step),
-      ),
-    );
-  }
-
-  void _retireSession() {
-    final session = _session;
-    if (session == null) return;
-    _session = null;
-    if (session.descendants.isEmpty) {
-      session.close();
-      return;
-    }
-    _retiredSessions.add(session);
-  }
-
-  void _adoptDescendant(_BudgetSession session, _ManagedRoute route) {
-    if (!session.descendants.add(route)) return;
-    unawaited(_watchDescendant(session, route));
-  }
-
-  Future<void> _watchDescendant(
-    _BudgetSession session,
-    _ManagedRoute route,
-  ) async {
-    await route.completed;
-    if (!mounted) return;
-    session.descendants.remove(route);
-    if (session.descendants.isEmpty && _retiredSessions.remove(session)) {
-      session.close();
-    }
-    _scheduleReconcile();
-  }
-
-  void _handleDetailStep(int generation, String budgetID, BudgetsStep? step) {
-    final session = _session;
-    if (step == null || session == null) return;
-    if (!_destinationActive || session.generation != generation) return;
-    if (ref.read(selectedBudgetProvider)?.generation != generation) return;
     final context = navigatorContext;
     if (context == null) return;
 
@@ -396,40 +248,27 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
       final route = MaterialPageRoute<Object?>(
         builder: (_) => BudgetLimitScreen(budgetID: budgetID),
       );
-      _rootNavigatorOf(context).push(route);
-      _adoptDescendant(session, route);
+      Navigator.of(context, rootNavigator: true).push(route);
     }
     _detailViewModel(budgetID).clearStep();
   }
 
-  Future<void> _handleLimitStep(
-    int generation,
-    String budgetID,
-    BudgetsStep? step,
-  ) async {
+  Future<void> _handleLimitStep(String budgetID, BudgetsStep? step) async {
     if (step is! PickLimitRequested) return;
-    if (!_destinationActive || _session?.generation != generation) return;
-    if (ref.read(selectedBudgetProvider)?.generation != generation) return;
-    if (_limitOperation != null) return;
+    if (_limitEditorOpen || !_destinationActive) return;
+    if (_shownBudgetID != budgetID) return;
     final context = navigatorContext;
     if (context == null) return;
 
+    _limitEditorOpen = true;
     final capturedLedger = ref.read(ledgerProvider);
-    final operation = Object();
-    _limitOperation = operation;
-    final session = _session;
     final entered = await showBudgetLimitEditSheet(
       context: context,
       target: step.target,
-      onRoute: (route) {
-        if (session != null) _adoptDescendant(session, route);
-      },
     );
-    if (!identical(_limitOperation, operation)) return;
-    _limitOperation = null;
-    if (!mounted || _session?.generation != generation) return;
+    _limitEditorOpen = false;
+    if (!mounted || _shownBudgetID != budgetID) return;
     if (!identical(ref.read(ledgerProvider), capturedLedger)) return;
-    if (ref.read(selectedBudgetProvider)?.budgetID != budgetID) return;
     _limitViewModel(budgetID).applyPickedLimit(entered);
   }
 
