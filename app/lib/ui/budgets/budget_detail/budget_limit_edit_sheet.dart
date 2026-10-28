@@ -15,6 +15,7 @@ const _actionWidth = double.infinity;
 Future<Decimal?> showBudgetLimitEditSheet({
   required BuildContext context,
   required LimitEditTarget target,
+  void Function(ModalRoute<Object?> route)? onRoute,
 }) {
   final (title, subtitle, current) = switch (target) {
     DefaultLimitTarget(:final current, :final effectiveFromMonth) => (
@@ -36,11 +37,17 @@ Future<Decimal?> showBudgetLimitEditSheet({
     isScrollControlled: true,
     useSafeArea: true,
     useRootNavigator: true,
-    builder: (_) => BudgetLimitEditSheet(
-      title: title,
-      subtitle: subtitle,
-      current: current,
-    ),
+    builder: (sheetContext) {
+      if (onRoute != null) {
+        final route = ModalRoute.of<Object?>(sheetContext);
+        if (route != null) onRoute(route);
+      }
+      return BudgetLimitEditSheet(
+        title: title,
+        subtitle: subtitle,
+        current: current,
+      );
+    },
   );
 }
 

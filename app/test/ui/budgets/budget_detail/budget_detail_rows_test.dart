@@ -4,13 +4,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form.dart';
+import 'package:spendwise/ui/transactions/daily_list/day_header.dart';
 
 import '../../../support/ui_test_timeout.dart';
 import 'budget_detail_test_support.dart';
 
-void main() {
-  final october = DateTime.utc(2026, 10, 28);
+const _entryScrollStep = 200.0;
 
+void main() {
   final lunch = Entry(
     amount: dec('-10'),
     name: 'Lunch',
@@ -31,32 +32,18 @@ void main() {
     date: DateTime.utc(2026, 10, 2),
   );
 
-  test(
-    'counted rows group into one day total that equals the headline spend',
-    () async {
-      final container = detailContainer(
-        ledger: detailLedger(
-          budgets: [detailBudget()],
-          entries: [lunch, topUp],
-        ),
-        clock: DetailClock(october),
-      );
-      keepDetailAlive(container);
-
-      final state = await settledDetail(container);
-      final amounts = [for (final row in state.countedEntries) row.amount];
-      final dayTotals = <DateTime, Decimal>{};
-      for (final row in state.countedEntries) {
-        final day = startOfDayUtc(row.entry.date);
-        dayTotals[day] = (dayTotals[day] ?? Decimal.zero) + row.amount;
-      }
-
-      expect(amounts, unorderedEquals([dec('10'), dec('40')]));
-      expect(dayTotals, {DateTime.utc(2026, 10, 1): dec('50')});
-      expect(state.spent, dec('50'));
-      expect(state.projection?.projection.summary?.spent, state.spent);
-    },
-  );
+  testWidgets('counted expense total reaches the rendered day header', (
+    tester,
+  ) async {
+    final budget = detailBudget();
+    final ledger = detailLedger(budgets: [budget], entries: [lunch, topUp]);
+    final container = await pumpDetailScreen(tester, ledger: ledger);
+    final state = detailState(container);
+    final header = tester.widget<DayHeader>(find.byType(DayHeader));
+    expect(header.net, dec('-50'));
+    expect(state.spent, dec('50'));
+    expect(state.projection?.projection.summary?.spent, state.spent);
+  }, timeout: uiTestTimeout);
 
   testWidgets('Edit requests the existing limit history step from the page', (
     tester,
@@ -80,10 +67,13 @@ void main() {
       ledger: detailLedger(budgets: [detailBudget()], entries: [lunch]),
     );
 
+    await tester.scrollUntilVisible(find.text('Lunch'), _entryScrollStep);
+    await tester.pump();
     await tester.tap(find.text('Lunch'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(EntryForm), findsOneWidget);
+    final form = tester.widget<EntryForm>(find.byType(EntryForm));
+    expect(form.entryId, lunch.id);
   }, timeout: uiTestTimeout);
 
   testWidgets(

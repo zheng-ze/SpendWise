@@ -17,8 +17,10 @@ import 'package:spendwise/ui/budgets/budget_detail/budget_limit_view_model.dart'
 import 'package:spendwise/ui/budgets/budget_list/budget_form.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_selection.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_flow.dart';
+import 'package:spendwise/ui/budgets/budget_list/budgets_list_view.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
 import 'package:spendwise/ui/money/money_flow.dart';
+import 'package:spendwise/ui/transactions/entry/entry_form.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
@@ -52,6 +54,10 @@ const _groceriesName = 'Groceries';
 const _defaultBudgetRowLabel = 'Default Budget';
 const _limitFieldAmount = '75';
 const _saveLabel = 'Save';
+const _historyTooltip = 'Edit limit history';
+const _entryCount = 1;
+const _trayInteriorOffset = Offset(2, 2);
+const _listScrollOffset = Offset(0, -200);
 const _editLabel = 'Edit';
 const _coverLabel = 'Cover';
 const _newerLabel = 'Newer';
@@ -86,36 +92,59 @@ ProviderContainer _container({
   ComputeRunner? runner,
   List<Override> overrides = const [],
 }) {
-  final container = ProviderContainer(
-    overrides: [
-      ledgerProvider.overrideWith((ref) => ref.watch(_ledgerFixture)),
-      analysisComputeRunnerProvider.overrideWithValue(
-        runner ?? syncComputeRunner,
-      ),
-      todayProvider.overrideWithValue(DateTime.utc(2026, 3, 3)),
-      selectedMonthProvider.overrideWith((ref) => DateTime.utc(2026, 3)),
-      shellLayoutModeProvider.overrideWith((ref) => ref.watch(_modeFixture)),
-      ...overrides,
-    ],
-  );
+  final providerOverrides = <Override>[
+    ledgerProvider.overrideWith((ref) => ref.watch(_ledgerFixture)),
+    analysisComputeRunnerProvider.overrideWithValue(
+      runner ?? syncComputeRunner,
+    ),
+    todayProvider.overrideWithValue(DateTime.utc(2026, 3, 3)),
+    selectedMonthProvider.overrideWith((ref) => DateTime.utc(2026, 3)),
+    shellLayoutModeProvider.overrideWith((ref) => ref.watch(_modeFixture)),
+    ...overrides,
+  ];
+  final container = ProviderContainer(overrides: providerOverrides);
   addTearDown(container.dispose);
   container.read(_ledgerFixture.notifier).state = ledger;
   return container;
+}
+
+void _useWideView(WidgetTester tester) {
+  tester.view.physicalSize = const Size(1024, 800);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+}
+
+ProviderContainer _shellContainer({
+  required Ledger ledger,
+  ComputeRunner? runner,
+}) {
+  final observer = MoneyNavigatorObserver();
+  return _container(
+    ledger: ledger,
+    runner: runner,
+    overrides: [moneyNavigatorObserverProvider.overrideWithValue(observer)],
+  );
+}
+
+Widget _shellApp(ProviderContainer container) {
+  final observer = container.read(moneyNavigatorObserverProvider);
+  final bodies = <ShellDestination, WidgetBuilder>{
+    ShellDestination.money: (_) => MoneyFlow(moneyObserver: observer),
+  };
+  final shell = AppShell(bodies: bodies);
+  return MaterialApp(home: shell);
 }
 
 Future<ProviderContainer> _pumpShell(
   WidgetTester tester, {
   required ShellLayoutMode mode,
   ComputeRunner? runner,
+  Ledger? ledger,
 }) async {
-  tester.view.physicalSize = const Size(1024, 800);
-  tester.view.devicePixelRatio = 1;
-  addTearDown(tester.view.reset);
-  final observer = MoneyNavigatorObserver();
-  final container = _container(
-    ledger: _ledger(),
+  _useWideView(tester);
+  final container = _shellContainer(
+    ledger: ledger ?? _ledger(),
     runner: runner,
-    overrides: [moneyNavigatorObserverProvider.overrideWithValue(observer)],
   );
   container.read(_modeFixture.notifier).state = mode;
   container.read(selectedDestinationProvider.notifier).state =
@@ -124,13 +153,7 @@ Future<ProviderContainer> _pumpShell(
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
-      child: MaterialApp(
-        home: AppShell(
-          bodies: {
-            ShellDestination.money: (_) => MoneyFlow(moneyObserver: observer),
-          },
-        ),
-      ),
+      child: _shellApp(container),
     ),
   );
   await tester.pumpAndSettle();
@@ -152,6 +175,46 @@ bool _hasDetailOwners(ProviderContainer container, String budgetID) =>
 
 NavigatorState _rootNavigator(WidgetTester tester) =>
     tester.state<NavigatorState>(find.byType(Navigator).first);
+
+Ledger _ledgerWithEntries() {
+  final entries = List<Entry>.generate(_entryCount, _entry);
+  final state = LedgerState(
+    moneySources: {_account.id: MoneySource.account(_account)},
+    categories: {_food.id: _food},
+    budgets: {'b2': _budget(id: 'b2', categoryID: _food.id, limit: 50)},
+    entries: {for (final entry in entries) entry.id: entry},
+  );
+  return Ledger(state: state);
+}
+
+Entry _entry(int index) => Entry(
+  amount: Decimal.parse('-1'),
+  name: 'Entry ${(index + 1).toString().padLeft(2, '0')}',
+  sourceID: _account.id,
+  categoryID: _food.id,
+  date: DateTime.utc(2026, 3, 1 + index % 28),
+);
+
+Widget _flowHost(ProviderContainer container, {required bool showFlow}) {
+  final body = showFlow ? const BudgetsFlow() : const SizedBox();
+  final app = MaterialApp(home: Scaffold(body: body));
+  return UncontrolledProviderScope(container: container, child: app);
+}
+
+Future<void> _openHistoryFromPane(WidgetTester tester) async {
+  await _tapBudget(tester, 'b2');
+  await tester.tap(find.text(_editLabel));
+  await tester.pumpAndSettle();
+}
+
+void _selectSegment(ProviderContainer container, MoneySegment segment) {
+  container.read(moneySegmentProvider.notifier).state = segment;
+}
+
+Future<void> _openFirstEntry(WidgetTester tester) async {
+  await tester.tap(_inPane(find.text(_entry(0).name)));
+  await tester.pumpAndSettle();
+}
 
 void main() {
   testWidgets(
@@ -179,12 +242,13 @@ void main() {
   );
 
   testWidgets(
-    'Close clears the selection and releases the detail owners of the budget',
+    'empty list space clears the selection and releases the detail owners',
     (tester) async {
       final container = await _pumpShell(tester, mode: ShellLayoutMode.open);
       await _tapBudget(tester, 'b2');
 
-      await tester.tap(find.byKey(shellDetailCloseKey));
+      expect(find.byKey(shellDetailCloseKey), findsNothing);
+      await tester.tap(find.text('Category budgets'));
       await tester.pumpAndSettle();
 
       expect(container.read(selectedBudgetProvider), isNull);
@@ -206,58 +270,29 @@ void main() {
     expect(find.byType(BudgetLimitScreen), findsOneWidget);
   }, timeout: uiTestTimeout);
 
-  testWidgets('phone selection opens one page and updates it in place', (
-    tester,
-  ) async {
-    final container = await _pumpShell(tester, mode: ShellLayoutMode.phone);
-    await _tapBudget(tester, 'b2');
-    expect(find.byType(BudgetDetailScreen), findsOneWidget);
-    expect(find.byKey(shellDetailPaneKey), findsNothing);
+  testWidgets(
+    'phone selection replaces the managed page without stacking pages',
+    (tester) async {
+      final container = await _pumpShell(tester, mode: ShellLayoutMode.phone);
+      await _tapBudget(tester, 'b2');
+      expect(find.byType(BudgetDetailScreen), findsOneWidget);
+      expect(find.byKey(shellDetailPaneKey), findsNothing);
 
-    container.read(selectedBudgetProvider.notifier).select('b1');
-    await tester.pumpAndSettle();
+      container.read(selectedBudgetProvider.notifier).select('b1');
+      await tester.pumpAndSettle();
 
-    expect(find.byType(BudgetDetailScreen), findsOneWidget);
-    expect(container.exists(budgetDetailViewModelProvider('b2')), isFalse);
-    expect(container.exists(budgetDetailViewModelProvider('b1')), isTrue);
-  }, timeout: uiTestTimeout);
+      expect(find.byType(BudgetDetailScreen), findsOneWidget);
+      expect(container.exists(budgetDetailViewModelProvider('b2')), isFalse);
+      expect(container.exists(budgetDetailViewModelProvider('b1')), isTrue);
+    },
+    timeout: uiTestTimeout,
+  );
 
-  testWidgets('phone and open conversion keeps one detail and its selection', (
-    tester,
-  ) async {
-    final container = await _pumpShell(tester, mode: ShellLayoutMode.phone);
-    await _tapBudget(tester, 'b2');
-
-    container.read(_modeFixture.notifier).state = ShellLayoutMode.open;
-    await tester.pumpAndSettle();
-    expect(find.byType(BudgetDetailScreen), findsNothing);
-    expect(find.byKey(shellDetailPaneKey), findsOneWidget);
-    expect(container.read(selectedBudgetProvider)?.budgetID, 'b2');
-
-    container.read(_modeFixture.notifier).state = ShellLayoutMode.phone;
-    await tester.pumpAndSettle();
-    expect(find.byType(BudgetDetailScreen), findsOneWidget);
-    expect(find.byKey(shellDetailPaneKey), findsNothing);
-    expect(container.read(selectedBudgetProvider)?.budgetID, 'b2');
-  }, timeout: uiTestTimeout);
-
-  testWidgets('desktop presents the detail as a page and open as a pane', (
-    tester,
-  ) async {
+  testWidgets('desktop presents the selected budget as a page', (tester) async {
     final container = await _pumpShell(tester, mode: ShellLayoutMode.desktop);
     await _tapBudget(tester, 'b2');
     expect(find.byType(BudgetDetailScreen), findsOneWidget);
     expect(find.byKey(shellDetailPaneKey), findsNothing);
-
-    container.read(_modeFixture.notifier).state = ShellLayoutMode.open;
-    await tester.pumpAndSettle();
-    expect(find.byType(BudgetDetailScreen), findsNothing);
-    expect(find.byKey(shellDetailPaneKey), findsOneWidget);
-    expect(container.read(selectedBudgetProvider)?.budgetID, 'b2');
-
-    container.read(_modeFixture.notifier).state = ShellLayoutMode.desktop;
-    await tester.pumpAndSettle();
-    expect(find.byType(BudgetDetailScreen), findsOneWidget);
     expect(container.read(selectedBudgetProvider)?.budgetID, 'b2');
   }, timeout: uiTestTimeout);
 
@@ -331,6 +366,8 @@ void main() {
       expect(find.byKey(shellDetailPaneKey), findsNothing);
       expect(container.read(selectedBudgetProvider)?.budgetID, 'b2');
       expect(container.exists(budgetDetailViewModelProvider('b2')), isTrue);
+      expect(container.exists(budgetDetailContextProvider('b2')), isTrue);
+      expect(container.exists(budgetLimitViewModelProvider('b2')), isTrue);
 
       container.read(accountSheetPresentedProvider.notifier).state = false;
       await tester.pumpAndSettle();
@@ -364,6 +401,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(container.read(selectedBudgetProvider)?.budgetID, 'b2');
       expect(_inPane(find.text(_groceriesName)), findsOneWidget);
+      expect(container.exists(budgetDetailContextProvider('b2')), isTrue);
+      expect(container.exists(budgetLimitViewModelProvider('b2')), isTrue);
     },
     timeout: uiTestTimeout,
   );
@@ -450,7 +489,7 @@ void main() {
   );
 
   testWidgets(
-    'a delayed limit editor result after a ledger replacement does not mutate',
+    'replacing the ledger removes an open history and editor without mutating',
     (tester) async {
       final container = await _pumpShell(tester, mode: ShellLayoutMode.open);
       await _tapBudget(tester, 'b2');
@@ -462,9 +501,9 @@ void main() {
 
       container.read(_ledgerFixture.notifier).state = _ledger();
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(FilledButton, _saveLabel));
-      await tester.pumpAndSettle();
 
+      expect(find.byType(BudgetLimitScreen), findsNothing);
+      expect(find.widgetWithText(FilledButton, _saveLabel), findsNothing);
       final limit = effectiveLimit(
         container.read(ledgerProvider)!.state.budgets['b2']!,
         const YearMonth(2026, 3),
@@ -502,15 +541,7 @@ void main() {
     'disposing the flow removes its page and keeps a newer unrelated route',
     (tester) async {
       final container = _container(ledger: _ledger());
-      Widget host({required bool showFlow}) => UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp(
-          home: Scaffold(
-            body: showFlow ? const BudgetsFlow() : const SizedBox(),
-          ),
-        ),
-      );
-      await tester.pumpWidget(host(showFlow: true));
+      await tester.pumpWidget(_flowHost(container, showFlow: true));
       await tester.pumpAndSettle();
       await _tapBudget(tester, 'b2');
       expect(find.byType(BudgetDetailScreen), findsOneWidget);
@@ -520,12 +551,354 @@ void main() {
       ).push(MaterialPageRoute<void>(builder: (_) => const Text(_newerLabel)));
       await tester.pumpAndSettle();
 
-      await tester.pumpWidget(host(showFlow: false));
+      await tester.pumpWidget(_flowHost(container, showFlow: false));
       await tester.pumpAndSettle();
 
       expect(find.byType(BudgetDetailScreen), findsNothing);
       expect(find.text(_newerLabel), findsOneWidget);
       expect(_hasDetailOwners(container, 'b2'), isFalse);
+      expect(container.read(selectedBudgetProvider)?.budgetID, 'b2');
+    },
+    timeout: uiTestTimeout,
+  );
+
+  testWidgets('Back with a pane clears the selection and releases its owners', (
+    tester,
+  ) async {
+    final container = await _pumpShell(tester, mode: ShellLayoutMode.open);
+    await _tapBudget(tester, 'b2');
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(container.read(selectedBudgetProvider), isNull);
+    expect(find.byKey(shellDetailPaneKey), findsNothing);
+    expect(_hasDetailOwners(container, 'b2'), isFalse);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('Back pops open history before it clears the pane selection', (
+    tester,
+  ) async {
+    final container = await _pumpShell(tester, mode: ShellLayoutMode.open);
+    await _openHistoryFromPane(tester);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(find.byType(BudgetLimitScreen), findsNothing);
+    expect(container.read(selectedBudgetProvider)?.budgetID, 'b2');
+    expect(find.byKey(shellDetailPaneKey), findsOneWidget);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('Back in an inactive Money segment leaves the selection alone', (
+    tester,
+  ) async {
+    final container = await _pumpShell(tester, mode: ShellLayoutMode.open);
+    await _tapBudget(tester, 'b2');
+    _selectSegment(container, MoneySegment.accounts);
+    await tester.pumpAndSettle();
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(container.read(selectedBudgetProvider)?.budgetID, 'b2');
+  }, timeout: uiTestTimeout);
+
+  testWidgets(
+    'selecting another budget while the page exits presents one page and keeps the new selection',
+    (tester) async {
+      final container = await _pumpShell(tester, mode: ShellLayoutMode.phone);
+      await _tapBudget(tester, 'b2');
+
+      final outgoing = ModalRoute.of(
+        tester.element(find.byType(BudgetDetailScreen)),
+      );
+      _rootNavigator(tester).pop();
+      container.read(selectedBudgetProvider.notifier).select('b1');
+      await tester.pumpAndSettle();
+
+      expect(container.read(selectedBudgetProvider)?.budgetID, 'b1');
+      expect(find.byType(BudgetDetailScreen), findsOneWidget);
+      expect(container.exists(budgetDetailViewModelProvider('b1')), isTrue);
+      final incoming = ModalRoute.of(
+        tester.element(find.byType(BudgetDetailScreen)),
+      );
+      expect(identical(incoming, outgoing), isFalse);
+      expect(_hasDetailOwners(container, 'b2'), isFalse);
+    },
+    timeout: uiTestTimeout,
+  );
+
+  testWidgets(
+    'a detail Step arriving while Budgets is inactive waits and runs when Budgets returns',
+    (tester) async {
+      final container = await _pumpShell(tester, mode: ShellLayoutMode.open);
+      await _tapBudget(tester, 'b2');
+      _selectSegment(container, MoneySegment.accounts);
+      await tester.pumpAndSettle();
+
+      container
+          .read(budgetDetailViewModelProvider('b2').notifier)
+          .requestLimitEdit();
+      await tester.pumpAndSettle();
+      expect(find.byType(BudgetLimitScreen), findsNothing);
+
+      _selectSegment(container, MoneySegment.budgets);
+      await tester.pumpAndSettle();
+      expect(find.byType(BudgetLimitScreen), findsOneWidget);
+    },
+    timeout: uiTestTimeout,
+  );
+
+  testWidgets(
+    'disposing the flow retires open history and editor routes and keeps the selection',
+    (tester) async {
+      final container = _container(ledger: _ledger());
+      await tester.pumpWidget(_flowHost(container, showFlow: true));
+      await tester.pumpAndSettle();
+      await _tapBudget(tester, 'b2');
+      await tester.tap(find.byTooltip(_historyTooltip));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(_defaultBudgetRowLabel));
+      await tester.pumpAndSettle();
+
+      await tester.pumpWidget(_flowHost(container, showFlow: false));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(BudgetLimitScreen), findsNothing);
+      expect(find.widgetWithText(FilledButton, _saveLabel), findsNothing);
+      expect(container.read(selectedBudgetProvider)?.budgetID, 'b2');
+      expect(_hasDetailOwners(container, 'b2'), isFalse);
+    },
+    timeout: uiTestTimeout,
+  );
+
+  testWidgets(
+    'a phone conversion under an entry sheet restores the page once after the sheet closes',
+    (tester) async {
+      final container = await _pumpShell(
+        tester,
+        mode: ShellLayoutMode.open,
+        ledger: _ledgerWithEntries(),
+      );
+      await _tapBudget(tester, 'b2');
+      await _openFirstEntry(tester);
+      await tester.pumpAndSettle();
+      expect(find.byType(EntryForm), findsOneWidget);
+
+      container.read(_modeFixture.notifier).state = ShellLayoutMode.phone;
+      await tester.pumpAndSettle();
+      expect(find.byType(BudgetDetailScreen), findsNothing);
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.byType(EntryForm), findsNothing);
+      expect(find.byType(BudgetDetailScreen), findsOneWidget);
+      final restored = ModalRoute.of(
+        tester.element(find.byType(BudgetDetailScreen)),
+      ) as TransitionRoute<Object?>;
+      expect(restored.transitionDuration, Duration.zero);
+      expect(container.read(selectedBudgetProvider)?.budgetID, 'b2');
+    },
+    timeout: uiTestTimeout,
+  );
+
+  testWidgets('a month and year chosen before a conversion are kept after it', (
+    tester,
+  ) async {
+    final container = await _pumpShell(tester, mode: ShellLayoutMode.open);
+    await _tapBudget(tester, 'b2');
+    final notifier = container.read(budgetDetailContextProvider('b2').notifier);
+    notifier.selectMonth(DateTime.utc(2026, 1));
+    notifier.changeYear(DateTime.utc(2025));
+    await tester.pumpAndSettle();
+    final before = container.read(budgetDetailContextProvider('b2'));
+
+    container.read(_modeFixture.notifier).state = ShellLayoutMode.phone;
+    await tester.pumpAndSettle();
+    expect(container.read(budgetDetailContextProvider('b2')), before);
+    container.read(_modeFixture.notifier).state = ShellLayoutMode.open;
+    await tester.pumpAndSettle();
+    expect(container.read(budgetDetailContextProvider('b2')), before);
+    container.read(_modeFixture.notifier).state = ShellLayoutMode.desktop;
+    await tester.pumpAndSettle();
+    expect(find.byType(BudgetDetailScreen), findsOneWidget);
+    expect(container.read(selectedBudgetProvider)?.budgetID, 'b2');
+    expect(container.read(budgetDetailContextProvider('b2')), before);
+  }, timeout: uiTestTimeout);
+
+  testWidgets(
+    'a rapid open to phone to open reversal keeps exactly one pane and no page',
+    (tester) async {
+      final container = await _pumpShell(tester, mode: ShellLayoutMode.open);
+      await _tapBudget(tester, 'b2');
+
+      container.read(_modeFixture.notifier).state = ShellLayoutMode.phone;
+      await tester.pump();
+      container.read(_modeFixture.notifier).state = ShellLayoutMode.open;
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(shellDetailPaneKey), findsOneWidget);
+      expect(find.byType(BudgetDetailScreen), findsNothing);
+      expect(container.read(selectedBudgetProvider)?.budgetID, 'b2');
+    },
+    timeout: uiTestTimeout,
+  );
+  testWidgets('tray padding and All spending title keep the selection', (
+    tester,
+  ) async {
+    final container = await _pumpShell(tester, mode: ShellLayoutMode.open);
+    await _tapBudget(tester, 'b2');
+    final selected = container.read(selectedBudgetProvider);
+    final tray = find.byKey(const ValueKey('budget-tray-b2'));
+    await tester.tapAt(tester.getTopLeft(tray) + _trayInteriorOffset);
+    await tester.pumpAndSettle();
+    expect(container.read(selectedBudgetProvider), selected);
+    await tester.tap(find.text('All spending'));
+    await tester.pumpAndSettle();
+    expect(container.read(selectedBudgetProvider)?.budgetID, 'b1');
+  }, timeout: uiTestTimeout);
+
+  testWidgets('empty list space keeps a phone or desktop selection', (
+    tester,
+  ) async {
+    final container = _container(ledger: _ledger());
+    final app = MaterialApp(home: Scaffold(body: const BudgetsRoot()));
+    await tester.pumpWidget(
+      UncontrolledProviderScope(container: container, child: app),
+    );
+    await tester.pumpAndSettle();
+    await _tapBudget(tester, 'b2');
+    await tester.tap(find.text('Category budgets'));
+    await tester.pumpAndSettle();
+    expect(container.read(selectedBudgetProvider)?.budgetID, 'b2');
+    container.read(_modeFixture.notifier).state = ShellLayoutMode.desktop;
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Category budgets'));
+    await tester.pumpAndSettle();
+    expect(container.read(selectedBudgetProvider)?.budgetID, 'b2');
+  }, timeout: uiTestTimeout);
+
+  testWidgets('an inactive limit Step is retained until Budgets returns', (
+    tester,
+  ) async {
+    final container = await _pumpShell(tester, mode: ShellLayoutMode.open);
+    await _tapBudget(tester, 'b2');
+    _selectSegment(container, MoneySegment.accounts);
+    await tester.pumpAndSettle();
+    final viewModel = container.read(
+      budgetLimitViewModelProvider('b2').notifier,
+    );
+    viewModel.requestEditDefault();
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(FilledButton, _saveLabel), findsNothing);
+    expect(
+      container.read(budgetLimitViewModelProvider('b2')).requireValue.step,
+      isA<PickLimitRequested>(),
+    );
+    _selectSegment(container, MoneySegment.budgets);
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(FilledButton, _saveLabel), findsOneWidget);
+  }, timeout: uiTestTimeout);
+
+  testWidgets(
+    'a delayed editor result after selection replacement cannot mutate',
+    (tester) async {
+      final ledger = _ledger();
+      final container = await _pumpShell(
+        tester,
+        mode: ShellLayoutMode.open,
+        ledger: ledger,
+      );
+      await _openHistoryFromPane(tester);
+      await tester.tap(find.text(_defaultBudgetRowLabel));
+      await tester.pumpAndSettle();
+      container.read(selectedBudgetProvider.notifier).select('b1');
+      await tester.pump();
+      _rootNavigator(tester).pop(Decimal.fromInt(75));
+      await tester.pumpAndSettle();
+      expect(ledger.state.budgets['b2']!.limitEvents, hasLength(1));
+      expect(ledger.state.budgets['b1']!.limitEvents, hasLength(1));
+      expect(container.read(selectedBudgetProvider)?.budgetID, 'b1');
+    },
+    timeout: uiTestTimeout,
+  );
+
+  testWidgets(
+    'a delayed editor result after ledger replacement cannot mutate either ledger',
+    (tester) async {
+      final oldLedger = _ledger();
+      final container = await _pumpShell(
+        tester,
+        mode: ShellLayoutMode.open,
+        ledger: oldLedger,
+      );
+      await _openHistoryFromPane(tester);
+      await tester.tap(find.text(_defaultBudgetRowLabel));
+      await tester.pumpAndSettle();
+      final replacement = _ledger();
+      container.read(_ledgerFixture.notifier).state = replacement;
+      _rootNavigator(tester).pop(Decimal.fromInt(75));
+      await tester.pumpAndSettle();
+      expect(oldLedger.state.budgets['b2']!.limitEvents, hasLength(1));
+      expect(replacement.state.budgets['b2']!.limitEvents, hasLength(1));
+      expect(container.read(selectedBudgetProvider), isNull);
+    },
+    timeout: uiTestTimeout,
+  );
+
+  testWidgets('reopening after terminal closure uses the new Money month', (
+    tester,
+  ) async {
+    final container = await _pumpShell(tester, mode: ShellLayoutMode.open);
+    await _tapBudget(tester, 'b2');
+    await tester.tap(find.text('Category budgets'));
+    await tester.pumpAndSettle();
+    expect(_hasDetailOwners(container, 'b2'), isFalse);
+    container.read(selectedMonthProvider.notifier).state = DateTime.utc(
+      2027,
+      2,
+    );
+    await tester.pumpAndSettle();
+    await _tapBudget(tester, 'b2');
+    final context = container.read(budgetDetailContextProvider('b2'));
+    expect(context.selectedMonth, DateTime.utc(2027, 2));
+    expect(context.displayedYear, DateTime.utc(2027));
+  }, timeout: uiTestTimeout);
+  testWidgets('list scrolling and Add budget preserve the pane selection', (
+    tester,
+  ) async {
+    final container = await _pumpShell(tester, mode: ShellLayoutMode.open);
+    await _tapBudget(tester, 'b2');
+    final list = find.descendant(
+      of: find.byType(BudgetsRoot),
+      matching: find.byType(Scrollable),
+    );
+    await tester.drag(list, _listScrollOffset);
+    await tester.pumpAndSettle();
+    expect(container.read(selectedBudgetProvider)?.budgetID, 'b2');
+    await tester.tap(find.text('Add budget'));
+    await tester.pumpAndSettle();
+    expect(find.byType(BudgetForm), findsOneWidget);
+    expect(container.read(selectedBudgetProvider)?.budgetID, 'b2');
+  }, timeout: uiTestTimeout);
+  testWidgets(
+    'a ledger notification while editing cannot start a second limit operation',
+    (tester) async {
+      final ledger = _ledger();
+      await _pumpShell(tester, mode: ShellLayoutMode.open, ledger: ledger);
+      await _openHistoryFromPane(tester);
+      await tester.tap(find.text(_defaultBudgetRowLabel));
+      await tester.pumpAndSettle();
+      ledger.addEntry(_entry(0));
+      await tester.pumpAndSettle();
+      _rootNavigator(tester).pop(Decimal.fromInt(75));
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(FilledButton, _saveLabel), findsNothing);
+      final events = ledger.state.budgets['b2']!.limitEvents;
+      expect(events, hasLength(2));
+      expect(events.last.value, Decimal.fromInt(75));
+      expect(find.byType(BudgetLimitScreen), findsOneWidget);
     },
     timeout: uiTestTimeout,
   );

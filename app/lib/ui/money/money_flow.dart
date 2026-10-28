@@ -37,6 +37,7 @@ final activeMoneySourceProvider = Provider<String? Function()>((ref) {
 
 const _headerRowMinHeight = 48.0;
 const _budgetEditLabel = 'Edit';
+const _budgetPaneScrollPhysics = ClampingScrollPhysics();
 const _headerPadding = EdgeInsets.symmetric(horizontal: 16, vertical: 8);
 const _segmentPadding = EdgeInsets.symmetric(horizontal: 16);
 const _options = [
@@ -116,23 +117,33 @@ class _MoneyFlowState extends ConsumerState<MoneyFlow> {
       );
     }).toList();
     final stack = IndexedStack(index: segment.index, children: children);
-    Widget moneyPage(ShellPagePresentation presentation) => SafeArea(
-      child: Material(
-        child: Column(
-          children: [
-            if (!widget.moneyObserver.hasScopedTransactionsRoute)
-              _MoneyHeader(segment: segment, presentation: presentation),
-            Expanded(child: stack),
-          ],
-        ),
-      ),
-    );
-    if (ShellPaneScope.maybeOf(context) == null) {
-      return moneyPage(ShellPagePresentation.fullPage);
+    Widget moneyPage(ShellPagePresentation presentation) {
+      final header = widget.moneyObserver.hasScopedTransactionsRoute
+          ? null
+          : _MoneyHeader(segment: segment, presentation: presentation);
+      final content = Column(
+        children: [
+          ?header,
+          Expanded(child: stack),
+        ],
+      );
+      return SafeArea(child: Material(child: content));
     }
-    return ShellPaneHost(
-      pageBuilder: (_, presentation) => moneyPage(presentation),
-      detail: budgetDetail,
+
+    final page = ShellPaneScope.maybeOf(context) == null
+        ? moneyPage(ShellPagePresentation.fullPage)
+        : ShellPaneHost(
+            pageBuilder: (_, presentation) => moneyPage(presentation),
+            detail: budgetDetail,
+          );
+    return PopScope<Object?>(
+      canPop: !budgetPaneActive,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && budgetPaneActive) {
+          ref.read(selectedBudgetProvider.notifier).clear();
+        }
+      },
+      child: page,
     );
   }
 
@@ -144,13 +155,19 @@ class _MoneyFlowState extends ConsumerState<MoneyFlow> {
     final viewModel = ref.read(
       budgetDetailViewModelProvider(selection.budgetID).notifier,
     );
+    final content = BudgetDetailContent(
+      viewState: viewState,
+      viewModel: viewModel,
+    );
+    final body = ListView(
+      physics: _budgetPaneScrollPhysics,
+      children: [content],
+    );
     return ShellDetail(
       id: selection.budgetID,
       title: viewState.title,
       subtitle: formatMonthLabel(viewState.selectedMonth),
-      bodyBuilder: (_) =>
-          BudgetDetailContent(viewState: viewState, viewModel: viewModel),
-      onClose: () => ref.read(selectedBudgetProvider.notifier).clear(),
+      bodyBuilder: (_) => body,
       headerActions: [
         TextButton.icon(
           onPressed: viewModel.requestLimitEdit,

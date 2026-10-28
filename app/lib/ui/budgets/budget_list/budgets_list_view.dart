@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/budgets/budget_list/budget_card.dart';
+import 'package:spendwise/ui/budgets/budget_list/budget_selection.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
 import 'package:spendwise/ui/common/buttons/app_buttons.dart';
 import 'package:spendwise/ui/common/feedback/empty_state.dart';
@@ -62,7 +63,16 @@ class BudgetsRoot extends ConsumerWidget {
       error: (error, _) =>
           BudgetListError(error: error, onRetry: viewModel.retry),
     );
-    return Material(child: body);
+    final dismissSelection = open && !addPresented
+        ? ref.read(selectedBudgetProvider.notifier).clear
+        : null;
+    return Material(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: dismissSelection,
+        child: body,
+      ),
+    );
   }
 }
 
@@ -218,7 +228,14 @@ class _AllSpendingSection extends StatelessWidget {
     final selected =
         summary.budgetID != null &&
         summary.budgetID == viewState.selectedBudgetID;
-    return Tray(title: 'All spending', selected: selected, child: child);
+    final tray = Tray(title: 'All spending', selected: selected, child: child);
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        if (id != null) viewModel.requestBudgetDetail(id);
+      },
+      child: tray,
+    );
   }
 }
 
@@ -235,25 +252,33 @@ class _CategoryBudgetsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cards = [
-      for (final (index, row) in viewState.cards.indexed)
-        Tray(
-          key: ValueKey('budget-tray-${row.id}'),
-          selected: row.id == viewState.selectedBudgetID,
-          child: BudgetCard(
-            key: ValueKey('budget-${row.id}'),
-            savedHex: row.savedHex,
-            rank: index,
-            chartColours: viewState.chartColours,
-            name: row.name,
-            amounts: row.amounts,
-            status: row.status,
-            progress: row.progress,
-            overLimit: row.overLimit,
-            onTap: () => viewModel.requestBudgetDetail(row.id),
-          ),
+    final cards = <Widget>[];
+    for (final (index, row) in viewState.cards.indexed) {
+      final card = BudgetCard(
+        key: ValueKey('budget-${row.id}'),
+        savedHex: row.savedHex,
+        rank: index,
+        chartColours: viewState.chartColours,
+        name: row.name,
+        amounts: row.amounts,
+        status: row.status,
+        progress: row.progress,
+        overLimit: row.overLimit,
+        onTap: () => viewModel.requestBudgetDetail(row.id),
+      );
+      final tray = Tray(
+        key: ValueKey('budget-tray-${row.id}'),
+        selected: row.id == viewState.selectedBudgetID,
+        child: card,
+      );
+      cards.add(
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => viewModel.requestBudgetDetail(row.id),
+          child: tray,
         ),
-    ];
+      );
+    }
     final content = _BudgetCardLayout(columns: columns, children: cards);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
