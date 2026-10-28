@@ -40,7 +40,9 @@ class BudgetsRoot extends ConsumerWidget {
         viewState: value,
         viewModel: viewModel,
         desktop: desktop,
-        columns: open && !addPresented ? _openColumns : _singleColumn,
+        columns: open && !addPresented && value.selectedBudgetID == null
+            ? _openColumns
+            : _singleColumn,
         showFloatingAction: !addPresented,
         actionPadding: open ? _openActionPadding : _actionPadding,
       ),
@@ -202,7 +204,10 @@ class _AllSpendingSection extends StatelessWidget {
             onTap: () => viewModel.requestBudgetDetail(id),
             child: content,
           );
-    return Tray(title: 'All spending', child: child);
+    final selected =
+        summary.budgetID != null &&
+        summary.budgetID == viewState.selectedBudgetID;
+    return Tray(title: 'All spending', selected: selected, child: child);
   }
 }
 
@@ -223,6 +228,7 @@ class _CategoryBudgetsSection extends StatelessWidget {
       for (final (index, row) in viewState.cards.indexed)
         Tray(
           key: ValueKey('budget-tray-${row.id}'),
+          selected: row.id == viewState.selectedBudgetID,
           child: BudgetCard(
             key: ValueKey('budget-${row.id}'),
             savedHex: row.savedHex,

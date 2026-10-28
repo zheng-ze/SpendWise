@@ -11,6 +11,7 @@ import 'package:spendwise/ui/budgets/budget_detail/budget_limit_view_model.dart'
 import 'package:spendwise/ui/budgets/budget_list/budget_category_picker.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_form.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_form_view_model.dart';
+import 'package:spendwise/ui/budgets/budget_list/budget_selection.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
 import 'package:spendwise/ui/common/base/flow_base.dart';
@@ -119,6 +120,10 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     await route.completed;
     if (!identical(_detailSubscription, detailSubscription)) return;
     _closeBudgetSubscriptions();
+    final selection = ref.read(selectedBudgetProvider);
+    if (selection?.budgetID == budgetID) {
+      ref.read(selectedBudgetProvider.notifier).clear();
+    }
   }
 
   void _handleDetailStep(String budgetID, BudgetsStep? step) {

@@ -10,6 +10,7 @@ import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
 import 'package:spendwise/ledger/analysis/budgets/budget_overview.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
+import 'package:spendwise/ui/budgets/budget_list/budget_selection.dart';
 import 'package:spendwise/ui/common/base/ledger_backed_notifier.dart';
 import 'package:spendwise/ui/common/base/step_emitting.dart';
 
@@ -47,6 +48,7 @@ class BudgetsListViewState
     this.error,
     required this.today,
     this.chartColours = ChartColours.categoryColours,
+    this.selectedBudgetID,
     this.step,
   });
 
@@ -56,6 +58,7 @@ class BudgetsListViewState
   final Object? error;
   final DateTime today;
   final ChartColours chartColours;
+  final String? selectedBudgetID;
   @override
   final BudgetsStep? step;
 
@@ -93,6 +96,7 @@ class BudgetsListViewState
       error: error,
       today: today,
       chartColours: chartColours,
+      selectedBudgetID: selectedBudgetID,
       step: step == null ? this.step : step(),
     );
   }
@@ -131,6 +135,7 @@ class BudgetsListNotifier extends AsyncNotifier<BudgetsListViewState>
     final chartColours = ref.watch(
       displayPreferencesProvider.select((value) => value.chartColours),
     );
+    final selection = ref.watch(selectedBudgetProvider);
     Object? error;
     if (result.state == AnalysisQueryState.failed) {
       error = analysisCache.lastFailure?.error;
@@ -156,6 +161,7 @@ class BudgetsListNotifier extends AsyncNotifier<BudgetsListViewState>
       error: error,
       today: today,
       chartColours: chartColours,
+      selectedBudgetID: selection?.budgetID,
       step: _step,
     );
   }
@@ -187,6 +193,7 @@ class BudgetsListNotifier extends AsyncNotifier<BudgetsListViewState>
   void requestBudgetDetail(String budgetID) {
     _step = BudgetDetailRequested(budgetID);
     emitStep(BudgetDetailRequested(budgetID));
+    ref.read(selectedBudgetProvider.notifier).select(budgetID);
   }
 
   @override
