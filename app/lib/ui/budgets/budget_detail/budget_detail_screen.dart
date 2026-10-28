@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/boot/providers.dart';
-import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_content.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_presentation.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
@@ -26,7 +25,6 @@ class BudgetDetailScreen extends ConsumerWidget {
               viewModel: ref.read(
                 budgetDetailViewModelProvider(budgetID).notifier,
               ),
-              ledger: ledger,
             ),
       loading: () =>
           const Scaffold(body: Center(child: CircularProgressIndicator())),
@@ -38,15 +36,10 @@ class BudgetDetailScreen extends ConsumerWidget {
 
 // MARK: - Page
 class _BudgetDetailPage extends StatelessWidget {
-  const _BudgetDetailPage({
-    required this.viewState,
-    required this.viewModel,
-    required this.ledger,
-  });
+  const _BudgetDetailPage({required this.viewState, required this.viewModel});
 
   final BudgetDetailViewState viewState;
   final BudgetDetailViewModel viewModel;
-  final Ledger ledger;
 
   @override
   Widget build(BuildContext context) {
@@ -55,7 +48,6 @@ class _BudgetDetailPage extends StatelessWidget {
     final content = BudgetDetailContent(
       viewState: viewState,
       viewModel: viewModel,
-      ledger: ledger,
     );
 
     return Scaffold(

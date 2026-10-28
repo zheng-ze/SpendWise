@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_counted_entry_list.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_chart.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_presentation.dart';
@@ -38,12 +37,10 @@ class BudgetDetailContent extends StatelessWidget {
     super.key,
     required this.viewState,
     required this.viewModel,
-    required this.ledger,
   });
 
   final BudgetDetailViewState viewState;
   final BudgetDetailViewModel viewModel;
-  final Ledger ledger;
 
   @override
   Widget build(BuildContext context) {
@@ -56,20 +53,20 @@ class BudgetDetailContent extends StatelessWidget {
     }
 
     final failure = presentation.failure;
-    final snapshot = viewState.snapshot;
+    final projection = viewState.projection;
     final summary = presentation.summary;
     final failureTray = failure == null
         ? null
         : _FailureTray(reason: failure, onRetry: viewModel.retry);
 
     final Widget body;
-    if (snapshot != null && summary != null) {
+    if (projection != null && summary != null) {
       body = _PopulatedContent(
-        snapshot: snapshot,
+        viewState: viewState,
+        projection: projection,
         summary: summary,
         presentation: presentation,
         viewModel: viewModel,
-        ledger: ledger,
       );
     } else if (presentation.body == BudgetDetailBody.skeleton) {
       body = const LoadingTrays();
@@ -96,27 +93,30 @@ class BudgetDetailContent extends StatelessWidget {
 // MARK: - Populated
 class _PopulatedContent extends StatelessWidget {
   const _PopulatedContent({
-    required this.snapshot,
+    required this.viewState,
+    required this.projection,
     required this.summary,
     required this.presentation,
     required this.viewModel,
-    required this.ledger,
   });
 
-  final BudgetDetailSnapshot snapshot;
+  final BudgetDetailViewState viewState;
+  final BudgetDetailProjection projection;
   final BudgetDetailSummaryValues summary;
   final BudgetDetailPresentation presentation;
   final BudgetDetailViewModel viewModel;
-  final Ledger ledger;
 
   @override
   Widget build(BuildContext context) {
     final summaryTray = _SummaryTray(summary: summary);
-    final chartTray = _ChartTray(snapshot: snapshot, viewModel: viewModel);
+    final chartTray = _ChartTray(
+      viewState: viewState,
+      projection: projection,
+      viewModel: viewModel,
+    );
     final entries = _EntriesSection(
-      snapshot: snapshot,
+      viewState: viewState,
       emptyCopy: presentation.emptyCopy,
-      ledger: ledger,
     );
 
     return Column(
@@ -174,16 +174,21 @@ class _SummaryTray extends StatelessWidget {
 
 // MARK: - Chart
 class _ChartTray extends StatelessWidget {
-  const _ChartTray({required this.snapshot, required this.viewModel});
+  const _ChartTray({
+    required this.viewState,
+    required this.projection,
+    required this.viewModel,
+  });
 
-  final BudgetDetailSnapshot snapshot;
+  final BudgetDetailViewState viewState;
+  final BudgetDetailProjection projection;
   final BudgetDetailViewModel viewModel;
 
   @override
   Widget build(BuildContext context) {
     final selector = Center(
       child: MonthYearSelector(
-        value: snapshot.displayedYear,
+        value: viewState.displayedYear,
         step: MonthYearStep.year,
         onChanged: viewModel.changeYear,
       ),
@@ -191,11 +196,11 @@ class _ChartTray extends StatelessWidget {
     final chart = SizedBox(
       height: _chartHeight,
       child: BudgetDetailChart(
-        months: snapshot.months,
-        slots: budgetMonthBarSlots(snapshot.projection.slots),
-        limit: snapshot.currentLimit,
-        maxY: snapshot.chartMaxYValue,
-        selectedMonth: snapshot.selectedMonth,
+        months: projection.months,
+        slots: budgetMonthBarSlots(projection.slots),
+        limit: projection.currentLimit,
+        maxY: projection.chartMaxYValue,
+        selectedMonth: viewState.selectedMonth,
         onSelectMonth: viewModel.selectMonth,
         barColor: AmountStyle.of(context, kind: AmountKind.expense).color,
       ),
@@ -216,15 +221,10 @@ class _ChartTray extends StatelessWidget {
 
 // MARK: - Entries
 class _EntriesSection extends StatelessWidget {
-  const _EntriesSection({
-    required this.snapshot,
-    required this.emptyCopy,
-    required this.ledger,
-  });
+  const _EntriesSection({required this.viewState, required this.emptyCopy});
 
-  final BudgetDetailSnapshot snapshot;
+  final BudgetDetailViewState viewState;
   final BudgetDetailEmptyCopy? emptyCopy;
-  final Ledger ledger;
 
   @override
   Widget build(BuildContext context) {
@@ -237,16 +237,16 @@ class _EntriesSection extends StatelessWidget {
     final label = Padding(
       padding: _entriesLabelPadding,
       child: Text(
-        '${formatMonthLabel(snapshot.selectedMonth).toUpperCase()}$_entriesSuffix',
+        '${formatMonthLabel(viewState.selectedMonth).toUpperCase()}$_entriesSuffix',
         style: theme.textTheme.labelMedium?.copyWith(
           color: theme.colorScheme.onSurfaceVariant,
         ),
       ),
     );
     final entryList = BudgetCountedEntryList(
-      ledger: ledger,
-      state: snapshot.ledgerState,
-      counted: snapshot.countedEntries,
+      ledger: viewState.ledger,
+      state: viewState.ledgerState,
+      counted: viewState.countedEntries,
     );
 
     return Column(

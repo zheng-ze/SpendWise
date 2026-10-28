@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_screen.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form.dart';
@@ -39,18 +40,18 @@ void main() {
       );
       keepDetailAlive(container);
 
-      final snapshot = (await settledDetail(container)).snapshot!;
-      final amounts = [for (final row in snapshot.countedEntries) row.amount];
+      final state = await settledDetail(container);
+      final amounts = [for (final row in state.countedEntries) row.amount];
       final dayTotals = <DateTime, Decimal>{};
-      for (final row in snapshot.countedEntries) {
+      for (final row in state.countedEntries) {
         final day = startOfDayUtc(row.entry.date);
         dayTotals[day] = (dayTotals[day] ?? Decimal.zero) + row.amount;
       }
 
       expect(amounts, unorderedEquals([dec('10'), dec('40')]));
       expect(dayTotals, {DateTime.utc(2026, 10, 1): dec('50')});
-      expect(snapshot.spent, dec('50'));
-      expect(snapshot.projection.summary?.spent, snapshot.spent);
+      expect(state.spent, dec('50'));
+      expect(state.projection?.projection.summary?.spent, state.spent);
     },
   );
 
@@ -111,4 +112,53 @@ void main() {
 
     expect(find.byType(EntryForm), findsOneWidget);
   }, timeout: uiTestTimeout);
+
+  testWidgets(
+    'swipe-deleting a counted row during a pending refresh removes the row',
+    (tester) async {
+      final ledger = detailLedger(budgets: [detailBudget()], entries: [lunch]);
+      final container = await tester.runAsync(() async {
+        final created = detailContainer(
+          ledger: ledger,
+          clock: DetailClock(october),
+        );
+        keepDetailAlive(created);
+        await pumpEventQueue();
+        return created;
+      });
+      if (container == null) fail('the detail container was not created');
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            home: BudgetDetailScreen(budgetID: detailBudgetID),
+          ),
+        ),
+      );
+      await tester.pump();
+      container
+          .read(ledgerProvider)!
+          .addCategory(
+            TransactionCategory(
+              id: 'c0000000-0000-0000-0000-000000000002',
+              name: 'Travel',
+              kind: CategoryKind.expense,
+              colorHex: '#0000AA',
+              includeInAnalysis: true,
+              parentID: null,
+              symbol: 'flight',
+            ),
+          );
+      await tester.pump();
+      await tester.drag(find.text('Lunch'), const Offset(-600, 0));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Lunch'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+    timeout: uiTestTimeout,
+  );
 }

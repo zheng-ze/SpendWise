@@ -57,40 +57,43 @@ class BudgetDetailPresentation {
 
 // MARK: - Mapping
 BudgetDetailPresentation budgetDetailPresentation(BudgetDetailViewState state) {
-  final snapshot = state.snapshot;
-  if (snapshot == null) {
+  final projection = state.projection;
+  final failure = state.error;
+  if (state.phase == BudgetDetailPhase.deleted) {
+    return const BudgetDetailPresentation(
+      body: BudgetDetailBody.deleted,
+      failure: null,
+      summary: null,
+      emptyCopy: null,
+      showsChart: false,
+    );
+  }
+  if (projection == null) {
     return BudgetDetailPresentation(
-      body: _bodyWithoutSnapshot(state.phase),
-      failure: state.error,
+      body: state.phase == BudgetDetailPhase.failed
+          ? BudgetDetailBody.failure
+          : BudgetDetailBody.skeleton,
+      failure: failure,
       summary: null,
       emptyCopy: null,
       showsChart: false,
     );
   }
 
-  final wholeBudgetFresh = !snapshot.hasCountedEntries;
-  final emptyCopy = snapshot.countedEntries.isEmpty
-      ? budgetDetailEmptyCopy(snapshot.categoryName)
+  final emptyCopy = state.countedEntries.isEmpty
+      ? budgetDetailEmptyCopy(state.categoryName)
       : null;
   return BudgetDetailPresentation(
     body: BudgetDetailBody.content,
-    failure: state.error,
+    failure: failure,
     summary: BudgetDetailSummaryValues(
-      spent: snapshot.spent,
-      limit: snapshot.selectedLimit,
+      spent: state.spent,
+      limit: projection.selectedLimit,
     ),
     emptyCopy: emptyCopy,
-    showsChart: !wholeBudgetFresh,
+    showsChart: state.hasCountedEntries,
   );
 }
-
-BudgetDetailBody _bodyWithoutSnapshot(BudgetDetailPhase phase) =>
-    switch (phase) {
-      BudgetDetailPhase.deleted => BudgetDetailBody.deleted,
-      BudgetDetailPhase.failed => BudgetDetailBody.failure,
-      BudgetDetailPhase.loading ||
-      BudgetDetailPhase.ready => BudgetDetailBody.skeleton,
-    };
 
 BudgetDetailEmptyCopy budgetDetailEmptyCopy(String? categoryName) {
   if (categoryName == null) {
