@@ -29,24 +29,23 @@ void main() {
     return budgetDetailPresentation(state);
   }
 
-  test('a budget with no counted entries anywhere is whole-budget fresh '
-      'and hides the chart', () async {
-    final presentation = await presentationFor(
-      detailLedger(budgets: [detailBudget()]),
-    );
+  test(
+    'a budget with no counted entries shows the empty entries message',
+    () async {
+      final presentation = await presentationFor(
+        detailLedger(budgets: [detailBudget()]),
+      );
 
-    expect(presentation.body, BudgetDetailBody.content);
-    expect(presentation.showsChart, isFalse);
-    expect(presentation.emptyCopy?.title, 'No spending yet this month');
-    expect(presentation.emptyCopy?.body, 'Add an expense to see it here.');
-  });
+      expect(presentation.body, BudgetDetailBody.content);
+      expect(presentation.emptyCopy?.title, 'No spending yet this month');
+      expect(presentation.emptyCopy?.body, 'Add an expense to see it here.');
+    },
+  );
 
-  test('a category budget fresh state names its category', () async {
+  test('a category budget empty entries message names its category', () async {
     final presentation = await presentationFor(
       detailLedger(budgets: [detailBudget(categoryID: foodCategory.id)]),
     );
-
-    expect(presentation.showsChart, isFalse);
     expect(presentation.emptyCopy?.title, 'No Food spending yet this month');
     expect(
       presentation.emptyCopy?.body,
@@ -54,7 +53,7 @@ void main() {
     );
   });
 
-  test('an income entry does not count, so the budget stays fresh', () async {
+  test('an income entry does not count, so the entries stay empty', () async {
     final income = Entry(
       amount: dec('500'),
       name: 'Salary',
@@ -64,61 +63,49 @@ void main() {
     final presentation = await presentationFor(
       detailLedger(budgets: [detailBudget()], entries: [income]),
     );
-
-    expect(presentation.showsChart, isFalse);
     expect(presentation.emptyCopy, isNotNull);
   });
 
-  test('entries only in another year keep the chart and replace only the '
-      'entries', () async {
+  test('entries only in another year give the selected month the empty '
+      'message', () async {
     final presentation = await presentationFor(
       detailLedger(
         budgets: [detailBudget()],
         entries: [expense(DateTime.utc(2025, 10, 4))],
       ),
     );
-
-    expect(presentation.showsChart, isTrue);
     expect(presentation.emptyCopy?.title, 'No spending yet this month');
   });
 
-  test('entries in another month of the same year keep the chart and '
-      'replace only the entries', () async {
+  test('entries in another month of the same year give the selected month the '
+      'empty message', () async {
     final presentation = await presentationFor(
       detailLedger(
         budgets: [detailBudget()],
         entries: [expense(DateTime.utc(2026, 9, 4))],
       ),
     );
-
-    expect(presentation.showsChart, isTrue);
     expect(presentation.emptyCopy, isNotNull);
     expect(presentation.summary?.spent, dec('0'));
   });
 
-  test(
-    'a populated selected month shows the chart and no empty copy',
-    () async {
-      final presentation = await presentationFor(
-        detailLedger(
-          budgets: [detailBudget()],
-          entries: [expense(DateTime.utc(2026, 10, 4))],
-        ),
-      );
-
-      expect(presentation.showsChart, isTrue);
-      expect(presentation.emptyCopy, isNull);
-      expect(presentation.summary?.spent, dec('10'));
-      expect(presentation.summary?.limit, dec('100'));
-      expect(presentation.summary?.remaining, dec('90'));
-    },
-  );
+  test('a populated selected month has no empty copy', () async {
+    final presentation = await presentationFor(
+      detailLedger(
+        budgets: [detailBudget()],
+        entries: [expense(DateTime.utc(2026, 10, 4))],
+      ),
+    );
+    expect(presentation.emptyCopy, isNull);
+    expect(presentation.summary?.spent, dec('10'));
+    expect(presentation.summary?.limit, dec('100'));
+    expect(presentation.summary?.remaining, dec('90'));
+  });
 
   test('a deleted budget maps to the deleted body', () async {
     final presentation = await presentationFor(detailLedger());
 
     expect(presentation.body, BudgetDetailBody.deleted);
-    expect(presentation.showsChart, isFalse);
     expect(presentation.summary, isNull);
   });
 

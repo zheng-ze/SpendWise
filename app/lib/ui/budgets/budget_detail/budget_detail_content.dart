@@ -124,10 +124,8 @@ class _PopulatedContent extends StatelessWidget {
       children: [
         summaryTray,
         const SizedBox(height: _sectionGap),
-        if (presentation.showsChart) ...[
-          chartTray,
-          const SizedBox(height: _sectionGap),
-        ],
+        chartTray,
+        const SizedBox(height: _sectionGap),
         entries,
       ],
     );

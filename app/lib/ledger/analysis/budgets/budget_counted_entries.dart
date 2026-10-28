@@ -41,16 +41,5 @@ List<BudgetCountedEntry> budgetCountedEntries(
   return counted;
 }
 
-bool budgetHasCountedEntries(Budget budget, LedgerState state) {
-  final sourceIDs = state.moneySources.keys.toSet();
-  bool countsAnyItem(Entry entry) => Accounting.classify(
-    entry,
-    sourceIDs,
-    state,
-  ).any((item) => budgetCountsItemInAnyMonth(budget, item, state));
-
-  return state.entries.values.any(countsAnyItem);
-}
-
 Decimal budgetCountedTotal(List<BudgetCountedEntry> counted) =>
     counted.fold(Decimal.zero, (sum, row) => sum + row.amount);

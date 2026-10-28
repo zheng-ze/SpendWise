@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:domain/domain.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
+import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_presentation.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
 
@@ -90,13 +93,16 @@ void main() {
       await settledDetail(container);
       container
           .read(budgetDetailViewModelProvider(detailBudgetID).notifier)
-          .selectMonth(september);
+          .changeYear(DateTime.utc(2027));
+      container
+          .read(budgetDetailViewModelProvider(detailBudgetID).notifier)
+          .selectMonth(DateTime.utc(2027, 9));
 
       container.read(ledgerProvider)!.addEntry(lunch(DateTime.utc(2026, 9, 3)));
       final state = await settledDetail(container);
 
-      expect(state.selectedMonth, september);
-      expect(state.displayedYear, DateTime.utc(2026));
+      expect(state.selectedMonth, DateTime.utc(2027, 9));
+      expect(state.displayedYear, DateTime.utc(2027));
     },
   );
 
@@ -109,15 +115,18 @@ void main() {
     await settledDetail(container);
     container
         .read(budgetDetailViewModelProvider(detailBudgetID).notifier)
-        .selectMonth(september);
+        .changeYear(DateTime.utc(2027));
+    container
+        .read(budgetDetailViewModelProvider(detailBudgetID).notifier)
+        .selectMonth(DateTime.utc(2027, 9));
 
     container
         .read(analysisQueriesProvider)!
         .setToday(DateTime.utc(2026, 10, 29));
     final state = await settledDetail(container);
 
-    expect(state.selectedMonth, september);
-    expect(state.displayedYear, DateTime.utc(2026));
+    expect(state.selectedMonth, DateTime.utc(2027, 9));
+    expect(state.displayedYear, DateTime.utc(2027));
   });
 
   test('an effective-month change leaves the selected month and year '
@@ -255,24 +264,25 @@ void main() {
     expect(pending.projection, isNotNull);
   });
 
-  test('whole-budget freshness follows the live ledger while a refresh is '
-      'pending', () async {
-    final container = detailContainer(
-      ledger: detailLedger(budgets: [detailBudget()]),
-      clock: DetailClock(october),
-    );
-    keepDetailAlive(container);
-    await settledDetail(container);
-    expect(detailState(container).hasCountedEntries, isFalse);
+  test(
+    'counted entries follow the live ledger while a refresh is pending',
+    () async {
+      final container = detailContainer(
+        ledger: detailLedger(budgets: [detailBudget()]),
+        clock: DetailClock(october),
+      );
+      keepDetailAlive(container);
+      await settledDetail(container);
+      expect(detailState(container).countedEntries, isEmpty);
 
-    final added = lunch(DateTime.utc(2026, 10, 2));
-    container.read(ledgerProvider)!.addEntry(added);
-    final pending = detailState(container);
+      final added = lunch(DateTime.utc(2026, 10, 2));
+      container.read(ledgerProvider)!.addEntry(added);
+      final pending = detailState(container);
 
-    expect(pending.phase, BudgetDetailPhase.loading);
-    expect(pending.hasCountedEntries, isTrue);
-    expect(pending.countedEntries, hasLength(1));
-  });
+      expect(pending.phase, BudgetDetailPhase.loading);
+      expect(pending.countedEntries, hasLength(1));
+    },
+  );
 
   Future<ProviderContainer> gatedDetailContainer(
     GatedComputeRunner runner,
@@ -400,6 +410,11 @@ void main() {
       runner: flakyRunner,
     );
     keepDetailAlive(container);
+    final contextOwner = container.read(
+      budgetDetailContextProvider(detailBudgetID).notifier,
+    );
+    contextOwner.changeYear(DateTime.utc(2027));
+    contextOwner.selectMonth(DateTime.utc(2027, 9));
     final failed = await settledDetail(container);
 
     expect(failed.phase, BudgetDetailPhase.failed);
@@ -413,7 +428,8 @@ void main() {
 
     expect(restored.phase, BudgetDetailPhase.ready);
     expect(restored.error, isNull);
-    expect(detailContext(container).selectedMonth, DateTime.utc(2026, 10));
+    expect(restored.selectedMonth, DateTime.utc(2027, 9));
+    expect(restored.displayedYear, DateTime.utc(2027));
   });
 
   test('an unresolvable limit reports the thrown reason from the pure '
@@ -560,6 +576,82 @@ void main() {
 
       expect(result.state, AnalysisQueryState.ready);
       expect(result.sourceRevision, container.read(ledgerProvider)!.revision);
+    },
+  );
+  test('old analysis completing after session replacement cannot publish into the new owner', () async {
+    final oldWork = Completer<List<AnalysisItem>>();
+    var hold = false;
+    Future<List<AnalysisItem>> runner(LedgerState state) {
+      if (hold) return oldWork.future;
+      return syncComputeRunner(state);
+    }
+
+    final clock = DetailClock(october);
+    final oldLedger = detailLedger(budgets: [detailBudget()]);
+    final container = detailContainer(
+      ledger: oldLedger,
+      clock: clock,
+      runner: runner,
+    );
+    keepDetailAlive(container);
+    await settledDetail(container);
+    hold = true;
+    oldLedger.addEntry(lunch(october));
+    await pumpEventQueue();
+    hold = false;
+    final replacement = detailLedger(budgets: [detailBudget()]);
+    container.updateOverrides([
+      ledgerProvider.overrideWithValue(replacement),
+      clockProvider.overrideWithValue(clock.read),
+      analysisComputeRunnerProvider.overrideWithValue(runner),
+    ]);
+    final before = await settledDetail(container);
+    oldWork.complete(Accounting.analysisItems(oldLedger.state));
+    final after = await settledDetail(container);
+    expect(identical(after.ledger, replacement), isTrue);
+    expect(after.spent, Decimal.zero);
+    expect(after.projection, same(before.projection));
+  });
+
+  test(
+    'old analysis completing after disposal cannot publish into a new owner',
+    () async {
+      final oldWork = Completer<List<AnalysisItem>>();
+      var hold = false;
+      Future<List<AnalysisItem>> runner(LedgerState state) {
+        if (hold) return oldWork.future;
+        return syncComputeRunner(state);
+      }
+
+      final ledger = detailLedger(budgets: [detailBudget()]);
+      final container = detailContainer(
+        ledger: ledger,
+        clock: DetailClock(october),
+        runner: runner,
+      );
+      keepDetailAlive(container);
+      await settledDetail(container);
+      hold = true;
+      ledger.addEntry(lunch(october));
+      await pumpEventQueue();
+      container.dispose();
+      hold = false;
+      final replacement = detailLedger(
+        budgets: [detailBudget()],
+        entries: [lunch(october, amount: '-7')],
+      );
+      final newContainer = detailContainer(
+        ledger: replacement,
+        clock: DetailClock(october),
+        runner: runner,
+      );
+      keepDetailAlive(newContainer);
+      final before = await settledDetail(newContainer);
+      oldWork.complete(Accounting.analysisItems(ledger.state));
+      final after = await settledDetail(newContainer);
+      expect(after.spent, dec('7'));
+      expect(after.projection, same(before.projection));
+      expect(identical(after.ledger, replacement), isTrue);
     },
   );
 }

@@ -142,7 +142,6 @@ class BudgetDetailViewState
     required this.ledger,
     required this.ledgerState,
     required this.countedEntries,
-    required this.hasCountedEntries,
     required this.displayedYear,
     required this.selectedMonth,
     this.projection,
@@ -156,7 +155,6 @@ class BudgetDetailViewState
   final Ledger ledger;
   final LedgerState ledgerState;
   final List<BudgetCountedEntry> countedEntries;
-  final bool hasCountedEntries;
   final DateTime displayedYear;
   final DateTime selectedMonth;
   final BudgetDetailProjection? projection;
@@ -174,7 +172,6 @@ class BudgetDetailViewState
       ledger: ledger,
       ledgerState: ledgerState,
       countedEntries: countedEntries,
-      hasCountedEntries: hasCountedEntries,
       displayedYear: displayedYear,
       selectedMonth: selectedMonth,
       projection: projection,
@@ -237,7 +234,6 @@ class BudgetDetailNotifier extends AsyncNotifier<BudgetDetailViewState>
         ledger: currentLedger,
         ledgerState: ledgerState,
         countedEntries: const [],
-        hasCountedEntries: false,
         displayedYear: context.displayedYear,
         selectedMonth: context.selectedMonth,
         step: _step,
@@ -264,7 +260,6 @@ class BudgetDetailNotifier extends AsyncNotifier<BudgetDetailViewState>
         YearMonth.fromUtc(context.selectedMonth),
         ledgerState,
       ),
-      hasCountedEntries: budgetHasCountedEntries(budget, ledgerState),
       displayedYear: context.displayedYear,
       selectedMonth: context.selectedMonth,
       projection: outcome.projection,

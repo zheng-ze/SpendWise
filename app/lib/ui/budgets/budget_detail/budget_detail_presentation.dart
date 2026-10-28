@@ -41,7 +41,6 @@ class BudgetDetailPresentation {
     required this.failure,
     required this.summary,
     required this.emptyCopy,
-    required this.showsChart,
   });
 
   final BudgetDetailBody body;
@@ -51,8 +50,6 @@ class BudgetDetailPresentation {
   final BudgetDetailSummaryValues? summary;
 
   final BudgetDetailEmptyCopy? emptyCopy;
-
-  final bool showsChart;
 }
 
 // MARK: - Mapping
@@ -65,7 +62,6 @@ BudgetDetailPresentation budgetDetailPresentation(BudgetDetailViewState state) {
       failure: null,
       summary: null,
       emptyCopy: null,
-      showsChart: false,
     );
   }
   if (projection == null) {
@@ -76,7 +72,6 @@ BudgetDetailPresentation budgetDetailPresentation(BudgetDetailViewState state) {
       failure: failure,
       summary: null,
       emptyCopy: null,
-      showsChart: false,
     );
   }
 
@@ -91,7 +86,6 @@ BudgetDetailPresentation budgetDetailPresentation(BudgetDetailViewState state) {
       limit: projection.selectedLimit,
     ),
     emptyCopy: emptyCopy,
-    showsChart: state.hasCountedEntries,
   );
 }
 
