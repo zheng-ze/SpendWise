@@ -1,6 +1,6 @@
 # Budgets
 
-Last reconciled: 2026-10-28
+Last reconciled: 2026-10-29
 
 ## Feature overview
 
@@ -136,10 +136,10 @@ The chart draws one dashed horizontal line at `effectiveLimit(budget, YearMonth.
 displayed year or the selected month. The selected-month summary keeps its own applicable limit
 (`projection.selectedLimit`). The detail shows no limit-changes row and no chart caption.
 
-Freshness is decided across all months and years. A budget with no counted entries anywhere shows the
-fresh state. When entries exist elsewhere but none count in the selected month, only the entries
-section shows the empty copy (`budgetDetailPresentation`, `budget_detail_presentation.dart`). A zero
-total alone establishes neither state.
+The detail always shows the summary, the year selector and the chart. When no counted entry falls in
+the selected month, only the entries section shows the empty copy, whether the budget has entries in
+other months or none at all (`budgetDetailPresentation`, `budget_detail_presentation.dart`). There is
+no whole-budget fresh state.
 
 `BudgetCountedEntryList` groups rows by `startOfDayUtc(entry.date)` and displays days newest first.
 Each day header shows the negative folded expense contribution for its rows. Individual `EntryRow`s
@@ -157,30 +157,49 @@ and `budgetLimitViewModelProvider(budgetID)` are autoDispose families.
 
 `BudgetsFlow` owns one budget session at a time (`_BudgetSession`). It opens the context, detail and
 limit subscriptions together, and the session carries the selection generation. Selecting another
-budget retires the previous session. A retired session closes once its descendant routes complete, or
-immediately when it has none. Replacing the ledger instance (`ledgerProvider`) clears the selection.
+budget retires the previous session. A retired session closes once its owned detail page, history page
+and editor routes complete, or immediately when it has none. Replacing the ledger instance (`ledgerProvider`) clears the selection,
+retires the sessions and removes their captured routes after the frame. An unrelated newer route is
+preserved. Flow disposal closes subscriptions and schedules owned-route removal after tree finalization.
+It leaves the selection in place, because a shell layout change such as entering desktop layout
+remounts the Flow and the new instance restores the page.
 
 `MoneyFlow` is a second owner, and only in open layout. While the Budgets segment is active, the shell
 destination is active and a selection exists, it watches `budgetDetailViewModelProvider` to supply the
 `ShellDetail`. Clearing the selection or leaving open layout drops that watch.
 
-`BudgetsFlow` schedules one post-frame reconciliation when the selection, the shell layout mode or the
-destination activity changes. It reads the latest values and then:
+`BudgetsFlow` schedules one post-frame reconciliation when selection, shell layout mode, destination
+activity or the containing route's current status changes. Owned route completion also schedules it.
+`ModalRoute.isCurrentOf(context)` in `BudgetsFlow.build` establishes the containing-route dependency;
+restoration does not depend on a cover driving the page's secondary animation. Reconciliation reads
+the latest values and then:
 
 - In open layout, it removes the managed detail page with `removeRoute`, which is a presentation-only
   removal that leaves the selection in place. Completion of a page that is no longer tracked is
   ignored.
 - In phone and desktop layout, it pushes one managed page when a selection exists and the shell route
-  is current. A new selection updates the existing page's budget in place instead of stacking a page.
-- When another route covers the shell, it defers the push. After that route completes, it restores the
-  page once with a zero-duration transition.
+  is current. A different selection replaces the managed page with a new route and immutable generation,
+  without stacking detail pages. An exiting route is never reused.
+- When another route covers the shell, it defers the push. When the containing shell route becomes
+  current again, it restores the page once with a zero-duration transition. This includes untracked
+  entry-form sheets opened from the pane, unrelated covers and owned history/editor routes. Covering
+  routes are preserved. Owned descendant completion is an additional reconciliation trigger.
 
 When the tracked page completes (Back in phone layout), its selection is cleared only if the selection
-generation still matches the page. The pane's Close button clears the selection directly. History and
-other descendant routes are tracked per session, so they survive conversion.
+generation still matches the immutable page generation. The pane has no Close button. Tapping empty
+Budgets list space outside every category and All spending tray clears selection in open mode while
+Add is absent. The complete tray, including padding and the All spending title, handles selection;
+scroll gestures and Add actions retain their own behavior. System Back clears selection through a
+`PopScope` in `MoneyFlow` only while the destination and Budgets segment are active in open mode.
+Covering routes pop first. Phone and desktop retain page Back. History and editor descendants are
+tracked per session, so they survive presentation conversion.
 
 Delayed limit-sheet results apply only when the session generation, the selected budget and the
-captured ledger instance all still match. (`app/lib/ui/budgets/budget_list/budgets_flow.dart`,
+captured ledger instance all still match. A single operation token blocks simultaneous limit sheets;
+ledger replacement retires that token, and the old continuation cannot reset or apply a newer
+operation. Ledger notifications can re-emit a retained limit Step while its editor is open; the token
+prevents that notification from presenting another editor. The modal editor prevents ordinary UI
+interaction from starting a second editor while it is open. (`app/lib/ui/budgets/budget_list/budgets_flow.dart`,
 `app/lib/ui/money/money_flow.dart`, `app/test/ui/budgets/budget_list/budgets_pane_test.dart`)
 
 ## Step ownership
@@ -188,7 +207,9 @@ captured ledger instance all still match. (`app/lib/ui/budgets/budget_list/budge
 The list Step belongs to the list provider. `BudgetsFlow.handleStep` handles and clears form steps.
 Opening a detail is no longer a Step: a tap selects the budget, and reconciliation presents it. Detail
 and limit Steps belong to the owning session and are handled only while that session's generation is
-current. Form Steps and category-picker continuations belong to the open `BudgetDraftKey`.
+current and the Budgets destination is active. Pending list, detail and limit Steps are reconsidered
+when Budgets becomes active again. Form Steps and category-picker continuations belong to the open
+`BudgetDraftKey`.
 (`budgets_flow.dart:handleStep`, `_handleDetailStep`, `_handleLimitStep`, `_handleFormStep`,
 `app/test/ui/budgets/budget_list/budgets_flow_test.dart`)
 
@@ -245,9 +266,11 @@ category and creation month. An unknown budget id yields a detail with a null su
 
 In open layout the selected budget appears in the shell's right pane. `MoneyFlow` supplies a
 `ShellDetail` whose title is the budget's category name or Overall, whose subtitle is the selected
-month, whose header actions are Edit and Close, and whose body is the shared `BudgetDetailContent`
-without a second app bar. Phone and desktop layouts show the same content as a page, with its own app
-bar and an Edit action with the tooltip "Edit limit history". Both Edit actions call
+month, whose only header action is Edit, and whose body wraps the shared `BudgetDetailContent` in
+one `ListView` without a second app bar. Empty list space closes the pane; the pane has no Close
+control. `ShellDetail.onClose` is optional, and callers that supply it retain their Close control.
+Phone and desktop layouts show the same content as a page, with its own app bar and an Edit action
+with the tooltip "Edit limit history". Both Edit actions call
 `requestLimitEdit`, which opens the existing limit history page (`BudgetLimitScreen`). That history
 page and its view model are unchanged in this slice. #425 replaces the Edit action with the action
 sheet, and #570 removes the history page and its past-limit logic after #425. The deleted-budget
