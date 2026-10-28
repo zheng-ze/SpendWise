@@ -1,8 +1,10 @@
 import 'package:domain/domain.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
+import 'package:spendwise/ui/budgets/budget_detail/budget_detail_presentation.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
 
 import 'budget_detail_test_support.dart';
@@ -272,24 +274,116 @@ void main() {
     expect(pending.countedEntries, hasLength(1));
   });
 
-  test(
-    'a retained projection does not apply to a different selected month',
-    () async {
-      final container = detailContainer(
-        ledger: detailLedger(budgets: [detailBudget()]),
-        clock: DetailClock(october),
-      );
-      keepDetailAlive(container);
-      await settledDetail(container);
+  Future<ProviderContainer> gatedDetailContainer(
+    GatedComputeRunner runner,
+    DetailClock clock,
+  ) async {
+    final container = detailContainer(
+      ledger: detailLedger(budgets: [detailBudget()]),
+      clock: clock,
+      runner: runner.call,
+    );
+    addTearDown(runner.release);
+    keepDetailAlive(container);
+    await settledDetail(container);
+    runner.hold();
+    return container;
+  }
 
+  void commitWhilePending(ProviderContainer container) {
+    container.read(ledgerProvider)!.addEntry(lunch(DateTime.utc(2026, 10, 3)));
+  }
+
+  test('a pending refresh keeps the projection for the same ledger, year and '
+      'month', () async {
+    final container = await gatedDetailContainer(
+      GatedComputeRunner(),
+      DetailClock(october),
+    );
+    commitWhilePending(container);
+
+    final pending = detailState(container);
+
+    expect(pending.phase, BudgetDetailPhase.loading);
+    expect(pending.projection?.selectedMonth, DateTime.utc(2026, 10));
+  });
+
+  test(
+    'a pending selected-month change drops the retained projection',
+    () async {
+      final container = await gatedDetailContainer(
+        GatedComputeRunner(),
+        DetailClock(october),
+      );
+      commitWhilePending(container);
       container
           .read(budgetDetailViewModelProvider(detailBudgetID).notifier)
           .selectMonth(september);
+
       final pending = detailState(container);
 
-      expect(pending.projection?.selectedMonth, isNot(october));
+      expect(pending.phase, BudgetDetailPhase.loading);
+      expect(pending.projection, isNull);
+      expect(budgetDetailPresentation(pending).body, BudgetDetailBody.skeleton);
     },
   );
+
+  test(
+    'a pending displayed-year change drops the retained projection',
+    () async {
+      final container = await gatedDetailContainer(
+        GatedComputeRunner(),
+        DetailClock(october),
+      );
+      commitWhilePending(container);
+      container
+          .read(budgetDetailViewModelProvider(detailBudgetID).notifier)
+          .changeYear(DateTime.utc(2027));
+
+      final pending = detailState(container);
+
+      expect(pending.phase, BudgetDetailPhase.loading);
+      expect(pending.projection, isNull);
+      expect(budgetDetailPresentation(pending).body, BudgetDetailBody.skeleton);
+    },
+  );
+
+  test('a pending read in another displayed year does not reuse the retained '
+      'projection for a matching selected month', () async {
+    final container = await gatedDetailContainer(
+      GatedComputeRunner(),
+      DetailClock(october),
+    );
+    commitWhilePending(container);
+    final viewModel = container.read(
+      budgetDetailViewModelProvider(detailBudgetID).notifier,
+    );
+    viewModel.changeYear(DateTime.utc(2027));
+    viewModel.selectMonth(DateTime.utc(2026, 10));
+
+    final pending = detailState(container);
+
+    expect(pending.selectedMonth, DateTime.utc(2026, 10));
+    expect(pending.displayedYear, DateTime.utc(2027));
+    expect(pending.projection, isNull);
+  });
+
+  test('a ledger swap with a pending refresh drops the projection of the old '
+      'ledger', () async {
+    final clock = DetailClock(october);
+    final runner = GatedComputeRunner();
+    final container = await gatedDetailContainer(runner, clock);
+
+    container.updateOverrides([
+      ledgerProvider.overrideWithValue(detailLedger(budgets: [detailBudget()])),
+      clockProvider.overrideWithValue(clock.read),
+      analysisComputeRunnerProvider.overrideWithValue(runner.call),
+    ]);
+    final pending = detailState(container);
+
+    expect(pending.phase, BudgetDetailPhase.loading);
+    expect(pending.projection, isNull);
+  });
 
   test('an initial compute failure reports the actual reason and retry '
       'restores the detail', () async {

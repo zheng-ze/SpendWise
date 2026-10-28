@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:domain/domain.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ui/budgets/budget_detail/budget_detail_screen.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
 
 const detailBudgetID = 'b1';
@@ -129,4 +133,51 @@ Future<BudgetDetailViewState> settledDetail(
 }) async {
   await pumpEventQueue();
   return detailState(container, budgetID: budgetID);
+}
+
+// MARK: - Gated runner
+class GatedComputeRunner {
+  Completer<void>? _gate;
+
+  Future<List<AnalysisItem>> call(LedgerState state) async {
+    await _gate?.future;
+    return Accounting.analysisItems(state);
+  }
+
+  void hold() => _gate = Completer<void>();
+
+  void release() {
+    _gate?.complete();
+    _gate = null;
+  }
+}
+
+// MARK: - Screen
+Future<ProviderContainer> pumpDetailScreen(
+  WidgetTester tester, {
+  required Ledger ledger,
+  ComputeRunner? runner,
+}) async {
+  final container = await tester.runAsync(() async {
+    final created = detailContainer(
+      ledger: ledger,
+      clock: DetailClock(DateTime.utc(2026, 10, 28)),
+      runner: runner,
+    );
+    keepDetailAlive(created);
+    await pumpEventQueue();
+    return created;
+  });
+  if (container == null) fail('the detail container was not created');
+
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: const MaterialApp(
+        home: BudgetDetailScreen(budgetID: detailBudgetID),
+      ),
+    ),
+  );
+  await tester.pump();
+  return container;
 }
