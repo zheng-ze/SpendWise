@@ -290,6 +290,25 @@ void main() {
   );
 
   testWidgets(
+    'Back followed by unfolding before the exit finishes still clears the selection',
+    (tester) async {
+      final container = await _pumpShell(tester, mode: ShellLayoutMode.phone);
+      await _tapBudget(tester, 'b2');
+
+      await tester.pageBack();
+      await tester.pump(const Duration(milliseconds: 50));
+      container.read(_modeFixture.notifier).state = ShellLayoutMode.open;
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      expect(container.read(selectedBudgetProvider), isNull);
+      expect(find.byKey(shellDetailPaneKey), findsNothing);
+      expect(_hasDetailOwners(container, 'b2'), isFalse);
+    },
+    timeout: uiTestTimeout,
+  );
+
+  testWidgets(
     'Add hides the pane while the selection and detail owners remain',
     (tester) async {
       final container = await _pumpShell(tester, mode: ShellLayoutMode.open);

@@ -37,6 +37,7 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
   List<ProviderSubscription<Object?>> _shownSubscriptions = const [];
   ModalRoute<Object?>? _page;
   String? _pageBudgetID;
+  final Set<ModalRoute<Object?>> _flowRemovedPages = {};
   NavigatorState? _rootNavigator;
 
   late final ProviderSubscription<String?> _selectionSubscription;
@@ -169,14 +170,20 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     _page = route;
     _pageBudgetID = budgetID;
     unawaited(navigator.push(route));
-    unawaited(_clearSelectionWhenPopped(route));
+    unawaited(_clearSelectionWhenPopped(route, budgetID));
   }
 
-  Future<void> _clearSelectionWhenPopped(ModalRoute<Object?> route) async {
+  Future<void> _clearSelectionWhenPopped(
+    ModalRoute<Object?> route,
+    String budgetID,
+  ) async {
     await route.completed;
-    if (!mounted || !identical(_page, route)) return;
-    _page = null;
-    _pageBudgetID = null;
+    if (_flowRemovedPages.remove(route) || !mounted) return;
+    if (identical(_page, route)) {
+      _page = null;
+      _pageBudgetID = null;
+    }
+    if (ref.read(selectedBudgetProvider) != budgetID) return;
     ref.read(selectedBudgetProvider.notifier).clear();
   }
 
@@ -184,7 +191,9 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     final route = _page;
     _page = null;
     _pageBudgetID = null;
-    if (route != null && route.isActive) _rootNavigator?.removeRoute(route);
+    if (route == null || !route.isActive) return;
+    _flowRemovedPages.add(route);
+    _rootNavigator?.removeRoute(route);
   }
 
   void _removePageAfterFrame() {
