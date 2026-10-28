@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_screen.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
+import 'package:spendwise/ui/transactions/entry/entry_form.dart';
 
 import '../../../support/ui_test_timeout.dart';
 import 'budget_detail_test_support.dart';
@@ -80,5 +81,34 @@ void main() {
     await tester.pump();
 
     expect(detailState(container).step, isA<BudgetLimitEditRequested>());
+  }, timeout: uiTestTimeout);
+
+  testWidgets('tapping a counted register row opens its entry form', (
+    tester,
+  ) async {
+    final container = await tester.runAsync(() async {
+      final created = detailContainer(
+        ledger: detailLedger(budgets: [detailBudget()], entries: [lunch]),
+        clock: DetailClock(october),
+      );
+      keepDetailAlive(created);
+      await pumpEventQueue();
+      return created;
+    });
+    if (container == null) fail('the detail container was not created');
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(
+          home: BudgetDetailScreen(budgetID: detailBudgetID),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.text('Lunch'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(EntryForm), findsOneWidget);
   }, timeout: uiTestTimeout);
 }

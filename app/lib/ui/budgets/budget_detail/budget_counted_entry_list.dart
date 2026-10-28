@@ -7,6 +7,9 @@ import 'package:spendwise/ui/transactions/daily_list/day_header.dart';
 import 'package:spendwise/ui/transactions/daily_list/entry_row.dart';
 import 'package:spendwise/ui/transactions/daily_list/transaction_row.dart';
 
+// MARK: - Constants
+const _registerDayGap = 10.0;
+
 // MARK: - BudgetCountedEntryList
 class BudgetCountedEntryList extends StatelessWidget {
   const BudgetCountedEntryList({
@@ -30,15 +33,48 @@ class BudgetCountedEntryList extends StatelessWidget {
 
     return Column(
       children: [
-        for (final day in days) ...[
-          DayHeader(day: day, net: -budgetCountedTotal(byDay[day]!)),
-          for (final row in byDay[day]!.reversed)
-            EntryRow(
-              row: transactionRow(row.entry, state),
-              ledger: ledger,
-              state: state,
-            ),
+        for (final (index, day) in days.indexed) ...[
+          if (index > 0) const SizedBox(height: _registerDayGap),
+          _BudgetDayGroup(
+            day: day,
+            rows: byDay[day]!,
+            ledger: ledger,
+            state: state,
+          ),
         ],
+      ],
+    );
+  }
+}
+
+// MARK: - BudgetDayGroup
+class _BudgetDayGroup extends StatelessWidget {
+  const _BudgetDayGroup({
+    required this.day,
+    required this.rows,
+    required this.ledger,
+    required this.state,
+  });
+
+  final DateTime day;
+  final List<BudgetCountedEntry> rows;
+  final Ledger ledger;
+  final LedgerState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final newestFirst = rows.reversed.toList();
+    return Column(
+      children: [
+        DayHeader.register(day: day, net: -budgetCountedTotal(rows)),
+        for (final (index, row) in newestFirst.indexed)
+          EntryRow(
+            row: transactionRow(row.entry, state),
+            ledger: ledger,
+            state: state,
+            registerStyle: true,
+            isLastInDay: index == newestFirst.length - 1,
+          ),
       ],
     );
   }
