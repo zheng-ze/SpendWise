@@ -39,6 +39,9 @@ String? _categoryName(Budget budget, LedgerState state) {
   return state.categories[categoryID]?.name ?? _deletedCategoryTitle;
 }
 
+String budgetTitle(Budget budget, LedgerState state) =>
+    _categoryName(budget, state) ?? _overallTitle;
+
 // MARK: - Context
 typedef BudgetDetailContext = ({
   DateTime displayedYear,
@@ -251,7 +254,7 @@ class BudgetDetailNotifier extends AsyncNotifier<BudgetDetailViewState>
     final categoryName = _categoryName(budget, ledgerState);
     return BudgetDetailViewState(
       phase: outcome.phase,
-      title: categoryName ?? _overallTitle,
+      title: budgetTitle(budget, ledgerState),
       categoryName: categoryName,
       ledger: currentLedger,
       ledgerState: ledgerState,

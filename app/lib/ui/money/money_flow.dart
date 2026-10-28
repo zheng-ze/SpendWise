@@ -6,14 +6,13 @@ import 'package:spendwise/boot/money_navigation_provider.dart';
 import 'package:spendwise/ui/accounts/accounts_flow.dart';
 import 'package:spendwise/ui/accounts/accounts_view_model.dart';
 import 'package:spendwise/ui/accounts/money_navigation.dart';
-import 'package:spendwise/ui/budgets/budget_detail/budget_detail_content.dart';
+import 'package:spendwise/ui/budgets/budget_detail/budget_pane.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_selection.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_flow.dart';
 import 'package:spendwise/ui/common/base/flow_base.dart';
 import 'package:spendwise/ui/common/inputs/month_year_selector.dart';
 import 'package:spendwise/ui/common/inputs/segmented_control.dart';
-import 'package:spendwise/ui/format/date_format.dart';
 import 'package:spendwise/ui/settings/plan/plan_list_screen.dart';
 import 'package:spendwise/ui/settings/plan/plan_list_view_model.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
@@ -37,7 +36,6 @@ final activeMoneySourceProvider = Provider<String? Function()>((ref) {
 
 const _headerRowMinHeight = 48.0;
 const _budgetEditLabel = 'Edit';
-const _budgetPaneScrollPhysics = ClampingScrollPhysics();
 const _headerPadding = EdgeInsets.symmetric(horizontal: 16, vertical: 8);
 const _segmentPadding = EdgeInsets.symmetric(horizontal: 16);
 const _options = [
@@ -147,30 +145,20 @@ class _MoneyFlowState extends ConsumerState<MoneyFlow> {
     );
   }
 
-  ShellDetail? _budgetDetail(BudgetSelection selection) {
-    final viewState = ref
-        .watch(budgetDetailViewModelProvider(selection.budgetID))
-        .value;
-    if (viewState == null) return null;
-    final viewModel = ref.read(
-      budgetDetailViewModelProvider(selection.budgetID).notifier,
-    );
-    final content = BudgetDetailContent(
-      viewState: viewState,
-      viewModel: viewModel,
-    );
-    final body = ListView(
-      physics: _budgetPaneScrollPhysics,
-      children: [content],
-    );
+  ShellDetail _budgetDetail(BudgetSelection selection) {
+    final budgetID = selection.budgetID;
+    final header = ref.watch(budgetPaneHeaderProvider(budgetID));
+    void requestEdit() => ref
+        .read(budgetDetailViewModelProvider(budgetID).notifier)
+        .requestLimitEdit();
     return ShellDetail(
-      id: selection.budgetID,
-      title: viewState.title,
-      subtitle: formatMonthLabel(viewState.selectedMonth),
-      bodyBuilder: (_) => body,
+      id: budgetID,
+      title: header.title,
+      subtitle: header.subtitle,
+      bodyBuilder: (_) => BudgetPaneBody(budgetID: budgetID),
       headerActions: [
         TextButton.icon(
-          onPressed: viewModel.requestLimitEdit,
+          onPressed: requestEdit,
           icon: const Icon(Icons.edit_outlined),
           label: const Text(_budgetEditLabel),
         ),
