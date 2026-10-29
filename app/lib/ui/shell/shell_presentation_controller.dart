@@ -13,23 +13,7 @@ final shellPresentationControllerProvider =
 class ShellPresentationController extends ChangeNotifier {
   final _routes = <AppSheetRoute<dynamic>>{};
   bool _notificationScheduled = false;
-  bool _routesDirty = false;
   bool _disposed = false;
-  Route<dynamic>? _shellRoute;
-
-  Route<dynamic>? get shellRoute => _shellRoute;
-
-  void configure({required Route<dynamic>? route}) {
-    if (_disposed || identical(_shellRoute, route)) return;
-    _shellRoute = route;
-    routesChanged();
-  }
-
-  void clearShellConfiguration(Route<dynamic>? route) {
-    if (_disposed || !identical(_shellRoute, route)) return;
-    _shellRoute = null;
-    routesChanged();
-  }
 
   bool get hasSheets => _routes.isNotEmpty;
 
@@ -38,38 +22,25 @@ class ShellPresentationController extends ChangeNotifier {
 
   bool isCovered(Route<dynamic>? shellRoute) {
     if (shellRoute == null) return false;
-    return _routes.any((route) {
-      assert(route.predecessorInitialized);
-      return identical(route.nearestNonSheetPredecessor, shellRoute);
-    });
+    return _routes.any(
+      (route) => identical(route.nearestNonSheetPredecessor, shellRoute),
+    );
   }
 
   void register(AppSheetRoute<dynamic> route) {
-    if (_disposed || !_routes.add(route)) return;
-    routesChanged();
+    if (_routes.add(route)) routesChanged();
   }
 
   void release(AppSheetRoute<dynamic> route) {
-    if (_disposed || !_routes.remove(route)) return;
-    routesChanged();
+    if (_routes.remove(route)) routesChanged();
   }
 
   void routesChanged() {
-    if (_disposed) return;
-    _routesDirty = true;
-    _scheduleNotification();
-  }
-
-  void _scheduleNotification() {
     if (_disposed || _notificationScheduled) return;
     _notificationScheduled = true;
     WidgetsBinding.instance.scheduleFrameCallback((_) {
       _notificationScheduled = false;
-      if (_disposed) return;
-      assert(_routes.every((route) => route.predecessorInitialized));
-      if (!_routesDirty) return;
-      _routesDirty = false;
-      notifyListeners();
+      if (!_disposed) notifyListeners();
     });
   }
 
@@ -77,7 +48,6 @@ class ShellPresentationController extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _routes.clear();
-    _shellRoute = null;
     super.dispose();
   }
 }

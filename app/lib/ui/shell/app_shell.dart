@@ -43,13 +43,10 @@ class AppShell extends ConsumerStatefulWidget {
 class _AppShellState extends ConsumerState<AppShell> {
   DayTicker? _ticker;
   NewEntryPresentationController? _addController;
-  ShellPresentationController? _presentation;
-  Route<dynamic>? _shellRoute;
 
   @override
   void dispose() {
     _addController?.ownerDisposed(context);
-    _presentation?.clearShellConfiguration(_shellRoute);
     _ticker?.dispose();
     _ticker = null;
     super.dispose();
@@ -88,9 +85,6 @@ class _AppShellState extends ConsumerState<AppShell> {
       padding: MediaQuery.paddingOf(context),
     );
     final shellRoute = ModalRoute.of(context);
-    _presentation = presentation;
-    _shellRoute = shellRoute;
-    presentation?.configure(route: shellRoute);
     final sheetCovered = presentation?.isCovered(shellRoute) ?? false;
     final addPresented = presentation?.hasSheets ?? false;
     final suppressNavigation = presentation?.suppressesShellNavigation ?? false;
@@ -111,7 +105,7 @@ class _AppShellState extends ConsumerState<AppShell> {
       bodies: widget.bodies,
       mode: mode,
       addPresented: addPresented,
-      geometry: geometry,
+      splitOffset: geometry.splitOffset,
       sheetCovered: sheetCovered,
       rail: rail,
     );
@@ -154,7 +148,7 @@ class _ShellStack extends StatelessWidget {
     required this.rail,
     required this.mode,
     required this.addPresented,
-    required this.geometry,
+    required this.splitOffset,
     required this.sheetCovered,
   });
 
@@ -163,7 +157,7 @@ class _ShellStack extends StatelessWidget {
   final Widget? rail;
   final ShellLayoutMode mode;
   final bool addPresented;
-  final ShellPaneGeometry geometry;
+  final double splitOffset;
   final bool sheetCovered;
 
   @override
@@ -202,7 +196,7 @@ class _ShellStack extends StatelessWidget {
     );
     return ShellPaneScope(
       mode: mode,
-      splitOffset: geometry.splitOffset,
+      splitOffset: splitOffset,
       sheetCovered: sheetCovered,
       addPresented: addPresented,
       child: content,

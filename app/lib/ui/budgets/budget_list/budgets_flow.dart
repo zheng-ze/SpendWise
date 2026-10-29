@@ -69,18 +69,9 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
       if (identical(previous, next)) return;
       ref.read(selectedBudgetProvider.notifier).clear();
     });
+    _presentation = ShellPresentationScope.read(context)
+      ?..addListener(_scheduleReconcile);
     _showBudget(ref.read(selectedBudgetProvider));
-    _scheduleReconcile();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final presentation = ShellPresentationScope.read(context);
-    if (identical(_presentation, presentation)) return;
-    _presentation?.removeListener(_scheduleReconcile);
-    _presentation = presentation;
-    _presentation?.addListener(_scheduleReconcile);
     _scheduleReconcile();
   }
 

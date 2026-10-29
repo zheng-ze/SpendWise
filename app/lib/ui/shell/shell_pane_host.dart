@@ -138,13 +138,8 @@ class ShellPaneHost extends StatelessWidget {
             ),
           ),
         );
-        final detailBody = detail == null
-            ? null
-            : _DetailPane(key: ValueKey(detail!.id), detail: detail!);
-        final isolatedDetail = detailBody == null
-            ? null
-            : _InactivePaneIsolation(active: hasDetailPane, child: detailBody);
-        final detailSlot = isolatedDetail == null
+        final currentDetail = detail;
+        final detailSlot = currentDetail == null
             ? null
             : Align(
                 key: _detailSlotKey,
@@ -152,7 +147,13 @@ class ShellPaneHost extends StatelessWidget {
                 child: SizedBox(
                   width: shifted ? splitOffset : detailWidth,
                   height: constraints.maxHeight,
-                  child: isolatedDetail,
+                  child: _InactivePaneIsolation(
+                    active: hasDetailPane,
+                    child: _DetailPane(
+                      key: ValueKey(currentDetail.id),
+                      detail: currentDetail,
+                    ),
+                  ),
                 ),
               );
         final dividerLine = SizedBox(
@@ -196,9 +197,7 @@ class _InactivePaneIsolation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final pointer = IgnorePointer(ignoring: !active, child: child);
-    final semantics = ExcludeSemantics(excluding: !active, child: pointer);
-    final focus = ExcludeFocus(excluding: !active, child: semantics);
+    final focus = ExcludeFocus(excluding: !active, child: child);
     final ticker = TickerMode(enabled: active, child: focus);
     return Offstage(offstage: !active, child: ticker);
   }

@@ -326,10 +326,10 @@ value, which then overwrites it. (issue #38)
   `showAppSheet<T>(context, presentation:, builder:, presentationResolver:, onRouteCreated:)` pushes
   on the root Navigator, returns the popped result and exposes the exact route through its optional
   callback. Callers supply `AppSheetPresentation.phone`, `open` or `desktop`; an optional resolver
-  reads live configuration, with the captured value as fallback. `AppSheetRoute` retains one resolved
-  state containing `presentation` and placement bounds. It publishes the presentation through
-  `AppSheetAlertSlot`, and its barrier reads that same resolved state. The route resolves bounds
-  from its own `MediaQuery` through `resolveShellPaneGeometry`, so the shell supplies no geometry.
+  reads live configuration, with the captured value as fallback. `AppSheetRoute` retains the resolved
+  presentation, publishes it through `AppSheetAlertSlot` and reads it for its barrier. The page
+  computes docked bounds from its own `MediaQuery` through `resolveShellPaneGeometry`, so the
+  shell supplies no geometry.
   Open and desktop always dock in the right column, whether or not a detail is showing. Phone
   remains a bottom sheet. Docked surfaces use a transparent, dismissible full-window barrier;
   phone sheets dim the window. No centered desktop dialog exists for AppSheets; the shared
@@ -350,15 +350,12 @@ value, which then overwrites it. (issue #38)
   `AppSheetRoute.install` registers the route and releases it at `route.completed`, retaining
   occupancy through exit. A created route reserves nothing before installation. Registration is
   optional when a bare MaterialApp has no controller, preserving explicit sheet presentation.
-  Each route records its actual predecessor, and `nearestNonSheetPredecessor` skips nested
-  AppSheets. `AppSheetRouteObserver.didPush` initializes that link; `didChangePrevious` updates
-  it idempotently. `SpendWiseApp` registers the observer in `MaterialApp.navigatorObservers`;
-  harnesses using the shell binding must also register it. A registered route with an uninitialized
-  predecessor fails a debug assertion. The observer owns no foreground-page classification or
-  global route stack. (`app/lib/main.dart`, `app/lib/ui/shell/shell_binding.dart`,
+  Each route records its actual predecessor through `didChangePrevious`, which the Navigator
+  announces after a push, and `nearestNonSheetPredecessor` skips nested AppSheets. No observer or
+  foreground-page classification exists. (`app/lib/ui/shell/shell_binding.dart`,
   `app/lib/ui/common/sheets/app_sheet_route.dart`)
-  The controller exposes installed/exiting occupancy, shell coverage and the shell route reference,
-  which `AppShell` configures on build. Frame-coalesced notifications avoid lifecycle-time provider
+  The controller exposes installed/exiting occupancy, shell and shell coverage, which
+  `isCovered` derives from the shell's own route. Frame-coalesced notifications avoid lifecycle-time provider
   writes. Restoration follows the next build, allowing a completion continuation to install the
   next sheet first. The shell derives open-rail suppression
   from installed routes' `showShellNavigation`; those routes render the open rail overlay. Phone

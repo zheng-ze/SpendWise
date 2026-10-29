@@ -72,7 +72,6 @@ Future<ProviderContainer> _pumpBoundShell(
       container: container,
       child: MaterialApp(
         builder: buildShellAppContent,
-        navigatorObservers: [AppSheetRouteObserver()],
         home: AppShell(bodies: bodies ?? _probeBodies()),
       ),
     ),

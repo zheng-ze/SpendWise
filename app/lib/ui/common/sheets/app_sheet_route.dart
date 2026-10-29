@@ -37,29 +37,13 @@ Future<T?> showAppSheet<T>(
 
 // MARK: - Route
 
-class AppSheetRouteObserver extends NavigatorObserver {
-  @override
-  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    if (route is AppSheetRoute<dynamic>) {
-      route.initializePredecessor(previousRoute);
-    }
-  }
-}
-
-typedef AppSheetResolvedPresentation = ({
-  AppSheetPresentation presentation,
-  Rect? bounds,
-});
-
 class AppSheetRoute<T> extends ModalRoute<T> {
   AppSheetRoute({
     required this.presentation,
     required this.builder,
     this.showShellNavigation = false,
     this.presentationResolver,
-  }) {
-    _resolvedPresentation = (presentation: presentation, bounds: null);
-  }
+  }) : _livePresentation = presentation;
 
   static const _transitionMillis = 220;
 
@@ -81,24 +65,17 @@ class AppSheetRoute<T> extends ModalRoute<T> {
 
   final AppSheetPresentation Function(BuildContext)? presentationResolver;
 
-  late AppSheetResolvedPresentation _resolvedPresentation;
+  AppSheetPresentation _livePresentation;
 
-  AppSheetResolvedPresentation get resolvedPresentation =>
-      _resolvedPresentation;
   bool _barrierUpdateScheduled = false;
 
-  bool get dimsBackground =>
-      resolvedPresentation.presentation == AppSheetPresentation.phone;
+  bool get dimsBackground => _livePresentation == AppSheetPresentation.phone;
 
   bool _disposed = false;
   ShellPresentationController? _presentationController;
   Route<dynamic>? _predecessor;
-  bool _predecessorInitialized = false;
-
-  bool get predecessorInitialized => _predecessorInitialized;
 
   Route<dynamic>? get nearestNonSheetPredecessor {
-    assert(_presentationController == null || _predecessorInitialized);
     final predecessor = _predecessor;
     if (predecessor is AppSheetRoute<dynamic>) {
       return predecessor.nearestNonSheetPredecessor;
@@ -106,19 +83,12 @@ class AppSheetRoute<T> extends ModalRoute<T> {
     return predecessor;
   }
 
-  void initializePredecessor(Route<dynamic>? previousRoute) {
-    if (_predecessorInitialized && identical(_predecessor, previousRoute)) {
-      return;
-    }
-    _predecessorInitialized = true;
-    _predecessor = previousRoute;
-    _presentationController?.routesChanged();
-  }
-
   @override
   void didChangePrevious(Route<dynamic>? previousRoute) {
     super.didChangePrevious(previousRoute);
-    initializePredecessor(previousRoute);
+    if (identical(_predecessor, previousRoute)) return;
+    _predecessor = previousRoute;
+    _presentationController?.routesChanged();
   }
 
   @override
@@ -134,29 +104,12 @@ class AppSheetRoute<T> extends ModalRoute<T> {
   AppSheetPresentation resolveLive(BuildContext context) =>
       presentationResolver?.call(context) ?? presentation;
 
-  AppSheetResolvedPresentation resolvePresentation(BuildContext context) {
-    final presentation = resolveLive(context);
-    final docked = presentation != AppSheetPresentation.phone;
-    final mode = presentation == AppSheetPresentation.desktop
-        ? ShellLayoutMode.desktop
-        : ShellLayoutMode.open;
-    final geometry = resolveShellPaneGeometry(
-      mode: mode,
-      windowSize: MediaQuery.sizeOf(context),
-      padding: MediaQuery.paddingOf(context),
-    );
-    final resolved = (
-      presentation: presentation,
-      bounds: docked ? geometry.sheetBounds : null,
-    );
-    _setResolved(resolved);
-    return resolved;
-  }
-
-  void _setResolved(AppSheetResolvedPresentation resolved) {
-    if (resolvedPresentation == resolved) return;
-    _resolvedPresentation = resolved;
+  AppSheetPresentation syncPresentation(BuildContext context) {
+    final live = resolveLive(context);
+    if (live == _livePresentation) return live;
+    _livePresentation = live;
     _scheduleBarrierUpdate();
+    return live;
   }
 
   void _scheduleBarrierUpdate() {
@@ -244,69 +197,56 @@ class _AppSheetPageState<T> extends State<_AppSheetPage<T>> {
 
   static const _compactAlertTop = 12.0;
 
-  static const _bottomAlignment = Alignment.bottomCenter;
-
-  static const _openAlignment = Alignment.topRight;
-
-  static const _noInset = 0.0;
-
   @override
   Widget build(BuildContext context) {
-    final resolved = widget.route.resolvePresentation(context);
-    final presentation = resolved.presentation;
+    final presentation = widget.route.syncPresentation(context);
     final media = MediaQuery.of(context);
+    final phone = presentation == AppSheetPresentation.phone;
     final desktop = presentation == AppSheetPresentation.desktop;
-    final alignment = resolved.bounds == null
-        ? _bottomAlignment
-        : _openAlignment;
+    final open = presentation == AppSheetPresentation.open;
     final sheet = Padding(
       padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
       child: Builder(builder: widget.route.builder),
     );
-    final bounds = resolved.bounds;
-    final placementPadding = bounds == null
-        ? EdgeInsets.zero
-        : EdgeInsets.fromLTRB(
-            bounds.left,
-            bounds.top,
-            media.size.width - bounds.right,
-            media.size.height - bounds.bottom,
-          );
-    final positionedSheet = Padding(
-      padding: placementPadding,
-      child: Align(
-        alignment: alignment,
-        child: SizedBox(
-          width: bounds?.width,
-          height: bounds?.height,
-          child: sheet,
-        ),
-      ),
+    final bounds = phone ? null : _dockedBounds(media, desktop);
+    final placement = bounds ?? Offset.zero & media.size;
+    final alignment = bounds == null
+        ? Alignment.bottomCenter
+        : Alignment.topRight;
+    final sized = SizedBox(
+      width: bounds?.width,
+      height: bounds?.height,
+      child: sheet,
+    );
+    final positionedSheet = Positioned.fromRect(
+      rect: placement,
+      child: Align(alignment: alignment, child: sized),
     );
     final alertTop =
         media.padding.top + (desktop ? _desktopAlertTop : _compactAlertTop);
-    final overlayLeft = bounds == null ? _noInset : bounds.left;
-    final overlayRight = bounds == null
-        ? _noInset
-        : media.size.width - bounds.right;
     final overlay = _SheetAlertOverlay(
       alerts: widget.route._alerts,
       alertAction: widget.route._alertAction,
       alertTop: alertTop,
-      columnLeft: overlayLeft,
-      columnRight: overlayRight,
+      bounds: bounds,
     );
-
-    final open = presentation == AppSheetPresentation.open;
-    final navigation = widget.route.showShellNavigation && open
-        ? const _OpenRailOverlay()
-        : null;
+    final showsRail = widget.route.showShellNavigation && open;
+    final navigation = showsRail ? const _OpenRailOverlay() : null;
     return AppSheetAlertSlot(
       presentation: presentation,
       alerts: widget.route._alerts,
       alertAction: widget.route._alertAction,
       child: Stack(children: [positionedSheet, overlay, ?navigation]),
     );
+  }
+
+  Rect _dockedBounds(MediaQueryData media, bool desktop) {
+    final mode = desktop ? ShellLayoutMode.desktop : ShellLayoutMode.open;
+    return resolveShellPaneGeometry(
+      mode: mode,
+      windowSize: media.size,
+      padding: media.padding,
+    ).sheetBounds;
   }
 }
 
@@ -350,8 +290,7 @@ class _SheetAlertOverlay extends StatelessWidget {
     required this.alerts,
     required this.alertAction,
     required this.alertTop,
-    required this.columnLeft,
-    required this.columnRight,
+    required this.bounds,
   });
 
   static const _overlayHorizontalInset = 12.0;
@@ -364,9 +303,7 @@ class _SheetAlertOverlay extends StatelessWidget {
 
   final double alertTop;
 
-  final double columnLeft;
-
-  final double columnRight;
+  final Rect? bounds;
 
   @override
   Widget build(BuildContext context) {
@@ -375,11 +312,21 @@ class _SheetAlertOverlay extends StatelessWidget {
       child: _SheetAlertListener(alerts: alerts, alertAction: alertAction),
     );
 
+    final centered = Center(child: banner);
+    final bounds = this.bounds;
+    if (bounds == null) {
+      return Positioned(
+        top: alertTop,
+        left: _overlayHorizontalInset,
+        right: _overlayHorizontalInset,
+        child: centered,
+      );
+    }
     return Positioned(
       top: alertTop,
-      left: columnLeft + _overlayHorizontalInset,
-      right: columnRight + _overlayHorizontalInset,
-      child: Center(child: banner),
+      left: bounds.left + _overlayHorizontalInset,
+      width: bounds.width - 2 * _overlayHorizontalInset,
+      child: centered,
     );
   }
 }

@@ -7,7 +7,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spendwise/settings/display_preferences.dart';
 import 'package:spendwise/settings/display_preferences_providers.dart';
 import 'package:spendwise/settings/display_preferences_store.dart';
-import 'package:spendwise/ui/common/sheets/app_sheet_route.dart';
 import 'package:spendwise/ui/shell/boot_chrome.dart';
 import 'package:spendwise/ui/shell/shell_binding.dart';
 import 'package:spendwise/ui/theme/spendwise_theme.dart';
@@ -72,7 +71,6 @@ class SpendWiseApp extends ConsumerWidget {
       darkTheme: buildSpendWiseTheme(Brightness.dark),
       themeMode: themeModeFor(appearance),
       builder: buildShellAppContent,
-      navigatorObservers: [AppSheetRouteObserver()],
       home: const BootChrome(),
     );
   }

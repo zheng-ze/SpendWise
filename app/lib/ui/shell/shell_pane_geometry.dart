@@ -6,11 +6,7 @@ import 'package:spendwise/ui/shell/shell_providers.dart';
 const _columnDivisor = 2.0;
 const _minimumExtent = 0.0;
 
-typedef ShellPaneGeometry = ({
-  ShellLayoutMode mode,
-  double splitOffset,
-  Rect sheetBounds,
-});
+typedef ShellPaneGeometry = ({double splitOffset, Rect sheetBounds});
 
 ShellPaneGeometry resolveShellPaneGeometry({
   required ShellLayoutMode mode,
@@ -39,7 +35,6 @@ ShellPaneGeometry resolveShellPaneGeometry({
     double.infinity,
   );
   return (
-    mode: mode,
     splitOffset: splitOffset,
     sheetBounds: Rect.fromLTWH(midpoint, padding.top, sheetWidth, height),
   );

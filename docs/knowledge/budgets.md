@@ -290,7 +290,7 @@ budget, while the sheet and draft remain. Inactive Money segments supply no budg
 (`app/lib/ui/shell/shell_pane_host.dart`, `app/lib/ui/money/money_flow.dart`)
 
 `ShellPresentationController` distinguishes any installed/exiting sheet from shell coverage.
-`AppSheetRouteObserver.didPush` initializes the predecessor, `didChangePrevious` updates it and
+Each route records its predecessor through `didChangePrevious` and
 `nearestNonSheetPredecessor` skips nested AppSheets. Registration lasts from installation through
 `route.completed`; frame-coalesced occupancy restores the layout on the next build. Desktop
 sheets always dock like open, using the route's own `MediaQuery` and the shared geometry after the

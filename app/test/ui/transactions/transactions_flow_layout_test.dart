@@ -25,7 +25,6 @@ Future<void> _pumpHistory(
 ) async {
   final app = MaterialApp(
     builder: buildShellAppContent,
-    navigatorObservers: [AppSheetRouteObserver()],
     home: AppShell(
       bodies: {ShellDestination.history: (_) => const TransactionsFlow()},
     ),

@@ -47,7 +47,6 @@ Future<_Harness> _pump(WidgetTester tester, {bool bound = true}) async {
       : const Scaffold(body: Text('bare'));
   final app = MaterialApp(
     navigatorKey: harness.navigator,
-    navigatorObservers: [if (bound) AppSheetRouteObserver()],
     builder: bound ? buildShellAppContent : null,
     home: home,
   );
@@ -71,26 +70,6 @@ void main() {
     expect(firstController, isNot(same(secondController)));
   });
 
-  testWidgets('registered routes require predecessor initialization', (
-    tester,
-  ) async {
-    final harness = await _pump(tester);
-    final route = AppSheetRoute<void>(
-      presentation: AppSheetPresentation.phone,
-      builder: _sheetBody,
-    );
-    harness.controller.register(route);
-    expect(
-      () => harness.controller.isCovered(harness.shell),
-      throwsAssertionError,
-    );
-    harness.controller.release(route);
-    harness.controller.release(route);
-    route.dispose();
-    await tester.pumpAndSettle();
-    expect(harness.controller.hasSheets, isFalse);
-  }, timeout: uiTestTimeout);
-
   testWidgets(
     'creation reserves nothing; installation covers until last exit',
     (tester) async {
@@ -108,8 +87,6 @@ void main() {
       expect(harness.controller.hasSheets, isTrue);
       expect(harness.controller.isCovered(harness.shell), isTrue);
       expect(harness.controller.suppressesShellNavigation, isTrue);
-      first.initializePredecessor(harness.shell);
-      first.initializePredecessor(harness.shell);
       final nested = harness.push();
       await tester.pumpAndSettle();
       expect(nested.nearestNonSheetPredecessor, same(harness.shell));
@@ -250,14 +227,9 @@ void main() {
     );
     navigator.push(sheet);
     await tester.pumpAndSettle();
-    final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
-    final observers = app.navigatorObservers
-        ?.whereType<AppSheetRouteObserver>();
-    expect(observers, hasLength(1));
     final controller = ShellPresentationScope.read(navigator.context)!;
     final predecessor = sheet.nearestNonSheetPredecessor;
     expect(predecessor, isNotNull);
-    expect(sheet.predecessorInitialized, isTrue);
     expect(controller.isCovered(predecessor), isTrue);
     navigator.pop();
     await tester.pumpAndSettle();

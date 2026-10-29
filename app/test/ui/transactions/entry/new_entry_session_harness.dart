@@ -283,7 +283,7 @@ Future<EntryHarness> pumpShell(
   Widget appContent(BuildContext context, Widget? child) {
     final root = failPush
         ? ThrowingNavigator(
-            observers: [AppSheetRouteObserver(), recorder],
+            observers: [recorder],
             onGenerateRoute: (_) =>
                 MaterialPageRoute<void>(builder: (_) => home),
           )
@@ -297,7 +297,7 @@ Future<EntryHarness> pumpShell(
       child: MaterialApp(
         theme: theme,
         builder: appContent,
-        navigatorObservers: [AppSheetRouteObserver(), recorder],
+        navigatorObservers: [recorder],
         home: home,
       ),
     ),

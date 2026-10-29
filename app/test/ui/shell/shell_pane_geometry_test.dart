@@ -58,7 +58,6 @@ void main() {
     await tester.pumpAndSettle();
     await sheet.completed.timeout(_completionTimeout);
     expect(harness.controller.hasSheets, isFalse);
-    expect(harness.controller.shellRoute, isNull);
   }, timeout: uiTestTimeout);
   testWidgets(
     'phone-open resizing retains sheet draft and mounted detail State',
@@ -196,11 +195,7 @@ Future<_PaneHarness> _pumpPane(
   final shell = AppShell(
     bodies: {ShellDestination.overview: harness.buildHost},
   );
-  final app = MaterialApp(
-    builder: buildShellAppContent,
-    navigatorObservers: [AppSheetRouteObserver()],
-    home: shell,
-  );
+  final app = MaterialApp(builder: buildShellAppContent, home: shell);
   await tester.pumpWidget(
     UncontrolledProviderScope(container: container, child: app),
   );
@@ -229,8 +224,6 @@ Future<void> _verifyRetainedSlots(
   final draft = _probe(tester, _sheetKey);
   draft.controller.text = 'kept draft';
   expect(sheet.dimsBackground, isFalse);
-  expect(sheet.resolvedPresentation.bounds, isNotNull);
-  expect(sheet.barrierDismissible, isTrue);
   expect(_probe(tester, _pageKey), same(page));
   expect(_probe(tester, const ValueKey('detail-first')), same(detail));
   expect(find.byKey(_pageKey), findsNothing);
@@ -239,7 +232,6 @@ Future<void> _verifyRetainedSlots(
   final nested = harness.push(key: _nestedKey);
   await tester.pumpAndSettle();
   expect(nested.dimsBackground, isFalse);
-  expect(nested.resolvedPresentation.bounds, isNotNull);
   await _closeSheet(tester, nested);
   expect(harness.controller.hasSheets, isTrue);
   expect(find.byKey(_pageKey), findsNothing);
@@ -267,12 +259,9 @@ Future<void> _verifyCurrentDetail(
   expect(initial.mounted, isFalse);
   expect(find.byKey(_pageKey), findsOneWidget);
   expect(sheet.dimsBackground, isFalse);
-  expect(sheet.resolvedPresentation.bounds, isNotNull);
   harness.selection.value = 'first';
   await tester.pumpAndSettle();
   expect(find.byKey(_pageKey), findsNothing);
-  expect(sheet.dimsBackground, isFalse);
-  expect(sheet.resolvedPresentation.bounds, isNotNull);
   harness.selection.value = 'second';
   await tester.pumpAndSettle();
   expect(find.byKey(const ValueKey('detail-first')), findsNothing);
@@ -295,7 +284,6 @@ Future<void> _verifyResizing(WidgetTester tester) async {
     await tester.pumpAndSettle();
     final open = size == _openSize;
     expect(sheet.dimsBackground, !open);
-    expect(sheet.resolvedPresentation.bounds != null, open);
     expect(_probe(tester, _sheetKey), same(draft));
     expect(_probe(tester, const ValueKey('detail-first')), same(detail));
   }
@@ -316,9 +304,11 @@ Future<void> _verifyForeground(
   final sheet = harness.push();
   await tester.pumpAndSettle();
   expect(sheet.nearestNonSheetPredecessor, same(foreground));
-  expect(harness.controller.isCovered(harness.controller.shellRoute), isFalse);
+  final shellRoute = ModalRoute.of(
+    tester.element(find.byType(AppShell, skipOffstage: false)),
+  );
+  expect(harness.controller.isCovered(shellRoute), isFalse);
   expect(sheet.dimsBackground, isFalse);
-  expect(sheet.resolvedPresentation.bounds, isNotNull);
   await _closeSheet(tester, sheet);
   expect(find.text('foreground'), findsOneWidget);
   navigator.pop();

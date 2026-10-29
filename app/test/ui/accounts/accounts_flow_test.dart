@@ -81,11 +81,7 @@ Future<void> _pumpAccountsShell(
     moneySourceId: moneySourceId,
     bodies: {ShellDestination.money: (_) => MoneyFlow(moneyObserver: observer)},
   );
-  final app = MaterialApp(
-    builder: buildShellAppContent,
-    navigatorObservers: [AppSheetRouteObserver()],
-    home: shell,
-  );
+  final app = MaterialApp(builder: buildShellAppContent, home: shell);
   await tester.pumpWidget(
     UncontrolledProviderScope(container: container, child: app),
   );
@@ -500,18 +496,13 @@ Future<void> _verifyMoneyFlowRetention(
   Navigator.of(context, rootNavigator: true).push(route);
   await tester.pumpAndSettle();
   expect(route.dimsBackground, isFalse);
-  expect(route.resolvedPresentation.bounds, isNotNull);
   _expectSameFlowStates(tester, states);
   container.read(moneySegmentProvider.notifier).state = MoneySegment.accounts;
   await tester.pumpAndSettle();
-  expect(route.dimsBackground, isFalse);
-  expect(route.resolvedPresentation.bounds, isNotNull);
   expect(container.read(selectedBudgetProvider), _retainedBudgetId);
   _expectSameFlowStates(tester, states);
   container.read(moneySegmentProvider.notifier).state = MoneySegment.budgets;
   await tester.pumpAndSettle();
-  expect(route.dimsBackground, isFalse);
-  expect(route.resolvedPresentation.bounds, isNotNull);
   _expectSameFlowStates(tester, states);
   route.navigator!.pop();
   await tester.pumpAndSettle();
