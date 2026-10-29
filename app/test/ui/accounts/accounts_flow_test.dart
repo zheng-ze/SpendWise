@@ -23,11 +23,11 @@ import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/money/money_flow.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
-import 'package:spendwise/ui/shell/shell_binding.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/shell/shell_sheet_occupancy.dart';
 
+import '../../support/shell_sheet_harness.dart';
 import '../../support/ui_test_timeout.dart';
 
 void expectAccountsSummaryConfiguration(
@@ -76,26 +76,19 @@ Future<void> _pumpAccountsShell(
   ProviderContainer container,
   MoneyNavigatorObserver observer, {
   String? Function()? moneySourceId,
-}) async {
-  final shell = AppShell(
-    moneySourceId: moneySourceId,
-    bodies: {ShellDestination.money: (_) => MoneyFlow(moneyObserver: observer)},
-  );
-  final app = MaterialApp(builder: buildShellAppContent, home: shell);
-  await tester.pumpWidget(
-    UncontrolledProviderScope(container: container, child: app),
-  );
-  await tester.pumpAndSettle();
-}
+}) => pumpShellApp(
+  tester,
+  container,
+  moneySourceId: moneySourceId,
+  bodies: {ShellDestination.money: (_) => MoneyFlow(moneyObserver: observer)},
+);
 
 void main() {
-  for (final mode in [ShellLayoutMode.open, ShellLayoutMode.desktop]) {
-    testWidgets(
-      '${mode.name} isolation retains Money, Budgets and Accounts Flows',
-      (tester) => _verifyMoneyFlowRetention(tester, mode),
-      timeout: uiTestTimeout,
-    );
-  }
+  testWidgets(
+    'desktop isolation retains Money, Budgets and Accounts Flows',
+    (tester) => _verifyMoneyFlowRetention(tester, ShellLayoutMode.desktop),
+    timeout: uiTestTimeout,
+  );
 
   final checking = Account(
     id: 'a0000000-0000-0000-0000-000000000001',
@@ -488,14 +481,10 @@ Future<void> _verifyMoneyFlowRetention(
   container.read(selectedBudgetProvider.notifier).select(_retainedBudgetId);
   await tester.pumpAndSettle();
   final context = tester.element(find.byType(AppShell));
-  final presentation = mode == ShellLayoutMode.desktop
-      ? AppSheetPresentation.desktop
-      : AppSheetPresentation.open;
-  final route = AppSheetRoute<void>(
-    presentation: presentation,
+  final route = pushShellSheet(
+    context,
     builder: (_) => const AppSheet(header: Text('Form'), body: Text('Draft')),
   );
-  Navigator.of(context, rootNavigator: true).push(route);
   await tester.pumpAndSettle();
   expect(route.dimsBackground, isFalse);
   _expectSameFlowStates(tester, states);

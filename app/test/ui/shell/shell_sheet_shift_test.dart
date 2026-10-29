@@ -2,13 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
-import 'package:spendwise/ui/accounts/account_sheet_presentation.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
-import 'package:spendwise/ui/shell/shell_binding.dart';
 import 'package:spendwise/ui/shell/shell_sheet_occupancy.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
+import '../../support/shell_sheet_harness.dart';
 import '../../support/ui_test_timeout.dart';
 
 void main() {
@@ -57,7 +56,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpAndSettle();
-    await sheet.completed.timeout(_completionTimeout);
+    await sheet.completed.timeout(sheetCompletionTimeout);
     await tester.pump();
     expect(harness.occupancy.hasSheets, isFalse);
   }, timeout: uiTestTimeout);
@@ -102,7 +101,6 @@ const _nestedKey = ValueKey('nested-probe');
 const _openSize = Size(1024, 800);
 const _phoneSize = Size(400, 800);
 const _shortSize = Size(1024, 400);
-const _completionTimeout = Duration(seconds: 5);
 
 class _StateProbe extends StatefulWidget {
   const _StateProbe({super.key, required this.label});
@@ -148,18 +146,13 @@ class _PaneHarness {
     );
   }
 
-  AppSheetRoute<void> push({Key key = _sheetKey}) {
-    final route = AppSheetRoute<void>(
-      presentation: accountSheetPresentation(context),
-      presentationResolver: accountSheetPresentation,
-      builder: (_) => AppSheet(
-        header: const Text('Draft'),
-        body: _StateProbe(key: key, label: 'draft'),
-      ),
-    );
-    Navigator.of(context, rootNavigator: true).push(route);
-    return route;
-  }
+  AppSheetRoute<void> push({Key key = _sheetKey}) => pushShellSheet(
+    context,
+    builder: (_) => AppSheet(
+      header: const Text('Draft'),
+      body: _StateProbe(key: key, label: 'draft'),
+    ),
+  );
 }
 
 Widget _probePage(BuildContext context, ShellPagePresentation presentation) =>
@@ -175,9 +168,7 @@ Future<_PaneHarness> _pumpPane(
   WidgetTester tester,
   TargetPlatform platform,
 ) async {
-  tester.view.physicalSize = _openSize;
-  tester.view.devicePixelRatio = 1;
-  addTearDown(tester.view.reset);
+  useShellWindow(tester, _openSize);
   final container = ProviderContainer(
     overrides: [
       shellPlatformProvider.overrideWithValue((
@@ -189,25 +180,13 @@ Future<_PaneHarness> _pumpPane(
   addTearDown(container.dispose);
   final harness = _PaneHarness()..container = container;
   addTearDown(harness.selection.dispose);
-  final shell = AppShell(
-    bodies: {ShellDestination.overview: harness.buildHost},
-  );
-  final app = MaterialApp(builder: buildShellAppContent, home: shell);
-  await tester.pumpWidget(
-    UncontrolledProviderScope(container: container, child: app),
-  );
-  await tester.pumpAndSettle();
+  final bodies = {ShellDestination.overview: harness.buildHost};
+  await pumpShellApp(tester, container, bodies: bodies);
   return harness;
 }
 
 _StateProbeState _probe(WidgetTester tester, Key key) =>
     tester.state<_StateProbeState>(find.byKey(key, skipOffstage: false));
-
-Future<void> _closeSheet(WidgetTester tester, AppSheetRoute<void> sheet) async {
-  sheet.navigator!.pop();
-  await tester.pumpAndSettle();
-  await sheet.completed.timeout(_completionTimeout);
-}
 
 Future<void> _verifyRetainedSlots(
   WidgetTester tester,
@@ -229,12 +208,12 @@ Future<void> _verifyRetainedSlots(
   final nested = harness.push(key: _nestedKey);
   await tester.pumpAndSettle();
   expect(nested.dimsBackground, isFalse);
-  await _closeSheet(tester, nested);
+  await closeShellSheet(tester, nested);
   expect(harness.occupancy.hasSheets, isTrue);
   expect(find.byKey(_pageKey), findsNothing);
   expect(_probe(tester, _sheetKey), same(draft));
   expect(draft.controller.text, 'kept draft');
-  await _closeSheet(tester, sheet);
+  await closeShellSheet(tester, sheet);
   expect(find.byKey(_pageKey), findsOneWidget);
   expect(page.focus.canRequestFocus, isTrue);
   expect(_probe(tester, _pageKey), same(page));
@@ -265,7 +244,7 @@ Future<void> _verifyCurrentDetail(
   expect(find.byKey(const ValueKey('detail-second')), findsOneWidget);
   expect(_probe(tester, _sheetKey), same(draft));
   expect(draft.controller.text, 'retained');
-  await _closeSheet(tester, sheet);
+  await closeShellSheet(tester, sheet);
   expect(find.byKey(_pageKey), findsOneWidget);
   expect(find.byKey(const ValueKey('detail-second')), findsOneWidget);
 }
@@ -284,7 +263,7 @@ Future<void> _verifyResizing(WidgetTester tester) async {
     expect(_probe(tester, _sheetKey), same(draft));
     expect(_probe(tester, const ValueKey('detail-first')), same(detail));
   }
-  await _closeSheet(tester, sheet);
+  await closeShellSheet(tester, sheet);
 }
 
 Future<void> _verifyForeground(
@@ -306,9 +285,9 @@ Future<void> _verifyForeground(
   );
   expect(harness.occupancy.isCovered(shellRoute), isFalse);
   expect(sheet.dimsBackground, isFalse);
-  await _closeSheet(tester, sheet);
+  await closeShellSheet(tester, sheet);
   expect(find.text('foreground'), findsOneWidget);
   navigator.pop();
   await tester.pumpAndSettle();
-  await foreground.completed.timeout(_completionTimeout);
+  await foreground.completed.timeout(sheetCompletionTimeout);
 }

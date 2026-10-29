@@ -9,41 +9,26 @@ import 'package:spendwise/ui/common/lists/responsive_summary_card.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/format/money_format.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
-import 'package:spendwise/ui/shell/shell_binding.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/shell/shell_sheet_occupancy.dart';
 import 'package:spendwise/ui/transactions/daily_list/transactions_summary.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
 
+import '../../support/shell_sheet_harness.dart';
 import '../../support/ui_test_timeout.dart';
 
-const _completionTimeout = Duration(seconds: 5);
-
-Future<void> _pumpHistory(
-  WidgetTester tester,
-  ProviderContainer container,
-) async {
-  final app = MaterialApp(
-    builder: buildShellAppContent,
-    home: AppShell(
-      bodies: {ShellDestination.history: (_) => const TransactionsFlow()},
-    ),
-  );
-  await tester.pumpWidget(
-    UncontrolledProviderScope(container: container, child: app),
-  );
-  await tester.pumpAndSettle();
-}
+const _historySize = Size(640, 800);
 
 void main() {
   testWidgets(
     'History retains its Flow and Navigator through sheet occupancy',
     (tester) async {
-      tester.view.physicalSize = const Size(640, 800);
-      tester.view.devicePixelRatio = 1;
-      tester.view.padding = const FakeViewPadding(left: 54, right: 54);
-      addTearDown(tester.view.reset);
+      useShellWindow(
+        tester,
+        _historySize,
+        padding: const FakeViewPadding(left: 54, right: 54),
+      );
       final container = ProviderContainer(
         overrides: [
           ledgerProvider.overrideWithValue(Ledger(state: LedgerState())),
@@ -53,7 +38,11 @@ void main() {
       addTearDown(container.dispose);
       container.read(selectedDestinationProvider.notifier).state =
           ShellDestination.history;
-      await _pumpHistory(tester, container);
+      await pumpShellApp(
+        tester,
+        container,
+        bodies: {ShellDestination.history: (_) => const TransactionsFlow()},
+      );
       final flowFinder = find.byType(TransactionsFlow);
       final flow = tester.state(flowFinder);
       final navigatorFinder = find.descendant(
@@ -62,12 +51,11 @@ void main() {
       );
       final navigator = tester.state(navigatorFinder);
       final context = tester.element(flowFinder);
-      final sheet = AppSheetRoute<void>(
-        presentation: AppSheetPresentation.open,
+      final sheet = pushShellSheet(
+        context,
         builder: (_) =>
             const AppSheet(header: Text('Form'), body: Text('Draft')),
       );
-      Navigator.of(context, rootNavigator: true).push(sheet);
       await tester.pumpAndSettle();
       expect(ShellPaneScope.of(context).sheetPresented, isTrue);
       final shellRoute = ModalRoute.of(tester.element(find.byType(AppShell)));
@@ -100,7 +88,7 @@ void main() {
       expect(card.metrics.first.emphasis, SummaryMetricEmphasis.primary);
       sheet.navigator!.pop();
       await tester.pumpAndSettle();
-      await sheet.completed.timeout(_completionTimeout);
+      await sheet.completed.timeout(sheetCompletionTimeout);
       expect(ShellPaneScope.of(context).sheetPresented, isFalse);
       expect(tester.state(flowFinder), same(flow));
       expect(tester.state(navigatorFinder), same(navigator));
