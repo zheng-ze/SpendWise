@@ -12,6 +12,7 @@ class AnalysisQueryResult<T> {
     required this.value,
     required this.state,
     required this.sourceRevision,
+    this.failure,
   });
 
   final T? value;
@@ -20,14 +21,17 @@ class AnalysisQueryResult<T> {
 
   final int? sourceRevision;
 
+  final Object? failure;
+
   @override
   bool operator ==(Object other) {
     return other is AnalysisQueryResult<T> &&
         other.value == value &&
         other.state == state &&
-        other.sourceRevision == sourceRevision;
+        other.sourceRevision == sourceRevision &&
+        other.failure == failure;
   }
 
   @override
-  int get hashCode => Object.hash(value, state, sourceRevision);
+  int get hashCode => Object.hash(value, state, sourceRevision, failure);
 }

@@ -7,6 +7,7 @@ set -euo pipefail
 
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE
 
 check() {
   local name="$1" directory="$2" analyze_cmd="$3"

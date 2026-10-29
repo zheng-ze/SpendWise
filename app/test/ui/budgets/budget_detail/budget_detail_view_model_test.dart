@@ -1,171 +1,657 @@
+import 'dart:async';
+
 import 'package:domain/domain.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/boot/providers.dart';
+import 'package:spendwise/ledger/analysis/analysis_query_result.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
-import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ui/budgets/budget_detail/budget_detail_presentation.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
 
+import 'budget_detail_test_support.dart';
+
 void main() {
-  Decimal dec(String value) => Decimal.parse(value);
+  final october = DateTime.utc(2026, 10, 28);
+  final september = DateTime.utc(2026, 9);
 
-  final account = Account(
-    id: 'a0000000-0000-0000-0000-000000000001',
-    name: 'Checking',
-    type: AccountType.checking,
+  Entry lunch(DateTime date, {String amount = '-10'}) => Entry(
+    amount: dec(amount),
+    name: 'Lunch',
+    sourceID: checkingAccount.id,
+    date: date,
   );
 
-  final food = TransactionCategory(
-    id: 'c0000000-0000-0000-0000-000000000001',
-    name: 'Food',
-    kind: CategoryKind.expense,
-    colorHex: '#00AA00',
-    includeInAnalysis: true,
-    parentID: null,
-    symbol: 'restaurant',
+  List<LimitEvent> limitsWithRaise() => [
+    LimitEvent(
+      effectiveFromMonth: null,
+      value: dec('100'),
+      kind: LimitEventKind.defaultLimit,
+    ),
+    LimitEvent(
+      effectiveFromMonth: const YearMonth(2026, 11),
+      value: dec('200'),
+      kind: LimitEventKind.defaultLimit,
+    ),
+  ];
+
+  void expectRowsCoherent(BudgetDetailViewState state) {
+    final dayTotals = <DateTime, Decimal>{};
+    for (final row in state.countedEntries) {
+      expect(state.ledgerState.entries.containsKey(row.entry.id), isTrue);
+      final day = startOfDayUtc(row.entry.date);
+      dayTotals[day] = (dayTotals[day] ?? Decimal.zero) + row.amount;
+    }
+    final dayTotalSum = dayTotals.values.fold(
+      Decimal.zero,
+      (sum, total) => sum + total,
+    );
+    expect(dayTotalSum, state.spent);
+  }
+
+  test('opens on the effective month for the displayed year', () async {
+    final container = detailContainer(
+      ledger: detailLedger(budgets: [detailBudget()]),
+      clock: DetailClock(october),
+    );
+    keepDetailAlive(container);
+
+    final context = detailContext(container);
+
+    expect(context.displayedYear, DateTime.utc(2026));
+    expect(context.selectedMonth, DateTime.utc(2026, 10));
+  });
+
+  test('selectMonth and changeYear update the context owner', () async {
+    final container = detailContainer(
+      ledger: detailLedger(budgets: [detailBudget()]),
+      clock: DetailClock(october),
+    );
+    keepDetailAlive(container);
+    final viewModel = container.read(
+      budgetDetailViewModelProvider(detailBudgetID).notifier,
+    );
+
+    viewModel.selectMonth(september);
+    expect(detailContext(container).selectedMonth, september);
+    expect(detailContext(container).displayedYear, DateTime.utc(2026));
+
+    viewModel.changeYear(DateTime.utc(2027));
+    expect(detailContext(container).displayedYear, DateTime.utc(2027));
+    expect(detailContext(container).selectedMonth, DateTime.utc(2027, 9));
+  });
+
+  test(
+    'a ledger commit leaves the selected month and year unchanged',
+    () async {
+      final container = detailContainer(
+        ledger: detailLedger(budgets: [detailBudget()]),
+        clock: DetailClock(october),
+      );
+      keepDetailAlive(container);
+      await settledDetail(container);
+      container
+          .read(budgetDetailViewModelProvider(detailBudgetID).notifier)
+          .changeYear(DateTime.utc(2027));
+      container
+          .read(budgetDetailViewModelProvider(detailBudgetID).notifier)
+          .selectMonth(DateTime.utc(2027, 9));
+
+      container.read(ledgerProvider)!.addEntry(lunch(DateTime.utc(2026, 9, 3)));
+      final state = await settledDetail(container);
+
+      expect(state.selectedMonth, DateTime.utc(2027, 9));
+      expect(state.displayedYear, DateTime.utc(2027));
+    },
   );
 
-  Budget budget({String? categoryID, required String id}) {
-    return Budget(
-      id: id,
-      categoryID: categoryID,
+  test('an AnalysisQueries notification leaves the selected month and year unchanged', () async {
+    final container = detailContainer(
+      ledger: detailLedger(budgets: [detailBudget()]),
+      clock: DetailClock(october),
+    );
+    keepDetailAlive(container);
+    await settledDetail(container);
+    container
+        .read(budgetDetailViewModelProvider(detailBudgetID).notifier)
+        .changeYear(DateTime.utc(2027));
+    container
+        .read(budgetDetailViewModelProvider(detailBudgetID).notifier)
+        .selectMonth(DateTime.utc(2027, 9));
+
+    container
+        .read(analysisQueriesProvider)!
+        .setToday(DateTime.utc(2026, 10, 29));
+    final state = await settledDetail(container);
+
+    expect(state.selectedMonth, DateTime.utc(2027, 9));
+    expect(state.displayedYear, DateTime.utc(2027));
+  });
+
+  test('an effective-month change leaves the selected month and year '
+      'unchanged', () async {
+    final clock = DetailClock(october);
+    final container = detailContainer(
+      ledger: detailLedger(budgets: [detailBudget()]),
+      clock: clock,
+    );
+    keepDetailAlive(container);
+    await settledDetail(container);
+    container
+        .read(budgetDetailViewModelProvider(detailBudgetID).notifier)
+        .selectMonth(september);
+
+    clock.now = DateTime.utc(2026, 11, 2);
+    container.invalidate(todayProvider);
+    final state = await settledDetail(container);
+
+    expect(state.selectedMonth, september);
+    expect(state.displayedYear, DateTime.utc(2026));
+  });
+
+  test('a ready state headline equals the folded counted rows and the '
+      'projection summary', () async {
+    final topUp = Entry(
+      amount: dec('40'),
+      name: 'Top up',
+      sourceID: checkingAccount.id,
+      destinationID: savingsAccount.id,
+      date: DateTime.utc(2026, 10, 1),
+    );
+    final container = detailContainer(
+      ledger: detailLedger(
+        budgets: [detailBudget()],
+        entries: [lunch(DateTime.utc(2026, 10, 1)), topUp],
+      ),
+      clock: DetailClock(october),
+    );
+    keepDetailAlive(container);
+
+    final state = await settledDetail(container);
+
+    expect(state.phase, BudgetDetailPhase.ready);
+    expect(state.countedEntries, hasLength(2));
+    expect(state.spent, dec('50'));
+    expect(state.projection?.projection.summary?.spent, state.spent);
+    expect(state.projection?.selectedLimit, dec('100'));
+  });
+
+  test('deleting a counted entry while a refresh is pending removes its row '
+      'and its amount from the live totals', () async {
+    final second = lunch(DateTime.utc(2026, 10, 2), amount: '-25');
+    final container = detailContainer(
+      ledger: detailLedger(
+        budgets: [detailBudget()],
+        entries: [lunch(DateTime.utc(2026, 10, 1)), second],
+      ),
+      clock: DetailClock(october),
+    );
+    keepDetailAlive(container);
+    await settledDetail(container);
+
+    container.read(ledgerProvider)!.deleteEntry(second.id);
+    final pending = detailState(container);
+
+    expect(pending.phase, BudgetDetailPhase.loading);
+    expect(pending.countedEntries, hasLength(1));
+    expect(pending.spent, dec('10'));
+    expect(pending.projection, isNotNull);
+    expectRowsCoherent(pending);
+  });
+
+  test('deleting a counted entry while the refresh has failed removes its row '
+      'and keeps the projection retained', () async {
+    var calls = 0;
+    Future<List<AnalysisItem>> failingRefresh(LedgerState state) async {
+      calls += 1;
+      if (calls > 1) throw StateError('refresh unavailable');
+      return Accounting.analysisItems(state);
+    }
+
+    final second = lunch(DateTime.utc(2026, 10, 2), amount: '-25');
+    final container = detailContainer(
+      ledger: detailLedger(
+        budgets: [detailBudget()],
+        entries: [lunch(DateTime.utc(2026, 10, 1)), second],
+      ),
+      clock: DetailClock(october),
+      runner: failingRefresh,
+    );
+    keepDetailAlive(container);
+    await settledDetail(container);
+
+    container.read(ledgerProvider)!.deleteEntry(second.id);
+    final failed = await settledDetail(container);
+
+    expect(failed.phase, BudgetDetailPhase.failed);
+    expect('${failed.error}', contains('refresh unavailable'));
+    expect(failed.countedEntries, hasLength(1));
+    expect(failed.spent, dec('10'));
+    expect(failed.projection, isNotNull);
+    expectRowsCoherent(failed);
+  });
+
+  test('a category rename during a pending refresh updates the live title '
+      'and category label', () async {
+    final container = detailContainer(
+      ledger: detailLedger(
+        budgets: [detailBudget(categoryID: foodCategory.id)],
+      ),
+      clock: DetailClock(october),
+    );
+    keepDetailAlive(container);
+    await settledDetail(container);
+
+    container
+        .read(ledgerProvider)!
+        .updateCategory(
+          TransactionCategory(
+            id: foodCategory.id,
+            name: 'Groceries',
+            kind: CategoryKind.expense,
+            colorHex: '#00AA00',
+            includeInAnalysis: true,
+            parentID: null,
+            symbol: 'restaurant',
+          ),
+        );
+    final pending = detailState(container);
+
+    expect(pending.phase, BudgetDetailPhase.loading);
+    expect(pending.title, 'Groceries');
+    expect(pending.categoryName, 'Groceries');
+    expect(pending.projection, isNotNull);
+  });
+
+  test(
+    'counted entries follow the live ledger while a refresh is pending',
+    () async {
+      final container = detailContainer(
+        ledger: detailLedger(budgets: [detailBudget()]),
+        clock: DetailClock(october),
+      );
+      keepDetailAlive(container);
+      await settledDetail(container);
+      expect(detailState(container).countedEntries, isEmpty);
+
+      final added = lunch(DateTime.utc(2026, 10, 2));
+      container.read(ledgerProvider)!.addEntry(added);
+      final pending = detailState(container);
+
+      expect(pending.phase, BudgetDetailPhase.loading);
+      expect(pending.countedEntries, hasLength(1));
+    },
+  );
+
+  Future<ProviderContainer> gatedDetailContainer(
+    GatedComputeRunner runner,
+    DetailClock clock,
+  ) async {
+    final container = detailContainer(
+      ledger: detailLedger(budgets: [detailBudget()]),
+      clock: clock,
+      runner: runner.call,
+    );
+    addTearDown(runner.release);
+    keepDetailAlive(container);
+    await settledDetail(container);
+    runner.hold();
+    return container;
+  }
+
+  void commitWhilePending(ProviderContainer container) {
+    container.read(ledgerProvider)!.addEntry(lunch(DateTime.utc(2026, 10, 3)));
+  }
+
+  test('a pending refresh keeps the projection for the same ledger, year and '
+      'month', () async {
+    final container = await gatedDetailContainer(
+      GatedComputeRunner(),
+      DetailClock(october),
+    );
+    commitWhilePending(container);
+
+    final pending = detailState(container);
+
+    expect(pending.phase, BudgetDetailPhase.loading);
+    expect(pending.projection?.selectedMonth, DateTime.utc(2026, 10));
+  });
+
+  test(
+    'a pending selected-month change drops the retained projection',
+    () async {
+      final container = await gatedDetailContainer(
+        GatedComputeRunner(),
+        DetailClock(october),
+      );
+      commitWhilePending(container);
+      container
+          .read(budgetDetailViewModelProvider(detailBudgetID).notifier)
+          .selectMonth(september);
+
+      final pending = detailState(container);
+
+      expect(pending.phase, BudgetDetailPhase.loading);
+      expect(pending.projection, isNull);
+      expect(budgetDetailPresentation(pending).body, BudgetDetailBody.skeleton);
+    },
+  );
+
+  test(
+    'a pending displayed-year change drops the retained projection',
+    () async {
+      final container = await gatedDetailContainer(
+        GatedComputeRunner(),
+        DetailClock(october),
+      );
+      commitWhilePending(container);
+      container
+          .read(budgetDetailViewModelProvider(detailBudgetID).notifier)
+          .changeYear(DateTime.utc(2027));
+
+      final pending = detailState(container);
+
+      expect(pending.phase, BudgetDetailPhase.loading);
+      expect(pending.projection, isNull);
+      expect(budgetDetailPresentation(pending).body, BudgetDetailBody.skeleton);
+    },
+  );
+
+  test('a pending read in another displayed year does not reuse the retained '
+      'projection for a matching selected month', () async {
+    final container = await gatedDetailContainer(
+      GatedComputeRunner(),
+      DetailClock(october),
+    );
+    commitWhilePending(container);
+    final viewModel = container.read(
+      budgetDetailViewModelProvider(detailBudgetID).notifier,
+    );
+    viewModel.changeYear(DateTime.utc(2027));
+    viewModel.selectMonth(DateTime.utc(2026, 10));
+
+    final pending = detailState(container);
+
+    expect(pending.selectedMonth, DateTime.utc(2026, 10));
+    expect(pending.displayedYear, DateTime.utc(2027));
+    expect(pending.projection, isNull);
+  });
+
+  test('a ledger swap with a pending refresh drops the projection of the old '
+      'ledger', () async {
+    final clock = DetailClock(october);
+    final runner = GatedComputeRunner();
+    final container = await gatedDetailContainer(runner, clock);
+
+    container.updateOverrides([
+      ledgerProvider.overrideWithValue(detailLedger(budgets: [detailBudget()])),
+      clockProvider.overrideWithValue(clock.read),
+      analysisComputeRunnerProvider.overrideWithValue(runner.call),
+    ]);
+    final pending = detailState(container);
+
+    expect(pending.phase, BudgetDetailPhase.loading);
+    expect(pending.projection, isNull);
+  });
+
+  test('an initial compute failure reports the actual reason and retry '
+      'restores the detail', () async {
+    var calls = 0;
+    Future<List<AnalysisItem>> flakyRunner(LedgerState state) async {
+      calls += 1;
+      if (calls == 1) throw StateError('compute unavailable');
+      return Accounting.analysisItems(state);
+    }
+
+    final container = detailContainer(
+      ledger: detailLedger(budgets: [detailBudget()]),
+      clock: DetailClock(october),
+      runner: flakyRunner,
+    );
+    keepDetailAlive(container);
+    final contextOwner = container.read(
+      budgetDetailContextProvider(detailBudgetID).notifier,
+    );
+    contextOwner.changeYear(DateTime.utc(2027));
+    contextOwner.selectMonth(DateTime.utc(2027, 9));
+    final failed = await settledDetail(container);
+
+    expect(failed.phase, BudgetDetailPhase.failed);
+    expect('${failed.error}', contains('compute unavailable'));
+    expect(failed.projection, isNull);
+
+    container
+        .read(budgetDetailViewModelProvider(detailBudgetID).notifier)
+        .retry();
+    final restored = await settledDetail(container);
+
+    expect(restored.phase, BudgetDetailPhase.ready);
+    expect(restored.error, isNull);
+    expect(restored.selectedMonth, DateTime.utc(2027, 9));
+    expect(restored.displayedYear, DateTime.utc(2027));
+  });
+
+  test('an unresolvable limit reports the thrown reason from the pure '
+      'projection', () async {
+    final futureOnly = detailBudget(
       limitEvents: [
         LimitEvent(
-          effectiveFromMonth: null,
+          effectiveFromMonth: const YearMonth(2027, 1),
           value: dec('100'),
           kind: LimitEventKind.defaultLimit,
         ),
       ],
-      createdAtMonth: const YearMonth(2026, 1),
     );
-  }
+    final container = detailContainer(
+      ledger: detailLedger(budgets: [futureOnly]),
+      clock: DetailClock(october),
+    );
+    keepDetailAlive(container);
 
-  Ledger buildLedger(Budget forBudget) {
-    return Ledger(
-      state: LedgerState(
-        moneySources: {account.id: MoneySource.account(account)},
-        categories: {food.id: food},
-        budgets: {forBudget.id: forBudget},
+    final state = await settledDetail(container);
+
+    expect(state.phase, BudgetDetailPhase.failed);
+    expect('${state.error}', contains('no default limit event'));
+    expect(state.projection, isNull);
+  });
+
+  test('the current-limit scalar stays at today limit across displayed years '
+      'and selected months', () async {
+    final container = detailContainer(
+      ledger: detailLedger(
+        budgets: [detailBudget(limitEvents: limitsWithRaise())],
       ),
+      clock: DetailClock(october),
     );
-  }
-
-  ProviderContainer buildContainer(Ledger ledger) {
-    final container = ProviderContainer(
-      overrides: [
-        ledgerProvider.overrideWithValue(ledger),
-        analysisComputeRunnerProvider.overrideWithValue(syncComputeRunner),
-      ],
-    );
-    addTearDown(container.dispose);
-    return container;
-  }
-
-  test('build shows the current year and month by default', () async {
-    final overall = budget(categoryID: null, id: 'b1');
-    final container = buildContainer(buildLedger(overall));
-    final now = DateTime.now().toUtc();
-
-    final state = await container.read(
-      budgetDetailViewModelProvider(overall.id).future,
+    keepDetailAlive(container);
+    await settledDetail(container);
+    final viewModel = container.read(
+      budgetDetailViewModelProvider(detailBudgetID).notifier,
     );
 
-    expect(state.displayedYear, DateTime.utc(now.year));
-    expect(state.selectedMonth, DateTime.utc(now.year, now.month));
-    expect(state.budget?.id, overall.id);
-  });
+    viewModel.selectMonth(DateTime.utc(2026, 12));
+    final december = (await settledDetail(container)).projection!;
+    viewModel.changeYear(DateTime.utc(2027));
+    final nextYear = (await settledDetail(container)).projection!;
 
-  test('title falls back to Overall for a budget with no category', () async {
-    final overall = budget(categoryID: null, id: 'b1');
-    final container = buildContainer(buildLedger(overall));
-
-    final state = await container.read(
-      budgetDetailViewModelProvider(overall.id).future,
-    );
-
-    expect(state.title, 'Overall');
-  });
-
-  test('title uses the category name for a category budget', () async {
-    final categoryBudget = budget(categoryID: food.id, id: 'b2');
-    final container = buildContainer(buildLedger(categoryBudget));
-
-    final state = await container.read(
-      budgetDetailViewModelProvider(categoryBudget.id).future,
-    );
-
-    expect(state.title, 'Food');
+    expect(december.currentLimit, dec('100'));
+    expect(december.selectedLimit, dec('200'));
+    expect(nextYear.currentLimit, dec('100'));
+    expect(detailContext(container).selectedMonth, DateTime.utc(2027, 12));
   });
 
   test(
-    'selectMonth updates the selected month, keeping the same year',
+    'calendar rollover moves the current-limit scalar to the new month',
     () async {
-      final overall = budget(categoryID: null, id: 'b1');
-      final container = buildContainer(buildLedger(overall));
-      await container.read(budgetDetailViewModelProvider(overall.id).future);
-      final viewModel = container.read(
-        budgetDetailViewModelProvider(overall.id).notifier,
+      final clock = DetailClock(october);
+      final container = detailContainer(
+        ledger: detailLedger(
+          budgets: [detailBudget(limitEvents: limitsWithRaise())],
+        ),
+        clock: clock,
       );
-      final now = DateTime.now().toUtc();
-      final targetMonth = now.month == 1 ? 12 : 1;
+      keepDetailAlive(container);
+      expect(
+        (await settledDetail(container)).projection?.currentLimit,
+        dec('100'),
+      );
 
-      viewModel.selectMonth(DateTime.utc(now.year, targetMonth));
+      clock.now = DateTime.utc(2026, 11, 1);
+      container.invalidate(todayProvider);
 
-      final state = container
-          .read(budgetDetailViewModelProvider(overall.id))
-          .value;
-      expect(state?.selectedMonth, DateTime.utc(now.year, targetMonth));
-      expect(state?.displayedYear, DateTime.utc(now.year));
+      expect(
+        (await settledDetail(container)).projection?.currentLimit,
+        dec('200'),
+      );
     },
   );
 
-  test('changeYear keeps the selected month fixed', () async {
-    final overall = budget(categoryID: null, id: 'b1');
-    final container = buildContainer(buildLedger(overall));
-    await container.read(budgetDetailViewModelProvider(overall.id).future);
-    final viewModel = container.read(
-      budgetDetailViewModelProvider(overall.id).notifier,
+  test('the chart scale includes the current-limit scalar', () async {
+    final container = detailContainer(
+      ledger: detailLedger(budgets: [detailBudget()]),
+      clock: DetailClock(october),
     );
-    final now = DateTime.now().toUtc();
+    keepDetailAlive(container);
 
-    viewModel.changeYear(DateTime.utc(now.year + 1));
+    final state = await settledDetail(container);
 
-    final state = container
-        .read(budgetDetailViewModelProvider(overall.id))
-        .value;
-    expect(state?.displayedYear, DateTime.utc(now.year + 1));
-    expect(state?.selectedMonth.month, now.month);
-    expect(state?.selectedMonth.year, now.year + 1);
+    expect(state.projection?.chartMaxYValue, closeTo(115.0, 1e-9));
   });
 
   test(
     'requestLimitEdit emits BudgetLimitEditRequested, clearStep resets it',
     () async {
-      final overall = budget(categoryID: null, id: 'b1');
-      final container = buildContainer(buildLedger(overall));
-      await container.read(budgetDetailViewModelProvider(overall.id).future);
+      final container = detailContainer(
+        ledger: detailLedger(budgets: [detailBudget()]),
+        clock: DetailClock(october),
+      );
+      keepDetailAlive(container);
+      await settledDetail(container);
       final viewModel = container.read(
-        budgetDetailViewModelProvider(overall.id).notifier,
+        budgetDetailViewModelProvider(detailBudgetID).notifier,
       );
 
       viewModel.requestLimitEdit();
-      expect(
-        container.read(budgetDetailViewModelProvider(overall.id)).value?.step,
-        isA<BudgetLimitEditRequested>(),
-      );
+      expect(detailState(container).step, isA<BudgetLimitEditRequested>());
 
       viewModel.clearStep();
-      expect(
-        container.read(budgetDetailViewModelProvider(overall.id)).value?.step,
-        isNull,
-      );
+      expect(detailState(container).step, isNull);
     },
   );
+
+  test('a deleted budget reports the deleted phase', () async {
+    final container = detailContainer(
+      ledger: detailLedger(),
+      clock: DetailClock(october),
+    );
+    keepDetailAlive(container);
+
+    expect(detailState(container).phase, BudgetDetailPhase.deleted);
+    expect(detailState(container).projection, isNull);
+  });
 
   test('chartMaxY extends 15 percent past the largest bar, floors at 1.0', () {
     expect(chartMaxY([dec('0')], [dec('0')]), 1.0);
     expect(chartMaxY([dec('100')], [dec('50')]), closeTo(115.0, 1e-9));
     expect(chartMaxY([dec('50')], [dec('200')]), closeTo(230.0, 1e-9));
   });
+
+  test(
+    'the analysis query returns a ready coherent result after settling',
+    () async {
+      final container = detailContainer(
+        ledger: detailLedger(budgets: [detailBudget()]),
+        clock: DetailClock(october),
+      );
+      keepDetailAlive(container);
+      final queries = container.read(analysisQueriesProvider)!;
+      await settledDetail(container);
+
+      final result = queries.readBudgetDetail(
+        budgetID: detailBudgetID,
+        displayedYear: DateTime.utc(2026),
+        selectedMonth: october,
+      );
+
+      expect(result.state, AnalysisQueryState.ready);
+      expect(result.sourceRevision, container.read(ledgerProvider)!.revision);
+    },
+  );
+  test('old analysis completing after session replacement cannot publish into the new owner', () async {
+    final oldWork = Completer<List<AnalysisItem>>();
+    var hold = false;
+    Future<List<AnalysisItem>> runner(LedgerState state) {
+      if (hold) return oldWork.future;
+      return syncComputeRunner(state);
+    }
+
+    final clock = DetailClock(october);
+    final oldLedger = detailLedger(budgets: [detailBudget()]);
+    final container = detailContainer(
+      ledger: oldLedger,
+      clock: clock,
+      runner: runner,
+    );
+    keepDetailAlive(container);
+    await settledDetail(container);
+    hold = true;
+    oldLedger.addEntry(lunch(october));
+    await pumpEventQueue();
+    hold = false;
+    final replacement = detailLedger(budgets: [detailBudget()]);
+    container.updateOverrides([
+      ledgerProvider.overrideWithValue(replacement),
+      clockProvider.overrideWithValue(clock.read),
+      analysisComputeRunnerProvider.overrideWithValue(runner),
+    ]);
+    final before = await settledDetail(container);
+    oldWork.complete(Accounting.analysisItems(oldLedger.state));
+    final after = await settledDetail(container);
+    expect(identical(after.ledger, replacement), isTrue);
+    expect(after.spent, Decimal.zero);
+    expect(after.projection, same(before.projection));
+  });
+
+  test(
+    'old analysis completing after disposal cannot publish into a new owner',
+    () async {
+      final oldWork = Completer<List<AnalysisItem>>();
+      var hold = false;
+      Future<List<AnalysisItem>> runner(LedgerState state) {
+        if (hold) return oldWork.future;
+        return syncComputeRunner(state);
+      }
+
+      final ledger = detailLedger(budgets: [detailBudget()]);
+      final container = detailContainer(
+        ledger: ledger,
+        clock: DetailClock(october),
+        runner: runner,
+      );
+      keepDetailAlive(container);
+      await settledDetail(container);
+      hold = true;
+      ledger.addEntry(lunch(october));
+      await pumpEventQueue();
+      container.dispose();
+      hold = false;
+      final replacement = detailLedger(
+        budgets: [detailBudget()],
+        entries: [lunch(october, amount: '-7')],
+      );
+      final newContainer = detailContainer(
+        ledger: replacement,
+        clock: DetailClock(october),
+        runner: runner,
+      );
+      keepDetailAlive(newContainer);
+      final before = await settledDetail(newContainer);
+      oldWork.complete(Accounting.analysisItems(ledger.state));
+      final after = await settledDetail(newContainer);
+      expect(after.spent, dec('7'));
+      expect(after.projection, same(before.projection));
+      expect(identical(after.ledger, replacement), isTrue);
+    },
+  );
 }

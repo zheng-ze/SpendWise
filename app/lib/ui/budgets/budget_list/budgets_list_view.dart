@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/budgets/budget_list/budget_card.dart';
+import 'package:spendwise/ui/budgets/budget_list/budget_selection.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
 import 'package:spendwise/ui/common/buttons/app_buttons.dart';
 import 'package:spendwise/ui/common/feedback/empty_state.dart';
@@ -24,6 +25,15 @@ const _categoryCardGap = 10.0;
 const _singleColumn = 1;
 const _openColumns = 2;
 
+int budgetListColumnCount({
+  required bool openLayout,
+  required bool addPresented,
+  required bool selectionPresent,
+}) {
+  if (openLayout && !addPresented && !selectionPresent) return _openColumns;
+  return _singleColumn;
+}
+
 class BudgetsRoot extends ConsumerWidget {
   const BudgetsRoot({super.key});
 
@@ -40,7 +50,11 @@ class BudgetsRoot extends ConsumerWidget {
         viewState: value,
         viewModel: viewModel,
         desktop: desktop,
-        columns: open && !addPresented ? _openColumns : _singleColumn,
+        columns: budgetListColumnCount(
+          openLayout: open,
+          addPresented: addPresented,
+          selectionPresent: value.selectedBudgetID != null,
+        ),
         showFloatingAction: !addPresented,
         actionPadding: open ? _openActionPadding : _actionPadding,
       ),
@@ -49,7 +63,17 @@ class BudgetsRoot extends ConsumerWidget {
       error: (error, _) =>
           BudgetListError(error: error, onRetry: viewModel.retry),
     );
-    return Material(child: body);
+    final dismissSelection = open && !addPresented
+        ? ref.read(selectedBudgetProvider.notifier).clear
+        : null;
+    return Material(
+      color: Colors.transparent,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: dismissSelection,
+        child: body,
+      ),
+    );
   }
 }
 
@@ -202,7 +226,17 @@ class _AllSpendingSection extends StatelessWidget {
             onTap: () => viewModel.requestBudgetDetail(id),
             child: content,
           );
-    return Tray(title: 'All spending', child: child);
+    final selected =
+        summary.budgetID != null &&
+        summary.budgetID == viewState.selectedBudgetID;
+    final tray = Tray(title: 'All spending', selected: selected, child: child);
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        if (id != null) viewModel.requestBudgetDetail(id);
+      },
+      child: tray,
+    );
   }
 }
 
@@ -219,24 +253,33 @@ class _CategoryBudgetsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cards = [
-      for (final (index, row) in viewState.cards.indexed)
-        Tray(
-          key: ValueKey('budget-tray-${row.id}'),
-          child: BudgetCard(
-            key: ValueKey('budget-${row.id}'),
-            savedHex: row.savedHex,
-            rank: index,
-            chartColours: viewState.chartColours,
-            name: row.name,
-            amounts: row.amounts,
-            status: row.status,
-            progress: row.progress,
-            overLimit: row.overLimit,
-            onTap: () => viewModel.requestBudgetDetail(row.id),
-          ),
+    final cards = <Widget>[];
+    for (final (index, row) in viewState.cards.indexed) {
+      final card = BudgetCard(
+        key: ValueKey('budget-${row.id}'),
+        savedHex: row.savedHex,
+        rank: index,
+        chartColours: viewState.chartColours,
+        name: row.name,
+        amounts: row.amounts,
+        status: row.status,
+        progress: row.progress,
+        overLimit: row.overLimit,
+        onTap: () => viewModel.requestBudgetDetail(row.id),
+      );
+      final tray = Tray(
+        key: ValueKey('budget-tray-${row.id}'),
+        selected: row.id == viewState.selectedBudgetID,
+        child: card,
+      );
+      cards.add(
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => viewModel.requestBudgetDetail(row.id),
+          child: tray,
         ),
-    ];
+      );
+    }
     final content = _BudgetCardLayout(columns: columns, children: cards);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

@@ -1,6 +1,6 @@
 # Knowledge Base Index
 
-Last reconciled: 2026-10-21
+Last reconciled: 2026-10-28
 
 One comprehensive entry per feature. Read the relevant entry before planning or changing a
 feature; it records the final implementation, key files, interactions, navigation, APIs, gotchas,

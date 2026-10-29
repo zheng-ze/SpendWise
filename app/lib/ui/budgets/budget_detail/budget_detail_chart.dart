@@ -2,14 +2,15 @@ import 'package:domain/domain.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
+import 'package:spendwise/ui/common/charts/month_bars.dart';
 import 'package:spendwise/ui/stats/helpers/chart_helpers.dart';
+import 'package:spendwise/ui/theme/spendwise_colors.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Constants
 
 const _chartBaseline = 0.0;
-const _selectedBorderWidth = 0.0;
-const _dotStrokeWidth = 0.0;
+const _transparent = Color(0x00000000);
 
 // MARK: - Chart
 
@@ -17,7 +18,7 @@ class BudgetDetailChart extends StatelessWidget {
   const BudgetDetailChart({
     super.key,
     required this.months,
-    required this.spend,
+    required this.slots,
     required this.limit,
     required this.maxY,
     required this.selectedMonth,
@@ -26,8 +27,8 @@ class BudgetDetailChart extends StatelessWidget {
   });
 
   final List<DateTime> months;
-  final List<Decimal> spend;
-  final List<Decimal> limit;
+  final List<MonthBarSlot> slots;
+  final Decimal limit;
   final double maxY;
   final DateTime selectedMonth;
   final void Function(DateTime month) onSelectMonth;
@@ -39,7 +40,7 @@ class BudgetDetailChart extends StatelessWidget {
   Widget build(BuildContext context) {
     final spendBars = BudgetDetailSpendBars(
       months: months,
-      spend: spend,
+      slots: slots,
       maxY: maxY,
       selectedMonth: selectedMonth,
       barColor: barColor,
@@ -67,14 +68,14 @@ class BudgetDetailSpendBars extends StatelessWidget {
   const BudgetDetailSpendBars({
     super.key,
     required this.months,
-    required this.spend,
+    required this.slots,
     required this.maxY,
     required this.selectedMonth,
     required this.barColor,
   });
 
   final List<DateTime> months;
-  final List<Decimal> spend;
+  final List<MonthBarSlot> slots;
   final double maxY;
   final DateTime selectedMonth;
   final Color barColor;
@@ -83,11 +84,13 @@ class BudgetDetailSpendBars extends StatelessWidget {
   static const _unselectedBarAlpha = 0.5;
   static const _barWidth = 18.0;
   static const _barCornerRadius = 4.0;
-  static const _selectedBorderColor = Color(0x00000000);
+  static const _stubFraction = 0.09;
+  static const _outlineWidth = 1.0;
+  static const _dashPattern = [4, 3];
 
   @override
   Widget build(BuildContext context) {
-    final selectedMark = context.colors.selectedMark;
+    final colors = context.colors;
     final selectedIndex = months.indexWhere(
       (month) =>
           month.year == selectedMonth.year &&
@@ -116,19 +119,12 @@ class BudgetDetailSpendBars extends StatelessWidget {
         BarChartGroupData(
           x: i,
           barRods: [
-            BarChartRodData(
-              toY: spend[i].toDouble(),
-              color: i == selectedIndex
-                  ? selectedMark
-                  : barColor.withValues(alpha: _unselectedBarAlpha),
-              width: _barWidth,
-              borderRadius: BorderRadius.circular(_barCornerRadius),
-              borderSide: i == selectedIndex
-                  ? const BorderSide(
-                      width: _selectedBorderWidth,
-                      color: _selectedBorderColor,
-                    )
-                  : BorderSide.none,
+            _spendRod(
+              colors: colors,
+              slot: slots[i],
+              selected: i == selectedIndex,
+              barColor: barColor,
+              maxY: maxY,
             ),
           ],
         ),
@@ -145,6 +141,57 @@ class BudgetDetailSpendBars extends StatelessWidget {
 
     return BarChart(data);
   }
+
+  BarChartRodData _spendRod({
+    required SpendWiseColors colors,
+    required MonthBarSlot slot,
+    required bool selected,
+    required Color barColor,
+    required double maxY,
+  }) {
+    final radius = BorderRadius.circular(_barCornerRadius);
+    final stubHeight = maxY * _stubFraction;
+    if (selected) {
+      final selectedHeight = switch (slot.status) {
+        MonthBarStatus.blank => _chartBaseline,
+        MonthBarStatus.gap => stubHeight,
+        MonthBarStatus.value || MonthBarStatus.incomplete => slot.value,
+      };
+      return BarChartRodData(
+        toY: selectedHeight,
+        width: _barWidth,
+        color: colors.selectedMark,
+        borderRadius: radius,
+      );
+    }
+    return switch (slot.status) {
+      MonthBarStatus.value => BarChartRodData(
+        toY: slot.value,
+        width: _barWidth,
+        color: barColor.withValues(alpha: _unselectedBarAlpha),
+        borderRadius: radius,
+      ),
+      MonthBarStatus.incomplete => BarChartRodData(
+        toY: slot.value,
+        width: _barWidth,
+        color: colors.incomplete,
+        borderRadius: radius,
+        borderSide: BorderSide(color: colors.action, width: _outlineWidth),
+      ),
+      MonthBarStatus.gap => BarChartRodData(
+        toY: stubHeight,
+        width: _barWidth,
+        color: _transparent,
+        borderRadius: radius,
+        borderSide: BorderSide(color: colors.gap, width: _outlineWidth),
+        borderDashArray: _dashPattern,
+      ),
+      MonthBarStatus.blank => BarChartRodData(
+        toY: _chartBaseline,
+        width: _barWidth,
+      ),
+    };
+  }
 }
 
 // MARK: - Limit Line
@@ -158,33 +205,30 @@ class BudgetDetailLimitLine extends StatelessWidget {
   });
 
   final List<DateTime> months;
-  final List<Decimal> limit;
+  final Decimal limit;
   final double maxY;
 
   static const _lineWidth = 2.0;
-  static const _dotRadius = 3.0;
   static const _edgeInset = 0.5;
+  static const _dashLength = 6;
+  static const _dashGap = 4;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final limitValue = limit.toDouble();
 
     final lineBarsData = [
       LineChartBarData(
         spots: [
-          for (var i = 0; i < months.length; i++)
-            FlSpot(i.toDouble(), limit[i].toDouble()),
+          FlSpot(-_edgeInset, limitValue),
+          FlSpot(months.length - _edgeInset, limitValue),
         ],
         isCurved: false,
         color: theme.colorScheme.onSurface,
         barWidth: _lineWidth,
-        dotData: FlDotData(
-          getDotPainter: (spot, percent, bar, index) => FlDotCirclePainter(
-            radius: _dotRadius,
-            color: theme.colorScheme.onSurface,
-            strokeWidth: _dotStrokeWidth,
-          ),
-        ),
+        dashArray: const [_dashLength, _dashGap],
+        dotData: const FlDotData(show: false),
         belowBarData: BarAreaData(show: false),
       ),
     ];

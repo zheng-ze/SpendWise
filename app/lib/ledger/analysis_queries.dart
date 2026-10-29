@@ -71,7 +71,7 @@ class AnalysisQueries extends ChangeNotifier {
 
   final Map<String, _Stored> _stored = {};
 
-  final Set<String> _failedEvaluations = {};
+  final Map<String, Object> _failedEvaluations = {};
 
   final Set<Future<void>> _observed = {};
 
@@ -308,7 +308,7 @@ class AnalysisQueries extends ChangeNotifier {
     if (stored != null && stored.key == key) {
       return stored.result as AnalysisQueryResult<T>;
     }
-    if (!_failedEvaluations.contains(key)) {
+    if (!_failedEvaluations.containsKey(key)) {
       try {
         final result = AnalysisQueryResult<T>(
           value: evaluate(),
@@ -317,8 +317,8 @@ class AnalysisQueries extends ChangeNotifier {
         );
         _retain(identity, _Stored(key, result));
         return result;
-      } catch (_) {
-        _recordFailure(key);
+      } catch (error) {
+        _recordFailure(key, error);
       }
     }
     final previous = stored?.result as AnalysisQueryResult<T>?;
@@ -327,12 +327,14 @@ class AnalysisQueries extends ChangeNotifier {
         value: previous.value,
         state: AnalysisQueryState.failed,
         sourceRevision: previous.sourceRevision,
+        failure: _failedEvaluations[key],
       );
     }
     return AnalysisQueryResult<T>(
       value: null,
       state: AnalysisQueryState.failed,
       sourceRevision: null,
+      failure: _failedEvaluations[key],
     );
   }
 
@@ -344,7 +346,7 @@ class AnalysisQueries extends ChangeNotifier {
     if (stored != null && stored.key == key) {
       return stored.result as AnalysisQueryResult<T>;
     }
-    if (stamp == revision && !_failedEvaluations.contains(key)) {
+    if (stamp == revision && !_failedEvaluations.containsKey(key)) {
       try {
         final result = AnalysisQueryResult<T>(
           value: evaluate(),
@@ -353,25 +355,30 @@ class AnalysisQueries extends ChangeNotifier {
         );
         _retain(identity, _Stored(key, result));
         return result;
-      } catch (_) {
-        _recordFailure(key);
+      } catch (error) {
+        _recordFailure(key, error);
       }
     }
     final previous = stored?.result as AnalysisQueryResult<T>?;
-    final state = _failedEvaluations.contains(key)
+    final state = _failedEvaluations.containsKey(key)
         ? AnalysisQueryState.failed
         : _pendingState(revision);
+    final failure = state == AnalysisQueryState.failed
+        ? _failedEvaluations[key] ?? _cache.lastFailure?.error
+        : null;
     if (previous != null) {
       return AnalysisQueryResult<T>(
         value: previous.value,
         state: state,
         sourceRevision: previous.sourceRevision,
+        failure: failure,
       );
     }
     return AnalysisQueryResult<T>(
       value: null,
       state: state,
       sourceRevision: null,
+      failure: failure,
     );
   }
 
@@ -388,7 +395,8 @@ class AnalysisQueries extends ChangeNotifier {
     }
   }
 
-  void _recordFailure(String key) => _failedEvaluations.add(key);
+  void _recordFailure(String key, Object error) =>
+      _failedEvaluations[key] = error;
 
   AnalysisQueryState _pendingState(int revision) {
     if (_inflight.contains(revision)) return AnalysisQueryState.loading;

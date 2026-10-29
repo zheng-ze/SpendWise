@@ -9,6 +9,7 @@ import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ledger/analysis_cache.dart';
 import 'package:spendwise/ledger/ledger.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
+import 'package:spendwise/ui/budgets/budget_list/budget_selection.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
 
 void main() {
@@ -82,20 +83,135 @@ void main() {
     return container;
   }
 
-  test(
-    'requestBudgetDetail emits BudgetDetailRequested carrying the budget id',
-    () async {
-      final container = buildContainer(buildLedger());
-      await container.read(budgetsListViewModelProvider.future);
-      final viewModel = container.read(budgetsListViewModelProvider.notifier);
+  test('requestBudgetDetail selects without emitting a step', () async {
+    final container = buildContainer(buildLedger());
+    await container.read(budgetsListViewModelProvider.future);
+    final viewModel = container.read(budgetsListViewModelProvider.notifier);
 
-      viewModel.requestBudgetDetail('b1');
+    viewModel.requestBudgetDetail('b1');
 
-      final step = container.read(budgetsListViewModelProvider).value?.step;
-      expect(step, isA<BudgetDetailRequested>());
-      expect((step as BudgetDetailRequested).budgetID, 'b1');
-    },
-  );
+    expect(container.read(budgetsListViewModelProvider).value?.step, isNull);
+    expect(container.read(selectedBudgetProvider), 'b1');
+  });
+
+  test('reselecting the same budget keeps the selection', () async {
+    final first = budget(categoryID: null, id: 'b1');
+    final second = budget(categoryID: food.id, id: 'b2');
+    final container = buildContainer(
+      buildLedger(budgets: {first.id: first, second.id: second}),
+    );
+    await container.read(budgetsListViewModelProvider.future);
+    final viewModel = container.read(budgetsListViewModelProvider.notifier);
+
+    viewModel.requestBudgetDetail(first.id);
+    final selected = container.read(selectedBudgetProvider);
+    expect(
+      container
+          .read(budgetsListViewModelProvider)
+          .requireValue
+          .selectedBudgetID,
+      first.id,
+    );
+
+    viewModel.requestBudgetDetail(first.id);
+    expect(container.read(selectedBudgetProvider), selected);
+
+    viewModel.requestBudgetDetail(second.id);
+    expect(
+      container
+          .read(budgetsListViewModelProvider)
+          .requireValue
+          .selectedBudgetID,
+      second.id,
+    );
+  });
+
+  test('selection survives the initial loading state until cleared', () async {
+    final pending = Completer<List<AnalysisItem>>();
+    final overall = budget(categoryID: null, id: 'b1');
+    final ledger = buildLedger(budgets: {overall.id: overall});
+    final container = ProviderContainer(
+      overrides: [
+        ledgerProvider.overrideWithValue(ledger),
+        analysisComputeRunnerProvider.overrideWithValue((_) => pending.future),
+      ],
+    );
+    addTearDown(container.dispose);
+    await container.read(budgetsListViewModelProvider.future);
+
+    container
+        .read(budgetsListViewModelProvider.notifier)
+        .requestBudgetDetail(overall.id);
+    final loading = container.read(budgetsListViewModelProvider).requireValue;
+    expect(loading.loading, isTrue);
+    expect(loading.selectedBudgetID, overall.id);
+
+    container.read(selectedBudgetProvider.notifier).clear();
+    expect(
+      container
+          .read(budgetsListViewModelProvider)
+          .requireValue
+          .selectedBudgetID,
+      isNull,
+    );
+  });
+
+  test('selection survives refresh failure and retry until cleared', () async {
+    var fail = false;
+    final reason = StateError('Data unavailable');
+    final overall = budget(id: 'b1');
+    final ledger = buildLedger(budgets: {overall.id: overall});
+    final container = ProviderContainer(
+      overrides: [
+        ledgerProvider.overrideWithValue(ledger),
+        analysisComputeRunnerProvider.overrideWithValue((state) async {
+          if (fail) throw reason;
+          return syncComputeRunner(state);
+        }),
+      ],
+    );
+    addTearDown(container.dispose);
+    final subscription = container.listen(
+      budgetsListViewModelProvider,
+      (_, _) {},
+    );
+    addTearDown(subscription.close);
+    final cache = container.read(ledgerSessionProvider)!.analysisCache;
+    await cache.refresh(ledger.state, sourceRevision: ledger.revision);
+    await container.pump();
+    final viewModel = container.read(budgetsListViewModelProvider.notifier);
+    viewModel.requestBudgetDetail(overall.id);
+
+    fail = true;
+    ledger.updateBudgetAmount(overall.id, dec('200'), const YearMonth(2026, 1));
+    await cache.refresh(ledger.state, sourceRevision: ledger.revision);
+    await container.pump();
+    final failed = container.read(budgetsListViewModelProvider).requireValue;
+    expect(failed.error, same(reason));
+    expect(failed.selectedBudgetID, overall.id);
+
+    fail = false;
+    viewModel.retry();
+    await cache.refresh(ledger.state, sourceRevision: ledger.revision);
+    await container.pump();
+    expect(
+      container
+          .read(budgetsListViewModelProvider)
+          .requireValue
+          .selectedBudgetID,
+      overall.id,
+    );
+
+    container.read(selectedBudgetProvider.notifier).clear();
+    await container.pump();
+    expect(
+      container
+          .read(budgetsListViewModelProvider)
+          .requireValue
+          .selectedBudgetID,
+      isNull,
+    );
+  });
 
   test('requestNewBudget emits BudgetFormRequested', () async {
     final container = buildContainer(buildLedger());

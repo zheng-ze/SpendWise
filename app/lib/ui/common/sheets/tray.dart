@@ -4,11 +4,19 @@ import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 // MARK: - Tray
 class Tray extends StatelessWidget {
-  const Tray({super.key, this.title, this.trailing, required this.child});
+  const Tray({
+    super.key,
+    this.title,
+    this.trailing,
+    this.selected = false,
+    required this.child,
+  });
 
   final String? title;
 
   final Widget? trailing;
+
+  final bool selected;
 
   final Widget child;
 
@@ -18,11 +26,17 @@ class Tray extends StatelessWidget {
 
   static const semiBoldWeight = FontWeight.w600;
 
-  static BoxDecoration decoration(BuildContext context) {
+  static const borderWidth = 1.0;
+
+  static BoxDecoration decoration(
+    BuildContext context, {
+    bool selected = false,
+  }) {
     final colors = context.colors;
+    final borderColor = selected ? colors.action : colors.edge;
     return BoxDecoration(
-      color: colors.surface,
-      border: Border.all(color: colors.edge),
+      color: selected ? colors.tint : colors.surface,
+      border: Border.all(color: borderColor, width: borderWidth),
       borderRadius: BorderRadius.circular(cornerRadius),
     );
   }
@@ -38,7 +52,7 @@ class Tray extends StatelessWidget {
     content.add(child);
 
     return Container(
-      decoration: decoration(context),
+      decoration: decoration(context, selected: selected),
       padding: const EdgeInsets.all(contentPadding),
       child: Column(
         mainAxisSize: MainAxisSize.min,

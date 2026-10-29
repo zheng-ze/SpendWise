@@ -1,94 +1,105 @@
 import 'package:domain/domain.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/boot/providers.dart';
-import 'package:spendwise/ledger/analysis_cache.dart';
-import 'package:spendwise/ledger/ledger.dart';
-import 'package:spendwise/ui/budgets/budget_detail/budget_detail_screen.dart';
+import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
+import 'package:spendwise/ui/transactions/entry/entry_form.dart';
+import 'package:spendwise/ui/transactions/daily_list/day_header.dart';
 
 import '../../../support/ui_test_timeout.dart';
+import 'budget_detail_test_support.dart';
+
+const _entryScrollStep = 200.0;
 
 void main() {
-  Decimal dec(String value) => Decimal.parse(value);
-
-  final today = DateTime.now();
-  DateTime day(int d) => DateTime.utc(today.year, today.month, d);
-
-  final checking = Account(
-    id: 'a0000000-0000-0000-0000-000000000010',
-    name: 'Checking',
-    type: AccountType.checking,
+  final lunch = Entry(
+    amount: dec('-10'),
+    name: 'Lunch',
+    sourceID: checkingAccount.id,
+    date: DateTime.utc(2026, 10, 1),
   );
-  final savings = Account(
-    id: 'a0000000-0000-0000-0000-000000000011',
-    name: 'Savings',
-    type: AccountType.savings,
-    incomingTransfersAsExpenses: true,
+  final topUp = Entry(
+    amount: dec('40'),
+    name: 'Top up',
+    sourceID: checkingAccount.id,
+    destinationID: savingsAccount.id,
+    date: DateTime.utc(2026, 10, 1),
   );
-  final overall = Budget(
-    id: 'b1',
-    categoryID: null,
-    limitEvents: [
-      LimitEvent(
-        effectiveFromMonth: null,
-        value: dec('100'),
-        kind: LimitEventKind.defaultLimit,
-      ),
-    ],
-    createdAtMonth: const YearMonth(2026, 1),
+  final coffee = Entry(
+    amount: dec('-4'),
+    name: 'Coffee',
+    sourceID: checkingAccount.id,
+    date: DateTime.utc(2026, 10, 2),
   );
 
-  Future<void> pumpDetail(WidgetTester tester, List<Entry> entries) {
-    final ledger = Ledger(
-      state: LedgerState(
-        moneySources: {
-          checking.id: MoneySource.account(checking),
-          savings.id: MoneySource.account(savings),
-        },
-        entries: {for (final entry in entries) entry.id: entry},
-        budgets: {overall.id: overall},
-      ),
+  testWidgets('counted expense total reaches the rendered day header', (
+    tester,
+  ) async {
+    final budget = detailBudget();
+    final ledger = detailLedger(budgets: [budget], entries: [lunch, topUp]);
+    final container = await pumpDetailScreen(tester, ledger: ledger);
+    final state = detailState(container);
+    final header = tester.widget<DayHeader>(find.byType(DayHeader));
+    expect(header.net, dec('-50'));
+    expect(state.spent, dec('50'));
+    expect(state.projection?.projection.summary?.spent, state.spent);
+  }, timeout: uiTestTimeout);
+
+  testWidgets('Edit requests the existing limit history step from the page', (
+    tester,
+  ) async {
+    final container = await pumpDetailScreen(
+      tester,
+      ledger: detailLedger(budgets: [detailBudget()]),
     );
-    return tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          ledgerProvider.overrideWithValue(ledger),
-          analysisComputeRunnerProvider.overrideWithValue(syncComputeRunner),
-        ],
-        child: MaterialApp(home: BudgetDetailScreen(budgetID: overall.id)),
-      ),
+
+    await tester.tap(find.byTooltip('Edit limit history'));
+    await tester.pump();
+
+    expect(detailState(container).step, isA<BudgetLimitEditRequested>());
+  }, timeout: uiTestTimeout);
+
+  testWidgets('tapping a counted register row opens its entry form', (
+    tester,
+  ) async {
+    await pumpDetailScreen(
+      tester,
+      ledger: detailLedger(budgets: [detailBudget()], entries: [lunch]),
     );
-  }
+
+    await tester.scrollUntilVisible(find.text('Lunch'), _entryScrollStep);
+    await tester.pump();
+    await tester.tap(find.text('Lunch'));
+    await tester.pumpAndSettle();
+
+    final form = tester.widget<EntryForm>(find.byType(EntryForm));
+    expect(form.entryId, lunch.id);
+  }, timeout: uiTestTimeout);
 
   testWidgets(
-    'an unscoped budget lists the eligible transfer its total counts and the '
-    'day total matches the headline',
+    'swipe-deleting a counted row during a pending refresh removes the row',
     (tester) async {
-      final lunch = Entry(
-        amount: dec('-10'),
-        name: 'Lunch',
-        sourceID: checking.id,
-        date: day(1),
+      final runner = GatedComputeRunner();
+      final container = await pumpDetailScreen(
+        tester,
+        ledger: detailLedger(budgets: [detailBudget()], entries: [lunch]),
+        runner: runner.call,
       );
-      final topUp = Entry(
-        amount: dec('40'),
-        name: 'Top up',
-        sourceID: checking.id,
-        destinationID: savings.id,
-        date: day(1),
-      );
+      addTearDown(runner.release);
 
-      await pumpDetail(tester, [lunch, topUp]);
+      runner.hold();
+      container.read(ledgerProvider)!.addEntry(coffee);
+      await tester.pump();
+      expect(detailState(container).phase, BudgetDetailPhase.loading);
+
+      await tester.drag(find.text('Coffee'), const Offset(-600, 0));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Delete'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('S\$50.00 of S\$100.00'), findsOneWidget);
+      expect(find.text('Coffee'), findsNothing);
       expect(find.text('Lunch'), findsOneWidget);
-      expect(find.text('Top up'), findsOneWidget);
-      expect(find.text('-10.00'), findsOneWidget);
-      expect(find.text('40.00'), findsOneWidget);
-      expect(find.text('-50.00'), findsOneWidget);
+      expect(tester.takeException(), isNull);
     },
     timeout: uiTestTimeout,
   );
