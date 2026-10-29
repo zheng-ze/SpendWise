@@ -49,7 +49,6 @@ class AppSheetRouteObserver extends NavigatorObserver {
 
 typedef AppSheetResolvedPresentation = ({
   AppSheetPresentation presentation,
-  bool isDocked,
   Rect? bounds,
 });
 
@@ -60,11 +59,7 @@ class AppSheetRoute<T> extends ModalRoute<T> {
     this.showShellNavigation = false,
     this.presentationResolver,
   }) {
-    _resolvedPresentation = (
-      presentation: presentation,
-      isDocked: presentation == AppSheetPresentation.open,
-      bounds: null,
-    );
+    _resolvedPresentation = (presentation: presentation, bounds: null);
   }
 
   static const _transitionMillis = 220;
@@ -93,8 +88,8 @@ class AppSheetRoute<T> extends ModalRoute<T> {
       _resolvedPresentation;
   bool _barrierUpdateScheduled = false;
 
-  bool get isDocked => resolvedPresentation.isDocked;
-  bool get dimsBackground => !isDocked;
+  bool get dimsBackground =>
+      resolvedPresentation.presentation == AppSheetPresentation.phone;
 
   bool _disposed = false;
   ShellPresentationController? _presentationController;
@@ -118,7 +113,6 @@ class AppSheetRoute<T> extends ModalRoute<T> {
     }
     _predecessorInitialized = true;
     _predecessor = previousRoute;
-    _refreshPlacement();
     _presentationController?.routesChanged();
   }
 
@@ -135,7 +129,6 @@ class AppSheetRoute<T> extends ModalRoute<T> {
     if (context == null) return;
     _presentationController = ShellPresentationScope.read(context);
     _presentationController?.register(this);
-    _presentationController?.addListener(_refreshPlacement);
     completed.then((_) => _presentationController?.release(this));
   }
 
@@ -144,7 +137,7 @@ class AppSheetRoute<T> extends ModalRoute<T> {
 
   AppSheetResolvedPresentation resolvePresentation(BuildContext context) {
     final presentation = resolveLive(context);
-    final controller = ShellPresentationScope.maybeOf(context);
+    final docked = presentation != AppSheetPresentation.phone;
     final mode = presentation == AppSheetPresentation.desktop
         ? ShellLayoutMode.desktop
         : ShellLayoutMode.open;
@@ -153,39 +146,12 @@ class AppSheetRoute<T> extends ModalRoute<T> {
       windowSize: MediaQuery.sizeOf(context),
       padding: MediaQuery.paddingOf(context),
     );
-    final resolved = _resolvePlacement(presentation, geometry, controller);
-    _setResolved(resolved);
-    return resolved;
-  }
-
-  AppSheetResolvedPresentation _resolvePlacement(
-    AppSheetPresentation presentation,
-    ShellPaneGeometry geometry,
-    ShellPresentationController? controller,
-  ) {
-    final shellRoute = controller?.shellRoute;
-    final coversShell =
-        shellRoute != null && identical(nearestNonSheetPredecessor, shellRoute);
-    final desktopDocked =
-        presentation == AppSheetPresentation.desktop &&
-        coversShell &&
-        (controller?.exposesDetail ?? false);
-    final docked = presentation == AppSheetPresentation.open || desktopDocked;
-    return (
+    final resolved = (
       presentation: presentation,
-      isDocked: docked,
       bounds: docked ? geometry.sheetBounds : null,
     );
-  }
-
-  void _refreshPlacement() {
-    if (_disposed || !_predecessorInitialized) return;
-    final controller = _presentationController;
-    final geometry = controller?.geometry;
-    if (geometry == null) return;
-    final presentation = resolvedPresentation.presentation;
-    final resolved = _resolvePlacement(presentation, geometry, controller);
     _setResolved(resolved);
+    return resolved;
   }
 
   void _setResolved(AppSheetResolvedPresentation resolved) {
@@ -257,7 +223,6 @@ class AppSheetRoute<T> extends ModalRoute<T> {
   @override
   void dispose() {
     _disposed = true;
-    _presentationController?.removeListener(_refreshPlacement);
     _alerts.dispose();
     _alertAction.dispose();
     super.dispose();
@@ -282,8 +247,6 @@ class _AppSheetPageState<T> extends State<_AppSheetPage<T>> {
 
   static const _bottomAlignment = Alignment.bottomCenter;
 
-  static const _centerAlignment = Alignment.center;
-
   static const _openAlignment = Alignment.topRight;
 
   static const _noInset = 0.0;
@@ -292,14 +255,11 @@ class _AppSheetPageState<T> extends State<_AppSheetPage<T>> {
   Widget build(BuildContext context) {
     final resolved = widget.route.resolvePresentation(context);
     final presentation = resolved.presentation;
-    final docked = resolved.isDocked;
     final media = MediaQuery.of(context);
     final desktop = presentation == AppSheetPresentation.desktop;
-    final alignment = docked
-        ? _openAlignment
-        : desktop
-        ? _centerAlignment
-        : _bottomAlignment;
+    final alignment = resolved.bounds == null
+        ? _bottomAlignment
+        : _openAlignment;
     final sheet = Padding(
       padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
       child: Builder(builder: widget.route.builder),
@@ -341,7 +301,6 @@ class _AppSheetPageState<T> extends State<_AppSheetPage<T>> {
         : null;
     return AppSheetAlertSlot(
       presentation: presentation,
-      isDocked: docked,
       alerts: widget.route._alerts,
       alertAction: widget.route._alertAction,
       child: Stack(children: [positionedSheet, overlay, ?navigation]),

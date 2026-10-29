@@ -184,8 +184,8 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   `singleColumn` to its page builder. On open and desktop, an exposed detail occupies the right
   column. While the shell is sheet-covered, that current detail shifts left and the list is hidden;
   clearing selection reveals the list, and selecting another detail shifts the new current detail.
-  Phone has no shifted pane. With no detail, open coverage narrows the list beside the sheet,
-  while desktop retains its ordinary full-width list and centered dialog.
+  Phone has no shifted pane. With no detail, open and desktop coverage narrow the list into the
+  left column beside the docked right-column sheet.
   The page slot always retains its `Align`, sizing, isolation and `MediaQuery` ancestry.
   `_InactivePaneIsolation` toggles Offstage, tickers, focus, semantics and pointer access while
   preserving the page's Flow and Navigator State. A present detail keeps its keyed `_DetailPaneState`
@@ -327,20 +327,20 @@ value, which then overwrites it. (issue #38)
   on the root Navigator, returns the popped result and exposes the exact route through its optional
   callback. Callers supply `AppSheetPresentation.phone`, `open` or `desktop`; an optional resolver
   reads live configuration, with the captured value as fallback. `AppSheetRoute` retains one resolved
-  state containing `presentation`, `isDocked` and placement bounds. It publishes presentation and
-  `isDocked` through `AppSheetAlertSlot`, and its barrier reads that same resolved state.
-  Open always docks. Desktop docks only when this route covers the shell and the active host exposes
-  a detail; otherwise it centers. Phone remains a bottom sheet. Docked surfaces use a transparent,
-  dismissible full-window barrier; centered desktop and phone sheets dim the window.
-  Docked desktop fills its safe right column and height, with no dialog cap, grab handle or rail
-  reserve. Its presentation remains `desktop`, so Add input and picker content retain desktop
-  behavior. Open standard sheets reserve 82 dp of right content space; the form variant leaves
+  state containing `presentation` and placement bounds. It publishes the presentation through
+  `AppSheetAlertSlot`, and its barrier reads that same resolved state. The route resolves bounds
+  from its own `MediaQuery` through `resolveShellPaneGeometry`, so the shell supplies no geometry.
+  Open and desktop always dock in the right column, whether or not a detail is showing. Phone
+  remains a bottom sheet. Docked surfaces use a transparent, dismissible full-window barrier;
+  phone sheets dim the window. No centered desktop dialog exists for AppSheets; the shared
+  confirmation dialogs are not AppSheets and stay centered. Docked desktop fills its safe right
+  column and height, with no dialog cap, grab handle or rail reserve. Its presentation remains
+  `desktop`, so Add input and picker content retain desktop behavior. Open standard sheets reserve 82 dp of right content space; the form variant leaves
   that clearance outside its surface and uses a 10 dp content inset. Add clears the phone bar.
   The route keeps stable placement ancestry around the caller's keyed subtree through live resize.
-  Centered desktop standard sheets are capped at 440 dp wide, while the form variant uses 340 dp.
-  Undocked phone and desktop height caps default to 0.66 of the available height; callers may set
-  `phoneMaxHeightFraction` and `desktopMaxHeightFraction`. Add uses 1.0 on desktop and grows the
-  phone cap to 1.0 while the pad is visible or the keyboard inset is positive.
+  The phone height cap defaults to 0.66 of the available height; callers may set
+  `phoneMaxHeightFraction`. Add grows the phone cap to 1.0 while the pad is visible or the
+  keyboard inset is positive.
   `SheetPinnedLayout` pins header, footer and input when they fit; otherwise the outer scroller
   keeps the whole sheet reachable. The route clears the keyboard and docked placement consumes
   safe insets once. (`app/lib/ui/common/sheets/app_sheet_route.dart`,
@@ -357,11 +357,10 @@ value, which then overwrites it. (issue #38)
   predecessor fails a debug assertion. The observer owns no foreground-page classification or
   global route stack. (`app/lib/main.dart`, `app/lib/ui/shell/shell_binding.dart`,
   `app/lib/ui/common/sheets/app_sheet_route.dart`)
-  The controller exposes installed/exiting occupancy, shell coverage and one current detail-exposure
-  signal. `_DestinationStacks` resets exposure, and only the active `ShellPaneHost` publishes its
-  current non-phone detail. Value comparison and frame-coalesced notifications apply the latest
-  exposure without lifecycle-time provider writes. Restoration follows the next build, allowing a
-  completion continuation to install the next sheet first. The shell derives navigation suppression
+  The controller exposes installed/exiting occupancy, shell coverage and the shell route reference,
+  which `AppShell` configures on build. Frame-coalesced notifications avoid lifecycle-time provider
+  writes. Restoration follows the next build, allowing a completion continuation to install the
+  next sheet first. The shell derives navigation suppression
   from installed routes' `showShellNavigation`; those routes render the phone/open navigation
   overlay. Desktop keeps one sidebar beneath the modal barrier, so tapping it dismisses the sheet
   without selecting a destination. (`app/lib/ui/shell/shell_presentation_controller.dart`,
@@ -371,7 +370,7 @@ value, which then overwrites it. (issue #38)
   dismissal and install their next loading route from the previous route's completion continuation
   before awaiting initialization, preserving composition without a timer or captured pane owner.
 - **Add form surface** - `AppSheetVariant.form` is used by the Add loading and loaded forms.
-  In light mode its canvas backing uses `SpendWiseColors.base`; centered desktop form chrome is a 340 dp dialog with
+  In light mode its canvas backing uses `SpendWiseColors.base`; desktop form chrome docks in the right column with
   no grab handle. Standard sheets retain their existing chrome. Phone Add enables
   `dragToDismiss`; `SheetDismissPhysics` shares drag displacement between the body and enclosing
   sheet scrollers, so handle/header drags and body drags at minimum scroll offset move the sheet.
@@ -428,7 +427,7 @@ value, which then overwrites it. (issue #38)
   `WeekStrip` leaves future days blank and draws dashed stubs for past empty days.
   (`app/lib/ui/common/charts/week_strip.dart`)
 - **Sheet checks** - `app/test/support/sheet_contract.dart` provides route pumping
-  with an explicit presentation, cap checks for every drawn sheet, and an
+  with an explicit presentation, cap checks for every drawn phone sheet, and an
   assertion that the alert sits outside the sheet subtree.
 
 ## Gotchas and invariants

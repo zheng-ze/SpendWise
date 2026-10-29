@@ -292,15 +292,15 @@ budget, while the sheet and draft remain. Inactive Money segments supply no budg
 `ShellPresentationController` distinguishes any installed/exiting sheet from shell coverage.
 `AppSheetRouteObserver.didPush` initializes the predecessor, `didChangePrevious` updates it and
 `nearestNonSheetPredecessor` skips nested AppSheets. Registration lasts from installation through
-`route.completed`; frame-coalesced occupancy and active-host exposure restore the layout on the
-next build. Desktop docking uses `AppSheetAlertSlot.isDocked` and the shared geometry after the
+`route.completed`; frame-coalesced occupancy restores the layout on the next build. Desktop
+sheets always dock like open, using the route's own `MediaQuery` and the shared geometry after the
 sidebar and safe insets; desktop presentation and input behavior remain desktop.
 (`app/lib/ui/common/sheets/app_sheet_route.dart`,
 `app/lib/ui/shell/shell_presentation_controller.dart`, `app/lib/ui/shell/shell_pane_geometry.dart`)
 
 `BudgetLimitScreen` remains a full-window root page. An AppSheet above it has that history page as
 its nearest non-AppSheet predecessor, so the shell underneath stays unshifted. The sheet is
-right-docked on open, centered on desktop and bottom-aligned on phone. Existing budget form and
+right-docked on open and desktop and bottom-aligned on phone. Existing budget form and
 limit-editor handlers remain legacy paths. Future #425 sheets must dismiss through their mounted
 route context or captured exact route, because the retained Flow's `navigatorContext` can target
 another Navigator. For an action-sheet-to-editor sequence, install the next loading route from the
@@ -311,7 +311,7 @@ coalesces layout updates; it adds no timer or pane ownership to hide an asynchro
 
 The direct foreground-sheet regression in `app/test/ui/budgets/budget_list/budgets_pane_test.dart`
 invokes `showAppSheet<String>` above `BudgetLimitScreen` with open/iOS and desktop/macOS fixtures.
-It checks foreground predecessor and coverage, route/slot docking policy, preserved history route,
+It checks foreground predecessor and coverage, route barrier policy, preserved history route,
 Element and chosen year after dismissal, and the retained budget pane after history Back. This is
 automated fixture coverage, not real-app runtime or visual proof. #425 must supply a reachable
 foreground-sheet trigger for runtime verification or retain direct-test coverage if none exists.

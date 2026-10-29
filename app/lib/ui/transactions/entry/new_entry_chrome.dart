@@ -39,8 +39,6 @@ const _loadingIndicatorSize = 36.0;
 
 const _loadingBodySpacing = 24.0;
 
-const _desktopMaxHeightFraction = 1.0;
-
 // MARK: - NewEntryHeader
 class NewEntryHeader extends StatelessWidget {
   const NewEntryHeader({super.key, required this.presentation, this.onSave});
@@ -164,7 +162,6 @@ class NewEntryLoadingForm extends StatelessWidget {
       variant: AppSheetVariant.form,
       alert: alert,
       onAlertAction: onAlertAction,
-      desktopMaxHeightFraction: _desktopMaxHeightFraction,
     );
   }
 }

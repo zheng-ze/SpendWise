@@ -115,9 +115,8 @@ Shared sheet composition follows installed routes rather than an Add-specific pr
 `route.completed`, including exit animation. Nearest-non-AppSheet predecessor coverage preserves
 composition through picker stacks. On open and desktop, Add over the shell shifts the current exposed
 detail left while retaining the isolated list's Flow and Navigator State. Clearing selection exposes
-the list without replacing Add or losing its draft. Desktop docking uses `AppSheetAlertSlot.isDocked`
-and shared safe pane geometry, while `AppSheetPresentation.desktop` keeps desktop input behavior.
-With no exposed detail, desktop Add remains centered; open stays right-docked. A sheet over a
+the list without replacing Add or losing its draft. Desktop sheets always dock in the right column, like open, using
+shared safe pane geometry, while `AppSheetPresentation.desktop` keeps desktop input behavior. A sheet over a
 foreground root page such as `BudgetLimitScreen` keeps that page as its predecessor and leaves the
 shell unshifted. (`app/lib/ui/shell/shell_presentation_controller.dart`,
 `app/lib/ui/shell/shell_pane_host.dart`, `app/lib/ui/shell/shell_pane_geometry.dart`,
@@ -182,7 +181,7 @@ register space. The screen applies top and side `SafeArea` insets with `bottom: 
   `NewEntryHeader` shows only the title on phone and desktop, and the title with Save in open
   layout (a spacer of equal width keeps the title centered). There is no Cancel in any layout.
   `NewEntrySaveFooter` supplies Save entry in all layouts, driven by `canSave`.
-  Desktop uses centered or docked form chrome without a grab handle; phone supports drag and barrier dismissal, and
+  Desktop uses docked form chrome without a grab handle; phone supports drag and barrier dismissal, and
   open and desktop dismiss by tapping the barrier.
   (`new_entry_form.dart`, `new_entry_chrome.dart`, `fields/entry_fields.dart`,
   `app/lib/ui/common/sheets/app_sheet.dart`)

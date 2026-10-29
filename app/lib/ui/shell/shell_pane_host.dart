@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/common/base/flow_base.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
-import 'package:spendwise/ui/shell/shell_presentation_controller.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 const shellDetailPaneKey = ValueKey('shell-detail-pane');
@@ -97,12 +96,6 @@ class ShellPaneHost extends StatelessWidget {
   Widget build(BuildContext context) {
     final scope = ShellPaneScope.of(context);
     final pageActive = DestinationActivity.of(context);
-    final controller = ShellPresentationScope.maybeOf(context);
-    if (pageActive) {
-      controller?.publishDetailExposure(
-        scope.mode != ShellLayoutMode.phone && detail != null,
-      );
-    }
     final routeCurrent = ModalRoute.isCurrentOf(context) ?? true;
     final showFloatingAction =
         floatingAction != null &&
@@ -113,11 +106,10 @@ class ShellPaneHost extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final open = scope.mode == ShellLayoutMode.open;
         final wide = scope.mode != ShellLayoutMode.phone;
         final hasDetailPane = wide && detail != null;
         final shifted = hasDetailPane && scope.sheetCovered;
-        final splitPage = hasDetailPane || (open && scope.sheetCovered);
+        final splitPage = hasDetailPane || (wide && scope.sheetCovered);
         final splitOffset = scope.splitOffset.clamp(0.0, constraints.maxWidth);
         final pageWidth = splitPage ? splitOffset : constraints.maxWidth;
         final detailWidth = math.max(

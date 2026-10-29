@@ -48,17 +48,15 @@ void main() {
       timeout: uiTestTimeout,
     );
   }
-  testWidgets('shell teardown clears exposure and installed sheets', (
+  testWidgets('shell teardown clears installed sheets and the shell route', (
     tester,
   ) async {
     final harness = await _pumpPane(tester, TargetPlatform.macOS);
     final sheet = harness.push();
     await tester.pumpAndSettle();
-    expect(harness.controller.exposesDetail, isTrue);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpAndSettle();
     await sheet.completed.timeout(_completionTimeout);
-    expect(harness.controller.exposesDetail, isFalse);
     expect(harness.controller.hasSheets, isFalse);
     expect(harness.controller.shellRoute, isNull);
   }, timeout: uiTestTimeout);
@@ -227,15 +225,11 @@ Future<void> _verifyRetainedSlots(
   final page = _probe(tester, _pageKey);
   final detail = _probe(tester, const ValueKey('detail-first'));
   final sheet = harness.push();
-  expect(sheet.isDocked, isTrue);
   await tester.pumpAndSettle();
   final draft = _probe(tester, _sheetKey);
   draft.controller.text = 'kept draft';
-  expect(sheet.isDocked, isTrue);
   expect(sheet.dimsBackground, isFalse);
   expect(sheet.barrierDismissible, isTrue);
-  final slot = AppSheetAlertSlot.maybeOf(draft.context)!;
-  expect(slot.isDocked, isTrue);
   expect(_probe(tester, _pageKey), same(page));
   expect(_probe(tester, const ValueKey('detail-first')), same(detail));
   expect(find.byKey(_pageKey), findsNothing);
@@ -243,7 +237,7 @@ Future<void> _verifyRetainedSlots(
   expect(page.focus.canRequestFocus, isFalse);
   final nested = harness.push(key: _nestedKey);
   await tester.pumpAndSettle();
-  expect(nested.isDocked, isTrue);
+  expect(nested.dimsBackground, isFalse);
   await _closeSheet(tester, nested);
   expect(harness.controller.hasSheets, isTrue);
   expect(find.byKey(_pageKey), findsNothing);
@@ -270,12 +264,11 @@ Future<void> _verifyCurrentDetail(
   await tester.pumpAndSettle();
   expect(initial.mounted, isFalse);
   expect(find.byKey(_pageKey), findsOneWidget);
-  expect(sheet.isDocked, platform == TargetPlatform.iOS);
-  expect(sheet.dimsBackground, platform == TargetPlatform.macOS);
+  expect(sheet.dimsBackground, isFalse);
   harness.selection.value = 'first';
   await tester.pumpAndSettle();
   expect(find.byKey(_pageKey), findsNothing);
-  expect(sheet.isDocked, isTrue);
+  expect(sheet.dimsBackground, isFalse);
   harness.selection.value = 'second';
   await tester.pumpAndSettle();
   expect(find.byKey(const ValueKey('detail-first')), findsNothing);
@@ -297,7 +290,7 @@ Future<void> _verifyResizing(WidgetTester tester) async {
     tester.view.physicalSize = size;
     await tester.pumpAndSettle();
     final open = size == _openSize;
-    expect(sheet.isDocked, open);
+    expect(sheet.dimsBackground, !open);
     expect(_probe(tester, _sheetKey), same(draft));
     expect(_probe(tester, const ValueKey('detail-first')), same(detail));
   }
@@ -319,8 +312,7 @@ Future<void> _verifyForeground(
   await tester.pumpAndSettle();
   expect(sheet.nearestNonSheetPredecessor, same(foreground));
   expect(harness.controller.isCovered(harness.controller.shellRoute), isFalse);
-  expect(sheet.isDocked, platform == TargetPlatform.iOS);
-  expect(sheet.dimsBackground, platform == TargetPlatform.macOS);
+  expect(sheet.dimsBackground, isFalse);
   await _closeSheet(tester, sheet);
   expect(find.text('foreground'), findsOneWidget);
   navigator.pop();

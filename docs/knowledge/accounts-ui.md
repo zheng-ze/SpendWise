@@ -72,8 +72,8 @@ Account and source-edit forms use root `showAppSheet` routes with `accountSheetP
 live resolver. `showAccountFormSheet` and `showSourceEditFormSheet` capture the exact route and wait
 for `route.completed` before invalidating their form providers. Installed/exiting AppSheet occupancy
 comes from the shared `ShellPresentationController`; callers set no manual presentation flag.
-Accounts root actions have no detail to shift, so forms remain right-docked on open, centered on
-desktop and bottom sheets on phone. Nested account type, day and parent AppSheets inherit coverage
+Accounts root actions have no detail to shift, so forms remain right-docked on open and desktop
+and bottom sheets on phone. Nested account type, day and parent AppSheets inherit coverage
 through their nearest non-AppSheet predecessor. The page slot's stable isolation wrappers retain
 Money, Budgets and Accounts Flow State when a budget detail shifts under another sheet.
 (`app/lib/ui/accounts/account_form/account_form.dart`, `source_edit/source_edit_form.dart`,

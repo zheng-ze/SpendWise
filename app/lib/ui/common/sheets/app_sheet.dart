@@ -11,9 +11,6 @@ export 'package:spendwise/ui/common/sheets/app_sheet_route.dart';
 
 const _unboundedExtent = double.infinity;
 
-const _sheetMaxWidth = 440.0;
-
-const _formDesktopWidth = 340.0;
 const _noSheetInset = 0.0;
 
 // MARK: - Presentation
@@ -28,15 +25,12 @@ class AppSheetAlertSlot extends InheritedWidget {
   const AppSheetAlertSlot({
     super.key,
     required this.presentation,
-    required this.isDocked,
     required this.alerts,
     required this.alertAction,
     required super.child,
   });
 
   final AppSheetPresentation presentation;
-
-  final bool isDocked;
 
   final ValueNotifier<SheetAlertData?> alerts;
 
@@ -48,7 +42,6 @@ class AppSheetAlertSlot extends InheritedWidget {
   @override
   bool updateShouldNotify(covariant AppSheetAlertSlot oldWidget) =>
       presentation != oldWidget.presentation ||
-      isDocked != oldWidget.isDocked ||
       alerts != oldWidget.alerts ||
       alertAction != oldWidget.alertAction;
 }
@@ -64,7 +57,6 @@ class AppSheet extends StatefulWidget {
     this.inputSurface,
     this.alert,
     this.onAlertAction,
-    this.desktopMaxHeightFraction = defaultMaxHeightFraction,
     this.phoneMaxHeightFraction = defaultMaxHeightFraction,
     this.surfaceColor,
     this.dragToDismiss = false,
@@ -84,8 +76,6 @@ class AppSheet extends StatefulWidget {
   final SheetAlertData? alert;
 
   final VoidCallback? onAlertAction;
-
-  final double desktopMaxHeightFraction;
 
   final double phoneMaxHeightFraction;
 
@@ -147,26 +137,18 @@ class _AppSheetState extends State<AppSheet> {
       );
     }
     final presentation = slot.presentation;
-    final desktop = presentation == AppSheetPresentation.desktop;
-    final docked = slot.isDocked;
+    final phone = presentation == AppSheetPresentation.phone;
     final media = MediaQuery.of(context);
     final available =
         media.size.height - media.padding.top - media.viewInsets.bottom;
-    final cap =
-        (desktop
-            ? widget.desktopMaxHeightFraction
-            : widget.phoneMaxHeightFraction) *
-        available;
+    final cap = widget.phoneMaxHeightFraction * available;
     final openHeight =
         media.size.height -
         media.padding.top -
         media.padding.bottom -
         media.viewInsets.bottom;
     final hasBottom = widget.footer != null || widget.inputSurface != null;
-    final phone = presentation == AppSheetPresentation.phone;
-    final form = widget.variant == AppSheetVariant.form;
-    final showHandle = !docked && !(desktop && form);
-    final top = _SheetTop(header: widget.header, showHandle: showHandle);
+    final top = _SheetTop(header: widget.header, showHandle: phone);
     final bottom = hasBottom
         ? _SheetBottom(footer: widget.footer, inputSurface: widget.inputSurface)
         : null;
@@ -175,24 +157,17 @@ class _AppSheetState extends State<AppSheet> {
       body: widget.body,
       bottom: bottom,
     );
-    final constraints = docked
-        ? BoxConstraints(
+    final constraints = phone
+        ? BoxConstraints(maxHeight: cap, minWidth: _unboundedExtent)
+        : BoxConstraints(
             minHeight: openHeight,
             maxHeight: openHeight,
             minWidth: _unboundedExtent,
-          )
-        : desktop
-        ? BoxConstraints(
-            maxHeight: cap,
-            minWidth: form ? _formDesktopWidth : 0,
-            maxWidth: form ? _formDesktopWidth : _sheetMaxWidth,
-          )
-        : BoxConstraints(maxHeight: cap, minWidth: _unboundedExtent);
+          );
     final chrome = _SheetChrome(
       presentation: presentation,
       variant: widget.variant,
-      isDocked: docked,
-      bottomInset: docked ? _noSheetInset : media.padding.bottom,
+      bottomInset: phone ? media.padding.bottom : _noSheetInset,
       surfaceColor: widget.surfaceColor,
       child: scrollBody,
     );
@@ -291,20 +266,12 @@ class _SheetChrome extends StatelessWidget {
   const _SheetChrome({
     required this.presentation,
     required this.variant,
-    required this.isDocked,
     required this.bottomInset,
     required this.surfaceColor,
     required this.child,
   });
 
   static const _dockedDesktopPadding = EdgeInsets.all(16);
-
-  static const _formDesktopRadius = 18.0;
-
-  static const _formDesktopPadding = EdgeInsets.symmetric(
-    vertical: 16.0,
-    horizontal: 18.0,
-  );
 
   static const _formTopBorderWidth = 1.0;
 
@@ -313,8 +280,6 @@ class _SheetChrome extends StatelessWidget {
     offset: Offset(0, -8),
     blurRadius: 22.0,
   );
-
-  static const _desktopRadius = 16.0;
 
   static const _sheetTopRadius = 22.0;
 
@@ -338,8 +303,6 @@ class _SheetChrome extends StatelessWidget {
 
   final AppSheetVariant variant;
 
-  final bool isDocked;
-
   final double bottomInset;
 
   final Color? surfaceColor;
@@ -353,23 +316,18 @@ class _SheetChrome extends StatelessWidget {
     final desktop = presentation == AppSheetPresentation.desktop;
     final form = variant == AppSheetVariant.form;
     final canvas = form && Theme.of(context).brightness == Brightness.light;
-    final desktopRadius = form ? _formDesktopRadius : _desktopRadius;
     final topBorder = canvas
         ? BorderSide(color: colors.edge, width: _formTopBorderWidth)
         : BorderSide(color: colors.control, width: _topBorderWidth);
-    final radius = isDocked
+    final radius = desktop || open
         ? BorderRadius.zero
-        : desktop
-        ? BorderRadius.circular(desktopRadius)
         : const BorderRadius.vertical(top: Radius.circular(_sheetTopRadius));
-    final border = isDocked
+    final border = desktop || open
         ? Border(
             left: BorderSide(color: colors.control, width: _openBorderWidth),
           )
-        : desktop
-        ? Border.all(color: colors.control)
         : Border(top: topBorder);
-    final shadow = canvas && !isDocked && !desktop ? [_formShadow] : null;
+    final shadow = canvas && !desktop && !open ? [_formShadow] : null;
     final decoration = BoxDecoration(
       color: surfaceColor ?? (canvas ? colors.base : null),
       border: border,
@@ -383,10 +341,8 @@ class _SheetChrome extends StatelessWidget {
     final railClearance = EdgeInsets.only(
       right: clearsRail ? _openRightInset : 0,
     );
-    final padding = desktop && isDocked
+    final padding = desktop
         ? _dockedDesktopPadding
-        : form && desktop
-        ? _formDesktopPadding.add(EdgeInsets.only(bottom: bottomInset))
         : open
         ? EdgeInsets.fromLTRB(
             _openLeftPadding,

@@ -66,8 +66,9 @@ class _AccountsList extends StatelessWidget {
     final netWorth = viewState.netWorth;
     final pane = ShellPaneScope.maybeOf(context);
     final wideComposition =
-        pane?.mode == ShellLayoutMode.desktop ||
-        (pane?.mode == ShellLayoutMode.open && pane?.addPresented == false);
+        pane != null &&
+        pane.mode != ShellLayoutMode.phone &&
+        !pane.addPresented;
     final summary = ResponsiveSummaryCard(
       metrics: [
         SummaryMetric(

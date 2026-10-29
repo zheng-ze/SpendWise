@@ -61,31 +61,6 @@ Future<_Harness> _pump(WidgetTester tester, {bool bound = true}) async {
 }
 
 void main() {
-  testWidgets('detail exposure compares and coalesces before notification', (
-    tester,
-  ) async {
-    final harness = await _pump(tester);
-    var notifications = 0;
-    void onChanged() => notifications++;
-    harness.controller.addListener(onChanged);
-    addTearDown(() => harness.controller.removeListener(onChanged));
-    harness.controller.publishDetailExposure(true);
-    harness.controller.publishDetailExposure(false);
-    expect(harness.controller.exposesDetail, isFalse);
-    await tester.pump();
-    expect(notifications, 0);
-    harness.controller.publishDetailExposure(true);
-    harness.controller.publishDetailExposure(true);
-    expect(harness.controller.exposesDetail, isFalse);
-    await tester.pumpAndSettle();
-    expect(harness.controller.exposesDetail, isTrue);
-    expect(notifications, 1);
-    harness.controller.publishDetailExposure(false);
-    await tester.pumpAndSettle();
-    expect(harness.controller.exposesDetail, isFalse);
-    expect(notifications, 2);
-  }, timeout: uiTestTimeout);
-
   test('presentation controllers are local to their provider containers', () {
     final first = ProviderContainer();
     final second = ProviderContainer();

@@ -90,7 +90,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     final shellRoute = ModalRoute.of(context);
     _presentation = presentation;
     _shellRoute = shellRoute;
-    presentation?.configure(route: shellRoute, geometry: geometry);
+    presentation?.configure(route: shellRoute);
     final sheetCovered = presentation?.isCovered(shellRoute) ?? false;
     final addPresented = presentation?.hasSheets ?? false;
     final suppressNavigation = presentation?.suppressesShellNavigation ?? false;
@@ -237,7 +237,6 @@ class _DestinationStacks extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    ShellPresentationScope.read(context)?.publishDetailExposure(false);
     final selectedIndex = shellDestinations.indexOf(selected);
     final children = <Widget>[];
     for (final destination in shellDestinations) {

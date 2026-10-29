@@ -943,7 +943,7 @@ Future<void> _verifyShellAdd(WidgetTester tester, ShellLayoutMode mode) async {
   final formFinder = find.byType(EntryForm);
   final formState = tester.state(formFinder);
   final addRoute = _topSheet(tester);
-  expect(addRoute.isDocked, isTrue);
+  expect(addRoute.dimsBackground, isFalse);
   expect(find.byType(BudgetPaneBody), findsOneWidget);
   expect(find.byKey(shellDetailPaneKey), findsOneWidget);
   expect(find.byType(BudgetsRoot), findsNothing);
@@ -953,7 +953,7 @@ Future<void> _verifyShellAdd(WidgetTester tester, ShellLayoutMode mode) async {
   await tester.pumpAndSettle();
   final picker = _topSheet(tester);
   expect(picker, isNot(same(addRoute)));
-  expect(picker.isDocked, isTrue);
+  expect(picker.dimsBackground, isFalse);
   await _dismissTestSheet(tester, picker);
   expect(tester.state(formFinder), same(formState));
   expect(
@@ -981,12 +981,11 @@ Future<void> _verifySelectionUnderSheet(
   await tester.pumpAndSettle();
   expect(find.byType(BudgetsRoot), findsOneWidget);
   expect(find.byKey(shellDetailPaneKey), findsNothing);
-  expect(route.isDocked, mode == ShellLayoutMode.open);
-  expect(route.dimsBackground, mode == ShellLayoutMode.desktop);
+  expect(route.dimsBackground, isFalse);
   selection.select('b2');
   await tester.pumpAndSettle();
   expect(find.byType(BudgetsRoot), findsNothing);
-  expect(route.isDocked, isTrue);
+  expect(route.dimsBackground, isFalse);
   selection.select('b1');
   await tester.pumpAndSettle();
   expect(find.byKey(shellDetailPaneKey), findsOneWidget);
@@ -1038,7 +1037,7 @@ Future<void> _verifyUnfoldingUnderSheet(WidgetTester tester) async {
   expect(page.isActive, isFalse);
   expect(sheet.isCurrent, isTrue);
   expect(find.byKey(shellDetailPaneKey), findsOneWidget);
-  expect(sheet.isDocked, isTrue);
+  expect(sheet.dimsBackground, isFalse);
   final shellContext = tester.element(find.byType(AppShell));
   final controller = ShellPresentationScope.read(shellContext)!;
   expect(controller.isCovered(controller.shellRoute), isTrue);
@@ -1084,7 +1083,6 @@ Future<void> _verifyDirectHistorySheet(
   history.changeYear(DateTime.utc(2027));
   await tester.pumpAndSettle();
   final controller = ShellPresentationScope.read(historyContext)!;
-  expect(controller.exposesDetail, isTrue);
   late AppSheetRoute<String> sheet;
   final result = showAppSheet<String>(
     historyContext,
@@ -1098,12 +1096,10 @@ Future<void> _verifyDirectHistorySheet(
   expect(sheet.nearestNonSheetPredecessor, same(historyRoute));
   expect(controller.hasSheets, isTrue);
   expect(controller.isCovered(controller.shellRoute), isFalse);
-  expect(sheet.isDocked, mode == ShellLayoutMode.open);
-  expect(sheet.dimsBackground, mode == ShellLayoutMode.desktop);
+  expect(sheet.dimsBackground, isFalse);
   expect(sheet.barrierDismissible, isTrue);
   final sheetContext = tester.element(find.byKey(_sheetDraftKey));
   final slot = AppSheetAlertSlot.maybeOf(sheetContext)!;
-  expect(slot.isDocked, sheet.isDocked);
   expect(slot.presentation, _sheetPresentation(historyContext));
   final listContext = tester.element(
     find.byType(BudgetsRoot, skipOffstage: false),

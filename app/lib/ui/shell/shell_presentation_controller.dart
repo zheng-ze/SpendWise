@@ -2,7 +2,6 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/common/sheets/app_sheet_route.dart';
-import 'package:spendwise/ui/shell/shell_pane_geometry.dart';
 
 final shellPresentationControllerProvider =
     Provider<ShellPresentationController>((ref) {
@@ -16,40 +15,20 @@ class ShellPresentationController extends ChangeNotifier {
   bool _notificationScheduled = false;
   bool _routesDirty = false;
   bool _disposed = false;
-  bool _exposesDetail = false;
-  bool? _pendingDetailExposure;
   Route<dynamic>? _shellRoute;
-  ShellPaneGeometry? _geometry;
 
   Route<dynamic>? get shellRoute => _shellRoute;
-  ShellPaneGeometry? get geometry => _geometry;
 
-  bool get exposesDetail => _exposesDetail;
-
-  void configure({
-    required Route<dynamic>? route,
-    required ShellPaneGeometry geometry,
-  }) {
-    if (_disposed) return;
-    if (identical(_shellRoute, route) && _geometry == geometry) return;
+  void configure({required Route<dynamic>? route}) {
+    if (_disposed || identical(_shellRoute, route)) return;
     _shellRoute = route;
-    _geometry = geometry;
     routesChanged();
   }
 
   void clearShellConfiguration(Route<dynamic>? route) {
     if (_disposed || !identical(_shellRoute, route)) return;
     _shellRoute = null;
-    _geometry = null;
-    publishDetailExposure(false);
     routesChanged();
-  }
-
-  void publishDetailExposure(bool exposed) {
-    if (_disposed) return;
-    if ((_pendingDetailExposure ?? _exposesDetail) == exposed) return;
-    _pendingDetailExposure = exposed;
-    _scheduleNotification();
   }
 
   bool get hasSheets => _routes.isNotEmpty;
@@ -88,13 +67,9 @@ class ShellPresentationController extends ChangeNotifier {
       _notificationScheduled = false;
       if (_disposed) return;
       assert(_routes.every((route) => route.predecessorInitialized));
-      final exposure = _pendingDetailExposure;
-      _pendingDetailExposure = null;
-      final changed = exposure != null && exposure != _exposesDetail;
-      if (exposure != null) _exposesDetail = exposure;
-      final notify = _routesDirty || changed;
+      if (!_routesDirty) return;
       _routesDirty = false;
-      if (notify) notifyListeners();
+      notifyListeners();
     });
   }
 
@@ -103,9 +78,6 @@ class ShellPresentationController extends ChangeNotifier {
     _disposed = true;
     _routes.clear();
     _shellRoute = null;
-    _geometry = null;
-    _exposesDetail = false;
-    _pendingDetailExposure = null;
     super.dispose();
   }
 }

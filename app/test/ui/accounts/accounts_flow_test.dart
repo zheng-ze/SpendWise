@@ -385,7 +385,7 @@ void main() {
     }
   }, timeout: uiTestTimeout);
 
-  testWidgets('desktop account forms leave the Accounts summary uncompact', (
+  testWidgets('desktop account forms compact the Accounts summary like open', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1440, 900);
@@ -417,7 +417,7 @@ void main() {
     expectAccountsSummaryConfiguration(
       tester,
       container,
-      wideComposition: true,
+      wideComposition: false,
     );
     expect(
       tester
@@ -425,7 +425,7 @@ void main() {
             find.byType(SegmentedControl<MoneySegment>),
           )
           .small,
-      isFalse,
+      isTrue,
     );
   }, timeout: uiTestTimeout);
 }
@@ -499,16 +499,16 @@ Future<void> _verifyMoneyFlowRetention(
   );
   Navigator.of(context, rootNavigator: true).push(route);
   await tester.pumpAndSettle();
-  expect(route.isDocked, isTrue);
+  expect(route.dimsBackground, isFalse);
   _expectSameFlowStates(tester, states);
   container.read(moneySegmentProvider.notifier).state = MoneySegment.accounts;
   await tester.pumpAndSettle();
-  expect(route.isDocked, mode == ShellLayoutMode.open);
+  expect(route.dimsBackground, isFalse);
   expect(container.read(selectedBudgetProvider), _retainedBudgetId);
   _expectSameFlowStates(tester, states);
   container.read(moneySegmentProvider.notifier).state = MoneySegment.budgets;
   await tester.pumpAndSettle();
-  expect(route.isDocked, isTrue);
+  expect(route.dimsBackground, isFalse);
   _expectSameFlowStates(tester, states);
   route.navigator!.pop();
   await tester.pumpAndSettle();
