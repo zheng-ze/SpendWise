@@ -112,14 +112,14 @@ inner child routes pop first - and only changes its accessible label; unlabelled
 plain back control.
 
 Shared sheet composition follows installed routes rather than an Add-specific presentation provider.
-`AppSheetRoute.install` registers with the optional `ShellPresentationController` until
+`AppSheetRoute.install` registers with the optional `shellSheetOccupancyProvider` until
 `route.completed`, including exit animation. Nearest-non-AppSheet predecessor coverage preserves
 composition through picker stacks. On open and desktop, Add over the shell shifts the current exposed
 detail left while retaining the isolated list's Flow and Navigator State. Clearing selection exposes
 the list without replacing Add or losing its draft. Desktop sheets always dock in the right column, like open, using
 shared safe pane geometry, while `AppSheetPresentation.desktop` keeps desktop input behavior. A sheet over a
 foreground root page such as `BudgetLimitScreen` keeps that page as its predecessor and leaves the
-shell unshifted. (`app/lib/ui/shell/shell_presentation_controller.dart`,
+shell unshifted. (`app/lib/ui/shell/shell_sheet_occupancy.dart`,
 `app/lib/ui/shell/shell_pane_host.dart`, `app/lib/ui/shell/shell_pane_geometry.dart`,
 `app/lib/ui/common/sheets/app_sheet_route.dart`)
 

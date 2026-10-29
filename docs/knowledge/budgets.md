@@ -289,14 +289,14 @@ detail and exposes the list; restoring selection shifts the current detail, incl
 budget, while the sheet and draft remain. Inactive Money segments supply no budget pane.
 (`app/lib/ui/shell/shell_pane_host.dart`, `app/lib/ui/money/money_flow.dart`)
 
-`ShellPresentationController` distinguishes any installed/exiting sheet from shell coverage.
+`ShellSheetOccupancy` distinguishes any installed/exiting sheet from shell coverage.
 Each route records its predecessor through `didChangePrevious` and
 `nearestNonSheetPredecessor` skips nested AppSheets. Registration lasts from installation through
 `route.completed`; frame-coalesced occupancy restores the layout on the next build. Desktop
 sheets always dock like open, using the route's own `MediaQuery` and the shared geometry after the
 sidebar and safe insets; desktop presentation and input behavior remain desktop.
 (`app/lib/ui/common/sheets/app_sheet_route.dart`,
-`app/lib/ui/shell/shell_presentation_controller.dart`, `app/lib/ui/shell/shell_pane_geometry.dart`)
+`app/lib/ui/shell/shell_sheet_occupancy.dart`, `app/lib/ui/shell/shell_pane_geometry.dart`)
 
 `BudgetLimitScreen` remains a full-window root page. An AppSheet above it has that history page as
 its nearest non-AppSheet predecessor, so the shell underneath stays unshifted. The sheet is

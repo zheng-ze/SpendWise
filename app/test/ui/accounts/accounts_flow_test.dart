@@ -26,7 +26,7 @@ import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/shell_binding.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
-import 'package:spendwise/ui/shell/shell_presentation_controller.dart';
+import 'package:spendwise/ui/shell/shell_sheet_occupancy.dart';
 
 import '../../support/ui_test_timeout.dart';
 
@@ -347,7 +347,8 @@ void main() {
       await tester.pumpAndSettle();
 
       final sheetContext = tester.element(find.byType(AppSheet).last);
-      final presentation = ShellPresentationScope.read(sheetContext)!;
+      final presentation = ProviderScope.containerOf(sheetContext)
+          .read(shellSheetOccupancyProvider);
       expect(presentation.hasSheets, isTrue);
       expect(_accountsPaneScope(tester).addPresented, isTrue);
       expectAccountsSummaryConfiguration(
@@ -408,7 +409,8 @@ void main() {
     expect(find.byType(AppSheet), findsOneWidget);
     expect(find.text('New Account'), findsOneWidget);
     final sheetContext = tester.element(find.byType(AppSheet).last);
-    final presentation = ShellPresentationScope.read(sheetContext)!;
+    final presentation = ProviderScope.containerOf(sheetContext)
+        .read(shellSheetOccupancyProvider);
     expect(presentation.hasSheets, isTrue);
     expectAccountsSummaryConfiguration(
       tester,

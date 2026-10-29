@@ -12,7 +12,7 @@ import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/shell_binding.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
-import 'package:spendwise/ui/shell/shell_presentation_controller.dart';
+import 'package:spendwise/ui/shell/shell_sheet_occupancy.dart';
 import 'package:spendwise/ui/transactions/daily_list/transactions_summary.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
 
@@ -72,7 +72,9 @@ void main() {
       expect(ShellPaneScope.of(context).addPresented, isTrue);
       final shellRoute = ModalRoute.of(tester.element(find.byType(AppShell)));
       expect(
-        ShellPresentationScope.read(context)!.isCovered(shellRoute),
+        ProviderScope.containerOf(context)
+            .read(shellSheetOccupancyProvider)
+            .isCovered(shellRoute),
         isTrue,
       );
       expect(tester.state(flowFinder), same(flow));

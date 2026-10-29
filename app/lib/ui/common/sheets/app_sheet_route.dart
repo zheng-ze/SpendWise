@@ -5,7 +5,7 @@ import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
 import 'package:spendwise/ui/shell/open_rail.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
-import 'package:spendwise/ui/shell/shell_presentation_controller.dart';
+import 'package:spendwise/ui/shell/shell_sheet_occupancy.dart';
 import 'package:spendwise/ui/shell/shell_pane_geometry.dart';
 
 // MARK: - Constants
@@ -72,7 +72,7 @@ class AppSheetRoute<T> extends ModalRoute<T> {
   bool get dimsBackground => _livePresentation == AppSheetPresentation.phone;
 
   bool _disposed = false;
-  ShellPresentationController? _presentationController;
+  ShellSheetOccupancyNotifier? _occupancy;
   Route<dynamic>? _predecessor;
 
   Route<dynamic>? get nearestNonSheetPredecessor {
@@ -88,7 +88,7 @@ class AppSheetRoute<T> extends ModalRoute<T> {
     super.didChangePrevious(previousRoute);
     if (identical(_predecessor, previousRoute)) return;
     _predecessor = previousRoute;
-    _presentationController?.routesChanged();
+    _occupancy?.routesChanged();
   }
 
   @override
@@ -96,9 +96,14 @@ class AppSheetRoute<T> extends ModalRoute<T> {
     super.install();
     final context = navigator?.context;
     if (context == null) return;
-    _presentationController = ShellPresentationScope.read(context);
-    _presentationController?.register(this);
-    completed.then((_) => _presentationController?.release(this));
+    final scope = context
+        .findAncestorWidgetOfExactType<UncontrolledProviderScope>();
+    final occupancy = scope?.container.read(
+      shellSheetOccupancyProvider.notifier,
+    );
+    _occupancy = occupancy;
+    occupancy?.register(this);
+    completed.then((_) => occupancy?.release(this));
   }
 
   AppSheetPresentation resolveLive(BuildContext context) =>

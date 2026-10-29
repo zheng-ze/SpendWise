@@ -117,7 +117,7 @@ ViewModel emits for a UI action it must not decide for itself. Shared formatting
   leave the Edit and view paths unchanged. Resize replaces neither the subscription, the mount
   pickup nor the session identity.
   Add's private session controls duplicate admission and asynchronous eligibility. Shared sheet
-  occupancy comes from installed `AppSheetRoute`s through `ShellPresentationController`, rather than
+  occupancy comes from installed `AppSheetRoute`s through `shellSheetOccupancyProvider`, rather than
   an Add-specific presentation provider. A resize neither restarts the session nor invalidates the
   form or coordinator nor replaces the subscription or route, so the draft, auxiliary picker routes
   and captured Money source survive threshold crossings.
@@ -345,22 +345,24 @@ value, which then overwrites it. (issue #38)
   keeps the whole sheet reachable. The route clears the keyboard and docked placement consumes
   safe insets once. (`app/lib/ui/common/sheets/app_sheet_route.dart`,
   `app/lib/ui/common/sheets/sheet_pinned_layout.dart`)
-- **Route-owned shell presentation** - `ShellWindowBinding` places the container-local
-  `ShellPresentationController` in `ShellPresentationScope` above the root Navigator.
-  `AppSheetRoute.install` registers the route and releases it at `route.completed`, retaining
-  occupancy through exit. A created route reserves nothing before installation. Registration is
-  optional when a bare MaterialApp has no controller, preserving explicit sheet presentation.
+- **Route-owned shell presentation** - one container-local Riverpod
+  `shellSheetOccupancyProvider` holds immutable `ShellSheetOccupancy` state. `AppSheetRoute.install`
+  finds the container through its nearest `UncontrolledProviderScope`, registers the route and
+  releases it at `route.completed`, retaining occupancy through exit. A created route reserves
+  nothing before installation. Registration is a no-op when a bare MaterialApp has no provider
+  scope, preserving explicit sheet presentation.
   Each route records its actual predecessor through `didChangePrevious`, which the Navigator
   announces after a push, and `nearestNonSheetPredecessor` skips nested AppSheets. No observer or
-  foreground-page classification exists. (`app/lib/ui/shell/shell_binding.dart`,
-  `app/lib/ui/common/sheets/app_sheet_route.dart`)
-  The controller exposes installed/exiting occupancy, shell and shell coverage, which
-  `isCovered` derives from the shell's own route. Frame-coalesced notifications avoid lifecycle-time provider
-  writes. Restoration follows the next build, allowing a completion continuation to install the
+  foreground-page classification exists. (`app/lib/ui/common/sheets/app_sheet_route.dart`)
+  The state exposes installed/exiting occupancy and shell coverage, which `isCovered` derives from
+  the shell's own route. `AppShell` watches `hasSheets`, `suppressesShellNavigation` and
+  `isCovered` through `select`, and `BudgetsFlow` listens with `listenManual`. The notifier
+  publishes state from a frame callback, coalesced, because registration happens during the
+  Navigator flush. Restoration follows the next build, allowing a completion continuation to install the
   next sheet first. The shell derives open-rail suppression
   from installed routes' `showShellNavigation`; those routes render the open rail overlay. Phone
   keeps its tab bar mounted and sheets cover it. Desktop keeps one sidebar beneath the modal barrier, so tapping it dismisses the sheet
-  without selecting a destination. (`app/lib/ui/shell/shell_presentation_controller.dart`,
+  without selecting a destination. (`app/lib/ui/shell/shell_sheet_occupancy.dart`,
   `app/lib/ui/shell/app_shell.dart`, `app/lib/ui/shell/shell_pane_host.dart`)
   Sheets dismiss through their mounted route context or captured exact route. A retained Flow's
   `navigatorContext` can refer to a different Navigator. Future #425 editors must use exact-route

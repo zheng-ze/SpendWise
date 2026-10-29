@@ -2,7 +2,6 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:spendwise/ui/shell/shell_providers.dart';
-import 'package:spendwise/ui/shell/shell_presentation_controller.dart';
 
 // MARK: - ShellLayoutModeScope
 class ShellLayoutModeScope extends InheritedWidget {
@@ -59,10 +58,7 @@ class _ShellLayoutModePublisher extends ConsumerWidget {
     final mode = ref.watch(shellLayoutModeProvider);
     return ShellLayoutModeScope(
       mode: mode,
-      child: ShellPresentationScope(
-        controller: ref.watch(shellPresentationControllerProvider),
-        child: child ?? const SizedBox.shrink(),
-      ),
+      child: child ?? const SizedBox.shrink(),
     );
   }
 }

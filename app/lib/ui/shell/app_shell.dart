@@ -11,7 +11,7 @@ import 'package:spendwise/ui/shell/phone_bar.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_pane_geometry.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
-import 'package:spendwise/ui/shell/shell_presentation_controller.dart';
+import 'package:spendwise/ui/shell/shell_sheet_occupancy.dart';
 import 'package:spendwise/ui/shell/status_banner.dart';
 
 // MARK: - Constants
@@ -78,16 +78,21 @@ class _AppShellState extends ConsumerState<AppShell> {
   Widget build(BuildContext context) {
     final selected = ref.watch(selectedDestinationProvider);
     final mode = ref.watch(shellLayoutModeProvider);
-    final presentation = ShellPresentationScope.maybeOf(context);
     final geometry = resolveShellPaneGeometry(
       mode: mode,
       windowSize: MediaQuery.sizeOf(context),
       padding: MediaQuery.paddingOf(context),
     );
     final shellRoute = ModalRoute.of(context);
-    final sheetCovered = presentation?.isCovered(shellRoute) ?? false;
-    final addPresented = presentation?.hasSheets ?? false;
-    final suppressNavigation = presentation?.suppressesShellNavigation ?? false;
+    final sheetCovered = ref.watch(
+      shellSheetOccupancyProvider.select((o) => o.isCovered(shellRoute)),
+    );
+    final addPresented = ref.watch(
+      shellSheetOccupancyProvider.select((o) => o.hasSheets),
+    );
+    final suppressNavigation = ref.watch(
+      shellSheetOccupancyProvider.select((o) => o.suppressesShellNavigation),
+    );
     _ensureTicker(ref.watch(clockProvider));
 
     final open = mode == ShellLayoutMode.open;

@@ -26,7 +26,7 @@ import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/shell_binding.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
-import 'package:spendwise/ui/shell/shell_presentation_controller.dart';
+import 'package:spendwise/ui/shell/shell_sheet_occupancy.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form.dart';
 import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 
@@ -1036,7 +1036,8 @@ Future<void> _verifyUnfoldingUnderSheet(WidgetTester tester) async {
   final shellContext = tester.element(
     find.byType(AppShell, skipOffstage: false),
   );
-  final controller = ShellPresentationScope.read(shellContext)!;
+  final controller = ProviderScope.containerOf(shellContext)
+      .read(shellSheetOccupancyProvider);
   expect(controller.isCovered(ModalRoute.of(shellContext)), isTrue);
   await _dismissTestSheet(tester, sheet);
   expect(find.byType(BudgetsRoot), findsOneWidget);
@@ -1079,7 +1080,7 @@ Future<void> _verifyDirectHistorySheet(
   final history = container.read(budgetLimitViewModelProvider('b2').notifier);
   history.changeYear(DateTime.utc(2027));
   await tester.pumpAndSettle();
-  final controller = ShellPresentationScope.read(historyContext)!;
+  final occupancyContainer = ProviderScope.containerOf(historyContext);
   late AppSheetRoute<String> sheet;
   final result = showAppSheet<String>(
     historyContext,
@@ -1091,11 +1092,12 @@ Future<void> _verifyDirectHistorySheet(
   await tester.pumpAndSettle();
   await tester.enterText(find.byKey(_sheetDraftKey), 'history draft');
   expect(sheet.nearestNonSheetPredecessor, same(historyRoute));
-  expect(controller.hasSheets, isTrue);
+  final occupancy = occupancyContainer.read(shellSheetOccupancyProvider);
+  expect(occupancy.hasSheets, isTrue);
   final shellRoute = ModalRoute.of(
     tester.element(find.byType(AppShell, skipOffstage: false)),
   );
-  expect(controller.isCovered(shellRoute), isFalse);
+  expect(occupancy.isCovered(shellRoute), isFalse);
   expect(sheet.dimsBackground, isFalse);
   final sheetContext = tester.element(find.byKey(_sheetDraftKey));
   final slot = AppSheetAlertSlot.maybeOf(sheetContext)!;

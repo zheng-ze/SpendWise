@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/shell/shell_binding.dart';
-import 'package:spendwise/ui/shell/shell_presentation_controller.dart';
+import 'package:spendwise/ui/shell/shell_sheet_occupancy.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 
@@ -57,7 +57,8 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpAndSettle();
     await sheet.completed.timeout(_completionTimeout);
-    expect(harness.controller.hasSheets, isFalse);
+    await tester.pump();
+    expect(harness.occupancy.hasSheets, isFalse);
   }, timeout: uiTestTimeout);
   testWidgets(
     'phone-open resizing retains sheet draft and mounted detail State',
@@ -130,11 +131,13 @@ class _StateProbeState extends State<_StateProbe> {
 class _PaneHarness {
   final selection = ValueNotifier<String?>('first');
   late BuildContext context;
-  late ShellPresentationController controller;
+  late ProviderContainer container;
+
+  ShellSheetOccupancy get occupancy =>
+      container.read(shellSheetOccupancyProvider);
 
   Widget buildHost(BuildContext context) {
     this.context = context;
-    controller = ShellPresentationScope.maybeOf(context)!;
     return ValueListenableBuilder<String?>(
       valueListenable: selection,
       builder: (_, id, _) {
@@ -190,7 +193,7 @@ Future<_PaneHarness> _pumpPane(
     ],
   );
   addTearDown(container.dispose);
-  final harness = _PaneHarness();
+  final harness = _PaneHarness()..container = container;
   addTearDown(harness.selection.dispose);
   final shell = AppShell(
     bodies: {ShellDestination.overview: harness.buildHost},
@@ -233,7 +236,7 @@ Future<void> _verifyRetainedSlots(
   await tester.pumpAndSettle();
   expect(nested.dimsBackground, isFalse);
   await _closeSheet(tester, nested);
-  expect(harness.controller.hasSheets, isTrue);
+  expect(harness.occupancy.hasSheets, isTrue);
   expect(find.byKey(_pageKey), findsNothing);
   expect(_probe(tester, _sheetKey), same(draft));
   expect(draft.controller.text, 'kept draft');
@@ -307,7 +310,7 @@ Future<void> _verifyForeground(
   final shellRoute = ModalRoute.of(
     tester.element(find.byType(AppShell, skipOffstage: false)),
   );
-  expect(harness.controller.isCovered(shellRoute), isFalse);
+  expect(harness.occupancy.isCovered(shellRoute), isFalse);
   expect(sheet.dimsBackground, isFalse);
   await _closeSheet(tester, sheet);
   expect(find.text('foreground'), findsOneWidget);

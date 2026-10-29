@@ -19,7 +19,7 @@ import 'package:spendwise/ui/budgets/budget_list/budgets_list_view.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
 import 'package:spendwise/ui/common/base/flow_base.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
-import 'package:spendwise/ui/shell/shell_presentation_controller.dart';
+import 'package:spendwise/ui/shell/shell_sheet_occupancy.dart';
 
 // MARK: - BudgetsFlow
 class BudgetsFlow extends FlowBase<BudgetsStep> {
@@ -40,11 +40,11 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
   String? _pageBudgetID;
   final Set<ModalRoute<Object?>> _flowRemovedPages = {};
   NavigatorState? _rootNavigator;
-  ShellPresentationController? _presentation;
 
   late final ProviderSubscription<String?> _selectionSubscription;
   late final ProviderSubscription<ShellLayoutMode> _modeSubscription;
   late final ProviderSubscription<Ledger?> _ledgerSubscription;
+  late final ProviderSubscription<ShellSheetOccupancy> _occupancySubscription;
 
   ProviderSubscription<AsyncValue<BudgetFormViewState>>? _formSubscription;
   BudgetDraftKey? _openDraftKey;
@@ -69,15 +69,17 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
       if (identical(previous, next)) return;
       ref.read(selectedBudgetProvider.notifier).clear();
     });
-    _presentation = ShellPresentationScope.read(context)
-      ?..addListener(_scheduleReconcile);
+    _occupancySubscription = ref.listenManual(
+      shellSheetOccupancyProvider,
+      (_, _) => _scheduleReconcile(),
+    );
     _showBudget(ref.read(selectedBudgetProvider));
     _scheduleReconcile();
   }
 
   @override
   void dispose() {
-    _presentation?.removeListener(_scheduleReconcile);
+    _occupancySubscription.close();
     _selectionSubscription.close();
     _modeSubscription.close();
     _ledgerSubscription.close();
@@ -163,7 +165,7 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
     _removePage();
     final context = navigatorContext;
     if (wanted == null || !_destinationActive || context == null) return;
-    if (_presentation?.hasSheets ?? false) return;
+    if (ref.read(shellSheetOccupancyProvider).hasSheets) return;
     _pushPage(context, wanted);
   }
 
