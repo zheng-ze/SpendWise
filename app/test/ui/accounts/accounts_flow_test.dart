@@ -500,15 +500,18 @@ Future<void> _verifyMoneyFlowRetention(
   Navigator.of(context, rootNavigator: true).push(route);
   await tester.pumpAndSettle();
   expect(route.dimsBackground, isFalse);
+  expect(route.resolvedPresentation.bounds, isNotNull);
   _expectSameFlowStates(tester, states);
   container.read(moneySegmentProvider.notifier).state = MoneySegment.accounts;
   await tester.pumpAndSettle();
   expect(route.dimsBackground, isFalse);
+  expect(route.resolvedPresentation.bounds, isNotNull);
   expect(container.read(selectedBudgetProvider), _retainedBudgetId);
   _expectSameFlowStates(tester, states);
   container.read(moneySegmentProvider.notifier).state = MoneySegment.budgets;
   await tester.pumpAndSettle();
   expect(route.dimsBackground, isFalse);
+  expect(route.resolvedPresentation.bounds, isNotNull);
   _expectSameFlowStates(tester, states);
   route.navigator!.pop();
   await tester.pumpAndSettle();

@@ -944,6 +944,7 @@ Future<void> _verifyShellAdd(WidgetTester tester, ShellLayoutMode mode) async {
   final formState = tester.state(formFinder);
   final addRoute = _topSheet(tester);
   expect(addRoute.dimsBackground, isFalse);
+  expect(addRoute.resolvedPresentation.bounds, isNotNull);
   expect(find.byType(BudgetPaneBody), findsOneWidget);
   expect(find.byKey(shellDetailPaneKey), findsOneWidget);
   expect(find.byType(BudgetsRoot), findsNothing);
@@ -954,6 +955,7 @@ Future<void> _verifyShellAdd(WidgetTester tester, ShellLayoutMode mode) async {
   final picker = _topSheet(tester);
   expect(picker, isNot(same(addRoute)));
   expect(picker.dimsBackground, isFalse);
+  expect(picker.resolvedPresentation.bounds, isNotNull);
   await _dismissTestSheet(tester, picker);
   expect(tester.state(formFinder), same(formState));
   expect(
@@ -982,10 +984,12 @@ Future<void> _verifySelectionUnderSheet(
   expect(find.byType(BudgetsRoot), findsOneWidget);
   expect(find.byKey(shellDetailPaneKey), findsNothing);
   expect(route.dimsBackground, isFalse);
+  expect(route.resolvedPresentation.bounds, isNotNull);
   selection.select('b2');
   await tester.pumpAndSettle();
   expect(find.byType(BudgetsRoot), findsNothing);
   expect(route.dimsBackground, isFalse);
+  expect(route.resolvedPresentation.bounds, isNotNull);
   selection.select('b1');
   await tester.pumpAndSettle();
   expect(find.byKey(shellDetailPaneKey), findsOneWidget);
@@ -1038,6 +1042,7 @@ Future<void> _verifyUnfoldingUnderSheet(WidgetTester tester) async {
   expect(sheet.isCurrent, isTrue);
   expect(find.byKey(shellDetailPaneKey), findsOneWidget);
   expect(sheet.dimsBackground, isFalse);
+  expect(sheet.resolvedPresentation.bounds, isNotNull);
   final shellContext = tester.element(find.byType(AppShell));
   final controller = ShellPresentationScope.read(shellContext)!;
   expect(controller.isCovered(controller.shellRoute), isTrue);
@@ -1097,6 +1102,7 @@ Future<void> _verifyDirectHistorySheet(
   expect(controller.hasSheets, isTrue);
   expect(controller.isCovered(controller.shellRoute), isFalse);
   expect(sheet.dimsBackground, isFalse);
+  expect(sheet.resolvedPresentation.bounds, isNotNull);
   expect(sheet.barrierDismissible, isTrue);
   final sheetContext = tester.element(find.byKey(_sheetDraftKey));
   final slot = AppSheetAlertSlot.maybeOf(sheetContext)!;

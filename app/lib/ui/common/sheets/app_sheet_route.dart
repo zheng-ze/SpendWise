@@ -290,10 +290,16 @@ class _AppSheetPageState<T> extends State<_AppSheetPage<T>> {
     );
     final alertTop =
         media.padding.top + (desktop ? _desktopAlertTop : _compactAlertTop);
+    final overlayLeft = bounds == null ? _noInset : bounds.left;
+    final overlayRight = bounds == null
+        ? _noInset
+        : media.size.width - bounds.right;
     final overlay = _SheetAlertOverlay(
       alerts: widget.route._alerts,
       alertAction: widget.route._alertAction,
       alertTop: alertTop,
+      columnLeft: overlayLeft,
+      columnRight: overlayRight,
     );
 
     final navigation = widget.route.showShellNavigation && !desktop
@@ -363,6 +369,8 @@ class _SheetAlertOverlay extends StatelessWidget {
     required this.alerts,
     required this.alertAction,
     required this.alertTop,
+    required this.columnLeft,
+    required this.columnRight,
   });
 
   static const _overlayHorizontalInset = 12.0;
@@ -375,6 +383,10 @@ class _SheetAlertOverlay extends StatelessWidget {
 
   final double alertTop;
 
+  final double columnLeft;
+
+  final double columnRight;
+
   @override
   Widget build(BuildContext context) {
     final banner = ConstrainedBox(
@@ -384,8 +396,8 @@ class _SheetAlertOverlay extends StatelessWidget {
 
     return Positioned(
       top: alertTop,
-      left: _overlayHorizontalInset,
-      right: _overlayHorizontalInset,
+      left: columnLeft + _overlayHorizontalInset,
+      right: columnRight + _overlayHorizontalInset,
       child: Center(child: banner),
     );
   }
