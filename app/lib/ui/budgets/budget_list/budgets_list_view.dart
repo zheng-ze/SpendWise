@@ -67,6 +67,7 @@ class BudgetsRoot extends ConsumerWidget {
         ? ref.read(selectedBudgetProvider.notifier).clear
         : null;
     return Material(
+      color: Colors.transparent,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: dismissSelection,

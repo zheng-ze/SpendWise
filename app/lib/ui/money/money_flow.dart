@@ -15,6 +15,7 @@ import 'package:spendwise/ui/settings/plan/plan_list_screen.dart';
 import 'package:spendwise/ui/settings/plan/plan_list_view_model.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
+import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 enum MoneySegment { budgets, accounts, plans }
 
@@ -116,7 +117,9 @@ class _MoneyFlowState extends ConsumerState<MoneyFlow> {
           Expanded(child: stack),
         ],
       );
-      return SafeArea(child: Material(child: content));
+      return SafeArea(
+        child: Material(color: context.colors.base, child: content),
+      );
     }
 
     final page = ShellPaneScope.maybeOf(context) == null
