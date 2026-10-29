@@ -148,14 +148,11 @@ class AppSheetRoute<T> extends ModalRoute<T> {
     final mode = presentation == AppSheetPresentation.desktop
         ? ShellLayoutMode.desktop
         : ShellLayoutMode.open;
-    final configured = controller?.geometry;
-    final geometry = configured != null && configured.mode == mode
-        ? configured
-        : resolveShellPaneGeometry(
-            mode: mode,
-            windowSize: MediaQuery.sizeOf(context),
-            padding: MediaQuery.paddingOf(context),
-          );
+    final geometry = resolveShellPaneGeometry(
+      mode: mode,
+      windowSize: MediaQuery.sizeOf(context),
+      padding: MediaQuery.paddingOf(context),
+    );
     final resolved = _resolvePlacement(presentation, geometry, controller);
     _setResolved(resolved);
     return resolved;

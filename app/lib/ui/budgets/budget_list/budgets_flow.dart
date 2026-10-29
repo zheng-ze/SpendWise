@@ -76,7 +76,7 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final presentation = ShellPresentationScope.maybeOf(context);
+    final presentation = ShellPresentationScope.read(context);
     if (identical(_presentation, presentation)) return;
     _presentation?.removeListener(_scheduleReconcile);
     _presentation = presentation;

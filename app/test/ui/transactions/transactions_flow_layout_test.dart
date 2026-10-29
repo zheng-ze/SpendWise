@@ -5,12 +5,14 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ui/common/lists/responsive_summary_card.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/shell_binding.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/shell/shell_presentation_controller.dart';
+import 'package:spendwise/ui/transactions/daily_list/transactions_summary.dart';
 import 'package:spendwise/ui/transactions/transactions_flow.dart';
 
 import '../../support/ui_test_timeout.dart';
@@ -75,6 +77,19 @@ void main() {
       );
       expect(tester.state(flowFinder), same(flow));
       expect(tester.state(navigatorFinder), same(navigator));
+      final summary = tester.widget<TransactionsSummary>(
+        find.byType(TransactionsSummary),
+      );
+      final card = tester.widget<ResponsiveSummaryCard>(
+        find.byType(ResponsiveSummaryCard),
+      );
+      expect(summary.wideComposition, isFalse);
+      expect(card.wideComposition, isFalse);
+      expect(card.metrics.map((metric) => metric.label).toList(), [
+        'Net',
+        'Spent',
+        'Income',
+      ]);
       sheet.navigator!.pop();
       await tester.pumpAndSettle();
       await sheet.completed.timeout(_completionTimeout);
