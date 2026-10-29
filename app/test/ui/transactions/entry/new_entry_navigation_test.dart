@@ -23,18 +23,18 @@ Future<void> _tapNavigationDestination(
 }
 
 void main() {
-  testWidgets('phone navigation tap selects destination and dismisses Add', (
+  testWidgets('phone Add covers the shell tab bar without a second copy', (
     tester,
   ) async {
     final harness = await pumpShell(tester);
     await openAdd(tester, harness);
 
+    expect(find.byType(PhoneBar), findsOneWidget);
     await _tapNavigationDestination(tester, find.byType(PhoneBar));
 
-    expect(find.byType(AppSheet), findsNothing);
     expect(
       harness.container.read(selectedDestinationProvider),
-      ShellDestination.history,
+      ShellDestination.overview,
     );
   }, timeout: uiTestTimeout);
 

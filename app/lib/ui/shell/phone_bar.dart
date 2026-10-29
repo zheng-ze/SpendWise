@@ -35,15 +35,6 @@ const _addBadgeSize = 40.0;
 const _addBadgeRadius = 20.0;
 const _addIconSize = 22.0;
 const _addLabel = 'Add';
-double phoneBarNavigationHeight(BuildContext context) =>
-    _barBottomMargin +
-    2 * _barVerticalPadding +
-    2 * _barBorderWidth +
-    2 * _barItemVerticalPadding +
-    _addBadgeSize +
-    _barLabelGap +
-    MediaQuery.textScalerOf(context)
-        .scale(_barLabelFontSize * _barLabelHeightFactor);
 
 const _destinationsBeforeAdd = [
   ShellDestination.overview,

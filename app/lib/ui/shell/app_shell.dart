@@ -131,7 +131,7 @@ class _AppShellState extends ConsumerState<AppShell> {
       final body = SafeArea(top: false, bottom: false, child: row);
       return Scaffold(key: const ValueKey('sidebar-layout'), body: body);
     }
-    final phoneBar = open || suppressNavigation
+    final phoneBar = open
         ? null
         : PhoneBar(
             selected: selected,

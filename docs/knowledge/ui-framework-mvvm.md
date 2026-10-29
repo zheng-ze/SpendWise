@@ -336,7 +336,7 @@ value, which then overwrites it. (issue #38)
   confirmation dialogs are not AppSheets and stay centered. Docked desktop fills its safe right
   column and height, with no dialog cap, grab handle or rail reserve. Its presentation remains
   `desktop`, so Add input and picker content retain desktop behavior. Open standard sheets reserve 82 dp of right content space; the form variant leaves
-  that clearance outside its surface and uses a 10 dp content inset. Add clears the phone bar.
+  that clearance outside its surface and uses a 10 dp content inset. A phone sheet covers the shell's tab bar and its content respects the bottom safe area.
   The route keeps stable placement ancestry around the caller's keyed subtree through live resize.
   The phone height cap defaults to 0.66 of the available height; callers may set
   `phoneMaxHeightFraction`. Add grows the phone cap to 1.0 while the pad is visible or the
@@ -360,9 +360,9 @@ value, which then overwrites it. (issue #38)
   The controller exposes installed/exiting occupancy, shell coverage and the shell route reference,
   which `AppShell` configures on build. Frame-coalesced notifications avoid lifecycle-time provider
   writes. Restoration follows the next build, allowing a completion continuation to install the
-  next sheet first. The shell derives navigation suppression
-  from installed routes' `showShellNavigation`; those routes render the phone/open navigation
-  overlay. Desktop keeps one sidebar beneath the modal barrier, so tapping it dismisses the sheet
+  next sheet first. The shell derives open-rail suppression
+  from installed routes' `showShellNavigation`; those routes render the open rail overlay. Phone
+  keeps its tab bar mounted and sheets cover it. Desktop keeps one sidebar beneath the modal barrier, so tapping it dismisses the sheet
   without selecting a destination. (`app/lib/ui/shell/shell_presentation_controller.dart`,
   `app/lib/ui/shell/app_shell.dart`, `app/lib/ui/shell/shell_pane_host.dart`)
   Sheets dismiss through their mounted route context or captured exact route. A retained Flow's

@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
 import 'package:spendwise/ui/shell/open_rail.dart';
-import 'package:spendwise/ui/shell/phone_bar.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/shell/shell_presentation_controller.dart';
 import 'package:spendwise/ui/shell/shell_pane_geometry.dart';
@@ -266,11 +265,7 @@ class _AppSheetPageState<T> extends State<_AppSheetPage<T>> {
     );
     final bounds = resolved.bounds;
     final placementPadding = bounds == null
-        ? EdgeInsets.only(
-            bottom: widget.route.showShellNavigation && !desktop
-                ? phoneBarNavigationHeight(context)
-                : _noInset,
-          )
+        ? EdgeInsets.zero
         : EdgeInsets.fromLTRB(
             bounds.left,
             bounds.top,
@@ -302,8 +297,9 @@ class _AppSheetPageState<T> extends State<_AppSheetPage<T>> {
       columnRight: overlayRight,
     );
 
-    final navigation = widget.route.showShellNavigation && !desktop
-        ? const _ShellNavigationOverlay()
+    final open = presentation == AppSheetPresentation.open;
+    final navigation = widget.route.showShellNavigation && open
+        ? const _OpenRailOverlay()
         : null;
     return AppSheetAlertSlot(
       presentation: presentation,
@@ -314,42 +310,27 @@ class _AppSheetPageState<T> extends State<_AppSheetPage<T>> {
   }
 }
 
-class _ShellNavigationOverlay extends ConsumerWidget {
-  const _ShellNavigationOverlay();
+class _OpenRailOverlay extends ConsumerWidget {
+  const _OpenRailOverlay();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final mode = ref.watch(shellLayoutModeProvider);
     final selected = ref.watch(selectedDestinationProvider);
-    final navigation = switch (mode) {
-      ShellLayoutMode.phone => Align(
-        alignment: Alignment.bottomCenter,
-        child: PhoneBar(
-          selected: selected,
-          onDestinationSelected: (destination) =>
-              _selectAndDismiss(context, ref, destination),
-          onAdd: () {},
-        ),
+    final rail = OpenRail(
+      selected: selected,
+      onDestinationSelected: (destination) =>
+          _selectAndDismiss(context, ref, destination),
+      onAdd: () {},
+    );
+    final safeRail = SafeArea(left: false, right: false, child: rail);
+    final positioned = Align(
+      alignment: Alignment.bottomRight,
+      child: Padding(
+        padding: _railRightPadding + _railBottomPadding,
+        child: safeRail,
       ),
-      ShellLayoutMode.open => Align(
-        alignment: Alignment.bottomRight,
-        child: Padding(
-          padding: _railRightPadding + _railBottomPadding,
-          child: SafeArea(
-            left: false,
-            right: false,
-            child: OpenRail(
-              selected: selected,
-              onDestinationSelected: (destination) =>
-                  _selectAndDismiss(context, ref, destination),
-              onAdd: () {},
-            ),
-          ),
-        ),
-      ),
-      ShellLayoutMode.desktop => const SizedBox.shrink(),
-    };
-    return Material(type: MaterialType.transparency, child: navigation);
+    );
+    return Material(type: MaterialType.transparency, child: positioned);
   }
 
   void _selectAndDismiss(

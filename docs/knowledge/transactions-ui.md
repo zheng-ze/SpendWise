@@ -94,9 +94,10 @@ before awaiting the attempt. Scoped prefill applies once on the first success; R
 form attempt on the same route. It maps the shell mode to phone, open or desktop and releases its
 private session after route completion and deferred receipt cleanup.
 
-Add's phone/open route uses `showShellNavigation`: the shell suppresses its original chrome and
-the route renders the navigation overlay, whose destination action selects and dismisses the sheet.
-Phone placement clears the bar, and open form chrome clears the rail. The remaining full-window
+On phone, the Add sheet covers the shell's tab bar, which stays mounted beneath the route; the sheet
+bottom respects the safe area. Add's open route uses `showShellNavigation`: the shell suppresses its
+rail and the route renders the rail overlay, whose destination action selects and dismisses the
+sheet. Open form chrome clears the rail. The remaining full-window
 barrier consumes outside taps and dismisses. Desktop keeps the sidebar beneath that barrier;
 tapping it dismisses Add without navigating. (`app/lib/ui/transactions/entry/new_entry_presenter.dart`,
 `app/lib/ui/common/sheets/app_sheet_route.dart`, `app/lib/ui/common/sheets/app_sheet.dart`) The Add route re-resolves its
