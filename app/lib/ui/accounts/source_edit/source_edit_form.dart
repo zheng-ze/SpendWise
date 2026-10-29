@@ -11,7 +11,6 @@ import 'package:spendwise/ui/common/inputs/amount_field.dart';
 import 'package:spendwise/ui/common/feedback/error_section.dart';
 import 'package:spendwise/ui/common/pickers/app_picker_sheet.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
-import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/common/inputs/statement_day_picker.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
@@ -26,22 +25,17 @@ Future<void> showSourceEditFormSheet({
   required ProviderContainer container,
 }) async {
   AppSheetRoute<void>? route;
-  container.read(accountSheetPresentedProvider.notifier).state = true;
-  try {
-    await showAppSheet<void>(
-      context,
-      presentation: accountSheetPresentation(context),
-      presentationResolver: accountSheetPresentation,
-      onRouteCreated: (createdRoute) => route = createdRoute,
-      builder: (_) => SourceEditForm(holderID: holderID),
-    );
-    final completedRoute = route;
-    if (completedRoute == null) return;
-    await completedRoute.completed;
-    container.invalidate(sourceEditFormViewModelProvider(holderID));
-  } finally {
-    container.read(accountSheetPresentedProvider.notifier).state = false;
-  }
+  await showAppSheet<void>(
+    context,
+    presentation: accountSheetPresentation(context),
+    presentationResolver: accountSheetPresentation,
+    onRouteCreated: (createdRoute) => route = createdRoute,
+    builder: (_) => SourceEditForm(holderID: holderID),
+  );
+  final completedRoute = route;
+  if (completedRoute == null) return;
+  await completedRoute.completed;
+  container.invalidate(sourceEditFormViewModelProvider(holderID));
 }
 
 // MARK: - SourceEditForm

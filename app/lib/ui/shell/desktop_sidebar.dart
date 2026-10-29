@@ -12,7 +12,7 @@ const _sidebarKey = ValueKey('sidebar');
 
 const desktopSidebarWidth = 172.0;
 const _sidebarPadding = EdgeInsets.fromLTRB(8, 12, 8, 12);
-const _sidebarDividerWidth = 1.0;
+const sidebarDividerWidth = 1.0;
 const _wordmarkFontSize = 18.0;
 const _wordmarkPadding = EdgeInsets.fromLTRB(8, 0, 8, 16);
 const _sidebarItemPadding = EdgeInsets.symmetric(horizontal: 10, vertical: 9);
@@ -196,7 +196,7 @@ class SidebarDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return VerticalDivider(
-      width: _sidebarDividerWidth,
+      width: sidebarDividerWidth,
       color: context.colors.edge,
     );
   }

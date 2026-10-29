@@ -9,7 +9,9 @@ import 'package:spendwise/ui/shell/desktop_sidebar.dart';
 import 'package:spendwise/ui/shell/open_rail.dart';
 import 'package:spendwise/ui/shell/phone_bar.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
+import 'package:spendwise/ui/shell/shell_pane_geometry.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
+import 'package:spendwise/ui/shell/shell_sheet_occupancy.dart';
 import 'package:spendwise/ui/shell/status_banner.dart';
 
 // MARK: - Constants
@@ -23,7 +25,6 @@ const shellDestinations = [
 const _fallbackStackIndex = 0;
 const _noSafeLeftInset = 0.0;
 const _noRailGutter = 0.0;
-const _minimumSplitOffset = 0.0;
 
 Widget _emptyBody(BuildContext context) => const SizedBox.shrink();
 
@@ -77,62 +78,69 @@ class _AppShellState extends ConsumerState<AppShell> {
   Widget build(BuildContext context) {
     final selected = ref.watch(selectedDestinationProvider);
     final mode = ref.watch(shellLayoutModeProvider);
-    final newEntryPresented =
-        ref.watch(newEntryPresentationProvider) ==
-        NewEntryPresentation.presented;
-    final addPresented =
-        newEntryPresented || ref.watch(accountSheetPresentedProvider);
+    final geometry = resolveShellPaneGeometry(
+      mode: mode,
+      windowSize: MediaQuery.sizeOf(context),
+      padding: MediaQuery.paddingOf(context),
+    );
+    final shellRoute = ModalRoute.of(context);
+    final sheetCovered = ref.watch(
+      shellSheetOccupancyProvider.select((o) => o.isCovered(shellRoute)),
+    );
+    final sheetPresented = ref.watch(
+      shellSheetOccupancyProvider.select((o) => o.hasSheets),
+    );
+    final suppressNavigation = ref.watch(
+      shellSheetOccupancyProvider.select((o) => o.suppressesShellNavigation),
+    );
     _ensureTicker(ref.watch(clockProvider));
 
-    if (mode == ShellLayoutMode.desktop) {
-      return Scaffold(
-        key: const ValueKey('sidebar-layout'),
-        body: Row(
-          children: [
-            DesktopSidebar(
-              selected: selected,
-              onDestinationSelected: _select,
-              onAdd: () => _openNewEntry(context),
-            ),
-            const SidebarDivider(),
-            Expanded(
-              child: _ShellStack(
-                selected: selected,
-                bodies: widget.bodies,
-                rail: null,
-                mode: mode,
-                addPresented: addPresented,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
     final open = mode == ShellLayoutMode.open;
+    final rail = !open
+        ? null
+        : suppressNavigation
+        ? const SizedBox(width: openRailWidth)
+        : OpenRail(
+            selected: selected,
+            onDestinationSelected: _select,
+            onAdd: () => _openNewEntry(context),
+          );
+    final stack = _ShellStack(
+      selected: selected,
+      bodies: widget.bodies,
+      mode: mode,
+      sheetPresented: sheetPresented,
+      splitOffset: geometry.splitOffset,
+      sheetCovered: sheetCovered,
+      rail: rail,
+    );
+    if (mode == ShellLayoutMode.desktop) {
+      final sidebar = DesktopSidebar(
+        selected: selected,
+        onDestinationSelected: _select,
+        onAdd: () => _openNewEntry(context),
+      );
+      final row = Row(
+        children: [
+          sidebar,
+          const SidebarDivider(),
+          Expanded(child: stack),
+        ],
+      );
+      final body = SafeArea(top: false, bottom: false, child: row);
+      return Scaffold(key: const ValueKey('sidebar-layout'), body: body);
+    }
+    final phoneBar = open
+        ? null
+        : PhoneBar(
+            selected: selected,
+            onDestinationSelected: _select,
+            onAdd: () => _openNewEntry(context),
+          );
     return Scaffold(
       key: const ValueKey('mobile-layout'),
-      body: _ShellStack(
-        selected: selected,
-        bodies: widget.bodies,
-        mode: mode,
-        addPresented: addPresented,
-        rail: open
-            ? newEntryPresented
-                  ? const SizedBox(width: openRailWidth)
-                  : OpenRail(
-                      selected: selected,
-                      onDestinationSelected: _select,
-                      onAdd: () => _openNewEntry(context),
-                    )
-            : null,
-      ),
-      bottomNavigationBar: open || newEntryPresented
-          ? null
-          : PhoneBar(
-              selected: selected,
-              onDestinationSelected: _select,
-              onAdd: () => _openNewEntry(context),
-            ),
+      body: stack,
+      bottomNavigationBar: phoneBar,
     );
   }
 }
@@ -144,17 +152,22 @@ class _ShellStack extends StatelessWidget {
     required this.bodies,
     required this.rail,
     required this.mode,
-    required this.addPresented,
+    required this.sheetPresented,
+    required this.splitOffset,
+    required this.sheetCovered,
   });
 
   final ShellDestination selected;
   final Map<ShellDestination, WidgetBuilder> bodies;
   final Widget? rail;
   final ShellLayoutMode mode;
-  final bool addPresented;
+  final bool sheetPresented;
+  final double splitOffset;
+  final bool sheetCovered;
 
   @override
   Widget build(BuildContext context) {
+    final rail = this.rail;
     final stacks = _DestinationStacks(selected: selected, bodies: bodies);
     final padding = MediaQuery.paddingOf(context);
     final gutter = rail == null ? _noRailGutter : openRailGutter;
@@ -176,39 +189,40 @@ class _ShellStack extends StatelessWidget {
         : Positioned(
             right: openRailRightInset,
             bottom: openRailBottomInset,
-            child: SafeArea(
-              left: false,
-              right: false,
-              child: LayoutBuilder(
-                builder: (context, constraints) => ConstrainedBox(
-                  constraints: BoxConstraints(maxHeight: constraints.maxHeight),
-                  child: rail,
-                ),
-              ),
-            ),
+            child: _ShellRailViewport(rail: rail),
           );
-    return LayoutBuilder(
+    final content = Stack(
+      fit: StackFit.expand,
+      children: [
+        viewport,
+        StatusBanner(rightGutter: gutter),
+        ?docked,
+      ],
+    );
+    return ShellPaneScope(
+      mode: mode,
+      splitOffset: splitOffset,
+      sheetCovered: sheetCovered,
+      sheetPresented: sheetPresented,
+      child: content,
+    );
+  }
+}
+
+class _ShellRailViewport extends StatelessWidget {
+  const _ShellRailViewport({required this.rail});
+
+  final Widget rail;
+
+  @override
+  Widget build(BuildContext context) {
+    final bounded = LayoutBuilder(
       builder: (context, constraints) {
-        final padding = MediaQuery.paddingOf(context);
-        final splitOffset = (constraints.maxWidth / 2 - padding.left).clamp(
-          _minimumSplitOffset,
-          double.infinity,
-        );
-        return ShellPaneScope(
-          mode: mode,
-          splitOffset: splitOffset,
-          addPresented: addPresented,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              viewport,
-              StatusBanner(rightGutter: gutter),
-              ?docked,
-            ],
-          ),
-        );
+        final bounds = BoxConstraints(maxHeight: constraints.maxHeight);
+        return ConstrainedBox(constraints: bounds, child: rail);
       },
     );
+    return SafeArea(left: false, right: false, child: bounded);
   }
 }
 
@@ -223,18 +237,18 @@ class _DestinationStacks extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final selectedIndex = shellDestinations.indexOf(selected);
+    final children = <Widget>[];
+    for (final destination in shellDestinations) {
+      final body = (bodies[destination] ?? _emptyBody)(context);
+      final activity = DestinationActivity(
+        active: destination == selected,
+        child: body,
+      );
+      children.add(KeyedSubtree(key: ValueKey(destination), child: activity));
+    }
     return IndexedStack(
       index: selectedIndex < 0 ? _fallbackStackIndex : selectedIndex,
-      children: [
-        for (final destination in shellDestinations)
-          KeyedSubtree(
-            key: ValueKey(destination),
-            child: DestinationActivity(
-              active: destination == selected,
-              child: (bodies[destination] ?? _emptyBody)(context),
-            ),
-          ),
-      ],
+      children: children,
     );
   }
 }

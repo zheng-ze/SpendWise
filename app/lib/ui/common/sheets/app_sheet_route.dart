@@ -4,8 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/common/sheets/sheet_alert.dart';
 import 'package:spendwise/ui/shell/open_rail.dart';
-import 'package:spendwise/ui/shell/phone_bar.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
+import 'package:spendwise/ui/shell/shell_sheet_occupancy.dart';
+import 'package:spendwise/ui/shell/shell_pane_geometry.dart';
 
 // MARK: - Constants
 
@@ -42,10 +43,7 @@ class AppSheetRoute<T> extends ModalRoute<T> {
     required this.builder,
     this.showShellNavigation = false,
     this.presentationResolver,
-  }) {
-    effectivePresentation = ValueNotifier<AppSheetPresentation>(presentation);
-    effectivePresentation.addListener(_reportBarrierChange);
-  }
+  }) : _livePresentation = presentation;
 
   static const _transitionMillis = 220;
 
@@ -67,23 +65,66 @@ class AppSheetRoute<T> extends ModalRoute<T> {
 
   final AppSheetPresentation Function(BuildContext)? presentationResolver;
 
-  late final ValueNotifier<AppSheetPresentation> effectivePresentation;
+  AppSheetPresentation _livePresentation;
+
+  bool _barrierUpdateScheduled = false;
+
+  bool get dimsBackground => _livePresentation == AppSheetPresentation.phone;
 
   bool _disposed = false;
+  ShellSheetOccupancyNotifier? _occupancy;
+  Route<dynamic>? _predecessor;
+
+  Route<dynamic>? get nearestNonSheetPredecessor {
+    final predecessor = _predecessor;
+    if (predecessor is AppSheetRoute<dynamic>) {
+      return predecessor.nearestNonSheetPredecessor;
+    }
+    return predecessor;
+  }
+
+  @override
+  void didChangePrevious(Route<dynamic>? previousRoute) {
+    super.didChangePrevious(previousRoute);
+    if (identical(_predecessor, previousRoute)) return;
+    _predecessor = previousRoute;
+    _occupancy?.routesChanged();
+  }
+
+  @override
+  void install() {
+    super.install();
+    final context = navigator?.context;
+    if (context == null) return;
+    final scope = context
+        .findAncestorWidgetOfExactType<UncontrolledProviderScope>();
+    final occupancy = scope?.container.read(
+      shellSheetOccupancyProvider.notifier,
+    );
+    _occupancy = occupancy;
+    occupancy?.register(this);
+    completed.then((_) => occupancy?.release(this));
+  }
 
   AppSheetPresentation resolveLive(BuildContext context) =>
       presentationResolver?.call(context) ?? presentation;
 
-  void updateEffective(AppSheetPresentation value) {
-    if (effectivePresentation.value == value) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_disposed) return;
-      if (effectivePresentation.value == value) return;
-      effectivePresentation.value = value;
-    });
+  AppSheetPresentation syncPresentation(BuildContext context) {
+    final live = resolveLive(context);
+    if (live == _livePresentation) return live;
+    _livePresentation = live;
+    _scheduleBarrierUpdate();
+    return live;
   }
 
-  void _reportBarrierChange() => changedInternalState();
+  void _scheduleBarrierUpdate() {
+    if (_barrierUpdateScheduled) return;
+    _barrierUpdateScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _barrierUpdateScheduled = false;
+      if (!_disposed) changedInternalState();
+    });
+  }
 
   late final ValueNotifier<SheetAlertData?> _alerts =
       ValueNotifier<SheetAlertData?>(null);
@@ -101,10 +142,7 @@ class AppSheetRoute<T> extends ModalRoute<T> {
   bool get barrierDismissible => true;
 
   @override
-  Color? get barrierColor =>
-      effectivePresentation.value == AppSheetPresentation.open
-      ? _openBarrierColor
-      : _barrierColor;
+  Color? get barrierColor => dimsBackground ? _barrierColor : _openBarrierColor;
 
   @override
   String? get barrierLabel => 'Dismiss';
@@ -142,7 +180,6 @@ class AppSheetRoute<T> extends ModalRoute<T> {
   @override
   void dispose() {
     _disposed = true;
-    effectivePresentation.dispose();
     _alerts.dispose();
     _alertAction.dispose();
     super.dispose();
@@ -165,47 +202,30 @@ class _AppSheetPageState<T> extends State<_AppSheetPage<T>> {
 
   static const _compactAlertTop = 12.0;
 
-  static const _bottomAlignment = Alignment.bottomCenter;
-
-  static const _centerAlignment = Alignment.center;
-
-  static const _openAlignment = Alignment.topRight;
-
-  static const _openWidthDivisor = 2.0;
-
-  static const _noTopPadding = 0.0;
-
   @override
   Widget build(BuildContext context) {
-    final presentation = widget.route.resolveLive(context);
-    widget.route.updateEffective(presentation);
+    final presentation = widget.route.syncPresentation(context);
     final media = MediaQuery.of(context);
-    final open = presentation == AppSheetPresentation.open;
+    final phone = presentation == AppSheetPresentation.phone;
     final desktop = presentation == AppSheetPresentation.desktop;
-    final alignment = open
-        ? _openAlignment
-        : desktop
-        ? _centerAlignment
-        : _bottomAlignment;
+    final open = presentation == AppSheetPresentation.open;
     final sheet = Padding(
-      padding: EdgeInsets.only(
-        top: open ? media.padding.top : _noTopPadding,
-        bottom: media.viewInsets.bottom,
-      ),
+      padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
       child: Builder(builder: widget.route.builder),
     );
-    final positionedSheet = Padding(
-      padding: widget.route.showShellNavigation && !open && !desktop
-          ? EdgeInsets.only(bottom: phoneBarNavigationHeight(context))
-          : EdgeInsets.zero,
-      child: Align(
-        alignment: alignment,
-        child: SizedBox(
-          width: open ? media.size.width / _openWidthDivisor : null,
-          height: open ? media.size.height - media.padding.bottom : null,
-          child: sheet,
-        ),
-      ),
+    final bounds = phone ? null : _dockedBounds(media, desktop);
+    final placement = bounds ?? Offset.zero & media.size;
+    final alignment = bounds == null
+        ? Alignment.bottomCenter
+        : Alignment.topRight;
+    final sized = SizedBox(
+      width: bounds?.width,
+      height: bounds?.height,
+      child: sheet,
+    );
+    final positionedSheet = Positioned.fromRect(
+      rect: placement,
+      child: Align(alignment: alignment, child: sized),
     );
     final alertTop =
         media.padding.top + (desktop ? _desktopAlertTop : _compactAlertTop);
@@ -213,60 +233,49 @@ class _AppSheetPageState<T> extends State<_AppSheetPage<T>> {
       alerts: widget.route._alerts,
       alertAction: widget.route._alertAction,
       alertTop: alertTop,
+      bounds: bounds,
     );
-
+    final showsRail = widget.route.showShellNavigation && open;
+    final navigation = showsRail ? const _OpenRailOverlay() : null;
     return AppSheetAlertSlot(
       presentation: presentation,
       alerts: widget.route._alerts,
       alertAction: widget.route._alertAction,
-      child: Stack(
-        children: [
-          positionedSheet,
-          overlay,
-          if (widget.route.showShellNavigation && !desktop)
-            const _ShellNavigationOverlay(),
-        ],
-      ),
+      child: Stack(children: [positionedSheet, overlay, ?navigation]),
     );
+  }
+
+  Rect _dockedBounds(MediaQueryData media, bool desktop) {
+    final mode = desktop ? ShellLayoutMode.desktop : ShellLayoutMode.open;
+    return resolveShellPaneGeometry(
+      mode: mode,
+      windowSize: media.size,
+      padding: media.padding,
+    ).sheetBounds;
   }
 }
 
-class _ShellNavigationOverlay extends ConsumerWidget {
-  const _ShellNavigationOverlay();
+class _OpenRailOverlay extends ConsumerWidget {
+  const _OpenRailOverlay();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final mode = ref.watch(shellLayoutModeProvider);
     final selected = ref.watch(selectedDestinationProvider);
-    final navigation = switch (mode) {
-      ShellLayoutMode.phone => Align(
-        alignment: Alignment.bottomCenter,
-        child: PhoneBar(
-          selected: selected,
-          onDestinationSelected: (destination) =>
-              _selectAndDismiss(context, ref, destination),
-          onAdd: () {},
-        ),
+    final rail = OpenRail(
+      selected: selected,
+      onDestinationSelected: (destination) =>
+          _selectAndDismiss(context, ref, destination),
+      onAdd: () {},
+    );
+    final safeRail = SafeArea(left: false, right: false, child: rail);
+    final positioned = Align(
+      alignment: Alignment.bottomRight,
+      child: Padding(
+        padding: _railRightPadding + _railBottomPadding,
+        child: safeRail,
       ),
-      ShellLayoutMode.open => Align(
-        alignment: Alignment.bottomRight,
-        child: Padding(
-          padding: _railRightPadding + _railBottomPadding,
-          child: SafeArea(
-            left: false,
-            right: false,
-            child: OpenRail(
-              selected: selected,
-              onDestinationSelected: (destination) =>
-                  _selectAndDismiss(context, ref, destination),
-              onAdd: () {},
-            ),
-          ),
-        ),
-      ),
-      ShellLayoutMode.desktop => const SizedBox.shrink(),
-    };
-    return Material(type: MaterialType.transparency, child: navigation);
+    );
+    return Material(type: MaterialType.transparency, child: positioned);
   }
 
   void _selectAndDismiss(
@@ -286,6 +295,7 @@ class _SheetAlertOverlay extends StatelessWidget {
     required this.alerts,
     required this.alertAction,
     required this.alertTop,
+    required this.bounds,
   });
 
   static const _overlayHorizontalInset = 12.0;
@@ -298,6 +308,8 @@ class _SheetAlertOverlay extends StatelessWidget {
 
   final double alertTop;
 
+  final Rect? bounds;
+
   @override
   Widget build(BuildContext context) {
     final banner = ConstrainedBox(
@@ -305,11 +317,21 @@ class _SheetAlertOverlay extends StatelessWidget {
       child: _SheetAlertListener(alerts: alerts, alertAction: alertAction),
     );
 
+    final centered = Center(child: banner);
+    final bounds = this.bounds;
+    if (bounds == null) {
+      return Positioned(
+        top: alertTop,
+        left: _overlayHorizontalInset,
+        right: _overlayHorizontalInset,
+        child: centered,
+      );
+    }
     return Positioned(
       top: alertTop,
-      left: _overlayHorizontalInset,
-      right: _overlayHorizontalInset,
-      child: Center(child: banner),
+      left: bounds.left + _overlayHorizontalInset,
+      width: bounds.width - 2 * _overlayHorizontalInset,
+      child: centered,
     );
   }
 }

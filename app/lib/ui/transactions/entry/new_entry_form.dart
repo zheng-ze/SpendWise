@@ -18,8 +18,6 @@ import 'package:spendwise/ui/transactions/receipt_scan/receipt_scan_stop_host.da
 
 // MARK: - Visual Constants
 
-const _desktopMaxHeightFraction = 1.0;
-
 const _sectionGap = 8.0;
 
 const _segmentGap = 2.0;
@@ -202,7 +200,6 @@ class _NewEntryFormState extends State<NewEntryForm> {
         variant: AppSheetVariant.form,
         alert: widget.alert,
         onAlertAction: widget.onAlertAction,
-        desktopMaxHeightFraction: _desktopMaxHeightFraction,
       );
     }
 

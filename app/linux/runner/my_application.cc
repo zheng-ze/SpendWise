@@ -7,6 +7,9 @@
 
 #include "flutter/generated_plugin_registrant.h"
 
+static const gint kMinimumWindowWidth = 900;
+static const gint kMinimumWindowHeight = 600;
+
 struct _MyApplication {
   GtkApplication parent_instance;
   char** dart_entrypoint_arguments;
@@ -53,6 +56,12 @@ static void my_application_activate(GApplication* application) {
   }
 
   gtk_window_set_default_size(window, 1280, 720);
+
+  GdkGeometry minimum_size;
+  minimum_size.min_width = kMinimumWindowWidth;
+  minimum_size.min_height = kMinimumWindowHeight;
+  gtk_window_set_geometry_hints(window, nullptr, &minimum_size,
+                                GDK_HINT_MIN_SIZE);
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(

@@ -19,6 +19,7 @@ import 'package:spendwise/ui/budgets/budget_list/budgets_list_view.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
 import 'package:spendwise/ui/common/base/flow_base.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
+import 'package:spendwise/ui/shell/shell_sheet_occupancy.dart';
 
 // MARK: - BudgetsFlow
 class BudgetsFlow extends FlowBase<BudgetsStep> {
@@ -43,6 +44,7 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
   late final ProviderSubscription<String?> _selectionSubscription;
   late final ProviderSubscription<ShellLayoutMode> _modeSubscription;
   late final ProviderSubscription<Ledger?> _ledgerSubscription;
+  late final ProviderSubscription<ShellSheetOccupancy> _occupancySubscription;
 
   ProviderSubscription<AsyncValue<BudgetFormViewState>>? _formSubscription;
   BudgetDraftKey? _openDraftKey;
@@ -67,12 +69,17 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
       if (identical(previous, next)) return;
       ref.read(selectedBudgetProvider.notifier).clear();
     });
+    _occupancySubscription = ref.listenManual(
+      shellSheetOccupancyProvider,
+      (_, _) => _scheduleReconcile(),
+    );
     _showBudget(ref.read(selectedBudgetProvider));
     _scheduleReconcile();
   }
 
   @override
   void dispose() {
+    _occupancySubscription.close();
     _selectionSubscription.close();
     _modeSubscription.close();
     _ledgerSubscription.close();
@@ -152,12 +159,13 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
 
   void _reconcilePage() {
     final selected = ref.read(selectedBudgetProvider);
-    final open = ref.read(shellLayoutModeProvider) == ShellLayoutMode.open;
-    final wanted = open ? null : selected;
+    final phone = ref.read(shellLayoutModeProvider) == ShellLayoutMode.phone;
+    final wanted = phone ? selected : null;
     if (_pageBudgetID == wanted) return;
     _removePage();
     final context = navigatorContext;
     if (wanted == null || !_destinationActive || context == null) return;
+    if (ref.read(shellSheetOccupancyProvider).hasSheets) return;
     _pushPage(context, wanted);
   }
 

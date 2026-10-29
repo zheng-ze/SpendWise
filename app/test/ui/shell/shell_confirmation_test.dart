@@ -6,14 +6,15 @@ import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/sync/hosted_sync_status.dart';
 import 'package:spendwise/ui/common/base/flow_base.dart';
 import 'package:spendwise/ui/common/feedback/delete_confirmation.dart';
+import 'package:spendwise/ui/accounts/account_sheet_presentation.dart';
 import 'package:spendwise/ui/common/sheets/app_sheet.dart';
 import 'package:spendwise/ui/settings/recycle_bin/recycle_bin_purge_dialog.dart';
 import 'package:spendwise/ui/settings/recycle_bin/recycle_bin_view_model.dart';
-import 'package:spendwise/ui/shell/app_shell.dart';
-import 'package:spendwise/ui/shell/shell_binding.dart';
 import 'package:spendwise/ui/shell/shell_confirmation.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
+import 'package:spendwise/ui/shell/shell_pane_host.dart';
 
+import '../../support/shell_sheet_harness.dart';
 import '../../support/ui_test_timeout.dart';
 
 const _openSize = Size(960, 720);
@@ -54,9 +55,7 @@ Future<ProviderContainer> _pumpBoundShell(
   required Size size,
   Map<ShellDestination, WidgetBuilder>? bodies,
 }) async {
-  tester.view.physicalSize = size;
-  tester.view.devicePixelRatio = 1;
-  addTearDown(tester.view.reset);
+  useShellWindow(tester, size);
   final container = ProviderContainer(
     overrides: [
       hostedSyncStatusProvider.overrideWithValue(const HostedSyncReady()),
@@ -66,18 +65,11 @@ Future<ProviderContainer> _pumpBoundShell(
     ],
   );
   addTearDown(container.dispose);
-  await tester.pumpWidget(
-    UncontrolledProviderScope(
-      container: container,
-      child: MaterialApp(
-        builder: buildShellAppContent,
-        home: AppShell(bodies: bodies ?? _probeBodies()),
-      ),
-    ),
-  );
-  await tester.pumpAndSettle();
+  await pumpShellApp(tester, container, bodies: bodies ?? _probeBodies());
   return container;
 }
+
+Widget _confirmationDetail(BuildContext context) => const Text('detail probe');
 
 Future<bool?> _openTestDialog(BuildContext context) {
   return showShellConfirmation<bool>(
@@ -146,19 +138,27 @@ void main() {
   testWidgets('Add route confirmation retains its draft through resize', (
     tester,
   ) async {
-    final container = await _pumpBoundShell(tester, size: _openSize);
+    final bodies = _probeBodies();
+    bodies[ShellDestination.overview] = (_) => ShellPaneHost(
+      detail: const ShellDetail(
+        id: 'confirmation-detail',
+        title: 'Detail',
+        bodyBuilder: _confirmationDetail,
+      ),
+      pageBuilder: (_, _) => const _ProbeFlow(label: 'overview probe'),
+    );
+    final container = await _pumpBoundShell(
+      tester,
+      size: _openSize,
+      bodies: bodies,
+    );
     final pageContext = tester.element(find.text('overview probe'));
     Future<bool?>? confirmation;
     var draft = '';
     final addRoute = showAppSheet<void>(
       pageContext,
       presentation: AppSheetPresentation.open,
-      presentationResolver: (context) =>
-          switch (ShellLayoutModeScope.maybeOf(context)) {
-            ShellLayoutMode.open => AppSheetPresentation.open,
-            ShellLayoutMode.desktop => AppSheetPresentation.desktop,
-            _ => AppSheetPresentation.phone,
-          },
+      presentationResolver: accountSheetPresentation,
       builder: (routeContext) => StatefulBuilder(
         builder: (context, setState) => Material(
           child: Column(
