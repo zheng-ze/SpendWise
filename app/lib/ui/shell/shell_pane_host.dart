@@ -13,7 +13,6 @@ const shellDetailCloseKey = ValueKey('shell-detail-close');
 const _detailHeaderPadding = EdgeInsets.fromLTRB(16, 14, 16, 12);
 const _detailBodyPadding = EdgeInsets.fromLTRB(16, 0, 16, 16);
 const _detailHeaderGap = 8.0;
-const _detailHeaderActionRunGap = 6.0;
 const _detailSubtitleGap = 2.0;
 const _detailCloseIconSize = 18.0;
 const _detailDividerWidth = 1.0;
@@ -304,27 +303,23 @@ class _DetailHeader extends StatelessWidget {
             icon: Icon(Icons.close, size: _detailCloseIconSize),
             label: const Text('Close'),
           );
-    return Padding(
-      padding: _detailHeaderPadding,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: title),
-              if (closeButton != null) const SizedBox(width: _detailHeaderGap),
-              ?closeButton,
-            ],
-          ),
-          if (detail.headerActions.isNotEmpty)
-            Wrap(
-              spacing: _detailHeaderGap,
-              runSpacing: _detailHeaderActionRunGap,
-              children: detail.headerActions,
-            ),
-        ],
-      ),
+    final actions = [
+      for (final action in detail.headerActions) ...[
+        const SizedBox(width: _detailHeaderGap),
+        action,
+      ],
+      if (closeButton != null) ...[
+        const SizedBox(width: _detailHeaderGap),
+        closeButton,
+      ],
+    ];
+    final row = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: title),
+        ...actions,
+      ],
     );
+    return Padding(padding: _detailHeaderPadding, child: row);
   }
 }
