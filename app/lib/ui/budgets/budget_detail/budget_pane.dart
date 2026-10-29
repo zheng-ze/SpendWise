@@ -38,8 +38,8 @@ typedef BudgetPane = ({ShellDetail detail, VoidCallback close});
 
 final budgetPaneProvider = Provider.autoDispose<BudgetPane?>((ref) {
   final budgetID = ref.watch(selectedBudgetProvider);
-  final open = ref.watch(shellLayoutModeProvider) == ShellLayoutMode.open;
-  if (budgetID == null || !open) return null;
+  final phone = ref.watch(shellLayoutModeProvider) == ShellLayoutMode.phone;
+  if (budgetID == null || phone) return null;
   final header = ref.watch(budgetPaneHeaderProvider(budgetID));
   void requestEdit() => ref
       .read(budgetDetailViewModelProvider(budgetID).notifier)

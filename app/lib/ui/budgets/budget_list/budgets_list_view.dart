@@ -63,7 +63,7 @@ class BudgetsRoot extends ConsumerWidget {
       error: (error, _) =>
           BudgetListError(error: error, onRetry: viewModel.retry),
     );
-    final dismissSelection = open && !addPresented
+    final dismissSelection = (open || desktop) && !addPresented
         ? ref.read(selectedBudgetProvider.notifier).clear
         : null;
     return Material(

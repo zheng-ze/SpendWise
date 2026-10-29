@@ -13,6 +13,7 @@ import 'package:spendwise/ui/accounts/money_navigation.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_screen.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_detail_view_model.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_limit_screen.dart';
+import 'package:spendwise/ui/budgets/budget_detail/budget_pane.dart';
 import 'package:spendwise/ui/budgets/budget_detail/budget_limit_view_model.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_form.dart';
 import 'package:spendwise/ui/budgets/budget_list/budget_selection.dart';
@@ -25,6 +26,9 @@ import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/shell_binding.dart';
 import 'package:spendwise/ui/shell/shell_pane_host.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
+import 'package:spendwise/ui/shell/shell_presentation_controller.dart';
+import 'package:spendwise/ui/transactions/entry/entry_form.dart';
+import 'package:spendwise/ui/transactions/entry/entry_form_view_model.dart';
 
 import '../../../support/ui_test_timeout.dart';
 
@@ -201,6 +205,46 @@ void _selectSegment(ProviderContainer container, MoneySegment segment) {
 }
 
 void main() {
+  testWidgets('desktop empty list space closes the retained pane', (
+    tester,
+  ) async {
+    final container = await _pumpShell(tester, mode: ShellLayoutMode.desktop);
+    await _tapBudget(tester, 'b2');
+    await tester.tap(find.text('Category budgets'));
+    await tester.pumpAndSettle();
+    expect(container.read(selectedBudgetProvider), isNull);
+    expect(find.byKey(shellDetailPaneKey), findsNothing);
+    expect(find.byKey(shellDetailCloseKey), findsNothing);
+  }, timeout: uiTestTimeout);
+
+  for (final mode in [ShellLayoutMode.open, ShellLayoutMode.desktop]) {
+    testWidgets(
+      '${mode.name} shell Add retains the pane and draft through a picker',
+      (tester) => _verifyShellAdd(tester, mode),
+      timeout: uiTestTimeout,
+    );
+    testWidgets(
+      '${mode.name} selection changes derive sheet fallback and re-shift',
+      (tester) => _verifySelectionUnderSheet(tester, mode),
+      timeout: uiTestTimeout,
+    );
+  }
+  testWidgets(
+    'folding defers a new phone page until the last sheet completes',
+    _verifyDeferredPhonePage,
+    timeout: uiTestTimeout,
+  );
+  testWidgets(
+    'unfolding removes a phone page beneath its live sheet',
+    _verifyUnfoldingUnderSheet,
+    timeout: uiTestTimeout,
+  );
+  testWidgets(
+    'last sheet completion respects the current Money segment',
+    _verifyInactiveDeferredPhonePage,
+    timeout: uiTestTimeout,
+  );
+
   testWidgets(
     'open selection shows one pane and selecting another budget replaces it',
     (tester) async {
@@ -272,12 +316,18 @@ void main() {
     timeout: uiTestTimeout,
   );
 
-  testWidgets('desktop presents the selected budget as a page', (tester) async {
+  testWidgets('desktop retains a selected budget pane and Back clears it', (
+    tester,
+  ) async {
     final container = await _pumpShell(tester, mode: ShellLayoutMode.desktop);
     await _tapBudget(tester, 'b2');
-    expect(find.byType(BudgetDetailScreen), findsOneWidget);
-    expect(find.byKey(shellDetailPaneKey), findsNothing);
+    expect(find.byType(BudgetDetailScreen), findsNothing);
+    expect(find.byKey(shellDetailPaneKey), findsOneWidget);
     expect(container.read(selectedBudgetProvider), 'b2');
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(container.read(selectedBudgetProvider), isNull);
+    expect(find.byKey(shellDetailPaneKey), findsNothing);
   }, timeout: uiTestTimeout);
 
   testWidgets(
@@ -315,7 +365,7 @@ void main() {
   );
 
   testWidgets(
-    'Add hides the pane while the selection and detail owners remain',
+    'a sheet shifts the pane while selection and detail owners remain',
     (tester) async {
       final container = await _pumpShell(tester, mode: ShellLayoutMode.open);
       await _tapBudget(tester, 'b2');
@@ -330,7 +380,8 @@ void main() {
         rootNavigator: true,
       ).push(sheet);
       await tester.pumpAndSettle();
-      expect(find.byKey(shellDetailPaneKey), findsNothing);
+      expect(find.byKey(shellDetailPaneKey), findsOneWidget);
+      expect(find.byType(BudgetsRoot), findsNothing);
       expect(container.read(selectedBudgetProvider), 'b2');
       expect(container.exists(budgetDetailViewModelProvider('b2')), isTrue);
       expect(container.exists(budgetDetailContextProvider('b2')), isTrue);
@@ -344,7 +395,7 @@ void main() {
   );
 
   testWidgets(
-    'a ledger commit made while Add hides the pane is visible on return',
+    'a ledger commit made while the pane is shifted is visible on return',
     (tester) async {
       final container = await _pumpShell(tester, mode: ShellLayoutMode.open);
       await _tapBudget(tester, 'b2');
@@ -597,7 +648,8 @@ void main() {
     expect(container.read(budgetDetailContextProvider('b2')), before);
     container.read(_modeFixture.notifier).state = ShellLayoutMode.desktop;
     await tester.pumpAndSettle();
-    expect(find.byType(BudgetDetailScreen), findsOneWidget);
+    expect(find.byType(BudgetDetailScreen), findsNothing);
+    expect(find.byKey(shellDetailPaneKey), findsOneWidget);
     expect(container.read(selectedBudgetProvider), 'b2');
     expect(container.read(budgetDetailContextProvider('b2')), before);
   }, timeout: uiTestTimeout);
@@ -634,25 +686,27 @@ void main() {
     expect(container.read(selectedBudgetProvider), 'b1');
   }, timeout: uiTestTimeout);
 
-  testWidgets('empty list space keeps a phone or desktop selection', (
-    tester,
-  ) async {
-    final container = _container(ledger: _ledger());
-    final app = MaterialApp(home: Scaffold(body: const BudgetsRoot()));
-    await tester.pumpWidget(
-      UncontrolledProviderScope(container: container, child: app),
-    );
-    await tester.pumpAndSettle();
-    await _tapBudget(tester, 'b2');
-    await tester.tap(find.text('Category budgets'));
-    await tester.pumpAndSettle();
-    expect(container.read(selectedBudgetProvider), 'b2');
-    container.read(_modeFixture.notifier).state = ShellLayoutMode.desktop;
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Category budgets'));
-    await tester.pumpAndSettle();
-    expect(container.read(selectedBudgetProvider), 'b2');
-  }, timeout: uiTestTimeout);
+  testWidgets(
+    'empty list space keeps phone selection and clears desktop selection',
+    (tester) async {
+      final container = _container(ledger: _ledger());
+      final app = MaterialApp(home: Scaffold(body: const BudgetsRoot()));
+      await tester.pumpWidget(
+        UncontrolledProviderScope(container: container, child: app),
+      );
+      await tester.pumpAndSettle();
+      await _tapBudget(tester, 'b2');
+      await tester.tap(find.text('Category budgets'));
+      await tester.pumpAndSettle();
+      expect(container.read(selectedBudgetProvider), 'b2');
+      container.read(_modeFixture.notifier).state = ShellLayoutMode.desktop;
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Category budgets'));
+      await tester.pumpAndSettle();
+      expect(container.read(selectedBudgetProvider), isNull);
+    },
+    timeout: uiTestTimeout,
+  );
 
   testWidgets('an inactive limit Step is retained until Budgets returns', (
     tester,
@@ -827,4 +881,173 @@ void main() {
     },
     timeout: uiTestTimeout,
   );
+}
+
+const _sheetDraftKey = ValueKey('sheet-draft');
+const _sheetCompletionTimeout = Duration(seconds: 5);
+
+AppSheetPresentation _sheetPresentation(BuildContext context) =>
+    switch (ShellLayoutModeScope.of(context)) {
+      ShellLayoutMode.phone => AppSheetPresentation.phone,
+      ShellLayoutMode.open => AppSheetPresentation.open,
+      ShellLayoutMode.desktop => AppSheetPresentation.desktop,
+    };
+
+AppSheetRoute<void> _pushTestSheet(WidgetTester tester) {
+  final navigator = _rootNavigator(tester);
+  final route = AppSheetRoute<void>(
+    presentation: _sheetPresentation(navigator.context),
+    presentationResolver: _sheetPresentation,
+    builder: (_) => const AppSheet(
+      header: Text('Draft'),
+      body: TextField(key: _sheetDraftKey),
+    ),
+  );
+  navigator.push(route);
+  return route;
+}
+
+AppSheetRoute<dynamic> _topSheet(WidgetTester tester) {
+  final context = tester.element(find.byType(AppSheet).last);
+  final route = ModalRoute.of(context);
+  if (route is AppSheetRoute<dynamic>) return route;
+  throw StateError('Expected an AppSheet route');
+}
+
+Future<void> _dismissTestSheet(
+  WidgetTester tester,
+  AppSheetRoute<dynamic> route,
+) async {
+  route.navigator!.pop();
+  await tester.pumpAndSettle();
+  await route.completed.timeout(_sheetCompletionTimeout);
+}
+
+Future<void> _verifyShellAdd(WidgetTester tester, ShellLayoutMode mode) async {
+  final container = await _pumpShell(tester, mode: mode);
+  await _tapBudget(tester, 'b2');
+  final label = mode == ShellLayoutMode.desktop ? 'Add entry' : 'Add';
+  await tester.tap(find.text(label));
+  await tester.pumpAndSettle();
+  final formFinder = find.byType(EntryForm);
+  final formState = tester.state(formFinder);
+  final addRoute = _topSheet(tester);
+  expect(addRoute.isDocked, isTrue);
+  expect(find.byType(BudgetPaneBody), findsOneWidget);
+  expect(find.byKey(shellDetailPaneKey), findsOneWidget);
+  expect(find.byType(BudgetsRoot), findsNothing);
+  final form = container.read(entryFormViewModelProvider(null).notifier);
+  form.setName('kept draft');
+  form.requestPickCategory();
+  await tester.pumpAndSettle();
+  final picker = _topSheet(tester);
+  expect(picker, isNot(same(addRoute)));
+  expect(picker.isDocked, isTrue);
+  await _dismissTestSheet(tester, picker);
+  expect(tester.state(formFinder), same(formState));
+  expect(
+    container.read(entryFormViewModelProvider(null)).requireValue.nameText,
+    'kept draft',
+  );
+  await _dismissTestSheet(tester, addRoute);
+  expect(find.byType(BudgetsRoot), findsOneWidget);
+  expect(find.byKey(shellDetailPaneKey), findsOneWidget);
+  expect(container.read(selectedBudgetProvider), 'b2');
+}
+
+Future<void> _verifySelectionUnderSheet(
+  WidgetTester tester,
+  ShellLayoutMode mode,
+) async {
+  final container = await _pumpShell(tester, mode: mode);
+  await _tapBudget(tester, 'b2');
+  final route = _pushTestSheet(tester);
+  await tester.pumpAndSettle();
+  await tester.enterText(find.byKey(_sheetDraftKey), 'retained draft');
+  final draft = tester.state(find.byKey(_sheetDraftKey));
+  final selection = container.read(selectedBudgetProvider.notifier);
+  selection.clear();
+  await tester.pumpAndSettle();
+  expect(find.byType(BudgetsRoot), findsOneWidget);
+  expect(find.byKey(shellDetailPaneKey), findsNothing);
+  expect(route.isDocked, mode == ShellLayoutMode.open);
+  expect(route.dimsBackground, mode == ShellLayoutMode.desktop);
+  selection.select('b2');
+  await tester.pumpAndSettle();
+  expect(find.byType(BudgetsRoot), findsNothing);
+  expect(route.isDocked, isTrue);
+  selection.select('b1');
+  await tester.pumpAndSettle();
+  expect(find.byKey(shellDetailPaneKey), findsOneWidget);
+  expect(container.read(selectedBudgetProvider), 'b1');
+  expect(tester.state(find.byKey(_sheetDraftKey)), same(draft));
+  expect(find.text('retained draft'), findsOneWidget);
+  await _dismissTestSheet(tester, route);
+  expect(find.byType(BudgetsRoot), findsOneWidget);
+  expect(container.read(selectedBudgetProvider), 'b1');
+}
+
+Future<void> _verifyDeferredPhonePage(WidgetTester tester) async {
+  final container = await _pumpShell(tester, mode: ShellLayoutMode.open);
+  await _tapBudget(tester, 'b2');
+  final sheet = _pushTestSheet(tester);
+  await tester.pumpAndSettle();
+  container.read(_modeFixture.notifier).state = ShellLayoutMode.phone;
+  await tester.pumpAndSettle();
+  expect(find.byType(BudgetDetailScreen), findsNothing);
+  expect(sheet.isCurrent, isTrue);
+  final nested = _pushTestSheet(tester);
+  await tester.pumpAndSettle();
+  await _dismissTestSheet(tester, nested);
+  expect(find.byType(BudgetDetailScreen), findsNothing);
+  expect(sheet.isCurrent, isTrue);
+  container.read(selectedBudgetProvider.notifier).select('b1');
+  await tester.pumpAndSettle();
+  expect(find.byType(BudgetDetailScreen), findsNothing);
+  await _dismissTestSheet(tester, sheet);
+  expect(find.byType(BudgetDetailScreen), findsOneWidget);
+  expect(container.read(selectedBudgetProvider), 'b1');
+  container.read(_modeFixture.notifier).state = ShellLayoutMode.open;
+  await tester.pumpAndSettle();
+  expect(find.byType(BudgetDetailScreen), findsNothing);
+  expect(find.byKey(shellDetailPaneKey), findsOneWidget);
+}
+
+Future<void> _verifyUnfoldingUnderSheet(WidgetTester tester) async {
+  final container = await _pumpShell(tester, mode: ShellLayoutMode.phone);
+  await _tapBudget(tester, 'b2');
+  final pageContext = tester.element(find.byType(BudgetDetailScreen));
+  final page = ModalRoute.of(pageContext)!;
+  final sheet = _pushTestSheet(tester);
+  await tester.pumpAndSettle();
+  expect(sheet.nearestNonSheetPredecessor, same(page));
+  expect(page.isActive, isTrue);
+  container.read(_modeFixture.notifier).state = ShellLayoutMode.open;
+  await tester.pumpAndSettle();
+  expect(page.isActive, isFalse);
+  expect(sheet.isCurrent, isTrue);
+  expect(find.byKey(shellDetailPaneKey), findsOneWidget);
+  expect(sheet.isDocked, isTrue);
+  final shellContext = tester.element(find.byType(AppShell));
+  final controller = ShellPresentationScope.read(shellContext)!;
+  expect(controller.isCovered(controller.shellRoute), isTrue);
+  await _dismissTestSheet(tester, sheet);
+  expect(find.byType(BudgetsRoot), findsOneWidget);
+  expect(container.read(selectedBudgetProvider), 'b2');
+}
+
+Future<void> _verifyInactiveDeferredPhonePage(WidgetTester tester) async {
+  final container = await _pumpShell(tester, mode: ShellLayoutMode.open);
+  await _tapBudget(tester, 'b2');
+  final sheet = _pushTestSheet(tester);
+  await tester.pumpAndSettle();
+  container.read(_modeFixture.notifier).state = ShellLayoutMode.phone;
+  container.read(moneySegmentProvider.notifier).state = MoneySegment.accounts;
+  await tester.pumpAndSettle();
+  await _dismissTestSheet(tester, sheet);
+  expect(find.byType(BudgetDetailScreen), findsNothing);
+  expect(container.read(selectedBudgetProvider), 'b2');
+  container.read(moneySegmentProvider.notifier).state = MoneySegment.budgets;
+  await tester.pumpAndSettle();
+  expect(find.byType(BudgetDetailScreen), findsOneWidget);
 }

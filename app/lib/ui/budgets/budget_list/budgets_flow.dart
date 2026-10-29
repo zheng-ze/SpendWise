@@ -19,6 +19,7 @@ import 'package:spendwise/ui/budgets/budget_list/budgets_list_view.dart';
 import 'package:spendwise/ui/budgets/budget_list/budgets_list_view_model.dart';
 import 'package:spendwise/ui/common/base/flow_base.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
+import 'package:spendwise/ui/shell/shell_presentation_controller.dart';
 
 // MARK: - BudgetsFlow
 class BudgetsFlow extends FlowBase<BudgetsStep> {
@@ -39,6 +40,7 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
   String? _pageBudgetID;
   final Set<ModalRoute<Object?>> _flowRemovedPages = {};
   NavigatorState? _rootNavigator;
+  ShellPresentationController? _presentation;
 
   late final ProviderSubscription<String?> _selectionSubscription;
   late final ProviderSubscription<ShellLayoutMode> _modeSubscription;
@@ -72,7 +74,19 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final presentation = ShellPresentationScope.maybeOf(context);
+    if (identical(_presentation, presentation)) return;
+    _presentation?.removeListener(_scheduleReconcile);
+    _presentation = presentation;
+    _presentation?.addListener(_scheduleReconcile);
+    _scheduleReconcile();
+  }
+
+  @override
   void dispose() {
+    _presentation?.removeListener(_scheduleReconcile);
     _selectionSubscription.close();
     _modeSubscription.close();
     _ledgerSubscription.close();
@@ -152,12 +166,13 @@ class _BudgetsFlowState extends FlowBaseState<BudgetsStep, BudgetsFlow> {
 
   void _reconcilePage() {
     final selected = ref.read(selectedBudgetProvider);
-    final open = ref.read(shellLayoutModeProvider) == ShellLayoutMode.open;
-    final wanted = open ? null : selected;
+    final phone = ref.read(shellLayoutModeProvider) == ShellLayoutMode.phone;
+    final wanted = phone ? selected : null;
     if (_pageBudgetID == wanted) return;
     _removePage();
     final context = navigatorContext;
     if (wanted == null || !_destinationActive || context == null) return;
+    if (_presentation?.hasSheets ?? false) return;
     _pushPage(context, wanted);
   }
 

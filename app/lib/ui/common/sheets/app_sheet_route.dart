@@ -7,6 +7,7 @@ import 'package:spendwise/ui/shell/open_rail.dart';
 import 'package:spendwise/ui/shell/phone_bar.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
 import 'package:spendwise/ui/shell/shell_presentation_controller.dart';
+import 'package:spendwise/ui/shell/shell_pane_geometry.dart';
 
 // MARK: - Constants
 
@@ -46,6 +47,12 @@ class AppSheetRouteObserver extends NavigatorObserver {
   }
 }
 
+typedef AppSheetResolvedPresentation = ({
+  AppSheetPresentation presentation,
+  bool isDocked,
+  Rect? bounds,
+});
+
 class AppSheetRoute<T> extends ModalRoute<T> {
   AppSheetRoute({
     required this.presentation,
@@ -53,8 +60,11 @@ class AppSheetRoute<T> extends ModalRoute<T> {
     this.showShellNavigation = false,
     this.presentationResolver,
   }) {
-    effectivePresentation = ValueNotifier<AppSheetPresentation>(presentation);
-    effectivePresentation.addListener(_reportBarrierChange);
+    _resolvedPresentation = (
+      presentation: presentation,
+      isDocked: presentation == AppSheetPresentation.open,
+      bounds: null,
+    );
   }
 
   static const _transitionMillis = 220;
@@ -77,7 +87,14 @@ class AppSheetRoute<T> extends ModalRoute<T> {
 
   final AppSheetPresentation Function(BuildContext)? presentationResolver;
 
-  late final ValueNotifier<AppSheetPresentation> effectivePresentation;
+  late AppSheetResolvedPresentation _resolvedPresentation;
+
+  AppSheetResolvedPresentation get resolvedPresentation =>
+      _resolvedPresentation;
+  bool _barrierUpdateScheduled = false;
+
+  bool get isDocked => resolvedPresentation.isDocked;
+  bool get dimsBackground => !isDocked;
 
   bool _disposed = false;
   ShellPresentationController? _presentationController;
@@ -101,6 +118,7 @@ class AppSheetRoute<T> extends ModalRoute<T> {
     }
     _predecessorInitialized = true;
     _predecessor = previousRoute;
+    _refreshPlacement();
     _presentationController?.routesChanged();
   }
 
@@ -117,22 +135,76 @@ class AppSheetRoute<T> extends ModalRoute<T> {
     if (context == null) return;
     _presentationController = ShellPresentationScope.read(context);
     _presentationController?.register(this);
+    _presentationController?.addListener(_refreshPlacement);
     completed.then((_) => _presentationController?.release(this));
   }
 
   AppSheetPresentation resolveLive(BuildContext context) =>
       presentationResolver?.call(context) ?? presentation;
 
-  void updateEffective(AppSheetPresentation value) {
-    if (effectivePresentation.value == value) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_disposed) return;
-      if (effectivePresentation.value == value) return;
-      effectivePresentation.value = value;
-    });
+  AppSheetResolvedPresentation resolvePresentation(BuildContext context) {
+    final presentation = resolveLive(context);
+    final controller = ShellPresentationScope.maybeOf(context);
+    final mode = presentation == AppSheetPresentation.desktop
+        ? ShellLayoutMode.desktop
+        : ShellLayoutMode.open;
+    final configured = controller?.geometry;
+    final geometry = configured != null && configured.mode == mode
+        ? configured
+        : resolveShellPaneGeometry(
+            mode: mode,
+            windowSize: MediaQuery.sizeOf(context),
+            padding: MediaQuery.paddingOf(context),
+          );
+    final resolved = _resolvePlacement(presentation, geometry, controller);
+    _setResolved(resolved);
+    return resolved;
   }
 
-  void _reportBarrierChange() => changedInternalState();
+  AppSheetResolvedPresentation _resolvePlacement(
+    AppSheetPresentation presentation,
+    ShellPaneGeometry geometry,
+    ShellPresentationController? controller,
+  ) {
+    final shellRoute = controller?.shellRoute;
+    final coversShell =
+        shellRoute != null && identical(nearestNonSheetPredecessor, shellRoute);
+    final desktopDocked =
+        presentation == AppSheetPresentation.desktop &&
+        coversShell &&
+        (controller?.exposesDetail ?? false);
+    final docked = presentation == AppSheetPresentation.open || desktopDocked;
+    return (
+      presentation: presentation,
+      isDocked: docked,
+      bounds: docked ? geometry.sheetBounds : null,
+    );
+  }
+
+  void _refreshPlacement() {
+    if (_disposed || !_predecessorInitialized) return;
+    final controller = _presentationController;
+    final geometry = controller?.geometry;
+    if (geometry == null) return;
+    final presentation = resolvedPresentation.presentation;
+    final resolved = _resolvePlacement(presentation, geometry, controller);
+    _setResolved(resolved);
+  }
+
+  void _setResolved(AppSheetResolvedPresentation resolved) {
+    if (resolvedPresentation == resolved) return;
+    _resolvedPresentation = resolved;
+    _scheduleBarrierUpdate();
+  }
+
+  void _scheduleBarrierUpdate() {
+    if (_barrierUpdateScheduled) return;
+    _barrierUpdateScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _barrierUpdateScheduled = false;
+      if (!_disposed) changedInternalState();
+    });
+  }
 
   late final ValueNotifier<SheetAlertData?> _alerts =
       ValueNotifier<SheetAlertData?>(null);
@@ -150,10 +222,7 @@ class AppSheetRoute<T> extends ModalRoute<T> {
   bool get barrierDismissible => true;
 
   @override
-  Color? get barrierColor =>
-      effectivePresentation.value == AppSheetPresentation.open
-      ? _openBarrierColor
-      : _barrierColor;
+  Color? get barrierColor => dimsBackground ? _barrierColor : _openBarrierColor;
 
   @override
   String? get barrierLabel => 'Dismiss';
@@ -191,7 +260,7 @@ class AppSheetRoute<T> extends ModalRoute<T> {
   @override
   void dispose() {
     _disposed = true;
-    effectivePresentation.dispose();
+    _presentationController?.removeListener(_refreshPlacement);
     _alerts.dispose();
     _alertAction.dispose();
     super.dispose();
@@ -220,38 +289,44 @@ class _AppSheetPageState<T> extends State<_AppSheetPage<T>> {
 
   static const _openAlignment = Alignment.topRight;
 
-  static const _openWidthDivisor = 2.0;
-
-  static const _noTopPadding = 0.0;
+  static const _noInset = 0.0;
 
   @override
   Widget build(BuildContext context) {
-    final presentation = widget.route.resolveLive(context);
-    widget.route.updateEffective(presentation);
+    final resolved = widget.route.resolvePresentation(context);
+    final presentation = resolved.presentation;
+    final docked = resolved.isDocked;
     final media = MediaQuery.of(context);
-    final open = presentation == AppSheetPresentation.open;
     final desktop = presentation == AppSheetPresentation.desktop;
-    final alignment = open
+    final alignment = docked
         ? _openAlignment
         : desktop
         ? _centerAlignment
         : _bottomAlignment;
     final sheet = Padding(
-      padding: EdgeInsets.only(
-        top: open ? media.padding.top : _noTopPadding,
-        bottom: media.viewInsets.bottom,
-      ),
+      padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
       child: Builder(builder: widget.route.builder),
     );
+    final bounds = resolved.bounds;
+    final placementPadding = bounds == null
+        ? EdgeInsets.only(
+            bottom: widget.route.showShellNavigation && !desktop
+                ? phoneBarNavigationHeight(context)
+                : _noInset,
+          )
+        : EdgeInsets.fromLTRB(
+            bounds.left,
+            bounds.top,
+            media.size.width - bounds.right,
+            media.size.height - bounds.bottom,
+          );
     final positionedSheet = Padding(
-      padding: widget.route.showShellNavigation && !open && !desktop
-          ? EdgeInsets.only(bottom: phoneBarNavigationHeight(context))
-          : EdgeInsets.zero,
+      padding: placementPadding,
       child: Align(
         alignment: alignment,
         child: SizedBox(
-          width: open ? media.size.width / _openWidthDivisor : null,
-          height: open ? media.size.height - media.padding.bottom : null,
+          width: bounds?.width,
+          height: bounds?.height,
           child: sheet,
         ),
       ),
@@ -264,18 +339,15 @@ class _AppSheetPageState<T> extends State<_AppSheetPage<T>> {
       alertTop: alertTop,
     );
 
+    final navigation = widget.route.showShellNavigation && !desktop
+        ? const _ShellNavigationOverlay()
+        : null;
     return AppSheetAlertSlot(
       presentation: presentation,
+      isDocked: docked,
       alerts: widget.route._alerts,
       alertAction: widget.route._alertAction,
-      child: Stack(
-        children: [
-          positionedSheet,
-          overlay,
-          if (widget.route.showShellNavigation && !desktop)
-            const _ShellNavigationOverlay(),
-        ],
-      ),
+      child: Stack(children: [positionedSheet, overlay, ?navigation]),
     );
   }
 }

@@ -6,6 +6,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spendwise/boot/money_navigation_provider.dart';
 import 'package:spendwise/boot/providers.dart';
 import 'package:spendwise/ledger/ledger.dart';
+import 'package:spendwise/ledger/analysis_cache.dart';
+import 'package:spendwise/ui/budgets/budget_list/budget_selection.dart';
+import 'package:spendwise/ui/budgets/budget_list/budgets_flow.dart';
 import 'package:spendwise/ui/accounts/account_form/account_form.dart';
 import 'package:spendwise/ui/accounts/account_form/account_form_view_model.dart';
 import 'package:spendwise/ui/accounts/accounts_flow.dart';
@@ -90,6 +93,14 @@ Future<void> _pumpAccountsShell(
 }
 
 void main() {
+  for (final mode in [ShellLayoutMode.open, ShellLayoutMode.desktop]) {
+    testWidgets(
+      '${mode.name} isolation retains Money, Budgets and Accounts Flows',
+      (tester) => _verifyMoneyFlowRetention(tester, mode),
+      timeout: uiTestTimeout,
+    );
+  }
+
   final checking = Account(
     id: 'a0000000-0000-0000-0000-000000000001',
     name: 'Main Checking',
@@ -417,4 +428,90 @@ void main() {
       isFalse,
     );
   }, timeout: uiTestTimeout);
+}
+
+const _retainedBudgetId = 'b0000000-0000-0000-0000-000000000001';
+const _retentionSheetTimeout = Duration(seconds: 5);
+
+Ledger _retentionLedger() {
+  final budget = Budget(
+    id: _retainedBudgetId,
+    categoryID: null,
+    limitEvents: [
+      LimitEvent(
+        effectiveFromMonth: null,
+        value: Decimal.fromInt(100),
+        kind: LimitEventKind.defaultLimit,
+      ),
+    ],
+    createdAtMonth: const YearMonth(2026, 1),
+  );
+  return Ledger(state: LedgerState(budgets: {budget.id: budget}));
+}
+
+List<State<StatefulWidget>> _moneyFlowStates(WidgetTester tester) => [
+  tester.state(find.byType(MoneyFlow, skipOffstage: false)),
+  tester.state(find.byType(BudgetsFlow, skipOffstage: false)),
+  tester.state(find.byType(AccountsFlow, skipOffstage: false)),
+];
+
+void _expectSameFlowStates(
+  WidgetTester tester,
+  List<State<StatefulWidget>> states,
+) {
+  final current = _moneyFlowStates(tester);
+  for (var index = 0; index < states.length; index++) {
+    expect(current[index], same(states[index]));
+  }
+}
+
+Future<void> _verifyMoneyFlowRetention(
+  WidgetTester tester,
+  ShellLayoutMode mode,
+) async {
+  tester.view.physicalSize = const Size(1200, 800);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+  final observer = MoneyNavigatorObserver();
+  final container = ProviderContainer(
+    overrides: [
+      ledgerProvider.overrideWithValue(_retentionLedger()),
+      analysisComputeRunnerProvider.overrideWithValue(syncComputeRunner),
+      shellLayoutModeProvider.overrideWithValue(mode),
+      moneyNavigatorObserverProvider.overrideWithValue(observer),
+    ],
+  );
+  addTearDown(container.dispose);
+  container.read(selectedDestinationProvider.notifier).state =
+      ShellDestination.money;
+  await _pumpAccountsShell(tester, container, observer);
+  final states = _moneyFlowStates(tester);
+  container.read(moneySegmentProvider.notifier).state = MoneySegment.budgets;
+  container.read(selectedBudgetProvider.notifier).select(_retainedBudgetId);
+  await tester.pumpAndSettle();
+  final context = tester.element(find.byType(AppShell));
+  final presentation = mode == ShellLayoutMode.desktop
+      ? AppSheetPresentation.desktop
+      : AppSheetPresentation.open;
+  final route = AppSheetRoute<void>(
+    presentation: presentation,
+    builder: (_) => const AppSheet(header: Text('Form'), body: Text('Draft')),
+  );
+  Navigator.of(context, rootNavigator: true).push(route);
+  await tester.pumpAndSettle();
+  expect(route.isDocked, isTrue);
+  _expectSameFlowStates(tester, states);
+  container.read(moneySegmentProvider.notifier).state = MoneySegment.accounts;
+  await tester.pumpAndSettle();
+  expect(route.isDocked, mode == ShellLayoutMode.open);
+  expect(container.read(selectedBudgetProvider), _retainedBudgetId);
+  _expectSameFlowStates(tester, states);
+  container.read(moneySegmentProvider.notifier).state = MoneySegment.budgets;
+  await tester.pumpAndSettle();
+  expect(route.isDocked, isTrue);
+  _expectSameFlowStates(tester, states);
+  route.navigator!.pop();
+  await tester.pumpAndSettle();
+  await route.completed.timeout(_retentionSheetTimeout);
+  _expectSameFlowStates(tester, states);
 }

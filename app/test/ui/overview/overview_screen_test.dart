@@ -153,6 +153,7 @@ class _OpenApp extends StatelessWidget {
       mode: ShellLayoutMode.open,
       splitOffset: pageWidth / 2,
       addPresented: addPresented,
+      sheetCovered: addPresented,
       child: child,
     );
     return UncontrolledProviderScope(

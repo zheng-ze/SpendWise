@@ -13,6 +13,7 @@ import 'package:spendwise/ui/shell/app_shell.dart';
 import 'package:spendwise/ui/shell/shell_binding.dart';
 import 'package:spendwise/ui/shell/shell_confirmation.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
+import 'package:spendwise/ui/shell/shell_pane_host.dart';
 
 import '../../support/ui_test_timeout.dart';
 
@@ -79,6 +80,8 @@ Future<ProviderContainer> _pumpBoundShell(
   await tester.pumpAndSettle();
   return container;
 }
+
+Widget _confirmationDetail(BuildContext context) => const Text('detail probe');
 
 Future<bool?> _openTestDialog(BuildContext context) {
   return showShellConfirmation<bool>(
@@ -147,7 +150,20 @@ void main() {
   testWidgets('Add route confirmation retains its draft through resize', (
     tester,
   ) async {
-    final container = await _pumpBoundShell(tester, size: _openSize);
+    final bodies = _probeBodies();
+    bodies[ShellDestination.overview] = (_) => ShellPaneHost(
+      detail: const ShellDetail(
+        id: 'confirmation-detail',
+        title: 'Detail',
+        bodyBuilder: _confirmationDetail,
+      ),
+      pageBuilder: (_, _) => const _ProbeFlow(label: 'overview probe'),
+    );
+    final container = await _pumpBoundShell(
+      tester,
+      size: _openSize,
+      bodies: bodies,
+    );
     final pageContext = tester.element(find.text('overview probe'));
     Future<bool?>? confirmation;
     var draft = '';

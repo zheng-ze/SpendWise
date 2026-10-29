@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:spendwise/ui/common/base/flow_base.dart';
 import 'package:spendwise/ui/shell/shell_providers.dart';
+import 'package:spendwise/ui/shell/shell_presentation_controller.dart';
 import 'package:spendwise/ui/theme/spendwise_text.dart';
 
 const shellDetailPaneKey = ValueKey('shell-detail-pane');
@@ -32,12 +33,14 @@ class ShellPaneScope extends InheritedWidget {
     required this.mode,
     required this.splitOffset,
     required this.addPresented,
+    this.sheetCovered = false,
     required super.child,
   });
 
   final ShellLayoutMode mode;
   final double splitOffset;
   final bool addPresented;
+  final bool sheetCovered;
 
   static ShellPaneScope of(BuildContext context) {
     final scope = context.dependOnInheritedWidgetOfExactType<ShellPaneScope>();
@@ -52,7 +55,8 @@ class ShellPaneScope extends InheritedWidget {
   bool updateShouldNotify(ShellPaneScope oldWidget) =>
       mode != oldWidget.mode ||
       splitOffset != oldWidget.splitOffset ||
-      addPresented != oldWidget.addPresented;
+      addPresented != oldWidget.addPresented ||
+      sheetCovered != oldWidget.sheetCovered;
 }
 
 class ShellDetail {
@@ -93,6 +97,12 @@ class ShellPaneHost extends StatelessWidget {
   Widget build(BuildContext context) {
     final scope = ShellPaneScope.of(context);
     final pageActive = DestinationActivity.of(context);
+    final controller = ShellPresentationScope.maybeOf(context);
+    if (pageActive) {
+      controller?.publishDetailExposure(
+        scope.mode != ShellLayoutMode.phone && detail != null,
+      );
+    }
     final routeCurrent = ModalRoute.isCurrentOf(context) ?? true;
     final showFloatingAction =
         floatingAction != null &&
@@ -104,13 +114,12 @@ class ShellPaneHost extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final open = scope.mode == ShellLayoutMode.open;
-        final hasDetailPane = open && detail != null && !scope.addPresented;
+        final wide = scope.mode != ShellLayoutMode.phone;
+        final hasDetailPane = wide && detail != null;
+        final shifted = hasDetailPane && scope.sheetCovered;
+        final splitPage = hasDetailPane || (open && scope.sheetCovered);
         final splitOffset = scope.splitOffset.clamp(0.0, constraints.maxWidth);
-        final pageWidth = !open
-            ? constraints.maxWidth
-            : scope.addPresented || detail != null
-            ? splitOffset
-            : constraints.maxWidth;
+        final pageWidth = splitPage ? splitOffset : constraints.maxWidth;
         final detailWidth = math.max(
           _minimumDetailPaneWidth,
           constraints.maxWidth - splitOffset,
@@ -131,38 +140,42 @@ class ShellPaneHost extends StatelessWidget {
           child: SizedBox(
             width: pageWidth,
             height: constraints.maxHeight,
-            child: pageForPresentation,
+            child: _InactivePaneIsolation(
+              active: !shifted,
+              child: pageForPresentation,
+            ),
           ),
         );
-        final detailSlot = detail == null
+        final detailBody = detail == null
+            ? null
+            : _DetailPane(key: ValueKey(detail!.id), detail: detail!);
+        final isolatedDetail = detailBody == null
+            ? null
+            : _InactivePaneIsolation(active: hasDetailPane, child: detailBody);
+        final detailSlot = isolatedDetail == null
             ? null
             : Align(
                 key: _detailSlotKey,
-                alignment: Alignment.topRight,
+                alignment: shifted ? Alignment.topLeft : Alignment.topRight,
                 child: SizedBox(
-                  width: detailWidth,
+                  width: shifted ? splitOffset : detailWidth,
                   height: constraints.maxHeight,
-                  child: _InactivePaneIsolation(
-                    active: hasDetailPane,
-                    child: _DetailPane(
-                      key: ValueKey(detail!.id),
-                      detail: detail!,
-                    ),
-                  ),
+                  child: isolatedDetail,
                 ),
               );
-        final divider = !hasDetailPane
+        final dividerLine = SizedBox(
+          width: _detailDividerWidth,
+          height: constraints.maxHeight,
+          child: ColoredBox(color: context.colors.edge),
+        );
+        final divider = !hasDetailPane || shifted
             ? null
             : Align(
                 key: shellDetailDividerKey,
                 alignment: Alignment.topLeft,
                 child: Padding(
                   padding: EdgeInsets.only(left: splitOffset),
-                  child: SizedBox(
-                    width: _detailDividerWidth,
-                    height: constraints.maxHeight,
-                    child: ColoredBox(color: context.colors.edge),
-                  ),
+                  child: dividerLine,
                 ),
               );
         final action = !showFloatingAction
@@ -190,13 +203,13 @@ class _InactivePaneIsolation extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => Offstage(
-    offstage: !active,
-    child: TickerMode(
-      enabled: active,
-      child: ExcludeFocus(excluding: !active, child: child),
-    ),
-  );
+  Widget build(BuildContext context) {
+    final pointer = IgnorePointer(ignoring: !active, child: child);
+    final semantics = ExcludeSemantics(excluding: !active, child: pointer);
+    final focus = ExcludeFocus(excluding: !active, child: semantics);
+    final ticker = TickerMode(enabled: active, child: focus);
+    return Offstage(offstage: !active, child: ticker);
+  }
 }
 
 class _DetailPane extends StatefulWidget {
